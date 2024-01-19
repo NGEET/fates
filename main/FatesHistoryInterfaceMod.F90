@@ -60,8 +60,18 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : hlm_use_fixed_biogeog
   use FatesRadiationMemMod          , only : ivis,inir
   use FatesInterfaceTypesMod        , only : hlm_hist_level_hifrq,hlm_hist_level_dynam
-
-  
+  use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
+  use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
+  use FatesIOVariableKindMod, only : site_coage_r8, site_coage_pft_r8
+  use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
+  use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
+  use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
+  use FatesIOVariableKindMod, only : site_height_r8, site_agefuel_r8
+  use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
+  use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
+  use FatesIOVariableKindMod, only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
+  use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8, site_lupft_r8
+  use FatesConstantsMod   , only : n_landuse_cats
   use FatesAllometryMod             , only : CrownDepth
   use FatesAllometryMod             , only : bstore_allom
   use FatesAllometryMod             , only : set_root_fraction
@@ -92,7 +102,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : dens_fresh_liquid_water
   use FatesConstantsMod        , only : grav_earth
   use FatesLitterMod           , only : litter_type
-  use FatesConstantsMod        , only : secondaryforest
+  use FatesConstantsMod        , only : secondaryland
 
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
@@ -338,13 +348,13 @@ module FatesHistoryInterfaceMod
   integer :: ih_growth_resp_secondary_si
 
   integer :: ih_primaryland_fusion_error_si
-  integer :: ih_disturbance_rate_p2p_si
-  integer :: ih_disturbance_rate_p2s_si
-  integer :: ih_disturbance_rate_s2s_si
+
+  integer :: ih_area_si_landuse
+  integer :: ih_disturbance_rate_si_lulu
+  
   integer :: ih_fire_disturbance_rate_si
   integer :: ih_logging_disturbance_rate_si
   integer :: ih_fall_disturbance_rate_si
-  integer :: ih_potential_disturbance_rate_si
   integer :: ih_harvest_carbonflux_si
   integer :: ih_harvest_debt_si
   integer :: ih_harvest_debt_sec_si
@@ -636,7 +646,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_c_stomata_si_age
   integer :: ih_c_lblayer_si_age
   integer :: ih_agesince_anthrodist_si_age
-  integer :: ih_secondaryforest_area_si_age
+  integer :: ih_secondarylands_area_si_age
   integer :: ih_area_burnt_si_age
   ! integer :: ih_fire_rate_of_spread_front_si_age
   integer :: ih_fire_intensity_si_age
@@ -790,7 +800,8 @@ module FatesHistoryInterfaceMod
      integer, private :: levelcwd_index_, levelage_index_
      integer, private :: levcacls_index_, levcapf_index_
      integer, private :: levclscpf_index_
-
+     integer, private :: levlanduse_index_, levlulu_index_, levlupft_index_
+     
    contains
 
      procedure :: Init
@@ -835,6 +846,9 @@ module FatesHistoryInterfaceMod
      procedure :: levelage_index
      procedure :: levagefuel_index
      procedure :: levclscpf_index
+     procedure :: levlanduse_index
+     procedure :: levlulu_index
+     procedure :: levlupft_index
      
      ! private work functions
      procedure, private :: define_history_vars
@@ -863,7 +877,9 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levheight_index
      procedure, private :: set_levagefuel_index
      procedure, private :: set_levclscpf_index
-     
+     procedure, private :: set_levlanduse_index
+     procedure, private :: set_levlulu_index
+     procedure, private :: set_levlupft_index
      procedure, private :: set_levelem_index
      procedure, private :: set_levelpft_index
      procedure, private :: set_levelcwd_index
@@ -901,7 +917,8 @@ contains
     use FatesIODimensionsMod, only : levelem, levelpft
     use FatesIODimensionsMod, only : levelcwd, levelage, levclscpf
     use FatesIODimensionsMod, only : levcdpf, levcdsc, levcdam
-
+    use FatesIODimensionsMod, only : levlanduse, levlulu, levlupft
+    
     implicit none
 
     class(fates_history_interface_type), intent(inout) :: this
@@ -1039,6 +1056,21 @@ contains
     call this%set_levclscpf_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levclscpf, num_threads, &
          fates_bounds%clscpf_begin, fates_bounds%clscpf_end)
+
+    dim_count = dim_count + 1
+    call this%set_levlanduse_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levlanduse, num_threads, &
+         fates_bounds%landuse_begin, fates_bounds%landuse_end)
+
+    dim_count = dim_count + 1
+    call this%set_levlulu_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levlulu, num_threads, &
+         fates_bounds%lulu_begin, fates_bounds%lulu_end)
+
+    dim_count = dim_count + 1
+    call this%set_levlupft_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levlupft, num_threads, &
+         fates_bounds%lupft_begin, fates_bounds%lupft_end)
     
   end subroutine Init
 
@@ -1160,21 +1192,25 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%clscpf_begin, thread_bounds%clscpf_end)
 
+    index = this%levlanduse_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%landuse_begin, thread_bounds%landuse_end)
+    
+    index = this%levlulu_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%lulu_begin, thread_bounds%lulu_end)
+    
+    index = this%levlupft_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%lupft_begin, thread_bounds%lupft_end)
+
+    
   end subroutine SetThreadBoundsEach
 
   ! ===================================================================================
   subroutine assemble_history_output_types(this)
 
-    use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
-    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
-    use FatesIOVariableKindMod, only : site_coage_r8, site_coage_pft_r8
-    use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
-    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
-    use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
-    use FatesIOVariableKindMod, only : site_height_r8, site_agefuel_r8
-    use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
-    use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
-    use FatesIOVariableKindMod, only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
+   
     
    implicit none
 
@@ -1258,6 +1294,15 @@ contains
 
     call this%set_dim_indices(site_clscpf_r8, 1, this%column_index())
     call this%set_dim_indices(site_clscpf_r8, 2, this%levclscpf_index())
+
+    call this%set_dim_indices(site_landuse_r8, 1, this%column_index())
+    call this%set_dim_indices(site_landuse_r8, 2, this%levlanduse_index())
+
+    call this%set_dim_indices(site_lulu_r8, 1, this%column_index())
+    call this%set_dim_indices(site_lulu_r8, 2, this%levlulu_index())
+
+    call this%set_dim_indices(site_lupft_r8, 1, this%column_index())
+    call this%set_dim_indices(site_lupft_r8, 2, this%levlupft_index())
     
   end subroutine assemble_history_output_types
 
@@ -1672,6 +1717,51 @@ end function levcapf_index
 
    ! ======================================================================================
 
+   subroutine set_levlanduse_index(this, index)
+     implicit none
+     class(fates_history_interface_type), intent(inout) :: this
+     integer, intent(in) :: index
+     this%levlanduse_index_ = index
+   end subroutine set_levlanduse_index
+
+   integer function levlanduse_index(this)
+     implicit none
+     class(fates_history_interface_type), intent(in) :: this
+     levlanduse_index = this%levlanduse_index_
+   end function levlanduse_index
+
+   ! ======================================================================================
+
+   subroutine set_levlulu_index(this, index)
+     implicit none
+     class(fates_history_interface_type), intent(inout) :: this
+     integer, intent(in) :: index
+     this%levlulu_index_ = index
+   end subroutine set_levlulu_index
+
+   integer function levlulu_index(this)
+     implicit none
+     class(fates_history_interface_type), intent(in) :: this
+     levlulu_index = this%levlulu_index_
+   end function levlulu_index
+
+   ! ======================================================================================
+
+   subroutine set_levlupft_index(this, index)
+     implicit none
+     class(fates_history_interface_type), intent(inout) :: this
+     integer, intent(in) :: index
+     this%levlupft_index_ = index
+   end subroutine set_levlupft_index
+
+   integer function levlupft_index(this)
+     implicit none
+     class(fates_history_interface_type), intent(in) :: this
+     levlupft_index = this%levlupft_index_
+   end function levlupft_index
+
+   ! =====================================================================================
+   
    subroutine zero_site_hvars(this, currentSite, upfreq_in)
 
      ! This routine zero's a history diagnostic variable
@@ -1931,6 +2021,18 @@ end subroutine flush_hvars
     index = index + 1
     call this%dim_kinds(index)%Init(site_clscpf_r8, 2)
 
+    ! site x land use class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_landuse_r8, 2)
+
+    ! site x land use x land use class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_lulu_r8, 2)
+
+    ! site x land use x pft
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_lupft_r8, 2)
+    
     ! FIXME(bja, 2016-10) assert(index == fates_history_num_dim_kinds)
   end subroutine init_dim_kinds_maps
 
@@ -2226,6 +2328,8 @@ end subroutine flush_hvars
        
   subroutine update_history_dyn1(this,nc,nsites,sites,bc_in)
 
+   
+    
     ! Arguments
     class(fates_history_interface_type)             :: this
     integer                 , intent(in)            :: nc   ! clump index
@@ -2307,13 +2411,9 @@ end subroutine flush_hvars
          hio_canopy_biomass_si   => this%hvars(ih_canopy_biomass_si)%r81d, &
          hio_ustory_biomass_si   => this%hvars(ih_understory_biomass_si)%r81d, &
          hio_primaryland_fusion_error_si    => this%hvars(ih_primaryland_fusion_error_si)%r81d, &
-         hio_disturbance_rate_p2p_si       => this%hvars(ih_disturbance_rate_p2p_si)%r81d, &
-         hio_disturbance_rate_p2s_si       => this%hvars(ih_disturbance_rate_p2s_si)%r81d, &
-         hio_disturbance_rate_s2s_si       => this%hvars(ih_disturbance_rate_s2s_si)%r81d, &
          hio_fire_disturbance_rate_si      => this%hvars(ih_fire_disturbance_rate_si)%r81d, &
          hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
          hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
-         hio_potential_disturbance_rate_si => this%hvars(ih_potential_disturbance_rate_si)%r81d, &
          hio_harvest_carbonflux_si => this%hvars(ih_harvest_carbonflux_si)%r81d, &
          hio_harvest_debt_si     => this%hvars(ih_harvest_debt_si)%r81d, &
          hio_harvest_debt_sec_si => this%hvars(ih_harvest_debt_sec_si)%r81d, &
@@ -2431,30 +2531,23 @@ end subroutine flush_hvars
          
          ! error in primary lands from patch fusion [m2 m-2 day-1] -> [m2 m-2 yr-1]
          hio_primaryland_fusion_error_si(io_si) = sites(s)%primary_land_patchfusion_error * days_per_year
+
+         ! output site-level disturbance rates [m2 m-2 day-1] -> [m2 m-2 yr-1] - TO DO rework this
          
-         ! output site-level disturbance rates [m2 m-2 day-1] -> [m2 m-2 yr-1]
-         hio_disturbance_rate_p2p_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_primary(1:N_DIST_TYPES)) * days_per_year
-         hio_disturbance_rate_p2s_si(io_si) = sum(sites(s)%disturbance_rates_primary_to_secondary(1:N_DIST_TYPES)) * days_per_year
-         hio_disturbance_rate_s2s_si(io_si) = sum(sites(s)%disturbance_rates_secondary_to_secondary(1:N_DIST_TYPES)) * days_per_year
-         
-         hio_fire_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifire) + &
-              sites(s)%disturbance_rates_primary_to_secondary(dtype_ifire) +        &
-              sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifire)) *     &
+         hio_fire_disturbance_rate_si(io_si) = &
+              sum(sites(s)%disturbance_rates(dtype_ifire,1:n_landuse_cats,1:n_landuse_cats)) * &
+              days_per_year
+
+         hio_logging_disturbance_rate_si(io_si) = &
+              sum(sites(s)%disturbance_rates(dtype_ilog,1:n_landuse_cats,1:n_landuse_cats)) * &
+              days_per_year
+
+         hio_fall_disturbance_rate_si(io_si) = &
+              sum(sites(s)%disturbance_rates(dtype_ifall,1:n_landuse_cats,1:n_landuse_cats)) * &
               days_per_year
          
-         hio_logging_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ilog) + &
-              sites(s)%disturbance_rates_primary_to_secondary(dtype_ilog) +         &
-              sites(s)%disturbance_rates_secondary_to_secondary(dtype_ilog)) *      &
-              days_per_year
-         
-         hio_fall_disturbance_rate_si(io_si) = (sites(s)%disturbance_rates_primary_to_primary(dtype_ifall) + &
-              sites(s)%disturbance_rates_primary_to_secondary(dtype_ifall) +     &
-              sites(s)%disturbance_rates_secondary_to_secondary(dtype_ifall)) *  &
-              days_per_year
-         
-         hio_potential_disturbance_rate_si(io_si) = sum(sites(s)%potential_disturbance_rates(1:N_DIST_TYPES)) * days_per_year
-         
-         hio_harvest_carbonflux_si(io_si) = sites(s)%mass_balance(element_pos(carbon12_element))%wood_product * AREA_INV
+         hio_harvest_carbonflux_si(io_si) = &
+              sites(s)%mass_balance(element_pos(carbon12_element))%wood_product * AREA_INV
 
 
          ! carbon flux associated with mortality of trees dying by fire
@@ -2513,7 +2606,7 @@ end subroutine flush_hvars
 
             ! Increment the number of patches per site
             hio_npatches_si(io_si) = hio_npatches_si(io_si) + 1._r8
-            if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+            if ( cpatch%land_use_label .eq. secondaryland ) then
                hio_npatches_sec_si(io_si) = hio_npatches_sec_si(io_si) + 1._r8
             end if
             
@@ -2533,7 +2626,7 @@ end subroutine flush_hvars
                  (cpatch%tveg_lpa%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
             
             ! some diagnostics on secondary forest area and its age distribution
-            if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+            if ( cpatch%land_use_label .eq. secondaryland ) then
                hio_fraction_secondary_forest_si(io_si) = hio_fraction_secondary_forest_si(io_si) + &
                     cpatch%area * AREA_INV
 
@@ -2617,7 +2710,7 @@ end subroutine flush_hvars
                ! Increment the number of cohorts per site
                hio_ncohorts_si(io_si) = hio_ncohorts_si(io_si) + 1._r8
                
-               if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+               if ( cpatch%land_use_label .eq. secondaryland ) then
                   hio_ncohorts_sec_si(io_si) = hio_ncohorts_sec_si(io_si) + 1._r8
                end if
 
@@ -2671,7 +2764,7 @@ end subroutine flush_hvars
                           ( leaf_m + (sapw_m + struct_m + store_m) * prt_params%allom_agb_frac(ccohort%pft) )
 
                      ! track the total biomass on all secondary lands
-                     if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                     if ( cpatch%land_use_label .eq. secondaryland ) then
                         hio_biomass_secondary_forest_si(io_si) = hio_biomass_secondary_forest_si(io_si) + &
                              total_m * ccohort%n * AREA_INV
                      endif
@@ -2956,6 +3049,8 @@ end subroutine flush_hvars
     real(r8) :: storep_understory_scpf(numpft*nlevsclass)
     real(r8) :: storec_canopy_scpf(numpft*nlevsclass)
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
+
+    integer  :: i_dist, j_dist
     
     type(site_fluxdiags_type), pointer :: flux_diags
     type(site_fluxdiags_type), pointer :: flux_diags_c
@@ -3133,7 +3228,8 @@ end subroutine flush_hvars
                hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
                hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
                hio_agesince_anthrodist_si_age     => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
-               hio_secondaryforest_area_si_age    => this%hvars(ih_secondaryforest_area_si_age)%r82d, &
+               hio_secondarylands_area_si_age    => this%hvars(ih_secondarylands_area_si_age)%r82d, &
+               hio_area_si_landuse     => this%hvars(ih_area_si_landuse)%r82d, &
                hio_area_burnt_si_age              => this%hvars(ih_area_burnt_si_age)%r82d, &
                ! hio_fire_rate_of_spread_front_si_age  => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
                hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
@@ -3169,7 +3265,8 @@ end subroutine flush_hvars
                hio_elong_factor_si_pft              => this%hvars(ih_elong_factor_si_pft)%r82d, &
                hio_nplant_si_scag                   => this%hvars(ih_nplant_si_scag)%r82d, &
                hio_nplant_canopy_si_scag            => this%hvars(ih_nplant_canopy_si_scag)%r82d, &
-               hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d )
+               hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
+               hio_disturbance_rate_si_lulu      => this%hvars(ih_disturbance_rate_si_lulu)%r82d)
    
 
    model_day_int = nint(hlm_model_day)
@@ -3190,6 +3287,16 @@ end subroutine flush_hvars
       storec_canopy_scpf(:) = 0._r8
       storec_understory_scpf(:) = 0._r8
 
+      ! roll up disturbance rates in land-use x land-use array into a single dimension
+      do i_dist = 1, n_landuse_cats
+         do j_dist = 1, n_landuse_cats
+            hio_disturbance_rate_si_lulu(io_si, i_dist+n_landuse_cats*(j_dist-1)) = &
+                 sum(sites(s)%disturbance_rates(1:n_dist_types,i_dist, j_dist)) * &
+                 days_per_year
+         end do
+      end do
+
+      
       do el = 1, num_elements
 
          ! Total model error [kg/day -> kg/s]  (all elements)
@@ -3240,6 +3347,10 @@ end subroutine flush_hvars
          hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
             + cpatch%area * AREA_INV
 
+         hio_area_si_landuse(io_si, cpatch%land_use_label) = &
+              hio_area_si_landuse(io_si, cpatch%land_use_label) &
+              + cpatch%area * AREA_INV
+         
          ! Increment some patch-age-resolved diagnostics
          hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
             + sum(cpatch%tlai_profile(:,:,:)) * cpatch%area
@@ -3256,7 +3367,7 @@ end subroutine flush_hvars
          endif
 
          ! some diagnostics on secondary forest area and its age distribution
-         if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+         if ( cpatch%land_use_label .eq. secondaryland ) then
 
             ageclass_since_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
 
@@ -3264,9 +3375,9 @@ end subroutine flush_hvars
                hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist)  &
                + cpatch%area * AREA_INV
 
-            hio_secondaryforest_area_si_age(io_si,cpatch%age_class) = &
-               hio_secondaryforest_area_si_age(io_si,cpatch%age_class)  &
-               + cpatch%area * AREA_INV
+            hio_secondarylands_area_si_age(io_si,cpatch%age_class) = &
+                 hio_secondarylands_area_si_age(io_si,cpatch%age_class) & 
+                 + cpatch%area * AREA_INV
          endif
 
          
@@ -3404,18 +3515,15 @@ end subroutine flush_hvars
                   hio_nindivs_si_pft(io_si,ft) = hio_nindivs_si_pft(io_si,ft) + &
                      ccohort%n * AREA_INV
 
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  if ( cpatch%land_use_label .eq. secondaryland ) then
                      hio_nindivs_sec_si_pft(io_si,ft) = hio_nindivs_sec_si_pft(io_si,ft) + &
-                        ccohort%n * AREA_INV
+                          ccohort%n * AREA_INV
+                     hio_biomass_sec_si_pft(io_si, ft) = hio_biomass_sec_si_pft(io_si, ft) + &
+                        (ccohort%n * AREA_INV) * total_m
                   end if
 
                   hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
                      (ccohort%n * AREA_INV) * total_m
-
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
-                     hio_biomass_sec_si_pft(io_si, ft) = hio_biomass_sec_si_pft(io_si, ft) + &
-                        (ccohort%n * AREA_INV) * total_m
-                  end if
 
                   ! update total biomass per age bin
                   hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
@@ -3500,7 +3608,7 @@ end subroutine flush_hvars
                hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
                     ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
                
-               if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+               if ( cpatch%land_use_label .eq. secondaryland ) then
                   hio_gpp_sec_si_pft(io_si, ft) = hio_gpp_sec_si_pft(io_si, ft) + &
                        ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
                   hio_npp_sec_si_pft(io_si, ft) = hio_npp_sec_si_pft(io_si, ft) + &
@@ -3620,8 +3728,7 @@ end subroutine flush_hvars
                hio_m9_si_scls(io_si,scls) = hio_m9_si_scls(io_si,scls) + ccohort%smort*ccohort%n / m2_per_ha
 
                ! Examine secondary forest mortality and mortality rates
-               if(cpatch%anthro_disturbance_label .eq. secondaryforest) then
-
+               if(cpatch%land_use_label .eq. secondaryland) then
                   if (hlm_use_cohort_age_tracking .eq.itrue) then
                      hio_m10_sec_si_scls(io_si,scls) = hio_m10_sec_si_scls(io_si,scls) +  &
                         ccohort%asmort*ccohort%n / m2_per_ha
@@ -3914,7 +4021,7 @@ end subroutine flush_hvars
                   hio_m3_mortality_understory_si_scpf(io_si,scpf) = hio_m3_mortality_understory_si_scpf(io_si,scpf) + &
                        ccohort%cmort * ccohort%n / m2_per_ha
 
-                  if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                  if(cpatch%land_use_label .eq. secondaryland) then
                      hio_mortality_canopy_secondary_si_scls(io_si,scls) = hio_mortality_canopy_secondary_si_scls(io_si,scls) + &
                         (ccohort%bmort + ccohort%hmort + ccohort%cmort +   &
                         ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n / m2_per_ha + &
@@ -4197,7 +4304,7 @@ end subroutine flush_hvars
                sites(s)%fmort_rate_canopy(i_scls, ft) / m2_per_ha
 
             ! Shijie: Think about how to add later?
-            !if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+            !if ( cpatch%land_use_label .eq. secondaryland ) then
             !   hio_mortality_canopy_secondary_si_scls(io_si,i_scls) = hio_mortality_canopy_secondary_si_scls(io_si,i_scls) + &
             !      sites(s)%term_nindivs_canopy(i_scls,ft) * days_per_year / m2_per_ha
             !end if
@@ -4859,10 +4966,10 @@ end subroutine update_history_dyn2
                           ccohort%resp_m_unreduced * n_perm2 * dt_tstep_inv
 
                      ! Secondary forest only
-                     if ( cpatch%anthro_disturbance_label .eq. secondaryforest ) then
+                     if(cpatch%land_use_label .eq. secondaryland) then
                         hio_npp_secondary_si(io_si) = hio_npp_secondary_si(io_si) + &
                              ccohort%npp_tstep * n_perm2 * dt_tstep_inv
-
+                        
                         hio_gpp_secondary_si(io_si) = hio_gpp_secondary_si(io_si) + &
                              ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
 
@@ -6015,6 +6122,16 @@ end subroutine update_history_dyn2
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_lai_secondary_si)
 
+    call this%set_history_var(vname='FATES_PATCHAREA_LU', units='m2 m-2',      &
+         long='patch area by land use type', use_default='active',  &
+         avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,  &
+         initialize=initialize_variables, index=ih_area_si_landuse)
+
+    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_MATRIX_LULU', units='m2 m-2 yr-1',      &
+         long='disturbance rates by land use type x land use type matrix', use_default='active',  &
+         avgflag='A', vtype=site_lulu_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,  &
+         initialize=initialize_variables, index=ih_disturbance_rate_si_lulu)
+    
     ! Secondary forest area and age diagnostics
 
     call this%set_history_var(vname='FATES_SECONDARY_FOREST_FRACTION',         &
@@ -6387,27 +6504,6 @@ end subroutine update_history_dyn2
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_primaryland_fusion_error_si)
 
-    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_P2P',              &
-         units='m2 m-2 yr-1',                                                  &
-         long='disturbance rate from primary to primary lands',                &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_disturbance_rate_p2p_si)
-
-    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_P2S',              &
-         units='m2 m-2 yr-1',                                                  &
-         long='disturbance rate from primary to secondary lands',              &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_disturbance_rate_p2s_si )
-
-    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_S2S',              &
-         units='m2 m-2 yr-1',                                                  &
-         long='disturbance rate from secondary to secondary lands',            &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_disturbance_rate_s2s_si)
-
     call this%set_history_var(vname='FATES_DISTURBANCE_RATE_FIRE',             &
          units='m2 m-2 yr-1', long='disturbance rate from fire',               &
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -6425,13 +6521,6 @@ end subroutine update_history_dyn2
          use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_fall_disturbance_rate_si)
-
-    call this%set_history_var(vname='FATES_DISTURBANCE_RATE_POTENTIAL',        &
-         units='m2 m-2 yr-1',                                                  &
-         long='potential (i.e., including unresolved) disturbance rate',       &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
-         index = ih_potential_disturbance_rate_si)
 
     call this%set_history_var(vname='FATES_HARVEST_CARBON_FLUX',               &
          units='kg m-2 yr-1',                                                  &
@@ -6825,7 +6914,7 @@ end subroutine update_history_dyn2
          long='secondary forest patch area age distribution since any kind of disturbance', &
          use_default='inactive', avgflag='A', vtype=site_age_r8,               &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
-         index=ih_secondaryforest_area_si_age)
+         index=ih_secondarylands_area_si_age)
 
     call this%set_history_var(vname='FATES_FRAGMENTATION_SCALER_SL', units='', &
          long='factor (0-1) by which litter/cwd fragmentation proceeds relative to max rate by soil layer',  &
