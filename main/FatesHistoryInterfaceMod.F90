@@ -7242,7 +7242,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_MORTALITY_TERMINATION_SZPF',        &
           units = 'm-2 yr-1',                                                  &
-          long='termination mortality by pft/size in number pf plants per m2 per year', &
+          long='termination mortality (excluding C-starvation) by pft/size in number pf plants per m2 per year', &
           use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m6_si_scpf)
@@ -7664,7 +7664,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_MORTALITY_TERMINATION_SZ',          &
           units = 'm-2 yr-1',                                                  &
-          long='termination mortality by size in number of plants per m2 per year', &
+          long='termination mortality (excluding C-starvation) by size in number of plants per m2 per year', &
           use_default='active', avgflag='A', vtype=site_size_r8,               &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_m6_si_scls)
