@@ -19,6 +19,9 @@ def cchar(fchar):
 def cchar3(fchar):
     return(byref(c_char(fchar.encode('utf-8'))))
 
+def ccharnb(fchar):
+    return([c_char_p(fchar.encode('utf-8')),c_long(len(fchar))])
+
 # We do NOT pass arrays back by reference
 # This is because we will need to get their length
 # on the argument
