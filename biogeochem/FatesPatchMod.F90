@@ -466,8 +466,7 @@ module FatesPatchMod
       this%frac_burnt                        = 0.0_r8  
       this%tfc_ros                           = 0.0_r8
       this%burnt_frac_litter(:)              = 0.0_r8
-      this%solve_err(:)                 = 0._r8
-      this%consv_err(:)                 = 0._r8
+
     end subroutine ZeroValues
 
     !===========================================================================
