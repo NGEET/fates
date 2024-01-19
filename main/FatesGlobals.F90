@@ -5,6 +5,7 @@ module FatesGlobals
   ! immediately obvious home.
 
   use FatesConstantsMod         , only : r8 => fates_r8
+  use TwoStreamMLPEMod          , only : TwoStreamLogInit
    
   implicit none
   private         ! By default everything is private
@@ -62,6 +63,8 @@ contains
 
     fates_log_ = log_unit
     fates_global_verbose_ = global_verbose
+
+    call TwoStreamLogInit(log_unit)
 
   end subroutine FatesGlobalsInit
 
