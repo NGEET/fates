@@ -240,16 +240,18 @@ contains
       ! todo: eventually set up distinct harvest practices, each with a set of input paramaeters
       ! todo: implement harvested carbon inputs
       
+      ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
+      ! For carbon-based harvest, initialize harvest_tag from 2
+      harvest_tag = 2
+      cur_harvest_tag = 2
+
       if (logging_time) then 
 
          ! Pass logging rates to cohort level 
-         
          if (hlm_use_lu_harvest == ifalse) then
             ! 0=use fates logging parameters directly when logging_time == .true.
             ! this means harvest the whole cohort area
             harvest_rate = 1._r8
-            harvest_tag = 2
-            cur_harvest_tag = 2
 
          else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_area_fraction) then
             ! We are harvesting based on areal fraction, not carbon/biomass terms. 
@@ -269,10 +271,6 @@ contains
             ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
             call get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, &
                  hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
-
-            ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
-            harvest_tag = 2
-            cur_harvest_tag = 2
 
             if (fates_global_verbose()) then
                write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate
@@ -295,7 +293,7 @@ contains
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
          ! l_degrad accounts for the affected area between logged crowns
          if(prt_params%woody(pft_i) == itrue)then ! only set logging rates for trees
-            if (cur_harvest_tag == 0) then
+            if (cur_harvest_tag == 0 .or. cur_harvest_tag == 2) then
                ! direct logging rates, based on dbh min and max criteria
                if (dbh >= logging_dbhmin .and. .not. &
                   ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
@@ -579,7 +577,6 @@ contains
      harvest_rate = 0._r8
      harvest_rate_c = 0._r8
      harvest_rate_supply = 0._r8
-     harvest_tag(:) = 2
 
      ! Since we have five harvest categories from forcing data but in FATES non-forest harvest
      ! is merged with forest harvest, we only have three logging type in FATES (primary, secondary
@@ -1154,7 +1151,7 @@ contains
       ! !ARGUMENTS:
       type(ed_site_type) , intent(inout), target :: site_in
       type(bc_in_type),    intent(in)         :: bc_in
-      integer  :: harvest_tag(hlm_num_lu_harvest_cats)
+      integer, intent(in) :: harvest_tag(hlm_num_lu_harvest_cats)
 
       ! !LOCAL VARIABLES:
       integer  :: h_index
@@ -1162,6 +1159,11 @@ contains
       real(r8) :: harvest_debt_sec_mature
       real(r8) :: harvest_debt_sec_young
 
+      ! Flush the older value
+      site_in%resources_management%harvest_debt = 0._r8
+      site_in%resources_management%harvest_debt_sec_m = 0._r8
+      site_in%resources_management%harvest_debt_sec_y = 0._r8
+      
       if(logging_time) then
 
          ! Initialize the local variables
@@ -1184,19 +1186,19 @@ contains
          end do
          ! Next we get the harvest debt through the harvest tag 
          do h_index = 1, hlm_num_lu_harvest_cats
-            if (harvest_tag(h_index) .eq. 1) then
+            if (harvest_tag(h_index) .ne. 0 .and. bc_in%hlm_harvest_units == hlm_harvest_carbon) then
                if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then
                   site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
                       harvest_debt_pri
                else if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
                   site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
                       harvest_debt_sec_mature
-                  site_in%resources_management%harvest_debt_sec = site_in%resources_management%harvest_debt_sec + &
+                  site_in%resources_management%harvest_debt_sec_m = site_in%resources_management%harvest_debt_sec_m + &
                       harvest_debt_sec_mature
                else if(bc_in%hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then
                   site_in%resources_management%harvest_debt = site_in%resources_management%harvest_debt + &
                       harvest_debt_sec_young
-                  site_in%resources_management%harvest_debt_sec = site_in%resources_management%harvest_debt_sec + &
+                  site_in%resources_management%harvest_debt_sec_y = site_in%resources_management%harvest_debt_sec_y + &
                       harvest_debt_sec_young
                end if
             end if

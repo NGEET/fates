@@ -316,7 +316,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_fall_disturbance_rate_si
   integer :: ih_harvest_carbonflux_si
   integer :: ih_harvest_debt_si
-  integer :: ih_harvest_debt_sec_si
+  integer :: ih_harvest_debt_sec_m_si
+  integer :: ih_harvest_debt_sec_y_si
 
   ! Indices to site by size-class by age variables
   integer :: ih_nplant_si_scag
@@ -2394,7 +2395,8 @@ end subroutine flush_hvars
                hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
                hio_harvest_carbonflux_si => this%hvars(ih_harvest_carbonflux_si)%r81d, &
                hio_harvest_debt_si     => this%hvars(ih_harvest_debt_si)%r81d, &
-               hio_harvest_debt_sec_si => this%hvars(ih_harvest_debt_sec_si)%r81d, &
+               hio_harvest_debt_sec_m_si => this%hvars(ih_harvest_debt_sec_m_si)%r81d, &
+               hio_harvest_debt_sec_y_si => this%hvars(ih_harvest_debt_sec_y_si)%r81d, &
                hio_gpp_si_scpf         => this%hvars(ih_gpp_si_scpf)%r82d, &
                hio_npp_totl_si_scpf    => this%hvars(ih_npp_totl_si_scpf)%r82d, &
                hio_npp_leaf_si_scpf    => this%hvars(ih_npp_leaf_si_scpf)%r82d, &
@@ -2737,8 +2739,11 @@ end subroutine flush_hvars
          this%hvars(ih_h2oveg_recruit_si)%r81d(io_si)      = sites(s)%si_hydr%h2oveg_recruit
          this%hvars(ih_h2oveg_growturn_err_si)%r81d(io_si) = sites(s)%si_hydr%h2oveg_growturn_err
       end if
-      hio_harvest_debt_si(io_si) = sites(s)%resources_management%harvest_debt
-      hio_harvest_debt_sec_si(io_si) = sites(s)%resources_management%harvest_debt_sec
+
+      ! output site-level harvest debt [kgC day-1] -> [kgC yr-1]
+      hio_harvest_debt_si(io_si) = sites(s)%resources_management%harvest_debt * days_per_year
+      hio_harvest_debt_sec_m_si(io_si) = sites(s)%resources_management%harvest_debt_sec_m * days_per_year
+      hio_harvest_debt_sec_y_si(io_si) = sites(s)%resources_management%harvest_debt_sec_y * days_per_year
 
       ! error in primary lands from patch fusion [m2 m-2 day-1] -> [m2 m-2 yr-1]
       hio_primaryland_fusion_error_si(io_si) = sites(s)%primary_land_patchfusion_error * days_per_year
@@ -6504,17 +6509,20 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
          ivar=ivar, initialize=initialize_variables, index = ih_aresp_si )
 
-    call this%set_history_var(vname='FATES_HARVEST_DEBT', units='kg C',                   &
+    call this%set_history_var(vname='FATES_HARVEST_DEBT', units='kg C yr-1',                   &
          long='Accumulated carbon failed to be harvested',  use_default='active',     &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
          ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_si )
 
-    call this%set_history_var(vname='FATES_HARVEST_DEBT_SEC', units='kg C',                   &
-         long='Accumulated carbon failed to be harvested from secondary patches',  use_default='active',     &
+    call this%set_history_var(vname='FATES_HARVEST_DEBT_SEC_MATURE', units='kg C yr-1',                   &
+         long='Accumulated carbon failed to be harvested from mature secondary patches',  use_default='active',     &
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_sec_si )
-
-
+         ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_sec_m_si )
+ 
+    call this%set_history_var(vname='FATES_HARVEST_DEBT_SEC_YOUNG', units='kg C yr-1',                   &
+         long='Accumulated carbon failed to be harvested from young and non-forest secondary patches',  use_default='active',     &
+         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=1,   &  
+         ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_sec_y_si )
 
     ! Ecosystem Carbon Fluxes (updated rapidly, upfreq=2)
 

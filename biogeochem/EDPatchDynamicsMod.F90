@@ -212,6 +212,7 @@ contains
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
     real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
     real(r8) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
+
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
@@ -223,6 +224,9 @@ contains
     ! get available biomass for harvest for all patches
     call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
+    ! Initialize local variables
+    harvest_tag_csite = 2
+
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
 
@@ -262,13 +266,20 @@ contains
           currentCohort%lmort_infra      = lmort_infra
           currentCohort%l_degrad         = l_degrad
 
+          if (logging_time) then
+             do h_index = 1,hlm_num_lu_harvest_cats
+                harvest_tag_csite(h_index) = min(harvest_tag_csite(h_index), harvest_tag(h_index))
+             end do
+          end if
+
+
           currentCohort => currentCohort%taller
        end do
 
        currentPatch => currentPatch%younger
     end do
 
-    call get_harvest_debt(site_in, bc_in, harvest_tag)
+    call get_harvest_debt(site_in, bc_in, harvest_tag_csite)
 
     if ( hlm_use_luh .eq. itrue ) then
        call get_landuse_transition_rates(bc_in, landuse_transition_matrix)
