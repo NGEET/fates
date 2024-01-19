@@ -1,4 +1,4 @@
-Module FatesTwoStreamInterfaceMod
+Module FatesTwoStreamUtilsMod
 
   ! This module holds routines that are specific to connecting FATES with
   ! the two-stream radiation module. These routines are used to
@@ -13,7 +13,8 @@ Module FatesTwoStreamInterfaceMod
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
   use shr_infnan_mod        , only : nan => shr_infnan_nan, assignment(=)
-  use FatesInterfaceTypesMod, only : numpft,hlm_numSWb
+  use FatesInterfaceTypesMod, only : numpft
+  use FatesRadiationMemMod  , only : num_swb
   use FatesRadiationMemMod  , only : ivis, inir
   use FatesRadiationMemMod  , only : rho_snow,tau_snow
   use TwoStreamMLPEMod      , only : air_ft, AllocateRadParams, rad_params
@@ -22,7 +23,7 @@ Module FatesTwoStreamInterfaceMod
   use EDTypesMod            , only : ed_site_type
   use EDParamsMod           , only : nclmax
   use TwoStreamMLPEMod      , only : twostream_type
-  use TwoStreamMLPEMod      , only : ParamPrep
+  use TwoStreamMLPEMod      , only : RadParamPrep
   use TwoStreamMLPEMod      , only : AllocateRadParams
   use TwoStreamMLPEMod      , only : rel_err_thresh,area_err_thresh
   use EDPftvarcon           , only : EDPftvarcon_inst
@@ -232,54 +233,28 @@ contains
             end if
 
             ! If the layer is overfull, remove some from area from
-            ! the first element
-            ! THIS DOES HELP IMPROVE ENERGY CONSERVATION ON THE
-            ! ELEMENT VERSUS TOTAL AREA CHECK, BUT JUST PASSES
-            ! ERROR TO THE CHECK OF ENERGY CONSERVATION WITH
-            ! FATES COHORTS... THE SOLUTION IS TO HAVE
-            ! HIGHER PRECISION ON 
-            if( (1._r8-canopy_frac(ican))<-area_err_thresh ) then
+            ! the first element that is 10x larger than the threshold
 
-               !twostr%scelg(ican,1)%area = &
-               !     twostr%scelg(ican,1)%area + (1._r8-canopy_frac(ican))
-               !new_area = twostr%scelg(ican,1)%area + (1._r8-canopy_frac(ican))
-               area_ratio = (twostr%scelg(ican,1)%area + (1._r8-canopy_frac(ican)))/twostr%scelg(ican,1)%area
-
-               twostr%scelg(ican,1)%area = twostr%scelg(ican,1)%area * area_ratio
-               twostr%scelg(ican,1)%lai  = twostr%scelg(ican,1)%lai / area_ratio
-               twostr%scelg(ican,1)%sai  = twostr%scelg(ican,1)%sai / area_ratio
-
-               write(fates_log(),*) 'overfull areas'
-               twostr%cosz = coszen_pa(ifp)
-               call twostr%Dump(1,lat=site%lat,lon=site%lon)
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
+            if_overfull: if( (canopy_frac(ican)-1._r8)>area_err_thresh ) then
+               do icol = 1,n_col(ican)
+                  if(twostr%scelg(ican,icol)%area > 10._r8*(canopy_frac(ican)-1._r8))then
+                      area_ratio = (twostr%scelg(ican,icol)%area + (1._r8-canopy_frac(ican)))/twostr%scelg(ican,icol)%area
+                     twostr%scelg(ican,icol)%area = twostr%scelg(ican,icol)%area * area_ratio
+                     twostr%scelg(ican,icol)%lai  = twostr%scelg(ican,icol)%lai / area_ratio
+                     twostr%scelg(ican,icol)%sai  = twostr%scelg(ican,icol)%sai / area_ratio
+                     canopy_frac(ican) = 1.0_r8
+                     exit if_overfull
+                  end if
+               end do
+               
+               !write(fates_log(),*) 'overfull areas'
+               !twostr%cosz = coszen_pa(ifp)
+               !     call twostr%Dump(1,lat=site%lat,lon=site%lon)
+               !     call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if if_overfull
 
          end do
 
-         ! Go ahead an temporarily squeeze crown areas
-         
-         cohort => patch%tallest
-         do while (associated(cohort))
-            ican = cohort%canopy_layer
-            icol = cohort%twostr_col
-            if( (cohort%c_area/patch%total_canopy_area - twostr%scelg(ican,icol)%area) > nearzero) then
-
-               !v_ratio = twostr%scelg(ican,icol)%area / (cohort%c_area/patch%total_canopy_area)
-               !c_area_new = patch%total_canopy_area*twostr%scelg(ican,icol)%area
-
-               area_ratio = (patch%total_canopy_area*twostr%scelg(ican,icol)%area) / cohort%c_area
-
-               cohort%c_area = cohort%c_area * area_ratio
-               cohort%treelai = cohort%treelai / area_ratio
-               cohort%treesai = cohort%treesai / area_ratio
-               
-            end if
-            
-            cohort => cohort%shorter
-         enddo
-
-         
          twostr%n_col(1:patch%ncl_p) = n_col(1:patch%ncl_p)
 
          ! Set up some non-element parameters
@@ -535,10 +510,10 @@ contains
 
     integer :: ft,ib  ! loop indices
 
-    call AllocateRadParams(numpft,hlm_numSWb)
+    call AllocateRadParams(numpft,num_swb)
 
     do ft = 1,numpft
-       do ib = 1,hlm_numSWb
+       do ib = 1,num_swb
 
           rad_params%rhol(ib,ft) = EDPftvarcon_inst%rhol(ft,ib)
           rad_params%rhos(ib,ft) = EDPftvarcon_inst%rhos(ft,ib)
@@ -550,10 +525,10 @@ contains
        rad_params%clumping_index(ft) = EDPftvarcon_inst%clumping_index(ft)
     end do
 
-    call ParamPrep()
+    call RadParamPrep()
 
     return
   end subroutine TransferRadParams
 
 
-end Module FatesTwoStreamInterfaceMod
+end Module FatesTwoStreamUtilsMod

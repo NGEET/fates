@@ -3,7 +3,8 @@ module FatesPatchMod
   use FatesConstantsMod,   only : r8 => fates_r8
   use FatesConstantsMod,   only : fates_unset_r8
   use FatesConstantsMod,   only : fates_unset_int
-  use FatesConstantsMod,   only : primaryforest, secondaryforest
+  use FatesConstantsMod,   only : primaryland, secondaryland
+  use FatesConstantsMod,   only : n_landuse_cats
   use FatesConstantsMod,   only : TRS_regeneration
   use FatesGlobals,        only : fates_log
   use FatesGlobals,        only : endrun => fates_endrun
@@ -24,6 +25,7 @@ module FatesPatchMod
   use TwoStreamMLPEMod,    only : twostream_type
   use FatesRadiationMemMod,only : num_swb
   use FatesRadiationMemMod,only : num_rad_stream_types
+  use FatesInterfaceTypesMod,only : hlm_hio_ignore_val
   use shr_infnan_mod,      only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,         only : errMsg => shr_log_errMsg
 
@@ -60,7 +62,7 @@ module FatesPatchMod
     real(r8) :: area                         ! patch area [m2]
     integer  :: countcohorts                 ! number of cohorts in patch
     integer  :: ncl_p                        ! number of occupied canopy layers
-    integer  :: anthro_disturbance_label     ! patch label for anthropogenic disturbance classification
+    integer  :: land_use_label               ! patch label for land use classification (primaryland, secondaryland, etc)
     real(r8) :: age_since_anthro_disturbance ! average age for secondary forest since last anthropogenic disturbance [years]
 
     !---------------------------------------------------------------------------
@@ -111,7 +113,6 @@ module FatesPatchMod
     real(r8) :: c_stomata                                   ! mean stomatal conductance of all leaves in the patch   [umol/m2/s]
     real(r8) :: c_lblayer                                   ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
     
-    !TODO - can we delete these?
     real(r8) :: psn_z(nclmax,maxpft,nlevleaf)
     real(r8) :: nrmlzd_parprof_pft_dir_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)
     real(r8) :: nrmlzd_parprof_pft_dif_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)
@@ -119,14 +120,12 @@ module FatesPatchMod
     !---------------------------------------------------------------------------
 
     ! RADIATION
-    real(r8) :: radiation_error                           ! radiation error [W/m2] 
+    real(r8) :: rad_error(num_swb)                        ! radiation consv error by band [W/m2]
     real(r8) :: fcansno                                   ! fraction of canopy covered in snow [0-1]
     logical  :: solar_zenith_flag                         ! integer flag specifying daylight (based on zenith angle)
     real(r8) :: solar_zenith_angle                        ! solar zenith angle [radians]
     real(r8) :: gnd_alb_dif(num_swb)                      ! ground albedo for diffuse rad, both bands [0-1]
     real(r8) :: gnd_alb_dir(num_swb)                      ! ground albedo for direct rad, both bands [0-1]
-    real(r8) :: solve_err(num_swb)                        ! Error from linear system solver, fraction of unit forcing
-    real(r8) :: consv_err(num_swb)                        ! Error from albedo conservation check, fraction of unit forcing
     
     
     ! organized by canopy layer, pft, and leaf layer
@@ -137,7 +136,10 @@ module FatesPatchMod
     real(r8) :: ed_parsun_z(nclmax,maxpft,nlevleaf)       ! PAR absorbed in the sun [W/m2]   
     real(r8) :: ed_parsha_z(nclmax,maxpft,nlevleaf)       ! PAR absorbed in the shade [W/m2]
     real(r8) :: f_sun(nclmax,maxpft,nlevleaf)             ! fraction of leaves in the sun [0-1]
+    real(r8) :: ed_laisun_z(nclmax,maxpft,nlevleaf)
+    real(r8) :: ed_laisha_z(nclmax,maxpft,nlevleaf)
 
+    
     ! radiation profiles for comparison against observations
     real(r8) :: parprof_pft_dir_z(nclmax,maxpft,nlevleaf) ! direct-beam PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
     real(r8) :: parprof_pft_dif_z(nclmax,maxpft,nlevleaf) ! diffuse     PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
@@ -152,7 +154,7 @@ module FatesPatchMod
     real(r8), allocatable :: sabs_dif(:)                  ! fraction of incoming diffuse radiation that is absorbed by the canopy
 
     ! Twostream data structures
-    type(twostream_type) :: twostr                        ! This holds all two-stream data for the patch
+    type(twostream_type) :: twostr                        ! This holds all two-stream data and procedures
    
     
     !---------------------------------------------------------------------------
@@ -170,10 +172,12 @@ module FatesPatchMod
     !---------------------------------------------------------------------------
     
    ! DISTURBANCE 
-    real(r8) :: disturbance_rates(n_dist_types) ! disturbance rate [0-1/day] from 1) mortality 
-                                                !                                 2) fire 
-                                                !                                 3) logging mortatliy
-    real(r8) :: fract_ldist_not_harvested       ! fraction of logged area that is canopy trees that weren't harvested [0-1]
+    real(r8) :: disturbance_rates(n_dist_types)           ! disturbance rate [0-1/day] from 1) mortality
+                                                          !                                 2) fire
+                                                          !                                 3) logging mortatliy
+                                                          !                                 4) land use change
+    real(r8) :: landuse_transition_rates(n_landuse_cats)  ! land use tranision rate
+    real(r8) :: fract_ldist_not_harvested                 ! fraction of logged area that is canopy trees that weren't harvested [0-1]
 
     !---------------------------------------------------------------------------
 
@@ -297,7 +301,7 @@ module FatesPatchMod
       this%area                         = nan    
       this%countcohorts                 = fates_unset_int 
       this%ncl_p                        = fates_unset_int
-      this%anthro_disturbance_label     = fates_unset_int
+      this%land_use_label               = fates_unset_int
       this%age_since_anthro_disturbance = nan
       
       ! LEAF ORGANIZATION
@@ -322,7 +326,7 @@ module FatesPatchMod
       this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = nan
 
       ! RADIATION
-      this%radiation_error              = nan 
+      this%rad_error(:)                 = nan
       this%fcansno                      = nan 
       this%solar_zenith_flag            = .false. 
       this%solar_zenith_angle           = nan 
@@ -331,7 +335,9 @@ module FatesPatchMod
       this%fabd_sun_z(:,:,:)            = nan 
       this%fabd_sha_z(:,:,:)            = nan 
       this%fabi_sun_z(:,:,:)            = nan 
-      this%fabi_sha_z(:,:,:)            = nan  
+      this%fabi_sha_z(:,:,:)            = nan
+      this%ed_laisun_z(:,:,:)           = nan 
+      this%ed_laisha_z(:,:,:)           = nan 
       this%ed_parsun_z(:,:,:)           = nan 
       this%ed_parsha_z(:,:,:)           = nan 
       this%f_sun(:,:,:)                 = nan
@@ -356,7 +362,10 @@ module FatesPatchMod
   
       ! DISTURBANCE 
       this%disturbance_rates(:)         = nan
-      this%fract_ldist_not_harvested    = nan 
+      this%fract_ldist_not_harvested    = nan
+
+      ! LAND USE
+      this%landuse_transition_rates(:)  = nan
 
       ! LITTER AND COARSE WOODY DEBRIS
       this%fragmentation_scaler(:)      = nan 
@@ -381,9 +390,7 @@ module FatesPatchMod
       this%frac_burnt                   = nan
       this%tfc_ros                      = nan    
       this%burnt_frac_litter(:)         = nan
-      this%solve_err(:)                 = nan
-      this%consv_err(:)                 = nan
-      
+
     end subroutine NanValues
 
     !===========================================================================
@@ -410,13 +417,15 @@ module FatesPatchMod
       this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0.0_r8
 
       ! RADIATION
-      this%radiation_error                   = 0.0_r8
+      this%rad_error(:)                      = 0.0_r8
       this%fabd_sun_z(:,:,:)                 = 0.0_r8 
       this%fabd_sha_z(:,:,:)                 = 0.0_r8 
       this%fabi_sun_z(:,:,:)                 = 0.0_r8 
       this%fabi_sha_z(:,:,:)                 = 0.0_r8  
       this%ed_parsun_z(:,:,:)                = 0.0_r8 
-      this%ed_parsha_z(:,:,:)                = 0.0_r8 
+      this%ed_parsha_z(:,:,:)                = 0.0_r8
+      this%ed_laisun_z(:,:,:)           = 0._r8
+      this%ed_laisha_z(:,:,:)           = 0._r8
       this%f_sun                             = 0.0_r8
       this%tr_soil_dir_dif(:)                = 0.0_r8
       this%fab(:)                            = 0.0_r8
@@ -431,6 +440,9 @@ module FatesPatchMod
       ! DISTURBANCE 
       this%disturbance_rates(:)              = 0.0_r8 
       this%fract_ldist_not_harvested         = 0.0_r8
+
+      ! LAND USE
+      this%landuse_transition_rates(:)       = 0.0_r8
 
       ! LITTER AND COARSE WOODY DEBRIS
       this%fragmentation_scaler(:)           = 0.0_r8
@@ -586,8 +598,8 @@ module FatesPatchMod
       this%area      = area 
 
       ! assign anthropgenic disturbance category and label
-      this%anthro_disturbance_label = label
-      if (label .eq. secondaryforest) then
+      this%land_use_label = label
+      if (label .eq. secondaryland) then
         this%age_since_anthro_disturbance = age
       else
         this%age_since_anthro_disturbance = fates_unset_r8
@@ -734,7 +746,7 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%c_stomata          = ',this%c_stomata
       write(fates_log(),*) 'pa%c_lblayer          = ',this%c_lblayer
       write(fates_log(),*) 'pa%disturbance_rates  = ',this%disturbance_rates(:)
-      write(fates_log(),*) 'pa%anthro_disturbance_label = ',this%anthro_disturbance_label
+      write(fates_log(),*) 'pa%land_use_label     = ',this%land_use_label
       write(fates_log(),*) '----------------------------------------'
 
       do el = 1, num_elements

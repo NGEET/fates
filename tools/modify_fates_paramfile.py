@@ -17,8 +17,6 @@
 # =======================================================================================
 
 import os
-#from scipy.io import netcdf as nc
-import scipy
 import argparse
 import shutil
 import tempfile
@@ -27,6 +25,16 @@ import datetime
 import time
 import numpy as np
 import code  # For development: code.interact(local=dict(globals(), **locals()))
+
+# Newer versions of scipy have dropped the netcdf module and
+# netcdf functions are part of the io parent module
+try:
+    from scipy import io as nc
+
+except ImportError:
+    from scipy.io import netcdf as nc
+
+    
 
 # ========================================================================================
 # ========================================================================================
@@ -86,7 +94,7 @@ def main():
     try:
         shutil.copyfile(args.inputfname, tempfilename)
         #
-        ncfile = scipy.io.netcdf_file(tempfilename, 'a')
+        ncfile = nc.netcdf_file(tempfilename, 'a')
         #
         var = ncfile.variables[args.varname]
 
@@ -142,7 +150,7 @@ def main():
                                            'fates_history_damage_bins',
                                            'fates_NCWD','fates_litterclass','fates_leafage_class', \
                                            'fates_plant_organs','fates_hydr_organs','fates_hlm_pftno', \
-                                           'fates_leafage_class']:
+                                           'fates_leafage_class','fates_landuse_class']:
                     otherdimpresent = True
                     otherdimname = var.dimensions[i]
                     otherdimlength = var.shape[i]
@@ -175,8 +183,8 @@ def main():
                     ### close the file that's open and start over.
                     ncfile.close()
                     os.remove(tempfilename)
-                    ncfile = scipy.io.netcdf_file(tempfilename, 'w')
-                    ncfile_old = scipy.io.netcdf_file(args.inputfname, 'r')
+                    ncfile = nc.netcdf_file(tempfilename, 'w')
+                    ncfile_old = nc.netcdf_file(args.inputfname, 'r')
                     #
                     try:
                         ncfile.history = ncfile_old.history

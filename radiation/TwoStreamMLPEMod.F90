@@ -27,7 +27,8 @@ Module TwoStreamMLPEMod
   use shr_log_mod   , only: errMsg => shr_log_errMsg
   use shr_sys_mod   , only: shr_sys_abort
   use FatesConstantsMod, only : r8 => fates_r8
- 
+  use shr_infnan_mod, only : shr_infnan_isnan
+  
   implicit none
   private
 
@@ -222,7 +223,7 @@ Module TwoStreamMLPEMod
 
   end type twostream_type
 
-  public :: ParamPrep
+  public :: RadParamPrep
   public :: AllocateRadParams
   public :: TwoStreamLogInit
   
@@ -369,7 +370,9 @@ contains
            scelb%B1*scelb%lambda2_diff*exp(-scelb%a*vai))
 
       if(debug)then
-         if(isnan(r_diff_dn))then
+         ! if(isnan(r_diff_dn))then  !RGK: NVHPC HAS A BUG IN THIS INTRINSIC (01-2024)
+         ! if(r_diff_dn /= r_diff_dn) then
+         if(shr_infnan_isnan(r_diff_dn)) then
             write(log_unit,*)"GETRDN"
             write(log_unit,*)scelg%Kb
             write(log_unit,*)scelb%a
@@ -638,7 +641,7 @@ contains
 
   ! ================================================================================================
 
-  subroutine ParamPrep()
+  subroutine RadParamPrep()
 
     integer  :: ft
     integer  :: nbands
@@ -686,7 +689,7 @@ contains
           rad_params%om_stem(ib,ft) = rad_params%rhos(ib,ft) + rad_params%taus(ib,ft)
 
           if( rad_params%om_leaf(ib,ft) > 0.99_r8 ) then
-             write(log_unit,*) "In: TwoStreamMLPEMod.F90:ParamPrep()"
+             write(log_unit,*) "In: TwoStreamMLPEMod.F90:RadParamPrep()"
              write(log_unit,*) "An extremely high leaf scattering coefficient was generated:"
              write(log_unit,*) "om = tau + rho"
              write(log_unit,*) "band = ",ib
@@ -697,7 +700,7 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
            if( rad_params%om_stem(ib,ft) > 0.99_r8 ) then
-             write(log_unit,*) "In: TwoStreamMLPEMod.F90:ParamPrep()"
+             write(log_unit,*) "In: TwoStreamMLPEMod.F90:RadParamPrep()"
              write(log_unit,*) "An extremely high stem scattering coefficient was generated:"
              write(log_unit,*) "om = tau + rho"
              write(log_unit,*) "band = ",ib
@@ -713,7 +716,7 @@ contains
     end do
 
     return
-  end subroutine ParamPrep
+  end subroutine RadParamPrep
 
   ! ================================================================================================
 
@@ -827,7 +830,9 @@ contains
                     scelb%betad = betad_om / scelb%om
 
                     if(debug)then
-                       if(isnan(scelb%betad))then
+                       !if(isnan(scelb%betad))then !RGK: NVHPC HAS A BUG IN THIS INTRINSIC (01-2024)
+                       !if(scelb%betad /= scelb%betad) then
+                       if(shr_infnan_isnan(scelb%betad))then
                           write(log_unit,*)"nans in canopy prep"
                           write(log_unit,*) ib,ican,icol,ft
                           write(log_unit,*) scelb%betad,scelb%om,lai,sai
@@ -877,7 +882,7 @@ contains
 
   ! ================================================================================================
 
-  subroutine ZenithPrep(this,cosz)
+  subroutine ZenithPrep(this,cosz_in)
 
     ! Pre-process things that change with the zenith angle
     ! i.e. the beam optical properties
@@ -889,8 +894,9 @@ contains
 
     class(twostream_type) :: this
     integer               :: ib      ! band index, matches indexing of rad_params
-    real(r8)              :: cosz    ! Cosine of the zenith angle
+    real(r8),intent(in)   :: cosz_in ! Un-protected cosine of the zenith angle
 
+    real(r8) :: cosz ! the near-zero protected cosz
     integer :: ican  ! scattering element canopy layer index (top down)
     integer :: icol  ! scattering element column
     real(r8) :: asu  ! single scattering albedo
@@ -908,12 +914,12 @@ contains
                                                ! the Kb_leaf that creates
                                                ! a singularity and the actual
     
-    if( (cosz-1.0) > nearzero ) then
+    if( (cosz_in-1.0) > nearzero ) then
        write(log_unit,*)"The cosine of the zenith angle cannot exceed 1"
        write(log_unit,*)"cosz: ",cosz
        write(log_unit,*)"TwoStreamMLPEMod.F90:ZenithPrep"
        call endrun(msg=errMsg(sourcefile, __LINE__))
-    elseif(cosz<0._r8)then
+    elseif(cosz_in<0._r8)then
        write(log_unit,*)"The cosine of the zenith angle should not be less than zero"
        write(log_unit,*)"It can be exactly zero, but not less than"
        write(log_unit,*)"cosz: ",cosz
@@ -921,7 +927,7 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
        
-    cosz = max(0.001,cosz)
+    cosz = max(0.001,cosz_in)
 
     this%cosz = cosz
     
@@ -1060,7 +1066,6 @@ contains
        ipiv,      &
        albedo_beam, & 
        albedo_diff, &
-       solve_err,   &
        consv_err,   &
        frac_abs_can_beam, &
        frac_abs_can_diff, &
@@ -1104,10 +1109,6 @@ contains
     real(r8) :: albedo_diff    ! Mean albedo at canopy top generated from downwelling diffuse [-]
 
     real(r8) :: temp_err  ! Used to build the other error terms, a temp
-    real(r8) :: solve_err ! This is the maximum error encountered when comparing the forward solution
-                          ! of the linear solution A*x, to the known b, in Ax=b. This is the maximum
-                          ! considering all equations, and both beam and diffuse boundaries. Units
-                          ! are a fraction relative to the boundary flux.
     real(r8) :: consv_err ! radiation canopy balance conservation
                           ! error, fraction of incident
      
@@ -1210,8 +1211,6 @@ contains
     ! upper canopy.
     ! --------------------------------------------------------------------------
 
-    solve_err = 0._r8
-    
     if((Rbeam_atm+Rdiff_atm)<nearzero)then
        write(log_unit,*)"No radiation"
        write(log_unit,*)"Two stream should not had been called"
@@ -1522,7 +1521,6 @@ contains
        ! Perform a forward check on the solution error
        do ilem = 1,n_eq
           temp_err = tau_temp(ilem) - sum(taulamb(1:n_eq)*omega_temp(ilem,1:n_eq))
-          solve_err = max(solve_err,abs(temp_err))
           if(abs(temp_err)>rel_err_thresh)then
              write(log_unit,*) 'Poor forward solution on two-stream solver'
              write(log_unit,*) 'isol (1=beam or 2=diff): ',isol

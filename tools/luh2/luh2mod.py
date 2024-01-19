@@ -30,7 +30,7 @@ def PrepDataset(input_dataset,start=None,stop=None,merge_flag=False):
     # 'years since' style format.
     if(not(dstype in ('static','regrid'))):
 
-        if (dstype == 'LUH2'):
+        if ('LUH2' in dstype):
             # Get the units to determine the file time
             # It is expected that the units of time is 'years since ...'
             time_since_array = input_dataset.time.units.split()
@@ -66,6 +66,9 @@ def PrepDataset(input_dataset,start=None,stop=None,merge_flag=False):
             # the start/stop is out of range
             input_dataset = input_dataset.sel(time=slice(years_since_start,years_since_stop))
 
+            # Save the timesince as a variable for future use
+            input_dataset["timesince"] = time_since
+
         # Correct the necessary variables for both datasets
         # We don't need to Prep the incoming dataset if it's being opened to merge
         if(not merge_flag):
@@ -77,7 +80,7 @@ def PrepDataset(input_dataset,start=None,stop=None,merge_flag=False):
 def PrepDataset_ESMF(input_dataset,dsflag,dstype):
 
     if (dsflag):
-        if(dstype == "LUH2"):
+        if("LUH2" in dstype):
             print("PrepDataset: LUH2")
             input_dataset = BoundsVariableFixLUH2(input_dataset)
         elif(dstype == "surface"):
@@ -138,16 +141,19 @@ def CheckDataset(input_dataset):
 
     dsflag = False
     dsvars = list(input_dataset.variables)
-    if('primf' in dsvars or
-       'primf_to_secdn' in dsvars or
+    if(any('primf' in subname for subname in dsvars) or
        any('irrig' in subname for subname in dsvars)):
-        dstype = 'LUH2'
+        if ('primf_to_secdn' in dsvars):
+            dstype = 'LUH2_transitions'
+        else:
+            dstype = 'LUH2'
+
         dsflag = True
-        print("LUH2")
+        # print("LUH2")
     elif('natpft' in dsvars):
         dstype = 'surface'
         dsflag = True
-        print("Surface")
+        # print("Surface")
     elif('icwtr' in dsvars):
         dstype = 'static'
         dsflag = True
@@ -199,7 +205,7 @@ def RegridLoop(ds_to_regrid, regridder):
     for i in range(varlen-1):
 
         # Skip time variable
-        if (ds_varnames[i] != "time"):
+        if (not "time" in ds_varnames[i]):
 
             # Only regrid variables that match the lat/lon shape.
             if (ds_to_regrid[ds_varnames[i]][0].shape == (ds_to_regrid.lat.shape[0], ds_to_regrid.lon.shape[0])):
