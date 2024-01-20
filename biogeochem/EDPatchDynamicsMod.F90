@@ -210,6 +210,7 @@ contains
     real(r8) :: mean_temp
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
+    integer  :: harvest_tag_csite(hlm_num_lu_harvest_cats)  ! harvest tag of current site
     real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
     real(r8) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
 
