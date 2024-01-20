@@ -134,7 +134,9 @@ module EDTypesMod
     
      real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
      real(r8) ::  harvest_debt                             ! the amount of kgC per site that did not successfully harvested 
-     real(r8) ::  harvest_debt_sec                         ! the amount of kgC per site from secondary patches that did
+     real(r8) ::  harvest_debt_sec_y                       ! the amount of kgC per site from young secondary patches that did
+                                                           ! not successfully harvested
+     real(r8) ::  harvest_debt_sec_m                       ! the amount of kgC per site from mature secondary patches that did
                                                            ! not successfully harvested
 
      !debug variables
