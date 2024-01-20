@@ -812,6 +812,7 @@ module FatesHistoryInterfaceMod
      procedure :: update_history_dyn
      procedure :: update_history_dyn1
      procedure :: update_history_dyn2
+     procedure :: update_history_hifrq
      procedure :: update_history_hifrq1
      procedure :: update_history_hifrq2
      procedure :: update_history_hydraulics
@@ -2225,10 +2226,9 @@ end subroutine flush_hvars
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
     ! after Ecosystem Dynamics have been processed.
+    ! This is the general routine that will call the single or multi-dimensional
+    ! routines if they are called for by the user
     ! ---------------------------------------------------------------------------------
-
-
-
     
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -4769,8 +4769,28 @@ end associate
 return
 end subroutine update_history_dyn2
 
-  ! ===============================================================================================
+    ! ===============================================================================================
+
+subroutine update_history_hifrq(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+
+  ! ---------------------------------------------------------------------------------
+  ! This is the call to update the history IO arrays that are expected to only change
+  ! at the model time-step frequency.
+  ! This is the general routine that will call the single or multi-dimensional
+  ! routines if they are called for by the user
+  ! ---------------------------------------------------------------------------------
+
+  if(hlm_hist_level_hifrq>0) then
+     call update_history_hifrq1(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+     if(hlm_hist_level_hifrq>1) then
+        call update_history_hifrq2(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+     end if
+  end if
+
   
+  return
+end subroutine update_history_hifrq
+
   subroutine update_history_hifrq1(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
 
     !
