@@ -155,36 +155,34 @@ contains
 
        bmort = EDPftvarcon_inst%bmort(cohort_in%pft)
 
-       ! Proxy for hydraulic failure induced mortality. 
-       ! This is only applied on plants that have leaves. Deciduous plants in the 
-       ! "leaves off" season cannot die of hydraulic failure.
-       decid_check: if (is_decid_dormant) then
-          hmort = 0.0_r8
-       else
-          hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
-          hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
-          if(hlm_use_planthydro.eq.itrue)then
-             !note the flc is set as the fraction of max conductivity in hydro
-             min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
-             min_fmc_tr = cohort_in%co_hydr%ftc_troot
-             min_fmc_ar = minval(cohort_in%co_hydr%ftc_aroot(:))
-             min_fmc = min(min_fmc_ag, min_fmc_tr)
-             min_fmc = min(min_fmc, min_fmc_ar)
-             flc = 1.0_r8-min_fmc
-             if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then 
-                hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * &
-                     EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
-             else
-                hmort = 0.0_r8
-             endif
+       ! Proxy for hydraulic failure induced mortality.
+       hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
+       hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
+
+       if (hlm_use_planthydro == itrue) then
+          !note the flc is set as the fraction of max conductivity in hydro
+          min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
+          min_fmc_tr = cohort_in%co_hydr%ftc_troot
+          min_fmc_ar = minval(cohort_in%co_hydr%ftc_aroot(:))
+          min_fmc = min(min_fmc_ag, min_fmc_tr)
+          min_fmc = min(min_fmc, min_fmc_ar)
+          flc = 1.0_r8-min_fmc
+          if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then 
+             hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * &
+                  EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
           else
-             if(btran_ft(cohort_in%pft) <= hf_sm_threshold)then 
-                hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
-             else
-                hmort = 0.0_r8
-             endif
+             hmort = 0.0_r8
           endif
-       end if decid_check
+
+       else
+          ! When FATES-Hydro is off, hydraulic failure mortality occurs only when btran
+          ! falls below a threshold and plants have leaves.
+          if (is_decid_dormant .or. (btran_ft(cohort_in%pft) > hf_sm_threshold) ) then
+             hmort = 0.0_r8
+          else
+             hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+          end if
+       end if
 
        ! Carbon Starvation induced mortality.
        if ( cohort_in%dbh  >  0._r8 ) then
