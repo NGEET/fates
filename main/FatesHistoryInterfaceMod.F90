@@ -318,7 +318,10 @@ module FatesHistoryInterfaceMod
   !  Size-class x PFT LAI states
   integer :: ih_lai_canopy_si_scpf
   integer :: ih_lai_understory_si_scpf
-
+  !  Size-class x PFT LAI states
+  integer :: ih_crownarea_canopy_si_scpf
+  integer :: ih_crownarea_understory_si_scpf
+  
   integer :: ih_totvegc_scpf
   integer :: ih_leafc_scpf
   integer :: ih_fnrtc_scpf
@@ -3140,6 +3143,8 @@ contains
          hio_bleaf_understory_si_scpf  => this%hvars(ih_bleaf_understory_si_scpf)%r82d, &
          hio_lai_canopy_si_scpf        => this%hvars(ih_lai_canopy_si_scpf)%r82d, &
          hio_lai_understory_si_scpf    => this%hvars(ih_lai_understory_si_scpf)%r82d, &
+         hio_crownarea_canopy_si_scpf     => this%hvars(ih_crownarea_canopy_si_scpf)%r82d, &
+         hio_crownarea_understory_si_scpf => this%hvars(ih_crownarea_understory_si_scpf)%r82d, &
          hio_mortality_canopy_si_scpf         => this%hvars(ih_mortality_canopy_si_scpf)%r82d, &
          hio_mortality_canopy_secondary_si_scls      => this%hvars(ih_mortality_canopy_secondary_si_scls)%r82d, &
          hio_mortality_understory_si_scpf     => this%hvars(ih_mortality_understory_si_scpf)%r82d, &
@@ -3919,7 +3924,9 @@ contains
                                 leaf_m * ccohort%n / m2_per_ha
                            hio_lai_canopy_si_scpf(io_si,scpf) = hio_lai_canopy_si_scpf(io_si,scpf) + &
                                 ccohort%treelai*ccohort%c_area * AREA_INV
-
+                           
+                           hio_crownarea_canopy_si_scpf(io_si,scpf) = hio_crownarea_canopy_si_scpf(io_si,scpf) + &
+                                ccohort%c_area * AREA_INV
                            !hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
                            !    (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
                            !     ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n
@@ -3942,7 +3949,7 @@ contains
                            hio_trimming_canopy_si_scls(io_si,scls) = hio_trimming_canopy_si_scls(io_si,scls) + &
                                 ccohort%n * ccohort%canopy_trim / m2_per_ha
                            hio_crown_area_canopy_si_scls(io_si,scls) = hio_crown_area_canopy_si_scls(io_si,scls) + &
-                                ccohort%c_area / m2_per_ha
+                                ccohort%c_area * AREA_INV
                            hio_gpp_canopy_si_scpf(io_si,scpf) = hio_gpp_canopy_si_scpf(io_si,scpf) +  &
                                 n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
                            hio_ar_canopy_si_scpf(io_si,scpf) = hio_ar_canopy_si_scpf(io_si,scpf) + &
@@ -4044,7 +4051,9 @@ contains
 
                            hio_lai_understory_si_scpf(io_si,scpf) = hio_lai_understory_si_scpf(io_si,scpf) + &
                                 ccohort%treelai*ccohort%c_area  * AREA_INV
-
+                           hio_crownarea_understory_si_scpf(io_si,scpf) = hio_crownarea_understory_si_scpf(io_si,scpf) + &
+                                ccohort%c_area * AREA_INV
+                           
                            !hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
                            !    (ccohort%bmort + ccohort%hmort + ccohort%cmort +
                            !      ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n
@@ -4075,7 +4084,7 @@ contains
                            hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
                                 ccohort%n * ccohort%canopy_trim / m2_per_ha
                            hio_crown_area_understory_si_scls(io_si,scls) = hio_crown_area_understory_si_scls(io_si,scls) + &
-                                ccohort%c_area / m2_per_ha
+                                ccohort%c_area * AREA_INV
                            hio_gpp_understory_si_scpf(io_si,scpf)      = hio_gpp_understory_si_scpf(io_si,scpf)      + &
                                 n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
                            hio_ar_understory_si_scpf(io_si,scpf)      = hio_ar_understory_si_scpf(io_si,scpf)      + &
@@ -7675,6 +7684,20 @@ contains
                ivar=ivar, initialize=initialize_variables,                          &
                index = ih_lai_canopy_si_scpf )          
 
+          call this%set_history_var(vname='FATES_CROWNAREA_CANOPY_SZPF',             &
+               units = 'm2 m-2',                                                    &
+               long='Total crown area of canopy plants by pft/size',                &
+               use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+               hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
+               initialize=initialize_variables, index = ih_crownarea_canopy_si_scpf )
+
+          call this%set_history_var(vname='FATES_CROWNAREA_USTORY_SZPF',             &
+               units = 'm2 m-2',                                                    &
+               long='Total crown area of understory plants by pft/size',            &
+               use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+               hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
+               initialize=initialize_variables, index = ih_crownarea_understory_si_scpf )
+          
           call this%set_history_var(vname='FATES_NPLANT_CANOPY_SZPF', units = 'm-2', &
                long='number of canopy plants by size/pft per m2',                   &
                use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &

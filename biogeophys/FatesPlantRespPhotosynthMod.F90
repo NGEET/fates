@@ -1928,12 +1928,17 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     !==============================================================================!
     !----------------- Solve quadratic equation for its two roots -----------------!
     !==============================================================================!
-    ! Solution from Press et al (1986) Numerical Recipes: The Art of Scientific
-    ! Computing (Cambridge University Press, Cambridge), pp. 145.
+    ! This solution is mostly derived from:
+    ! Press WH, Teukolsky SA, Vetterling WT, Flannery BP. 1992. Numerical Recipes
+    !    in Fortran77: The Art of Scientific Computing. 2nd edn. Cambridge 
+    !    University Press, Cambridge UK, ISBN 0-521-43064-X.
+    !    Available at: http://numerical.recipes/oldverswitcher.html, section 5.6.
     !
     ! !REVISION HISTORY:
     ! 4/5/10: Adapted from /home/bonan/ecm/psn/An_gs_iterative.f90 by Keith Oleson
     ! 7/23/16: Copied over from CLM by Ryan Knox
+    ! 12/30/23: Instead of issuing errors when a=0, solve the trivial cases too.
+    !           Check determinant sign, and stop the run when it is negative.
     !
     ! !USES:
     !
@@ -1942,27 +1947,69 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     real(r8), intent(out) :: r1,r2       ! Roots of quadratic equation
     !
     ! !LOCAL VARIABLES:
+    real(r8) :: discriminant             ! Discriminant
     real(r8) :: q                        ! Temporary term for quadratic solution
+    logical  :: a_offzero                ! Is a close to zero?
+    logical  :: b_offzero                ! Is b close to zero?
+    logical  :: c_offzero                ! Is c close to zero?
+    ! ! Local constants:
+    real(r8), parameter :: discard = 1.e36_r8 ! Large number for discarding answer
     !------------------------------------------------------------------------------
 
-    if (a == 0._r8) then
-       write (fates_log(),*) 'Quadratic solution error: a = ',a
+    ! Save logical tests.
+    a_offzero = abs(a) > nearzero
+    b_offzero = abs(b) > nearzero
+    c_offzero = abs(c) > nearzero
+
+    if (a_offzero .and. ( b_offzero .or. c_offzero ) ) then
+       ! Quadratic equation with two non-zero solutions (but may be complex solutions)
+       discriminant = b*b - 4._r8 * a * c
+
+       ! Proceed only when the discriminant is non-negative or only tiny negative
+       if (discriminant >= - nearzero) then
+          ! Coerce discriminant to non-negative
+          discriminant = max(0._r8,discriminant)
+
+          ! Find q as in the numerical recipes. If b or c are non-zero, q cannot
+          ! be zero, no need for additional checks.
+          q  = - 0.5_r8 * (b + sign(sqrt(discriminant),b))
+          r1 = q / a
+          r2 = c / q
+       else
+          ! Negative discriminant, stop the run.
+          write (fates_log(),'(a)') '---~---'
+          write (fates_log(),'(a)') ' Fatal error!'
+          write (fates_log(),'(a)') ' Quadratic equation discriminant is negative.'
+          write (fates_log(),'(a)') '---~---'
+          write (fates_log(),'(a,1x,es12.5)') ' a            = ',a
+          write (fates_log(),'(a,1x,es12.5)') ' b            = ',b
+          write (fates_log(),'(a,1x,es12.5)') ' c            = ',c
+          write (fates_log(),'(a,1x,es12.5)') ' discriminant = ',discriminant
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    else if (a_offzero) then
+       ! b and c are nearly zero. Both roots must be zero.
+       r1 = 0._r8
+       r2 = 0._r8
+    else if (b_offzero) then
+       ! "a" is not zero, not a true quadratic equation. Single root.
+       r1 = - c / b
+       r2 = discard
+    else
+       ! Both a and b are zero, this really doesn't make any sense and should never
+       ! happen. If it does, issue an error and stop the run.
+       write (fates_log(),'(a)') '---~---'
+       write (fates_log(),'(a)') ' Fatal error!'
+       write (fates_log(),'(a)') ' This solver expects ''a'' and/or ''b'' to be non-zero.'
+       write (fates_log(),'(a)') '---~---'
+       write (fates_log(),'(a,1x,es12.5)') ' a = ',a
+       write (fates_log(),'(a,1x,es12.5)') ' b = ',b
+       write (fates_log(),'(a,1x,es12.5)') ' c = ',c
+       write (fates_log(),'(a)') '---~---'
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-    if (b >= 0._r8) then
-       q = -0.5_r8 * (b + sqrt(b*b - 4._r8*a*c))
-    else
-       q = -0.5_r8 * (b - sqrt(b*b - 4._r8*a*c))
-    end if
-
-    r1 = q / a
-    if (q /= 0._r8) then
-       r2 = c / q
-    else
-       r2 = 1.e36_r8
-    end if
-
+    return
   end subroutine quadratic_f
 
   ! ====================================================================================
