@@ -55,7 +55,7 @@ module FatesHistoryVariableType
      integer,  pointer     :: int3d(:,:,:)
    contains
      procedure          :: Init
-     procedure          :: Flush
+     procedure          :: HFlush
      procedure, private :: GetBounds
   end type fates_history_variable_type
 
@@ -283,7 +283,7 @@ contains
      
    end subroutine GetBounds
 
-   subroutine Flush(this, thread, dim_bounds, dim_kinds)
+   subroutine HFlush(this, thread, dim_bounds, dim_kinds)
 
     implicit none
 
@@ -357,6 +357,6 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
     
- end subroutine Flush
+  end subroutine HFlush
 
 end module FatesHistoryVariableType
