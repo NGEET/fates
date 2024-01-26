@@ -572,6 +572,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_nindivs_si_pft
   integer :: ih_nindivs_sec_si_pft
   integer :: ih_recruitment_si_pft
+  integer :: ih_recruitment_cflux_si_pft
   integer :: ih_mortality_si_pft
   integer :: ih_mortality_carbonflux_si_pft
   integer :: ih_hydraulicmortality_carbonflux_si_pft
@@ -2343,6 +2344,7 @@ end subroutine flush_hvars
                hio_nindivs_si_pft      => this%hvars(ih_nindivs_si_pft)%r82d, &
                hio_nindivs_sec_si_pft  => this%hvars(ih_nindivs_sec_si_pft)%r82d, &
                hio_recruitment_si_pft  => this%hvars(ih_recruitment_si_pft)%r82d, &
+               hio_recruitment_cflux_si_pft  => this%hvars(ih_recruitment_cflux_si_pft)%r82d, &
                hio_seeds_out_gc_si_pft => this%hvars(ih_seeds_out_gc_si_pft)%r82d, &
                hio_seeds_in_gc_si_pft  => this%hvars(ih_seeds_in_gc_si_pft)%r82d, &
                hio_mortality_si_pft    => this%hvars(ih_mortality_si_pft)%r82d, &
@@ -3028,6 +3030,11 @@ end subroutine flush_hvars
                   if ( cpatch%land_use_label .eq. secondaryland ) then
                      hio_biomass_sec_si_pft(io_si, ft) = hio_biomass_sec_si_pft(io_si, ft) + &
                         (ccohort%n * AREA_INV) * total_m
+                  end if
+
+                  if(ccohort%isnew) then
+                     hio_recruitment_cflux_si_pft(io_si, ft) = hio_recruitment_cflux_si_pft(io_si, ft) + &
+                          (ccohort%n * AREA_INV) * total_m * days_per_year
                   end if
 
                   ! update total biomass per age bin
@@ -5538,6 +5545,12 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index=ih_biomass_sec_si_pft)
 
+    call this%set_history_var(vname='FATES_RECRUITMENT_CFLUX_PF', units='kg m-2 yr-1',  &
+         long='total PFT-level biomass of new recruits in kg of carbon per land area',         &
+         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index=ih_recruitment_cflux_si_pft)
+    
     call this%set_history_var(vname='FATES_LEAFC_PF', units='kg m-2',          &
          long='total PFT-level leaf biomass in kg carbon per m2 land area',    &
          use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
