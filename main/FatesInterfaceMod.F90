@@ -16,13 +16,10 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
    use EDParamsMod               , only : maxpatch_total
-   use EDParamsMod               , only : maxpatch_primary
-   use EDParamsMod               , only : maxpatch_secondary
+   use EDParamsMod               , only : maxpatches_by_landuse
    use EDParamsMod               , only : max_cohort_per_patch
+   use FatesRadiationMemMod      , only : num_swb,ivis,inir
    use EDParamsMod               , only : regeneration_model
-   use EDParamsMod               , only : maxSWb
-   use EDParamsMod               , only : ivis
-   use EDParamsMod               , only : inir
    use EDParamsMod               , only : nclmax
    use EDParamsMod               , only : nlevleaf
    use EDParamsMod               , only : maxpft
@@ -41,6 +38,9 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : days_per_year
    use FatesConstantsMod         , only : TRS_regeneration
    use FatesConstantsMod         , only : g_per_kg
+   use FatesConstantsMod         , only : n_landuse_cats
+   use FatesConstantsMod         , only : primaryland
+   use FatesConstantsMod         , only : secondaryland
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -64,9 +64,14 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
-   use CLMFatesParamInterfaceMod , only : FatesReadParameters
-   use EDParamsMod                , only : p_uptake_mode
-   use EDParamsMod                , only : n_uptake_mode
+   use FatesParametersInterface  , only : fates_param_reader_type
+   use FatesParametersInterface  , only : fates_parameters_type
+   use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
+   use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
+   use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
+   use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
+   use EDParamsMod               , only : p_uptake_mode
+   use EDParamsMod               , only : n_uptake_mode
    use EDTypesMod                , only : ed_site_type
    use FatesConstantsMod         , only : prescribed_p_uptake
    use FatesConstantsMod         , only : prescribed_n_uptake
@@ -103,6 +108,7 @@ module FatesInterfaceMod
    use FatesHistoryInterfaceMod  , only : fates_hist
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
+   use FatesTwoStreamUtilsMod, only : TransferRadParams
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -171,6 +177,8 @@ module FatesInterfaceMod
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
+
+   private :: FatesReadParameters
    public :: DetermineGridCellNeighbors
 
    logical :: debug = .false.  ! for debugging this module
@@ -397,12 +405,18 @@ contains
     fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
 
+    if (hlm_use_luh .eq. itrue) then
+       fates%bc_in(s)%hlm_luh_states(:) = 0.0_r8
+       fates%bc_in(s)%hlm_luh_transitions(:) = 0.0_r8
+    end if
+
     return
   end subroutine zero_bcs
 
   ! ===========================================================================
 
-   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats,natpft_lb,natpft_ub)
+  subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats, num_luh2_states, &
+       num_luh2_transitions, natpft_lb,natpft_ub)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -413,6 +427,8 @@ contains
       integer,intent(in)              :: nlevsoil_in
       integer,intent(in)              :: nlevdecomp_in
       integer,intent(in)              :: num_lu_harvest_cats
+      integer,intent(in)              :: num_luh2_states
+      integer,intent(in)              :: num_luh2_transitions
       integer,intent(in)              :: natpft_lb,natpft_ub ! dimension bounds of the array holding surface file pft data
       
       ! Allocate input boundaries
@@ -483,8 +499,8 @@ contains
       allocate(bc_in%precip24_pa(maxpatch_total))
       
       ! Radiation
-      allocate(bc_in%solad_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_in%solai_parb(maxpatch_total,hlm_numSWb))
+      allocate(bc_in%solad_parb(maxpatch_total,num_swb))
+      allocate(bc_in%solai_parb(maxpatch_total,num_swb))
       
       ! Hydrology
       allocate(bc_in%smp_sl(nlevsoil_in))
@@ -516,8 +532,8 @@ contains
       allocate(bc_in%filter_vegzen_pa(maxpatch_total))
       allocate(bc_in%coszen_pa(maxpatch_total))
       allocate(bc_in%fcansno_pa(maxpatch_total))
-      allocate(bc_in%albgr_dir_rb(hlm_numSWb))
-      allocate(bc_in%albgr_dif_rb(hlm_numSWb))
+      allocate(bc_in%albgr_dir_rb(num_swb))
+      allocate(bc_in%albgr_dif_rb(num_swb))
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
@@ -547,6 +563,14 @@ contains
       end if
 
       allocate(bc_in%pft_areafrac(natpft_lb:natpft_ub))
+
+      ! LUH2 state and transition data
+      if (hlm_use_luh .eq. itrue) then
+        allocate(bc_in%hlm_luh_states(num_luh2_states))
+        allocate(bc_in%hlm_luh_state_names(num_luh2_states))
+        allocate(bc_in%hlm_luh_transitions(num_luh2_transitions))
+        allocate(bc_in%hlm_luh_transition_names(num_luh2_transitions))
+      end if
 
       ! Variables for SP mode. 
       if(hlm_use_sp.eq.itrue) then
@@ -586,13 +610,13 @@ contains
       allocate(bc_out%rssha_pa(maxpatch_total))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%albi_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%fabd_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%fabi_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%ftdd_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%ftid_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%ftii_parb(maxpatch_total,hlm_numSWb))
+      allocate(bc_out%albd_parb(maxpatch_total,num_swb))
+      allocate(bc_out%albi_parb(maxpatch_total,num_swb))
+      allocate(bc_out%fabd_parb(maxpatch_total,num_swb))
+      allocate(bc_out%fabi_parb(maxpatch_total,num_swb))
+      allocate(bc_out%ftdd_parb(maxpatch_total,num_swb))
+      allocate(bc_out%ftid_parb(maxpatch_total,num_swb))
+      allocate(bc_out%ftii_parb(maxpatch_total,num_swb))
 
 
       ! We allocate the boundary conditions to the BGC
@@ -727,7 +751,7 @@ contains
 
     ! ===================================================================================
     
-    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft)
+    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft,param_reader)
 
        ! --------------------------------------------------------------------------------
        !
@@ -741,13 +765,14 @@ contains
       logical,                    intent(in) :: use_fates    ! Is fates turned on?
       integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
       integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
+      class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
   
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
       
       if (use_fates) then
          
          ! Self explanatory, read the fates parameter file
-         call FatesReadParameters()
+         call FatesReadParameters(param_reader)
 
          fates_numpft = size(prt_params%wood_density,dim=1)
          
@@ -757,8 +782,8 @@ contains
             ! to hold all PFTs.  So create the same number of
             ! patches as the number of PFTs
 
-            maxpatch_primary   = fates_numpft
-            maxpatch_secondary = 0
+            maxpatches_by_landuse(primaryland)   = fates_numpft
+            maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
             maxpatch_total     = fates_numpft
             
             ! If this is an SP run, we actually need enough patches on the
@@ -773,13 +798,14 @@ contains
          else
 
             ! If we are using fixed biogeography or no-comp then we
-            ! can also apply those constraints to maxpatch_primary and secondary
+            ! can also apply those constraints to maxpatch_primaryland and secondary
             ! and that value will match fates_maxPatchesPerSite
             
             if(hlm_use_nocomp==itrue) then
 
-               maxpatch_primary = max(maxpatch_primary,fates_numpft)
-               maxpatch_total = maxpatch_primary + maxpatch_secondary
+               maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
+               maxpatch_total = sum(maxpatches_by_landuse(:))
+
                !if(maxpatch_primary<fates_numpft)then
                !   write(fates_log(),*) 'warning: lower number of patches than pfts'
                !   write(fates_log(),*) 'this may become a problem in nocomp mode'
@@ -845,9 +871,9 @@ contains
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
          if(hlm_use_sp.eq.itrue) then
-            fates_maxElementsPerPatch = maxSWb
+            fates_maxElementsPerPatch = num_swb
          else
-            fates_maxElementsPerPatch = max(maxSWb,max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
+            fates_maxElementsPerPatch = max(num_swb,max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
          end if
          
          fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
@@ -1116,11 +1142,13 @@ contains
        integer :: iheight
        integer :: icoage
        integer :: iel
+       integer :: ilu
 
        allocate( fates_hdim_levsclass(1:nlevsclass   ))
        allocate( fates_hdim_pfmap_levscpf(1:nlevsclass*numpft))
        allocate( fates_hdim_scmap_levscpf(1:nlevsclass*numpft))
        allocate( fates_hdim_levpft(1:numpft   ))
+       allocate( fates_hdim_levlanduse(1:n_landuse_cats))
        allocate( fates_hdim_levfuel(1:NFSC   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
@@ -1187,6 +1215,11 @@ contains
        ! make canopy array
        do ican = 1,nclmax
           fates_hdim_levcan(ican) = ican
+       end do
+
+       ! make land use label array
+       do ilu = 1, n_landuse_cats
+          fates_hdim_levlanduse(ilu) = ilu
        end do
 
        ! Make an element array, each index is the PARTEH global identifier index
@@ -1430,6 +1463,8 @@ contains
          hlm_use_planthydro = unset_int
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
+         hlm_num_luh2_states       = unset_int
+         hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
@@ -1452,14 +1487,13 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_numSWb > maxSWb) then
-            write(fates_log(), *) 'FATES sets a maximum number of shortwave bands'
-            write(fates_log(), *) 'for some scratch-space, maxSWb'
-            write(fates_log(), *) 'it defaults to 2, but can be increased as needed'
-            write(fates_log(), *) 'your driver or host model is intending to drive'
-            write(fates_log(), *) 'FATES with:',hlm_numSWb,' bands.'
-            write(fates_log(), *) 'please increase maxSWb in EDTypes to match'
-            write(fates_log(), *) 'or exceed this value'
+         if(hlm_numSWb .ne. num_swb) then
+            write(fates_log(), *) 'FATES performs radiation scattering in the'
+            write(fates_log(), *) 'visible and near-infrared broad-bands for shortwave radiation.'
+            write(fates_log(), *) 'The host model has signaled to FATES that it is not tracking two'
+            write(fates_log(), *) 'bands.'
+            write(fates_log(), *) 'hlm_numSWb (HLM side):',hlm_numSWb
+            write(fates_log(), *) 'num_swb (FATES side): ',num_swb
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
@@ -1483,6 +1517,16 @@ contains
 
          if ( (hlm_num_lu_harvest_cats .lt. 0) ) then
             write(fates_log(), *) 'The FATES number of hlm harvest cats must be >= 0, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( (hlm_num_luh2_states .lt. 0) ) then
+            write(fates_log(), *) 'The FATES number of hlm luh state cats must be >= 0, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( (hlm_num_luh2_transitions .lt. 0) ) then
+            write(fates_log(), *) 'The FATES number of hlm luh state transition cats must be >= 0, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -1863,6 +1907,24 @@ contains
                   write(fates_log(),*) 'Transfering hlm_num_lu_harvest_cats= ',ival,' to FATES'
                end if
 
+            case('use_luh2')
+               hlm_use_luh = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_luh = ',ival,' to FATES'
+               end if
+
+            case('num_luh2_states')
+               hlm_num_luh2_states = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_num_luh2_states= ',ival,' to FATES'
+               end if
+
+            case('num_luh2_transitions')
+               hlm_num_luh2_transitions = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_num_luh2_transitions= ',ival,' to FATES'
+               end if
+
             case('use_cohort_age_tracking')
                hlm_use_cohort_age_tracking = ival
                if (fates_global_verbose()) then
@@ -1968,7 +2030,7 @@ contains
       call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
-      
+      call TransferRadParams()
 
       
       return
@@ -2380,5 +2442,41 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    call t_stopf('fates-seed-init-decomp')
 
 end subroutine DetermineGridCellNeighbors
-      
- end module FatesInterfaceMod
+
+! ======================================================================================
+     
+!-----------------------------------------------------------------------
+! TODO(jpalex): this belongs in FatesParametersInterface.F90, but would require
+! untangling the dependencies of the *RegisterParams methods below.
+subroutine FatesReadParameters(param_reader)
+  implicit none
+  
+  class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
+
+  character(len=32)  :: subname = 'FatesReadParameters'
+  class(fates_parameters_type), allocatable :: fates_params
+
+  if ( hlm_masterproc == itrue ) then
+    write(fates_log(), *) 'FatesParametersInterface.F90::'//trim(subname)//' :: CLM reading ED/FATES '//' parameters '
+  end if
+
+  allocate(fates_params)
+  call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
+  call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
+  call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
+  call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
+  call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
+
+  call param_reader%Read(fates_params)
+
+  call FatesReceiveParams(fates_params)
+  call SpitFireReceiveParams(fates_params)
+  call PRTReceiveParams(fates_params)
+  call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
+
+  call fates_params%Destroy()
+  deallocate(fates_params)
+
+ end subroutine FatesReadParameters
+
+end module FatesInterfaceMod

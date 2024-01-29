@@ -1,31 +1,31 @@
 module FatesRestartInterfaceMod
 
 
-  use FatesConstantsMod, only : r8 => fates_r8
-  use FatesConstantsMod, only : fates_avg_flag_length
-  use FatesConstantsMod, only : fates_short_string_length
-  use FatesConstantsMod, only : fates_long_string_length
-  use FatesConstantsMod, only : itrue
-  use FatesConstantsMod, only : ifalse
-  use FatesConstantsMod, only : fates_unset_r8, fates_unset_int
-  use FatesConstantsMod, only : primaryforest
-  use FatesConstantsMod, only : nearzero
-  use FatesConstantsMod, only : default_regeneration
-  use FatesConstantsMod, only : TRS_regeneration
+  use FatesConstantsMod,       only : r8 => fates_r8
+  use FatesConstantsMod,       only : fates_avg_flag_length
+  use FatesConstantsMod,       only : fates_short_string_length
+  use FatesConstantsMod,       only : fates_long_string_length
+  use FatesConstantsMod,       only : itrue
+  use FatesConstantsMod,       only : ifalse
+  use FatesConstantsMod,       only : fates_unset_r8, fates_unset_int
+  use FatesConstantsMod,       only : primaryland
+  use FatesConstantsMod,       only : nearzero
+  use FatesConstantsMod,       only : default_regeneration
+  use FatesConstantsMod,       only : TRS_regeneration
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
   use FatesIODimensionsMod,    only : fates_io_dimension_type
   use FatesIOVariableKindMod,  only : fates_io_variable_kind_type
   use FatesRestartVariableMod, only : fates_restart_variable_type
-  use FatesInterfaceTypesMod,       only : nlevcoage
-  use FatesInterfaceTypesMod,       only : bc_in_type
-  use FatesInterfaceTypesMod,       only : bc_out_type
-  use FatesInterfaceTypesMod,       only : hlm_use_planthydro
-  use FatesInterfaceTypesMod,       only : hlm_parteh_mode
-  use FatesInterfaceTypesMod,       only : hlm_use_sp
-  use FatesInterfaceTypesMod,       only : hlm_use_nocomp, hlm_use_fixed_biogeog
-  use FatesInterfaceTypesMod,       only : fates_maxElementsPerSite
-  use FatesInterfaceTypesMod, only : hlm_use_tree_damage
+  use FatesInterfaceTypesMod,  only : nlevcoage
+  use FatesInterfaceTypesMod,  only : bc_in_type
+  use FatesInterfaceTypesMod,  only : bc_out_type
+  use FatesInterfaceTypesMod,  only : hlm_use_planthydro
+  use FatesInterfaceTypesMod,  only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,  only : hlm_use_sp
+  use FatesInterfaceTypesMod,  only : hlm_use_nocomp, hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod,  only : fates_maxElementsPerSite
+  use FatesInterfaceTypesMod,  only : hlm_use_tree_damage
   use FatesHydraulicsMemMod,   only : nshell
   use FatesHydraulicsMemMod,   only : n_hypool_ag
   use FatesHydraulicsMemMod,   only : n_hypool_troot
@@ -35,7 +35,7 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,           only : prt_cnp_flex_allom_hyp
   use EDCohortDynamicsMod,     only : InitPRTObject
   use FatesPlantHydraulicsMod, only : InitHydrCohort
-  use FatesInterfaceTypesMod,       only : nlevsclass
+  use FatesInterfaceTypesMod,  only : nlevsclass
   use FatesInterfaceTypesMod,  only : nlevdamage
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd, nfsc
@@ -46,7 +46,12 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
   use FatesRunningMeanMod,     only : ema_lpa
+  use FatesRadiationMemMod,    only : num_swb,norman_solver,twostr_solver
+  use TwoStreamMLPEMod,        only : normalized_upper_boundary
   use EDParamsMod,             only : regeneration_model
+  use EDParamsMod,             only : radiation_model
+  use FatesConstantsMod,       only : n_landuse_cats
+  use FatesConstantsMod,       only : N_DIST_TYPES
   
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
@@ -105,6 +110,8 @@ module FatesRestartInterfaceMod
   integer :: ir_canopy_trim_co
   integer :: ir_l2fr_co
 
+  integer :: ir_year_net_up_co
+
   integer :: ir_cx_int_co
   integer :: ir_emadcxdt_co
   integer :: ir_cx0_co
@@ -141,7 +148,8 @@ module FatesRestartInterfaceMod
   integer :: ir_treesai_co
   integer :: ir_canopy_layer_tlai_pa
 
-
+  integer :: ir_nclp_pa
+  integer :: ir_zstar_pa
 
   !Logging
   integer :: ir_lmort_direct_co
@@ -249,6 +257,8 @@ module FatesRestartInterfaceMod
   integer :: ir_abg_term_flux_siscpf
   integer :: ir_abg_imort_flux_siscpf
   integer :: ir_abg_fmort_flux_siscpf
+
+  integer :: ir_disturbance_rates_siluludi
 
   integer :: ir_cwdagin_flxdg
   integer :: ir_cwdbgin_flxdg
@@ -1014,6 +1024,12 @@ contains
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_moisture_pa_nfsc)
     end if
     
+
+    call this%RegisterCohortVector(symbol_base='fates_year_net_up', vtype=cohort_r8, &
+         long_name_base='yearly net uptake at leaf layers',  &
+         units='kg/m2/year', veclength=nlevleaf, flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_year_net_up_co )
+
     ! Site Level Diagnostics over multiple nutrients
 
 
@@ -1124,25 +1140,35 @@ contains
     
     ! Only register satellite phenology related restart variables if it is turned on!
 
-    if(hlm_use_sp .eq. itrue) then
-         call this%set_restart_var(vname='fates_cohort_area', vtype=cohort_r8, &
-             long_name='area of the fates cohort', &
-             units='m2', flushval = flushzero, &
-             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_c_area_co )
-         call this%set_restart_var(vname='fates_cohort_treelai', vtype=cohort_r8, &
-             long_name='leaf area index of fates cohort', &
-             units='m2/m2', flushval = flushzero, &
-             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treelai_co )
-         call this%set_restart_var(vname='fates_cohort_treesai', vtype=cohort_r8, &
-             long_name='stem area index of fates cohort', &
-             units='m2/m2', flushval = flushzero, &
-             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treesai_co )
-         call this%set_restart_var(vname='fates_canopy_layer_tlai_pa', vtype=cohort_r8, &
+    call this%set_restart_var(vname='fates_cohort_area', vtype=cohort_r8, &
+         long_name='area of the fates cohort', &
+         units='m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_c_area_co )
+    call this%set_restart_var(vname='fates_cohort_treelai', vtype=cohort_r8, &
+         long_name='leaf area index of fates cohort', &
+         units='m2/m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treelai_co )
+    call this%set_restart_var(vname='fates_cohort_treesai', vtype=cohort_r8, &
+         long_name='stem area index of fates cohort', &
+         units='m2/m2', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treesai_co )
+    
+    if(hlm_use_sp .eq. itrue)then
+       call this%set_restart_var(vname='fates_canopy_layer_tlai_pa', vtype=cohort_r8, &
              long_name='total patch level leaf area index of each fates canopy layer', &
              units='m2/m2', flushval = flushzero, &
              hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_canopy_layer_tlai_pa )
     end if
 
+    call this%set_restart_var(vname='fates_nclp_pa', vtype=cohort_int, &
+             long_name='total number of canopy layers', &
+             units='-', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nclp_pa )
+
+    call this%set_restart_var(vname='fates_zstar_pa', vtype=cohort_r8, &
+             long_name='patch zstar', &
+             units='-', flushval = flushzero, &
+             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_zstar_pa )
 
     ! Only register hydraulics restart variables if it is turned on!
 
@@ -1481,6 +1507,10 @@ contains
    call this%DefineRMeanRestartVar(vname='fates_tveg24patch',vtype=cohort_r8, &
         long_name='24-hour patch veg temp', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
+
+   call this%DefineRMeanRestartVar(vname='fates_disturbance_rates',vtype=cohort_r8, &
+        long_name='disturbance rates by donor land-use type, receiver land-use type, and disturbance type', &
+        units='1/day', initialize=initialize_variables,ivar=ivar, index = ir_disturbance_rates_siluludi)
 
    if ( regeneration_model == TRS_regeneration ) then
       
@@ -1916,7 +1946,6 @@ contains
    use EDTypesMod, only : ed_site_type
    use FatesCohortMod, only : fates_cohort_type
    use FatesPatchMod, only : fates_patch_type
-   use EDParamsMod, only : maxSWb
    use EDParamsMod, only : nclmax
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
@@ -1962,6 +1991,7 @@ contains
     integer  :: io_idx_si_pft  ! each site-pft index
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
     integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
+    integer  :: io_idx_si_luludi ! site-level lu x lu x ndist index
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -1984,6 +2014,7 @@ contains
     integer  :: i_cdam           ! loop counter for damage
     integer  :: icdi             ! loop counter for damage
     integer  :: icdj             ! loop counter for damage
+    integer  :: i_lu_donor, i_lu_receiver, i_dist ! loop counters for land use and disturbance
     
     type(fates_restart_variable_type) :: rvar
     type(fates_patch_type),pointer  :: cpatch
@@ -2094,6 +2125,7 @@ contains
            rio_abg_imort_flux_siscpf => this%rvars(ir_abg_imort_flux_siscpf)%r81d, &
            rio_abg_fmort_flux_siscpf => this%rvars(ir_abg_fmort_flux_siscpf)%r81d, &
            rio_abg_term_flux_siscpf  => this%rvars(ir_abg_term_flux_siscpf)%r81d, &
+           rio_disturbance_rates_siluludi => this%rvars(ir_disturbance_rates_siluludi)%r81d, &
 
            rio_imortrate_sicdpf        => this%rvars(ir_imortrate_sicdpf)%r81d, &
            rio_imortcflux_sicdsc       => this%rvars(ir_imortcflux_sicdsc)%r81d, &
@@ -2143,6 +2175,7 @@ contains
           io_idx_si_cdpf = io_idx_co_1st
           io_idx_si_scpf = io_idx_co_1st
           io_idx_si_pft  = io_idx_co_1st
+          io_idx_si_luludi  = io_idx_co_1st
 
           ! recruitment rate
           do i_pft = 1,numpft
@@ -2189,6 +2222,16 @@ contains
              rio_seed_in_sift(io_idx_si_pft)       = sites(s)%seed_in(i_pft)
              rio_seed_out_sift(io_idx_si_pft)       = sites(s)%seed_out(i_pft)
              io_idx_si_pft = io_idx_si_pft + 1
+          end do
+
+          ! site-level disturbance rate diagnostic
+          do i_lu_donor = 1, n_landuse_cats
+             do i_lu_receiver = 1, n_landuse_cats
+                do i_dist = 1, n_dist_types
+                   rio_disturbance_rates_siluludi(io_idx_si_luludi) = sites(s)%disturbance_rates(i_dist,i_lu_donor, i_lu_receiver)
+                   io_idx_si_luludi = io_idx_si_luludi + 1
+                end do
+             end do
           end do
 
           if(hlm_use_sp.eq.ifalse)then
@@ -2278,6 +2321,8 @@ contains
                    end do
                 end do
 
+                call this%SetCohortRealVector(ccohort%year_net_uptake,nlevleaf,ir_year_net_up_co,io_idx_co)
+
                 rio_l2fr_co(io_idx_co)         = ccohort%l2fr
                 
                 if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
@@ -2355,12 +2400,10 @@ contains
                    rio_isnew_co(io_idx_co)     = old_cohort
                 endif
 
-                if (hlm_use_sp .eq. itrue) then
-                    this%rvars(ir_c_area_co)%r81d(io_idx_co) = ccohort%c_area
-                    this%rvars(ir_treelai_co)%r81d(io_idx_co) = ccohort%treelai
-                    this%rvars(ir_treesai_co)%r81d(io_idx_co) = ccohort%treesai
-                end if
-
+                this%rvars(ir_c_area_co)%r81d(io_idx_co) = ccohort%c_area
+                this%rvars(ir_treelai_co)%r81d(io_idx_co) = ccohort%treelai
+                this%rvars(ir_treesai_co)%r81d(io_idx_co) = ccohort%treesai
+                
                 if ( debug ) then
                    write(fates_log(),*) 'CLTV offsetNumCohorts II ',io_idx_co, &
                          cohortsperpatch
@@ -2380,7 +2423,7 @@ contains
              !
              rio_livegrass_pa(io_idx_co_1st)   = cpatch%livegrass
              rio_age_pa(io_idx_co_1st)         = cpatch%age
-             rio_patchdistturbcat_pa(io_idx_co_1st)   = cpatch%anthro_disturbance_label
+             rio_patchdistturbcat_pa(io_idx_co_1st)   = cpatch%land_use_label
              rio_agesinceanthrodist_pa(io_idx_co_1st) = cpatch%age_since_anthro_disturbance
              rio_nocomp_pft_label_pa(io_idx_co_1st)= cpatch%nocomp_pft_label
              rio_area_pa(io_idx_co_1st)        = cpatch%area
@@ -2420,6 +2463,8 @@ contains
                       ,io_idx_co,cohortsperpatch
              endif
 
+             this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st) = cpatch%ncl_p
+             this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st) = cpatch%zstar
 
              if(hlm_use_sp.eq.ifalse)then
 
@@ -2485,7 +2530,7 @@ contains
                 end do
              end if
 
-             do i = 1,maxSWb
+             do i = 1,num_swb
                 rio_gnd_alb_dif_pasb(io_idx_pa_ib) = cpatch%gnd_alb_dif(i)
                 rio_gnd_alb_dir_pasb(io_idx_pa_ib) = cpatch%gnd_alb_dir(i)
                 io_idx_pa_ib = io_idx_pa_ib + 1
@@ -2656,17 +2701,16 @@ contains
      ! linked-list state structure.
      ! ---------------------------------------------------------------------------------
 
-     use EDTypesMod,           only : ed_site_type
-     use FatesCohortMod,           only : fates_cohort_type
-     use FatesPatchMod,           only : fates_patch_type
-     use EDParamsMod,          only : maxSWb, regeneration_model
-     use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
-     use FatesInterfaceTypesMod,    only : hlm_current_tod, hlm_numSWb, numpft
-
-     use EDTypesMod,           only : area
-     use EDInitMod,            only : zero_site
-     use EDInitMod,            only : init_site_vars
-     use FatesAllometryMod,    only : h2d_allom
+     use EDTypesMod,             only : ed_site_type
+     use FatesCohortMod,         only : fates_cohort_type
+     use FatesPatchMod,          only : fates_patch_type
+     use EDParamsMod,            only : regeneration_model
+     use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
+     use FatesInterfaceTypesMod, only : hlm_current_tod, numpft
+     use EDTypesMod,             only : area
+     use EDInitMod,              only : zero_site
+     use EDInitMod,              only : init_site_vars
+     use FatesAllometryMod,      only : h2d_allom
 
 
      ! !ARGUMENTS:
@@ -2732,8 +2776,8 @@ contains
              nocomp_pft = fates_unset_int
              ! the nocomp_pft label is set after patch creation has occured in 'get_restart_vectors'
              ! make new patch
-             call newp%Create(fates_unset_r8, fates_unset_r8, primaryforest,   &
-               nocomp_pft, hlm_numSWb, numpft, sites(s)%nlevsoil,              &
+             call newp%Create(fates_unset_r8, fates_unset_r8, primaryland,   &
+               nocomp_pft, num_swb, numpft, sites(s)%nlevsoil,              &
                hlm_current_tod, regeneration_model)
 
              ! Initialize the litter pools to zero, these
@@ -2857,7 +2901,6 @@ contains
      use EDTypesMod, only : ed_site_type
      use FatesCohortMod, only : fates_cohort_type
      use FatesPatchMod, only : fates_patch_type
-     use EDParamsMod, only : maxSWb
      use EDParamsMod, only : nclmax
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
@@ -2912,6 +2955,7 @@ contains
      integer  :: io_idx_si_cdpf ! damage x size x pft within site
      
      integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
+     integer  :: io_idx_si_luludi ! site-level lu x lu x ndist index
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2931,6 +2975,7 @@ contains
      integer  :: i_cdam           ! loop counter for damage class
      integer  :: icdj             ! loop counter for damage class
      integer  :: icdi             ! loop counter for damage class 
+     integer  :: i_lu_donor, i_lu_receiver, i_dist ! loop counters for land use and disturbance    
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
@@ -3015,6 +3060,7 @@ contains
           rio_imortrate_siscpf        => this%rvars(ir_imortrate_siscpf)%r81d, &
           rio_fmortrate_crown_siscpf  => this%rvars(ir_fmortrate_crown_siscpf)%r81d, &
           rio_fmortrate_cambi_siscpf  => this%rvars(ir_fmortrate_cambi_siscpf)%r81d, &
+          rio_disturbance_rates_siluludi => this%rvars(ir_disturbance_rates_siluludi)%r81d, &
           rio_termnindiv_cano_siscpf  => this%rvars(ir_termnindiv_cano_siscpf)%r81d, &
           rio_termnindiv_usto_siscpf  => this%rvars(ir_termnindiv_usto_siscpf)%r81d, &
           rio_growflx_fusion_siscpf   => this%rvars(ir_growflx_fusion_siscpf)%r81d,  &
@@ -3075,7 +3121,8 @@ contains
           io_idx_si_cdpf = io_idx_co_1st
           io_idx_si_scpf = io_idx_co_1st
           io_idx_si_pft = io_idx_co_1st
-          
+          io_idx_si_luludi  = io_idx_co_1st
+
           ! read seed_bank info(site-level, but PFT-resolved)
           do i_pft = 1,numpft
              sites(s)%recruitment_rate(i_pft) = rio_recrate_sift(io_idx_co_1st+i_pft-1)
@@ -3128,6 +3175,16 @@ contains
              sites(s)%seed_in(i_pft)        = rio_seed_in_sift(io_idx_si_pft)
              sites(s)%seed_out(i_pft)        = rio_seed_out_sift(io_idx_si_pft)
              io_idx_si_pft = io_idx_si_pft + 1
+          end do
+
+          ! site-level disturbance rate diagnostic
+          do i_lu_donor = 1, n_landuse_cats
+             do i_lu_receiver = 1, n_landuse_cats
+                do i_dist = 1, n_dist_types
+                   sites(s)%disturbance_rates(i_dist,i_lu_donor, i_lu_receiver) = rio_disturbance_rates_siluludi(io_idx_si_luludi)
+                   io_idx_si_luludi = io_idx_si_luludi + 1
+                end do
+             end do
           end do
 
           ! Mass balance and diagnostics across elements at the site level
@@ -3214,6 +3271,8 @@ contains
                 ccohort%canopy_trim  = rio_canopy_trim_co(io_idx_co)
                 ccohort%l2fr         = rio_l2fr_co(io_idx_co)
 
+                call this%GetCohortRealVector(ccohort%year_net_uptake,nlevleaf,ir_year_net_up_co,io_idx_co)
+
                 if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
                    ccohort%cx_int       = this%rvars(ir_cx_int_co)%r81d(io_idx_co)
                    ccohort%ema_dcxdt    = this%rvars(ir_emadcxdt_co)%r81d(io_idx_co)
@@ -3289,12 +3348,10 @@ contains
                 !  (Keeping as an example)
                 !call this%GetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
                 
-                if (hlm_use_sp .eq. itrue) then
-                    ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
-                    ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
-                    ccohort%treesai = this%rvars(ir_treesai_co)%r81d(io_idx_co)
-                end if
-
+                ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
+                ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
+                ccohort%treesai = this%rvars(ir_treesai_co)%r81d(io_idx_co)
+                
                 io_idx_co = io_idx_co + 1
 
                 ccohort => ccohort%taller
@@ -3312,7 +3369,7 @@ contains
              !
              cpatch%livegrass          = rio_livegrass_pa(io_idx_co_1st)
              cpatch%age                = rio_age_pa(io_idx_co_1st)
-             cpatch%anthro_disturbance_label       = rio_patchdistturbcat_pa(io_idx_co_1st)
+             cpatch%land_use_label       = rio_patchdistturbcat_pa(io_idx_co_1st)
              cpatch%age_since_anthro_disturbance   = rio_agesinceanthrodist_pa(io_idx_co_1st)
              cpatch%nocomp_pft_label               = rio_nocomp_pft_label_pa(io_idx_co_1st)
              cpatch%area               = rio_area_pa(io_idx_co_1st)
@@ -3323,6 +3380,8 @@ contains
              cpatch%solar_zenith_flag  = ( rio_solar_zenith_flag_pa(io_idx_co_1st) .eq. itrue )
              cpatch%solar_zenith_angle = rio_solar_zenith_angle_pa(io_idx_co_1st)
 
+             cpatch%ncl_p = this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st)
+             cpatch%zstar = this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st)
 
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
@@ -3414,7 +3473,7 @@ contains
              end if
 
              
-             do i = 1,maxSWb
+             do i = 1,num_swb
                 cpatch%gnd_alb_dif(i) = rio_gnd_alb_dif_pasb(io_idx_pa_ib)
                 cpatch%gnd_alb_dir(i) = rio_gnd_alb_dir_pasb(io_idx_pa_ib)
                 io_idx_pa_ib = io_idx_pa_ib + 1
@@ -3582,10 +3641,9 @@ contains
      ! called upon restart reads.
      ! -------------------------------------------------------------------------
 
-     use EDTypesMod, only            : ed_site_type
-     use FatesPatchMod, only         : fates_patch_type
-     use EDSurfaceRadiationMod, only : PatchNormanRadiation
-     use FatesInterfaceTypesMod, only     : hlm_numSWb
+     use FatesNormanRadMod, only : PatchNormanRadiation
+     use EDTypesMod,             only : ed_site_type
+     use FatesPatchMod,          only : fates_patch_type
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -3618,9 +3676,9 @@ contains
            ! zero diagnostic radiation profiles
            currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
            currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
-           currentPatch%nrmlzd_parprof_dir_z(:,:,:)       = 0._r8
-           currentPatch%nrmlzd_parprof_dif_z(:,:,:)       = 0._r8
 
+           currentPatch%rad_error(:) = 0._r8
+           
            ! -----------------------------------------------------------
            ! When calling norman radiation from the short-timestep
            ! we are passing in boundary conditions to set the following
@@ -3644,7 +3702,7 @@ contains
                  ! no radiation is absorbed
                  bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
                  bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
-                 do ib = 1,hlm_numSWb
+                 do ib = 1,num_swb
 
                     bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dir(ib)
                     bc_out(s)%albi_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
@@ -3654,15 +3712,51 @@ contains
                  enddo
               else
 
-                 call PatchNormanRadiation (currentPatch, &
-                      bc_out(s)%albd_parb(ifp,:), &
-                      bc_out(s)%albi_parb(ifp,:), &
-                      bc_out(s)%fabd_parb(ifp,:), &
-                      bc_out(s)%fabi_parb(ifp,:), &
-                      bc_out(s)%ftdd_parb(ifp,:), &
-                      bc_out(s)%ftid_parb(ifp,:), &
-                      bc_out(s)%ftii_parb(ifp,:))
+                 select case(radiation_model)
+                 case(norman_solver)
+                 
+                    call PatchNormanRadiation (currentPatch, &
+                         bc_out(s)%albd_parb(ifp,:), &
+                         bc_out(s)%albi_parb(ifp,:), &
+                         bc_out(s)%fabd_parb(ifp,:), &
+                         bc_out(s)%fabi_parb(ifp,:), &
+                         bc_out(s)%ftdd_parb(ifp,:), &
+                         bc_out(s)%ftid_parb(ifp,:), &
+                         bc_out(s)%ftii_parb(ifp,:))
 
+
+                 case(twostr_solver)
+                    associate( twostr => currentPatch%twostr)
+
+                      call twostr%CanopyPrep(currentPatch%fcansno)
+                      call twostr%ZenithPrep(currentPatch%solar_zenith_angle)
+                      
+                      do ib = 1,num_swb
+                         
+                         twostr%band(ib)%albedo_grnd_diff = currentPatch%gnd_alb_dif(ib)
+                         twostr%band(ib)%albedo_grnd_beam = currentPatch%gnd_alb_dir(ib)
+                         
+                         call twostr%Solve(ib,             &  ! in
+                              normalized_upper_boundary,   &  ! in
+                              1.0_r8,1.0_r8,               &  ! in
+                              sites(s)%taulambda_2str,     &  ! inout (scratch)
+                              sites(s)%omega_2str,         &  ! inout (scratch)
+                              sites(s)%ipiv_2str,          &  ! inout (scratch)
+                              bc_out(s)%albd_parb(ifp,ib), &  ! out
+                              bc_out(s)%albi_parb(ifp,ib), &  ! out
+                              currentPatch%rad_error(ib),  &  ! out
+                              bc_out(s)%fabd_parb(ifp,ib), &  ! out
+                              bc_out(s)%fabi_parb(ifp,ib), &  ! out
+                              bc_out(s)%ftdd_parb(ifp,ib), &  ! out
+                              bc_out(s)%ftid_parb(ifp,ib), &  ! out
+                              bc_out(s)%ftii_parb(ifp,ib))
+                                                  
+                      end do
+                      
+                    end associate
+                    
+                 end select
+                    
               endif ! is there vegetation?
 
            end if    ! if the vegetation and zenith filter is active

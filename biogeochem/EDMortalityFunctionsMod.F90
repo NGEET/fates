@@ -52,7 +52,7 @@ module EDMortalityFunctionsMod
 
 contains
 
-  subroutine mortality_rates( cohort_in,bc_in,btran_ft, mean_temp,             &
+  subroutine mortality_rates( cohort_in,bc_in, btran_ft, mean_temp,             &
       cmort,hmort,bmort, frmort,smort,asmort,dgmort )
 
     ! ============================================================================
@@ -60,9 +60,10 @@ contains
     !  background and freezing and size and age dependent senescence
     ! ============================================================================
     
-    use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm 
-    use FatesConstantsMod,  only : fates_check_param_set
-    use DamageMainMod,      only : GetDamageMortality
+    use FatesConstantsMod,      only : tfrz => t_water_freeze_k_1atm
+    use FatesConstantsMod,      only : fates_check_param_set
+    use DamageMainMod,          only : GetDamageMortality
+    use EDParamsmod,            only : soil_tfrz_thresh
     
     type (fates_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
@@ -178,6 +179,11 @@ contains
           ! When FATES-Hydro is off, hydraulic failure mortality occurs only when btran
           ! falls below a threshold and plants have leaves.
           if (is_decid_dormant .or. (btran_ft(cohort_in%pft) > hf_sm_threshold) ) then
+          ! temporary merge deconflict
+          !if( ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
+          !     ( ( minval(bc_in%t_soisno_sl) - tfrz ) > soil_tfrz_thresh ) ) then
+          !   hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+          !else
              hmort = 0.0_r8
           else
              hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
@@ -253,7 +259,7 @@ contains
  ! ============================================================================
 
  subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, btran_ft, &
-      mean_temp, anthro_disturbance_label, age_since_anthro_disturbance,       &
+      mean_temp, land_use_label, age_since_anthro_disturbance,       &
       frac_site_primary, harvestable_forest_c, harvest_tag)
 
     !
@@ -271,7 +277,7 @@ contains
     type(bc_in_type), intent(in)               :: bc_in
     real(r8),         intent(in)               :: btran_ft(maxpft)
     real(r8),         intent(in)               :: mean_temp
-    integer,          intent(in)               :: anthro_disturbance_label
+    integer,          intent(in)               :: land_use_label
     real(r8),         intent(in)               :: age_since_anthro_disturbance
     real(r8),         intent(in)               :: frac_site_primary
 
@@ -310,7 +316,7 @@ contains
                                bc_in%hlm_harvest_rates, &
                                bc_in%hlm_harvest_catnames, &
                                bc_in%hlm_harvest_units, &
-                               anthro_disturbance_label, &
+                               land_use_label, &
                                age_since_anthro_disturbance, &
                                frac_site_primary, harvestable_forest_c, harvest_tag)
 

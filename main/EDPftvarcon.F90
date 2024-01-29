@@ -6,7 +6,9 @@ module EDPftvarcon
   ! read and initialize vegetation (PFT) constants.
   !
   ! !USES:
-  use EDParamsMod  ,   only : maxSWb, ivis, inir
+
+  use FatesRadiationMemMod, only: num_swb,ivis,inir
+  use FatesRadiationMemMod, only: norman_solver,twostr_solver
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : itrue, ifalse
@@ -1338,7 +1340,7 @@ contains
     lower_bound_1 = lower_bound_pft
     upper_bound_1 = lower_bound_pft + dimension_sizes(1) - 1
     lower_bound_2 = lower_bound_general
-    upper_bound_2 = maxSWb      ! When we have radiation parameters read in as a vector
+    upper_bound_2 = num_swb      ! When we have radiation parameters read in as a vector
                                 ! We will compare the vector dimension size that we
                                 ! read-in to the parameterized size that fates expects
 
@@ -1789,10 +1791,10 @@ contains
 
      if(.not.is_master) return
 
-     if(radiation_model.ne.1) then
-        write(fates_log(),*) 'The only available canopy radiation model'
-        write(fates_log(),*) 'is the Norman scheme: fates_rad_model = 1'
-        write(fates_log(),*) 'The two-stream scheme is not available yet'
+     if(.not.any(radiation_model == [norman_solver,twostr_solver])) then
+        write(fates_log(),*) 'The only available canopy radiation models'
+        write(fates_log(),*) 'are the Norman and Two-stream schemes, '
+        write(fates_log(),*) 'fates_rad_model = 1 or 2 ...'
         write(fates_log(),*) 'You specified fates_rad_model = ',radiation_model
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1918,7 +1920,7 @@ contains
         ! xl must be between -0.4 and 0.6 according to Bonan (2019) doi:10.1017/9781107339217 pg. 238
         !-----------------------------------------------------------------------------------
         if (EDPftvarcon_inst%xl(ipft) < -0.4 .or. EDPftvarcon_inst%xl(ipft) > 0.6) then
-          write(fates_log(),*) 'fates_rad_leaf_xl for pft ', ipft, ' is outside the allowed range of -0.6 to 0.4'
+          write(fates_log(),*) 'fates_rad_leaf_xl for pft ', ipft, ' is outside the allowed range of -0.4 to 0.6'
           write(fates_log(),*) 'Aborting'
           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if 
