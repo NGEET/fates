@@ -178,12 +178,11 @@ contains
        else
           ! When FATES-Hydro is off, hydraulic failure mortality occurs only when btran
           ! falls below a threshold and plants have leaves.
-          if (is_decid_dormant .or. (btran_ft(cohort_in%pft) > hf_sm_threshold) ) then
-          ! temporary merge deconflict
-          !if( ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
-          !     ( ( minval(bc_in%t_soisno_sl) - tfrz ) > soil_tfrz_thresh ) ) then
-          !   hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
-          !else
+          if ( (.not. is_decid_dormant) .and. &
+               ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
+               ( ( minval(bc_in%t_soisno_sl) - tfrz ) > soil_tfrz_thresh ) ) then
+             hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+          else
              hmort = 0.0_r8
           else
              hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
