@@ -184,8 +184,6 @@ contains
              hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
           else
              hmort = 0.0_r8
-          else
-             hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
           end if
        end if
 
