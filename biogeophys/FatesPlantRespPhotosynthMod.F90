@@ -2184,7 +2184,7 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    ! This code uses the relationship between leaf N and respiration from Atkin et al 
    ! for the top of the canopy, but then scales through the canopy based on a rdark_scaler.
    ! To assume proportionality with N through the canopy following Lloyd et al. 2010, use the
-   ! default parameter value of 2.43, which results in the scaling of photosynthesis and respiraiton
+   ! default parameter value of 2.43, which results in the scaling of photosynthesis and respiration
    ! being proportional through the canopy. To have a steeper decrease in respiration than photosynthesis
    ! this number can be smaller. There is some observational evidence for this being the case
    ! in Lamour et al. 2023. 
