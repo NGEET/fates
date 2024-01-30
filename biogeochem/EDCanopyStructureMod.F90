@@ -11,6 +11,7 @@ module EDCanopyStructureMod
   use FatesConstantsMod     , only : nearzero, area_error_1
   use FatesConstantsMod     , only : rsnbl_math_prec
   use FatesConstantsMod     , only : nocomp_bareground
+  use FatesConstantsMod,      only : i_term_mort_type_canlev
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
   use PRTParametersMod      , only : prt_params
@@ -741,7 +742,7 @@ contains
              if(currentCohort%canopy_layer>nclmax )then
                 ! put the litter from the terminated cohorts
                 ! straight into the fragmenting pools
-                call terminate_cohort(currentSite,currentPatch,currentCohort,bc_in)
+                call terminate_cohort(currentSite,currentPatch,currentCohort,bc_in,i_term_mort_type_canlev)
                 deallocate(currentCohort, stat=istat, errmsg=smsg)
                 if (istat/=0) then
                    write(fates_log(),*) 'dealloc012: fail on deallocate(currentCohort):'//trim(smsg)
