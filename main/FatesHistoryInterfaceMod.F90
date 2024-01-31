@@ -6520,25 +6520,25 @@ contains
        call this%set_history_var(vname='FATES_NONSTRUCTC', units='kg m-2',        &
             long='non-structural biomass (sapwood + leaf + fineroot) in kg carbon per m2', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_balive_si)
 
        call this%set_history_var(vname='FATES_VEGC_ABOVEGROUND', units='kg m-2',  &
             long='aboveground biomass in kg carbon per m2 land area',             &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_agb_si)
 
        call this%set_history_var(vname='FATES_CANOPY_VEGC', units='kg m-2',       &
             long='biomass of canopy plants in kg carbon per m2 land area',        &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_canopy_biomass_si)
 
        call this%set_history_var(vname='FATES_USTORY_VEGC', units='kg m-2',   &
             long='biomass of understory plants in kg carbon per m2 land area',    &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_understory_biomass_si)
 
        ! disturbance rates
@@ -6547,60 +6547,60 @@ contains
             units='m2 m-2 yr-1',                                                  &
             long='error in total primary lands associated with patch fusion',     &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_primaryland_fusion_error_si)
 
        call this%set_history_var(vname='FATES_DISTURBANCE_RATE_FIRE',             &
             units='m2 m-2 yr-1', long='disturbance rate from fire',               &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_fire_disturbance_rate_si)
 
        call this%set_history_var(vname='FATES_DISTURBANCE_RATE_LOGGING',          &
             units='m2 m-2 yr-1', long='disturbance rate from logging',            &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_logging_disturbance_rate_si)
 
        call this%set_history_var(vname='FATES_DISTURBANCE_RATE_TREEFALL',         &
             units='m2 m-2 yr-1', long='disturbance rate from treefall',           &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_fall_disturbance_rate_si)
 
        call this%set_history_var(vname='FATES_HARVEST_CARBON_FLUX',               &
             units='kg m-2 yr-1',                                                  &
             long='harvest carbon flux in kg carbon per m2 per year',              &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_harvest_carbonflux_si)
 
        call this%set_history_var(vname='FATES_TVEG24', units='degree_Celsius', &
             long='fates 24-hr running mean vegetation temperature by site', &
             use_default='active', &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM', group_dyna_simple, &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, &
             ivar=ivar, initialize=initialize_variables, index = ih_tveg24_si )
 
        call this%set_history_var(vname='FATES_TLONGTERM', units='degree_Celsius', &
             long='fates 30-year running mean vegetation temperature by site', &
             use_default='inactive', &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM', group_dyna_simple, &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, &
             ivar=ivar, initialize=initialize_variables, index = ih_tlongterm_si )
 
        call this%set_history_var(vname='FATES_TGROWTH', units='degree_Celsius', &
             long='fates long-term running mean vegetation temperature by site', &
             use_default='inactive', &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM', group_dyna_simple, &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, &
             ivar=ivar, initialize=initialize_variables, index = ih_tgrowth_si )
 
        call this%set_history_var(vname='FATES_HARVEST_DEBT', units='kg C',                   &
             long='Accumulated carbon failed to be harvested',  use_default='active',     &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM', group_dyna_simple,   &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple,   &
             ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_si )
 
        call this%set_history_var(vname='FATES_HARVEST_DEBT_SEC', units='kg C',                   &
             long='Accumulated carbon failed to be harvested from secondary patches',  use_default='active',     &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM', group_dyna_simple,   &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple,   &
             ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_sec_si )
 
        call this%set_history_var(vname='FATES_EXCESS_RESP', units='kg m-2 s-1',    &
@@ -6614,111 +6614,111 @@ contains
             units = 'kg m-2 s-1',                                                &
             long='demotion-associated biomass carbon flux from canopy to understory in kg carbon per m2 per second', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_demotion_carbonflux_si)
 
        call this%set_history_var(vname='FATES_PROMOTION_CARBONFLUX',              &
             units = 'kg m-2 s-1',                                                &
             long='promotion-associated biomass carbon flux from understory to canopy in kg carbon per m2 per second', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_promotion_carbonflux_si)
 
        call this%set_history_var(vname='FATES_MORTALITY_CFLUX_CANOPY',            &
             units = 'kg m-2 s-1',                                                &
             long='flux of biomass carbon from live to dead pools from mortality of canopy plants in kg carbon per m2 per second', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_canopy_mortality_carbonflux_si)
 
        call this%set_history_var(vname='FATES_MORTALITY_CFLUX_USTORY',            &
             units = 'kg m-2 s-1',                                                &
             long='flux of biomass carbon from live to dead pools from mortality of understory plants in kg carbon per m2 per second', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_understory_mortality_carbonflux_si)
 
        call this%set_history_var(vname='MORTALITY_CROWNAREA_CANOPY',              &
             units = 'm2/ha/year',                                                &
             long='Crown area of canopy trees that died',                         &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_canopy_mortality_crownarea_si )
 
        call this%set_history_var(vname='MORTALITY_CROWNAREA_UNDERSTORY',          &
             units = 'm2/ha/year',                                                &
             long='Crown aera of understory trees that died',                     &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_understory_mortality_crownarea_si )
 
        call this%set_history_var(vname='FATES_FIRE_CLOSS', units='kg m-2 s-1',    &
             long='carbon loss to atmosphere from fire in kg carbon per m2 per second', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_fire_c_to_atm_si)
 
        call this%set_history_var(vname='FATES_CBALANCE_ERROR',                    &
             units='kg s-1',                                                       &
             long='total carbon error in kg carbon per second',                    &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_cbal_err_fates_si)
 
        call this%set_history_var(vname='FATES_LEAF_ALLOC', units='kg m-2 s-1',    &
             long='allocation to leaves in kg carbon per m2 per second',          &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_npp_leaf_si)
 
        call this%set_history_var(vname='FATES_SEED_ALLOC', units='kg m-2 s-1',    &
             long='allocation to seeds in kg carbon per m2 per second',           &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_npp_seed_si)
 
        call this%set_history_var(vname='FATES_STEM_ALLOC', units='kg m-2 s-1',    &
             long='allocation to stem in kg carbon per m2 per second',            &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_npp_stem_si)
 
        call this%set_history_var(vname='FATES_FROOT_ALLOC', units='kg m-2 s-1',   &
             long='allocation to fine roots in kg carbon per m2 per second',      &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_npp_froot_si)
 
        call this%set_history_var(vname='FATES_CROOT_ALLOC', units='kg m-2 s-1',   &
             long='allocation to coarse roots in kg carbon per m2 per second',    &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_npp_croot_si)
 
        call this%set_history_var(vname='FATES_STORE_ALLOC', units='kg m-2 s-1',   &
             long='allocation to storage tissues in kg carbon per m2 per second', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_npp_stor_si)
 
        hydro_active_if: if(hlm_use_planthydro.eq.itrue) then
           call this%set_history_var(vname='FATES_VEGH2O_DEAD', units = 'kg m-2',  &
                long='cumulative water stored in dead biomass due to mortality',  &
                use_default='inactive', avgflag='A', vtype=site_r8,               &
-               hlms='CLM:ALM', group_dyna_simple, ivar=ivar,                              &
+               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,                              &
                initialize=initialize_variables, index = ih_h2oveg_dead_si)
 
           call this%set_history_var(vname='FATES_VEGH2O_RECRUIT',                 &
                units = 'kg m-2', long='amount of water in new recruits',         &
                use_default='inactive', avgflag='A', vtype=site_r8,               &
-               hlms='CLM:ALM', group_dyna_simple, ivar=ivar,                              &
+               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,                              &
                initialize=initialize_variables, index = ih_h2oveg_recruit_si)
 
           call this%set_history_var(vname='FATES_VEGH2O_GROWTURN_ERR',            &
                units = 'kg m-2',                                                 &
                long='cumulative net borrowed (+) or lost (-) from water storage due to combined growth & turnover', &
                use_default='inactive', avgflag='A', vtype=site_r8,               &
-               hlms='CLM:ALM', group_dyna_simple, ivar=ivar,                              &
+               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,                              &
                initialize=initialize_variables, index = ih_h2oveg_growturn_err_si)
        end if hydro_active_if
 
@@ -7105,32 +7105,32 @@ contains
                   units='kg m-2 s-1',                                                &
                   long='ammonium uptake rate by plants by size-class x pft in kg NH4 per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_nh4uptake_scpf)
 
              call this%set_history_var(vname='FATES_NO3UPTAKE_SZPF',                 &
                   units='kg m-2 s-1',                                                &
                   long='nitrate uptake rate by plants by size-class x pft in kg NO3 per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_no3uptake_scpf)
 
              call this%set_history_var(vname='FATES_NEFFLUX_SZPF', units='kg m-2 s-1', &
                   long='nitrogen efflux, root to soil, by size-class x pft in kg N per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_nefflux_scpf)
 
              call this%set_history_var(vname='FATES_NDEMAND_SZPF', units='kg m-2 s-1', &
                   long='plant N need (algorithm dependent), by size-class x pft in kg N per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_ndemand_scpf)
 
              call this%set_history_var(vname='FATES_NFIX_SYM_SZPF', units='kg m-2 s-1', &
                   long='symbiotic dinitrogen fixation, by size-class x pft in kg N per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_nfix_scpf)
 
           end select
@@ -7246,20 +7246,20 @@ contains
                   units='kg m-2 s-1',                                                &
                   long='phosphorus uptake rate by plants, by size-class x pft in kg P per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_puptake_scpf)
 
              call this%set_history_var(vname='FATES_PEFFLUX_SZPF',                   &
                   units='kg m-2 s-1',                                                &
                   long='phosphorus efflux, root to soil, by size-class x pft in kg P per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_pefflux_scpf)
 
              call this%set_history_var(vname='FATES_PDEMAND_SZPF', units='kg m-2 s-1', &
                   long='plant P need (algorithm dependent), by size-class x pft in kg P per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_pdemand_scpf)
 
           end if phosphorus_active_if1
