@@ -3219,22 +3219,27 @@ contains
     type (fates_patch_type), pointer :: currentPatch
     logical                       :: patch_inserted
 
-    ! the goal here is to have patches ordered in a specific way. that way is to have them looped as the following,
-    ! where LU referse to the land use label, PFT refers to the nocomp PFT label, and Y and O refer to continuous patch ages.
+    ! The goal here is to have patches ordered in a specific way. That way is to have them
+    ! looped as the following, where LU refers to the land use label, PFT refers to the
+    ! nocomp PFT label, and Y and O refer to continuous patch ages.
     !
-    !       LU1     ----     LU2       ----     LU3         -- etc
+    !       LU1     ----     LU2       ----     LU3         --  etc
     !    /       \         /       \        /        \
-    !  PFT1 --- PFT2  |  PFT1 --- PFT2  |  PFT1 --- PFT2    -- etc
+    !  PFT1 --- PFT2  |  PFT1 --- PFT2  |  PFT1 --- PFT2    --  etc
     !  / \      /  \     / \      /  \     / \      /  \  
-    ! Y - O    Y -  O   Y - O    Y  - O   Y - O    Y -  O   -- etc
+    ! Y - O    Y -  O   Y - O    Y  - O   Y - O    Y -  O   --  etc
 
-    ! i.e. treat land use as the outermost loop element, then nocomp PFT as next loop element,
+    ! I.e. to treat land use as the outermost loop element, then nocomp PFT as next loop element,
     ! and then age as the innermost loop element
     
-    ! the way to accomplsh this most simply is to define a pseudo-age that includes all of the above info and sort the patches based on the pseudo-age.
-    ! i.e. take some number larger than any patch will ever reach in actual age.
-    ! then take the LU, multiply it by the big number squared, add it to the pft number multiplied by the big number, and add to the age.
-    ! and then sort using that instead of the actual age.
+    ! The way to accomplsh this most simply is to define a pseudo-age that includes all of the
+    ! above info and sort the patches based on the pseudo-age. i.e. take some number larger
+    ! than any patch will ever reach in actual age. Then take the LU, multiply it by the big
+    ! number squared, add it to the pft number multiplied by the big number, and add to the age.
+    ! And lastly to sort using that instead of the actual age.
+
+    ! If land use is turned off or nocomp is turned off, then this should devolve to the prior
+    ! behavior of just age sorting.
 
     patch_inserted = .false.
     
@@ -3257,7 +3262,8 @@ contains
 
        patch_inserted = .true.
     else
-       ! new patch has a pseudo-age somewhere within the linked list. find the first patch who has a pseudo age older than it, and put it ahead of that patch
+       ! new patch has a pseudo-age somewhere within the linked list. find the first patch which
+       ! has a pseudo age older than it, and put it ahead of that patch
        currentPatch => site_in%youngest_patch
        do while (associated(currentPatch) .and. ( .not. patch_inserted) )   
           if (get_pseudo_patch_age(newPatch) .ge. get_pseudo_patch_age(currentPatch)) then
@@ -3284,14 +3290,16 @@ contains
 
   function get_pseudo_patch_age(CurrentPatch) result(pseudo_age)
     
-    ! Purpose: we want to sort the patches in a way that takes into account both their continuous and categorical variables.
-    ! calculate a pseudo age that does this, by takign the labels, multiplyign these by large numbers, and adding the continuous age.
+    ! Purpose: we want to sort the patches in a way that takes into account both their
+    ! continuous and categorical variables. Calculate a pseudo age that does this, by taking
+    ! the integer labels, multiplying these by large numbers, and adding to the continuous age.
 
     type (fates_patch_type), intent(in), pointer :: CurrentPatch
     real(r8)            :: pseudo_age    
     real(r8), parameter :: max_actual_age = 1.e4  ! hard to imagine a patch older than 10,000 years
 
-    pseudo_age = real(CurrentPatch%land_use_label,r8) * max_actual_age**2 + real(CurrentPatch%nocomp_pft_label,r8) * max_actual_age + CurrentPatch%age
+    pseudo_age = real(CurrentPatch%land_use_label,r8) * max_actual_age**2 + &
+         real(CurrentPatch%nocomp_pft_label,r8) * max_actual_age + CurrentPatch%age
     
   end function get_pseudo_patch_age
 
