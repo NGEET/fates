@@ -13,6 +13,7 @@ module FatesUtilsMod
   public :: check_hlm_list
   public :: check_var_real
   public :: GetNeighborDistance
+  public :: FindIndex
 
 contains
   
@@ -135,8 +136,6 @@ contains
       integer,  intent(in) :: gi,gj           ! indices of gridcells
       real(r8), intent(in) :: latc(:),lonc(:) ! lat/lon of gridcells
       real(r8) :: gcd
-    
-      ! write(fates_log(),*)'neighborhood: size ldomain latc/lonc: ', size(ldomain%latc), size(ldomain%lonc)
       
       gcd = GreatCircleDist(lonc(gi),lonc(gj), &
                             latc(gi),latc(gj))
@@ -144,5 +143,39 @@ contains
   end function GetNeighborDistance
    
   ! ====================================================================================== 
+ 
+  function FindIndex(input_string_array,string_to_match) result(array_index)
+   
+      ! ---------------------------------------------------------------------------------
+      ! This simple function is a standin for the intrinsic FINDLOC which is not available
+      ! with some compilers such as NAG prior to v7.0.  As with FINDLOC, the
+      ! function will return zero if a match is not found.
+      !
+      ! Limitations compared to FINDLOC:
+      !   - Only takes one dimensional arrays
+      !   - Only take arrays of characters
+      !   - Does not allow masking
+      ! ---------------------------------------------------------------------------------
 
+      ! Input and output
+      character(len=*), intent(in) :: input_string_array(:)
+      character(len=*), intent(in) :: string_to_match
+      integer :: array_index
+      
+      ! Locals
+      integer :: i
+
+      ! Initialize return index as zero
+      array_index = 0
+
+      ! Loop throught the array and compare strings
+      do i = 1, size(input_string_array)
+         if (trim(input_string_array(i)) .eq. trim(string_to_match)) then
+            array_index = i
+         end if
+      end do
+   
+  end function FindIndex
+   
+  ! ====================================================================================== 
 end module FatesUtilsMod

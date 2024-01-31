@@ -12,6 +12,7 @@ module EDBtranMod
   use EDTypesMod        , only : ed_site_type
   use FatesPatchMod,      only : fates_patch_type
   use EDParamsMod,        only : maxpft
+  use EDParamsMod,        only : soil_tfrz_thresh
   use FatesCohortMod,     only : fates_cohort_type
   use shr_kind_mod      , only : r8 => shr_kind_r8
   use FatesInterfaceTypesMod , only : bc_in_type, &
@@ -48,7 +49,7 @@ contains
     check_layer_water = .false.
 
     if ( h2o_liq_vol .gt. 0._r8 ) then
-       if ( tempk .gt. tfrz-2._r8) then
+       if ( tempk .gt. soil_tfrz_thresh + tfrz) then
           check_layer_water = .true.
        end if
     end if
