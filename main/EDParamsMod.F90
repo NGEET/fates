@@ -10,7 +10,8 @@ module EDParamsMod
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
    use FatesConstantsMod,    only : fates_unset_r8
-
+   use FatesConstantsMod,    only : cstarvation_model_lin
+   
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
 
@@ -455,9 +456,10 @@ contains
     
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
-    call fates_params%RegisterParameter(name=ED_name_mort_cstarvation_model, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+
+    ! Temporary until we add parameter to file
+    !call fates_params%RegisterParameter(name=ED_name_mort_cstarvation_model, dimension_shape=dimension_shape_scalar, &
+    !     dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
@@ -673,11 +675,13 @@ contains
     
     call fates_params%RetrieveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
-    
-    call fates_params%RetrieveParameter(name=ED_name_mort_cstarvation_model, &
-         data=tmpreal)
-    mort_cstarvation_model = nint(tmpreal)
 
+    ! Temporary until we add parameter to file 
+    !call fates_params%RetrieveParameter(name=ED_name_mort_cstarvation_model, &
+    !     data=tmpreal)
+    !    mort_cstarvation_model = nint(tmpreal)
+    mort_cstarvation_model = cstarvation_model_lin
+    
     call fates_params%RetrieveParameter(name=ED_name_comp_excln, &
          data=ED_val_comp_excln)
 
