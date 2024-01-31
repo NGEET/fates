@@ -17,6 +17,9 @@ module EDMortalityFunctionsMod
    use FatesConstantsMod     , only : cstarvation_model_lin
    use FatesConstantsMod     , only : cstarvation_model_exp
    use FatesConstantsMod     , only : nearzero
+   use FatesConstantsMod     , only : ihard_stress_decid
+   use FatesConstantsMod     , only : isemi_stress_decid
+   use FatesConstantsMod     , only : leaves_off
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
    use FatesInterfaceTypesMod     , only : bc_in_type
@@ -29,6 +32,7 @@ module EDMortalityFunctionsMod
 
    use PRTGenericMod,          only : carbon12_element
    use PRTGenericMod,          only : store_organ
+   use PRTParametersMod      , only : prt_params
    use shr_log_mod           , only : errMsg => shr_log_errMsg
    
    implicit none
@@ -52,7 +56,7 @@ module EDMortalityFunctionsMod
 
 contains
 
-  subroutine mortality_rates( cohort_in,bc_in,btran_ft, mean_temp,             &
+  subroutine mortality_rates( cohort_in,bc_in, btran_ft, mean_temp,             &
       cmort,hmort,bmort, frmort,smort,asmort,dgmort )
 
     ! ============================================================================
@@ -60,9 +64,10 @@ contains
     !  background and freezing and size and age dependent senescence
     ! ============================================================================
     
-    use FatesConstantsMod,  only : tfrz => t_water_freeze_k_1atm 
-    use FatesConstantsMod,  only : fates_check_param_set
-    use DamageMainMod,      only : GetDamageMortality
+    use FatesConstantsMod,      only : tfrz => t_water_freeze_k_1atm
+    use FatesConstantsMod,      only : fates_check_param_set
+    use DamageMainMod,          only : GetDamageMortality
+    use EDParamsmod,            only : soil_tfrz_thresh
     
     type (fates_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
@@ -93,13 +98,27 @@ contains
     real(r8) :: min_fmc_ar         ! minimum fraction of maximum conductivity for absorbing root
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity 
+    logical  :: is_decid_dormant   ! Flag to signal that the cohort is deciduous and dormant
+
+
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
                                                         ! and the like
+
+    ! Check if the PFT is deciduous and leaves are completely abscised.  If this is the case,
+    ! we prevent hydraulic failure mortality to occur as plants are leafless. For now, 
+    ! semi-deciduous plants with senescing leaves may still die of hydraulic failure, but in
+    ! the future we could accelerate senescence to avoid mortality. Note that both drought 
+    ! deciduous and cold deciduous are considered here to be consistent with the idea that
+    ! plants without leaves cannot die of hydraulic failure.
+    is_decid_dormant =                                                            & !
+       ( prt_params%stress_decid(cohort_in%pft) == ihard_stress_decid .or.        & ! Drought deciduous
+         prt_params%stress_decid(cohort_in%pft) == isemi_stress_decid .or.        & ! Semi-deciduous
+         prt_params%season_decid(cohort_in%pft) == itrue                  ) .and. & ! Cold deciduous
+       ( cohort_in%status_coh == leaves_off )                                     ! ! Fully abscised
     
-    
-   ! Size Dependent Senescence
+    ! Size Dependent Senescence
     ! rate (r) and inflection point (ip) define the increase in mortality rate with dbh
     mort_r_size_senescence = EDPftvarcon_inst%mort_r_size_senescence(cohort_in%pft)
     mort_ip_size_senescence = EDPftvarcon_inst%mort_ip_size_senescence(cohort_in%pft)
@@ -141,10 +160,11 @@ contains
 
        bmort = EDPftvarcon_inst%bmort(cohort_in%pft)
 
-       ! Proxy for hydraulic failure induced mortality. 
+       ! Proxy for hydraulic failure induced mortality.
        hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
        hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
-       if(hlm_use_planthydro.eq.itrue)then
+
+       if (hlm_use_planthydro == itrue) then
           !note the flc is set as the fraction of max conductivity in hydro
           min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
           min_fmc_tr = cohort_in%co_hydr%ftc_troot
@@ -158,13 +178,18 @@ contains
           else
              hmort = 0.0_r8
           endif
+
        else
-          if(btran_ft(cohort_in%pft) <= hf_sm_threshold)then 
+          ! When FATES-Hydro is off, hydraulic failure mortality occurs only when btran
+          ! falls below a threshold and plants have leaves.
+          if ( (.not. is_decid_dormant) .and. &
+               ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
+               ( ( minval(bc_in%t_soisno_sl) - tfrz ) > soil_tfrz_thresh ) ) then
              hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
           else
              hmort = 0.0_r8
-          endif
-       endif
+          end if
+       end if
 
        ! Carbon Starvation induced mortality.
        if ( cohort_in%dbh  >  0._r8 ) then
@@ -255,7 +280,7 @@ contains
  ! ============================================================================
 
  subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, btran_ft, &
-      mean_temp, anthro_disturbance_label, age_since_anthro_disturbance,       &
+      mean_temp, land_use_label, age_since_anthro_disturbance,       &
       frac_site_primary, harvestable_forest_c, harvest_tag)
 
     !
@@ -273,7 +298,7 @@ contains
     type(bc_in_type), intent(in)               :: bc_in
     real(r8),         intent(in)               :: btran_ft(maxpft)
     real(r8),         intent(in)               :: mean_temp
-    integer,          intent(in)               :: anthro_disturbance_label
+    integer,          intent(in)               :: land_use_label
     real(r8),         intent(in)               :: age_since_anthro_disturbance
     real(r8),         intent(in)               :: frac_site_primary
 
@@ -312,7 +337,7 @@ contains
                                bc_in%hlm_harvest_rates, &
                                bc_in%hlm_harvest_catnames, &
                                bc_in%hlm_harvest_units, &
-                               anthro_disturbance_label, &
+                               land_use_label, &
                                age_since_anthro_disturbance, &
                                frac_site_primary, harvestable_forest_c, harvest_tag)
 
