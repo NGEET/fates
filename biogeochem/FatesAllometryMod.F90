@@ -616,20 +616,25 @@ contains
   subroutine storage_fraction_of_target(c_store_target, c_store, frac)
 
     !--------------------------------------------------------------------------------
-    ! returns the storage pool as a fraction of its target (only if it is below its target)
-    ! used in both the carbon starvation mortlaity scheme as well as the optional
-    ! respiration throttling logic
+    !    This subroutine returns the ratio between the storage pool and the target 
+    ! storage.  This subroutine is used both the carbon starvation mortality scheme 
+    ! and the optional respiration throttling. We impose checks so it cannot go negative
+    ! due to truncation errors, but this function can return values greater than 1.
+    ! 
+    !    Fractions exceeding do not impact the default linear carbon starvation model
+    ! (mort_cstarvation_model=2), because mortality becomes zero, but they allow carbon 
+    ! starvation mortality rates to continue decaying when the exponential carbon 
+    ! starvation model is used (mort_cstarvation_model=2).
+    ! 
+    !    Fraction values above 1 do not impact lowstorage_maintresp_reduction either,
+    ! as that routine imposes no reduction once the fraction exceeds 1.
     !--------------------------------------------------------------------------------
 
     real(r8),intent(in)    :: c_store_target  ! target storage carbon [kg]
     real(r8),intent(in)    :: c_store         ! storage carbon [kg]
     real(r8),intent(out)   :: frac
 
-    if( c_store_target > 0._r8 .and. c_store <= c_store_target )then
-       frac = c_store/ c_store_target
-    else
-       frac = 1._r8
-    endif
+    frac = max(0._r8, c_store / max( c_store_target, nearzero) )
 
   end subroutine storage_fraction_of_target
 

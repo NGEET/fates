@@ -141,6 +141,10 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   integer, parameter, public :: lmrmodel_ryan_1991         = 1
   integer, parameter, public :: lmrmodel_atkin_etal_2017   = 2
 
+  ! integer labels for specifying carbon starvation model
+  integer, parameter, public :: cstarvation_model_lin = 1 ! Linear scaling
+  integer, parameter, public :: cstarvation_model_exp = 2 ! Exponential scaling
+
   ! Error Tolerances
 
   ! Allowable error in carbon allocations, should be applied to estimates
