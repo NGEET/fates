@@ -13,6 +13,7 @@ dimensions:
 	fates_pft = 12 ;
 	fates_plant_organs = 4 ;
 	fates_string_length = 60 ;
+	fates_landuseclass = 5 ;
 variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
 		fates_history_ageclass_bin_edges:units = "yr" ;
@@ -44,6 +45,9 @@ variables:
 	char fates_alloc_organ_name(fates_plant_organs, fates_string_length) ;
 		fates_alloc_organ_name:units = "unitless - string" ;
 		fates_alloc_organ_name:long_name = "Name of plant organs (with alloc_organ_id, must match PRTGenericMod.F90)" ;
+	char fates_landuseclass_name(fates_landuseclass, fates_string_length) ;
+		fates_landuseclass_name:units = "unitless - string" ;
+		fates_landuseclass_name:long_name = "Name of the land use classes, for variables associated with dimension fates_landuseclass" ;
 	char fates_litterclass_name(fates_litterclass, fates_string_length) ;
 		fates_litterclass_name:units = "unitless - string" ;
 		fates_litterclass_name:long_name = "Name of the litter classes, for variables associated with dimension fates_litterclass" ;
@@ -433,7 +437,7 @@ variables:
 		fates_mort_scalar_hydrfailure:long_name = "maximum mortality rate from hydraulic failure" ;
 	double fates_mort_upthresh_cstarvation(fates_pft) ;
 		fates_mort_upthresh_cstarvation:units = "unitless" ;
-		fates_mort_upthresh_cstarvation:long_name = "It depends on fates_mort_cstarvation_model: 1. upper threshold for storage biomass (relative to leaf biomass) above CS mortality is zero (original FATES had this set to 1). 2. storage biomass (relative to leaf biomass) at which CS mortality decays to e^-1 of the maximum (recommended first guess is around 0.1)" ;
+		fates_mort_upthresh_cstarvation:long_name = "threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero" ;
 	double fates_nonhydro_smpsc(fates_pft) ;
 		fates_nonhydro_smpsc:units = "mm" ;
 		fates_nonhydro_smpsc:long_name = "Soil water potential at full stomatal closure" ;
@@ -469,7 +473,7 @@ variables:
 		fates_phen_stem_drop_fraction:long_name = "fraction of stems to drop for non-woody species during drought/cold" ;
 	double fates_phen_stress_decid(fates_pft) ;
 		fates_phen_stress_decid:units = "logical flag" ;
-		fates_phen_stress_decid:long_name = "Binary flag for stress-deciduous leaf habit" ;
+		fates_phen_stress_decid:long_name = "Flag for stress/drought-deciduous leaf habit. 0 - not stress deciduous; 1 - default drought deciduous (two target states only, fully flushed or fully abscised); 2 - semi-deciduous" ;
 	double fates_prescribed_npp_canopy(fates_pft) ;
 		fates_prescribed_npp_canopy:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_canopy:long_name = "NPP per unit crown area of canopy trees for prescribed physiology mode" ;
@@ -668,6 +672,9 @@ variables:
 	double fates_frag_cwd_frac(fates_NCWD) ;
 		fates_frag_cwd_frac:units = "fraction" ;
 		fates_frag_cwd_frac:long_name = "fraction of woody (bdead+bsw) biomass destined for CWD pool" ;
+	double fates_maxpatches_by_landuse(fates_landuseclass) ;
+		fates_maxpatches_by_landuse:units = "count" ;
+		fates_maxpatches_by_landuse:long_name = "maximum number of patches per site on each land use type" ;
 	double fates_canopy_closure_thresh ;
 		fates_canopy_closure_thresh:units = "unitless" ;
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
@@ -815,15 +822,6 @@ variables:
 	double fates_maxcohort ;
 		fates_maxcohort:units = "count" ;
 		fates_maxcohort:long_name = "maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances" ;
-	double fates_maxpatch_primary ;
-		fates_maxpatch_primary:units = "count" ;
-		fates_maxpatch_primary:long_name = "maximum number of primary vegetation patches per site" ;
-	double fates_maxpatch_secondary ;
-		fates_maxpatch_secondary:units = "count" ;
-		fates_maxpatch_secondary:long_name = "maximum number of secondary vegetation patches per site" ;
-	double fates_mort_cstarvation_model ;
-		fates_mort_cstarvation_model:units = "unitless" ;
-		fates_mort_cstarvation_model:long_name = "carbon starvation method. In both cases mortality is scaled with carbon storage relative to leaf biomass. (1) linear function; (2) exponential" ;
 	double fates_mort_disturb_frac ;
 		fates_mort_disturb_frac:units = "fraction" ;
 		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)" ;
@@ -932,6 +930,13 @@ data:
   "fine root",
   "sapwood",
   "structure" ;
+
+ fates_landuseclass_name =
+  "primaryland",
+  "secondaryland",
+  "rangeland",
+  "pastureland",
+  "cropland" ;
 
  fates_litterclass_name =
   "twig                                             ",
@@ -1592,6 +1597,8 @@ data:
 
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
 
+ fates_maxpatches_by_landuse = 9, 4, 1, 1, 1 ;
+
  fates_canopy_closure_thresh = 0.8 ;
 
  fates_cnp_eca_plant_escalar = 1.25e-05 ;
@@ -1689,12 +1696,6 @@ data:
  fates_maintresp_nonleaf_baserate = 2.525e-06 ;
 
  fates_maxcohort = 100 ;
-
- fates_maxpatch_primary = 10 ;
-
- fates_maxpatch_secondary = 4 ;
-
- fates_mort_cstarvation_model = 1 ;
 
  fates_mort_disturb_frac = 1 ;
 
