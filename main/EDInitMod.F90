@@ -90,6 +90,7 @@ module EDInitMod
   use PRTGenericMod,          only : SetState
   use FatesSizeAgeTypeIndicesMod,only : get_age_class_index
   use DamageMainMod,          only : undamaged_class
+  use FatesConstantsMod,      only : n_term_mort_types
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
 
   ! CIME GLOBALS
@@ -132,8 +133,8 @@ contains
     integer :: el
 
     !
-    allocate(site_in%term_nindivs_canopy(1:nlevsclass,1:numpft))
-    allocate(site_in%term_nindivs_ustory(1:nlevsclass,1:numpft))
+    allocate(site_in%term_nindivs_canopy(1:n_term_mort_types,1:nlevsclass,1:numpft))
+    allocate(site_in%term_nindivs_ustory(1:n_term_mort_types,1:nlevsclass,1:numpft))
     allocate(site_in%demotion_rate(1:nlevsclass))
     allocate(site_in%promotion_rate(1:nlevsclass))
     allocate(site_in%imort_rate(1:nlevsclass,1:numpft))
@@ -169,8 +170,8 @@ contains
        allocate(site_in%fmort_cflux_ustory_damage(1,1))
     end if
 
-    allocate(site_in%term_carbonflux_canopy(1:numpft))
-    allocate(site_in%term_carbonflux_ustory(1:numpft))
+    allocate(site_in%term_carbonflux_canopy(1:n_term_mort_types,1:numpft))
+    allocate(site_in%term_carbonflux_ustory(1:n_term_mort_types,1:numpft))
     allocate(site_in%imort_carbonflux(1:numpft))
     allocate(site_in%fmort_carbonflux_canopy(1:numpft))
     allocate(site_in%fmort_carbonflux_ustory(1:numpft))
@@ -287,15 +288,15 @@ contains
     site_in%ema_npp = -9999.9_r8
 
     ! termination and recruitment info
-    site_in%term_nindivs_canopy(:,:) = 0._r8
-    site_in%term_nindivs_ustory(:,:) = 0._r8
+    site_in%term_nindivs_canopy(:,:,:) = 0._r8
+    site_in%term_nindivs_ustory(:,:,:) = 0._r8
     site_in%term_crownarea_canopy = 0._r8
     site_in%term_crownarea_ustory = 0._r8
     site_in%imort_crownarea = 0._r8
     site_in%fmort_crownarea_canopy = 0._r8
     site_in%fmort_crownarea_ustory = 0._r8
-    site_in%term_carbonflux_canopy(:) = 0._r8
-    site_in%term_carbonflux_ustory(:) = 0._r8
+    site_in%term_carbonflux_canopy(:,:) = 0._r8
+    site_in%term_carbonflux_ustory(:,:) = 0._r8
     site_in%recruitment_rate(:) = 0._r8
     site_in%imort_rate(:,:) = 0._r8
     site_in%imort_carbonflux(:) = 0._r8
