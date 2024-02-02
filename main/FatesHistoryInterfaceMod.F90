@@ -10,6 +10,10 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : pi_const
   use FatesConstantsMod        , only : nearzero
   use FatesConstantsMod        , only : t_water_freeze_k_1atm
+  use FatesConstantsMod        , only : n_term_mort_types
+  use FatesConstantsMod        , only : i_term_mort_type_cstarv
+  use FatesConstantsMod        , only : i_term_mort_type_canlev
+  use FatesConstantsMod        , only : i_term_mort_type_numdens
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDParamsMod              , only : nclmax, maxpft
@@ -618,6 +622,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_hydraulicmortality_carbonflux_si_pft
   integer :: ih_cstarvmortality_carbonflux_si_pft
   integer :: ih_firemortality_carbonflux_si_pft
+  integer :: ih_cstarvmortality_continuous_carbonflux_si_pft
   integer :: ih_crownarea_si_pft
   integer :: ih_canopycrownarea_si_pft
   integer :: ih_crownarea_si_cnlf
@@ -2594,6 +2599,7 @@ contains
          hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
               sum(sites(s)%fmort_carbonflux_canopy(:)) / g_per_kg
 
+         
          hio_ustory_mortality_carbonflux_si(io_si) = hio_ustory_mortality_carbonflux_si(io_si) + &
               sum(sites(s)%fmort_carbonflux_ustory(:)) / g_per_kg
 
@@ -2608,10 +2614,10 @@ contains
          ! mortality-associated carbon fluxes
 
          hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-              sum(sites(s)%term_carbonflux_canopy(:)) * days_per_sec * ha_per_m2
-
+              sum(sites(s)%term_carbonflux_canopy(:,:)) * days_per_sec * ha_per_m2
+         
          hio_ustory_mortality_carbonflux_si(io_si) = hio_ustory_mortality_carbonflux_si(io_si) + &
-              sum(sites(s)%term_carbonflux_ustory(:)) * days_per_sec * ha_per_m2
+              sum(sites(s)%term_carbonflux_ustory(:,:)) * days_per_sec * ha_per_m2
 
          ! add site level mortality counting to crownarea diagnostic
          hio_canopy_mortality_crownarea_si(io_si) = hio_canopy_mortality_crownarea_si(io_si) + &
@@ -3008,8 +3014,8 @@ contains
 
 
          ! zero the site-level termination carbon flux variable
-         sites(s)%term_carbonflux_canopy(:) = 0._r8
-         sites(s)%term_carbonflux_ustory(:) = 0._r8
+         sites(s)%term_carbonflux_canopy(:,:) = 0._r8
+         sites(s)%term_carbonflux_ustory(:,:) = 0._r8
 
 
 
@@ -3064,7 +3070,7 @@ contains
     real(r8) :: repro_m_net_alloc  ! mass allocated to reproduction [kg/yr]
     real(r8) :: n_perm2            ! abundance per m2
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
-    ! time-since-anthropogenic-disturbance of secondary forest
+                                           ! time-since-anthropogenic-disturbance of secondary forest
     real(r8) :: area_frac  ! Fraction of area for this patch
     real(r8) :: frac_canopy_in_bin  ! fraction of a leaf's canopy that is within a given height bin
     real(r8) :: binbottom,bintop    ! edges of height bins
@@ -3308,7 +3314,8 @@ contains
              hio_nplant_si_scag                   => this%hvars(ih_nplant_si_scag)%r82d, &
              hio_nplant_canopy_si_scag            => this%hvars(ih_nplant_canopy_si_scag)%r82d, &
              hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
-             hio_disturbance_rate_si_lulu      => this%hvars(ih_disturbance_rate_si_lulu)%r82d)
+             hio_disturbance_rate_si_lulu         => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
+             hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d)
 
 
           model_day_int = nint(hlm_model_day)
@@ -3856,12 +3863,18 @@ contains
                              ccohort%n * ha_per_m2
 
 
-                        hio_hydraulicmortality_carbonflux_si_pft(io_si,ccohort%pft) = hio_hydraulicmortality_carbonflux_si_pft(io_si,ccohort%pft) + &
+                        hio_hydraulicmortality_carbonflux_si_pft(io_si,ccohort%pft) = &
+                             hio_hydraulicmortality_carbonflux_si_pft(io_si,ccohort%pft) + &
                              ccohort%hmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
 
-                        hio_cstarvmortality_carbonflux_si_pft(io_si,ccohort%pft) = hio_cstarvmortality_carbonflux_si_pft(io_si,ccohort%pft) + &
+                        hio_cstarvmortality_carbonflux_si_pft(io_si,ccohort%pft) = &
+                             hio_cstarvmortality_carbonflux_si_pft(io_si,ccohort%pft) + &
                              ccohort%cmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
 
+                        hio_cstarvmortality_continuous_carbonflux_si_pft(io_si,ccohort%pft) = &
+                             hio_cstarvmortality_continuous_carbonflux_si_pft(io_si,ccohort%pft) + &
+                             ccohort%cmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+                        
                         ! Aboveground mortality
                         hio_abg_mortality_cflux_si_scpf(io_si,scpf) = hio_abg_mortality_cflux_si_scpf(io_si,scpf) + &
                              (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
@@ -4291,32 +4304,77 @@ contains
 
              ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
              ! note there are various ways of reporting the total mortality, so pass to these as well
+             do i_pft = 1, numpft
+                hio_cstarvmortality_carbonflux_si_pft(io_si,i_pft) = &
+                     hio_cstarvmortality_carbonflux_si_pft(io_si,i_pft) + &
+                     (sites(s)%term_carbonflux_ustory(i_term_mort_type_cstarv,i_pft) + &
+                     sites(s)%term_carbonflux_canopy(i_term_mort_type_cstarv,i_pft)) * days_per_sec * ha_per_m2
+             end do
              do ft = 1, numpft
                 do i_scls = 1,nlevsclass
                    i_scpf = (ft-1)*nlevsclass + i_scls
                    !
                    ! termination mortality. sum of canopy and understory indices
-                   hio_m6_si_scpf(io_si,i_scpf) = (sites(s)%term_nindivs_canopy(i_scls,ft) + &
-                        sites(s)%term_nindivs_ustory(i_scls,ft)) *              &
+                   
+                   ! move carbon starvation-related termination mortality to the carbon starvation mortality type and only consider
+                   ! the other two types of termination mortality here.
+                   
+                   hio_m6_si_scpf(io_si,i_scpf) = &
+                        (sum(sites(s)%term_nindivs_canopy(i_term_mort_type_canlev:n_term_mort_types,i_scls,ft)) + &
+                        sum(sites(s)%term_nindivs_ustory(i_term_mort_type_canlev:n_term_mort_types,i_scls,ft))) *              &
+                        days_per_year / m2_per_ha
+                   
+                   hio_m6_si_scls(io_si,i_scls) = hio_m6_si_scls(io_si,i_scls) +  &
+                        (sum(sites(s)%term_nindivs_canopy(i_term_mort_type_canlev:n_term_mort_types,i_scls,ft)) +              &
+                        sum(sites(s)%term_nindivs_ustory(i_term_mort_type_canlev:n_term_mort_types,i_scls,ft))) *              &
+                        days_per_year / m2_per_ha
+                   !
+                   ! add the carbon starvation-related termination mortality to the carbon starvation diagnostics
+                   hio_m3_si_scpf(io_si,i_scpf) = hio_m3_si_scpf(io_si,i_scpf) +                               &
+                        (sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,ft) +              &
+                        sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,ft)) *              &
+                        days_per_year / m2_per_ha     
+
+                   hio_m3_si_scls(io_si,i_scls) = hio_m3_si_scls(io_si,i_scls) +                               &
+                        (sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,ft) +              &
+                        sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,ft)) *              &
+                        days_per_year / m2_per_ha
+                   
+                   ! add c-starve termination mortality to canopy and understory M3 mortality (N/m^2/yr)
+                   hio_m3_mortality_canopy_si_scpf(io_si,i_scpf) = &
+                        hio_m3_mortality_canopy_si_scpf(io_si,i_scpf) + &
+                        sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,ft) * &
                         days_per_year / m2_per_ha
 
-                   hio_m6_si_scls(io_si,i_scls) = hio_m6_si_scls(io_si,i_scls) +  &
-                        (sites(s)%term_nindivs_canopy(i_scls,ft) +              &
-                        sites(s)%term_nindivs_ustory(i_scls,ft)) *              &
+                   hio_m3_mortality_understory_si_scpf(io_si,i_scpf) = &
+                        hio_m3_mortality_understory_si_scpf(io_si,i_scpf) + &
+                        sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,ft) * &
                         days_per_year / m2_per_ha
+                   
+                   hio_m3_mortality_canopy_si_scls(io_si,i_scls) = &
+                        hio_m3_mortality_canopy_si_scls(io_si,i_scls) + &
+                        sites(s)%term_nindivs_canopy(i_term_mort_type_cstarv,i_scls,ft) * &
+                        days_per_year / m2_per_ha
+                   
+                   hio_m3_mortality_understory_si_scls(io_si,i_scls) = &
+                        hio_m3_mortality_understory_si_scls(io_si,i_scls) + &
+                        sites(s)%term_nindivs_ustory(i_term_mort_type_cstarv,i_scls,ft) * &
+                        days_per_year / m2_per_ha
+                   
                    !
                    ! add termination mortality to canopy and understory mortality
                    hio_mortality_canopy_si_scls(io_si,i_scls) = hio_mortality_canopy_si_scls(io_si,i_scls) + &
-                        sites(s)%term_nindivs_canopy(i_scls,ft) * days_per_year / m2_per_ha
-
+                        sum(sites(s)%term_nindivs_canopy(:,i_scls,ft)) * days_per_year / m2_per_ha
+                   
                    hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
-                        sites(s)%term_nindivs_ustory(i_scls,ft) * days_per_year / m2_per_ha
+                        sum(sites(s)%term_nindivs_ustory(:,i_scls,ft)) * days_per_year / m2_per_ha
 
                    hio_mortality_canopy_si_scpf(io_si,i_scpf) = hio_mortality_canopy_si_scpf(io_si,i_scpf) + &
-                        sites(s)%term_nindivs_canopy(i_scls,ft) * days_per_year / m2_per_ha
+                        sum(sites(s)%term_nindivs_canopy(:,i_scls,ft)) * days_per_year / m2_per_ha
 
                    hio_mortality_understory_si_scpf(io_si,i_scpf) = hio_mortality_understory_si_scpf(io_si,i_scpf) + &
-                        sites(s)%term_nindivs_ustory(i_scls,ft) * days_per_year / m2_per_ha
+                        sum(sites(s)%term_nindivs_ustory(:,i_scls,ft)) * days_per_year / m2_per_ha
+
 
                    !
                    ! imort on its own
@@ -4386,9 +4444,9 @@ contains
                 hio_mortality_carbonflux_si_pft(io_si,ft) = hio_mortality_carbonflux_si_pft(io_si,ft) + &
                      (sites(s)%fmort_carbonflux_canopy(ft) + &
                      sites(s)%fmort_carbonflux_ustory(ft) ) / g_per_kg + &
-                     sites(s)%imort_carbonflux(ft) + & 
-                     sites(s)%term_carbonflux_ustory(ft) * days_per_sec * ha_per_m2 + &
-                     sites(s)%term_carbonflux_canopy(ft) * days_per_sec * ha_per_m2 
+                     sites(s)%imort_carbonflux(ft) + &
+                     sum(sites(s)%term_carbonflux_ustory(:,ft)) * days_per_sec * ha_per_m2 + &
+                     sum(sites(s)%term_carbonflux_canopy(:,ft)) * days_per_sec * ha_per_m2
 
                 hio_firemortality_carbonflux_si_pft(io_si,ft) = sites(s)%fmort_carbonflux_canopy(ft) / g_per_kg
              end do
@@ -4438,9 +4496,8 @@ contains
                    end do
                 end do
              end if
-
-             sites(s)%term_nindivs_canopy(:,:) = 0._r8
-             sites(s)%term_nindivs_ustory(:,:) = 0._r8
+             sites(s)%term_nindivs_canopy(:,:,:) = 0._r8
+             sites(s)%term_nindivs_ustory(:,:,:) = 0._r8
              sites(s)%imort_carbonflux(:) = 0._r8
              sites(s)%imort_rate(:,:) = 0._r8
              sites(s)%fmort_rate_canopy(:,:) = 0._r8
@@ -7295,11 +7352,17 @@ contains
                index=ih_hydraulicmortality_carbonflux_si_pft)
 
           call this%set_history_var(vname='FATES_MORTALITY_CSTARV_CFLUX_PF', units='kg m-2 s-1',    &
-               long='PFT-level flux of biomass carbon from live to dead pool from carbon starvation mortality', &
+               long='PFT-level flux of biomass carbon from live to dead pool from carbon starvation mortality (both continuous and termination)', &
                use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index=ih_cstarvmortality_carbonflux_si_pft)
 
+          call this%set_history_var(vname='FATES_MORT_CSTARV_CONT_CFLUX_PF', units='kg m-2 s-1',    &
+               long='PFT-level flux of biomass carbon from live to dead pool from carbon starvation mortality (Continuous-only, without termination)', &
+               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+               index=ih_cstarvmortality_continuous_carbonflux_si_pft)
+          
           call this%set_history_var(vname='FATES_ABOVEGROUND_MORT_SZPF', units='kg m-2 s-1',    &
                long='Aboveground flux of carbon from AGB to necromass due to mortality', &
                use_default='inactive', avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', &
@@ -7559,7 +7622,7 @@ contains
 
           call this%set_history_var(vname='FATES_MORTALITY_CSTARV_SZPF',             &
                units = 'm-2 yr-1',                                                  &
-               long='carbon starvation mortality by pft/size in number of plants per m2 per year', &
+               long='carbon starvation mortality by pft/size in number of plants per m2 per year (both continous and termination)', &
                use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_m3_si_scpf)
@@ -7594,7 +7657,7 @@ contains
 
           call this%set_history_var(vname='FATES_MORTALITY_TERMINATION_SZPF',        &
                units = 'm-2 yr-1',                                                  &
-               long='termination mortality by pft/size in number pf plants per m2 per year', &
+               long='termination mortality (excluding C-starvation) by pft/size in number pf plants per m2 per year', &
                use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_m6_si_scpf)
@@ -7642,14 +7705,14 @@ contains
                initialize=initialize_variables, index = ih_mortality_canopy_si_scpf)
 
           call this%set_history_var(vname='FATES_M3_MORTALITY_CANOPY_SZPF',          &
-               units = 'N/ha/yr',                                                   &
+               units = 'm-2 yr-1',                                &
                long='C starvation mortality of canopy plants by pft/size',          &
                use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_m3_mortality_canopy_si_scpf )
 
           call this%set_history_var(vname='FATES_M3_MORTALITY_USTORY_SZPF',          &
-               units = 'N/ha/yr',                                                   &
+               units = 'm-2 yr-1',                                                   &
                long='C starvation mortality of understory plants by pft/size',      &
                use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
@@ -7884,14 +7947,14 @@ contains
                initialize=initialize_variables, index = ih_nplant_understory_si_scls)
 
           call this%set_history_var(vname='FATES_M3_MORTALITY_CANOPY_SZ',            &
-               units = 'N/ha/yr',                                                   &
+               units = 'm-2 yr-1',                                                   &
                long='C starvation mortality of canopy plants by size',              &
                use_default='inactive', avgflag='A', vtype=site_size_r8,             &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_m3_mortality_canopy_si_scls )
 
           call this%set_history_var(vname='FATES_M3_MORTALITY_USTORY_SZ',            &
-               units = 'N/ha/yr',                                                   &
+               units = 'm-2 yr-1',                                                   &
                long='C starvation mortality of understory plants by size',          &
                use_default='inactive', avgflag='A', vtype=site_size_r8,             &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
@@ -7938,7 +8001,7 @@ contains
 
           call this%set_history_var(vname='FATES_MORTALITY_CSTARV_SZ',               &
                units = 'm-2 yr-1',                                                  &
-               long='carbon starvation mortality by size in number of plants per m2 per year', &
+               long='carbon starvation mortality by size in number of plants per m2 per year (both continous and termination)', &
                use_default='active', avgflag='A', vtype=site_size_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_m3_si_scls)
@@ -7980,7 +8043,7 @@ contains
 
           call this%set_history_var(vname='FATES_MORTALITY_TERMINATION_SZ',          &
                units = 'm-2 yr-1',                                                  &
-               long='termination mortality by size in number of plants per m2 per year', &
+               long='termination mortality (excluding C-starvation) by size in number of plants per m2 per year', &
                use_default='active', avgflag='A', vtype=site_size_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_m6_si_scls)
