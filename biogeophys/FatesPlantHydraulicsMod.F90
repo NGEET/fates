@@ -981,6 +981,7 @@ contains
     ! Get the target, or rather, maximum leaf carrying capacity of plant
     ! Lets also avoid super-low targets that have very low trimming functions
 
+    ! efleaf_coh hard-coded to 1 in the call below to avoid zero leaf volume
     call bleaf(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
          max(ccohort%canopy_trim,min_trim),1.0_r8, leaf_c_target)
 
