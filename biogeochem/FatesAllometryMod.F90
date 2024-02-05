@@ -1561,6 +1561,14 @@ contains
      ! blmax    -- Plant leaf biomass                 [    kgC]
      ! dblmaxdd -- Plant leaf biomass derivative      [ kgC/cm]
      !
+     ! ------------------
+     !   Suggested first guess for parameters, based on Longo et al. (2020) and
+     ! corrected to FATES units (first guess based on a very limited leaf area
+     ! data set).
+     ! ------------------
+     ! p1 =  0.000468
+     ! p2 =  0.641
+     ! p3 = -1.000
      !--------------------------------------------------------------------------
 
 
@@ -1957,7 +1965,6 @@ contains
      ! p3           -- Parameter 3 (power, or log-slope)   [     --]
      ! wood_density -- Wood density                        [  g/cm3]
      ! c2b          -- Carbon to biomass multiplier ~ 2    [ kg/kgC]
-     ! dbh_maxh     -- DBH at maximum height               [     cm]
      !
      ! ------------------
      !  Output arguments
@@ -2428,7 +2435,7 @@ contains
      real(r8)   , intent(inout) :: dbh         ! Diameter at breast/ref/ height     [   cm]
      real(r8)   , intent(inout) :: height      ! Height                             [    m]
      integer(i4), intent(in)    :: ipft        ! PFT index
-     real(r8)   , intent(in)    :: dbh_maxh    ! Minimum DBH at maximum height      [    m]
+     real(r8)   , intent(in)    :: dbh_maxh    ! Minimum DBH at maximum height      [   cm]
      real(r8)   , intent(in)    :: spread      ! site level relative spread score   [  0-1]
      real(r8)   , intent(in)    :: dh2bl_p2    ! Exponent for size (bleaf)          [    -]
      real(r8)   , intent(in)    :: dh2bl_ediff ! Difference in size exponent        [    -]
@@ -2945,6 +2952,8 @@ contains
 
                                  ! [m2 of leaf in bin / m2 crown footprint]
     real(r8) :: tree_vai         ! the in-crown veg area index for the plant
+    real(r8) :: crown_depth      ! crown depth of the plant [m]
+    real(r8) :: frac_crown_depth ! fraction of the crown depth (relative to plant height)
     real(r8) :: fraction_exposed ! fraction of the veg media that is above snow
     real(r8) :: layer_top_height ! Physical height of the layer top relative to ground [m]
     real(r8) :: layer_bot_height ! Physical height of the layer bottom relative to ground [m]
@@ -2956,6 +2965,10 @@ contains
     integer, parameter :: layer_height_method = layer_height_const_depth
     
     tree_vai = tree_lai + tree_sai
+
+    ! Ratio between crown depth and plant height
+    call CrownDepth(tree_height,pft,crown_depth)
+    frac_crown_depth = crown_depth / tree_height
 
     if_any_vai: if(tree_vai>0._r8)then
 
@@ -2980,14 +2993,14 @@ contains
        if(layer_height_method .eq. layer_height_const_depth)then
           if(iv==0)then
              layer_top_height = tree_height
-             layer_bot_height = tree_height*(1._r8 - prt_params%crown_depth_frac(pft))
+             layer_bot_height = tree_height*(1._r8 - frac_crown_depth)
           else
-             layer_top_height = tree_height*(1._r8 - real(iv-1,r8)/real(nv,r8)*prt_params%crown_depth_frac(pft))
-             layer_bot_height = tree_height*(1._r8 - real(iv,r8)/real(nv,r8)*prt_params%crown_depth_frac(pft))
+             layer_top_height = tree_height*(1._r8 - real(iv-1,r8)/real(nv,r8)*frac_crown_depth)
+             layer_bot_height = tree_height*(1._r8 - real(iv,r8)/real(nv,r8)*frac_crown_depth)
           end if
        else
-          layer_top_height = tree_height*(1._r8 - prt_params%crown_depth_frac(pft)*vai_top/tree_vai)
-          layer_bot_height = tree_height*(1._r8 - prt_params%crown_depth_frac(pft)*vai_bot/tree_vai)
+          layer_top_height = tree_height*(1._r8 - frac_crown_depth*vai_top/tree_vai)
+          layer_bot_height = tree_height*(1._r8 - frac_crown_depth*vai_bot/tree_vai)
        end if
 
        fraction_exposed =  1._r8 - max(0._r8,(min(1._r8, (snow_depth-layer_bot_height)/(layer_top_height-layer_bot_height))))
