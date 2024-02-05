@@ -1,4 +1,4 @@
-netcdf tmp {
+netcdf fates_params_default {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
@@ -8,12 +8,12 @@ dimensions:
 	fates_history_size_bins = 13 ;
 	fates_hlm_pftno = 14 ;
 	fates_hydr_organs = 4 ;
-	fates_landuseclass = 5 ;
 	fates_leafage_class = 1 ;
 	fates_litterclass = 6 ;
 	fates_pft = 12 ;
 	fates_plant_organs = 4 ;
 	fates_string_length = 60 ;
+	fates_landuseclass = 5 ;
 variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
 		fates_history_ageclass_bin_edges:units = "yr" ;
@@ -84,6 +84,9 @@ variables:
 	double fates_allom_cmode(fates_pft) ;
 		fates_allom_cmode:units = "index" ;
 		fates_allom_cmode:long_name = "coarse root biomass allometry function index." ;
+	double fates_allom_crown_depth_frac(fates_pft) ;
+		fates_allom_crown_depth_frac:units = "fraction" ;
+		fates_allom_crown_depth_frac:long_name = "the depth of a cohort crown as a fraction of its height" ;
 	double fates_allom_d2bl1(fates_pft) ;
 		fates_allom_d2bl1:units = "variable" ;
 		fates_allom_d2bl1:long_name = "Parameter 1 for d2bl allometry" ;
@@ -111,9 +114,6 @@ variables:
 	double fates_allom_dbh_maxheight(fates_pft) ;
 		fates_allom_dbh_maxheight:units = "cm" ;
 		fates_allom_dbh_maxheight:long_name = "the diameter (if any) corresponding to maximum height, diameters may increase beyond this" ;
-	double fates_allom_dmode(fates_pft) ;
-		fates_allom_dmode:units = "index" ;
-		fates_allom_dmode:long_name = "crown depth allometry function index" ;
 	double fates_allom_fmode(fates_pft) ;
 		fates_allom_fmode:units = "index" ;
 		fates_allom_fmode:long_name = "fine root biomass allometry function index." ;
@@ -129,12 +129,6 @@ variables:
 	double fates_allom_frbstor_repro(fates_pft) ;
 		fates_allom_frbstor_repro:units = "fraction" ;
 		fates_allom_frbstor_repro:long_name = "fraction of bstore goes to reproduction after plant dies" ;
-	double fates_allom_h2cd1(fates_pft) ;
-		fates_allom_h2cd1:units = "variable" ;
-		fates_allom_h2cd1:long_name = "Parameter 1 for h2cd allometry (exp(log-intercept) or scaling). If allom_dmode=1; this is the same as former crown_depth_frac parameter" ;
-	double fates_allom_h2cd2(fates_pft) ;
-		fates_allom_h2cd2:units = "variable" ;
-		fates_allom_h2cd2:long_name = "Parameter 2 for h2cd allometry (log-slope or exponent). If allom_dmode=1; this is not needed (as exponent is assumed 1)" ;
 	double fates_allom_hmode(fates_pft) ;
 		fates_allom_hmode:units = "index" ;
 		fates_allom_hmode:long_name = "height allometry function index." ;
@@ -985,6 +979,9 @@ data:
 
  fates_allom_cmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
+ fates_allom_crown_depth_frac = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.95, 0.95, 
+    0.95, 1, 1, 1 ;
+
  fates_allom_d2bl1 = 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 
     0.07, 0.07, 0.07 ;
 
@@ -1013,8 +1010,6 @@ data:
 
  fates_allom_dbh_maxheight = 90, 80, 80, 80, 90, 80, 3, 3, 2, 0.35, 0.35, 0.35 ;
 
- fates_allom_dmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
  fates_allom_fmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_allom_fnrt_prof_a = 7, 7, 7, 7, 6, 6, 7, 7, 7, 11, 11, 11 ;
@@ -1024,10 +1019,6 @@ data:
  fates_allom_fnrt_prof_mode = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ;
 
  fates_allom_frbstor_repro = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_allom_h2cd1 = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.95, 0.95, 0.95, 1, 1, 1 ;
-
- fates_allom_h2cd2 = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_allom_hmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
