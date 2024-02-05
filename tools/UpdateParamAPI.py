@@ -12,10 +12,17 @@
 import os
 import argparse
 import code  # For development: code.interact(local=dict(globals(), **locals()))
-from scipy.io import netcdf
 import xml.etree.ElementTree as et
 import numpy as np
 
+# Newer versions of scipy have dropped the netcdf module and
+# netcdf functions are part of the io parent module
+try:
+    from scipy import io as nc
+
+except ImportError:
+    from scipy.io import netcdf as nc
+	 
 # =======================================================================================
 
 def load_xml(xmlfile): 
@@ -157,10 +164,10 @@ def removevar(base_nc,varname):
     # The trick here, is to copy the whole file, minus the variable of interest
     # into a temp file. Then completely remove the old file, and 
 
-    fp_base = netcdf.netcdf_file(base_nc, 'r',mmap=False)
+    fp_base = nc.netcdf_file(base_nc, 'r',mmap=False)
 
     new_nc = os.popen('mktemp').read().rstrip('\n')
-    fp_new  = netcdf.netcdf_file(new_nc, 'w',mmap=False)
+    fp_new  = nc.netcdf_file(new_nc, 'w',mmap=False)
 
     found = False
     for key, value in sorted(fp_base.dimensions.items()):
@@ -248,7 +255,7 @@ def main():
                 print("The dimension size should be a scalar")
                 exit(2)
 
-            ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
+            ncfile = nc.netcdf_file(base_nc,"a",mmap=False)
             ncfile.createDimension(dimname, values[0])
             ncfile.flush()
             ncfile.close()
@@ -264,7 +271,7 @@ def main():
                 exit(2)
 
             # Find which parameters use this dimension
-            ncfile = netcdf.netcdf_file(base_nc,"r",mmap=False)
+            ncfile = nc.netcdf_file(base_nc,"r",mmap=False)
             found = False
             for key, value in sorted(ncfile.dimensions.items()):
                 if(key==dimname):
@@ -298,47 +305,51 @@ def main():
             #    print("no data type (dt), exiting");exit(2)
                 
             try:
+                # print("trying dimnames: {}".format(paramname))
                 dimnames = tuple(mod.find('di').text.replace(" ","").split(','))
             except:
                 print("no data type (di), exiting");exit(2)
                 
             try:
+                # print("trying units: {}".format(paramname))
                 units = mod.find('un').text.strip()
             except:
                 print("no units (un), exiting");exit(2)
                 
             try:
+                # print("trying ln: {}".format(paramname))
                 longname = mod.find('ln').text.strip()
             except:
                 print("no long-name (ln), exiting");exit(2)
 
-            ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
+            ncfile = nc.netcdf_file(base_nc,"a",mmap=False)
 
             try:
-                values = str2fvec(mod.find('val').text.strip())
-            except:
-                # try:
-                if(isinstance(mod.find('val').text,type(None))):
-                    # values = mod.find('val').text.strip()
-                # except:
+                # print("trying val: {}".format(paramname))
+                valstring = mod.find('val').text.strip()
+                values = str2fvec(valstring)
+            except Exception as emsg:
+                # print("type: {}".format(type(valstring)))
+                if(isinstance(valstring,type(None))):
                     print("Warning: no values (val). Setting undefined (i.e. '_'): {}\n".format(paramname))
                     sel_values = ncfile.variables['fates_dev_arbitrary_pft'].data
                     dcode = "d"
-                else:
-                    print("unknown values (val), exiting");exit(2)
+                elif(isinstance(valstring,str)):
+                    dcode = "c"
+                    values = valstring.split(',')
+                    for i,val in enumerate(values):
+                        values[i] = val.strip()
+                        print("value: {},{}".format(i,values[i]))
 
+                    sel_values = selectvalues(ncfile,list(dimnames),ipft_list,values,dcode)
+                else:
+                    print("exception, unknown values (val), exiting: {}".format(emsg));exit(2)
                     #print("no values (val), exiting");exit(2)
             else:
             #code.interact(local=dict(globals(), **locals()))
             
                 if(dimnames[0]=='scalar' or dimnames[0]=='none' or dimnames[0]==''):
                     dimnames = ()
-
-                if(isinstance(values[0],str)):
-                    dcode = "c"
-                    values = values.split(',')
-                    for i,val in enumerate(values):
-                        values[i] = val.strip()
                 elif(isinstance(values[0],float)):
                     dcode = "d"
                 else:
@@ -371,7 +382,7 @@ def main():
                 print("to change a parameter, the field must have a name attribute")
                 exit(2)
                 
-            ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
+            ncfile = nc.netcdf_file(base_nc,"a",mmap=False)
             ncvar_o = ncfile.variables[paramname_o]
             # dims_o  = ncvar_o.dimensions
             dtype_o = ncvar_o.typecode()
