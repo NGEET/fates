@@ -10,6 +10,8 @@ module EDParamsMod
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
    use FatesConstantsMod,    only : fates_unset_r8
+   use FatesConstantsMod,    only : cstarvation_model_lin
+   use FatesConstantsMod,    only : n_landuse_cats
 
    ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -49,7 +51,11 @@ module EDParamsMod
                                                       ! 1=non-acclimating, 2=Kumarathunge et al., 2019
 
    integer,protected, public :: radiation_model       ! Switch betrween Norman (1) and Two-stream (2) radiation models
-   
+
+   integer,protected, public :: mort_cstarvation_model ! Switch for carbon starvation mortality:
+                                                       ! 1 -- Linear model
+                                                       ! 2 -- Exponential model
+
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln                    ! weighting factor for canopy layer exclusion and promotion
    real(r8),protected, public :: ED_val_vai_top_bin_width             ! width in VAI units of uppermost leaf+stem layer scattering element
@@ -95,41 +101,17 @@ module EDParamsMod
    integer, public :: n_uptake_mode
    integer, public :: p_uptake_mode
 
+   real(r8), parameter, public :: soil_tfrz_thresh = -2.0_r8 ! Soil temperature threshold below which hydraulic failure mortality is off (non-hydro only) in degrees C
+   
    integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
-  
+
    ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
    integer, parameter, public :: nlevleaf = 30   ! number of leaf+stem layers in each canopy layer
 
    real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8 ! VAI bin widths array
    real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8 ! lower edges of VAI bins
  
-     ! TODO: we use this cp_maxSWb only because we have a static array q(size=2) of
-  ! land-ice abledo for vis and nir.  This should be a parameter, which would
-  ! get us on track to start using multi-spectral or hyper-spectral (RGK 02-2017)
-
-  integer, parameter, public :: maxSWb = 2      ! maximum number of broad-bands in the
-  ! shortwave spectrum cp_numSWb <= cp_maxSWb
-  ! this is just for scratch-array purposes
-  ! if cp_numSWb is larger than this value
-  ! simply bump this number up as needed
-
-integer, parameter, public :: ivis = 1        ! This is the array index for short-wave
-  ! radiation in the visible spectrum, as expected
-  ! in boundary condition files and parameter
-  ! files.  This will be compared with 
-  ! the HLM's expectation in FatesInterfaceMod
-integer, parameter, public :: inir = 2        ! This is the array index for short-wave
-  ! radiation in the near-infrared spectrum, as expected
-  ! in boundary condition files and parameter
-  ! files.  This will be compared with 
-  ! the HLM's expectation in FatesInterfaceMod
-
-integer, parameter, public :: ipar = ivis     ! The photosynthetically active band
-  ! can be approximated to be equal to the visible band
-
-
-
-integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
+   integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
@@ -163,6 +145,7 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    character(len=param_string_length),parameter,public :: name_radiation_model = "fates_rad_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydro_htftype_node"
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
+   character(len=param_string_length),parameter,public :: ED_name_mort_cstarvation_model = "fates_mort_cstarvation_model"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
    character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
    character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
@@ -197,6 +180,7 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
+   character(len=param_string_length),parameter,public :: ED_name_maxpatches_by_landuse = "fates_maxpatches_by_landuse"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -247,13 +231,9 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    ! The number of patches specified in the parameter file may be over-written.
    ! For instance, in SP mode, we want the same number of primary patches as the number of PFTs
    ! in the fates parameter file, and zero secondary.
+   ! thus they are not protected here.
    
-   integer, public :: maxpatch_primary
-   character(len=param_string_length), parameter, public :: maxpatch_primary_name = "fates_maxpatch_primary"
-   
-   integer, public :: maxpatch_secondary
-   character(len=param_string_length), parameter, public :: maxpatch_secondary_name = "fates_maxpatch_secondary"
-
+   integer, public :: maxpatches_by_landuse(n_landuse_cats)
    integer, public :: maxpatch_total
 
    ! Maximum allowable cohorts per patch
@@ -337,6 +317,7 @@ contains
     maintresp_leaf_model                  = -9
     radiation_model                       = -9
     fates_mortality_disturbance_fraction  = nan
+    mort_cstarvation_model                = -9
     ED_val_comp_excln                     = nan
     ED_val_vai_top_bin_width              = nan
     ED_val_vai_width_increase_factor      = nan
@@ -359,8 +340,6 @@ contains
     stomatal_model                        = -9
     regeneration_model                    = -9
     stomatal_assim_model                  = -9
-    maxpatch_primary                      = -9
-    maxpatch_secondary                    = -9
     max_cohort_per_patch                  = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
@@ -397,7 +376,7 @@ contains
     use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
     use FatesParametersInterface, only : dimension_name_history_height_bins, dimension_name_hydr_organs
     use FatesParametersInterface, only : dimension_name_history_coage_bins, dimension_name_history_damage_bins
-    use FatesParametersInterface, only : dimension_shape_scalar
+    use FatesParametersInterface, only : dimension_shape_scalar, dimension_name_landuse
 
 
     implicit none
@@ -411,6 +390,7 @@ contains
     character(len=param_string_length), parameter :: dim_names_coageclass(1) = (/dimension_name_history_coage_bins/)
     character(len=param_string_length), parameter :: dim_names_hydro_organs(1) = (/dimension_name_hydr_organs/)
     character(len=param_string_length), parameter :: dim_names_damageclass(1)= (/dimension_name_history_damage_bins/)
+    character(len=param_string_length), parameter :: dim_names_landuse(1)= (/dimension_name_landuse/)
     
     call FatesParamsInit()
 
@@ -448,6 +428,9 @@ contains
          dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_mort_cstarvation_model, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_scalar, &
@@ -514,12 +497,6 @@ contains
          dimension_names=dim_names_scalar)
 	 
     call fates_params%RegisterParameter(name=stomatal_assim_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=maxpatch_primary_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=maxpatch_secondary_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=maxcohort_name, dimension_shape=dimension_shape_scalar, &
@@ -617,6 +594,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_history_damage_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_damageclass)
 
+    call fates_params%RegisterParameter(name=ED_name_maxpatches_by_landuse, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
+
   end subroutine FatesRegisterParams
 
   
@@ -624,6 +604,7 @@ contains
   subroutine FatesReceiveParams(fates_params)
     
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
+    use FatesConstantsMod, only: primaryland, secondaryland, rangeland, pastureland, cropland
 
     implicit none
 
@@ -631,6 +612,7 @@ contains
 
     real(r8) :: tmpreal ! local real variable for changing type on read
     real(r8), allocatable :: hydr_htftype_real(:)
+    real(r8) :: tmp_vector_by_landuse(n_landuse_cats)  ! local real vector for changing type on read
     
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
@@ -665,6 +647,10 @@ contains
     call fates_params%RetrieveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
 
+    call fates_params%RetrieveParameter(name=ED_name_mort_cstarvation_model, &
+         data=tmpreal)
+    mort_cstarvation_model = nint(tmpreal)
+        
     call fates_params%RetrieveParameter(name=ED_name_comp_excln, &
          data=ED_val_comp_excln)
 
@@ -733,16 +719,6 @@ contains
     call fates_params%RetrieveParameter(name=stomatal_assim_name, &
          data=tmpreal)
     stomatal_assim_model = nint(tmpreal)
-
-    call fates_params%RetrieveParameter(name=maxpatch_primary_name, &
-         data=tmpreal)
-    maxpatch_primary = nint(tmpreal)
-
-    call fates_params%RetrieveParameter(name=maxpatch_secondary_name, &
-         data=tmpreal)
-    maxpatch_secondary = nint(tmpreal)
-
-    maxpatch_total = maxpatch_primary+maxpatch_secondary
     
     call fates_params%RetrieveParameter(name=maxcohort_name, &
          data=tmpreal)
@@ -845,6 +821,12 @@ contains
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_damage_bin_edges, &
          data=ED_val_history_damage_bin_edges)
+
+    call fates_params%RetrieveParameter(name=ED_name_maxpatches_by_landuse, &
+         data=tmp_vector_by_landuse)
+
+    maxpatches_by_landuse(:) = nint(tmp_vector_by_landuse(:))
+    maxpatch_total = sum(maxpatches_by_landuse(:))
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_hydr_htftype_node, &
          data=hydr_htftype_real)

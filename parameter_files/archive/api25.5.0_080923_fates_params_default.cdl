@@ -1,4 +1,4 @@
-netcdf tmp {
+netcdf fates_params_default {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
@@ -8,7 +8,6 @@ dimensions:
 	fates_history_size_bins = 13 ;
 	fates_hlm_pftno = 14 ;
 	fates_hydr_organs = 4 ;
-	fates_landuseclass = 5 ;
 	fates_leafage_class = 1 ;
 	fates_litterclass = 6 ;
 	fates_pft = 12 ;
@@ -45,9 +44,6 @@ variables:
 	char fates_alloc_organ_name(fates_plant_organs, fates_string_length) ;
 		fates_alloc_organ_name:units = "unitless - string" ;
 		fates_alloc_organ_name:long_name = "Name of plant organs (with alloc_organ_id, must match PRTGenericMod.F90)" ;
-	char fates_landuseclass_name(fates_landuseclass, fates_string_length) ;
-		fates_landuseclass_name:units = "unitless - string" ;
-		fates_landuseclass_name:long_name = "Name of the land use classes, for variables associated with dimension fates_landuseclass" ;
 	char fates_litterclass_name(fates_litterclass, fates_string_length) ;
 		fates_litterclass_name:units = "unitless - string" ;
 		fates_litterclass_name:long_name = "Name of the litter classes, for variables associated with dimension fates_litterclass" ;
@@ -84,6 +80,9 @@ variables:
 	double fates_allom_cmode(fates_pft) ;
 		fates_allom_cmode:units = "index" ;
 		fates_allom_cmode:long_name = "coarse root biomass allometry function index." ;
+	double fates_allom_crown_depth_frac(fates_pft) ;
+		fates_allom_crown_depth_frac:units = "fraction" ;
+		fates_allom_crown_depth_frac:long_name = "the depth of a cohort crown as a fraction of its height" ;
 	double fates_allom_d2bl1(fates_pft) ;
 		fates_allom_d2bl1:units = "variable" ;
 		fates_allom_d2bl1:long_name = "Parameter 1 for d2bl allometry" ;
@@ -111,9 +110,6 @@ variables:
 	double fates_allom_dbh_maxheight(fates_pft) ;
 		fates_allom_dbh_maxheight:units = "cm" ;
 		fates_allom_dbh_maxheight:long_name = "the diameter (if any) corresponding to maximum height, diameters may increase beyond this" ;
-	double fates_allom_dmode(fates_pft) ;
-		fates_allom_dmode:units = "index" ;
-		fates_allom_dmode:long_name = "crown depth allometry function index" ;
 	double fates_allom_fmode(fates_pft) ;
 		fates_allom_fmode:units = "index" ;
 		fates_allom_fmode:long_name = "fine root biomass allometry function index." ;
@@ -129,12 +125,6 @@ variables:
 	double fates_allom_frbstor_repro(fates_pft) ;
 		fates_allom_frbstor_repro:units = "fraction" ;
 		fates_allom_frbstor_repro:long_name = "fraction of bstore goes to reproduction after plant dies" ;
-	double fates_allom_h2cd1(fates_pft) ;
-		fates_allom_h2cd1:units = "variable" ;
-		fates_allom_h2cd1:long_name = "Parameter 1 for h2cd allometry (exp(log-intercept) or scaling). If allom_dmode=1; this is the same as former crown_depth_frac parameter" ;
-	double fates_allom_h2cd2(fates_pft) ;
-		fates_allom_h2cd2:units = "variable" ;
-		fates_allom_h2cd2:long_name = "Parameter 2 for h2cd allometry (log-slope or exponent). If allom_dmode=1; this is not needed (as exponent is assumed 1)" ;
 	double fates_allom_hmode(fates_pft) ;
 		fates_allom_hmode:units = "index" ;
 		fates_allom_hmode:long_name = "height allometry function index." ;
@@ -479,7 +469,7 @@ variables:
 		fates_phen_stem_drop_fraction:long_name = "fraction of stems to drop for non-woody species during drought/cold" ;
 	double fates_phen_stress_decid(fates_pft) ;
 		fates_phen_stress_decid:units = "logical flag" ;
-		fates_phen_stress_decid:long_name = "Flag for stress/drought-deciduous leaf habit. 0 - not stress deciduous; 1 - default drought deciduous (two target states only, fully flushed or fully abscised); 2 - semi-deciduous" ;
+		fates_phen_stress_decid:long_name = "Binary flag for stress-deciduous leaf habit" ;
 	double fates_prescribed_npp_canopy(fates_pft) ;
 		fates_prescribed_npp_canopy:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_canopy:long_name = "NPP per unit crown area of canopy trees for prescribed physiology mode" ;
@@ -678,9 +668,6 @@ variables:
 	double fates_frag_cwd_frac(fates_NCWD) ;
 		fates_frag_cwd_frac:units = "fraction" ;
 		fates_frag_cwd_frac:long_name = "fraction of woody (bdead+bsw) biomass destined for CWD pool" ;
-	double fates_maxpatches_by_landuse(fates_landuseclass) ;
-		fates_maxpatches_by_landuse:units = "count" ;
-		fates_maxpatches_by_landuse:long_name = "maximum number of patches per site on each land use type" ;
 	double fates_canopy_closure_thresh ;
 		fates_canopy_closure_thresh:units = "unitless" ;
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
@@ -828,6 +815,12 @@ variables:
 	double fates_maxcohort ;
 		fates_maxcohort:units = "count" ;
 		fates_maxcohort:long_name = "maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances" ;
+	double fates_maxpatch_primary ;
+		fates_maxpatch_primary:units = "count" ;
+		fates_maxpatch_primary:long_name = "maximum number of primary vegetation patches per site" ;
+	double fates_maxpatch_secondary ;
+		fates_maxpatch_secondary:units = "count" ;
+		fates_maxpatch_secondary:long_name = "maximum number of secondary vegetation patches per site" ;
 	double fates_mort_disturb_frac ;
 		fates_mort_disturb_frac:units = "fraction" ;
 		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)" ;
@@ -937,13 +930,6 @@ data:
   "sapwood",
   "structure" ;
 
- fates_landuseclass_name =
-  "primaryland",
-  "secondaryland",
-  "rangeland",
-  "pastureland",
-  "cropland" ;
-
  fates_litterclass_name =
   "twig                                             ",
   "small branch                                     ",
@@ -985,6 +971,9 @@ data:
 
  fates_allom_cmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
+ fates_allom_crown_depth_frac = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.95, 0.95, 
+    0.95, 1, 1, 1 ;
+
  fates_allom_d2bl1 = 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 
     0.07, 0.07, 0.07 ;
 
@@ -1013,8 +1002,6 @@ data:
 
  fates_allom_dbh_maxheight = 90, 80, 80, 80, 90, 80, 3, 3, 2, 0.35, 0.35, 0.35 ;
 
- fates_allom_dmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
  fates_allom_fmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_allom_fnrt_prof_a = 7, 7, 7, 7, 6, 6, 7, 7, 7, 11, 11, 11 ;
@@ -1024,10 +1011,6 @@ data:
  fates_allom_fnrt_prof_mode = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ;
 
  fates_allom_frbstor_repro = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_allom_h2cd1 = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.95, 0.95, 0.95, 1, 1, 1 ;
-
- fates_allom_h2cd2 = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_allom_hmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
@@ -1606,8 +1589,6 @@ data:
 
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
 
- fates_maxpatches_by_landuse = 9, 4, 1, 1, 1 ;
-
  fates_canopy_closure_thresh = 0.8 ;
 
  fates_cnp_eca_plant_escalar = 1.25e-05 ;
@@ -1705,6 +1686,10 @@ data:
  fates_maintresp_nonleaf_baserate = 2.525e-06 ;
 
  fates_maxcohort = 100 ;
+
+ fates_maxpatch_primary = 10 ;
+
+ fates_maxpatch_secondary = 4 ;
 
  fates_mort_disturb_frac = 1 ;
 
