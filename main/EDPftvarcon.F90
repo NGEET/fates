@@ -1845,7 +1845,6 @@ contains
                     call endrun(msg=errMsg(sourcefile, __LINE__))
                  end if
               end if
-
            end if
         end if
         
@@ -1871,7 +1870,25 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         end if
-        
+
+        ! We are using a simple phosphatase model right now. There is
+        ! no critical value (lambda) , and there is no preferential uptake (alpha).
+        ! Make sure these parameters are both set to 0.
+
+        if ((hlm_phosphorus_spec>0) .and. (trim(hlm_nu_com).eq.'ECA')) then
+           if (any(abs(EDPftvarcon_inst%eca_lambda_ptase(:)) > nearzero ) ) then
+              write(fates_log(),*) 'Critical Values for phosphatase in ECA are not'
+              write(fates_log(),*) 'enabled right now. Please set fates_eca_lambda_ptase = 0'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+           if (any(abs(EDPftvarcon_inst%eca_alpha_ptase(:)) > nearzero ) ) then
+              write(fates_log(),*) 'There is no preferential plant uptake of P from phosphatase'
+              write(fates_log(),*) 'enabled right now. Please set fates_eca_alpha_ptase = 0'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
         
      case (prt_carbon_allom_hyp)
         ! No additional checks needed for now.
@@ -1914,6 +1931,9 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
      end if
+
+
+     
 
      do ipft = 1,npft
 
