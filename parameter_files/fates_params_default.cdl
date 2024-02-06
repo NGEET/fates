@@ -179,7 +179,7 @@ variables:
 		fates_c2b:long_name = "Carbon to biomass multiplier of bulk structural tissues" ;
 	double fates_cnp_eca_alpha_ptase(fates_pft) ;
 		fates_cnp_eca_alpha_ptase:units = "g/m3" ;
-		fates_cnp_eca_alpha_ptase:long_name = "fraction of P from ptase activity sent directly to plant (ECA)" ;
+		fates_cnp_eca_alpha_ptase:long_name = "(INACTIVE, KEEP AT 0) fraction of P from ptase activity sent directly to plant (ECA)" ;
 	double fates_cnp_eca_decompmicc(fates_pft) ;
 		fates_cnp_eca_decompmicc:units = "gC/m3" ;
 		fates_cnp_eca_decompmicc:long_name = "maximum soil microbial decomposer biomass found over depth (will be applied at a reference depth w/ exponential attenuation) (ECA)" ;
@@ -197,7 +197,7 @@ variables:
 		fates_cnp_eca_km_ptase:long_name = "half-saturation constant for biochemical P (ECA)" ;
 	double fates_cnp_eca_lambda_ptase(fates_pft) ;
 		fates_cnp_eca_lambda_ptase:units = "g/m3" ;
-		fates_cnp_eca_lambda_ptase:long_name = "critical value for biochemical production (ECA)" ;
+		fates_cnp_eca_lambda_ptase:long_name = "(INACTIVE, KEEP AT 0) critical value for biochemical production (ECA)" ;
 	double fates_cnp_eca_vmax_ptase(fates_pft) ;
 		fates_cnp_eca_vmax_ptase:units = "gP/m2/s" ;
 		fates_cnp_eca_vmax_ptase:long_name = "maximum production rate for biochemical P (per m2) (ECA)" ;
@@ -1062,8 +1062,7 @@ data:
 
  fates_c2b = 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
- fates_cnp_eca_alpha_ptase = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
-    0.5, 0.5, 0.5 ;
+ fates_cnp_eca_alpha_ptase = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_cnp_eca_decompmicc = 280, 280, 280, 280, 280, 280, 280, 280, 280, 280, 
     280, 280 ;
@@ -1079,7 +1078,7 @@ data:
 
  fates_cnp_eca_km_ptase = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_cnp_eca_lambda_ptase = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+ fates_cnp_eca_lambda_ptase = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_cnp_eca_vmax_ptase = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
     5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;

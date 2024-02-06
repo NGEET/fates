@@ -66,5 +66,25 @@
       <ln>Parameter 2 for h2cd allometry (log-slope or exponent). If allom_dmode=1; this is not needed (as exponent is assumed 1)</ln>
       <val>1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1</val>
     </mod>
+    <mod type="variable_del">
+      <na>fates_cnp_eca_alpha_ptase</na>
+    </mod>
+    <mod type="variable_del">
+      <na>fates_cnp_eca_lambda_ptase</na>
+    </mod>
+    <mod type="variable_add">
+      <na>fates_cnp_eca_alpha_ptase</na>
+      <di>fates_pft</di>
+      <un>g/m3</un>
+      <ln>(INACTIVE, KEEP AT 0) fraction of P from ptase activity sent directly to plant (ECA)</ln>
+      <val>0,0,0,0,0,0,0,0,0,0,0,0</val>
+    </mod>
+    <mod type="variable_add">
+      <na>fates_cnp_eca_lambda_ptase</na>
+      <di>fates_pft</di>
+      <un>g/m3</un>
+      <ln>(INACTIVE, KEEP AT 0) critical value for biochemical production (ECA)</ln>
+      <val>0,0,0,0,0,0,0,0,0,0,0,0</val>
+    </mod>
   </mods>
 </all>
