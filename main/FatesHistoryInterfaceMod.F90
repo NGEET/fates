@@ -2081,7 +2081,6 @@ contains
     integer :: el        ! element loop index
     integer :: ft        ! pft loop index
     real(r8):: uconv     ! combined unit conversion factor
-    real(r8) :: fnrtc_si ! site level fine-root c
     real(r8) :: fnrt_c   ! cohort fine-root c
 
     ! Process variables with time-space dimensions only
@@ -2089,10 +2088,6 @@ contains
 
     if_dynam1: if(hlm_hist_level_dynam>0) then
        
-       associate(hio_l2fr_si  => this%hvars(ih_l2fr_si)%r81d)
-
-         fnrtc_si        = 0._r8
-
          ! history site index
          io_si  = csite%h_gid
 
@@ -2112,11 +2107,6 @@ contains
                uconv = ccohort%n * ha_per_m2 * days_per_sec
 
                fnrt_c   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
-
-               hio_l2fr_si(io_si) =  hio_l2fr_si(io_si) + ccohort%n*fnrt_c*ccohort%l2fr
-
-               ! These are used for normalizing weighted averages
-               fnrtc_si = fnrtc_si + ccohort%n*fnrt_c
 
                ! Loop over the different elements. 
                do el = 1, num_elements
@@ -2179,13 +2169,6 @@ contains
             cpatch => cpatch%older
          end do
 
-         if(fnrtc_si>nearzero)then
-            hio_l2fr_si(io_si) = hio_l2fr_si(io_si)/fnrtc_si
-         else
-            hio_l2fr_si(io_si) = hlm_hio_ignore_val
-         end if
-
-       end associate
     end if if_dynam1
 
     ! Process multiplexed variables
@@ -2193,9 +2176,6 @@ contains
     
     if_dynam2: if(hlm_hist_level_dynam>1) then
 
-       associate( &
-            hio_recl2fr_canopy_pf => this%hvars(ih_recl2fr_canopy_pf)%r82d, &
-            hio_recl2fr_ustory_pf => this%hvars(ih_recl2fr_ustory_pf)%r82d )
 
          ! history site index
          io_si  = csite%h_gid
@@ -2278,12 +2258,6 @@ contains
             cpatch => cpatch%older
          end do
 
-         do ft = 1,numpft
-            hio_recl2fr_canopy_pf(io_si,ft) = csite%rec_l2fr(ft,1)
-            hio_recl2fr_ustory_pf(io_si,ft) = csite%rec_l2fr(ft,2)
-         end do
-
-       end associate
     end if if_dynam2
     
     return
@@ -2418,7 +2392,7 @@ contains
     real(r8) :: repro_m_net_alloc  ! mass allocated to reproduction [kg/yr]
     real(r8) :: n_perm2            ! abundance per m2
     real(r8) :: area_frac  ! Fraction of area for this patch
-
+    
     associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
          hio_npatches_sec_si     => this%hvars(ih_npatches_sec_si)%r81d, &
          hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
@@ -2759,7 +2733,7 @@ contains
                if ( cpatch%land_use_label .eq. secondaryland ) then
                   hio_ncohorts_sec_si(io_si) = hio_ncohorts_sec_si(io_si) + 1._r8
                end if
-
+               
                ! Update biomass components
                ! Mass pools [kg]
                elloop: do el = 1, num_elements
@@ -2814,6 +2788,13 @@ contains
                         hio_biomass_secondary_forest_si(io_si) = hio_biomass_secondary_forest_si(io_si) + &
                              total_m * ccohort%n * AREA_INV
                      endif
+
+                     if( hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
+                        this%hvars(ih_l2fr_si)%r81d(io_si) = &
+                             this%hvars(ih_l2fr_si)%r81d(io_si) + &
+                             ccohort%l2fr *ccohort%n * fnrt_m / m2_per_ha
+                     end if
+
 
                   elseif(element_list(el).eq.nitrogen_element)then
 
@@ -3010,15 +2991,17 @@ contains
             end if
          end do elloop2
 
+         if(this%hvars(ih_fnrtc_si)%r81d(io_si)>nearzero)then
+            this%hvars(ih_l2fr_si)%r81d(io_si) = this%hvars(ih_l2fr_si)%r81d(io_si) / &
+                 this%hvars(ih_fnrtc_si)%r81d(io_si)
+         else
+            this%hvars(ih_l2fr_si)%r81d(io_si) = hlm_hio_ignore_val
+         end if
 
-
-
+         
          ! zero the site-level termination carbon flux variable
          sites(s)%term_carbonflux_canopy(:,:) = 0._r8
          sites(s)%term_carbonflux_ustory(:,:) = 0._r8
-
-
-
 
       end do siteloop
 
@@ -3316,7 +3299,6 @@ contains
              hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
              hio_disturbance_rate_si_lulu         => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
              hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d)
-
 
           model_day_int = nint(hlm_model_day)
 
@@ -4779,11 +4761,6 @@ contains
 
              end do ! end element loop
 
-
-             ! Normalize storage fractions and L2FR
-
-
-
              do ft = 1, numpft
                 do i_scls = 1,nlevsclass
                    i_scpf = (ft-1)*nlevsclass + i_scls
@@ -4850,9 +4827,6 @@ contains
                 hio_demotion_rate_si_scls(io_si,i_scls) = sites(s)%demotion_rate(i_scls) * days_per_year / m2_per_ha
                 hio_promotion_rate_si_scls(io_si,i_scls) = sites(s)%promotion_rate(i_scls) * days_per_year / m2_per_ha
              end do
-             !
-
-             !
 
              ! add the site-level disturbance-associated cwd and litter input fluxes to thir respective flux fields
 
@@ -4864,7 +4838,14 @@ contains
                      flux_diags_c%cwd_bg_input(i_cwd) / days_per_year / sec_per_day
 
              end do
-
+             
+             if( hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
+                do ft = 1,numpft
+                   this%hvars(ih_recl2fr_canopy_pf)%r82d(io_si,ft) = sites(s)%rec_l2fr(ft,1)
+                   this%hvars(ih_recl2fr_ustory_pf)%r82d(io_si,ft) = sites(s)%rec_l2fr(ft,2)
+                end do
+             end if
+             
           enddo siteloop ! site loop
 
         end associate
@@ -6428,14 +6409,15 @@ contains
             index = ih_reproc_si)
 
        ! Output specific to the chemical species dynamics used (parteh)
-       select case(hlm_parteh_mode)
-       case (prt_cnp_flex_allom_hyp)
-
+       if( hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
           call this%set_history_var(vname='FATES_L2FR', units='kg kg-1',                   &
                long='The leaf to fineroot biomass multiplier for target allometry', & 
                use_default='active', &
                avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple,    &
                ivar=ivar, initialize=initialize_variables, index = ih_l2fr_si)
+       end if
+
+       nitrogen_active_if0: if(any(element_list(:)==nitrogen_element)) then
 
           call this%set_history_var(vname='FATES_NH4UPTAKE', units='kg m-2 s-1',  &
                long='ammonium uptake rate by plants in kg NH4 per m2 per second', &
@@ -6466,10 +6448,7 @@ contains
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
                upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_nfix_si)
-
-       end select
-
-       nitrogen_active_if0: if(any(element_list(:)==nitrogen_element)) then
+          
           call this%set_history_var(vname='FATES_STOREN', units='kg m-2',         &
                long='total nitrogen in live plant storage', use_default='active', &
                avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple,              &
@@ -7125,23 +7104,16 @@ contains
                ivar=ivar, initialize=initialize_variables, index = ih_storectfrac_canopy_scpf )
 
 
-
-
           call this%set_history_var(vname='FATES_FROOTC_SL', units='kg m-3',                        &
                long='Total carbon in live plant fine-roots over depth', use_default='active', &
                avgflag='A', vtype=site_soil_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,         &
                ivar=ivar, initialize=initialize_variables, index = ih_fnrtc_sl )
 
 
-
-
-
           ! Output specific to the chemical species dynamics used (parteh)
-          select case(hlm_parteh_mode)
-          case (prt_cnp_flex_allom_hyp)
-
-             call this%set_history_var(vname='FATES_L2FR_CANOPY_REC_PF', units='kg kg-1',                   &
-                  long='The leaf to fineroot biomass multiplier for recruits (canopy)', & 
+          if( hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
+             call this%set_history_var(vname='FATES_L2FR_CANOPY_REC_PF', units='kg kg-1', &
+                  long='The leaf to fineroot biomass multiplier for recruits (canopy)',   & 
                   use_default='active', &
                   avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,    &
                   ivar=ivar, initialize=initialize_variables, index = ih_recl2fr_canopy_pf)
@@ -7157,6 +7129,10 @@ contains
              !     use_default='inactive', &
              !     avgflag='A', vtype=site_clscpf_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,    &
              !     ivar=ivar, initialize=initialize_variables, index = ih_l2fr_clscpf)
+
+          end if
+
+          nitrogen_active_if1: if(any(element_list(:)==nitrogen_element)) then
 
              call this%set_history_var(vname='FATES_NH4UPTAKE_SZPF',                 &
                   units='kg m-2 s-1',                                                &
@@ -7189,11 +7165,7 @@ contains
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
                   hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_nfix_scpf)
-
-          end select
-
-          nitrogen_active_if1: if(any(element_list(:)==nitrogen_element)) then
-
+             
              call this%set_history_var(vname='FATES_VEGN_SZPF', units='kg m-2',      &
                   long='total (live) vegetation nitrogen mass by size-class x pft in kg N per m2', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
