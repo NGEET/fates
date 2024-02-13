@@ -532,7 +532,7 @@ contains
                 is_drought = .true.
              end if
 
-             call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
+             call PRTMaintTurnover(currentCohort%prt,ft, currentCohort%canopy_layer,is_drought)
              
              ! -----------------------------------------------------------------------------------
              ! Call the routine that advances leaves in age.
@@ -540,7 +540,7 @@ contains
              ! age bin, to the next bin. This will not handle movement
              ! of mass from the oldest bin into the litter pool, that is something else.
              ! -----------------------------------------------------------------------------------
-             call currentCohort%prt%AgeLeaves(ft,sec_per_day)
+             call currentCohort%prt%AgeLeaves(ft,currentCohort%canopy_layer, sec_per_day)
 
              ! Plants can acquire N from 3 sources (excluding re-absorption),
              ! the source doesn't affect how its allocated (yet), so they
