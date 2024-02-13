@@ -800,7 +800,7 @@ contains
                       min(decid_leaf_long_max,leaf_long)
 
                 else !evergreen costs
-                   pft_leaf_lifespan = leaf_long)
+                   pft_leaf_lifespan = leaf_long
                 end if
 
                 ! Leaf cost at leaf level z (kgC m-2 year-1) accounting for sla profile
