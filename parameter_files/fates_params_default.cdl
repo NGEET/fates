@@ -249,6 +249,9 @@ variables:
 	double fates_damage_recovery_scalar(fates_pft) ;
 		fates_damage_recovery_scalar:units = "unitless" ;
 		fates_damage_recovery_scalar:long_name = "fraction of the cohort that recovers from damage" ;
+	double fates_daylength_factor_switch ;
+		fates_daylength_factor_switch:units = "unitless" ;
+		fates_daylength_factor_switch:long_name = "user switch for turning on (1) or off (2) the day length factor scaling for photosynthetic parameters" ;
 	double fates_dev_arbitrary_pft(fates_pft) ;
 		fates_dev_arbitrary_pft:units = "unknown" ;
 		fates_dev_arbitrary_pft:long_name = "Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses" ;
@@ -1612,6 +1615,8 @@ data:
  fates_damage_canopy_layer_code = 1 ;
 
  fates_damage_event_code = 1 ;
+
+ fates_daylength_factor_switch = 1 ;
 
  fates_dev_arbitrary = _ ;
 

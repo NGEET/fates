@@ -62,6 +62,7 @@ module FATESPlantRespPhotosynthMod
   use EDParamsMod,       only : maintresp_nonleaf_baserate
   use EDParamsMod,       only : stomatal_model
   use EDParamsMod,       only : stomatal_assim_model
+  use EDParamsMod,       only : dayl_switch
   use EDParamsMod,       only : photo_tempsens_model
   use PRTParametersMod,  only : prt_params
   use EDPftvarcon      , only : EDPftvarcon_inst
@@ -108,6 +109,10 @@ module FATESPlantRespPhotosynthMod
   ! Constants used to define conductance models
   integer, parameter :: medlyn_model = 2
   integer, parameter :: ballberry_model = 1
+
+  ! Constants used to define day_length switch for scaling photosynthetic parameters
+  integer, parameter :: dayl_on = 1
+  integer, parameter :: dayl_off = 2
 
   ! Alternatively, Gross Assimilation can be used to estimate
   ! leaf co2 partial pressure and therefore conductance. The default
@@ -595,6 +600,7 @@ contains
                                          nscaler,                            &  ! in
                                          ft,                                 &  ! in
                                          bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                         bc_in(s)%dayl_factor_pa(ifp),       &  ! in
                                          currentPatch%tveg_lpa%GetMean(),    &  ! in
                                          lmr_z(iv,ft,cl))                       ! out
 
@@ -680,6 +686,7 @@ contains
                                       currentCohort%kp25top,              &  ! in
                                       nscaler,                            &  ! in
                                       bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                      bc_in(s)%dayl_factor_pa(ifp),       &  ! in
                                       currentPatch%tveg_lpa%GetMean(),    &  ! in
                                       currentPatch%tveg_longterm%GetMean(),&  ! in
                                       btran_eff,                          &  ! in
@@ -2325,6 +2332,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
        nscaler,   &
        ft,        &
        veg_tempk, &
+       dayl_factor, &
        tgrowth,   &
        lmr)
 
@@ -2343,6 +2351,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     integer,  intent(in)  :: ft           ! (plant) Functional Type Index
     real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
     real(r8), intent(in)  :: veg_tempk    ! vegetation temperature  (degrees K)
+    real(r8), intent(in)  :: dayl_factor  ! daylength scaling factor (0-1)
     real(r8), intent(in)  :: tgrowth      ! lagged vegetation temperature averaged over acclimation timescale (degrees K)
     real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
 
@@ -2386,6 +2395,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
        co2_rcurve_islope25top_ft, &
        nscaler,    &
        veg_tempk,      &
+       dayl_factor, &
        t_growth,   &
        t_home,     &
        btran, &
@@ -2421,6 +2431,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
     ! (C4 plants) at 25C, canopy top, this pft
     real(r8), intent(in) :: veg_tempk           ! vegetation temperature
+    real(r8), intent(in) :: dayl_factor         ! daylength scaling factor (0-1)
     real(r8), intent(in) :: t_growth            ! T_growth (short-term running mean temperature) (K)
     real(r8), intent(in) :: t_home              ! T_home (long-term running mean temperature) (K)
     real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1)
@@ -2486,17 +2497,33 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
        co2_rcurve_islope = 0._r8
     else                                     ! day time
 
+      if ( dayl_switch == dayl_on ) then 
        ! Vcmax25top was already calculated to derive the nscaler function
-       vcmax25 = vcmax25top_ft * nscaler
+       vcmax25 = vcmax25top_ft * nscaler * dayl_factor
        select case(photo_tempsens_model)
        case (photosynth_acclim_model_none)
-          jmax25  = jmax25top_ft * nscaler
+          jmax25  = jmax25top_ft * nscaler * dayl_factor
        case (photosynth_acclim_model_kumarathunge_etal_2019) 
           jmax25 = vcmax25*jvr
        case default
           write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
+
+       else if ( dayl_switch == dayl_off ) then
+      ! Vcmax25top was already calculated to derive the nscaler function
+      vcmax25 = vcmax25top_ft * nscaler
+      select case(photo_tempsens_model)
+      case (photosynth_acclim_model_none)
+         jmax25  = jmax25top_ft * nscaler
+      case (photosynth_acclim_model_kumarathunge_etal_2019)
+         jmax25 = vcmax25*jvr
+      case default
+         write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
+
+     end if
 
        co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
 
