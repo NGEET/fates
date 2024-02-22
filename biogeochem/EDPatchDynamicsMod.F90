@@ -1438,7 +1438,11 @@ contains
                       if (fraction_to_keep .le. nearzero) then
                          ! we don't want any patch area with this PFT identity at all anymore. Fuse it into the buffer patch.
                          currentPatch%nocomp_pft_label = 0
-                         previousPatch => currentPatch%older
+                         if (associated(currentPatch%older)) then
+                            previousPatch => currentPatch%older
+                         else
+                            previousPatch => currentPatch
+                         endif
 
                          call fuse_2_patches(currentSite, currentPatch, buffer_patch)
                          currentPatch => previousPatch
@@ -1470,6 +1474,7 @@ contains
                          currentPatch%changed_landuse_this_ts = .false.
                       endif
                    end if
+
                    currentPatch => currentPatch%younger
                 end do
 
@@ -1559,6 +1564,7 @@ contains
                       write(fates_log(),*) 'Buffer patch still has area and it wasnt put into the linked list'
                       write(fates_log(),*) 'buffer_patch%area', buffer_patch%area
                       write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)), sum(nocomp_pft_area_vector(:))
+                      write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)) - sum(nocomp_pft_area_vector(:))
                       call endrun(msg=errMsg(sourcefile, __LINE__))
                    end if
                 else
