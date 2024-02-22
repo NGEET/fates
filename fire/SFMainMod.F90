@@ -301,6 +301,12 @@ contains
              currentPatch%fuel_sav       = currentPatch%fuel_sav       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
              currentPatch%fuel_mef       = currentPatch%fuel_mef       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
              currentPatch%fuel_eff_moist = currentPatch%fuel_eff_moist * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+          else
+             ! somehow the fuel is all trunk. put dummy values from large branches so as not to break things later in code.
+             currentPatch%fuel_bulkd     = SF_val_FBD(lb_sf)
+             currentPatch%fuel_sav       = SF_val_SAV(lb_sf)
+             currentPatch%fuel_mef       = MEF(lb_sf)
+             currentPatch%fuel_eff_moist = fuel_moisture(lb_sf)
           endif
      
           ! Pass litter moisture into the fuel burning routine (all fuels: twigs,s branch,l branch,trunk,dead leaves,live grass)
