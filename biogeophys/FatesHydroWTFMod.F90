@@ -148,7 +148,6 @@
   ! Water Retention Function
   type, public, extends(wrf_type) :: wrf_type_cch
      real(r8) :: th_sat   ! Saturation volumetric water content         [m3/m3]
-     real(r8) :: th_res   ! Residual volumetric water content           [m3/m3]
      real(r8) :: psi_sat  ! Bubbling pressure (potential at saturation) [Mpa]
      real(r8) :: beta     ! Clapp-Hornberger "beta" parameter           [-]
    contains
@@ -177,7 +176,6 @@
   ! Water Retention Function
   type, public, extends(wrf_type) :: wrf_type_smooth_cch
      real(r8) :: th_sat   ! Saturation volumetric water content         [m3/m3]
-     real(r8) :: th_res   ! Residual volumetric water content           [m3/m3]
      real(r8) :: psi_sat  ! Bubbling pressure (potential at saturation) [Mpa]
      real(r8) :: beta     ! Clapp-Hornberger "beta" parameter           [-]
      real(r8) :: scch_pu  ! An estimated breakpoint capillary pressure, below which the specified water retention curve is applied. It is also the lower limit when the smoothing function is applied. [Mpa]
@@ -932,11 +930,9 @@ contains
     this%th_max      = max_sf_interp*this%th_sat
     this%psi_max     = this%psi_from_th(this%th_max-tiny(this%th_max))
     this%dpsidth_max = this%dpsidth_from_th(this%th_max-tiny(this%th_max))
-
-    this%psi_min     = min_psi_cch
-    this%th_min      = this%th_from_psi(min_psi_cch+tiny(this%th_max))
-    this%dpsidth_min = this%dpsidth_from_th(this%th_min+tiny(this%th_max))
-
+    this%th_min      = fates_unset_r8
+    this%psi_min     = fates_unset_r8
+    this%dpsidth_min = fates_unset_r8
 
     return
   end subroutine set_wrf_param_smooth_cch
@@ -1056,8 +1052,7 @@ contains
        sat       = 1.d0
     endif
     th = sat * this%th_sat
-
-
+    
     return
   end function th_from_psi_smooth_cch
 
@@ -1214,7 +1209,7 @@ contains
     sat_res = 0._r8
     alpha   = -1._r8/this%psi_sat
     lambda  = 1._r8/this%beta
-
+    
     pc = 1._r8 * this%psi_from_th(th)
     if( pc <= this%scch_pu ) then
        ! Unsaturated full Brooks-Corey regime.
