@@ -89,8 +89,10 @@ module EDPftvarcon
                                                                    ! per Atkin et al 2017
 
      real(r8), allocatable :: maintresp_leaf_ryan1991_baserate(:)  ! leaf maintenance respiration per Ryan et al 1991
-     real(r8), allocatable :: maintresp_leaf_decay(:)              ! leaf maintenance respiration decrease through the canopy
-                                                                   ! only with Atkin et al. 2017
+     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff1(:)        ! leaf maintenance respiration decrease through the canopy param 1
+                                                                          ! only with Atkin et al. 2017 respiration model
+     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff2(:)        ! leaf maintenance respiration decrease through the canopy param 2
+                                                                          ! only with Atkin et al. 2017 respiraiton model 
      
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: mort_ip_size_senescence(:) ! inflection point of dbh dependent senescence
@@ -471,10 +473,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_maintresp_leaf_decay'
+    name = 'fates_maintresp_leaf_vert_scaler_coeff1'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
+
+    name = 'fates_maintresp_leaf_vert_scaler_coeff2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -916,10 +922,14 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%maintresp_leaf_ryan1991_baserate)
 
-    name = 'fates_maintresp_leaf_decay'
+    name = 'fates_maintresp_leaf_vert_scaler_coeff1'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%maintresp_leaf_decay)
-    
+         data=this%maintresp_leaf_vert_scaler_coeff1)
+
+    name = 'fates_maintresp_leaf_vert_scaler_coeff2'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%maintresp_leaf_vert_scaler_coeff2)
+
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_npp_canopy)

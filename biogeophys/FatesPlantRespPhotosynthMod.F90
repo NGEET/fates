@@ -2165,7 +2165,8 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
    real(r8) :: rdark_scaler ! negative exponential scaling of rdark
    real(r8) :: kn           ! decay coefficient
-   real(r8) :: rdark_decay  ! determines rate of rdark decay through canopy
+   real(r8) :: rdark_vert_scaler1  ! determines rate of rdark decay through canopy
+   real(r8) :: rdark_vert_scaler2  ! determines rate of rdark decay through canopy
 
    
    ! parameter values of r_0 as listed in Atkin et al 2017: (umol CO2/m**2/s) 
@@ -2179,7 +2180,8 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    ! r_0 currently put into the EDPftvarcon_inst%dev_arbitrary_pft
    ! all figs in Atkin et al 2017 stop at zero Celsius so we will assume acclimation is fixed below that
    r_0 = EDPftvarcon_inst%maintresp_leaf_atkin2017_baserate(ft)
-   rdark_decay = EDPftvarcon_inst%maintresp_leaf_decay(ft)
+   rdark_vert_scaler1 = EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1(ft)
+   rdark_vert_scaler2 = EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2(ft)
 
    ! This code uses the relationship between leaf N and respiration from Atkin et al 
    ! for the top of the canopy, but then scales through the canopy based on a rdark_scaler.
@@ -2189,7 +2191,7 @@ subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
    ! this number can be smaller. There is some observational evidence for this being the case
    ! in Lamour et al. 2023. 
 
-   kn = exp(0.00963_r8 * vcmax25top - rdark_decay)
+   kn = exp(rdark_vert_scaler1 * vcmax25top - rdark_vert_scaler2)
    rdark_scaler = exp(-kn * cumulative_lai)
       
    r_t_ref = max(0._r8, rdark_scaler * (r_0 + lmr_r_1 * lnc_top + lmr_r_2 * max(0._r8, (tgrowth - tfrz) )) )
