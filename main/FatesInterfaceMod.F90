@@ -1971,13 +1971,13 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_inventory_init= ',ival,' to FATES'
                end if
 
-            case('hist_hifrq_dense_level')
+            case('hist_hifrq_dimlevel')
                hlm_hist_level_hifrq = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_hist_level_hifrq= ',ival,' to FATES'
                end if
                
-            case('hist_dynam_dense_level')
+            case('hist_dynam_dimlevel')
                hlm_hist_level_dynam = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_hist_level_dynam= ',ival,' to FATES'
