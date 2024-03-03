@@ -1508,9 +1508,9 @@ contains
                             !
                             newp_area = currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:)) - nocomp_pft_area_vector_filled(i_pft)
                             ! only bother doing this if the new new patch area needed is greater than some tiny amount
-                            if ( newp_area .gt. rsnbl_math_prec) then
+                            if ( newp_area .gt. rsnbl_math_prec * 0.01_r8) then
                                !
-                               if (buffer_patch%area - newp_area .gt. rsnbl_math_prec) then
+                               if (buffer_patch%area - newp_area .gt. rsnbl_math_prec * 0.01_r8) then
 
                                   ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
                                   allocate(temp_patch)
@@ -1553,7 +1553,7 @@ contains
                    if (buffer_patch_in_linked_list) then
                       buffer_patch => null()
                    else if (buffer_patch%area .lt. rsnbl_math_prec) then
-                      ! here we need to deallocate the buffer patch so that we don't get a memory leak/
+                      ! here we need to deallocate the buffer patch so that we don't get a memory leak.
                       call buffer_patch%FreeMemory(regeneration_model, numpft)
                       deallocate(buffer_patch, stat=istat, errmsg=smsg)
                       if (istat/=0) then
@@ -1565,6 +1565,7 @@ contains
                       write(fates_log(),*) 'buffer_patch%area', buffer_patch%area
                       write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)), sum(nocomp_pft_area_vector(:))
                       write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)) - sum(nocomp_pft_area_vector(:))
+
                       call endrun(msg=errMsg(sourcefile, __LINE__))
                    end if
                 else
@@ -3214,7 +3215,7 @@ contains
          + rp%age_since_anthro_disturbance * rp%area) * inv_sum_area
 
     rp%age_class = get_age_class_index(rp%age)
-    
+
     do el = 1,num_elements
        call rp%litter(el)%FuseLitter(rp%area,dp%area,dp%litter(el))
     end do
@@ -3390,15 +3391,18 @@ contains
     type(fates_patch_type), pointer :: olderPatch
     type(fates_patch_type), pointer :: youngerPatch
     type(fates_patch_type), pointer :: patchpointer
+    type(fates_patch_type), pointer :: largest_patch
     integer, parameter           :: max_cycles = 10  ! After 10 loops through
                                                      ! You should had fused
     integer                      :: count_cycles
     logical                      :: gotfused
     logical                      :: current_patch_is_youngest_lutype
     integer                      :: i_landuse, i_pft
+    integer                      :: land_use_type_to_remove
 
     real(r8) areatot ! variable for checking whether the total patch area is wrong.
-    real(r8) :: state_vector(n_landuse_cats)  ! [m2/m2] 
+    real(r8) :: state_vector_driver(n_landuse_cats)  ! [m2/m2]
+    real(r8) :: state_vector_internal(n_landuse_cats)  ! [m2/m2]
     !---------------------------------------------------------------------
 
     ! Initialize the count cycles
@@ -3551,23 +3555,76 @@ contains
              write(fates_log(),*) patchpointer%area, patchpointer%nocomp_pft_label, patchpointer%land_use_label
              patchpointer => patchpointer%older
           end do
-          call get_current_landuse_statevector(currentSite, state_vector)
-          write(fates_log(),*) 'current landuse state vector: ', state_vector
-          write(fates_log(),*) 'current landuse state vector (not including bare gruond): ', state_vector/(1._r8-currentSite%area_bareground)
-          call get_luh_statedata(bc_in, state_vector)
-          write(fates_log(),*) 'driver data landuse state vector: ', state_vector
+          call get_current_landuse_statevector(currentSite, state_vector_internal)
+          write(fates_log(),*) 'current landuse state vector: ', state_vector_internal
+          write(fates_log(),*) 'current landuse state vector (not including bare gruond): ', state_vector_internal/(1._r8-currentSite%area_bareground)
+          call get_luh_statedata(bc_in, state_vector_driver)
+          write(fates_log(),*) 'driver data landuse state vector: ', state_vector_driver
           write(fates_log(),*) 'min_allowed_landuse_fraction: ', currentSite%min_allowed_landuse_fraction
           write(fates_log(),*) 'landuse_vector_gt_min: ', currentSite%landuse_vector_gt_min
           do i_landuse = 1, n_landuse_cats
              write(fates_log(),*) 'trans matrix from: ', i_landuse, currentSite%landuse_transition_matrix(i_landuse,:)
           end do
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
+          if ( (state_vector_driver(currentPatch%land_use_label) .lt. currentSite%min_allowed_landuse_fraction ) .or. &
+               (state_vector_internal(currentPatch%land_use_label) .lt. currentSite%min_allowed_landuse_fraction ) ) then
+
+             ! try fusing all of the patches with this land use label into the largest patch on the site.
+             land_use_type_to_remove = currentPatch%land_use_label
+
+             write(fates_log(),*) 'removing all patches with land use type ',land_use_type_to_remove
+
+             ! first find the largest patch on the site
+             patchpointer => currentSite%youngest_patch
+             largest_patch => currentSite%youngest_patch
+             do while(associated(patchpointer))
+                if (patchpointer%area .gt. largest_patch%area .and. patchpointer%nocomp_pft_label .ne. nocomp_bareground) then
+                   largest_patch => patchpointer
+                endif
+                patchpointer => patchpointer%older
+             end do
+
+             ! now go and fuse all patches that have the land use type we are removing into that patch
+             patchpointer => currentSite%youngest_patch
+             do while(associated(patchpointer))
+                if ( patchpointer%land_use_label .eq. land_use_type_to_remove ) then
+
+                   write(fates_log(),*) 'fusing into patch with types, age, and size of:', largest_patch%land_use_label, &
+                        largest_patch%nocomp_pft_label, largest_patch%age, largest_patch%area
+
+                   write(fates_log(),*) 'fusing away patch with types, age, and size of:', patchpointer%land_use_label, &
+                        patchpointer%nocomp_pft_label, patchpointer%age, patchpointer%area
+
+                   ! reset the categorical properties of the patch and fuse it into the largest patch
+                   patchpointer%land_use_label = largest_patch%land_use_label
+                   patchpointer%nocomp_pft_label = largest_patch%nocomp_pft_label
+                   patchpointer%age_since_anthro_disturbance = largest_patch%age_since_anthro_disturbance
+                   call fuse_2_patches(currentSite, patchpointer, largest_patch)
+
+                   ! start over in the loop to make sure we are removing every patch with the targeted land use type
+                   patchpointer => currentSite%youngest_patch
+
+                else
+                   patchpointer => patchpointer%older
+                endif
+             end do
+
+             write(fates_log(),*) 'resetting currentSite%landuse_vector_gt_min(i) to .false.'
+             ! now reset the allowed land use vector element so that we don't make any more such patches unless they exceed the min area
+             currentSite%landuse_vector_gt_min(land_use_type_to_remove) = .false.
+             count_cycles = 0
+             currentPatch => currentSite%youngest_patch
+          else
+             write(fates_log(),*) 'this isnt because the land use was less than allowed'
+
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           
-          ! Note to user. If you DO decide to remove the end-run above this line
-          ! Make sure that you keep the pointer below this line, or you will get
-          ! an infinite loop.
-          currentPatch => currentPatch%older
-          count_cycles = 0
+             ! Note to user. If you DO decide to remove the end-run above this line
+             ! Make sure that you keep the pointer below this line, or you will get
+             ! an infinite loop.
+             currentPatch => currentPatch%older
+             count_cycles = 0
+          endif
        end if  !count cycles
        
     enddo ! current patch loop
