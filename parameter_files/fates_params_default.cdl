@@ -392,7 +392,13 @@ variables:
                 fates_maintresp_leaf_vert_scaler_coeff1:long_name = "Leaf maintenance respiration decrease through the canopy. Only applies to Atkin et al. 2017. For proportionality between photosynthesis and respiration through the canopy use the default value of 0.00963." ; 	
         double fates_maintresp_leaf_vert_scaler_coeff2(fates_pft) ;                                                                          
                 fates_maintresp_leaf_vert_scaler_coeff2:units = "unitless" ;                                                                 
-                fates_maintresp_leaf_vert_scaler_coeff2:long_name = "Leaf maintenance respiration decrease through the canopy. Only applies to Atkin et al. 2017. For proportionality between photosynthesis and respiration through the canopy use the default value of 2.43." ; 
+                fates_maintresp_leaf_vert_scaler_coeff2:long_name = "Leaf maintenance respiration decrease through the canopy. Only applies to Atkin et al. 2017. For proportionality between photosynthesis and respiration through the canopy use the default value of 2.43." ;
+	double fates_leafn_vert_scaler_coeff1(fates_pft) ;                                                                          
+                fates_leafn_vert_scaler_coeff1:units = "unitless" ;                                                                 
+                fates_leafn_vert_scaler_coeff1:long_name = "Coefficient one for decrease in leaf nitrogen through the canopy, from Lloyd et al. 2010. " ; 	
+        double fates_leafn_vert_scaler_coeff2(fates_pft) ;                                                                          
+                fates_leafn_vert_scaler_coeff2:units = "unitless" ;                                                                 
+                fates_leafn_vert_scaler_coeff2:long_name = "Coefficient two for decrease in leaf nitrogen through the canopy, from Lloyd et al. 2010. " ; 	
 	double fates_maintresp_reduction_curvature(fates_pft) ;
 		fates_maintresp_reduction_curvature:units = "unitless (0-1)" ;
 		fates_maintresp_reduction_curvature:long_name = "curvature of MR reduction as f(carbon storage), 1=linear, 0=very curved" ;
@@ -1317,9 +1323,15 @@ data:
     2.525e-06, 2.525e-06, 2.525e-06 ;
 
  fates_maintresp_leaf_vert_scaler_coeff1 = 0.00963, 0.00963, 0.00963, 0.00963,
- 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963 ;
+    0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963 ;
     
  fates_maintresp_leaf_vert_scaler_coeff2 = 2.43, 2.43, 2.43, 2.43, 2.43, 2.43,
+    2.43, 2.43, 2.43, 2.43, 2.43, 2.43 ;
+
+ fates_leafn_vert_scaler_coeff1 = 0.00963, 0.00963, 0.00963, 0.00963,
+    0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963 ;
+    
+ fates_leafn_vert_scaler_coeff2 = 2.43, 2.43, 2.43, 2.43, 2.43, 2.43,
     2.43, 2.43, 2.43, 2.43, 2.43, 2.43 ; 
 
  fates_maintresp_reduction_curvature = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
