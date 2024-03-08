@@ -6768,9 +6768,7 @@ contains
                long='crownarea lost to damage each year', use_default='inactive',   &
                avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
                upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, index = ih_crownarea_ustory_damage_si )
-       else
-          write(fates_log(),*) 'NO TREE DAMAGE?'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
        end if if_crowndamage1
        
 
