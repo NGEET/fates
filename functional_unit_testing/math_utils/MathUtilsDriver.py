@@ -48,6 +48,7 @@ f90_fatesutils_obj = ctypes.CDLL('bld/FatesUtilsMod.o',mode=ctypes.RTLD_GLOBAL)
 neighbor_dist = f90_fatesutils_obj.__fatesutilsmod_MOD_getneighbordistance
 #quadratic_f = f90_fatesutils_obj.__fatesutilsmod_MOD_quadratic_f
 quadratic_roots = f90_fatesutils_obj.__fatesutilsmod_MOD_quadraticroots
+quadratic_sroots = f90_fatesutils_obj.__fatesutilsmod_MOD_quadraticrootssridharachary
 
 # Some constants
 rwcft  = [1.0,0.958,0.958,0.958]
@@ -112,19 +113,23 @@ def main(argv):
     cd_r1 = c_double(-9.0)
     cd_r2 = c_double(-9.0)
 
-    r1 = np.zeros([2,1])
-    r2 = np.zeros([2,1])
+    r1 = np.zeros([3,1])
+    r2 = np.zeros([3,1])
     
     for ic in range(len(a)):
 
         #iret = quadratic_f(c8(a[ic]),c8(b[ic]),c8(c[ic]),byref(cd_r1),byref(cd_r2))
-        r1[0] = cd_r1.value
-        r2[0] = cd_r2.value
+        #r1[0] = cd_r1.value
+        #r2[0] = cd_r2.value
         
         iret = quadratic_roots(c8(a[ic]),c8(b[ic]),c8(c[ic]),byref(cd_r1),byref(cd_r2))
         r1[1] = cd_r1.value
         r2[1] = cd_r2.value
 
+        iret = quadratic_sroots(c8(a[ic]),c8(b[ic]),c8(c[ic]),byref(cd_r1),byref(cd_r2))
+        r1[2] = cd_r2.value
+        r2[2] = cd_r1.value
+        
         print(a[ic],b[ic],c[ic])
         print(r1)
         print(r2)

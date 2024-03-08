@@ -18,7 +18,8 @@ module FatesUtilsMod
   public :: check_var_real
   public :: GetNeighborDistance
   public :: FindIndex
-  public :: QuadraticRoots
+  public :: QuadraticRootsNSWC
+  public :: QuadraticRootsSridharachary
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -185,7 +186,7 @@ contains
    
   end function FindIndex
 
-  subroutine QuadraticRoots(a,b,c,root1,root2)
+  subroutine QuadraticRootsNSWC(a,b,c,root1,root2)
 
     ! This code is based off of routines from the NSWC Mathematics Subroutine Library
     ! From the NSWC README (https://github.com/jacobwilliams/nswc)
@@ -236,9 +237,45 @@ contains
         root1 = -b/a
     endif
 
-  end subroutine QuadraticRoots
+  end subroutine QuadraticRootsNSWC
   
+  subroutine QuadraticRootsSridharachary(a,b,c,root1,root2)
 
-  
+
+    real(r8),intent(in) :: a , b , c !! coefficients
+    real(r8),intent(out) :: root1 ! sr !! real part of first root
+    real(r8),intent(out) :: root2 ! lr !! real part of second root
+    real(r8) :: d    ! discriminant
+    real(r8) :: das  ! sqrt(abs(d))
+
+    ! If a is 0, then equation is not quadratic, but linear
+    if (abs(a) < nearzero ) then
+       root2 = 0.0_r8
+       if ( abs(b)>nearzero ) root2 = -c/b
+       root1 = 0.0_r8
+       return
+    end if
+
+    d   = b * b - 4._r8 * a * c
+    das = sqrt(abs(d))
+ 
+    if (d > nearzero) then
+
+       root1 = (-b + das) / (2._r8 * a)
+       root2 = (-b - das) / (2._r8 * a)
+
+    elseif (abs(d) <= nearzero) then
+
+       root1 = -b / (2._r8 * a)
+       root2 = root1
+    else 
+
+       write (fates_log(),*)'error, imaginary roots detected in quadratic solve'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+       
+    end if
+    
+  end subroutine QuadraticRootsSridharachary
+
   ! ====================================================================================== 
 end module FatesUtilsMod

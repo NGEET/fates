@@ -38,7 +38,7 @@ module FATESPlantRespPhotosynthMod
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : nleafage
-  use FatesUtilsMod,          only : QuadraticRoots
+  use FatesUtilsMod,          only : QuadraticRoots => QuadraticRootsSridharachary
   use EDParamsMod,           only : maxpft
   use EDParamsMod,       only : nlevleaf
   use EDParamsMod,       only : nclmax
