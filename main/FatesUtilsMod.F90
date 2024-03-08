@@ -204,11 +204,11 @@ contains
     
     real(r8) :: b1, d, e
 
-    if ( a==0.0_r8 ) then
+    if ( abs(a)<nearzero ) then
         root2 = 0.0_r8
         if ( b/=0.0_r8 ) root2 = -c/b
         root1 = 0.0_r8
-    elseif ( c/=0.0_r8 ) then
+    elseif ( abs(c)>nearzero ) then
         ! compute discriminant avoiding overflow
         b1 = b/2.0_r8
         if ( abs(b1)<abs(c) ) then
