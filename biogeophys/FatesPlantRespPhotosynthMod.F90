@@ -38,6 +38,7 @@ module FATESPlantRespPhotosynthMod
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : nleafage
+  use FatesUtilsMod,          only : QuadraticRoots
   use EDParamsMod,           only : maxpft
   use EDParamsMod,       only : nlevleaf
   use EDParamsMod,       only : nclmax
@@ -2434,59 +2435,4 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
   end subroutine lowstorage_maintresp_reduction
 
-  ! =============================================================================
-  
-  subroutine QuadraticRoots(a,b,c,root1,root2)
-
-    ! This code is based off of routines from the NSWC Mathematics Subroutine Library
-    ! From the NSWC README (https://github.com/jacobwilliams/nswc)
-    ! "The NSWC Mathematics Subroutine Library is a collection of Fortran 77 routines
-    !  specializing in numerical mathematics collected and developed by the U.S.
-    !  Naval Surface Warfare Center.  This software is made available, without cost,
-    !  to the general scientific community."
-    ! The F77 code was updated to modern fortran by Jacob Williams:
-    ! https://jacobwilliams.github.io/polyroots-fortran
-    ! The FATES adaptation of this aborts if only imaginary roots are generated
-
-
-    real(r8),intent(in) :: a , b , c !! coefficients
-    real(r8),intent(out) :: root1 ! sr !! real part of first root
-    real(r8),intent(out) :: root2 ! lr !! real part of second root
-    
-    real(r8) :: b1, d, e
-
-    if ( a==0.0_r8 ) then
-        root1 = 0.0_r8
-        if ( b/=0.0_r8 ) root1 = -c/b
-        root2 = 0.0_r8
-    elseif ( c/=0.0_r8 ) then
-        ! compute discriminant avoiding overflow
-        b1 = b/2.0_r8
-        if ( abs(b1)<abs(c) ) then
-            e = a
-            if ( c<0.0_r8 ) e = -a
-            e = b1*(b1/abs(c)) - e
-            d = sqrt(abs(e))*sqrt(abs(c))
-        else
-            e = 1.0_r8 - (a/b1)*(c/b1)
-            d = sqrt(abs(e))*abs(b1)
-        endif
-        if ( e<0.0_r8 ) then
-           ! complex conjugate zeros
-            write (fates_log(),*)'error, imaginary roots detected in quadratic solve'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-        else
-            ! real zeros
-            if ( b1>=0.0_r8 ) d = -d
-            root2 = (-b1+d)/a
-            root1 = 0.0_r8
-            if ( root2/=0.0_r8 ) root1 = (c/root2)/a
-        endif
-    else
-        root1 = 0.0_r8
-        root2 = -b/a
-    endif
-
-  end subroutine QuadraticRoots
-  
 end module FATESPlantRespPhotosynthMod
