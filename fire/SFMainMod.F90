@@ -1,7 +1,7 @@
   module SFMainMod
 
   ! ============================================================================
-  ! All subroutines realted to the SPITFIRE fire routine. 
+  ! All subroutines related to the SPITFIRE fire routine. 
   ! Code originally developed by Allan Spessa & Rosie Fisher as part of the NERC-QUEST project.  
   ! ============================================================================
 
@@ -77,7 +77,7 @@ contains
   ! ============================================================================
   !        Area of site burned by fire           
   ! ============================================================================
-  subroutine fire_model( currentSite, bc_in)
+  subroutine fire_model(currentSite, bc_in)
 
     
 

@@ -92,6 +92,7 @@ module EDInitMod
   use DamageMainMod,          only : undamaged_class
   use FatesConstantsMod,      only : n_term_mort_types
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
+  use SFNesterovMod,          only : nesterov_index
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -219,6 +220,9 @@ contains
     ! Seed dispersal
     allocate(site_in%seed_in(1:numpft))
     allocate(site_in%seed_out(1:numpft))
+
+    allocate(nesterov_index :: site_in%fireWeather)
+    call site_in%fireWeather%Init()
 
   end subroutine init_site_vars
 
