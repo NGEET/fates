@@ -150,7 +150,7 @@ contains
     wind = bc_in%wind24_pa(iofp)
 
     ! update fire weather index
-    currentSite%fireWeather%Update(temp_C, precip, rh, wind)
+    call currentSite%fireWeather%Update(temp_C, precip, rh, wind)
     currentSite%acc_ni = currentSite%fireWeather%fire_weather_index
 
   end subroutine UpdateFireWeather
