@@ -52,7 +52,6 @@
   private
 
   public :: fire_model
-  public :: fire_danger_index 
   public :: charecteristics_of_fuel
   public :: rate_of_spread
   public :: ground_fuel_consumption
@@ -69,79 +68,72 @@
   integer :: write_SF = ifalse   ! for debugging
   logical :: debug = .false.     ! for debugging
 
-  ! ============================================================================
-  ! ============================================================================
+  ! ======================================================================================
 
 contains
 
-  ! ============================================================================
-  !        Area of site burned by fire           
-  ! ============================================================================
   subroutine fire_model(currentSite, bc_in)
+    !
+    !  DESCRIPTION:
+    !  Runs the daily fire weather model
 
+    ! ARGUMENTS:
+    type(ed_site_type), intent(inout), target :: currentSite ! site object
+    type(bc_in_type),   intent(in)            :: bc_in       ! BC in object
     
+    ! LOCALS:  
+    type (fates_patch_type), pointer :: currentPatch ! patch object
 
-    type(ed_site_type)     , intent(inout), target :: currentSite
-    type(bc_in_type)       , intent(in)            :: bc_in
-    
-
-    type (fates_patch_type), pointer :: currentPatch
-
-    !zero fire things
+    ! zero fire things
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
-       currentPatch%frac_burnt = 0.0_r8
-       currentPatch%fire       = 0
-       currentPatch => currentPatch%older
-    enddo
+      currentPatch%frac_burnt = 0.0_r8
+      currentPatch%fire = 0
+      currentPatch => currentPatch%older
+    end do
 
-    if(write_SF==itrue)then
-       write(fates_log(),*) 'spitfire_mode', hlm_spitfire_mode
-    endif
-
-    if( hlm_spitfire_mode > hlm_sf_nofire_def )then
-       call fire_danger_index(currentSite, bc_in)
-       call wind_effect(currentSite, bc_in) 
-       call charecteristics_of_fuel(currentSite)
-       call rate_of_spread(currentSite)
-       call ground_fuel_consumption(currentSite)
-       call area_burnt_intensity(currentSite, bc_in)
-       call crown_scorching(currentSite)
-       call crown_damage(currentSite)
-       call cambial_damage_kill(currentSite)
-       call post_fire_mortality(currentSite)
+    if (hlm_spitfire_mode > hlm_sf_nofire_def) then
+      call UpdateFireWeather(currentSite, bc_in)
+      call wind_effect(currentSite, bc_in) 
+      call charecteristics_of_fuel(currentSite)
+      call rate_of_spread(currentSite)
+      call ground_fuel_consumption(currentSite)
+      call area_burnt_intensity(currentSite, bc_in)
+      call crown_scorching(currentSite)
+      call crown_damage(currentSite)
+      call cambial_damage_kill(currentSite)
+      call post_fire_mortality(currentSite)
     end if
 
   end subroutine fire_model
 
-  !*****************************************************************
-  subroutine  fire_danger_index ( currentSite, bc_in) 
+  !---------------------------------------------------------------------------------------
+  
+  subroutine UpdateFireWeather(currentSite, bc_in)
+    !
+    !  DESCRIPTION:
+    !  Updates the site's fire weather index
 
-   !*****************************************************************
-   ! currentSite%acc_NI is the accumulated Nesterov fire danger index
+    use SFParamsMod,       only : SF_val_fdi_a, SF_val_fdi_b
+    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+    use FatesConstantsMod, only : sec_per_day
 
-    use SFParamsMod, only  : SF_val_fdi_a, SF_val_fdi_b
-    use FatesConstantsMod , only : tfrz => t_water_freeze_k_1atm
-    use FatesConstantsMod , only : sec_per_day
+    ! ARGUMENTS:
+    type(ed_site_type), intent(inout), target :: currentSite
+    type(bc_in_type),    intent(in)           :: bc_in
 
-    type(ed_site_type)     , intent(inout), target :: currentSite
-    type(bc_in_type)       , intent(in)            :: bc_in
-
-    type(fates_patch_type),  pointer :: currentPatch
-
-    real(r8) :: temp_in_C  ! daily averaged temperature in celcius
-    real(r8) :: rainfall   ! daily precip in mm/day
-    real(r8) :: rh         ! daily rh 
-    
-    real(r8) :: yipsolon   !intermediate varable for dewpoint calculation
-    real(r8) :: dewpoint   !dewpoint in K 
-    real(r8) :: d_NI       !daily change in Nesterov Index. C^2 
-    integer  :: iofp       ! index of oldest the fates patch
+    ! LOCALS:  
+    type(fates_patch_type),  pointer :: currentPatch ! patch object
+    real(r8)                         :: temp_C       ! daily averaged temperature [deg C]
+    real(r8)                         :: precip       ! daily precip [mm/day]
+    real(r8)                         :: rh           ! daily relative humidity [%]
+    real(r8)                         :: wind         ! wind speed [m/s]
+    integer                          :: iofp         ! index of oldest the fates patch
   
     ! NOTE that the boundary conditions of temperature, precipitation and relative humidity
     ! are available at the patch level. We are currently using a simplification where the whole site
     ! is simply using the values associated with the first patch.
-    ! which probably won't have much inpact, unless we decide to ever calculated the NI for each patch.  
+    ! which probably won't have much inpact, unless we decide to ever calculated fire weather for each patch.  
     
     currentPatch => currentSite%oldest_patch
 
@@ -152,30 +144,20 @@ contains
     endif
 
     iofp = currentPatch%patchno
-    
-    temp_in_C  = currentPatch%tveg24%GetMean() - tfrz
-    rainfall   = bc_in%precip24_pa(iofp)*sec_per_day
-    rh         = bc_in%relhumid24_pa(iofp)
-    
-    if (rainfall > 3.0_r8) then !rezero NI if it rains... 
-       d_NI = 0.0_r8
-       currentSite%acc_NI = 0.0_r8
-    else 
-       yipsolon = (SF_val_fdi_a* temp_in_C)/(SF_val_fdi_b+ temp_in_C)+log(max(1.0_r8,rh)/100.0_r8) 
-       dewpoint = (SF_val_fdi_b*yipsolon)/(SF_val_fdi_a-yipsolon) !Standard met. formula
-       d_NI = ( temp_in_C-dewpoint)* temp_in_C !follows Nesterov 1968.  Equation 5. Thonicke et al. 2010.
-       if (d_NI < 0.0_r8) then !Change in NI cannot be negative. 
-          d_NI = 0.0_r8 !check 
-       endif
-    endif
-    currentSite%acc_NI = currentSite%acc_NI + d_NI        !Accumulate Nesterov index over the fire season. 
+    temp_C = currentPatch%tveg24%GetMean() - tfrz
+    precip = bc_in%precip24_pa(iofp)*sec_per_day
+    rh = bc_in%relhumid24_pa(iofp)
+    wind = bc_in%wind24_pa(iofp)
 
-  end subroutine fire_danger_index
+    ! update fire weather index
+    currentSite%fireWeather%Update(temp_C, precip, rh, wind)
+    currentSite%acc_ni = currentSite%fireWeather%fire_weather_index
 
+  end subroutine UpdateFireWeather
 
-  !*****************************************************************
+  !---------------------------------------------------------------------------------------
+
   subroutine  charecteristics_of_fuel ( currentSite )
-  !*****************************************************************
 
     use SFParamsMod, only  : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
 
