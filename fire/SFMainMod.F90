@@ -133,7 +133,7 @@ contains
     ! NOTE that the boundary conditions of temperature, precipitation and relative humidity
     ! are available at the patch level. We are currently using a simplification where the whole site
     ! is simply using the values associated with the first patch.
-    ! which probably won't have much inpact, unless we decide to ever calculated fire weather for each patch.  
+    ! which probably won't have much impact, unless we decide to ever calculated fire weather for each patch.  
     
     currentPatch => currentSite%oldest_patch
 
@@ -326,109 +326,88 @@ contains
     
   end subroutine charecteristics_of_fuel
 
+  !---------------------------------------------------------------------------------------
 
-  !*****************************************************************
-  subroutine  wind_effect ( currentSite, bc_in) 
-  !*****************************************************************.
-
-    ! Routine called daily from within ED within a site loop.
-    ! Calculates the effective windspeed based on vegetation charecteristics.
-    ! currentSite%wind is daily wind converted to m/min for Spitfire units 
+  subroutine wind_effect (currentSite, bc_in)
+    !
+    !  DESCRIPTION:
+    !  Calculates effective windspeed based on vegetation characteristics
 
     use FatesConstantsMod, only : sec_per_min
 
-    type(ed_site_type) , intent(inout), target :: currentSite
-    type(bc_in_type)   , intent(in)            :: bc_in
+    ! ARGUMENTS:
+    type(ed_site_type), intent(inout), target :: currentSite ! site object
+    type(bc_in_type),   intent(in)            :: bc_in       ! BC in object
 
-    type(fates_patch_type) , pointer :: currentPatch
-    type(fates_cohort_type), pointer :: currentCohort
-
-    real(r8) :: total_grass_area     ! per patch,in m2
-    real(r8) :: tree_fraction        ! site level. no units
-    real(r8) :: grass_fraction       ! site level. no units
-    real(r8) :: bare_fraction        ! site level. no units 
-    integer  :: iofp                 ! index of oldest fates patch
-
+    ! LOCALS:
+    type(fates_patch_type) , pointer :: currentPatch     ! patch object
+    type(fates_cohort_type), pointer :: currentCohort    ! cohort object
+    real(r8)                         :: total_grass_area ! total grass area (patch-level) [m2]
+    real(r8)                         :: tree_fraction    ! site-level tree fraction [0-1]
+    real(r8)                         :: grass_fraction   ! site-level grass fraction [0-1]
+    real(r8)                         :: bare_fraction    ! site-level bare ground fraction [0-1]
+    integer                          :: iofp             ! index of oldest fates patch
 
     currentPatch => currentSite%oldest_patch
 
     ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
     ! for the iofp index (i.e. the next younger patch)
-    if(currentPatch%nocomp_pft_label .eq. nocomp_bareground)then
+    if (currentPatch%nocomp_pft_label == nocomp_bareground) then
       currentPatch => currentPatch%younger
-    endif
+    end if
 
-    ! note - this is a patch level temperature, which probably won't have much inpact, 
-    ! unless we decide to ever calculated the NI for each patch.  
+    ! note - this is a patch-level wind speed, which probably won't have much impact
     iofp = currentPatch%patchno
-    currentSite%wind = bc_in%wind24_pa(iofp) * sec_per_min !Convert to m/min for SPITFIRE
+    currentSite%wind = bc_in%wind24_pa(iofp)*sec_per_min ! Convert to m/min for SPITFIRE
 
-    if(write_SF == itrue)then
-       if ( hlm_masterproc == itrue ) write(fates_log(),*) 'wind24', currentSite%wind
-    endif
-    ! --- influence of wind speed, corrected for surface roughness----
-    ! --- averaged over the whole grid cell to prevent extreme divergence 
-    ! average_wspeed = 0.0_r8   
+    ! influence of wind speed, corrected for surface roughness
+    ! averaged over the whole grid cell to prevent extreme divergence 
     tree_fraction = 0.0_r8
     grass_fraction = 0.0_r8
-    currentPatch=>currentSite%oldest_patch;  
+    currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
-       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
        
-       currentPatch%total_tree_area = 0.0_r8
-       total_grass_area = 0.0_r8
-       currentCohort => currentPatch%tallest
- 
-       do while(associated(currentCohort))
-          if (debug) write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
-          if( prt_params%woody(currentCohort%pft) == itrue)then
-             currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
-          else
-             total_grass_area = total_grass_area + currentCohort%c_area
-          endif
-          currentCohort => currentCohort%shorter
-       enddo
-       tree_fraction = tree_fraction + min(currentPatch%area,currentPatch%total_tree_area)/AREA
-       grass_fraction = grass_fraction + min(currentPatch%area,total_grass_area)/AREA 
-       
-       if(debug)then
-         write(fates_log(),*) 'SF  currentPatch%area ',currentPatch%area
-         write(fates_log(),*) 'SF  currentPatch%total_area ',currentPatch%total_tree_area
-         write(fates_log(),*) 'SF  total_grass_area ',tree_fraction,grass_fraction
-         write(fates_log(),*) 'SF  AREA ',AREA
-       endif
+        currentPatch%total_tree_area = 0.0_r8
+        total_grass_area = 0.0_r8
+        
+        currentCohort => currentPatch%tallest
+        do while(associated(currentCohort))
+            if (prt_params%woody(currentCohort%pft) == itrue) then
+              currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
+            else
+              total_grass_area = total_grass_area + currentCohort%c_area
+            end if
+            currentCohort => currentCohort%shorter
+        end do
+        tree_fraction = tree_fraction + min(currentPatch%area, currentPatch%total_tree_area)/AREA
+        grass_fraction = grass_fraction + min(currentPatch%area, total_grass_area)/AREA 
 
-       endif !nocomp_pft_label check
-       
-       currentPatch => currentPatch%younger
-    enddo !currentPatch loop
+      end if 
+        
+      currentPatch => currentPatch%younger
+    end do 
 
-    !if there is a cover of more than one, then the grasses are under the trees
-    grass_fraction = min(grass_fraction,1.0_r8-tree_fraction) 
+    ! if cover > 1.0, then the grasses are under the trees
+    grass_fraction = min(grass_fraction, 1.0_r8 - tree_fraction) 
     bare_fraction = 1.0_r8 - tree_fraction - grass_fraction
-    if(write_sf == itrue)then
-       if ( hlm_masterproc == itrue ) write(fates_log(),*) 'grass, trees, bare', &
-            grass_fraction, tree_fraction, bare_fraction
-    endif
 
-    currentPatch=>currentSite%oldest_patch;
-
+    currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))       
-       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
-
-       currentPatch%total_tree_area = min(currentPatch%total_tree_area,currentPatch%area)
-       ! effect_wspeed in units m/min      
-       currentPatch%effect_wspeed = currentSite%wind * (tree_fraction*0.4_r8+(grass_fraction+bare_fraction)*0.6_r8)
-
-       endif ! nocomp_pft_label check
       
-       currentPatch => currentPatch%younger
-    enddo !end patch loop
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
+        currentPatch%total_tree_area = min(currentPatch%total_tree_area, currentPatch%area) 
+        currentPatch%effect_wspeed = currentSite%wind*(tree_fraction*0.4_r8 + (grass_fraction + bare_fraction)*0.6_r8)
+      end if 
+      
+      currentPatch => currentPatch%younger
+    end do 
 
   end subroutine wind_effect
 
-  !*****************************************************************
+  !---------------------------------------------------------------------------------------
+
   subroutine rate_of_spread ( currentSite ) 
     !*****************************************************************.
     !Routine called daily from within ED within a site loop.
