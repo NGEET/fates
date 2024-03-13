@@ -151,7 +151,6 @@ contains
 
     ! update fire weather index
     call currentSite%fireWeather%Update(temp_C, precip, rh, wind)
-    currentSite%acc_ni = currentSite%fireWeather%fire_weather_index
 
   end subroutine UpdateFireWeather
 
@@ -247,19 +246,21 @@ contains
           ! Calculate fuel moisture for trunks to hold value for fuel consumption
           alpha_FMC(tw_sf:dl_sf)      = SF_val_SAV(tw_sf:dl_sf)/SF_val_drying_ratio
           
-          fuel_moisture(tw_sf:dl_sf)  = exp(-1.0_r8 * alpha_FMC(tw_sf:dl_sf) * currentSite%acc_NI) 
+          fuel_moisture(tw_sf:dl_sf)  = exp(-1.0_r8 * alpha_FMC(tw_sf:dl_sf) *           &
+            currentSite%fireWeather%fire_weather_index) 
  
           if(write_SF == itrue)then
              if ( hlm_masterproc == itrue ) write(fates_log(),*) 'ff3 ',currentPatch%fuel_frac
              if ( hlm_masterproc == itrue ) write(fates_log(),*) 'fm ',fuel_moisture
-             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'csa ',currentSite%acc_NI
+             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'csa ',currentSite%fireWeather%fire_weather_index
              if ( hlm_masterproc == itrue ) write(fates_log(),*) 'sfv ',alpha_FMC
           endif
           
           ! live grass moisture is a function of SAV and changes via Nesterov Index
           ! along the same relationship as the 1 hour fuels (live grass has same SAV as dead grass,
           ! but retains more moisture with this calculation.)
-          fuel_moisture(lg_sf)        = exp(-1.0_r8 * ((SF_val_SAV(tw_sf)/SF_val_drying_ratio) * currentSite%acc_NI))          
+          fuel_moisture(lg_sf)        = exp(-1.0_r8 * ((SF_val_SAV(tw_sf)/SF_val_drying_ratio) * &
+            currentSite%fireWeather%fire_weather_index))          
  
           ! Average properties over the first three litter pools (twigs, s branches, l branches) 
           currentPatch%fuel_bulkd     = sum(currentPatch%fuel_frac(tw_sf:lb_sf) * SF_val_FBD(tw_sf:lb_sf))     
@@ -715,7 +716,7 @@ contains
                                   ! force ignition potential to be extreme
        cloud_to_ground_strikes = 1.0_r8   ! cloud_to_ground = 1 = use 100% incoming observed ignitions
     else  ! USING LIGHTNING DATA
-       currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%acc_NI)
+       currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%fireWeather%fire_weather_index)
        cloud_to_ground_strikes = cg_strikes
     end if
     
