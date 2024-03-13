@@ -110,10 +110,6 @@ module FATESPlantRespPhotosynthMod
   integer, parameter :: medlyn_model = 2
   integer, parameter :: ballberry_model = 1
 
-  ! Constants used to define day_length switch for scaling photosynthetic parameters
-  integer, parameter :: dayl_on = 1
-  integer, parameter :: dayl_off = 2
-
   ! Alternatively, Gross Assimilation can be used to estimate
   ! leaf co2 partial pressure and therefore conductance. The default
   ! is to use anet
@@ -2449,7 +2445,8 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     ! (umol electrons/m**2/s)
     real(r8) :: co2_rcurve_islope25 ! leaf layer: Initial slope of CO2 response curve
     ! (C4 plants) at 25C
-    integer :: c3c4_path_index    ! Index for which photosynthetic pathway
+    integer :: c3c4_path_index      ! Index for which photosynthetic pathway
+    real(r8) :: dayl_factor_local   ! Local version of daylength factor
 
     ! Parameters
     ! ---------------------------------------------------------------------------------
@@ -2497,33 +2494,23 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
        co2_rcurve_islope = 0._r8
     else                                     ! day time
 
-      if ( dayl_switch == dayl_on ) then 
+       if ( dayl_switch == itrue ) then
+          dayl_factor_local = dayl_factor
+       else
+          dayl_factor_local = 1.0_r8
+       endif
+
        ! Vcmax25top was already calculated to derive the nscaler function
-       vcmax25 = vcmax25top_ft * nscaler * dayl_factor
+       vcmax25 = vcmax25top_ft * nscaler * dayl_factor_local
        select case(photo_tempsens_model)
        case (photosynth_acclim_model_none)
-          jmax25  = jmax25top_ft * nscaler * dayl_factor
+          jmax25  = jmax25top_ft * nscaler * dayl_factor_local
        case (photosynth_acclim_model_kumarathunge_etal_2019) 
           jmax25 = vcmax25*jvr
        case default
           write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
-
-       else if ( dayl_switch == dayl_off ) then
-      ! Vcmax25top was already calculated to derive the nscaler function
-      vcmax25 = vcmax25top_ft * nscaler
-      select case(photo_tempsens_model)
-      case (photosynth_acclim_model_none)
-         jmax25  = jmax25top_ft * nscaler
-      case (photosynth_acclim_model_kumarathunge_etal_2019)
-         jmax25 = vcmax25*jvr
-      case default
-         write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
-         call endrun(msg=errMsg(sourcefile, __LINE__))
-      end select
-
-     end if
 
        co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
 
