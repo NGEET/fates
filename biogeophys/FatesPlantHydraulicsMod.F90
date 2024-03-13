@@ -3993,28 +3993,39 @@ subroutine Report1DError(cohort, csite_hydr, ilayer, z_node, v_node, &
    write(fates_log(),*) 'psi_z: ',h_node(:)-psi_node(:)
    write(fates_log(),*) 'vol,    theta,   H,  Psi,     kmax-'
    write(fates_log(),*) 'flux:          ', q_top_eff*dt_step
-   write(fates_log(),*) 'l:',v_node(1),th_node(1),h_node(1),psi_node(1)
-   write(fates_log(),*) '                      ',cohort_hydr%kmax_stem_upper(1)*rootfr_scaler
-   write(fates_log(),*) 's:',v_node(2),th_node(2),h_node(2),psi_node(2)
-   write(fates_log(),*) '                      ',1._r8/(1._r8/(cohort_hydr%kmax_stem_lower(1)*rootfr_scaler) + 1._r8/(cohort_hydr%kmax_troot_upper*rootfr_scaler))
-   write(fates_log(),*) 't:',v_node(3),th_node(3),h_node(3)
-   write(fates_log(),*) '                      ',1._r8/(1._r8/cohort_hydr%kmax_troot_lower(ilayer)+ 1._r8/cohort_hydr%kmax_aroot_upper(ilayer))
-   write(fates_log(),*) 'a:',v_node(4),th_node(4),h_node(4)
-   write(fates_log(),*) '                   in:',1._r8/(1._r8/cohort_hydr%kmax_aroot_radial_in(ilayer) + &
+
+   do i = 1,n_hypool_leaf
+      k = i
+      write(fates_log(),*) 'leaf node ',k,v_node(k),th_node(k),h_node(k),psi_node(k)
+   end do
+   do i = 1,n_hypool_stem
+      k = i+n_hypool_leaf
+      write(fates_log(),*) 'stem node',k,v_node(k),th_node(k),h_node(k),psi_node(k)
+      write(fates_log(),*) ' ',cohort_hydr%kmax_stem_upper(k)*rootfr_scaler
+   end do
+   write(fates_log(),*) 'troot to stem kmax: ', &
+        1._r8/(1._r8/(cohort_hydr%kmax_stem_lower(n_hypool_stem)*rootfr_scaler) + 1._r8/(cohort_hydr%kmax_troot_upper*rootfr_scaler))
+   k = n_hypool_leaf + n_hypool_stem + 1
+   write(fates_log(),*) 'troot node:',k,v_node(k),th_node(k),h_node(k)
+   write(fates_log(),*) 'aroot to troot kmax: ', &
+        1._r8/(1._r8/cohort_hydr%kmax_troot_lower(ilayer)+ 1._r8/cohort_hydr%kmax_aroot_upper(ilayer))
+   k = n_hypool_leaf + n_hypool_stem + 2
+   write(fates_log(),*) 'aroot node:',k,v_node(k),th_node(k),h_node(k)
+   write(fates_log(),*) '  kmax soil-root in:',1._r8/(1._r8/cohort_hydr%kmax_aroot_radial_in(ilayer) + &
       1._r8/(csite_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant)     + &
       1._r8/cohort_hydr%kmax_aroot_upper(ilayer))
-   write(fates_log(),*) '                  out:',1._r8/(1._r8/cohort_hydr%kmax_aroot_radial_out(ilayer) + &
+   write(fates_log(),*) '  kmax soil-root out:',1._r8/(1._r8/cohort_hydr%kmax_aroot_radial_out(ilayer) + &
       1._r8/(csite_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant)     + &
       1._r8/cohort_hydr%kmax_aroot_upper(ilayer))
-   write(fates_log(),*) 'r1:',v_node(5),th_node(5),h_node(5)
-   write(fates_log(),*) '                      ',1._r8/(1._r8/(csite_hydr%kmax_lower_shell(ilayer,1)*aroot_frac_plant) + 1._r8/(csite_hydr%kmax_upper_shell(ilayer,2)*aroot_frac_plant))
-   write(fates_log(),*) 'r2:',v_node(6),th_node(6),h_node(6)
-   write(fates_log(),*) '                      ',1._r8/(1._r8/(csite_hydr%kmax_lower_shell(ilayer,2)*aroot_frac_plant) + 1._r8/(csite_hydr%kmax_upper_shell(ilayer,3)*aroot_frac_plant))
-   write(fates_log(),*) 'r3:',v_node(7),th_node(7),h_node(7)
-   write(fates_log(),*) '                      ',1._r8/(1._r8/(csite_hydr%kmax_lower_shell(ilayer,3)*aroot_frac_plant) + 1._r8/(csite_hydr%kmax_upper_shell(ilayer,4)*aroot_frac_plant))
-   write(fates_log(),*) 'r4:',v_node(8),th_node(8),h_node(8)
-   write(fates_log(),*) '                      ',1._r8/(1._r8/(csite_hydr%kmax_lower_shell(ilayer,4)*aroot_frac_plant) + 1._r8/(csite_hydr%kmax_upper_shell(ilayer,5)*aroot_frac_plant))
-   write(fates_log(),*) 'r5:',v_node(9),th_node(9),h_node(9)
+   do i = 1,nshell
+      k =  = n_hypool_leaf + n_hypool_stem + 2 + i
+      write(fates_log(),*) 'rhizo shell k:',k,v_node(k),th_node(k),h_node(k)
+      if(i<nshell) then
+         write(fates_log(),*) '  mean soil-to-soil kmax with more outer shell: ',&
+              1._r8/(1._r8/(csite_hydr%kmax_lower_shell(ilayer,i)*aroot_frac_plant) + 1._r8/(csite_hydr%kmax_upper_shell(ilayer,i+1)*aroot_frac_plant))
+      end if
+   end do
+   
    write(fates_log(),*) 'kmax_aroot_radial_out: ',cohort_hydr%kmax_aroot_radial_out(ilayer)
    write(fates_log(),*) 'surf area of root: ',2._r8 * pi_const * EDPftvarcon_inst%hydr_rs2(ft) * cohort_hydr%l_aroot_layer(ilayer)
    write(fates_log(),*) 'aroot_frac_plant: ',aroot_frac_plant,cohort_hydr%l_aroot_layer(ilayer),csite_hydr%l_aroot_layer(ilayer)
@@ -4024,17 +4035,8 @@ subroutine Report1DError(cohort, csite_hydr, ilayer, z_node, v_node, &
    write(fates_log(),*) 'tree lai: ',cohort%treelai,' m2/m2 crown'
    write(fates_log(),*) 'area and area to volume ratios'
    write(fates_log(),*) ''
-   write(fates_log(),*) 'a:',v_node(4)
    write(fates_log(),*) '                      ',2._r8 * pi_const * EDPftvarcon_inst%hydr_rs2(ft) * cohort_hydr%l_aroot_layer(ilayer)
-   write(fates_log(),*) 'r1:',v_node(5)
    write(fates_log(),*) '                      ',2._r8 * pi_const * csite_hydr%r_out_shell(ilayer,1) * cohort_hydr%l_aroot_layer(ilayer)
-   write(fates_log(),*) 'r2:',v_node(6)
-   write(fates_log(),*) '                      '
-   write(fates_log(),*) 'r3:',v_node(7)
-   write(fates_log(),*) '                      '
-   write(fates_log(),*) 'r4:',v_node(8)
-   write(fates_log(),*) '                      '
-   write(fates_log(),*) 'r5:',v_node(9)
    write(fates_log(),*) 'inner shell kmaxs: ',csite_hydr%kmax_lower_shell(:,1)*aroot_frac_plant
 
    deallocate(psi_node)
@@ -5976,7 +5978,6 @@ subroutine PicardSolve2D(csite_hydr,cohort,cohort_hydr, &
           if(abs(wb_error) < max_allowed_residual .or. maxval(abs(residual(:))) < 1.e-3_r8 .or. maxval(abs(th_node(:) - th_prev(:))) < 1.e-3) exit picardloop
 
           if(icnv == 1 ) then
-             print *,'dtime-',dtime,tm
              exit picardloop !explicit integration with small time step
           end if
 
