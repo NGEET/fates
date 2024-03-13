@@ -2282,63 +2282,18 @@ contains
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     ! Locals
 
-    !type(site_fluxdiags_type), pointer :: flux_diags
-    !type(site_fluxdiags_type), pointer :: flux_diags_c
-    !integer  :: s        ! The local site index
-    !integer  :: io_si     ! The site index of the IO array
-    !integer  :: ipa, ipa2 ! The local "I"ndex of "PA"tches
-    !integer  :: ft               ! functional type index
-    !integer  :: elcwd, elpft            ! combined index of element and pft or cwd
-    !integer  :: i_scpf,i_pft,i_scls     ! iterators for scpf, pft, and scls dims
-    !integer  :: i_cacls, i_capf      ! iterators for cohort age and cohort age x pft
-    !integer  :: el           ! Loop index for elements
-    !real(r8) :: store_max   ! The target nutrient mass for storage element of interest [kg]
-    !real(r8) :: n_perm2     ! individuals per m2 for the whole column
-    !real(r8) :: dbh         ! diameter ("at breast height")
-    !real(r8) :: coage       ! cohort age
-    !real(r8) :: npp_partition_error ! a check that the NPP partitions sum to carbon allocation
-
-    ! The following are all carbon states, turnover and net allocation flux variables
-    ! the organs of relevance should be self explanatory
-    ! real(r8) :: sapw_m    ! Sapwood mass (elemental, c,n or p) [kg/plant]
-    ! real(r8) :: struct_m  ! Structural mass ""
-    ! real(r8) :: leaf_m    ! Leaf mass ""
-    ! real(r8) :: fnrt_m    ! Fineroot mass ""
-    ! real(r8) :: store_m   ! Storage mass ""
-    ! real(r8) :: alive_m   ! Alive biomass (sap+leaf+fineroot+repro+storage) ""
-    ! real(r8) :: total_m   ! Total vegetation mass
-    ! real(r8) :: repro_m   ! Total reproductive mass (on plant) ""
-    ! real(r8) :: sapw_m_turnover    ! Sapwood turnover rate
-    ! real(r8) :: store_m_turnover
-    ! real(r8) :: leaf_m_turnover
-    ! real(r8) :: fnrt_m_turnover
-    ! real(r8) :: struct_m_turnover
-    ! real(r8) :: sapw_m_net_alloc
-    ! real(r8) :: store_m_net_alloc
-    ! real(r8) :: leaf_m_net_alloc
-    ! real(r8) :: fnrt_m_net_alloc
-    ! real(r8) :: struct_m_net_alloc
-    ! real(r8) :: repro_m_net_alloc
-    ! integer  :: return_code
-    ! type(fates_patch_type),pointer  :: cpatch
-    ! type(fates_cohort_type),pointer :: ccohort
-    ! integer :: tmp
-
     ! If we don't have dynamics turned on, we just abort these diagnostics
-    ! CONVERT THIS TO FORCE DYNAM LEVEL 0
 
-    ! MAKE SURE THAT MARCOS' PHENOLOGY PR DOES NOT GET MESSED
-    ! UP ON THE MERGE. ST3 SHOULD ALLOW FOR ALL STATES, BUT
-    ! NO FLUXES IN THE FUTURE
+    ! There is future work slated to split dynamics diagnostics into those
+    ! related to states, and those related to fluxes. States should be fine
+    ! to report in ST3 mode.
+    
     if (hlm_use_ed_st3.eq.itrue) return
 
     if(hlm_hist_level_dynam>0) then
        call update_history_dyn1(this,nc,nsites,sites,bc_in)
        if(hlm_hist_level_dynam>1) then
           call update_history_dyn2(this,nc,nsites,sites,bc_in)
-          !if(hlm_hist_level_dynam>2) then
-          !   call update_history_dyn3(this,nc,nsites,sites,bc_in)
-          !end if
        end if
     end if
     return
@@ -2617,7 +2572,6 @@ contains
          hio_seedling_pool_si(io_si)  = 0._r8
          hio_seeds_in_si(io_si)   = 0._r8
          hio_seeds_in_local_si(io_si)   = 0._r8
-
 
          ! Loop through patches to sum up diagonistics
          ipa = 0
@@ -3706,7 +3660,6 @@ contains
                         hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
                              store_m_net_alloc*n_perm2 / days_per_year / sec_per_day
 
-
                         ! Woody State Variables (basal area growth increment)
                         if ( prt_params%woody(ft) == itrue) then
 
@@ -4550,18 +4503,6 @@ contains
              ! ------------------------------------------------------------------------------
 
              flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
-
-
-
-             cpatch => sites(s)%oldest_patch
-             do while(associated(cpatch))
-
-
-
-
-
-                cpatch => cpatch%younger
-             end do
 
              ! ------------------------------------------------------------------------------
              ! Diagnostics discretized by element type
