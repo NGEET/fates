@@ -263,11 +263,11 @@ module FatesHistoryInterfaceMod
   integer :: ih_storeptfrac_canopy_scpf
   integer :: ih_storeptfrac_understory_scpf
 
-  ! These are active if hlm_parteh_mode = prt_cnp_flex_allom_hyp
   integer :: ih_l2fr_si
   integer :: ih_l2fr_clscpf
   integer :: ih_recl2fr_canopy_pf
   integer :: ih_recl2fr_ustory_pf
+  
   integer :: ih_nh4uptake_scpf
   integer :: ih_no3uptake_scpf
   integer :: ih_puptake_scpf
@@ -2747,8 +2747,11 @@ contains
                         this%hvars(ih_l2fr_si)%r81d(io_si) = &
                              this%hvars(ih_l2fr_si)%r81d(io_si) + &
                              ccohort%l2fr *ccohort%n * fnrt_m / m2_per_ha
+                     else
+                        this%hvars(ih_l2fr_si)%r81d(io_si) = &
+                             this%hvars(ih_l2fr_si)%r81d(io_si) + &
+                             prt_params%allom_l2fr(ft) *ccohort%n * fnrt_m / m2_per_ha
                      end if
-
 
                   elseif(element_list(el).eq.nitrogen_element)then
 
@@ -2945,17 +2948,19 @@ contains
             end if
          end do elloop2
 
+
          if(this%hvars(ih_fnrtc_si)%r81d(io_si)>nearzero)then
             this%hvars(ih_l2fr_si)%r81d(io_si) = this%hvars(ih_l2fr_si)%r81d(io_si) / &
                  this%hvars(ih_fnrtc_si)%r81d(io_si)
          else
             this%hvars(ih_l2fr_si)%r81d(io_si) = hlm_hio_ignore_val
          end if
-
          
          ! zero the site-level termination carbon flux variable
          sites(s)%term_carbonflux_canopy(:,:) = 0._r8
          sites(s)%term_carbonflux_ustory(:,:) = 0._r8
+         sites(s)%crownarea_canopy_damage = 0._r8
+         sites(s)%crownarea_ustory_damage = 0._r8
 
       end do siteloop
 
@@ -3148,7 +3153,7 @@ contains
            hio_m8_sec_si_scls      => this%hvars(ih_m8_sec_si_scls)%r82d, &
            hio_m9_sec_si_scls      => this%hvars(ih_m9_sec_si_scls)%r82d, &
            hio_m10_sec_si_scls     => this%hvars(ih_m10_sec_si_scls)%r82d, &
-           !hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &
+           hio_c13disc_si_scpf     => this%hvars(ih_c13disc_si_scpf)%r82d, &
            hio_cwd_elcwd           => this%hvars(ih_cwd_elcwd)%r82d, &
            hio_cwd_ag_elem         => this%hvars(ih_cwd_ag_elem)%r82d, &
            hio_cwd_bg_elem         => this%hvars(ih_cwd_bg_elem)%r82d, &
@@ -3731,12 +3736,12 @@ contains
                         end if
 
                         !C13 discrimination
-                        !if(gpp_cached + ccohort%gpp_acc_hold > 0.0_r8)then
-                        !   hio_c13disc_si_scpf(io_si,scpf) = ((hio_c13disc_si_scpf(io_si,scpf) * gpp_cached) + &
-                        !        (ccohort%c13disc_acc * ccohort%gpp_acc_hold)) / (gpp_cached + ccohort%gpp_acc_hold)
-                        !else
-                        !   hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
-                        !endif
+                        if(gpp_cached + ccohort%gpp_acc_hold > 0.0_r8)then
+                           hio_c13disc_si_scpf(io_si,scpf) = ((hio_c13disc_si_scpf(io_si,scpf) * gpp_cached) + &
+                                (ccohort%c13disc_acc * ccohort%gpp_acc_hold)) / (gpp_cached + ccohort%gpp_acc_hold)
+                        else
+                           hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
+                        endif
 
                         ! number density [/m2]
                         hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
@@ -4456,8 +4461,6 @@ contains
              sites(s)%fmort_rate_ustory_damage(:,:,:) = 0._r8
              sites(s)%fmort_cflux_canopy_damage(:,:) = 0._r8
              sites(s)%fmort_cflux_ustory_damage(:,:) = 0._r8
-             sites(s)%crownarea_canopy_damage = 0._r8
-             sites(s)%crownarea_ustory_damage = 0._r8
 
              ! pass the recruitment rate as a flux to the history, and then reset the recruitment buffer
              do ft = 1, numpft
@@ -4780,12 +4783,10 @@ contains
 
              end do
              
-             if( hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
-                do ft = 1,numpft
-                   this%hvars(ih_recl2fr_canopy_pf)%r82d(io_si,ft) = sites(s)%rec_l2fr(ft,1)
-                   this%hvars(ih_recl2fr_ustory_pf)%r82d(io_si,ft) = sites(s)%rec_l2fr(ft,2)
-                end do
-             end if
+             do ft = 1,numpft
+                this%hvars(ih_recl2fr_canopy_pf)%r82d(io_si,ft) = sites(s)%rec_l2fr(ft,1)
+                this%hvars(ih_recl2fr_ustory_pf)%r82d(io_si,ft) = sites(s)%rec_l2fr(ft,2)
+             end do
              
           enddo siteloop ! site loop
 
@@ -6350,13 +6351,11 @@ contains
             index = ih_reproc_si)
 
        ! Output specific to the chemical species dynamics used (parteh)
-       if( hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
-          call this%set_history_var(vname='FATES_L2FR', units='kg kg-1',                   &
-               long='The leaf to fineroot biomass multiplier for target allometry', & 
-               use_default='active', &
-               avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple,    &
-               ivar=ivar, initialize=initialize_variables, index = ih_l2fr_si)
-       end if
+       call this%set_history_var(vname='FATES_L2FR', units='kg kg-1',                   &
+            long='The leaf to fineroot biomass multiplier for target allometry', & 
+            use_default='active', &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple,    &
+            ivar=ivar, initialize=initialize_variables, index = ih_l2fr_si)
 
        nitrogen_active_if0: if(any(element_list(:)==nitrogen_element)) then
 
@@ -6699,7 +6698,20 @@ contains
                initialize=initialize_variables, index = ih_h2oveg_growturn_err_si)
        end if hydro_active_if
 
-       !HERE
+       if_crowndamage1: if(hlm_use_tree_damage .eq. itrue) then
+
+          call this%set_history_var(vname='FATES_CROWNAREA_CANOPY_CD', units = 'm2 m-2 yr-1',         &
+               long='crownarea lost to damage each year', use_default='inactive',   &
+               avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, index = ih_crownarea_canopy_damage_si )
+          
+          call this%set_history_var(vname='FATES_CROWNAREA_USTORY_CD', units = 'm2 m-2 yr-1',         &
+               long='crownarea lost to damage each year', use_default='inactive',   &
+               avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, index = ih_crownarea_ustory_damage_si )
+
+       end if if_crowndamage1
+       
 
        if_dyn1: if(hlm_hist_level_dynam>1) then
 
@@ -7052,26 +7064,23 @@ contains
 
 
           ! Output specific to the chemical species dynamics used (parteh)
-          if( hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
-             call this%set_history_var(vname='FATES_L2FR_CANOPY_REC_PF', units='kg kg-1', &
-                  long='The leaf to fineroot biomass multiplier for recruits (canopy)',   & 
-                  use_default='active', &
-                  avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,    &
-                  ivar=ivar, initialize=initialize_variables, index = ih_recl2fr_canopy_pf)
-
-             call this%set_history_var(vname='FATES_L2FR_USTORY_REC_PF', units='kg kg-1',                   &
-                  long='The leaf to fineroot biomass multiplier for recruits (understory)', & 
-                  use_default='active', &
-                  avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,    &
-                  ivar=ivar, initialize=initialize_variables, index = ih_recl2fr_ustory_pf)
-
+          call this%set_history_var(vname='FATES_L2FR_CANOPY_REC_PF', units='kg kg-1', &
+               long='The leaf to fineroot biomass multiplier for recruits (canopy)',   & 
+               use_default='active', &
+               avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,    &
+               ivar=ivar, initialize=initialize_variables, index = ih_recl2fr_canopy_pf)
+          
+          call this%set_history_var(vname='FATES_L2FR_USTORY_REC_PF', units='kg kg-1',                   &
+               long='The leaf to fineroot biomass multiplier for recruits (understory)', & 
+               use_default='active', &
+               avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,    &
+               ivar=ivar, initialize=initialize_variables, index = ih_recl2fr_ustory_pf)
+          
              !call this%set_history_var(vname='FATES_L2FR_CLSZPF', units='kg kg-1',                   &
              !     long='The leaf to fineroot biomass multiplier for target allometry', & 
              !     use_default='inactive', &
              !     avgflag='A', vtype=site_clscpf_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,    &
              !     ivar=ivar, initialize=initialize_variables, index = ih_l2fr_clscpf)
-
-          end if
 
           nitrogen_active_if1: if(any(element_list(:)==nitrogen_element)) then
 
@@ -7632,12 +7641,12 @@ contains
                initialize=initialize_variables, index = ih_m3_mortality_understory_si_scpf )
 
 
-!          call this%set_history_var(vname='FATES_C13DISC_SZPF', units = 'per mil',   &
-!               long='C13 discrimination by pft/size',use_default='inactive',         &
-!               avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',                  &
-!               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
-!               index = ih_c13disc_si_scpf)
-
+          call this%set_history_var(vname='FATES_C13DISC_SZPF', units = 'per mil',   &
+               long='C13 discrimination by pft/size',use_default='inactive',         &
+               avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM',                  &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+               index = ih_c13disc_si_scpf)
+          
           call this%set_history_var(vname='FATES_STOREC_CANOPY_SZPF', units = 'kg m-2', &
                long='biomass in storage pools of canopy plants by pft/size in kg carbon per m2', &
                use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
@@ -8247,16 +8256,6 @@ contains
 
           ! CROWN DAMAGE VARIABLES
           if_crowndamage: if(hlm_use_tree_damage .eq. itrue) then 
-
-             call this%set_history_var(vname='FATES_CROWNAREA_CANOPY_CD', units = 'm2 m-2 yr-1',         &
-                  long='crownarea lost to damage each year', use_default='inactive',   &
-                  avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-                  upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, index = ih_crownarea_canopy_damage_si )
-
-             call this%set_history_var(vname='FATES_CROWNAREA_USTORY_CD', units = 'm2 m-2 yr-1',         &
-                  long='crownarea lost to damage each year', use_default='inactive',   &
-                  avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-                  upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, index = ih_crownarea_ustory_damage_si )
 
              call this%set_history_var(vname='FATES_NPLANT_CDPF', units = 'm-2',     &
                   long='N. plants per damage x size x pft class', use_default='inactive',   &
