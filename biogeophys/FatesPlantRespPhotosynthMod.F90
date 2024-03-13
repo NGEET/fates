@@ -2494,6 +2494,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
        co2_rcurve_islope = 0._r8
     else                                     ! day time
 
+       ! update the daylength factor local variable if the switch is on
        if ( dayl_switch == itrue ) then
           dayl_factor_local = dayl_factor
        else
