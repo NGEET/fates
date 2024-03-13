@@ -1,5 +1,4 @@
 list(APPEND fates_sources
-  SFMainMod.F90
   SFParamsMod.F90
   SFFireWeatherMod.F90
   SFNesterovMod.F90

@@ -16,8 +16,6 @@ add_subdirectory(${HLM_ROOT}/share/unit_test_stubs/util csm_share_stubs)
 # Add FATES source directories
 add_subdirectory(${HLM_ROOT}/src/fates/main fates_main)
 add_subdirectory(${HLM_ROOT}/src/fates/biogeochem fates_biogeochem)
-add_subdirectory(${HLM_ROOT}/src/fates/biogeophys fates_biogeophys)
-add_subdirectory(${HLM_ROOT}/src/fates/parteh fates_parteh)
 add_subdirectory(${HLM_ROOT}/src/fates/fire fates_fire)
 add_subdirectory(${HLM_ROOT}/src/fates/radiation fates_radiation)
 
