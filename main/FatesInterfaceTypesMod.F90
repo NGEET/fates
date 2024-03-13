@@ -198,6 +198,18 @@ module FatesInterfaceTypesMod
   integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
                                                                     !  1 = TRUE, 0 = FALSE
 
+  
+  ! Flag specifying what types of history fields to allocate and prepare
+  ! The "_dynam" refers to history fields that can be updated on the dynamics (daily) step
+  ! THe "_hifrq" refers to history fields that can be updated on the model (high-frequency) step
+  ! 0 = no output
+  ! 1 = site-level averages only
+  ! 2 = allow the second dimension
+  
+  integer, public :: hlm_hist_level_dynam                           
+                                                                    
+  integer, public :: hlm_hist_level_hifrq
+  
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
