@@ -1764,7 +1764,7 @@ contains
     use FatesConstantsMod, only : lmr_r_2
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
-    use EDParamsMod        , only : radiation_model
+    use EDParamsMod        , only : radiation_model, dayl_switch
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
     
@@ -1810,6 +1810,13 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
+     if(.not.any(dayl_switch == [itrue,ifalse])) then
+        write(fates_log(),*) 'The only valid switch options for '
+        write(fates_log(),*) 'fates_daylength_factor_switch is 0 or 1 ...'
+        write(fates_log(),*) 'You specified fates_daylength_factor_switch = ',dayl_switch
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
 
      select case (hlm_parteh_mode)
      case (prt_cnp_flex_allom_hyp)
