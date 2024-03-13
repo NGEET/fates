@@ -204,8 +204,7 @@ module FatesInterfaceTypesMod
   ! THe "_hifrq" refers to history fields that can be updated on the model (high-frequency) step
   ! 0 = no output
   ! 1 = site-level averages only
-  ! 2 = allow the second dimension, but nothing multi-plexed
-  ! 3 = allow the second dimension and include everything, including multiplexed
+  ! 2 = allow the second dimension
   
   integer, public :: hlm_hist_level_dynam                           
                                                                     
