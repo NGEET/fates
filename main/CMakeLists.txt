@@ -6,6 +6,7 @@ list(APPEND clm_sources
   EDTypesMod.F90
   EDPftvarcon.F90
   FatesConstantsMod.F90
+  FatesEcotypesMod.F90
   FatesHydraulicsMemMod.F90
   FatesParametersInterface.F90
   FatesUtilsMod.F90
