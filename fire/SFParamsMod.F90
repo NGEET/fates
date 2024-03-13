@@ -19,8 +19,8 @@ module SFParamsMod
    ! this is what the user can use for the actual values
    !
 
-   real(r8),protected, public :: SF_val_fdi_a
-   real(r8),protected, public :: SF_val_fdi_b
+   real(r8), public :: SF_val_fdi_a
+   real(r8), public :: SF_val_fdi_b
    real(r8),protected, public :: SF_val_fdi_alpha
    real(r8),protected, public :: SF_val_miner_total
    real(r8),protected, public :: SF_val_fuel_energy

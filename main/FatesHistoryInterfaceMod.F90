@@ -2734,7 +2734,7 @@ end subroutine flush_hvars
       ! site-level fire variables:
 
       ! Nesterov index (unitless)
-      hio_nesterov_fire_danger_si(io_si) = sites(s)%acc_NI
+      hio_nesterov_fire_danger_si(io_si) = sites(s)%fireWeather%fire_weather_index
 
       ! number of ignitions [#/km2/day -> #/m2/s]
       hio_fire_nignitions_si(io_si) = sites(s)%NF_successful / m2_per_km2 /  &

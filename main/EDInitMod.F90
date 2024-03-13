@@ -92,6 +92,7 @@ module EDInitMod
   use DamageMainMod,          only : undamaged_class
   use FatesConstantsMod,      only : n_term_mort_types
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
+  use SFNesterovMod,          only : nesterov_index
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -220,6 +221,9 @@ contains
     allocate(site_in%seed_in(1:numpft))
     allocate(site_in%seed_out(1:numpft))
 
+    allocate(nesterov_index :: site_in%fireWeather)
+    call site_in%fireWeather%Init()
+
   end subroutine init_site_vars
 
   ! ============================================================================
@@ -270,7 +274,6 @@ contains
     site_in%disturbance_rates(:,:,:) = 0.0_r8
 
     ! FIRE
-    site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%FDI              = 0.0_r8     ! daily fire danger index (0-1)
     site_in%NF               = 0.0_r8     ! daily lightning strikes per km2
     site_in%NF_successful    = 0.0_r8     ! daily successful iginitions per km2
@@ -369,7 +372,6 @@ contains
     integer  :: cstat      ! cold status phenology flag
     real(r8) :: GDD
     integer  :: dstat      ! drought status phenology flag
-    real(r8) :: acc_NI
     real(r8) :: liqvolmem
     real(r8) :: smpmem
     real(r8) :: elong_factor ! Elongation factor (0 - fully off; 1 - fully on)
@@ -401,7 +403,6 @@ contains
        cndleafon  = 0
        cndleafoff = 0
        cstat    = phen_cstat_notcold     ! Leaves are on
-       acc_NI   = 0.0_r8
        dstat    = phen_dstat_moiston     ! Leaves are on
        dleafoff = 300
        dleafon  = 100
@@ -436,7 +437,6 @@ contains
           sites(s)%dstatus(1:numpft) = dstat
           sites(s)%elong_factor(1:numpft) = elong_factor
 
-          sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8
           sites(s)%NF_successful  = 0.0_r8
           sites(s)%area_pft(:) = 0.0_r8

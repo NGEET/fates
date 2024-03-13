@@ -1,0 +1,1 @@
+add_subdirectory(fire_weather_test)
