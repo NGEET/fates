@@ -14,7 +14,7 @@ dimensions:
 	fates_plant_organs = 4 ;
 	fates_string_length = 60 ;
 	fates_landuseclass = 5 ;
-	fates_nemission_factors = 13 ;
+	fates_nemission_compounds = 13 ;
 variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
 		fates_history_ageclass_bin_edges:units = "yr" ;
@@ -266,7 +266,7 @@ variables:
                 fates_fire_emission_compound_name:units = "unitless - string" ;
                 fates_fire_emission_compound_name = "Description of fire emission compounds" ;
 		
-        double fates_fire_emission_factors(fates_pft,fates_nemission_factors) ;
+        double fates_fire_emission_factors(fates_pft,fates_nemission_compounds) ;
                fates_fire_emission_factors:units = "kg emission/m2/s" ;
 	       fates_fire_emission_factors:long_name = "Emissions factors for FATES PFTs" ;
 
