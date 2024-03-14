@@ -261,6 +261,9 @@ variables:
 	double fates_fire_crown_kill(fates_pft) ;
 		fates_fire_crown_kill:units = "NA" ;
 		fates_fire_crown_kill:long_name = "fire parameter, see equation 22 in Thonicke et al 2010" ;
+        double fates_fire_emission_factors(fates_pft,n_fire_emissions) ;
+               fates_fire_emission_factors:units = "kg emission/m2/s" ;
+	       fates_fire_emission_factors:long_name = "Emissions factors for FATES PFTs" ;		
 	double fates_frag_fnrt_fcel(fates_pft) ;
 		fates_frag_fnrt_fcel:units = "fraction" ;
 		fates_frag_fnrt_fcel:long_name = "Fine root litter cellulose fraction" ;
