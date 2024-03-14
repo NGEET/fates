@@ -14,6 +14,7 @@ dimensions:
 	fates_plant_organs = 4 ;
 	fates_string_length = 60 ;
 	fates_landuseclass = 5 ;
+	fates_nemission_factors = 13 ;
 variables:
 	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
 		fates_history_ageclass_bin_edges:units = "yr" ;
@@ -261,6 +262,18 @@ variables:
 	double fates_fire_crown_kill(fates_pft) ;
 		fates_fire_crown_kill:units = "NA" ;
 		fates_fire_crown_kill:long_name = "fire parameter, see equation 22 in Thonicke et al 2010" ;
+        char fates_fire_emission_compound_name)(fates_pft, fates_string_length) ;
+                fates_fire_emission_compound_name:units = "unitless - string" ;
+                fates_fire_emission_compound_name = "Description of fire emission compounds" ;
+		
+        double fates_fire_emission_factors(fates_pft,fates_nemission_factors) ;
+               fates_fire_emission_factors:units = "kg emission/m2/s" ;
+	       fates_fire_emission_factors:long_name = "Emissions factors for FATES PFTs" ;
+
+        double fates_fire_emission_height(fates_pft) ;
+               fates_fire_emission_height:units = "m" ;
+               fates_fire_emission_height:long_name = "Height of emissions from fire per PFT" ;
+	       
 	double fates_frag_fnrt_fcel(fates_pft) ;
 		fates_frag_fnrt_fcel:units = "fraction" ;
 		fates_frag_fnrt_fcel:long_name = "Fine root litter cellulose fraction" ;
@@ -1137,6 +1150,37 @@ data:
 
  fates_fire_crown_kill = 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 
     0.775, 0.775, 0.775, 0.775, 0.775 ;
+
+fates_fire_emission_compound_name =
+ "CO2",
+  "CO",
+  "CH4",
+  "NHMC",
+  "H2",
+  "NOX",
+  "N2O",
+  "PM25",
+  "TPM",
+  "TC",
+  "OC",
+  "BC",
+  "SO2" ;
+
+fates_fire_emission_factors =
+    1580, 103.2, 6.8, 8.1, 3.8, 1.85, 0.2, 9.1, 8.5, 6, 5.2, 0.63, 0.5 7,
+    1569, 106.7, 4.7, 5.7, 1.81, 3, 0.26, 13, 17.6, 8.3, 9.1, 0.56, 1,
+    1569, 106.7, 4.7, 5.7, 1.81, 3, 0.26, 13, 17.6, 8.3, 9.1, 0.56, 1,
+    1569, 106.7, 4.7, 5.7, 1.81, 3, 0.26, 13, 17.6, 8.3, 9.1, 0.56, 1,
+    1580, 103.2, 6.8, 8.1, 3.8, 1.85, 0.2, 9.1, 8.5, 6, 5.2, 0.63, 0.5, 7,
+    1569, 106.7, 4.7, 5.7, 1.81, 3, 0.26, 13, 17.6, 8.3, 9.1, 0.56, 1,
+    1663, 61.6, 2.2, 3.4, 0.99, 2.35, 0.21, 4.9, 8.5, 3.7, 3.2, 0.46, 0.71,
+    1663, 61.6, 2.2, 3.4, 0.99, 2.35, 0.21, 4.9, 8.5, 3.7, 3.2, 0.46, 0.71,
+    1663, 61.6, 2.2, 3.4, 0.99, 2.35, 0.21, 4.9, 8.5, 3.7, 3.2, 0.46, 0.71,
+    1663, 61.6, 2.2, 3.4, 0.99, 2.35, 0.21, 4.9, 8.5, 3.7, 3.2, 0.46, 0.71,
+    1663, 61.6, 2.2, 3.4, 0.99, 2.35, 0.21, 4.9, 8.5, 3.7, 3.2, 0.46, 0.71,
+    1663, 61.6, 2.2, 3.4, 0.99, 2.35, 0.21, 4.9, 8.5, 3.7, 3.2, 0.46, 0.71,
+
+ fates_fire_emission_heights =  2500, 4000, 3000, 3000, 2500, 3000, 2000, 2000, 2000, 1000, 1000, 1000 ;
 
  fates_frag_fnrt_fcel = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5 ;
