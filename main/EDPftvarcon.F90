@@ -147,7 +147,9 @@ module EDPftvarcon
      ! -------------------------------------------------------------------------------------------
      real(r8), allocatable :: fire_alpha_SH(:)      ! spitfire parameter, alpha scorch height
                                                     ! Equation 16 Thonicke et al 2010
-
+     real(r8), allocatable :: fire_emission_factors(:,:) ! emission factorss indexed by PFT and emission type/species. g emissions/m2/s per kg biomass burned. 
+     real(r8), allocatable :: fire_emission_heights(:)   ! heights that fire emissions are injected into the atmosphere (m)
+     
      ! Non-PARTEH Allometry Parameters
      ! --------------------------------------------------------------------------------------------
 
@@ -352,7 +354,8 @@ contains
 
     use FatesParametersInterface, only : fates_parameters_type, param_string_length
     use FatesParametersInterface, only : dimension_name_pft, dimension_shape_1d
-    use FatesParametersInterface, only : dimension_name_hlm_pftno, dimension_shape_2d
+    use FatesParametersInterface, only : dimension_name_hlm_pftno, dimension_name_nemission_compounds
+    use FatesParametersInterface, only : dimension_shape_2d
 
     implicit none
 
@@ -361,7 +364,8 @@ contains
 
     character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_pft/)
     character(len=param_string_length) :: pftmap_dim_names(2)
-
+    character(len=param_string_length) :: emission_factors_dim_names(2)    
+    
     integer, parameter :: dim_lower_bound(1) = (/ lower_bound_pft /)
 
 
@@ -511,6 +515,18 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    ! adding the hlm_pft_map variable with two dimensions - FATES PFTno and N emission factors
+    emission_factors_dim_names(1) = dimension_name_pft
+    emission_factors_dim_names(2) = dimension_name_nemission_compounds
+    
+    name = 'fates_fire_emission_factors'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=emission_factors_dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_fire_emission_heights'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     name = 'fates_allom_frbstor_repro'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -952,6 +968,14 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%fire_alpha_SH)
 
+    name = 'fates_fire_emission_factors'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%fire_emission_factors)
+
+    name = 'fates_fire_emission_heights'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%fates_fire_emission_heights)
+    
     name = 'fates_allom_frbstor_repro'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%allom_frbstor_repro)
@@ -1716,6 +1740,8 @@ contains
         write(fates_log(),fmt0) 'phen_flush_fraction',EDpftvarcon_inst%phenflush_fraction
         write(fates_log(),fmt0) 'phen_cold_size_threshold = ',EDPftvarcon_inst%phen_cold_size_threshold
         write(fates_log(),fmt0) 'fire_alpha_SH = ',EDPftvarcon_inst%fire_alpha_SH
+        write(fates_log(),fmt0) 'fire_emission_factors = ',EDPftvarcon_inst%fire_emission_factors
+        write(fates_log(),fmt0) 'fire_emission_factors = ',EDPftvarcon_inst%fire_emission_heights
         write(fates_log(),fmt0) 'allom_frbstor_repro = ',EDPftvarcon_inst%allom_frbstor_repro
         write(fates_log(),fmt0) 'hydro_p_taper = ',EDPftvarcon_inst%hydr_p_taper
         write(fates_log(),fmt0) 'hydro_rs2 = ',EDPftvarcon_inst%hydr_rs2
