@@ -366,26 +366,11 @@ contains
     grass_fraction = 0.0_r8
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
-
       if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
-       
-        currentPatch%total_tree_area = 0.0_r8
-        total_grass_area = 0.0_r8
-        
-        currentCohort => currentPatch%tallest
-        do while(associated(currentCohort))
-            if (prt_params%woody(currentCohort%pft) == itrue) then
-              currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
-            else
-              total_grass_area = total_grass_area + currentCohort%c_area
-            end if
-            currentCohort => currentCohort%shorter
-        end do
+        call currentPatch%UpdateTreeGrassArea()
         tree_fraction = tree_fraction + min(currentPatch%area, currentPatch%total_tree_area)/AREA
-        grass_fraction = grass_fraction + min(currentPatch%area, total_grass_area)/AREA 
-
+        grass_fraction = grass_fraction + min(currentPatch%area, currentPatch%total_grass_area)/AREA 
       end if 
-        
       currentPatch => currentPatch%younger
     end do 
 
@@ -397,7 +382,9 @@ contains
     do while(associated(currentPatch))       
       
       if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
-        currentPatch%total_tree_area = min(currentPatch%total_tree_area, currentPatch%area) 
+        currentPatch%total_tree_area = min(currentPatch%total_tree_area, currentPatch%area)
+        ! This is very random... Let's update this to be MOST/related to surface roughness
+        ! this should be tied to tree height
         currentPatch%effect_wspeed = currentSite%wind*(tree_fraction*0.4_r8 + (grass_fraction + bare_fraction)*0.6_r8)
       end if 
       

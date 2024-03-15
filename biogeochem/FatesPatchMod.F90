@@ -98,6 +98,7 @@ module FatesPatchMod
                                                               !   used to determine attenuation of parameters during photosynthesis
     real(r8) :: total_canopy_area                           ! area that is covered by vegetation [m2]
     real(r8) :: total_tree_area                             ! area that is covered by woody vegetation [m2]
+    real(r8) :: total_grass_area                            ! area that is covered by non-woody vegetation [m2]
     real(r8) :: zstar                                       ! height of smallest canopy tree, only meaningful in "strict PPA" mode [m]
     real(r8) :: elai_profile(nclmax,maxpft,nlevleaf)        ! exposed leaf area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
     real(r8) :: esai_profile(nclmax,maxpft,nlevleaf)        ! exposed stem area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
@@ -230,6 +231,7 @@ module FatesPatchMod
       procedure :: InitRunningMeans
       procedure :: InitLitter
       procedure :: Create
+      procedure :: UpdateTreeGrassArea
       procedure :: FreeMemory
       procedure :: Dump
       procedure :: CheckVars
@@ -308,7 +310,8 @@ module FatesPatchMod
       this%pft_agb_profile(:,:)         = nan
       this%canopy_layer_tlai(:)         = nan               
       this%total_canopy_area            = nan
-      this%total_tree_area              = nan 
+      this%total_tree_area              = nan
+      this%total_grass_area             = nan
       this%zstar                        = nan 
       this%elai_profile(:,:,:)          = nan 
       this%esai_profile(:,:,:)          = nan   
@@ -407,7 +410,8 @@ module FatesPatchMod
           
       ! LEAF ORGANIZATION
       this%canopy_layer_tlai(:)              = 0.0_r8
-      this%total_tree_area                   = 0.0_r8  
+      this%total_tree_area                   = 0.0_r8
+      this%total_grass_area                  = 0.0_r8
       this%zstar                             = 0.0_r8
       this%elai_profile(:,:,:)               = 0.0_r8
       this%c_stomata                         = 0.0_r8 
@@ -424,8 +428,8 @@ module FatesPatchMod
       this%fabi_sha_z(:,:,:)                 = 0.0_r8  
       this%ed_parsun_z(:,:,:)                = 0.0_r8 
       this%ed_parsha_z(:,:,:)                = 0.0_r8
-      this%ed_laisun_z(:,:,:)           = 0._r8
-      this%ed_laisha_z(:,:,:)           = 0._r8
+      this%ed_laisun_z(:,:,:)                = 0._r8
+      this%ed_laisha_z(:,:,:)                = 0._r8
       this%f_sun                             = 0.0_r8
       this%tr_soil_dir_dif(:)                = 0.0_r8
       this%fab(:)                            = 0.0_r8
@@ -613,6 +617,42 @@ module FatesPatchMod
 
     !===========================================================================
 
+    subroutine UpdateTreeGrassArea(this)
+      !
+      ! DESCRIPTION:
+      ! calculate and update the total tree area and grass area (by canopy) on patch
+      !
+
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this ! patch object 
+
+      ! LOCALS:
+      type(fates_cohort_Type), pointer :: currentCohort ! cohort object
+      real(r8)                         :: tree_area     ! treed area of patch [m2]
+      real(r8)                         :: grass_area    ! grass area of patch [m2]
+
+      if (this%nocomp_pft_label /= nocomp_bareground) then 
+        total_tree_area = 0.0_r8
+        total_grass_area = 0.0_r8
+        
+        currentCohort => this%tallest
+        do while(associated(currentCohort))
+          if (prt_params%woody(currentCohort%pft) == itrue) then
+            total_tree_area = total_tree_area + currentCohort%c_area
+          else
+            total_grass_area = total_grass_area + currentCohort%c_area
+          end if
+          currentCohort => currentCohort%shorter
+        end do
+
+        this%total_tree_area = total_tree_area
+        this%total_grass_area = total_grass_area
+      end if 
+
+    end subroutine UpdateTreeGrassArea
+
+    !===========================================================================
+
     subroutine FreeMemory(this, regeneration_model, numpft)
       !
       ! DESCRIPTION:
@@ -737,6 +777,7 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%ncl_p              = ',this%ncl_p
       write(fates_log(),*) 'pa%total_canopy_area  = ',this%total_canopy_area
       write(fates_log(),*) 'pa%total_tree_area    = ',this%total_tree_area
+      write(fates_log(),*) 'pa%total_grass_area   = ',this%total_grass_area
       write(fates_log(),*) 'pa%zstar              = ',this%zstar
       write(fates_log(),*) 'pa%solar_zenith_flag  = ',this%solar_zenith_flag
       write(fates_log(),*) 'pa%solar_zenith_angle = ',this%solar_zenith_angle
