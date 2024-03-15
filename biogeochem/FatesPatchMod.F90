@@ -632,21 +632,21 @@ module FatesPatchMod
       real(r8)                         :: grass_area    ! grass area of patch [m2]
 
       if (this%nocomp_pft_label /= nocomp_bareground) then 
-        total_tree_area = 0.0_r8
-        total_grass_area = 0.0_r8
+        tree_area = 0.0_r8
+        grass_area = 0.0_r8
         
         currentCohort => this%tallest
         do while(associated(currentCohort))
           if (prt_params%woody(currentCohort%pft) == itrue) then
-            total_tree_area = total_tree_area + currentCohort%c_area
+            tree_area = tree_area + currentCohort%c_area
           else
-            total_grass_area = total_grass_area + currentCohort%c_area
+            grass_area = grass_area + currentCohort%c_area
           end if
           currentCohort => currentCohort%shorter
         end do
 
-        this%total_tree_area = total_tree_area
-        this%total_grass_area = total_grass_area
+        this%total_tree_area = tree_area
+        this%total_grass_area = grass_area
       end if 
 
     end subroutine UpdateTreeGrassArea
