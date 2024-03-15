@@ -120,6 +120,10 @@ Module EDCohortDynamicsMod
   use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux, acnp_bc_out_id_limiter
   use PRTAllometricCNPMod,    only : acnp_bc_in_id_cdamage
   use DamageMainMod,          only : undamaged_class
+  use FatesConstantsMod,      only : n_term_mort_types
+  use FatesConstantsMod,      only : i_term_mort_type_cstarv
+  use FatesConstantsMod,      only : i_term_mort_type_canlev
+  use FatesConstantsMod,      only : i_term_mort_type_numdens
 
   use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)  
   use shr_log_mod,            only : errMsg => shr_log_errMsg
@@ -382,12 +386,14 @@ end subroutine create_cohort
     integer :: terminate  ! do we terminate (itrue) or not (ifalse)
     integer :: istat      ! return status code
     character(len=255) :: smsg
+    integer :: termination_type
     !----------------------------------------------------------------------
 
     currentCohort => currentPatch%shortest
     do while (associated(currentCohort))
 
        terminate = ifalse
+       termination_type = 0
        tallerCohort => currentCohort%taller
 
        leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
@@ -400,6 +406,7 @@ end subroutine create_cohort
        ! Check if number density is so low is breaks math (level 1)
        if (currentcohort%n <  min_n_safemath .and. level == 1) then
           terminate = itrue
+          termination_type = i_term_mort_type_numdens
           if ( debug ) then
              write(fates_log(),*) 'terminating cohorts 0',currentCohort%n/currentPatch%area,currentCohort%dbh,currentCohort%pft,call_index
           endif
@@ -413,6 +420,7 @@ end subroutine create_cohort
               currentCohort%n <= min_nppatch .or. &
               (currentCohort%dbh < 0.00001_r8 .and. store_c < 0._r8) ) then
             terminate = itrue
+            termination_type = i_term_mort_type_numdens
             if ( debug ) then
                write(fates_log(),*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh,currentCohort%pft,call_index
             endif
@@ -421,6 +429,7 @@ end subroutine create_cohort
          ! Outside the maximum canopy layer
          if (currentCohort%canopy_layer > nclmax ) then
            terminate = itrue
+           termination_type = i_term_mort_type_canlev
            if ( debug ) then
              write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer,currentCohort%pft,call_index
            endif
@@ -430,6 +439,7 @@ end subroutine create_cohort
          if ( ( sapw_c+leaf_c+fnrt_c ) < 1e-10_r8  .or.  &
                store_c  < 1e-10_r8) then
             terminate = itrue
+            termination_type = i_term_mort_type_cstarv
             if ( debug ) then
               write(fates_log(),*) 'terminating cohorts 3', &
                     sapw_c,leaf_c,fnrt_c,store_c,currentCohort%pft,call_index
@@ -439,6 +449,7 @@ end subroutine create_cohort
          ! Total cohort biomass is negative
          if ( ( struct_c+sapw_c+leaf_c+fnrt_c+store_c ) < 0._r8) then
             terminate = itrue
+            termination_type = i_term_mort_type_cstarv
             if ( debug ) then
                write(fates_log(),*) 'terminating cohorts 4', &
                     struct_c,sapw_c,leaf_c,fnrt_c,store_c,currentCohort%pft,call_index
@@ -448,7 +459,7 @@ end subroutine create_cohort
       endif    !  if (.not.currentCohort%isnew .and. level == 2) then
 
       if (terminate == itrue) then
-         call terminate_cohort(currentSite, currentPatch, currentCohort, bc_in)
+         call terminate_cohort(currentSite, currentPatch, currentCohort, bc_in, termination_type)
          deallocate(currentCohort, stat=istat, errmsg=smsg)
          if (istat/=0) then
             write(fates_log(),*) 'dealloc001: fail on terminate_cohorts:deallocate(currentCohort):'//trim(smsg)
@@ -461,7 +472,7 @@ end subroutine create_cohort
   end subroutine terminate_cohorts
 
   !-------------------------------------------------------------------------------------!
-  subroutine terminate_cohort(currentSite, currentPatch, currentCohort, bc_in)
+  subroutine terminate_cohort(currentSite, currentPatch, currentCohort, bc_in, termination_type)
    !
    ! !DESCRIPTION:
    ! Terminates an individual cohort and updates the site-level
@@ -474,6 +485,7 @@ end subroutine create_cohort
    type (fates_patch_type) , intent(inout), target :: currentPatch
    type (fates_cohort_type), intent(inout), target :: currentCohort
    type(bc_in_type), intent(in)                :: bc_in
+   integer, intent(in)                         :: termination_type
 
    ! !LOCAL VARIABLES:
    type (fates_cohort_type) , pointer :: shorterCohort
@@ -491,6 +503,12 @@ end subroutine create_cohort
    
    !----------------------------------------------------------------------
 
+   ! check termination_type; it should not be 0
+   if (termination_type == 0) then
+      write(fates_log(),*) 'termination_type=0'
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+   endif
+   
    leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
    store_c = currentCohort%prt%GetState(store_organ, carbon12_element)
    sapw_c  = currentCohort%prt%GetState(sapw_organ, carbon12_element)
@@ -506,16 +524,16 @@ end subroutine create_cohort
 
    ! Update the site-level carbon flux and individuals count for the appropriate canopy layer
    if(levcan==ican_upper) then
-      currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) = &
-            currentSite%term_nindivs_canopy(currentCohort%size_class,currentCohort%pft) + currentCohort%n
+      currentSite%term_nindivs_canopy(termination_type,currentCohort%size_class,currentCohort%pft) = &
+            currentSite%term_nindivs_canopy(termination_type,currentCohort%size_class,currentCohort%pft) + currentCohort%n
 
-      currentSite%term_carbonflux_canopy(currentCohort%pft) = currentSite%term_carbonflux_canopy(currentCohort%pft) + &
+      currentSite%term_carbonflux_canopy(termination_type,currentCohort%pft) = currentSite%term_carbonflux_canopy(termination_type,currentCohort%pft) + &
             currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
    else
-      currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) = &
-            currentSite%term_nindivs_ustory(currentCohort%size_class,currentCohort%pft) + currentCohort%n
+      currentSite%term_nindivs_ustory(termination_type,currentCohort%size_class,currentCohort%pft) = &
+            currentSite%term_nindivs_ustory(termination_type,currentCohort%size_class,currentCohort%pft) + currentCohort%n
 
-      currentSite%term_carbonflux_ustory(currentCohort%pft) = currentSite%term_carbonflux_ustory(currentCohort%pft) + &
+      currentSite%term_carbonflux_ustory(termination_type,currentCohort%pft) = currentSite%term_carbonflux_ustory(termination_type,currentCohort%pft) + &
             currentCohort%n * (struct_c+sapw_c+leaf_c+fnrt_c+store_c+repro_c)
    end if
 
@@ -553,7 +571,7 @@ end subroutine create_cohort
 
    call currentCohort%FreeMemory()
 
- end subroutine terminate_cohort  
+ end subroutine terminate_cohort 
   
   ! =====================================================================================
 
