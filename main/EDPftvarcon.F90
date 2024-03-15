@@ -516,8 +516,8 @@ contains
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     ! adding the hlm_pft_map variable with two dimensions - FATES PFTno and N emission factors
-    emission_factors_dim_names(1) = dimension_name_pft
-    emission_factors_dim_names(2) = dimension_name_nemission_compounds
+    emission_factors_dim_names(2) = dimension_name_pft
+    emission_factors_dim_names(1) = dimension_name_nemission_compounds
     
     name = 'fates_fire_emission_factors'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
