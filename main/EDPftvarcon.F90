@@ -974,7 +974,7 @@ contains
 
     name = 'fates_fire_emission_heights'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%fates_fire_emission_heights)
+         data=this%fire_emission_heights)
     
     name = 'fates_allom_frbstor_repro'
     call fates_params%RetrieveParameterAllocate(name=name, &
