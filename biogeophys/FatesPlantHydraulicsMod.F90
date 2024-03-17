@@ -3939,7 +3939,7 @@ subroutine Report1DError(cohort, csite_hydr, ilayer, z_node, v_node, &
    logical,  intent(in)                        :: recruitflag
 
    type(ed_cohort_hydr_type),pointer  :: cohort_hydr
-   integer :: i
+   integer :: i, k
    integer :: ft
    real(r8)              :: leaf_water
    real(r8)              :: stem_water
@@ -4018,7 +4018,7 @@ subroutine Report1DError(cohort, csite_hydr, ilayer, z_node, v_node, &
       1._r8/(csite_hydr%kmax_upper_shell(ilayer,1)*aroot_frac_plant)     + &
       1._r8/cohort_hydr%kmax_aroot_upper(ilayer))
    do i = 1,nshell
-      k =  = n_hypool_leaf + n_hypool_stem + 2 + i
+      k = n_hypool_leaf + n_hypool_stem + 2 + i
       write(fates_log(),*) 'rhizo shell k:',k,v_node(k),th_node(k),h_node(k)
       if(i<nshell) then
          write(fates_log(),*) '  mean soil-to-soil kmax with more outer shell: ',&
