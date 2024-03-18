@@ -4,6 +4,7 @@ module SFNesterovMod
   use FatesGlobals,      only : endrun => fates_endrun
   use FatesGlobals,      only : fates_log
   use SFFireWeatherMod,  only : fire_weather
+  use shr_log_mod,       only : errMsg => shr_log_errMsg
   
   implicit none
   private
@@ -87,7 +88,7 @@ module SFNesterovMod
         write(fates_log(), *) 'SF_val_fdi_b: (', SF_val_fdi_b, ') + temp_C: (', temp_C, ') == 0.0 - divide by zero imminent!'
         write(fates_log(), *) 'SF_val_fdi_b should be updated using the parameter file.'
         write(fates_log(), *) 'Otherwise check values for temp_C'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+        call endrun(msg='')
       end if 
 
       if (precip > min_precip_thresh) then ! NI is 0.0 if it rainsf

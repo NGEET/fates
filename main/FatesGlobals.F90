@@ -94,7 +94,7 @@ contains
     !-----------------------------------------------------------------------
 
     write(fates_log(),*)'ENDRUN:', msg
-    call shr_sys_abort()
+    call shr_sys_abort(msg)
 
   end subroutine fates_endrun
 

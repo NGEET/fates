@@ -7,6 +7,7 @@ module test_FireWeather
   use SFFireWeatherMod,  only : fire_weather
   use SFNesterovMod,     only : nesterov_index
   use SFParamsMod,       only : SF_val_fdi_a, SF_val_fdi_b
+  use unittestUtils,     only : endrun_msg
   use funit
 
   implicit none
@@ -84,6 +85,19 @@ module test_FireWeather
     end subroutine NI_not_negative
 
     @Test
+    subroutine catch_div_zero(this)
+      ! test that the first divide by zero is caught
+      class(TestFireWeather), intent(inout) :: this ! fire weather object
+      character(len=256)                    :: expected_msg
+
+      call this%fireWeatherNesterov%UpdateIndex(-1.0*SF_val_fdi_b, 0.0_r8, 20.0_r8, 0.0_r8)
+      expected_msg = endrun_msg("ENDRUN:divide by zero")
+     @assertExceptionRaised(expected_msg)
+      this%fireWeatherNesterov%fire_weather_index = 0.0_r8
+
+    end subroutine catch_div_zero
+
+    @Test
     subroutine wind_zero(this)
       ! test that effective wind speed is zero when wind speed is zero
       class(TestFireWeather), intent(inout) :: this ! fire weather object
@@ -103,5 +117,7 @@ module test_FireWeather
       @assertLessThan(this%fireWeatherNesterov%effective_windspeed, wind_speed, tolerance=tol)
   
     end subroutine wind_attenuated
+
+    ! 'ERROR in '//trim(file)//' at line '//toString(line)
 
   end module test_FireWeather
