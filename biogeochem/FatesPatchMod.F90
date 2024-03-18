@@ -6,6 +6,7 @@ module FatesPatchMod
   use FatesConstantsMod,   only : primaryland, secondaryland
   use FatesConstantsMod,   only : n_landuse_cats
   use FatesConstantsMod,   only : TRS_regeneration
+  use FatesConstantsMod,   only : itrue
   use FatesGlobals,        only : fates_log
   use FatesGlobals,        only : endrun => fates_endrun
   use FatesUtilsMod,       only : check_hlm_list
