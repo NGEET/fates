@@ -9,7 +9,7 @@
   use FatesConstantsMod     , only : itrue, ifalse
   use FatesConstantsMod     , only : pi_const
   use FatesConstantsMod     , only : nocomp_bareground
-  use FatesInterfaceTypesMod     , only : hlm_masterproc ! 1= master process, 0=not master process
+  use FatesInterfaceTypesMod, only : hlm_masterproc ! 1= master process, 0=not master process
   use EDTypesMod            , only : numWaterMem
   use FatesGlobals          , only : fates_log
   use FatesInterfaceTypesMod, only : hlm_spitfire_mode
@@ -148,7 +148,7 @@ contains
 
     ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
     ! for the iofp index (i.e. the next younger patch)
-    if (currentPatch%nocomp_pft_label .eq. nocomp_bareground) then
+    if (currentPatch%nocomp_pft_label == nocomp_bareground) then
       currentPatch => currentPatch%younger
     endif
 

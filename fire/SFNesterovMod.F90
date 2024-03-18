@@ -8,6 +8,8 @@ module SFNesterovMod
   implicit none
   private
 
+  character(len=*), parameter, private :: sourcefile = __FILE__
+
   type, public, extends(fire_weather) :: nesterov_index 
 
     contains 
