@@ -17,7 +17,7 @@ module FatesPatchMod
   use PRTGenericMod,       only : num_elements
   use PRTGenericMod,       only : element_list
   use PRTParametersMod,    only : prt_params
-  use EDTypesMod,          only : nocomp_bareground
+  use FatesConstantsMod,   only : nocomp_bareground
   use EDParamsMod,         only : nlevleaf, nclmax, maxpft
   use FatesConstantsMod,   only : n_dbh_bins, n_dist_types
   use FatesConstantsMod,   only : t_water_freeze_k_1atm
