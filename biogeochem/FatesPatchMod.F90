@@ -647,9 +647,9 @@ module FatesPatchMod
           end if
           currentCohort => currentCohort%shorter
         end do
-
-        this%total_tree_area = tree_area
-        this%total_grass_area = grass_area
+        
+        this%total_tree_area = min(tree_area, this%area)
+        this%total_grass_area = min(grass_area, this%area)
       end if 
 
     end subroutine UpdateTreeGrassArea

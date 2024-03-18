@@ -328,25 +328,32 @@ contains
 
   !---------------------------------------------------------------------------------------
 
-  subroutine wind_effect (currentSite, bc_in)
+  subroutine wind_effect(currentSite, bc_in)
     !
     !  DESCRIPTION:
     !  Calculates effective windspeed based on vegetation characteristics
+    !  Currently we use tree and grass fraction averaged over whole grid (site) to 
+    !  prevent extreme divergence
 
     use FatesConstantsMod, only : sec_per_min
+    use EDTypesMod,        only : CalculateTreeGrassArea
+
+    ! CONSTANTS:
+    real(r8), parameter :: wind_atten_treed = 0.4_r8 ! wind attenuation factor for tree fraction
+    real(r8), parameter :: wind_atten_grass = 0.6_r8 ! wind attenuation factor for grass fraction
+
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite ! site object
     type(bc_in_type),   intent(in)            :: bc_in       ! BC in object
 
     ! LOCALS:
-    type(fates_patch_type) , pointer :: currentPatch     ! patch object
-    type(fates_cohort_type), pointer :: currentCohort    ! cohort object
-    real(r8)                         :: total_grass_area ! total grass area (patch-level) [m2]
-    real(r8)                         :: tree_fraction    ! site-level tree fraction [0-1]
-    real(r8)                         :: grass_fraction   ! site-level grass fraction [0-1]
-    real(r8)                         :: bare_fraction    ! site-level bare ground fraction [0-1]
-    integer                          :: iofp             ! index of oldest fates patch
+    type(fates_patch_type), pointer :: currentPatch     ! patch object
+    real(r8)                        :: total_grass_area ! total grass area (patch-level) [m2]
+    real(r8)                        :: tree_fraction    ! site-level tree fraction [0-1]
+    real(r8)                        :: grass_fraction   ! site-level grass fraction [0-1]
+    real(r8)                        :: bare_fraction    ! site-level bare ground fraction [0-1]
+    integer                         :: iofp             ! index of oldest fates patch
 
     currentPatch => currentSite%oldest_patch
 
@@ -360,34 +367,16 @@ contains
     iofp = currentPatch%patchno
     currentSite%wind = bc_in%wind24_pa(iofp)*sec_per_min ! Convert to m/min for SPITFIRE
 
-    ! influence of wind speed, corrected for surface roughness
-    ! averaged over the whole grid cell to prevent extreme divergence 
-    tree_fraction = 0.0_r8
-    grass_fraction = 0.0_r8
-    currentPatch => currentSite%oldest_patch
-    do while(associated(currentPatch))
-      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
-        call currentPatch%UpdateTreeGrassArea()
-        tree_fraction = tree_fraction + min(currentPatch%area, currentPatch%total_tree_area)/AREA
-        grass_fraction = grass_fraction + min(currentPatch%area, currentPatch%total_grass_area)/AREA 
-      end if 
-      currentPatch => currentPatch%younger
-    end do 
+    ! calculate site-level tree, grass, and bare fraction
+    call CalculateTreeGrassArea(currentPatch, tree_fraction, grass_fraction, bare_fraction)
 
-    ! if cover > 1.0, then the grasses are under the trees
-    grass_fraction = min(grass_fraction, 1.0_r8 - tree_fraction) 
-    bare_fraction = 1.0_r8 - tree_fraction - grass_fraction
-
+    ! calculate effective wind speed
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))       
-      
       if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
-        currentPatch%total_tree_area = min(currentPatch%total_tree_area, currentPatch%area)
-        ! This is very random... Let's update this to be MOST/related to surface roughness
-        ! this should be tied to tree height
-        currentPatch%effect_wspeed = currentSite%wind*(tree_fraction*0.4_r8 + (grass_fraction + bare_fraction)*0.6_r8)
+        currentPatch%effect_wspeed = currentSite%wind*(tree_fraction*wind_atten_treed +  &
+          (grass_fraction + bare_fraction)*wind_atten_grass)
       end if 
-      
       currentPatch => currentPatch%younger
     end do 
 
