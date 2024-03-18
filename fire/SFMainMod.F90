@@ -55,7 +55,6 @@
   public :: charecteristics_of_fuel
   public :: rate_of_spread
   public :: ground_fuel_consumption
-  public :: wind_effect
   public :: area_burnt_intensity
   public :: crown_scorching
   public :: crown_damage
@@ -94,7 +93,6 @@ contains
 
     if (hlm_spitfire_mode > hlm_sf_nofire_def) then
       call UpdateFireWeather(currentSite, bc_in)
-      call wind_effect(currentSite, bc_in) 
       call charecteristics_of_fuel(currentSite)
       call rate_of_spread(currentSite)
       call ground_fuel_consumption(currentSite)
@@ -112,23 +110,33 @@ contains
   subroutine UpdateFireWeather(currentSite, bc_in)
     !
     !  DESCRIPTION:
-    !  Updates the site's fire weather index
+    !  Updates the site's fire weather index and calculates effective windspeed based on 
+    !   vegetation characteristics
+    !  Currently we use tree and grass fraction averaged over whole grid (site) to 
+    !  prevent extreme divergence
 
     use SFParamsMod,       only : SF_val_fdi_a, SF_val_fdi_b
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-    use FatesConstantsMod, only : sec_per_day
+    use FatesConstantsMod, only : sec_per_day, sec_per_min
+
+    ! CONSTANTS:
+    real(r8), parameter :: wind_atten_treed = 0.4_r8 ! wind attenuation factor for tree fraction
+    real(r8), parameter :: wind_atten_grass = 0.6_r8 ! wind attenuation factor for grass fraction
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
     type(bc_in_type),    intent(in)           :: bc_in
 
     ! LOCALS:  
-    type(fates_patch_type),  pointer :: currentPatch ! patch object
-    real(r8)                         :: temp_C       ! daily averaged temperature [deg C]
-    real(r8)                         :: precip       ! daily precip [mm/day]
-    real(r8)                         :: rh           ! daily relative humidity [%]
-    real(r8)                         :: wind         ! wind speed [m/s]
-    integer                          :: iofp         ! index of oldest the fates patch
+    type(fates_patch_type), pointer :: currentPatch   ! patch object
+    real(r8)                        :: temp_C         ! daily averaged temperature [deg C]
+    real(r8)                        :: precip         ! daily precip [mm/day]
+    real(r8)                        :: rh             ! daily relative humidity [%]
+    real(r8)                        :: wind           ! wind speed [m/s]
+    real(r8)                        :: tree_fraction  ! site-level tree fraction [0-1]
+    real(r8)                        :: grass_fraction ! site-level grass fraction [0-1]
+    real(r8)                        :: bare_fraction  ! site-level bare ground fraction [0-1]
+    integer                         :: iofp           ! index of oldest the fates patch
   
     ! NOTE that the boundary conditions of temperature, precipitation and relative humidity
     ! are available at the patch level. We are currently using a simplification where the whole site
@@ -139,7 +147,7 @@ contains
 
     ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
     ! for the iofp index (i.e. the next younger patch)
-    if(currentPatch%nocomp_pft_label .eq. nocomp_bareground)then
+    if (currentPatch%nocomp_pft_label .eq. nocomp_bareground) then
       currentPatch => currentPatch%younger
     endif
 
@@ -149,8 +157,27 @@ contains
     rh = bc_in%relhumid24_pa(iofp)
     wind = bc_in%wind24_pa(iofp)
 
+    ! convert to m/min 
+    currentSite%wind = wind*sec_per_min 
+
     ! update fire weather index
-    call currentSite%fireWeather%Update(temp_C, precip, rh, wind)
+    call currentSite%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
+
+    ! calculate site-level tree, grass, and bare fraction
+    call CalculateTreeGrassArea(currentSite, tree_fraction, grass_fraction, bare_fraction)
+
+    ! update effective wind speed
+    call currentSite%fireWeather%UpdateEffectiveWindSpeed(wind*sec_per_min, tree_fraction, &
+      grass_fraction, bare_fraction)
+
+    ! test for now
+    currentPatch => currentSite%oldest_patch
+    do while (associated(currentPatch))       
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
+        currentPatch%effect_wspeed = currentSite%fireWeather%effective_windspeed
+      end if 
+      currentPatch => currentPatch%younger
+    end do 
 
   end subroutine UpdateFireWeather
 
@@ -326,63 +353,7 @@ contains
     
   end subroutine charecteristics_of_fuel
 
-  !---------------------------------------------------------------------------------------
 
-  subroutine wind_effect(currentSite, bc_in)
-    !
-    !  DESCRIPTION:
-    !  Calculates effective windspeed based on vegetation characteristics
-    !  Currently we use tree and grass fraction averaged over whole grid (site) to 
-    !  prevent extreme divergence
-
-    use FatesConstantsMod, only : sec_per_min
-    use EDTypesMod,        only : CalculateTreeGrassArea
-
-    ! CONSTANTS:
-    real(r8), parameter :: wind_atten_treed = 0.4_r8 ! wind attenuation factor for tree fraction
-    real(r8), parameter :: wind_atten_grass = 0.6_r8 ! wind attenuation factor for grass fraction
-
-
-    ! ARGUMENTS:
-    type(ed_site_type), intent(inout), target :: currentSite ! site object
-    type(bc_in_type),   intent(in)            :: bc_in       ! BC in object
-
-    ! LOCALS:
-    type(fates_patch_type), pointer :: currentPatch     ! patch object
-    real(r8)                        :: total_grass_area ! total grass area (patch-level) [m2]
-    real(r8)                        :: tree_fraction    ! site-level tree fraction [0-1]
-    real(r8)                        :: grass_fraction   ! site-level grass fraction [0-1]
-    real(r8)                        :: bare_fraction    ! site-level bare ground fraction [0-1]
-    integer                         :: iofp             ! index of oldest fates patch
-
-    currentPatch => currentSite%oldest_patch
-
-    ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
-    ! for the iofp index (i.e. the next younger patch)
-    if (currentPatch%nocomp_pft_label == nocomp_bareground) then
-      currentPatch => currentPatch%younger
-    end if
-
-    ! note - this is a patch-level wind speed, which probably won't have much impact
-    iofp = currentPatch%patchno
-    currentSite%wind = bc_in%wind24_pa(iofp)*sec_per_min ! Convert to m/min for SPITFIRE
-
-    ! calculate site-level tree, grass, and bare fraction
-    call CalculateTreeGrassArea(currentPatch, tree_fraction, grass_fraction, bare_fraction)
-
-    ! calculate effective wind speed
-    currentPatch => currentSite%oldest_patch
-    do while(associated(currentPatch))       
-      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
-        currentPatch%effect_wspeed = currentSite%wind*(tree_fraction*wind_atten_treed +  &
-          (grass_fraction + bare_fraction)*wind_atten_grass)
-      end if 
-      currentPatch => currentPatch%younger
-    end do 
-
-  end subroutine wind_effect
-
-  !---------------------------------------------------------------------------------------
 
   subroutine rate_of_spread ( currentSite ) 
     !*****************************************************************.

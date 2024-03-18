@@ -506,24 +506,23 @@ module EDTypesMod
   subroutine CalculateTreeGrassArea(csite, tree_fraction, grass_fraction, bare_fraction)
     !
     !  DESCRIPTION:
-    !  Calculates total grass and tree area for a site
+    !  Calculates total grass, tree, and bare fractions for a site
 
     use FatesConstantsMod, only : nocomp_bareground
 
     ! ARGUMENTS:
-    type(ed_site_type), intent(in) :: csite
-    real(r8),           intent(out) :: tree_fraction  ! total site tree fraction
-    real(r8),           intent(out) :: grass_fraction ! total site grass fraction
-    real(r8),           intent(out) :: bare_fraction ! total site bare fraction
+    type(ed_site_type), intent(inout) :: csite          ! site object
+    real(r8),           intent(out)   :: tree_fraction  ! total site tree fraction
+    real(r8),           intent(out)   :: grass_fraction ! total site grass fraction
+    real(r8),           intent(out)   :: bare_fraction  ! total site bare fraction
 
     ! LOCALS:
-    type(fates_patch_type), pointer :: currentPatch   ! patch object
+    type(fates_patch_type), pointer :: currentPatch ! patch object
     
-
     tree_fraction = 0.0_r8
     grass_fraction = 0.0_r8
     
-    currentPatch => currentSite%oldest_patch
+    currentPatch => csite%oldest_patch
     do while(associated(currentPatch))
       if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
         call currentPatch%UpdateTreeGrassArea()

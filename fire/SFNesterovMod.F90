@@ -11,7 +11,7 @@ module SFNesterovMod
     contains 
 
       procedure, public :: Init => init_nesterov_fire_weather
-      procedure, public :: Update => update_nesterov_index
+      procedure, public :: UpdateIndex => update_nesterov_index
       procedure         :: calc_nesterov_index 
 
   end type nesterov_index
