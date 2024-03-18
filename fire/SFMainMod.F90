@@ -118,6 +118,7 @@ contains
     use SFParamsMod,       only : SF_val_fdi_a, SF_val_fdi_b
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesConstantsMod, only : sec_per_day, sec_per_min
+    use EDTypesMod,        only : CalculateTreeGrassArea
 
     ! CONSTANTS:
     real(r8), parameter :: wind_atten_treed = 0.4_r8 ! wind attenuation factor for tree fraction
