@@ -7,7 +7,6 @@ module test_FireWeather
   use SFFireWeatherMod,  only : fire_weather
   use SFNesterovMod,     only : nesterov_index
   use SFParamsMod,       only : SF_val_fdi_a, SF_val_fdi_b
-  use unittestUtils,     only : endrun_msg
   use funit
 
   implicit none
