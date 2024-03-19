@@ -2585,7 +2585,7 @@ contains
                hio_npatches_sec_si(io_si) = hio_npatches_sec_si(io_si) + 1._r8
             end if
 
-            hio_lai_si(io_si) = hio_lai_si(io_si) + sum( cpatch%canopy_area_profile(:,:,:) * cpatch%elai_profile(:,:,:) ) * &
+            hio_lai_si(io_si) = hio_lai_si(io_si) + sum( cpatch%canopy_area_profile(:,:,:) * cpatch%tlai_profile(:,:,:) ) * &
                  cpatch%total_canopy_area * AREA_INV
 
             ! 24hr veg temperature
@@ -3346,10 +3346,11 @@ contains
 
                 ! Increment some patch-age-resolved diagnostics
                 hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
-                     + sum(cpatch%tlai_profile(:,:,:)) * cpatch%area
-
+                     + sum(cpatch%tlai_profile(:,:,:) * cpatch%canopy_area_profile(:,:,:) ) * cpatch%total_canopy_area
+                
                 hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
                      + cpatch%ncl_p * cpatch%area
+                
                 hio_npatches_si_age(io_si,cpatch%age_class) = hio_npatches_si_age(io_si,cpatch%age_class) + 1._r8
 
 
@@ -6145,7 +6146,7 @@ contains
             index=ih_canopy_spread_si)
 
        call this%set_history_var(vname='FATES_LAI', units='m2 m-2',               &
-            long='leaf area index per m2 land area',                              &
+            long='total leaf area index per m2 land area',                        &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_lai_si)
@@ -6897,7 +6898,7 @@ contains
                initialize=initialize_variables, index=ih_area_si_age)
 
           call this%set_history_var(vname='FATES_LAI_AP', units='m2 m-2',            &
-               long='leaf area index by age bin per m2 land area',                   &
+               long='total leaf area index by age bin per m2 land area',                   &
                use_default='active', avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index=ih_lai_si_age)
