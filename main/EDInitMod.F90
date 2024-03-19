@@ -821,7 +821,6 @@ contains
           currentPatch%fuel_sav                   = 0._r8
           currentPatch%fuel_mef                   = 0._r8
           currentPatch%ros_front                  = 0._r8
-          currentPatch%effect_wspeed              = 0._r8
           currentPatch%tau_l                      = 0._r8
           currentPatch%fuel_frac(:)               = 0._r8
           currentPatch%tfc_ros                    = 0._r8

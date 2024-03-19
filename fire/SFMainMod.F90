@@ -171,15 +171,6 @@ contains
     call currentSite%fireWeather%UpdateEffectiveWindSpeed(wind*sec_per_min, tree_fraction, &
       grass_fraction, bare_fraction)
 
-    ! test for now
-    currentPatch => currentSite%oldest_patch
-    do while (associated(currentPatch))       
-      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
-        currentPatch%effect_wspeed = currentSite%fireWeather%effective_windspeed
-      end if 
-      currentPatch => currentPatch%younger
-    end do 
-
   end subroutine UpdateFireWeather
 
   !---------------------------------------------------------------------------------------
@@ -435,8 +426,6 @@ contains
 
        if (debug) then
           if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - c ',c
-          if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ', &
-                                                                         currentPatch%effect_wspeed
           if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - b ',b
           if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - beta_ratio ',beta_ratio
           if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - e ',e
@@ -445,7 +434,7 @@ contains
        ! Equation A5 in Thonicke et al. 2010
        ! phi_wind (unitless)
        ! convert current_wspeed (wind at elev relevant to fire) from m/min to ft/min for Rothermel ROS eqn
-       phi_wind = c * ((3.281_r8*currentPatch%effect_wspeed)**b)*(beta_ratio**(-e))
+       phi_wind = c * ((3.281_r8*currentSite%fireWeather%effective_windspeed)**b)*(beta_ratio**(-e))
 
 
        ! ---propagating flux----
@@ -486,7 +475,6 @@ contains
        else ! Equation 9. Thonicke et al. 2010. 
             ! forward ROS in m/min
           currentPatch%ROS_front = (ir*xi*(1.0_r8+phi_wind)) / (currentPatch%fuel_bulkd*eps*q_ig)
-          ! write(fates_log(),*) 'ROS',currentPatch%ROS_front,phi_wind,currentPatch%effect_wspeed
           ! write(fates_log(),*) 'ros calcs',currentPatch%fuel_bulkd,ir,xi,eps,q_ig
        endif
        ! Equation 10 in Thonicke et al. 2010
@@ -710,16 +698,16 @@ contains
              write(fates_log(),*) 'SF  AREA ',AREA
           endif         
  
-          if ((currentPatch%effect_wspeed*m_per_min__to__km_per_hour) < 1._r8) then !16.67m/min = 1km/hr 
+          if ((currentSite%fireWeather%effective_windspeed*m_per_min__to__km_per_hour) < 1._r8) then !16.67m/min = 1km/hr 
              lb = 1.0_r8
           else
              if (tree_fraction_patch > forest_grassland_lengthtobreadth_threshold) then      !benchmark forest cover, Staver 2010
                  ! EQ 79 forest fuels (Canadian Forest Fire Behavior Prediction System Ont.Inf.Rep. ST-X-3, 1992)
                  lb = (1.0_r8 + (8.729_r8 * &
-                      ((1.0_r8 -(exp(-0.03_r8 * m_per_min__to__km_per_hour * currentPatch%effect_wspeed)))**2.155_r8)))
+                      ((1.0_r8 -(exp(-0.03_r8 * m_per_min__to__km_per_hour * currentSite%fireWeather%effective_windspeed)))**2.155_r8)))
              else ! EQ 80 grass fuels (CFFBPS Ont.Inf.Rep. ST-X-3, 1992, but with a correction from an errata published within 
                   ! Information Report GLC-X-10 by Wotton et al., 2009 for a typo in CFFBPS Ont.Inf.Rep. ST-X-3, 1992)
-                 lb = (1.1_r8*((m_per_min__to__km_per_hour * currentPatch%effect_wspeed)**0.464_r8))
+                 lb = (1.1_r8*((m_per_min__to__km_per_hour * currentSite%fireWeather%effective_windspeed)**0.464_r8))
              endif
           endif
 

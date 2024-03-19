@@ -2625,7 +2625,7 @@ contains
 
             ! Update Fire Variables
             hio_spitfire_ros_si(io_si)         = hio_spitfire_ros_si(io_si) + cpatch%ROS_front * cpatch%area * AREA_INV / sec_per_min
-            hio_effect_wspeed_si(io_si)        = hio_effect_wspeed_si(io_si) + cpatch%effect_wspeed * cpatch%area * AREA_INV / sec_per_min
+            hio_effect_wspeed_si(io_si)        = hio_effect_wspeed_si(io_si) + sites(s)%fireWeather%effective_windspeed * cpatch%area * AREA_INV / sec_per_min
             hio_tfc_ros_si(io_si)              = hio_tfc_ros_si(io_si) + cpatch%TFC_ROS * cpatch%area * AREA_INV
             hio_fire_intensity_si(io_si)       = hio_fire_intensity_si(io_si) + cpatch%FI * cpatch%area * AREA_INV * J_per_kJ
             hio_fire_area_si(io_si)            = hio_fire_area_si(io_si) + cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day

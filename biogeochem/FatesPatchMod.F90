@@ -209,7 +209,6 @@ module FatesPatchMod
     ! fire spread
     real(r8)              :: ros_front               ! rate of forward  spread of fire [m/min]
     real(r8)              :: ros_back                ! rate of backward spread of fire [m/min]
-    real(r8)              :: effect_wspeed           ! windspeed modified by fraction of relative grass and tree cover [m/min]
     real(r8)              :: tau_l                   ! duration of lethal heating [min]
     real(r8)              :: fi                      ! average fire intensity of flaming front [kJ/m/s] or [kW/m]
     integer               :: fire                    ! is there a fire? [1=yes; 0=no]
@@ -387,7 +386,6 @@ module FatesPatchMod
       this%litter_moisture(:)           = nan
       this%ros_front                    = nan
       this%ros_back                     = nan   
-      this%effect_wspeed                = nan    
       this%tau_l                        = nan
       this%fi                           = nan 
       this%fire                         = fates_unset_int
@@ -465,7 +463,6 @@ module FatesPatchMod
       this%litter_moisture(:)                = 0.0_r8
       this%ros_front                         = 0.0_r8
       this%ros_back                          = 0.0_r8
-      this%effect_wspeed                     = 0.0_r8
       this%tau_l                             = 0.0_r8
       this%fi                                = 0.0_r8
       this%fd                                = 0.0_r8
