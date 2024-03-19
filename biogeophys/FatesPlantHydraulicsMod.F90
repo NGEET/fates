@@ -937,6 +937,7 @@ contains
     real(r8), parameter :: min_trim      = 0.1_r8   ! The lower cap on trimming function used
     ! to estimate maximum leaf carbon
 
+
     ccohort_hydr => ccohort%co_hydr
     ft           = ccohort%pft
     nlevrhiz     = csite_hydr%nlevrhiz
@@ -980,13 +981,13 @@ contains
     ! Get the target, or rather, maximum leaf carrying capacity of plant
     ! Lets also avoid super-low targets that have very low trimming functions
 
+    ! efleaf_coh hard-coded to 1 in the call below to avoid zero leaf volume
     call bleaf(ccohort%dbh,ccohort%pft,ccohort%crowndamage, &
-         max(ccohort%canopy_trim,min_trim),ccohort%efleaf_coh, leaf_c_target)
+         max(ccohort%canopy_trim,min_trim),1.0_r8, leaf_c_target)
 
-    if( (ccohort%status_coh == leaves_on) .or. ccohort_hydr%is_newly_recruited ) then
-       ccohort_hydr%v_ag(1:n_hypool_leaf) = max(leaf_c,min_leaf_frac*leaf_c_target) * &
-            prt_params%c2b(ft) / denleaf/ real(n_hypool_leaf,r8)
-    end if
+    ccohort_hydr%v_ag(1:n_hypool_leaf) = max(leaf_c,min_leaf_frac*leaf_c_target) * &
+         prt_params%c2b(ft) / denleaf/ real(n_hypool_leaf,r8)
+
 
     ! Step sapwood volume
     ! -----------------------------------------------------------------------------------
