@@ -234,6 +234,7 @@ module FatesPatchMod
       procedure :: InitLitter
       procedure :: Create
       procedure :: UpdateTreeGrassArea
+      procedure :: UpdateLiveGrass
       procedure :: FreeMemory
       procedure :: Dump
       procedure :: CheckVars
@@ -650,6 +651,38 @@ module FatesPatchMod
       end if 
 
     end subroutine UpdateTreeGrassArea
+
+    !===========================================================================
+
+    subroutine UpdateLiveGrass(this)
+    !
+    ! DESCRIPTION:
+    ! Calculates the sum of live grass biomass [kgC/m2] on a patch
+  
+    ! ARGUMENTS:
+    class(fates_patch_type), intent(inout) :: this ! patch
+    
+    ! LOCALS:
+    real(r8)                 :: live_grass    ! live grass [kgC/m2]
+    class(fates_cohort_type) :: currentCohort ! cohort type
+
+    live_grass = 0.0_r8
+    currentCohort => this%tallest
+    do while(associated(currentCohort))
+        ! for grasses sum all aboveground tissues
+        if (prt_params%woody(currentCohort%pft) == ifalse) then 
+          live_grass = live_grass +                                      &
+            (currentCohort%prt%GetState(leaf_organ, carbon12_element) +  &
+            currentCohort%prt%GetState(sapw_organ, carbon12_element) +   &
+            currentCohort%prt%GetState(struct_organ, carbon12_element))* &
+            currentCohort%n/this%area
+       endif
+       currentCohort => currentCohort%shorter
+    enddo
+    
+    this%livegrass = live_grass
+
+    end subroutine UpdateLiveGrass
 
     !===========================================================================
 
