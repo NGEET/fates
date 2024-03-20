@@ -9,8 +9,6 @@ module SFNesterovMod
   implicit none
   private
 
-  character(len=*), parameter, private :: sourcefile = __FILE__
-
   type, public, extends(fire_weather) :: nesterov_index 
 
     contains 
@@ -21,7 +19,7 @@ module SFNesterovMod
 
   end type nesterov_index
 
-  real(r8), parameter :: min_precip_thresh = 3.0_r8 ! threshold for precipitation above which to 0.0 NI
+  real(r8), parameter :: min_precip_thresh = 3.0_r8 ! threshold for precipitation above which to reset NI
 
   contains 
 
@@ -55,7 +53,7 @@ module SFNesterovMod
       if (precip > min_precip_thresh) then ! rezero NI if it rains
         this%fire_weather_index = 0.0_r8
       else 
-        ! Accumulate Nesterov index over fire season. 
+        ! accumulate Nesterov Index
         this%fire_weather_index = this%fire_weather_index + &
           this%calc_nesterov_index(temp_C, precip, rh)
       end if 
@@ -82,34 +80,36 @@ module SFNesterovMod
       real(r8) :: yipsolon ! intermediate variable for dewpoint calculation
       real(r8) :: dewpoint ! dewpoint
 
-      ! error checking, if temperature equals -1.0*SF_val_fdi_b parameter, we get a divide
-      ! by zero
-      if (abs(SF_val_fdi_b + temp_C) < nearzero) then
-        write(fates_log(), *) 'SF_val_fdi_b: (', SF_val_fdi_b, ') + temp_C: (', temp_C, ') == 0.0 - divide by zero imminent!'
-        write(fates_log(), *) 'SF_val_fdi_b should be updated using the parameter file.'
-        write(fates_log(), *) 'Otherwise check values for temp_C'
-        call endrun(msg='')
-      end if 
-
-      if (precip > min_precip_thresh) then ! NI is 0.0 if it rainsf
+      if (precip > min_precip_thresh) then ! NI is 0.0 if it rains
         calc_nesterov_index = 0.0_r8
       else 
-        ! Calculate dewpoint temperature 
+        
+        ! error checking, if SF_val_fdi_b + temp_C = 0.0, we get a divide by zero
+        if (abs(SF_val_fdi_b + temp_C) < nearzero) then
+          write(fates_log(), *) 'SF_val_fdi_b: (', SF_val_fdi_b, ') + temp_C: (', temp_C, ') == 0.0 - divide by zero imminent!'
+          write(fates_log(), *) 'SF_val_fdi_b should be updated using the parameter file.'
+          write(fates_log(), *) 'Otherwise check values for temp_C'
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+        end if 
+        
+        ! intermediate dewpoint calculation
         yipsolon = (SF_val_fdi_a*temp_C)/(SF_val_fdi_b + temp_C) + log(max(1.0_r8, rh)/100.0_r8)
 
-        ! error checking, if SF_val_fdi_a parameter - ypisolon == 0, we get a divide
-        ! by zero
+        ! error checking, if SF_val_fdi_a - ypisolon = 0, we get a divide by zero
         if (abs(SF_val_fdi_a - yipsolon) < nearzero) then
           write(fates_log(), *) 'SF_val_fdi_a: (', SF_val_fdi_a, ') - yipsolon: (', yipsolon, ') == 0.0 - divide by zero imminent!'
           write(fates_log(), *) 'SF_val_fdi_a should be updated using the parameter file.'
           write(fates_log(), *) 'Otherwise check values for yipsolon'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+          call endrun(msg=errMsg(__FILE__, __LINE__))
         end if 
+        
+        ! calculate dewpoint temperature 
         dewpoint = (SF_val_fdi_b*yipsolon)/(SF_val_fdi_a - yipsolon) 
         
-        ! Nesterov 1968.  Eq 5, Thonicke et al. 2010
+        ! Nesterov 1968; Eq 5, Thonicke et al. 2010
         calc_nesterov_index = (temp_C - dewpoint)*temp_C 
-        if (calc_nesterov_index < 0.0_r8) calc_nesterov_index = 0.0_r8 ! can't be negative
+        if (calc_nesterov_index < 0.0_r8) calc_nesterov_index = 0.0_r8 
+
       endif
 
     end function calc_nesterov_index
