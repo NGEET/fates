@@ -19,9 +19,6 @@ add_subdirectory(${HLM_ROOT}/src/fates/biogeochem fates_biogeochem)
 add_subdirectory(${HLM_ROOT}/src/fates/fire fates_fire)
 add_subdirectory(${HLM_ROOT}/src/fates/radiation fates_radiation)
 
-# Add general unit test directories (stubbed out files, etc.)
-add_subdirectory(${HLM_ROOT}/src/fates/unit_test_shr)
-
 # Remove shr_mpi_mod from share_sources.
 # This is needed because we want to use the mock shr_mpi_mod in place of the real one
 #
