@@ -13,34 +13,28 @@ module test_FireWeather
 
   @TestCase
   type, extends(TestCase) :: TestFireWeather
-    
     class(fire_weather), allocatable :: fireWeatherNesterov
-    
     contains
-
       procedure :: setUp
       procedure :: tearDown 
-
   end type TestFireWeather
 
   real(r8), parameter :: tol = 1.e-13_r8
 
   contains 
 
-    @before
-    subroutine SetUp(this)
+    subroutine setUp(this)
       class(TestFireWeather), intent(inout) :: this
       allocate(nesterov_index :: this%fireWeatherNesterov)
       call this%fireWeatherNesterov%Init()
       SF_val_fdi_a = 17.62_r8
       SF_val_fdi_b = 243.12_r8
-    end subroutine SetUp
+    end subroutine setUp
 
-    @after
-    subroutine TearDown(this)
+    subroutine tearDown(this)
       class(TestFireWeather), intent(inout) :: this
       if (allocated(this%fireWeatherNesterov)) deallocate(this%fireWeatherNesterov)
-    end subroutine TearDown
+    end subroutine tearDown
 
     @Test 
     subroutine UpdateIndex_OverPrecipThreshold_ZerosNI(this)
