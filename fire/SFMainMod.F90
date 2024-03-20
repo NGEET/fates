@@ -10,7 +10,6 @@
   use FatesConstantsMod     , only : pi_const
   use FatesConstantsMod     , only : nocomp_bareground
   use FatesInterfaceTypesMod, only : hlm_masterproc ! 1= master process, 0=not master process
-  use EDTypesMod            , only : numWaterMem
   use FatesGlobals          , only : fates_log
   use FatesInterfaceTypesMod, only : hlm_spitfire_mode
   use FatesInterfaceTypesMod, only : hlm_sf_nofire_def
@@ -39,13 +38,9 @@
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : leaf_organ
-  use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
-  use PRTGenericMod,          only : store_organ
-  use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : SetState
-  use FatesInterfaceTypesMod     , only : numpft
+  use FatesInterfaceTypesMod, only : numpft
   use FatesAllometryMod,      only : CrownDepth
 
   implicit none
