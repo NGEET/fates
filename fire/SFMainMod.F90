@@ -71,39 +71,39 @@
 
 contains
 
-  subroutine fire_model(currentSite, bc_in)
-    !
-    !  DESCRIPTION:
-    !  Runs the daily fire weather model
+   subroutine fire_model(currentSite, bc_in)
+      !
+      !  DESCRIPTION:
+      !  Runs the daily fire weather model
 
-    ! ARGUMENTS:
-    type(ed_site_type), intent(inout), target :: currentSite ! site object
-    type(bc_in_type),   intent(in)            :: bc_in       ! BC in object
-    
-    ! LOCALS:  
-    type (fates_patch_type), pointer :: currentPatch ! patch object
+      ! ARGUMENTS:
+      type(ed_site_type), intent(inout), target :: currentSite ! site object
+      type(bc_in_type),   intent(in)            :: bc_in       ! BC in object
 
-    ! zero fire things
-    currentPatch => currentSite%youngest_patch
-    do while(associated(currentPatch))
-      currentPatch%frac_burnt = 0.0_r8
-      currentPatch%fire = 0
-      currentPatch => currentPatch%older
-    end do
+      ! LOCALS:  
+      type (fates_patch_type), pointer :: currentPatch ! patch object
 
-    if (hlm_spitfire_mode > hlm_sf_nofire_def) then
-      call UpdateFireWeather(currentSite, bc_in)
-      call charecteristics_of_fuel(currentSite)
-      call rate_of_spread(currentSite)
-      call ground_fuel_consumption(currentSite)
-      call area_burnt_intensity(currentSite, bc_in)
-      call crown_scorching(currentSite)
-      call crown_damage(currentSite)
-      call cambial_damage_kill(currentSite)
-      call post_fire_mortality(currentSite)
-    end if
+      ! zero fire things
+      currentPatch => currentSite%youngest_patch
+      do while(associated(currentPatch))
+         currentPatch%frac_burnt = 0.0_r8
+         currentPatch%fire = 0
+         currentPatch => currentPatch%older
+      end do
 
-  end subroutine fire_model
+      if (hlm_spitfire_mode > hlm_sf_nofire_def) then
+         call UpdateFireWeather(currentSite, bc_in)
+         call charecteristics_of_fuel(currentSite)
+         call rate_of_spread(currentSite)
+         call ground_fuel_consumption(currentSite)
+         call area_burnt_intensity(currentSite, bc_in)
+         call crown_scorching(currentSite)
+         call crown_damage(currentSite)
+         call cambial_damage_kill(currentSite)
+         call post_fire_mortality(currentSite)
+      end if
+
+   end subroutine fire_model
 
   !---------------------------------------------------------------------------------------
   
@@ -173,7 +173,7 @@ contains
 
    end subroutine UpdateFireWeather
 
-   !---------------------------------------------------------------------------------------
+   !--------------------------------------------------------------------------------------
 
    subroutine charecteristics_of_fuel(currentSite)
       !
@@ -190,18 +190,18 @@ contains
       type(litter_type),      pointer :: litt_c
       real(r8)                        :: alpha_FMC(nfsc)     ! Relative fuel moisture adjusted per drying ratio
       real(r8)                        :: fuel_moisture(nfsc) ! Scaled moisture content of small litter fuels. 
-      real(r8)                        :: MEF(nfsc)           ! Moisture extinction factor of fuels     integer n 
+      real(r8)                        :: MEF(nfsc)           ! Moisture extinction factor of fuels 
 
       fuel_moisture(:) = 0.0_r8
 
-      currentPatch => currentSite%oldest_patch; 
+      currentPatch => currentSite%oldest_patch 
       do while(associated(currentPatch))  
 
          if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
 
             litt_c => currentPatch%litter(element_pos(carbon12_element))
 
-            ! how much live grass is there? 
+            ! how much live grass is there? [kgC/m2]
             call currentPatch%UpdateLiveGrass()
 
             currentPatch%sum_fuel =  sum(litt_c%leaf_fines(:)) +
@@ -289,7 +289,7 @@ contains
 
    end subroutine charecteristics_of_fuel
 
-
+   !--------------------------------------------------------------------------------------
 
   subroutine rate_of_spread ( currentSite ) 
     !*****************************************************************.
