@@ -77,6 +77,7 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_patch_fusion_tol              ! minimum fraction in difference in profiles between patches
    real(r8),protected, public :: ED_val_canopy_closure_thresh         ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
    integer,protected, public  :: stomatal_model                       ! switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn
+   integer,protected, public  :: dayl_switch                          ! switch for turning on or off day length factor scaling for photosynthetic parameters
    integer,protected, public  :: regeneration_model                   ! Switch for choosing between regeneration models:
                                                                       ! (1) for Fates default
                                                                       ! (2) for the Tree Recruitment Scheme (Hanbury-Brown et al., 2022)
@@ -166,6 +167,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
    character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "fates_leaf_stomatal_model"
+   character(len=param_string_length),parameter,public :: ED_name_dayl_switch= "fates_daylength_factor_switch"
    character(len=param_string_length),parameter,public :: ED_name_regeneration_model= "fates_regeneration_model"
 
    character(len=param_string_length),parameter,public :: name_theta_cj_c3 = "fates_leaf_theta_cj_c3"
@@ -338,6 +340,7 @@ contains
     ED_val_patch_fusion_tol               = nan
     ED_val_canopy_closure_thresh          = nan
     stomatal_model                        = -9
+    dayl_switch                           = -9
     regeneration_model                    = -9
     stomatal_assim_model                  = -9
     max_cohort_per_patch                  = -9
@@ -492,6 +495,9 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_stomatal_model, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_dayl_switch, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 	 
     call fates_params%RegisterParameter(name=ED_name_regeneration_model, dimension_shape=dimension_shape_scalar, &
@@ -715,6 +721,10 @@ contains
          data=tmpreal)
     stomatal_model = nint(tmpreal)
 
+    call fates_params%RetrieveParameter(name=ED_name_dayl_switch, &
+         data=tmpreal)
+    dayl_switch = nint(tmpreal)
+
     call fates_params%RetrieveParameter(name=ED_name_regeneration_model, &
          data=tmpreal)
     regeneration_model = nint(tmpreal)
@@ -882,7 +892,8 @@ contains
         write(fates_log(),fmt0) 'ED_val_cohort_age_fusion_tol = ',ED_val_cohort_age_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh
-        write(fates_log(),fmt0) 'regeneration_model = ',regeneration_model      
+        write(fates_log(),fmt0) 'regeneration_model = ',regeneration_model
+        write(fates_log(),fmt0) 'dayl_switch = ',dayl_switch      
         write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model
         write(fates_log(),fmt0) 'stomatal_assim_model = ',stomatal_assim_model            
         write(fates_log(),fmt0) 'hydro_kmax_rsurf1 = ',hydr_kmax_rsurf1
