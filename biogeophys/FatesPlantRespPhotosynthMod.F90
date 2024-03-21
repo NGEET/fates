@@ -596,7 +596,6 @@ contains
                                          nscaler,                            &  ! in
                                          ft,                                 &  ! in
                                          bc_in(s)%t_veg_pa(ifp),             &  ! in
-                                         bc_in(s)%dayl_factor_pa(ifp),       &  ! in
                                          currentPatch%tveg_lpa%GetMean(),    &  ! in
                                          lmr_z(iv,ft,cl))                       ! out
 
@@ -2328,7 +2327,6 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
        nscaler,   &
        ft,        &
        veg_tempk, &
-       dayl_factor, &
        tgrowth,   &
        lmr)
 
@@ -2347,7 +2345,6 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     integer,  intent(in)  :: ft           ! (plant) Functional Type Index
     real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
     real(r8), intent(in)  :: veg_tempk    ! vegetation temperature  (degrees K)
-    real(r8), intent(in)  :: dayl_factor  ! daylength scaling factor (0-1)
     real(r8), intent(in)  :: tgrowth      ! lagged vegetation temperature averaged over acclimation timescale (degrees K)
     real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
 
