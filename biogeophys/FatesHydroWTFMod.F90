@@ -28,7 +28,7 @@
        __FILE__
 
 
-  real(r8), parameter :: min_ftc = 0.00001_r8   ! Minimum allowed fraction of total conductance
+  real(r8), parameter :: min_ftc = 0.0_r8   ! Minimum allowed fraction of total conductance
 
   ! Bounds on saturated fraction, outside of which we use linear PV or stop flow
   ! In this context, the saturated fraction is defined by the volumetric WC "th"
@@ -44,7 +44,7 @@
                                             ! elastic-caviation region
 
 
-  real(r8), parameter :: min_psi_cch = -9._r8 ! Minimum psi we are willing to track in cch
+  real(r8), parameter :: min_theta_cch = 0.01_r8 ! Minimum theta (matches ctsm)
   
   ! Generic class that can be extended to describe
   ! specific water retention functions
@@ -627,7 +627,7 @@ contains
 
        ! Make sure this is well behaved
        ftc = min(1._r8,max(min_ftc,num/den))
-
+              
     else
        ftc = 1._r8
 
@@ -713,9 +713,9 @@ contains
     this%psi_max     = this%psi_from_th(this%th_max-tiny(this%th_max))
     this%dpsidth_max = this%dpsidth_from_th(this%th_max-tiny(this%th_max))
 
-    this%psi_min     = min_psi_cch
-    this%th_min      = this%th_from_psi(min_psi_cch+tiny(this%th_max))
-    this%dpsidth_min = this%dpsidth_from_th(this%th_min+tiny(this%th_max))
+    this%th_min      = min_theta_cch
+    this%psi_min     = this%psi_from_th(min_theta_cch+tiny(this%th_max))
+    this%dpsidth_min = this%dpsidth_from_th(min_theta_cch+tiny(this%th_max))
     
     return
   end subroutine set_wrf_param_cch

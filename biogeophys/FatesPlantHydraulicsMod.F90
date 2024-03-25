@@ -4111,18 +4111,30 @@ subroutine GetImTaylorKAB(kmax_up,kmax_dn, &
 
    end if
 
-   ! Calculate total effective conductance over path  [kg s-1 MPa-1]
-   k_eff = 1._r8/(1._r8/(ftc_up*kmax_up)+1._r8/(ftc_dn*kmax_dn))
+   ! Prevent issue with zero flux
+   if( (ftc_up*kmax_up)>nearzero .and. (ftc_dn*kmax_dn)>nearzero ) then
+      
+      ! Calculate total effective conductance over path  [kg s-1 MPa-1]
+      k_eff = 1._r8/(1._r8/(ftc_up*kmax_up)+1._r8/(ftc_dn*kmax_dn))
+      
+      ! "A" term, which operates on the downstream node (closer to atm)
+      a_term = k_eff**2.0_r8 * h_diff * kmax_dn**(-1.0_r8) * ftc_dn**(-2.0_r8) &
+           * dftc_dtheta_dn - k_eff * dpsi_dtheta_dn
+      
+      
+      ! "B" term, which operates on the upstream node (further from atm)
+      b_term = k_eff**2.0_r8 * h_diff * kmax_up**(-1.0_r8) * ftc_up**(-2.0_r8) &
+           * dftc_dtheta_up + k_eff * dpsi_dtheta_up
 
-   ! "A" term, which operates on the downstream node (closer to atm)
-   a_term = k_eff**2.0_r8 * h_diff * kmax_dn**(-1.0_r8) * ftc_dn**(-2.0_r8) &
-      * dftc_dtheta_dn - k_eff * dpsi_dtheta_dn
+   else
 
+      k_eff = 0._r8
+      a_term = 0._r8
+      b_term = 0._r8
+      
+   end if
 
-   ! "B" term, which operates on the upstream node (further from atm)
-   b_term = k_eff**2.0_r8 * h_diff * kmax_up**(-1.0_r8) * ftc_up**(-2.0_r8) &
-      * dftc_dtheta_up + k_eff * dpsi_dtheta_up
-
+      
    ! Restore ftc
    ftc_dn = ftc_dn_tmp
    ftc_up = ftc_up_tmp
