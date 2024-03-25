@@ -524,6 +524,9 @@ contains
              bc_out%ar_site = bc_out%ar_site + currentCohort%resp_acc_hold * & 
                   AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
 
+             ! allow herbivores to graze
+             call fates_grazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height)
+
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
              if(any(currentSite%dstatus(ft) == [phen_dstat_moiston,phen_dstat_timeon])) then
@@ -917,7 +920,8 @@ contains
                   site_mass%seed_out + &
                   site_mass%flux_generic_out + &
                   site_mass%frag_out + &
-                  site_mass%aresp_acc
+                  site_mass%aresp_acc + &
+                  site_mass%herbivory_flux_out
 
        net_flux        = flux_in - flux_out
        error           = abs(net_flux - change_in_stock)
@@ -949,6 +953,7 @@ contains
           write(fates_log(),*) 'flux_generic_out: ',site_mass%flux_generic_out
           write(fates_log(),*) 'frag_out: ',site_mass%frag_out
           write(fates_log(),*) 'aresp_acc: ',site_mass%aresp_acc
+          write(fates_log(),*) 'herbivory_flux: ',site_mass%herbivory_flux
           write(fates_log(),*) 'error=net_flux-dstock:', error
           write(fates_log(),*) 'biomass', biomass_stock
           write(fates_log(),*) 'litter',litter_stock
