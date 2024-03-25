@@ -204,7 +204,7 @@ contains
             ! how much live grass is there? [kgC/m2]
             call currentPatch%UpdateLiveGrass()
 
-            currentPatch%sum_fuel =  sum(litt_c%leaf_fines(:)) +
+            currentPatch%sum_fuel =  sum(litt_c%leaf_fines(:)) + &
                sum(litt_c%ag_cwd(:)) + currentPatch%livegrass
                
             ! ===============================================

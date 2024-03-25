@@ -6,7 +6,7 @@ module FatesPatchMod
   use FatesConstantsMod,   only : primaryland, secondaryland
   use FatesConstantsMod,   only : n_landuse_cats
   use FatesConstantsMod,   only : TRS_regeneration
-  use FatesConstantsMod,   only : itrue
+  use FatesConstantsMod,   only : itrue, ifalse
   use FatesGlobals,        only : fates_log
   use FatesGlobals,        only : endrun => fates_endrun
   use FatesUtilsMod,       only : check_hlm_list
@@ -17,6 +17,8 @@ module FatesPatchMod
   use FatesLitterMod,      only : litter_type
   use PRTGenericMod,       only : num_elements
   use PRTGenericMod,       only : element_list
+  use PRTGenericMod,       only : carbon12_element
+  use PRTGenericMod,       only : struct_organ, leaf_organ, sapw_organ
   use PRTParametersMod,    only : prt_params
   use FatesConstantsMod,   only : nocomp_bareground
   use EDParamsMod,         only : nlevleaf, nclmax, maxpft
@@ -663,8 +665,8 @@ module FatesPatchMod
     class(fates_patch_type), intent(inout) :: this ! patch
     
     ! LOCALS:
-    real(r8)                 :: live_grass    ! live grass [kgC/m2]
-    class(fates_cohort_type) :: currentCohort ! cohort type
+    real(r8)                          :: live_grass    ! live grass [kgC/m2]
+    class(fates_cohort_type), pointer :: currentCohort ! cohort type
 
     live_grass = 0.0_r8
     currentCohort => this%tallest
