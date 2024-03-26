@@ -714,6 +714,9 @@ variables:
 	double fates_damage_event_code ;
 		fates_damage_event_code:units = "unitless" ;
 		fates_damage_event_code:long_name = "Integer code that options how damage events are structured" ;
+	double fates_daylength_factor_switch ;
+		fates_daylength_factor_switch:units = "unitless" ;
+		fates_daylength_factor_switch:long_name = "user switch for turning on (1) or off (0) the day length factor scaling for photosynthetic parameters (ie scale vcmax and jmax)" ;
 	double fates_dev_arbitrary ;
 		fates_dev_arbitrary:units = "unknown" ;
 		fates_dev_arbitrary:long_name = "Unassociated free parameter that developers can use for testing arbitrary new hypotheses" ;
@@ -1647,6 +1650,8 @@ data:
  fates_damage_canopy_layer_code = 1 ;
 
  fates_damage_event_code = 1 ;
+
+ fates_daylength_factor_switch = 1 ;
 
  fates_dev_arbitrary = _ ;
 

@@ -114,5 +114,13 @@
       <ln>Leaf maintenance respiration decrease through the canopy. Only applies to Atkin et al. 2017. For proportionality between photosynthesis and respiration through the canopy, match with fates_leafn_vert_scaler_coeff2.</ln>
       <val>2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43</val>
     </mod>
+    <mod type="variable_add">
+      <na>fates_daylength_factor_switch</na>
+      <di>scalar</di>
+      <un>unitless</un>
+      <ln>user switch for turning on (1) or off (0) the day length factor scaling for photosynthetic parameters (ie scale vcmax and jmax) </ln>
+      <val>1</val>
+    </mod>
+    
   </mods>
 </all>
