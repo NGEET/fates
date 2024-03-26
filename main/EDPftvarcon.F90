@@ -92,10 +92,13 @@ module EDPftvarcon
 
      real(r8), allocatable :: maintresp_leaf_ryan1991_baserate(:)  ! leaf maintenance respiration per Ryan et al 1991
 
-     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff1(:)        ! leaf maintenance respiration decrease through the canopy param 1
-                                                                          ! only with Atkin et al. 2017 respiration model
-     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff2(:)        ! leaf maintenance respiration decrease through the canopy param 2
-                                                                          ! only with Atkin et al. 2017 respiraiton model 
+     real(r8), allocatable :: leafn_vert_scaler_coeff1(:)  ! Coefficient one for decrease of leaf N through the canopy
+     real(r8), allocatable :: leafn_vert_scaler_coeff2(:)  ! Coefficient two for decrease of leaf N through the canopy 
+     
+     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff1(:) ! leaf maintenance respiration decrease through the canopy param 1
+                                                                   ! only with Atkin et al. 2017 respiration model
+     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff2(:) ! leaf maintenance respiration decrease through the canopy param 2
+                                                                   ! only with Atkin et al. 2017 respiraiton model 
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: mort_ip_size_senescence(:) ! inflection point of dbh dependent senescence
      real(r8), allocatable :: mort_r_size_senescence(:)  ! rate of change in mortality with dbh
@@ -475,6 +478,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_leafn_vert_scaler_coeff1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leafn_vert_scaler_coeff2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     name = 'fates_maintresp_leaf_vert_scaler_coeff1'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
         dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -924,6 +935,14 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%maintresp_leaf_ryan1991_baserate)
 
+    name = 'fates_leafn_vert_scaler_coeff1'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%leafn_vert_scaler_coeff1)
+
+    name = 'fates_leafn_vert_scaler_coeff2'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%leafn_vert_scaler_coeff2)
+    
     name = 'fates_maintresp_leaf_vert_scaler_coeff1'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%maintresp_leaf_vert_scaler_coeff1)
@@ -1757,6 +1776,8 @@ contains
         write(fates_log(),fmt0) 'hydro_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
         write(fates_log(),fmt0) 'hydro_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
         write(fates_log(),fmt0) 'hydro_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
+        write(fates_log(),fmt0) 'leafn_vert_scaler_coeff1 = ',leafn_vert_scaler_coeff1
+        write(fates_log(),fmt0) 'leafn_vert_scaler_coeff2 = ',leafn_vert_scaler_coeff2
         write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff1 = ',maintresp_leaf_vert_scaler_coeff1
         write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff2 = ',maintresp_leaf_vert_scaler_coeff2
         write(fates_log(),*) '-------------------------------------------------'
