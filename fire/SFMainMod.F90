@@ -182,7 +182,7 @@ contains
 
       use SFParamsMod, only : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
 
-      ! AGUMENTS
+      ! AGUMENTS:
       type(ed_site_type), intent(in), target :: currentSite
 
       ! LOCALS:
@@ -199,19 +199,23 @@ contains
 
          if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
 
-            litt_c => currentPatch%litter(element_pos(carbon12_element))
-
-            ! how much live grass is there? [kgC/m2]
+            ! calculate live grass [kgC/m2]
             call currentPatch%UpdateLiveGrass()
 
-            currentPatch%sum_fuel =  sum(litt_c%leaf_fines(:)) + &
-               sum(litt_c%ag_cwd(:)) + currentPatch%livegrass
-               
-            ! ===============================================
-            ! Average moisture, bulk density, surface area-volume and moisture extinction of fuel
-            ! ================================================   
+            ! update fuel loading
+            litt_c => currentPatch%litter(element_pos(carbon12_element))
+            call currentPatch%fuel%CalculateLoading(litt_c, currentPatch%livegrass)
+            call currentPatch%fuel%SumLoading()
+            
+            currentPatch%sum_fuel = currentPatch%fuel%total_loading
 
-            if (currentPatch%sum_fuel > 0.0) then        
+            !call currentPatch%fuel%CalculateFractionalLoading()
+
+            if (currentPatch%sum_fuel > 0.0) then
+
+               ! currentPatch%fuel_frac(dl_sf) = currentPatch%fuel%frac_loading(dl_sf)
+               ! currentPatch%fuel_frac(tw_sf:tr_sf) = currentPatch%fuel%frac_loading(tw_sf:tr_sf)
+               ! currentPatch%fuel_frac(lg_sf) = currentPatch%fuel%frac_loading(lg_sf)
             
                ! Fraction of fuel in litter classes
                currentPatch%fuel_frac(dl_sf)       = sum(litt_c%leaf_fines(:))/ currentPatch%sum_fuel

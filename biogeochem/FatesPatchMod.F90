@@ -15,6 +15,7 @@ module FatesPatchMod
   use FatesRunningMeanMod, only : rmean_type, rmean_arr_type
   use FatesLitterMod,      only : nfsc
   use FatesLitterMod,      only : litter_type
+  use FatesFuelMod,        only : fuel_type
   use PRTGenericMod,       only : num_elements
   use PRTGenericMod,       only : element_list
   use PRTGenericMod,       only : carbon12_element
@@ -189,6 +190,7 @@ module FatesPatchMod
 
     ! LITTER AND COARSE WOODY DEBRIS
     type(litter_type), pointer :: litter(:)               ! litter (leaf,fnrt,CWD and seeds) for different elements
+    type(fuel_type),   pointer :: fuel                    ! fuel class 
     real(r8), allocatable      :: fragmentation_scaler(:) ! scale rate of litter fragmentation based on soil layer [0-1]
 
     !---------------------------------------------------------------------------
@@ -594,6 +596,10 @@ module FatesPatchMod
       ! initialize litter
       call this%InitLitter(num_pft, num_levsoil)
 
+      ! initialize fuel
+      allocate(this%fuel)
+      this%fuel%Init()
+
       this%twostr%scelg => null()  ! The radiation module will check if this
                                    ! is associated, since it is not, it will then
                                    ! initialize and allocate
@@ -735,7 +741,13 @@ module FatesPatchMod
         write(fates_log(),*) 'dealloc008: fail on deallocate(this%litter):'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
-      
+
+      deallocate(this%fuel, stat=istat, errmsg=smsg)
+      if (istat/=0) then
+        write(fates_log(),*) 'dealloc009: fail on deallocate patch fuel:'//trim(smsg)
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+      endif
+
       ! deallocate the allocatable arrays
       deallocate(this%tr_soil_dir,              & 
                  this%tr_soil_dif,              & 

@@ -1,11 +1,10 @@
 module FatesFuelClassesMod
 
-  !use FatesLitterMod, only : ncwd
+  use FatesLitterMod, only : ncwd
   
   implicit none
   private
 
-  integer, parameter :: ncwd = 4
   integer, parameter, public :: nfsc = ncwd + 2
   
   type :: fuel_classes_type
