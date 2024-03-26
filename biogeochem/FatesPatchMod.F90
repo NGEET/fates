@@ -197,7 +197,6 @@ module FatesPatchMod
 
     ! FUELS AND FIRE
     ! fuel characteristics
-    real(r8)              :: sum_fuel                ! total ground fuel related to ROS (omits 1000 hr fuels) [kgC/m2]
     real(r8)              :: fuel_frac(nfsc)         ! fraction of each litter class in the ros_fuel [0-1]
     real(r8)              :: livegrass               ! total aboveground grass biomass in patch [kgC/m2]
     real(r8)              :: fuel_bulkd              ! average fuel bulk density of the ground fuel. [kg/m3]
@@ -381,7 +380,6 @@ module FatesPatchMod
       this%fragmentation_scaler(:)      = nan 
   
       ! FUELS AND FIRE
-      this%sum_fuel                     = nan 
       this%fuel_frac(:)                 = nan 
       this%livegrass                    = nan 
       this%fuel_bulkd                   = nan 
@@ -458,7 +456,6 @@ module FatesPatchMod
       this%fragmentation_scaler(:)           = 0.0_r8
 
       ! FIRE
-      this%sum_fuel                          = 0.0_r8
       this%fuel_frac(:)                      = 0.0_r8
       this%livegrass                         = 0.0_r8
       this%fuel_bulkd                        = 0.0_r8
@@ -598,7 +595,7 @@ module FatesPatchMod
 
       ! initialize fuel
       allocate(this%fuel)
-      this%fuel%Init()
+      call this%fuel%Init()
 
       this%twostr%scelg => null()  ! The radiation module will check if this
                                    ! is associated, since it is not, it will then

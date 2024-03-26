@@ -186,11 +186,11 @@ contains
       type(ed_site_type), intent(in), target :: currentSite
 
       ! LOCALS:
-      type(fates_patch_type), pointer :: currentPatch
-      type(litter_type),      pointer :: litt_c
-      real(r8)                        :: alpha_FMC(nfsc)     ! Relative fuel moisture adjusted per drying ratio
-      real(r8)                        :: fuel_moisture(nfsc) ! Scaled moisture content of small litter fuels. 
-      real(r8)                        :: MEF(nfsc)           ! Moisture extinction factor of fuels 
+      type(fates_patch_type), pointer :: currentPatch        ! FATES patch 
+      type(litter_type),      pointer :: litter              ! pointer to patch litter class
+      real(r8)                        :: alpha_FMC(nfsc)     ! relative fuel moisture adjusted per drying ratio
+      real(r8)                        :: fuel_moisture(nfsc) ! scaled moisture content of small litter fuels. 
+      real(r8)                        :: MEF(nfsc)           ! moisture extinction factor of fuels 
 
       fuel_moisture(:) = 0.0_r8
 
@@ -203,24 +203,24 @@ contains
             call currentPatch%UpdateLiveGrass()
 
             ! update fuel loading
-            litt_c => currentPatch%litter(element_pos(carbon12_element))
-            call currentPatch%fuel%CalculateLoading(litt_c, currentPatch%livegrass)
+            litter => currentPatch%litter(element_pos(carbon12_element))
+            call currentPatch%fuel%CalculateLoading(sum(litter%leaf_fines(:)),           &
+               litter%ag_cwd(1), litter%ag_cwd(2), litter%ag_cwd(3), litter%ag_cwd(4),   &
+               currentPatch%livegrass)
             call currentPatch%fuel%SumLoading()
             
-            currentPatch%sum_fuel = currentPatch%fuel%total_loading
-
             !call currentPatch%fuel%CalculateFractionalLoading()
 
-            if (currentPatch%sum_fuel > 0.0) then
+            if (currentPatch%fuel%total_loading> 0.0) then
 
                ! currentPatch%fuel_frac(dl_sf) = currentPatch%fuel%frac_loading(dl_sf)
                ! currentPatch%fuel_frac(tw_sf:tr_sf) = currentPatch%fuel%frac_loading(tw_sf:tr_sf)
                ! currentPatch%fuel_frac(lg_sf) = currentPatch%fuel%frac_loading(lg_sf)
             
                ! Fraction of fuel in litter classes
-               currentPatch%fuel_frac(dl_sf)       = sum(litt_c%leaf_fines(:))/ currentPatch%sum_fuel
-               currentPatch%fuel_frac(tw_sf:tr_sf) = litt_c%ag_cwd(:) / currentPatch%sum_fuel    
-               currentPatch%fuel_frac(lg_sf)       = currentPatch%livegrass       / currentPatch%sum_fuel
+               currentPatch%fuel_frac(dl_sf) = sum(litter%leaf_fines(:))/currentPatch%fuel%total_loading
+               currentPatch%fuel_frac(tw_sf:tr_sf) = litter%ag_cwd(:)/currentPatch%fuel%total_loading  
+               currentPatch%fuel_frac(lg_sf) = currentPatch%livegrass/currentPatch%fuel%total_loading
 
                ! MEF (moisure of extinction) depends on compactness of fuel, depth, particle size, wind, slope
                ! Eqn here is eqn 27 from Peterson and Ryan (1986) "Modeling Postfire Conifer Mortality for Long-Range Planning"
@@ -283,7 +283,7 @@ contains
                currentPatch%fuel_bulkd     = 0.0000000001_r8 
                currentPatch%fuel_frac(:)   = 0.0000000001_r8 
                currentPatch%fuel_mef       = 0.0000000001_r8
-               currentPatch%sum_fuel       = 0.0000000001_r8
+               currentPatch%fuel%total_loading       = 0.0000000001_r8
 
             end if
          end if 
@@ -330,7 +330,7 @@ contains
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
               
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
-       currentPatch%sum_fuel  = currentPatch%sum_fuel * (1.0_r8 - SF_val_miner_total) !net of minerals
+       currentPatch%fuel%total_loading = currentPatch%fuel%total_loading * (1.0_r8 - SF_val_miner_total) !net of minerals
 
        ! ----start spreading---
 
@@ -413,8 +413,8 @@ contains
             (3.52_r8*(mw_weight**3.0_r8))))
 
        ! ir = reaction intenisty in kJ/m2/min
-       ! currentPatch%sum_fuel converted from kgC/m2 to kgBiomass/m2 for ir calculation
-       ir = reaction_v_opt*(currentPatch%sum_fuel/0.45_r8)*SF_val_fuel_energy*moist_damp*SF_val_miner_damp 
+       ! currentPatch%fuel%total_loading converted from kgC/m2 to kgBiomass/m2 for ir calculation
+       ir = reaction_v_opt*(currentPatch%fuel%total_loading/0.45_r8)*SF_val_fuel_energy*moist_damp*SF_val_miner_damp 
 
        ! write(fates_log(),*) 'ir',gamma_aptr,moist_damp,SF_val_fuel_energy,SF_val_miner_damp
 
@@ -510,7 +510,7 @@ contains
        ! The /10 is to convert from kgC/m2 into gC/cm2, as in the Peterson and Ryan paper #Rosie,Jun 2013
         
        do c = 1,nfsc  
-          tau_b(c)   =  39.4_r8 *(currentPatch%fuel_frac(c)*currentPatch%sum_fuel/0.45_r8/10._r8)* &
+          tau_b(c)   =  39.4_r8 *(currentPatch%fuel_frac(c)*currentPatch%fuel%total_loading/0.45_r8/10._r8)* &
                (1.0_r8-((1.0_r8-currentPatch%burnt_frac_litter(c))**0.5_r8))  
        enddo
        tau_b(tr_sf)   =  0.0_r8

@@ -3,7 +3,8 @@ module FatesFuelMod
   use FatesFuelClassesMod, only : nfsc
   use FatesLitterMod,      only : litter_type
   use FatesConstantsMod,   only : nearzero
-  
+  use FatesLitterMod,      only : dl_sf, tw_sf, sb_sf, lb_sf, tr_sf, lg_sf
+
   implicit none
   private
 
@@ -51,18 +52,25 @@ module FatesFuelMod
 
     !-------------------------------------------------------------------------------------
 
-    subroutine CalculateLoading(this, litter, live_grass)
+    subroutine CalculateLoading(this, leaf_litter, twig_litter, small_branch_litter,     &
+        large_branch_litter, trunk_litter, live_grass)
       ! DESCRIPTION:
       !   Calculates loading for each fuel type
 
       ! ARGUMENTS:
-      class(fuel_type),          intent(inout) :: this       ! fuel class
-      type(litter_type), target, intent(in)    :: litter     ! litter class
-      real(r8),                  intent(in)    :: live_grass ! amount of live grass [kgC/m2]
+      class(fuel_type), intent(inout) :: this                ! fuel class
+      real(r8),         intent(in)    :: leaf_litter         ! input leaf litter [kgC/m2]
+      real(r8),         intent(in)    :: twig_litter         ! input twig litter [kgC/m2]
+      real(r8),         intent(in)    :: small_branch_litter ! input small branch litter [kgC/m2]
+      real(r8),         intent(in)    :: large_branch_litter ! input leaf litter [kgC/m2]
+      real(r8),         intent(in)    :: trunk_litter        ! input leaf litter [kgC/m2]
+      real(r8),         intent(in)    :: live_grass          ! input live grass [kgC/m2]
 
-
-      this%loading(dl_sf) = sum(litter%leaf_fines(:))
-      this%loading(tw_sf:tr_sf) = litter%ag_cwd(:)
+      this%loading(dl_sf) = leaf_litter
+      this%loading(tw_sf) = twig_litter
+      this%loading(sb_sf) = small_branch_litter
+      this%loading(lb_sf) = large_branch_litter
+      this%loading(tr_sf) = trunk_litter
       this%loading(lg_sf) = live_grass
 
     end subroutine CalculateLoading
