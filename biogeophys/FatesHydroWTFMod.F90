@@ -903,7 +903,8 @@ contains
       this%scch_b2 = 0.d0
       this%scch_b3 = (2.d0 - bcAtPu*(2.d0+lambdaDeltaPuOnPu)) * oneOnDeltaPu * oneOnDeltaPu * oneOnDeltaPu
       if( this%scch_b3 <= 0.d0 ) then
-         write(fates_log(),*) 'set_wrf_param_smooth_cch b3 <=0',pu,ps,alpha,lambda,oneOnDeltaPu,lambdaDeltaPuOnPu,bcAtPu,this%psi_sat
+         write(fates_log(),*) 'set_wrf_param_smooth_cch b3 <=0',pu,ps,alpha,lambda,oneOnDeltaPu, &
+              lambdaDeltaPuOnPu,bcAtPu,this%psi_sat
          call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
     else
@@ -980,9 +981,11 @@ contains
 
       ! Store coefficients for cubic function.
       this%scch_b2 = 0.d0
-      this%scch_b3 = (2.d0 - bcAtPu*(2.d0+lambdaDeltaPuOnPu)) * oneOnDeltaPu * oneOnDeltaPu * oneOnDeltaPu
+      this%scch_b3 = (2.d0 - bcAtPu*(2.d0+lambdaDeltaPuOnPu)) * &
+           oneOnDeltaPu * oneOnDeltaPu * oneOnDeltaPu
       if( this%scch_b3 <= 0.d0 ) then
-         write(fates_log(),*) 'set_wrf_param_smooth_cch b3 <=0',pu,ps,alpha,lambda,oneOnDeltaPu,lambdaDeltaPuOnPu,bcAtPu,this%psi_sat
+         write(fates_log(),*) 'set_wrf_param_smooth_cch b3 <=0', &
+              pu,ps,alpha,lambda,oneOnDeltaPu,lambdaDeltaPuOnPu,bcAtPu,this%psi_sat
          call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
     else
