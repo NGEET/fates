@@ -1776,10 +1776,10 @@ contains
         write(fates_log(),fmt0) 'hydro_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
         write(fates_log(),fmt0) 'hydro_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
         write(fates_log(),fmt0) 'hydro_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
-        write(fates_log(),fmt0) 'leafn_vert_scaler_coeff1 = ',leafn_vert_scaler_coeff1
-        write(fates_log(),fmt0) 'leafn_vert_scaler_coeff2 = ',leafn_vert_scaler_coeff2
-        write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff1 = ',maintresp_leaf_vert_scaler_coeff1
-        write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff2 = ',maintresp_leaf_vert_scaler_coeff2
+        write(fates_log(),fmt0) 'leafn_vert_scaler_coeff1 = ',EDPftvarcon_inst%leafn_vert_scaler_coeff1
+        write(fates_log(),fmt0) 'leafn_vert_scaler_coeff2 = ',EDPftvarcon_inst%leafn_vert_scaler_coeff2
+        write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff1 = ',EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1
+        write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff2 = ',EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2
         write(fates_log(),*) '-------------------------------------------------'
 
      end if
