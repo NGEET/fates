@@ -86,28 +86,28 @@
       <ln>(INACTIVE, KEEP AT 0) critical value for biochemical production (ECA)</ln>
       <val>0,0,0,0,0,0,0,0,0,0,0,0</val>
     </mod>
-    <mod Type="variable_add">
+    <mod type="variable_add">
       <na>fates_leafn_vert_scaler_coeff1</na>
       <di>fates_pft</di>
       <un>unitless</un>
       <ln>Coefficient one for decrease in leaf nitrogen through the canopy, from Lloyd et al. 2010.</ln>
       <val>0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963</val>
     </mod>
-    <mod Type="variable_add">
+    <mod type="variable_add">
       <na>fates_leafn_vert_scaler_coeff2</na>
       <di>fates_pft</di>
       <un>unitless</un>
       <ln>Coefficient two for decrease in leaf nitrogen through the canopy, from Lloyd et al. 2010.</ln>
       <val>2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43 </val>
     </mod>
-    <mod Type="variable_add">
+    <mod type="variable_add">
       <na>fates_maintresp_leaf_vert_scaler_coeff1</na>
       <di>fates_pft</di>
       <un>unitless</un>
       <ln>Leaf maintenance respiration decrease through the canopy. Only applies to Atkin et al. 2017. For proportionality between photosynthesis and respiration through the canopy, match with fates_leafn_vert_scaler_coeff1.</ln>
       <val>0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963</val>
     </mod>
-    <mod Type="variable_add">
+    <mod type="variable_add">
       <na>fates_maintresp_leaf_vert_scaler_coeff2</na>
       <di>fates_pft</di>
       <un>unitless</un>
