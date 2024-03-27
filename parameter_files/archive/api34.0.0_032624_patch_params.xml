@@ -18,7 +18,7 @@
 		 the variables -->
   <!-- -->
   
-  <base_file>archive/api33.0.0_020524_params_default.cdl </base_file>
+  <base_file>archive/api34.0.0_032624_params_default.cdl</base_file>
   <new_file>fates_params_default.cdl</new_file>
   <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
   <mods>
@@ -86,5 +86,49 @@
       <ln>(INACTIVE, KEEP AT 0) critical value for biochemical production (ECA)</ln>
       <val>0,0,0,0,0,0,0,0,0,0,0,0</val>
     </mod>
+    <mod type="variable_add">
+      <na>fates_leafn_vert_scaler_coeff1</na>
+      <di>fates_pft</di>
+      <un>unitless</un>
+      <ln>Coefficient one for decrease in leaf nitrogen through the canopy, from Lloyd et al. 2010.</ln>
+      <val>0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963</val>
+    </mod>
+    <mod type="variable_add">
+      <na>fates_leafn_vert_scaler_coeff2</na>
+      <di>fates_pft</di>
+      <un>unitless</un>
+      <ln>Coefficient two for decrease in leaf nitrogen through the canopy, from Lloyd et al. 2010.</ln>
+      <val>2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43 </val>
+    </mod>
+    <mod type="variable_add">
+      <na>fates_maintresp_leaf_vert_scaler_coeff1</na>
+      <di>fates_pft</di>
+      <un>unitless</un>
+      <ln>Leaf maintenance respiration decrease through the canopy. Only applies to Atkin et al. 2017. For proportionality between photosynthesis and respiration through the canopy, match with fates_leafn_vert_scaler_coeff1.</ln>
+      <val>0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963</val>
+    </mod>
+    <mod type="variable_add">
+      <na>fates_maintresp_leaf_vert_scaler_coeff2</na>
+      <di>fates_pft</di>
+      <un>unitless</un>
+      <ln>Leaf maintenance respiration decrease through the canopy. Only applies to Atkin et al. 2017. For proportionality between photosynthesis and respiration through the canopy, match with fates_leafn_vert_scaler_coeff2.</ln>
+      <val>2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43</val>
+    </mod>
+    <mod type="variable_add">
+      <na>fates_daylength_factor_switch</na>
+      <di>scalar</di>
+      <un>unitless</un>
+      <ln>user switch for turning on (1) or off (0) the day length factor scaling for photosynthetic parameters (ie scale vcmax and jmax) </ln>
+      <val>1</val>
+    </mod>
+    <mod type="variable_add">
+      <na>fates_mort_cstarvation_model</na>
+      <di>scalar</di>
+      <un>unitless</un>
+      <ln>switch defining the carbon starvation model ( 1) Linear or 2) Exponential) in the mortality_rates function.</ln>
+      <val>1</val>
+    </mod>
+
+    
   </mods>
 </all>
