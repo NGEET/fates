@@ -121,6 +121,14 @@
       <ln>user switch for turning on (1) or off (0) the day length factor scaling for photosynthetic parameters (ie scale vcmax and jmax) </ln>
       <val>1</val>
     </mod>
+    <mod type="variable_add">
+      <na>fates_mort_cstarvation_model</na>
+      <di>scalar</di>
+      <un>unitless</un>
+      <ln>switch defining the carbon starvation model ( 1) Linear or 2) Exponential) in the mortality_rates function.</ln>
+      <val>1</val>
+    </mod>
+
     
   </mods>
 </all>
