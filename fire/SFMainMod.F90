@@ -350,6 +350,7 @@ contains
     use FatesConstantsMod, only : sec_per_min
     use FatesEcotypesMod , only : is_patch_forest
     use EDParamsMod      , only : forest_tree_fraction_threshold
+    use FatesEdgeForestMod, only : calculate_edge_area
 
     type(ed_site_type) , intent(inout), target :: currentSite
     type(bc_in_type)   , intent(in)            :: bc_in
@@ -426,6 +427,9 @@ contains
        if ( hlm_masterproc == itrue ) write(fates_log(),*) 'grass, trees, bare', &
             grass_fraction, tree_fraction, bare_fraction
     endif
+
+    ! Must come after patch loop with is_patch_forest() call
+    call calculate_edge_area(currentSite)
 
     currentPatch=>currentSite%oldest_patch;
 

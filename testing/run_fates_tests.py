@@ -78,7 +78,16 @@ _ALL_TESTS_DICT = {
             "use_param_file": False,
             "other_args": [],
             "plotting_function": None,
-        }
+        },
+        "edge_forest":{
+            "test_dir": "fates_edge_forest_utest",
+            "test_exe": None,
+            "out_file": None,
+            "has_unit_test": True,
+            "use_param_file": False,
+            "other_args": [],
+            "plotting_function": None,
+        },
     }
 
 def run_fortran_exectuables(build_dir, test_dir, test_exe, run_dir, args):

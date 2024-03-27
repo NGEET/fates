@@ -1,0 +1,1 @@
+add_subdirectory(edge_forest_test)

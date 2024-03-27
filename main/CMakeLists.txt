@@ -7,6 +7,7 @@ list(APPEND clm_sources
   EDPftvarcon.F90
   FatesConstantsMod.F90
   FatesEcotypesMod.F90
+  FatesEdgeForestMod.F90
   FatesHydraulicsMemMod.F90
   FatesParametersInterface.F90
   FatesUtilsMod.F90
@@ -35,6 +36,9 @@ list(APPEND fates_sources
   FatesSizeAgeTypeIndicesMod.F90
   FatesIntegratorsMod.F90
   FatesUtilsMod.F90
-  FatesSynchronizedParamsMod.F90)
+  FatesSynchronizedParamsMod.F90
+  FatesEcotypesMod.F90
+  FatesEdgeForestMod.F90
+  )
 
 sourcelist_to_parent(fates_sources)
