@@ -22,6 +22,7 @@ module EDCanopyStructureMod
   use FatesAllometryMod     , only : tree_sai
   use EDTypesMod            , only : ed_site_type
   use FatesAllometryMod     , only : VegAreaLayer
+  use FatesAllometryMod     , only : CrownDepth
   use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod,         only : fates_cohort_type
   use EDParamsMod            , only : nclmax
@@ -1532,7 +1533,7 @@ contains
     real(r8) :: elai_layer,tlai_layer    ! leaf area per canopy area
     real(r8) :: esai_layer,tsai_layer    ! stem area per canopy area
     real(r8) :: vai_top,vai_bot          ! integrated top down veg area index at boundary of layer
-
+    real(r8) :: crown_depth              ! Current cohort's crown depth
     real(r8) :: layer_bottom_height,layer_top_height,lai,sai  ! Can be removed later
     !----------------------------------------------------------------------
 
@@ -1611,7 +1612,14 @@ contains
                    write(fates_log(), *) ' currentPatch%nrad(cl,ft): ', currentPatch%nrad(cl,ft)
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
+
+                !---~---
+                !   Find current crown depth using the allometric function.
+                !---~---
+                call CrownDepth(currentCohort%height,currentCohort%pft,crown_depth)
+                !---~---
                 
+             
                 ! --------------------------------------------------------------------------
                 ! Whole layers.  Make a weighted average of the leaf area in each layer
                 ! before dividing it by the total area. Fill up layer for whole layers.
@@ -1625,12 +1633,10 @@ contains
                    ! is obscured by snow.
                    
                    layer_top_height = currentCohort%height - &
-                        ( real(iv-1,r8)/currentCohort%NV * currentCohort%height *  &
-                        prt_params%crown_depth_frac(currentCohort%pft) )
-                   
+                        ( real(iv-1,r8)/currentCohort%NV * crown_depth )
+                                           
                    layer_bottom_height = currentCohort%height - &
-                        ( real(iv,r8)/currentCohort%NV * currentCohort%height * &
-                        prt_params%crown_depth_frac(currentCohort%pft) )
+                        ( real(iv,r8)/currentCohort%NV * crown_depth )
                    
                    fraction_exposed = 1.0_r8
                    if(currentSite%snow_depth  > layer_top_height)then
