@@ -27,6 +27,7 @@ module FatesIOVariableKindMod
   character(*), parameter, public :: cohort_int = 'CO_INT'
   character(*), parameter, public :: site_pft_r8 = 'SI_PFT_R8'
   character(*), parameter, public :: site_age_r8 = 'SI_AGE_R8'
+  character(*), parameter, public :: site_edgebin_r8 = 'SI_EDGEBIN_R8'
   character(*), parameter, public :: site_height_r8 = 'SI_HEIGHT_R8'
   character(*), parameter, public :: site_fuel_r8 = 'SI_FUEL_R8'
   character(*), parameter, public :: site_cwdsc_r8 = 'SI_CWDSC_R8'
