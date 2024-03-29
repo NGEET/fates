@@ -30,6 +30,12 @@
 
   real(r8), parameter :: min_ftc = 0.0_r8   ! Minimum allowed fraction of total conductance
 
+  real(r8), parameter :: min_ftc_scalar=2.0_r8   ! This scalar is used to define the attenuation
+                                                 ! of the weighting that we use for imposing
+                                                 ! ftc min at the minimum allowable psi
+                                                 ! A value of two yielded a wieghting factor of
+                                                 ! about 0.175 after 1 MPa, and 0.025 after 2 MPA
+  
   ! Bounds on saturated fraction, outside of which we use linear PV or stop flow
   ! In this context, the saturated fraction is defined by the volumetric WC "th"
   ! and the volumetric residual and saturation "th_res" and "th_sat": (th-th_r)/(th_sat-th_res)
@@ -44,7 +50,8 @@
                                             ! elastic-caviation region
 
 
-  real(r8), parameter :: min_theta_cch = 0.01_r8 ! Minimum theta (matches ctsm)
+  !real(r8), parameter :: min_theta_cch = 0.05_r8 ! Minimum theta (matches ctsm)
+  real(r8), parameter :: min_psi_cch = -20.0_r8 ! Minimum theta (matches ctsm)
   
   ! Generic class that can be extended to describe
   ! specific water retention functions
@@ -91,6 +98,7 @@
   ! water conductance functions
 
   type, public :: wkf_type
+      type(wrf_type), pointer :: wrf   ! Pointer to the matching water retention function
    contains
      procedure :: ftc_from_psi      => ftc_from_psi_base
      procedure :: dftcdpsi_from_psi => dftcdpsi_from_psi_base
@@ -242,7 +250,8 @@
      procedure :: set_wkf_param     => set_wkf_param_tfs
   end type wkf_type_tfs
 
-
+  public :: get_min_ftc_weight
+  
 contains
 
   ! =====================================================================================
@@ -343,7 +352,34 @@ contains
   end function th_linear_res
 
   ! ===========================================================================
+  
+  subroutine get_min_ftc_weight(psi_min,psi,min_ftc_weight,dmin_ftc_weight_dpsi)
+    
+    ! This routine determines the weighting factor used
+    ! to generate a smooth curve to impose that min_ftc happens at min_psi
+    ! This method is to be used with any and all water transfer functions
+    
+    real(r8),intent(in) :: psi                  ! MPa suction
+    real(r8),intent(in) :: psi_min              ! Minimum value of psi we track, value that pins to ftc_min
+    real(r8),intent(out):: min_ftc_weight       ! weighting factor for min_ftc
+    real(r8),intent(out):: dmin_ftc_weight_dpsi ! derivative of weighting factor wrt psi
 
+    min_ftc_weight = exp(min_ftc_scalar*(psi_min-psi))
+    dmin_ftc_weight_dpsi = -min_ftc_scalar*exp(min_ftc_scalar*(psi_min-psi))
+    
+    if(min_ftc_weight>=1.)then
+       min_ftc_weight = 1._r8
+       dmin_ftc_weight_dpsi = 0._r8
+    elseif(min_ftc_weight<=0._r8)then
+       min_ftc_weight = 0._r8
+       dmin_ftc_weight_dpsi = 0._r8
+    end if
+       
+    return
+  end subroutine get_min_ftc_weight
+
+  ! =============================================================================
+  
   subroutine set_wrf_param_base(this,params_in)
     class(wrf_type)     :: this
     real(r8),intent(in) :: params_in(:)
@@ -613,7 +649,11 @@ contains
     real(r8)            :: psi_eff
     real(r8)            :: m          ! pore size distribution param ()
     real(r8)            :: n          ! pore size distribution param (psd)
+    real(r8)            :: min_ftc_weight
+    real(r8)            :: dmin_ftc_weight_dpsi
+    real(r8), pointer   :: psi_min
 
+    psi_min => this%wrf%psi_min
     n   = this%n_vg
     m   = this%m_vg
 
@@ -626,8 +666,18 @@ contains
        den = (1._r8 + (this%alpha*psi_eff)**n)**(this%tort*(m))
 
        ! Make sure this is well behaved
-       ftc = min(1._r8,max(min_ftc,num/den))
-              
+       ftc = min(1._r8,num/den)
+
+       if(ftc<=min_ftc) then
+          ftc = min_ftc
+       else       
+          ! Add protections and ensure no conductance at incredibly
+          ! low suction
+          call get_min_ftc_weight(psi_min,psi,min_ftc_weight,dmin_ftc_weight_dpsi)
+          
+          ftc = ftc*(1._r8 - min_ftc_weight) + min_ftc*min_ftc_weight
+       end if
+          
     else
        ftc = 1._r8
 
@@ -635,6 +685,9 @@ contains
 
   end function ftc_from_psi_vg
 
+
+
+  
   ! ====================================================================================
 
   function dftcdpsi_from_psi_vg(this,psi) result(dftcdpsi)
@@ -656,7 +709,11 @@ contains
     real(r8) :: dftcdpsi ! change in frac total cond wrt psi
     real(r8) :: m        ! pore size distribution param (1/psd)
     real(r8) :: n        
+    real(r8) :: min_ftc_weight
+    real(r8) :: dmin_ftc_weight_dpsi
+    real(r8), pointer   :: psi_min
 
+    psi_min => this%wrf%psi_min
     n   =this%n_vg
     m   =this%m_vg
 
@@ -666,8 +723,8 @@ contains
        psi_eff = -psi  ! switch VG 1980 convention
 
        ftc = this%ftc_from_psi(psi)
-
-       if(ftc<=min_ftc) then
+       
+       if ( abs(ftc-min_ftc)<nearzero ) then
           dftcdpsi = 0._r8   ! We cap ftc, so derivative is zero
        else
 
@@ -686,6 +743,17 @@ contains
           
           dftcdpsi = 2._r8*(1._r8-t1*t2)*(t1*dt2 + t2*dt1)/t3 - &
                t3**(-2._r8)*dt3*(1._r8-t1*t2)**2._r8
+          
+          call get_min_ftc_weight(psi_min,psi,min_ftc_weight,dmin_ftc_weight_dpsi)
+
+          ! differentiate: 
+          ! ftc = ftc*(1._r8 - min_ftc_weight) + min_ftc*min_ftc_weight
+          ! ftc = ftc - ftc*min_ftc_weight + min_ftc*min_ftc_weight
+          
+          dftcdpsi = dftcdpsi - &
+               (dftcdpsi*min_ftc_weight + ftc*dmin_ftc_weight_dpsi) + &
+               min_ftc*dmin_ftc_weight_dpsi
+          
        end if
 
     end if
@@ -713,9 +781,11 @@ contains
     this%psi_max     = this%psi_from_th(this%th_max-tiny(this%th_max))
     this%dpsidth_max = this%dpsidth_from_th(this%th_max-tiny(this%th_max))
 
-    this%th_min      = min_theta_cch
-    this%psi_min     = this%psi_from_th(min_theta_cch+tiny(this%th_max))
-    this%dpsidth_min = this%dpsidth_from_th(min_theta_cch+tiny(this%th_max))
+    !this%th_min      = min_theta_cch
+    !this%psi_min     = this%psi_from_th(min_theta_cch+tiny(this%th_max))
+    this%psi_min     = min_psi_cch
+    this%th_min      = this%th_from_psi(min_psi_cch+tiny(this%th_max))
+    this%dpsidth_min = this%dpsidth_from_th(this%th_min+tiny(this%th_max))
     
     return
   end subroutine set_wrf_param_cch
@@ -813,7 +883,11 @@ contains
     real(r8),intent(in) :: psi
     real(r8)            :: psi_eff
     real(r8)            :: ftc
+    real(r8)            :: min_ftc_weight,dmin_ftc_weight_dpsi
+    real(r8), pointer   :: psi_min
 
+    psi_min => this%wrf%psi_min
+    
     ! th = th_sat * (psi/psi_sat)^(-1/b)
 
     ! ftc = (th/th_sat)^(2*b+3)
@@ -826,6 +900,15 @@ contains
 
     ftc = (psi_eff/this%psi_sat)**(-2._r8-3._r8/this%beta)
 
+    if(ftc<=min_ftc) then
+       ftc = min_ftc
+    else
+       call get_min_ftc_weight(psi_min,psi,min_ftc_weight,dmin_ftc_weight_dpsi)
+
+       ftc = ftc*(1._r8 - min_ftc_weight) + min_ftc*min_ftc_weight
+       
+    end if
+    
   end function ftc_from_psi_cch
 
   ! ====================================================================================
@@ -835,15 +918,37 @@ contains
     class(wkf_type_cch) :: this
     real(r8),intent(in) :: psi
     real(r8)            :: dftcdpsi ! change in frac total cond wrt psi
+    real(r8)            :: min_ftc_weight,dmin_ftc_weight_dpsi
+    real(r8)            :: ftc
+    real(r8), pointer   :: psi_min
 
-    ! Differentiate:
-    ! ftc = (psi/this%psi_sat)**(-2._r8-3._r8/this%beta)
-
+    psi_min => this%wrf%psi_min
+    
     ! Note that if we assume a constant, capped FTC=1.0
     ! at saturation, then the derivative is zero there
     if(psi<this%psi_sat)then
-       dftcdpsi = (-2._r8-3._r8/this%beta) / this%psi_sat * &
-            (psi/this%psi_sat)**(-3._r8-3._r8/this%beta)
+
+       ftc = this%ftc_from_psi(psi)
+       if ( abs(ftc-min_ftc)<nearzero ) then
+
+          dftcdpsi = 0._r8
+          
+       else
+          
+          dftcdpsi = (-2._r8-3._r8/this%beta) / this%psi_sat * &
+               (psi/this%psi_sat)**(-3._r8-3._r8/this%beta)
+          
+          call get_min_ftc_weight(psi_min,psi,min_ftc_weight,dmin_ftc_weight_dpsi)
+          
+          ! differentiate: 
+          ! ftc = ftc*(1._r8 - min_ftc_weight) + min_ftc*min_ftc_weight
+          ! ftc = ftc - ftc*min_ftc_weight + min_ftc*min_ftc_weight
+          
+          dftcdpsi = dftcdpsi - &
+               (dftcdpsi*min_ftc_weight + ftc*dmin_ftc_weight_dpsi) + &
+               min_ftc*dmin_ftc_weight_dpsi
+          
+       end if
     else
        dftcdpsi = 0._r8
     end if
@@ -1248,21 +1353,22 @@ contains
   function ftc_from_psi_smooth_cch(this,psi) result(ftc)
 
     class(wkf_type_smooth_cch) :: this
-    real(r8),intent(in) :: psi
-    real(r8)            :: ftc
+    real(r8),intent(in)        :: psi
+    real(r8) :: ftc
+    real(r8) :: pc
+    real(r8) :: kr
+    real(r8) :: dkr_dP
+    real(r8) :: sat_res
+    real(r8) :: alpha
+    real(r8) :: lambda
+    real(r8) :: Se
+    real(r8) :: deltaPc
+    real(r8) :: dSe_dpc
+    real(r8) :: dkr_dSe
+    real(r8) :: min_ftc_weight,dmin_ftc_weight_dpsi
+    real(r8), pointer   :: psi_min
 
-    real(r8)                     :: pc
-    real(r8)                     :: kr
-    real(r8)                     :: dkr_dP
-    !
-    real(r8)                     :: sat_res
-    real(r8)                     :: alpha
-    real(r8)                     :: lambda
-    real(r8)                     :: Se
-    real(r8)                     :: deltaPc
-    real(r8)                     :: dSe_dpc
-    real(r8)                     :: dkr_dSe
-
+    psi_min => this%wrf%psi_min
     pc = psi
     sat_res = 0._r8
     alpha   = -1._r8/this%psi_sat
@@ -1286,8 +1392,18 @@ contains
        ! Here, `pc >= ps`.
        kr        = 1.d0
     endif
-    ftc = max(kr, min_ftc)
 
+    !ftc = max(kr, min_ftc)
+
+    if(kr<=min_ftc) then
+       ftc = min_ftc
+    else
+       call get_min_ftc_weight(psi_min,psi,min_ftc_weight,dmin_ftc_weight_dpsi)
+       
+       ftc = kr*(1._r8 - min_ftc_weight) + min_ftc*min_ftc_weight
+       
+    end if
+    
 
   end function ftc_from_psi_smooth_cch
 
@@ -1298,11 +1414,10 @@ contains
     class(wkf_type_smooth_cch) :: this
     real(r8),intent(in) :: psi
     real(r8)            :: dftcdpsi ! change in frac total cond wrt psi
-
+    real(r8)            :: ftc
     real(r8)            :: pc
     real(r8)            :: kr
     real(r8)            :: dkr_dP
-    !
     real(r8)            :: sat_res
     real(r8)            :: alpha
     real(r8)            :: lambda
@@ -1310,46 +1425,65 @@ contains
     real(r8)            :: deltaPc
     real(r8)            :: dSe_dpc
     real(r8)            :: dkr_dSe
+    real(r8)            :: min_ftc_weight,dmin_ftc_weight_dpsi
+    real(r8), pointer   :: psi_min
 
-    pc = psi
-    sat_res = 0._r8
-    alpha   = -1._r8/this%psi_sat
-    lambda  = 1._r8/this%beta
+    psi_min => this%wrf%psi_min
+    ftc = this%ftc_from_psi(psi)
+    
+    if( abs(ftc-min_ftc)<nearzero)then
 
-    if( pc <= this%scch_pu ) then
-       ! Unsaturated full Brooks-Corey regime.
-       ! Here, `pc <= pu < 0`.
-       Se      = (-alpha*pc)**(-lambda)
+       dftcdpsi = 0._r8
 
-       dSe_dpc = -lambda*Se/pc
-
-       kr      = Se ** (3.d0 + 2.d0/lambda)
-
-       dkr_dSe = (3.d0 + 2.d0/lambda)*kr/Se
-       dkr_dp  = dkr_dSe*dSe_dpc
-    elseif( pc < this%scch_ps ) then
-       ! Cubic smoothing regime.
-       ! Here, `pu < pc < ps <= 0`.
-       deltaPc = pc - this%scch_ps
-       Se      = 1.d0 + deltaPc*deltaPc*(this%scch_b2 + deltaPc*this%scch_b3)
-
-       dSe_dpc = deltaPc*(2*this%scch_b2 + 3*deltaPc*this%scch_b3)
-
-       kr      = Se ** (2.5d0 + 2.d0/lambda)
-
-       dkr_dSe = (2.5d0 + 2.d0/lambda)*kr/Se
-       dkr_dp  = dkr_dSe*dSe_dpc
     else
-       ! Saturated regime.
-       ! Here, `pc >= ps`.
-       kr        = 1.d0
-       dkr_dP    = 0.d0
-    endif
-    dftcdpsi = dkr_dP
-    if(kr<=min_ftc) then
-          dftcdpsi = 0._r8
-    endif
 
+       pc = psi
+       sat_res = 0._r8
+       alpha   = -1._r8/this%psi_sat
+       lambda  = 1._r8/this%beta
+
+       if( pc <= this%scch_pu ) then
+          ! Unsaturated full Brooks-Corey regime.
+          ! Here, `pc <= pu < 0`.
+          Se      = (-alpha*pc)**(-lambda)
+
+          dSe_dpc = -lambda*Se/pc
+
+          kr      = Se ** (3.d0 + 2.d0/lambda)
+
+          dkr_dSe = (3.d0 + 2.d0/lambda)*kr/Se
+          dkr_dp  = dkr_dSe*dSe_dpc
+       elseif( pc < this%scch_ps ) then
+          ! Cubic smoothing regime.
+          ! Here, `pu < pc < ps <= 0`.
+          deltaPc = pc - this%scch_ps
+          Se      = 1.d0 + deltaPc*deltaPc*(this%scch_b2 + deltaPc*this%scch_b3)
+
+          dSe_dpc = deltaPc*(2*this%scch_b2 + 3*deltaPc*this%scch_b3)
+
+          kr      = Se ** (2.5d0 + 2.d0/lambda)
+
+          dkr_dSe = (2.5d0 + 2.d0/lambda)*kr/Se
+          dkr_dp  = dkr_dSe*dSe_dpc
+       else
+          ! Saturated regime.
+          ! Here, `pc >= ps`.
+          kr        = 1.d0
+          dkr_dP    = 0.d0
+       endif
+       dftcdpsi = dkr_dP
+
+       call get_min_ftc_weight(psi_min,psi,min_ftc_weight,dmin_ftc_weight_dpsi)
+
+       ! differentiate: 
+       ! ftc = ftc*(1._r8 - min_ftc_weight) + min_ftc*min_ftc_weight
+       ! ftc = ftc - ftc*min_ftc_weight + min_ftc*min_ftc_weight
+
+       dftcdpsi = dftcdpsi - &
+            (dftcdpsi*min_ftc_weight + ftc*dmin_ftc_weight_dpsi) + &
+            min_ftc*dmin_ftc_weight_dpsi
+
+    end if
 
   end function dftcdpsi_from_psi_smooth_cch
 
@@ -1747,11 +1881,26 @@ contains
     real(r8),intent(in) :: psi   !
     real(r8)            :: ftc
     real(r8)            :: psi_eff
+    real(r8)            :: min_ftc_weight,dmin_ftc_weight_dpsi
+    real(r8), pointer   :: psi_min
 
+    psi_min => this%wrf%psi_min
     psi_eff = min(-nearzero,psi)
 
-    ftc = max(min_ftc,1._r8/(1._r8 + (psi_eff/this%p50)**this%avuln))
+    ftc = 1._r8/(1._r8 + (psi_eff/this%p50)**this%avuln)
 
+    if(ftc<=min_ftc) then
+       ftc = min_ftc
+    else
+       ! Add protections and ensure no conductance at incredibly
+       ! low suction
+       call get_min_ftc_weight(psi_min,psi_eff,min_ftc_weight,dmin_ftc_weight_dpsi)
+          
+       ftc = ftc*(1._r8 - min_ftc_weight) + min_ftc*min_ftc_weight
+
+    end if
+    
+       
   end function ftc_from_psi_tfs
 
   ! ====================================================================================
@@ -1764,20 +1913,38 @@ contains
     real(r8)            :: fx       ! portion of ftc function
     real(r8)            :: dfx      ! differentiation of portion of func
     real(r8)            :: dftcdpsi ! change in frac total cond wrt psi
+    real(r8)            :: min_ftc_weight,dmin_ftc_weight_dpsi
+    real(r8), pointer   :: psi_min
 
+    psi_min => this%wrf%psi_min
+    
     ! Differentiate
     ! ftc = 1._r8/(1._r8 + (psi/this%p50(ft))**this%avuln(ft))
 
     if(psi>0._r8)then
        dftcdpsi = 0._r8
     else
-       ftc = 1._r8/(1._r8 + (psi/this%p50)**this%avuln)
-       if(ftc<min_ftc) then
-          dftcdpsi = 0._r8
+
+       ftc = this%ftc_from_psi(psi)
+       
+       if ( abs(ftc-min_ftc)<nearzero ) then
+          dftcdpsi = 0._r8   ! We cap ftc, so derivative is zero
        else
+
           fx  = 1._r8 + (psi/this%p50)**this%avuln
           dfx = this%avuln*(psi/this%p50)**(this%avuln-1._r8) * (1._r8/this%p50)
           dftcdpsi = -fx**(-2._r8)*dfx
+          
+          call get_min_ftc_weight(psi_min,psi,min_ftc_weight,dmin_ftc_weight_dpsi)
+
+          ! differentiate: 
+          ! ftc = ftc*(1._r8 - min_ftc_weight) + min_ftc*min_ftc_weight
+          ! ftc = ftc - ftc*min_ftc_weight + min_ftc*min_ftc_weight
+          
+          dftcdpsi = dftcdpsi - &
+               (dftcdpsi*min_ftc_weight + ftc*dmin_ftc_weight_dpsi) + &
+               min_ftc*dmin_ftc_weight_dpsi
+          
        end if
     end if
 

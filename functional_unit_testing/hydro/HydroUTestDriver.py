@@ -58,10 +58,10 @@ ftc_from_psi = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrapftcfrompsi
 ftc_from_psi.restype = c_double
 dftcdpsi_from_psi = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrapdftcdpsi
 dftcdpsi_from_psi.restype = c_double
-
+ftcminwt_from_psi = f90_hydrounitwrap_obj.__hydrounitwrapmod_MOD_wrapftcminweightfrompsi
+ftcminwt_from_psi.restype = c_double
 
 # Some constants
-rwcft  = [1.0,0.958,0.958,0.958]
 rwccap = [1.0,0.947,0.947,0.947]
 pm_leaf = 1
 pm_stem = 2
@@ -260,6 +260,13 @@ def main(argv):
     print('Allocated')
 
 
+    #min_psi = -10.
+    #min_psi_falloff = 1
+    #test_psi = np.linspace(min_psi, 0, num=1000)
+    #weight = y = e^(2*(-10-x)) 
+    
+    
+
     # Define the funcions and their parameters
 #    vg_wrf(1,alpha=1.0,psd=2.7,th_sat=0.55,th_res=0.1)
 #    vg_wkf(1,alpha=1.0,psd=2.7,th_sat=0.55,th_res=0.1,tort=0.5)
@@ -447,9 +454,9 @@ def main(argv):
     sucsat_v = []
     bsw_v    = []
     
-    ntex = 100
+    ntex = 5
     for icl in range(ntex):
-        clay_frac = float(ic)/float(ntex)
+        clay_frac = float(icl)/float(ntex)
         for isa in range(ntex):
             sand_frac =  float(isa)/float(ntex)
             
@@ -486,19 +493,37 @@ def main(argv):
     
     # Now lets test the lowest possible water contents using these 
 
+    #psi_v = -np.linspace(0.01,24,24)
+    psi_v = -np.logspace(-3,1.5,60)
+    fig10,(ax1,ax2,ax3) = plt.subplots(3,1,figsize=(6,9))
+    
+    
     ii=4
-
+    th_v = []
+    ftc_v = []
+    ftc_min_wt_v = []
     for i in ind:
         ii = ii+1
         cch_wrf(ii,th_sat=watsat_v[i], psi_sat=sucsat_v[i], beta=bsw_v[i])
         cch_wkf(ii,th_sat=watsat_v[i], psi_sat=sucsat_v[i], beta=bsw_v[i])
         print('---th sat: {}, psi sat: {}, beat: {}'.format(watsat_v[i],sucsat_v[i],bsw_v[i]))
-        for psi in -np.linspace(1,24,24):
-            th = th_from_psi(ci(ii),c8(psi))
-            print('{}, psi: {}, th: {}'.format(ii,psi,th))
+        for psi in psi_v:
+            th_v.append(th_from_psi(ci(ii),c8(psi)))
+            ftc_v.append(ftc_from_psi(ci(ii),c8(psi)))
+            ftc_min_wt_v.append(ftcminwt_from_psi(ci(ii),c8(psi)))
+                
+        ax1.plot(psi_v,th_v)
+        ax2.plot(psi_v,ftc_v)
+        ax3.plot(psi_v,ftc_min_wt_v)
+        th_v = []
+        ftc_v = []
+        ftc_min_wt_v = []
+        
+    ax2.set_xlabel('Suction MPa')
+    ax1.set_ylabel('Theta')
+    ax2.set_ylabel('FTC')
+    ax3.set_ylabel('FTC Min Weight')
     
-
-
     plt.show()
 
 #    code.interact(local=dict(globals(), **locals()))

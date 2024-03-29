@@ -498,6 +498,15 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end select
 
+       ! The fraction of total conductance functions need to know psi_min
+       ! to handle very very low conductances, therefore we need to construct
+       ! a pointer in conductance structure to the water retention structure
+       
+       do j=1,sites(s)%si_hydr%nlevrhiz
+          sites(s)%si_hydr%wkf_soil(j)%p%wrf => sites(s)%si_hydr%wrf_soil(j)%p
+       end do
+
+       
        ! Update static quantities related to the rhizosphere
        call UpdateSizeDepRhizVolLenCon(sites(s), bc_in(s))
 
@@ -1655,6 +1664,15 @@ subroutine HydrSiteColdStart(sites, bc_in )
         write(fates_log(),*) 'TFS conductance not used in soil'
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end select
+
+     ! The fraction of total conductance functions need to know psi_min
+     ! to handle very very low conductances, therefore we need to construct
+     ! a pointer in conductance structure to the water retention structure
+     
+     do j=1,sites(s)%si_hydr%nlevrhiz
+        sites(s)%si_hydr%wkf_soil(j)%p%wrf => sites(s)%si_hydr%wrf_soil(j)%p
+     end do
+
      
   end do
 
@@ -6315,6 +6333,14 @@ subroutine InitHydroGlobals()
          write(fates_log(),*) 'undefined water conductance type for plants, pm:',pm,'type: ',hydr_htftype_node(pm)
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end select
+
+      ! The fraction of total conductance functions need to know psi_min
+      ! to handle very very low conductances, therefore we need to construct
+      ! a pointer in conductance structure to the water retention structure
+      do ft = 1,numpft
+         wkf_plant(pm,ft)%p%wrf =>  wrf_plant(pm,ft)%p
+      end do
+      
    end do
 
    ! There is only 1 stomata conductance hypothesis which uses the p50 and
@@ -6328,6 +6354,14 @@ subroutine InitHydroGlobals()
             EDPftvarcon_inst%hydr_avuln_gs(ft)])
    end do
 
+   ! The fraction of total conductance functions need to know psi_min
+   ! to handle very very low conductances, therefore we need to construct
+   ! a pointer in conductance structure to the water retention structure
+   do ft = 1,numpft
+      wkf_plant(stomata_p_media,ft)%p%wrf =>  wrf_plant(stomata_p_media,ft)%p
+   end do
+
+   
 
    return
 end subroutine InitHydroGlobals
