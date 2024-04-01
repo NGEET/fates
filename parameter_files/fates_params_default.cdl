@@ -639,6 +639,9 @@ variables:
 	double fates_woody(fates_pft) ;
 		fates_woody:units = "logical flag" ;
 		fates_woody:long_name = "Binary woody lifeform flag" ;
+	double fates_voc_pftindex(fates_pft) ;
+	       fates_voc_pftindex: units = "Integer PFT index"
+	       fates_voc_pftindex: long_name = "integer index for MEGAN PFT definitions" ;
 	double fates_hlm_pft_map(fates_hlm_pftno, fates_pft) ;
 		fates_hlm_pft_map:units = "area fraction" ;
 		fates_hlm_pft_map:long_name = "In fixed biogeog mode, fraction of HLM area associated with each FATES PFT" ;
@@ -1561,6 +1564,8 @@ data:
 
  fates_woody = 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0 ;
 
+ fates_voc_pftindex = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+ 
  fates_hlm_pft_map =
   0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
