@@ -273,6 +273,10 @@ contains
                currentPatch%litter_moisture(dl_sf)       = fuel_moisture(dl_sf)/MEF(dl_sf)
                currentPatch%litter_moisture(lg_sf)       = fuel_moisture(lg_sf)/MEF(lg_sf)
 
+               ! remove trunks from patch%sum_fuel because they should not be included in fire equations
+               ! NOTE: ACF will update this soon to be more clean/bug-proof
+               currentPatch%sum_fuel = currentPatch%sum_fuel - litter%ag_cwd(tr_sf)
+
             else
 
                currentPatch%fuel_sav = sum(SF_val_SAV(1:nfsc))/(nfsc) ! make average sav to avoid crashing code. 
