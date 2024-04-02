@@ -222,7 +222,7 @@ contains
     !----------------------------------------------------------------------------------------------
     
     ! first calculate the fraction of the site that is primary land
-    call site_in%get_current_landuse_statevector(current_fates_landuse_state_vector)
+    current_fates_landuse_state_vector = site_in%get_current_landuse_statevector()
 
     ! check status of transition_landuse_from_off_to_on flag, and do some error checking on it
     if(site_in%transition_landuse_from_off_to_on) then
@@ -3554,7 +3554,7 @@ contains
              write(fates_log(),*) patchpointer%area, patchpointer%nocomp_pft_label, patchpointer%land_use_label
              patchpointer => patchpointer%older
           end do
-          call currentSite%get_current_landuse_statevector(state_vector_internal)
+          state_vector_internal = currentSite%get_current_landuse_statevector()
           write(fates_log(),*) 'current landuse state vector: ', state_vector_internal
           write(fates_log(),*) 'current landuse state vector (not including bare gruond): ', state_vector_internal/(1._r8-currentSite%area_bareground)
           call get_luh_statedata(bc_in, state_vector_driver)

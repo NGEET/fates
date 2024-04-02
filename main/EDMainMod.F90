@@ -414,7 +414,7 @@ contains
     
     !-----------------------------------------------------------------------
 
-    call currentSite%get_current_landuse_statevector(current_fates_landuse_state_vector)
+    current_fates_landuse_state_vector = currentSite%get_current_landuse_statevector()
 
     ! Clear site GPP and AR passing to HLM
     bc_out%gpp_site = 0._r8

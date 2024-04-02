@@ -516,7 +516,7 @@ module EDTypesMod
 
   ! =====================================================================================
 
-  subroutine get_current_landuse_statevector(this, current_state_vector)
+  function get_current_landuse_statevector(this) result(current_state_vector)
 
      !
      ! !DESCRIPTION:
@@ -527,8 +527,8 @@ module EDTypesMod
      ! !USES:
      !
      ! !ARGUMENTS:
-     class(ed_site_type)   :: this
-     real(r8), intent(out) :: current_state_vector(n_landuse_cats)
+     class(ed_site_type) :: this
+     real(r8)            :: current_state_vector(n_landuse_cats)
 
      ! !LOCAL VARIABLES:
      type(fates_patch_type), pointer :: currentPatch
