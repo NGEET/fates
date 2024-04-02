@@ -364,9 +364,9 @@ contains
     real(r8),intent(out):: min_ftc_weight       ! weighting factor for min_ftc
     real(r8),intent(out):: dmin_ftc_weight_dpsi ! derivative of weighting factor wrt psi
 
-    min_ftc_weight = exp(min_ftc_scalar*(psi_min-psi))
-    dmin_ftc_weight_dpsi = -min_ftc_scalar*exp(min_ftc_scalar*(psi_min-psi))
-    
+    min_ftc_weight = exp(min_ftc_scalar*max(psi_min-psi,-10._r8))
+    dmin_ftc_weight_dpsi = -min_ftc_scalar*exp(min_ftc_scalar*max(psi_min-psi,-10._r8))
+
     if(min_ftc_weight>=1.)then
        min_ftc_weight = 1._r8
        dmin_ftc_weight_dpsi = 0._r8
@@ -785,7 +785,7 @@ contains
     !this%psi_min     = this%psi_from_th(min_theta_cch+tiny(this%th_max))
     this%psi_min     = min_psi_cch
     this%th_min      = this%th_from_psi(min_psi_cch+tiny(this%th_max))
-    this%dpsidth_min = this%dpsidth_from_th(this%th_min+tiny(this%th_max))
+    this%dpsidth_min = this%dpsidth_from_th(this%th_min)
     
     return
   end subroutine set_wrf_param_cch
@@ -1885,8 +1885,8 @@ contains
     real(r8), pointer   :: psi_min
 
     psi_min => this%wrf%psi_min
-    psi_eff = min(-nearzero,psi)
-
+    psi_eff = max(psi_min,min(-nearzero,psi))
+    
     ftc = 1._r8/(1._r8 + (psi_eff/this%p50)**this%avuln)
 
     if(ftc<=min_ftc) then
@@ -1894,6 +1894,7 @@ contains
     else
        ! Add protections and ensure no conductance at incredibly
        ! low suction
+
        call get_min_ftc_weight(psi_min,psi_eff,min_ftc_weight,dmin_ftc_weight_dpsi)
           
        ftc = ftc*(1._r8 - min_ftc_weight) + min_ftc*min_ftc_weight
@@ -1915,27 +1916,29 @@ contains
     real(r8)            :: dftcdpsi ! change in frac total cond wrt psi
     real(r8)            :: min_ftc_weight,dmin_ftc_weight_dpsi
     real(r8), pointer   :: psi_min
+    real(r8)            :: psi_eff
 
     psi_min => this%wrf%psi_min
+    psi_eff = max(psi_min,min(-nearzero,psi))
     
     ! Differentiate
     ! ftc = 1._r8/(1._r8 + (psi/this%p50(ft))**this%avuln(ft))
 
-    if(psi>0._r8)then
+    if(psi_eff>0._r8)then
        dftcdpsi = 0._r8
     else
 
-       ftc = this%ftc_from_psi(psi)
+       ftc = this%ftc_from_psi(psi_eff)
        
        if ( abs(ftc-min_ftc)<nearzero ) then
           dftcdpsi = 0._r8   ! We cap ftc, so derivative is zero
        else
 
-          fx  = 1._r8 + (psi/this%p50)**this%avuln
-          dfx = this%avuln*(psi/this%p50)**(this%avuln-1._r8) * (1._r8/this%p50)
+          fx  = 1._r8 + (psi_eff/this%p50)**this%avuln
+          dfx = this%avuln*(psi_eff/this%p50)**(this%avuln-1._r8) * (1._r8/this%p50)
           dftcdpsi = -fx**(-2._r8)*dfx
           
-          call get_min_ftc_weight(psi_min,psi,min_ftc_weight,dmin_ftc_weight_dpsi)
+          call get_min_ftc_weight(psi_min,psi_eff,min_ftc_weight,dmin_ftc_weight_dpsi)
 
           ! differentiate: 
           ! ftc = ftc*(1._r8 - min_ftc_weight) + min_ftc*min_ftc_weight

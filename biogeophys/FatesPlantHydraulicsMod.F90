@@ -1668,7 +1668,7 @@ subroutine HydrSiteColdStart(sites, bc_in )
      ! The fraction of total conductance functions need to know psi_min
      ! to handle very very low conductances, therefore we need to construct
      ! a pointer in conductance structure to the water retention structure
-     
+
      do j=1,sites(s)%si_hydr%nlevrhiz
         sites(s)%si_hydr%wkf_soil(j)%p%wrf => sites(s)%si_hydr%wrf_soil(j)%p
      end do
@@ -3128,7 +3128,7 @@ subroutine OrderLayersForSolve1D(csite_hydr,cohort,cohort_hydr,ordered, kbg_laye
   integer  :: tmp                        ! temporarily holds a soil layer index
   integer  :: ft                         ! functional type index of plant
   integer  :: j,jj,k                     ! layer and shell indices
-
+  real(r8), parameter :: neglibible_cond = 1.e-10_r8
 
   kbg_tot      = 0._r8
   kbg_layer(:) = 0._r8
@@ -3164,7 +3164,9 @@ subroutine OrderLayersForSolve1D(csite_hydr,cohort,cohort_hydr,ordered, kbg_laye
 
         ! Calculate total effective conductance over path  [kg s-1 MPa-1]
         ! from absorbing root node to 1st rhizosphere shell
-        r_bg = 1._r8/(kmax_aroot*ftc_aroot)
+        ! (since this is just about ordering, its ok to create a pseudo resistance
+        !  for nodes with zero conductance..)
+        r_bg = 1._r8/(kmax_aroot*max(ftc_aroot,neglibible_cond))
 
         ! Path is across the upper an lower rhizosphere comparment
         ! on each side of the nodes. Since there is no flow across the outer
@@ -3180,8 +3182,8 @@ subroutine OrderLayersForSolve1D(csite_hydr,cohort,cohort_hydr,ordered, kbg_laye
 
            ftc_shell = csite_hydr%wkf_soil(j)%p%ftc_from_psi(psi_shell)
 
-           r_bg = r_bg + 1._r8/(kmax_up*ftc_shell)
-           if(k<nshell) r_bg = r_bg + 1._r8/(kmax_lo*ftc_shell )
+           r_bg = r_bg + 1._r8/(kmax_up*max(ftc_shell,neglibible_cond) )
+           if(k<nshell) r_bg = r_bg + 1._r8/(kmax_lo*max(ftc_shell,neglibible_cond) )
         end do
 
         !! upper bound limited to size()-1 b/c of zero-flux outer boundary condition
@@ -6248,6 +6250,7 @@ subroutine InitHydroGlobals()
 
    integer :: ft            ! PFT index
    integer :: pm            ! plant media index
+   integer :: node_type     
    integer :: inode         ! compartment node index
    real(r8) :: cap_corr     ! correction for nonzero psi0x (TFS)
    real(r8) :: cap_slp      ! slope of capillary region of curve
@@ -6265,6 +6268,7 @@ subroutine InitHydroGlobals()
    ! -----------------------------------------------------------------------------------
 
    do pm = 1, n_plant_media
+
       select case(hydr_htftype_node(pm))
       case(van_genuchten_type)
          do ft = 1,numpft
@@ -6357,8 +6361,9 @@ subroutine InitHydroGlobals()
    ! The fraction of total conductance functions need to know psi_min
    ! to handle very very low conductances, therefore we need to construct
    ! a pointer in conductance structure to the water retention structure
+   ! (for stomatal conductance, point to the internal leaf retention structure)
    do ft = 1,numpft
-      wkf_plant(stomata_p_media,ft)%p%wrf =>  wrf_plant(stomata_p_media,ft)%p
+      wkf_plant(stomata_p_media,ft)%p%wrf =>  wrf_plant(1,ft)%p
    end do
 
    
