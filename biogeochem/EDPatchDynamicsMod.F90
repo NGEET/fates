@@ -127,7 +127,6 @@ module EDPatchDynamicsMod
   public :: check_patch_area
   public :: set_patchno
   private:: fuse_2_patches
-  public :: get_current_landuse_statevector
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
@@ -223,7 +222,7 @@ contains
     !----------------------------------------------------------------------------------------------
     
     ! first calculate the fraction of the site that is primary land
-    call get_current_landuse_statevector(site_in, current_fates_landuse_state_vector)
+    call site_in%get_current_landuse_statevector(current_fates_landuse_state_vector)
 
     ! check status of transition_landuse_from_off_to_on flag, and do some error checking on it
     if(site_in%transition_landuse_from_off_to_on) then
@@ -3555,7 +3554,7 @@ contains
              write(fates_log(),*) patchpointer%area, patchpointer%nocomp_pft_label, patchpointer%land_use_label
              patchpointer => patchpointer%older
           end do
-          call get_current_landuse_statevector(currentSite, state_vector_internal)
+          call currentSite%get_current_landuse_statevector(state_vector_internal)
           write(fates_log(),*) 'current landuse state vector: ', state_vector_internal
           write(fates_log(),*) 'current landuse state vector (not including bare gruond): ', state_vector_internal/(1._r8-currentSite%area_bareground)
           call get_luh_statedata(bc_in, state_vector_driver)
@@ -3752,40 +3751,6 @@ contains
     enddo
 
    end function countPatches
-
-  ! =====================================================================================
-
-   subroutine get_current_landuse_statevector(site_in, current_state_vector)
-
-     !
-     ! !DESCRIPTION:
-     !  Calculate how much of a site is each land use category.
-     !  this does not include bare ground when nocomp + fixed biogeography is on,
-     !  so will not sum to one in that case. otherwise it will sum to one.
-     !
-     ! !USES:
-     use EDTypesMod , only : ed_site_type
-     !
-     ! !ARGUMENTS:
-     type(ed_site_type) , intent(in), target :: site_in
-     real(r8)           , intent(out)        :: current_state_vector(n_landuse_cats)
-
-     ! !LOCAL VARIABLES:
-     type (fates_patch_type), pointer :: currentPatch
-
-     current_state_vector(:) = 0._r8
-
-     currentPatch => site_in%oldest_patch
-     do while (associated(currentPatch))
-        if (currentPatch%land_use_label .gt. nocomp_bareground_land) then
-           current_state_vector(currentPatch%land_use_label) = &
-                current_state_vector(currentPatch%land_use_label) + &
-                currentPatch%area/AREA
-        end if
-        currentPatch => currentPatch%younger
-     end do
-
-   end subroutine get_current_landuse_statevector
 
   ! =====================================================================================
 

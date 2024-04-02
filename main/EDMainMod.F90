@@ -89,7 +89,6 @@ module EDMainMod
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use EDLoggingMortalityMod    , only : get_harvestable_carbon
   use DamageMainMod            , only : IsItDamageTime
-  use EDPatchDynamicsMod       , only : get_current_landuse_statevector
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
@@ -415,7 +414,7 @@ contains
     
     !-----------------------------------------------------------------------
 
-    call get_current_landuse_statevector(currentSite, current_fates_landuse_state_vector)
+    call currentSite%get_current_landuse_statevector(current_fates_landuse_state_vector)
 
     ! Clear site GPP and AR passing to HLM
     bc_out%gpp_site = 0._r8

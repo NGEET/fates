@@ -438,6 +438,10 @@ module EDTypesMod
      logical, allocatable :: landuse_vector_gt_min(:)     ! is the land use state vector for each land use type greater than the minimum below which we ignore?
      logical :: transition_landuse_from_off_to_on         ! special flag to use only when reading restarts, which triggers procedure to initialize land use
 
+     contains
+
+       public :: get_current_landuse_statevector
+
   end type ed_site_type
 
   ! Make public necessary subroutines and functions
@@ -508,7 +512,41 @@ module EDTypesMod
    write(fates_log(),*) '----------------------------------------'
    return
 
-end subroutine dump_site
+  end subroutine dump_site
+
+  ! =====================================================================================
+
+  subroutine get_current_landuse_statevector(this, current_state_vector)
+
+     !
+     ! !DESCRIPTION:
+     !  Calculate how much of a site is each land use category.
+     !  this does not include bare ground when nocomp + fixed biogeography is on,
+     !  so will not sum to one in that case. otherwise it will sum to one.
+     !
+     ! !USES:
+     !
+     ! !ARGUMENTS:
+     class(ed_site_type)   :: this
+     real(r8), intent(out) :: current_state_vector(n_landuse_cats)
+
+     ! !LOCAL VARIABLES:
+     type(fates_patch_type), pointer :: currentPatch
+
+     current_state_vector(:) = 0._r8
+
+     currentPatch => this%oldest_patch
+     do while (associated(currentPatch))
+        if (currentPatch%land_use_label .gt. nocomp_bareground_land) then
+           current_state_vector(currentPatch%land_use_label) = &
+                current_state_vector(currentPatch%land_use_label) + &
+                currentPatch%area/AREA
+        end if
+        currentPatch => currentPatch%younger
+     end do
+
+   end subroutine get_current_landuse_statevector
+
 
   
 end module EDTypesMod
