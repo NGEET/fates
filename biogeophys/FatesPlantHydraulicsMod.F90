@@ -1737,7 +1737,7 @@ end subroutine HydrSiteColdStart
   if( hlm_use_planthydro.eq.ifalse ) return
 
     csite_hydr => csite%si_hydr
-     csite_hydr%h2oveg = 0.0_r8
+    csite_hydr%h2oveg = 0.0_r8
     currentPatch => csite%oldest_patch
      do while(associated(currentPatch))
         currentCohort=>currentPatch%tallest
@@ -1757,13 +1757,14 @@ end subroutine HydrSiteColdStart
         currentPatch => currentPatch%younger
      enddo !end patch loop
 
+     ! convert from kg/site to kg/m2
      csite_hydr%h2oveg              = csite_hydr%h2oveg*AREA_INV
 
      ! Note that h2oveg_dead is incremented wherever we have litter fluxes
      ! and it will be reduced via an evaporation term
-    ! growturn_err is a term to accomodate error in growth or
-    ! turnover. need to be improved for future(CX)
-    bc_out%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead - &
+     ! growturn_err is a term to accomodate error in growth or
+     ! turnover. need to be improved for future(CX)
+     bc_out%plant_stored_h2o_si = csite_hydr%h2oveg + csite_hydr%h2oveg_dead - &
           csite_hydr%h2oveg_growturn_err - &
           csite_hydr%h2oveg_hydro_err
 
@@ -2816,13 +2817,21 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
      delta_soil_storage  = sum(csite_hydr%h2osoi_liqvol_shell(:,:) * &
           csite_hydr%v_shell(:,:)) * denh2o * AREA_INV - prev_h2osoil
 
-     if(abs(delta_plant_storage - (root_flux - transp_flux)) > error_thresh ) then
+     ! This is to check closure and include the known error
+     ! The error is essentially the overestimate transpiration
+     ! versus change in state (q_top_eff*dt_substep) - (w_tot_beg-w_tot_end)
+     ! That is why we remove the error from the transpiration in this check
+     if(abs(delta_plant_storage - (root_flux + csite_hydr%errh2o_hyd - transp_flux)) > error_thresh ) then
         write(fates_log(),*) 'Site plant water balance does not close'
+        write(fates_log(),*) 'Allowable, actual error (kg/m2): ',error_thresh, &
+             abs(delta_plant_storage - (root_flux + csite_hydr%dwat_veg - transp_flux))
         write(fates_log(),*) 'delta plant storage: ',delta_plant_storage,' [kg/m2]'
         write(fates_log(),*) 'integrated root flux: ',root_flux,' [kg/m2]'
         write(fates_log(),*) 'transpiration flux: ',transp_flux,' [kg/m2]'
         write(fates_log(),*) 'end storage: ',csite_hydr%h2oveg
         write(fates_log(),*) 'pre_h2oveg', prev_h2oveg
+        write(fates_log(),*) 'csite_hydr%errh2o_hyd:',csite_hydr%errh2o_hyd
+        write(fates_log(),*) 'csite_hydr%dwat_veg:',csite_hydr%dwat_veg
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
@@ -3225,7 +3234,7 @@ end subroutine OrderLayersForSolve1D
 
 subroutine ImTaylorSolve1D(slat, slon,recruitflag,csite_hydr,cohort,cohort_hydr,dtime,q_top, &
      ordered,kbg_layer, sapflow,rootuptake,&
-     wb_err_plant,dwat_plant,dth_layershell_col)
+     wb_err_ps,dwat_plant,dth_layershell_col)
 
   ! -------------------------------------------------------------------------------
   ! Calculate the hydraulic conductances across a list of paths.  The list is a 1D vector, and
@@ -3258,8 +3267,8 @@ subroutine ImTaylorSolve1D(slat, slon,recruitflag,csite_hydr,cohort,cohort_hydr,
 
   real(r8),intent(out) :: sapflow                   ! time integrated mass flux between transp-root and stem [kg]
   real(r8),intent(out) :: rootuptake(:)             ! time integrated mass flux between rhizosphere and aroot [kg]
-  real(r8),intent(out) :: wb_err_plant              ! total error from the plant, transpiration
-  ! should match change in storage [kg]
+  real(r8),intent(out) :: wb_err_ps                 ! total error from the plant-soil system, transpiration
+                                                    ! should match change in storage [kg]
   real(r8),intent(out) :: dwat_plant                ! Change in plant stored water [kg]
   real(r8),intent(inout) :: dth_layershell_col(:,:) ! accumulated water content change over all cohorts in a column   [m3 m-3])
 
@@ -3348,8 +3357,8 @@ subroutine ImTaylorSolve1D(slat, slon,recruitflag,csite_hydr,cohort,cohort_hydr,
   cohort_hydr%iterh1 = 0
   cohort_hydr%iterh2 = 0
 
-  ! Initialize plant water error (integrated flux-storage)
-  wb_err_plant = 0._r8
+  ! Initialize plant-soil water error (integrated flux-storage)
+  wb_err_ps = 0._r8
 
   ! Initialize integrated change in total plant water
   dwat_plant = 0._r8
@@ -3910,7 +3919,7 @@ subroutine ImTaylorSolve1D(slat, slon,recruitflag,csite_hydr,cohort,cohort_hydr,
           dth_node(n_hypool_ag+2)*cohort_hydr%v_aroot_layer(ilayer))*denh2o
 
      ! Remember the error for the cohort
-     wb_err_plant = wb_err_plant + wb_err_layer
+     wb_err_ps = wb_err_ps + wb_err_layer
 
      ! Save the change in water mass in the rhizosphere. Note that we did
      ! not immediately update the state variables upon completing each

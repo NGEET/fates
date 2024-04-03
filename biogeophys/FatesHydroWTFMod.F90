@@ -51,7 +51,7 @@
 
 
   !real(r8), parameter :: min_theta_cch = 0.05_r8 ! Minimum theta (matches ctsm)
-  real(r8), parameter :: min_psi_cch = -20.0_r8 ! Minimum theta (matches ctsm)
+  real(r8), parameter :: min_psi_cch = -15.0_r8 ! Minimum theta (matches ctsm)
   
   ! Generic class that can be extended to describe
   ! specific water retention functions
@@ -88,7 +88,7 @@
      procedure, non_overridable :: psi_linear_res
      procedure, non_overridable :: th_linear_sat
      procedure, non_overridable :: th_linear_res
-     procedure, non_overridable :: set_min_max
+     procedure, non_overridable :: set_min_max_from_satres
      procedure, non_overridable :: get_thmin
 
   end type wrf_type
@@ -267,23 +267,25 @@ contains
   ! of numerical integration.
   ! ============================================================================
 
-  subroutine set_min_max(this,th_res,th_sat)
+  subroutine set_min_max_from_satres(this,th_res,th_sat)
 
       ! This routine uses max_sf_interp and min_sft_interp
       ! to define the bounds of where the linear ranges start and stop
-
+      ! This only works for functions defined by a saturation and
+      ! a residual value
+    
       class(wrf_type)   :: this
       real(r8),intent(in) :: th_res
       real(r8),intent(in) :: th_sat
 
       this%th_max      = max_sf_interp*(th_sat-th_res)+th_res
       this%th_min      = min_sf_interp*(th_sat-th_res)+th_res
-      this%psi_max     = this%psi_from_th(this%th_max-tiny(this%th_max))
-      this%dpsidth_max = this%dpsidth_from_th(this%th_max-tiny(this%th_max))
-      this%psi_min     = this%psi_from_th(this%th_min+tiny(this%th_min))
-      this%dpsidth_min = this%dpsidth_from_th(this%th_min+tiny(this%th_min))
+      this%psi_max     = this%psi_from_th(this%th_max)
+      this%dpsidth_max = this%dpsidth_from_th(this%th_max)
+      this%psi_min     = this%psi_from_th(this%th_min)
+      this%dpsidth_min = this%dpsidth_from_th(this%th_min)
 
-  end subroutine set_min_max
+    end subroutine set_min_max_from_satres
 
   ! ============================================================================
 
@@ -364,6 +366,8 @@ contains
     real(r8),intent(out):: min_ftc_weight       ! weighting factor for min_ftc
     real(r8),intent(out):: dmin_ftc_weight_dpsi ! derivative of weighting factor wrt psi
 
+    ! If the difference between psi and psi-min is greater than 10MPa
+    ! just assume there is no effect of the minimum function (ie weight 0)
     min_ftc_weight = exp(min_ftc_scalar*max(psi_min-psi,-10._r8))
     dmin_ftc_weight_dpsi = -min_ftc_scalar*exp(min_ftc_scalar*max(psi_min-psi,-10._r8))
 
@@ -471,7 +475,7 @@ contains
     this%th_sat = params_in(4)
     this%th_res = params_in(5)
 
-    call this%set_min_max(this%th_res,this%th_sat)
+    call this%set_min_max_from_satres(this%th_res,this%th_sat)
 
     return
   end subroutine set_wrf_param_vg
@@ -778,13 +782,15 @@ contains
     ! Set DERIVED constants
     ! used for interpolating in extreme ranges
     this%th_max      = max_sf_interp*this%th_sat
-    this%psi_max     = this%psi_from_th(this%th_max-tiny(this%th_max))
-    this%dpsidth_max = this%dpsidth_from_th(this%th_max-tiny(this%th_max))
-
-    !this%th_min      = min_theta_cch
-    !this%psi_min     = this%psi_from_th(min_theta_cch+tiny(this%th_max))
     this%psi_min     = min_psi_cch
-    this%th_min      = this%th_from_psi(min_psi_cch+tiny(this%th_max))
+    ! Need a temporary th_min(this can't be uninitialized while calculating psi_max)
+    this%th_min      = 0.001_r8
+    
+    this%psi_max     = this%psi_from_th(this%th_max)
+    this%dpsidth_max = this%dpsidth_from_th(this%th_max)
+
+    ! Get the actual th_min which is equivalent to psi_min
+    this%th_min      = this%th_from_psi(min_psi_cch)
     this%dpsidth_min = this%dpsidth_from_th(this%th_min)
     
     return
@@ -826,7 +832,7 @@ contains
         th = this%th_max + (psi-this%psi_max)/this%dpsidth_max
      else
         if(psi<this%psi_min) then
-           th = this%th_min
+           th = this%th_sat*(this%psi_min/this%psi_sat)**(-1.0_r8/this%beta)
         else
            th = this%th_sat*(psi/this%psi_sat)**(-1.0_r8/this%beta)
         end if
@@ -846,7 +852,7 @@ contains
         psi = this%psi_max + this%dpsidth_max*(th-max_sf_interp*this%th_sat)
      else
         if(th<this%th_min) then
-           psi = this%psi_min
+           psi = this%psi_sat*(this%th_min/this%th_sat)**(-this%beta)
         else
            psi = this%psi_sat*(th/this%th_sat)**(-this%beta)
         end if
@@ -867,7 +873,9 @@ contains
        dpsidth = this%dpsidth_max
     else
        if(th<this%th_min) then
-          dpsidth = this%dpsidth_min
+          ! We shouldn't really actually encounter this
+          ! scenario because we cap th at th_min, but have this here for edge cases
+          dpsidth = -this%beta*this%psi_sat/this%th_sat * (this%th_min/this%th_sat)**(-this%beta-1._r8)
        else
           dpsidth = -this%beta*this%psi_sat/this%th_sat * (th/this%th_sat)**(-this%beta-1._r8)
        end if
@@ -895,12 +903,11 @@ contains
     !     = ((psi/psi_sat)^(-1/b))^(2*b+3)
     !     = (psi/psi_sat)^(-2-3/b)
 
-
     psi_eff = min(psi,this%psi_sat)
 
     ftc = (psi_eff/this%psi_sat)**(-2._r8-3._r8/this%beta)
 
-    if(ftc<=min_ftc) then
+    if(ftc <= min_ftc) then
        ftc = min_ftc
     else
        call get_min_ftc_weight(psi_min,psi,min_ftc_weight,dmin_ftc_weight_dpsi)
@@ -1640,7 +1647,7 @@ contains
     this%cap_slp  = params_in(8)
     this%pmedia   = int(params_in(9))
 
-    call this%set_min_max(this%th_res,this%th_sat)
+    call this%set_min_max_from_satres(this%th_res,this%th_sat)
 
     return
   end subroutine set_wrf_param_tfs
