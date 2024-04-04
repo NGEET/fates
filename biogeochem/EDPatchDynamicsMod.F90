@@ -774,24 +774,7 @@ contains
                                call endrun(msg=errMsg(sourcefile, __LINE__))
                             end select
 
-
-                            ! Copy any means or timers from the original patch to the new patch
-                            ! These values will inherit all info from the original patch
-                            ! --------------------------------------------------------------------------
-                            call newPatch%tveg24%CopyFromDonor(currentPatch%tveg24)
-                            call newPatch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
-                            call newPatch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
-
-
-                            if ( regeneration_model == TRS_regeneration ) then
-                               call newPatch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24)
-                               call newPatch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par)
-                               call newPatch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par)
-                               do pft = 1,numpft
-                                  call newPatch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
-                                  call newPatch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
-                               enddo
-                            end if
+                            call CopyPatchMeansTimers(newPatch, currentPatch)
 
                             call newPatch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
 
@@ -1410,22 +1393,8 @@ contains
                 buffer_patch%tallest  => null()
                 buffer_patch%shortest => null()
 
-                ! Copy any means or timers from the original patch to the new patch
-                ! These values will inherit all info from the original patch
-                ! --------------------------------------------------------------------------
-                call buffer_patch%tveg24%CopyFromDonor(copyPatch%tveg24)
-                call buffer_patch%tveg_lpa%CopyFromDonor(copyPatch%tveg_lpa)
-                call buffer_patch%tveg_longterm%CopyFromDonor(copyPatch%tveg_longterm)
+                call CopyPatchMeansTimers()
 
-                if ( regeneration_model == TRS_regeneration ) then
-                   call buffer_patch%seedling_layer_par24%CopyFromDonor(copyPatch%seedling_layer_par24)
-                   call buffer_patch%sdlng_mort_par%CopyFromDonor(copyPatch%sdlng_mort_par)
-                   call buffer_patch%sdlng2sap_par%CopyFromDonor(copyPatch%sdlng2sap_par)
-                   do pft = 1,numpft
-                      call buffer_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(copyPatch%sdlng_emerg_smp(pft)%p)
-                      call buffer_patch%sdlng_mdd(pft)%p%CopyFromDonor(copyPatch%sdlng_mdd(pft)%p)
-                   enddo
-                end if
                 buffer_patch_used = .false.
 
                 currentPatch => currentSite%oldest_patch
@@ -1669,23 +1638,8 @@ contains
     new_patch%tallest  => null()
     new_patch%shortest => null()
 
-    ! Copy any means or timers from the original patch to the new patch
-    ! These values will inherit all info from the original patch
-    ! --------------------------------------------------------------------------
-    call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
-    call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
-    call new_patch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
+    call CopyPatchMeansTimers(new_patch, currentPatch)
 
-    if ( regeneration_model == TRS_regeneration ) then
-       call new_patch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24)
-       call new_patch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par)
-       call new_patch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par)
-       do pft = 1,numpft
-          call new_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
-          call new_patch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
-       enddo
-    end if
-                            
     currentPatch%burnt_frac_litter(:) = 0._r8
     call TransLitterNewPatch( currentSite, currentPatch, new_patch, currentPatch%area * (1.-fraction_to_keep))
 
@@ -3952,5 +3906,28 @@ contains
     end if
 
  end subroutine InsertPatch
+
+  ! =====================================================================================
+
+ subroutine CopyPatchMeansTimers(bufferPatch, currentPatch)
+
+   type(fates_patch_type), intent(inout) :: bufferPatch, currentPatch
+
+   ! Copy any means or timers from the original patch to the new patch
+   ! These values will inherit all info from the original patch
+   ! --------------------------------------------------------------------------
+   call bufferPatch%tveg24%CopyFromDonor(currentPatch%tveg24)
+   call bufferPatch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
+   call bufferPatch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
+
+   if ( regeneration_model == TRS_regeneration ) then
+      call bufferPatch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24)
+      call bufferPatch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par)
+      call bufferPatch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par)
+      do pft = 1,numpft
+         call bufferPatch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
+         call bufferPatch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
+      enddo
+   end if
 
  end module EDPatchDynamicsMod
