@@ -3932,15 +3932,5 @@ contains
        enddo
     end if
 
-  ! =====================================================================================
-
- subroutine newsub(dp, rp)
-
-    ! !DESCRIPTION:
-    !
-    ! !ARGUMENTS:
-    type (fates_patch_type) , pointer :: dp                ! Donor Patch
-    type (fates_patch_type) , target, intent(inout) :: rp  ! Recipient Patch
-
 
  end module EDPatchDynamicsMod
