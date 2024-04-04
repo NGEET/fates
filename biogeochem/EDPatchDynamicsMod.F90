@@ -744,8 +744,6 @@ contains
 
                             call CopyPatchMeansTimers(newPatch, currentPatch)
 
-                            call newPatch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
-
                             call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis)
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
