@@ -567,16 +567,16 @@ contains
              ! for nocomp cases, track bare ground area as a separate quantity
              do i_landusetype = 1, n_landuse_cats
                 sumarea = sum(sites(s)%area_pft(1:numpft,i_landusetype))
-                do ft =  1,numpft
-                   if(sumarea.gt.nearzero)then
+                if(sumarea.gt.nearzero)then
+                   do ft =  1,numpft
                       sites(s)%area_pft(ft, i_landusetype) = sites(s)%area_pft(ft, i_landusetype)/sumarea
-                   else
-                      ! if no PFT area in primary lands, set bare ground fraction to one.
-                      if ( i_landusetype .eq. primaryland) then
-                         sites(s)%area_bareground = 1._r8
-                      endif
-                   end if
-                end do !ft
+                   end do !ft
+                else
+                   ! if no PFT area in primary lands, set bare ground fraction to one.
+                   if ( i_landusetype .eq. primaryland) then
+                      sites(s)%area_bareground = 1._r8
+                   endif
+                end if
              end do
                 
           end if !fixed biogeog
