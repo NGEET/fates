@@ -698,8 +698,6 @@ contains
 
     else
 
-       ! state_vector(:) = 0._r8
-
        if(hlm_use_nocomp.eq.itrue)then
           num_nocomp_pfts = numpft
        else !default
@@ -766,7 +764,7 @@ contains
                      hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
                      regeneration_model)
 
-                ! set poointers for first patch (or only patch, if nocomp is false)
+                ! set pointers for first patch (or only patch, if nocomp is false)
                 newp%patchno = 1
                 newp%younger => null()
                 newp%older   => null()
@@ -796,7 +794,7 @@ contains
              end_landuse_idx = 1
           endif
 
-          not_all_baregground_if: if ((1._r8 - sites(s)%area_bareground) .gt. nearzero) then
+          not_all_bareground_if: if ((1._r8 - sites(s)%area_bareground) .gt. nearzero) then
              ! now make one or more vegetated patches based on nocomp and land use logic
              luh_state_loop: do i_lu_state = 1, end_landuse_idx
                 lu_state_present_if: if (state_vector(i_lu_state) .gt. nearzero) then
@@ -876,7 +874,7 @@ contains
                    end do new_patch_nocomp_loop
                 end if lu_state_present_if
              end do luh_state_loop
-          end if not_all_baregground_if
+          end if not_all_bareground_if
 
           ! if we had to skip small patches above, resize things accordingly
           if ( area_error .gt. nearzero) then
