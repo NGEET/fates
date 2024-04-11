@@ -304,7 +304,6 @@ contains
 
           ! check to ensure total area == 1, and correct if not
           if ( abs(sum(state_vector(:)) - 1._r8) .gt. nearzero ) then
-             !write(fates_log(),*) 'warning: sum(state_vector) = ', sum(state_vector(:))
              state_vector(:) = state_vector(:) / sum(state_vector(:))
           end if
        else
@@ -381,8 +380,8 @@ contains
 
   subroutine get_init_landuse_transition_rates(bc_in, min_allowed_landuse_fraction, landuse_transition_matrix, landuse_vector_gt_min)
     
-    ! The purose of this subroutine is, only under the case where we are transitioning from a spinup run that did not have land use                                                 
-    ! to a run that does, to apply the land-use changes needed to get to the state vector in a single daily instance. this is for
+    ! The purpose of this subroutine is, only under the case where we are transitioning from a spinup run that did not have land use
+    ! to a run that does, to apply the land-use changes needed to get to the state vector in a single daily instance. This is for
     ! the transitions other than harvest, i.e. from primary lands to all other categories aside from secondary lands. 
 
     ! !ARGUMENTS:

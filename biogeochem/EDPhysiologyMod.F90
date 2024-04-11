@@ -2493,7 +2493,7 @@ contains
       real(r8)                          :: seedling_layer_smp ! soil matric potential at seedling rooting depth [mm H2O suction]
       integer, parameter                :: recruitstatus = 1  ! whether the newly created cohorts are recruited or initialized
       integer                           :: ilayer_seedling_root ! the soil layer at seedling rooting depth
-      logical                           :: use_this_pft       ! logcla flag for whetehr o rnot to allow a given PFT to recruit
+      logical                           :: use_this_pft         ! logical flag for whether or not to allow a given PFT to recruit
       !---------------------------------------------------------------------------
 
       do ft = 1, numpft

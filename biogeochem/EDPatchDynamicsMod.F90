@@ -3549,7 +3549,7 @@ contains
           call dump_site(currentSite)
 
           write(fates_log(),*) 'currentSite%area_bareground', currentSite%area_bareground
-          write(fates_log(),*) 'currentSite%%area_pft(:,:)', currentSite%area_pft(:,:)
+          write(fates_log(),*) 'currentSite%area_pft(:,:)', currentSite%area_pft(:,:)
           patchpointer => currentSite%youngest_patch
           do while(associated(patchpointer))
              write(fates_log(),*) patchpointer%area, patchpointer%nocomp_pft_label, patchpointer%land_use_label

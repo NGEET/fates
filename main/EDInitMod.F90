@@ -470,7 +470,7 @@ contains
                 ! where pft_areafrac_lu is the area of land in each HLM PFT and land use type (from surface dataset)
                 ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
 
-                ! first check for NaNs in bc_in(s)%pft_areafrac_lu. if so, make everything bare ground.
+                ! First check for NaNs in bc_in(s)%pft_areafrac_lu. If so, make everything bare ground.
                 if ( .not. (any( isnan( bc_in(s)%pft_areafrac_lu (:,:) )) .or. isnan( bc_in(s)%baregroundfrac))) then
                    do i_landusetype = 1, n_landuse_cats
                       if (.not. is_crop(i_landusetype)) then
@@ -558,7 +558,7 @@ contains
                       sites(s)%area_pft(:, i_landusetype) = temp_vec(:)
 
                       ! write adjusted vector to log file
-                      if(debug) write(fates_log(),*)  'new PFT vector for LU type', i_landusetype, i_landusetype,sites(s)%area_pft(:, i_landusetype)
+                      if(debug) write(fates_log(),*)  'new PFT vector for LU type', i_landusetype, sites(s)%area_pft(:, i_landusetype)
                    endif
                 end do
              end if
