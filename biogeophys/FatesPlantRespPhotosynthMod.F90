@@ -1313,6 +1313,9 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! empirical curvature parameter for ap photosynthesis co-limitation
   real(r8),parameter :: theta_ip = 0.999_r8
 
+  ! minimum Leaf area to solve, too little has shown instability
+  real(r8), parameter :: min_la_to_solve = 0.0000000001_r8
+  
   associate( bb_slope  => EDPftvarcon_inst%bb_slope      ,& ! slope of BB relationship, unitless
        medlyn_slope=> EDPftvarcon_inst%medlyn_slope          , & ! Slope for Medlyn stomatal conductance model method, the unit is KPa^0.5
        stomatal_intercept=> EDPftvarcon_inst%stomatal_intercept )  !Unstressed minimum stomatal conductance, the unit is umol/m**2/s
@@ -1360,7 +1363,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
            ! absorbed per unit leaf area.
 
            if(sunsha == 1)then !sunlit
-              if(( laisun_lsl * canopy_area_lsl) > 0.0000000001_r8)then
+              if(( laisun_lsl * canopy_area_lsl) > min_la_to_solve)then
 
                  qabs = parsun_lsl / (laisun_lsl * canopy_area_lsl )
                  qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
@@ -1370,9 +1373,16 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               end if
            else
 
-              qabs = parsha_lsl / (laisha_lsl * canopy_area_lsl)
-              qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
+              if( (parsha_lsl>nearzero) .and. (laisha_lsl * canopy_area_lsl) > min_la_to_solve  ) then
 
+                 qabs = parsha_lsl / (laisha_lsl * canopy_area_lsl)
+                 qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
+              else                 
+                 ! The radiative transfer schemes are imperfect
+                 ! they can sometimes generate negative values here
+                 qabs = 0._r8
+              end if
+              
            end if
 
            !convert the absorbed par into absorbed par per m2 of leaf,

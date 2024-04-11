@@ -663,9 +663,6 @@ contains
 
     cohort_hydr%btran = wkf_plant(stomata_p_media,ft)%p%ftc_from_psi(cohort_hydr%psi_ag(1))
 
-
-    !flc_gs_from_psi(cohort_hydr%psi_ag(1),cohort%pft)
-
     ! We do allow for positive pressures.
     ! But starting off with positive pressures is something we try to avoid
     if ( (cohort_hydr%psi_troot>0.0_r8) .or. &
@@ -711,6 +708,8 @@ contains
        ccohort_hydr%ftc_ag(k) = wkf_plant(leaf_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(k))
     end do
 
+    ccohort_hydr%btran = wkf_plant(stomata_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(1))
+    
     do k = n_hypool_leaf+1, n_hypool_ag
        ccohort_hydr%psi_ag(k) = wrf_plant(stem_p_media,ft)%p%psi_from_th(ccohort_hydr%th_ag(k))
        ccohort_hydr%ftc_ag(k) = wkf_plant(stem_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(k))
@@ -2458,8 +2457,15 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 
      csite_hydr => sites(s)%si_hydr
 
+     bc_out(s)%qflx_soil2root_sisl(:) = 0._r8
+     csite_hydr%sapflow_scpf(:,:)       = 0._r8
+     csite_hydr%rootuptake_sl(:)        = 0._r8
+     csite_hydr%rootuptake0_scpf(:,:)   = 0._r8
+     csite_hydr%rootuptake10_scpf(:,:)  = 0._r8
+     csite_hydr%rootuptake50_scpf(:,:)  = 0._r8
+     csite_hydr%rootuptake100_scpf(:,:) = 0._r8
+     
      if( sum(csite_hydr%l_aroot_layer) == 0._r8 ) then
-        bc_out(s)%qflx_soil2root_sisl(:) = 0._r8
         cycle
      end if
 
@@ -2479,14 +2485,6 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 
      bc_out(s)%qflx_ro_sisl(:) = 0._r8
 
-     ! Zero out diagnotsics that rely on accumulation
-     csite_hydr%sapflow_scpf(:,:)       = 0._r8
-     csite_hydr%rootuptake_sl(:)        = 0._r8
-     csite_hydr%rootuptake0_scpf(:,:)   = 0._r8
-     csite_hydr%rootuptake10_scpf(:,:)  = 0._r8
-     csite_hydr%rootuptake50_scpf(:,:)  = 0._r8
-     csite_hydr%rootuptake100_scpf(:,:) = 0._r8
-
      ! Initialize water mass balancing terms [kg h2o / m2]
      ! --------------------------------------------------------------------------------
      transp_flux          = 0._r8
@@ -2501,6 +2499,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
      ifp = 0
      cpatch => sites(s)%oldest_patch
      do while (associated(cpatch))
+
         if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
            ifp = ifp + 1
 
@@ -2532,7 +2531,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
            end if
 
            ccohort=>cpatch%tallest
-           do while(associated(ccohort))
+           co_loop1: do while(associated(ccohort))
 
               ccohort_hydr => ccohort%co_hydr
               ft       = ccohort%pft
@@ -2670,9 +2669,8 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 
               ccohort_hydr%btran = wkf_plant(stomata_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(1))
 
-
               ccohort => ccohort%shorter
-           enddo !cohort
+           enddo co_loop1 !cohort
         endif ! not bareground patch
         cpatch => cpatch%younger
      enddo !patch
@@ -2763,9 +2761,9 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
            sumweight = 0._r8
            do j_bc = j_t,j_b
               if(rootflux_disagg == soilk_disagg)then
-                 ! Weight disaggregation by K*dz, but only for flux
-                 ! into the root, othersize weight by depth
-                 if(qflx_soil2root_rhiz>0._r8)then
+                 if(qflx_soil2root_rhiz>0._r8 )then
+                    ! Weight disaggregation by K*dz, but only for flux
+                    ! into the root, othersize weight by depth
                     ! h2osoi_liqvol: [kg/m2] / [m] / [kg/m3] = [m3/m3]
                     eff_por       = bc_in(s)%eff_porosity_sl(j_bc)
                     h2osoi_liqvol = min(eff_por, bc_in(s)%h2o_liq_sisl(j_bc)/(bc_in(s)%dz_sisl(j_bc)*denh2o))
@@ -2786,6 +2784,20 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
            end do
 
            ! Second pass, apply normalized weighting factors for fluxes
+
+           ! Note: It is possible that the soil is so dry there is no conductance
+           !       In these cases, solver error may create some non-zero, yet
+           !       trivially small fluxes. The conductances are exactly zero
+           !       so we need to renormalize the weighting function
+           if(sumweight < nearzero)then
+              sumweight = 0._r8
+              do j_bc = j_t,j_b
+                 weight_sl(j_bc) = csite_hydr%rootl_sl(j_bc)*bc_in(s)%h2o_liq_sisl(j_bc)
+                 sumweight     = sumweight + weight_sl(j_bc)
+              end do
+           end if
+           
+           
            do j_bc = j_t,j_b
               
               ! Fill the output array to the HLM

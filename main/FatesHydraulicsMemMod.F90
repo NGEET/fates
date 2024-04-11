@@ -3,10 +3,12 @@ module FatesHydraulicsMemMod
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : fates_unset_r8
    use FatesGlobals,       only : fates_log
+   use FatesGlobals, only      : endrun => fates_endrun
    use shr_infnan_mod,    only : nan => shr_infnan_nan, assignment(=)
    use FatesConstantsMod, only : itrue,ifalse
    use FatesHydroWTFMod,  only : wrf_arr_type
    use FatesHydroWTFMod,  only : wkf_arr_type
+   use shr_log_mod , only      : errMsg => shr_log_errMsg
    
    implicit none
    private
@@ -319,7 +321,11 @@ module FatesHydraulicsMemMod
      procedure :: Dump
      
   end type ed_cohort_hydr_type
-   
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+
+  
  contains
 
     subroutine CopyCohortHydraulics(ncohort_hydr, ocohort_hydr)
@@ -372,8 +378,7 @@ module FatesHydraulicsMemMod
       ncohort_hydr%iterh2                = ocohort_hydr%iterh2
       ncohort_hydr%iterlayer             = ocohort_hydr%iterlayer
       ncohort_hydr%errh2o                = ocohort_hydr%errh2o
-
-
+      
       ! BC PLANT HYDRAULICS - flux terms
       ncohort_hydr%qtop                  = ocohort_hydr%qtop
 
