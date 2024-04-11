@@ -566,7 +566,7 @@ contains
              ! re-normalize PFT area to ensure it sums to one for each (active) land use type
              ! for nocomp cases, track bare ground area as a separate quantity
              do i_landusetype = 1, n_landuse_cats
-                sumarea = sum(sites(s)%area_pft(1:numpft,i_landusetype))
+                sumarea = sum(sites(s)%area_pft(:,i_landusetype))
                 if(sumarea.gt.nearzero)then
                       sites(s)%area_pft(:, i_landusetype) = sites(s)%area_pft(:, i_landusetype)/sumarea
                 else
