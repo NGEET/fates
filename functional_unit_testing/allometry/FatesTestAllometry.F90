@@ -2,6 +2,7 @@ program FatesTestAllometry
 
   !use FatesAllometryMod,           only : h2d_allom
   !use PRTParametersMod,            only : prt_params
+  use funit
   use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
 
   implicit none
