@@ -4,7 +4,6 @@ module test_EdgeForest
   !  Test the FATES edge forest code
   !
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesConstantsMod, only : num_edge_forest_bins
   use FatesEdgeForestMod, only : indexx
   use FatesEdgeForestMod, only : get_fraction_of_forest_in_each_bin
   use FatesEdgeForestMod, only : gffeb_lognorm_numerator, gffeb_lognorm_denominator
@@ -27,6 +26,7 @@ module test_EdgeForest
 
   integer, parameter :: n_to_sort = 5
 
+  integer, parameter :: num_edge_forest_bins = 5
   real(r8), parameter, dimension(num_edge_forest_bins) :: efb_amplitudes = (/ 334.20118864369647, 7.453608488098321, 2.8450130607077506, 1.601064269911203, 0.9227139932095219 /)
   real(r8), parameter, dimension(num_edge_forest_bins-1) :: efb_sigmas = (/ 1.185102216622059, 0.6230347414031212, 0.7500050901443256, 0.8465094354405984 /)
   real(r8), parameter, dimension(num_edge_forest_bins-1) :: efb_centers = (/ 5.4114116418770735, 2.7788419192134937, 2.3020137304843664, 1.973996133523811 /)
@@ -143,7 +143,7 @@ module test_EdgeForest
          0, &
          1 /)
 
-      call get_fraction_of_forest_in_each_bin(pct_nonforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+      call get_fraction_of_forest_in_each_bin(pct_nonforest, num_edge_forest_bins, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
 
       @assertEqual(expected, fraction_forest_in_each_bin, tolerance=tol)
 
@@ -159,7 +159,7 @@ module test_EdgeForest
 
       pct_nonforest = 10._r8
 
-      call get_fraction_of_forest_in_each_bin(pct_nonforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+      call get_fraction_of_forest_in_each_bin(pct_nonforest, num_edge_forest_bins, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
 
       @assertEqual(expected_90pctForest(1)/sum(expected_90pctForest), fraction_forest_in_each_bin(1), tolerance=tol)
 
@@ -175,7 +175,7 @@ module test_EdgeForest
 
       pct_nonforest = 10._r8
 
-      call get_fraction_of_forest_in_each_bin(pct_nonforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+      call get_fraction_of_forest_in_each_bin(pct_nonforest, num_edge_forest_bins, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
 
       @assertEqual(expected_90pctForest(2)/sum(expected_90pctForest), fraction_forest_in_each_bin(2), tolerance=tol)
 
@@ -191,7 +191,7 @@ module test_EdgeForest
 
       pct_nonforest = 10._r8
 
-      call get_fraction_of_forest_in_each_bin(pct_nonforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+      call get_fraction_of_forest_in_each_bin(pct_nonforest, num_edge_forest_bins, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
 
       @assertEqual(expected_90pctForest(3)/sum(expected_90pctForest), fraction_forest_in_each_bin(3), tolerance=tol)
 
@@ -207,7 +207,7 @@ module test_EdgeForest
 
       pct_nonforest = 10._r8
 
-      call get_fraction_of_forest_in_each_bin(pct_nonforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+      call get_fraction_of_forest_in_each_bin(pct_nonforest, num_edge_forest_bins, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
 
       @assertEqual(expected_90pctForest(4)/sum(expected_90pctForest), fraction_forest_in_each_bin(4), tolerance=tol)
 
@@ -223,7 +223,7 @@ module test_EdgeForest
 
       pct_nonforest = 10._r8
 
-      call get_fraction_of_forest_in_each_bin(pct_nonforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin, norm=.false.)
+      call get_fraction_of_forest_in_each_bin(pct_nonforest, num_edge_forest_bins, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin, norm=.false.)
 
       @assertEqual(expected_90pctForest(4), fraction_forest_in_each_bin(4), tolerance=tol)
 
@@ -240,7 +240,7 @@ module test_EdgeForest
 
       pct_nonforest = 10._r8
 
-      call get_fraction_of_forest_in_each_bin(pct_nonforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+      call get_fraction_of_forest_in_each_bin(pct_nonforest, num_edge_forest_bins, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
 
       @assertEqual(expected_90pctForest(5)/sum(expected_90pctForest), fraction_forest_in_each_bin(5), tolerance=tol)
 
@@ -262,7 +262,7 @@ module test_EdgeForest
     !      0.006840069686902661, &
     !      0.9921227397049482 /)
 
-    !   call get_fraction_of_forest_in_each_bin(pct_nonforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+    !   call get_fraction_of_forest_in_each_bin(pct_nonforest, num_edge_forest_bins, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
 
     !   @assertEqual(expected, fraction_forest_in_each_bin, tolerance=tol)
 

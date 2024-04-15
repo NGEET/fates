@@ -6,7 +6,6 @@ module FatesPatchMod
   use FatesConstantsMod,   only : primaryland, secondaryland
   use FatesConstantsMod,   only : n_landuse_cats
   use FatesConstantsMod,   only : TRS_regeneration
-  use FatesConstantsMod,   only : num_edge_forest_bins
   use FatesGlobals,        only : fates_log
   use FatesGlobals,        only : endrun => fates_endrun
   use FatesUtilsMod,       only : check_hlm_list
@@ -27,6 +26,7 @@ module FatesPatchMod
   use FatesRadiationMemMod,only : num_swb
   use FatesRadiationMemMod,only : num_rad_stream_types
   use FatesInterfaceTypesMod,only : hlm_hio_ignore_val
+  use FatesInterfaceTypesMod, only : num_edge_forest_bins
   use shr_infnan_mod,      only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,         only : errMsg => shr_log_errMsg
 

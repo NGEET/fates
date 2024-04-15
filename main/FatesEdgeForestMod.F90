@@ -1,7 +1,7 @@
 module FatesEdgeForestMod
 
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesConstantsMod, only : num_edge_forest_bins
+  use FatesInterfaceTypesMod, only : num_edge_forest_bins
   use FatesGlobals, only : fates_log
   use FatesGlobals, only : endrun => fates_endrun
   use shr_log_mod, only : errMsg => shr_log_errMsg
@@ -151,16 +151,16 @@ contains
     gffeb_lognorm_denominator = sigma * sqrt(2*pi) * x
   end function gffeb_lognorm_denominator
 
-  subroutine get_fraction_of_forest_in_each_bin(x, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_bin, norm)
+  subroutine get_fraction_of_forest_in_each_bin(x, num_edge_forest_bins, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_bin, norm)
     ! DESCRIPTION:
     ! Get the fraction of forest in each bin.
     !
     ! USES
     use FatesConstantsMod, only : pi => pi_const
-    use FatesConstantsMod, only : num_edge_forest_bins
     !
     ! ARGUMENTS
     real(r8), intent(in)  :: x  ! Independent variable in the fit
+    integer, intent(in) :: num_edge_forest_bins
     real(r8), dimension(:), intent(in) :: efb_amplitudes
     real(r8), dimension(:), intent(in) :: efb_sigmas
     real(r8), dimension(:), intent(in) :: efb_centers
@@ -339,7 +339,7 @@ contains
     ! area of each patch that is in each edge bin.
     !
     ! USES:
-    use FatesConstantsMod, only : efb_amplitudes, efb_sigmas, efb_centers, efb_decay
+    use EDParamsMod, only : ED_val_edgeforest_amplitudes, ED_val_edgeforest_sigmas, ED_val_edgeforest_centers, ED_val_edgeforest_decay
     !
     ! ARGUMENTS:
     type(ed_site_type), pointer, intent(in) :: site
@@ -370,7 +370,7 @@ contains
 
     ! Get percentage of nonforest area in each bin
     pct_nonforest = 100._r8 * (area - area_forest_patches) / area
-    call get_fraction_of_forest_in_each_bin(pct_nonforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+    call get_fraction_of_forest_in_each_bin(pct_nonforest, num_edge_forest_bins, ED_val_edgeforest_amplitudes, ED_val_edgeforest_sigmas, ED_val_edgeforest_centers, ED_val_edgeforest_decay, fraction_forest_in_each_bin)
 
     ! Assign patches to bins
     call assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)

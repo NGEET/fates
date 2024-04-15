@@ -117,6 +117,14 @@ module EDParamsMod
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
 
+   ! Edge forest bin parameters which are just single values
+   real(r8),protected,public :: ED_val_edgeforest_decay
+   ! Edge forest bin parameters whose size is defined in parameter file (i.e., dependent on number of bins)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_bin_edges(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_amplitudes(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_sigmas(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_centers(:)
+
    ! Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses
    ! (THIS PARAMETER IS UNUSED, FEEL FREE TO USE IT FOR WHATEVER PURPOSE YOU LIKE. WE CAN
    !  HELP MIGRATE YOUR USAGE OF THE PARMETER TO A PERMANENT HOME LATER)
@@ -183,6 +191,11 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_crop_lu_pft_vector = "fates_landuse_crop_lu_pft_vector"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_bin_edges = "fates_edgeforest_bin_edges"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_amplitudes = "fates_edgeforest_amplitudes"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_decay = "fates_edgeforest_decay"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_sigmas = "fates_edgeforest_sigmas"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_centers = "fates_edgeforest_centers"
    character(len=param_string_length),parameter,public :: ED_name_maxpatches_by_landuse = "fates_maxpatches_by_landuse"
    character(len=param_string_length),parameter,public :: ED_name_max_nocomp_pfts_by_landuse = "fates_max_nocomp_pfts_by_landuse"
 
@@ -384,6 +397,7 @@ contains
     use FatesParametersInterface, only : dimension_name_history_height_bins, dimension_name_hydr_organs
     use FatesParametersInterface, only : dimension_name_history_coage_bins, dimension_name_history_damage_bins
     use FatesParametersInterface, only : dimension_shape_scalar, dimension_name_landuse
+    use FatesParametersInterface, only : dimension_name_edgeforest_bins
 
 
     implicit none
@@ -397,6 +411,7 @@ contains
     character(len=param_string_length), parameter :: dim_names_coageclass(1) = (/dimension_name_history_coage_bins/)
     character(len=param_string_length), parameter :: dim_names_hydro_organs(1) = (/dimension_name_hydr_organs/)
     character(len=param_string_length), parameter :: dim_names_damageclass(1)= (/dimension_name_history_damage_bins/)
+    character(len=param_string_length), parameter :: dim_names_edgeforestclass(1)= (/dimension_name_edgeforest_bins/)
     character(len=param_string_length), parameter :: dim_names_landuse(1)= (/dimension_name_landuse/)
     
     call FatesParamsInit()
@@ -606,6 +621,21 @@ contains
 
     call fates_params%RegisterParameter(name=ED_name_crop_lu_pft_vector, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_landuse)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_bin_edges, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforestclass)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_amplitudes, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforestclass)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_decay, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_edgeforestclass)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_sigmas, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforestclass)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_centers, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforestclass)
 
     call fates_params%RegisterParameter(name=ED_name_maxpatches_by_landuse, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_landuse)
@@ -843,6 +873,21 @@ contains
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_damage_bin_edges, &
          data=ED_val_history_damage_bin_edges)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_bin_edges, &
+         data=ED_val_edgeforest_bin_edges)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_amplitudes, &
+         data=ED_val_edgeforest_amplitudes)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_sigmas, &
+         data=ED_val_edgeforest_sigmas)
+
+    call fates_params%RetrieveParameter(name=ED_name_edgeforest_decay, &
+         data=ED_val_edgeforest_decay)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_centers, &
+         data=ED_val_edgeforest_centers)
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_crop_lu_pft_vector, &
          data=tmp_vector_by_landuse1)

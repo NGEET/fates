@@ -1,6 +1,7 @@
 netcdf tmp {
 dimensions:
 	fates_NCWD = 4 ;
+	fates_edgeforest_bins = 5 ;
 	fates_history_age_bins = 7 ;
 	fates_history_coage_bins = 2 ;
 	fates_history_damage_bins = 2 ;
@@ -258,6 +259,21 @@ variables:
 	double fates_dev_arbitrary_pft(fates_pft) ;
 		fates_dev_arbitrary_pft:units = "unknown" ;
 		fates_dev_arbitrary_pft:long_name = "Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses" ;
+	double fates_edgeforest_bin_edges(fates_edgeforest_bins) ;
+		fates_edgeforest_bin_edges:units = "m" ;
+		fates_edgeforest_bin_edges:long_name = "Boundaries of forest edge bins (for each bin, include value closest to zero)" ;
+	double fates_edgeforest_amplitudes(fates_edgeforest_bins) ;
+		fates_edgeforest_amplitudes:units = "unitless" ;
+		fates_edgeforest_amplitudes:long_name = "Amplitudes for calculating forest area in each edge bin" ;
+	double fates_edgeforest_centers(fates_edgeforest_bins) ;
+		fates_edgeforest_centers:units = "unitless" ;
+		fates_edgeforest_centers:long_name = "Centers for calculating forest area in each edge bin (only used for lognormal-fit bins)" ;
+	double fates_edgeforest_decay ;
+		fates_edgeforest_decay:units = "unitless" ;
+		fates_edgeforest_decay:long_name = "Decay for calculating forest area in 'deep forest' edge bin (the only one fit with an exponential function)" ;
+	double fates_edgeforest_sigmas(fates_edgeforest_bins) ;
+		fates_edgeforest_sigmas:units = "unitless" ;
+		fates_edgeforest_sigmas:long_name = "Sigmas for calculating forest area in each edge bin (only used for lognormal-fit bins)" ;
 	double fates_fire_alpha_SH(fates_pft) ;
 		fates_fire_alpha_SH:units = "m / (kw/m)**(2/3)" ;
 		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
@@ -1168,6 +1184,16 @@ data:
  fates_damage_recovery_scalar = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_dev_arbitrary_pft = _, _, _, _, _, _, _, _, _, _, _, _ ;
+
+ fates_edgeforest_bin_edges = 0.0, 1.0, 2.0, 3.0, 4.0 ;
+
+ fates_edgeforest_amplitudes = 334.20118864369647, 7.453608488098321, 2.8450130607077506, 1.601064269911203, 0.9227139932095219 ;
+
+ fates_edgeforest_centers = 5.4114116418770735, 2.7788419192134937, 2.3020137304843664, 1.973996133523811, -999.9 ;
+
+ fates_edgeforest_decay = 4.151608208778201 ;
+
+ fates_edgeforest_sigmas = 1.185102216622059, 0.6230347414031212, 0.7500050901443256, 0.8465094354405984, -999.9 ;
 
  fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
     0.2 ;

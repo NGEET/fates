@@ -15,6 +15,9 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_vai_top_bin_width
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
+   use EDParamsMod               , only : ED_val_edgeforest_amplitudes
+   use EDParamsMod               , only : ED_val_edgeforest_centers
+   use EDParamsMod               , only : ED_val_edgeforest_sigmas
    use EDParamsMod               , only : maxpatch_total
    use EDParamsMod               , only : maxpatches_by_landuse
    use EDParamsMod               , only : max_cohort_per_patch
@@ -43,7 +46,8 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : secondaryland
    use FatesConstantsMod         , only : n_crop_lu_types
    use FatesConstantsMod         , only : n_term_mort_types
-   use FatesConstantsMod         , only : num_edge_forest_bins, edge_forest_bins
+   use FatesInterfaceTypesMod    , only : num_edge_forest_bins
+   use EDParamsMod               , only : ED_val_edgeforest_bin_edges
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -943,6 +947,7 @@ contains
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
          nlevdamage = size(ED_val_history_damage_bin_edges, dim=1)
+         num_edge_forest_bins = size(ED_val_edgeforest_bin_edges, dim=1)
          
          ! do some checks on the size, age, and height bin arrays to make sure they make sense:
          ! make sure that all start at zero, and that both are monotonically increasing
@@ -982,6 +987,20 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
+
+         ! Check that the right number of edge forest parameters are given
+         if (size(ED_val_edgeforest_amplitudes, dim=1) .ne. num_edge_forest_bins) then
+            write(fates_log(), *) 'Length of fates_edgeforest_amplitudes does not match length of fates_edgeforest_bin_edges'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         if (size(ED_val_edgeforest_sigmas, dim=1) .ne. num_edge_forest_bins) then
+            write(fates_log(), *) 'Length of fates_edgeforest_sigmas does not match length of fates_edgeforest_bin_edges'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         if (size(ED_val_edgeforest_centers, dim=1) .ne. num_edge_forest_bins) then
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+               write(fates_log(), *) 'Length of fates_edgeforest_centers does not match length of fates_edgeforest_bin_edges'
+         end if
          
          ! Set the fates dispersal kernel mode if there are any seed dispersal parameters set.
          ! The validation of the parameter values is check in FatesCheckParams prior to this check.
@@ -1202,7 +1221,7 @@ contains
        ! Fill the IO array of plant size classes
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
        fates_hdim_levage(:) = ED_val_history_ageclass_bin_edges(:)
-       fates_hdim_levedgebin(:) = edge_forest_bins(:)
+       fates_hdim_levedgebin(:) = ED_val_edgeforest_bin_edges(:)
        fates_hdim_levheight(:) = ED_val_history_height_bin_edges(:)
        fates_hdim_levcoage(:) = ED_val_history_coageclass_bin_edges(:)
        fates_hdim_levleaf(:) = dlower_vai(:)

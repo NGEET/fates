@@ -149,13 +149,8 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   integer, parameter, public :: cstarvation_model_lin = 1 ! Linear scaling
   integer, parameter, public :: cstarvation_model_exp = 2 ! Exponential scaling
 
-  ! What are the boundaries of the edge forest bins? Include only boundary nearest 0.
-  integer, parameter, public :: num_edge_forest_bins = 5
-  real(fates_r8), parameter, dimension(num_edge_forest_bins), public :: edge_forest_bins = (/ 0._fates_r8, 1._fates_r8, 2._fates_r8, 3._fates_r8, 4._fates_r8 /)
-  real(fates_r8), parameter, dimension(num_edge_forest_bins), public :: efb_amplitudes = (/ 334.20118864369647, 7.453608488098321, 2.8450130607077506, 1.601064269911203, 0.9227139932095219 /)
-  real(fates_r8), parameter, dimension(num_edge_forest_bins-1), public :: efb_sigmas = (/ 1.185102216622059, 0.6230347414031212, 0.7500050901443256, 0.8465094354405984 /)
-  real(fates_r8), parameter, dimension(num_edge_forest_bins-1), public :: efb_centers = (/ 5.4114116418770735, 2.7788419192134937, 2.3020137304843664, 1.973996133523811 /)
-  real(fates_r8), parameter, public :: efb_decay = 4.151608208778201
+  ! Edge forest parameters
+  real(fates_r8), parameter, public :: ED_val_edgeforest_decay = 4.151608208778201
 
   ! Error Tolerances
 
