@@ -63,6 +63,21 @@ add_dependencies(fates csm_share)
 # We need to look for header files here, in order to pick up shr_assert.h
 include_directories(${HLM_ROOT}/share/include)
 
+# This needs to be something we add dynamically
+# via some calls using cime
+set(NETCDF_C_DIR "/usr/local/Cellar/netcdf/4.9.2_1")
+set(NETCDF_FORTRAN_DIR "/usr/local/Cellar/netcdf-fortran/4.6.1")
+
+FIND_PATH(NETCDFC_FOUND libnetcdf.a ${NETCDF_C_DIR}/lib)
+FIND_PATH(NETCDFF_FOUND libnetcdff.a ${NETCDF_FORTRAN_DIR}/lib)
+MESSAGE(" NETCDFC_FOUND = ${NETCDFC_FOUND}")
+MESSAGE(" NETCDFF_FOUND = ${NETCDFF_FOUND}")
+
+include_directories(${NETCDF_C_DIR}/include
+                    ${NETCDF_FORTRAN_DIR}/include)
+link_directories(${NETCDF_C_DIR}/lib
+                ${NETCDF_FORTRAN_DIR}/lib)
+
 # Tell cmake to look for libraries & mod files here, because this is where we built libraries
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 link_directories(${CMAKE_CURRENT_BINARY_DIR})

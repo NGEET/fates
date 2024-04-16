@@ -1,10 +1,26 @@
 set(allom_sources FatesTestAllometry.F90)
 
+set(NETCDF_C_DIR "/usr/local/Cellar/netcdf/4.9.2_1")
+set(NETCDF_FORTRAN_DIR "/usr/local/Cellar/netcdf-fortran/4.6.1")
+
+FIND_PATH(NETCDFC_FOUND libnetcdf.a ${NETCDF_C_DIR}/lib)
+FIND_PATH(NETCDFF_FOUND libnetcdff.a ${NETCDF_FORTRAN_DIR}/lib)
+
+include_directories(${NETCDF_C_DIR}/include
+                    ${NETCDF_FORTRAN_DIR}/include)
+
+link_directories(${NETCDF_C_DIR}/lib
+                ${NETCDF_FORTRAN_DIR}/lib
+                ${PFUNIT_TOP_DIR}/lib)
+
 add_executable(FATES_allom_exe ${allom_sources})
 
 target_link_libraries(FATES_allom_exe
+                  netcdf 
+                  netcdff
                   fates
-                  csm_share)
+                  csm_share
+                  funit)
 
 add_test(allom_test FATES_allom_exe)
 

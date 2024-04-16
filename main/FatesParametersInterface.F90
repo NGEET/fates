@@ -135,7 +135,7 @@ contains
 
     integer :: n
     do n = 1, this%num_parameters
-       deallocate(this%parameters(n)%data)
+      if(allocated(this%parameters(n)%data)) deallocate(this%parameters(n)%data)
     end do
 
   end subroutine Destroy

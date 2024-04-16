@@ -26,6 +26,7 @@ list(APPEND fates_sources
   FatesParameterDerivedMod.F90
   FatesSizeAgeTypeIndicesMod.F90
   FatesIntegratorsMod.F90
-  FatesUtilsMod.F90)
+  FatesUtilsMod.F90
+  FatesSynchronizedParamsMod.F90)
 
 sourcelist_to_parent(fates_sources)
