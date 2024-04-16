@@ -9,11 +9,12 @@ program FatesTestAllometry
 
   ! LOCALS:
   type(fates_unit_test_param_reader) :: param_reader
-  character(len=*), parameter        :: param_file = 'fates_params_default.nc'
+  character(len=*),                  :: param_file
   character(len=*), parameter        :: out_file = 'allometry_out.nc'
   integer                            :: numpft
   integer                            :: i, j
   integer                            :: numdbh
+  integer                            :: nargs
   real(r8), allocatable              :: dbh(:)       ! diameter at breast height [cm]
   real(r8), allocatable              :: height(:, :) ! height [m]
 
@@ -40,6 +41,13 @@ program FatesTestAllometry
     end subroutine WriteAllometryData
 
   end interface
+
+  nargs = command_argument_count()
+  if (nargs /= 1) then
+    write(*, '(a, i, a)') "Incorrect number of arguments: ", nargs, ". Should only be 1"
+  else
+    call get_command_argument(1, param_file)
+  endif
   
   ! read in parameter file
   call param_reader%Init(param_file)

@@ -3,6 +3,7 @@
 
 import os
 import sys
+import math
 
 # ========================================================================
 # Constants that may need to be changed if directory structures change
@@ -55,3 +56,11 @@ def add_cime_lib_to_path():
     cime_lib_path = os.path.join(cime_path, "CIME", "Tools")
     prepend_to_python_path(cime_lib_path)
     return cime_path
+  
+def round_up(n, decimals=0):
+    multiplier = 10**decimals
+    return math.ceil(n * multiplier) / multiplier
+  
+def truncate(n, decimals=0):
+    multiplier = 10**decimals
+    return int(n * multiplier) / multiplier

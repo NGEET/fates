@@ -11,20 +11,17 @@ import xarray as xr
 import matplotlib
 import matplotlib.pyplot as plt
 
-from utils import add_cime_lib_to_path
+from utils import add_cime_lib_to_path, round_up
 add_cime_lib_to_path()
 
 from CIME.utils import run_cmd_no_fail
 
-def round_up(n, decimals=0):
-    multiplier = 10**decimals
-    return math.ceil(n * multiplier) / multiplier
-  
-def truncate(n, decimals=0):
-    multiplier = 10**decimals
-    return int(n * multiplier) / multiplier
-  
 def get_color_pallete():
+    """Generate a color pallete
+
+    Returns:
+        real: array of colors to use in plotting
+    """
     
     colors = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
             (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
@@ -40,6 +37,14 @@ def get_color_pallete():
 
 
 def plot_allometry_var(data, var, varname, units):
+    """Plot an allometry variable
+
+    Args:
+        data (xarray DataArray): the data array of the variable to plot
+        var (str): variable name (for data structure)
+        varname (str): variable name for plot labels
+        units (str): variable units for plot labels
+    """
     df = pd.DataFrame({'dbh': np.tile(data.dbh, len(data.pft)),
                        'pft': np.repeat(data.pft, len(data.dbh)),
                        var: data.values.flatten()})
@@ -84,52 +89,61 @@ def plot_allometry_var(data, var, varname, units):
     plt.legend(loc='upper left', title='PFT')
     
     plt.show()
-  
+    
+def create_nc_file(cdl_path):
+    file_basename = os.path.basename(cdl_path).split(".")[-2]
+    file_nc_name = f"{file_basename}.nc"
+    
+    file_gen_command = [
+            "ncgen -o",
+            os.path.join(file_nc_name),
+            cdl_path
+    ]
+    run_cmd_no_fail(" ".join(file_gen_command), combine_output=True)
 
-if __name__ == "__main__":
+def main(clean, build, run, build_dir, make_j, param_file):
     
-    ## Arguments
-    clean = True
-    build = False
-    run = False
-    build_dir = "../_build"
-    name = "fates_unit_tests"
-    make_j = 8
-    cmake_directory = os.path.abspath("../")
-    param_file = None
-    param_cdl_path = "../parameter_files/fates_params_default.cdl"
-    
-    ## Constants
+    # Constants for now
     out_file = "allometry_out.nc"
     test_dir = "fates_allom_test"
     test_exe = "FATES_allom_exe"
+    name = "fates_unit_tests"
+    default_cdl_path = "../parameter_files/fates_params_default.cdl"
     
-    build_dir_path = os.path.abspath(build_dir)    
+    # absolute path to desired build directory
+    build_dir_path = os.path.abspath(build_dir)
     
-    ## Actual Program
+    if param_file is None:
+      print("Using default parameter file.")
+      param_file = default_cdl_path
+      create_nc_file(param_file)
+    else:
+      print("Using parameter file {param_file}.")
+
     if build:
-        build_unit_tests(build_dir, name, cmake_directory, make_j, clean=clean)
-    
+        build_unit_tests(build_dir, name, os.path.abspath("../"), make_j, clean=clean)
+        
     if run:
         exe_path = os.path.join(build_dir_path, test_dir, test_exe)
+        run_command = [exe_path, os.path.abspath(param_file)]
+        out = run_cmd_no_fail(" ".join(run_command), combine_output=True)
+        print(out)
         
-        if param_file is None:
-          file_basename = os.path.basename(param_cdl_path).split(".")[-2]
-          file_nc_name = f"{file_basename}.nc"
-          file_gen_command = [
-            "ncgen -o",
-            os.path.join(file_nc_name),
-            param_cdl_path
-          ]
-          run_cmd_no_fail(" ".join(file_gen_command), combine_output=True)
-          
-          out = run_cmd_no_fail(exe_path, combine_output=True)
-          print(out)
-    
     # read in allometry data
-    allometry_dat = xr.open_dataset(os.path.join(build_dir_path, out_file))
+    allometry_dat = xr.open_dataset(out_file)
     
     # plot allometry data
     plot_allometry_var(allometry_dat.height, 'height', 'height', 'm')
     
     
+if __name__ == "__main__":
+    
+    ## Arguments
+    clean = False
+    build = False
+    run = True
+    build_dir = "../_build"
+    make_j = 8
+    param_file = None
+    
+    main(clean, build, run, build_dir, make_j, param_file)
