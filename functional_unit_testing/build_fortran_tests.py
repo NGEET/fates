@@ -44,13 +44,17 @@ def run_cmake(name, test_dir, pfunit_path, netcdf_c_path, netcdf_f_path, cmake_a
           f"-DCIME_CMAKE_MODULE_DIRECTORY={cmake_module_dir}",
           "-DCMAKE_BUILD_TYPE=CESM_DEBUG",
           f"-DCMAKE_PREFIX_PATH={pfunit_path}",
-          f"-DNETCDF_C_PATH={netcdf_c_path}",
-          f"-DNETCDF_F_PATH={netcdf_f_path}",
           "-DUSE_MPI_SERIAL=ON",
           "-DENABLE_GENF90=ON",
           f"-DCMAKE_PROGRAM_PATH={genf90_dir}"
         ]
         
+        if netcdf_c_path is not None:
+            cmake_command.append(f"-DNETCDF_C_PATH={netcdf_c_path}")
+            
+        if netcdf_f_path is not None:
+            cmake_command.append(f"-DNETCDF_F_PATH={netcdf_f_path}")
+            
         cmake_command.extend(cmake_args.split(" "))
         
         run_cmd_no_fail(" ".join(cmake_command), combine_output=True)
@@ -210,8 +214,13 @@ def build_unit_tests(build_dir, name, cmake_directory, make_j, clean=False):
     # get cmake args and the pfunit and netcdf paths
     cmake_args = get_extra_cmake_args(full_build_path, "mpi-serial")
     pfunit_path = find_library(full_build_path, cmake_args, "PFUNIT_PATH")
-    netcdf_c_path = find_library(full_build_path, cmake_args, "NETCDF_C_PATH")
-    netcdf_f_path = find_library(full_build_path, cmake_args, "NETCDF_FORTRAN_PATH")
+    
+    if not "NETCDF" in os.environ:
+        netcdf_c_path = find_library(full_build_path, cmake_args, "NETCDF_C_PATH")
+        netcdf_f_path = find_library(full_build_path, cmake_args, "NETCDF_FORTRAN_PATH")
+    else:
+        netcdf_c_path = None
+        netcdf_f_path = None
    
     # change into the build dir
     os.chdir(full_build_path)

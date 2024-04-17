@@ -72,7 +72,7 @@ def get_color_pallete():
     return colors
 
 
-def plot_allometry_var(data, var, varname, units):
+def plot_allometry_var(data, var, varname, units, save_fig, plot_dir=None):
     """Plot an allometry variable
 
     Args:
@@ -80,6 +80,8 @@ def plot_allometry_var(data, var, varname, units):
         var (str): variable name (for data structure)
         varname (str): variable name for plot labels
         units (str): variable units for plot labels
+        save_fig (bool): whether or not to write out plot
+        plot_dir (str): if saving figure, where to write to
     """
     df = pd.DataFrame({'dbh': np.tile(data.dbh, len(data.pft)),
                        'pft': np.repeat(data.pft, len(data.dbh)),
@@ -126,8 +128,12 @@ def plot_allometry_var(data, var, varname, units):
     plt.title(f"Simulated {varname} for input parameter file", fontsize=11)
     plt.legend(loc='upper left', title='PFT')
     
+    if save_fig:
+        fig_name = os.path.join(plot_dir, f"allometry_plot_{var}.png")
+        plt.savefig(fig_name)
     
-def plot_total_biomass(data):
+    
+def plot_total_biomass(data, save_fig, plot_dir):
     """Plot two calculations of total biomass against each other
 
     Args:
@@ -169,6 +175,10 @@ def plot_total_biomass(data):
     plt.ylabel('Total biomass (kgC) from tissues', fontsize=11)
     plt.title("Simulated total biomass for input parameter file", fontsize=11)
     plt.legend(loc='upper left', title='PFT')
+    
+    if save_fig:
+        fig_name = os.path.join(plot_dir, "allometry_plot_total_biomass_compare.png")
+        plt.savefig(fig_name)
   
 def create_nc_file(cdl_path, run_dir):
     """Creates a netcdf file from a cdl file
@@ -235,7 +245,7 @@ def run_exectuables(build_dir, test_dir, test_exe, run_dir, args):
     print(out)
     
 
-def run_tests(clean, build, run, build_dir, run_dir, make_j, param_file):
+def run_tests(clean, build, run, build_dir, run_dir, make_j, param_file, save_figs):
     """Builds and runs the fates tests
 
     Args:
@@ -246,6 +256,7 @@ def run_tests(clean, build, run, build_dir, run_dir, make_j, param_file):
         run_dir (str): run directory
         make_j (int): number of processors for the build
         param_file (str): input FATES parameter file
+        save_figs (bool): whether or not to write figures to file
 
     Raises:
         RuntimeError: Parameter file is not the correct file type
@@ -259,6 +270,13 @@ def run_tests(clean, build, run, build_dir, run_dir, make_j, param_file):
     
     if not os.path.isdir(run_dir_path):
         os.mkdir(run_dir_path)
+    
+    if save_figs:
+        plot_dir = os.path.join(run_dir_path, 'plots')
+        if not os.path.isdir(plot_dir):
+            os.mkdir(plot_dir)
+    else:
+        plot_dir = None
     
     if param_file is None:
         print("Using default parameter file.")
@@ -284,19 +302,19 @@ def run_tests(clean, build, run, build_dir, run_dir, make_j, param_file):
     allometry_dat = xr.open_dataset(os.path.join(run_dir_path, out_file))
     
     # plot allometry data
-    plot_allometry_var(allometry_dat.height, 'height', 'height', 'm')
-    plot_allometry_var(allometry_dat.bagw, 'bagw', 'aboveground biomass', 'kgC')
-    plot_allometry_var(allometry_dat.blmax, 'blmax', 'maximum leaf biomass', 'kgC')
-    plot_allometry_var(allometry_dat.crown_area, 'crown_area', 'crown area', 'm$^2$')
-    plot_allometry_var(allometry_dat.sapwood_area, 'sapwood_area', 'sapwood area', 'm$^2$')
-    plot_allometry_var(allometry_dat.bsap, 'bsap', 'sapwood biomass', 'kgC')
-    plot_allometry_var(allometry_dat.bbgw, 'bbgw', 'belowground biomass', 'kgC')
-    plot_allometry_var(allometry_dat.fineroot_biomass, 'fineroot_biomass', 'fineroot biomass', 'kgC')
-    plot_allometry_var(allometry_dat.bstore, 'bstore', 'storage biomass', 'kgC')
-    plot_allometry_var(allometry_dat.bdead, 'bdead', 'deadwood biomass', 'kgC')
-    plot_allometry_var(allometry_dat.total_biomass_parts, 'total_biomass_parts', 'total biomass (calculated from parts)', 'kgC')
-    plot_allometry_var(allometry_dat.total_biomass_tissues, 'total_biomass_tissues', 'total biomass (calculated from tissues)', 'kgC')
-    plot_total_biomass(allometry_dat)
+    plot_allometry_var(allometry_dat.height, 'height', 'height', 'm', save_figs, plot_dir)
+    plot_allometry_var(allometry_dat.bagw, 'bagw', 'aboveground biomass', 'kgC', save_figs, plot_dir)
+    plot_allometry_var(allometry_dat.blmax, 'blmax', 'maximum leaf biomass', 'kgC', save_figs, plot_dir)
+    plot_allometry_var(allometry_dat.crown_area, 'crown_area', 'crown area', 'm$^2$', save_figs, plot_dir)
+    plot_allometry_var(allometry_dat.sapwood_area, 'sapwood_area', 'sapwood area', 'm$^2$', save_figs, plot_dir)
+    plot_allometry_var(allometry_dat.bsap, 'bsap', 'sapwood biomass', 'kgC', save_figs, plot_dir)
+    plot_allometry_var(allometry_dat.bbgw, 'bbgw', 'belowground biomass', 'kgC', save_figs, plot_dir)
+    plot_allometry_var(allometry_dat.fineroot_biomass, 'fineroot_biomass', 'fineroot biomass', 'kgC', save_figs, plot_dir)
+    plot_allometry_var(allometry_dat.bstore, 'bstore', 'storage biomass', 'kgC', save_figs, plot_dir)
+    plot_allometry_var(allometry_dat.bdead, 'bdead', 'deadwood biomass', 'kgC', save_figs, plot_dir)
+    plot_allometry_var(allometry_dat.total_biomass_parts, 'total_biomass_parts', 'total biomass (calculated from parts)', 'kgC', save_figs, plot_dir)
+    plot_allometry_var(allometry_dat.total_biomass_tissues, 'total_biomass_tissues', 'total biomass (calculated from tissues)', 'kgC', save_figs, plot_dir)
+    plot_total_biomass(allometry_dat, save_figs, plot_dir)
     plt.show()
 
 
@@ -373,6 +391,14 @@ def commandline_args():
       "Script will check to make sure required output files are present.\n",
     )
     
+    parser.add_argument(
+      "--save-figs",
+      action="store_true",
+      help="Write out generated figures to files.\n"
+      "Will be placed in run_dir/plots.\n"
+      "Should probably do this on remote machines.\n",
+    )
+    
     args = parser.parse_args()
     
     check_arg_validity(args)
@@ -442,7 +468,8 @@ def main():
     build = not args.skip_build
     run = not args.skip_run
     
-    run_tests(args.clean, build, run, args.build_dir, args.run_dir, args.make_j, args.parameter_file)
+    run_tests(args.clean, build, run, args.build_dir, args.run_dir, args.make_j, 
+              args.parameter_file, args.save_figs)
 
 if __name__ == "__main__":
     
