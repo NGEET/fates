@@ -48,7 +48,6 @@ def run_cmake(name, test_dir, pfunit_path, cmake_args):
         ]
         
         cmake_command.extend(cmake_args.split(" "))
-        #print(" ".join(cmake_command))
         
         run_cmd_no_fail(" ".join(cmake_command), combine_output=True)
 

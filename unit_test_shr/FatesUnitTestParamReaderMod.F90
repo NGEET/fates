@@ -9,6 +9,8 @@ module FatesUnitTestParamReaderMod
   use EDParamsMod,                only : FatesRegisterParams, FatesReceiveParams
   use SFParamsMod,                only : SpitFireRegisterParams, SpitFireReceiveParams
   use PRTInitParamsFatesMod,      only : PRTRegisterParams, PRTReceiveParams
+  use PRTParametersMod,           only : prt_params
+  use FatesParameterDerivedMod,   only : param_derived
   use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
   use EDPftvarcon,                only : EDPftvarcon_inst
   use FatesUnitTestIOMod,         only : OpenNCFile, GetDimID, GetDimLen, GetVar, CloseNCFile
@@ -127,16 +129,21 @@ module FatesUnitTestParamReaderMod
     call EDPftvarcon_inst%Register(fates_pft_params)
 
     call this%Read(fates_params)
+    call this%Read(fates_pft_params)
 
     call FatesReceiveParams(fates_params)
     call SpitFireReceiveParams(fates_params)
     call PRTReceiveParams(fates_params)
     call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
+    call EDPftvarcon_inst%Receive(fates_pft_params)
 
     call fates_params%Destroy()
     call fates_pft_params%Destroy()
     deallocate(fates_params)
     deallocate(fates_pft_params)
+
+    ! initialize derived parameters
+    call param_derived%Init(size(prt_params%wood_density, dim=1))
 
   end subroutine RetrieveParameters
 

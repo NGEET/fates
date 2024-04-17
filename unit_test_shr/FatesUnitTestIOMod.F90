@@ -8,8 +8,8 @@ module FatesUnitTestIOMod
   private
 
   ! LOCALS
-  integer, parameter :: type_double = 1 ! type 
-  integer, parameter :: type_int = 2    ! type
+  integer, public, parameter :: type_double = 1 ! type 
+  integer, public, parameter :: type_int = 2    ! type
 
   interface GetVar
     module procedure GetVarScalarReal
@@ -21,11 +21,22 @@ module FatesUnitTestIOMod
     module procedure GetVar3DInt
   end interface
 
+  interface WriteVar
+    module procedure WriteVar1DReal
+    module procedure WriteVar2DReal
+    module procedure WriteVar1DInt
+    module procedure WriteVar2DInt
+  end interface
+
   public :: OpenNCFile
   public :: CloseNCFile
   public :: GetDimID
   public :: GetDimLen
   public :: GetVar
+  public :: RegisterNCDims
+  public :: RegisterVar2D, RegisterVar1D
+  public :: WriteVar
+  public :: EndNCDef
   
   contains
 
@@ -64,13 +75,8 @@ module FatesUnitTestIOMod
 
     case('readwrite')
 
-      if (.not. file_exists) then 
-        write(*,'(a,a,a)') "File ", fname(1:len_trim(fname)), " does not exist. Can't read."
-        CheckFile = .false.
-      else 
-        CheckFile = .true.
-      end if
-
+      CheckFile = .true.
+      
     case('write') 
       if (file_exists) then 
         write(*, '(a, a, a)') "File ", fname(1:len_trim(fname)), " exists. Cannot open write only."
@@ -439,7 +445,7 @@ module FatesUnitTestIOMod
     ! ARGUMENTS: 
     integer,          intent(in)  :: ncid                ! netcdf file id
     character(len=*), intent(in)  :: var_name            ! variable name
-    integer,          intent(in)  :: dimID(1)            ! dimension ID
+    integer,          intent(in)  :: dimID               ! dimension ID
     integer,          intent(in)  :: type                ! type: int or double
     character(len=*), intent(in)  :: att_names(num_atts) ! attribute names
     character(len=*), intent(in)  :: atts(num_atts)      ! attribute values 
@@ -508,6 +514,89 @@ module FatesUnitTestIOMod
   
   end subroutine RegisterVar2D
 
-!  =====================================================================================
+  !  =====================================================================================
+
+  subroutine EndNCDef(ncid)
+    !
+    ! DESCRIPTION:
+    ! End defining of netcdf dimensions and variables
+    !
+
+    ! ARGUMENTS: 
+    integer, intent(in)  :: ncid ! netcdf file id
+
+    call Check(nf90_enddef(ncid))
+  
+  end subroutine EndNCDef
+
+  !  =====================================================================================
+
+  subroutine WriteVar1DReal(ncid, varID, data)
+    !
+    ! DESCRIPTION:
+    ! Write 1D real data
+    !
+
+    ! ARGUMENTS: 
+    integer,  intent(in) :: ncid    ! netcdf file id
+    integer,  intent(in) :: varID   ! variable ID
+    real(r8), intent(in) :: data(:) ! data to write
+
+    call Check(nf90_put_var(ncid, varID, data(:)))
+  
+  end subroutine WriteVar1DReal
+
+  !  =====================================================================================
+
+  subroutine WriteVar2DReal(ncid, varID, data)
+    !
+    ! DESCRIPTION:
+    ! Write 2D real data
+    !
+
+    ! ARGUMENTS: 
+    integer,  intent(in) :: ncid      ! netcdf file id
+    integer,  intent(in) :: varID     ! variable ID
+    real(r8), intent(in) :: data(:,:) ! data to write
+
+    call Check(nf90_put_var(ncid, varID, data(:,:)))
+  
+  end subroutine WriteVar2DReal
+
+  !  =====================================================================================
+
+  subroutine WriteVar1DInt(ncid, varID, data)
+    !
+    ! DESCRIPTION:
+    ! Write 1D integer data
+    !
+
+    ! ARGUMENTS: 
+    integer, intent(in) :: ncid    ! netcdf file id
+    integer, intent(in) :: varID   ! variable ID
+    integer, intent(in) :: data(:) ! data to write
+
+    call Check(nf90_put_var(ncid, varID, data(:)))
+  
+  end subroutine WriteVar1DInt
+
+  !  =====================================================================================
+
+  subroutine WriteVar2DInt(ncid, varID, data)
+    !
+    ! DESCRIPTION:
+    ! Write 2D integer data
+    !
+
+    ! ARGUMENTS: 
+    integer, intent(in) :: ncid      ! netcdf file id
+    integer, intent(in) :: varID     ! variable ID
+    integer, intent(in) :: data(:,:) ! data to write
+
+    call Check(nf90_put_var(ncid, varID, data(:,:)))
+  
+  end subroutine WriteVar2DInt
+
+  !  =====================================================================================
 
 end module FatesUnitTestIOMod
