@@ -65,8 +65,8 @@ include_directories(${HLM_ROOT}/share/include)
 
 # This needs to be something we add dynamically
 # via some calls using cime
-set(NETCDF_C_DIR "/usr/local/Cellar/netcdf/4.9.2_1")
-set(NETCDF_FORTRAN_DIR "/usr/local/Cellar/netcdf-fortran/4.6.1")
+set(NETCDF_C_DIR ${NETCDF_C_PATH})
+set(NETCDF_FORTRAN_DIR ${NETCDF_F_PATH})
 
 FIND_PATH(NETCDFC_FOUND libnetcdf.a ${NETCDF_C_DIR}/lib)
 FIND_PATH(NETCDFF_FOUND libnetcdff.a ${NETCDF_FORTRAN_DIR}/lib)

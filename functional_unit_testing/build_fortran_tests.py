@@ -16,12 +16,14 @@ from CIME.XML.env_mach_specific import EnvMachSpecific
 
 _CIMEROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../cime")
 
-def run_cmake(name, test_dir, pfunit_path, cmake_args):
+def run_cmake(name, test_dir, pfunit_path, netcdf_c_path, netcdf_f_path, cmake_args):
     """Run cmake for the fortran unit tests
     Arguments:
     name (str) - name for output messages
     test_dir (str) - directory to run Cmake in
     pfunit_path (str) - path to pfunit
+    netcdf_c_path (str) - path to netcdf
+    netcdf_f_path (str) - path to netcdff
     clean (bool) - clean the build
     """
     if not os.path.isfile("CMakeCache.txt"):
@@ -42,6 +44,8 @@ def run_cmake(name, test_dir, pfunit_path, cmake_args):
           f"-DCIME_CMAKE_MODULE_DIRECTORY={cmake_module_dir}",
           "-DCMAKE_BUILD_TYPE=CESM_DEBUG",
           f"-DCMAKE_PREFIX_PATH={pfunit_path}",
+          f"-DNETCDF_C_PATH={netcdf_c_path}",
+          f"-DNETCDF_F_PATH={netcdf_f_path}",
           "-DUSE_MPI_SERIAL=ON",
           "-DENABLE_GENF90=ON",
           f"-DCMAKE_PROGRAM_PATH={genf90_dir}"
@@ -52,8 +56,8 @@ def run_cmake(name, test_dir, pfunit_path, cmake_args):
         run_cmd_no_fail(" ".join(cmake_command), combine_output=True)
 
 
-def find_pfunit(caseroot, cmake_args):
-    """Find the pfunit installation we'll be using, and print its path
+def find_library(caseroot, cmake_args, lib_string):
+    """Find the library installation we'll be using, and print its path
 
     Args:
         caseroot (str): Directory with pfunit macros
@@ -67,14 +71,14 @@ def find_pfunit(caseroot, cmake_args):
             if ":=" in all_var:
                 expect(all_var.count(":=") == 1, f"Bad makefile: {all_var}")
                 varname, value = [item.strip() for item in all_var.split(":=")]
-                if varname == "PFUNIT_PATH":
+                if varname == lib_string:
                     return value
 
-        expect(False, "PFUNIT_PATH not found for this machine and compiler")
+        expect(False, f"{lib_string} not found for this machine and compiler")
         
         return None
-
-
+      
+      
 def prep_build_dir(build_dir, clean):
     """Create (if necessary) build directory and clean contents (if asked to)
 
@@ -203,14 +207,16 @@ def build_unit_tests(build_dir, name, cmake_directory, make_j, clean=False):
     # create the build directory
     full_build_path = prep_build_dir(build_dir, clean=clean)
     
-    # get cmake args and the pfunit path
+    # get cmake args and the pfunit and netcdf paths
     cmake_args = get_extra_cmake_args(full_build_path, "mpi-serial")
-    pfunit_path = find_pfunit(full_build_path, cmake_args)
-    
+    pfunit_path = find_library(full_build_path, cmake_args, "PFUNIT_PATH")
+    netcdf_c_path = find_library(full_build_path, cmake_args, "NETCDF_C_PATH")
+    netcdf_f_path = find_library(full_build_path, cmake_args, "NETCDF_FORTRAN_PATH")
+   
     # change into the build dir
     os.chdir(full_build_path)
     
     # run cmake and make
-    run_cmake(name, cmake_directory, pfunit_path, cmake_args)
+    run_cmake(name, cmake_directory, pfunit_path, netcdf_c_path, netcdf_f_path, cmake_args)
     run_make(name, make_j, clean=clean)
 
