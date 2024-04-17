@@ -42,14 +42,15 @@ add_cime_lib_to_path()
 
 from CIME.utils import run_cmd_no_fail
 
-DEFAULT_CDL_PATH = "../parameter_files/fates_params_default.cdl"
+DEFAULT_CDL_PATH = os.path.abspath("../parameter_files/fates_params_default.cdl")
 CMAKE_BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")
+NAME = "fates_unit_tests"
 
 # Constants for now
+## TODO update this to be some kind of dictionary we can loop through
 out_file = "allometry_out.nc"
 test_dir = "fates_allom_test"
 test_exe = "FATES_allom_exe"
-name = "fates_unit_tests"
 
 def get_color_pallete():
     """Generate a color pallete
@@ -274,7 +275,7 @@ def run_tests(clean, build, run, build_dir, run_dir, make_j, param_file):
             raise RuntimeError("Must supply file with .cdl or .nc ending.")
 
     if build:
-        build_unit_tests(build_dir, name, CMAKE_BASE_DIR, make_j, clean=clean)
+        build_unit_tests(build_dir, NAME, CMAKE_BASE_DIR, make_j, clean=clean)
     
     if run:
         run_exectuables(build_dir_path, test_dir, test_exe, run_dir_path, [param_file])
