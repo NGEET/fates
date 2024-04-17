@@ -56,17 +56,16 @@ module FatesUnitTestParamReaderMod
     class(fates_parameters_type), intent(inout) :: fates_params
 
     ! LOCALS:
-    real(r8), allocatable              :: data2d(:, :)
-    real(r8), allocatable              :: data1d(:)
-    real(r8)                           :: data_scalar
-    integer                            :: ncid
-    integer                            :: num_params
-    integer                            :: dimension_shape
-    integer                            :: i
-    integer                            :: max_dim_size
-    character(len=param_string_length) :: name
-    integer                            :: dimension_sizes(max_dimensions)
-    character(len=param_string_length) :: dimension_names(max_dimensions)
+    real(r8), allocatable              :: data2d(:, :)                    ! data for 2D parameters
+    real(r8), allocatable              :: data1d(:)                       ! data for 1D parameters
+    real(r8)                           :: data_scalar                     ! data for scalar parameters
+    integer                            :: ncid                            ! netcdf file ID
+    integer                            :: num_params                      ! total number of parameters
+    integer                            :: dimension_shape                 ! shape of parameter's dimension
+    integer                            :: i                               ! looping index
+    character(len=param_string_length) :: name                            ! parameter name
+    integer                            :: dimension_sizes(max_dimensions) ! sizes of dimensions from parameter file
+    character(len=param_string_length) :: dimension_names(max_dimensions) ! names of dimensions from parameter file 
     logical                            :: is_host_param
 
     call OpenNCFile(this%filename, ncid, 'read')
@@ -108,11 +107,11 @@ module FatesUnitTestParamReaderMod
     ! Read in fates parameters
     !
     ! ARGUMENTS:
-    class(fates_unit_test_param_reader), intent(in) :: this 
-    
+    class(fates_unit_test_param_reader), intent(in) :: this        ! parameter reader class
+     
     ! LOCALS:
-    class(fates_parameters_type), allocatable :: fates_params
-    class(fates_parameters_type), allocatable :: fates_pft_params
+    class(fates_parameters_type), allocatable :: fates_params      ! fates parameters (for non-pft parameters)
+    class(fates_parameters_type), allocatable :: fates_pft_params  ! fates parameters (for pft parameters)
 
     ! allocate and read in parameters
     allocate(fates_params)
@@ -122,9 +121,9 @@ module FatesUnitTestParamReaderMod
 
     call EDPftvarcon_inst%Init()
     
-    call PRTRegisterParams(fates_params)
-    call FatesRegisterParams(fates_params)  
+    call FatesRegisterParams(fates_params)
     call SpitFireRegisterParams(fates_params) 
+    call PRTRegisterParams(fates_params)
     call FatesSynchronizedParamsInst%RegisterParams(fates_params)
     call EDPftvarcon_inst%Register(fates_pft_params)
 
@@ -152,16 +151,16 @@ module FatesUnitTestParamReaderMod
   subroutine SetParameterDimensions(ncid, fates_params)
     !
     ! DESCRIPTION:
-    ! Read in fates parameters
+    ! Gets and sets the parameter dimensions for the fates parameters class
     !
     ! ARGUMENTS:
     integer,                      intent(in)    :: ncid         ! netcdf file ID
     class(fates_parameters_type), intent(inout) :: fates_params ! fates parameters class
 
     ! LOCALS:
-    integer                            :: num_used_dimensions
-    character(len=param_string_length) :: used_dimension_names(max_used_dimensions)
-    integer                            :: used_dimension_sizes(max_used_dimensions)
+    integer                            :: num_used_dimensions                       ! total number of dimensions
+    character(len=param_string_length) :: used_dimension_names(max_used_dimensions) ! dimension names
+    integer                            :: used_dimension_sizes(max_used_dimensions) ! dimension sizes
 
     call fates_params%GetUsedDimensions(.false., num_used_dimensions, used_dimension_names)
 
@@ -178,13 +177,13 @@ module FatesUnitTestParamReaderMod
   subroutine GetUsedDimensionSizes(ncid, num_used_dimensions, dimension_names, dimension_sizes)
     !
     ! DESCRIPTION:
-    ! Get dimension sizes for parameters
+    ! Gets dimension sizes for parameters
     !
     ! ARGUMENTS:
-    integer,                            intent(in)  :: ncid
-    integer,                            intent(in)  :: num_used_dimensions
-    character(len=param_string_length), intent(in)  :: dimension_names(:)
-    integer,                            intent(out) :: dimension_sizes(:)
+    integer,                            intent(in)  :: ncid                ! netcdf file ID
+    integer,                            intent(in)  :: num_used_dimensions ! number of dimensions
+    character(len=param_string_length), intent(in)  :: dimension_names(:)  ! dimension names
+    integer,                            intent(out) :: dimension_sizes(:)  ! dimension sizes
  
     ! LOCALS
     integer :: d

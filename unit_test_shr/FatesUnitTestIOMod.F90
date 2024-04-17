@@ -157,9 +157,15 @@ module FatesUnitTestIOMod
   !=======================================================================================
 
   subroutine GetDimID(ncid, var_name, dim_id)
-    integer,          intent(in)  :: ncid
-    character(len=*), intent(in)  :: var_name
-    integer,          intent(out) :: dim_id
+    !
+    ! DESCRIPTION:
+    ! Gets dimension IDs for a variable ID
+    !
+  
+    ! ARGUMENTS:
+    integer,          intent(in)  :: ncid     ! netcdf file unit number
+    character(len=*), intent(in)  :: var_name ! variable name
+    integer,          intent(out) :: dim_id   ! dimension ID
 
     call Check(nf90_inq_dimid(ncid, var_name, dim_id))
 
@@ -168,9 +174,15 @@ module FatesUnitTestIOMod
   !=======================================================================================
 
   subroutine GetDimLen(ncid, dim_id, dim_len)
-    integer, intent(in)  :: ncid
-    integer, intent(in)  :: dim_id
-    integer, intent(out) :: dim_len
+    !
+    ! DESCRIPTION:
+    ! Gets dimension lengths given a dimension ID
+    !
+
+    ! ARGUMENTS:
+    integer, intent(in)  :: ncid    ! netcdf file unit number
+    integer, intent(in)  :: dim_id  ! dimension ID
+    integer, intent(out) :: dim_len ! dimension length
 
     call Check(nf90_inquire_dimension(ncid, dim_id, len=dim_len))
 

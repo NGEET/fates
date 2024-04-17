@@ -10,14 +10,14 @@ program FatesTestAllometry
   implicit none
 
   ! LOCALS:
-  type(fates_unit_test_param_reader) :: param_reader
-  character(len=:), allocatable      :: param_file
-  character(len=*), parameter        :: out_file = 'allometry_out.nc'
-  integer                            :: numpft
-  integer                            :: arglen
-  integer                            :: i, j
-  integer                            :: numdbh
-  integer                            :: nargs
+  type(fates_unit_test_param_reader) :: param_reader            ! param reader instance
+  character(len=:), allocatable      :: param_file              ! input parameter file
+  character(len=*), parameter        :: out_file = 'allometry_out.nc' ! output file
+  integer                            :: numpft                  ! number of pfts (from parameter file)
+  integer                            :: arglen                  ! length of command line argument
+  integer                            :: i, j                    ! looping indices
+  integer                            :: numdbh                  ! size of dbh array
+  integer                            :: nargs                   ! number of command line arguments
   real(r8), allocatable              :: dbh(:)                  ! diameter at breast height [cm]
   real(r8), allocatable              :: height(:, :)            ! height [m]
   real(r8), allocatable              :: bagw(:, :)              ! aboveground woody biomass [kgC]
@@ -37,13 +37,13 @@ program FatesTestAllometry
   real(r8), parameter :: max_dbh = 200.0_r8 ! maximum DBH to calculate [cm]
   real(r8), parameter :: dbh_inc = 0.5_r8   ! DBHncrement to use [cm]
 
-  integer,  parameter :: crown_damage = 1
-  real(r8), parameter :: elongation_factor = 1.0_r8
-  real(r8), parameter :: elongation_factor_roots = 1.0_r8
-  real(r8), parameter :: site_spread = 1.0_r8
-  real(r8), parameter :: canopy_trim = 1.0_r8
-  real(r8), parameter :: nplant = 1.0_r8
-  real(r8), parameter :: leaf_to_fineroot = 1.0_r8
+  integer,  parameter :: crown_damage = 1                 ! crown damage
+  real(r8), parameter :: elongation_factor = 1.0_r8       ! elongation factor for stem
+  real(r8), parameter :: elongation_factor_roots = 1.0_r8 ! elongation factor for roots
+  real(r8), parameter :: site_spread = 1.0_r8             ! site spread
+  real(r8), parameter :: canopy_trim = 1.0_r8             ! canopy trim
+  real(r8), parameter :: nplant = 1.0_r8                  ! number of plants per cohort
+  real(r8), parameter :: leaf_to_fineroot = 1.0_r8        ! leaf to fineroot ratio
 
   interface
 
@@ -163,21 +163,22 @@ subroutine WriteAllometryData(out_file, numdbh, numpft, dbh, height, bagw, blmax
   implicit none
 
   ! ARGUMENTS:
-  character(len=*), intent(in) :: out_file
-  integer,          intent(in) :: numdbh, numpft
-  real(r8),         intent(in) :: dbh(:)
-  real(r8),         intent(in) :: height(:,:)
-  real(r8),         intent(in) :: bagw(:,:)
-  real(r8),         intent(in) :: blmax(:, :)
-  real(r8),         intent(in) :: crown_area(:, :)
-  real(r8),         intent(in) :: sapwood_area(:, :)
-  real(r8),         intent(in) :: bsap(:, :)
-  real(r8),         intent(in) :: bbgw(:, :) 
-  real(r8),         intent(in) :: fineroot_biomass(:, :) 
-  real(r8),         intent(in) :: bstore(:, :) 
-  real(r8),         intent(in) :: bdead(:, :)
-  real(r8),         intent(in) :: total_biom_parts(:, :)
-  real(r8),         intent(in) :: total_biom_tissues(:, :)
+  character(len=*), intent(in) :: out_file                 ! output file name
+  integer,          intent(in) :: numdbh                   ! size of dbh array
+  integer,          intent(in) :: numpft                   ! number of pfts
+  real(r8),         intent(in) :: dbh(:)                   ! diameter at breast height [cm]
+  real(r8),         intent(in) :: height(:,:)              ! height [m]
+  real(r8),         intent(in) :: bagw(:,:)                ! aboveground biomass [kgC]
+  real(r8),         intent(in) :: blmax(:, :)              ! leaf biomass [kgC]
+  real(r8),         intent(in) :: crown_area(:, :)         ! crown area [m2]
+  real(r8),         intent(in) :: sapwood_area(:, :)       ! sapwood cross-sectional area [m2]
+  real(r8),         intent(in) :: bsap(:, :)               ! sapwood biomass [kgC]
+  real(r8),         intent(in) :: bbgw(:, :)               ! belowground biomass [kgC]
+  real(r8),         intent(in) :: fineroot_biomass(:, :)   ! fineroot biomass [kgC]
+  real(r8),         intent(in) :: bstore(:, :)             ! storage biomass [kgC]
+  real(r8),         intent(in) :: bdead(:, :)              ! deadwood biomass [kgC]
+  real(r8),         intent(in) :: total_biom_parts(:, :)   ! total biomass calculated from parts [kgC]
+  real(r8),         intent(in) :: total_biom_tissues(:, :) ! total biomass calculated from tissues [kgC]
 
   ! LOCALS:
   integer, allocatable :: pft_indices(:) ! array of pft indices to write out

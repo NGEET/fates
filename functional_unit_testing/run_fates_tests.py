@@ -1,11 +1,36 @@
 #!/usr/bin/env python
 
-import os
-import sys
-from build_fortran_tests import build_unit_tests
+"""
+|------------------------------------------------------------------|
+|---------------------  Instructions  -----------------------------|
+|------------------------------------------------------------------|
+To run this script the following python packages are required:
+        - numpy
+        - xarray
+        - matplotlib
+        - pandas
 
-import argparse
+Though this script does not require any host land model code, it does require some CIME and shr code,
+so you should still get these repositories as you normally would (i.e., manage_externals, etc.)
+
+Additionally, this requires netcdf and netcdff as well as a fortran compiler.
+ 
+You must also have a .cime folder in your home directory which specifies machine
+configurations for CIME.
+
+This script builds and runs various FATES unit and functional tests, and plots any
+relevant output from those tests.
+
+You can supply your own parameter file (either a .cdl or a .nc file), or if you do not
+specify anything, the sript will use the default FATES parameter cdl file.
+
+"""
+
+import os
 import math
+import argparse
+
+from build_fortran_tests import build_unit_tests
 import pandas as pd
 import numpy as np
 import xarray as xr
