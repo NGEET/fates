@@ -210,6 +210,20 @@ def run_exectuables(build_dir, test_dir, test_exe, run_dir, args):
     
 
 def run_tests(clean, build, run, build_dir, run_dir, make_j, param_file):
+    """Builds and runs the fates tests
+
+    Args:
+        clean (bool): whether or not to clean the build directory
+        build (bool): whether or not to build the exectuables
+        run (bool): whether or not to run the executables
+        build_dir (str): build directory
+        run_dir (str): run directory
+        make_j (int): number of processors for the build
+        param_file (str): input FATES parameter file
+
+    Raises:
+        RuntimeError: Parameter file is not the correct file type
+    """
         
     # absolute path to desired build directory
     build_dir_path = os.path.abspath(build_dir)
