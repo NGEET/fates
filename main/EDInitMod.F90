@@ -482,7 +482,7 @@ contains
                          end do !hlm_pft
                       else
                          ! for crops, we need to use different logic because the bc_in(s)%pft_areafrac_lu() information only exists for natural PFTs
-                         sites(s)%area_pft(int(crop_lu_pft_vector(i_landusetype)),i_landusetype) = 1._r8
+                         sites(s)%area_pft(crop_lu_pft_vector(i_landusetype),i_landusetype) = 1._r8
                       endif
                    end do
 
