@@ -20,24 +20,24 @@ def plot_allometry_var(data, varname, units, save_fig, plot_dir=None):
         save_fig (bool): whether or not to write out plot
         plot_dir (str): if saving figure, where to write to
     """
-    df = pd.DataFrame({'dbh': np.tile(data.dbh, len(data.pft)),
+    data_frame = pd.DataFrame({'dbh': np.tile(data.dbh, len(data.pft)),
                        'pft': np.repeat(data.pft, len(data.dbh)),
                        data.name: data.values.flatten()})
 
-    maxdbh = df['dbh'].max()
-    maxvar = round_up(df[data.name].max())
+    maxdbh = data_frame['dbh'].max()
+    maxvar = round_up(data_frame[data.name].max())
 
     colors = get_color_pallete()
 
     plt.figure(figsize=(7, 5))
-    ax = plt.subplot(111)
-    ax.spines["top"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_visible(False)
+    axis = plt.subplot(111)
+    axis.spines["top"].set_visible(False)
+    axis.spines["bottom"].set_visible(False)
+    axis.spines["right"].set_visible(False)
+    axis.spines["left"].set_visible(False)
 
-    ax.get_xaxis().tick_bottom()
-    ax.get_yaxis().tick_left()
+    axis.get_xaxis().tick_bottom()
+    axis.get_yaxis().tick_left()
 
     plt.xlim(0.0, maxdbh)
     plt.ylim(0.0, maxvar)
@@ -47,16 +47,16 @@ def plot_allometry_var(data, varname, units, save_fig, plot_dir=None):
 
     inc = (int(maxvar) - 0)/20
     for i in range(0, 20):
-        y = 0.0 + i*inc
+        y_val = 0.0 + i*inc
         plt.plot(range(math.floor(0), math.ceil(maxdbh)),
-                  [y] * len(range(math.floor(0), math.ceil(maxdbh))),
+                  [y_val] * len(range(math.floor(0), math.ceil(maxdbh))),
                   "--", lw=0.5, color="black", alpha=0.3)
 
     plt.tick_params(bottom=False, top=False, left=False, right=False)
 
-    pfts = np.unique(df.pft.values)
+    pfts = np.unique(data_frame.pft.values)
     for rank, pft in enumerate(pfts):
-        dat = df[df.pft == pft]
+        dat = data_frame[data_frame.pft == pft]
         plt.plot(dat.dbh.values, dat[data.name].values, lw=2, color=colors[rank],
                  label=pft)
 
@@ -66,7 +66,7 @@ def plot_allometry_var(data, varname, units, save_fig, plot_dir=None):
     plt.legend(loc='upper left', title='PFT')
 
     if save_fig:
-        fig_name = os.path.join(plot_dir, f"allometry_plot_{var}.png")
+        fig_name = os.path.join(plot_dir, f"allometry_plot_{data.name}.png")
         plt.savefig(fig_name)
 
 def plot_total_biomass(data, save_fig, plot_dir):
@@ -75,7 +75,7 @@ def plot_total_biomass(data, save_fig, plot_dir):
     Args:
         data (xarray DataSet): the allometry dataset
     """
-    df = pd.DataFrame({'dbh': np.tile(data.dbh, len(data.pft)),
+    data_frame = pd.DataFrame({'dbh': np.tile(data.dbh, len(data.pft)),
                        'pft': np.repeat(data.pft, len(data.dbh)),
                        'total_biomass_parts': data.total_biomass_parts.values.flatten(),
                        'total_biomass_tissues': data.total_biomass_tissues.values.flatten()})
@@ -83,16 +83,17 @@ def plot_total_biomass(data, save_fig, plot_dir):
     colors = get_color_pallete()
 
     plt.figure(figsize=(7, 5))
-    ax = plt.subplot(111)
-    ax.spines["top"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_visible(False)
+    axis = plt.subplot(111)
+    axis.spines["top"].set_visible(False)
+    axis.spines["bottom"].set_visible(False)
+    axis.spines["right"].set_visible(False)
+    axis.spines["left"].set_visible(False)
 
-    ax.get_xaxis().tick_bottom()
-    ax.get_yaxis().tick_left()
+    axis.get_xaxis().tick_bottom()
+    axis.get_yaxis().tick_left()
 
-    maxbiomass = np.maximum(df['total_biomass_parts'].max(), df['total_biomass_tissues'].max())
+    maxbiomass = np.maximum(data_frame['total_biomass_parts'].max(),
+                            data_frame['total_biomass_tissues'].max())
 
     plt.xlim(0.0, maxbiomass)
     plt.ylim(0.0, maxbiomass)
@@ -101,9 +102,9 @@ def plot_total_biomass(data, save_fig, plot_dir):
     plt.xticks(fontsize=10)
     plt.tick_params(bottom=False, top=False, left=False, right=False)
 
-    pfts = np.unique(df.pft.values)
+    pfts = np.unique(data_frame.pft.values)
     for rank, pft in enumerate(pfts):
-        data = df[df.pft == pft]
+        data = data_frame[data_frame.pft == pft]
         plt.scatter(data.total_biomass_parts.values, data.total_biomass_parts.values,
                  color=colors[rank], label=pft)
 
@@ -117,6 +118,14 @@ def plot_total_biomass(data, save_fig, plot_dir):
         plt.savefig(fig_name)
 
 def plot_allometry_dat(run_dir, out_file, save_figs, plot_dir):
+    """Plots all allometry plots
+
+    Args:
+        run_dir (str): run directory
+        out_file (str): output file name
+        save_figs (bool): whether or not to save the figures
+        plot_dir (str): plot directory to save the figures to
+    """
 
     # read in allometry data
     allometry_dat = xr.open_dataset(os.path.join(run_dir, out_file))
@@ -172,8 +181,8 @@ def plot_allometry_dat(run_dir, out_file, save_figs, plot_dir):
         },
 
     }
-    for plot in plot_dict:
-        plot_allometry_var(allometry_dat[plot], plot_dict[plot]['varname'],
-                           plot_dict[plot]['units'], save_figs, plot_dir)
+    for plot, attributes in plot_dict.items():
+        plot_allometry_var(allometry_dat[plot], attributes['varname'],
+                           attributes['units'], save_figs, plot_dir)
 
     plot_total_biomass(allometry_dat, save_figs, plot_dir)

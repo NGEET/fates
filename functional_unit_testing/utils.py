@@ -7,13 +7,31 @@ from path_utils import add_cime_lib_to_path
 
 add_cime_lib_to_path()
 
-from CIME.utils import run_cmd_no_fail
+from CIME.utils import run_cmd_no_fail # pylint: disable=wrong-import-position,import-error,wrong-import-order
 
 def round_up(num, decimals=0):
+    """Rounds a number up
+
+    Args:
+        num (float): number to round
+        decimals (int, optional): number of decimals to round to. Defaults to 0.
+
+    Returns:
+        float: input number rounded up
+    """
     multiplier = 10**decimals
     return math.ceil(num * multiplier)/multiplier
 
 def truncate(num, decimals=0):
+    """Rounds a number down
+
+    Args:
+        num (float): number to round
+        decimals (int, optional): Decimals to round down to. Defaults to 0.
+
+    Returns:
+        float: number rounded down
+    """
     multiplier = 10**decimals
     return int(num * multiplier)/multiplier
 
@@ -37,7 +55,7 @@ def create_nc_file(cdl_path, run_dir):
 
     return file_nc_name
 
-def copy_file(file_path, dir):
+def copy_file(file_path, directory):
     """Copies a file file to a desired directory
 
     Args:
@@ -49,7 +67,7 @@ def copy_file(file_path, dir):
     file_copy_command = [
             "cp",
             os.path.abspath(file_path),
-            os.path.abspath(dir)
+            os.path.abspath(directory)
     ]
     run_cmd_no_fail(" ".join(file_copy_command), combine_output=True)
 
@@ -68,8 +86,6 @@ def get_color_pallete():
             (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),
             (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
 
-    for i in range(len(colors)):
-        r, g, b = colors[i]
-        colors[i] = (r/255., g/255., b/255.)
+    colors = [(red/255.0, green/255.0, blue/255.0) for red, green, blue in colors]
 
     return colors

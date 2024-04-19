@@ -1,18 +1,17 @@
+"""
+Builds/compiles any tests within the FATES repository
+"""
 import os
-import sys
 import shutil
-
-_FATES_PYTHON = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(1, _FATES_PYTHON)
-
 from utils import add_cime_lib_to_path
+
 add_cime_lib_to_path()
 
-from CIME.utils import get_src_root, run_cmd_no_fail, expect, stringify_bool
-from CIME.build import CmakeTmpBuildDir
-from CIME.XML.machines import Machines
-from CIME.BuildTools.configure import configure, FakeCase
-from CIME.XML.env_mach_specific import EnvMachSpecific
+from CIME.utils import get_src_root, run_cmd_no_fail, expect, stringify_bool # pylint: disable=wrong-import-position,import-error,wrong-import-order
+from CIME.build import CmakeTmpBuildDir # pylint: disable=wrong-import-position,import-error,wrong-import-order
+from CIME.XML.machines import Machines # pylint: disable=wrong-import-position,import-error,wrong-import-order
+from CIME.BuildTools.configure import configure, FakeCase # pylint: disable=wrong-import-position,import-error,wrong-import-order
+from CIME.XML.env_mach_specific import EnvMachSpecific # pylint: disable=wrong-import-position,import-error,wrong-import-order
 
 _CIMEROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../cime")
 
@@ -30,7 +29,8 @@ def run_cmake(name, test_dir, pfunit_path, netcdf_c_path, netcdf_f_path, cmake_a
         print(f"Running cmake for {name}.")
 
         # directory with cmake modules
-        cmake_module_dir = os.path.abspath(os.path.join(_CIMEROOT, "CIME", "non_py", "src", "CMake"))
+        cmake_module_dir = os.path.abspath(os.path.join(_CIMEROOT, "CIME", "non_py",
+                                                        "src", "CMake"))
 
         # directory with genf90
         genf90_dir = os.path.join(_CIMEROOT, "CIME", "non_py", "externals", "genf90")
@@ -64,7 +64,8 @@ def find_library(caseroot, cmake_args, lib_string):
 
     Args:
         caseroot (str): Directory with pfunit macros
-        cmake_args (str): The cmake args used to invoke cmake (so that we get the correct makefile vars)
+        cmake_args (str): The cmake args used to invoke cmake
+        (so that we get the correct makefile vars)
     """
     with CmakeTmpBuildDir(macroloc=caseroot) as cmaketmp:
         all_vars = cmaketmp.get_makefile_vars(cmake_args=cmake_args)
@@ -92,7 +93,7 @@ def prep_build_dir(build_dir, clean):
     # create the build directory
     build_dir_path = os.path.abspath(build_dir)
     if not os.path.isdir(build_dir_path):
-      os.mkdir(build_dir_path)
+        os.mkdir(build_dir_path)
 
     # change into that directory
     os.chdir(build_dir_path)
@@ -116,12 +117,12 @@ def clean_cmake_files():
 
     # Clear contents to do with cmake cache
     for file in cwd_contents:
-      if (
-          file in ("Macros.cmake", "env_mach_specific.xml")
-          or file.startswith("Depends")
-          or file.startswith(".env_mach_specific")
-          ):
-        os.remove(file)
+        if (
+            file in ("Macros.cmake", "env_mach_specific.xml")
+            or file.startswith("Depends")
+            or file.startswith(".env_mach_specific")
+            ):
+            os.remove(file)
 
 def get_extra_cmake_args(build_dir, mpilib):
     """Makes a fake case to grab the required cmake arguments
@@ -152,23 +153,22 @@ def get_extra_cmake_args(build_dir, mpilib):
         os_,
         unit_testing=True,
     )
-    machspecific = EnvMachSpecific(build_dir, unit_testing=True)
+    EnvMachSpecific(build_dir, unit_testing=True)
 
     # make a fake case
-    fake_case = FakeCase(compiler, mpilib, True, "nuopc", threading=False)
+    FakeCase(compiler, mpilib, True, "nuopc", threading=False)
 
-    cmake_args = (
-        "{}-DOS={} -DMACH={} -DCOMPILER={} -DDEBUG={} -DMPILIB={} -Dcompile_threaded={} -DCASEROOT={}".format(
-            "",
-            os_,
-            machobj.get_machine_name(),
-            compiler,
-            stringify_bool(True),
-            mpilib,
-            stringify_bool(False),
-            build_dir
-        )
-    )
+    cmake_args_list = [
+      f"-DOS={os_}",
+      f"-DMACH={machobj.get_machine_name()}",
+      f"-DCOMPILER={compiler}",
+      f"-DDEBUG={stringify_bool(True)}",
+      f"-DMPILIB={mpilib}",
+      f"-Dcompile_threaded={stringify_bool(False)}",
+      f"-DCASEROOT={build_dir}"
+    ]
+
+    cmake_args = " ".join(cmake_args_list)
 
     return cmake_args
 
@@ -246,4 +246,3 @@ def build_unit_tests(build_dir, name, cmake_directory, make_j, clean=False):
     # run cmake and make
     run_cmake(name, cmake_directory, pfunit_path, netcdf_c_path, netcdf_f_path, cmake_args)
     run_make(name, make_j, clean=clean)
-
