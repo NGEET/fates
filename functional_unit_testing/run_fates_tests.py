@@ -14,7 +14,7 @@ Though this script does not require any host land model code, it does require so
 so you should still get these repositories as you normally would (i.e., manage_externals, etc.)
 
 Additionally, this requires netcdf and netcdff as well as a fortran compiler.
- 
+
 You must also have a .cime folder in your home directory which specifies machine
 configurations for CIME.
 
@@ -22,203 +22,51 @@ This script builds and runs various FATES unit and functional tests, and plots a
 relevant output from those tests.
 
 You can supply your own parameter file (either a .cdl or a .nc file), or if you do not
-specify anything, the sript will use the default FATES parameter cdl file.
+specify anything, the script will use the default FATES parameter cdl file.
 
 """
-
 import os
-import math
 import argparse
-
-from build_fortran_tests import build_unit_tests
-import pandas as pd
-import numpy as np
-import xarray as xr
 import matplotlib
 import matplotlib.pyplot as plt
+from build_fortran_tests import build_unit_tests, build_exists
+from path_utils import add_cime_lib_to_path
+from utils import round_up, copy_file, create_nc_file
+from allometry.AllometryUtils import plot_allometry_dat
+from math_utils.MathUtils import plot_quadratic_dat
 
-from utils import add_cime_lib_to_path, round_up
 add_cime_lib_to_path()
 
 from CIME.utils import run_cmd_no_fail
 
+# Constants for this script
 DEFAULT_CDL_PATH = os.path.abspath("../parameter_files/fates_params_default.cdl")
 CMAKE_BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")
 NAME = "fates_unit_tests"
 
-# Constants for now
-## TODO update this to be some kind of dictionary we can loop through
-out_file = "allometry_out.nc"
-test_dir = "fates_allom_test"
-test_exe = "FATES_allom_exe"
+# Dictionary with needed constants for running the executables and reading in the
+# output files - developers who add tests should add things here.
+test_dict = {
+        "allometry": {
+          "test_dir": "fates_allom_test",
+          "test_exe": "FATES_allom_exe",
+          "out_file": "allometry_out.nc",
+          "unit_test": False,
+          "use_param_file": True,
+          "other_args": [],
+          "plotting_function": plot_allometry_dat,
+        },
+        "quadratic": {
+          "test_dir": "fates_math_test",
+          "test_exe": "FATES_math_exe",
+          "out_file": "quad_out.nc",
+          "unit_test": False,
+          "use_param_file": False,
+          "other_args": [],
+          "plotting_function": plot_quadratic_dat,
+        }
+    }
 
-def get_color_pallete():
-    """Generate a color pallete
-
-    Returns:
-        real: array of colors to use in plotting
-    """
-    
-    colors = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
-            (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
-            (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),
-            (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),
-            (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
-    
-    for i in range(len(colors)):
-        r, g, b = colors[i]
-        colors[i] = (r/255., g/255., b/255.)
-        
-    return colors
-
-
-def plot_allometry_var(data, var, varname, units, save_fig, plot_dir=None):
-    """Plot an allometry variable
-
-    Args:
-        data (xarray DataArray): the data array of the variable to plot
-        var (str): variable name (for data structure)
-        varname (str): variable name for plot labels
-        units (str): variable units for plot labels
-        save_fig (bool): whether or not to write out plot
-        plot_dir (str): if saving figure, where to write to
-    """
-    df = pd.DataFrame({'dbh': np.tile(data.dbh, len(data.pft)),
-                       'pft': np.repeat(data.pft, len(data.dbh)),
-                       var: data.values.flatten()})
-    
-    maxdbh = df['dbh'].max()
-    maxvar = round_up(df[var].max())
-    
-    colors = get_color_pallete()
-    
-    plt.figure(figsize=(7, 5))
-    ax = plt.subplot(111)
-    ax.spines["top"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_visible(False)
-    
-    ax.get_xaxis().tick_bottom()
-    ax.get_yaxis().tick_left()
-
-    plt.xlim(0.0, maxdbh)
-    plt.ylim(0.0, maxvar)
-
-    plt.yticks(fontsize=10)
-    plt.xticks(fontsize=10)
-    
-    inc = (int(maxvar) - 0)/20
-    for i in range(0, 20):
-        y = 0.0 + i*inc
-        plt.plot(range(math.floor(0), math.ceil(maxdbh)),
-                  [y] * len(range(math.floor(0), math.ceil(maxdbh))),
-                  "--", lw=0.5, color="black", alpha=0.3)
-        
-    plt.tick_params(bottom=False, top=False, left=False, right=False)
-    
-    pfts = np.unique(df.pft.values)
-    for rank, pft in enumerate(pfts):
-        data = df[df.pft == pft]
-        plt.plot(data.dbh.values, data[var].values, lw=2, color=colors[rank],
-                 label=pft)
-        
-    plt.xlabel('DBH (cm)', fontsize=11)
-    plt.ylabel(f'{varname} ({units})', fontsize=11)
-    plt.title(f"Simulated {varname} for input parameter file", fontsize=11)
-    plt.legend(loc='upper left', title='PFT')
-    
-    if save_fig:
-        fig_name = os.path.join(plot_dir, f"allometry_plot_{var}.png")
-        plt.savefig(fig_name)
-    
-    
-def plot_total_biomass(data, save_fig, plot_dir):
-    """Plot two calculations of total biomass against each other
-
-    Args:
-        data (xarray DataSet): the allometry dataset
-    """
-    df = pd.DataFrame({'dbh': np.tile(data.dbh, len(data.pft)),
-                       'pft': np.repeat(data.pft, len(data.dbh)),
-                       'total_biomass_parts': data.total_biomass_parts.values.flatten(),
-                       'total_biomass_tissues': data.total_biomass_tissues.values.flatten()})
-    
-    colors = get_color_pallete()
-        
-    plt.figure(figsize=(7, 5))
-    ax = plt.subplot(111)
-    ax.spines["top"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_visible(False)
-    
-    ax.get_xaxis().tick_bottom()
-    ax.get_yaxis().tick_left()
-    
-    maxbiomass = np.maximum(df['total_biomass_parts'].max(), df['total_biomass_tissues'].max())
-    
-    plt.xlim(0.0, maxbiomass)
-    plt.ylim(0.0, maxbiomass)
-
-    plt.yticks(fontsize=10)
-    plt.xticks(fontsize=10)
-    plt.tick_params(bottom=False, top=False, left=False, right=False)
-    
-    pfts = np.unique(df.pft.values)
-    for rank, pft in enumerate(pfts):
-        data = df[df.pft == pft]
-        plt.scatter(data.total_biomass_parts.values, data.total_biomass_parts.values,
-                 color=colors[rank], label=pft)
-        
-    plt.xlabel('Total biomass (kgC) from parts', fontsize=11)
-    plt.ylabel('Total biomass (kgC) from tissues', fontsize=11)
-    plt.title("Simulated total biomass for input parameter file", fontsize=11)
-    plt.legend(loc='upper left', title='PFT')
-    
-    if save_fig:
-        fig_name = os.path.join(plot_dir, "allometry_plot_total_biomass_compare.png")
-        plt.savefig(fig_name)
-  
-def create_nc_file(cdl_path, run_dir):
-    """Creates a netcdf file from a cdl file
-
-    Args:
-        cdl_path (str): full path to desired cdl file
-        run_dir (str): where the file should be written to
-    """
-    file_basename = os.path.basename(cdl_path).split(".")[-2]
-    file_nc_name = f"{file_basename}.nc"
-    
-    file_gen_command = [
-            "ncgen -o",
-            os.path.join(run_dir, file_nc_name),
-            cdl_path
-    ]
-    out = run_cmd_no_fail(" ".join(file_gen_command), combine_output=True)
-    print(out)
-    
-    return file_nc_name
-
-def copy_file(file_path, dir):
-    """Copies a file file to a desired directory
-
-    Args:
-        file_path (str): full path to file
-        dir (str): where the file should be copied to
-    """
-    file_basename = os.path.basename(file_path)
-    
-    file_copy_command = [
-            "cp",
-            os.path.abspath(file_path),
-            os.path.abspath(dir)
-    ]
-    run_cmd_no_fail(" ".join(file_copy_command), combine_output=True)
-    
-    return file_basename
-    
-    
 def run_exectuables(build_dir, test_dir, test_exe, run_dir, args):
     """Run the generated executables
 
@@ -229,23 +77,52 @@ def run_exectuables(build_dir, test_dir, test_exe, run_dir, args):
         test_exe (str): test executable to run
         args ([str]):   arguments for executable
     """
-    
+
     # move executable to run directory
     exe_path = os.path.join(build_dir, test_dir, test_exe)
     copy_file(exe_path, run_dir)
-    
+
     # run the executable
     new_exe_path = os.path.join(run_dir, test_exe)
     run_command = [new_exe_path]
     run_command.extend(args)
-    
+
     os.chdir(run_dir)
     print("Running exectuables")
     out = run_cmd_no_fail(" ".join(run_command), combine_output=True)
     print(out)
-    
 
-def run_tests(clean, build, run, build_dir, run_dir, make_j, param_file, save_figs):
+def make_plotdirs(run_dir, test_list):
+    # make main plot directory
+    plot_dir = os.path.join(run_dir, 'plots')
+    if not os.path.isdir(plot_dir):
+        os.mkdir(plot_dir)
+
+    # make sub-plot directories
+    for test in test_list:
+        if test_dict[test]['plotting_function'] is not None:
+            sub_dir = os.path.join(plot_dir, test)
+            if not os.path.isdir(sub_dir):
+                os.mkdir(sub_dir)
+
+def create_param_file(param_file, run_dir):
+    if param_file is None:
+        print("Using default parameter file.")
+        param_file = DEFAULT_CDL_PATH
+        param_file_update = create_nc_file(param_file, run_dir)
+    else:
+        print(f"Using parameter file {param_file}.")
+        file_suffix = os.path.basename(param_file).split(".")[-1]
+        if file_suffix == 'cdl':
+            param_file_update = create_nc_file(param_file, run_dir)
+        elif file_suffix == "nc":
+            param_file_update = copy_file(param_file, run_dir)
+        else:
+            raise RuntimeError("Must supply parameter file with .cdl or .nc ending.")
+
+    return param_file_update
+
+def run_tests(clean, build, run, build_dir, run_dir, make_j, param_file, save_figs, test_list):
     """Builds and runs the fates tests
 
     Args:
@@ -261,62 +138,49 @@ def run_tests(clean, build, run, build_dir, run_dir, make_j, param_file, save_fi
     Raises:
         RuntimeError: Parameter file is not the correct file type
     """
-        
+
     # absolute path to desired build directory
     build_dir_path = os.path.abspath(build_dir)
-    
+
     # absolute path to desired run directory
     run_dir_path = os.path.abspath(run_dir)
-    
+
+    # make run directory if it doesn't already exist
     if not os.path.isdir(run_dir_path):
         os.mkdir(run_dir_path)
-    
+
+    # create plot directories if we need to
     if save_figs:
-        plot_dir = os.path.join(run_dir_path, 'plots')
-        if not os.path.isdir(plot_dir):
-            os.mkdir(plot_dir)
-    else:
-        plot_dir = None
-    
-    if param_file is None:
-        print("Using default parameter file.")
-        param_file = DEFAULT_CDL_PATH
-        param_file = create_nc_file(param_file, run_dir_path)
-    else:
-        print(f"Using parameter file {param_file}.")
-        file_suffix = os.path.basename(param_file).split(".")[-1]
-        if file_suffix == 'cdl':
-            param_file = create_nc_file(param_file, run_dir_path)
-        elif file_suffix == "nc":
-            param_file = copy_file(param_file, run_dir_path)
-        else:
-            raise RuntimeError("Must supply file with .cdl or .nc ending.")
+        make_plotdirs(os.path.abspath(run_dir), test_list)
+
+    # move parameter file to correct location (creates nc file if cdl supplied)
+    param_file = create_param_file(param_file, run_dir)
 
     if build:
         build_unit_tests(build_dir, NAME, CMAKE_BASE_DIR, make_j, clean=clean)
-    
-    if run:
-        run_exectuables(build_dir_path, test_dir, test_exe, run_dir_path, [param_file])
 
-    # read in allometry data
-    allometry_dat = xr.open_dataset(os.path.join(run_dir_path, out_file))
-    
-    # plot allometry data
-    plot_allometry_var(allometry_dat.height, 'height', 'height', 'm', save_figs, plot_dir)
-    plot_allometry_var(allometry_dat.bagw, 'bagw', 'aboveground biomass', 'kgC', save_figs, plot_dir)
-    plot_allometry_var(allometry_dat.blmax, 'blmax', 'maximum leaf biomass', 'kgC', save_figs, plot_dir)
-    plot_allometry_var(allometry_dat.crown_area, 'crown_area', 'crown area', 'm$^2$', save_figs, plot_dir)
-    plot_allometry_var(allometry_dat.sapwood_area, 'sapwood_area', 'sapwood area', 'm$^2$', save_figs, plot_dir)
-    plot_allometry_var(allometry_dat.bsap, 'bsap', 'sapwood biomass', 'kgC', save_figs, plot_dir)
-    plot_allometry_var(allometry_dat.bbgw, 'bbgw', 'belowground biomass', 'kgC', save_figs, plot_dir)
-    plot_allometry_var(allometry_dat.fineroot_biomass, 'fineroot_biomass', 'fineroot biomass', 'kgC', save_figs, plot_dir)
-    plot_allometry_var(allometry_dat.bstore, 'bstore', 'storage biomass', 'kgC', save_figs, plot_dir)
-    plot_allometry_var(allometry_dat.bdead, 'bdead', 'deadwood biomass', 'kgC', save_figs, plot_dir)
-    plot_allometry_var(allometry_dat.total_biomass_parts, 'total_biomass_parts', 'total biomass (calculated from parts)', 'kgC', save_figs, plot_dir)
-    plot_allometry_var(allometry_dat.total_biomass_tissues, 'total_biomass_tissues', 'total biomass (calculated from tissues)', 'kgC', save_figs, plot_dir)
-    plot_total_biomass(allometry_dat, save_figs, plot_dir)
+    if run:
+        for test in test_list:
+            if not test_dict[test]['unit_test']:
+                args = test_dict[test]['other_args']
+                if test_dict[test]['use_param_file']:
+                    args.insert(0, param_file)
+                run_exectuables(build_dir_path, test_dict[test]['test_dir'],
+                                test_dict[test]['test_exe'], run_dir_path, args)
+
+    # plot output
+    for test in test_list:
+        if test_dict[test]['plotting_function'] is not None:
+            test_dict[test]['plotting_function'](run_dir_path,
+                        test_dict[test]['out_file'], save_figs,
+                        os.path.join(run_dir_path, 'plots', test))
     plt.show()
 
+def out_file_exists(run_dir, out_file):
+
+    if not os.path.isfile(os.path.join(run_dir, out_file)):
+        return False
+    return True
 
 def commandline_args():
     """Parse and return command-line arguments"""
@@ -327,13 +191,13 @@ def commandline_args():
     Typical usage:
 
     ./run_fates_tests -f parameter_file.nc
-    
+
     """
-   
+
     parser = argparse.ArgumentParser(
         description=description, formatter_class=argparse.RawTextHelpFormatter
     )
-   
+
     parser.add_argument(
         "-f",
         "--parameter-file",
@@ -343,7 +207,7 @@ def commandline_args():
         "If no file is specified the script will use the default .cdl file in the\n"
         "parameter_files directory.\n",
     )
-    
+
     parser.add_argument(
         "-b",
         "--build-dir",
@@ -351,7 +215,7 @@ def commandline_args():
         help="Directory where tests are built.\n"
         "Will be created if it does not exist.\n",
     )
-    
+
     parser.add_argument(
         "-r",
         "--run-dir",
@@ -359,22 +223,22 @@ def commandline_args():
         help="Directory where tests are run.\n"
         "Will be created if it does not exist.\n",
     )
-    
+
     parser.add_argument(
         "--make-j",
         type=int,
         default=8,
         help="Number of processes to use for build.",
     )
-  
+
     parser.add_argument(
         "-c",
         "--clean",
         action="store_true",
-        help="Clean build directory before building.\n" 
+        help="Clean build directory before building.\n"
         "Removes CMake cache and runs 'make clean'.\n",
     )
-  
+
     parser.add_argument(
       "--skip-build",
       action="store_true",
@@ -382,7 +246,7 @@ def commandline_args():
       "Only do this if you already have run build.\n"
       "Script will check to make sure executables are present.\n",
     )
-    
+
     parser.add_argument(
       "--skip-run",
       action="store_true",
@@ -390,7 +254,7 @@ def commandline_args():
       "Only do this if you already have run the code previously.\n"
       "Script will check to make sure required output files are present.\n",
     )
-    
+
     parser.add_argument(
       "--save-figs",
       action="store_true",
@@ -398,45 +262,19 @@ def commandline_args():
       "Will be placed in run_dir/plots.\n"
       "Should probably do this on remote machines.\n",
     )
-    
+
+    parser.add_argument(
+      "-t",
+      "--test",
+      help="Test(s) to run. Comma-separated list of test names, or 'all'\n"
+      "for all tests. If not supplied, will run all tests."
+    )
+
     args = parser.parse_args()
-    
-    check_arg_validity(args)
-    
-    return args
 
+    test_list = check_arg_validity(args)
 
-def check_build_exists(build_dir):
-    """Checks to see if the build directory and associated executables exist.
-    
-        Args:
-          build_dir (str): build directory
-    """
-   
-    build_path = os.path.abspath(build_dir)
-    if not os.path.isdir(build_path):
-        return False
-     
-    exe_path = os.path.join(build_path, test_dir, test_exe)
-    if not os.path.isfile(exe_path):
-        return False
-   
-    return True
-
-
-def check_out_file_exists(out_file):
-    """Checks to see if the required output files exist.
-    
-        Args:
-          out_file (str): required output file
-    """
-   
-    full_path = os.path.abspath(out_file)
-    if not os.path.isfile(full_path):
-        return False
-   
-    return True
-
+    return args, test_list
 
 def check_arg_validity(args):
     """Checks validity of input script arguments
@@ -445,32 +283,63 @@ def check_arg_validity(args):
         args (parse_args): input arguments
 
     Raises:
-        RuntimeError: Can't find input parameter file
-        RuntimeError: Can't find build directory or required executables
+        IOError: Can't find input parameter file, or parameter file is not correct form
+        RuntimeError: Invalid test name or test list
+        RuntimeError: Can't find required build directories or executables
         RuntimeError: Can't find required output files for plotting
     """
+    # check to make sure parameter file exists and is one of the correct forms
     if args.parameter_file is not None:
         if not os.path.isfile(args.parameter_file):
-            raise RuntimeError(f"Cannot find file {args.parameter_file}.")
+            raise IOError(f"Cannot find file {args.parameter_file}.")
+        else:
+          file_suffix = os.path.basename(args.parameter_file).split(".")[-1]
+          if not file_suffix in ['cdl', 'nc']:
+              raise IOError("Must supply parameter file with .cdl or .nc ending.")
+
+    # check test names
+    valid_test_names = test_dict.keys()
+    if args.test is not None:
+        test_list = args.test.split(',')
+        for test in test_list:
+            if test not in valid_test_names:
+              raise RuntimeError("Invalid test supplied, must supply one of:\n"
+                                f"{', '.join(valid_test_names)}\n"
+                                "or do not supply a test name to run all tests.")
+    else:
+        test_list = valid_test_names
+
+    # make sure build directory exists
     if args.skip_build:
-        if not check_build_exists(os.path.abspath(args.build_dir)):
-            raise RuntimeError("Can't find build directory or executables, run again without --skip-build")
+        for test in test_list:
+            if not build_exists(args.build_dir, test_dict[test]['test_dir'],
+                                      test_dict[test]['test_exe']):
+                raise RuntimeError("Build directory or executable does not exist.\n"
+                                   "Re-run script without --skip-build.")
+
+    # make sure relevant output files exist:
     if args.skip_run:
-        if not check_out_file_exists(os.path.join(os.path.abspath(args.run_dir), out_file)):
-            raise RuntimeError(f"Can't find output file {out_file}, run again without --skip-run")
+        for test in test_list:
+            if test_dict[test]['out_file'] is not None:
+                if not out_file_exists(os.path.abspath(args.run_dir), test_dict[test]['out_file']):
+                    raise RuntimeError(f"Required file for {test} test does not exist.\n"
+                                       "Re-run script without --skip-run.")
+
+    return test_list
 
 def main():
     """Main script
+      Reads in command-line arguments and then runs the tests.
     """
-    
-    args = commandline_args()
-    
+
+    args, test_list = commandline_args()
+
     build = not args.skip_build
     run = not args.skip_run
-    
-    run_tests(args.clean, build, run, args.build_dir, args.run_dir, args.make_j, 
-              args.parameter_file, args.save_figs)
+
+    run_tests(args.clean, build, run, args.build_dir, args.run_dir, args.make_j,
+             args.parameter_file, args.save_figs, test_list)
 
 if __name__ == "__main__":
-    
+
     main()

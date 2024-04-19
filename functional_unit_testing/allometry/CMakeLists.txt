@@ -16,13 +16,8 @@ link_directories(${NETCDF_C_DIR}/lib
 add_executable(FATES_allom_exe ${allom_sources})
 
 target_link_libraries(FATES_allom_exe
-                  netcdf 
+                  netcdf
                   netcdff
                   fates
                   csm_share
                   funit)
-
-add_test(allom_test FATES_allom_exe)
-
-# Tell CTest how to figure out that "STOP 1" fails for the current
-define_Fortran_stop_failure(allom_test)

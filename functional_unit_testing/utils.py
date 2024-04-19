@@ -1,66 +1,75 @@
-"""Utility functions related to getting paths to various important places
+"""Utility functions for file checking, math equations, etc.
 """
 
-import os
-import sys
 import math
+import os
+from path_utils import add_cime_lib_to_path
 
-# ========================================================================
-# Constants that may need to be changed if directory structures change
-# ========================================================================
+add_cime_lib_to_path()
 
-# Path to the root directory of FATES, based on the path of this file
-#
-# Note: It's important that this NOT end with a trailing slash;
-# os.path.normpath guarantees this.
-_FATES_ROOT = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir)
-)
+from CIME.utils import run_cmd_no_fail
 
-def path_to_fates_root():
-    """Returns the path to the root directory of FATES"""
-    return _FATES_ROOT
-
-def path_to_cime():
-    """Returns the path to cime, if it can be found
-
-    Raises a RuntimeError if it cannot be found
-
-    """
-    cime_path = os.path.join(path_to_fates_root(), "../../cime")
-    if os.path.isdir(cime_path):
-        return cime_path
-    raise RuntimeError("Cannot find cime.")
-      
-def prepend_to_python_path(path):
-    """Adds the given path to python's sys.path if it isn't already in the path
-
-    The path is added near the beginning, so that it takes precedence over existing
-    entries in the path
-    """
-    if not path in sys.path:
-        # Insert at location 1 rather than 0, because 0 is special
-        sys.path.insert(1, path)
-
-def add_cime_lib_to_path():
-    """Adds the CIME python library to the python path, to allow importing
-    modules from that library
-
-    Returns the path to the top-level cime directory
-
-    For documentation on standalone_only: See documentation in
-    path_to_cime
-    """
-    cime_path = path_to_cime()
-    prepend_to_python_path(cime_path)
-    cime_lib_path = os.path.join(cime_path, "CIME", "Tools")
-    prepend_to_python_path(cime_lib_path)
-    return cime_path
-  
-def round_up(n, decimals=0):
+def round_up(num, decimals=0):
     multiplier = 10**decimals
-    return math.ceil(n * multiplier) / multiplier
-  
-def truncate(n, decimals=0):
+    return math.ceil(num * multiplier)/multiplier
+
+def truncate(num, decimals=0):
     multiplier = 10**decimals
-    return int(n * multiplier) / multiplier
+    return int(num * multiplier)/multiplier
+
+def create_nc_file(cdl_path, run_dir):
+    """Creates a netcdf file from a cdl file
+
+    Args:
+        cdl_path (str): full path to desired cdl file
+        run_dir (str): where the file should be written to
+    """
+    file_basename = os.path.basename(cdl_path).split(".")[-2]
+    file_nc_name = f"{file_basename}.nc"
+
+    file_gen_command = [
+            "ncgen -o",
+            os.path.join(run_dir, file_nc_name),
+            cdl_path
+    ]
+    out = run_cmd_no_fail(" ".join(file_gen_command), combine_output=True)
+    print(out)
+
+    return file_nc_name
+
+def copy_file(file_path, dir):
+    """Copies a file file to a desired directory
+
+    Args:
+        file_path (str): full path to file
+        dir (str): where the file should be copied to
+    """
+    file_basename = os.path.basename(file_path)
+
+    file_copy_command = [
+            "cp",
+            os.path.abspath(file_path),
+            os.path.abspath(dir)
+    ]
+    run_cmd_no_fail(" ".join(file_copy_command), combine_output=True)
+
+    return file_basename
+
+def get_color_pallete():
+    """Generate a color pallete
+
+    Returns:
+        real: array of colors to use in plotting
+    """
+
+    colors = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
+            (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
+            (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),
+            (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),
+            (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
+
+    for i in range(len(colors)):
+        r, g, b = colors[i]
+        colors[i] = (r/255., g/255., b/255.)
+
+    return colors

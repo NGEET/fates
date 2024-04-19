@@ -12,7 +12,6 @@ program FatesTestAllometry
   ! LOCALS:
   type(fates_unit_test_param_reader) :: param_reader            ! param reader instance
   character(len=:), allocatable      :: param_file              ! input parameter file
-  character(len=*), parameter        :: out_file = 'allometry_out.nc' ! output file
   integer                            :: numpft                  ! number of pfts (from parameter file)
   integer                            :: arglen                  ! length of command line argument
   integer                            :: i, j                    ! looping indices
@@ -33,17 +32,18 @@ program FatesTestAllometry
   real(r8), allocatable              :: total_biom_parts(:,:)   ! total biomass calculated as bleaf + bfineroot + agbw + bgbw [kgC]
 
   ! CONSTANTS:
-  real(r8), parameter :: min_dbh = 0.5_r8   ! minimum DBH to calculate [cm]
-  real(r8), parameter :: max_dbh = 200.0_r8 ! maximum DBH to calculate [cm]
-  real(r8), parameter :: dbh_inc = 0.5_r8   ! DBHncrement to use [cm]
+  character(len=*), parameter :: out_file = 'allometry_out.nc'    ! output file
+  real(r8),         parameter :: min_dbh = 0.5_r8                 ! minimum DBH to calculate [cm]
+  real(r8),         parameter :: max_dbh = 200.0_r8               ! maximum DBH to calculate [cm]
+  real(r8),         parameter :: dbh_inc = 0.5_r8                 ! DBH increment to use [cm]
 
-  integer,  parameter :: crown_damage = 1                 ! crown damage
-  real(r8), parameter :: elongation_factor = 1.0_r8       ! elongation factor for stem
-  real(r8), parameter :: elongation_factor_roots = 1.0_r8 ! elongation factor for roots
-  real(r8), parameter :: site_spread = 1.0_r8             ! site spread
-  real(r8), parameter :: canopy_trim = 1.0_r8             ! canopy trim
-  real(r8), parameter :: nplant = 1.0_r8                  ! number of plants per cohort
-  real(r8), parameter :: leaf_to_fineroot = 1.0_r8        ! leaf to fineroot ratio
+  integer,          parameter :: crown_damage = 1                 ! crown damage
+  real(r8),         parameter :: elongation_factor = 1.0_r8       ! elongation factor for stem
+  real(r8),         parameter :: elongation_factor_roots = 1.0_r8 ! elongation factor for roots
+  real(r8),         parameter :: site_spread = 1.0_r8             ! site spread
+  real(r8),         parameter :: canopy_trim = 1.0_r8             ! canopy trim
+  real(r8),         parameter :: nplant = 1.0_r8                  ! number of plants per cohort
+  real(r8),         parameter :: leaf_to_fineroot = 1.0_r8        ! leaf to fineroot ratio
 
   interface
 
@@ -66,9 +66,9 @@ program FatesTestAllometry
       real(r8),         intent(in) :: crown_area(:, :)
       real(r8),         intent(in) :: sapwood_area(:, :)
       real(r8),         intent(in) :: bsap(:, :)
-      real(r8),         intent(in) :: bbgw(:, :) 
-      real(r8),         intent(in) :: fineroot_biomass(:, :) 
-      real(r8),         intent(in) :: bstore(:, :) 
+      real(r8),         intent(in) :: bbgw(:, :)
+      real(r8),         intent(in) :: fineroot_biomass(:, :)
+      real(r8),         intent(in) :: bstore(:, :)
       real(r8),         intent(in) :: bdead(:, :)
       real(r8),         intent(in) :: total_biom_parts(:, :)
       real(r8),         intent(in) :: total_biom_tissues(:, :)
@@ -79,14 +79,14 @@ program FatesTestAllometry
   ! get parameter file from command-line argument
   nargs = command_argument_count()
   if (nargs /= 1) then
-    write(*, '(a, i2, a)') "Incorrect number of arguments: ", nargs, ". Should be 1"
+    write(*, '(a, i2, a)') "Incorrect number of arguments: ", nargs, ". Should be 1."
     stop
   else
     call get_command_argument(1, length=arglen)
     allocate(character(arglen) :: param_file)
     call get_command_argument(1, value=param_file)
   endif
-  
+
   ! read in parameter file
   call param_reader%Init(param_file)
   call param_reader%RetrieveParameters()
@@ -94,7 +94,7 @@ program FatesTestAllometry
   ! determine sizes of arrays
   numpft = size(prt_params%wood_density, dim=1)
   numdbh = int((max_dbh - min_dbh)/dbh_inc + 1)
-  
+
   ! allocate arrays
   allocate(dbh(numdbh))
   allocate(height(numdbh, numpft))
@@ -109,15 +109,11 @@ program FatesTestAllometry
   allocate(bdead(numdbh, numpft))
   allocate(total_biom_parts(numdbh, numpft))
   allocate(total_biom_tissues(numdbh, numpft))
-  
+
   ! initialize dbh array
   do i = 1, numdbh
     dbh(i) = min_dbh + dbh_inc*(i-1)
   end do
-
-  ! total biomass = bleaf + bfineroot + agbw + bgbw  
-  !                  ... or ...
-  ! total biomass = bleaf + bfineroot + bdead + bsap
 
   ! calculate allometries
   do i = 1, numpft
@@ -142,7 +138,7 @@ program FatesTestAllometry
   call WriteAllometryData(out_file, numdbh, numpft, dbh, height, bagw, blmax, crown_area, &
     sapwood_area, bsap, bbgw, fineroot_biomass, bstore, bdead, total_biom_parts,         &
     total_biom_tissues)
-  
+
 end program FatesTestAllometry
 
 ! ----------------------------------------------------------------------------------------
@@ -193,7 +189,7 @@ subroutine WriteAllometryData(out_file, numdbh, numpft, dbh, height, bagw, blmax
   integer              :: bbgwID, finerootID
   integer              :: bstoreID, bdeadID
   integer              :: totbiomID1, totbiomID2
-  
+
   ! create pft indices
   allocate(pft_indices(numpft))
   do i = 1, numpft
@@ -222,73 +218,73 @@ subroutine WriteAllometryData(out_file, numdbh, numpft, dbh, height, bagw, blmax
   ! register height
   call RegisterVar2D(ncid, 'height', dimIDs(1:2), type_double,   &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'], &
-    [character(len=150) :: 'pft dbh', 'm', 'plant height'],      &                                                  
+    [character(len=150) :: 'pft dbh', 'm', 'plant height'],      &
     3, heightID)
 
   ! register aboveground biomass
   call RegisterVar2D(ncid, 'bagw', dimIDs(1:2), type_double,                     &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],                 &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant aboveground woody biomass'], &                                                  
+    [character(len=150) :: 'pft dbh', 'kgC', 'plant aboveground woody biomass'], &
     3, bagwID)
 
   ! register leaf biomass
   call RegisterVar2D(ncid, 'blmax', dimIDs(1:2), type_double,               &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],            &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant maximum leaf biomass'], &                                                  
+    [character(len=150) :: 'pft dbh', 'kgC', 'plant maximum leaf biomass'], &
     3, blmaxID)
 
   ! register crown area
   call RegisterVar2D(ncid, 'crown_area', dimIDs(1:2), type_double,          &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],            &
-    [character(len=150) :: 'pft dbh', 'm2', 'plant crown area per cohort'], &                                                  
+    [character(len=150) :: 'pft dbh', 'm2', 'plant crown area per cohort'], &
     3, c_areaID)
 
   ! register sapwood area
   call RegisterVar2D(ncid, 'sapwood_area', dimIDs(1:2), type_double,                                 &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],                                     &
-    [character(len=150) :: 'pft dbh', 'm2', 'plant cross section area sapwood at reference height'], &                                                  
+    [character(len=150) :: 'pft dbh', 'm2', 'plant cross section area sapwood at reference height'], &
     3, sapwoodareaID)
-  
+
   ! register sapwood biomass
   call RegisterVar2D(ncid, 'bsap', dimIDs(1:2), type_double,           &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant sapwood biomass'], &                                                  
+    [character(len=150) :: 'pft dbh', 'kgC', 'plant sapwood biomass'], &
     3, bsapID)
 
   ! register belowground woody biomass
   call RegisterVar2D(ncid, 'bbgw', dimIDs(1:2), type_double,           &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant belowground woody biomass'], &                                                  
+    [character(len=150) :: 'pft dbh', 'kgC', 'plant belowground woody biomass'], &
     3, bbgwID)
 
   ! register fineroot biomass
   call RegisterVar2D(ncid, 'fineroot_biomass', dimIDs(1:2), type_double,         &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant fineroot biomass'], &                                                  
+    [character(len=150) :: 'pft dbh', 'kgC', 'plant fineroot biomass'], &
     3, finerootID)
 
   ! register storage biomass
   call RegisterVar2D(ncid, 'bstore', dimIDs(1:2), type_double,         &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant storage biomass'], &                                                  
+    [character(len=150) :: 'pft dbh', 'kgC', 'plant storage biomass'], &
     3, bstoreID)
 
   ! register structural biomass
   call RegisterVar2D(ncid, 'bdead', dimIDs(1:2), type_double,         &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant deadwood (structural/heartwood) biomass'], &                                                  
+    [character(len=150) :: 'pft dbh', 'kgC', 'plant deadwood (structural/heartwood) biomass'], &
     3, bdeadID)
 
   ! register total biomass (parts)
   call RegisterVar2D(ncid, 'total_biomass_parts', dimIDs(1:2), type_double,         &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant total biomass calculated from parts'], &                                                  
+    [character(len=150) :: 'pft dbh', 'kgC', 'plant total biomass calculated from parts'], &
     3, totbiomID1)
 
   ! register total biomass (tissues)
   call RegisterVar2D(ncid, 'total_biomass_tissues', dimIDs(1:2), type_double,         &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant total biomass calculated from tissues'], &                                                  
+    [character(len=150) :: 'pft dbh', 'kgC', 'plant total biomass calculated from tissues'], &
     3, totbiomID2)
 
 
