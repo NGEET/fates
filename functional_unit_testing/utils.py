@@ -1,4 +1,4 @@
-"""Utility functions for file checking, math equations, etc.
+"""Utility functions for plotting, file checking, math equations, etc.
 """
 
 import math
@@ -73,12 +73,15 @@ def copy_file(file_path, directory):
 
     return file_basename
 
-def get_color_pallete():
+def get_color_palette(number):
     """Generate a color pallete
-
+    Args:
+        number: number of colors to get - must be <= 20
     Returns:
-        real: array of colors to use in plotting
+        float: array of colors to use in plotting
     """
+    if number > 20:
+        raise RuntimeError("get_color_palette: number must be <=20")
 
     colors = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
             (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
@@ -88,4 +91,4 @@ def get_color_pallete():
 
     colors = [(red/255.0, green/255.0, blue/255.0) for red, green, blue in colors]
 
-    return colors
+    return colors[:number]

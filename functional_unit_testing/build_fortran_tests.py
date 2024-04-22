@@ -15,10 +15,10 @@ from CIME.XML.env_mach_specific import EnvMachSpecific # pylint: disable=wrong-i
 
 _CIMEROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../cime")
 
-def run_cmake(name, test_dir, pfunit_path, netcdf_c_path, netcdf_f_path, cmake_args):
+def run_cmake(test_name, test_dir, pfunit_path, netcdf_c_path, netcdf_f_path, cmake_args):
     """Run cmake for the fortran unit tests
     Arguments:
-    name (str) - name for output messages
+    test_name (str) - name for output messages
     test_dir (str) - directory to run Cmake in
     pfunit_path (str) - path to pfunit
     netcdf_c_path (str) - path to netcdf
@@ -26,7 +26,7 @@ def run_cmake(name, test_dir, pfunit_path, netcdf_c_path, netcdf_f_path, cmake_a
     clean (bool) - clean the build
     """
     if not os.path.isfile("CMakeCache.txt"):
-        print(f"Running cmake for {name}.")
+        print(f"Running cmake for {test_name}.")
 
         # directory with cmake modules
         cmake_module_dir = os.path.abspath(os.path.join(_CIMEROOT, "CIME", "non_py",
