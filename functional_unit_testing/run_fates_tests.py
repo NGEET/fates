@@ -185,8 +185,8 @@ def run_tests(clean, build_tests, run_executables, build_dir, run_dir, make_j,
     if run_executables:
         print("Running executables")
         # we don't run executables for only pfunit tests
-        for test, attributes in dict(filter(lambda pair: pair[1]['test_exe'] is not None,
-                                            test_dict.items())).items():
+        for attributes in dict(filter(lambda pair: pair[1]['test_exe'] is not None,
+                                            test_dict.items())).values():
             # prepend parameter file (if required) to argument list
             args = attributes['other_args']
             if attributes['use_param_file']:
@@ -371,7 +371,7 @@ def check_build_dir(build_dir, test_dict):
     Raises:
         argparse.ArgumentError: Can't find a required build directory or executable
     """
-    for test, attributes in test_dict.items():
+    for attributes in test_dict.values():
         if not build_exists(build_dir, attributes['test_dir'], attributes['test_exe']):
             raise argparse.ArgumentError(None, "Build directory or executable does not exist.\n"
                                 "Re-run script without --skip-build.")
