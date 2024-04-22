@@ -41,6 +41,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : n_landuse_cats
    use FatesConstantsMod         , only : primaryland
    use FatesConstantsMod         , only : secondaryland
+   use FatesConstantsMod         , only : n_term_mort_types
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -877,7 +878,7 @@ contains
          end if
          
          fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
-              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft)
+              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft*n_term_mort_types)
 
          if(hlm_use_planthydro==itrue)then
             fates_maxElementsPerSite = max(fates_maxElementsPerSite, nshell*nlevsoi_hyd_max )
