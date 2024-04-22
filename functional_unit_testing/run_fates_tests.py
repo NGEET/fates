@@ -184,8 +184,8 @@ def run_tests(clean, build_tests, run_executables, build_dir, run_dir, make_j,
     # run executables for each test in test list
     if run_executables:
         print("Running executables")
-        # we don't run executables for pfunit tests
-        for test, attributes in dict(filter(lambda pair: not pair[1]['unit_test'],
+        # we don't run executables for only pfunit tests
+        for test, attributes in dict(filter(lambda pair: pair[1]['test_exe'] is not None,
                                             test_dict.items())).items():
             # prepend parameter file (if required) to argument list
             args = attributes['other_args']
