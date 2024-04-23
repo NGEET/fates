@@ -1,7 +1,7 @@
 module FatesUnitTestIOMod
-  use FatesConstantsMod,        only : r8 => fates_r8
-  use FatesGlobals,             only : fates_endrun
-  use shr_kind_mod,             only : SHR_KIND_CL
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesGlobals,      only : fates_endrun
+  use shr_kind_mod,      only : SHR_KIND_CL
   use netcdf
 
   implicit none
@@ -27,11 +27,6 @@ module FatesUnitTestIOMod
     module procedure WriteVar1DInt
     module procedure WriteVar2DInt
   end interface
-
-  ! interface RegisterVar
-  !   !module procedure RegisterVar1D
-  !   module procedure RegisterVar_all
-  ! end interface
 
   public :: OpenNCFile
   public :: CloseNCFile

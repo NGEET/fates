@@ -10,7 +10,6 @@ program FatesTestQuadSolvers
   integer, parameter          :: n = 4                    ! number of points to test
   character(len=*), parameter :: out_file = 'quad_out.nc' ! output file
 
-
   ! LOCALS:
   integer  :: i                ! looping index
   real(r8) :: a(n), b(n), c(n) ! coefficients for quadratic solvers
