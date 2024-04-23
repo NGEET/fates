@@ -71,8 +71,8 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : hlm_harvest_carbon
    use FatesConstantsMod, only : fates_check_param_set
    use FatesInterfaceTypesMod , only : numpft
-   use FatesLandUseChangeMod, only : get_init_landuse_harvest_rate
-   use FatesLandUseChangeMod, only : get_luh_statedata
+   use FatesLandUseChangeMod, only : GetInitLanduseHarvestRate
+   use FatesLandUseChangeMod, only : GetLUHStatedata
      
    implicit none
    private
@@ -249,7 +249,7 @@ contains
       ! todo: eventually set up distinct harvest practices, each with a set of input paramaeters
       ! todo: implement harvested carbon inputs
 
-      call get_luh_statedata(bc_in, state_vector)
+      call GetLUHStatedata(bc_in, state_vector)
       site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. currentSite%min_allowed_landuse_fraction) &
            .and. (.not. currentSite%landuse_vector_gt_min(secondaryland))
 
@@ -368,7 +368,7 @@ contains
          endif
 
       else
-         call get_init_landuse_harvest_rate(bc_in, currentSite%min_allowed_landuse_fraction, &
+         call GetInitLanduseHarvestRate(bc_in, currentSite%min_allowed_landuse_fraction, &
               harvest_rate, currentSite%landuse_vector_gt_min)
          if(prt_params%woody(pft_i) == itrue)then
             lmort_direct     = harvest_rate

@@ -72,7 +72,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : get_harvest_rate_carbon
   use EDLoggingMortalityMod, only : get_harvestable_carbon
   use EDLoggingMortalityMod, only : get_harvest_debt
-  use FatesLandUseChangeMod, only : get_init_landuse_harvest_rate
+  use FatesLandUseChangeMod, only : GetInitLanduseHarvestRate
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
@@ -84,9 +84,9 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : primaryland, secondaryland, pastureland, rangeland, cropland
   use FatesConstantsMod    , only : nocomp_bareground_land
   use FatesConstantsMod    , only : n_landuse_cats
-  use FatesLandUseChangeMod, only : get_landuse_transition_rates
-  use FatesLandUseChangeMod, only : get_init_landuse_transition_rates
-  use FatesLandUseChangeMod, only : get_luh_statedata
+  use FatesLandUseChangeMod, only : GetLanduseTransitionRates
+  use FatesLandUseChangeMod, only : GetInitLanduseTransitionRates
+  use FatesLandUseChangeMod, only : GetLUHStatedata
   use FatesConstantsMod    , only : fates_unset_r8
   use FatesConstantsMod    , only : fates_unset_int
   use FatesConstantsMod    , only : hlm_harvest_carbon
@@ -288,10 +288,10 @@ contains
 
     if ( hlm_use_luh .eq. itrue ) then
        if(.not. site_in%transition_landuse_from_off_to_on) then
-          call get_landuse_transition_rates(bc_in, site_in%min_allowed_landuse_fraction, &
+          call GetLanduseTransitionRates(bc_in, site_in%min_allowed_landuse_fraction, &
                site_in%landuse_transition_matrix, site_in%landuse_vector_gt_min)
        else
-          call get_init_landuse_transition_rates(bc_in, site_in%min_allowed_landuse_fraction, &
+          call GetInitLanduseTransitionRates(bc_in, site_in%min_allowed_landuse_fraction, &
                site_in%landuse_transition_matrix, site_in%landuse_vector_gt_min)
        endif
     else
@@ -317,7 +317,7 @@ contains
     end do
 
     ! get some info needed to determine whether or not to apply land use change
-    call get_luh_statedata(bc_in, state_vector)
+    call GetLUHStatedata(bc_in, state_vector)
     site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. site_in%min_allowed_landuse_fraction) &
          .and. (.not. site_in%landuse_vector_gt_min(secondaryland))
 
@@ -407,7 +407,7 @@ contains
                 harvest_rate = 0._r8
              end if
           else
-             call get_init_landuse_harvest_rate(bc_in, site_in%min_allowed_landuse_fraction, &
+             call GetInitLanduseHarvestRate(bc_in, site_in%min_allowed_landuse_fraction, &
                   harvest_rate, site_in%landuse_vector_gt_min)
           endif
 
@@ -495,7 +495,7 @@ contains
     use EDParamsMod          , only : ED_val_understorey_death, logging_coll_under_frac
     use EDCohortDynamicsMod  , only : terminate_cohorts
     use FatesConstantsMod    , only : rsnbl_math_prec
-    use FatesLandUseChangeMod, only : get_landusechange_rules
+    use FatesLandUseChangeMod, only : GetLanduseChangeRules
     !
     ! !ARGUMENTS:
     type (ed_site_type), intent(inout) :: currentSite
@@ -564,7 +564,7 @@ contains
     currentSite%disturbance_rates(:,:,:) = 0._r8
 
     ! get rules for vegetation clearing during land use change
-    call get_landusechange_rules(clearing_matrix)
+    call GetLanduseChangeRules(clearing_matrix)
     
     ! in the nocomp cases, since every patch has a PFT identity, it can only receive patch area from patches
     ! that have the same identity. In order to allow this, we have this very high level loop over nocomp PFTs
@@ -3558,7 +3558,7 @@ contains
           call get_current_landuse_statevector(currentSite, state_vector_internal)
           write(fates_log(),*) 'current landuse state vector: ', state_vector_internal
           write(fates_log(),*) 'current landuse state vector (not including bare gruond): ', state_vector_internal/(1._r8-currentSite%area_bareground)
-          call get_luh_statedata(bc_in, state_vector_driver)
+          call GetLUHStatedata(bc_in, state_vector_driver)
           write(fates_log(),*) 'driver data landuse state vector: ', state_vector_driver
           write(fates_log(),*) 'min_allowed_landuse_fraction: ', currentSite%min_allowed_landuse_fraction
           write(fates_log(),*) 'landuse_vector_gt_min: ', currentSite%landuse_vector_gt_min
