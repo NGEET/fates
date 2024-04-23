@@ -92,6 +92,13 @@ module EDPftvarcon
 
      real(r8), allocatable :: maintresp_leaf_ryan1991_baserate(:)  ! leaf maintenance respiration per Ryan et al 1991
 
+     real(r8), allocatable :: leafn_vert_scaler_coeff1(:)  ! Coefficient one for decrease of leaf N through the canopy
+     real(r8), allocatable :: leafn_vert_scaler_coeff2(:)  ! Coefficient two for decrease of leaf N through the canopy 
+     
+     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff1(:) ! leaf maintenance respiration decrease through the canopy param 1
+                                                                   ! only with Atkin et al. 2017 respiration model
+     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff2(:) ! leaf maintenance respiration decrease through the canopy param 2
+                                                                   ! only with Atkin et al. 2017 respiraiton model 
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: mort_ip_size_senescence(:) ! inflection point of dbh dependent senescence
      real(r8), allocatable :: mort_r_size_senescence(:)  ! rate of change in mortality with dbh
@@ -470,6 +477,22 @@ contains
     name = 'fates_maintresp_leaf_ryan1991_baserate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leafn_vert_scaler_coeff1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leafn_vert_scaler_coeff2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
+    name = 'fates_maintresp_leaf_vert_scaler_coeff1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_maintresp_leaf_vert_scaler_coeff2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -911,6 +934,22 @@ contains
     name = 'fates_maintresp_leaf_ryan1991_baserate'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%maintresp_leaf_ryan1991_baserate)
+
+    name = 'fates_leafn_vert_scaler_coeff1'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%leafn_vert_scaler_coeff1)
+
+    name = 'fates_leafn_vert_scaler_coeff2'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%leafn_vert_scaler_coeff2)
+    
+    name = 'fates_maintresp_leaf_vert_scaler_coeff1'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%maintresp_leaf_vert_scaler_coeff1)
+
+    name = 'fates_maintresp_leaf_vert_scaler_coeff2'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%maintresp_leaf_vert_scaler_coeff2)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1737,6 +1776,10 @@ contains
         write(fates_log(),fmt0) 'hydro_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
         write(fates_log(),fmt0) 'hydro_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
         write(fates_log(),fmt0) 'hydro_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
+        write(fates_log(),fmt0) 'leafn_vert_scaler_coeff1 = ',EDPftvarcon_inst%leafn_vert_scaler_coeff1
+        write(fates_log(),fmt0) 'leafn_vert_scaler_coeff2 = ',EDPftvarcon_inst%leafn_vert_scaler_coeff2
+        write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff1 = ',EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1
+        write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff2 = ',EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2
         write(fates_log(),*) '-------------------------------------------------'
 
      end if
@@ -1845,7 +1888,6 @@ contains
                     call endrun(msg=errMsg(sourcefile, __LINE__))
                  end if
               end if
-
            end if
         end if
         
@@ -1871,7 +1913,25 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         end if
-        
+
+        ! We are using a simple phosphatase model right now. There is
+        ! no critical value (lambda) , and there is no preferential uptake (alpha).
+        ! Make sure these parameters are both set to 0.
+
+        if ((hlm_phosphorus_spec>0) .and. (trim(hlm_nu_com).eq.'ECA')) then
+           if (any(abs(EDPftvarcon_inst%eca_lambda_ptase(:)) > nearzero ) ) then
+              write(fates_log(),*) 'Critical Values for phosphatase in ECA are not'
+              write(fates_log(),*) 'enabled right now. Please set fates_eca_lambda_ptase = 0'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+           if (any(abs(EDPftvarcon_inst%eca_alpha_ptase(:)) > nearzero ) ) then
+              write(fates_log(),*) 'There is no preferential plant uptake of P from phosphatase'
+              write(fates_log(),*) 'enabled right now. Please set fates_eca_alpha_ptase = 0'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
         
      case (prt_carbon_allom_hyp)
         ! No additional checks needed for now.
@@ -1914,6 +1974,9 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
      end if
+
+
+     
 
      do ipft = 1,npft
 
