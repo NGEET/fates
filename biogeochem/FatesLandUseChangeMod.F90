@@ -101,7 +101,8 @@ contains
           urban_fraction = bc_in%hlm_luh_states(FindIndex(bc_in%hlm_luh_state_names,'urban'))
        end if
 
-       !!TODO: may need some logic here to ask whether or not ot perform land use change on this timestep. current code occurs every day.
+       !!TODO: may need some logic here to ask whether or not ot perform land use change on this
+       ! timestep. current code occurs every day.
        !!If not doing transition every day, need to update units.
 
        transitions_loop: do i_luh2_transitions = 1, hlm_num_luh2_transitions
@@ -170,15 +171,19 @@ contains
 
   subroutine get_landusechange_rules(clearing_matrix)
 
-    ! the purpose of this is to define a ruleset for when to clear the vegetation in transitioning from one land use type to another
+    ! the purpose of this is to define a ruleset for when to clear the
+    ! vegetation in transitioning from one land use type to another
 
     logical, intent(out) :: clearing_matrix(n_landuse_cats,n_landuse_cats)
     
-    ! default value of ruleset 4 above means that plants are not cleared during land use change transitions to rangeland, whereas plants are
+    ! default value of ruleset 4 above means that plants are not cleared during
+    ! land use change transitions to rangeland, whereas plants are
     ! cleared in transitions to pasturelands and croplands.
-    integer, parameter    :: ruleset = 4   ! ruleset to apply from table 1 of Ma et al (2020) https://doi.org/10.5194/gmd-13-3203-2020
+    integer, parameter    :: ruleset = 4   ! ruleset to apply from table 1 of Ma et al
+                                           ! (2020) https://doi.org/10.5194/gmd-13-3203-2020
 
-    ! clearing matrix applies from the donor to the receiver land use type of the newly-transferred patch area
+    ! clearing matrix applies from the donor to the receiver land use
+    ! type of the newly-transferred patch area
     ! values of clearing matrix: false => do not clear; true => clear
 
     clearing_matrix(:,:) = .false.
@@ -187,8 +192,9 @@ contains
 
     case(1)
 
-       ! note that this ruleset isnt exactly what is in Ma et al. rulesets 1 and 2, because FATES does not make the distinction
-       ! between forested and non-forested lands from a land use/land cover perspective.
+       ! note that this ruleset isnt exactly what is in Ma et al. rulesets 1 and 2,
+       ! because FATES does not make the distinction between forested and non-forested
+       ! lands from a land use/land cover perspective.
        clearing_matrix(:,cropland) = .true.
        clearing_matrix(:,pastureland) = .true.
        clearing_matrix(primaryland,rangeland) = .true.
@@ -310,6 +316,10 @@ contains
           state_vector(primaryland) = 1._r8
        endif
     else
+       
+       ! If we are using potential vegetation, that means
+       ! our only land classification is primary land
+       
        state_vector(primaryland) = 1._r8
     end if
 
@@ -326,8 +336,8 @@ contains
 
     ! Check to see if the incoming luh2 vector is NaN.
     ! This suggests that there is a discepency where the HLM and LUH2 states
-    ! there is vegetated ground. E.g. LUH2 data is missing for glacier-margin regions such as Antarctica.
-    ! In this case, states should be Nan.  If so,
+    ! there is vegetated ground. E.g. LUH2 data is missing for glacier-margin
+    ! regions such as Antarctica. In this case, states should be Nan.  If so,
     ! set the current state to be all primary forest, and all transitions to be zero.
     ! If only a portion of the vector is NaN, there is something  amiss with
     ! the data, so end the run.
@@ -340,7 +350,8 @@ contains
           luh_vector(primaryland) = 1._r8
        end if
        modified_flag = .true.
-       !write(fates_log(),*) 'WARNING: land use state is all NaN; setting state as all primary forest.' ! GL DIAG
+       !write(fates_log(),*) 'WARNING: land use state is all NaN;
+       !setting state as all primary forest.' ! GL DIAG
     else if (any(isnan(luh_vector))) then
        if (any(.not. isnan(luh_vector))) then
           write(fates_log(),*) 'ERROR: land use vector has NaN'
