@@ -2927,6 +2927,10 @@ contains
             hio_lai_secondary_si(io_si) = 0._r8
          end if
 
+         ! Normalize crown-area weighted height
+         if(site_ca>nearzero)then
+            hio_ca_weighted_height_si(io_si) = hio_ca_weighted_height_si(io_si)/site_ca
+         end if
 
          ! divide basal-area-weighted height by basal area to get mean
          if ( site_ba .gt. nearzero ) then
