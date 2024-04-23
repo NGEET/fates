@@ -5014,6 +5014,8 @@ contains
                   if_notnew: if ( .not. ccohort%isnew ) then
 
                      ! scale up cohort fluxes to the site level
+                     ! these fluxes have conversions of [kg/plant/timestep] -> [kg/m2/s]
+                     
                      hio_npp_si(io_si) = hio_npp_si(io_si) + &
                           ccohort%npp_tstep * n_perm2 * dt_tstep_inv
 
@@ -5065,9 +5067,9 @@ contains
                           * n_perm2
 
                      ! accumulate fluxes on canopy- and understory- separated fluxes
+                     ! these fluxes have conversions of [kg/plant/timestep] -> [kg/m2/s]
                      if (ccohort%canopy_layer .eq. 1) then
 
-                        ! bulk fluxes are in gC / m2 / s
                         hio_gpp_canopy_si(io_si) = hio_gpp_canopy_si(io_si) + &
                              ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
 
@@ -5076,7 +5078,6 @@ contains
 
                      else
 
-                        ! bulk fluxes are in gC / m2 / s
                         hio_gpp_understory_si(io_si) = hio_gpp_understory_si(io_si) + &
                              ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
 
@@ -8488,10 +8489,6 @@ contains
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_hifr_simple,                 &
             ivar=ivar, initialize=initialize_variables, index = ih_nir_rad_err_si)
 
-       call this%set_history_var(vname='FATES_AR', units='gC/m^2/s',                 &
-            long='autotrophic respiration', use_default='active',                  &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_hifr_simple,   &
-            ivar=ivar, initialize=initialize_variables, index = ih_aresp_si )
        ! Ecosystem Carbon Fluxes (updated rapidly, upfreq=group_hifr_simple)
 
        call this%set_history_var(vname='FATES_NPP', units='kg m-2 s-1',           &
@@ -8553,16 +8550,6 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_maint_resp_secondary_si)
-
-       call this%set_history_var(vname='FATES_AR_CANOPY', units='gC/m^2/s',                 &
-            long='autotrophic respiration of canopy plants', use_default='active',       &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_hifr_simple,   &
-            ivar=ivar, initialize=initialize_variables, index = ih_ar_canopy_si )
-
-       call this%set_history_var(vname='FATES_AR_UNDERSTORY', units='gC/m^2/s',                 &
-            long='autotrophic respiration of understory plants', use_default='active',       &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_hifr_simple,   &
-            ivar=ivar, initialize=initialize_variables, index = ih_ar_understory_si )
 
        ! fast fluxes separated canopy/understory
        call this%set_history_var(vname='FATES_GPP_CANOPY', units='kg m-2 s-1',    &
