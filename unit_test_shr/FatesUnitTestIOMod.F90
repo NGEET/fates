@@ -3,12 +3,12 @@ module FatesUnitTestIOMod
   use FatesGlobals,             only : fates_endrun
   use shr_kind_mod,             only : SHR_KIND_CL
   use netcdf
-  
+
   implicit none
   private
 
   ! LOCALS
-  integer, public, parameter :: type_double = 1 ! type 
+  integer, public, parameter :: type_double = 1 ! type
   integer, public, parameter :: type_int = 2    ! type
 
   interface GetVar
@@ -28,16 +28,21 @@ module FatesUnitTestIOMod
     module procedure WriteVar2DInt
   end interface
 
+  ! interface RegisterVar
+  !   !module procedure RegisterVar1D
+  !   module procedure RegisterVar_all
+  ! end interface
+
   public :: OpenNCFile
   public :: CloseNCFile
   public :: GetDimID
   public :: GetDimLen
   public :: GetVar
   public :: RegisterNCDims
-  public :: RegisterVar2D, RegisterVar1D
+  public :: RegisterVar
   public :: WriteVar
   public :: EndNCDef
-  
+
   contains
 
   !=======================================================================================
@@ -56,7 +61,7 @@ module FatesUnitTestIOMod
     character(len=len(filename)) :: fname       ! Local filename (trimmed)
     integer                      :: ios         ! I/O status
     logical                      :: file_exists ! Does the file exist?
-    
+
     ! trim filename of whitespace
     fname = trim(adjustl(filename))
 
@@ -65,26 +70,26 @@ module FatesUnitTestIOMod
 
     select case (fmode)
     case('read')
-      
-      if (.not. file_exists) then 
+
+      if (.not. file_exists) then
         write(*,'(a,a,a)') "File ", fname(1:len_trim(fname)), " does not exist. Can't read."
         CheckFile = .false.
-      else 
+      else
         CheckFile = .true.
       end if
 
     case('readwrite')
 
       CheckFile = .true.
-      
-    case('write') 
-      if (file_exists) then 
+
+    case('write')
+      if (file_exists) then
         write(*, '(a, a, a)') "File ", fname(1:len_trim(fname)), " exists. Cannot open write only."
-      else 
+      else
         CheckFile = .true.
         CheckFile = .false.
-      end if 
-    case default 
+      end if
+    case default
       write(*,'(a)') "Invalid file mode."
       CheckFile = .false.
     end select
@@ -97,13 +102,13 @@ module FatesUnitTestIOMod
     !
     ! DESCRIPTION:
     ! Checks status of netcdf operations
-  
+
     ! ARGUMENTS:
     integer, intent(in) :: status ! return status code from a netcdf procedure
-    
-    if (status /= nf90_noerr) then 
+
+    if (status /= nf90_noerr) then
       write(*,*) trim(nf90_strerror(status))
-      stop 
+      stop
     end if
 
   end subroutine Check
@@ -114,7 +119,7 @@ module FatesUnitTestIOMod
     !
     ! DESCRIPTION:
     ! Opens a netcdf file
-  
+
     ! ARGUMENTS:
     character(len=*), intent(in)  :: nc_file ! file name
     integer,          intent(out) :: ncid    ! netcdf file unit number
@@ -133,10 +138,10 @@ module FatesUnitTestIOMod
         write(*,*) 'Need to specify read, write, or readwrite'
         stop
       end select
-    else 
+    else
       write(*,*) 'Problem reading file'
       stop
-    end if 
+    end if
 
   end subroutine OpenNCFile
 
@@ -146,7 +151,7 @@ module FatesUnitTestIOMod
     !
     ! DESCRIPTION:
     ! Closes a netcdf file
-  
+
     ! ARGUMENTS:
     integer, intent(in) :: ncid ! netcdf file unit number
 
@@ -161,7 +166,7 @@ module FatesUnitTestIOMod
     ! DESCRIPTION:
     ! Gets dimension IDs for a variable ID
     !
-  
+
     ! ARGUMENTS:
     integer,          intent(in)  :: ncid     ! netcdf file unit number
     character(len=*), intent(in)  :: var_name ! variable name
@@ -189,7 +194,7 @@ module FatesUnitTestIOMod
   end subroutine GetDimLen
 
   !=======================================================================================
-  
+
   subroutine GetDims(ncid, varID, dim_lens)
     !
     ! DESCRIPTION:
@@ -206,7 +211,7 @@ module FatesUnitTestIOMod
     integer, allocatable :: dimIDs(:) ! dimension IDs
     integer              :: i         ! looping index
 
-    ! find dimensions of data 
+    ! find dimensions of data
     call Check(nf90_inquire_variable(ncid, varID, ndims=numDims))
 
     ! allocate data to grab dimension information
@@ -238,7 +243,7 @@ module FatesUnitTestIOMod
 
     ! LOCALS:
     integer              :: varID       ! variable ID
-    integer, allocatable :: dim_lens(:) ! dimension lengths 
+    integer, allocatable :: dim_lens(:) ! dimension lengths
 
     ! find variable ID first
     call Check(nf90_inq_varid(ncid, var_name, varID))
@@ -263,7 +268,7 @@ module FatesUnitTestIOMod
 
     ! LOCALS:
     integer              :: varID       ! variable ID
-    integer, allocatable :: dim_lens(:) ! dimension lengths 
+    integer, allocatable :: dim_lens(:) ! dimension lengths
 
     ! find variable ID first
     call Check(nf90_inq_varid(ncid, var_name, varID))
@@ -292,7 +297,7 @@ module FatesUnitTestIOMod
 
     ! LOCALS:
     integer              :: varID       ! variable ID
-    integer, allocatable :: dim_lens(:) ! dimension lengths 
+    integer, allocatable :: dim_lens(:) ! dimension lengths
 
     ! find variable ID first
     call Check(nf90_inq_varid(ncid, var_name, varID))
@@ -321,7 +326,7 @@ module FatesUnitTestIOMod
 
     ! LOCALS:
     integer              :: varID       ! variable ID
-    integer, allocatable :: dim_lens(:) ! dimension lengths 
+    integer, allocatable :: dim_lens(:) ! dimension lengths
 
     ! find variable ID first
     call Check(nf90_inq_varid(ncid, var_name, varID))
@@ -350,7 +355,7 @@ module FatesUnitTestIOMod
 
     ! LOCALS:
     integer              :: varID       ! variable ID
-    integer, allocatable :: dim_lens(:) ! dimension lengths 
+    integer, allocatable :: dim_lens(:) ! dimension lengths
 
     ! find variable ID first
     call Check(nf90_inq_varid(ncid, var_name, varID))
@@ -379,7 +384,7 @@ module FatesUnitTestIOMod
 
     ! LOCALS:
     integer              :: varID       ! variable ID
-    integer, allocatable :: dim_lens(:) ! dimension lengths 
+    integer, allocatable :: dim_lens(:) ! dimension lengths
 
     ! find variable ID first
     call Check(nf90_inq_varid(ncid, var_name, varID))
@@ -408,7 +413,7 @@ module FatesUnitTestIOMod
 
     ! LOCALS:
     integer              :: varID       ! variable ID
-    integer, allocatable :: dim_lens(:) ! dimension lengths 
+    integer, allocatable :: dim_lens(:) ! dimension lengths
 
     ! find variable ID first
     call Check(nf90_inq_varid(ncid, var_name, varID))
@@ -427,10 +432,10 @@ module FatesUnitTestIOMod
   subroutine RegisterNCDims(ncid, dim_names, dim_lens, num_dims, dim_IDs)
     !
     ! DESCRIPTION:
-    ! Defines variables and dimensions 
+    ! Defines variables and dimensions
     !
 
-    ! ARGUMENTS: 
+    ! ARGUMENTS:
     integer,          intent(in)  :: ncid                ! netcdf file id
     character(len=*), intent(in)  :: dim_names(num_dims) ! dimension names
     integer,          intent(in)  :: dim_lens(num_dims)  ! dimension lengths
@@ -440,27 +445,27 @@ module FatesUnitTestIOMod
     ! LOCALS:
     integer :: i ! looping index
 
-    do i = 1, num_dims 
+    do i = 1, num_dims
       call Check(nf90_def_dim(ncid, dim_names(i), dim_lens(i), dim_IDs(i)))
-    end do 
+    end do
 
   end subroutine RegisterNCDims
 
   !=====================================================================================
 
-  subroutine RegisterVar1D(ncid, var_name, dimID, type, att_names, atts, num_atts, varID)
+  subroutine RegisterVar(ncid, var_name, dimID, type, att_names, atts, num_atts, varID)
     !
     ! DESCRIPTION:
-    ! Defines variables and dimensions 
+    ! Defines variables and dimensions
     !
 
-    ! ARGUMENTS: 
+    ! ARGUMENTS:
     integer,          intent(in)  :: ncid                ! netcdf file id
     character(len=*), intent(in)  :: var_name            ! variable name
-    integer,          intent(in)  :: dimID               ! dimension ID
+    integer,          intent(in)  :: dimID(:)            ! dimension IDs
     integer,          intent(in)  :: type                ! type: int or double
     character(len=*), intent(in)  :: att_names(num_atts) ! attribute names
-    character(len=*), intent(in)  :: atts(num_atts)      ! attribute values 
+    character(len=*), intent(in)  :: atts(num_atts)      ! attribute values
     integer,          intent(in)  :: num_atts            ! number of attributes
     integer,          intent(out) :: varID               ! variable ID
 
@@ -469,62 +474,22 @@ module FatesUnitTestIOMod
     integer :: i       ! looping index
     integer :: nc_type ! netcdf type
 
-    if (type == type_double) then 
+    if (type == type_double) then
       nc_type = NF90_DOUBLE
-    else if (type == type_int) then 
+    else if (type == type_int) then
       nc_type = NF90_INT
     else
       write(*, *) "Must pick correct type"
       stop
-    end if 
+    end if
 
     call Check(nf90_def_var(ncid, var_name, nc_type, dimID, varID))
 
-    do i = 1, num_atts 
+    do i = 1, num_atts
       call Check(nf90_put_att(ncid, varID, att_names(i), atts(i)))
     end do
-  
-  end subroutine RegisterVar1D
 
-  !=====================================================================================
-
-  subroutine RegisterVar2D(ncid, var_name, dimID, type, att_names, atts, num_atts, varID)
-    !
-    ! DESCRIPTION:
-    ! Defines variables and dimensions 
-    !
-
-    ! ARGUMENTS: 
-    integer,          intent(in)  :: ncid                ! netcdf file id
-    character(len=*), intent(in)  :: var_name            ! variable name
-    integer,          intent(in)  :: dimID(1:2)          ! dimension ID
-    integer,          intent(in)  :: type                ! type: int or double
-    character(len=*), intent(in)  :: att_names(num_atts) ! attribute names
-    character(len=*), intent(in)  :: atts(num_atts)      ! attribute values 
-    integer,          intent(in)  :: num_atts            ! number of attributes
-    integer,          intent(out) :: varID               ! variable ID
-
-
-    ! LOCALS:
-    integer :: i       ! looping index
-    integer :: nc_type ! netcdf type
-
-    if (type == type_double) then 
-      nc_type = NF90_DOUBLE
-    else if (type == type_int) then 
-      nc_type = NF90_INT
-    else
-      write(*, *) "Must pick correct type"
-      stop
-    end if 
-
-    call Check(nf90_def_var(ncid, var_name, nc_type, dimID, varID))
-
-    do i = 1, num_atts 
-      call Check(nf90_put_att(ncid, varID, att_names(i), atts(i)))
-    end do
-  
-  end subroutine RegisterVar2D
+  end subroutine RegisterVar
 
   !  =====================================================================================
 
@@ -534,11 +499,11 @@ module FatesUnitTestIOMod
     ! End defining of netcdf dimensions and variables
     !
 
-    ! ARGUMENTS: 
+    ! ARGUMENTS:
     integer, intent(in)  :: ncid ! netcdf file id
 
     call Check(nf90_enddef(ncid))
-  
+
   end subroutine EndNCDef
 
   !  =====================================================================================
@@ -549,13 +514,13 @@ module FatesUnitTestIOMod
     ! Write 1D real data
     !
 
-    ! ARGUMENTS: 
+    ! ARGUMENTS:
     integer,  intent(in) :: ncid    ! netcdf file id
     integer,  intent(in) :: varID   ! variable ID
     real(r8), intent(in) :: data(:) ! data to write
 
     call Check(nf90_put_var(ncid, varID, data(:)))
-  
+
   end subroutine WriteVar1DReal
 
   !  =====================================================================================
@@ -566,13 +531,13 @@ module FatesUnitTestIOMod
     ! Write 2D real data
     !
 
-    ! ARGUMENTS: 
+    ! ARGUMENTS:
     integer,  intent(in) :: ncid      ! netcdf file id
     integer,  intent(in) :: varID     ! variable ID
     real(r8), intent(in) :: data(:,:) ! data to write
 
     call Check(nf90_put_var(ncid, varID, data(:,:)))
-  
+
   end subroutine WriteVar2DReal
 
   !  =====================================================================================
@@ -583,13 +548,13 @@ module FatesUnitTestIOMod
     ! Write 1D integer data
     !
 
-    ! ARGUMENTS: 
+    ! ARGUMENTS:
     integer, intent(in) :: ncid    ! netcdf file id
     integer, intent(in) :: varID   ! variable ID
     integer, intent(in) :: data(:) ! data to write
 
     call Check(nf90_put_var(ncid, varID, data(:)))
-  
+
   end subroutine WriteVar1DInt
 
   !  =====================================================================================
@@ -600,13 +565,13 @@ module FatesUnitTestIOMod
     ! Write 2D integer data
     !
 
-    ! ARGUMENTS: 
+    ! ARGUMENTS:
     integer, intent(in) :: ncid      ! netcdf file id
     integer, intent(in) :: varID     ! variable ID
     integer, intent(in) :: data(:,:) ! data to write
 
     call Check(nf90_put_var(ncid, varID, data(:,:)))
-  
+
   end subroutine WriteVar2DInt
 
   !  =====================================================================================

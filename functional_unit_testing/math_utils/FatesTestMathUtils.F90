@@ -22,7 +22,7 @@ program FatesTestQuadSolvers
     subroutine WriteQuadData(out_file, n, a, b, c, root1, root2)
 
       use FatesUnitTestIOMod, only : OpenNCFile, RegisterNCDims, CloseNCFile
-      use FatesUnitTestIOMod, only : RegisterVar1D, WriteVar, RegisterVar2D
+      use FatesUnitTestIOMod, only : WriteVar, RegisterVar
       use FatesUnitTestIOMod, only : type_double, type_int
       use FatesConstantsMod,  only : r8 => fates_r8
       implicit none
@@ -59,7 +59,8 @@ subroutine WriteQuadData(out_file, n, a, b, c, root1, root2)
   !
   use FatesConstantsMod,  only : r8 => fates_r8
   use FatesUnitTestIOMod, only : OpenNCFile, RegisterNCDims, CloseNCFile
-  use FatesUnitTestIOMod, only : RegisterVar1D, WriteVar, RegisterVar2D
+  use FatesUnitTestIOMod, only : WriteVar
+  use FatesUnitTestIOMod, only : RegisterVar
   use FatesUnitTestIOMod, only : EndNCDef
   use FatesUnitTestIOMod, only : type_double, type_int
 
@@ -98,27 +99,27 @@ subroutine WriteQuadData(out_file, n, a, b, c, root1, root2)
   call RegisterNCDims(ncid, dim_names, (/n/), 1, dimIDs)
 
   ! register a
-  call RegisterVar1D(ncid, 'a', dimIDs(1), type_double,  &
+  call RegisterVar(ncid, 'a', dimIDs(1:1), type_double,  &
     [character(len=20)  :: 'units', 'long_name'],                 &
     [character(len=150) :: '', 'coefficient a'], 2, aID)
 
   ! register b
-    call RegisterVar1D(ncid, 'b', dimIDs(1), type_double, &
+    call RegisterVar(ncid, 'b', dimIDs(1:1), type_double, &
     [character(len=20)  :: 'units', 'long_name'],                  &
     [character(len=150) :: '', 'coefficient b'], 2, bID)
 
   ! register c
-    call RegisterVar1D(ncid, 'c', dimIDs(1), type_double, &
+    call RegisterVar(ncid, 'c', dimIDs(1:1), type_double, &
     [character(len=20)  :: 'units', 'long_name'],                  &
     [character(len=150) :: '', 'coefficient c'], 2, cID)
 
   ! register root1
-    call RegisterVar1D(ncid, 'root1', dimIDs(1), type_double, &
+    call RegisterVar(ncid, 'root1', dimIDs(1:1), type_double, &
     [character(len=20)  :: 'units', 'long_name'],                  &
     [character(len=150) :: '', 'root 1'], 2, root1ID)
 
   ! register root2
-    call RegisterVar1D(ncid, 'root2', dimIDs(1), type_double, &
+    call RegisterVar(ncid, 'root2', dimIDs(1:1), type_double, &
     [character(len=20)  :: 'units', 'long_name'],                  &
     [character(len=150) :: '', 'root 2'], 2, root2ID)
 
