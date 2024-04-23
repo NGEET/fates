@@ -550,11 +550,11 @@ contains
 
     name = 'fates_leafn_vert_scaler_coeff1'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=leafn_vert_scaler_coeff1)
+         data=prt_params%leafn_vert_scaler_coeff1)
 
     name = 'fates_leafn_vert_scaler_coeff2'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=leafn_vert_scaler_coeff2)
+         data=prt_params%leafn_vert_scaler_coeff2)
     
     name = 'fates_recruit_seed_alloc_mature'
     call fates_params%RetrieveParameterAllocate(name=name, &

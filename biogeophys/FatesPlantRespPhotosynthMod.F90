@@ -72,7 +72,8 @@ module FATESPlantRespPhotosynthMod
   use FatesRadiationMemMod, only : ipar
   use FatesTwoStreamUtilsMod, only : FatesGetCohortAbsRad
   use FatesAllometryMod     , only : VegAreaLayer
-
+  use FatesAllometryMod, only : decay_coeff_vcmax
+  
   ! CIME Globals
   use shr_log_mod , only      : errMsg => shr_log_errMsg
 
@@ -146,7 +147,7 @@ contains
     use FatesAllometryMod, only : bleaf, bstore_allom
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
-    use FatesAllometryMod, only : decay_coeff_vcmax
+   
 
     use DamageMainMod, only : GetCrownReduction
 
