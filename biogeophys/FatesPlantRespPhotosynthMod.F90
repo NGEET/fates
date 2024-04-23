@@ -146,7 +146,7 @@ contains
     use FatesAllometryMod, only : bleaf, bstore_allom
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
-    use FatesAllometryMod, only : decay_coeff_kn
+    use FatesAllometryMod, only : decay_coeff_vcmax
 
     use DamageMainMod, only : GetCrownReduction
 
@@ -544,7 +544,9 @@ contains
                                  ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
                                  ! (2010) Biogeosciences, 7, 1833-1859
 
-                                 kn = decay_coeff_kn(ft,currentCohort%vcmax25top)
+                                 kn = decay_coeff_vcmax(currentCohort%vcmax25top, &
+                                                        prt_params%leafn_vert_scaler_coeff1(ft), &
+                                                        prt_params%leafn_vert_scaler_coeff2(ft))
 
                                  ! Scale for leaf nitrogen profile
                                  nscaler = exp(-kn * cumulative_lai)
@@ -2219,8 +2221,6 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
     real(r8) :: rdark_scaler ! negative exponential scaling of rdark
     real(r8) :: kn           ! decay coefficient
-    real(r8) :: rdark_vert_scaler1  ! determines rate of rdark decay through canopy
-    real(r8) :: rdark_vert_scaler2  ! determines rate of rdark decay through canopy
    
     ! parameter values of r_0 as listed in Atkin et al 2017: (umol CO2/m**2/s) 
     ! Broad-leaved trees  1.7560
@@ -2233,9 +2233,6 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     ! all figs in Atkin et al 2017 stop at zero Celsius so we will assume acclimation is fixed below that
     r_0 = EDPftvarcon_inst%maintresp_leaf_atkin2017_baserate(ft)
 
-    rdark_vert_scaler1 = EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1(ft)
-    rdark_vert_scaler2 = EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2(ft)
-    
     ! This code uses the relationship between leaf N and respiration from Atkin et al 
     ! for the top of the canopy, but then scales through the canopy based on a rdark_scaler.
     ! To assume proportionality with N through the canopy following Lloyd et al. 2010, use the
@@ -2243,8 +2240,11 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     ! being proportional through the canopy. To have a steeper decrease in respiration than photosynthesis
     ! this number can be smaller. There is some observational evidence for this being the case
     ! in Lamour et al. 2023. 
-    
-    kn = exp(rdark_vert_scaler1 * vcmax25top - rdark_vert_scaler2)
+
+    kn = decay_coeff_vcmax(vcmax25top, &
+                           EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1(ft), &
+                           EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2(ft))
+
     rdark_scaler = exp(-kn * cumulative_lai)
     
     r_t_ref = max(0._r8, rdark_scaler * (r_0 + lmr_r_1 * lnc_top + lmr_r_2 * max(0._r8, (tgrowth - tfrz) )) )
