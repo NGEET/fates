@@ -62,12 +62,13 @@ module FatesLandUseChangeMod
 contains
 
   ! ============================================================================
-  subroutine GetLanduseTransitionRates(bc_in, min_allowed_landuse_fraction, landuse_transition_matrix, landuse_vector_gt_min)
+  subroutine GetLanduseTransitionRates(bc_in, min_allowed_landuse_fraction, landuse_transition_matrix, &
+       landuse_vector_gt_min)
 
 
-    ! The purpose of this routine is to ingest the land use transition rate information that the host model has read in from a dataset,
-    ! aggregate land use types to those being used in the simulation, and output a transition matrix that can be used to drive patch
-    ! disturbance rates.
+    ! The purpose of this routine is to ingest the land use transition rate information that the host
+    ! model has read in from a dataset,aggregate land use types to those being used in the simulation,
+    ! and output a transition matrix that can be used to drive patch disturbance rates.
 
     ! !ARGUMENTS:
     type(bc_in_type) , intent(in) :: bc_in
@@ -101,8 +102,8 @@ contains
           urban_fraction = bc_in%hlm_luh_states(FindIndex(bc_in%hlm_luh_state_names,'urban'))
        end if
 
-       !!TODO: may need some logic here to ask whether or not ot perform land use change on this timestep. current code occurs every day.
-       !!If not doing transition every day, need to update units.
+       !! TODO: may need some logic here to ask whether or not ot perform land use change on this timestep.
+       !! current code occurs every day. If not doing transition every day, need to update units.
 
        transitions_loop: do i_luh2_transitions = 1, hlm_num_luh2_transitions
 
@@ -117,9 +118,11 @@ contains
 
           ! Avoid transitions with 'urban' as those are handled seperately
           ! Also ignore diagonal elements of transition matrix.
-          if (.not.(i_donor .eq. fates_unset_int .or. i_receiver .eq. fates_unset_int .or. i_donor .eq. i_receiver)) then
+          if (.not.(i_donor .eq. fates_unset_int .or. i_receiver .eq. fates_unset_int .or. &
+               i_donor .eq. i_receiver)) then
              landuse_transition_matrix(i_donor,i_receiver) = &
-                  landuse_transition_matrix(i_donor,i_receiver) +  temp_vector(i_luh2_transitions) * years_per_day / (1._r8 - urban_fraction)
+                  landuse_transition_matrix(i_donor,i_receiver) +  temp_vector(i_luh2_transitions) &
+                  * years_per_day / (1._r8 - urban_fraction)
 
           end if
        end do transitions_loop
@@ -127,7 +130,8 @@ contains
        ! zero all transitions where the state vector is less than the minimum allowed,
        ! and otherwise if this is the first timestep where the minimum was exceeded,
        ! then apply all transitions from primary to this type and reset the flag
-       ! note that the flag resetting should not happen for secondary lands, as this is handled in the logging logic
+       ! note that the flag resetting should not happen for secondary lands, as this is handled in the
+       ! logging logic
        call GetLUHStatedata(bc_in, state_vector)
        do i_lu = secondaryland, n_landuse_cats
           if ( state_vector(i_lu) .le. min_allowed_landuse_fraction ) then
@@ -170,16 +174,18 @@ contains
 
   subroutine GetLanduseChangeRules(clearing_matrix)
 
-    ! the purpose of this is to define a ruleset for when to clear the vegetation in transitioning from one land use type to another
+    ! the purpose of this is to define a ruleset for when to clear the vegetation in transitioning
+    ! from one land use type to another
 
     logical, intent(out) :: clearing_matrix(n_landuse_cats,n_landuse_cats)
     
-    ! default value of ruleset 4 above means that plants are not cleared during land use change transitions to rangeland, whereas plants are
-    ! cleared in transitions to pasturelands and croplands.
-    integer, parameter    :: ruleset = 4   ! ruleset to apply from table 1 of Ma et al (2020) https://doi.org/10.5194/gmd-13-3203-2020
+    ! default value of ruleset 4 above means that plants are not cleared during land use change
+    ! transitions to rangeland, whereas plants are cleared in transitions to pasturelands and croplands.
+    integer, parameter    :: ruleset = 4   ! ruleset to apply from table 1 of Ma et al (2020)
+    ! https://doi.org/10.5194/gmd-13-3203-2020
 
-    ! clearing matrix applies from the donor to the receiver land use type of the newly-transferred patch area
-    ! values of clearing matrix: false => do not clear; true => clear
+    ! clearing matrix applies from the donor to the receiver land use type of the newly-transferred
+    ! patch area values of clearing matrix: false => do not clear; true => clear
 
     clearing_matrix(:,:) = .false.
 
@@ -187,8 +193,9 @@ contains
 
     case(1)
 
-       ! note that this ruleset isnt exactly what is in Ma et al. rulesets 1 and 2, because FATES does not make the distinction
-       ! between forested and non-forested lands from a land use/land cover perspective.
+       ! note that this ruleset isnt exactly what is in Ma et al. rulesets 1 and 2, because FATES
+       ! does not make the distinction between forested and non-forested lands from a land use/land
+       ! cover perspective.
        clearing_matrix(:,cropland) = .true.
        clearing_matrix(:,pastureland) = .true.
        clearing_matrix(primaryland,rangeland) = .true.
@@ -351,12 +358,15 @@ contains
   end subroutine CheckLUHData
 
 
-  subroutine GetInitLanduseHarvestRate(bc_in, min_allowed_landuse_fraction, harvest_rate, landuse_vector_gt_min)
+  subroutine GetInitLanduseHarvestRate(bc_in, min_allowed_landuse_fraction, harvest_rate, &
+       landuse_vector_gt_min)
 
-    ! the purpose of this subroutine is, only under the case where we are transitioning from a spinup run that did not have land use
-    ! to a run that does, to apply the land-use changes needed to get to the state vector in a single daily instance. this is for
-    ! the hrvest rate from primary lands, i.e. the transition from primary to secondary lands. thus instead of using the harvest
-    ! dataset tself, it only uses the state vector for what land use compositoin we want to achieve, and log the forests accordingly.
+    ! the purpose of this subroutine is, only under the case where we are transitioning from a spinup
+    ! run that did not have land use to a run that does, to apply the land-use changes needed to get
+    ! to the state vector in a single daily instance. this is for the hrvest rate from primary lands,
+    ! i.e. the transition from primary to secondary lands. thus instead of using the harvest dataset
+    ! itself, it only uses the state vector for what land use compositoin we want to achieve, and log
+    ! the forests accordingly.
 
     ! !ARGUMENTS:
     type(bc_in_type) , intent(in) :: bc_in
@@ -378,11 +388,13 @@ contains
 
   end subroutine GetInitLanduseHarvestRate
 
-  subroutine GetInitLanduseTransitionRates(bc_in, min_allowed_landuse_fraction, landuse_transition_matrix, landuse_vector_gt_min)
+  subroutine GetInitLanduseTransitionRates(bc_in, min_allowed_landuse_fraction, &
+       landuse_transition_matrix, landuse_vector_gt_min)
     
-    ! The purpose of this subroutine is, only under the case where we are transitioning from a spinup run that did not have land use
-    ! to a run that does, to apply the land-use changes needed to get to the state vector in a single daily instance. This is for
-    ! the transitions other than harvest, i.e. from primary lands to all other categories aside from secondary lands. 
+    ! The purpose of this subroutine is, only under the case where we are transitioning from a spinup
+    ! run that did not have land use to a run that does, to apply the land-use changes needed to get
+    ! to the state vector in a single daily instance. This is for the transitions other than harvest,
+    ! i.e. from primary lands to all other categories aside from secondary lands. 
 
     ! !ARGUMENTS:
     type(bc_in_type) , intent(in) :: bc_in
@@ -398,8 +410,9 @@ contains
     
     call GetLUHStatedata(bc_in, state_vector)
 
-    ! only do this if the state vector exceeds the minimum viable patch size, and if so, note that in the
-    ! landuse_vector_gt_min flag (which will be coming in as .false. because of the use_potentialveg logic).
+    ! only do this if the state vector exceeds the minimum viable patch size, and if so, note that
+    ! in the landuse_vector_gt_min flag (which will be coming in as .false. because of the
+    ! use_potentialveg logic).
     do i = secondaryland+1,n_landuse_cats
        if ( state_vector(i) .gt. min_allowed_landuse_fraction) then
           landuse_transition_matrix(primaryland,i) = state_vector(i)
