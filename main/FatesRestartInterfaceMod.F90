@@ -46,10 +46,14 @@ module FatesRestartInterfaceMod
   use PRTGenericMod,           only : num_elements
   use FatesRunningMeanMod,     only : rmean_type
   use FatesRunningMeanMod,     only : ema_lpa
+  use FatesRadiationMemMod,    only : num_swb,norman_solver,twostr_solver
+  use TwoStreamMLPEMod,        only : normalized_upper_boundary
   use EDParamsMod,             only : regeneration_model
+  use EDParamsMod,             only : radiation_model
+  use FatesConstantsMod,       only : n_term_mort_types
   use FatesConstantsMod,       only : n_landuse_cats
   use FatesConstantsMod,       only : N_DIST_TYPES
-  
+
   ! CIME GLOBALS
   use shr_log_mod       , only : errMsg => shr_log_errMsg
 
@@ -1943,7 +1947,6 @@ contains
    use EDTypesMod, only : ed_site_type
    use FatesCohortMod, only : fates_cohort_type
    use FatesPatchMod, only : fates_patch_type
-   use EDParamsMod, only : maxSWb
    use EDParamsMod, only : nclmax
    use EDTypesMod, only : numWaterMem
    use EDTypesMod, only : num_vegtemp_mem
@@ -1989,6 +1992,8 @@ contains
     integer  :: io_idx_si_pft  ! each site-pft index
     integer  :: io_idx_si_vtmem ! indices for veg-temp memory at site
     integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
+    integer  :: io_idx_si_scpf_term ! loop counter for scls, pft, and termination type
+    integer  :: io_idx_si_pft_term ! loop counter for pft, and termination type
     integer  :: io_idx_si_luludi ! site-level lu x lu x ndist index
 
     ! Some counters (for checking mostly)
@@ -2012,8 +2017,9 @@ contains
     integer  :: i_cdam           ! loop counter for damage
     integer  :: icdi             ! loop counter for damage
     integer  :: icdj             ! loop counter for damage
+    integer  :: i_term_type      ! loop counter for termination type
     integer  :: i_lu_donor, i_lu_receiver, i_dist ! loop counters for land use and disturbance
-    
+
     type(fates_restart_variable_type) :: rvar
     type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
@@ -2173,6 +2179,8 @@ contains
           io_idx_si_cdpf = io_idx_co_1st
           io_idx_si_scpf = io_idx_co_1st
           io_idx_si_pft  = io_idx_co_1st
+          io_idx_si_scpf_term  = io_idx_co_1st
+          io_idx_si_pft_term = io_idx_co_1st
           io_idx_si_luludi  = io_idx_co_1st
 
           ! recruitment rate
@@ -2195,19 +2203,25 @@ contains
                 rio_imortrate_siscpf(io_idx_si_scpf)       = sites(s)%imort_rate(i_scls, i_pft)
                 rio_fmortrate_crown_siscpf(io_idx_si_scpf) = sites(s)%fmort_rate_crown(i_scls, i_pft)
                 rio_fmortrate_cambi_siscpf(io_idx_si_scpf) = sites(s)%fmort_rate_cambial(i_scls, i_pft)
-                rio_termnindiv_cano_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_canopy(i_scls,i_pft)
-                rio_termnindiv_usto_siscpf(io_idx_si_scpf) = sites(s)%term_nindivs_ustory(i_scls,i_pft)
                 rio_growflx_fusion_siscpf(io_idx_si_scpf)  = sites(s)%growthflux_fusion(i_scls, i_pft)
                 rio_abg_term_flux_siscpf(io_idx_si_scpf) = sites(s)%term_abg_flux(i_scls, i_pft)
                 rio_abg_imort_flux_siscpf(io_idx_si_scpf) = sites(s)%imort_abg_flux(i_scls, i_pft)
                 rio_abg_fmort_flux_siscpf(io_idx_si_scpf) = sites(s)%fmort_abg_flux(i_scls, i_pft)
                 io_idx_si_scpf = io_idx_si_scpf + 1
+                do i_term_type = 1, n_term_mort_types
+                   rio_termnindiv_cano_siscpf(io_idx_si_scpf_term) = sites(s)%term_nindivs_canopy(i_term_type,i_scls,i_pft)
+                   rio_termnindiv_usto_siscpf(io_idx_si_scpf_term) = sites(s)%term_nindivs_ustory(i_term_type,i_scls,i_pft)
+                   io_idx_si_scpf_term = io_idx_si_scpf_term + 1
+                end do
              end do
           end do
 
           do i_pft = 1, numpft
-             rio_termcflux_cano_sipft(io_idx_si_pft)  = sites(s)%term_carbonflux_canopy(i_pft)
-             rio_termcflux_usto_sipft(io_idx_si_pft)  = sites(s)%term_carbonflux_ustory(i_pft)
+             do i_term_type = 1, n_term_mort_types
+                rio_termcflux_cano_sipft(io_idx_si_pft_term)  = sites(s)%term_carbonflux_canopy(i_term_type,i_pft)
+                rio_termcflux_usto_sipft(io_idx_si_pft_term)  = sites(s)%term_carbonflux_ustory(i_term_type,i_pft)
+                io_idx_si_pft_term = io_idx_si_pft_term + 1
+             end do
              rio_fmortcflux_cano_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_canopy(i_pft)
              rio_fmortcflux_usto_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_ustory(i_pft)
              rio_imortcflux_sipft(io_idx_si_pft)      = sites(s)%imort_carbonflux(i_pft)
@@ -2528,7 +2542,7 @@ contains
                 end do
              end if
 
-             do i = 1,maxSWb
+             do i = 1,num_swb
                 rio_gnd_alb_dif_pasb(io_idx_pa_ib) = cpatch%gnd_alb_dif(i)
                 rio_gnd_alb_dir_pasb(io_idx_pa_ib) = cpatch%gnd_alb_dir(i)
                 io_idx_pa_ib = io_idx_pa_ib + 1
@@ -2699,17 +2713,16 @@ contains
      ! linked-list state structure.
      ! ---------------------------------------------------------------------------------
 
-     use EDTypesMod,           only : ed_site_type
-     use FatesCohortMod,           only : fates_cohort_type
-     use FatesPatchMod,           only : fates_patch_type
-     use EDParamsMod,          only : maxSWb, regeneration_model
-     use FatesInterfaceTypesMod,    only : fates_maxElementsPerPatch
-     use FatesInterfaceTypesMod,    only : hlm_current_tod, hlm_numSWb, numpft
-
-     use EDTypesMod,           only : area
-     use EDInitMod,            only : zero_site
-     use EDInitMod,            only : init_site_vars
-     use FatesAllometryMod,    only : h2d_allom
+     use EDTypesMod,             only : ed_site_type
+     use FatesCohortMod,         only : fates_cohort_type
+     use FatesPatchMod,          only : fates_patch_type
+     use EDParamsMod,            only : regeneration_model
+     use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
+     use FatesInterfaceTypesMod, only : hlm_current_tod, numpft
+     use EDTypesMod,             only : area
+     use EDInitMod,              only : zero_site
+     use EDInitMod,              only : init_site_vars
+     use FatesAllometryMod,      only : h2d_allom
 
 
      ! !ARGUMENTS:
@@ -2776,7 +2789,7 @@ contains
              ! the nocomp_pft label is set after patch creation has occured in 'get_restart_vectors'
              ! make new patch
              call newp%Create(fates_unset_r8, fates_unset_r8, primaryland,   &
-               nocomp_pft, hlm_numSWb, numpft, sites(s)%nlevsoil,              &
+               nocomp_pft, num_swb, numpft, sites(s)%nlevsoil,              &
                hlm_current_tod, regeneration_model)
 
              ! Initialize the litter pools to zero, these
@@ -2900,7 +2913,6 @@ contains
      use EDTypesMod, only : ed_site_type
      use FatesCohortMod, only : fates_cohort_type
      use FatesPatchMod, only : fates_patch_type
-     use EDParamsMod, only : maxSWb
      use EDParamsMod, only : nclmax
      use FatesInterfaceTypesMod, only : numpft
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
@@ -2955,6 +2967,8 @@ contains
      integer  :: io_idx_si_cdpf ! damage x size x pft within site
      
      integer  :: io_idx_pa_ncl   ! each canopy layer within each patch
+     integer  :: io_idx_si_scpf_term ! loop counter for scls, pft, and termination type
+     integer  :: io_idx_si_pft_term ! loop counter for pft, and termination type
      integer  :: io_idx_si_luludi ! site-level lu x lu x ndist index
 
      ! Some counters (for checking mostly)
@@ -2975,7 +2989,8 @@ contains
      integer  :: i_cdam           ! loop counter for damage class
      integer  :: icdj             ! loop counter for damage class
      integer  :: icdi             ! loop counter for damage class 
-     integer  :: i_lu_donor, i_lu_receiver, i_dist ! loop counters for land use and disturbance    
+     integer  :: i_term_type      ! loop counter for termination type
+     integer  :: i_lu_donor, i_lu_receiver, i_dist ! loop counters for land use and disturbance
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &
@@ -3121,6 +3136,9 @@ contains
           io_idx_si_cdpf = io_idx_co_1st
           io_idx_si_scpf = io_idx_co_1st
           io_idx_si_pft = io_idx_co_1st
+          io_idx_si_scpf_term = io_idx_co_1st
+          io_idx_si_pft_term = io_idx_co_1st
+          
           io_idx_si_luludi  = io_idx_co_1st
 
           ! read seed_bank info(site-level, but PFT-resolved)
@@ -3150,19 +3168,25 @@ contains
                 sites(s)%imort_rate(i_scls, i_pft)         = rio_imortrate_siscpf(io_idx_si_scpf)
                 sites(s)%fmort_rate_crown(i_scls, i_pft)   = rio_fmortrate_crown_siscpf(io_idx_si_scpf)
                 sites(s)%fmort_rate_cambial(i_scls, i_pft) = rio_fmortrate_cambi_siscpf(io_idx_si_scpf)
-                sites(s)%term_nindivs_canopy(i_scls,i_pft) = rio_termnindiv_cano_siscpf(io_idx_si_scpf)
-                sites(s)%term_nindivs_ustory(i_scls,i_pft) = rio_termnindiv_usto_siscpf(io_idx_si_scpf)
                 sites(s)%growthflux_fusion(i_scls, i_pft)  = rio_growflx_fusion_siscpf(io_idx_si_scpf)
                 sites(s)%term_abg_flux(i_scls,i_pft) = rio_abg_term_flux_siscpf(io_idx_si_scpf)
                 sites(s)%imort_abg_flux(i_scls,i_pft) = rio_abg_imort_flux_siscpf(io_idx_si_scpf)
                 sites(s)%fmort_abg_flux(i_scls,i_pft) = rio_abg_fmort_flux_siscpf(io_idx_si_scpf)
                 io_idx_si_scpf = io_idx_si_scpf + 1
+                do i_term_type = 1, n_term_mort_types
+                   sites(s)%term_nindivs_canopy(i_term_type,i_scls,i_pft) = rio_termnindiv_cano_siscpf(io_idx_si_scpf_term)
+                   sites(s)%term_nindivs_ustory(i_term_type,i_scls,i_pft) = rio_termnindiv_usto_siscpf(io_idx_si_scpf_term)
+                   io_idx_si_scpf_term = io_idx_si_scpf_term + 1
+                end do
              end do
           end do
 
           do i_pft = 1, numpft
-             sites(s)%term_carbonflux_canopy(i_pft)   = rio_termcflux_cano_sipft(io_idx_si_pft)
-             sites(s)%term_carbonflux_ustory(i_pft)   = rio_termcflux_usto_sipft(io_idx_si_pft)
+             do i_term_type = 1, n_term_mort_types
+                sites(s)%term_carbonflux_canopy(i_term_type,i_pft)   = rio_termcflux_cano_sipft(io_idx_si_pft_term)
+                sites(s)%term_carbonflux_ustory(i_term_type,i_pft)   = rio_termcflux_usto_sipft(io_idx_si_pft_term)
+                io_idx_si_pft_term = io_idx_si_pft_term + 1
+             end do
              sites(s)%fmort_carbonflux_canopy(i_pft)  = rio_fmortcflux_cano_sipft(io_idx_si_pft)
              sites(s)%fmort_carbonflux_ustory(i_pft)  = rio_fmortcflux_usto_sipft(io_idx_si_pft)
              sites(s)%imort_carbonflux(i_pft)         = rio_imortcflux_sipft(io_idx_si_pft)
@@ -3473,7 +3497,7 @@ contains
              end if
 
              
-             do i = 1,maxSWb
+             do i = 1,num_swb
                 cpatch%gnd_alb_dif(i) = rio_gnd_alb_dif_pasb(io_idx_pa_ib)
                 cpatch%gnd_alb_dir(i) = rio_gnd_alb_dir_pasb(io_idx_pa_ib)
                 io_idx_pa_ib = io_idx_pa_ib + 1
@@ -3641,10 +3665,9 @@ contains
      ! called upon restart reads.
      ! -------------------------------------------------------------------------
 
-     use EDTypesMod, only            : ed_site_type
-     use FatesPatchMod, only         : fates_patch_type
-     use EDSurfaceRadiationMod, only : PatchNormanRadiation
-     use FatesInterfaceTypesMod, only     : hlm_numSWb
+     use FatesNormanRadMod, only : PatchNormanRadiation
+     use EDTypesMod,             only : ed_site_type
+     use FatesPatchMod,          only : fates_patch_type
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -3677,9 +3700,9 @@ contains
            ! zero diagnostic radiation profiles
            currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
            currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
-           currentPatch%nrmlzd_parprof_dir_z(:,:,:)       = 0._r8
-           currentPatch%nrmlzd_parprof_dif_z(:,:,:)       = 0._r8
 
+           currentPatch%rad_error(:) = 0._r8
+           
            ! -----------------------------------------------------------
            ! When calling norman radiation from the short-timestep
            ! we are passing in boundary conditions to set the following
@@ -3703,7 +3726,7 @@ contains
                  ! no radiation is absorbed
                  bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
                  bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
-                 do ib = 1,hlm_numSWb
+                 do ib = 1,num_swb
 
                     bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dir(ib)
                     bc_out(s)%albi_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
@@ -3713,15 +3736,51 @@ contains
                  enddo
               else
 
-                 call PatchNormanRadiation (currentPatch, &
-                      bc_out(s)%albd_parb(ifp,:), &
-                      bc_out(s)%albi_parb(ifp,:), &
-                      bc_out(s)%fabd_parb(ifp,:), &
-                      bc_out(s)%fabi_parb(ifp,:), &
-                      bc_out(s)%ftdd_parb(ifp,:), &
-                      bc_out(s)%ftid_parb(ifp,:), &
-                      bc_out(s)%ftii_parb(ifp,:))
+                 select case(radiation_model)
+                 case(norman_solver)
+                 
+                    call PatchNormanRadiation (currentPatch, &
+                         bc_out(s)%albd_parb(ifp,:), &
+                         bc_out(s)%albi_parb(ifp,:), &
+                         bc_out(s)%fabd_parb(ifp,:), &
+                         bc_out(s)%fabi_parb(ifp,:), &
+                         bc_out(s)%ftdd_parb(ifp,:), &
+                         bc_out(s)%ftid_parb(ifp,:), &
+                         bc_out(s)%ftii_parb(ifp,:))
 
+
+                 case(twostr_solver)
+                    associate( twostr => currentPatch%twostr)
+
+                      call twostr%CanopyPrep(currentPatch%fcansno)
+                      call twostr%ZenithPrep(currentPatch%solar_zenith_angle)
+                      
+                      do ib = 1,num_swb
+                         
+                         twostr%band(ib)%albedo_grnd_diff = currentPatch%gnd_alb_dif(ib)
+                         twostr%band(ib)%albedo_grnd_beam = currentPatch%gnd_alb_dir(ib)
+                         
+                         call twostr%Solve(ib,             &  ! in
+                              normalized_upper_boundary,   &  ! in
+                              1.0_r8,1.0_r8,               &  ! in
+                              sites(s)%taulambda_2str,     &  ! inout (scratch)
+                              sites(s)%omega_2str,         &  ! inout (scratch)
+                              sites(s)%ipiv_2str,          &  ! inout (scratch)
+                              bc_out(s)%albd_parb(ifp,ib), &  ! out
+                              bc_out(s)%albi_parb(ifp,ib), &  ! out
+                              currentPatch%rad_error(ib),  &  ! out
+                              bc_out(s)%fabd_parb(ifp,ib), &  ! out
+                              bc_out(s)%fabi_parb(ifp,ib), &  ! out
+                              bc_out(s)%ftdd_parb(ifp,ib), &  ! out
+                              bc_out(s)%ftid_parb(ifp,ib), &  ! out
+                              bc_out(s)%ftii_parb(ifp,ib))
+                                                  
+                      end do
+                      
+                    end associate
+                    
+                 end select
+                    
               endif ! is there vegetation?
 
            end if    ! if the vegetation and zenith filter is active

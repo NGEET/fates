@@ -28,7 +28,7 @@ module EDTypesMod
   use FatesInterfaceTypesMod,only : hlm_parteh_mode
   use FatesCohortMod,        only : fates_cohort_type
   use FatesPatchMod,         only : fates_patch_type
-  use EDParamsMod,           only : maxSWb, nclmax, nlevleaf, maxpft
+  use EDParamsMod,           only : nclmax, nlevleaf, maxpft
   use FatesConstantsMod,     only : n_dbh_bins, n_dist_types
   use shr_log_mod,           only : errMsg => shr_log_errMsg
 
@@ -265,7 +265,24 @@ module EDTypesMod
                                             ! which is used for fixation
 
      
-     
+     ! Two-stream scratch arrays
+     real(r8), allocatable :: omega_2str(:,:)   ! This is the matrix that is inverted to solve
+                                                ! the linear system of equations in the two-stream
+                                                ! radiation module. This array will grow
+                                                ! and shrink depending on how many scattering
+                                                ! elements there are. This matrix is square,
+                                                ! and needs to be larger than 2 x number-of-elements
+                                                ! for each patch on the site
+
+     real(r8), allocatable :: taulambda_2str(:) ! These are the coefficients of the two-stream
+                                                ! linear system of equations (ie the unknowns, "lambda")
+                                                ! As well as the left-side (constants, "tau"). Since
+                                                ! the LAPACK solver dgesv uses the latter
+                                                ! as the argument and over-writes, we only
+                                                ! need one array
+
+     integer, allocatable :: ipiv_2str(:)       ! pivot indices for the lapack 2str solver
+
      ! SP mode target PFT level variables
      real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
      real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
@@ -363,18 +380,18 @@ module EDTypesMod
      real(r8) :: fmort_crownarea_canopy                ! crownarea of canopy indivs killed due to fire per year. [m2/sec]
      real(r8) :: fmort_crownarea_ustory                ! crownarea of understory indivs killed due to fire per year [m2/sec] 
 
-     real(r8), allocatable :: term_nindivs_canopy(:,:) ! number of canopy individuals that were in cohorts which 
-                                                       ! were terminated this timestep, on size x pft
-     real(r8), allocatable :: term_nindivs_ustory(:,:) ! number of understory individuals that were in cohorts which 
-                                                       ! were terminated this timestep, on size x pft
+     real(r8), allocatable :: term_nindivs_canopy(:,:,:)   ! number of canopy individuals that were in cohorts which 
+                                                           ! were terminated this timestep, by termination type, size x pft
+     real(r8), allocatable :: term_nindivs_ustory(:,:,:)   ! number of understory individuals that were in cohorts which 
+                                                           ! were terminated this timestep, by termination type, size x pft
 
-     real(r8), allocatable :: term_carbonflux_canopy(:)  ! carbon flux from live to dead pools associated 
-                                                         ! with termination mortality, per canopy level. [kgC/ha/day]
-     real(r8), allocatable :: term_carbonflux_ustory(:)  ! carbon flux from live to dead pools associated 
-                                                         ! with termination mortality, per canopy level.  [kgC/ha/day]    
-     real(r8), allocatable :: imort_carbonflux(:)        ! biomass of individuals killed due to impact mortality per year. [kgC/m2/sec]
-     real(r8), allocatable :: fmort_carbonflux_canopy(:) ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
-     real(r8), allocatable :: fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
+     real(r8), allocatable :: term_carbonflux_canopy(:,:)  ! carbon flux from live to dead pools associated 
+                                                           ! with termination mortality, by termination type and pft. [kgC/ha/day]
+     real(r8), allocatable :: term_carbonflux_ustory(:,:)  ! carbon flux from live to dead pools associated 
+                                                         ! with termination mortality, by termination type and pft.  [kgC/ha/day]    
+     real(r8), allocatable :: imort_carbonflux(:)        ! biomass of individuals killed due to impact mortality per year, by pft. [kgC/m2/sec]
+     real(r8), allocatable :: fmort_carbonflux_canopy(:) ! biomass of canopy indivs killed due to fire per year, by pft. [gC/m2/sec]
+     real(r8), allocatable :: fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to fire per year, by pft [gC/m2/sec] 
 
      real(r8), allocatable :: term_abg_flux(:,:)          ! aboveground biomass lost due to termination mortality x size x pft
      real(r8), allocatable :: imort_abg_flux(:,:)         ! aboveground biomass lost due to impact mortality x size x pft [kgC/m2/sec]
