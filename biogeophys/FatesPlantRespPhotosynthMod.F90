@@ -38,6 +38,7 @@ module FATESPlantRespPhotosynthMod
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : nleafage
+  use FatesUtilsMod,          only : QuadraticRoots => QuadraticRootsSridharachary
   use EDParamsMod,           only : maxpft
   use EDParamsMod,       only : nlevleaf
   use EDParamsMod,       only : nclmax
@@ -72,7 +73,8 @@ module FATESPlantRespPhotosynthMod
   use FatesRadiationMemMod, only : ipar
   use FatesTwoStreamUtilsMod, only : FatesGetCohortAbsRad
   use FatesAllometryMod     , only : VegAreaLayer
-
+  use FatesAllometryMod, only : decay_coeff_vcmax
+  
   ! CIME Globals
   use shr_log_mod , only      : errMsg => shr_log_errMsg
 
@@ -146,7 +148,7 @@ contains
     use FatesAllometryMod, only : bleaf, bstore_allom
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
-    use FatesAllometryMod, only : decay_coeff_kn
+   
 
     use DamageMainMod, only : GetCrownReduction
 
@@ -544,7 +546,9 @@ contains
                                  ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
                                  ! (2010) Biogeosciences, 7, 1833-1859
 
-                                 kn = decay_coeff_kn(ft,currentCohort%vcmax25top)
+                                 kn = decay_coeff_vcmax(currentCohort%vcmax25top, &
+                                                        prt_params%leafn_vert_scaler_coeff1(ft), &
+                                                        prt_params%leafn_vert_scaler_coeff2(ft))
 
                                  ! Scale for leaf nitrogen profile
                                  nscaler = exp(-kn * cumulative_lai)
@@ -593,7 +597,8 @@ contains
                                  case (lmrmodel_atkin_etal_2017)
 
                                     call LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &  ! in
-                                         nscaler,                            &  ! in
+                                         cumulative_lai,                     &  ! in
+                                         currentCohort%vcmax25top,           &  ! in
                                          ft,                                 &  ! in
                                          bc_in(s)%t_veg_pa(ifp),             &  ! in
                                          currentPatch%tveg_lpa%GetMean(),    &  ! in
@@ -1381,7 +1386,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
            aquad = theta_psii
            bquad = -(qabs + jmax)
            cquad = qabs * jmax
-           call quadratic_f (aquad, bquad, cquad, r1, r2)
+           call QuadraticRoots(aquad, bquad, cquad, r1, r2)
            je = min(r1,r2)
 
            ! Initialize intercellular co2
@@ -1411,7 +1416,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                     aquad = theta_cj_c3
                     bquad = -(ac + aj)
                     cquad = ac * aj
-                    call quadratic_f (aquad, bquad, cquad, r1, r2)
+                    call QuadraticRoots(aquad, bquad, cquad, r1, r2)
                     agross = min(r1,r2)
 
               else
@@ -1442,13 +1447,13 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                  aquad = theta_cj_c4
                  bquad = -(ac + aj)
                  cquad = ac * aj
-                 call quadratic_f (aquad, bquad, cquad, r1, r2)
+                 call QuadraticRoots(aquad, bquad, cquad, r1, r2)
                  ai = min(r1,r2)
 
                  aquad = theta_ip
                  bquad = -(ai + ap)
                  cquad = ai * ap
-                 call quadratic_f (aquad, bquad, cquad, r1, r2)
+                 call QuadraticRoots(aquad, bquad, cquad, r1, r2)
                  agross = min(r1,r2)
 
               end if
@@ -1487,7 +1492,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                       (2.0*stomatal_intercept_btran + term * &
                       (1.0 - medlyn_slope(ft)* medlyn_slope(ft) / vpd)) * term
 
-                 call quadratic_f (aquad, bquad, cquad, r1, r2)
+                 call QuadraticRoots(aquad, bquad, cquad, r1, r2)
                  gs_mol = max(r1,r2)
 
               else if ( stomatal_model == ballberry_model ) then         !stomatal conductance calculated from Ball et al. (1987)
@@ -1496,7 +1501,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                  cquad = -gb_mol*(leaf_co2_ppress*stomatal_intercept_btran + &
                       bb_slope(ft)*anet*can_press * ceair/ veg_esat )
 
-                 call quadratic_f (aquad, bquad, cquad, r1, r2)
+                 call QuadraticRoots(aquad, bquad, cquad, r1, r2)
                  gs_mol = max(r1,r2)
               end if
               
@@ -1924,145 +1929,6 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
   ! =====================================================================================
 
-  subroutine quadratic_f (a, b, c, r1, r2)
-    !
-    ! !DESCRIPTION:
-    !==============================================================================!
-    !----------------- Solve quadratic equation for its two roots -----------------!
-    !==============================================================================!
-    ! This solution is mostly derived from:
-    ! Press WH, Teukolsky SA, Vetterling WT, Flannery BP. 1992. Numerical Recipes
-    !    in Fortran77: The Art of Scientific Computing. 2nd edn. Cambridge 
-    !    University Press, Cambridge UK, ISBN 0-521-43064-X.
-    !    Available at: http://numerical.recipes/oldverswitcher.html, section 5.6.
-    !
-    ! !REVISION HISTORY:
-    ! 4/5/10: Adapted from /home/bonan/ecm/psn/An_gs_iterative.f90 by Keith Oleson
-    ! 7/23/16: Copied over from CLM by Ryan Knox
-    ! 12/30/23: Instead of issuing errors when a=0, solve the trivial cases too.
-    !           Check determinant sign, and stop the run when it is negative.
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS:
-    real(r8), intent(in)  :: a,b,c       ! Terms for quadratic equation
-    real(r8), intent(out) :: r1,r2       ! Roots of quadratic equation
-    !
-    ! !LOCAL VARIABLES:
-    real(r8) :: discriminant             ! Discriminant
-    real(r8) :: q                        ! Temporary term for quadratic solution
-    logical  :: a_offzero                ! Is a close to zero?
-    logical  :: b_offzero                ! Is b close to zero?
-    logical  :: c_offzero                ! Is c close to zero?
-    ! ! Local constants:
-    real(r8), parameter :: discard = 1.e36_r8 ! Large number for discarding answer
-    !------------------------------------------------------------------------------
-
-    ! Save logical tests.
-    a_offzero = abs(a) > nearzero
-    b_offzero = abs(b) > nearzero
-    c_offzero = abs(c) > nearzero
-
-    if (a_offzero .and. ( b_offzero .or. c_offzero ) ) then
-       ! Quadratic equation with two non-zero solutions (but may be complex solutions)
-       discriminant = b*b - 4._r8 * a * c
-
-       ! Proceed only when the discriminant is non-negative or only tiny negative
-       if (discriminant >= - nearzero) then
-          ! Coerce discriminant to non-negative
-          discriminant = max(0._r8,discriminant)
-
-          ! Find q as in the numerical recipes. If b or c are non-zero, q cannot
-          ! be zero, no need for additional checks.
-          q  = - 0.5_r8 * (b + sign(sqrt(discriminant),b))
-          r1 = q / a
-          r2 = c / q
-       else
-          ! Negative discriminant, stop the run.
-          write (fates_log(),'(a)') '---~---'
-          write (fates_log(),'(a)') ' Fatal error!'
-          write (fates_log(),'(a)') ' Quadratic equation discriminant is negative.'
-          write (fates_log(),'(a)') '---~---'
-          write (fates_log(),'(a,1x,es12.5)') ' a            = ',a
-          write (fates_log(),'(a,1x,es12.5)') ' b            = ',b
-          write (fates_log(),'(a,1x,es12.5)') ' c            = ',c
-          write (fates_log(),'(a,1x,es12.5)') ' discriminant = ',discriminant
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-    else if (a_offzero) then
-       ! b and c are nearly zero. Both roots must be zero.
-       r1 = 0._r8
-       r2 = 0._r8
-    else if (b_offzero) then
-       ! "a" is not zero, not a true quadratic equation. Single root.
-       r1 = - c / b
-       r2 = discard
-    else
-       ! Both a and b are zero, this really doesn't make any sense and should never
-       ! happen. If it does, issue an error and stop the run.
-       write (fates_log(),'(a)') '---~---'
-       write (fates_log(),'(a)') ' Fatal error!'
-       write (fates_log(),'(a)') ' This solver expects ''a'' and/or ''b'' to be non-zero.'
-       write (fates_log(),'(a)') '---~---'
-       write (fates_log(),'(a,1x,es12.5)') ' a = ',a
-       write (fates_log(),'(a,1x,es12.5)') ' b = ',b
-       write (fates_log(),'(a,1x,es12.5)') ' c = ',c
-       write (fates_log(),'(a)') '---~---'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
-
-    return
-  end subroutine quadratic_f
-
-  ! ====================================================================================
-
-  subroutine quadratic_fast (a, b, c, r1, r2)
-    !
-    ! !DESCRIPTION:
-    !==============================================================================!
-    !----------------- Solve quadratic equation for its two roots -----------------!
-    ! THIS METHOD SIMPLY REMOVES THE DIV0 CHECK AND ERROR REPORTING                !
-    !==============================================================================!
-    ! Solution from Press et al (1986) Numerical Recipes: The Art of Scientific
-    ! Computing (Cambridge University Press, Cambridge), pp. 145.
-    !
-    ! !REVISION HISTORY:
-    ! 4/5/10: Adapted from /home/bonan/ecm/psn/An_gs_iterative.f90 by Keith Oleson
-    ! 7/23/16: Copied over from CLM by Ryan Knox
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS:
-    real(r8), intent(in)  :: a,b,c       ! Terms for quadratic equation
-    real(r8), intent(out) :: r1,r2       ! Roots of quadratic equation
-    !
-    ! !LOCAL VARIABLES:
-    real(r8) :: q                        ! Temporary term for quadratic solution
-    !------------------------------------------------------------------------------
-
-    !  if (a == 0._r8) then
-    !     write (fates_log(),*) 'Quadratic solution error: a = ',a
-    !     call endrun(msg=errMsg(sourcefile, __LINE__))
-    !  end if
-
-    if (b >= 0._r8) then
-       q = -0.5_r8 * (b + sqrt(b*b - 4._r8*a*c))
-    else
-       q = -0.5_r8 * (b - sqrt(b*b - 4._r8*a*c))
-    end if
-
-    r1 = q / a
-    !  if (q /= 0._r8) then
-    r2 = c / q
-    !  else
-    !     r2 = 1.e36_r8
-    !  end if
-
-  end subroutine quadratic_fast
-
-
-  ! ====================================================================================
-
   subroutine UpdateCanopyNCanNRadPresent(currentPatch)
 
     ! ---------------------------------------------------------------------------------
@@ -2324,10 +2190,11 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! ====================================================================================   
 
   subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
-       nscaler,   &
-       ft,        &
-       veg_tempk, &
-       tgrowth,   &
+       cumulative_lai, &
+       vcmax25top,     &
+       ft,             &
+       veg_tempk,      &
+       tgrowth,        &
        lmr)
 
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
@@ -2341,19 +2208,23 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     use EDPftvarcon      , only : EDPftvarcon_inst
 
     ! Arguments
-    real(r8), intent(in)  :: lnc_top      ! Leaf nitrogen content per unit area at canopy top [gN/m2]
-    integer,  intent(in)  :: ft           ! (plant) Functional Type Index
-    real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
-    real(r8), intent(in)  :: veg_tempk    ! vegetation temperature  (degrees K)
-    real(r8), intent(in)  :: tgrowth      ! lagged vegetation temperature averaged over acclimation timescale (degrees K)
-    real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
-
+    real(r8), intent(in)  :: lnc_top          ! Leaf nitrogen content per unit area at canopy top [gN/m2]
+    integer,  intent(in)  :: ft               ! (plant) Functional Type Index
+    real(r8), intent(in)  :: vcmax25top       ! top of canopy vcmax
+    real(r8), intent(in)  :: cumulative_lai   ! cumulative lai above the current leaf layer
+    real(r8), intent(in)  :: veg_tempk        ! vegetation temperature  (degrees K)
+    real(r8), intent(in)  :: tgrowth          ! lagged vegetation temperature averaged over acclimation timescale (degrees K)
+    real(r8), intent(out) :: lmr              ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
+    
     ! Locals
     real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
     real(r8) :: r_0     ! base respiration rate, PFT-dependent (umol CO2/m**2/s)
     real(r8) :: r_t_ref ! acclimated ref respiration rate (umol CO2/m**2/s)
     real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
 
+    real(r8) :: rdark_scaler ! negative exponential scaling of rdark
+    real(r8) :: kn           ! decay coefficient
+   
     ! parameter values of r_0 as listed in Atkin et al 2017: (umol CO2/m**2/s) 
     ! Broad-leaved trees  1.7560
     ! Needle-leaf trees   1.4995
@@ -2361,13 +2232,25 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     ! C3 herbs/grasses    2.1956
     ! In the absence of better information, we use the same value for C4 grasses as C3 grasses.
 
-    ! note that this code uses the relationship between leaf N and respiration from Atkin et al 
-    ! for the top of the canopy, but then assumes proportionality with N through the canopy.
-
     ! r_0 currently put into the EDPftvarcon_inst%dev_arbitrary_pft
     ! all figs in Atkin et al 2017 stop at zero Celsius so we will assume acclimation is fixed below that
     r_0 = EDPftvarcon_inst%maintresp_leaf_atkin2017_baserate(ft)
-    r_t_ref = max( 0._r8, nscaler * (r_0 + lmr_r_1 * lnc_top + lmr_r_2 * max(0._r8, (tgrowth - tfrz) )) )
+
+    ! This code uses the relationship between leaf N and respiration from Atkin et al 
+    ! for the top of the canopy, but then scales through the canopy based on a rdark_scaler.
+    ! To assume proportionality with N through the canopy following Lloyd et al. 2010, use the
+    ! default parameter value of 2.43, which results in the scaling of photosynthesis and respiration
+    ! being proportional through the canopy. To have a steeper decrease in respiration than photosynthesis
+    ! this number can be smaller. There is some observational evidence for this being the case
+    ! in Lamour et al. 2023. 
+
+    kn = decay_coeff_vcmax(vcmax25top, &
+                           EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1(ft), &
+                           EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2(ft))
+
+    rdark_scaler = exp(-kn * cumulative_lai)
+    
+    r_t_ref = max(0._r8, rdark_scaler * (r_0 + lmr_r_1 * lnc_top + lmr_r_2 * max(0._r8, (tgrowth - tfrz) )) )
 
     if (r_t_ref .eq. 0._r8) then
        warn_msg = 'Rdark is negative at this temperature and is capped at 0. tgrowth (C): '//trim(N2S(tgrowth-tfrz))//' pft: '//trim(I2S(ft))
