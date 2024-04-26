@@ -72,7 +72,8 @@ module FATESPlantRespPhotosynthMod
   use FatesRadiationMemMod, only : ipar
   use FatesTwoStreamUtilsMod, only : FatesGetCohortAbsRad
   use FatesAllometryMod     , only : VegAreaLayer
-
+  use FatesAllometryMod, only : decay_coeff_vcmax
+  
   ! CIME Globals
   use shr_log_mod , only      : errMsg => shr_log_errMsg
 
@@ -146,7 +147,7 @@ contains
     use FatesAllometryMod, only : bleaf, bstore_allom
     use FatesAllometryMod, only : storage_fraction_of_target
     use FatesAllometryMod, only : set_root_fraction
-    use FatesAllometryMod, only : decay_coeff_kn
+   
 
     use DamageMainMod, only : GetCrownReduction
 
@@ -544,7 +545,9 @@ contains
                                  ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
                                  ! (2010) Biogeosciences, 7, 1833-1859
 
-                                 kn = decay_coeff_kn(ft,currentCohort%vcmax25top)
+                                 kn = decay_coeff_vcmax(currentCohort%vcmax25top, &
+                                                        prt_params%leafn_vert_scaler_coeff1(ft), &
+                                                        prt_params%leafn_vert_scaler_coeff2(ft))
 
                                  ! Scale for leaf nitrogen profile
                                  nscaler = exp(-kn * cumulative_lai)
@@ -593,7 +596,8 @@ contains
                                  case (lmrmodel_atkin_etal_2017)
 
                                     call LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &  ! in
-                                         nscaler,                            &  ! in
+                                         cumulative_lai,                     &  ! in
+                                         currentCohort%vcmax25top,           &  ! in
                                          ft,                                 &  ! in
                                          bc_in(s)%t_veg_pa(ifp),             &  ! in
                                          currentPatch%tveg_lpa%GetMean(),    &  ! in
@@ -2184,10 +2188,11 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! ====================================================================================   
 
   subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017(lnc_top, &
-       nscaler,   &
-       ft,        &
-       veg_tempk, &
-       tgrowth,   &
+       cumulative_lai, &
+       vcmax25top,     &
+       ft,             &
+       veg_tempk,      &
+       tgrowth,        &
        lmr)
 
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
@@ -2201,19 +2206,23 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     use EDPftvarcon      , only : EDPftvarcon_inst
 
     ! Arguments
-    real(r8), intent(in)  :: lnc_top      ! Leaf nitrogen content per unit area at canopy top [gN/m2]
-    integer,  intent(in)  :: ft           ! (plant) Functional Type Index
-    real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
-    real(r8), intent(in)  :: veg_tempk    ! vegetation temperature  (degrees K)
-    real(r8), intent(in)  :: tgrowth      ! lagged vegetation temperature averaged over acclimation timescale (degrees K)
-    real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
-
+    real(r8), intent(in)  :: lnc_top          ! Leaf nitrogen content per unit area at canopy top [gN/m2]
+    integer,  intent(in)  :: ft               ! (plant) Functional Type Index
+    real(r8), intent(in)  :: vcmax25top       ! top of canopy vcmax
+    real(r8), intent(in)  :: cumulative_lai   ! cumulative lai above the current leaf layer
+    real(r8), intent(in)  :: veg_tempk        ! vegetation temperature  (degrees K)
+    real(r8), intent(in)  :: tgrowth          ! lagged vegetation temperature averaged over acclimation timescale (degrees K)
+    real(r8), intent(out) :: lmr              ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
+    
     ! Locals
     real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
     real(r8) :: r_0     ! base respiration rate, PFT-dependent (umol CO2/m**2/s)
     real(r8) :: r_t_ref ! acclimated ref respiration rate (umol CO2/m**2/s)
     real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
 
+    real(r8) :: rdark_scaler ! negative exponential scaling of rdark
+    real(r8) :: kn           ! decay coefficient
+   
     ! parameter values of r_0 as listed in Atkin et al 2017: (umol CO2/m**2/s) 
     ! Broad-leaved trees  1.7560
     ! Needle-leaf trees   1.4995
@@ -2221,13 +2230,25 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     ! C3 herbs/grasses    2.1956
     ! In the absence of better information, we use the same value for C4 grasses as C3 grasses.
 
-    ! note that this code uses the relationship between leaf N and respiration from Atkin et al 
-    ! for the top of the canopy, but then assumes proportionality with N through the canopy.
-
     ! r_0 currently put into the EDPftvarcon_inst%dev_arbitrary_pft
     ! all figs in Atkin et al 2017 stop at zero Celsius so we will assume acclimation is fixed below that
     r_0 = EDPftvarcon_inst%maintresp_leaf_atkin2017_baserate(ft)
-    r_t_ref = max( 0._r8, nscaler * (r_0 + lmr_r_1 * lnc_top + lmr_r_2 * max(0._r8, (tgrowth - tfrz) )) )
+
+    ! This code uses the relationship between leaf N and respiration from Atkin et al 
+    ! for the top of the canopy, but then scales through the canopy based on a rdark_scaler.
+    ! To assume proportionality with N through the canopy following Lloyd et al. 2010, use the
+    ! default parameter value of 2.43, which results in the scaling of photosynthesis and respiration
+    ! being proportional through the canopy. To have a steeper decrease in respiration than photosynthesis
+    ! this number can be smaller. There is some observational evidence for this being the case
+    ! in Lamour et al. 2023. 
+
+    kn = decay_coeff_vcmax(vcmax25top, &
+                           EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1(ft), &
+                           EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2(ft))
+
+    rdark_scaler = exp(-kn * cumulative_lai)
+    
+    r_t_ref = max(0._r8, rdark_scaler * (r_0 + lmr_r_1 * lnc_top + lmr_r_2 * max(0._r8, (tgrowth - tfrz) )) )
 
     if (r_t_ref .eq. 0._r8) then
        warn_msg = 'Rdark is negative at this temperature and is capped at 0. tgrowth (C): '//trim(N2S(tgrowth-tfrz))//' pft: '//trim(I2S(ft))
