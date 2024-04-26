@@ -498,7 +498,7 @@ contains
 
     call fates_params%RegisterParameter(name=ED_name_dayl_switch, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     call fates_params%RegisterParameter(name=ED_name_regeneration_model, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 	 
@@ -889,9 +889,9 @@ contains
         write(fates_log(),fmt0) 'ED_val_cohort_age_fusion_tol = ',ED_val_cohort_age_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh
-        write(fates_log(),fmt0) 'regeneration_model = ',regeneration_model      
+        write(fates_log(),fmt0) 'regeneration_model = ',regeneration_model
+        write(fates_log(),fmt0) 'dayl_switch = ',dayl_switch      
         write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model
-        write(fates_log(),fmt0) 'dayl_switch = ',dayl_switch
         write(fates_log(),fmt0) 'stomatal_assim_model = ',stomatal_assim_model            
         write(fates_log(),fmt0) 'hydro_kmax_rsurf1 = ',hydr_kmax_rsurf1
         write(fates_log(),fmt0) 'hydro_kmax_rsurf2 = ',hydr_kmax_rsurf2  

@@ -63,6 +63,7 @@ module FATESPlantRespPhotosynthMod
   use EDParamsMod,       only : maintresp_nonleaf_baserate
   use EDParamsMod,       only : stomatal_model
   use EDParamsMod,       only : stomatal_assim_model
+  use EDParamsMod,       only : dayl_switch
   use EDParamsMod,       only : photo_tempsens_model
   use PRTParametersMod,  only : prt_params
   use EDPftvarcon      , only : EDPftvarcon_inst
@@ -685,6 +686,7 @@ contains
                                       currentCohort%kp25top,              &  ! in
                                       nscaler,                            &  ! in
                                       bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                      bc_in(s)%dayl_factor_pa(ifp),       &  ! in
                                       currentPatch%tveg_lpa%GetMean(),    &  ! in
                                       currentPatch%tveg_longterm%GetMean(),&  ! in
                                       btran_eff,                          &  ! in
@@ -2269,6 +2271,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
        co2_rcurve_islope25top_ft, &
        nscaler,    &
        veg_tempk,      &
+       dayl_factor, &
        t_growth,   &
        t_home,     &
        btran, &
@@ -2304,6 +2307,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
     ! (C4 plants) at 25C, canopy top, this pft
     real(r8), intent(in) :: veg_tempk           ! vegetation temperature
+    real(r8), intent(in) :: dayl_factor         ! daylength scaling factor (0-1)
     real(r8), intent(in) :: t_growth            ! T_growth (short-term running mean temperature) (K)
     real(r8), intent(in) :: t_home              ! T_home (long-term running mean temperature) (K)
     real(r8), intent(in) :: btran           ! transpiration wetness factor (0 to 1)
@@ -2321,7 +2325,8 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     ! (umol electrons/m**2/s)
     real(r8) :: co2_rcurve_islope25 ! leaf layer: Initial slope of CO2 response curve
     ! (C4 plants) at 25C
-    integer :: c3c4_path_index    ! Index for which photosynthetic pathway
+    integer :: c3c4_path_index      ! Index for which photosynthetic pathway
+    real(r8) :: dayl_factor_local   ! Local version of daylength factor
 
     ! Parameters
     ! ---------------------------------------------------------------------------------
@@ -2369,11 +2374,18 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
        co2_rcurve_islope = 0._r8
     else                                     ! day time
 
+       ! update the daylength factor local variable if the switch is on
+       if ( dayl_switch == itrue ) then
+          dayl_factor_local = dayl_factor
+       else
+          dayl_factor_local = 1.0_r8
+       endif
+
        ! Vcmax25top was already calculated to derive the nscaler function
-       vcmax25 = vcmax25top_ft * nscaler
+       vcmax25 = vcmax25top_ft * nscaler * dayl_factor_local
        select case(photo_tempsens_model)
        case (photosynth_acclim_model_none)
-          jmax25  = jmax25top_ft * nscaler
+          jmax25  = jmax25top_ft * nscaler * dayl_factor_local
        case (photosynth_acclim_model_kumarathunge_etal_2019) 
           jmax25 = vcmax25*jvr
        case default
