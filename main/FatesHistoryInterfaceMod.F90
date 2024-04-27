@@ -2435,6 +2435,9 @@ contains
 
          site_ba = 0._r8
          site_ca = 0._r8
+
+         ! This should be removed from the interface and put here (RGK 04-24)
+         ! call this%zero_site_hvars(sites(s),upfreq_in=group_dyna_simple)
          
          ! set the fates fraction to one, since it is zero on non-fates columns, &
          ! the average is the total gridcell fates fraction
@@ -2568,13 +2571,6 @@ contains
               sum(flux_diags_c%leaf_litter_input(:)) + &
               sum(flux_diags_c%root_litter_input(:))) * &
               AREA_INV * days_per_sec
-
-         hio_litter_out_si(io_si) = 0._r8
-         hio_seed_bank_si(io_si)  = 0._r8
-         hio_ungerm_seed_bank_si(io_si)  = 0._r8
-         hio_seedling_pool_si(io_si)  = 0._r8
-         hio_seeds_in_si(io_si)   = 0._r8
-         hio_seeds_in_local_si(io_si)   = 0._r8
 
          ! Loop through patches to sum up diagonistics
          ipa = 0
@@ -2923,8 +2919,6 @@ contains
          ! divide secondary plant leaf area by secondary forest area to get the secondary forest LAI
          if (hio_fraction_secondary_forest_si(io_si) .gt. nearzero) then
             hio_lai_secondary_si(io_si) = hio_lai_secondary_si(io_si) / (hio_fraction_secondary_forest_si(io_si)*AREA)
-         else
-            hio_lai_secondary_si(io_si) = 0._r8
          end if
 
          ! Normalize crown-area weighted height
@@ -2934,9 +2928,7 @@ contains
 
          ! divide basal-area-weighted height by basal area to get mean
          if ( site_ba .gt. nearzero ) then
-            hio_ba_weighted_height_si(io_si) = hio_ba_weighted_height_si(io_si) / site_ba
-         else
-            hio_ba_weighted_height_si(io_si) = 0._r8
+            hio_ba_weighted_height_si(io_si) = hio_ba_weighted_height_si(io_si)/site_ba
          endif
 
          elloop2: do el = 1, num_elements
