@@ -51,7 +51,7 @@
 
 
   !real(r8), parameter :: min_theta_cch = 0.05_r8 ! Minimum theta (matches ctsm)
-  real(r8), parameter :: min_psi_cch = -15.0_r8 ! Minimum theta (matches ctsm)
+  real(r8), parameter :: min_psi_cch = -15.0_r8 ! Minimum suction (MPa)
   
   ! Generic class that can be extended to describe
   ! specific water retention functions

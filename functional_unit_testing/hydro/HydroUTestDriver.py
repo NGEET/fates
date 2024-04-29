@@ -162,7 +162,12 @@ def OMParams(zsoi):
     return(om_watsat,om_sucsat,om_bsw)
     
 def CCHParmsCosby84T5(zsoi,om_frac,sand_frac,clay_frac):
-             
+
+    # Cosby, B.J., Hornberger, G.M., Clapp, R.B., and Ginn, T.R. 1984.
+    # A statistical exploration of the relationships of soil moisture
+    # characteristics to the physical properties of soils. Water Resour.
+    # Res. 20:682-690.
+
     # cosby_1984_table5
 
     # Get pedotransfer for soil matrix
