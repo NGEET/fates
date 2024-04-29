@@ -2763,7 +2763,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               if(rootflux_disagg == soilk_disagg)then
                  if(qflx_soil2root_rhiz>0._r8 )then
                     ! Weight disaggregation by K*dz, but only for flux
-                    ! into the root, othersize weight by depth
+                    ! into the root, othersize weight by root length
                     ! h2osoi_liqvol: [kg/m2] / [m] / [kg/m3] = [m3/m3]
                     eff_por       = bc_in(s)%eff_porosity_sl(j_bc)
                     h2osoi_liqvol = min(eff_por, bc_in(s)%h2o_liq_sisl(j_bc)/(bc_in(s)%dz_sisl(j_bc)*denh2o))
@@ -2787,8 +2787,8 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
 
            ! Note: It is possible that the soil is so dry there is no conductance
            !       In these cases, solver error may create some non-zero, yet
-           !       trivially small fluxes. The conductances are exactly zero
-           !       so we need to renormalize the weighting function
+           !       trivially small fluxes. Lets create a simple weighting
+           !       function based on root length and available water.
            if(sumweight < nearzero)then
               sumweight = 0._r8
               do j_bc = j_t,j_b
