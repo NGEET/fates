@@ -235,7 +235,8 @@ contains
 
  subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, btran_ft, &
       mean_temp, land_use_label, age_since_anthro_disturbance,       &
-      frac_site_primary, harvestable_forest_c, harvest_tag)
+      frac_site_primary, frac_site_secondary_mature, harvestable_forest_c, &
+      harvest_rate_scale, harvest_tag)
 
     !
     ! !DESCRIPTION:
@@ -255,8 +256,10 @@ contains
     integer,          intent(in)               :: land_use_label
     real(r8),         intent(in)               :: age_since_anthro_disturbance
     real(r8),         intent(in)               :: frac_site_primary
+    real(r8),         intent(in)               :: frac_site_secondary_mature
 
     real(r8), intent(in) :: harvestable_forest_c(:)   ! total carbon available for logging, kgC site-1
+    real(r8), intent(in) :: harvest_rate_scale   ! scale factor for patch-specific harvest rate 
     integer, intent(out) :: harvest_tag(:)    ! tag to record the harvest status
                                               ! for the calculation of harvest debt in C-based
                                               ! harvest mode
@@ -293,7 +296,9 @@ contains
                                bc_in%hlm_harvest_units, &
                                land_use_label, &
                                age_since_anthro_disturbance, &
-                               frac_site_primary, harvestable_forest_c, harvest_tag)
+                               frac_site_primary, frac_site_secondary_mature, &
+                               harvestable_forest_c, &
+                               harvest_rate_scale, harvest_tag)
 
     if (currentCohort%canopy_layer > 1)then 
        ! Include understory logging mortality rates not associated with disturbance

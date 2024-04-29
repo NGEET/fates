@@ -80,6 +80,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : years_per_day
   use FatesConstantsMod    , only : nearzero
   use FatesConstantsMod    , only : primaryland, secondaryland, pastureland, rangeland, cropland
+  use FatesConstantsMod    , only : secondary_age_threshold
   use FatesConstantsMod    , only : n_landuse_cats
   use FatesLandUseChangeMod, only : get_landuse_transition_rates
   use FatesConstantsMod    , only : fates_unset_r8
@@ -124,6 +125,7 @@ module EDPatchDynamicsMod
   public :: set_patchno
   private:: fuse_2_patches
   public :: get_frac_site_primary
+  public :: get_frac_site_secondary_mature
 
   character(len=*), parameter, private :: sourcefile = &
         __FILE__
@@ -204,30 +206,115 @@ contains
     integer  :: threshold_sizeclass
     integer  :: i_dist
     integer  :: h_index
+    real(r8) :: frac_site
     real(r8) :: frac_site_primary
+    real(r8) :: frac_site_secondary_mature
     real(r8) :: harvest_rate
     real(r8) :: tempsum
     real(r8) :: mean_temp
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag_csite(hlm_num_lu_harvest_cats)  ! harvest tag of current site
+    real(r8) :: remain_harvest_rate(hlm_num_lu_harvest_cats)  ! temporary variable holding the remining harvest demand
     real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
     real(r8) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
+
+    ! Control vars, will be moved into parameter file once the test is done
+    integer, parameter :: harvest_age_priority = 1 ! Tag to determine if we give priority to the oldest
+                                                   ! patch
+                                                   ! 0 - no;
+                                                   ! 1 - yes, maximize the oldest;
+                                                   ! 2 - yes, sigmoid (To be added).
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
     !----------------------------------------------------------------------------------------------
-    
+ 
     ! first calculate the fraction of the site that is primary land
     call get_frac_site_primary(site_in, frac_site_primary)
+    call get_frac_site_secondary_mature(site_in, frac_site_secondary_mature)
 
     ! get available biomass for harvest for all patches
     call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
     ! Initialize local variables
+    frac_site = 1._r8
     harvest_tag_csite = 2
+    remain_harvest_rate = fates_unset_r8  ! set to negative value to indicate uninitialized
 
+    ! Loop through all patches and calculate the harvest rate scale based 
+    ! on pre-defined age priority strategy
+    currentPatch => site_in%oldest_patch
+
+    do while (associated(currentPatch))
+       ! Initialize harvest rate scale to 1.0 first
+       currentPatch%harvest_rate_scale = 1._r8
+
+       ! Only calculate harvest rate scale when we have logging event
+       ! to reduce computational cost
+       if (logging_time) then
+          ! Maximize harvest rate (99%) for older patch first until harvest demand is fullfilled
+          ! Right now we skip the calculation for the primary land
+          if(harvest_age_priority == 1 .and. currentPatch%land_use_label .eq. secondaryland) then
+             if(currentPatch%land_use_label .eq. primaryland) then
+                 h_index = 1
+                 frac_site = frac_site_primary
+             else if (currentPatch%land_use_label .eq. secondaryland .and. &
+               currentPatch%age_since_anthro_disturbance >= secondary_age_threshold) then
+                 h_index = 3
+                 frac_site = frac_site_secondary_mature
+             else
+                 h_index = 4
+                 frac_site = 1._r8 - frac_site_primary - frac_site_secondary_mature
+             end if
+             ! Obtain harvest rate of the corresponding patch
+             if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
+                 call get_harvest_rate_carbon (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
+                       bc_in%hlm_harvest_rates, currentPatch%age_since_anthro_disturbance, harvestable_forest_c, &
+                       harvest_rate, harvest_tag)
+             else
+                 call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
+                      bc_in%hlm_harvest_rates, frac_site_primary, frac_site_secondary_mature, &
+                      currentPatch%age_since_anthro_disturbance, harvest_rate)
+             end if
+             ! Check if is the first time, if so initialize remain_harvest_rate
+             if(remain_harvest_rate(h_index) < 0) then
+                remain_harvest_rate(h_index) = harvest_rate
+             end if
+             ! Only calculate harvest rate scale for non-zero harvest rate
+             if (harvest_rate > 1e-7) then
+                ! Compare the patch area and see if larger than remain_harvest_rate
+                if((currentPatch%area/(AREA*frac_site)) >= remain_harvest_rate(h_index)) then
+                    currentPatch%harvest_rate_scale = remain_harvest_rate(h_index) / &
+                        (currentPatch%area/(AREA*frac_site)+1e-7) / harvest_rate
+                    remain_harvest_rate(h_index) = 0._r8
+                else
+                    ! harvest almost 100%, leave 1% to prevent removing the patch completely, which may cause
+                    ! model crash under nocomp mode
+                    currentPatch%harvest_rate_scale = 0.99_r8 / harvest_rate
+                    remain_harvest_rate(h_index) = remain_harvest_rate(h_index) - 0.99_r8 * (currentPatch%area/(AREA*frac_site))
+                end if
+             end if
+          end if  ! harvest age priority strategy
+          write(fates_log(),*) 'See patch number:', currentPatch%patchno
+          write(fates_log(),*) 'See patch age:', currentPatch%age
+          write(fates_log(),*) 'See patch age sec:', currentPatch%age_since_anthro_disturbance
+          write(fates_log(),*) 'See harvest index:', h_index
+          write(fates_log(),*) 'See harvest rate scale:', currentPatch%harvest_rate_scale
+          write(fates_log(),*) 'See harvest rate:', harvest_rate
+          write(fates_log(),*) 'See site fraction:', frac_site
+          write(fates_log(),*) 'See sec mature fraction:', frac_site_secondary_mature
+          write(fates_log(),*) 'See sec young fraction:', 1 - frac_site_primary - frac_site_secondary_mature
+          write(fates_log(),*) 'See area:', currentPatch%area/AREA
+          write(fates_log(),*) '==================== Next patch ================'
+       end if  ! logging_time
+
+       currentPatch => currentPatch%younger
+    end do
+    write(fates_log(),*) '<<<<<<<<<<<<<<<<<<<<<<< Next section >>>>>>>>>>>>>>>>>>>>>>>>>>'
+
+    !Loop through cohorts to get disturbance rates
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
 
@@ -259,9 +346,18 @@ contains
                 currentPatch%land_use_label, &
                 currentPatch%age_since_anthro_disturbance, &
                 frac_site_primary, &
+                frac_site_secondary_mature, &
                 harvestable_forest_c, &
+                currentPatch%harvest_rate_scale, &
                 harvest_tag)
-         
+       if (logging_time) then
+          write(fates_log(),*) 'before logging, See patch number:', currentPatch%patchno
+            if(lmort_direct > 0._r8) write(fates_log(),*) 'lmort_direct:', lmort_direct
+            if(lmort_collateral > 0._r8) write(fates_log(),*) 'lmort_collateral:', lmort_collateral
+            if(lmort_infra > 0._r8) write(fates_log(),*) 'lmort_infra:', lmort_infra
+            if(l_degrad > 0._r8) write(fates_log(),*) 'l_degrad:', l_degrad
+          write(fates_log(),*) '================== Next Cohort =================='
+       end if
           currentCohort%lmort_direct     = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral
           currentCohort%lmort_infra      = lmort_infra
@@ -379,15 +475,18 @@ contains
                    harvest_rate, harvest_tag)
           else
              call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                  bc_in%hlm_harvest_rates, frac_site_primary, currentPatch%age_since_anthro_disturbance, harvest_rate)
+                  bc_in%hlm_harvest_rates, frac_site_primary, frac_site_secondary_mature, &
+                  currentPatch%age_since_anthro_disturbance, harvest_rate)
           end if
 
           currentPatch%disturbance_rates(dtype_ilog) = currentPatch%disturbance_rates(dtype_ilog) + &
-               (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
+               (currentPatch%area - currentPatch%total_canopy_area) * &
+               currentPatch%harvest_rate_scale * harvest_rate / currentPatch%area
 
           ! Non-harvested part of the logging disturbance rate
           dist_rate_ldist_notharvested = dist_rate_ldist_notharvested + &
-               (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
+               (currentPatch%area - currentPatch%total_canopy_area) * &
+               currentPatch%harvest_rate_scale * harvest_rate / currentPatch%area
        endif
 
        ! For nocomp mode, we need to prevent producing too small patches, which may produce small patches
@@ -422,6 +521,13 @@ contains
           end do
        endif
 
+       if (logging_time) then
+       write(fates_log(),*) 'See patch number:', currentPatch%patchno
+       write(fates_log(),*) 'See harvest rate scale:', currentPatch%harvest_rate_scale
+       write(fates_log(),*) 'See logging disturbance rate:', currentPatch%disturbance_rates(dtype_ilog)
+       write(fates_log(),*) 'See area:', currentPatch%area/AREA
+       write(fates_log(),*) '==================== Next patch ================'
+       end if
        currentPatch => currentPatch%younger
 
     enddo !patch loop 
@@ -581,7 +687,7 @@ contains
                          else
                             disturbance_rate = currentPatch%landuse_transition_rates(i_landusechange_receiverpatchlabel)
                          endif
-                         
+                        
                          if(disturbance_rate > (1.0_r8 + rsnbl_math_prec)) then
                             write(fates_log(),*) 'patch disturbance rate > 1 ?',disturbance_rate
                             call currentPatch%Dump()
@@ -2425,12 +2531,17 @@ contains
     integer  :: i_pftlabel  !nocomp pft iterator
     real(r8) :: primary_land_fraction_beforefusion,primary_land_fraction_afterfusion
     integer  :: pftlabelmin, pftlabelmax
+
+    integer, parameter :: merge_strategy = 0  ! 0 - biomass profile based only
+                                              ! 1 - age + biomass profile based
     !
+    real(r8) :: agetol  !tolerance of patch fusion routine. Starts off high and is reduced to 0.0 if there are too many patches.
     !---------------------------------------------------------------------
 
     currentSite => csite 
 
     profiletol = ED_val_patch_fusion_tol
+    agetol = 5._r8
 
     primary_land_fraction_beforefusion = 0._r8
     primary_land_fraction_afterfusion = 0._r8
@@ -2572,11 +2683,21 @@ contains
                                         !---------------------------------------------------------------------!
                                         ! Look for differences in profile biomass, above the minimum biomass  !
                                         !---------------------------------------------------------------------!
-
                                         if(norm  > profiletol)then
 
                                            fuse_flag = 0 !do not fuse  - keep apart. 
 
+                                        endif
+
+                                        ! Conditions come later have higher priorities
+                                        if(merge_strategy == 1) then
+                                           if(currentPatch%land_use_label .eq. secondaryland .and. &
+                                           abs(currentPatch%age_since_anthro_disturbance - &
+                                               tpp%age_since_anthro_disturbance) <= agetol) then
+
+                                              fuse_flag = 0 !do not fuse  - keep apart. 
+
+                                           endif
                                         endif
                                      endif agbprof_gt_zero_if
                                   enddo hgt_bin_loop
@@ -2614,6 +2735,7 @@ contains
                             !------------------------------------------------------------------------!
 
                             profiletol = ED_val_patch_fusion_tol
+                            agetol = 5._r8
 
                          endif fuseflagset_if
                       endif different_patches_if
@@ -2649,6 +2771,7 @@ contains
           if(nopatches(i_lulabel) > maxpatches_by_landuse(i_lulabel))then
              iterate = 1
              profiletol = profiletol * patch_fusion_tolerance_relaxation_increment
+             agetol = 0._r8
 
              !---------------------------------------------------------------------!
              ! Making profile tolerance larger means that more fusion will happen  !
@@ -3214,6 +3337,40 @@ contains
    end do
 
  end subroutine get_frac_site_primary
+
+  ! =====================================================================================
+
+ subroutine get_frac_site_secondary_mature(site_in, frac_site_secondary_mature)
+
+    !
+    ! !DESCRIPTION:
+    !  Calculate how much of a site is secondary mature land
+    !
+    ! !USES:
+    use EDTypesMod , only : ed_site_type
+    !
+    ! !ARGUMENTS:
+    type(ed_site_type) , intent(in), target :: site_in
+    real(r8)           , intent(out)        :: frac_site_secondary_mature
+
+    ! !LOCAL VARIABLES:
+    type (fates_patch_type), pointer :: currentPatch
+
+   frac_site_secondary_mature = 0._r8
+   currentPatch => site_in%oldest_patch
+   do while (associated(currentPatch))   
+      ! Here we need to be careful since age_since_anthro_disturbance is not
+      ! initialized for primary land, so is more robust to be a second level
+      ! if condition instead of using and statement.
+      if (currentPatch%land_use_label .eq. secondaryland) then
+         if(currentPatch%age_since_anthro_disturbance .ge. secondary_age_threshold) then
+            frac_site_secondary_mature = frac_site_secondary_mature + currentPatch%area * AREA_INV
+         endif
+      endif
+      currentPatch => currentPatch%younger
+   end do
+
+ end subroutine get_frac_site_secondary_mature
 
   ! =====================================================================================
 

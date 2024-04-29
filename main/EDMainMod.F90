@@ -89,6 +89,7 @@ module EDMainMod
   use EDLoggingMortalityMod    , only : get_harvestable_carbon
   use DamageMainMod            , only : IsItDamageTime
   use EDPatchDynamicsMod       , only : get_frac_site_primary
+  use EDPatchDynamicsMod       , only : get_frac_site_secondary_mature
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
@@ -373,6 +374,7 @@ contains
                                       ! because it inherited them (such as daily carbon balance)
     real(r8) :: target_leaf_c
     real(r8) :: frac_site_primary
+    real(r8) :: frac_site_secondary_mature
 
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
@@ -409,6 +411,7 @@ contains
     !-----------------------------------------------------------------------
 
     call get_frac_site_primary(currentSite, frac_site_primary)
+    call get_frac_site_secondary_mature(currentSite, frac_site_secondary_mature)
 
     ! Clear site GPP and AR passing to HLM
     bc_out%gpp_site = 0._r8
@@ -474,7 +477,8 @@ contains
                currentPatch%btran_ft, mean_temp,                               &
                currentPatch%land_use_label,                                    &
                currentPatch%age_since_anthro_disturbance, frac_site_primary,   &
-                 harvestable_forest_c, harvest_tag)
+               frac_site_secondary_mature, harvestable_forest_c, &
+               currentPatch%harvest_rate_scale, harvest_tag)
 
              ! -----------------------------------------------------------------------------
              ! Apply Plant Allocation and Reactive Transport

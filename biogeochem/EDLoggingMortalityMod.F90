@@ -200,8 +200,9 @@ contains
                                      hlm_harvest_rates, hlm_harvest_catnames, &
                                      hlm_harvest_units, &
                                      patch_land_use_label, secondary_age, &
-                                     frac_site_primary, harvestable_forest_c, &
-                                     harvest_tag)
+                                     frac_site_primary, frac_site_secondary_mature, &
+                                     harvestable_forest_c, &
+                                     harvest_rate_scale, harvest_tag)
 
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index 
@@ -215,6 +216,9 @@ contains
       real(r8), intent(in) :: harvestable_forest_c(:)  ! total harvestable forest carbon 
                                                        ! of all hlm harvest categories
       real(r8), intent(in) :: frac_site_primary
+      real(r8), intent(in) :: frac_site_secondary_mature
+      real(r8), intent(in) :: harvest_rate_scale  ! scaling factor which increase/decrease 
+                                                  ! the harvest rate proportionally
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
@@ -270,11 +274,11 @@ contains
 
             ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
             call get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, &
-                 hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
+                 hlm_harvest_rates, frac_site_primary, frac_site_secondary_mature, secondary_age, harvest_rate)
 
-            if (fates_global_verbose()) then
+           ! if (fates_global_verbose()) then
                write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate
-            end if
+           ! end if
 
          else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_carbon) then
             ! 2=use carbon from hlm
@@ -300,7 +304,7 @@ contains
                   ! the logic of the above line is a bit unintuitive but allows turning off the dbhmax comparison entirely.
                   ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
                   ! the opposite of what would otherwise be expected...
-                  lmort_direct = harvest_rate * logging_direct_frac
+                  lmort_direct = harvest_rate_scale * harvest_rate * logging_direct_frac
                else
                   lmort_direct = 0.0_r8
                end if
@@ -312,13 +316,13 @@ contains
             if (dbh >= logging_dbhmax_infra) then
                lmort_infra      = 0.0_r8
             else
-               lmort_infra      = harvest_rate * logging_mechanical_frac
+               lmort_infra      = harvest_rate_scale * harvest_rate * logging_mechanical_frac
             end if
 
             ! Collateral damage to smaller plants below the direct logging size threshold
             ! will be applied via "understory_death" via the disturbance algorithm
             if (canopy_layer .eq. 1) then
-               lmort_collateral = harvest_rate * logging_collateral_frac
+               lmort_collateral = harvest_rate_scale * harvest_rate * logging_collateral_frac
             else
                lmort_collateral = 0._r8
             endif
@@ -326,12 +330,12 @@ contains
          else  ! non-woody plants still killed by infrastructure
             lmort_direct    = 0.0_r8
             lmort_collateral = 0.0_r8
-            lmort_infra      = harvest_rate * logging_mechanical_frac
+            lmort_infra      = harvest_rate_scale * harvest_rate * logging_mechanical_frac
          end if
 
          ! the area occupied by all plants in the canopy that aren't killed is still disturbed at the harvest rate
          if (canopy_layer .eq. 1) then
-            l_degrad = harvest_rate - (lmort_direct + lmort_infra + lmort_collateral) ! fraction passed to 'degraded' forest.
+            l_degrad = harvest_rate_scale * harvest_rate - (lmort_direct + lmort_infra + lmort_collateral) ! fraction passed to 'degraded' forest.
          else
             l_degrad = 0._r8
          endif
@@ -349,7 +353,7 @@ contains
    ! ============================================================================
 
    subroutine get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, hlm_harvest_rates, &
-                 frac_site_primary, secondary_age, harvest_rate)
+                 frac_site_primary, frac_site_secondary_mature, secondary_age, harvest_rate)
 
 
      ! -------------------------------------------------------------------------------------------
@@ -364,6 +368,7 @@ contains
       integer, intent(in) :: patch_land_use_label    ! patch level land_use_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(in) :: frac_site_primary
+      real(r8), intent(in) :: frac_site_secondary_mature
       real(r8), intent(out) :: harvest_rate
 
       ! Local Variables
@@ -393,21 +398,37 @@ contains
         endif
      end do
 
-     !  Normalize by site-level primary or secondary forest fraction
+     !  Normalize by site-level primary, secondary mature and secondary young forest fraction
      !  since harvest_rate is specified as a fraction of the gridcell
      !  also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
      if (patch_land_use_label .eq. primaryland) then
         if (frac_site_primary .gt. fates_tiny) then
-           harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
+           harvest_rate = min((harvest_rate / frac_site_primary), 0.99_r8)
         else
            harvest_rate = 0._r8
         endif
      else
-        if ((1._r8-frac_site_primary) .gt. fates_tiny) then
-           harvest_rate = min((harvest_rate / (1._r8-frac_site_primary)),&
-                (1._r8-frac_site_primary))
+        ! if ((1._r8-frac_site_primary) .gt. fates_tiny) then
+        !    harvest_rate = min((harvest_rate / (1._r8-frac_site_primary)),&
+        !         (1._r8-frac_site_primary))
+        ! else
+        !    harvest_rate = 0._r8
+        ! endif
+        if(secondary_age >= secondary_age_threshold) then
+        ! Secondary mature
+           if (frac_site_secondary_mature .gt. fates_tiny) then
+              harvest_rate = min((harvest_rate / frac_site_secondary_mature), 0.99_r8)
+           else
+              harvest_rate = 0._r8
+           endif
         else
-           harvest_rate = 0._r8
+        ! Secondary young
+           if ((1._r8-frac_site_primary-frac_site_secondary_mature) .gt. fates_tiny) then
+              harvest_rate = min((harvest_rate / (1._r8 - frac_site_primary -&
+                  frac_site_secondary_mature)) , 0.99_r8)
+           else
+              harvest_rate = 0._r8
+           endif
         endif
      endif
 

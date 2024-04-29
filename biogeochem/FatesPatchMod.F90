@@ -178,6 +178,9 @@ module FatesPatchMod
                                                           !                                 4) land use change
     real(r8) :: landuse_transition_rates(n_landuse_cats)  ! land use tranision rate
     real(r8) :: fract_ldist_not_harvested                 ! fraction of logged area that is canopy trees that weren't harvested [0-1]
+    real(r8) :: harvest_rate_scale                        ! scaling factor applied to logging disturbance rate (primaryland, secondaryland, etc)
+                                                          ! purpose is to assign patch-specific harvest priority based on certain
+                                                          ! strategy
 
     !---------------------------------------------------------------------------
 
@@ -363,6 +366,7 @@ module FatesPatchMod
       ! DISTURBANCE 
       this%disturbance_rates(:)         = nan
       this%fract_ldist_not_harvested    = nan
+      this%harvest_rate_scale           = nan
 
       ! LAND USE
       this%landuse_transition_rates(:)  = nan
@@ -440,6 +444,7 @@ module FatesPatchMod
       ! DISTURBANCE 
       this%disturbance_rates(:)              = 0.0_r8 
       this%fract_ldist_not_harvested         = 0.0_r8
+      this%harvest_rate_scale                = 0.0_r8 
 
       ! LAND USE
       this%landuse_transition_rates(:)       = 0.0_r8
@@ -745,6 +750,7 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%c_stomata          = ',this%c_stomata
       write(fates_log(),*) 'pa%c_lblayer          = ',this%c_lblayer
       write(fates_log(),*) 'pa%disturbance_rates  = ',this%disturbance_rates(:)
+      write(fates_log(),*) 'pa%harvest_rate_scale = ',this%harvest_rate_scale
       write(fates_log(),*) 'pa%land_use_label     = ',this%land_use_label
       write(fates_log(),*) '----------------------------------------'
 
