@@ -181,6 +181,7 @@ module FatesPatchMod
     real(r8) :: harvest_rate_scale                        ! scaling factor applied to logging disturbance rate (primaryland, secondaryland, etc)
                                                           ! purpose is to assign patch-specific harvest priority based on certain
                                                           ! strategy
+    integer  :: order_age_since_anthro                    ! order of the patch based on the age since anthropogenic disturbance
 
     !---------------------------------------------------------------------------
 
@@ -367,6 +368,7 @@ module FatesPatchMod
       this%disturbance_rates(:)         = nan
       this%fract_ldist_not_harvested    = nan
       this%harvest_rate_scale           = nan
+      this%order_age_since_anthro       = fates_unset_int
 
       ! LAND USE
       this%landuse_transition_rates(:)  = nan
@@ -752,6 +754,7 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%disturbance_rates  = ',this%disturbance_rates(:)
       write(fates_log(),*) 'pa%harvest_rate_scale = ',this%harvest_rate_scale
       write(fates_log(),*) 'pa%land_use_label     = ',this%land_use_label
+      write(fates_log(),*) 'pa%order_age_since_anthro  = ',this%order_age_since_anthro
       write(fates_log(),*) '----------------------------------------'
 
       do el = 1, num_elements

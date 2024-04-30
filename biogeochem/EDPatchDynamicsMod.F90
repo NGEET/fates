@@ -206,6 +206,7 @@ contains
     integer  :: threshold_sizeclass
     integer  :: i_dist
     integer  :: h_index
+    integer  :: npatches
     real(r8) :: frac_site
     real(r8) :: frac_site_primary
     real(r8) :: frac_site_secondary_mature
@@ -224,7 +225,10 @@ contains
                                                    ! patch
                                                    ! 0 - no;
                                                    ! 1 - yes, maximize the oldest;
-                                                   ! 2 - yes, sigmoid (To be added).
+                                                   ! 2 - yes, sigmoid (To be added). and more other?
+    integer :: exchanged     ! used in bubble sorting
+    integer :: temp_order    ! used in bubble sorting
+    integer :: ipatch        ! used in bubble sorting
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -239,10 +243,47 @@ contains
     call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
     ! Initialize local variables
+    exchanged = 1
+    npatches = 0
     frac_site = 1._r8
     harvest_tag_csite = 2
     remain_harvest_rate = fates_unset_r8  ! set to negative value to indicate uninitialized
 
+    ! We need to have an order based on age_since_anthro_disturbance
+    if (logging_time) then
+
+       ! First loop to count number of patches and initialize order
+       ! with patchno
+       currentPatch => site_in%oldest_patch
+
+       do while (associated(currentPatch))
+          npatches = npatches + 1
+          currentPatch%order_age_since_anthro = currentPatch%patchno
+
+          currentPatch => currentPatch%younger
+       end do
+
+       ! Second loop to perform bubble sorting
+       do ipatch = 1, npatches - 1
+          if(exchanged .eq. 1) then
+             exchanged = 0
+             currentPatch => site_in%oldest_patch
+             do while (associated(currentPatch))
+                if(currentPatch%patchno <= (npatches - ipatch)) then
+                   if(currentPatch%age_since_anthro_disturbance < &
+                       currentPatch%younger%age_since_anthro_disturbance) then
+                       temp_order = currentPatch%order_age_since_anthro
+                       currentPatch%order_age_since_anthro = currentPatch%younger%order_age_since_anthro
+                       currentPatch%younger%order_age_since_anthro = temp_order
+                       exchanged = 1
+                   end if
+                end if
+             end do
+          end if
+       end do
+
+    end if  ! logging_time
+ 
     ! Loop through all patches and calculate the harvest rate scale based 
     ! on pre-defined age priority strategy
     currentPatch => site_in%oldest_patch
@@ -300,6 +341,7 @@ contains
           write(fates_log(),*) 'See patch number:', currentPatch%patchno
           write(fates_log(),*) 'See patch age:', currentPatch%age
           write(fates_log(),*) 'See patch age sec:', currentPatch%age_since_anthro_disturbance
+          write(fates_log(),*) 'See patch order sec:', currentPatch%order_age_since_anthro
           write(fates_log(),*) 'See harvest index:', h_index
           write(fates_log(),*) 'See harvest rate scale:', currentPatch%harvest_rate_scale
           write(fates_log(),*) 'See harvest rate:', harvest_rate
