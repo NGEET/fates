@@ -127,7 +127,7 @@ contains
           end if
        end do transitions_loop
 
-       ! zero all transitions where the state vector is less than the minimum allowed,
+       ! zero all transitions where the receiving land use type state vector is less than the minimum allowed,
        ! and otherwise if this is the first timestep where the minimum was exceeded,
        ! then apply all transitions from primary to this type and reset the flag
        ! note that the flag resetting should not happen for secondary lands, as this is handled in the
