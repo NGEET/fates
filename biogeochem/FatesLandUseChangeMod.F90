@@ -282,7 +282,9 @@ contains
     state_vector(:) = 0._r8
     urban_fraction = 0._r8
 
-    if (hlm_use_potentialveg .eq. ifalse) then
+    if (hlm_use_potentialveg .eq. itrue) then
+       state_vector(primaryland) = 1._r8
+    else
        ! Check to see if the incoming state vector is NaN.
        temp_vector = bc_in%hlm_luh_states
        call CheckLUHData(temp_vector,modified_flag)
@@ -316,8 +318,6 @@ contains
        else
           state_vector(primaryland) = 1._r8
        endif
-    else
-       state_vector(primaryland) = 1._r8
     end if
 
   end subroutine GetLUHStatedata

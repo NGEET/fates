@@ -125,6 +125,7 @@ module FatesInterfaceTypesMod
 
    integer, public :: hlm_use_luh                   ! flag to signal whether or not to use luh2 drivers
    integer, public :: hlm_use_potentialveg          ! flag to signal whether or not to use potential vegetation only
+                                                    ! (i.e., no land use and instead force all lands to be primary)
    integer, public :: hlm_num_luh2_states           ! number of land use state types provided in LUH2 forcing dataset
 
    integer, public :: hlm_num_luh2_transitions      ! number of land use transition types provided in LUH2 forcing dataset

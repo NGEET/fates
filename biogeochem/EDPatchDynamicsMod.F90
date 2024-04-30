@@ -330,13 +330,14 @@ contains
 
        dist_rate_ldist_notharvested = 0.0_r8
 
-       ! transitin matrix has units of area transitioned per unit area of the whole gridcell per time;
+       ! transition matrix has units of area transitioned per unit area of the whole gridcell per time;
        ! need to change to area transitioned per unit area of that land-use type per time;
        ! because the land use state vector sums to one minus area bareground, need to also divide by that
        ! (or rather, multiply since it is in the denominator of the denominator)
-       ! Avoid this calculation to avoid NaN due to division by zero result if luh is not used or applying to bare ground
-       ! note that an alternative here might be to use what LUH thinks the state vector should be instead of what the FATES state vector is,
-       ! in order to not amplify small deviations between the two...
+       ! Avoid this calculation to avoid NaN due to division by zero result if luh is not used or applying
+       ! to bare ground note that an alternative here might be to use what LUH thinks the state vector
+       ! should be instead of what the FATES state vector is, in order to not amplify small deviations
+       ! between the two...
        if (hlm_use_luh .eq. itrue .and. currentPatch%land_use_label .gt. nocomp_bareground_land) then
           currentPatch%landuse_transition_rates(1:n_landuse_cats) = min(1._r8, &
                site_in%landuse_transition_matrix(currentPatch%land_use_label,1:n_landuse_cats) &
@@ -397,11 +398,13 @@ contains
                      currentPatch%age_since_anthro_disturbance, harvest_rate)
              end if
 
-             ! if the total intended area of secondary lands are less than what we can consider without having too-small patches,
-             ! or if that was the case until just now, then there is special logic
+             ! if the total intended area of secondary lands are less than what we can consider
+             ! without having too-small patches, or if that was the case until just now,
+             ! then there is special logic
              if (state_vector(secondaryland) .le. site_in%min_allowed_landuse_fraction) then
                 harvest_rate = 0._r8
-             else if (currentPatch%land_use_label .eq. primaryland .and. .not. site_in%landuse_vector_gt_min(secondaryland)) then
+             else if (currentPatch%land_use_label .eq. primaryland .and. .not. &
+                  site_in%landuse_vector_gt_min(secondaryland)) then
                 harvest_rate = state_vector(secondaryland) / sum(state_vector(:))
              else
                 harvest_rate = 0._r8
@@ -440,15 +443,19 @@ contains
           call FatesWarn(msg,index=2)
        endif
 
-       ! if the sum of all disturbance rates is such that they will exceed total patch area on this day, then reduce them all proportionally.
+       ! if the sum of all disturbance rates is such that they will exceed total patch area on this day,
+       ! then reduce them all proportionally.
+       
        if ( (sum(currentPatch%disturbance_rates(:)) + sum(currentPatch%landuse_transition_rates(1:n_landuse_cats))) .gt. &
             max_daily_disturbance_rate ) then
           tempsum = sum(currentPatch%disturbance_rates(:)) + sum(currentPatch%landuse_transition_rates(1:n_landuse_cats))
           do i_dist = 1,N_DIST_TYPES
-             currentPatch%disturbance_rates(i_dist) = max_daily_disturbance_rate * currentPatch%disturbance_rates(i_dist) / tempsum
+             currentPatch%disturbance_rates(i_dist) = max_daily_disturbance_rate * currentPatch%disturbance_rates(i_dist) &
+                  / tempsum
           end do
           do i_dist = 1,n_landuse_cats
-             currentPatch%landuse_transition_rates(i_dist) = max_daily_disturbance_rate * currentPatch%landuse_transition_rates(i_dist) / tempsum
+             currentPatch%landuse_transition_rates(i_dist) = max_daily_disturbance_rate * &
+                  currentPatch%landuse_transition_rates(i_dist) / tempsum
           end do
        endif
 
@@ -456,17 +463,21 @@ contains
 
     enddo !patch loop
 
-    ! if the area of secondary land has just exceeded the minimum below which we ignore things, set the flag to keep track of that.
-    if ( (state_vector(secondaryland) .gt. site_in%min_allowed_landuse_fraction) .and. (.not. site_in%landuse_vector_gt_min(secondaryland)) ) then
+    ! if the area of secondary land has just exceeded the minimum below which we ignore things,
+    ! set the flag to keep track of that.
+    if ( (state_vector(secondaryland) .gt. site_in%min_allowed_landuse_fraction) .and. &
+         (.not. site_in%landuse_vector_gt_min(secondaryland)) ) then
        site_in%landuse_vector_gt_min(secondaryland) = .true.
        write(fates_log(),*) 'setting site_in%landuse_vector_gt_min(secondaryland) = .true.'
-
-       currentPatch => site_in%oldest_patch
-       do while (associated(currentPatch))
-          write(fates_log(),*) 'cpatch area, LU, distrates(ilog): ', currentPatch%area, currentPatch%land_use_label, currentPatch%nocomp_pft_label, currentPatch%disturbance_rates(dtype_ilog), currentPatch%area - currentPatch%total_canopy_area
-          currentPatch => currentPatch%younger
-       end do
-
+       if (debug) then
+          currentPatch => site_in%oldest_patch
+          do while (associated(currentPatch))
+             write(fates_log(),*) 'cpatch area, LU, distrates(ilog): ', currentPatch%area, currentPatch%land_use_label, &
+                  currentPatch%nocomp_pft_label, currentPatch%disturbance_rates(dtype_ilog), &
+                  currentPatch%area - currentPatch%total_canopy_area
+             currentPatch => currentPatch%younger
+          end do
+       end if
     end if
 
   end subroutine disturbance_rates
@@ -575,7 +586,8 @@ contains
        ! we want at the second-outermost loop to go through all disturbance types, because we resolve each of these separately
        disturbance_type_loop: do i_disturbance_type = 1,N_DIST_TYPES
 
-          ! the next loop level is to go through patches that have a specific land-use type. the reason to do this is because the combination of
+          ! the next loop level is to go through patches that have a specific land-use type. the reason to do this
+          ! is because the combination of
           ! disturbance type and donor land-use type uniquly define the land-use type of the receiver patch.
           landuse_donortype_loop: do i_donorpatch_landuse_type = 1, n_landuse_cats
 
@@ -584,7 +596,8 @@ contains
 
              ! for fire and treefall disturbance, receiver land-use type is whatever the donor land-use type is.
              ! for logging disturbance, receiver land-use type is always secondary lands
-             ! for land-use-change disturbance, we need to loop over all possible transition types for land-use-change from the current land-use type.
+             ! for land-use-change disturbance, we need to loop over all possible transition types for land-use-change from
+             ! the current land-use type.
 
              select case(i_disturbance_type)
              case(dtype_ifire)
@@ -597,7 +610,8 @@ contains
                 start_receiver_lulabel = secondaryland
                 end_receiver_lulabel = secondaryland
              case(dtype_ilandusechange)
-                start_receiver_lulabel = 1  ! this could actually maybe be 2, as primaryland column of matrix should all be zeros, but leave as 1 for now
+                start_receiver_lulabel = 1  ! this could actually maybe be 2, as primaryland column of matrix should
+                ! all be zeros, but leave as 1 for now
                 end_receiver_lulabel = n_landuse_cats
              case default
                 write(fates_log(),*) 'unknown disturbance mode?'
@@ -607,19 +621,24 @@ contains
 
              ! next loop level is the set of possible receiver patch land use types.
              ! for disturbance types other than land use change, this is sort of a dummy loop, per the above logic.
-             landusechange_receiverpatchlabel_loop: do i_landusechange_receiverpatchlabel = start_receiver_lulabel, end_receiver_lulabel
+             landusechange_receiverpatchlabel_loop: do i_landusechange_receiverpatchlabel = start_receiver_lulabel, &
+                  end_receiver_lulabel
 
                 ! now we want to begin resolving all of the disturbance given the above categorical criteria of:
-                ! nocomp-PFT, disturbance type, donor patch land use label, and receiver patch land use label. All of the disturbed area that meets these
-                ! criteria (if any) will be put into a new patch whose area and properties are taken from one or more donor patches.
+                ! nocomp-PFT, disturbance type, donor patch land use label, and receiver patch land use label.
+                ! All of the disturbed area that meets these criteria (if any) will be put into a new patch whose area and
+                ! properties are taken from one or more donor patches.
 
-                ! calculate area of disturbed land that meets the above criteria, in this timestep, by summing contributions from each existing patch.
+                ! calculate area of disturbed land that meets the above criteria, in this timestep, by summing contributions
+                ! from each existing patch.
                 currentPatch => currentSite%youngest_patch
 
-                ! this variable site_areadis holds all the newly disturbed area from all patches for all disturbance being resolved now.
+                ! this variable site_areadis holds all the newly disturbed area from all patches for all disturbance being
+                ! resolved now.
                 site_areadis = 0.0_r8
 
-                ! loop over all patches to figure out the total patch area generated as a result of all disturbance being resolved now.
+                ! loop over all patches to figure out the total patch area generated as a result of all disturbance being
+                ! resolved now.
                 patchloop_areadis: do while(associated(currentPatch))
 
                    cp_nocomp_matches_1_if: if ( hlm_use_nocomp .eq. ifalse .or. &
@@ -751,7 +770,8 @@ contains
                                call logging_litter_fluxes(currentSite, currentPatch, &
                                     newPatch, patch_site_areadis,bc_in)
 
-                               ! if transitioning from primary to secondary, then may need to change nocomp pft, so tag as having transitioned LU
+                               ! if transitioning from primary to secondary, then may need to change nocomp pft,
+                               ! so tag as having transitioned LU
                                if ( i_disturbance_type .eq. dtype_ilog .and. i_donorpatch_landuse_type .eq. primaryland) then
                                   newPatch%changed_landuse_this_ts = .true.
                                end if
@@ -838,7 +858,8 @@ contains
                                store_c  = currentCohort%prt%GetState(store_organ, carbon12_element)
                                total_c  = sapw_c + struct_c + leaf_c + fnrt_c + store_c
 
-                               ! survivorship of plants in both the disturbed and undisturbed cohorts depends on what type of disturbance is happening.
+                               ! survivorship of plants in both the disturbed and undisturbed cohorts depends on what type of
+                               ! disturbance is happening.
 
                                disttype_case: select case(i_disturbance_type)
 
@@ -1478,7 +1499,7 @@ contains
                    currentPatch => currentPatch%younger
                 end do
 
-                if ( buffer_patch_used ) then
+                buffer_patch_used_if: if ( buffer_patch_used ) then
                    ! at this point, lets check that the total patch area remaining to be relabelled equals what we think that it is.
                    if (abs(sum(nocomp_pft_area_vector(:)) - sum(nocomp_pft_area_vector_filled(:)) - buffer_patch%area) .gt. rsnbl_math_prec) then
                       write(fates_log(),*) 'midway through patch reallocation and things are already not adding up.', i_land_use_label
@@ -1489,7 +1510,7 @@ contains
                       write(fates_log(),*) nocomp_pft_area_vector
                       write(fates_log(),*) '-----'
                       write(fates_log(),*) buffer_patch%area, buffer_patch%land_use_label, buffer_patch%nocomp_pft_label
-                      write(fates_log(),*) sum(nocomp_pft_area_vector(:)),  sum(nocomp_pft_area_vector_filled(:)), buffer_patch%area
+                      write(fates_log(+),*) sum(nocomp_pft_area_vector(:)),  sum(nocomp_pft_area_vector_filled(:)), buffer_patch%area
                       currentPatch => currentSite%oldest_patch
                       do while(associated(currentPatch))
                          write(fates_log(),*) currentPatch%area, currentPatch%land_use_label, currentPatch%nocomp_pft_label
@@ -1526,9 +1547,6 @@ contains
                                   ! put the new patch into the linked list
                                   call InsertPatch(currentSite, temp_patch)
 
-                                  ! now that the patch that temp_patch points to is in the site linked list, we want to null temp_patch so that it can be
-                                  ! refilled the next time through the loop.
-
                                else
                                   ! give the buffer patch the intended nocomp PFT label
                                   buffer_patch%nocomp_pft_label = i_pft
@@ -1547,26 +1565,26 @@ contains
                       end if
                    end do nocomp_pft_loop_2
 
-                   ! now we want to make sure that either the buffer_patch either has zero area (presumably it was never used), in which case it should be deallocated,
-                   ! or else it does have area but it has been put into the site linked list, and so buffer patch should be nulled before next pass through outer loop.
-                   ! if either of those, that means everything worked properly, if not, then something has gone wrong.
-                   if (buffer_patch_in_linked_list) then
-                      buffer_patch => null()
-                   else if (buffer_patch%area .lt. rsnbl_math_prec) then
-                      ! here we need to deallocate the buffer patch so that we don't get a memory leak.
-                      call buffer_patch%FreeMemory(regeneration_model, numpft)
-                      deallocate(buffer_patch, stat=istat, errmsg=smsg)
-                      if (istat/=0) then
-                         write(fates_log(),*) 'dealloc: fail on deallocate(dp):'//trim(smsg)
-                         call endrun(msg=errMsg(sourcefile, __LINE__))
-                      endif
-                   else
-                      write(fates_log(),*) 'Buffer patch still has area and it wasnt put into the linked list'
-                      write(fates_log(),*) 'buffer_patch%area', buffer_patch%area
-                      write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)), sum(nocomp_pft_area_vector(:))
-                      write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)) - sum(nocomp_pft_area_vector(:))
+                   ! now we want to make sure that either the buffer_patch has zero area (presumably it was never used),
+                   ! in which case it should be deallocated, or else it does have area but it has been put into the site
+                   ! linked list. if either of those, that means everything worked properly, if not, then something has gone wrong.
+                   if ( .not. buffer_patch_in_linked_list) then
+                      if (buffer_patch%area .lt. rsnbl_math_prec) then
+                         ! here we need to deallocate the buffer patch so that we don't get a memory leak.
+                         call buffer_patch%FreeMemory(regeneration_model, numpft)
+                         deallocate(buffer_patch, stat=istat, errmsg=smsg)
+                         if (istat/=0) then
+                            write(fates_log(),*) 'dealloc: fail on deallocate(dp):'//trim(smsg)
+                            call endrun(msg=errMsg(sourcefile, __LINE__))
+                         endif
+                      else
+                         write(fates_log(),*) 'Buffer patch still has area and it wasnt put into the linked list'
+                         write(fates_log(),*) 'buffer_patch%area', buffer_patch%area
+                         write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)), sum(nocomp_pft_area_vector(:))
+                         write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)) - sum(nocomp_pft_area_vector(:))
 
-                      call endrun(msg=errMsg(sourcefile, __LINE__))
+                         call endrun(msg=errMsg(sourcefile, __LINE__))
+                      end if
                    end if
                 else
                    ! buffer patch was never even used. deallocate.
@@ -1576,7 +1594,7 @@ contains
                       write(fates_log(),*) 'dealloc: fail on deallocate(dp):'//trim(smsg)
                       call endrun(msg=errMsg(sourcefile, __LINE__))
                    endif
-                end if
+                end if buffer_patch_used_if
 
                 ! check that the area we have added is the same as the area we have taken away. if not, crash.
                 if ( abs(sum(nocomp_pft_area_vector_filled(:)) - sum(nocomp_pft_area_vector(:))) .gt. rsnbl_math_prec) then
