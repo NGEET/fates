@@ -288,7 +288,6 @@ subroutine WriteAllometryData(out_file, numdbh, numpft, dbh, height, bagw, blmax
     [character(len=150) :: 'pft dbh', 'kgC', 'plant total biomass calculated from tissues'], &
     3, totbiomID2)
 
-
   ! finish defining variables
   call EndNCDef(ncid)
 

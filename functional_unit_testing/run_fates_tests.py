@@ -144,12 +144,13 @@ def create_param_file(param_file, run_dir):
 
     return param_file_update
 
-def run_tests(clean, build_tests, run_executables, build_dir, run_dir, make_j,
-              param_file, save_figs, test_dict):
+def run_tests(clean, verbose_make, build_tests, run_executables, build_dir, run_dir,
+              make_j, param_file, save_figs, test_dict):
     """Builds and runs the fates tests
 
     Args:
         clean (bool): whether or not to clean the build directory
+        verbose_make (bool): whether or not to run make with verbose output
         build_tests (bool): whether or not to build the exectuables
         run_executables (bool): whether or not to run the executables
         build_dir (str): build directory
@@ -179,7 +180,8 @@ def run_tests(clean, build_tests, run_executables, build_dir, run_dir, make_j,
 
     # compile code
     if build_tests:
-        build_unit_tests(build_dir, _TEST_NAME, _CMAKE_BASE_DIR, make_j, clean=clean)
+        build_unit_tests(build_dir, _TEST_NAME, _CMAKE_BASE_DIR, make_j, clean=clean,
+                         verbose=verbose_make)
 
     # run executables for each test in test list
     if run_executables:
@@ -213,9 +215,7 @@ def out_file_exists(run_dir, out_file):
     Returns:
         bool: yes/no file exists in correct location
     """
-    if not os.path.isfile(os.path.join(run_dir, out_file)):
-        return False
-    return True
+    return os.path.isfile(os.path.join(run_dir, out_file))
 
 def parse_test_list(test_string):
     """Parses the input test list and checks for errors
@@ -327,6 +327,12 @@ def commandline_args():
       "Will be placed in run_dir/plots.\n"
       "Should probably do this on remote machines.\n",
     )
+    
+    parser.add_argument(
+      "--verbose-make",
+      action="store_true",
+      help="Run make with verbose output."
+    )
 
     parser.add_argument(
       "-t",
@@ -403,6 +409,9 @@ def check_arg_validity(args):
 
     # make sure build directory exists
     if args.skip_build:
+        if args.verbose_make:
+            raise argparse.ArgumentError(None, f"Can't run verbose make and skip build.\n" 
+                                         "Re-run script without --skip-build")
         check_build_dir(args.build_dir, args.test_dict)
 
     # make sure relevant output files exist:
@@ -419,8 +428,8 @@ def main():
     build = not args.skip_build
     run = not args.skip_run_executables
 
-    run_tests(args.clean, build, run, args.build_dir, args.run_dir, args.make_j,
-             args.parameter_file, args.save_figs, args.test_dict)
+    run_tests(args.clean, args.verbose_make, build, run, args.build_dir, args.run_dir, 
+              args.make_j, args.parameter_file, args.save_figs, args.test_dict)
 
 if __name__ == "__main__":
     main()

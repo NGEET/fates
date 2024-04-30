@@ -216,7 +216,7 @@ def build_exists(build_dir, test_dir, test_exe=None):
 
     return True
 
-def build_unit_tests(build_dir, name, cmake_directory, make_j, clean=False):
+def build_unit_tests(build_dir, name, cmake_directory, make_j, clean=False, verbose=False):
     """Build the unit test executables
 
     Args:
@@ -225,6 +225,7 @@ def build_unit_tests(build_dir, name, cmake_directory, make_j, clean=False):
         cmake_directory (str): directory where the make CMakeLists.txt file is
         make_j (int): number of processes to use for make
         clean (bool, optional): whether or not to clean the build first. Defaults to False.
+        verbose (bool, optional): whether or not to run make with verbose output. Defaults to False.
     """
     # create the build directory
     full_build_path = prep_build_dir(build_dir, clean=clean)
@@ -245,4 +246,4 @@ def build_unit_tests(build_dir, name, cmake_directory, make_j, clean=False):
 
     # run cmake and make
     run_cmake(name, cmake_directory, pfunit_path, netcdf_c_path, netcdf_f_path, cmake_args)
-    run_make(name, make_j, clean=clean)
+    run_make(name, make_j, clean=clean, verbose=verbose)
