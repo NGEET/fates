@@ -6,7 +6,6 @@ module test_FireWeather
   use FatesConstantsMod, only : r8 => fates_r8
   use SFFireWeatherMod,  only : fire_weather
   use SFNesterovMod,     only : nesterov_index
-  use SFParamsMod,       only : SF_val_fdi_a, SF_val_fdi_b
   use funit
 
   implicit none
@@ -29,8 +28,6 @@ module test_FireWeather
       class(TestFireWeather), intent(inout) :: this
       allocate(nesterov_index :: this%fireWeatherNesterov)
       call this%fireWeatherNesterov%Init()
-      SF_val_fdi_a = 17.62_r8
-      SF_val_fdi_b = 243.12_r8
     end subroutine setUp
 
     subroutine tearDown(this)

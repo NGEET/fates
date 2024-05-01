@@ -277,6 +277,10 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   real(fates_r8), parameter, public :: J_per_kJ = 1000.0_fates_r8
 
   ! Physical constants
+  
+  ! dewpoint calculation
+  real(fates_r8), parameter, public :: dewpoint_a = 17.62_fates_r8
+  real(fates_r8), parameter, public :: dewpoint_b = 243.12_fates_r8 ![degrees C]
 
   ! universal gas constant [J/K/kmol]
   real(fates_r8), parameter, public :: rgas_J_K_kmol          = 8314.4598_fates_r8
