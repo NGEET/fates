@@ -60,6 +60,11 @@ module PRTParametersMod
      real(r8), allocatable :: turnover_nitr_retrans(:,:) ! nitrogen re-translocation fraction (pft x organ)
      real(r8), allocatable :: turnover_phos_retrans(:,:) ! phosphorus re-translocation fraction (pft x organ)
                                                          ! Parameters dimensioned by PFT and leaf age
+
+     ! These vertical n profile scalers affect crown allometry and sla, thus they
+     ! are here in the PRT module
+     real(r8), allocatable :: leafn_vert_scaler_coeff1(:)  ! Coefficient one for decrease of leaf N through the canopy
+     real(r8), allocatable :: leafn_vert_scaler_coeff2(:)  ! Coefficient two for decrease of leaf N through the canopy 
      
      real(r8), allocatable :: grperc(:)                  ! Growth respiration per unit Carbon gained
                                                          ! One value for whole plant
@@ -117,24 +122,24 @@ module PRTParametersMod
 
      real(r8), allocatable :: c2b(:)                        ! Carbon to biomass multiplier [kg/kgC]
      real(r8), allocatable :: wood_density(:)               ! wood density  g cm^-3  ...
-     real(r8), allocatable :: crown_depth_frac(:)           ! fraction of the height of the plant
      integer , allocatable :: woody(:)                      ! Does the plant have wood?      (1=yes, 0=no)
                                                             ! that is occupied by crown
      real(r8), allocatable :: slamax(:)                     ! Maximum specific leaf area of plant (at bottom) [m2/gC]
      real(r8), allocatable :: slatop(:)                     ! Specific leaf area at canopy top [m2/gC]
      real(r8), allocatable :: allom_sai_scaler(:)           ! 
      real(r8), allocatable :: allom_dbh_maxheight(:)        ! dbh at which height growth ceases
-     real(r8), allocatable :: allom_hmode(:)                ! height allometry function type
-     real(r8), allocatable :: allom_lmode(:)                ! maximum leaf allometry function type
-     real(r8), allocatable :: allom_fmode(:)                ! maximum root allometry function type
-     real(r8), allocatable :: allom_amode(:)                ! AGB allometry function type
-     real(r8), allocatable :: allom_cmode(:)                ! Coarse root allometry function type
-     real(r8), allocatable :: allom_smode(:)                ! sapwood allometry function type
-     real(r8), allocatable :: allom_stmode(:)               ! storage allometry functional type
+     integer , allocatable :: allom_hmode(:)                ! height allometry function type
+     integer , allocatable :: allom_lmode(:)                ! maximum leaf allometry function type
+     integer , allocatable :: allom_fmode(:)                ! maximum root allometry function type
+     integer , allocatable :: allom_amode(:)                ! AGB allometry function type
+     integer , allocatable :: allom_cmode(:)                ! Coarse root allometry function type
+     integer , allocatable :: allom_smode(:)                ! sapwood allometry function type
+     integer , allocatable :: allom_stmode(:)               ! storage allometry functional type 
                                                             !   0 - storage is proportional to maximum leaf biomass 
                                                             !       (considering trimmed)
                                                             !   1 - storage is proportional to maximum leaf biomass 
                                                             !       (untrimmed)
+     integer , allocatable :: allom_dmode(:)                ! crown depth allometry function type
                                                             ! (HARD-CODED FOR TIME BEING, RGK 11-2017)
      real(r8), allocatable :: allom_la_per_sa_int(:)        ! Leaf area to sap area conversion, intercept 
                                                             ! (sapwood area / leaf area) [cm2/m2]
@@ -160,6 +165,12 @@ module PRTParametersMod
      real(r8), allocatable :: allom_agb2(:)                 ! Parameter 2 for agb allometry
      real(r8), allocatable :: allom_agb3(:)                 ! Parameter 3 for agb allometry
      real(r8), allocatable :: allom_agb4(:)                 ! Parameter 3 for agb allometry
+
+     real(r8), allocatable :: allom_h2cd1(:)                ! Parameter 1 for crown depth allometry. When allom_dmode=1
+                                                            !    this is fraction of the height of the plant that is
+                                                            !    considered crown (former parameter crown_depth_frac).
+     real(r8), allocatable :: allom_h2cd2(:)                ! Exponent for crown depth allometry. Used only when
+                                                            !    allom_dmode /= 1.
 
      real(r8), allocatable :: allom_zroot_max_dbh(:)        ! dbh at which maximum rooting depth saturates (largest possible) [cm]
      real(r8), allocatable :: allom_zroot_max_z(:)          ! the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh [m]

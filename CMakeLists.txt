@@ -1,3 +1,6 @@
+# This file helps to build unit test programs to test FATES, but is not used in 
+# production runs
+
 cmake_minimum_required(VERSION 3.4)
 
 list(APPEND CMAKE_MODULE_PATH ${CIME_CMAKE_MODULE_DIRECTORY})

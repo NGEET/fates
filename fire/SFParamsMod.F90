@@ -18,9 +18,6 @@ module SFParamsMod
    !
    ! this is what the user can use for the actual values
    !
-
-   real(r8), public :: SF_val_fdi_a
-   real(r8), public :: SF_val_fdi_b
    real(r8),protected, public :: SF_val_fdi_alpha
    real(r8),protected, public :: SF_val_miner_total
    real(r8),protected, public :: SF_val_fuel_energy
@@ -148,8 +145,6 @@ contains
 
     implicit none
 
-    SF_val_fdi_a = nan
-    SF_val_fdi_b = nan
     SF_val_fdi_alpha = nan
     SF_val_miner_total = nan
     SF_val_fuel_energy = nan
@@ -258,13 +253,6 @@ contains
 
     class(fates_parameters_type), intent(inout) :: fates_params
     real(r8) :: tmp_real
-    
-
-    call fates_params%RetrieveParameter(name=SF_name_fdi_a, &
-         data=SF_val_fdi_a)
-
-    call fates_params%RetrieveParameter(name=SF_name_fdi_b, &
-         data=SF_val_fdi_b)
 
     call fates_params%RetrieveParameter(name=SF_name_fdi_alpha, &
          data=SF_val_fdi_alpha)
