@@ -41,9 +41,16 @@ module FatesHistoryVariableType
                                          ! or infrequently used output datasets
      character(len=24)    :: vtype
      character(len=1)     :: avgflag
-     integer              :: upfreq  ! Update frequency (this is for checks and flushing)
-                                     ! 1 = dynamics "dyn" (daily)
-                                     ! 2 = production "prod" (prob model tstep)
+     integer              :: upfreq ! Update frequency (this is for checks and flushing)
+                                    ! dynamics, high-frequency and hydraulic output,
+                                    ! split up by complex and non-complex dimensioning
+                                    ! group_dyna_simple = 1
+                                    ! group_dyna_complx = 2
+                                    ! group_hifr_simple = 3
+                                    ! group_hifr_complx = 4
+                                    ! group_hydr_simple = 5
+                                    ! group_hydr_complx = 6
+  
      real(r8)              :: flushval
      integer               :: dim_kinds_index
      ! Pointers (only one of these is allocated per variable)
@@ -55,7 +62,7 @@ module FatesHistoryVariableType
      integer,  pointer     :: int3d(:,:,:)
    contains
      procedure          :: Init
-     procedure          :: Flush
+     procedure          :: HFlush
      procedure, private :: GetBounds
   end type fates_history_variable_type
 
@@ -283,7 +290,7 @@ contains
      
    end subroutine GetBounds
 
-   subroutine Flush(this, thread, dim_bounds, dim_kinds)
+   subroutine HFlush(this, thread, dim_bounds, dim_kinds)
 
     implicit none
 
@@ -357,6 +364,6 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
     
- end subroutine Flush
+  end subroutine HFlush
 
 end module FatesHistoryVariableType

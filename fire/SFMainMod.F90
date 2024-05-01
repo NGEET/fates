@@ -47,6 +47,7 @@
   use PRTGenericMod,          only : SetState
   use FatesInterfaceTypesMod     , only : numpft
   use FatesAllometryMod,      only : CrownDepth
+  use FatesConstantsMod,      only : nearzero
 
   implicit none
   private
@@ -278,10 +279,18 @@ contains
 
           ! Correct averaging for the fact that we are not using the trunks pool for fire ROS and intensity (5)
           ! Consumption of fuel in trunk pool does not influence fire ROS or intensity (Pyne 1996)
-          currentPatch%fuel_bulkd     = currentPatch%fuel_bulkd     * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          currentPatch%fuel_sav       = currentPatch%fuel_sav       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          currentPatch%fuel_mef       = currentPatch%fuel_mef       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          currentPatch%fuel_eff_moist = currentPatch%fuel_eff_moist * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf))) 
+          if ( (1.0_r8-currentPatch%fuel_frac(tr_sf)) .gt. nearzero ) then
+             currentPatch%fuel_bulkd     = currentPatch%fuel_bulkd     * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+             currentPatch%fuel_sav       = currentPatch%fuel_sav       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+             currentPatch%fuel_mef       = currentPatch%fuel_mef       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+             currentPatch%fuel_eff_moist = currentPatch%fuel_eff_moist * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+          else
+             ! somehow the fuel is all trunk. put dummy values from large branches so as not to break things later in code.
+             currentPatch%fuel_bulkd     = SF_val_FBD(lb_sf)
+             currentPatch%fuel_sav       = SF_val_SAV(lb_sf)
+             currentPatch%fuel_mef       = MEF(lb_sf)
+             currentPatch%fuel_eff_moist = fuel_moisture(lb_sf)
+          endif
      
           ! Pass litter moisture into the fuel burning routine (all fuels: twigs,s branch,l branch,trunk,dead leaves,live grass)
           ! (wo/me term in Thonicke et al. 2010) 
@@ -289,6 +298,10 @@ contains
           currentPatch%litter_moisture(tr_sf)       = fuel_moisture(tr_sf)/MEF(tr_sf)
           currentPatch%litter_moisture(dl_sf)       = fuel_moisture(dl_sf)/MEF(dl_sf)
           currentPatch%litter_moisture(lg_sf)       = fuel_moisture(lg_sf)/MEF(lg_sf)
+
+          ! remove trunks from patch%sum_fuel because they should not be included in fire equations
+          ! NOTE: ACF will update this soon to be more clean/bug-proof
+          currentPatch%sum_fuel = currentPatch%sum_fuel - litt_c%ag_cwd(tr_sf)
           
        else
 

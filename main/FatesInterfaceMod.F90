@@ -41,6 +41,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : n_landuse_cats
    use FatesConstantsMod         , only : primaryland
    use FatesConstantsMod         , only : secondaryland
+   use FatesConstantsMod         , only : n_term_mort_types
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -877,7 +878,7 @@ contains
          end if
          
          fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
-              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft)
+              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft*n_term_mort_types)
 
          if(hlm_use_planthydro==itrue)then
             fates_maxElementsPerSite = max(fates_maxElementsPerSite, nshell*nlevsoi_hyd_max )
@@ -1474,7 +1475,10 @@ contains
          hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
+         hlm_hist_level_dynam = unset_int
+         hlm_hist_level_hifrq = unset_int
 
+         
       case('check_allset')
          
          if(hlm_numSWb .eq. unset_int) then
@@ -1674,6 +1678,16 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_hist_level_dynam .eq. unset_int) then
+            write(fates_log(), *) 'switch defining dynamics history level is unset, hlm_hist_level_dynam, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+          if(hlm_hist_level_hifrq .eq. unset_int) then
+            write(fates_log(), *) 'switch defining high-frequency history level is unset, hlm_hist_level_hifrq, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+
          if(hlm_use_ch4 .eq. unset_int) then
             write(fates_log(), *) 'switch for the HLMs CH4 module unset: hlm_use_ch4, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1840,6 +1854,9 @@ contains
                   write(fates_log(),*) 'Transfering hlm_seeddisp_cadence= ',ival,' to FATES'
                end if
 
+           
+               
+               
             case('spitfire_mode')
                hlm_spitfire_mode = ival
                if (fates_global_verbose()) then
@@ -1955,6 +1972,19 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_inventory_init= ',ival,' to FATES'
                end if
 
+            case('hist_hifrq_dimlevel')
+               hlm_hist_level_hifrq = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_level_hifrq= ',ival,' to FATES'
+               end if
+               
+            case('hist_dynam_dimlevel')
+               hlm_hist_level_dynam = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_level_dynam= ',ival,' to FATES'
+               end if
+
+               
             case default
                write(fates_log(), *) 'fates NL tag not recognized:',trim(tag)
                !! call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1977,6 +2007,8 @@ contains
 
          if(present(cval))then
             select case (trim(tag))
+
+          
                
             case('hlm_name')
                hlm_name = trim(cval)
