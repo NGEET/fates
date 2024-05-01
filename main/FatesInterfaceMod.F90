@@ -566,7 +566,7 @@ contains
 
       if ( hlm_use_fixed_biogeog .eq. itrue) then
          if (hlm_use_luh .eq. itrue ) then
-            allocate(bc_in%pft_areafrac_lu(size( EDPftvarcon_inst%hlm_pft_map,2),num_luh2_states-n_crop_lu_types))
+            allocate(bc_in%pft_areafrac_lu(size( EDPftvarcon_inst%hlm_pft_map,2),n_landuse_cats-n_crop_lu_types))
          else
             allocate(bc_in%pft_areafrac(surfpft_lb:surfpft_ub))
          endif
