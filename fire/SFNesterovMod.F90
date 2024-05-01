@@ -16,7 +16,7 @@ module SFNesterovMod
 
   end type nesterov_index
 
-  real(r8), parameter :: min_precip_thresh = 3.0_r8 ! threshold for precipitation above which to 0.0 NI
+  real(r8), parameter :: min_precip_thresh = 3.0_r8 ! threshold for precipitation above which to zero NI [mm/day]
 
   contains 
 
