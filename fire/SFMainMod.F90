@@ -75,7 +75,7 @@ contains
   subroutine fire_model(currentSite, bc_in)
     !
     !  DESCRIPTION:
-    !  Runs the daily fire weather model
+    !  Runs the daily fire model
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite ! site object
