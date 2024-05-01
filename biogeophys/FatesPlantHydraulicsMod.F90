@@ -2788,11 +2788,11 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
            ! Note: It is possible that the soil is so dry there is no conductance
            !       In these cases, solver error may create some non-zero, yet
            !       trivially small fluxes. Lets create a simple weighting
-           !       function based on root length and available water.
+           !       function based on root length.
            if(sumweight < nearzero)then
               sumweight = 0._r8
               do j_bc = j_t,j_b
-                 weight_sl(j_bc) = csite_hydr%rootl_sl(j_bc)*bc_in(s)%h2o_liq_sisl(j_bc)
+                 weight_sl(j_bc) = csite_hydr%rootl_sl(j_bc)
                  sumweight     = sumweight + weight_sl(j_bc)
               end do
            end if
