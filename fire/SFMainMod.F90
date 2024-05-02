@@ -67,22 +67,10 @@
 
 contains
 
-<<<<<<< HEAD
-   subroutine fire_model(currentSite, bc_in)
-      !
-      !  DESCRIPTION:
-      !  Runs the daily fire weather model
-||||||| merged common ancestors
-  subroutine fire_model(currentSite, bc_in)
-    !
-    !  DESCRIPTION:
-    !  Runs the daily fire weather model
-=======
   subroutine fire_model(currentSite, bc_in)
     !
     !  DESCRIPTION:
     !  Runs the daily fire model
->>>>>>> fire_weather_wind
 
       ! ARGUMENTS:
       type(ed_site_type), intent(inout), target :: currentSite ! site object
@@ -210,14 +198,16 @@ contains
             ! calculate live grass [kgC/m2]
             call currentPatch%UpdateLiveGrass()
 
-            ! update fuel loading
+            ! update fuel loading [kgC/m2]
             litter => currentPatch%litter(element_pos(carbon12_element))
+            
             call currentPatch%fuel%CalculateLoading(sum(litter%leaf_fines(:)),           &
                litter%ag_cwd(1), litter%ag_cwd(2), litter%ag_cwd(3), litter%ag_cwd(4),   &
                currentPatch%livegrass)
-            call currentPatch%fuel%SumLoading()
             
-            !call currentPatch%fuel%CalculateFractionalLoading()
+            ! sum up fuel types and calculate fractional loading for each
+            call currentPatch%fuel%SumLoading()
+            call currentPatch%fuel%CalculateFractionalLoading()
 
             if (currentPatch%fuel%total_loading> 0.0) then
 
@@ -240,49 +230,27 @@ contains
                ! Lasslop 2014 Table 1 MEF PFT level:grass=0.2,shrubs=0.3,TropEverGrnTree=0.2,TropDecid Tree=0.3, Extra-trop Tree=0.3
                MEF(1:nfsc)                         = 0.524_r8 - 0.066_r8 * log(SF_val_SAV(1:nfsc)) 
 
-<<<<<<< HEAD
-               !--- weighted average of relative moisture content---
-               ! Equation 6 in Thonicke et al. 2010. across twig, small branch, large branch, and dead leaves
-               ! dead leaves and twigs included in 1hr pool per Thonicke (2010) 
-               ! Calculate fuel moisture for trunks to hold value for fuel consumption
-               alpha_FMC(tw_sf:dl_sf)      = SF_val_SAV(tw_sf:dl_sf)/SF_val_drying_ratio
-||||||| merged common ancestors
-          ! Correct averaging for the fact that we are not using the trunks pool for fire ROS and intensity (5)
-          ! Consumption of fuel in trunk pool does not influence fire ROS or intensity (Pyne 1996)
-          currentPatch%fuel_bulkd     = currentPatch%fuel_bulkd     * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          currentPatch%fuel_sav       = currentPatch%fuel_sav       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          currentPatch%fuel_mef       = currentPatch%fuel_mef       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          currentPatch%fuel_eff_moist = currentPatch%fuel_eff_moist * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf))) 
-     
-          ! Pass litter moisture into the fuel burning routine (all fuels: twigs,s branch,l branch,trunk,dead leaves,live grass)
-          ! (wo/me term in Thonicke et al. 2010) 
-          currentPatch%litter_moisture(tw_sf:lb_sf) = fuel_moisture(tw_sf:lb_sf)/MEF(tw_sf:lb_sf)   
-          currentPatch%litter_moisture(tr_sf)       = fuel_moisture(tr_sf)/MEF(tr_sf)
-          currentPatch%litter_moisture(dl_sf)       = fuel_moisture(dl_sf)/MEF(dl_sf)
-          currentPatch%litter_moisture(lg_sf)       = fuel_moisture(lg_sf)/MEF(lg_sf)
-=======
-          ! Correct averaging for the fact that we are not using the trunks pool for fire ROS and intensity (5)
-          ! Consumption of fuel in trunk pool does not influence fire ROS or intensity (Pyne 1996)
-          if ( (1.0_r8-currentPatch%fuel_frac(tr_sf)) .gt. nearzero ) then
-             currentPatch%fuel_bulkd     = currentPatch%fuel_bulkd     * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-             currentPatch%fuel_sav       = currentPatch%fuel_sav       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-             currentPatch%fuel_mef       = currentPatch%fuel_mef       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-             currentPatch%fuel_eff_moist = currentPatch%fuel_eff_moist * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          else
-             ! somehow the fuel is all trunk. put dummy values from large branches so as not to break things later in code.
-             currentPatch%fuel_bulkd     = SF_val_FBD(lb_sf)
-             currentPatch%fuel_sav       = SF_val_SAV(lb_sf)
-             currentPatch%fuel_mef       = MEF(lb_sf)
-             currentPatch%fuel_eff_moist = fuel_moisture(lb_sf)
-          endif
-     
-          ! Pass litter moisture into the fuel burning routine (all fuels: twigs,s branch,l branch,trunk,dead leaves,live grass)
-          ! (wo/me term in Thonicke et al. 2010) 
-          currentPatch%litter_moisture(tw_sf:lb_sf) = fuel_moisture(tw_sf:lb_sf)/MEF(tw_sf:lb_sf)   
-          currentPatch%litter_moisture(tr_sf)       = fuel_moisture(tr_sf)/MEF(tr_sf)
-          currentPatch%litter_moisture(dl_sf)       = fuel_moisture(dl_sf)/MEF(dl_sf)
-          currentPatch%litter_moisture(lg_sf)       = fuel_moisture(lg_sf)/MEF(lg_sf)
->>>>>>> fire_weather_wind
+               ! Correct averaging for the fact that we are not using the trunks pool for fire ROS and intensity (5)
+               ! Consumption of fuel in trunk pool does not influence fire ROS or intensity (Pyne 1996)
+               if ( (1.0_r8-currentPatch%fuel_frac(tr_sf)) .gt. nearzero ) then
+                  currentPatch%fuel_bulkd     = currentPatch%fuel_bulkd     * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+                  currentPatch%fuel_sav       = currentPatch%fuel_sav       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+                  currentPatch%fuel_mef       = currentPatch%fuel_mef       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+                  currentPatch%fuel_eff_moist = currentPatch%fuel_eff_moist * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+               else
+                  ! somehow the fuel is all trunk. put dummy values from large branches so as not to break things later in code.
+                  currentPatch%fuel_bulkd     = SF_val_FBD(lb_sf)
+                  currentPatch%fuel_sav       = SF_val_SAV(lb_sf)
+                  currentPatch%fuel_mef       = MEF(lb_sf)
+                  currentPatch%fuel_eff_moist = fuel_moisture(lb_sf)
+               endif
+         
+               ! Pass litter moisture into the fuel burning routine (all fuels: twigs,s branch,l branch,trunk,dead leaves,live grass)
+               ! (wo/me term in Thonicke et al. 2010) 
+               currentPatch%litter_moisture(tw_sf:lb_sf) = fuel_moisture(tw_sf:lb_sf)/MEF(tw_sf:lb_sf)   
+               currentPatch%litter_moisture(tr_sf)       = fuel_moisture(tr_sf)/MEF(tr_sf)
+               currentPatch%litter_moisture(dl_sf)       = fuel_moisture(dl_sf)/MEF(dl_sf)
+               currentPatch%litter_moisture(lg_sf)       = fuel_moisture(lg_sf)/MEF(lg_sf)
 
                fuel_moisture(tw_sf:dl_sf)  = exp(-1.0_r8 * alpha_FMC(tw_sf:dl_sf) *           &
                currentSite%fireWeather%fire_weather_index) 
