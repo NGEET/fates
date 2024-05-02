@@ -149,9 +149,6 @@ module SyntheticFuelTypes
     ! ARGUMENTS:
     class(fuel_types_array_class), intent(inout) :: this ! array of fuel models
     
-    ! initialize to 0
-    this%num_fuel_types = 0
-
     call this%AddFuelModel(fuel_model_index=1, carrier='GR', fuel_model_name='short grass',   &
       wind_adj_factor=0.36_r8, hr1_loading=0.7_r8, hr10_loading=0.0_r8, hr100_loading=0.0_r8, &
       live_herb_loading=0.0_r8, live_woody_loading=0.0_r8, fuel_depth=1.0_r8)
