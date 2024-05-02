@@ -1,9 +1,7 @@
 module FatesFuelMod
 
-  use FatesFuelClassesMod, only : nfsc
-  use FatesLitterMod,      only : litter_type
+  use FatesFuelClassesMod, only : nfsc, fuel_classes
   use FatesConstantsMod,   only : nearzero
-  use FatesLitterMod,      only : dl_sf, tw_sf, sb_sf, lb_sf, tr_sf, lg_sf
 
   implicit none
   private
@@ -66,12 +64,12 @@ module FatesFuelMod
       real(r8),         intent(in)    :: trunk_litter        ! input leaf litter [kgC/m2]
       real(r8),         intent(in)    :: live_grass          ! input live grass [kgC/m2]
 
-      this%loading(dl_sf) = leaf_litter
-      this%loading(tw_sf) = twig_litter
-      this%loading(sb_sf) = small_branch_litter
-      this%loading(lb_sf) = large_branch_litter
-      this%loading(tr_sf) = trunk_litter
-      this%loading(lg_sf) = live_grass
+      this%loading(fuel_classes%dead_leaves) = leaf_litter
+      this%loading(fuel_classes%twigs) = twig_litter
+      this%loading(fuel_classes%small_branches) = small_branch_litter
+      this%loading(fuel_classes%large_branches) = large_branch_litter
+      this%loading(fuel_classes%live_grass) = live_grass
+      this%loading(fuel_classes%trunks) = trunk_litter
 
     end subroutine CalculateLoading
 

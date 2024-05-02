@@ -175,14 +175,14 @@ contains
 
    !--------------------------------------------------------------------------------------
 
-   subroutine charecteristics_of_fuel(currentSite)
+   subroutine characteristics_of_fuel(currentSite)
       !
       !  DESCRIPTION:
       !  Updates the site's fuel characteristics
 
       use SFParamsMod, only : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
 
-      ! AGUMENTS:
+      ! ARGUMENTS:
       type(ed_site_type), intent(in), target :: currentSite
 
       ! LOCALS:
@@ -295,7 +295,7 @@ contains
 
       end do 
 
-   end subroutine charecteristics_of_fuel
+   end subroutine characteristics_of_fuel
 
    !--------------------------------------------------------------------------------------
 
