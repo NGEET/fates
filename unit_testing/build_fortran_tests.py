@@ -131,7 +131,7 @@ def get_extra_cmake_args(build_dir, mpilib):
         mpilib (str): MPI library name
     """
     # get the machine objects file
-    machobj = Machines()
+    machobj = Machines() # this is different?
 
     # get compiler
     compiler = machobj.get_default_compiler()
@@ -153,11 +153,11 @@ def get_extra_cmake_args(build_dir, mpilib):
         os_,
         unit_testing=True,
     )
-    EnvMachSpecific(build_dir, unit_testing=True)
+    machspecific = EnvMachSpecific(build_dir, unit_testing=True)
 
     # make a fake case
-    FakeCase(compiler, mpilib, True, "nuopc", threading=False)
-
+    fake_case = FakeCase(compiler, mpilib, True, "nuopc", threading=False)
+    machspecific.load_env(fake_case)
     cmake_args_list = [
       f"-DOS={os_}",
       f"-DMACH={machobj.get_machine_name()}",
