@@ -15,11 +15,10 @@ module SFNesterovMod
 
       procedure, public :: Init => init_nesterov_fire_weather
       procedure, public :: UpdateIndex => update_nesterov_index
-      procedure         :: calc_nesterov_index 
-
+      
   end type nesterov_index
 
-  real(r8), parameter :: min_precip_thresh = 3.0_r8 ! threshold for precipitation above which to reset NI
+  real(r8), parameter :: min_precip_thresh = 3.0_r8 ! threshold for precipitation above which to zero NI [mm/day]
 
   contains 
 
@@ -49,71 +48,60 @@ module SFNesterovMod
       real(r8),              intent(in)    :: precip ! daily precipitation [mm]
       real(r8),              intent(in)    :: rh     ! daily relative humidity [%]
       real(r8),              intent(in)    :: wind   ! daily wind speed [m/min]
+      
+      ! LOCALS:
+      real(r8) :: t_dew ! dewpoint temperature [degrees C]
 
       if (precip > min_precip_thresh) then ! rezero NI if it rains
         this%fire_weather_index = 0.0_r8
       else 
-        ! accumulate Nesterov Index
-        this%fire_weather_index = this%fire_weather_index + &
-          this%calc_nesterov_index(temp_C, precip, rh)
+        
+        ! Calculate dewpoint temperature
+        t_dew = dewpoint(temp_c, rh)
+        
+        ! Accumulate Nesterov index over fire season. 
+        this%fire_weather_index = this%fire_weather_index + calc_nesterov_index(temp_C, t_dew)
       end if 
 
     end subroutine update_nesterov_index
 
     !-------------------------------------------------------------------------------------
 
-    real(r8) function calc_nesterov_index(this, temp_C, precip, rh)
+    real(r8) function calc_nesterov_index(temp_C, t_dew)
       !
       !  DESCRIPTION:
-      !  Calculates current day's Nesterov Index for given input values
-
-      use SFParamsMod,       only : SF_val_fdi_a, SF_val_fdi_b
-      use FatesConstantsMod, only : nearzero
+      !  Calculates current day's Nesterov Index for a given input values
       
       ! ARGUMENTS:
-      class(nesterov_index), intent(in) :: this   ! nesterov index extended class
-      real(r8),              intent(in) :: temp_C ! daily averaged temperature [degrees C]
-      real(r8),              intent(in) :: precip ! daily precipitation [mm]
-      real(r8),              intent(in) :: rh     ! daily relative humidity [%]
-
-      ! LOCALS:
-      real(r8) :: yipsolon ! intermediate variable for dewpoint calculation
-      real(r8) :: dewpoint ! dewpoint
-
-      if (precip > min_precip_thresh) then ! NI is 0.0 if it rains
-        calc_nesterov_index = 0.0_r8
-      else 
-        
-        ! error checking, if SF_val_fdi_b + temp_C = 0.0, we get a divide by zero
-        if (abs(SF_val_fdi_b + temp_C) < nearzero) then
-          write(fates_log(), *) 'SF_val_fdi_b: (', SF_val_fdi_b, ') + temp_C: (', temp_C, ') == 0.0 - divide by zero imminent!'
-          write(fates_log(), *) 'SF_val_fdi_b should be updated using the parameter file.'
-          write(fates_log(), *) 'Otherwise check values for temp_C'
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-        end if 
-        
-        ! intermediate dewpoint calculation
-        yipsolon = (SF_val_fdi_a*temp_C)/(SF_val_fdi_b + temp_C) + log(max(1.0_r8, rh)/100.0_r8)
-
-        ! error checking, if SF_val_fdi_a - ypisolon = 0, we get a divide by zero
-        if (abs(SF_val_fdi_a - yipsolon) < nearzero) then
-          write(fates_log(), *) 'SF_val_fdi_a: (', SF_val_fdi_a, ') - yipsolon: (', yipsolon, ') == 0.0 - divide by zero imminent!'
-          write(fates_log(), *) 'SF_val_fdi_a should be updated using the parameter file.'
-          write(fates_log(), *) 'Otherwise check values for yipsolon'
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-        end if 
-        
-        ! calculate dewpoint temperature 
-        dewpoint = (SF_val_fdi_b*yipsolon)/(SF_val_fdi_a - yipsolon) 
-        
-        ! Nesterov 1968; Eq 5, Thonicke et al. 2010
-        calc_nesterov_index = (temp_C - dewpoint)*temp_C 
-        if (calc_nesterov_index < 0.0_r8) calc_nesterov_index = 0.0_r8 
-
-      endif
+      real(r8), intent(in) :: temp_C ! daily averaged temperature [degrees C]
+      real(r8), intent(in) :: t_dew  ! daily dewpoint temperature [degrees C]
+      
+      ! Nesterov 1968. Eq 5, Thonicke et al. 2010
+      calc_nesterov_index = (temp_C - t_dew)*temp_C 
+      if (calc_nesterov_index < 0.0_r8) calc_nesterov_index = 0.0_r8 ! can't be negative
 
     end function calc_nesterov_index
 
     !-------------------------------------------------------------------------------------
+    
+    real(r8) function dewpoint(temp_C, rh)
+      !
+      !  DESCRIPTION:
+      !  Calculates dewpoint from input air temperature and relative humidity
+      !  Uses Equation 8 from Lawrence 2005, https://doi.org/10.1175/BAMS-86-2-225
+    
+      use FatesConstantsMod, only : dewpoint_a, dewpoint_b
+      
+      ! ARGUMENTS
+      real(r8), intent(in) :: temp_C ! temperature [degrees C]
+      real(r8), intent(in) :: rh     ! relative humidity [%]
+      
+      ! LOCALS
+      real(r8) :: yipsolon ! intermediate value for dewpoint calculation
+    
+      yipsolon = log(max(1.0_r8, rh)/100.0_r8) + (dewpoint_a*temp_C)/(dewpoint_b + temp_C)
+      dewpoint = (dewpoint_b*yipsolon)/(dewpoint_a - yipsolon) 
+    
+    end function dewpoint
 
 end module SFNesterovMod
