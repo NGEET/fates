@@ -228,7 +228,11 @@ contains
                                                    ! 2 - yes, sigmoid (To be added). and more other?
     integer :: exchanged     ! used in bubble sorting
     integer :: temp_order    ! used in bubble sorting
-    integer :: ipatch        ! used in bubble sorting
+    real(r8) :: temp_age     ! used in bubble sorting
+    integer :: ipatch, jpatch ! used in bubble sorting
+    integer, allocatable :: order_of_patches(:)  ! Record a copy of patch order for bubble sort
+    real(r8), allocatable :: sec_age_patches(:)   ! Record a copy of secondary forest age for bubble sort
+
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -263,24 +267,73 @@ contains
           currentPatch => currentPatch%younger
        end do
 
-       ! Second loop to perform bubble sorting
+       ! Second loop to assign order patches and age_since_anthro_disturbance
+       allocate(order_of_patches(1:npatches))
+       allocate(sec_age_patches(1:npatches))
+
+       currentPatch => site_in%oldest_patch
+       ipatch = 0
+       do while (associated(currentPatch))
+          ipatch = ipatch + 1
+          order_of_patches(ipatch) = currentPatch%patchno 
+          sec_age_patches(ipatch) = currentPatch%age_since_anthro_disturbance
+
+          currentPatch => currentPatch%younger
+       end do
+
+       !write(fates_log(),*) 'See patch order:', order_of_patches(:)
+       !write(fates_log(),*) 'See patch age:', sec_age_patches(:)
+       ! Third loops to perform bubble sorting, since we have collected the order
+       ! and age and stored them into array, no need to have a patch loop
        do ipatch = 1, npatches - 1
           if(exchanged .eq. 1) then
              exchanged = 0
-             currentPatch => site_in%oldest_patch
-             do while (associated(currentPatch))
-                if(currentPatch%patchno <= (npatches - ipatch)) then
-                   if(currentPatch%age_since_anthro_disturbance < &
-                       currentPatch%younger%age_since_anthro_disturbance) then
-                       temp_order = currentPatch%order_age_since_anthro
-                       currentPatch%order_age_since_anthro = currentPatch%younger%order_age_since_anthro
-                       currentPatch%younger%order_age_since_anthro = temp_order
-                       exchanged = 1
-                   end if
+             do jpatch = 1, npatches - ipatch
+          !write(fates_log(),*) 'ipatch:', ipatch
+          !write(fates_log(),*) 'jpatch:', jpatch
+          !write(fates_log(),*) 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn'
+                if(sec_age_patches(jpatch) < sec_age_patches(jpatch+1)) then
+                   ! Swap order
+                   temp_order = order_of_patches(jpatch)
+                   order_of_patches(jpatch) = order_of_patches(jpatch + 1)
+                   order_of_patches(jpatch + 1) = temp_order
+                   ! Swap age
+                   temp_age = sec_age_patches(jpatch)
+                   sec_age_patches(jpatch) = sec_age_patches(jpatch + 1)
+                   sec_age_patches(jpatch + 1) = temp_age
+                   exchanged = 1
+          !write(fates_log(),*) 'See patch 1 age :', currentPatch%age_since_anthro_disturbance
+          !write(fates_log(),*) 'See patch 2 age :', currentPatch%younger%age_since_anthro_disturbance
+          !write(fates_log(),*) 'See patch 1 order sec:', currentPatch%order_age_since_anthro
+          !write(fates_log(),*) 'See patch 2 order sec:', currentPatch%younger%order_age_since_anthro
                 end if
              end do
           end if
        end do
+
+       write(fates_log(),*) 'After: See patch order:', order_of_patches(:)
+       write(fates_log(),*) 'After: See patch age:', sec_age_patches(:)
+       write(fates_log(),*) 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn'
+
+       ! Fourth loop to assign order back to patches
+       do ipatch = 0, npatches
+          currentPatch => site_in%oldest_patch
+
+          ! Look for the patch by usig patchno 
+          inner_loop: do while (associated(currentPatch))
+
+             if(order_of_patches(ipatch) .eq. currentPatch%patchno) then
+                currentPatch%order_age_since_anthro = ipatch
+                exit inner_loop
+             end if
+
+             currentPatch => currentPatch%younger
+          end do inner_loop
+       end do
+
+       ! Eliminate temperary variables
+       deallocate(order_of_patches)
+       deallocate(sec_age_patches)
 
     end if  ! logging_time
  
