@@ -68,6 +68,15 @@ _ALL_TESTS_DICT = {
           "use_param_file": False,
           "other_args": [],
           "plotting_function": plot_quadratic_dat,
+        },
+        "fuel": {
+          "test_dir": "fates_fuel_test",
+          "test_exe": "FATES_fuel_exe",
+          "out_file": None,
+          "has_unit_test": False,
+          "use_param_file": False,
+          "other_args": [],
+          "plotting_function": None
         }
     }
 

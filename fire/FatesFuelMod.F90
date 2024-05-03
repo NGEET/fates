@@ -64,12 +64,12 @@ module FatesFuelMod
       real(r8),         intent(in)    :: trunk_litter        ! input leaf litter [kgC/m2]
       real(r8),         intent(in)    :: live_grass          ! input live grass [kgC/m2]
 
-      this%loading(fuel_classes%dead_leaves) = leaf_litter
-      this%loading(fuel_classes%twigs) = twig_litter
-      this%loading(fuel_classes%small_branches) = small_branch_litter
-      this%loading(fuel_classes%large_branches) = large_branch_litter
-      this%loading(fuel_classes%live_grass) = live_grass
-      this%loading(fuel_classes%trunks) = trunk_litter
+      this%loading(fuel_classes%dead_leaves()) = leaf_litter
+      this%loading(fuel_classes%twigs()) = twig_litter
+      this%loading(fuel_classes%small_branches()) = small_branch_litter
+      this%loading(fuel_classes%large_branches()) = large_branch_litter
+      this%loading(fuel_classes%live_grass()) = live_grass
+      this%loading(fuel_classes%trunks()) = trunk_litter
 
     end subroutine CalculateLoading
 
