@@ -431,7 +431,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_h2oveg_growturn_err_si
   integer :: ih_h2oveg_hydro_err_si
   integer :: ih_lai_si
-
+  integer :: ih_elai_si
+  
   integer :: ih_site_cstatus_si
   integer :: ih_gdd_si
   integer :: ih_site_nchilldays_si
@@ -2420,7 +2421,8 @@ contains
          hio_tveg24                           => this%hvars(ih_tveg24_si)%r81d, &
          hio_tlongterm                        => this%hvars(ih_tlongterm_si)%r81d, &
          hio_tgrowth                          => this%hvars(ih_tgrowth_si)%r81d, &
-         hio_lai_si                           => this%hvars(ih_lai_si)%r81d )
+         hio_lai_si                           => this%hvars(ih_lai_si)%r81d, &
+         hio_elai_si                          => this%hvars(ih_elai_si)%r81d)
 
 
       ! ---------------------------------------------------------------------------------
@@ -2433,6 +2435,9 @@ contains
 
          site_ba = 0._r8
          site_ca = 0._r8
+
+         ! This should be removed from the interface and put here (RGK 04-24)
+         ! call this%zero_site_hvars(sites(s),upfreq_in=group_dyna_simple)
          
          ! set the fates fraction to one, since it is zero on non-fates columns, &
          ! the average is the total gridcell fates fraction
@@ -2567,13 +2572,6 @@ contains
               sum(flux_diags_c%root_litter_input(:))) * &
               AREA_INV * days_per_sec
 
-         hio_litter_out_si(io_si) = 0._r8
-         hio_seed_bank_si(io_si)  = 0._r8
-         hio_ungerm_seed_bank_si(io_si)  = 0._r8
-         hio_seedling_pool_si(io_si)  = 0._r8
-         hio_seeds_in_si(io_si)   = 0._r8
-         hio_seeds_in_local_si(io_si)   = 0._r8
-
          ! Loop through patches to sum up diagonistics
          ipa = 0
          cpatch => sites(s)%oldest_patch
@@ -2585,9 +2583,12 @@ contains
                hio_npatches_sec_si(io_si) = hio_npatches_sec_si(io_si) + 1._r8
             end if
 
-            hio_lai_si(io_si) = hio_lai_si(io_si) + sum( cpatch%canopy_area_profile(:,:,:) * cpatch%elai_profile(:,:,:) ) * &
+            hio_lai_si(io_si) = hio_lai_si(io_si) + sum( cpatch%canopy_area_profile(:,:,:) * cpatch%tlai_profile(:,:,:) ) * &
                  cpatch%total_canopy_area * AREA_INV
-
+            
+            hio_elai_si(io_si) = hio_elai_si(io_si) + sum( cpatch%canopy_area_profile(:,:,:) * cpatch%elai_profile(:,:,:) ) * &
+                 cpatch%total_canopy_area * AREA_INV
+            
             ! 24hr veg temperature
             hio_tveg24(io_si) = hio_tveg24(io_si) + &
                  (cpatch%tveg24%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
@@ -2918,16 +2919,16 @@ contains
          ! divide secondary plant leaf area by secondary forest area to get the secondary forest LAI
          if (hio_fraction_secondary_forest_si(io_si) .gt. nearzero) then
             hio_lai_secondary_si(io_si) = hio_lai_secondary_si(io_si) / (hio_fraction_secondary_forest_si(io_si)*AREA)
-         else
-            hio_lai_secondary_si(io_si) = 0._r8
          end if
 
+         ! Normalize crown-area weighted height
+         if(site_ca>nearzero)then
+            hio_ca_weighted_height_si(io_si) = hio_ca_weighted_height_si(io_si)/site_ca
+         end if
 
          ! divide basal-area-weighted height by basal area to get mean
          if ( site_ba .gt. nearzero ) then
-            hio_ba_weighted_height_si(io_si) = hio_ba_weighted_height_si(io_si) / site_ba
-         else
-            hio_ba_weighted_height_si(io_si) = 0._r8
+            hio_ba_weighted_height_si(io_si) = hio_ba_weighted_height_si(io_si)/site_ba
          endif
 
          elloop2: do el = 1, num_elements
@@ -3346,10 +3347,11 @@ contains
 
                 ! Increment some patch-age-resolved diagnostics
                 hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
-                     + sum(cpatch%tlai_profile(:,:,:)) * cpatch%area
-
+                     + sum(cpatch%tlai_profile(:,:,:) * cpatch%canopy_area_profile(:,:,:) ) * cpatch%total_canopy_area
+                
                 hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
                      + cpatch%ncl_p * cpatch%area
+                
                 hio_npatches_si_age(io_si,cpatch%age_class) = hio_npatches_si_age(io_si,cpatch%age_class) + 1._r8
 
 
@@ -5008,6 +5010,8 @@ contains
                   if_notnew: if ( .not. ccohort%isnew ) then
 
                      ! scale up cohort fluxes to the site level
+                     ! these fluxes have conversions of [kg/plant/timestep] -> [kg/m2/s]
+                     
                      hio_npp_si(io_si) = hio_npp_si(io_si) + &
                           ccohort%npp_tstep * n_perm2 * dt_tstep_inv
 
@@ -5059,9 +5063,9 @@ contains
                           * n_perm2
 
                      ! accumulate fluxes on canopy- and understory- separated fluxes
+                     ! these fluxes have conversions of [kg/plant/timestep] -> [kg/m2/s]
                      if (ccohort%canopy_layer .eq. 1) then
 
-                        ! bulk fluxes are in gC / m2 / s
                         hio_gpp_canopy_si(io_si) = hio_gpp_canopy_si(io_si) + &
                              ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
 
@@ -5070,7 +5074,6 @@ contains
 
                      else
 
-                        ! bulk fluxes are in gC / m2 / s
                         hio_gpp_understory_si(io_si) = hio_gpp_understory_si(io_si) + &
                              ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
 
@@ -6145,11 +6148,17 @@ contains
             index=ih_canopy_spread_si)
 
        call this%set_history_var(vname='FATES_LAI', units='m2 m-2',               &
-            long='leaf area index per m2 land area',                              &
+            long='total leaf area index per m2 land area',                        &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_lai_si)
-
+       
+       call this%set_history_var(vname='FATES_ELAI', units='m2 m-2',               &
+            long='exposed (non snow-occluded) leaf area index per m2 land area',                        &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            index=ih_elai_si)
+       
        call this%set_history_var(vname='FATES_LAI_SECONDARY', units='m2 m-2',            &
             long='leaf area index per m2 land area, secondary patches',                   &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM', &
@@ -6897,7 +6906,7 @@ contains
                initialize=initialize_variables, index=ih_area_si_age)
 
           call this%set_history_var(vname='FATES_LAI_AP', units='m2 m-2',            &
-               long='leaf area index by age bin per m2 land area',                   &
+               long='total leaf area index by age bin per m2 land area',                   &
                use_default='active', avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index=ih_lai_si_age)
@@ -8476,10 +8485,6 @@ contains
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_hifr_simple,                 &
             ivar=ivar, initialize=initialize_variables, index = ih_nir_rad_err_si)
 
-       call this%set_history_var(vname='FATES_AR', units='gC/m^2/s',                 &
-            long='autotrophic respiration', use_default='active',                  &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_hifr_simple,   &
-            ivar=ivar, initialize=initialize_variables, index = ih_aresp_si )
        ! Ecosystem Carbon Fluxes (updated rapidly, upfreq=group_hifr_simple)
 
        call this%set_history_var(vname='FATES_NPP', units='kg m-2 s-1',           &
@@ -8541,16 +8546,6 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_maint_resp_secondary_si)
-
-       call this%set_history_var(vname='FATES_AR_CANOPY', units='gC/m^2/s',                 &
-            long='autotrophic respiration of canopy plants', use_default='active',       &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_hifr_simple,   &
-            ivar=ivar, initialize=initialize_variables, index = ih_ar_canopy_si )
-
-       call this%set_history_var(vname='FATES_AR_UNDERSTORY', units='gC/m^2/s',                 &
-            long='autotrophic respiration of understory plants', use_default='active',       &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_hifr_simple,   &
-            ivar=ivar, initialize=initialize_variables, index = ih_ar_understory_si )
 
        ! fast fluxes separated canopy/understory
        call this%set_history_var(vname='FATES_GPP_CANOPY', units='kg m-2 s-1',    &

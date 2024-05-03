@@ -47,6 +47,7 @@
   use PRTGenericMod,          only : SetState
   use FatesInterfaceTypesMod     , only : numpft
   use FatesAllometryMod,      only : CrownDepth
+  use FatesConstantsMod,      only : nearzero
 
   implicit none
   private
@@ -295,10 +296,18 @@ contains
 
           ! Correct averaging for the fact that we are not using the trunks pool for fire ROS and intensity (5)
           ! Consumption of fuel in trunk pool does not influence fire ROS or intensity (Pyne 1996)
-          currentPatch%fuel_bulkd     = currentPatch%fuel_bulkd     * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          currentPatch%fuel_sav       = currentPatch%fuel_sav       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          currentPatch%fuel_mef       = currentPatch%fuel_mef       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
-          currentPatch%fuel_eff_moist = currentPatch%fuel_eff_moist * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf))) 
+          if ( (1.0_r8-currentPatch%fuel_frac(tr_sf)) .gt. nearzero ) then
+             currentPatch%fuel_bulkd     = currentPatch%fuel_bulkd     * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+             currentPatch%fuel_sav       = currentPatch%fuel_sav       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+             currentPatch%fuel_mef       = currentPatch%fuel_mef       * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+             currentPatch%fuel_eff_moist = currentPatch%fuel_eff_moist * (1.0_r8/(1.0_r8-currentPatch%fuel_frac(tr_sf)))
+          else
+             ! somehow the fuel is all trunk. put dummy values from large branches so as not to break things later in code.
+             currentPatch%fuel_bulkd     = SF_val_FBD(lb_sf)
+             currentPatch%fuel_sav       = SF_val_SAV(lb_sf)
+             currentPatch%fuel_mef       = MEF(lb_sf)
+             currentPatch%fuel_eff_moist = fuel_moisture(lb_sf)
+          endif
      
           ! Pass litter moisture into the fuel burning routine (all fuels: twigs,s branch,l branch,trunk,dead leaves,live grass)
           ! (wo/me term in Thonicke et al. 2010) 
