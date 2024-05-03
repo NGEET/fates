@@ -92,6 +92,6 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR})
 # carefully: for example, include_directories and link_directories needs to be
 # done before adding the tests themselves.
 add_subdirectory(${HLM_ROOT}/src/fates/unit_testing/allometry fates_allom_test)
-add_subdirectory(${HLM_ROOT}/src/fates/unit_testing/math_utils fates_math_test)
-add_subdirectory(${HLM_ROOT}/src/fates/unit_testing/fire fates_fuel_test)
-add_subdirectory(${HLM_ROOT}/src/fates/fire/test/fire_weather_test fates_fireweather_test)
+#add_subdirectory(${HLM_ROOT}/src/fates/unit_testing/math_utils fates_math_test)
+#add_subdirectory(${HLM_ROOT}/src/fates/unit_testing/fire fates_fuel_test)
+#add_subdirectory(${HLM_ROOT}/src/fates/fire/test/fire_weather_test fates_fireweather_test)

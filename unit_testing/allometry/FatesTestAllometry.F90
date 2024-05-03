@@ -86,10 +86,11 @@ program FatesTestAllometry
     allocate(character(arglen) :: param_file)
     call get_command_argument(1, value=param_file)
   endif
-
+  
   ! read in parameter file
   call param_reader%Init(param_file)
   call param_reader%RetrieveParameters()
+
 
   ! determine sizes of arrays
   numpft = size(prt_params%wood_density, dim=1)
