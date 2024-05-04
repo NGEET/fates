@@ -239,7 +239,7 @@ contains
     ! And the same rates in understory plants have already been applied to %dndt
     !----------------------------------------------------------------------------------------------
  
-    ! first calculate the fraction of the site that is primary land
+    ! first calculate the fraction of the site that is primary land and secondary mature land
     call get_frac_site_primary(site_in, frac_site_primary)
     call get_frac_site_secondary_mature(site_in, frac_site_secondary_mature)
 
@@ -252,6 +252,22 @@ contains
     frac_site = 1._r8
     harvest_tag_csite = 2
     remain_harvest_rate = fates_unset_r8  ! set to negative value to indicate uninitialized
+
+    ! The following code will calculate harvest_rate_scale for each secondary patch
+    ! There're currently 2 options:
+    ! 1) uniformly harvest each patch (harvest_rate_scale = 1._r8)
+    ! 2) harvest the oldest patch first
+
+    ! Initialize harvest_rate_scale
+    currentPatch => site_in%oldest_patch
+
+    do while (associated(currentPatch))
+       ! Initialize harvest rate scale to 1.0 first
+       currentPatch%harvest_rate_scale = 1._r8
+
+       currentPatch => currentPatch%younger
+    end do
+
 
     ! We need to have an order based on age_since_anthro_disturbance
     if (logging_time) then
@@ -281,17 +297,12 @@ contains
           currentPatch => currentPatch%younger
        end do
 
-       !write(fates_log(),*) 'See patch order:', order_of_patches(:)
-       !write(fates_log(),*) 'See patch age:', sec_age_patches(:)
        ! Third loops to perform bubble sorting, since we have collected the order
        ! and age and stored them into array, no need to have a patch loop
        do ipatch = 1, npatches - 1
           if(exchanged .eq. 1) then
              exchanged = 0
              do jpatch = 1, npatches - ipatch
-          !write(fates_log(),*) 'ipatch:', ipatch
-          !write(fates_log(),*) 'jpatch:', jpatch
-          !write(fates_log(),*) 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn'
                 if(sec_age_patches(jpatch) < sec_age_patches(jpatch+1)) then
                    ! Swap order
                    temp_order = order_of_patches(jpatch)
@@ -302,21 +313,13 @@ contains
                    sec_age_patches(jpatch) = sec_age_patches(jpatch + 1)
                    sec_age_patches(jpatch + 1) = temp_age
                    exchanged = 1
-          !write(fates_log(),*) 'See patch 1 age :', currentPatch%age_since_anthro_disturbance
-          !write(fates_log(),*) 'See patch 2 age :', currentPatch%younger%age_since_anthro_disturbance
-          !write(fates_log(),*) 'See patch 1 order sec:', currentPatch%order_age_since_anthro
-          !write(fates_log(),*) 'See patch 2 order sec:', currentPatch%younger%order_age_since_anthro
                 end if
              end do
           end if
        end do
 
-       write(fates_log(),*) 'After: See patch order:', order_of_patches(:)
-       write(fates_log(),*) 'After: See patch age:', sec_age_patches(:)
-       write(fates_log(),*) 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn'
-
        ! Fourth loop to assign order back to patches
-       do ipatch = 0, npatches
+       do ipatch = 1, npatches
           currentPatch => site_in%oldest_patch
 
           ! Look for the patch by usig patchno 
@@ -339,75 +342,82 @@ contains
  
     ! Loop through all patches and calculate the harvest rate scale based 
     ! on pre-defined age priority strategy
-    currentPatch => site_in%oldest_patch
+    ! Calculate the harvest rate scale based on pre-defined age priority strategy
+    ! Only calculate harvest rate scale when we have logging event
+    ! to reduce computational cost
+    if (logging_time .and. harvest_age_priority == 1) then
+       ! Maximize harvest rate (99%) for older patch first until harvest demand is fullfilled
+       ! ipatch is the rank of the secondary patch age
+       target_loop: do ipatch = 1, npatches
 
-    do while (associated(currentPatch))
-       ! Initialize harvest rate scale to 1.0 first
-       currentPatch%harvest_rate_scale = 1._r8
+          currentPatch => site_in%oldest_patch
+          search_loop: do while (associated(currentPatch))
 
-       ! Only calculate harvest rate scale when we have logging event
-       ! to reduce computational cost
-       if (logging_time) then
-          ! Maximize harvest rate (99%) for older patch first until harvest demand is fullfilled
-          ! Right now we skip the calculation for the primary land
-          if(harvest_age_priority == 1 .and. currentPatch%land_use_label .eq. secondaryland) then
-             if(currentPatch%land_use_label .eq. primaryland) then
-                 h_index = 1
-                 frac_site = frac_site_primary
-             else if (currentPatch%land_use_label .eq. secondaryland .and. &
-               currentPatch%age_since_anthro_disturbance >= secondary_age_threshold) then
-                 h_index = 3
-                 frac_site = frac_site_secondary_mature
-             else
-                 h_index = 4
-                 frac_site = 1._r8 - frac_site_primary - frac_site_secondary_mature
-             end if
-             ! Obtain harvest rate of the corresponding patch
-             if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
-                 call get_harvest_rate_carbon (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                       bc_in%hlm_harvest_rates, currentPatch%age_since_anthro_disturbance, harvestable_forest_c, &
-                       harvest_rate, harvest_tag)
-             else
-                 call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                      bc_in%hlm_harvest_rates, frac_site_primary, frac_site_secondary_mature, &
-                      currentPatch%age_since_anthro_disturbance, harvest_rate)
-             end if
-             ! Check if is the first time, if so initialize remain_harvest_rate
-             if(remain_harvest_rate(h_index) < 0) then
-                remain_harvest_rate(h_index) = harvest_rate
-             end if
-             ! Only calculate harvest rate scale for non-zero harvest rate
-             if (harvest_rate > 1e-7) then
-                ! Compare the patch area and see if larger than remain_harvest_rate
-                if((currentPatch%area/(AREA*frac_site)) >= remain_harvest_rate(h_index)) then
-                    currentPatch%harvest_rate_scale = remain_harvest_rate(h_index) / &
-                        (currentPatch%area/(AREA*frac_site)+1e-7) / harvest_rate
-                    remain_harvest_rate(h_index) = 0._r8
-                else
-                    ! harvest almost 100%, leave 1% to prevent removing the patch completely, which may cause
-                    ! model crash under nocomp mode
-                    currentPatch%harvest_rate_scale = 0.99_r8 / harvest_rate
-                    remain_harvest_rate(h_index) = remain_harvest_rate(h_index) - 0.99_r8 * (currentPatch%area/(AREA*frac_site))
-                end if
-             end if
-          end if  ! harvest age priority strategy
-          write(fates_log(),*) 'See patch number:', currentPatch%patchno
-          write(fates_log(),*) 'See patch age:', currentPatch%age
-          write(fates_log(),*) 'See patch age sec:', currentPatch%age_since_anthro_disturbance
-          write(fates_log(),*) 'See patch order sec:', currentPatch%order_age_since_anthro
-          write(fates_log(),*) 'See harvest index:', h_index
-          write(fates_log(),*) 'See harvest rate scale:', currentPatch%harvest_rate_scale
-          write(fates_log(),*) 'See harvest rate:', harvest_rate
-          write(fates_log(),*) 'See site fraction:', frac_site
-          write(fates_log(),*) 'See sec mature fraction:', frac_site_secondary_mature
-          write(fates_log(),*) 'See sec young fraction:', 1 - frac_site_primary - frac_site_secondary_mature
-          write(fates_log(),*) 'See area:', currentPatch%area/AREA
-          write(fates_log(),*) '==================== Next patch ================'
-       end if  ! logging_time
+             found_patch: if(currentPatch%order_age_since_anthro .eq. ipatch) then
 
-       currentPatch => currentPatch%younger
-    end do
-    write(fates_log(),*) '<<<<<<<<<<<<<<<<<<<<<<< Next section >>>>>>>>>>>>>>>>>>>>>>>>>>'
+                ! Right now we skip the calculation for the primary land
+                if_secondary: if(currentPatch%land_use_label .eq. secondaryland) then
+                    if(currentPatch%age_since_anthro_disturbance >= secondary_age_threshold) then
+                       h_index = 3
+                       frac_site = frac_site_secondary_mature
+                    else
+                       h_index = 4
+                       frac_site = 1._r8 - frac_site_primary - frac_site_secondary_mature
+                    end if
+                    ! Obtain harvest rate of the corresponding patch
+                    if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
+                        call get_harvest_rate_carbon (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
+                              bc_in%hlm_harvest_rates, currentPatch%age_since_anthro_disturbance, harvestable_forest_c, &
+                              harvest_rate, harvest_tag)
+                    else
+                        call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
+                             bc_in%hlm_harvest_rates, frac_site_primary, frac_site_secondary_mature, &
+                             currentPatch%age_since_anthro_disturbance, harvest_rate)
+                    end if
+                    ! Check if is the first time, if so initialize remain_harvest_rate
+                    if(remain_harvest_rate(h_index) < 0) then
+                       remain_harvest_rate(h_index) = harvest_rate
+                    end if
+                    ! Only calculate harvest rate scale for non-zero harvest rate
+                    if (harvest_rate > 1e-7) then
+                       ! Compare the patch area and see if larger than remain_harvest_rate
+                       if((currentPatch%area/(AREA*frac_site)) >= remain_harvest_rate(h_index)) then
+                           currentPatch%harvest_rate_scale = remain_harvest_rate(h_index) / &
+                               (currentPatch%area/(AREA*frac_site)+1e-7) / harvest_rate
+                           remain_harvest_rate(h_index) = 0._r8
+                       else
+                           ! harvest almost 100%, leave 1% to prevent removing the patch completely, which may cause
+                           ! model crash under nocomp mode
+                           currentPatch%harvest_rate_scale = 0.99_r8 / harvest_rate
+                           remain_harvest_rate(h_index) = remain_harvest_rate(h_index) - 0.99_r8 * (currentPatch%area/(AREA*frac_site))
+                       end if
+                    end if
+       write(fates_log(),*) 'See patch number:', currentPatch%patchno
+       write(fates_log(),*) 'See patch age:', currentPatch%age
+       write(fates_log(),*) 'See patch age sec:', currentPatch%age_since_anthro_disturbance
+       write(fates_log(),*) 'See patch order sec:', currentPatch%order_age_since_anthro
+       write(fates_log(),*) 'See harvest index:', h_index
+       write(fates_log(),*) 'See harvest rate scale:', currentPatch%harvest_rate_scale
+       write(fates_log(),*) 'See harvest rate:', harvest_rate
+       write(fates_log(),*) 'See site fraction:', frac_site
+       write(fates_log(),*) 'See sec mature fraction:', frac_site_secondary_mature
+       write(fates_log(),*) 'See sec young fraction:', 1 - frac_site_primary - frac_site_secondary_mature
+       write(fates_log(),*) 'See area:', currentPatch%area/AREA
+       write(fates_log(),*) '==================== Next patch ================'
+
+                end if if_secondary
+
+                ! Exit current inner loop to find the next old ipatch
+                exit search_loop
+
+             end if found_patch
+
+             currentPatch => currentPatch%younger
+          end do search_loop
+
+       end do target_loop
+
+    end if  ! logging_time
 
     !Loop through cohorts to get disturbance rates
     currentPatch => site_in%oldest_patch
@@ -445,14 +455,7 @@ contains
                 harvestable_forest_c, &
                 currentPatch%harvest_rate_scale, &
                 harvest_tag)
-       if (logging_time) then
-          write(fates_log(),*) 'before logging, See patch number:', currentPatch%patchno
-            if(lmort_direct > 0._r8) write(fates_log(),*) 'lmort_direct:', lmort_direct
-            if(lmort_collateral > 0._r8) write(fates_log(),*) 'lmort_collateral:', lmort_collateral
-            if(lmort_infra > 0._r8) write(fates_log(),*) 'lmort_infra:', lmort_infra
-            if(l_degrad > 0._r8) write(fates_log(),*) 'l_degrad:', l_degrad
-          write(fates_log(),*) '================== Next Cohort =================='
-       end if
+
           currentCohort%lmort_direct     = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral
           currentCohort%lmort_infra      = lmort_infra
@@ -616,13 +619,6 @@ contains
           end do
        endif
 
-       if (logging_time) then
-       write(fates_log(),*) 'See patch number:', currentPatch%patchno
-       write(fates_log(),*) 'See harvest rate scale:', currentPatch%harvest_rate_scale
-       write(fates_log(),*) 'See logging disturbance rate:', currentPatch%disturbance_rates(dtype_ilog)
-       write(fates_log(),*) 'See area:', currentPatch%area/AREA
-       write(fates_log(),*) '==================== Next patch ================'
-       end if
        currentPatch => currentPatch%younger
 
     enddo !patch loop 
