@@ -32,8 +32,8 @@ import matplotlib.pyplot as plt
 from build_fortran_tests import build_unit_tests, build_exists
 from path_utils import add_cime_lib_to_path
 from utils import copy_file, create_nc_file
-from allometry.allometry_plotting import plot_allometry_dat
-from math_utils.math_plotting import plot_quadratic_dat
+from functional_testing.allometry.allometry_plotting import plot_allometry_dat
+from functional_testing.math_utils.math_plotting import plot_quadratic_dat
 
 add_cime_lib_to_path()
 
@@ -42,7 +42,8 @@ from CIME.utils import run_cmd_no_fail # pylint: disable=wrong-import-position,i
 # Constants for this script
 _DEFAULT_CDL_PATH = os.path.abspath("../parameter_files/fates_params_default.cdl")
 _CMAKE_BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")
-_TEST_NAME = "fates_unit_tests"
+_TEST_NAME = "fates_tests"
+_TEST_SUB_DIR = "testing"
 
 # Dictionary with needed constants for running the executables and reading in the
 # output files - developers who add tests should add things here.
@@ -83,7 +84,7 @@ def run_fortran_exectuables(build_dir, test_dir, test_exe, run_dir, args):
     """
 
     # move executable to run directory
-    exe_path = os.path.join(build_dir, test_dir, test_exe)
+    exe_path = os.path.join(build_dir, _TEST_SUB_DIR, test_dir, test_exe)
     copy_file(exe_path, run_dir)
 
     # run the executable

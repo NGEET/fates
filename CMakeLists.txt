@@ -29,7 +29,7 @@ add_subdirectory(${HLM_ROOT}/src/fates/biogeophys fates_biogeophys)
 add_subdirectory(${HLM_ROOT}/src/fates/parteh fates_parteh)
 add_subdirectory(${HLM_ROOT}/src/fates/fire fates_fire)
 add_subdirectory(${HLM_ROOT}/src/fates/radiation fates_radiation)
-add_subdirectory(${HLM_ROOT}/src/fates/unit_testing/unit_test_shr unit_share)
+add_subdirectory(${HLM_ROOT}/src/fates/testing/testing_shr test_share)
 
 # Remove shr_mpi_mod from share_sources.
 # This is needed because we want to use the mock shr_mpi_mod in place of the real one
@@ -86,12 +86,5 @@ link_directories(${NETCDF_C_DIR}/lib
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 link_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-
-
-# Add the test directories
-# Note: it's possible that these could be added by each source directory that
-# has tests in it. However, it appears that the order needs to be done
-# carefully: for example, include_directories and link_directories needs to be
-# done before adding the tests themselves.
-add_subdirectory(${HLM_ROOT}/src/fates/unit_testing/allometry fates_allom_test)
-add_subdirectory(${HLM_ROOT}/src/fates/unit_testing/math_utils fates_math_test)
+# Add the main test directory
+add_subdirectory(${HLM_ROOT}/src/fates/testing)
