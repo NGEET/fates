@@ -1303,7 +1303,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
   ! term accounting that two photons are needed to fully transport a single 
   ! electron to the thylakoid-membrane-bound NADP reductase (see Farquhar 1980)
-  ! ie only have the energy enters photosystem 2
+  ! ie only half the energy from a photon enters photosystem 2
   real(r8), parameter :: photon_to_e_nadp = 0.5_r8
   
   ! For plants with no leaves, a miniscule amount of conductance
