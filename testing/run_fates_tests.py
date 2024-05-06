@@ -34,6 +34,7 @@ from path_utils import add_cime_lib_to_path
 from utils import copy_file, create_nc_file
 from functional_testing.allometry.allometry_plotting import plot_allometry_dat
 from functional_testing.math_utils.math_plotting import plot_quadratic_dat
+from functional_testing.fire.fuel_plotting import plot_fuel_dat
 
 add_cime_lib_to_path()
 
