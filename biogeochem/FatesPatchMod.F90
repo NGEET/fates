@@ -13,7 +13,7 @@ module FatesPatchMod
   use FatesUtilsMod,       only : check_var_real
   use FatesCohortMod,      only : fates_cohort_type
   use FatesRunningMeanMod, only : rmean_type, rmean_arr_type
-  use FatesLitterMod,      only : nfsc
+  use FatesFuelClassesMod, only : nfsc
   use FatesLitterMod,      only : litter_type
   use FatesFuelMod,        only : fuel_type
   use PRTGenericMod,       only : num_elements
@@ -197,17 +197,7 @@ module FatesPatchMod
 
     ! FUELS AND FIRE
     ! fuel characteristics
-    real(r8)              :: fuel_frac(nfsc)         ! fraction of each litter class in the ros_fuel [0-1]
     real(r8)              :: livegrass               ! total aboveground grass biomass in patch [kgC/m2]
-    real(r8)              :: fuel_bulkd              ! average fuel bulk density of the ground fuel. [kg/m3]
-                                                       ! (incl. live grasses, omits 1000hr fuels)
-    real(r8)              :: fuel_sav                ! average surface area to volume ratio of the ground fuel [cm-1]
-                                                       ! (incl. live grasses, omits 1000hr fuels)
-    real(r8)              :: fuel_mef                ! average moisture of extinction factor 
-                                                       ! of the ground fuel (incl. live grasses, omits 1000hr fuels)
-    real(r8)              :: fuel_eff_moist          ! effective avearage fuel moisture content of the ground fuel 
-                                                       ! (incl. live grasses. omits 1000hr fuels)
-    real(r8)              :: litter_moisture(nfsc)   ! moisture of litter [m3/m3]
 
     ! fire spread
     real(r8)              :: ros_front               ! rate of forward  spread of fire [m/min]
@@ -380,13 +370,7 @@ module FatesPatchMod
       this%fragmentation_scaler(:)      = nan 
   
       ! FUELS AND FIRE
-      this%fuel_frac(:)                 = nan 
       this%livegrass                    = nan 
-      this%fuel_bulkd                   = nan 
-      this%fuel_sav                     = nan
-      this%fuel_mef                     = nan 
-      this%fuel_eff_moist               = nan 
-      this%litter_moisture(:)           = nan
       this%ros_front                    = nan
       this%ros_back                     = nan   
       this%tau_l                        = nan
@@ -456,13 +440,7 @@ module FatesPatchMod
       this%fragmentation_scaler(:)           = 0.0_r8
 
       ! FIRE
-      this%fuel_frac(:)                      = 0.0_r8
       this%livegrass                         = 0.0_r8
-      this%fuel_bulkd                        = 0.0_r8
-      this%fuel_sav                          = 0.0_r8
-      this%fuel_mef                          = 0.0_r8
-      this%fuel_eff_moist                    = 0.0_r8
-      this%litter_moisture(:)                = 0.0_r8
       this%ros_front                         = 0.0_r8
       this%ros_back                          = 0.0_r8
       this%tau_l                             = 0.0_r8

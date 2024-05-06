@@ -1,12 +1,14 @@
 module SyntheticFuelTypes
   
-  !use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : r8 => fates_r8
 
   implicit none
   private
   
-  integer, parameter :: chunk_size = 10
-  integer, parameter :: r8 = selected_real_kind(12) 
+  integer,  parameter :: chunk_size = 10
+  real(r8), parameter :: ustons_to_kg = 907.185_r8
+  real(r8), parameter :: acres_to_m2 = 4046.86_r8
+  real(r8), parameter :: ft_to_m = 0.3048_r8
   
   ! holds data for fake fuel models that can be used for functional
   ! testing of the FATES fire model
@@ -18,12 +20,12 @@ module SyntheticFuelTypes
     character(len=5)   :: fuel_model_code     ! carrier plus fuel model
     character(len=100) :: fuel_model_name     ! long name of fuel model
     real(r8)           :: wind_adj_factor     ! wind adjustment factor
-    real(r8)           :: hr1_loading         ! fuel loading for 1 hour fuels
-    real(r8)           :: hr10_loading        ! fuel loading for 10 hour fuels
-    real(r8)           :: hr100_loading       ! fuel loading for 100 hour fuels
-    real(r8)           :: live_herb_loading   ! fuel loading for live herbacious fuels
-    real(r8)           :: live_woody_loading  ! fuel loading for live woody fuels
-    real(r8)           :: fuel_depth          ! fuel bed depth
+    real(r8)           :: hr1_loading         ! fuel loading for 1 hour fuels [kg/m2]
+    real(r8)           :: hr10_loading        ! fuel loading for 10 hour fuels [kg/m2]
+    real(r8)           :: hr100_loading       ! fuel loading for 100 hour fuels [kg/m2]
+    real(r8)           :: live_herb_loading   ! fuel loading for live herbacious fuels [kg/m2]
+    real(r8)           :: live_woody_loading  ! fuel loading for live woody fuels [kg/m2]
+    real(r8)           :: fuel_depth          ! fuel bed depth [m]
     contains 
     
       procedure :: InitFuelModel
@@ -42,6 +44,7 @@ module SyntheticFuelTypes
       
       procedure :: AddFuelModel
       procedure :: GetFuelModels
+      procedure :: FuelModelPosition
   
   end type fuel_types_array_class
   
@@ -56,6 +59,8 @@ module SyntheticFuelTypes
     ! DESCRIPTION:
     ! Initializes the fuel model with input characteristics
     ! Also converts units as needed
+    !
+    ! NOTE THE UNITS ON INPUTS
     !
     
     ! ARGUMENTS:
@@ -75,12 +80,12 @@ module SyntheticFuelTypes
     this%carrier = carrier 
     this%fuel_model_name = fuel_model_name
     this%wind_adj_factor = wind_adj_factor
-    this%hr1_loading = hr1_loading
-    this%hr10_loading = hr10_loading
-    this%hr100_loading = hr100_loading
-    this%live_herb_loading = live_herb_loading
-    this%live_woody_loading = live_woody_loading
-    this%fuel_depth = fuel_depth
+    this%hr1_loading = hr1_loading*ustons_to_kg/acres_to_m2*0.45_r8 ! convert to kgC/m2
+    this%hr10_loading = hr10_loading*ustons_to_kg/acres_to_m2*0.45_r8  ! convert to kgC/m2
+    this%hr100_loading = hr100_loading*ustons_to_kg/acres_to_m2*0.45_r8  ! convert to kgC/m2
+    this%live_herb_loading = live_herb_loading*ustons_to_kg/acres_to_m2*0.45_r8  ! convert to kgC/m2
+    this%live_woody_loading = live_woody_loading*ustons_to_kg/acres_to_m2*0.45_r8  ! convert to kgC/m2
+    this%fuel_depth = fuel_depth*ft_to_m ! convert to m
       
   end subroutine InitFuelModel
   
@@ -92,6 +97,8 @@ module SyntheticFuelTypes
     !
     ! DESCRIPTION:
     ! Adds a fuel model to the dynamic array
+    !
+    ! NOTE THE UNITS ON INPUTS
     !
     
     ! ARGUMENTS:
@@ -139,6 +146,32 @@ module SyntheticFuelTypes
   
   ! --------------------------------------------------------------------------------------
   
+  integer function FuelModelPosition(this, fuel_model_index)
+    !
+    ! DESCRIPTION:
+    ! Returns the index of a desired fuel model
+    !
+    
+    ! ARGUMENTS:
+    class(fuel_types_array_class), intent(in)  :: this             ! array of fuel models
+    integer,                       intent(in)  :: fuel_model_index ! desired fuel model index
+        
+    ! LOCALS:
+    integer :: i ! looping index 
+    
+    do i = 1, this%num_fuel_types
+      if (this%fuel_types(i)%fuel_model_index == fuel_model_index) then
+        FuelModelPosition = i
+        return
+      end if
+    end do
+    write(*, '(a, i2, a)') "Cannot find the fuel model index ", fuel_model_index, "."
+    stop
+  
+  end function FuelModelPosition
+  
+  ! --------------------------------------------------------------------------------------
+  
   subroutine GetFuelModels(this)
     !
     ! DESCRIPTION:
@@ -161,9 +194,17 @@ module SyntheticFuelTypes
       wind_adj_factor=0.31_r8, hr1_loading=0.1_r8, hr10_loading=0.0_r8, hr100_loading=0.0_r8,                     &
       live_herb_loading=0.3_r8, live_woody_loading=0.0_r8, fuel_depth=0.4_r8)
       
-    call this%AddFuelModel(fuel_model_index=102, carrier='GR', fuel_model_name='low load dry climate grass', &
-      wind_adj_factor=0.36_r8, hr1_loading=0.1_r8, hr10_loading=0.0_r8, hr100_loading=0.0_r8,                     &
+    call this%AddFuelModel(fuel_model_index=102, carrier='GR', fuel_model_name='low load dry climate grass',  &
+      wind_adj_factor=0.36_r8, hr1_loading=0.1_r8, hr10_loading=0.0_r8, hr100_loading=0.0_r8,                 &
       live_herb_loading=1.0_r8, live_woody_loading=0.0_r8, fuel_depth=1.0_r8)
+      
+    call this%AddFuelModel(fuel_model_index=183, carrier='TL', fuel_model_name='moderate load conifer litter', &
+      wind_adj_factor=0.29_r8, hr1_loading=0.5_r8, hr10_loading=2.2_r8, hr100_loading=2.8_r8,                  &
+      live_herb_loading=0.0_r8, live_woody_loading=0.0_r8, fuel_depth=0.3_r8)
+      
+    call this%AddFuelModel(fuel_model_index=164, carrier='TU', fuel_model_name='dwarf conifer with understory', &
+      wind_adj_factor=0.32_r8, hr1_loading=4.5_r8, hr10_loading=0.0_r8, hr100_loading=0.0_r8,                   &
+      live_herb_loading=0.0_r8, live_woody_loading=2.0_r8, fuel_depth=0.5_r8)
       
   end subroutine GetFuelModels
   

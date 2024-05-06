@@ -7,46 +7,7 @@ import numpy as np
 import xarray as xr
 import matplotlib
 import matplotlib.pyplot as plt
-from utils import get_color_palette, round_up
-
-def blank_plot(x_max, x_min, y_max, y_min, draw_horizontal_lines=False):
-    """Generate a blank plot with set attributes
-
-    Args:
-        x_max (float): maximum x value
-        x_min (float): minimum x value
-        y_max (float): maximum y value
-        y_min (float): minimum y value
-        draw_horizontal_lines (bool, optional): whether or not to draw horizontal
-        lines across plot. Defaults to False.
-    """
-
-    plt.figure(figsize=(7, 5))
-    axis = plt.subplot(111)
-    axis.spines["top"].set_visible(False)
-    axis.spines["bottom"].set_visible(False)
-    axis.spines["right"].set_visible(False)
-    axis.spines["left"].set_visible(False)
-
-    axis.get_xaxis().tick_bottom()
-    axis.get_yaxis().tick_left()
-
-    plt.xlim(0.0, x_max)
-    plt.ylim(0.0, y_max)
-
-    plt.yticks(fontsize=10)
-    plt.xticks(fontsize=10)
-
-    if draw_horizontal_lines:
-        inc = (int(y_max) - y_min)/20
-        for i in range(0, 20):
-            plt.plot(range(math.floor(x_min), math.ceil(x_max)),
-                      [0.0 + i*inc] * len(range(math.floor(x_min), math.ceil(x_max))),
-                      "--", lw=0.5, color="black", alpha=0.3)
-
-    plt.tick_params(bottom=False, top=False, left=False, right=False)
-
-    return plt
+from utils import get_color_palette, round_up, blank_plot
 
 def plot_allometry_var(data, varname, units, save_fig, plot_dir=None):
     """Plot an allometry variable

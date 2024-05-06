@@ -34,6 +34,7 @@ from path_utils import add_cime_lib_to_path
 from utils import copy_file, create_nc_file
 from allometry.allometry_plotting import plot_allometry_dat
 from math_utils.math_plotting import plot_quadratic_dat
+from fire.fuel_plotting import plot_fuel_dat
 
 add_cime_lib_to_path()
 
@@ -72,11 +73,11 @@ _ALL_TESTS_DICT = {
         "fuel": {
           "test_dir": "fates_fuel_test",
           "test_exe": "FATES_fuel_exe",
-          "out_file": None,
+          "out_file": 'fuel_out.nc',
           "has_unit_test": False,
-          "use_param_file": False,
-          "other_args": [],
-          "plotting_function": None
+          "use_param_file": True,
+          "other_args": ['/Users/afoster/Documents/ncar/CTSM/src/fates/BONA_datm.nc'],
+          "plotting_function": plot_fuel_dat
         }
     }
 

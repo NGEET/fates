@@ -2,17 +2,17 @@ module SFParamsMod
    !
    ! module that deals with reading the SF parameter file
    !
-   use FatesConstantsMod , only: r8 => fates_r8
-   use FatesConstantsMod , only: fates_check_param_set
-   use FatesLitterMod    , only: NFSC
-   use FatesLitterMod    , only: ncwd
+   use FatesConstantsMod,        only : r8 => fates_r8
+   use FatesConstantsMod,        only : fates_check_param_set
+   use FatesFuelClassesMod,      only : nfsc
+   use FatesLitterMod,           only : ncwd
    use FatesParametersInterface, only : param_string_length
-   use FatesGlobals,   only : fates_log
-   use FatesGlobals,   only : endrun => fates_endrun
-   use shr_log_mod      , only : errMsg => shr_log_errMsg
+   use FatesGlobals,             only : fates_log
+   use FatesGlobals,             only : endrun => fates_endrun
+   use shr_log_mod,              only : errMsg => shr_log_errMsg
 
    implicit none
-   private ! Modules are private by default
+   private 
    save
 
    !
@@ -58,17 +58,12 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_mid_moisture_Coeff = "fates_fire_mid_moisture_Coeff"
    character(len=param_string_length),parameter :: SF_name_mid_moisture_Slope = "fates_fire_mid_moisture_Slope"
 
-   character(len=*), parameter, private :: sourcefile = &
-         __FILE__
-
-
-   real(r8), parameter,private :: min_fire_threshold = 0.0001_r8  ! The minimum reasonable fire intensity threshold [kW/m]
-
+   character(len=*), parameter, private :: sourcefile =  __FILE__
+   real(r8),         parameter, private :: min_fire_threshold = 0.0001_r8  ! The minimum reasonable fire intensity threshold [kW/m]
 
    public :: SpitFireRegisterParams
    public :: SpitFireReceiveParams
    public :: SpitFireCheckParams
-
 
 contains
 
