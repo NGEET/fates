@@ -115,7 +115,6 @@ contains
     !  DESCRIPTION:
     !  Updates the site's fire weather index
 
-    use SFParamsMod,       only : SF_val_fdi_a, SF_val_fdi_b
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesConstantsMod, only : sec_per_day
 
