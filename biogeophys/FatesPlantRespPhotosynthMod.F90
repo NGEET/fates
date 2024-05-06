@@ -1301,6 +1301,11 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! Fraction of light absorbed by non-photosynthetic pigments
   real(r8),parameter :: fnps = 0.15_r8
 
+  ! term accounting that two photons are needed to fully transport a single 
+  ! electron to the thylakoid-membrane-bound NADP reductase (see Farquhar 1980)
+  ! ie only have the energy enters photosystem 2
+  real(r8), parameter :: photon_to_e_nadp = 0.5_r8
+  
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
@@ -1372,7 +1377,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               if(( laisun_lsl * canopy_area_lsl) > min_la_to_solve)then
 
                  qabs = parsun_lsl / (laisun_lsl * canopy_area_lsl )
-                 qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
+                 qabs = qabs * photon_to_e_nadp * (1._r8 - fnps) *  4.6_r8
 
               else
                  qabs = 0.0_r8
@@ -1382,7 +1387,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               if( (parsha_lsl>nearzero) .and. (laisha_lsl * canopy_area_lsl) > min_la_to_solve  ) then
 
                  qabs = parsha_lsl / (laisha_lsl * canopy_area_lsl)
-                 qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
+                 qabs = qabs * photon_to_e_nadp * (1._r8 - fnps) *  4.6_r8
               else                 
                  ! The radiative transfer schemes are imperfect
                  ! they can sometimes generate negative values here
