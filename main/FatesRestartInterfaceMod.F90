@@ -99,7 +99,7 @@ module FatesRestartInterfaceMod
   integer :: ir_cndaysleafon_si
   integer :: ir_cndaysleafoff_si
   integer :: ir_phenmodeldate_si
-  integer :: ir_acc_ni_si
+  integer :: ir_fireweather_index_si
   integer :: ir_gdd_si
   integer :: ir_snow_depth_si
   integer :: ir_trunk_product_si
@@ -704,7 +704,7 @@ contains
 
     call this%set_restart_var(vname='fates_acc_nesterov_id', vtype=site_r8, &
          long_name='a nesterov index accumulator', units='unitless', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_acc_ni_si )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fireweather_index_si )
 
     call this%set_restart_var(vname='fates_gdd_site', vtype=site_r8, &
          long_name='growing degree days at each site', units='degC days', flushval = flushzero, &
@@ -2034,7 +2034,7 @@ contains
            rio_cndaysleafon_si         => this%rvars(ir_cndaysleafon_si)%int1d, &
            rio_cndaysleafoff_si        => this%rvars(ir_cndaysleafoff_si)%int1d, &
            rio_phenmodeldate_si        => this%rvars(ir_phenmodeldate_si)%int1d, &
-           rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
+           rio_fireweather_index_si    => this%rvars(ir_fireweather_index_si)%r81d, &
            rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
            rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
            rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
@@ -2638,7 +2638,7 @@ contains
  
 
 
-          rio_acc_ni_si(io_idx_si)       = sites(s)%acc_NI
+          rio_fireweather_index_si(io_idx_si) = sites(s)%fireWeather%fire_weather_index
           rio_snow_depth_si(io_idx_si)   = sites(s)%snow_depth
 
           ! Accumulated trunk product
@@ -3001,7 +3001,7 @@ contains
           rio_cndaysleafon_si         => this%rvars(ir_cndaysleafon_si)%int1d, &
           rio_cndaysleafoff_si        => this%rvars(ir_cndaysleafoff_si)%int1d, &
           rio_phenmodeldate_si        => this%rvars(ir_phenmodeldate_si)%int1d, &
-          rio_acc_ni_si               => this%rvars(ir_acc_ni_si)%r81d, &
+          rio_fireweather_index_si    => this%rvars(ir_fireweather_index_si)%r81d, &
           rio_gdd_si                  => this%rvars(ir_gdd_si)%r81d, &
           rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
@@ -3643,7 +3643,7 @@ contains
 
          
 
-          sites(s)%acc_NI         = rio_acc_ni_si(io_idx_si)
+          sites(s)%fireWeather%fire_weather_index  = rio_fireweather_index_si(io_idx_si)
           sites(s)%snow_depth     = rio_snow_depth_si(io_idx_si)
           sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
 
