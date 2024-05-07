@@ -317,9 +317,12 @@ contains
     end do
 
     ! get some info needed to determine whether or not to apply land use change
-    call GetLUHStatedata(bc_in, state_vector)
-    site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. site_in%min_allowed_landuse_fraction) &
-         .and. (.not. site_in%landuse_vector_gt_min(secondaryland))
+    site_secondaryland_first_exceeding_min = .false.
+    if (hlm_use_luh .eq. itrue) then
+       call GetLUHStatedata(bc_in, state_vector)
+       site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. site_in%min_allowed_landuse_fraction) &
+            .and. (.not. site_in%landuse_vector_gt_min(secondaryland))
+    end if
 
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   

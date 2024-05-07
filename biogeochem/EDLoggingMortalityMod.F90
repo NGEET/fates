@@ -54,6 +54,7 @@ module EDLoggingMortalityMod
    use FatesInterfaceTypesMod , only : hlm_num_lu_harvest_cats
    use FatesInterfaceTypesMod , only : hlm_use_logging 
    use FatesInterfaceTypesMod , only : hlm_use_planthydro
+   use FatesInterfaceTypesMod , only : hlm_use_luh
    use FatesConstantsMod , only : itrue,ifalse
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log
@@ -249,17 +250,21 @@ contains
       ! todo: eventually set up distinct harvest practices, each with a set of input paramaeters
       ! todo: implement harvested carbon inputs
 
-      call GetLUHStatedata(bc_in, state_vector)
-      site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. currentSite%min_allowed_landuse_fraction) &
-           .and. (.not. currentSite%landuse_vector_gt_min(secondaryland))
-
       ! The transition_landuse_from_off_to_on is for handling the special case of the first timestep after leaving potential
       ! vegetation mode. In this case, all prior historical land-use, including harvest, needs to be applied on that first day.
       ! So logging rates on that day are what is required to deforest exactly the amount of primary lands that will give the
       ! amount of secondary lands dictated by the land use state vector for that year, rather than whatever the continuous
       ! logging rate for that year is supposed to be according to the land use transition matrix.
       if (.not. currentSite%transition_landuse_from_off_to_on) then
-         
+
+         ! Check if the secondaryland exceeds the minimum if in landuse mode
+         site_secondaryland_first_exceeding_min = .false.
+         if (hlm_use_luh .eq. itrue) then
+            call GetLUHStatedata(bc_in, state_vector)
+            site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. currentSite%min_allowed_landuse_fraction) &
+                 .and. (.not. currentSite%landuse_vector_gt_min(secondaryland))
+         end if
+
          ! if the total intended area of secondary lands are less than what we can consider without having too-small patches,
          ! or if that was the case until just now, then there is special logic
          if (site_secondaryland_first_exceeding_min) then
