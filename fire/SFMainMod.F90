@@ -121,7 +121,7 @@ contains
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
-    type(bc_in_type),    intent(in)           :: bc_in
+    type(bc_in_type),   intent(in)            :: bc_in
 
     ! LOCALS:  
     type(fates_patch_type), pointer :: currentPatch   ! patch object
