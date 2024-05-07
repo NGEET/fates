@@ -2752,13 +2752,13 @@ contains
     
     call rp%tveg_longterm%FuseRMean(dp%tveg_longterm,rp%area*inv_sum_area)
 
-    rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
+    rp%fuel%average_moisture  = (dp%fuel%average_moisture*dp%area + rp%fuel%average_moisture*rp%area) * inv_sum_area
     rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
     rp%fuel%total_loading   = (dp%fuel%total_loading*dp%area + rp%fuel%total_loading*rp%area) * inv_sum_area
     rp%fuel%frac_loading    = (dp%fuel%frac_loading(:)*dp%area + rp%fuel%frac_loading(:)*rp%area) * inv_sum_area
-    rp%fuel_bulkd           = (dp%fuel_bulkd*dp%area + rp%fuel_bulkd*rp%area) * inv_sum_area
-    rp%fuel_sav             = (dp%fuel_sav*dp%area + rp%fuel_sav*rp%area) * inv_sum_area
-    rp%fuel_mef             = (dp%fuel_mef*dp%area + rp%fuel_mef*rp%area) * inv_sum_area
+    rp%fuel%bulk_density    = (dp%fuel%bulk_density*dp%area + rp%fuel%bulk_density*rp%area) * inv_sum_area
+    rp%fuel%SAV             = (dp%fuel%SAV*dp%area + rp%fuel%SAV*rp%area) * inv_sum_area
+    rp%fuel%MEF             = (dp%fuel%MEF*dp%area + rp%fuel%MEF*rp%area) * inv_sum_area
     rp%ros_front            = (dp%ros_front*dp%area + rp%ros_front*rp%area) * inv_sum_area
     rp%tau_l                = (dp%tau_l*dp%area + rp%tau_l*rp%area) * inv_sum_area
     rp%tfc_ros              = (dp%tfc_ros*dp%area + rp%tfc_ros*rp%area) * inv_sum_area

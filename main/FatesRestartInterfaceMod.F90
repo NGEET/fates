@@ -2488,7 +2488,7 @@ contains
 
                 io_idx_pa_cwd  = io_idx_co_1st
                 do i = 1,nfsc
-                   this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd) = cpatch%litter_moisture(i)
+                   this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd) = cpatch%fuel%effective_moisture(i)
                    io_idx_pa_cwd      = io_idx_pa_cwd + 1
                 end do
 
@@ -3440,7 +3440,7 @@ contains
 
                 io_idx_pa_cwd  = io_idx_co_1st
                 do i = 1,nfsc
-                   cpatch%litter_moisture(i) = this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd)
+                   cpatch%fuel%effective_moisture(i) = this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd)
                    io_idx_pa_cwd      = io_idx_pa_cwd + 1
                 end do
 

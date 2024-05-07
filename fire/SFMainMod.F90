@@ -317,7 +317,7 @@ contains
 
        ! mw_weight = relative fuel moisture/fuel moisture of extinction
        ! average values for litter pools (dead leaves, twigs, small and large branches) plus grass
-       mw_weight = currentPatch%currentPatch%fuel%average_moisture/currentPatch%fuel_mef
+       mw_weight = currentPatch%currentPatch%fuel%average_moisture/currentPatch%fuel%MEF
        
        ! Equation in table A1 Thonicke et al. 2010. 
        ! moist_damp is unitless
@@ -377,7 +377,7 @@ contains
        ! Calculate fraction of litter is burnt for all classes. 
        ! Equation B1 in Thonicke et al. 2010---
        do c = 1, nfsc    !work out the burnt fraction for all pools, even if those pools dont exist.         
-          moist = currentPatch%litter_moisture(c)                  
+          moist = currentPatch%fuel%effective_moisture(c)                  
           ! 1. Very dry litter
           if (moist <= SF_val_min_moisture(c)) then
              currentPatch%burnt_frac_litter(c) = 1.0_r8  
