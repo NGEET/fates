@@ -32,7 +32,6 @@ module EDTypesMod
   use FatesConstantsMod,     only : n_dbh_bins, n_dist_types
   use shr_log_mod,           only : errMsg => shr_log_errMsg
   use SFFireWeatherMod,      only : fire_weather
-  use SFNesterovMod,         only : nesterov_index
 
   implicit none
   private               ! By default everything is private
