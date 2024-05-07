@@ -1036,6 +1036,35 @@ contains
           end if
        end if
 
+    case(2) ! this is a 'sapwood' function specifically for grass PFT that do not produce
+            ! dead woody biomass. So bsap = bagw. Might remove the bsap and bdead for grass
+            ! in the future as there is no need to distinguish the two for grass above- and belowground biomass
+
+       call bagw_allom(d,ipft,crowndamage,elongf_stem,bagw,dbagwdd)
+       call bbgw_allom(d,bagw,dbagwdd,ipft,bbgw,dbbgwdd)
+       bsap = bagw + bbgw
+
+       ! replicate the crown damage code
+       ! Do we really need this for grass? I would think this can be helpful for
+       ! grazing in the future. --XLG
+       if(crowndamage > 1)then
+          call GetCrownReduction(crowndamage, crown_reduction)
+          bsap = elongf_stem * (bsap - (bsap * agb_frac * branch_frac * crown_reduction))
+          if(present(dbsapdd))then
+             dbsapdd = elongf_stem * &
+                  (dbagwdd + dbbgwdd - ((dbagwdd + dbbgwdd) * agb_frac * branch_frac * crown_reduction))
+          end if
+       else
+          bsap = elongf_stem * bsap
+          if (present(dbsapdd))then
+             dbsapdd = elongf_stem * (dbagwdd + dbbgwdd)
+          end if
+       end if
+       
+       if(present(dbsapdd))then
+          dbsapdd = dbagwdd + dbbgwdd
+       end if
+
     case DEFAULT
        write(fates_log(),*) 'An undefined sapwood allometry was specified: ', &
             prt_params%allom_smode(ipft)
@@ -1228,7 +1257,7 @@ contains
             dbdeaddd = dbagwdd/agb_fraction
          end if
          
-      case(2,3,4)
+      case(2,3,4,5)
          
          bdead = bagw + bbgw - bsap
          if(present(dbagwdd) .and. present(dbbgwdd) .and. &
@@ -1631,6 +1660,78 @@ contains
   end subroutine dh2blmax_3pwr
 
 
+
+  ! =========================================================================
+
+  subroutine dh2blmax_3pwr_grass(d,p1,p2,p3,h,dhdd,c2b,blmax,dblmaxdd)
+    !------------------------------------------------------------------------
+    !
+    ! This function calculates the maximum leaf biomass using diameter (basal
+    ! diameter for grass) and plant height based on grass leaf allometry developed
+    ! in Gao et al. 2024
+    !
+    !-------------------
+    ! References
+    !-------------------
+    ! Gao X., Koven C., and Kueppers L. 2024. Allometric relationships and trade-offs
+    ! in 11 common Mediterranean-climate grasses. Ecological Applications.
+    ! https://esajournals.onlinelibrary.wiley.com/doi/10.1002/eap.2976
+
+    !------------------
+    ! Input arguments
+    !------------------
+    ! d          -- Basal diameter for grass or any herbaceous plants             [      cm]
+    ! h          -- Plant height                                                  [       m]
+    ! dhdd       -- Height derivative with dbh                                    [    m/cm]
+    ! p1         -- Parameter 1 (log-intercept)                                   [      --]
+    ! p2         -- Parameter 2 (log-slope associated with d)                     [      --]
+    ! p3         -- Parameter 3 (log-slope associated with h)                     [      --]
+    ! dbh_maxh   -- DBH at maximum height                                         [      cm]
+    ! c2b        -- Carbon to biomass multiplier ~ 2                              [  kg/kgC]
+    !
+    !-----------------
+    ! Output arguments
+    !-----------------
+    ! blmax      -- Leaf biomass                                                  [      kgC]
+    ! dblmaxdd   -- Leaf biomass derivative                                       [   kgC/cm]
+    !
+    !-----------------
+    ! Default parameters have been updated for three FATES grass PFTs according to Gao et al. 2024
+    !---------------------------------------------------------------------------------------------
+    
+    !-----Arguments
+    real(r8), intent(in)              :: d         ! plant diameter                   [    cm]
+    real(r8), intent(in)              :: h         ! plant height                     [     m]
+    real(r8), intent(in)              :: dhdd      ! height derivative                [  m/cm]
+    real(r8), intent(in)              :: p1        ! log-intercept parameter          [     -]
+    real(r8), intent(in)              :: p2        ! log-slope associated with d      [     -]
+    real(r8), intent(in)              :: p3        ! log-slope associated with h      [     -]
+    real(r8), intent(in)              :: c2b       ! carbon to biomass multiplier     [kg/kgC]
+!    real(r8), intent(in)              :: dbh_maxh  ! diameter at maximum height       [    cm]
+    real(r8), intent(out)             :: blmax     ! leaf biomass                     [   kgC]
+    real(r8), intent(out), optional   :: dblmaxdd  ! leaf biomass derivative          [kgC/cm]
+    !----Local variables
+!    real(r8)  :: duse
+
+
+    !----Cap diameter
+!    duse = min(d, dbh_maxh)
+
+    !----Calculate leaf biomass
+    blmax = p1 * d**p2 * h**p3 / c2b
+
+    !----Calculate leaf biomass derivative if needed
+
+    if (present(dblmaxdd))then
+       dblmaxdd = p1 * (p2 * d**(p2 - 1.0_r8) * h**p3 + p3 * h**(p3 - 1.0_r8) * dhdd * d**p2) / c2b
+    end if
+
+    return
+  end subroutine dh2blmax_3pwr_grass
+  
+ 
+          
+    
   ! =========================================================================
   ! Diameter to height (D2H) functions
   ! =========================================================================
@@ -2014,6 +2115,69 @@ contains
 
   ! ============================================================================
 
+
+  subroutine dh2bagw_3pwr_grass(d,h,dhdd,p1,p2,p3,c2b,bagw,dbagwdd)
+    !---------------------------------------------------------------------------
+    !
+    ! This function calculates aboveground biomass (excluding leaf biomass) using
+    ! basal diamerer (cm) and plant height (m) as size references, specifically
+    ! for grass or herbaceous plants (can be used for other PFTs if supported by data)
+    !
+    !----------------
+    ! Reference
+    !----------------
+    ! Gao X., Koven C., and Kueppers L. 2024. Allometric relationships and trade-offs in 11
+    ! common Mediterranean-climate grasses. Ecological Applications.
+    ! https://esajournals.onlinelibrary.wiley.com/doi/10.1002/eap.2976
+    !
+    !----------------
+    ! Input arguments
+    !----------------
+    ! d                    -- Basal diameter                      [    cm]
+    ! h                    -- Plant height                        [     m]
+    ! dhdd                 -- Height derivative with diameter     [  m/cm]
+    ! p1                   -- Log-intercept                       [     -]
+    ! p2                   -- Log-slope associated with d         [     -]
+    ! p3                   -- Log-slope associated with h         [     -]
+    ! c2b                  -- Carbon to biomass multiplier        [kg/kgC]
+    !
+    !----------------
+    ! Output variables
+    !----------------
+    ! bagw                 -- Aboveground biomass                 [   kgC]
+    ! dbagwdd              -- Aboveground biomass derivative      [kgC/cm]
+    !
+    !---------------------------------------------------------------------------
+
+
+    !----Arguments
+    real(r8), intent(in)              :: d               ! plant diameter                      [    cm]
+    real(r8), intent(in)              :: h               ! plant height                        [     m]
+    real(r8), intent(in)              :: dhdd            ! height derivative w/ diameter       [  m/cm]
+    real(r8), intent(in)              :: p1              ! log-intercept                       [     -]
+    real(r8), intent(in)              :: p2              ! log-slope associated with d         [     -]
+    real(r8), intent(in)              :: p3              ! log-slope associated with h         [     -]
+    real(r8), intent(in)              :: c2b             ! biomass to carbon multiplier        [kg/kgC]
+    real(r8), intent(out)             :: bagw            ! aboveground biomass excluding leaf  [   kgC]
+    real(r8), intent(out)             :: dbagwdd         ! aboveground biomass derivative      [kgC/cm]
+
+    !----Calculate aboveground biomass
+
+    bagw = p1 * (d**p2) * (h**p3) / c2b
+
+    !----Compute the aboveground biomass derivative with basal diameter if needed
+    if (present(dbagwdd)) then
+       dbagwdd = p1 * (p2 * d**(p2 - 1.0_r8) * h**p3 + p3 * h**(p3 - 1.0_r8) * dhdd * d**p2) / c2b
+    end if
+
+    return
+  end subroutine dh2bagw_3pwr_grass
+  
+    
+
+  ! ============================================================================
+
+  
 
   subroutine d2bagw_2pwr(d,p1,p2,c2b,bagw,dbagwdd)
     
