@@ -1510,7 +1510,7 @@ contains
                       write(fates_log(),*) nocomp_pft_area_vector
                       write(fates_log(),*) '-----'
                       write(fates_log(),*) buffer_patch%area, buffer_patch%land_use_label, buffer_patch%nocomp_pft_label
-                      write(fates_log(+),*) sum(nocomp_pft_area_vector(:)),  sum(nocomp_pft_area_vector_filled(:)), buffer_patch%area
+                      write(fates_log(),*) sum(nocomp_pft_area_vector(:)),  sum(nocomp_pft_area_vector_filled(:)), buffer_patch%area
                       currentPatch => currentSite%oldest_patch
                       do while(associated(currentPatch))
                          write(fates_log(),*) currentPatch%area, currentPatch%land_use_label, currentPatch%nocomp_pft_label

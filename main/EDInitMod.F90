@@ -623,7 +623,7 @@ contains
 
     use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps
     use FatesInventoryInitMod,   only : initialize_sites_by_inventory
-    use FatesLandUseChangeMod,   only : get_luh_statedata
+    use FatesLandUseChangeMod,   only : GetLUHStatedata
 
     !
     ! !ARGUMENTS
@@ -720,7 +720,7 @@ contains
              ! This could be updated in the future to allow a variable number of
              ! categories based on which states are zero
              n_active_landuse_cats = n_landuse_cats
-             call get_luh_statedata(bc_in(s), state_vector)
+             call GetLUHStatedata(bc_in(s), state_vector)
 
              ! if the land use state vector is greater than the minimum value, set landuse_vector_gt_min flag to true
              ! otherwise set to false.
