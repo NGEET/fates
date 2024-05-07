@@ -53,7 +53,7 @@ _TEST_SUB_DIR = "testing"
 # command-line argument list
 _ALL_TESTS_DICT = {
         "allometry": {
-          "test_dir": "fates_allom_test",
+          "test_dir": "fates_allom_ftest",
           "test_exe": "FATES_allom_exe",
           "out_file": "allometry_out.nc",
           "has_unit_test": False,
@@ -62,13 +62,22 @@ _ALL_TESTS_DICT = {
           "plotting_function": plot_allometry_dat,
         },
         "quadratic": {
-          "test_dir": "fates_math_test",
+          "test_dir": "fates_math_ftest",
           "test_exe": "FATES_math_exe",
           "out_file": "quad_out.nc",
           "has_unit_test": False,
           "use_param_file": False,
           "other_args": [],
           "plotting_function": plot_quadratic_dat,
+        },
+        "fire_weather":{
+            "test_dir": "fates_fire_weather_utest",
+            "test_exe": None,
+            "out_file": None,
+            "has_unit_test": True,
+            "use_param_file": False,
+            "other_args": [],
+            "plotting_function": None,
         }
     }
 
@@ -197,6 +206,17 @@ def run_tests(clean, verbose_make, build_tests, run_executables, build_dir, run_
             # run
             run_fortran_exectuables(build_dir_path, attributes['test_dir'],
                             attributes['test_exe'], run_dir_path, args)
+            
+    # run unit tests 
+    for test, attributes in dict(filter(lambda pair: pair[1]['has_unit_test'],
+                                        test_dict.items())).items():
+        print(f"Running unit tests for {test}.")
+        
+        test_dir = os.path.join(build_dir_path, _TEST_SUB_DIR, attributes['test_dir'])
+        ctest_command = ["ctest", "--output-on-failure"]
+        output = run_cmd_no_fail(" ".join(ctest_command), from_dir=test_dir, 
+                                 combine_output=True)
+        print(output)
 
     # plot output for relevant tests
     for test, attributes in dict(filter(lambda pair: pair[1]['plotting_function'] is not None,
@@ -204,6 +224,7 @@ def run_tests(clean, verbose_make, build_tests, run_executables, build_dir, run_
         attributes['plotting_function'](run_dir_path,
                                         attributes['out_file'], save_figs,
                                         os.path.join(run_dir_path, 'plots', test))
+    # show plots
     plt.show()
 
 def out_file_exists(run_dir, out_file):
