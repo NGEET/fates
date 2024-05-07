@@ -3918,7 +3918,7 @@ contains
                            hio_gpp_canopy_si_scpf(io_si,scpf) = hio_gpp_canopy_si_scpf(io_si,scpf) +  &
                                 n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
                            hio_ar_canopy_si_scpf(io_si,scpf) = hio_ar_canopy_si_scpf(io_si,scpf) + &
-                                n_perm2*ccohort%resp_acc_hold / days_per_year / sec_per_day
+                                n_perm2*(ccohort%resp_m_acc_hold + ccohort%resp_g_acc_hold) / days_per_year / sec_per_day
                            ! growth increment
                            hio_ddbh_canopy_si_scpf(io_si,scpf) = hio_ddbh_canopy_si_scpf(io_si,scpf) + &
                                 ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
@@ -4053,7 +4053,7 @@ contains
                            hio_gpp_understory_si_scpf(io_si,scpf)      = hio_gpp_understory_si_scpf(io_si,scpf)      + &
                                 n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
                            hio_ar_understory_si_scpf(io_si,scpf)      = hio_ar_understory_si_scpf(io_si,scpf)      + &
-                                n_perm2*ccohort%resp_acc_hold / days_per_year / sec_per_day
+                                n_perm2*(ccohort%resp_m_acc_hold + ccohort%resp_g_acc_hold) / days_per_year / sec_per_day
 
                            ! growth increment
                            hio_ddbh_understory_si_scpf(io_si,scpf) = hio_ddbh_understory_si_scpf(io_si,scpf) + &

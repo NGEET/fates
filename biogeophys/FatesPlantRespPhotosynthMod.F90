@@ -987,6 +987,7 @@ contains
 
                         ! convert from kgC/indiv/s to kgC/indiv/timestep
                         currentCohort%resp_m        = currentCohort%resp_m  * dtime
+                        currentCohort%resp_m_tstep  = currentCohort%resp_m   ! these two things are the same. we should get rid of one of them. which?
                         currentCohort%gpp_tstep     = currentCohort%gpp_tstep * dtime
                         currentCohort%ts_net_uptake = currentCohort%ts_net_uptake * dtime
 
@@ -994,15 +995,6 @@ contains
                         if ( debug ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
                         if ( debug ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
 
-
-                        currentCohort%resp_g_tstep     = prt_params%grperc(ft) * &
-                             (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
-
-
-                        currentCohort%resp_tstep = currentCohort%resp_m + &
-                             currentCohort%resp_g_tstep ! kgC/indiv/ts
-                        currentCohort%npp_tstep  = currentCohort%gpp_tstep - &
-                             currentCohort%resp_tstep  ! kgC/indiv/ts
 
                         ! Accumulate the combined conductance (stomatal+leaf boundary layer)
                         ! Note that currentCohort%g_sb_laweight is weighted by the leaf area

@@ -335,7 +335,8 @@ contains
     use FatesConstantsMod, only : itrue
     use FatesConstantsMod     , only : nearzero
     use EDCanopyStructureMod  , only : canopy_structure
-    
+    use PRTParametersMod      , only : prt_params
+
     ! !ARGUMENTS:
 
     type(ed_site_type)     , intent(inout) :: currentSite
@@ -498,7 +499,7 @@ contains
                 ! We don't explicitly define a respiration rate for prescribe phys
                 ! but we do need to pass mass balance. So we say it is zero respiration
                 currentCohort%gpp_acc  = currentCohort%npp_acc
-                currentCohort%resp_acc = 0._r8
+                currentCohort%resp_m_acc = 0._r8
 
              end if
 
@@ -514,14 +515,30 @@ contains
              !         photosynthesis step
              ! -----------------------------------------------------------------------------
 
-             currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
              currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
-             currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
+             currentCohort%resp_m_acc_hold = currentCohort%resp_m_acc * real(hlm_days_per_year,r8)
+
+             ! at this point we have the info we need to calculate growth respiration
+             ! as a "tax" on the difference between daily GPP and daily maintenance respiration
+             if (hlm_use_ed_prescribed_phys .eq. itrue) then
+                currentCohort%resp_g_acc = prt_params%grperc(ft) * &
+                     max(0._r8,(currentCohort%gpp_acc - currentCohort%resp_m_acc))
+                currentCohort%resp_g_acc_hold = currentCohort%resp_g_acc * real(hlm_days_per_year,r8)
+             else
+                ! set growth respiration to zero in prescribed physiology mode,
+                ! that way the npp_acc vars will be set to the nominal gpp values set above.
+                currentCohort%resp_g_acc = 0._r8
+                currentCohort%resp_g_acc_hold = 0._r8
+             endif
+
+             ! calculate the npp as the difference between gpp and autotrophic respiration
+             currentCohort%npp_acc       = currentCohort%gpp_acc - (currentCohort%resp_m_acc + currentCohort%resp_g_acc)
+             currentCohort%npp_acc_hold  = currentCohort%gpp_acc_hold - (currentCohort%resp_m_acc_hold + currentCohort%resp_g_acc_hold)
 
              ! Passing gpp_acc_hold to HLM 
              bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
                   AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
-             bc_out%ar_site = bc_out%ar_site + currentCohort%resp_acc_hold * & 
+             bc_out%ar_site = bc_out%ar_site + (currentCohort%resp_m_acc_hold + currentCohort%resp_g_acc_hold) * & 
                   AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
 
              ! Conduct Maintenance Turnover (parteh)
@@ -630,7 +647,8 @@ contains
                 currentCohort%gpp_acc * currentCohort%n
 
           site_cmass%aresp_acc = site_cmass%aresp_acc + &
-               (currentCohort%resp_acc+currentCohort%resp_excess) * currentCohort%n
+               (currentCohort%resp_m_acc+currentCohort%resp_g_acc+currentCohort%resp_excess) * &
+               currentCohort%n
 
           call currentCohort%prt%CheckMassConservation(ft,5)
 
@@ -1050,11 +1068,13 @@ contains
 
           currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
           currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
-          currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
+          currentCohort%resp_g_acc_hold = currentCohort%resp_g_acc * real(hlm_days_per_year,r8)
+          currentCohort%resp_m_acc_hold = currentCohort%resp_m_acc * real(hlm_days_per_year,r8)
 
           currentCohort%npp_acc  = 0.0_r8
           currentCohort%gpp_acc  = 0.0_r8
-          currentCohort%resp_acc = 0.0_r8
+          currentCohort%resp_g_acc = 0.0_r8
+          currentCohort%resp_m_acc = 0.0_r8
 
           ! No need to set the "net_art" terms to zero
           ! they are zeroed at the beginning of the daily step
