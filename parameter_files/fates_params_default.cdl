@@ -997,7 +997,7 @@ data:
  fates_allom_agb_frac = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 1, 
     1, 1 ;
 
- fates_allom_amode = 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1 ;
+ fates_allom_amode = 3, 3, 3, 3, 3, 3, 1, 1, 1, 5, 5, 5 ;
 
  fates_allom_blca_expnt_diff = -0.12, -0.34, -0.32, -0.22, -0.12, -0.35, 0, 
     0, 0, -0.487, -0.487, -0.259 ;
@@ -1058,12 +1058,12 @@ data:
 
  fates_allom_la_per_sa_slp = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
- fates_allom_lmode = 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1 ;
+ fates_allom_lmode = 2, 2, 2, 2, 2, 2, 1, 1, 1, 5, 5, 5 ;
 
  fates_allom_sai_scaler = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
     0.1, 0.1 ;
 
- fates_allom_smode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
+ fates_allom_smode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2 ;
 
  fates_allom_stmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
