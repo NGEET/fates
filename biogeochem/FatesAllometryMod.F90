@@ -1047,7 +1047,7 @@ contains
             ! in the future as there is no need to distinguish the two for grass above- and belowground biomass
 
        call bagw_allom(d,ipft,crowndamage,elongf_stem,bagw,dbagwdd)
-       call bbgw_allom(d,bagw,dbagwdd,ipft,bbgw,dbbgwdd)
+       call bbgw_allom(d,ipft, elongf_stem,bbgw,dbbgwdd)
        bsap = bagw + bbgw
 
        ! replicate the crown damage code
@@ -2165,7 +2165,7 @@ contains
     real(r8), intent(in)              :: p3              ! log-slope associated with h         [     -]
     real(r8), intent(in)              :: c2b             ! biomass to carbon multiplier        [kg/kgC]
     real(r8), intent(out)             :: bagw            ! aboveground biomass excluding leaf  [   kgC]
-    real(r8), intent(out)             :: dbagwdd         ! aboveground biomass derivative      [kgC/cm]
+    real(r8), intent(out),optional    :: dbagwdd         ! aboveground biomass derivative      [kgC/cm]
 
     !----Calculate aboveground biomass
 
