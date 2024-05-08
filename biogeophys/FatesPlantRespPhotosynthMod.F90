@@ -1302,9 +1302,11 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   real(r8),parameter :: fnps = 0.15_r8
 
   ! term accounting that two photons are needed to fully transport a single 
-  ! electron to the thylakoid-membrane-bound NADP reductase (see Farquhar 1980)
-  ! ie only half the energy from a photon enters photosystem 2
-  real(r8), parameter :: photon_to_e_nadp = 0.5_r8
+  ! electron in photosystem 2
+  real(r8), parameter :: photon_to_e = 0.5_r8
+
+  ! Unit conversion of w/m2 to umol photons m-2 s-1
+  real(r8), parameter :: wm2_to_umolm2s = 4.6_r8
   
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
@@ -1369,7 +1371,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
         do  sunsha = 1,2
            ! Electron transport rate for C3 plants.
-           ! Convert par from W/m2 to umol photons/m**2/s using the factor 4.6
+           ! Convert par from W/m2 to umol photons/m**2/s
            ! Convert from units of par absorbed per unit ground area to par
            ! absorbed per unit leaf area.
 
@@ -1377,7 +1379,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               if(( laisun_lsl * canopy_area_lsl) > min_la_to_solve)then
 
                  qabs = parsun_lsl / (laisun_lsl * canopy_area_lsl )
-                 qabs = qabs * photon_to_e_nadp * (1._r8 - fnps) *  4.6_r8
+                 qabs = qabs * photon_to_e * (1._r8 - fnps) * wm2_to_umolm2s
 
               else
                  qabs = 0.0_r8
@@ -1387,7 +1389,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               if( (parsha_lsl>nearzero) .and. (laisha_lsl * canopy_area_lsl) > min_la_to_solve  ) then
 
                  qabs = parsha_lsl / (laisha_lsl * canopy_area_lsl)
-                 qabs = qabs * photon_to_e_nadp * (1._r8 - fnps) *  4.6_r8
+                 qabs = qabs * photon_to_e * (1._r8 - fnps) *  wm2_to_umolm2s
               else                 
                  ! The radiative transfer schemes are imperfect
                  ! they can sometimes generate negative values here
@@ -1443,14 +1445,14 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                  if(sunsha == 1)then !sunlit
                     !guard against /0's in the night.
                     if((laisun_lsl * canopy_area_lsl) > 0.0000000001_r8) then
-                       aj = quant_eff(c3c4_path_index) * parsun_lsl * 4.6_r8
+                       aj = quant_eff(c3c4_path_index) * parsun_lsl * wm2_to_umolm2s
                        !convert from per cohort to per m2 of leaf)
                        aj = aj / (laisun_lsl * canopy_area_lsl)
                     else
                        aj = 0._r8
                     end if
                  else
-                    aj = quant_eff(c3c4_path_index) * parsha_lsl * 4.6_r8
+                    aj = quant_eff(c3c4_path_index) * parsha_lsl * wm2_to_umolm2s
                     aj = aj / (laisha_lsl * canopy_area_lsl)
                  end if
 
