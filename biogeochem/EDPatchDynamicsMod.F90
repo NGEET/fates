@@ -1411,7 +1411,7 @@ contains
                 buffer_patch%tallest  => null()
                 buffer_patch%shortest => null()
 
-                call CopyPatchMeansTimers(buffer_patch, currentPatch)
+                call CopyPatchMeansTimers(buffer_patch, copyPatch)
 
                 ! make a note that this buffer patch has not been put into the linked list
                 buffer_patch_in_linked_list = .false.
