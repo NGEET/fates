@@ -54,6 +54,7 @@ module EDLoggingMortalityMod
    use FatesInterfaceTypesMod , only : hlm_num_lu_harvest_cats
    use FatesInterfaceTypesMod , only : hlm_use_logging 
    use FatesInterfaceTypesMod , only : hlm_use_planthydro
+   use FatesInterfaceTypesMod , only : hlm_use_luh
    use FatesConstantsMod , only : itrue,ifalse
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log
@@ -71,8 +72,8 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : hlm_harvest_carbon
    use FatesConstantsMod, only : fates_check_param_set
    use FatesInterfaceTypesMod , only : numpft
-   use FatesLandUseChangeMod, only : get_init_landuse_harvest_rate
-   use FatesLandUseChangeMod, only : get_luh_statedata
+   use FatesLandUseChangeMod, only : GetInitLanduseHarvestRate
+   use FatesLandUseChangeMod, only : GetLUHStatedata
      
    implicit none
    private
@@ -249,17 +250,30 @@ contains
       ! todo: eventually set up distinct harvest practices, each with a set of input paramaeters
       ! todo: implement harvested carbon inputs
 
-      call get_luh_statedata(bc_in, state_vector)
-      site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. currentSite%min_allowed_landuse_fraction) &
-           .and. (.not. currentSite%landuse_vector_gt_min(secondaryland))
-
+      ! The transition_landuse_from_off_to_on is for handling the special case of the first timestep after leaving potential
+      ! vegetation mode. In this case, all prior historical land-use, including harvest, needs to be applied on that first day.
+      ! So logging rates on that day are what is required to deforest exactly the amount of primary lands that will give the
+      ! amount of secondary lands dictated by the land use state vector for that year, rather than whatever the continuous
+      ! logging rate for that year is supposed to be according to the land use transition matrix.
       if (.not. currentSite%transition_landuse_from_off_to_on) then
-         if (site_secondaryland_first_exceeding_min) then
 
-            ! if the total intended area of secondary lands are less than what we can consider without having too-small patches,
-            ! or if that was the case until just now, then there is special logic
-            harvest_rate = state_vector(secondaryland) / sum(state_vector(:))
-            write(fates_log(), *) 'applying state_vector(secondaryland) to plants.', pft_i
+         ! Check if the secondaryland exceeds the minimum if in landuse mode
+         site_secondaryland_first_exceeding_min = .false.
+         if (hlm_use_luh .eq. itrue) then
+            call GetLUHStatedata(bc_in, state_vector)
+            site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. currentSite%min_allowed_landuse_fraction) &
+                 .and. (.not. currentSite%landuse_vector_gt_min(secondaryland))
+         end if
+
+         ! if the total intended area of secondary lands are less than what we can consider without having too-small patches,
+         ! or if that was the case until just now, then there is special logic
+         if (site_secondaryland_first_exceeding_min) then
+            if ( patch_land_use_label .eq. primaryland) then
+               harvest_rate = state_vector(secondaryland) / state_vector(primaryland)
+               write(fates_log(), *) 'applying state_vector(secondaryland) to plants.', pft_i
+            else
+               harvest_rate = 0._r8
+            endif
 
             ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
             harvest_tag = 2
@@ -368,22 +382,16 @@ contains
          endif
 
       else
-         call get_init_landuse_harvest_rate(bc_in, currentSite%min_allowed_landuse_fraction, &
+         call GetInitLanduseHarvestRate(bc_in, currentSite%min_allowed_landuse_fraction, &
               harvest_rate, currentSite%landuse_vector_gt_min)
+         lmort_direct     = 0.0_r8
+         lmort_collateral = 0.0_r8
+         lmort_infra      = 0.0_r8
+         l_degrad         = 0.0_r8
          if(prt_params%woody(pft_i) == itrue)then
             lmort_direct     = harvest_rate
-            lmort_collateral = 0.0_r8
-            lmort_infra      = 0.0_r8
-            l_degrad         = 0.0_r8
-         else
-            lmort_direct     = 0.0_r8
-            lmort_collateral = 0.0_r8
-            lmort_infra      = 0.0_r8
-            if (canopy_layer .eq. 1) then
-               l_degrad         = harvest_rate
-            else
-               l_degrad         = 0.0_r8
-            endif
+         else if (canopy_layer .eq. 1) then
+            l_degrad         = harvest_rate
          endif
       endif
 

@@ -713,15 +713,15 @@ contains
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gdd_si )
 
     call this%set_restart_var(vname='fates_min_allowed_landuse_fraction_site', vtype=site_r8, &
-         long_name='minimum allowed land use fraction at each site', units='degC days', flushval = flushzero, &
+         long_name='minimum allowed land use fraction at each site', units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_min_allowed_landuse_fraction_si )
 
     call this%set_restart_var(vname='fates_landuse_vector_gt_min_site', vtype=cohort_int, &
-         long_name='minimum allowed land use fraction at each site', units='degC days', flushval = flushzero, &
+         long_name='minimum allowed land use fraction at each site', units='logical', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_landuse_vector_gt_min_si )
 
     call this%set_restart_var(vname='fates_area_bareground_site', vtype=site_r8, &
-         long_name='minimum allowed land use fraction at each site', units='degC days', flushval = flushzero, &
+         long_name='minimum allowed land use fraction at each site', units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_area_bareground_si )
 
     call this%set_restart_var(vname='fates_snow_depth_site', vtype=site_r8, &
@@ -3696,6 +3696,12 @@ contains
           ! restart run that did not include land use.
           if (rio_landuse_config_si(io_idx_si) .eq. itrue .and. hlm_use_potentialveg .eq. ifalse) then
              sites(s)%transition_landuse_from_off_to_on = .true.
+          else if ( rio_landuse_config_si(io_idx_si) .ne. hlm_use_potentialveg ) then
+             ! can't go back into potential vegetation mode, it is a one-way thing.
+             write(fates_log(),*) 'this combination of rio_landuse_config_si(io_idx_si) and hlm_use_potentialveg is not permitted'
+             write(fates_log(),*) 'rio_landuse_config_si(io_idx_si)', rio_landuse_config_si(io_idx_si)
+             write(fates_log(),*) 'hlm_use_potentialveg', hlm_use_potentialveg       
+             call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
 
        end do

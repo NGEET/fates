@@ -470,7 +470,7 @@ contains
                 ! where pft_areafrac_lu is the area of land in each HLM PFT and land use type (from surface dataset)
                 ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
 
-                ! first check for NaNs in bc_in(s)%pft_areafrac_lu. if so, make everything bare ground.
+                ! First check for NaNs in bc_in(s)%pft_areafrac_lu. If so, make everything bare ground.
                 if ( .not. (any( isnan( bc_in(s)%pft_areafrac_lu (:,:) )) .or. isnan( bc_in(s)%baregroundfrac))) then
                    do i_landusetype = 1, n_landuse_cats
                       if (.not. is_crop(i_landusetype)) then
@@ -558,7 +558,7 @@ contains
                       sites(s)%area_pft(:, i_landusetype) = temp_vec(:)
 
                       ! write adjusted vector to log file
-                      if(debug) write(fates_log(),*)  'new PFT vector for LU type', i_landusetype, i_landusetype,sites(s)%area_pft(:, i_landusetype)
+                      if(debug) write(fates_log(),*)  'new PFT vector for LU type', i_landusetype, sites(s)%area_pft(:, i_landusetype)
                    endif
                 end do
              end if
@@ -566,17 +566,16 @@ contains
              ! re-normalize PFT area to ensure it sums to one for each (active) land use type
              ! for nocomp cases, track bare ground area as a separate quantity
              do i_landusetype = 1, n_landuse_cats
-                sumarea = sum(sites(s)%area_pft(1:numpft,i_landusetype))
-                do ft =  1,numpft
-                   if(sumarea.gt.nearzero)then
-                      sites(s)%area_pft(ft, i_landusetype) = sites(s)%area_pft(ft, i_landusetype)/sumarea
-                   else
-                      ! if no PFT area in primary lands, set bare ground fraction to one.
-                      if ( i_landusetype .eq. primaryland) then
-                         sites(s)%area_bareground = 1._r8
-                      endif
-                   end if
-                end do !ft
+                sumarea = sum(sites(s)%area_pft(:,i_landusetype))
+                if(sumarea.gt.nearzero)then
+                      sites(s)%area_pft(:, i_landusetype) = sites(s)%area_pft(:, i_landusetype)/sumarea
+                else
+                   ! if no PFT area in primary lands, set bare ground fraction to one.
+                   if ( i_landusetype .eq. primaryland) then
+                      sites(s)%area_bareground = 1._r8
+                      sites(s)%area_pft(:, i_landusetype) = 0._r8
+                   endif
+                end if
              end do
                 
           end if !fixed biogeog
@@ -624,7 +623,7 @@ contains
 
     use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps
     use FatesInventoryInitMod,   only : initialize_sites_by_inventory
-    use FatesLandUseChangeMod,   only : get_luh_statedata
+    use FatesLandUseChangeMod,   only : GetLUHStatedata
 
     !
     ! !ARGUMENTS
@@ -698,8 +697,6 @@ contains
 
     else
 
-       ! state_vector(:) = 0._r8
-
        if(hlm_use_nocomp.eq.itrue)then
           num_nocomp_pfts = numpft
        else !default
@@ -723,7 +720,7 @@ contains
              ! This could be updated in the future to allow a variable number of
              ! categories based on which states are zero
              n_active_landuse_cats = n_landuse_cats
-             call get_luh_statedata(bc_in(s), state_vector)
+             call GetLUHStatedata(bc_in(s), state_vector)
 
              ! if the land use state vector is greater than the minimum value, set landuse_vector_gt_min flag to true
              ! otherwise set to false.
@@ -766,7 +763,7 @@ contains
                      hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
                      regeneration_model)
 
-                ! set poointers for first patch (or only patch, if nocomp is false)
+                ! set pointers for first patch (or only patch, if nocomp is false)
                 newp%patchno = 1
                 newp%younger => null()
                 newp%older   => null()
@@ -796,7 +793,7 @@ contains
              end_landuse_idx = 1
           endif
 
-          not_all_baregground_if: if ((1._r8 - sites(s)%area_bareground) .gt. nearzero) then
+          not_all_bareground_if: if ((1._r8 - sites(s)%area_bareground) .gt. nearzero) then
              ! now make one or more vegetated patches based on nocomp and land use logic
              luh_state_loop: do i_lu_state = 1, end_landuse_idx
                 lu_state_present_if: if (state_vector(i_lu_state) .gt. nearzero) then
@@ -876,7 +873,7 @@ contains
                    end do new_patch_nocomp_loop
                 end if lu_state_present_if
              end do luh_state_loop
-          end if not_all_baregground_if
+          end if not_all_bareground_if
 
           ! if we had to skip small patches above, resize things accordingly
           if ( area_error .gt. nearzero) then

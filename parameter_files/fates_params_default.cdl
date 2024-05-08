@@ -1626,7 +1626,7 @@ data:
 
  fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
 
- fates_max_nocomp_pfts_by_landuse = 4, 4, 2, 2, 1 ;
+ fates_max_nocomp_pfts_by_landuse = 4, 4, 1, 1, 1 ;
 
  fates_maxpatches_by_landuse = 9, 4, 1, 1, 1 ;
 

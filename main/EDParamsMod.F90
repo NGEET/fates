@@ -260,7 +260,7 @@ integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    integer, public :: maxpatch_total
 
    ! which crops can be grown on a given crop land use type
-   real(r8),protected,public :: crop_lu_pft_vector(n_landuse_cats)
+   integer,protected,public :: crop_lu_pft_vector(n_landuse_cats)
 
    ! Maximum allowable cohorts per patch
    integer, protected, public :: max_cohort_per_patch
