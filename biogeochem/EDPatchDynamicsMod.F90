@@ -764,7 +764,7 @@ contains
                                currentPatch%burnt_frac_litter(:) = 0._r8
                             end if
 
-                            call CopyPatchMeansTimers(newPatch, currentPatch)
+                            call CopyPatchMeansTimers(currentPatch, newPatch)
 
                             call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis)
 
@@ -1411,7 +1411,7 @@ contains
                 buffer_patch%tallest  => null()
                 buffer_patch%shortest => null()
 
-                call CopyPatchMeansTimers(buffer_patch, copyPatch)
+                call CopyPatchMeansTimers(copyPatch, buffer_patch)
 
                 ! make a note that this buffer patch has not been put into the linked list
                 buffer_patch_in_linked_list = .false.
@@ -1654,7 +1654,7 @@ contains
     new_patch%tallest  => null()
     new_patch%shortest => null()
 
-    call CopyPatchMeansTimers(new_patch, currentPatch)
+    call CopyPatchMeansTimers(currentPatch, new_patch)
 
     call TransLitterNewPatch( currentSite, currentPatch, new_patch, currentPatch%area * (1.-fraction_to_keep))
 
@@ -3934,8 +3934,8 @@ contains
     ! --------------------------------------------------------------------------
     !
     ! !ARGUMENTS:
-    type (fates_patch_type) , pointer :: dp                ! Donor Patch
-    type (fates_patch_type) , target, intent(inout) :: rp  ! Recipient Patch
+    type (fates_patch_type), intent(in)    :: dp  ! Donor Patch
+    type (fates_patch_type), intent(inout) :: rp  ! Recipient Patch
 
     ! LOCAL:
     integer :: ipft   ! pft index
