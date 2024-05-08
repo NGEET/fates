@@ -3951,5 +3951,6 @@ contains
        enddo
     end if
 
+ end subroutine CopyPatchMeansTimers
 
  end module EDPatchDynamicsMod
