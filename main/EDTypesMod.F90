@@ -4,6 +4,7 @@ module EDTypesMod
   use FatesGlobals,          only : endrun => fates_endrun
   use FatesConstantsMod,     only : ifalse
   use FatesConstantsMod,     only : itrue
+  use FatesConstantsMod,     only : nocomp_bareground_land
   use FatesGlobals,          only : fates_log
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
@@ -440,7 +441,7 @@ module EDTypesMod
 
      contains
 
-       public :: get_current_landuse_statevector
+       procedure, public :: get_current_landuse_statevector
 
   end type ed_site_type
 
@@ -545,8 +546,6 @@ module EDTypesMod
         currentPatch => currentPatch%younger
      end do
 
-   end subroutine get_current_landuse_statevector
-
-
+   end function get_current_landuse_statevector
   
 end module EDTypesMod
