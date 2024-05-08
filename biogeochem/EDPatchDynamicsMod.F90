@@ -764,10 +764,11 @@ contains
                                currentPatch%burnt_frac_litter(:) = 0._r8
                             end if
 
+                            call CopyPatchMeansTimers(currentPatch, newPatch)
+
                             call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis)
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
-
                             select case(i_disturbance_type)
                             case (dtype_ilog)
                                call logging_litter_fluxes(currentSite, currentPatch, &
@@ -796,27 +797,6 @@ contains
                                write(fates_log(),*) 'i_disturbance_type: ',i_disturbance_type
                                call endrun(msg=errMsg(sourcefile, __LINE__))
                             end select
-
-
-                            ! Copy any means or timers from the original patch to the new patch
-                            ! These values will inherit all info from the original patch
-                            ! --------------------------------------------------------------------------
-                            call newPatch%tveg24%CopyFromDonor(currentPatch%tveg24)
-                            call newPatch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
-                            call newPatch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
-
-
-                            if ( regeneration_model == TRS_regeneration ) then
-                               call newPatch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24)
-                               call newPatch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par)
-                               call newPatch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par)
-                               do pft = 1,numpft
-                                  call newPatch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
-                                  call newPatch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
-                               enddo
-                            end if
-
-                            call newPatch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
 
                             ! --------------------------------------------------------------------------
                             ! The newly formed patch from disturbance (newPatch), has now been given
@@ -1419,9 +1399,6 @@ contains
                      hlm_numSWb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
                      regeneration_model)
 
-                ! make a note that this buffer patch has not been put into the linked list
-                buffer_patch_in_linked_list = .false.
-
                 ! Initialize the litter pools to zero
                 do el=1,num_elements
                    call buffer_patch%litter(el)%InitConditions(init_leaf_fines=0._r8, &
@@ -1434,22 +1411,10 @@ contains
                 buffer_patch%tallest  => null()
                 buffer_patch%shortest => null()
 
-                ! Copy any means or timers from the original patch to the new patch
-                ! These values will inherit all info from the original patch
-                ! --------------------------------------------------------------------------
-                call buffer_patch%tveg24%CopyFromDonor(copyPatch%tveg24)
-                call buffer_patch%tveg_lpa%CopyFromDonor(copyPatch%tveg_lpa)
-                call buffer_patch%tveg_longterm%CopyFromDonor(copyPatch%tveg_longterm)
+                call CopyPatchMeansTimers(copyPatch, buffer_patch)
 
-                if ( regeneration_model == TRS_regeneration ) then
-                   call buffer_patch%seedling_layer_par24%CopyFromDonor(copyPatch%seedling_layer_par24)
-                   call buffer_patch%sdlng_mort_par%CopyFromDonor(copyPatch%sdlng_mort_par)
-                   call buffer_patch%sdlng2sap_par%CopyFromDonor(copyPatch%sdlng2sap_par)
-                   do pft = 1,numpft
-                      call buffer_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(copyPatch%sdlng_emerg_smp(pft)%p)
-                      call buffer_patch%sdlng_mdd(pft)%p%CopyFromDonor(copyPatch%sdlng_mdd(pft)%p)
-                   enddo
-                end if
+                ! make a note that this buffer patch has not been put into the linked list
+                buffer_patch_in_linked_list = .false.
                 buffer_patch_used = .false.
 
                 currentPatch => currentSite%oldest_patch
@@ -1656,8 +1621,8 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type),intent(inout) :: currentSite
-    type(fates_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
-    type(fates_patch_type) , intent(inout), target :: new_patch      ! New Patch
+    type(fates_patch_type) , intent(inout), pointer :: currentPatch   ! Donor Patch
+    type(fates_patch_type) , intent(inout), pointer :: new_patch      ! New Patch
     real(r8), intent(in)    :: fraction_to_keep  ! fraction of currentPatch to keep, the rest goes to newpatch
     !
     ! !LOCAL VARIABLES:
@@ -1686,29 +1651,14 @@ contains
             init_seed=0._r8,   &
             init_seed_germ=0._r8)
     end do
-
     new_patch%tallest  => null()
     new_patch%shortest => null()
 
-    ! Copy any means or timers from the original patch to the new patch
-    ! These values will inherit all info from the original patch
-    ! --------------------------------------------------------------------------
-    call new_patch%tveg24%CopyFromDonor(currentPatch%tveg24)
-    call new_patch%tveg_lpa%CopyFromDonor(currentPatch%tveg_lpa)
-    call new_patch%tveg_longterm%CopyFromDonor(currentPatch%tveg_longterm)
+    call CopyPatchMeansTimers(currentPatch, new_patch)
 
-    if ( regeneration_model == TRS_regeneration ) then
-       call new_patch%seedling_layer_par24%CopyFromDonor(currentPatch%seedling_layer_par24)
-       call new_patch%sdlng_mort_par%CopyFromDonor(currentPatch%sdlng_mort_par)
-       call new_patch%sdlng2sap_par%CopyFromDonor(currentPatch%sdlng2sap_par)
-       do pft = 1,numpft
-          call new_patch%sdlng_emerg_smp(pft)%p%CopyFromDonor(currentPatch%sdlng_emerg_smp(pft)%p)
-          call new_patch%sdlng_mdd(pft)%p%CopyFromDonor(currentPatch%sdlng_mdd(pft)%p)
-       enddo
-    end if
-                            
-    currentPatch%burnt_frac_litter(:) = 0._r8
     call TransLitterNewPatch( currentSite, currentPatch, new_patch, currentPatch%area * (1.-fraction_to_keep))
+
+    currentPatch%burnt_frac_litter(:) = 0._r8
 
     ! Next, we loop through the cohorts in the donor patch, copy them with
     ! area modified number density into the new-patch, and apply survivorship.
@@ -3973,5 +3923,37 @@ contains
     end if
 
  end subroutine InsertPatch
+
+  ! =====================================================================================
+
+ subroutine CopyPatchMeansTimers(dp, rp)
+
+    ! !DESCRIPTION:
+    ! Copy any means or timers from the original patch to the new patch
+    ! These values will inherit all info from the original patch
+    ! --------------------------------------------------------------------------
+    !
+    ! !ARGUMENTS:
+    type (fates_patch_type), intent(in)    :: dp  ! Donor Patch
+    type (fates_patch_type), intent(inout) :: rp  ! Recipient Patch
+
+    ! LOCAL:
+    integer :: ipft   ! pft index
+
+    call rp%tveg24%CopyFromDonor(dp%tveg24)
+    call rp%tveg_lpa%CopyFromDonor(dp%tveg_lpa)
+    call rp%tveg_longterm%CopyFromDonor(dp%tveg_longterm)
+
+    if ( regeneration_model == TRS_regeneration ) then
+       call rp%seedling_layer_par24%CopyFromDonor(dp%seedling_layer_par24)
+       call rp%sdlng_mort_par%CopyFromDonor(dp%sdlng_mort_par)
+       call rp%sdlng2sap_par%CopyFromDonor(dp%sdlng2sap_par)
+       do ipft = 1,numpft
+          call rp%sdlng_emerg_smp(ipft)%p%CopyFromDonor(dp%sdlng_emerg_smp(ipft)%p)
+          call rp%sdlng_mdd(ipft)%p%CopyFromDonor(dp%sdlng_mdd(ipft)%p)
+       enddo
+    end if
+
+ end subroutine CopyPatchMeansTimers
 
  end module EDPatchDynamicsMod
