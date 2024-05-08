@@ -1621,8 +1621,8 @@ contains
     !
     ! !ARGUMENTS:
     type(ed_site_type),intent(inout) :: currentSite
-    type(fates_patch_type) , intent(inout), target :: currentPatch   ! Donor Patch
-    type(fates_patch_type) , intent(inout), target :: new_patch      ! New Patch
+    type(fates_patch_type) , intent(inout), pointer :: currentPatch   ! Donor Patch
+    type(fates_patch_type) , intent(inout), pointer :: new_patch      ! New Patch
     real(r8), intent(in)    :: fraction_to_keep  ! fraction of currentPatch to keep, the rest goes to newpatch
     !
     ! !LOCAL VARIABLES:
@@ -3937,6 +3937,9 @@ contains
     type (fates_patch_type) , pointer :: dp                ! Donor Patch
     type (fates_patch_type) , target, intent(inout) :: rp  ! Recipient Patch
 
+    ! LOCAL:
+    integer :: ipft   ! pft index
+
     call rp%tveg24%CopyFromDonor(dp%tveg24)
     call rp%tveg_lpa%CopyFromDonor(dp%tveg_lpa)
     call rp%tveg_longterm%CopyFromDonor(dp%tveg_longterm)
@@ -3945,9 +3948,9 @@ contains
        call rp%seedling_layer_par24%CopyFromDonor(dp%seedling_layer_par24)
        call rp%sdlng_mort_par%CopyFromDonor(dp%sdlng_mort_par)
        call rp%sdlng2sap_par%CopyFromDonor(dp%sdlng2sap_par)
-       do pft = 1,numpft
-          call rp%sdlng_emerg_smp(pft)%p%CopyFromDonor(dp%sdlng_emerg_smp(pft)%p)
-          call rp%sdlng_mdd(pft)%p%CopyFromDonor(dp%sdlng_mdd(pft)%p)
+       do ipft = 1,numpft
+          call rp%sdlng_emerg_smp(ipft)%p%CopyFromDonor(dp%sdlng_emerg_smp(ipft)%p)
+          call rp%sdlng_mdd(ipft)%p%CopyFromDonor(dp%sdlng_mdd(ipft)%p)
        enddo
     end if
 
