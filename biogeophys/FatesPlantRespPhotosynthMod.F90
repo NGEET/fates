@@ -1510,10 +1510,10 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               ! e_s = (e_i g_s + e_c g_b)/(g_b + g_s)
               !
               ! The leaf surface humidity (e_s) becomes an expression of canopy humidity (e_c),
-              ! intercellular humidity (e_i), boundary layer conductance (g_b) (these are known)
-              ! and stomatal conductance (g_s) (this is still unknown).  This expression is
-              ! substituted into the stomatal conductance equation. The resulting form of these
-              ! equations becomes a quadratic.
+              ! intercellular humidity (e_i, which is the saturation humidity at leaf temperature),
+              ! boundary layer conductance (g_b) (these are all known) and stomatal conductance
+              ! (g_s) (this is still unknown).  This expression is substituted into the stomatal
+              ! conductance equation. The resulting form of these equations becomes a quadratic.
               !
               ! For a detailed explanation, see the FATES technical note, section
               ! "1.11 Stomatal Conductance"
