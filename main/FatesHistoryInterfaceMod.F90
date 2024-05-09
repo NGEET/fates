@@ -349,11 +349,9 @@ module FatesHistoryInterfaceMod
   integer :: ih_understory_biomass_si
   integer :: ih_maint_resp_unreduced_si
 
-  integer :: ih_npp_secondary_si
+  ! these "secondary" flux diagnostics should be reorganized to be site x land-use type rather than just secondary, and also moved to daily timestep.
   integer :: ih_gpp_secondary_si
-  integer :: ih_aresp_secondary_si
   integer :: ih_maint_resp_secondary_si
-  integer :: ih_growth_resp_secondary_si
 
   integer :: ih_primaryland_fusion_error_si
 
@@ -2378,6 +2376,7 @@ contains
          hio_litter_in_si        => this%hvars(ih_litter_in_si)%r81d, &
          hio_litter_out_si       => this%hvars(ih_litter_out_si)%r81d, &
          hio_npp_si              => this%hvars(ih_npp_si)%r82d, &
+         hio_aresp_si            => this%hvars(ih_aresp_si)%r81d, &
          hio_growth_resp_si      => this%hvars(ih_growth_resp_si)%r81d, &
          hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
          hio_ungerm_seed_bank_si => this%hvars(ih_ungerm_seed_bank_si)%r81d, &
@@ -2821,6 +2820,9 @@ contains
 
                   hio_growth_resp_si(io_si) =  hio_growth_resp_si(io_si) + &
                        ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
+
+                  hio_aresp_si(io_si) = hio_aresp_si(io_si) + &
+                       (ccohort%resp_g_acc_hold + ccohort%resp_m_acc_hold) * n_perm2 / days_per_year / sec_per_day
 
                   ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
                   sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, carbon12_element) * days_per_year
@@ -4887,12 +4889,8 @@ contains
 
     associate( hio_gpp_si                   => this%hvars(ih_gpp_si)%r81d, &
          hio_gpp_secondary_si         => this%hvars(ih_gpp_secondary_si)%r81d, &
-         hio_npp_secondary_si         => this%hvars(ih_npp_secondary_si)%r81d, &
-         hio_aresp_si                 => this%hvars(ih_aresp_si)%r81d, &
-         hio_aresp_secondary_si       => this%hvars(ih_aresp_secondary_si)%r81d, &
          hio_maint_resp_si            => this%hvars(ih_maint_resp_si)%r81d, &
          hio_maint_resp_secondary_si  => this%hvars(ih_maint_resp_secondary_si)%r81d, &
-         hio_growth_resp_secondary_si => this%hvars(ih_growth_resp_secondary_si)%r81d, &
          hio_c_stomata_si             => this%hvars(ih_c_stomata_si)%r81d, &
          hio_c_lblayer_si             => this%hvars(ih_c_lblayer_si)%r81d, &
          hio_vis_rad_err_si           => this%hvars(ih_vis_rad_err_si)%r81d, &
@@ -5024,15 +5022,13 @@ contains
                      ! scale up cohort fluxes to the site level
                      ! these fluxes have conversions of [kg/plant/timestep] -> [kg/m2/s]
                      
-                     ! Net Ecosystem Production [kgC/m2/s]   !cdk: use yesterday's growth respiration
+                     ! Net Ecosystem Production [kgC/m2/s]. Use yesterday's growth respiration
                      hio_nep_si(io_si) = hio_nep_si(io_si) + &
-                          ccohort%npp_tstep * n_perm2 * dt_tstep_inv
+                          (ccohort%gpp_tstep-ccohort%resp_m) * n_perm2 * dt_tstep_inv - &
+                          ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
 
                      hio_gpp_si(io_si) = hio_gpp_si(io_si) + &
                           ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
-
-                     hio_aresp_si(io_si) = hio_aresp_si(io_si) + &
-                          ccohort%resp_tstep * n_perm2 * dt_tstep_inv
 
                      hio_maint_resp_si(io_si) = hio_maint_resp_si(io_si) + &
                           ccohort%resp_m * n_perm2 * dt_tstep_inv
@@ -5118,7 +5114,6 @@ contains
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: resp_g      ! growth respiration per timestep [kgC/indiv/step]
     real(r8) :: npp         ! npp for this time-step (adjusted for g resp) [kgC/indiv/step]
-    real(r8) :: aresp       ! autotrophic respiration (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8) :: patch_area_by_age(nlevage)  ! patch area in each bin for normalizing purposes
     real(r8) :: canopy_area_by_age(nlevage) ! canopy area in each bin for normalizing purposes
@@ -5234,21 +5229,17 @@ contains
 
                if ( .not. ccohort%isnew ) then
 
-                  npp    = ccohort%npp_tstep
-                  resp_g = ccohort%resp_g_tstep
-                  aresp  = ccohort%resp_tstep
-
                   ! Calculate index for the scpf class
                   associate( scpf => ccohort%size_by_pft_class, &
                        scls => ccohort%size_class )
 
-                    ! Total AR (kgC/m2/s) = (kgC/plant/step) / (s/step) * (plant/m2)
+                    ! Total AR (kgC/m2/s) = (kgC/plant/step) / (s/step) * (plant/m2)   ! CDK: this should be daily
                     hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
-                         (ccohort%resp_tstep*dt_tstep_inv) * n_perm2
+                         (ccohort%resp_m_tstep*dt_tstep_inv) * n_perm2
 
-                    ! Growth AR (kgC/m2/s)
+                    ! Growth AR (kgC/m2/s)   ! CDK: this should be daily
                     hio_ar_grow_si_scpf(io_si,scpf) = hio_ar_grow_si_scpf(io_si,scpf) + &
-                         (resp_g*dt_tstep_inv) * n_perm2
+                         (ccohort%resp_g_tstep*dt_tstep_inv) * n_perm2
 
                     ! Maint AR (kgC/m2/s)
                     hio_ar_maint_si_scpf(io_si,scpf) = hio_ar_maint_si_scpf(io_si,scpf) + &
@@ -6355,6 +6346,11 @@ contains
             long='net primary production in kg carbon per m2 per second',         &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, index = ih_npp_si)
+
+       call this%set_history_var(vname='FATES_AUTORESP', units='kg m-2 s-1',     &
+            long='autotrophic respiration in kg carbon per m2 per second',        &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, index = ih_aresp_si)
 
        call this%set_history_var(vname='FATES_GROWTH_RESP', units='kg m-2 s-1',   &
             long='growth respiration in kg carbon per m2 per second',             &
@@ -8489,11 +8485,6 @@ contains
 
        ! Ecosystem Carbon Fluxes (updated rapidly, upfreq=group_hifr_simple)
 
-       call this%set_history_var(vname='FATES_NPP_SECONDARY', units='kg m-2 s-1',           &
-            long='net primary production in kg carbon per m2 per second, secondary patches',         &
-            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, index = ih_npp_secondary_si)
-
        call this%set_history_var(vname='FATES_GPP', units='kg m-2 s-1',           &
             long='gross primary production in kg carbon per m2 per second',       &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -8503,22 +8494,6 @@ contains
             long='gross primary production in kg carbon per m2 per second, secondary patches',       &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, index = ih_gpp_secondary_si)
-
-       call this%set_history_var(vname='FATES_AUTORESP', units='kg m-2 s-1',     &
-            long='autotrophic respiration in kg carbon per m2 per second',        &
-            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, index = ih_aresp_si)
-
-       call this%set_history_var(vname='FATES_AUTORESP_SECONDARY', units='kg m-2 s-1',     &
-            long='autotrophic respiration in kg carbon per m2 per second, secondary patches',        &
-            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, index = ih_aresp_secondary_si)
-
-       call this%set_history_var(vname='FATES_GROWTH_RESP_SECONDARY', units='kg m-2 s-1',   &
-            long='growth respiration in kg carbon per m2 per second, secondary patches',             &
-            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables,                 &
-            index = ih_growth_resp_secondary_si)
 
        call this%set_history_var(vname='FATES_MAINT_RESP', units='kg m-2 s-1',    &
             long='maintenance respiration in kg carbon per m2 land area per second', &

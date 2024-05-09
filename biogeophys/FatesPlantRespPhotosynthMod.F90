@@ -735,7 +735,7 @@ contains
 
                            ! Zero cohort flux accumulators.
                            currentCohort%npp_tstep  = 0.0_r8
-                           currentCohort%resp_tstep = 0.0_r8
+                           currentCohort%resp_m_tstep = 0.0_r8
                            currentCohort%gpp_tstep  = 0.0_r8
                            currentCohort%rdark      = 0.0_r8
                            currentCohort%resp_m     = 0.0_r8
@@ -987,12 +987,12 @@ contains
 
                         ! convert from kgC/indiv/s to kgC/indiv/timestep
                         currentCohort%resp_m        = currentCohort%resp_m  * dtime
-                        currentCohort%resp_m_tstep  = currentCohort%resp_m   ! these two things are the same. we should get rid of one of them. which?
+                        currentCohort%resp_m_tstep  = currentCohort%resp_m   ! these two things are the same. we should get rid of one them
                         currentCohort%gpp_tstep     = currentCohort%gpp_tstep * dtime
                         currentCohort%ts_net_uptake = currentCohort%ts_net_uptake * dtime
 
                         if ( debug ) write(fates_log(),*) 'EDPhoto 911 ', currentCohort%gpp_tstep
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
+                        if ( debug ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_m_tstep
                         if ( debug ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
 
 
