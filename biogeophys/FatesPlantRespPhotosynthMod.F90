@@ -1495,6 +1495,29 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               ! With an <= 0, then gs_mol = stomatal_intercept_btran
               leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * a_gs * can_press 		   
               leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
+
+              ! A note about the use of the quadratic equations for calculating stomatal conductance
+              ! ------------------------------------------------------------------------------------
+              ! These two following models calculate the conductance between the intercellular leaf
+              ! space and the leaf surface, not the canopy air space.  Transport between the leaf
+              ! surface and the canopy air space is governed by the leaf boundary layer conductance.
+              ! However, we need to estimate the properties at the surface of the leaf to solve for
+              ! the stomatal conductance. We do this by using Fick's law (gradient resistance
+              ! approximation of diffusion).
+              !
+              ! e_s = (e_i g_s + e_c g_b)/(g_b + g_s)
+              !
+              ! The leaf surface humidity (e_s) then becomes an expression of canopy humidity (e_c),
+              ! intercellular humidity (e_i), boundary layer conductance (g_b) (these are known)
+              ! and stomatal conductance (g_s) (this is still unknown).  This expression is
+              ! substituted into the stomatal conductance equation. The resulting form of these
+              ! equations becomes a quadratic.
+              !
+              ! For a detailed explanation, see the FATES technical note, section
+              ! "1.11 Stomatal Conductance"
+              !
+              ! ------------------------------------------------------------------------------------
+              
               
               if ( stomatal_model == medlyn_model ) then
                  !stomatal conductance calculated from Medlyn et al. (2011), the numerical &
