@@ -1503,11 +1503,13 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               ! surface and the canopy air space is governed by the leaf boundary layer conductance.
               ! However, we need to estimate the properties at the surface of the leaf to solve for
               ! the stomatal conductance. We do this by using Fick's law (gradient resistance
-              ! approximation of diffusion).
+              ! approximation of diffusion) to estimate the flux of water vapor across the
+              ! leaf boundary layer, and balancing that with the flux across the stomata. It
+              ! results in the following equation for leaf surface humidity:
               !
               ! e_s = (e_i g_s + e_c g_b)/(g_b + g_s)
               !
-              ! The leaf surface humidity (e_s) then becomes an expression of canopy humidity (e_c),
+              ! The leaf surface humidity (e_s) becomes an expression of canopy humidity (e_c),
               ! intercellular humidity (e_i), boundary layer conductance (g_b) (these are known)
               ! and stomatal conductance (g_s) (this is still unknown).  This expression is
               ! substituted into the stomatal conductance equation. The resulting form of these
