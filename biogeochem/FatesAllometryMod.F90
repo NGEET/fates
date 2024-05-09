@@ -547,6 +547,10 @@ contains
           call carea_3pwr(dbh_eff,height,ipft,dbh_maxh, site_spread,d2bl_p2, &
                d2bl_ediff, d2ca_min,d2ca_max,crowndamage, c_area, do_inverse)
           capped_allom = .true.
+       case(5)
+          call carea_2pwr(dbh,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max, &
+               crowndamage, c_area, do_inverse)
+          capped_allom = .false.
        case DEFAULT
           write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
                allom_lmode
