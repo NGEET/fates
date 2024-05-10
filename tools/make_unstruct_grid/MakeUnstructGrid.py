@@ -68,6 +68,8 @@ def TransferData(da_key,ds_base,ds_unst,minis,minjs,dset_type):
         dtype_out = np.float64
     elif(ds_base[da_key].dtype == 'int32'):
         dtype_out = np.int32
+    elif(ds_base[da_key].dtype == 'float32'):
+        dtype_out = np.float32
     else:
         print('unknown data type: {}.\n Exiting'.format(ds_base[da_key].dtype))
         exit(2)
