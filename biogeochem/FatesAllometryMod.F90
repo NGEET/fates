@@ -476,7 +476,7 @@ contains
          call dh2blmax_3pwr(d,h,dhdd,p1,p2,p3,slatop,dbh_maxh,c2b,blmax,dblmaxdd)
       case (5) ! dh2blmax_3pwr_grass
          call h_allom(d,ipft,h,dhdd)
-         call dh2blmax_3pwr_grass(d,h,dhdd,p1,p2,p3,c2b,blmax,dblmaxdd)
+         call dh2blmax_3pwr_grass(d,h,dhdd,p1,p2,p3,dbh_maxh,c2b,blmax,dblmaxdd)
       case DEFAULT
          write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
               allom_lmode
@@ -548,9 +548,10 @@ contains
                d2bl_ediff, d2ca_min,d2ca_max,crowndamage, c_area, do_inverse)
           capped_allom = .true.
        case(5)
-          call carea_2pwr(dbh,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max, &
+          dbh_eff = min(dbh,dbh_maxh)
+          call carea_2pwr(dbh_eff,site_spread,d2bl_p2,d2bl_ediff,d2ca_min,d2ca_max, &
                crowndamage, c_area, do_inverse)
-          capped_allom = .false.
+          capped_allom = .true.
        case DEFAULT
           write(fates_log(),*) 'An undefined leaf allometry was specified: ', &
                allom_lmode
@@ -1673,7 +1674,7 @@ contains
 
   ! =========================================================================
 
-  subroutine dh2blmax_3pwr_grass(d,h,dhdd,p1,p2,p3,c2b,blmax,dblmaxdd)
+  subroutine dh2blmax_3pwr_grass(d,h,dhdd,p1,p2,p3,dbh_maxh,c2b,blmax,dblmaxdd)
     !------------------------------------------------------------------------
     !
     ! This function calculates the maximum leaf biomass using diameter (basal
@@ -1717,23 +1718,27 @@ contains
     real(r8), intent(in)              :: p2        ! log-slope associated with d      [     -]
     real(r8), intent(in)              :: p3        ! log-slope associated with h      [     -]
     real(r8), intent(in)              :: c2b       ! carbon to biomass multiplier     [kg/kgC]
-!    real(r8), intent(in)              :: dbh_maxh  ! diameter at maximum height       [    cm]
+    real(r8), intent(in)              :: dbh_maxh  ! diameter at maximum height       [    cm]
     real(r8), intent(out)             :: blmax     ! leaf biomass                     [   kgC]
     real(r8), intent(out), optional   :: dblmaxdd  ! leaf biomass derivative          [kgC/cm]
     !----Local variables
-!    real(r8)  :: duse
+    real(r8)  :: duse
 
 
     !----Cap diameter
-!    duse = min(d, dbh_maxh)
+    duse = min(d, dbh_maxh)
 
     !----Calculate leaf biomass
-    blmax = p1 * d**p2 * h**p3 / c2b
+    blmax = p1 * duse**p2 * h**p3 / c2b
 
     !----Calculate leaf biomass derivative if needed
 
     if (present(dblmaxdd))then
-       dblmaxdd = p1 * (p2 * d**(p2 - 1.0_r8) * h**p3 + p3 * h**(p3 - 1.0_r8) * dhdd * d**p2) / c2b
+       if(d .ge. dbh_maxh)then
+          dblmaxdd = 0._r8
+       else
+          dblmaxdd = p1 * (p2 * duse**(p2 - 1.0_r8) * h**p3 + p3 * h**(p3 - 1.0_r8) * dhdd * duse**p2) / c2b
+       end if
     end if
 
     return
