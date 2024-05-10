@@ -99,21 +99,27 @@ module FatesPatchMod
     real(r8) :: total_canopy_area                           ! area that is covered by vegetation [m2]
     real(r8) :: total_tree_area                             ! area that is covered by woody vegetation [m2]
     real(r8) :: zstar                                       ! height of smallest canopy tree, only meaningful in "strict PPA" mode [m]
-    real(r8) :: elai_profile(nclmax,maxpft,nlevleaf)        ! exposed leaf area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
-    real(r8) :: esai_profile(nclmax,maxpft,nlevleaf)        ! exposed stem area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
-    real(r8) :: tlai_profile(nclmax,maxpft,nlevleaf) 
-    real(r8) :: tsai_profile(nclmax,maxpft,nlevleaf) 
-    real(r8) :: canopy_area_profile(nclmax,maxpft,nlevleaf) ! fraction of crown area per canopy area in each layer
-                                                              !   they will sum to 1.0 in the fully closed canopy layers
-                                                              !   but only in leaf-layers that contain contributions
-                                                              !   from all cohorts that donate to canopy_area
+
+    ! exposed leaf area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
+    real(r8), allocatable :: elai_profile(:,:,:)  ! nclmax,maxpft,nlevleaf)
+    ! exposed stem area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]      
+    real(r8), allocatable :: esai_profile(:,:,:)  ! nclmax,maxpft,nlevleaf)
+    ! total leaf area (includes that which is under snow-pack) 
+    real(r8), allocatable :: tlai_profile(:,:,:)  ! nclmax,maxpft,nlevleaf)
+    ! total stem area (includes that which is under snow-pack)
+    real(r8), allocatable :: tsai_profile(:,:,:)  ! nclmax,maxpft,nlevleaf)
+    
+    real(r8), allocatable :: canopy_area_profile(:,:,:) ! nclmax,maxpft,nlevleaf) ! fraction of crown area per canopy area in each layer
+                                                        !   they will sum to 1.0 in the fully closed canopy layers
+                                                        !   but only in leaf-layers that contain contributions
+                                                        !   from all cohorts that donate to canopy_area
+
     integer  :: canopy_mask(nclmax,maxpft)                  ! is there any of this pft in this canopy layer?      
     integer  :: nrad(nclmax,maxpft)                         ! number of exposed leaf layers for each canopy layer and pft
     integer  :: ncan(nclmax,maxpft)                         ! number of total   leaf layers for each canopy layer and pft
     real(r8) :: c_stomata                                   ! mean stomatal conductance of all leaves in the patch   [umol/m2/s]
     real(r8) :: c_lblayer                                   ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
     
-    real(r8) :: psn_z(nclmax,maxpft,nlevleaf)
     real(r8) :: nrmlzd_parprof_pft_dir_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)
     real(r8) :: nrmlzd_parprof_pft_dif_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)
 
@@ -129,20 +135,20 @@ module FatesPatchMod
     
     
     ! organized by canopy layer, pft, and leaf layer
-    real(r8) :: fabd_sun_z(nclmax,maxpft,nlevleaf)        ! sun fraction of direct light absorbed [0-1]
-    real(r8) :: fabd_sha_z(nclmax,maxpft,nlevleaf)        ! shade fraction of direct light absorbed [0-1]
-    real(r8) :: fabi_sun_z(nclmax,maxpft,nlevleaf)        ! sun fraction of indirect light absorbed [0-1]
-    real(r8) :: fabi_sha_z(nclmax,maxpft,nlevleaf)        ! shade fraction of indirect light absorbed [0-1]
-    real(r8) :: ed_parsun_z(nclmax,maxpft,nlevleaf)       ! PAR absorbed in the sun [W/m2]   
-    real(r8) :: ed_parsha_z(nclmax,maxpft,nlevleaf)       ! PAR absorbed in the shade [W/m2]
-    real(r8) :: f_sun(nclmax,maxpft,nlevleaf)             ! fraction of leaves in the sun [0-1]
-    real(r8) :: ed_laisun_z(nclmax,maxpft,nlevleaf)
-    real(r8) :: ed_laisha_z(nclmax,maxpft,nlevleaf)
+    real(r8),allocatable :: fabd_sun_z(:,:,:)    !nclmax,maxpft,nlevleaf)        ! sun fraction of direct light absorbed [0-1]
+    real(r8),allocatable :: fabd_sha_z(:,:,:)    !nclmax,maxpft,nlevleaf)        ! shade fraction of direct light absorbed [0-1]
+    real(r8),allocatable :: fabi_sun_z(:,:,:)    !nclmax,maxpft,nlevleaf)        ! sun fraction of indirect light absorbed [0-1]
+    real(r8),allocatable :: fabi_sha_z(:,:,:)    !nclmax,maxpft,nlevleaf)        ! shade fraction of indirect light absorbed [0-1]
+    real(r8),allocatable :: ed_parsun_z(:,:,:)   !nclmax,maxpft,nlevleaf)       ! PAR absorbed in the sun [W/m2]   
+    real(r8),allocatable :: ed_parsha_z(:,:,:)   !nclmax,maxpft,nlevleaf)       ! PAR absorbed in the shade [W/m2]
+    real(r8),allocatable :: f_sun(:,:,:)         !nclmax,maxpft,nlevleaf)             ! fraction of leaves in the sun [0-1]
+    real(r8),allocatable :: ed_laisun_z(:,:,:)   !nclmax,maxpft,nlevleaf)
+    real(r8),allocatable :: ed_laisha_z(:,:,:)   !nclmax,maxpft,nlevleaf)
 
     
     ! radiation profiles for comparison against observations
-    real(r8) :: parprof_pft_dir_z(nclmax,maxpft,nlevleaf) ! direct-beam PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
-    real(r8) :: parprof_pft_dif_z(nclmax,maxpft,nlevleaf) ! diffuse     PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
+    real(r8),allocatable :: parprof_pft_dir_z(:,:,:)   !nclmax,maxpft,nlevleaf) ! direct-beam PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
+    real(r8),allocatable :: parprof_pft_dif_z(:,:,:)   !nclmax,maxpft,nlevleaf) ! diffuse     PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
     
     real(r8), allocatable :: tr_soil_dir(:)               ! fraction of incoming direct radiation transmitted to the soil as direct, by numSWB [0-1]
     real(r8), allocatable :: tr_soil_dif(:)               ! fraction of incoming diffuse radiation that is transmitted to the soil as diffuse [0-1]
@@ -321,7 +327,7 @@ module FatesPatchMod
       this%c_stomata                    = nan 
       this%c_lblayer                    = nan
       
-      this%psn_z(:,:,:)                 = nan 
+      !this%psn_z(:,:,:)                 = nan 
       this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = nan
       this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = nan
 
@@ -412,7 +418,7 @@ module FatesPatchMod
       this%elai_profile(:,:,:)               = 0.0_r8
       this%c_stomata                         = 0.0_r8 
       this%c_lblayer                         = 0.0_r8
-      this%psn_z(:,:,:)                      = 0.0_r8
+      !      this%psn_z(:,:,:)                      = 0.0_r8
       this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0.0_r8
       this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0.0_r8
 

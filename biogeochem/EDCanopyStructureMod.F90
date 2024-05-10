@@ -85,8 +85,6 @@ module EDCanopyStructureMod
   real(r8), parameter :: similar_height_tol = 1.0E-3_r8    ! I think trees that differ by 1mm
   ! can be roughly considered the same right?
 
-  logical, parameter :: preserve_b4b = .true.
-
   ! 10/30/09: Created by Rosie Fisher
   ! 2017/2018: Modifications and updates by Ryan Knox
   ! ============================================================================
@@ -1546,6 +1544,21 @@ contains
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
 
+       ! If the large patch arrays are not new, deallocate them
+       if(associated(currentPatch%tlai_profile)) then
+          deallocate(currentPatch%tlai_profile,currentPatch%tsai_profile)
+          deallocate(currentPatch%elai_profile,currentPatch%esai_profile)
+       end if
+       
+       ! Evaluate required array sizes and possibly re-allocate
+
+       max_leaf_layer = maxval(currentPatch%nrad(:,:))
+       allocate(currentPatch%tlai_profile(currentPatch%NCL_p,numpft,max_leaf_layer))
+       allocate(currentPatch%tsai_profile(currentPatch%NCL_p,numpft,max_leaf_layer))
+       allocate(currentPatch%elai_profile(currentPatch%NCL_p,numpft,max_leaf_layer))
+       allocate(currentPatch%esai_profile(currentPatch%NCL_p,numpft,max_leaf_layer))
+       allocate(currentPatch%canopy_area_profile(currentPatch%NCL_p,numpft,max_leaf_layer))
+       
        ! --------------------------------------------------------------------------------
        ! Calculate tree and canopy areas.
        ! calculate tree lai and sai.
@@ -1587,136 +1600,35 @@ contains
              ! How much of each tree is stem area index? Assuming that there is
              ! This may indeed be zero if there is a sensecent grass
              ! ----------------------------------------------------------------
-             ! preserve_b4b will be removed soon. This is kept here to prevent
-             ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
-             if_preserve_b4b: if(preserve_b4b) then
-                lai = currentCohort%treelai * currentCohort%c_area/currentPatch%total_canopy_area
-                sai = currentCohort%treesai * currentCohort%c_area/currentPatch%total_canopy_area
-                if( (currentCohort%treelai+currentCohort%treesai) > nearzero)then
-                   
-                   ! See issue: https://github.com/NGEET/fates/issues/899
-                   ! fleaf = currentCohort%treelai / (currentCohort%treelai + currentCohort%treesai)
-                   fleaf = lai / (lai+sai)
-                else
-                   fleaf = 0._r8
-                endif
-                
-                currentPatch%nrad(cl,ft) = currentPatch%ncan(cl,ft)
-                
-                if (currentPatch%nrad(cl,ft) > nlevleaf ) then
-                   write(fates_log(), *) 'Number of radiative leaf layers is larger'
-                   write(fates_log(), *) ' than the maximum allowed.'
-                   write(fates_log(), *) ' cl: ',cl
-                   write(fates_log(), *) ' ft: ',ft
-                   write(fates_log(), *) ' nlevleaf: ',nlevleaf
-                   write(fates_log(), *) ' currentPatch%nrad(cl,ft): ', currentPatch%nrad(cl,ft)
-                   call endrun(msg=errMsg(sourcefile, __LINE__))
-                end if
 
-                !---~---
-                !   Find current crown depth using the allometric function.
-                !---~---
-                call CrownDepth(currentCohort%height,currentCohort%pft,crown_depth)
-                !---~---
-                
-             
-                ! --------------------------------------------------------------------------
-                ! Whole layers.  Make a weighted average of the leaf area in each layer
-                ! before dividing it by the total area. Fill up layer for whole layers.
-                ! --------------------------------------------------------------------------
-                
-                do iv = 1,currentCohort%NV
-                   
-                   ! This loop builds the arrays that define the effective (not snow covered)
-                   ! and total (includes snow covered) area indices for leaves and stems
-                   ! We calculate the absolute elevation of each layer to help determine if the layer
-                   ! is obscured by snow.
-                   
-                   layer_top_height = currentCohort%height - &
-                        ( real(iv-1,r8)/currentCohort%NV * crown_depth )
-                                           
-                   layer_bottom_height = currentCohort%height - &
-                        ( real(iv,r8)/currentCohort%NV * crown_depth )
-                   
-                   fraction_exposed = 1.0_r8
-                   if(currentSite%snow_depth  > layer_top_height)then
-                      fraction_exposed = 0._r8
-                   endif
-                   if(currentSite%snow_depth < layer_bottom_height)then
-                      fraction_exposed = 1._r8
-                   endif
-                   if(currentSite%snow_depth >= layer_bottom_height .and. &
-                        currentSite%snow_depth <= layer_top_height) then !only partly hidden...
-                      fraction_exposed =  1._r8 - max(0._r8,(min(1.0_r8,(currentSite%snow_depth -layer_bottom_height)/ &
-                           (layer_top_height-layer_bottom_height ))))
-                   endif
-                
-                   if(iv==currentCohort%NV) then
-                      remainder = (currentCohort%treelai + currentCohort%treesai) - &
-                           (dlower_vai(iv) - dinc_vai(iv))
-                      if(remainder > dinc_vai(iv) )then
-                         write(fates_log(), *)'ED: issue with remainder', &
-                              currentCohort%treelai,currentCohort%treesai,dinc_vai(iv), & 
-                              currentCohort%NV,remainder
-                         
-                         call endrun(msg=errMsg(sourcefile, __LINE__))
-                      endif
-                   else
-                      remainder = dinc_vai(iv)
-                   end if
-                   
-                   currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) + &
-                        remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   currentPatch%elai_profile(cl,ft,iv) = currentPatch%elai_profile(cl,ft,iv) + &
-                        remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * &
-                        fraction_exposed
-                   
-                   currentPatch%tsai_profile(cl,ft,iv) = currentPatch%tsai_profile(cl,ft,iv) + &
-                        remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   currentPatch%esai_profile(cl,ft,iv) = currentPatch%esai_profile(cl,ft,iv) + &
-                        remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area * &
-                        fraction_exposed
-                   
-                   currentPatch%canopy_area_profile(cl,ft,iv) = currentPatch%canopy_area_profile(cl,ft,iv) + &
-                        currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   
-                end do
-                
-             else !if_preserve_b4b
-                
-                do iv = 1,currentCohort%NV
-                   
-                   call VegAreaLayer(currentCohort%treelai,     &
-                        currentCohort%treesai,                  &
-                        currentCohort%height,                   &
-                        iv,currentCohort%nv,currentCohort%pft,  &
-                        currentSite%snow_depth,                    &
-                        vai_top,vai_bot,                          &
-                        elai_layer,esai_layer,tlai_layer,tsai_layer)
-                   
-                   
-                   currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) + &
-                        tlai_layer * currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   currentPatch%elai_profile(cl,ft,iv) = currentPatch%elai_profile(cl,ft,iv) + &
-                        elai_layer * currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   currentPatch%tsai_profile(cl,ft,iv) = currentPatch%tsai_profile(cl,ft,iv) + &
-                        tsai_layer * currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   currentPatch%esai_profile(cl,ft,iv) = currentPatch%esai_profile(cl,ft,iv) + &
-                        esai_layer * currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   currentPatch%canopy_area_profile(cl,ft,iv) = currentPatch%canopy_area_profile(cl,ft,iv) + &
-                        currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                end do
-                
-             end if if_preserve_b4b
-             
+             do iv = 1,currentCohort%NV
+
+                call VegAreaLayer(currentCohort%treelai,     &
+                     currentCohort%treesai,                  &
+                     currentCohort%height,                   &
+                     iv,currentCohort%nv,currentCohort%pft,  &
+                     currentSite%snow_depth,                    &
+                     vai_top,vai_bot,                          &
+                     elai_layer,esai_layer,tlai_layer,tsai_layer)
+
+
+                currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) + &
+                     tlai_layer * currentCohort%c_area/currentPatch%total_canopy_area
+
+                currentPatch%elai_profile(cl,ft,iv) = currentPatch%elai_profile(cl,ft,iv) + &
+                     elai_layer * currentCohort%c_area/currentPatch%total_canopy_area
+
+                currentPatch%tsai_profile(cl,ft,iv) = currentPatch%tsai_profile(cl,ft,iv) + &
+                     tsai_layer * currentCohort%c_area/currentPatch%total_canopy_area
+
+                currentPatch%esai_profile(cl,ft,iv) = currentPatch%esai_profile(cl,ft,iv) + &
+                     esai_layer * currentCohort%c_area/currentPatch%total_canopy_area
+
+                currentPatch%canopy_area_profile(cl,ft,iv) = currentPatch%canopy_area_profile(cl,ft,iv) + &
+                     currentCohort%c_area/currentPatch%total_canopy_area
+
+             end do
+
              currentCohort => currentCohort%taller
 
           enddo !cohort

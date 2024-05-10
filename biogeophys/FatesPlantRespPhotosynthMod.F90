@@ -186,13 +186,16 @@ contains
 
     ! leaf maintenance (dark) respiration [umol CO2/m**2/s]
     real(r8) :: lmr_z(nlevleaf,maxpft,nclmax)
-
+    
     ! stomatal resistance [s/m]
     real(r8) :: rs_z(nlevleaf,maxpft,nclmax)
 
     ! net leaf photosynthesis averaged over sun and shade leaves. [umol CO2/m**2/s]
     real(r8) :: anet_av_z(nlevleaf,maxpft,nclmax)
 
+    ! Photosynthesis [umol /m2 /s]
+    real(r8) :: psn_z(nlevleaf,maxpft,nclmax)
+    
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
     logical :: rate_mask_z(nlevleaf,maxpft,nclmax)
@@ -723,7 +726,7 @@ contains
                                       lmr_z(iv,ft,cl),                    &  ! in
                                       leaf_psi,                           &  ! in
                                       bc_in(s)%rb_pa(ifp),                &  ! in  
-                                      currentPatch%psn_z(cl,ft,iv),       &  ! out
+                                      psn_z(iv,ft,cl),                    &  ! out
                                       rs_z(iv,ft,cl),                     &  ! out
                                       anet_av_z(iv,ft,cl),                &  ! out
                                       c13disc_z(cl,ft,iv))                   ! out
@@ -755,7 +758,7 @@ contains
                            if(radiation_model.eq.norman_solver) then
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   currentPatch%psn_z(cl,ft,1:nv),        & !in
+                                   psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    currentPatch%elai_profile(cl,ft,1:nv), & !in
@@ -773,7 +776,7 @@ contains
                            else
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   currentPatch%psn_z(cl,ft,1:nv),        & !in
+                                   psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    cohort_layer_elai(1:nv),               & !in
@@ -1991,7 +1994,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     currentPatch%nrad = currentPatch%ncan
 
     ! Now loop through and identify which layer and pft combo has scattering elements
-    do cl = 1,nclmax
+    do cl = 1,currentPatch%ncl_p
        do ft = 1,numpft
           currentPatch%canopy_mask(cl,ft) = 0
           do iv = 1, currentPatch%nrad(cl,ft);

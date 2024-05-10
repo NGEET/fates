@@ -29,7 +29,6 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : site_fluxdiags_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : min_patch_area_forced
-  use EDParamsMod          , only : nclmax
   use EDParamsMod          , only : regeneration_model
   use FatesInterfaceTypesMod, only : numpft
   use FatesConstantsMod     , only : dtype_ifall
