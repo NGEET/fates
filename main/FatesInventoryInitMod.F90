@@ -686,7 +686,7 @@ contains
       type(litter_type),pointer                   :: litt
       integer                                     :: el         ! index for elements
       real(r8)                                    :: p_time     ! Time patch was recorded
-      real(r8)                                    :: p_trk      ! Land Use index (see above descriptions)
+      integer                                     :: p_trk      ! Land Use index (see above descriptions)
       character(len=patchname_strlen)             :: p_name     ! unique string identifier of patch
       real(r8)                                    :: p_age      ! Patch age [years]
       real(r8)                                    :: p_area     ! Patch area [fraction]
@@ -694,9 +694,10 @@ contains
       integer                                     :: ipft       ! index for counting PFTs
       real(r8)                                    :: pftfrac    ! the inverse of the total number of PFTs
 
-      character(len=128),parameter    :: wr_fmt = &
-            '(F5.2,2X,A4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
-
+      character(len=30),parameter    :: hd_fmt = &
+            '(A5,2X,A20,2X,A4,2X,A5,2X,A17)'
+      character(len=47),parameter    :: wr_fmt = &
+            '(F5.2,2X,A20,2X,I4,2X,F5.2,2X,F17.14)'
 
       read(pss_file_unit,fmt=*,iostat=ios) p_time, p_name, p_trk, p_age, p_area
 
@@ -705,6 +706,8 @@ contains
       patch_name = trim(p_name)
 
       if( debug_inv) then
+         write(*,fmt=hd_fmt) &
+               ' time','               patch',' trk','  age','             area'
          write(*,fmt=wr_fmt) &
                p_time, p_name, p_trk, p_age, p_area
       end if
@@ -828,8 +831,10 @@ contains
       real(r8) :: stem_drop_fraction ! Stem abscission fraction
       integer  :: i_pft, ncohorts_to_create
      
-      character(len=128),parameter    :: wr_fmt = &
-           '(F7.1,2X,A20,2X,A20,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
+      character(len=35),parameter    :: hd_fmt = &
+           '(A7,2X,A20,2X,A5,2X,A6,2X,A4,2X,A9)'
+      character(len=43),parameter    :: wr_fmt = &
+           '(F7.1,2X,A20,2X,F5.2,2X,F6.2,2X,I4,2X,F9.6)'
 
       real(r8), parameter :: abnormal_large_nplant = 1000.0_r8  ! Used to catch bad values
       real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
@@ -858,6 +863,8 @@ contains
 
       if(.not.matched_patch)then
          write(fates_log(), *) 'could not match a cohort with a patch'
+         write(fates_log(),fmt=hd_fmt) &
+            '   time','               patch','  dbh','height',' pft','   nplant'
          write(fates_log(),fmt=wr_fmt) &
                c_time, p_name, c_dbh, c_height, c_pft, c_nplant
          call endrun(msg=errMsg(sourcefile, __LINE__))
