@@ -5,6 +5,8 @@ module EDTypesMod
   use FatesConstantsMod,     only : ifalse
   use FatesConstantsMod,     only : itrue
   use FatesConstantsMod,     only : nocomp_bareground_land
+  use FatesConstantsMod,     only : secondaryland
+  use FatesConstantsMod,     only : secondary_age_threshold
   use FatesGlobals,          only : fates_log
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
@@ -547,5 +549,48 @@ module EDTypesMod
      end do
 
    end function get_current_landuse_statevector
-  
+
+   ! =====================================================================================
+
+   function get_secondary_young_fraction(this) result(secondary_young_fraction)
+
+     !
+     ! !DESCRIPTION:
+     !  Calculate how much of the secondary area is "young", i.e. below the age threshold.
+     !  If no seconday patch area at all, return -1.
+     !
+     ! !USES:
+     !
+     ! !ARGUMENTS:
+     class(ed_site_type) :: this
+     real(r8)            :: secondary_young_fraction
+     real(r8)            :: secondary_young_area
+     real(r8)            :: secondary_old_area
+
+     ! !LOCAL VARIABLES:
+     type(fates_patch_type), pointer :: currentPatch
+
+     secondary_young_area = 0._r8
+     secondary_old_area = 0._r8
+
+     currentPatch => this%oldest_patch
+     do while (associated(currentPatch))
+        if (currentPatch%land_use_label .eq. secondaryland) then
+           if ( currentPatch%age .ge. secondary_age_threshold ) then
+              secondary_old_area = secondary_old_area + currentPatch%area
+           else
+              secondary_young_area = secondary_young_area + currentPatch%area
+           end if
+        end if
+        currentPatch => currentPatch%younger
+     end do
+
+     if ( (secondary_young_area + secondary_old_area) .gt. fates_tiny) then
+        secondary_young_fraction = secondary_young_area / (secondary_young_area + secondary_old_area)
+     else
+        secondary_young_fraction = -1._r8
+     endif
+
+   end function get_secondary_young_fraction
+
 end module EDTypesMod
