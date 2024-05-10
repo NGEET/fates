@@ -306,9 +306,19 @@ contains
        enddo ! do while(area_not_balanced)
 
 
-       ! Set current canopy layer occupancy indicator.
-       currentPatch%NCL_p = min(nclmax,z)
-
+       ! Save number of canopy layers to the patch structure
+       
+       if(z > nclmax) then
+          write(fates_log(),*) 'FATES generated more canopy layers than scratch-space allows'
+          write(fates_log(),*) 'Predicted: ',z
+          write(fates_log(),*) 'Scratch space (nclmax, see EDParamsMod.F90): ',nclmax
+          write(fates_log(),*) 'Consider increasing nclmax if this value is to low'
+          write(fates_log(),*) 'and you think this number of canopy layers is reasonable.'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       else
+          currentPatch%NCL_p = z
+       end if
+       
        ! -------------------------------------------------------------------------------------------
        ! if we are using "strict PPA", then calculate a z_star value as
        ! the height of the smallest tree in the canopy
