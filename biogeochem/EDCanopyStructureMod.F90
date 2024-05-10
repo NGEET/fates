@@ -2181,15 +2181,12 @@ contains
    integer  :: cl                                  ! Canopy layer index
    integer  :: ft                                  ! Plant functional type index
    
-   integer :: ncl_p
-   
    ! Calculate LAI of layers above.  Because it is possible for some understory cohorts
    ! to be taller than cohorts in the top canopy layer, we must iterate through the 
    ! patch by canopy layer first.  Given that canopy_layer_tlai is a patch level variable
    ! we could iterate through each cohort in any direction as long as we go down through
    ! the canopy layers.
 
-   currentPatch%ncl_p = 0
    canopyloop: do cl = 1,nclmax
       currentCohort => currentPatch%tallest
       cohortloop: do while(associated(currentCohort))
@@ -2198,7 +2195,6 @@ contains
          if (currentCohort%canopy_layer .eq. cl) then
             
             ft     = currentCohort%pft
-            currentPatch%ncl_p = max(currentPatch%ncl_p,cl)
             ! Update the cohort level lai and related variables
             call UpdateCohortLAI(currentCohort,currentPatch%canopy_layer_tlai,  &
                  currentPatch%total_canopy_area)
