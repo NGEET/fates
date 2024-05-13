@@ -17,7 +17,6 @@
 # =======================================================================================
 
 import os
-from scipy.io import netcdf as nc
 import argparse
 import shutil
 import tempfile
@@ -26,6 +25,16 @@ import datetime
 import time
 import numpy as np
 import code  # For development: code.interact(local=dict(globals(), **locals()))
+
+# Newer versions of scipy have dropped the netcdf module and
+# netcdf functions are part of the io parent module
+try:
+    from scipy import io as nc
+
+except ImportError:
+    from scipy.io import netcdf as nc
+
+    
 
 # ========================================================================================
 # ========================================================================================

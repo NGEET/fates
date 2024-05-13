@@ -6,7 +6,9 @@ module EDPftvarcon
   ! read and initialize vegetation (PFT) constants.
   !
   ! !USES:
-  use EDParamsMod  ,   only : maxSWb, ivis, inir
+
+  use FatesRadiationMemMod, only: num_swb,ivis,inir
+  use FatesRadiationMemMod, only: norman_solver,twostr_solver
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : itrue, ifalse
@@ -90,6 +92,12 @@ module EDPftvarcon
 
      real(r8), allocatable :: maintresp_leaf_ryan1991_baserate(:)  ! leaf maintenance respiration per Ryan et al 1991
 
+    
+     
+     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff1(:) ! leaf maintenance respiration decrease through the canopy param 1
+                                                                   ! only with Atkin et al. 2017 respiration model
+     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff2(:) ! leaf maintenance respiration decrease through the canopy param 2
+                                                                   ! only with Atkin et al. 2017 respiraiton model 
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: mort_ip_size_senescence(:) ! inflection point of dbh dependent senescence
      real(r8), allocatable :: mort_r_size_senescence(:)  ! rate of change in mortality with dbh
@@ -473,6 +481,16 @@ contains
     name = 'fates_maintresp_leaf_ryan1991_baserate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+
+    
+    name = 'fates_maintresp_leaf_vert_scaler_coeff1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_maintresp_leaf_vert_scaler_coeff2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -931,6 +949,14 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%maintresp_leaf_ryan1991_baserate)
 
+    name = 'fates_maintresp_leaf_vert_scaler_coeff1'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%maintresp_leaf_vert_scaler_coeff1)
+
+    name = 'fates_maintresp_leaf_vert_scaler_coeff2'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%maintresp_leaf_vert_scaler_coeff2)
+
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%prescribed_npp_canopy)
@@ -1375,7 +1401,7 @@ contains
     lower_bound_1 = lower_bound_pft
     upper_bound_1 = lower_bound_pft + dimension_sizes(1) - 1
     lower_bound_2 = lower_bound_general
-    upper_bound_2 = maxSWb      ! When we have radiation parameters read in as a vector
+    upper_bound_2 = num_swb      ! When we have radiation parameters read in as a vector
                                 ! We will compare the vector dimension size that we
                                 ! read-in to the parameterized size that fates expects
 
@@ -1772,6 +1798,8 @@ contains
         write(fates_log(),fmt0) 'hydro_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
         write(fates_log(),fmt0) 'hydro_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
         write(fates_log(),fmt0) 'hydro_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
+        write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff1 = ',EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1
+        write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff2 = ',EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2
         write(fates_log(),*) '-------------------------------------------------'
 
      end if
@@ -1799,7 +1827,7 @@ contains
     use FatesConstantsMod, only : lmr_r_2
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
-    use EDParamsMod        , only : radiation_model
+    use EDParamsMod        , only : radiation_model, dayl_switch
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
     use FatesInterfaceTypesMod, only : hlm_use_nocomp
@@ -1830,10 +1858,10 @@ contains
 
      if(.not.is_master) return
 
-     if(radiation_model.ne.1) then
-        write(fates_log(),*) 'The only available canopy radiation model'
-        write(fates_log(),*) 'is the Norman scheme: fates_rad_model = 1'
-        write(fates_log(),*) 'The two-stream scheme is not available yet'
+     if(.not.any(radiation_model == [norman_solver,twostr_solver])) then
+        write(fates_log(),*) 'The only available canopy radiation models'
+        write(fates_log(),*) 'are the Norman and Two-stream schemes, '
+        write(fates_log(),*) 'fates_rad_model = 1 or 2 ...'
         write(fates_log(),*) 'You specified fates_rad_model = ',radiation_model
         write(fates_log(),*) 'Aborting'
         call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1849,6 +1877,13 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
+     if(.not.any(dayl_switch == [itrue,ifalse])) then
+        write(fates_log(),*) 'The only valid switch options for '
+        write(fates_log(),*) 'fates_daylength_factor_switch is 0 or 1 ...'
+        write(fates_log(),*) 'You specified fates_daylength_factor_switch = ',dayl_switch
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
 
      select case (hlm_parteh_mode)
      case (prt_cnp_flex_allom_hyp)
@@ -1884,7 +1919,6 @@ contains
                     call endrun(msg=errMsg(sourcefile, __LINE__))
                  end if
               end if
-
            end if
         end if
         
@@ -1910,7 +1944,25 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         end if
-        
+
+        ! We are using a simple phosphatase model right now. There is
+        ! no critical value (lambda) , and there is no preferential uptake (alpha).
+        ! Make sure these parameters are both set to 0.
+
+        if ((hlm_phosphorus_spec>0) .and. (trim(hlm_nu_com).eq.'ECA')) then
+           if (any(abs(EDPftvarcon_inst%eca_lambda_ptase(:)) > nearzero ) ) then
+              write(fates_log(),*) 'Critical Values for phosphatase in ECA are not'
+              write(fates_log(),*) 'enabled right now. Please set fates_eca_lambda_ptase = 0'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+           if (any(abs(EDPftvarcon_inst%eca_alpha_ptase(:)) > nearzero ) ) then
+              write(fates_log(),*) 'There is no preferential plant uptake of P from phosphatase'
+              write(fates_log(),*) 'enabled right now. Please set fates_eca_alpha_ptase = 0'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
         
      case (prt_carbon_allom_hyp)
         ! No additional checks needed for now.
@@ -1954,12 +2006,15 @@ contains
         end if
      end if
 
+
+     
+
      do ipft = 1,npft
 
         ! xl must be between -0.4 and 0.6 according to Bonan (2019) doi:10.1017/9781107339217 pg. 238
         !-----------------------------------------------------------------------------------
         if (EDPftvarcon_inst%xl(ipft) < -0.4 .or. EDPftvarcon_inst%xl(ipft) > 0.6) then
-          write(fates_log(),*) 'fates_rad_leaf_xl for pft ', ipft, ' is outside the allowed range of -0.6 to 0.4'
+          write(fates_log(),*) 'fates_rad_leaf_xl for pft ', ipft, ' is outside the allowed range of -0.4 to 0.6'
           write(fates_log(),*) 'Aborting'
           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if 

@@ -130,7 +130,6 @@ module FatesInterfaceTypesMod
 
    integer, public :: hlm_num_luh2_transitions      ! number of land use transition types provided in LUH2 forcing dataset
 
-
    integer, public :: hlm_sf_nofire_def               ! Definition of a no-fire case for hlm_spitfire_mode
    integer, public :: hlm_sf_scalar_lightning_def     ! Definition of a scalar-lightning case for hlm_spitfire_mode
    integer, public :: hlm_sf_successful_ignitions_def ! Definition of a successful-ignition dataset case for hlm_spitfire_mode
@@ -201,6 +200,18 @@ module FatesInterfaceTypesMod
   integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
                                                                     !  1 = TRUE, 0 = FALSE
 
+  
+  ! Flag specifying what types of history fields to allocate and prepare
+  ! The "_dynam" refers to history fields that can be updated on the dynamics (daily) step
+  ! THe "_hifrq" refers to history fields that can be updated on the model (high-frequency) step
+  ! 0 = no output
+  ! 1 = site-level averages only
+  ! 2 = allow the second dimension
+  
+  integer, public :: hlm_hist_level_dynam                           
+                                                                    
+  integer, public :: hlm_hist_level_hifrq
+  
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
@@ -269,7 +280,7 @@ module FatesInterfaceTypesMod
    integer , public, allocatable :: fates_hdim_levfuel(:)          ! fire fuel size class (fsc) dimension
    integer , public, allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
    integer , public, allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
-   integer , public, allocatable :: fates_hdim_levleaf(:)          ! leaf-layer dimension 
+   real(r8), public, allocatable :: fates_hdim_levleaf(:)          ! leaf-layer dimension, integrated VAI [m2/m2]
    integer , public, allocatable :: fates_hdim_levelem(:)              ! element dimension
    integer , public, allocatable :: fates_hdim_canmap_levcnlf(:)   ! canopy-layer map into the canopy-layer x leaf-layer dim
    integer , public, allocatable :: fates_hdim_lfmap_levcnlf(:)    ! leaf-layer map into the can-layer x leaf-layer dimension
