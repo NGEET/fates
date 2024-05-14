@@ -226,7 +226,7 @@ contains
     current_fates_landuse_state_vector = site_in%get_current_landuse_statevector()
 
     ! and get the fraction of secondary land that is young secondary land
-    secondary_young_fraction = currentSite%get_secondary_young_fraction()
+    secondary_young_fraction = site_in%get_secondary_young_fraction()
 
     ! check status of transition_landuse_from_off_to_on flag, and do some error checking on it
     if(site_in%transition_landuse_from_off_to_on) then
