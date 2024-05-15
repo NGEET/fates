@@ -3,10 +3,12 @@ module FatesHydraulicsMemMod
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : fates_unset_r8
    use FatesGlobals,       only : fates_log
+   use FatesGlobals, only      : endrun => fates_endrun
    use shr_infnan_mod,    only : nan => shr_infnan_nan, assignment(=)
    use FatesConstantsMod, only : itrue,ifalse
    use FatesHydroWTFMod,  only : wrf_arr_type
    use FatesHydroWTFMod,  only : wkf_arr_type
+   use shr_log_mod , only      : errMsg => shr_log_errMsg
    
    implicit none
    private
@@ -168,19 +170,19 @@ module FatesHydraulicsMemMod
      
      real(r8), allocatable :: residual(:)
      real(r8), allocatable :: ajac(:,:)       ! Jacobian (N terms, N equations)
-     real(r8), allocatable :: th_node_init(:)
+     real(r8), allocatable :: th_node_init(:)  
      real(r8), allocatable :: th_node_prev(:)
-     real(r8), allocatable :: th_node(:)
-     real(r8), allocatable :: dth_node(:)
-     real(r8), allocatable :: h_node(:)
-     real(r8), allocatable :: v_node(:)
-     real(r8), allocatable :: z_node(:)
-     real(r8), allocatable :: psi_node(:)
-     real(r8), allocatable :: q_flux(:)
-     real(r8), allocatable :: dftc_dpsi_node(:)
-     real(r8), allocatable :: ftc_node(:)
-     real(r8), allocatable :: kmax_up(:)
-     real(r8), allocatable :: kmax_dn(:)
+     real(r8), allocatable :: th_node(:)       ! Relative water content (theta) of node [m3/m3]
+     real(r8), allocatable :: dth_node(:)      ! Change (time derivative) in water content of node 
+     real(r8), allocatable :: h_node(:)        !
+     real(r8), allocatable :: v_node(:)        ! Volume of the node [m3]
+     real(r8), allocatable :: z_node(:)        ! Eleveation potential of the node (datum 0 is surface)
+     real(r8), allocatable :: psi_node(:)      ! Suction of the node [MPa]
+     real(r8), allocatable :: q_flux(:)        ! Mass flux of pathways between nodes []
+     real(r8), allocatable :: dftc_dpsi_node(:) ! Differential of fraction total conductivity with suction
+     real(r8), allocatable :: ftc_node(:)       ! fraction of total conductivity [-]
+     real(r8), allocatable :: kmax_up(:)        ! Maximum conductivity for upstream side of compartment
+     real(r8), allocatable :: kmax_dn(:)        ! Maximum conductivity for downstream side of compartment
 
      ! Scratch arrays 
      real(r8) :: cohort_recruit_water_layer(nlevsoi_hyd_max)   ! the recruit water requirement for a cohort
@@ -319,7 +321,11 @@ module FatesHydraulicsMemMod
      procedure :: Dump
      
   end type ed_cohort_hydr_type
-   
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+
+  
  contains
 
     subroutine CopyCohortHydraulics(ncohort_hydr, ocohort_hydr)
@@ -372,8 +378,7 @@ module FatesHydraulicsMemMod
       ncohort_hydr%iterh2                = ocohort_hydr%iterh2
       ncohort_hydr%iterlayer             = ocohort_hydr%iterlayer
       ncohort_hydr%errh2o                = ocohort_hydr%errh2o
-
-
+      
       ! BC PLANT HYDRAULICS - flux terms
       ncohort_hydr%qtop                  = ocohort_hydr%qtop
 

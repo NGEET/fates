@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<all>
+
+  <!-- This is an example of the control file used to create an unstructured
+       grid.  The user specifies a couplet of domain/surface files
+       from which they want to base their new unstructured grid. Then they provide
+       a list of geographic coordinates in latitude and longitude. These coordinates
+       are sampled from the base dataset, and written to an output dataset. 
+       In this example, we create a grid that is centered just east of the Andes. -->
+  
+  
+  <!-- These are the files from which to sample from via nearest neighbor -->
+  <domain_base>Bases/domain.lnd.fv1.9x2.5_gx1v6.090206.nc</domain_base>
+  <surface_base>Bases/surfdata_1.9x2.5_simyr2000_c180306.nc</surface_base>
+
+  <!-- These are the desired output files -->
+  <domain_unst>SAHydroStress/domain.lnd.fv1.9x2.5_gx1v6_SAHydroStress_c240320.nc</domain_unst>
+  <surface_unst>SAHydroStress/surfdata_1.9x2.5_simyr2000_SAHydroStress_c240320.nc </surface_unst>
+
+  <!-- This lat list is inverted, so we want to remove the upper left corner when looking at the mask -->
+  <lat_list>
+                                                                  -19.8947368421, -19.8947368421, -19.8947368421,
+                                                  -18,            -18,            -18,            -18,
+                                  -16.1052631579, -16.1052631579, -16.1052631579, -16.1052631579, -16.1052631579,
+                                  -14.2105263158, -14.2105263158, -14.2105263158, -14.2105263158, -14.2105263158,
+                  -12.3157894737, -12.3157894737, -12.3157894737, -12.3157894737, -12.3157894737, -12.3157894737,
+                  -10.4210526316, -10.4210526316, -10.4210526316, -10.4210526316, -10.4210526316, -10.4210526316,
+  -8.52631578947, -8.52631578947, -8.52631578947, -8.52631578947, -8.52631578947, -8.52631578947,  -8.52631578947
+  </lat_list>
+
+
+  
+  <lon_list>
+                          290, 292.5, 295,
+                   287.5, 290, 292.5, 295,
+              285, 287.5, 290, 292.5, 295,
+              285, 287.5, 290, 292.5, 295,
+       282.5, 285, 287.5, 290, 292.5, 295,
+       282.5, 285, 287.5, 290, 292.5, 295,
+  280, 282.5, 285, 287.5, 290, 292.5, 295
+  </lon_list>
+
+</all>

@@ -22,7 +22,6 @@ module EDInitMod
   use FatesGlobals              , only : fates_log
   use FatesInterfaceTypesMod    , only : hlm_is_restart
   use FatesInterfaceTypesMod    , only : hlm_current_tod
-  use FatesInterfaceTypesMod    , only : hlm_numSWb
   use EDPftvarcon               , only : EDPftvarcon_inst
   use PRTParametersMod          , only : prt_params
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
@@ -31,6 +30,7 @@ module EDInitMod
   use EDPhysiologyMod           , only : calculate_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
   use FatesInterfaceTypesMod    , only : hlm_day_of_year
+  use FatesRadiationMemMod      , only : num_swb
   use EDTypesMod                , only : ed_site_type
   use FatesPatchMod             , only : fates_patch_type
   use FatesCohortMod            , only : fates_cohort_type
@@ -92,10 +92,13 @@ module EDInitMod
   use PRTGenericMod,          only : SetState
   use FatesSizeAgeTypeIndicesMod,only : get_age_class_index
   use DamageMainMod,          only : undamaged_class
-  use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
+  use FatesConstantsMod,      only : n_term_mort_types
+  use FatesInterfaceTypesMod, only : hlm_num_luh2_transitions
   use FatesConstantsMod,      only : nocomp_bareground_land, nocomp_bareground
   use FatesConstantsMod,      only : min_nocomp_pftfrac_perlanduse
-  use EdTypesMod, only : dump_site
+  use EdTypesMod,             only : dump_site
+  use SFNesterovMod,          only : nesterov_index
+
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -105,7 +108,6 @@ module EDInitMod
   private
 
   logical   ::  debug = .false.
-
   integer :: istat           ! return status code
   character(len=255) :: smsg ! Message string for deallocation errors
   character(len=*), parameter, private :: sourcefile = &
@@ -139,8 +141,8 @@ contains
     integer :: el
 
     !
-    allocate(site_in%term_nindivs_canopy(1:nlevsclass,1:numpft))
-    allocate(site_in%term_nindivs_ustory(1:nlevsclass,1:numpft))
+    allocate(site_in%term_nindivs_canopy(1:n_term_mort_types,1:nlevsclass,1:numpft))
+    allocate(site_in%term_nindivs_ustory(1:n_term_mort_types,1:nlevsclass,1:numpft))
     allocate(site_in%demotion_rate(1:nlevsclass))
     allocate(site_in%promotion_rate(1:nlevsclass))
     allocate(site_in%imort_rate(1:nlevsclass,1:numpft))
@@ -176,8 +178,8 @@ contains
        allocate(site_in%fmort_cflux_ustory_damage(1,1))
     end if
 
-    allocate(site_in%term_carbonflux_canopy(1:numpft))
-    allocate(site_in%term_carbonflux_ustory(1:numpft))
+    allocate(site_in%term_carbonflux_canopy(1:n_term_mort_types,1:numpft))
+    allocate(site_in%term_carbonflux_ustory(1:n_term_mort_types,1:numpft))
     allocate(site_in%imort_carbonflux(1:numpft))
     allocate(site_in%fmort_carbonflux_canopy(1:numpft))
     allocate(site_in%fmort_carbonflux_ustory(1:numpft))
@@ -222,6 +224,9 @@ contains
     ! Seed dispersal
     allocate(site_in%seed_in(1:numpft))
     allocate(site_in%seed_out(1:numpft))
+
+    allocate(nesterov_index :: site_in%fireWeather)
+    call site_in%fireWeather%Init()
 
   end subroutine init_site_vars
 
@@ -273,7 +278,6 @@ contains
     site_in%disturbance_rates(:,:,:) = 0.0_r8
 
     ! FIRE
-    site_in%acc_ni           = 0.0_r8     ! daily nesterov index accumulating over time. time unlimited theoretically.
     site_in%FDI              = 0.0_r8     ! daily fire danger index (0-1)
     site_in%NF               = 0.0_r8     ! daily lightning strikes per km2
     site_in%NF_successful    = 0.0_r8     ! daily successful iginitions per km2
@@ -291,15 +295,15 @@ contains
     site_in%ema_npp = -9999.9_r8
 
     ! termination and recruitment info
-    site_in%term_nindivs_canopy(:,:) = 0._r8
-    site_in%term_nindivs_ustory(:,:) = 0._r8
+    site_in%term_nindivs_canopy(:,:,:) = 0._r8
+    site_in%term_nindivs_ustory(:,:,:) = 0._r8
     site_in%term_crownarea_canopy = 0._r8
     site_in%term_crownarea_ustory = 0._r8
     site_in%imort_crownarea = 0._r8
     site_in%fmort_crownarea_canopy = 0._r8
     site_in%fmort_crownarea_ustory = 0._r8
-    site_in%term_carbonflux_canopy(:) = 0._r8
-    site_in%term_carbonflux_ustory(:) = 0._r8
+    site_in%term_carbonflux_canopy(:,:) = 0._r8
+    site_in%term_carbonflux_ustory(:,:) = 0._r8
     site_in%recruitment_rate(:) = 0._r8
     site_in%imort_rate(:,:) = 0._r8
     site_in%imort_carbonflux(:) = 0._r8
@@ -379,7 +383,6 @@ contains
     integer  :: cstat      ! cold status phenology flag
     real(r8) :: GDD
     integer  :: dstat      ! drought status phenology flag
-    real(r8) :: acc_NI
     real(r8) :: liqvolmem
     real(r8) :: smpmem
     real(r8) :: elong_factor ! Elongation factor (0 - fully off; 1 - fully on)
@@ -414,7 +417,6 @@ contains
        cndleafon  = 0
        cndleafoff = 0
        cstat    = phen_cstat_notcold     ! Leaves are on
-       acc_NI   = 0.0_r8
        dstat    = phen_dstat_moiston     ! Leaves are on
        dleafoff = 300
        dleafon  = 100
@@ -449,7 +451,6 @@ contains
           sites(s)%dstatus(1:numpft) = dstat
           sites(s)%elong_factor(1:numpft) = elong_factor
 
-          sites(s)%acc_NI     = acc_NI
           sites(s)%NF         = 0.0_r8
           sites(s)%NF_successful  = 0.0_r8
           sites(s)%area_pft(:,:) = 0.0_r8
@@ -566,17 +567,16 @@ contains
              ! re-normalize PFT area to ensure it sums to one for each (active) land use type
              ! for nocomp cases, track bare ground area as a separate quantity
              do i_landusetype = 1, n_landuse_cats
-                sumarea = sum(sites(s)%area_pft(1:numpft,i_landusetype))
-                do ft =  1,numpft
-                   if(sumarea.gt.nearzero)then
-                      sites(s)%area_pft(ft, i_landusetype) = sites(s)%area_pft(ft, i_landusetype)/sumarea
-                   else
-                      ! if no PFT area in primary lands, set bare ground fraction to one.
-                      if ( i_landusetype .eq. primaryland) then
-                         sites(s)%area_bareground = 1._r8
-                      endif
-                   end if
-                end do !ft
+                sumarea = sum(sites(s)%area_pft(:,i_landusetype))
+                if(sumarea.gt.nearzero)then
+                      sites(s)%area_pft(:, i_landusetype) = sites(s)%area_pft(:, i_landusetype)/sumarea
+                else
+                   ! if no PFT area in primary lands, set bare ground fraction to one.
+                   if ( i_landusetype .eq. primaryland) then
+                      sites(s)%area_bareground = 1._r8
+                      sites(s)%area_pft(:, i_landusetype) = 0._r8
+                   endif
+                end if
              end do
                 
           end if !fixed biogeog
@@ -624,7 +624,7 @@ contains
 
     use FatesPlantHydraulicsMod, only : updateSizeDepRhizHydProps
     use FatesInventoryInitMod,   only : initialize_sites_by_inventory
-    use FatesLandUseChangeMod,   only : get_luh_statedata
+    use FatesLandUseChangeMod,   only : GetLUHStatedata
 
     !
     ! !ARGUMENTS
@@ -694,8 +694,9 @@ contains
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                   biomass_stock,litter_stock,seed_stock)
           end do
+          call set_patchno(sites(s))
        enddo
-
+       
     else
 
        if(hlm_use_nocomp.eq.itrue)then
@@ -721,7 +722,7 @@ contains
              ! This could be updated in the future to allow a variable number of
              ! categories based on which states are zero
              n_active_landuse_cats = n_landuse_cats
-             call get_luh_statedata(bc_in(s), state_vector)
+             call GetLUHStatedata(bc_in(s), state_vector)
 
              ! if the land use state vector is greater than the minimum value, set landuse_vector_gt_min flag to true
              ! otherwise set to false.
@@ -805,7 +806,7 @@ contains
                       else
                          nocomp_pft = fates_unset_int
                       end if
-
+                      
                       if(hlm_use_nocomp.eq.itrue)then
                          ! In no competition mode, if we are using the fixed_biogeog filter
                          ! then each PFT has the area dictated  by the surface dataset.
@@ -823,15 +824,16 @@ contains
                          newparea = area * state_vector(i_lu_state)
                       end if  !nocomp mode
 
-                      new_patch_area_gt_zero: if(newparea .gt. min_patch_area_forced) then ! Stop patches being initilialized when PFT not present in nocomop mode
+                      ! Stop patches being initilialized when PFT not present in nocomop mode
+                      new_patch_area_gt_zero: if(newparea .gt. min_patch_area_forced) then 
                          allocate(newp)
 
-                         call newp%Create(age, newparea, i_lu_state, nocomp_pft,     &
-                              hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
+                         call newp%Create(age, newparea, i_lu_state, nocomp_pft, &
+                              num_swb, numpft, sites(s)%nlevsoil, hlm_current_tod, &
                               regeneration_model)
 
                          if (is_first_patch) then !is this the first patch?
-                            ! set poointers for first patch (or only patch, if nocomp is false)
+                            ! set pointers for first patch (or only patch, if nocomp is false)
                             newp%patchno = 1
                             newp%younger => null()
                             newp%older   => null()

@@ -12,10 +12,17 @@
 import os
 import argparse
 import code  # For development: code.interact(local=dict(globals(), **locals()))
-from scipy.io import netcdf
 import xml.etree.ElementTree as et
 import numpy as np
 
+# Newer versions of scipy have dropped the netcdf module and
+# netcdf functions are part of the io parent module
+try:
+    from scipy import io as nc
+
+except ImportError:
+    from scipy.io import netcdf as nc
+	 
 # =======================================================================================
 
 def load_xml(xmlfile): 
@@ -157,10 +164,10 @@ def removevar(base_nc,varname):
     # The trick here, is to copy the whole file, minus the variable of interest
     # into a temp file. Then completely remove the old file, and 
 
-    fp_base = netcdf.netcdf_file(base_nc, 'r',mmap=False)
+    fp_base = nc.netcdf_file(base_nc, 'r',mmap=False)
 
     new_nc = os.popen('mktemp').read().rstrip('\n')
-    fp_new  = netcdf.netcdf_file(new_nc, 'w',mmap=False)
+    fp_new  = nc.netcdf_file(new_nc, 'w',mmap=False)
 
     found = False
     for key, value in sorted(fp_base.dimensions.items()):
@@ -248,7 +255,7 @@ def main():
                 print("The dimension size should be a scalar")
                 exit(2)
 
-            ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
+            ncfile = nc.netcdf_file(base_nc,"a",mmap=False)
             ncfile.createDimension(dimname, values[0])
             ncfile.flush()
             ncfile.close()
@@ -264,7 +271,7 @@ def main():
                 exit(2)
 
             # Find which parameters use this dimension
-            ncfile = netcdf.netcdf_file(base_nc,"r",mmap=False)
+            ncfile = nc.netcdf_file(base_nc,"r",mmap=False)
             found = False
             for key, value in sorted(ncfile.dimensions.items()):
                 if(key==dimname):
@@ -315,7 +322,7 @@ def main():
             except:
                 print("no long-name (ln), exiting");exit(2)
 
-            ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
+            ncfile = nc.netcdf_file(base_nc,"a",mmap=False)
 
             try:
                 # print("trying val: {}".format(paramname))
@@ -375,7 +382,7 @@ def main():
                 print("to change a parameter, the field must have a name attribute")
                 exit(2)
                 
-            ncfile = netcdf.netcdf_file(base_nc,"a",mmap=False)
+            ncfile = nc.netcdf_file(base_nc,"a",mmap=False)
             ncvar_o = ncfile.variables[paramname_o]
             # dims_o  = ncvar_o.dimensions
             dtype_o = ncvar_o.typecode()

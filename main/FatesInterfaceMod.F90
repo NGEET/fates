@@ -18,10 +18,8 @@ module FatesInterfaceMod
    use EDParamsMod               , only : maxpatch_total
    use EDParamsMod               , only : maxpatches_by_landuse
    use EDParamsMod               , only : max_cohort_per_patch
+   use FatesRadiationMemMod      , only : num_swb,ivis,inir
    use EDParamsMod               , only : regeneration_model
-   use EDParamsMod               , only : maxSWb
-   use EDParamsMod               , only : ivis
-   use EDParamsMod               , only : inir
    use EDParamsMod               , only : nclmax
    use EDParamsMod               , only : nlevleaf
    use EDParamsMod               , only : maxpft
@@ -44,6 +42,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : primaryland
    use FatesConstantsMod         , only : secondaryland
    use FatesConstantsMod         , only : n_crop_lu_types
+   use FatesConstantsMod         , only : n_term_mort_types
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -111,6 +110,7 @@ module FatesInterfaceMod
    use FatesHistoryInterfaceMod  , only : fates_hist
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
+   use FatesTwoStreamUtilsMod, only : TransferRadParams
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -501,8 +501,8 @@ contains
       allocate(bc_in%precip24_pa(maxpatch_total))
       
       ! Radiation
-      allocate(bc_in%solad_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_in%solai_parb(maxpatch_total,hlm_numSWb))
+      allocate(bc_in%solad_parb(maxpatch_total,num_swb))
+      allocate(bc_in%solai_parb(maxpatch_total,num_swb))
       
       ! Hydrology
       allocate(bc_in%smp_sl(nlevsoil_in))
@@ -534,8 +534,8 @@ contains
       allocate(bc_in%filter_vegzen_pa(maxpatch_total))
       allocate(bc_in%coszen_pa(maxpatch_total))
       allocate(bc_in%fcansno_pa(maxpatch_total))
-      allocate(bc_in%albgr_dir_rb(hlm_numSWb))
-      allocate(bc_in%albgr_dif_rb(hlm_numSWb))
+      allocate(bc_in%albgr_dir_rb(num_swb))
+      allocate(bc_in%albgr_dif_rb(num_swb))
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
@@ -566,7 +566,7 @@ contains
 
       if ( hlm_use_fixed_biogeog .eq. itrue) then
          if (hlm_use_luh .eq. itrue ) then
-            allocate(bc_in%pft_areafrac_lu(size( EDPftvarcon_inst%hlm_pft_map,2),num_luh2_states-n_crop_lu_types))
+            allocate(bc_in%pft_areafrac_lu(size( EDPftvarcon_inst%hlm_pft_map,2),n_landuse_cats-n_crop_lu_types))
          else
             allocate(bc_in%pft_areafrac(surfpft_lb:surfpft_ub))
          endif
@@ -619,14 +619,13 @@ contains
       allocate(bc_out%rssha_pa(maxpatch_total))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(fates_maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_out%albi_parb(fates_maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_out%fabd_parb(fates_maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_out%fabi_parb(fates_maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_out%ftdd_parb(fates_maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_out%ftid_parb(fates_maxPatchesPerSite,hlm_numSWb))
-      allocate(bc_out%ftii_parb(fates_maxPatchesPerSite,hlm_numSWb))
-
+      allocate(bc_out%albd_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%albi_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%fabd_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%fabi_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%ftdd_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%ftid_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%ftii_parb(fates_maxPatchesPerSite,num_swb))
 
       ! We allocate the boundary conditions to the BGC
       ! model, regardless of what scheme we use. The BGC
@@ -880,13 +879,13 @@ contains
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
          if(hlm_use_sp.eq.itrue) then
-            fates_maxElementsPerPatch = maxSWb
+            fates_maxElementsPerPatch = num_swb
          else
-            fates_maxElementsPerPatch = max(maxSWb,max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
+            fates_maxElementsPerPatch = max(num_swb,max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
          end if
          
          fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
-              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft)
+              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft*n_term_mort_types)
 
          if(hlm_use_planthydro==itrue)then
             fates_maxElementsPerSite = max(fates_maxElementsPerSite, nshell*nlevsoi_hyd_max )
@@ -1483,7 +1482,10 @@ contains
          hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
+         hlm_hist_level_dynam = unset_int
+         hlm_hist_level_hifrq = unset_int
 
+         
       case('check_allset')
          
          if(hlm_numSWb .eq. unset_int) then
@@ -1496,14 +1498,13 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_numSWb > maxSWb) then
-            write(fates_log(), *) 'FATES sets a maximum number of shortwave bands'
-            write(fates_log(), *) 'for some scratch-space, maxSWb'
-            write(fates_log(), *) 'it defaults to 2, but can be increased as needed'
-            write(fates_log(), *) 'your driver or host model is intending to drive'
-            write(fates_log(), *) 'FATES with:',hlm_numSWb,' bands.'
-            write(fates_log(), *) 'please increase maxSWb in EDTypes to match'
-            write(fates_log(), *) 'or exceed this value'
+         if(hlm_numSWb .ne. num_swb) then
+            write(fates_log(), *) 'FATES performs radiation scattering in the'
+            write(fates_log(), *) 'visible and near-infrared broad-bands for shortwave radiation.'
+            write(fates_log(), *) 'The host model has signaled to FATES that it is not tracking two'
+            write(fates_log(), *) 'bands.'
+            write(fates_log(), *) 'hlm_numSWb (HLM side):',hlm_numSWb
+            write(fates_log(), *) 'num_swb (FATES side): ',num_swb
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
@@ -1684,6 +1685,16 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_hist_level_dynam .eq. unset_int) then
+            write(fates_log(), *) 'switch defining dynamics history level is unset, hlm_hist_level_dynam, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+          if(hlm_hist_level_hifrq .eq. unset_int) then
+            write(fates_log(), *) 'switch defining high-frequency history level is unset, hlm_hist_level_hifrq, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+
          if(hlm_use_ch4 .eq. unset_int) then
             write(fates_log(), *) 'switch for the HLMs CH4 module unset: hlm_use_ch4, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1850,6 +1861,9 @@ contains
                   write(fates_log(),*) 'Transfering hlm_seeddisp_cadence= ',ival,' to FATES'
                end if
 
+           
+               
+               
             case('spitfire_mode')
                hlm_spitfire_mode = ival
                if (fates_global_verbose()) then
@@ -1971,6 +1985,19 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_inventory_init= ',ival,' to FATES'
                end if
 
+            case('hist_hifrq_dimlevel')
+               hlm_hist_level_hifrq = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_level_hifrq= ',ival,' to FATES'
+               end if
+               
+            case('hist_dynam_dimlevel')
+               hlm_hist_level_dynam = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_level_dynam= ',ival,' to FATES'
+               end if
+
+               
             case default
                write(fates_log(), *) 'fates NL tag not recognized:',trim(tag)
                !! call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1993,6 +2020,8 @@ contains
 
          if(present(cval))then
             select case (trim(tag))
+
+          
                
             case('hlm_name')
                hlm_name = trim(cval)
@@ -2046,7 +2075,7 @@ contains
       call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
-      
+      call TransferRadParams()
 
       
       return

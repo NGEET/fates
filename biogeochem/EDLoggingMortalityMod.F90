@@ -54,6 +54,7 @@ module EDLoggingMortalityMod
    use FatesInterfaceTypesMod , only : hlm_num_lu_harvest_cats
    use FatesInterfaceTypesMod , only : hlm_use_logging 
    use FatesInterfaceTypesMod , only : hlm_use_planthydro
+   use FatesInterfaceTypesMod , only : hlm_use_luh
    use FatesConstantsMod , only : itrue,ifalse
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log
@@ -71,8 +72,8 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : hlm_harvest_carbon
    use FatesConstantsMod, only : fates_check_param_set
    use FatesInterfaceTypesMod , only : numpft
-   use FatesLandUseChangeMod, only : get_init_landuse_harvest_rate
-   use FatesLandUseChangeMod, only : get_luh_statedata
+   use FatesLandUseChangeMod, only : GetInitLanduseHarvestRate
+   use FatesLandUseChangeMod, only : GetLUHStatedata
      
    implicit none
    private
@@ -241,6 +242,7 @@ contains
       real(r8) :: harvest_rate ! the final harvest rate to apply to this cohort today
       real(r8) :: state_vector(n_landuse_cats)
       logical  :: site_secondaryland_first_exceeding_min
+      real(r8) :: secondary_young_fraction  ! what fraction of secondary land is young secondary land
 
       ! todo: probably lower the dbhmin default value to 30 cm
       ! todo: change the default logging_event_code to 1 september (-244)
@@ -249,17 +251,30 @@ contains
       ! todo: eventually set up distinct harvest practices, each with a set of input paramaeters
       ! todo: implement harvested carbon inputs
 
-      call get_luh_statedata(bc_in, state_vector)
-      site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. currentSite%min_allowed_landuse_fraction) &
-           .and. (.not. currentSite%landuse_vector_gt_min(secondaryland))
-
+      ! The transition_landuse_from_off_to_on is for handling the special case of the first timestep after leaving potential
+      ! vegetation mode. In this case, all prior historical land-use, including harvest, needs to be applied on that first day.
+      ! So logging rates on that day are what is required to deforest exactly the amount of primary lands that will give the
+      ! amount of secondary lands dictated by the land use state vector for that year, rather than whatever the continuous
+      ! logging rate for that year is supposed to be according to the land use transition matrix.
       if (.not. currentSite%transition_landuse_from_off_to_on) then
-         if (site_secondaryland_first_exceeding_min) then
 
-            ! if the total intended area of secondary lands are less than what we can consider without having too-small patches,
-            ! or if that was the case until just now, then there is special logic
-            harvest_rate = state_vector(secondaryland) / sum(state_vector(:))
-            write(fates_log(), *) 'applying state_vector(secondaryland) to plants.', pft_i
+         ! Check if the secondaryland exceeds the minimum if in landuse mode
+         site_secondaryland_first_exceeding_min = .false.
+         if (hlm_use_luh .eq. itrue) then
+            call GetLUHStatedata(bc_in, state_vector)
+            site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. currentSite%min_allowed_landuse_fraction) &
+                 .and. (.not. currentSite%landuse_vector_gt_min(secondaryland))
+         end if
+
+         ! if the total intended area of secondary lands are less than what we can consider without having too-small patches,
+         ! or if that was the case until just now, then there is special logic
+         if (site_secondaryland_first_exceeding_min) then
+            if ( patch_land_use_label .eq. primaryland) then
+               harvest_rate = state_vector(secondaryland) / state_vector(primaryland)
+               write(fates_log(), *) 'applying state_vector(secondaryland) to plants.', pft_i
+            else
+               harvest_rate = 0._r8
+            endif
 
             ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
             harvest_tag = 2
@@ -288,9 +303,11 @@ contains
                ! HARVEST_SH2 = harvest from secondary young forest
                ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
 
+               secondary_young_fraction = currentSite%get_secondary_young_fraction()
+
                ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
                call get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, &
-                    hlm_harvest_rates, frac_site_primary, frac_site_secondary, secondary_age, harvest_rate)
+                    hlm_harvest_rates, frac_site_primary, frac_site_secondary, secondary_young_fraction, secondary_age, harvest_rate)
 
                ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
                harvest_tag = 2
@@ -368,22 +385,16 @@ contains
          endif
 
       else
-         call get_init_landuse_harvest_rate(bc_in, currentSite%min_allowed_landuse_fraction, &
+         call GetInitLanduseHarvestRate(bc_in, currentSite%min_allowed_landuse_fraction, &
               harvest_rate, currentSite%landuse_vector_gt_min)
+         lmort_direct     = 0.0_r8
+         lmort_collateral = 0.0_r8
+         lmort_infra      = 0.0_r8
+         l_degrad         = 0.0_r8
          if(prt_params%woody(pft_i) == itrue)then
             lmort_direct     = harvest_rate
-            lmort_collateral = 0.0_r8
-            lmort_infra      = 0.0_r8
-            l_degrad         = 0.0_r8
-         else
-            lmort_direct     = 0.0_r8
-            lmort_collateral = 0.0_r8
-            lmort_infra      = 0.0_r8
-            if (canopy_layer .eq. 1) then
-               l_degrad         = harvest_rate
-            else
-               l_degrad         = 0.0_r8
-            endif
+         else if (canopy_layer .eq. 1) then
+            l_degrad         = harvest_rate
          endif
       endif
 
@@ -393,13 +404,13 @@ contains
    ! ============================================================================
 
    subroutine get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, hlm_harvest_rates, &
-                 frac_site_primary, frac_site_secondary, secondary_age, harvest_rate)
+                 frac_site_primary, frac_site_secondary, secondary_young_fraction, secondary_age, harvest_rate)
 
 
      ! -------------------------------------------------------------------------------------------
      !
      !  DESCRIPTION:
-     !  get the area-based harvest rates based on info passed to FATES from the bioundary conditions in.
+     !  get the area-based harvest rates based on info passed to FATES from the boundary conditions in.
      !  assumes logging_time == true
 
       ! Arguments
@@ -409,6 +420,7 @@ contains
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(in) :: frac_site_primary
       real(r8), intent(in) :: frac_site_secondary
+      real(r8), intent(in) :: secondary_young_fraction  ! what fraction of secondary land is young secondary land
       real(r8), intent(out) :: harvest_rate
 
       ! Local Variables
@@ -441,15 +453,21 @@ contains
      !  Normalize by site-level primary or secondary forest fraction
      !  since harvest_rate is specified as a fraction of the gridcell
      !  also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
+     !  For secondary, also need to normalize by the young/old fraction.
      if (patch_land_use_label .eq. primaryland) then
         if (frac_site_primary .gt. fates_tiny) then
-           harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
+           harvest_rate = min((harvest_rate / frac_site_primary),1._r8)
         else
            harvest_rate = 0._r8
         endif
      else if (patch_land_use_label .eq. secondaryland) then
-        if (frac_site_secondary .gt. fates_tiny) then
-           harvest_rate = min((harvest_rate / frac_site_secondary), frac_site_secondary)
+        ! the .gt. -0.5 in the next line is because frac_site_secondary returns -1 if no secondary area.
+        if (frac_site_secondary .gt. fates_tiny .and. frac_site_secondary .gt. -0.5_r8) then
+           if (secondary_age .lt. secondary_age_threshold) then
+              harvest_rate = min((harvest_rate / (frac_site_secondary * secondary_young_fraction)), 1._r8)
+           else
+              harvest_rate = min((harvest_rate / (frac_site_secondary * (1._r8 - secondary_young_fraction))), 1._r8)
+           endif
         else
            harvest_rate = 0._r8
         endif

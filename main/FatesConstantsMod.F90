@@ -34,8 +34,6 @@ module FatesConstantsMod
   ! are used, but this helps allocate scratch
   ! space and output arrays.
 
-  integer, parameter, public :: n_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)
-
   integer , parameter, public       :: N_DBH_BINS = 6  ! no. of dbh bins used when comparing patches
   real(fates_r8), parameter, public :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
   (/0._fates_r8, 5._fates_r8, 20._fates_r8, 50._fates_r8, 100._fates_r8, 150._fates_r8/) ! array of bin lower edges for comparing patches
@@ -146,6 +144,10 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   ! integer labels for specifying leaf maintenance respiration models
   integer, parameter, public :: lmrmodel_ryan_1991         = 1
   integer, parameter, public :: lmrmodel_atkin_etal_2017   = 2
+
+  ! integer labels for specifying carbon starvation model
+  integer, parameter, public :: cstarvation_model_lin = 1 ! Linear scaling
+  integer, parameter, public :: cstarvation_model_exp = 2 ! Exponential scaling
 
   ! Error Tolerances
 
@@ -282,6 +284,10 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   real(fates_r8), parameter, public :: J_per_kJ = 1000.0_fates_r8
 
   ! Physical constants
+  
+  ! dewpoint calculation
+  real(fates_r8), parameter, public :: dewpoint_a = 17.62_fates_r8
+  real(fates_r8), parameter, public :: dewpoint_b = 243.12_fates_r8 ![degrees C]
 
   ! universal gas constant [J/K/kmol]
   real(fates_r8), parameter, public :: rgas_J_K_kmol          = 8314.4598_fates_r8
@@ -345,5 +351,10 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
 
   real(fates_r8), parameter, public :: lmr_r_2 = -0.0402_fates_r8    ! (umol CO2/m**2/s/degree C)
   
-  
+  ! some integers related to termination mortality
+  integer, parameter, public :: n_term_mort_types = 3
+  integer, parameter, public :: i_term_mort_type_cstarv = 1
+  integer, parameter, public :: i_term_mort_type_canlev = 2
+  integer, parameter, public :: i_term_mort_type_numdens = 3
+
 end module FatesConstantsMod
