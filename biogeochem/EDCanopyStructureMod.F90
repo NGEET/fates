@@ -1599,17 +1599,24 @@ contains
           
           if( prev_ncan .ne. ncan .or. (nveg>prev_nveg) .or. (nveg<prev_nveg-2) ) then
              
-             deallocate(cpatch%tlai_profile,cpatch%tsai_profile)
-             deallocate(cpatch%elai_profile,cpatch%esai_profile)
+             deallocate(cpatch%tlai_profile)
+             deallocate(cpatch%tsai_profile)
+             deallocate(cpatch%elai_profile)
+             deallocate(cpatch%esai_profile)
              deallocate(cpatch%f_sun)
-             deallocate(cpatch%fabd_sun_z,cpatch%fabd_sha_z)
-             deallocate(cpatch%fabi_sun_z,cpatch%fabi_sha_z)
+             deallocate(cpatch%fabd_sun_z)
+             deallocate(cpatch%fabd_sha_z)
+             deallocate(cpatch%fabi_sun_z)
+             deallocate(cpatch%fabi_sha_z)
              deallocate(cpatch%nrmlzd_parprof_pft_dir_z)
              deallocate(cpatch%nrmlzd_parprof_pft_dif_z)
-             deallocate(cpatch%ed_parsun_z,cpatch%ed_parsha_z)
-             deallocate(cpatch%ed_laisun_z,cpatch%ed_laisha_z)
-             deallocate(cpatch%parprof_pft_dir_z,cpatch%parprof_pft_dif_z)
-             
+             deallocate(cpatch%ed_parsun_z)
+             deallocate(cpatch%ed_parsha_z)
+             deallocate(cpatch%ed_laisun_z)
+             deallocate(cpatch%ed_laisha_z)
+             deallocate(cpatch%parprof_pft_dir_z)
+             deallocate(cpatch%parprof_pft_dif_z)
+             deallocate(cpatch%canopy_area_profile)
           else
              ! The number of canopy layers has not changed
              ! no need to deallocate or reallocate
@@ -1639,7 +1646,6 @@ contains
           allocate(cpatch%ed_laisha_z(ncan,numpft,nveg))
           allocate(cpatch%parprof_pft_dir_z(ncan,numpft,nveg))
           allocate(cpatch%parprof_pft_dif_z(ncan,numpft,nveg))
-          
        end if
     
        ! --------------------------------------------------------------------------------

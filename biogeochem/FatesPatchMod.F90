@@ -105,7 +105,7 @@ module FatesPatchMod
     ! exposed stem area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]      
     real(r8), allocatable :: esai_profile(:,:,:)  ! nclmax,maxpft,nlevleaf)
     ! total leaf area (includes that which is under snow-pack) 
-    real(r8), allocatable :: tlai_profile(:,:,:)  ! nclmax,maxpft,nlevleaf)
+    real(r8), pointer :: tlai_profile(:,:,:)  ! nclmax,maxpft,nlevleaf)
     ! total stem area (includes that which is under snow-pack)
     real(r8), allocatable :: tsai_profile(:,:,:)  ! nclmax,maxpft,nlevleaf)
     
