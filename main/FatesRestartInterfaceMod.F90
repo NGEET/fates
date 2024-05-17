@@ -3049,7 +3049,6 @@ contains
      integer  :: i_landuse,i_pflu ! loop counter for land use class
      integer  :: i_lu_donor, i_lu_receiver, i_dist ! loop counters for land use and disturbance    
      integer  :: i_term_type      ! loop counter for termination type
-     integer  :: i_lu_donor, i_lu_receiver, i_dist ! loop counters for land use and disturbance
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &

@@ -2390,7 +2390,6 @@ contains
          hio_fire_disturbance_rate_si      => this%hvars(ih_fire_disturbance_rate_si)%r81d, &
          hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
          hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
-         hio_harvest_carbonflux_si => this%hvars(ih_harvest_carbonflux_si)%r81d, &
          hio_harvest_debt_si     => this%hvars(ih_harvest_debt_si)%r81d, &
          hio_harvest_debt_sec_si => this%hvars(ih_harvest_debt_sec_si)%r81d, &
          hio_npp_leaf_si         => this%hvars(ih_npp_leaf_si)%r81d, &

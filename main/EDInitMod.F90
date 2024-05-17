@@ -762,7 +762,7 @@ contains
                 allocate(newp)
  
                 call newp%Create(age, newparea, nocomp_bareground_land, nocomp_bareground,     &
-                     hlm_numSWb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
+                     num_swb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
                      regeneration_model)
 
                 ! set pointers for first patch (or only patch, if nocomp is false)

@@ -226,7 +226,7 @@ contains
     current_fates_landuse_state_vector = site_in%get_current_landuse_statevector()
 
     ! and get the fraction of secondary land that is young secondary land
-    secondary_young_fraction = currentSite%get_secondary_young_fraction()
+    secondary_young_fraction = site_in%get_secondary_young_fraction()
 
     ! check status of transition_landuse_from_off_to_on flag, and do some error checking on it
     if(site_in%transition_landuse_from_off_to_on) then
@@ -1399,7 +1399,7 @@ contains
                 allocate(buffer_patch)
 
                 call buffer_patch%Create(0._r8, 0._r8, i_land_use_label, 0, &
-                     hlm_numSWb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
+                     num_swb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
                      regeneration_model)
 
                 ! Initialize the litter pools to zero
@@ -1641,7 +1641,7 @@ contains
     ! first we need to make the new patch
     call new_patch%Create(0._r8, &
          currentPatch%area * (1._r8 - fraction_to_keep), currentPatch%land_use_label, currentPatch%nocomp_pft_label, &
-         hlm_numSWb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
+         num_swb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
          regeneration_model)
 
     ! Initialize the litter pools to zero, these

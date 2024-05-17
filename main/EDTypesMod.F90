@@ -7,6 +7,7 @@ module EDTypesMod
   use FatesConstantsMod,     only : nocomp_bareground_land
   use FatesConstantsMod,     only : secondaryland
   use FatesConstantsMod,     only : secondary_age_threshold
+  use FatesConstantsMod,     only : nearzero
   use FatesGlobals,          only : fates_log
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
@@ -462,7 +463,8 @@ module EDTypesMod
      contains
 
        procedure, public :: get_current_landuse_statevector
-
+       procedure, public :: get_secondary_young_fraction
+       
   end type ed_site_type
 
   ! Make public necessary subroutines and functions
@@ -603,7 +605,7 @@ module EDTypesMod
         currentPatch => currentPatch%younger
      end do
 
-     if ( (secondary_young_area + secondary_old_area) .gt. fates_tiny) then
+     if ( (secondary_young_area + secondary_old_area) .gt. nearzero ) then
         secondary_young_fraction = secondary_young_area / (secondary_young_area + secondary_old_area)
      else
         secondary_young_fraction = -1._r8
