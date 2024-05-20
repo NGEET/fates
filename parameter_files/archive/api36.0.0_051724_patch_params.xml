@@ -52,14 +52,14 @@
     </mod>
     <mod type="variable_add">
       <na> fates_landuse_crop_lu_pft_vector </na>
-      <di> fates_landuse_class </di>
+      <di> fates_landuseclass </di>
       <un> NA </un>
       <ln> the FATES PFT index to use on a given crop land-use type (dummy value of -999 for non-crop types) </ln>
-      <val> 999, -999, -999, -999, 11 </val>
+      <val> -999, -999, -999, -999, 11 </val>
     </mod>
     <mod type="variable_add">
       <na> fates_max_nocomp_pfts_by_landuse </na>
-      <di> fates_landuse_class </di>
+      <di> fates_landuseclass </di>
       <un> count </un>
       <ln> maximum number of nocomp PFTs on each land use type (only used in nocomp mode) </ln>
       <val> 4, 4, 1, 1, 1 </val>
@@ -67,30 +67,5 @@
     <mod type="variable_del">
       <na> fates_landuse_pprodharv10_forest_mean </na>
     </mod>
-
-
-    
-		fates_landuse_harvest_pprod10:units = "fraction" ;
-		fates_landuse_harvest_pprod10:long_name = "fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
-	double fates_landuse_luc_frac_burned(fates_pft) ;
-		fates_landuse_luc_frac_burned:units = "fraction" ;
-		fates_landuse_luc_frac_burned:long_name = "fraction of land use change-generated and not-exported material that is burned (the remainder goes to litter)" ;
-		
-	double fates_landuse_luc_frac_exported(fates_pft) ;
-		fates_landuse_luc_frac_exported:units = "fraction" ;
-		fates_landuse_luc_frac_exported:long_name = "fraction of land use change-generated wood material that is exported to wood product (the remainder is either burned or goes to litter)" ;
-		
-	double fates_landuse_luc_pprod10(fates_pft) ;
-		fates_landuse_luc_pprod10:units = "fraction" ;
-		fates_landuse_luc_pprod10:long_name = "fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
-
-double fates_landuse_crop_lu_pft_vector(fates_landuseclass) ;
-		fates_landuse_crop_lu_pft_vector:units = "NA" ;
-		fates_landuse_crop_lu_pft_vector:long_name = "What FATES PFT index to use on a given crop land-use type? (dummy value of -999 for non-crop types)" ;
-	double fates_max_nocomp_pfts_by_landuse(fates_landuseclass) ;
-		fates_max_nocomp_pfts_by_landuse:units = "count" ;
-		fates_max_nocomp_pfts_by_landuse:long_name = "maximum number of nocomp PFTs on each land use type (only used in nocomp mode)" ;
-		
-    
   </mods>
 </all>
