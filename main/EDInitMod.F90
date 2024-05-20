@@ -795,7 +795,16 @@ contains
              end_landuse_idx = 1
           endif
 
-          not_all_bareground_if: if ((1._r8 - sites(s)%area_bareground) .gt. nearzero) then
+
+          !          not_all_bareground_if: if ((1._r8 - sites(s)%area_bareground) .gt. nearzero) then
+
+          ! Next, create the non-bareground patches. We do this for either of two scenarios:
+          ! If 1) we are not doing both nocomp & fixed-biogeo
+          !    2) we are, but there is some non-zero bare-ground area
+          
+          not_all_bare_if: if( ((1._r8 - sites(s)%area_bareground) > nearzero) .or. &
+                                     (.not.(hlm_use_nocomp.eq.itrue .and. hlm_use_fixed_biogeog.eq.itrue)) ) then
+          
              ! now make one or more vegetated patches based on nocomp and land use logic
              luh_state_loop: do i_lu_state = 1, end_landuse_idx
                 lu_state_present_if: if (state_vector(i_lu_state) .gt. nearzero) then
@@ -876,7 +885,7 @@ contains
                    end do new_patch_nocomp_loop
                 end if lu_state_present_if
              end do luh_state_loop
-          end if not_all_bareground_if
+          end if not_all_bare_if
 
           ! if we had to skip small patches above, resize things accordingly
           if ( area_error .gt. nearzero) then
@@ -907,7 +916,9 @@ contains
                 end do
 
              else !this is a big error not just a precision error.
-                write(fates_log(),*) 'issue with patch area in EDinit', area_diff, total
+                write(fates_log(),*) 'issue with patch area in EDinit', area_diff, total,sites(s)%lat,sites(s)%lon
+                write(fates_log(),*) 'hlm_use_nocomp: ',hlm_use_nocomp
+                write(fates_log(),*) 'hlm_use_fixed_biogeog: ',hlm_use_fixed_biogeog
                 newp => sites(s)%oldest_patch
                 do while (associated(newp))
                    write(fates_log(),*) newp%area, newp%nocomp_pft_label, newp%land_use_label
