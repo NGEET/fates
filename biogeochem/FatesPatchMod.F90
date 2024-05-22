@@ -316,6 +316,7 @@ module FatesPatchMod
       this%total_canopy_area            = nan
       this%total_tree_area              = nan 
       this%zstar                        = nan 
+
       this%elai_profile(:,:,:)          = nan 
       this%esai_profile(:,:,:)          = nan   
       this%tlai_profile(:,:,:)          = nan 
@@ -679,6 +680,33 @@ module FatesPatchMod
                  this%fragmentation_scaler,     &
                  stat=istat, errmsg=smsg)
 
+      ! These arrays are allocated in EDCanopyStructureMod
+      ! while determining how many canopy and leaf layers
+      ! the patch has. Its possible that patches may
+      ! be spawned and destroyed before ever reaching
+      ! that routine, thus we must check to see
+      ! if the they are already allocated.
+      if(associated(this%tlai_profile)) then
+         deallocate(this%tlai_profile)
+         deallocate(this%tsai_profile)
+         deallocate(this%elai_profile)
+         deallocate(this%esai_profile)
+         deallocate(this%f_sun)
+         deallocate(this%fabd_sun_z)
+         deallocate(this%fabd_sha_z)
+         deallocate(this%fabi_sun_z)
+         deallocate(this%fabi_sha_z)
+         deallocate(this%nrmlzd_parprof_pft_dir_z)
+         deallocate(this%nrmlzd_parprof_pft_dif_z)
+         deallocate(this%ed_parsun_z)
+         deallocate(this%ed_parsha_z)
+         deallocate(this%ed_laisun_z)
+         deallocate(this%ed_laisha_z)
+         deallocate(this%parprof_pft_dir_z)
+         deallocate(this%parprof_pft_dif_z)
+         deallocate(this%canopy_area_profile)
+      end if
+      
       if (istat/=0) then
         write(fates_log(),*) 'dealloc009: fail on deallocate patch vectors:'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
