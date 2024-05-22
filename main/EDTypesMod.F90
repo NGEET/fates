@@ -464,7 +464,11 @@ module EDTypesMod
 
        procedure, public :: get_current_landuse_statevector
        procedure, public :: get_secondary_young_fraction
+<<<<<<< HEAD
        
+=======
+
+>>>>>>> 827ab3f1d63f710f8819d4329253d0a7d75a4bed
   end type ed_site_type
 
   ! Make public necessary subroutines and functions
