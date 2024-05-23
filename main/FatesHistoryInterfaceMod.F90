@@ -2165,7 +2165,9 @@ contains
 
                      ! Demand
                      this%hvars(ih_pdemand_si)%r81d(io_si) = &
+                          this%hvars(ih_pdemand_si)%r81d(io_si) + & 
                           ccohort%daily_p_demand*uconv
+                     
                   end select
                end do
 
@@ -6366,31 +6368,31 @@ contains
           call this%set_history_var(vname='FATES_NH4UPTAKE', units='kg m-2 s-1',  &
                long='ammonium uptake rate by plants in kg NH4 per m2 per second', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_nh4uptake_si)
 
           call this%set_history_var(vname='FATES_NO3UPTAKE', units='kg m-2 s-1',  &
                long='nitrate uptake rate by plants in kg NO3 per m2 per second',  &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_no3uptake_si)
 
           call this%set_history_var(vname='FATES_NEFFLUX', units='kg m-2 s-1',    &
                long='nitrogen effluxed from plant in kg N per m2 per second (unused)', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_nefflux_si)
 
           call this%set_history_var(vname='FATES_NDEMAND', units='kg m-2 s-1',      &
                long='plant nitrogen need (algorithm dependent) in kg N per m2 per second', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_ndemand_si)
 
           call this%set_history_var(vname='FATES_NFIX_SYM', units='kg m-2 s-1',      &
                long='symbiotic dinitrogen fixation in kg N per m2 per second', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_nfix_si)
           
           call this%set_history_var(vname='FATES_STOREN', units='kg m-2',         &
@@ -6475,19 +6477,19 @@ contains
           call this%set_history_var(vname='FATES_PUPTAKE', units='kg m-2 s-1',    &
                long='mineralized phosphorus uptake rate of plants in kg P per m2 per second', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_puptake_si)
 
           call this%set_history_var(vname='FATES_PEFFLUX', units='kg m-2 s-1',    &
                long='phosphorus effluxed from plant in kg P per m2 per second (unused)', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_pefflux_si)
 
           call this%set_history_var(vname='FATES_PDEMAND', units='kg m-2 s-1',      &
                long='plant phosphorus need (algorithm dependent) in kg P per m2 per second', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_pdemand_si)
        end if phosphorus_active_if0
 
@@ -6583,11 +6585,15 @@ contains
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple,   &
             ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_sec_si )
 
+       ! Nutrient flux variables (dynamics call frequency)
+       ! ----------------------------------------------------
        call this%set_history_var(vname='FATES_EXCESS_RESP', units='kg m-2 s-1',    &
             long='respiration of un-allocatable carbon gain', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_excess_resp_si)
+
+       
        ! slow carbon fluxes associated with mortality from or transfer betweeen canopy and understory
 
        call this%set_history_var(vname='FATES_DEMOTION_CARBONFLUX',               &
@@ -7098,32 +7104,32 @@ contains
                   units='kg m-2 s-1',                                                &
                   long='ammonium uptake rate by plants by size-class x pft in kg NH4 per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_nh4uptake_scpf)
 
              call this%set_history_var(vname='FATES_NO3UPTAKE_SZPF',                 &
                   units='kg m-2 s-1',                                                &
                   long='nitrate uptake rate by plants by size-class x pft in kg NO3 per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_no3uptake_scpf)
 
              call this%set_history_var(vname='FATES_NEFFLUX_SZPF', units='kg m-2 s-1', &
                   long='nitrogen efflux, root to soil, by size-class x pft in kg N per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_nefflux_scpf)
 
              call this%set_history_var(vname='FATES_NDEMAND_SZPF', units='kg m-2 s-1', &
                   long='plant N need (algorithm dependent), by size-class x pft in kg N per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_ndemand_scpf)
 
              call this%set_history_var(vname='FATES_NFIX_SYM_SZPF', units='kg m-2 s-1', &
                   long='symbiotic dinitrogen fixation, by size-class x pft in kg N per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_nfix_scpf)
              
              call this%set_history_var(vname='FATES_VEGN_SZPF', units='kg m-2',      &
@@ -7235,20 +7241,20 @@ contains
                   units='kg m-2 s-1',                                                &
                   long='phosphorus uptake rate by plants, by size-class x pft in kg P per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_puptake_scpf)
 
              call this%set_history_var(vname='FATES_PEFFLUX_SZPF',                   &
                   units='kg m-2 s-1',                                                &
                   long='phosphorus efflux, root to soil, by size-class x pft in kg P per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_pefflux_scpf)
 
              call this%set_history_var(vname='FATES_PDEMAND_SZPF', units='kg m-2 s-1', &
                   long='plant P need (algorithm dependent), by size-class x pft in kg P per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_pdemand_scpf)
 
           end if phosphorus_active_if1
