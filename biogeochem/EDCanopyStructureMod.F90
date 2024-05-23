@@ -311,9 +311,9 @@ contains
        ! Save number of canopy layers to the patch structure
        
        if(z > nclmax) then
-          write(fates_log(),*) 'FATES generated more canopy layers than scratch-space allows'
+          write(fates_log(),*) 'Termination should have ensured number of canopy layers was not larger than nclmax'
           write(fates_log(),*) 'Predicted: ',z
-          write(fates_log(),*) 'Scratch space (nclmax, see EDParamsMod.F90): ',nclmax
+          write(fates_log(),*) 'nclmax: ',nclmax
           write(fates_log(),*) 'Consider increasing nclmax if this value is to low'
           write(fates_log(),*) 'and you think this number of canopy layers is reasonable.'
           call endrun(msg=errMsg(sourcefile, __LINE__))
