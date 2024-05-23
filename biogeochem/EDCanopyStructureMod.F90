@@ -1534,12 +1534,7 @@ contains
     integer  :: ft                       ! Plant functional type index.
     integer  :: iv                       ! Vertical leaf layer index
     integer  :: cl                       ! Canopy layer index
-    logical  :: re_allocate              ! Should we re-allocate the patch arrays?
-    integer  :: prev_nveg                ! Previous number of vegetation layers
-    integer  :: nveg                     ! Number of vegetation layers
-    integer  :: ncan                     ! Number of canopy layers
-    integer  :: prev_ncan                ! Number of canopy layers previously
-                                         ! as defined in the allocation space
+ 
     real(r8) :: fraction_exposed         ! how much of this layer is not covered by snow?
     real(r8) :: frac_canopy(N_HEIGHT_BINS) ! amount of canopy in each height class
     real(r8) :: minh(N_HEIGHT_BINS)        ! minimum height in height class (m)
@@ -1568,86 +1563,15 @@ contains
        call UpdatePatchLAI(cpatch)
 
 
-       ! Perform allocations and re-allocations of potentially large patch arrays
-       !
-       ! Note that this routine is called at the very end of dynamics, after trimming
-       ! and after canopy structure. This is important because we want to allocate
-       ! the array spaces for leaf area and radiation scattering based on the most
-       ! updated values.  Note, that this routine is also called before we re-initialize
-       ! radiation scattering during restarts.
-       ! ------------------------------------------------------------------------
-           
-       ncan = cpatch%ncl_p
-       nveg = maxval(cpatch%ncan(:,:))
-       
-       ! Assume we will need to allocate, unless the
-       ! arrays already are allocated and require the same size
-       re_allocate = .true.
-       
-       ! If the large patch arrays are not new, deallocate them
-       if(associated(cpatch%tlai_profile)) then
+       ! This call assesses if the large, dynamically allocated
+       ! patch arrays need to be allocated for the first time,
+       ! or resized
+       call cpatch%ReAllocateDynamics()
 
-          prev_ncan = ubound(cpatch%tlai_profile,1)
-          prev_nveg = ubound(cpatch%tlai_profile,3)
-
-          ! We re-allocate if the number of canopy layers has changed, or
-          ! if the number of vegetation layers is larger than previously.
-          ! However, we also re-allocate if the number of vegetation layers
-          ! is not just smaller than previously allocated, but A GOOD BIT smaller
-          ! than previously allocated.  Why?
-          ! We do this so that we are not always re-allocating.
-          
-          if( prev_ncan .ne. ncan .or. (nveg>prev_nveg) .or. (nveg<prev_nveg-2) ) then
-             
-             deallocate(cpatch%tlai_profile)
-             deallocate(cpatch%tsai_profile)
-             deallocate(cpatch%elai_profile)
-             deallocate(cpatch%esai_profile)
-             deallocate(cpatch%f_sun)
-             deallocate(cpatch%fabd_sun_z)
-             deallocate(cpatch%fabd_sha_z)
-             deallocate(cpatch%fabi_sun_z)
-             deallocate(cpatch%fabi_sha_z)
-             deallocate(cpatch%nrmlzd_parprof_pft_dir_z)
-             deallocate(cpatch%nrmlzd_parprof_pft_dif_z)
-             deallocate(cpatch%ed_parsun_z)
-             deallocate(cpatch%ed_parsha_z)
-             deallocate(cpatch%ed_laisun_z)
-             deallocate(cpatch%ed_laisha_z)
-             deallocate(cpatch%parprof_pft_dir_z)
-             deallocate(cpatch%parprof_pft_dif_z)
-             deallocate(cpatch%canopy_area_profile)
-          else
-             ! The number of canopy layers has not changed
-             ! no need to deallocate or reallocate
-             re_allocate = .false.
-          end if
-             
-       end if
+       ! These calls NaN and zero the above mentioned arrays
+       call cpatch%NanDynamics()
+       call cpatch%ZeroDynamics()
        
-       ! Allocate dynamic patch arrays
-       
-       if(re_allocate) then
-          allocate(cpatch%tlai_profile(ncan,numpft,nveg))
-          allocate(cpatch%tsai_profile(ncan,numpft,nveg))
-          allocate(cpatch%elai_profile(ncan,numpft,nveg))
-          allocate(cpatch%esai_profile(ncan,numpft,nveg))
-          allocate(cpatch%canopy_area_profile(ncan,numpft,nveg))
-          allocate(cpatch%f_sun(ncan,numpft,nveg))
-          allocate(cpatch%fabd_sun_z(ncan,numpft,nveg))
-          allocate(cpatch%fabd_sha_z(ncan,numpft,nveg))
-          allocate(cpatch%fabi_sun_z(ncan,numpft,nveg))
-          allocate(cpatch%fabi_sha_z(ncan,numpft,nveg))
-          allocate(cpatch%nrmlzd_parprof_pft_dir_z(num_rad_stream_types,ncan,numpft,nveg))
-          allocate(cpatch%nrmlzd_parprof_pft_dif_z(num_rad_stream_types,ncan,numpft,nveg))
-          allocate(cpatch%ed_parsun_z(ncan,numpft,nveg))
-          allocate(cpatch%ed_parsha_z(ncan,numpft,nveg))
-          allocate(cpatch%ed_laisun_z(ncan,numpft,nveg))
-          allocate(cpatch%ed_laisha_z(ncan,numpft,nveg))
-          allocate(cpatch%parprof_pft_dir_z(ncan,numpft,nveg))
-          allocate(cpatch%parprof_pft_dif_z(ncan,numpft,nveg))
-       end if
-    
        ! --------------------------------------------------------------------------------
        ! Calculate tree and canopy areas.
        ! calculate tree lai and sai.
