@@ -1826,11 +1826,9 @@ contains
     if(hlm_hist_level_hifrq>0) then
        call this%flush_hvars(nc,upfreq_in=group_hifr_simple)
        if (hlm_use_planthydro.eq.itrue) call this%flush_hvars(nc,upfreq_in=group_hydr_simple)
-       end if
        if(hlm_hist_level_hifrq>1) then
           call this%flush_hvars(nc,upfreq_in=group_hifr_complx)
           if (hlm_use_planthydro.eq.itrue) call this%flush_hvars(nc,upfreq_in=group_hydr_complx)
-          end if
        end if
     end if
 
