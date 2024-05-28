@@ -900,7 +900,7 @@ module FatesHistoryInterfaceMod
 
      procedure, public :: flush_hvars
      procedure, public :: zero_site_hvars
-     
+     procedure, public :: flush_all_hvars
 
   end type fates_history_interface_type
 
@@ -1812,6 +1812,40 @@ contains
     return
   end subroutine zero_site_hvars
 
+
+  ! ======================================================================================
+
+  subroutine flush_all_hvars(this,nc)
+
+    ! A wrapper to flush all active history
+    ! groups to their flush value
+    
+    class(fates_history_interface_type)    :: this
+    integer,intent(in)                     :: nc
+    
+    if(hlm_hist_level_hifrq>0) then
+       call this%flush_hvars(nc,upfreq_in=group_hifr_simple)
+       if (hlm_use_planthydro.eq.itrue) call this%flush_hvars(nc,upfreq_in=group_hydr_simple)
+       end if
+       if(hlm_hist_level_hifrq>1) then
+          call this%flush_hvars(nc,upfreq_in=group_hifr_complx)
+          if (hlm_use_planthydro.eq.itrue) call this%flush_hvars(nc,upfreq_in=group_hydr_complx)
+          end if
+       end if
+    end if
+
+    if(hlm_hist_level_dynam>0) then
+       call this%flush_hvars(nc,upfreq_in=group_dyna_simple)
+       call this%flush_hvars(nc,upfreq_in=group_nflx_simple)
+       if(hlm_hist_level_dynam>1) then
+          call this%flush_hvars(nc,upfreq_in=group_dyna_complx)
+          call this%flush_hvars(nc,upfreq_in=group_nflx_complx)
+       end if
+    end if
+    
+    return
+  end subroutine flush_all_hvars
+  
   ! ======================================================================================
 
   subroutine flush_hvars(this,nc,upfreq_in)
