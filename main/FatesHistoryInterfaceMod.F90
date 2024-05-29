@@ -3069,8 +3069,9 @@ contains
     integer  :: iscagpft     ! size-class x age x pft index
     integer  :: icdpf, icdsc, icdam ! iterators for the crown damage level
     integer  :: i_agefuel     ! age x fuel size class index
-    real(r8) :: gpp_cached ! variable used to cache gpp value in previous time step; for C13 discrimination
+    real(r8) :: gpp_cached    ! gpp from previous timestep, for c13 discrimination
     real(r8) :: crown_depth   ! Depth of the crown [m]
+    real(r8) :: gpp_cached_scpf(numpft*nlevsclass)  ! variable used to cache gpp value in previous time step; for C13 discrimination
     real(r8) :: storen_canopy_scpf(numpft*nlevsclass)
     real(r8) :: storen_understory_scpf(numpft*nlevsclass)
     real(r8) :: storep_canopy_scpf(numpft*nlevsclass)
@@ -3312,6 +3313,11 @@ contains
 
              io_si  = sites(s)%h_gid
 
+             ! C13 will not get b4b restarts on the first day because
+             ! there is no mechanism to remember the previous day's values
+             ! through a restart. This should be added with the next refactor
+             gpp_cached_scpf(:) = hio_gpp_si_scpf(io_si,:)
+             
              call this%zero_site_hvars(sites(s),upfreq_in=group_dyna_complx)
              
              ! These are weighting factors
@@ -3680,9 +3686,6 @@ contains
                            capf => ccohort%coage_by_pft_class,                  &
                            cdam => ccohort%crowndamage)
 
-                        gpp_cached = (hio_gpp_si_scpf(io_si,scpf)) *                    &
-                             days_per_year * sec_per_day
-
                         ! [kgC/m2/s]
                         hio_gpp_si_scpf(io_si,scpf) = hio_gpp_si_scpf(io_si,scpf) +     &
                              n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
@@ -3786,12 +3789,16 @@ contains
                         end if
 
                         !C13 discrimination
-                        if(gpp_cached + ccohort%gpp_acc_hold > 0.0_r8)then
+                        if(abs(gpp_cached_scpf(scpf)-hlm_hio_ignore_val)>nearzero .and. &
+                              (gpp_cached_scpf(scpf) + ccohort%gpp_acc_hold) > 0.0_r8) then
+                           
+                           gpp_cached = gpp_cached_scpf(scpf)*days_per_year*sec_per_day
+                           
                            hio_c13disc_si_scpf(io_si,scpf) = ((hio_c13disc_si_scpf(io_si,scpf) * gpp_cached) + &
                                 (ccohort%c13disc_acc * ccohort%gpp_acc_hold)) / (gpp_cached + ccohort%gpp_acc_hold)
                         else
                            hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
-                        endif
+                        end if
 
                         ! number density [/m2]
                         hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
