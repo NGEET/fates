@@ -3651,16 +3651,16 @@ contains
 
                       ! update pft-resolved NPP and GPP fluxes
                       hio_gpp_si_pft(io_si, ft) = hio_gpp_si_pft(io_si, ft) + &
-                           ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
+                           ccohort%gpp_acc_hold * n_perm2 / (days_per_year* sec_per_day)
 
                       hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
-                           ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
+                           ccohort%npp_acc_hold * n_perm2 / (days_per_year*sec_per_day)
 
                       if ( cpatch%land_use_label .eq. secondaryland ) then
                          hio_gpp_sec_si_pft(io_si, ft) = hio_gpp_sec_si_pft(io_si, ft) + &
-                              ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
+                              ccohort%gpp_acc_hold * n_perm2 / (days_per_year*sec_per_day)
                          hio_npp_sec_si_pft(io_si, ft) = hio_npp_sec_si_pft(io_si, ft) + &
-                              ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
+                              ccohort%npp_acc_hold * n_perm2 / (days_per_year*sec_per_day)
                       end if
 
                       ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
@@ -3686,32 +3686,40 @@ contains
                            capf => ccohort%coage_by_pft_class,                  &
                            cdam => ccohort%crowndamage)
 
-                        ! [kgC/m2/s]
+                        ! convert [kgC/plant/year] -> [kgC/m2/s]
                         hio_gpp_si_scpf(io_si,scpf) = hio_gpp_si_scpf(io_si,scpf) +     &
-                             n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
+                             n_perm2*ccohort%gpp_acc_hold / (days_per_year*sec_per_day)
+                        
                         hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + &
-                             ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
+                             ccohort%npp_acc_hold * n_perm2 / (days_per_year*sec_per_day)
 
                         hio_npp_leaf_si_scpf(io_si,scpf) = hio_npp_leaf_si_scpf(io_si,scpf) + &
-                             leaf_m_net_alloc*n_perm2 / days_per_year / sec_per_day
+                             leaf_m_net_alloc*n_perm2 / (days_per_year*sec_per_day)
+                        
                         hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
-                             fnrt_m_net_alloc*n_perm2 / days_per_year / sec_per_day
+                             fnrt_m_net_alloc*n_perm2 / (days_per_year*sec_per_day)
+                        
                         hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
                              sapw_m_net_alloc*n_perm2*(1._r8-prt_params%allom_agb_frac(ccohort%pft)) / &
-                             days_per_year / sec_per_day
+                             (days_per_year*sec_per_day)
+                        
                         hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
                              sapw_m_net_alloc*n_perm2*prt_params%allom_agb_frac(ccohort%pft) / &
-                             days_per_year / sec_per_day
+                             (days_per_year*sec_per_day)
+                        
                         hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
                              struct_m_net_alloc*n_perm2*(1._r8-prt_params%allom_agb_frac(ccohort%pft)) / &
-                             days_per_year / sec_per_day
+                             (days_per_year*sec_per_day)
+                        
                         hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
                              struct_m_net_alloc*n_perm2*prt_params%allom_agb_frac(ccohort%pft) / &
-                             days_per_year / sec_per_day
+                             (days_per_year*sec_per_day)
+                        
                         hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
-                             repro_m_net_alloc*n_perm2 / days_per_year / sec_per_day
+                             repro_m_net_alloc*n_perm2 / (days_per_year*sec_per_day)
+                        
                         hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
-                             store_m_net_alloc*n_perm2 / days_per_year / sec_per_day
+                             store_m_net_alloc*n_perm2 / (days_per_year*sec_per_day)
 
                         ! Woody State Variables (basal area growth increment)
                         if ( prt_params%woody(ft) == itrue) then
