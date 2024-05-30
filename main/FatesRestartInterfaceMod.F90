@@ -1157,12 +1157,12 @@ contains
 
     end if
     
-    call this%RegisterCohortVector(symbol_base='fates_woodproduct_harvest', vtype=cohort_r8, &
+   call this%RegisterCohortVector(symbol_base='fates_woodprod_harv', vtype=cohort_r8, &
          long_name_base='Current wood product flux from harvest', &
          units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_harvest_mbal)
 
-    call this%RegisterCohortVector(symbol_base='fates_woodproduct_landusechange', vtype=cohort_r8, &
+   call this%RegisterCohortVector(symbol_base='fates_woodprod_luc', vtype=cohort_r8, &
          long_name_base='Current wood product flux from land use change', &
          units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_landusechange_mbal)
