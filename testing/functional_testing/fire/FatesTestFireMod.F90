@@ -100,7 +100,7 @@ module FatesTestFireMod
     !=====================================================================================
 
     subroutine WriteFireData(out_file, nsteps, nfuelmods, temp_degC, precip, rh, NI,     &
-      loading, frac_loading, total_loading, fuel_models)
+      loading, frac_loading, fuel_BD, fuel_SAV, total_loading, fuel_models)
       !
       ! DESCRIPTION:
       ! writes out data from the unit test
@@ -117,6 +117,8 @@ module FatesTestFireMod
       real(r8),         intent(in) :: loading(:,:)
       real(r8),         intent(in) :: frac_loading(:,:)
       real(r8),         intent(in) :: total_loading(:)
+      real(r8),         intent(in) :: fuel_BD(:)
+      real(r8),         intent(in) :: fuel_SAV(:)
       integer,          intent(in) :: fuel_models(:)
 
       ! LOCALS:
@@ -125,10 +127,14 @@ module FatesTestFireMod
       integer              :: i            ! looping index
       character(len=20)    :: dim_names(3) ! dimension names
       integer              :: dimIDs(3)    ! dimension IDs
-      integer              :: timeID, litterID, modID
+      ! variable IDS
+      integer              :: timeID, litterID
+      integer              :: modID
       integer              :: tempID, precipID
       integer              :: rhID, NIID, loadingID
-      integer              :: frac_loadingID, tot_loadingID
+      integer              :: frac_loadingID
+      integer              :: tot_loadingID
+      integer              :: BDID, SAVID
       
       ! create pft indices
       allocate(time_index(nsteps))
@@ -164,6 +170,7 @@ module FatesTestFireMod
         [character(len=20)  :: 'units', 'long_name'],                 &
         [character(len=150) :: '', 'fuel model index'], 2, modID)
 
+        
       ! then register actual variables
         
       ! register temperature
@@ -199,18 +206,32 @@ module FatesTestFireMod
       ! register fractional fuel loading
       call RegisterVar(ncid, 'frac_loading', dimIDs(2:3), type_double,                 &
         [character(len=20)  :: 'coordinates', 'units', 'long_name'],                   &
-        [character(len=150) :: 'litter_class fuel_model', '', 'fractional loading'],  &                                                  
+        [character(len=150) :: 'litter_class fuel_model', '', 'fractional loading'],   &                                                    
         3, frac_loadingID)
         
       ! register total fuel loading
-      call RegisterVar(ncid, 'total_loading', dimIDs(3:3), type_double,                 &
-        [character(len=20)  :: 'coordinates', 'units', 'long_name'],                   &
+      call RegisterVar(ncid, 'total_loading', dimIDs(3:3), type_double,    &
+        [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
         [character(len=150) :: 'fuel_model', 'kgC m-2', 'total loading'],  &                                                  
         3, tot_loadingID)
+        
+      ! register fuel bulk density
+        call RegisterVar(ncid, 'bulk_density', dimIDs(3:3), type_double,      &
+        [character(len=20)  :: 'coordinates', 'units', 'long_name'],          &
+        [character(len=150) :: 'fuel_model', 'kg m-3', 'fuel bulk density'],  &                                                  
+        3, BDID)
+        
+      ! register fuel SAV
+        call RegisterVar(ncid, 'SAV', dimIDs(3:3), type_double,                             &
+        [character(len=20)  :: 'coordinates', 'units', 'long_name'],                        &
+        [character(len=150) :: 'fuel_model', 'cm-1', 'fuel surface area to volume ratio'],  &                                                  
+        3, SAVID)
+        
         
       ! finish defining variables
       call EndNCDef(ncid)
 
+      ! write out data
       call WriteVar(ncid, timeID, time_index)
       call WriteVar(ncid, litterID, (/1, 2, 3, 4, 5/))
       call WriteVar(ncid, modID, fuel_models)
@@ -221,6 +242,8 @@ module FatesTestFireMod
       call WriteVar(ncid, loadingID, loading(:,:))
       call WriteVar(ncid, frac_loadingID, frac_loading(:,:))
       call WriteVar(ncid, tot_loadingID, total_loading(:))
+      call WriteVar(ncid, BDID, fuel_BD(:))
+      call WriteVar(ncid, SAVID, fuel_SAV(:))
  
       call CloseNCFile(ncid)
 

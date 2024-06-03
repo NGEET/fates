@@ -1,4 +1,4 @@
-  module SFMainMod
+module SFMainMod
 
   ! ============================================================================
   ! All subroutines related to the SPITFIRE fire routine. 
@@ -58,153 +58,152 @@ contains
     !  DESCRIPTION:
     !  Runs the daily fire model
 
-      ! ARGUMENTS:
-      type(ed_site_type), intent(inout), target :: currentSite ! site object
-      type(bc_in_type),   intent(in)            :: bc_in       ! BC in object
+    ! ARGUMENTS:
+    type(ed_site_type), intent(inout), target :: currentSite ! site object
+    type(bc_in_type),   intent(in)            :: bc_in       ! BC in object
 
-      ! LOCALS:  
-      type (fates_patch_type), pointer :: currentPatch ! patch object
+    ! LOCALS:  
+    type (fates_patch_type), pointer :: currentPatch ! patch object
 
-      ! zero fire things
-      currentPatch => currentSite%youngest_patch
-      do while(associated(currentPatch))
-         currentPatch%frac_burnt = 0.0_r8
-         currentPatch%fire = 0
-         currentPatch => currentPatch%older
-      end do
+    ! zero fire things
+    currentPatch => currentSite%youngest_patch
+    do while(associated(currentPatch))
+      currentPatch%frac_burnt = 0.0_r8
+      currentPatch%fire = 0
+      currentPatch => currentPatch%older
+    end do
 
-      if (hlm_spitfire_mode > hlm_sf_nofire_def) then
-         call UpdateFireWeather(currentSite, bc_in)
-         call UpdateFuelCharacteristics(currentSite)
-         call rate_of_spread(currentSite)
-         call ground_fuel_consumption(currentSite)
-         call area_burnt_intensity(currentSite, bc_in)
-         call crown_scorching(currentSite)
-         call crown_damage(currentSite)
-         call cambial_damage_kill(currentSite)
-         call post_fire_mortality(currentSite)
-      end if
+    if (hlm_spitfire_mode > hlm_sf_nofire_def) then
+      call UpdateFireWeather(currentSite, bc_in)
+      call UpdateFuelCharacteristics(currentSite)
+      call rate_of_spread(currentSite)
+      call ground_fuel_consumption(currentSite)
+      call area_burnt_intensity(currentSite, bc_in)
+      call crown_scorching(currentSite)
+      call crown_damage(currentSite)
+      call cambial_damage_kill(currentSite)
+      call post_fire_mortality(currentSite)
+    end if
 
-   end subroutine fire_model
+  end subroutine fire_model
 
   !---------------------------------------------------------------------------------------
   
-   subroutine UpdateFireWeather(currentSite, bc_in)
-      !
-      !  DESCRIPTION:
-      !  Updates the site's fire weather index and calculates effective windspeed based on 
-      !   vegetation characteristics
-      !
-      !  Currently we use tree and grass fraction averaged over whole grid (site) to 
-      !  prevent extreme divergence
+  subroutine UpdateFireWeather(currentSite, bc_in)
+    !
+    !  DESCRIPTION:
+    !  Updates the site's fire weather index and calculates effective windspeed based on 
+    !   vegetation characteristics
+    !
+    !  Currently we use tree and grass fraction averaged over whole grid (site) to 
+    !  prevent extreme divergence
 
-      use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-      use FatesConstantsMod, only : sec_per_day, sec_per_min
-      use EDTypesMod,        only : CalculateTreeGrassArea
+    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
+    use FatesConstantsMod, only : sec_per_day, sec_per_min
+    use EDTypesMod,        only : CalculateTreeGrassArea
 
-      ! CONSTANTS:
-      real(r8), parameter :: wind_atten_treed = 0.4_r8 ! wind attenuation factor for tree fraction
-      real(r8), parameter :: wind_atten_grass = 0.6_r8 ! wind attenuation factor for grass fraction
+    ! CONSTANTS:
+    real(r8), parameter :: wind_atten_treed = 0.4_r8 ! wind attenuation factor for tree fraction
+    real(r8), parameter :: wind_atten_grass = 0.6_r8 ! wind attenuation factor for grass fraction
 
-      ! ARGUMENTS:
-      type(ed_site_type), intent(inout), target :: currentSite
-      type(bc_in_type),    intent(in)           :: bc_in
+    ! ARGUMENTS:
+    type(ed_site_type), intent(inout), target :: currentSite
+    type(bc_in_type),    intent(in)           :: bc_in
 
-      ! LOCALS:  
-      type(fates_patch_type), pointer :: currentPatch   ! patch object
-      real(r8)                        :: temp_C         ! daily averaged temperature [deg C]
-      real(r8)                        :: precip         ! daily precip [mm/day]
-      real(r8)                        :: rh             ! daily relative humidity [%]
-      real(r8)                        :: wind           ! wind speed [m/s]
-      real(r8)                        :: tree_fraction  ! site-level tree fraction [0-1]
-      real(r8)                        :: grass_fraction ! site-level grass fraction [0-1]
-      real(r8)                        :: bare_fraction  ! site-level bare ground fraction [0-1]
-      integer                         :: iofp           ! index of oldest the fates patch
+    ! LOCALS:  
+    type(fates_patch_type), pointer :: currentPatch   ! patch object
+    real(r8)                        :: temp_C         ! daily averaged temperature [deg C]
+    real(r8)                        :: precip         ! daily precip [mm/day]
+    real(r8)                        :: rh             ! daily relative humidity [%]
+    real(r8)                        :: wind           ! wind speed [m/s]
+    real(r8)                        :: tree_fraction  ! site-level tree fraction [0-1]
+    real(r8)                        :: grass_fraction ! site-level grass fraction [0-1]
+    real(r8)                        :: bare_fraction  ! site-level bare ground fraction [0-1]
+    integer                         :: iofp           ! index of oldest the fates patch
 
-      ! NOTE that the boundary conditions of temperature, precipitation and relative humidity
-      ! are available at the patch level. We are currently using a simplification where the whole site
-      ! is simply using the values associated with the first patch.
-      ! which probably won't have much impact, unless we decide to ever calculated fire weather for each patch.  
+    ! NOTE that the boundary conditions of temperature, precipitation and relative humidity
+    ! are available at the patch level. We are currently using a simplification where the whole site
+    ! is simply using the values associated with the first patch.
+    ! which probably won't have much impact, unless we decide to ever calculated fire weather for each patch.  
 
-      currentPatch => currentSite%oldest_patch
+    currentPatch => currentSite%oldest_patch
 
-      ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
-      ! for the iofp index (i.e. the next younger patch)
-      if (currentPatch%nocomp_pft_label == nocomp_bareground) then
-         currentPatch => currentPatch%younger
-      endif
+    ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
+    ! for the iofp index (i.e. the next younger patch)
+    if (currentPatch%nocomp_pft_label == nocomp_bareground) then
+      currentPatch => currentPatch%younger
+    endif
 
-      iofp = currentPatch%patchno
-      temp_C = currentPatch%tveg24%GetMean() - tfrz
-      precip = bc_in%precip24_pa(iofp)*sec_per_day
-      rh = bc_in%relhumid24_pa(iofp)
-      wind = bc_in%wind24_pa(iofp)
+    iofp = currentPatch%patchno
+    temp_C = currentPatch%tveg24%GetMean() - tfrz
+    precip = bc_in%precip24_pa(iofp)*sec_per_day
+    rh = bc_in%relhumid24_pa(iofp)
+    wind = bc_in%wind24_pa(iofp)
 
-      ! convert to m/min 
-      currentSite%wind = wind*sec_per_min 
+    ! convert to m/min 
+    currentSite%wind = wind*sec_per_min 
 
-      ! update fire weather index
-      call currentSite%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
+    ! update fire weather index
+    call currentSite%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
 
-      ! calculate site-level tree, grass, and bare fraction
-      call CalculateTreeGrassArea(currentSite, tree_fraction, grass_fraction, bare_fraction)
+    ! calculate site-level tree, grass, and bare fraction
+    call CalculateTreeGrassArea(currentSite, tree_fraction, grass_fraction, bare_fraction)
 
-      ! update effective wind speed
-      call currentSite%fireWeather%UpdateEffectiveWindSpeed(wind*sec_per_min, tree_fraction, &
-         grass_fraction, bare_fraction)
+    ! update effective wind speed
+    call currentSite%fireWeather%UpdateEffectiveWindSpeed(wind*sec_per_min, tree_fraction, &
+      grass_fraction, bare_fraction)
 
-   end subroutine UpdateFireWeather
+  end subroutine UpdateFireWeather
 
-   !--------------------------------------------------------------------------------------
+  !---------------------------------------------------------------------------------------
 
-   subroutine UpdateFuelCharacteristics(currentSite)
-      !
-      !  DESCRIPTION:
-      !  Updates fuel characteristics on each patch of the site
+  subroutine UpdateFuelCharacteristics(currentSite)
+    !
+    !  DESCRIPTION:
+    !  Updates fuel characteristics on each patch of the site
 
-      use SFParamsMod, only : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
+    use SFParamsMod, only : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
 
-      ! ARGUMENTS:
-      type(ed_site_type), intent(in), target :: currentSite  ! site object
+    ! ARGUMENTS:
+    type(ed_site_type), intent(in), target :: currentSite  ! site object
 
-      ! LOCALS:
-      type(fates_patch_type), pointer :: currentPatch ! FATES patch 
-      type(litter_type),      pointer :: litter       ! pointer to patch litter class
+    ! LOCALS:
+    type(fates_patch_type), pointer :: currentPatch ! FATES patch 
+    type(litter_type),      pointer :: litter       ! pointer to patch litter class
 
-      currentPatch => currentSite%oldest_patch 
-      do while(associated(currentPatch))  
+    currentPatch => currentSite%oldest_patch 
+    do while(associated(currentPatch))  
 
-         if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
 
-            ! calculate live grass [kgC/m2]
-            call currentPatch%UpdateLiveGrass()
+        ! calculate live grass [kgC/m2]
+        call currentPatch%UpdateLiveGrass()
 
-            ! update fuel loading [kgC/m2]
-            litter => currentPatch%litter(element_pos(carbon12_element))
-            call currentPatch%fuel%CalculateLoading(sum(litter%leaf_fines(:)),           &
-               litter%ag_cwd(1), litter%ag_cwd(2), litter%ag_cwd(3), litter%ag_cwd(4),   &
-               currentPatch%livegrass)
-            
-            ! sum up fuel types and calculate fractional loading for each
-            call currentPatch%fuel%SumLoading()
-            call currentPatch%fuel%CalculateFractionalLoading()
+        ! update fuel loading [kgC/m2]
+        litter => currentPatch%litter(element_pos(carbon12_element))
+        call currentPatch%fuel%CalculateLoading(sum(litter%leaf_fines(:)),          &
+          litter%ag_cwd(1), litter%ag_cwd(2), litter%ag_cwd(3), litter%ag_cwd(4),   &
+          currentPatch%livegrass)
 
-            ! calculate fuel moisture [m3/m3]
-            call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,   &
-               currentSite%fireWeather)
-                  
-            ! calculate geometric properties
-            call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
-            call currentPatch%fuel%AverageSAV(SF_val_SAV)
+        ! sum up fuel classes and calculate fractional loading for each
+        call currentPatch%fuel%SumLoading()
+        call currentPatch%fuel%CalculateFractionalLoading()
 
-         end if 
-         currentPatch => currentPatch%younger
+        ! calculate fuel moisture [m3/m3]
+        call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,  &
+          currentSite%fireWeather)
 
-      end do 
+        ! calculate geometric properties
+        call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
+        call currentPatch%fuel%AverageSAV(SF_val_SAV)
 
-   end subroutine UpdateFuelCharacteristics
+      end if 
+      currentPatch => currentPatch%younger
+    end do 
 
-   !--------------------------------------------------------------------------------------
+  end subroutine UpdateFuelCharacteristics
+
+  !---------------------------------------------------------------------------------------
 
   subroutine rate_of_spread (currentSite) 
     !*****************************************************************.

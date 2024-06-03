@@ -40,7 +40,6 @@ def plot_barchart(fuel_dat, var, varname, units, save_figs, plot_dir):
     plt.ylabel(f'{varname} ({units})', fontsize=11)
     plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     
-    
 def plot_NI_dat(fuel_dat, save_figs, plot_dir):
     """Plot output for Nesterov index
 

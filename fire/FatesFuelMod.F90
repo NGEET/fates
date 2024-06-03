@@ -15,7 +15,7 @@ module FatesFuelMod
   type, public :: fuel_type
     
     real(r8) :: loading(nfsc_notrunks)      ! fuel loading of non-trunks fuel class [kgC/m2]
-    real(r8) :: effective_moisture(nfsc)    ! fuel effective moisture all fuel class [m3/m3]
+    real(r8) :: effective_moisture(nfsc)    ! fuel effective moisture all fuel class (moisture/MEF) [m3/m3]
     real(r8) :: frac_loading(nfsc_notrunks) ! fractional loading of non-trunk fuel classes [0-1] 
     real(r8) :: total_loading               ! total fuel loading - DOES NOT INCLUDE TRUNKS [kgC/m2]
     real(r8) :: average_moisture            ! weighted average of fuel moisture across non-trunk fuel classes [m3/m3]

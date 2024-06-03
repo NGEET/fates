@@ -10,6 +10,8 @@ program FatesTestFuel
   use SFNesterovMod,               only : nesterov_index
   use FatesFuelMod,                only : fuel_type
   use FatesFuelClassesMod,         only : nfsc, nfsc_notrunks
+  use SFParamsMod,                 only : SF_val_SAV, SF_val_drying_ratio
+  use SFParamsMod,                 only : SF_val_FBD
   
   implicit none
   
@@ -28,7 +30,9 @@ program FatesTestFuel
   real(r8),                          allocatable :: fuel_loading(:,:) ! fuel loading [kgC/m2]
   real(r8),                          allocatable :: total_loading(:)  ! total fuel loading [kgC/m2]
   real(r8),                          allocatable :: frac_loading(:,:) ! fractional fuel loading [0-1]
-  integer                                        :: i                 ! looping index
+  real(r8),                          allocatable :: fuel_BD(:)        ! bulk density of fuel [kg/m3]
+  real(r8),                          allocatable :: fuel_SAV(:)       ! fuel surface area to volume ratio [/cm]
+  integer                                        :: i, f              ! looping indices
   integer                                        :: num_fuel_models   ! number of fuel models to test
   
   ! CONSTANTS:
@@ -49,6 +53,8 @@ program FatesTestFuel
   allocate(NI(n_days))
   allocate(fuel_loading(nfsc_notrunks, num_fuel_models))
   allocate(frac_loading(nfsc_notrunks, num_fuel_models))
+  allocate(fuel_BD(num_fuel_models))
+  allocate(fuel_SAV(num_fuel_models))
   allocate(total_loading(num_fuel_models))
   
   ! read in parameter file name and DATM file from command line
@@ -69,27 +75,40 @@ program FatesTestFuel
   ! set up fuel objects and calculate loading
   allocate(fuel(num_fuel_models))
   call fuel_types_array%GetFuelModels()
-  do i = 1, num_fuel_models
+  do f = 1, num_fuel_models
     
     ! uses data from fuel_models to initialize fuel
-    call SetUpFuel(fuel(i), fuel_types_array, fuel_models(i))
+    call SetUpFuel(fuel(f), fuel_types_array, fuel_models(f))
     
     ! sum up fuel and calculate loading
-    call fuel(i)%SumLoading()
-    call fuel(i)%CalculateFractionalLoading()
-    fuel_loading(:,i) = fuel(i)%loading(:)
-    total_loading(i) = fuel(i)%total_loading
-    frac_loading(:,i) = fuel(i)%frac_loading(:)
+    call fuel(f)%SumLoading()
+    call fuel(f)%CalculateFractionalLoading()
+    
+    ! calculate geometric properties
+    call fuel(f)%AverageBulkDensity(SF_val_FBD)
+    call fuel(f)%AverageSAV(SF_val_SAV)
+    
+    ! save values
+    fuel_loading(:,f) = fuel(f)%loading(:)
+    total_loading(f) = fuel(f)%total_loading
+    frac_loading(:,f) = fuel(f)%frac_loading(:)
+    fuel_BD(f) = fuel(f)%bulk_density
+    fuel_SAV(f) = fuel(f)%SAV
   end do
   
   ! run on time steps
   do i = 1, n_days
     call fireWeather%UpdateIndex(temp_degC(i), precip(i), rh(i), wind(i))
     NI(i) = fireWeather%fire_weather_index
+    
+    ! calculate fuel moisture [m3/m3]
+    do f = 1, num_fuel_models
+      call fuel(f)%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio, fireWeather)
+    end do
   end do 
   
   ! write out data
   call WriteFireData(out_file, n_days, num_fuel_models, temp_degC, precip, rh, NI,       &
-    fuel_loading, frac_loading, total_loading, fuel_models)
+    fuel_loading, frac_loading, fuel_BD, fuel_SAV, total_loading, fuel_models)
   
 end program FatesTestFuel
