@@ -98,7 +98,6 @@ contains
       !  Currently we use tree and grass fraction averaged over whole grid (site) to 
       !  prevent extreme divergence
 
-      use SFParamsMod,       only : SF_val_fdi_a, SF_val_fdi_b
       use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
       use FatesConstantsMod, only : sec_per_day, sec_per_min
       use EDTypesMod,        only : CalculateTreeGrassArea
