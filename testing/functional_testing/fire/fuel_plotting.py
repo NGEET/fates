@@ -23,22 +23,33 @@ def plot_fuel_dat(run_dir, out_file, save_figs, plot_dir):
     plot_NI_dat(fuel_dat, save_figs, plot_dir)
     plot_barchart(fuel_dat, 'fuel_loading', 'Fuel loading', 'kgC m$^{-2}$', save_figs, plot_dir)
     plot_barchart(fuel_dat, 'frac_loading', 'Fractional fuel loading', '0-1', save_figs, plot_dir)
+    plot_barchart(fuel_dat, 'bulk_density', 'Fuel bulk density', 'kg m$^{-3}$', save_figs, plot_dir, by_litter_type=False)
+    plot_barchart(fuel_dat, 'SAV', 'Fuel surface area to volume ratio', 'cm$^{-1}$', save_figs, plot_dir, by_litter_type=False)
     
-def plot_barchart(fuel_dat, var, varname, units, save_figs, plot_dir):
+def plot_barchart(fuel_dat, var, varname, units, save_figs, plot_dir, by_litter_type=True):
+    
     litter_classes = ['twigs', 'small branches', 'large branches', 'dead leaves', 'live grass']
-
+    colors = ['darksalmon', 'peru', 'saddlebrown', 'moccasin', 'yellowgreen']
     fuel_models = ['Fuel model ' + str(m) for m in np.unique(fuel_dat.fuel_model)]
-    data_dict = {'{}'.format(lc): fuel_dat.isel(litter_class=i)[var].values for i, lc in enumerate(litter_classes)}
+    
+    if by_litter_type:
+        data_dict = {lc: fuel_dat.isel(litter_class=i)[var].values for i, lc in enumerate(litter_classes)}
+    else:
+        data_dict = fuel_dat[var].values
     
     fig, ax = plt.subplots()
-    bottom = np.zeros(len(fuel_models))
-    for litter_class, dat in data_dict.items():
-        p = ax.bar(fuel_models, dat, 0.5, label=litter_class, bottom=bottom)
-        bottom += dat
+    if by_litter_type:
+        bottom = np.zeros(len(fuel_models))
+        for i, (litter_class, dat) in enumerate(data_dict.items()):
+            p = ax.bar(fuel_models, dat, 0.5, label=litter_class, bottom=bottom, color=colors[i])
+            bottom += dat
+        plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    else:
+        p = ax.bar(fuel_models, data_dict, color='darkcyan')
+    
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.75, box.height])
     plt.ylabel(f'{varname} ({units})', fontsize=11)
-    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     
 def plot_NI_dat(fuel_dat, save_figs, plot_dir):
     """Plot output for Nesterov index
