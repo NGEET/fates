@@ -1472,7 +1472,7 @@ contains
 
                 buffer_patch_used_if: if ( buffer_patch_used ) then
                    ! at this point, lets check that the total patch area remaining to be relabelled equals what we think that it is.
-                   if (abs(sum(nocomp_pft_area_vector(:)) - sum(nocomp_pft_area_vector_filled(:)) - buffer_patch%area) .gt. rsnbl_math_prec) then
+                   if (abs(sum(nocomp_pft_area_vector(:) - nocomp_pft_area_vector_filled(:)) - buffer_patch%area) .gt. rsnbl_math_prec) then
                       write(fates_log(),*) 'midway through patch reallocation and things are already not adding up.', i_land_use_label
                       write(fates_log(),*) currentSite%area_pft(:,i_land_use_label)
                       write(fates_log(),*) '-----'
@@ -1552,7 +1552,7 @@ contains
                          write(fates_log(),*) 'Buffer patch still has area and it wasnt put into the linked list'
                          write(fates_log(),*) 'buffer_patch%area', buffer_patch%area
                          write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)), sum(nocomp_pft_area_vector(:))
-                         write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:)) - sum(nocomp_pft_area_vector(:))
+                         write(fates_log(),*) sum(nocomp_pft_area_vector_filled(:) - nocomp_pft_area_vector(:))
 
                          call endrun(msg=errMsg(sourcefile, __LINE__))
                       end if
@@ -1568,8 +1568,8 @@ contains
                 end if buffer_patch_used_if
 
                 ! check that the area we have added is the same as the area we have taken away. if not, crash.
-                if ( abs(sum(nocomp_pft_area_vector_filled(:)) - sum(nocomp_pft_area_vector(:))) .gt. rsnbl_math_prec) then
-                   write(fates_log(),*) 'patch reallocation logic doesnt add up. difference is: ', sum(nocomp_pft_area_vector_filled(:)) - sum(nocomp_pft_area_vector(:))
+                if ( abs(sum(nocomp_pft_area_vector_filled(:) - nocomp_pft_area_vector(:))) .gt. rsnbl_math_prec) then
+                   write(fates_log(),*) 'patch reallocation logic doesnt add up. difference is: ', sum(nocomp_pft_area_vector_filled(:) - nocomp_pft_area_vector(:))
                    write(fates_log(),*) nocomp_pft_area_vector_filled
                    write(fates_log(),*) nocomp_pft_area_vector
                    write(fates_log(),*) i_land_use_label
