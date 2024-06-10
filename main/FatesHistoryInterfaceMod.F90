@@ -5253,8 +5253,6 @@ contains
          patch_area_by_age(1:nlevage) = 0._r8
          canopy_area_by_age(1:nlevage) = 0._r8
 
-         call this%zero_site_hvars(sites(s), upfreq_in=group_hifr_complx)
-
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
 
