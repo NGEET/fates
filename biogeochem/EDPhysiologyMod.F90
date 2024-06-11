@@ -2689,6 +2689,12 @@ contains
                      m_repro  = 0._r8
                   end select
 
+                  ! Diagnose the recruit flux [kg/m2]
+                  currentSite%flux_diags%elem_diags(el)%recruit_flux = &
+                       currentSite%flux_diags%elem_diags(el)%recruit_flux + &
+                       (m_struct+m_leaf+m_fnrt+m_sapw+m_store+m_repro)*currentCohort%n*area_inv
+
+                  
                   select case(hlm_parteh_mode)
                   case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp)
 
@@ -2731,6 +2737,7 @@ contains
                      currentPatch%litter(el)%seed_germ(ft) - cohort_n / currentPatch%area *   &
                      (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
                   end if
+                  
                end do
 
                ! cycle through the initial conditions, and makes sure that they are all initialized

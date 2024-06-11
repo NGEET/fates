@@ -171,6 +171,10 @@ module EDTypesMod
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
 
+     real(r8) :: net_seed_transport
+     real(r8) :: seed_turnover
+     
+     
      real(r8) :: netflux_liveveg ! Net change in live vegetation [kg/m2/s]
      real(r8) :: netflux_litter  ! Net change in litter [kg/m2/s]
      

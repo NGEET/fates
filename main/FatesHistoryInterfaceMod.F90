@@ -14,6 +14,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : i_term_mort_type_cstarv
   use FatesConstantsMod        , only : i_term_mort_type_canlev
   use FatesConstantsMod        , only : i_term_mort_type_numdens
+  use ChecksBalancesMod        , only : CheckIntegratedMassPools
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDParamsMod              , only : nclmax, maxpft
@@ -2313,6 +2314,8 @@ contains
           call update_history_dyn2(this,nc,nsites,sites,bc_in)
        end if
     end if
+
+    call CheckIntegratedMassPools(sites)
     
     return
   end subroutine update_history_dyn
