@@ -170,9 +170,37 @@ module EDTypesMod
      real(r8) :: cwd_bg_input(1:ncwd)               
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
+
+     real(r8) :: netflux_liveveg ! Net change in live vegetation [kg/m2/s]
+     real(r8) :: netflux_litter  ! Net change in litter [kg/m2/s]
      
   end type elem_diag_type
 
+  ! -------------------------------------------------------------------------
+
+  type, public :: site_ifluxbal_type
+
+     ! The combination of living vegetation and litter accounts
+     ! for all of the mass that is tracked by FATES
+     
+     ! Mass in living vegetation, this includes:
+     ! All organs on living plants, including non respiring tissues
+     ! and heartwood.
+     ! The live seed pool
+     
+     real(r8) :: state_liveveg   ! Assessed instanteously [kg/m2]
+     real(r8) :: iflux_liveveg   ! Integrated daily       [kg/m2]
+
+     ! Mass in all litter tracked by FATES
+     ! This includes only the unfragmented litter, litter that
+     ! has fragmented is tracked by the host models
+     
+     real(r8) :: state_litter    ! Assessed instantaneously [kg/m2]
+     real(r8) :: iflux_litter    ! Integrated daily         [kg/m2]
+
+  end type site_iflux_type
+
+  ! -------------------------------------------------------------------------
   
   type, public :: site_fluxdiags_type
 
@@ -336,10 +364,17 @@ module EDTypesMod
      real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
      real(r8), allocatable :: sp_htop(:)                      ! target HTOP per FATES pft
      
-     ! Mass Balance (allocation for each element)
+     ! Instantaneous Mass Balance (allocation for each element)
 
      type(site_massbal_type), pointer :: mass_balance(:)
 
+     ! Integrated Mass Balance checks, i.e. do the integrated
+     ! fluxes match the state?  One is for live vegetation,
+     ! one if for litter
+
+     type(site_ifluxbal_type), pointer :: iflux_balance(:)
+     
+     
      ! Flux diagnostics
      ! These are used to write history output based on fluxes
      ! that are calculated before mortality and cohort/patch restructuring
@@ -518,6 +553,8 @@ module EDTypesMod
          this%elem_diag(el)%cwd_bg_input(:)      = 0._r8
          this%elem_diag(el)%leaf_litter_input(:) = 0._r8
          this%elem_diag(el)%root_litter_input(:) = 0._r8
+         this%elem_diag(el)%netflux_liveveg   = 0._r8
+         this%elem_diag(el)%netflux_litter    = 0._r8
       end do
 
      this%resp_excess = 0._r8
@@ -537,7 +574,7 @@ module EDTypesMod
       
      ! We don't zero gpp_prev_scpf because this is not
      ! incremented like others, it is assigned at the end
-      ! of the daily history write process
+     ! of the daily history write process
      
      
      return

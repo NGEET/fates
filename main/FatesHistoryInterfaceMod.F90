@@ -2313,6 +2313,36 @@ contains
           call update_history_dyn2(this,nc,nsites,sites,bc_in)
        end if
     end if
+
+    if(check_iflux_bal) then
+
+       ! For carbon balance checks, we need to initialize the
+       ! total carbon stock
+       do el=1,num_elements
+          call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
+               biomass_stock,litter_stock,seed_stock)
+          
+          ! Initialize the integrated flux balance diagnostics
+          ! No need to initialize the instantaneous states, those are re-calculated
+          sites(s)%iflux_balance(el)%state_liveveg = &
+               (biomass_stock + seed_stock)*area_inv
+          sites(s)%iflux_balance(el)%state_litter  = litter_stock * area_inv
+
+          sites(s)%iflux_balance(el)%iflux_liveveg = &
+               sites(s)%iflux_balance(el)%iflux_liveveg + &
+               sites(s)%flux_diags%elem_diags(el)%netflux_liveveg
+
+          sites(s)%iflux_balance(el)%iflux_litter = &
+               sites(s)%iflux_balance(el)%iflux_litter + &
+               sites(s)%flux_diags%elem_diags(el)%netflux_litter
+
+          
+       end do
+
+       
+    end if
+
+    
     return
   end subroutine update_history_dyn
 
