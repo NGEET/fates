@@ -147,7 +147,7 @@ module EDTypesMod
 
   ! =====================================================================================
 
-  type, public :: site_fluxdiags_type
+  type, public :: elem_diag_type
 
      ! ----------------------------------------------------------------------------------
      ! Diagnostics of fluxes
@@ -161,19 +161,54 @@ module EDTypesMod
      ! (2) mass transfer from non-disturbance inducing mortality events
      ! (3) mass transfer from disturbance inducing mortality events
      ! [kg / ha / day]
+     !
+     !
+     !
      ! ---------------------------------------------------------------------------------
-
+     
      real(r8) :: cwd_ag_input(1:ncwd)               
      real(r8) :: cwd_bg_input(1:ncwd)               
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
+     
+  end type elem_diag_type
+
+  
+  type, public :: site_fluxdiags_type
+
+
+     ! This is for all diagnostics that are uniform over all elements (C,N,P)
+     
+     type(elem_diag_type), pointer :: elem_diag(:)
 
      ! This variable is slated as to-do, but the fluxdiags type needs
      ! to be refactored first. Currently this type is allocated
      ! by chemical species (ie C, N or P). GPP is C, but not N or P (RGK 0524)
      ! Previous day GPP [kgC/m2/year], partitioned by size x pft
      !real(r8),allocatable :: gpp_prev_scpf(:)
+
+     ! Nutrient Flux Diagnostics
      
+     real(r8) :: resp_excess
+     real(r8) :: nh4_uptake   ! plant nh4 uptake, kg m-2 s-1
+     real(r8) :: no3_uptake   ! plant no3 uptake, kg m-2 s-1
+     real(r8) :: sym_nfix     ! plant N uptake via symbiotic fixation kg m-2 s-1
+     real(r8) :: n_efflux     ! efflux of unusable N from plant to soil labile pool kg m-2 s-1
+     real(r8) :: p_uptake     ! po4 uptake, kg m-2 s-1
+     real(r8) :: p_efflux     ! efflux of unusable P from plant to soil labile pool kg m-2 s-1
+
+     ! Size by PFT delineated nutrient flux diagnostics (same units as above)
+     ! These are only allocated if both complex history diagnostics, and the
+     ! species of interest (N or P) is requested
+     
+     real(r8),allocatable :: nh4_uptake_scpf(:)
+     real(r8),allocatable :: no3_uptake_scpf(:)
+     real(r8),allocatable :: sym_nfix_scpf(:)
+     real(r8),allocatable :: n_efflux_scpf(:)
+     real(r8),allocatable :: p_uptake_scpf(:)
+     real(r8),allocatable :: p_efflux_scpf(:)
+
+
      
    contains
 
@@ -305,9 +340,14 @@ module EDTypesMod
 
      type(site_massbal_type), pointer :: mass_balance(:)
 
-     ! Flux diagnostics (allocation for each element)
+     ! Flux diagnostics
+     ! These are used to write history output based on fluxes
+     ! that are calculated before mortality and cohort/patch restructuring
+     ! but are written after patch structure. This structure also allows for
+     ! accurate restarting of the history      
 
-     type(site_fluxdiags_type), pointer :: flux_diags(:)
+     type(site_fluxdiags_type) :: flux_diags
+     
 
      ! PHENOLOGY 
      real(r8) ::  grow_deg_days                                ! Phenology growing degree days
@@ -471,19 +511,37 @@ module EDTypesMod
     subroutine ZeroFluxDiags(this)
       
       class(site_fluxdiags_type) :: this
+      integer :: el
       
-      this%cwd_ag_input(:)      = 0._r8
-      this%cwd_bg_input(:)      = 0._r8
-      this%leaf_litter_input(:) = 0._r8
-      this%root_litter_input(:) = 0._r8
+      do el = 1,num_elements
+         this%elem_diag(el)%cwd_ag_input(:)      = 0._r8
+         this%elem_diag(el)%cwd_bg_input(:)      = 0._r8
+         this%elem_diag(el)%leaf_litter_input(:) = 0._r8
+         this%elem_diag(el)%root_litter_input(:) = 0._r8
+      end do
 
-      ! We don't zero gpp_prev_scpf because this is not
-      ! incremented like others, it is assigned at the end
+     this%resp_excess = 0._r8
+     this%nh4_uptake  = 0._r8
+     this%no3_uptake  = 0._r8
+     this%sym_nfix = 0._r8
+     this%n_efflux = 0._r8
+     this%p_uptake = 0._r8
+     this%p_efflux = 0._r8
+     
+     this%nh4_uptake_scpf(:) = 0._r8
+     this%no3_uptake_scpf(:) = 0._r8
+     this%sym_nfix_scpf(:) = 0._r8
+     this%n_efflux_scpf(:) = 0._r8
+     this%p_uptake_scpf(:) = 0._r8
+     this%p_efflux_scpf(:) = 0._r8
+      
+     ! We don't zero gpp_prev_scpf because this is not
+     ! incremented like others, it is assigned at the end
       ! of the daily history write process
-      
-      
-      return
-    end subroutine ZeroFluxDiags
+     
+     
+     return
+   end subroutine ZeroFluxDiags
 
     ! =====================================================================================
     

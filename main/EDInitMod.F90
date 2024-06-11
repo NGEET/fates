@@ -145,7 +145,8 @@ contains
     allocate(site_in%fmort_rate_crown(1:nlevsclass,1:numpft))
     allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
     allocate(site_in%mass_balance(1:num_elements))
-    allocate(site_in%flux_diags(1:num_elements))
+
+    
 
     if (hlm_use_tree_damage .eq. itrue) then 
        allocate(site_in%term_nindivs_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
@@ -206,10 +207,21 @@ contains
     allocate(site_in%sp_tsai(1:numpft))
     allocate(site_in%sp_htop(1:numpft))
 
+    ! Allocate site-level flux diagnostics
+    ! -----------------------------------------------------------------------
+    allocate(site_in%flux_diags%elem_diag(1:num_elements))
     do el=1,num_elements
-       allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
-       allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
+       allocate(site_in%flux_diags%elem_diag(el)%leaf_litter_input(1:numpft))
+       allocate(site_in%flux_diags%elem_diag(el)%root_litter_input(1:numpft))
     end do
+    allocate(site_in%flux_diags%nh4_uptake_scpf(numpft*nlevsclass))
+    allocate(site_in%flux_diags%no3_uptake_scpf(numpft*nlevsclass))
+    allocate(site_in%flux_diags%sym_nfix_scpf(numpft*nlevsclass))
+    allocate(site_in%flux_diags%n_efflux_scpf(numpft*nlevsclass))
+    allocate(site_in%flux_diags%p_uptake_scpf(numpft*nlevsclass))
+    allocate(site_in%flux_diags%p_efflux_scpf(numpft*nlevsclass))
+    
+    
 
     ! Initialize the static soil
     ! arrays from the boundary (initial) condition
@@ -282,9 +294,10 @@ contains
        ! Zero the state variables used for checking mass conservation
        call site_in%mass_balance(el)%ZeroMassBalState()
        call site_in%mass_balance(el)%ZeroMassBalFlux()
-       call site_in%flux_diags(el)%ZeroFluxDiags()
     end do
 
+    call site_in%flux_diags%ZeroFluxDiags()
+    
     ! This will be initialized in FatesSoilBGCFluxMod:PrepCH4BCs()
     ! It checks to see if the value is below -9000. If it is,
     ! it will assume the first value of the smoother is set
