@@ -3301,7 +3301,7 @@ contains
     end do
 
     ! Find the daily mean for each PFT weighted by number and add it to the running mean
-    do cl = 1,nclmax
+    do cl = 1,cpatch%ncl_p
        do ft = 1,numpft
           if(rec_n(ft,cl)>nearzero)then
              rec_l2fr0(ft,cl) = rec_l2fr0(ft,cl) / rec_n(ft,cl)
