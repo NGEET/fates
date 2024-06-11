@@ -240,8 +240,70 @@ contains
     return
   end subroutine CheckLitterPools
 
+  ! ==================================================================
+
+  subroutine CheckIntegratedMassPools(sites)
+
+    
+    type(ed_site_type)      , intent(inout), target :: sites(:)
+
+    integer :: nsites
+    integer :: el
+    integer :: s
+
+    logical,parameter :: check_iflux_bal = .true.  
+    
+
+    if(check_iflux_bal) then
+       
+       nsites = ubound(sites,dim=1)
+
+       do s = 1,nsites
+       
+          ! For carbon balance checks, we need to initialize the
+          ! total carbon stock
+          do el=1,num_elements
+             call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
+                  biomass_stock,litter_stock,seed_stock)
+
+             associate(ibal => sites(s)%iflux_balance(el), &
+                       diag => sites(s)%flux_diags%elem_diags(el))
 
 
+               
+             ! Initialize the integrated flux balance diagnostics
+             ! No need to initialize the instantaneous states, those are re-calculated
+               
+             ibal%state_liveveg = (biomass_stock + seed_stock)*area_inv
+             ibal%state_litter  = litter_stock * area_inv
+             
+             ibal%iflux_liveveg = ibal%iflux_liveveg + &
+                  diag%netflux_liveveg * sec_per_day
+             
+             ibal%iflux_litter = ibal%iflux_litter + &
+                  diag%netflux_litter * sec_per_day
+             
+             ! Perform the comparison between integrated flux and state
+             if(abs(ibal%state_liveveg - ibal%iflux_liveveg) > iflux_tol(el) ) then
+                write(fates_log(),*) 'The fluxes in to an out of live vegetation are integrated'
+                write(fates_log(),*) 'in time over the length of the FATES simulation.'
+                write(fates_log(),*) 'This integrated quantity is compared with the instantaneous'
+                write(fates_log(),*) 'assessment of the total mass, they should be the same quanitity'
+                write(fates_log(),*) 'within a tolerance, but there is a discrepancy.'
+                write(fates_log(),*) 'state_liveveg: ',ibal%state_liveveg
+                write(fates_log(),*) 'iflux_liveveg: ',ibal%iflux_liveveg
+                write(fates_log(),*) 'state - iflux: ',ibal%state_liveveg - &
+                                                       ibal%iflux_liveveg
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             end if
+             
+          end do
+       end do
+    end if
+
+    return
+  end subroutine CheckIntegratedMassPools
+  
 
    
 end module ChecksBalancesMod
