@@ -1005,6 +1005,12 @@ contains
                                      currentSite%mass_balance(el)%burn_flux_to_atm = &
                                           currentSite%mass_balance(el)%burn_flux_to_atm + &
                                           leaf_burn_frac * leaf_m * nc%n
+
+                                     ! This diagnostic only tracks
+                                     currentSite%flux_diags%elem_diag(el)%burned_liveveg = &
+                                          currentSite%flux_diags%elem_diag(el)%burned_liveveg + & 
+                                          leaf_burn_frac * leaf_m * nc%n
+                                     
                                   end do
 
                                   ! Here the mass is removed from the plant
@@ -1815,8 +1821,7 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-             flux_diags%elem_diags(el)%burned_liveveg = &
-                  flux_diags%elem_diags(el)%burned_liveveg + burned_mass*area_inv*sec_per_day
+             
              
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
