@@ -1755,7 +1755,7 @@ contains
        
        element_id = element_list(el)
        site_mass  => currentSite%mass_balance(el)
-       flux_diags => currentSite%flux_diags(el)
+       flux_diags => currentSite%flux_diags
        curr_litt  => currentPatch%litter(el)      ! Litter pool of "current" patch
        new_litt   => newPatch%litter(el)          ! Litter pool of "new" patch
        
@@ -1815,6 +1815,9 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
+             flux_diags%elem_diags(el)%burned_liveveg = &
+                  flux_diags%elem_diags(el)%burned_liveveg + burned_mass*area_inv*sec_per_day
+             
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -2290,7 +2293,7 @@ contains
              end do
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
+             
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 

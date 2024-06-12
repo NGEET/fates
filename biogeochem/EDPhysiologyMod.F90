@@ -487,13 +487,18 @@ contains
        call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
 
        site_mass => currentSite%mass_balance(el)
-
+       diag => currentSite%flux_diags%elem_diags(el)
+       
        ! Fragmentation flux to soil decomposition model [kg/site/day]
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
             ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
             sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
             sum(litt%seed_decay) + sum(litt%seed_germ_decay))
 
+       ! Track total seed decay diagnostic in [kg/m2/s]
+       diag%tot_seed_turnover = diag%tot_seed_turnover + &
+            (sum(litt%seed_decay) + sum(litt%seed_germ_decay))*currentPatch%area*area_inv*day_per_sec
+       
     end do
 
 

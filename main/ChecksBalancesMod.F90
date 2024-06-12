@@ -282,8 +282,9 @@ contains
                ibal%state_litter  = litter_stock * area_inv
 
                ! Flux for live veg: NPP +
-               !                    net spatial seed flux +
-               !                    veg turnover -
+               !                    net spatial seed flux -
+               !                    veg turnover to litter -
+               !                    veg loss to fire (SEEDS DONT BURN) - 
                !                    seed turnover
 
                
@@ -292,8 +293,6 @@ contains
                                   sum(ediag%cwd_ag_input(:)) + &
                                   sum(ediag%cwd_bg_input(:))
 
-               tot_veg_turnover = tot_litter_input - ediag%seed_turnover - ediag%fire_atm_flux
-               
                select case(element_list(el))
                case(carbon12_element)
                   net_uptake = diag%npp
@@ -309,9 +308,10 @@ contains
                ! Fluxes are in [kg/m2/s] integrate to [kg/m2]
                ibal%iflux_liveveg = ibal%iflux_liveveg + &
                     ( net_uptake          &
-                    - tot_veg_turnover    &
+                    - tot_litter_input    &
+                    - ediag%burned_liveveg & 
                     + ediag%net_seed_transport &
-                    - ediag%seed_turnover) * sec_per_day
+                    - ediag%tot_seed_turnover) * sec_per_day
 
                ! Flux for litter: veg turnover + 
                !                  seed turnover - 
