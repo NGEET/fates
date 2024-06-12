@@ -1,9 +1,15 @@
-# This file helps to build unit test programs to test FATES, but is not used in 
-# production runs
-
 cmake_minimum_required(VERSION 3.4)
 
 list(APPEND CMAKE_MODULE_PATH ${CIME_CMAKE_MODULE_DIRECTORY})
+
+FIND_PATH(NETCDFC_FOUND libnetcdf.a ${NETCDF_C_DIR}/lib)
+FIND_PATH(NETCDFF_FOUND libnetcdff.a ${NETCDF_FORTRAN_DIR}/lib)
+MESSAGE(" NETCDFC_FOUND = ${NETCDFC_FOUND}")
+MESSAGE(" NETCDFF_FOUND = ${NETCDFF_FOUND}")
+
+string(APPEND LDFLAGS " -L${NETCDF_FORTRAN_DIR}/lib -lnetcdff")
+string(APPEND LDFLAGS " -L${NETCDF_C_DIR}/lib -lnetcdf")
+
 include(CIME_initial_setup)
 
 project(FATES_tests Fortran C)
@@ -19,8 +25,11 @@ add_subdirectory(${HLM_ROOT}/share/unit_test_stubs/util csm_share_stubs)
 # Add FATES source directories
 add_subdirectory(${HLM_ROOT}/src/fates/main fates_main)
 add_subdirectory(${HLM_ROOT}/src/fates/biogeochem fates_biogeochem)
+add_subdirectory(${HLM_ROOT}/src/fates/biogeophys fates_biogeophys)
+add_subdirectory(${HLM_ROOT}/src/fates/parteh fates_parteh)
 add_subdirectory(${HLM_ROOT}/src/fates/fire fates_fire)
 add_subdirectory(${HLM_ROOT}/src/fates/radiation fates_radiation)
+add_subdirectory(${HLM_ROOT}/src/fates/testing/testing_shr test_share)
 
 # Add general unit test directories (stubbed out files, etc.)
 add_subdirectory(${HLM_ROOT}/src/fates/unit_test_shr)
@@ -66,13 +75,19 @@ add_dependencies(fates csm_share)
 # We need to look for header files here, in order to pick up shr_assert.h
 include_directories(${HLM_ROOT}/share/include)
 
+# This needs to be something we add dynamically
+# via some calls using cime
+set(NETCDF_C_DIR ${NETCDF_C_PATH})
+set(NETCDF_FORTRAN_DIR ${NETCDF_F_PATH})
+
+include_directories(${NETCDF_C_DIR}/include
+                    ${NETCDF_FORTRAN_DIR}/include)
+link_directories(${NETCDF_C_DIR}/lib
+                ${NETCDF_FORTRAN_DIR}/lib)
+
 # Tell cmake to look for libraries & mod files here, because this is where we built libraries
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 link_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-# Add the test directories
-# Note: it's possible that these could be added by each source directory that
-# has tests in it. However, it appears that the order needs to be done
-# carefully: for example, include_directories and link_directories needs to be
-# done before adding the tests themselves.
-add_subdirectory(${HLM_ROOT}/src/fates/fire/test fates_fire_test)
+# Add the main test directory
+add_subdirectory(${HLM_ROOT}/src/fates/testing)
