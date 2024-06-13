@@ -208,10 +208,10 @@ contains
 
     ! Allocate site-level flux diagnostics
     ! -----------------------------------------------------------------------
-    allocate(site_in%flux_diags%elem_diag(1:num_elements))
+    allocate(site_in%flux_diags%elem(1:num_elements))
     do el=1,num_elements
-       allocate(site_in%flux_diags%elem_diag(el)%leaf_litter_input(1:numpft))
-       allocate(site_in%flux_diags%elem_diag(el)%root_litter_input(1:numpft))
+       allocate(site_in%flux_diags%elem(el)%leaf_litter_input(1:numpft))
+       allocate(site_in%flux_diags%elem(el)%root_litter_input(1:numpft))
     end do
     allocate(site_in%flux_diags%nh4_uptake_scpf(numpft*nlevsclass))
     allocate(site_in%flux_diags%no3_uptake_scpf(numpft*nlevsclass))

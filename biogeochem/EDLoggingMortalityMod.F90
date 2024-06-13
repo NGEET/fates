@@ -19,6 +19,7 @@ module EDLoggingMortalityMod
    use FatesPatchMod     , only : fates_patch_type
    use EDTypesMod        , only : site_massbal_type
    use EDTypesMod        , only : site_fluxdiags_type
+   use EDTypesMod        , only : elem_diag_type
    use FatesLitterMod    , only : ncwd
    use FatesLitterMod    , only : ndcmpy
    use FatesLitterMod    , only : litter_type
@@ -733,7 +734,7 @@ contains
       !LOCAL VARIABLES:
       type(fates_cohort_type), pointer      :: currentCohort
       type(site_massbal_type), pointer   :: site_mass
-      type(site_fluxdiags_type), pointer :: flux_diags
+      type(elem_diag_type), pointer :: flux_diags
       type(litter_type),pointer          :: new_litt
       type(litter_type),pointer          :: cur_litt
 
@@ -791,12 +792,12 @@ contains
   
   
       do el = 1,num_elements
-         
+
          element_id = element_list(el)
          site_mass => currentSite%mass_balance(el)
-         flux_diags=> currentSite%flux_diags(el)
+         flux_diags=> currentSite%flux_diags%elem(el)
          cur_litt  => currentPatch%litter(el)   ! Litter pool of "current" patch
-         new_litt  => newPatch%litter(el)       ! Litter pool of "new" patch
+         new_litt  => newPatch%litter(el)        ! Litter pool of "new" patch
          
          ! Zero some site level accumulator diagnsotics
          trunk_product_site  = 0.0_r8

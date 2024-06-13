@@ -487,7 +487,7 @@ contains
        call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
 
        site_mass => currentSite%mass_balance(el)
-       diag => currentSite%flux_diags%elem_diags(el)
+       diag => currentSite%flux_diags%elem(el)
        
        ! Fragmentation flux to soil decomposition model [kg/site/day]
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
@@ -2695,8 +2695,8 @@ contains
                   end select
 
                   ! Diagnose the recruit flux [kg/m2]
-                  currentSite%flux_diags%elem_diags(el)%recruit_flux = &
-                       currentSite%flux_diags%elem_diags(el)%recruit_flux + &
+                  currentSite%flux_diags%elem(el)%recruit_flux = &
+                       currentSite%flux_diags%elem(el)%recruit_flux + &
                        (m_struct+m_leaf+m_fnrt+m_sapw+m_store+m_repro)*currentCohort%n*area_inv
 
                   

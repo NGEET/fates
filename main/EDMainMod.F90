@@ -513,9 +513,9 @@ contains
              currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
              currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
 
-             ! Save NPP diagnostic for flux accounting [kg/m2/s]
+             ! Save NPP diagnostic for flux accounting [kg/m2/day]
              currentSite%flux_diags%npp = currentSite%flux_diags%npp + &
-                  currentCohort%npp_acc * currentCohort%n * area_inv * day_per_sec
+                  currentCohort%npp_acc * currentCohort%n * area_inv
              
              ! Passing gpp_acc_hold to HLM 
              bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &

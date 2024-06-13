@@ -203,7 +203,7 @@ module EDTypesMod
      real(r8) :: state_litter    ! Assessed instantaneously [kg/m2]
      real(r8) :: iflux_litter    ! Integrated daily         [kg/m2]
 
-  end type site_iflux_type
+  end type site_ifluxbal_type
 
   ! -------------------------------------------------------------------------
   
@@ -212,7 +212,7 @@ module EDTypesMod
 
      ! This is for all diagnostics that are uniform over all elements (C,N,P)
      
-     type(elem_diag_type), pointer :: elem_diag(:)
+     type(elem_diag_type), pointer :: elem(:)
 
      ! This variable is slated as to-do, but the fluxdiags type needs
      ! to be refactored first. Currently this type is allocated
@@ -220,6 +220,8 @@ module EDTypesMod
      ! Previous day GPP [kgC/m2/year], partitioned by size x pft
      !real(r8),allocatable :: gpp_prev_scpf(:)
 
+     real(r8) :: npp          ! kg m-2 day-1
+     
      ! Nutrient Flux Diagnostics
      
      real(r8) :: resp_excess
@@ -554,12 +556,12 @@ module EDTypesMod
       integer :: el
       
       do el = 1,num_elements
-         this%elem_diag(el)%cwd_ag_input(:)      = 0._r8
-         this%elem_diag(el)%cwd_bg_input(:)      = 0._r8
-         this%elem_diag(el)%leaf_litter_input(:) = 0._r8
-         this%elem_diag(el)%root_litter_input(:) = 0._r8
-         this%elem_diag(el)%netflux_liveveg   = 0._r8
-         this%elem_diag(el)%netflux_litter    = 0._r8
+         this%elem(el)%cwd_ag_input(:)      = 0._r8
+         this%elem(el)%cwd_bg_input(:)      = 0._r8
+         this%elem(el)%leaf_litter_input(:) = 0._r8
+         this%elem(el)%root_litter_input(:) = 0._r8
+         this%elem(el)%netflux_liveveg   = 0._r8
+         this%elem(el)%netflux_litter    = 0._r8
       end do
 
      this%resp_excess = 0._r8

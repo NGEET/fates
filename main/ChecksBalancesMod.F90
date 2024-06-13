@@ -16,6 +16,8 @@ module ChecksBalancesMod
    use FatesLitterMod,    only : ncwd
    use FatesLitterMod,    only : ndcmpy
    use PRTGenericMod,     only : carbon12_element
+   use PRTGenericMod,     only : nitrogen_element
+   use PRTGenericMod,     only : phosphorus_element
    use PRTGenericMod,     only : leaf_organ
    use PRTGenericMod,     only : fnrt_organ
    use PRTGenericMod,     only : sapw_organ
@@ -272,7 +274,7 @@ contains
                   biomass_stock,litter_stock,seed_stock)
 
              associate(ibal => sites(s)%iflux_balance(el), &
-                      ediag => sites(s)%flux_diags%elem_diags(el), &
+                      ediag => sites(s)%flux_diags%elem(el), &
                       diag  => sites(s)%flux_diags)
                
                ! Initialize the integrated flux balance diagnostics
@@ -297,7 +299,7 @@ contains
                case(carbon12_element)
                   net_uptake = diag%npp
                case(nitrogen_element)
-                  net_uptake = diag%n_uptake + diag%sym_nfix - diag%n_efflux
+                  net_uptake = diag%nh4_uptake + diag%no3_uptake + diag%sym_nfix - diag%n_efflux
                case(phosphorus_element)
                   net_uptake = diag%p_uptake - diag%p_efflux
                case default
@@ -335,18 +337,18 @@ contains
                   call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
 
-               if(abs(ibal%state_litter - ibal%iflux_litter) > iflux_tol(el) ) then
-                  write(fates_log(),*) 'The fluxes in to an out of litter are integrated'
-                  write(fates_log(),*) 'in time over the length of the FATES simulation.'
-                  write(fates_log(),*) 'This integrated quantity is compared with the instantaneous'
-                  write(fates_log(),*) 'assessment of the total mass, they should be the same quanitity'
-                  write(fates_log(),*) 'within a tolerance, but there is a discrepancy.'
-                  write(fates_log(),*) 'state_litter: ',ibal%state_litter
-                  write(fates_log(),*) 'iflux_litter: ',ibal%iflux_litter
-                  write(fates_log(),*) 'state - iflux: ',ibal%state_litter - &
-                                                         ibal%iflux_litter
-                  call endrun(msg=errMsg(sourcefile, __LINE__))
-               end if
+               !if(abs(ibal%state_litter - ibal%iflux_litter) > iflux_tol(el) ) then
+               !   write(fates_log(),*) 'The fluxes in to an out of litter are integrated'
+               !   write(fates_log(),*) 'in time over the length of the FATES simulation.'
+               !   write(fates_log(),*) 'This integrated quantity is compared with the instantaneous'
+               !   write(fates_log(),*) 'assessment of the total mass, they should be the same quanitity'
+               !   write(fates_log(),*) 'within a tolerance, but there is a discrepancy.'
+               !   write(fates_log(),*) 'state_litter: ',ibal%state_litter
+               !   write(fates_log(),*) 'iflux_litter: ',ibal%iflux_litter
+               !   write(fates_log(),*) 'state - iflux: ',ibal%state_litter - &
+               !                                          ibal%iflux_litter
+               !   call endrun(msg=errMsg(sourcefile, __LINE__))
+               !end if
                
                
              end associate

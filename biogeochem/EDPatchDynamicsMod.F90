@@ -1007,8 +1007,8 @@ contains
                                           leaf_burn_frac * leaf_m * nc%n
 
                                      ! This diagnostic only tracks
-                                     currentSite%flux_diags%elem_diag(el)%burned_liveveg = &
-                                          currentSite%flux_diags%elem_diag(el)%burned_liveveg + & 
+                                     currentSite%flux_diags%elem(el)%burned_liveveg = &
+                                          currentSite%flux_diags%elem(el)%burned_liveveg + & 
                                           leaf_burn_frac * leaf_m * nc%n
                                      
                                   end do

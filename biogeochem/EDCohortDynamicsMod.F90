@@ -45,6 +45,7 @@ Module EDCohortDynamicsMod
   use PRTGenericMod         , only : max_nleafage
   use FatesConstantsMod     , only : ican_upper
   use EDTypesMod            , only : site_fluxdiags_type
+  use EDTypesMod            , only : elem_diag_type
   use PRTGenericMod         , only : num_elements
   use FatesConstantsMod     , only : leaves_on
   use FatesConstantsMod     , only : leaves_off
@@ -602,7 +603,7 @@ end subroutine create_cohort
     type(bc_in_type), intent(in)    :: bc_in
 
     type(litter_type), pointer        :: litt       ! Litter object for each element
-    type(site_fluxdiags_type),pointer :: flux_diags
+    type(elem_diag_type),pointer :: flux_diags
 
     real(r8) :: leaf_m    ! leaf mass [kg]
     real(r8) :: store_m   ! storage mass [kg]
@@ -646,7 +647,7 @@ end subroutine create_cohort
        endif
 
        litt => cpatch%litter(el)
-       flux_diags => csite%flux_diags(el)
+       flux_diags => csite%flux_diags%elem(el)
 
        !adjust how wood is partitioned between the cwd classes based on cohort dbh
        call adjust_SF_CWD_frac(ccohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
