@@ -451,9 +451,7 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type(site_massbal_type), pointer :: site_mass
-    type(litter_type), pointer :: litt     ! Points to the litter object for
-    ! the different element types
+
     integer :: el                          ! Litter element loop index
     integer :: nlev_eff_decomp             ! Number of active layers over which
     ! fragmentation fluxes are transfered
@@ -464,41 +462,40 @@ contains
 
     do el = 1, num_elements
 
-       litt => currentPatch%litter(el)
+       associate( litt => currentPatch%litter(el), &
+                  site_mass => currentSite%mass_balance(el), &
+                  diag => currentSite%flux_diags%elem_diags(el))
 
-       ! Calculate loss rate of viable seeds to litter
-       call SeedDecay(litt, currentPatch, bc_in)
-       
+         ! Calculate loss rate of viable seeds to litter
+         call SeedDecay(litt, currentPatch, bc_in)
+         
+         ! Calculate seed germination rate, the status flags prevent
+         ! germination from occuring when the site is in a drought
+         ! (for drought deciduous) or too cold (for cold deciduous)
+         call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), bc_in, currentPatch)
+         
+         ! Send fluxes from newly created litter into the litter pools
+         ! This litter flux is from non-disturbance inducing mortality, as well
+         ! as litter fluxes from live trees
+         call CWDInput(currentSite, currentPatch, litt,bc_in)
+         
+         ! Only calculate fragmentation flux over layers that are active
+         ! (RGK-Mar2019) SHOULD WE MAX THIS AT 1? DONT HAVE TO
+         
+         nlev_eff_decomp = max(bc_in%max_rooting_depth_index_col, 1)
+         call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
+         
+         ! Fragmentation flux to soil decomposition model [kg/site/day]
+         site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
+              ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
+              sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
+              sum(litt%seed_decay) + sum(litt%seed_germ_decay))
+         
+         ! Track total seed decay diagnostic in [kg/m2/day]
+         diag%tot_seed_turnover = diag%tot_seed_turnover + &
+              (sum(litt%seed_decay) + sum(litt%seed_germ_decay))*currentPatch%area*area_inv
 
-       ! Calculate seed germination rate, the status flags prevent
-       ! germination from occuring when the site is in a drought
-       ! (for drought deciduous) or too cold (for cold deciduous)
-       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), bc_in, currentPatch)
-
-       ! Send fluxes from newly created litter into the litter pools
-       ! This litter flux is from non-disturbance inducing mortality, as well
-       ! as litter fluxes from live trees
-       call CWDInput(currentSite, currentPatch, litt,bc_in)
-
-       ! Only calculate fragmentation flux over layers that are active
-       ! (RGK-Mar2019) SHOULD WE MAX THIS AT 1? DONT HAVE TO
-
-       nlev_eff_decomp = max(bc_in%max_rooting_depth_index_col, 1)
-       call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
-
-       site_mass => currentSite%mass_balance(el)
-       diag => currentSite%flux_diags%elem(el)
-       
-       ! Fragmentation flux to soil decomposition model [kg/site/day]
-       site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
-            ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
-            sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
-            sum(litt%seed_decay) + sum(litt%seed_germ_decay))
-
-       ! Track total seed decay diagnostic in [kg/m2/s]
-       diag%tot_seed_turnover = diag%tot_seed_turnover + &
-            (sum(litt%seed_decay) + sum(litt%seed_germ_decay))*currentPatch%area*area_inv*day_per_sec
-       
+       end associate
     end do
 
 

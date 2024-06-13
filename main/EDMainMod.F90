@@ -513,10 +513,6 @@ contains
              currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
              currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
 
-             ! Save NPP diagnostic for flux accounting [kg/m2/day]
-             currentSite%flux_diags%npp = currentSite%flux_diags%npp + &
-                  currentCohort%npp_acc * currentCohort%n * area_inv
-             
              ! Passing gpp_acc_hold to HLM 
              bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
                   AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
@@ -623,6 +619,10 @@ contains
           currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake = &
                currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake - &
                currentCohort%daily_c_efflux*currentCohort%n
+
+          ! Save NPP diagnostic for flux accounting [kg/m2/day]
+          currentSite%flux_diags%npp = currentSite%flux_diags%npp + &
+               (currentCohort%npp_acc - currentCohort%resp_excess) * currentCohort%n * area_inv
           
           ! And simultaneously add the input fluxes to mass balance accounting
           site_cmass%gpp_acc   = site_cmass%gpp_acc + &

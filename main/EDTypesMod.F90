@@ -171,13 +171,13 @@ module EDTypesMod
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
 
-     real(r8) :: net_seed_transport 
      real(r8) :: tot_seed_turnover ! decay of living seed bank to
-                                   ! fragmented litter [kg/m2/s]
+                                   ! fragmented litter [kg/m2/day]
+     real(r8) :: exported_harvest  ! mass of harvested vegetation exported and not sent to litter [kg/m2/day]
      
-     
-     real(r8) :: netflux_liveveg ! Net change in live vegetation [kg/m2/s]
-     real(r8) :: netflux_litter  ! Net change in litter [kg/m2/s]
+     real(r8) :: err_liveveg       ! Error from comparing [state-integrated flux]
+                                   ! in live vegetation [kg/m2]
+     real(r8) :: err_litter        ! Net change in litter [kg/m2/s]
      
   end type elem_diag_type
 
@@ -186,7 +186,11 @@ module EDTypesMod
   type, public :: site_ifluxbal_type
 
      ! The combination of living vegetation and litter accounts
-     ! for all of the mass that is tracked by FATES
+     ! for all of the mass that is tracked by FATES. We use these
+     ! data structures to ensure that an instantaneous assessment
+     ! of the mass of live vegetation and litter, is the same
+     ! as the initial condition plus the integrated fluxes in and
+     ! out of those pools over the duration of the simulation.
      
      ! Mass in living vegetation, this includes:
      ! All organs on living plants, including non respiring tissues
