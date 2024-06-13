@@ -219,9 +219,6 @@ contains
                 ! P Uptake:  Convert g/m2/day -> kg/plant/day
                 ccohort%daily_p_gain = bc_in(s)%plant_p_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
 
-                ! Track flux diagnostics for history writing
-                sites(s)%flux_diags%p_uptake = sites(s)%flux_diags%p_uptake + bc_in(s)%plant_p_uptake_flux(icomp,1)/sec_per_day
-                
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
@@ -236,8 +233,12 @@ contains
           do while (associated(ccohort))
              pft = ccohort%pft
 
+             ! Track flux diagnostics for history writing and tracking [kg/plant/day] -> [kg/m2/day]
+             sites(s)%flux_diags%p_uptake = sites(s)%flux_diags%p_uptake + &
+                  ccohort%daily_p_gain*ccohort%n*area_inv
              
-             
+             sites(s)%flux_diags%n_uptake = sites(s)%flux_diags%n_uptake + &
+                  (ccohort%daily_nh4_uptake+ccohort%daily_no3_uptake)*ccohort%n*area_inv
              
              ccohort => ccohort%shorter
           end do
@@ -582,6 +583,8 @@ contains
           
        end select
 
+       sites(s)%flux_diag
+       
        litt => cpatch%litter(el)
        
        do j = 1,csite%nlevsoil
