@@ -1732,7 +1732,7 @@ contains
        if(d .ge. dbh_maxh)then
           dblmaxdd = 0._r8
        else
-          dblmaxdd = p1 * (p2 * duse**(p2 - 1.0_r8) * h**p3 + p3 * h**(p3 - 1.0_r8) * dhdd * duse**p2) / c2b
+          dblmaxdd = blmax * (p2 / duse + p3 * dhdd / h)
        end if
     end if
 
@@ -2177,7 +2177,7 @@ contains
 
     !----Compute the aboveground biomass derivative with basal diameter if needed
     if (present(dbagwdd)) then
-       dbagwdd = p1 * (p2 * d**(p2 - 1.0_r8) * h**p3 + p3 * h**(p3 - 1.0_r8) * dhdd * d**p2) / c2b
+       dbagwdd = p2 * bagw / d + p3 * bagw * dhdd / h
     end if
 
     return
