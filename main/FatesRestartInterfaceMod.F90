@@ -2254,14 +2254,14 @@ contains
                 io_idx_si_scpf = io_idx_co_1st
 
                 do i_cwd=1,ncwd
-                   this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_ag_input(i_cwd)
-                   this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_bg_input(i_cwd)
+                   this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags%elem(el)%cwd_ag_input(i_cwd)
+                   this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags%elem(el)%cwd_bg_input(i_cwd)
                    io_idx_si_cwd = io_idx_si_cwd + 1
                 end do
 
                 do i_pft=1,numpft
-                   this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%leaf_litter_input(i_pft)
-                   this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%root_litter_input(i_pft)
+                   this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags%elem(el)%leaf_litter_input(i_pft)
+                   this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags%elem(el)%root_litter_input(i_pft)
                    io_idx_si_pft = io_idx_si_pft + 1
                 end do
 
@@ -3220,14 +3220,14 @@ contains
                 io_idx_si_scpf = io_idx_co_1st
 
                 do i_cwd=1,ncwd
-                   sites(s)%flux_diags(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd)
-                   sites(s)%flux_diags(el)%cwd_bg_input(i_cwd) = this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd)
+                   sites(s)%flux_diags%elem(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd)
+                   sites(s)%flux_diags%elem(el)%cwd_bg_input(i_cwd) = this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd)
                    io_idx_si_cwd = io_idx_si_cwd + 1
                 end do
 
                 do i_pft=1,numpft
-                   sites(s)%flux_diags(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft)
-                   sites(s)%flux_diags(el)%root_litter_input(i_pft) = this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft)
+                   sites(s)%flux_diags%elem(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft)
+                   sites(s)%flux_diags%elem(el)%root_litter_input(i_pft) = this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft)
                    io_idx_si_pft = io_idx_si_pft + 1
                 end do
 

@@ -50,6 +50,7 @@ module EDPhysiologyMod
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
+  use EDTypesMod          , only : elem_diag_type
   use FatesLitterMod      , only : dl_sf
   use EDParamsMod         , only : dinc_vai, dlower_vai
   use EDTypesMod          , only : area_inv
@@ -265,7 +266,7 @@ contains
     type(fates_cohort_type), pointer :: ccohort    ! Current cohort
     type(fates_cohort_type), pointer :: ndcohort   ! New damage-class cohort
     type(litter_type), pointer :: litt     ! Points to the litter object
-    type(site_fluxdiags_type), pointer :: flux_diags ! pointer to site level flux diagnostics object
+    type(elem_diag_type), pointer :: elflux_diags ! pointer to site level flux diagnostics object
     integer  :: cd               ! Damage class index
     integer  :: el               ! Element index
     integer  :: dcmpy            ! Decomposition pool index
@@ -342,7 +343,7 @@ contains
              do_element: do el = 1, num_elements
                 
                 litt => cpatch%litter(el)
-                flux_diags => csite%flux_diags(el)
+                elflux_diags => csite%flux_diags%elem(el)
                 
                 ! Reduce the mass of the newly damaged cohort
                 ! Fine-roots are not damaged as of yet
@@ -368,8 +369,8 @@ contains
                         ndcohort%n * dcmpy_frac / cpatch%area
                 end do
 
-                flux_diags%leaf_litter_input(ipft) = &
-                     flux_diags%leaf_litter_input(ipft) +  &
+                elflux_diags%leaf_litter_input(ipft) = &
+                     elflux_diags%leaf_litter_input(ipft) +  &
                      (store_loss+leaf_loss+repro_loss) * ndcohort%n
                 
                 call adjust_SF_CWD_frac(ndcohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
@@ -380,7 +381,7 @@ contains
                         SF_val_CWD_frac_adj(c) * ndcohort%n / &
                         cpatch%area
                    
-                   flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+                   elflux_diags%cwd_ag_input(c)  = elflux_diags%cwd_ag_input(c) + &
                         (struct_loss + sapw_loss) * &
                         SF_val_CWD_frac_adj(c) * ndcohort%n
                 end do
@@ -464,7 +465,7 @@ contains
 
        associate( litt => currentPatch%litter(el), &
                   site_mass => currentSite%mass_balance(el), &
-                  diag => currentSite%flux_diags%elem_diags(el))
+                  diag => currentSite%flux_diags%elem(el))
 
          ! Calculate loss rate of viable seeds to litter
          call SeedDecay(litt, currentPatch, bc_in)
@@ -2691,11 +2692,6 @@ contains
                      m_repro  = 0._r8
                   end select
 
-                  ! Diagnose the recruit flux [kg/m2]
-                  currentSite%flux_diags%elem(el)%recruit_flux = &
-                       currentSite%flux_diags%elem(el)%recruit_flux + &
-                       (m_struct+m_leaf+m_fnrt+m_sapw+m_store+m_repro)*currentCohort%n*area_inv
-
                   
                   select case(hlm_parteh_mode)
                   case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp)
@@ -2786,7 +2782,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(fates_cohort_type), pointer      :: currentCohort
-    type(site_fluxdiags_type), pointer :: flux_diags
+    type(elem_diag_type), pointer :: elflux_diags
     type(site_massbal_type), pointer   :: site_mass
     integer  :: c
     real(r8) :: dead_n          ! total understorey dead tree density
@@ -2833,7 +2829,7 @@ contains
     element_id = litt%element_id
 
     ! Object tracking flux diagnostics for each element
-    flux_diags => currentSite%flux_diags(element_pos(element_id))
+    elflux_diags => currentSite%flux_diags%elem(element_pos(element_id))
 
     ! Object tracking site level mass balance for each element
     site_mass => currentSite%mass_balance(element_pos(element_id))
@@ -2887,8 +2883,8 @@ contains
        !        about double counting.
        ! ---------------------------------------------------------------------------------
 
-       flux_diags%leaf_litter_input(pft) = &
-            flux_diags%leaf_litter_input(pft) +  &
+       elflux_diags%leaf_litter_input(pft) = &
+            elflux_diags%leaf_litter_input(pft) +  &
             leaf_m_turnover * currentCohort%n
 
        root_fines_tot = (fnrt_m_turnover + store_m_turnover ) * &
@@ -2906,8 +2902,8 @@ contains
           end do
        end do
 
-       flux_diags%root_litter_input(pft) = &
-            flux_diags%root_litter_input(pft) +  &
+       elflux_diags%root_litter_input(pft) = &
+            elflux_diags%root_litter_input(pft) +  &
             (fnrt_m_turnover + store_m_turnover ) * currentCohort%n
 
 
@@ -2923,7 +2919,7 @@ contains
                SF_val_CWD_frac_adj(c) * plant_dens * &
                prt_params%allom_agb_frac(pft)
 
-          flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+          elflux_diags%cwd_ag_input(c)  = elflux_diags%cwd_ag_input(c) + &
                (struct_m_turnover + sapw_m_turnover) * SF_val_CWD_frac_adj(c) * &
                prt_params%allom_agb_frac(pft) * currentCohort%n
 
@@ -2936,7 +2932,7 @@ contains
                   bg_cwd_tot * currentSite%rootfrac_scr(ilyr)
           end do
 
-          flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
+          elflux_diags%cwd_bg_input(c)  = elflux_diags%cwd_bg_input(c) + &
                bg_cwd_tot*currentPatch%area
 
        enddo
@@ -2973,8 +2969,8 @@ contains
        dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
 
 
-       flux_diags%leaf_litter_input(pft) = &
-            flux_diags%leaf_litter_input(pft) +  &
+       elflux_diags%leaf_litter_input(pft) = &
+            elflux_diags%leaf_litter_input(pft) +  &
             leaf_m * dead_n*currentPatch%area
 
 
@@ -2998,8 +2994,8 @@ contains
           end do
        end do
 
-       flux_diags%root_litter_input(pft) = &
-            flux_diags%root_litter_input(pft) +  &
+       elflux_diags%root_litter_input(pft) = &
+            elflux_diags%root_litter_input(pft) +  &
             root_fines_tot*currentPatch%area
 
        ! Track CWD inputs from dead plants
@@ -3017,7 +3013,7 @@ contains
                   currentSite%rootfrac_scr(ilyr) * bg_cwd_tot
           end do
 
-          flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
+          elflux_diags%cwd_bg_input(c)  = elflux_diags%cwd_bg_input(c) + &
                bg_cwd_tot * currentPatch%area
 
           ! Send AGB component of boles from logging activities into the litter.
@@ -3040,7 +3036,7 @@ contains
              litt%ag_cwd_in(c) = litt%ag_cwd_in(c) +  &
                   trunk_wood * (1._r8-logging_export_frac)
 
-             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+             elflux_diags%cwd_ag_input(c)  = elflux_diags%cwd_ag_input(c) + &
                   trunk_wood * (1._r8-logging_export_frac) * currentPatch%area
 
              ! Add AG wood to litter from indirect anthro sources
@@ -3049,7 +3045,7 @@ contains
                   SF_val_CWD_frac_adj(c) * (dead_n_natural+dead_n_ilogging)  * &
                   prt_params%allom_agb_frac(pft)
 
-             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+             elflux_diags%cwd_ag_input(c)  = elflux_diags%cwd_ag_input(c) + &
                   SF_val_CWD_frac_adj(c) * (dead_n_natural+dead_n_ilogging) * &
                   currentPatch%area * prt_params%allom_agb_frac(pft)
 
@@ -3059,7 +3055,7 @@ contains
                   SF_val_CWD_frac_adj(c) * dead_n  * &
                   prt_params%allom_agb_frac(pft)
 
-             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+             elflux_diags%cwd_ag_input(c)  = elflux_diags%cwd_ag_input(c) + &
                   SF_val_CWD_frac_adj(c) * dead_n * (struct_m + sapw_m) * &
                   currentPatch%area * prt_params%allom_agb_frac(pft)
 

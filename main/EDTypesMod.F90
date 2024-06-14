@@ -177,7 +177,9 @@ module EDTypesMod
      
      real(r8) :: err_liveveg       ! Error from comparing [state-integrated flux]
                                    ! in live vegetation [kg/m2]
-     real(r8) :: err_litter        ! Net change in litter [kg/m2/s]
+
+     real(r8) :: err_litter        ! Net change in litter [kg/m2]
+     real(r8) :: burned_liveveg    ! Amount of mass burned from living plants [kg/m2/day]
      
   end type elem_diag_type
 
@@ -564,10 +566,15 @@ module EDTypesMod
          this%elem(el)%cwd_bg_input(:)      = 0._r8
          this%elem(el)%leaf_litter_input(:) = 0._r8
          this%elem(el)%root_litter_input(:) = 0._r8
-         this%elem(el)%netflux_liveveg   = 0._r8
-         this%elem(el)%netflux_litter    = 0._r8
+         this%elem(el)%burned_liveveg       = 0._r8
+         this%elem(el)%tot_seed_turnover   = 0._r8
+         this%elem(el)%exported_harvest   = 0._r8
+         this%elem(el)%err_liveveg   = 0._r8
+         this%elem(el)%err_litter   = 0._r8
+         this%elem(el)%burned_liveveg   = 0._r8
       end do
 
+     this%npp = 0._r8
      this%resp_excess = 0._r8
      this%nh4_uptake  = 0._r8
      this%no3_uptake  = 0._r8

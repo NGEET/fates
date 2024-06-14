@@ -226,26 +226,6 @@ contains
           
        end if
 
-       ! Update diagnostic arrays
-       cpatch => sites(s)%oldest_patch
-       do while (associated(cpatch))
-          ccohort => cpatch%tallest
-          do while (associated(ccohort))
-             pft = ccohort%pft
-
-             ! Track flux diagnostics for history writing and tracking [kg/plant/day] -> [kg/m2/day]
-             sites(s)%flux_diags%p_uptake = sites(s)%flux_diags%p_uptake + &
-                  ccohort%daily_p_gain*ccohort%n*area_inv
-             
-             sites(s)%flux_diags%n_uptake = sites(s)%flux_diags%n_uptake + &
-                  (ccohort%daily_nh4_uptake+ccohort%daily_no3_uptake)*ccohort%n*area_inv
-             
-             ccohort => ccohort%shorter
-          end do
-          cpatch => cpatch%younger
-       end do
-       
-       
        ! These can now be zero'd
        bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
        bc_in(s)%plant_no3_uptake_flux(:,:) = 0._r8
@@ -583,8 +563,6 @@ contains
           
        end select
 
-       sites(s)%flux_diag
-       
        litt => cpatch%litter(el)
        
        do j = 1,csite%nlevsoil

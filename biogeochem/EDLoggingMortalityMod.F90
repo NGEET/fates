@@ -732,9 +732,9 @@ contains
 
 
       !LOCAL VARIABLES:
-      type(fates_cohort_type), pointer      :: currentCohort
+      type(fates_cohort_type), pointer   :: currentCohort
       type(site_massbal_type), pointer   :: site_mass
-      type(elem_diag_type), pointer :: flux_diags
+      type(elem_diag_type), pointer      :: elflux_diags
       type(litter_type),pointer          :: new_litt
       type(litter_type),pointer          :: cur_litt
 
@@ -795,7 +795,7 @@ contains
 
          element_id = element_list(el)
          site_mass => currentSite%mass_balance(el)
-         flux_diags=> currentSite%flux_diags%elem(el)
+         elflux_diags=> currentSite%flux_diags%elem(el)
          cur_litt  => currentPatch%litter(el)   ! Litter pool of "current" patch
          new_litt  => newPatch%litter(el)        ! Litter pool of "new" patch
          
@@ -895,10 +895,10 @@ contains
 
                
                ! Diagnostics on fluxes into the AG and BG CWD pools
-               flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + & 
+               elflux_diags%cwd_ag_input(c) = elflux_diags%cwd_ag_input(c) + & 
                     SF_val_CWD_frac_adj(c) * ag_wood
                
-               flux_diags%cwd_bg_input(c) = flux_diags%cwd_bg_input(c) + & 
+               elflux_diags%cwd_bg_input(c) = elflux_diags%cwd_bg_input(c) + & 
                     SF_val_CWD_frac_adj(c) * bg_wood
             
                ! Diagnostic specific to resource management code
@@ -936,10 +936,10 @@ contains
 
             end do
 
-            flux_diags%cwd_ag_input(ncwd) = flux_diags%cwd_ag_input(ncwd) + & 
+            elflux_diags%cwd_ag_input(ncwd) = elflux_diags%cwd_ag_input(ncwd) + & 
                  SF_val_CWD_frac_adj(ncwd) * ag_wood
             
-            flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + & 
+            elflux_diags%cwd_bg_input(ncwd) = elflux_diags%cwd_bg_input(ncwd) + & 
                  SF_val_CWD_frac_adj(ncwd) * bg_wood
 
             if( element_id .eq. carbon12_element) then
@@ -964,7 +964,7 @@ contains
                       retain_m2
             end do
             
-            flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + &
+            elflux_diags%cwd_bg_input(ncwd) = elflux_diags%cwd_bg_input(ncwd) + &
                   bg_wood
             
             ! ----------------------------------------------------------------------------------------
@@ -1025,10 +1025,10 @@ contains
             end do
                
             ! track as diagnostic fluxes
-            flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + & 
+            elflux_diags%leaf_litter_input(pft) = elflux_diags%leaf_litter_input(pft) + & 
                  leaf_litter
             
-            flux_diags%root_litter_input(pft) = flux_diags%root_litter_input(pft) + & 
+            elflux_diags%root_litter_input(pft) = elflux_diags%root_litter_input(pft) + & 
                  root_litter
             
             ! Logging specific diagnostics

@@ -603,7 +603,7 @@ end subroutine create_cohort
     type(bc_in_type), intent(in)    :: bc_in
 
     type(litter_type), pointer        :: litt       ! Litter object for each element
-    type(elem_diag_type),pointer :: flux_diags
+    type(elem_diag_type),pointer :: elflux_diags
 
     real(r8) :: leaf_m    ! leaf mass [kg]
     real(r8) :: store_m   ! storage mass [kg]
@@ -647,7 +647,7 @@ end subroutine create_cohort
        endif
 
        litt => cpatch%litter(el)
-       flux_diags => csite%flux_diags%elem(el)
+       elflux_diags => csite%flux_diags%elem(el)
 
        !adjust how wood is partitioned between the cwd classes based on cohort dbh
        call adjust_SF_CWD_frac(ccohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
@@ -668,12 +668,12 @@ end subroutine create_cohort
           enddo
 
           ! above ground
-          flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+          elflux_diags%cwd_ag_input(c)  = elflux_diags%cwd_ag_input(c) + &
                 (struct_m+sapw_m) * SF_val_CWD_frac_adj(c) * &
                 prt_params%allom_agb_frac(pft) * nplant
 
           ! below ground
-          flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
+          elflux_diags%cwd_bg_input(c)  = elflux_diags%cwd_bg_input(c) + &
                 (struct_m + sapw_m) * SF_val_CWD_frac_adj(c) * &
                 (1.0_r8 - prt_params%allom_agb_frac(pft)) * nplant
 
@@ -693,11 +693,11 @@ end subroutine create_cohort
 
        end do
 
-       flux_diags%leaf_litter_input(pft) = &
-             flux_diags%leaf_litter_input(pft) +  &
+       elflux_diags%leaf_litter_input(pft) = &
+             elflux_diags%leaf_litter_input(pft) +  &
              (leaf_m+repro_m) * nplant
-       flux_diags%root_litter_input(pft) = &
-             flux_diags%root_litter_input(pft) +  &
+       elflux_diags%root_litter_input(pft) = &
+             elflux_diags%root_litter_input(pft) +  &
              (fnrt_m+store_m) * nplant
 
 

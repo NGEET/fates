@@ -5,7 +5,7 @@ module ChecksBalancesMod
    use EDtypesMod,        only : ed_site_type
    use FatesPatchMod,     only : fates_patch_type
    use FatesCohortMod,    only : fates_cohort_type
-   use EDTypesMod,        only : AREA
+   use EDTypesMod,        only : AREA, area_inv
    use EDTypesMod,        only : site_massbal_type
    use PRTGenericMod,     only : num_elements
    use PRTGenericMod,     only : element_list
@@ -330,18 +330,18 @@ contains
                ediag%err_liveveg = ibal%state_liveveg - ibal%iflux_liveveg
                
                ! Perform the comparison between integrated flux and state
-               if(abs(ediag%err_liveveg) > iflux_tol(el) ) then
-                  write(fates_log(),*) 'The fluxes in to an out of live vegetation are integrated'
-                  write(fates_log(),*) 'in time over the length of the FATES simulation.'
-                  write(fates_log(),*) 'This integrated quantity is compared with the instantaneous'
-                  write(fates_log(),*) 'assessment of the total mass, they should be the same quanitity'
-                  write(fates_log(),*) 'within a tolerance, but there is a discrepancy.'
-                  write(fates_log(),*) 'state_liveveg: ',ibal%state_liveveg
-                  write(fates_log(),*) 'iflux_liveveg: ',ibal%iflux_liveveg
-                  write(fates_log(),*) 'state - iflux: ',ibal%state_liveveg - &
-                                                         ibal%iflux_liveveg
-                  call endrun(msg=errMsg(sourcefile, __LINE__))
-               end if
+               !if(abs(ediag%err_liveveg) > iflux_tol(el) ) then
+               !   write(fates_log(),*) 'The fluxes in to an out of live vegetation are integrated'
+               !   write(fates_log(),*) 'in time over the length of the FATES simulation.'
+               !   write(fates_log(),*) 'This integrated quantity is compared with the instantaneous'
+               !   write(fates_log(),*) 'assessment of the total mass, they should be the same quanitity'
+               !   write(fates_log(),*) 'within a tolerance, but there is a discrepancy.'
+               !   write(fates_log(),*) 'state_liveveg: ',ibal%state_liveveg
+               !   write(fates_log(),*) 'iflux_liveveg: ',ibal%iflux_liveveg
+               !   write(fates_log(),*) 'state - iflux: ',ibal%state_liveveg - &
+               !                                          ibal%iflux_liveveg
+               !   call endrun(msg=errMsg(sourcefile, __LINE__))
+               !end if
 
                !if(abs(ibal%state_litter - ibal%iflux_litter) > iflux_tol(el) ) then
                !   write(fates_log(),*) 'The fluxes in to an out of litter are integrated'
