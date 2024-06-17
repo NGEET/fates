@@ -1,131 +1,90 @@
 module FatesHistoryInterfaceMod
 
-  use FatesConstantsMod          , only : r8 => fates_r8
-  use FatesConstantsMod          , only : fates_avg_flag_length
-  use FatesConstantsMod          , only : fates_short_string_length
-  use FatesConstantsMod          , only : fates_long_string_length
-  use FatesConstantsMod          , only : itrue,ifalse
-  use FatesConstantsMod          , only : calloc_abs_error
-  use FatesConstantsMod          , only : mg_per_kg
-  use FatesConstantsMod          , only : pi_const
-  use FatesConstantsMod          , only : nearzero
-  use FatesConstantsMod          , only : t_water_freeze_k_1atm
-  use FatesConstantsMod          , only : n_term_mort_types
-  use FatesConstantsMod          , only : i_term_mort_type_cstarv
-  use FatesConstantsMod          , only : i_term_mort_type_canlev
-  use FatesConstantsMod          , only : i_term_mort_type_numdens
-  use FatesGlobals               , only : fates_log
-  use FatesGlobals               , only : endrun => fates_endrun
-  use EDParamsMod                , only : nclmax, maxpft
-  use FatesConstantsMod          , only : ican_upper
-  use PRTGenericMod              , only : element_pos
-  use PRTGenericMod              , only : num_elements
-  use PRTGenericMod              , only : prt_cnp_flex_allom_hyp
-  use EDTypesMod                 , only : site_fluxdiags_type
-  use EDtypesMod                 , only : ed_site_type
-  use FatesCohortMod             , only : fates_cohort_type
-  use FatesPatchMod              , only : fates_patch_type
-  use EDtypesMod                 , only : AREA
-  use EDtypesMod                 , only : AREA_INV
-  use EDTypesMod                 , only : numWaterMem
-  use EDTypesMod                 , only : num_vegtemp_mem
-  use PRTGenericMod              , only : element_list
-  use FatesIOVariableKindMod     , only : group_dyna_simple, group_dyna_complx
-  use FatesIOVariableKindMod     , only : group_hifr_simple, group_hifr_complx
-  use FatesIOVariableKindMod     , only : group_hydr_simple, group_hydr_complx
-  use FatesConstantsMod          , only : N_DIST_TYPES
-  use FatesConstantsMod          , only : dtype_ifall
-  use FatesConstantsMod          , only : dtype_ifire
-  use FatesConstantsMod          , only : dtype_ilog
-  use FatesIODimensionsMod       , only : fates_io_dimension_type
-  use FatesIOVariableKindMod     , only : fates_io_variable_kind_type
-  use FatesIOVariableKindMod     , only : site_int
-  use FatesHistoryVariableType   , only : fates_history_variable_type
-  use FatesInterfaceTypesMod     , only : hlm_hio_ignore_val
-  use FatesInterfaceTypesMod     , only : hlm_use_planthydro
-  use FatesInterfaceTypesMod     , only : hlm_use_ed_st3
-  use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
-  use FatesInterfaceTypesMod     , only : hlm_use_tree_damage
-  use FatesInterfaceTypesMod     , only : nlevdamage
-  use FatesInterfaceTypesMod     , only : numpft
-  use FatesInterfaceTypesMod     , only : hlm_freq_day
-  use FatesInterfaceTypesMod     , only : hlm_parteh_mode
-  use EDParamsMod                , only : ED_val_comp_excln
-  use EDParamsMod                , only : ED_val_phen_coldtemp
-  use EDParamsMod                , only : nlevleaf
-  use EDParamsMod                , only : ED_val_history_height_bin_edges
-  use EDParamsMod                , only : ED_val_history_ageclass_bin_edges
-  use FatesInterfaceTypesMod     , only : nlevsclass, nlevage
-  use FatesInterfaceTypesMod     , only : nlevheight
-  use FatesInterfaceTypesMod     , only : bc_in_type
-  use FatesInterfaceTypesMod     , only : bc_out_type
-  use FatesInterfaceTypesMod     , only : hlm_model_day
-  use FatesInterfaceTypesMod     , only : nlevcoage
-  use FatesInterfaceTypesMod     , only : hlm_use_nocomp
-  use FatesInterfaceTypesMod     , only : hlm_use_fixed_biogeog
-  use FatesRadiationMemMod       , only : ivis,inir
-  use FatesInterfaceTypesMod     , only : hlm_hist_level_hifrq,hlm_hist_level_dynam
-  use FatesIOVariableKindMod     , only : site_r8, site_soil_r8, site_size_pft_r8
-  use FatesIOVariableKindMod     , only : site_size_r8, site_pft_r8, site_age_r8
-  use FatesIOVariableKindMod     , only : site_coage_r8, site_coage_pft_r8
-  use FatesIOVariableKindMod     , only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
-  use FatesIOVariableKindMod     , only : site_scagpft_r8, site_agepft_r8
-  use FatesIOVariableKindMod     , only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
-  use FatesIOVariableKindMod     , only : site_height_r8, site_agefuel_r8
-  use FatesIOVariableKindMod     , only : site_elem_r8, site_elpft_r8
-  use FatesIOVariableKindMod     , only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
-  use FatesIOVariableKindMod     , only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
-  use FatesIOVariableKindMod     , only : site_landuse_r8, site_lulu_r8, site_lupft_r8
-  use FatesConstantsMod          , only : n_landuse_cats
-  use FatesAllometryMod          , only : CrownDepth
-  use FatesAllometryMod          , only : bstore_allom
-  use FatesAllometryMod          , only : set_root_fraction
-  use FatesConstantsMod          , only : nocomp_bareground_land
-  use EDPftvarcon                , only : EDPftvarcon_inst
-  use PRTParametersMod           , only : prt_params
-  use FatesConstantsMod          , only : g_per_kg
-  use FatesConstantsMod          , only : kg_per_g
-  use FatesConstantsMod          , only : ha_per_m2
-  use FatesConstantsMod          , only : days_per_sec
-  use FatesConstantsMod          , only : sec_per_day
-  use FatesConstantsMod          , only : days_per_sec
-  use FatesConstantsMod          , only : days_per_year
-  use FatesConstantsMod          , only : years_per_day
-  use FatesConstantsMod          , only : m2_per_km2
-  use FatesConstantsMod          , only : J_per_kJ
-  use FatesConstantsMod          , only : m2_per_ha
-  use FatesConstantsMod          , only : ha_per_m2
-  use FatesConstantsMod          , only : m_per_cm
-  use FatesConstantsMod          , only : m_per_mm
-  use FatesConstantsMod          , only : sec_per_min
-  use FatesConstantsMod          , only : umol_per_mol,mol_per_umol
-  use FatesConstantsMod          , only : pa_per_mpa
-  use FatesConstantsMod          , only : dens_fresh_liquid_water
-  use FatesConstantsMod          , only : grav_earth
-  use FatesLitterMod             , only : litter_type
-  use FatesConstantsMod          , only : secondaryland
-  use PRTGenericMod              , only : leaf_organ, fnrt_organ, sapw_organ
-  use PRTGenericMod              , only : struct_organ, store_organ, repro_organ
-  use PRTGenericMod              , only : carbon12_element
-  use PRTGenericMod              , only : nitrogen_element, phosphorus_element
-  use PRTGenericMod              , only : prt_carbon_allom_hyp
-  use PRTAllometricCNPMod        , only : stoich_max,stoich_growth_min
-  use FatesSizeAgeTypeIndicesMod , only : get_layersizetype_class_index
-  use FatesSizeAgeTypeIndicesMod , only : get_age_class_index
-  use FatesLitterMod             , only : nfsc
-  use FatesLitterMod             , only : ncwd
-  use FatesConstantsMod          , only : ican_upper
-  use FatesConstantsMod          , only : ican_ustory
-  use FatesSizeAgeTypeIndicesMod , only : get_sizeage_class_index
-  use FatesSizeAgeTypeIndicesMod , only : get_sizeagepft_class_index
-  use FatesSizeAgeTypeIndicesMod , only : get_agepft_class_index
-  use FatesSizeAgeTypeIndicesMod , only : get_agefuel_class_index
-  use FatesSizeAgeTypeIndicesMod , only : get_height_index
-  use FatesSizeAgeTypeIndicesMod , only : sizetype_class_index
-  use FatesSizeAgeTypeIndicesMod , only : get_cdamagesize_class_index
-  use FatesSizeAgeTypeIndicesMod , only : get_cdamagesizepft_class_index
-  use FatesSizeAgeTypeIndicesMod , only : coagetype_class_index
-  use FatesInterfaceTypesMod     , only : nlevdamage
+  use FatesConstantsMod        , only : r8 => fates_r8
+  use FatesConstantsMod        , only : fates_avg_flag_length
+  use FatesConstantsMod        , only : fates_short_string_length
+  use FatesConstantsMod        , only : fates_long_string_length
+  use FatesConstantsMod        , only : itrue,ifalse
+  use FatesConstantsMod        , only : calloc_abs_error
+  use FatesConstantsMod        , only : mg_per_kg
+  use FatesConstantsMod        , only : pi_const
+  use FatesConstantsMod        , only : nearzero
+  use FatesConstantsMod        , only : t_water_freeze_k_1atm
+  use FatesConstantsMod        , only : n_term_mort_types
+  use FatesConstantsMod        , only : i_term_mort_type_cstarv
+  use FatesConstantsMod        , only : i_term_mort_type_canlev
+  use FatesConstantsMod        , only : i_term_mort_type_numdens
+  use FatesConstantsMo         , only : nocomp_bareground_land
+  use FatesGlobals             , only : fates_log
+  use FatesGlobals             , only : endrun => fates_endrun
+  use EDParamsMod              , only : nclmax, maxpft
+  use FatesConstantsMod        , only : ican_upper
+  use PRTGenericMod            , only : element_pos
+  use PRTGenericMod            , only : num_elements
+  use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
+  use EDTypesMod               , only : site_fluxdiags_type
+  use EDtypesMod               , only : ed_site_type
+  use FatesCohortMod           , only : fates_cohort_type
+  use FatesPatchMod            , only : fates_patch_type
+  use EDtypesMod               , only : AREA
+  use EDtypesMod               , only : AREA_INV
+  use EDTypesMod               , only : numWaterMem
+  use EDTypesMod               , only : num_vegtemp_mem
+  use PRTGenericMod            , only : element_list
+  use FatesIOVariableKindMod   , only : group_dyna_simple, group_dyna_complx
+  use FatesIOVariableKindMod   , only : group_hifr_simple, group_hifr_complx
+  use FatesIOVariableKindMod   , only : group_hydr_simple, group_hydr_complx
+  use FatesIOVariableKindMod   , only : group_nflx_simple, group_nflx_complx
+  use FatesConstantsMod        , only : N_DIST_TYPES
+  use FatesConstantsMod        , only : dtype_ifall
+  use FatesConstantsMod        , only : dtype_ifire
+  use FatesConstantsMod        , only : dtype_ilog
+  use FatesIODimensionsMod     , only : fates_io_dimension_type
+  use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
+  use FatesIOVariableKindMod   , only : site_int
+  use FatesHistoryVariableType , only : fates_history_variable_type
+  use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val
+  use FatesInterfaceTypesMod        , only : hlm_use_planthydro
+  use FatesInterfaceTypesMod        , only : hlm_use_ed_st3
+  use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
+  use FatesInterfaceTypesMod        , only : hlm_use_tree_damage
+  use FatesInterfaceTypesMod        , only : nlevdamage
+  use FatesInterfaceTypesMod        , only : numpft
+  use FatesInterfaceTypesMod        , only : hlm_freq_day
+  use FatesInterfaceTypesMod        , only : hlm_parteh_mode
+  use EDParamsMod              , only : ED_val_comp_excln
+  use EDParamsMod              , only : ED_val_phen_coldtemp
+  use EDParamsMod                   , only : nlevleaf
+  use EDParamsMod               , only : ED_val_history_height_bin_edges
+  use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
+  use FatesInterfaceTypesMod        , only : nlevsclass, nlevage
+  use FatesInterfaceTypesMod        , only : nlevheight
+  use FatesInterfaceTypesMod        , only : bc_in_type
+  use FatesInterfaceTypesMod        , only : bc_out_type
+  use FatesInterfaceTypesMod        , only : hlm_model_day
+  use FatesInterfaceTypesMod        , only : nlevcoage
+  use FatesInterfaceTypesMod        , only : hlm_use_nocomp
+  use FatesInterfaceTypesMod        , only : hlm_use_fixed_biogeog
+  use FatesRadiationMemMod          , only : ivis,inir
+  use FatesInterfaceTypesMod        , only : hlm_hist_level_hifrq,hlm_hist_level_dynam
+  use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
+  use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
+  use FatesIOVariableKindMod, only : site_coage_r8, site_coage_pft_r8
+  use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
+  use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
+  use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
+  use FatesIOVariableKindMod, only : site_height_r8, site_agefuel_r8
+  use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
+  use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
+  use FatesIOVariableKindMod, only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
+  use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8, site_lupft_r8
+  use FatesConstantsMod   , only : n_landuse_cats
+  use FatesAllometryMod             , only : CrownDepth
+  use FatesAllometryMod             , only : bstore_allom
+  use FatesAllometryMod             , only : set_root_fraction
+
+  use EDPftvarcon              , only : EDPftvarcon_inst
+  use PRTParametersMod         , only : prt_params
 
   ! CIME Globals
   use shr_log_mod              , only : errMsg => shr_log_errMsg
@@ -898,7 +857,7 @@ module FatesHistoryInterfaceMod
 
      procedure, public :: flush_hvars
      procedure, public :: zero_site_hvars
-     
+     procedure, public :: flush_all_hvars
 
   end type fates_history_interface_type
 
@@ -1810,6 +1769,38 @@ contains
     return
   end subroutine zero_site_hvars
 
+
+  ! ======================================================================================
+
+  subroutine flush_all_hvars(this,nc)
+
+    ! A wrapper to flush all active history
+    ! groups to their flush value
+    
+    class(fates_history_interface_type)    :: this
+    integer,intent(in)                     :: nc
+    
+    if(hlm_hist_level_hifrq>0) then
+       call this%flush_hvars(nc,upfreq_in=group_hifr_simple)
+       if (hlm_use_planthydro.eq.itrue) call this%flush_hvars(nc,upfreq_in=group_hydr_simple)
+       if(hlm_hist_level_hifrq>1) then
+          call this%flush_hvars(nc,upfreq_in=group_hifr_complx)
+          if (hlm_use_planthydro.eq.itrue) call this%flush_hvars(nc,upfreq_in=group_hydr_complx)
+       end if
+    end if
+
+    if(hlm_hist_level_dynam>0) then
+       call this%flush_hvars(nc,upfreq_in=group_dyna_simple)
+       call this%flush_hvars(nc,upfreq_in=group_nflx_simple)
+       if(hlm_hist_level_dynam>1) then
+          call this%flush_hvars(nc,upfreq_in=group_dyna_complx)
+          call this%flush_hvars(nc,upfreq_in=group_nflx_complx)
+       end if
+    end if
+    
+    return
+  end subroutine flush_all_hvars
+  
   ! ======================================================================================
 
   subroutine flush_hvars(this,nc,upfreq_in)
@@ -2092,6 +2083,9 @@ contains
          ! history site index
          io_si  = csite%h_gid
 
+         ! zero nutrient fluxes
+         call this%zero_site_hvars(csite,upfreq_in=group_nflx_simple)
+         
          cpatch => csite%youngest_patch
          do while(associated(cpatch))
 
@@ -2160,7 +2154,9 @@ contains
 
                      ! Demand
                      this%hvars(ih_pdemand_si)%r81d(io_si) = &
+                          this%hvars(ih_pdemand_si)%r81d(io_si) + & 
                           ccohort%daily_p_demand*uconv
+                     
                   end select
                end do
 
@@ -2177,10 +2173,11 @@ contains
     
     if_dynam2: if(hlm_hist_level_dynam>1) then
 
-
          ! history site index
          io_si  = csite%h_gid
 
+         call this%zero_site_hvars(csite,upfreq_in=group_nflx_complx)
+         
          cpatch => csite%youngest_patch
          do while(associated(cpatch))
 
@@ -2435,8 +2432,7 @@ contains
          site_ba = 0._r8
          site_ca = 0._r8
 
-         ! This should be removed from the interface and put here (RGK 04-24)
-         ! call this%zero_site_hvars(sites(s),upfreq_in=group_dyna_simple)
+         call this%zero_site_hvars(sites(s),upfreq_in=group_dyna_simple)
          
          ! set the fates fraction to one, since it is zero on non-fates columns, &
          ! the average is the total gridcell fates fraction
@@ -3033,8 +3029,9 @@ contains
     integer  :: iscagpft     ! size-class x age x pft index
     integer  :: icdpf, icdsc, icdam ! iterators for the crown damage level
     integer  :: i_agefuel     ! age x fuel size class index
-    real(r8) :: gpp_cached ! variable used to cache gpp value in previous time step; for C13 discrimination
+    real(r8) :: gpp_cached    ! gpp from previous timestep, for c13 discrimination
     real(r8) :: crown_depth   ! Depth of the crown [m]
+    real(r8) :: gpp_cached_scpf(numpft*nlevsclass)  ! variable used to cache gpp value in previous time step; for C13 discrimination
     real(r8) :: storen_canopy_scpf(numpft*nlevsclass)
     real(r8) :: storen_understory_scpf(numpft*nlevsclass)
     real(r8) :: storep_canopy_scpf(numpft*nlevsclass)
@@ -3272,10 +3269,18 @@ contains
           ! Loop through the FATES scale hierarchy and fill the history IO arrays
           ! ---------------------------------------------------------------------------------
 
+          
           siteloop: do s = 1,nsites
 
              io_si  = sites(s)%h_gid
 
+             ! C13 will not get b4b restarts on the first day because
+             ! there is no mechanism to remember the previous day's values
+             ! through a restart. This should be added with the next refactor
+             gpp_cached_scpf(:) = hio_gpp_si_scpf(io_si,:)
+             
+             call this%zero_site_hvars(sites(s),upfreq_in=group_dyna_complx)
+             
              ! These are weighting factors
              storen_canopy_scpf(:) = 0._r8
              storen_understory_scpf(:) = 0._r8
@@ -3335,7 +3340,6 @@ contains
                         * dens_fresh_liquid_water * grav_earth * m_per_mm
                 end if
              end do
-
 
              ! Loop through patches to sum up diagonistics
              ipa = 0
@@ -3616,16 +3620,16 @@ contains
 
                       ! update pft-resolved NPP and GPP fluxes
                       hio_gpp_si_pft(io_si, ft) = hio_gpp_si_pft(io_si, ft) + &
-                           ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
+                           ccohort%gpp_acc_hold * n_perm2 / (days_per_year* sec_per_day)
 
                       hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
-                           ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
+                           ccohort%npp_acc_hold * n_perm2 / (days_per_year*sec_per_day)
 
                       if ( cpatch%land_use_label .eq. secondaryland ) then
                          hio_gpp_sec_si_pft(io_si, ft) = hio_gpp_sec_si_pft(io_si, ft) + &
-                              ccohort%gpp_acc_hold * n_perm2 / days_per_year / sec_per_day
+                              ccohort%gpp_acc_hold * n_perm2 / (days_per_year*sec_per_day)
                          hio_npp_sec_si_pft(io_si, ft) = hio_npp_sec_si_pft(io_si, ft) + &
-                              ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
+                              ccohort%npp_acc_hold * n_perm2 / (days_per_year*sec_per_day)
                       end if
 
                       ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
@@ -3651,35 +3655,40 @@ contains
                            capf => ccohort%coage_by_pft_class,                  &
                            cdam => ccohort%crowndamage)
 
-                        gpp_cached = (hio_gpp_si_scpf(io_si,scpf)) *                    &
-                             days_per_year * sec_per_day
-
-                        ! [kgC/m2/s]
+                        ! convert [kgC/plant/year] -> [kgC/m2/s]
                         hio_gpp_si_scpf(io_si,scpf) = hio_gpp_si_scpf(io_si,scpf) +     &
-                             n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
+                             n_perm2*ccohort%gpp_acc_hold / (days_per_year*sec_per_day)
+                        
                         hio_npp_totl_si_scpf(io_si,scpf) = hio_npp_totl_si_scpf(io_si,scpf) + &
-                             ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
+                             ccohort%npp_acc_hold * n_perm2 / (days_per_year*sec_per_day)
 
                         hio_npp_leaf_si_scpf(io_si,scpf) = hio_npp_leaf_si_scpf(io_si,scpf) + &
-                             leaf_m_net_alloc*n_perm2 / days_per_year / sec_per_day
+                             leaf_m_net_alloc*n_perm2 / (days_per_year*sec_per_day)
+                        
                         hio_npp_fnrt_si_scpf(io_si,scpf) = hio_npp_fnrt_si_scpf(io_si,scpf) + &
-                             fnrt_m_net_alloc*n_perm2 / days_per_year / sec_per_day
+                             fnrt_m_net_alloc*n_perm2 / (days_per_year*sec_per_day)
+                        
                         hio_npp_bgsw_si_scpf(io_si,scpf) = hio_npp_bgsw_si_scpf(io_si,scpf) + &
                              sapw_m_net_alloc*n_perm2*(1._r8-prt_params%allom_agb_frac(ccohort%pft)) / &
-                             days_per_year / sec_per_day
+                             (days_per_year*sec_per_day)
+                        
                         hio_npp_agsw_si_scpf(io_si,scpf) = hio_npp_agsw_si_scpf(io_si,scpf) + &
                              sapw_m_net_alloc*n_perm2*prt_params%allom_agb_frac(ccohort%pft) / &
-                             days_per_year / sec_per_day
+                             (days_per_year*sec_per_day)
+                        
                         hio_npp_bgdw_si_scpf(io_si,scpf) = hio_npp_bgdw_si_scpf(io_si,scpf) + &
                              struct_m_net_alloc*n_perm2*(1._r8-prt_params%allom_agb_frac(ccohort%pft)) / &
-                             days_per_year / sec_per_day
+                             (days_per_year*sec_per_day)
+                        
                         hio_npp_agdw_si_scpf(io_si,scpf) = hio_npp_agdw_si_scpf(io_si,scpf) + &
                              struct_m_net_alloc*n_perm2*prt_params%allom_agb_frac(ccohort%pft) / &
-                             days_per_year / sec_per_day
+                             (days_per_year*sec_per_day)
+                        
                         hio_npp_seed_si_scpf(io_si,scpf) = hio_npp_seed_si_scpf(io_si,scpf) + &
-                             repro_m_net_alloc*n_perm2 / days_per_year / sec_per_day
+                             repro_m_net_alloc*n_perm2 / (days_per_year*sec_per_day)
+                        
                         hio_npp_stor_si_scpf(io_si,scpf) = hio_npp_stor_si_scpf(io_si,scpf) + &
-                             store_m_net_alloc*n_perm2 / days_per_year / sec_per_day
+                             store_m_net_alloc*n_perm2 / (days_per_year*sec_per_day)
 
                         ! Woody State Variables (basal area growth increment)
                         if ( prt_params%woody(ft) == itrue) then
@@ -3757,12 +3766,16 @@ contains
                         end if
 
                         !C13 discrimination
-                        if(gpp_cached + ccohort%gpp_acc_hold > 0.0_r8)then
+                        if(abs(gpp_cached_scpf(scpf)-hlm_hio_ignore_val)>nearzero .and. &
+                              (gpp_cached_scpf(scpf) + ccohort%gpp_acc_hold) > 0.0_r8) then
+                           
+                           gpp_cached = gpp_cached_scpf(scpf)*days_per_year*sec_per_day
+                           
                            hio_c13disc_si_scpf(io_si,scpf) = ((hio_c13disc_si_scpf(io_si,scpf) * gpp_cached) + &
                                 (ccohort%c13disc_acc * ccohort%gpp_acc_hold)) / (gpp_cached + ccohort%gpp_acc_hold)
                         else
                            hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
-                        endif
+                        end if
 
                         ! number density [/m2]
                         hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
@@ -4529,8 +4542,6 @@ contains
              ! Diagnostics discretized by element type
              ! ------------------------------------------------------------------------------
 
-             hio_cwd_elcwd(io_si,:)   = 0._r8
-
              do el = 1, num_elements
 
                 flux_diags => sites(s)%flux_diags(el)
@@ -4540,17 +4551,6 @@ contains
                      sum(flux_diags%cwd_bg_input(:)) + sum(flux_diags%leaf_litter_input(:)) + &
                      sum(flux_diags%root_litter_input(:))) / m2_per_ha / sec_per_day
 
-                hio_cwd_ag_elem(io_si,el)         = 0._r8
-                hio_cwd_bg_elem(io_si,el)         = 0._r8
-                hio_fines_ag_elem(io_si,el)       = 0._r8
-                hio_fines_bg_elem(io_si,el)       = 0._r8
-
-                hio_seed_bank_elem(io_si,el)      = 0._r8
-                hio_seed_germ_elem(io_si,el)      = 0._r8
-                hio_seed_decay_elem(io_si,el)     = 0._r8
-                hio_seeds_in_local_elem(io_si,el) = 0._r8
-                hio_seed_in_extern_elem(io_si,el) = 0._r8
-                hio_litter_out_elem(io_si,el)     = 0._r8
 
                 ! Plant multi-element states and fluxes
                 ! Zero states, and set the fluxes
@@ -4878,10 +4878,6 @@ contains
     type(fates_cohort_type),pointer :: ccohort
 
 
-    ! This routine is only called for hlm_hist_level_hifrq >= 1
-    if(hlm_hist_level_hifrq<1) return
-
-
     associate( hio_gpp_si                   => this%hvars(ih_gpp_si)%r81d, &
          hio_gpp_secondary_si         => this%hvars(ih_gpp_secondary_si)%r81d, &
          hio_npp_si                   => this%hvars(ih_npp_si)%r81d, &
@@ -4910,9 +4906,10 @@ contains
          hio_tveg                     => this%hvars(ih_tveg_si)%r81d)
 
 
-      ! Flush the relevant history variables
+      ! THIS CAN BE REMOVED WHEN BOTH CTSM AND E3SM CALL FLUSH_ALL_HVARS
+      ! THIS IS NOT A LIABILITY, IT IS JUST REDUNDANT
       call this%flush_hvars(nc,upfreq_in=group_hifr_simple)
-
+      
       dt_tstep_inv = 1.0_r8/dt_tstep
 
       allocate(age_area_rad(size(ED_val_history_ageclass_bin_edges,1)+1))
@@ -5156,9 +5153,6 @@ contains
     type(fates_cohort_type),pointer :: ccohort
     real(r8) :: dt_tstep_inv          ! Time step in frequency units (/s)
 
-    ! This routine is only called for hlm_hist_level_hifrq >= 1
-    if(hlm_hist_level_hifrq<2) return
-
     associate( hio_ar_si_scpf                      => this%hvars(ih_ar_si_scpf)%r82d, &
          hio_ar_grow_si_scpf                 => this%hvars(ih_ar_grow_si_scpf)%r82d, &
          hio_ar_maint_si_scpf                => this%hvars(ih_ar_maint_si_scpf)%r82d, &
@@ -5201,13 +5195,17 @@ contains
          hio_laisun_si_can                    => this%hvars(ih_laisun_si_can)%r82d, &
          hio_laisha_si_can                    => this%hvars(ih_laisha_si_can)%r82d )
 
-      ! Flush the relevant history variables
-      call this%flush_hvars(nc,upfreq_in=group_hifr_complx)
 
+      ! THIS CAN BE REMOVED WHEN BOTH CTSM AND E3SM CALL FLUSH_ALL_HVARS
+      ! THIS IS NOT A LIABILITY, IT IS JUST REDUNDANT 
+      call this%flush_hvars(nc,upfreq_in=group_hifr_complx)
+      
       dt_tstep_inv = 1.0_r8/dt_tstep
 
       do_sites: do s = 1,nsites
 
+         call this%zero_site_hvars(sites(s), upfreq_in=group_hifr_complx)
+         
          site_area_veg_inv = 0._r8
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -5226,8 +5224,6 @@ contains
 
          patch_area_by_age(1:nlevage) = 0._r8
          canopy_area_by_age(1:nlevage) = 0._r8
-
-         call this%zero_site_hvars(sites(s), upfreq_in=group_hifr_complx)
 
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -5631,7 +5627,8 @@ contains
 
     if_hifrq0: if(hlm_hist_level_hifrq>0) then
 
-       ! Flush the relevant history variables
+       ! THIS CAN BE REMOVED WHEN BOTH CTSM AND E3SM CALL FLUSH_ALL_HVARS
+       ! THIS IS NOT A LIABILITY, IT IS JUST REDUNDANT 
        call this%flush_hvars(nc,upfreq_in=group_hydr_simple)
        
        associate(   hio_h2oveg_hydro_err_si   => this%hvars(ih_h2oveg_hydro_err_si)%r81d, &
@@ -5738,6 +5735,8 @@ contains
             hio_rootuptake50_scpf     => this%hvars(ih_rootuptake50_scpf)%r82d, &
             hio_rootuptake100_scpf    => this%hvars(ih_rootuptake100_scpf)%r82d )
 
+         ! THIS CAN BE REMOVED WHEN BOTH CTSM AND E3SM CALL FLUSH_ALL_HVARS
+         ! THIS IS NOT A LIABILITY, IT IS JUST REDUNDANT 
          call this%flush_hvars(nc,upfreq_in=group_hydr_complx)
          
          do s = 1,nsites
@@ -5824,8 +5823,6 @@ contains
                   hio_rootuptake10_scpf(io_si,iscpf)  = site_hydr%rootuptake10_scpf(iscls,ipft) * ha_per_m2
                   hio_rootuptake50_scpf(io_si,iscpf)  = site_hydr%rootuptake50_scpf(iscls,ipft) * ha_per_m2
                   hio_rootuptake100_scpf(io_si,iscpf) = site_hydr%rootuptake100_scpf(iscls,ipft) * ha_per_m2
-                  hio_iterh1_scpf(io_si,iscpf) = 0._r8
-                  hio_iterh2_scpf(io_si,iscpf) = 0._r8
                end do
             end do
 
@@ -6385,31 +6382,31 @@ contains
           call this%set_history_var(vname='FATES_NH4UPTAKE', units='kg m-2 s-1',  &
                long='ammonium uptake rate by plants in kg NH4 per m2 per second', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_nh4uptake_si)
 
           call this%set_history_var(vname='FATES_NO3UPTAKE', units='kg m-2 s-1',  &
                long='nitrate uptake rate by plants in kg NO3 per m2 per second',  &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_no3uptake_si)
 
           call this%set_history_var(vname='FATES_NEFFLUX', units='kg m-2 s-1',    &
                long='nitrogen effluxed from plant in kg N per m2 per second (unused)', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_nefflux_si)
 
           call this%set_history_var(vname='FATES_NDEMAND', units='kg m-2 s-1',      &
                long='plant nitrogen need (algorithm dependent) in kg N per m2 per second', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_ndemand_si)
 
           call this%set_history_var(vname='FATES_NFIX_SYM', units='kg m-2 s-1',      &
                long='symbiotic dinitrogen fixation in kg N per m2 per second', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_nfix_si)
           
           call this%set_history_var(vname='FATES_STOREN', units='kg m-2',         &
@@ -6494,19 +6491,19 @@ contains
           call this%set_history_var(vname='FATES_PUPTAKE', units='kg m-2 s-1',    &
                long='mineralized phosphorus uptake rate of plants in kg P per m2 per second', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_puptake_si)
 
           call this%set_history_var(vname='FATES_PEFFLUX', units='kg m-2 s-1',    &
                long='phosphorus effluxed from plant in kg P per m2 per second (unused)', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_pefflux_si)
 
           call this%set_history_var(vname='FATES_PDEMAND', units='kg m-2 s-1',      &
                long='plant phosphorus need (algorithm dependent) in kg P per m2 per second', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,              &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_pdemand_si)
        end if phosphorus_active_if0
 
@@ -6609,11 +6606,15 @@ contains
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple,   &
             ivar=ivar, initialize=initialize_variables, index = ih_harvest_debt_sec_si )
 
+       ! Nutrient flux variables (dynamics call frequency)
+       ! ----------------------------------------------------
        call this%set_history_var(vname='FATES_EXCESS_RESP', units='kg m-2 s-1',    &
             long='respiration of un-allocatable carbon gain', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_excess_resp_si)
+
+       
        ! slow carbon fluxes associated with mortality from or transfer betweeen canopy and understory
 
        call this%set_history_var(vname='FATES_DEMOTION_CARBONFLUX',               &
@@ -7139,32 +7140,32 @@ contains
                   units='kg m-2 s-1',                                                &
                   long='ammonium uptake rate by plants by size-class x pft in kg NH4 per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_nh4uptake_scpf)
 
              call this%set_history_var(vname='FATES_NO3UPTAKE_SZPF',                 &
                   units='kg m-2 s-1',                                                &
                   long='nitrate uptake rate by plants by size-class x pft in kg NO3 per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_no3uptake_scpf)
 
              call this%set_history_var(vname='FATES_NEFFLUX_SZPF', units='kg m-2 s-1', &
                   long='nitrogen efflux, root to soil, by size-class x pft in kg N per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_nefflux_scpf)
 
              call this%set_history_var(vname='FATES_NDEMAND_SZPF', units='kg m-2 s-1', &
                   long='plant N need (algorithm dependent), by size-class x pft in kg N per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_ndemand_scpf)
 
              call this%set_history_var(vname='FATES_NFIX_SYM_SZPF', units='kg m-2 s-1', &
                   long='symbiotic dinitrogen fixation, by size-class x pft in kg N per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_nfix_scpf)
              
              call this%set_history_var(vname='FATES_VEGN_SZPF', units='kg m-2',      &
@@ -7276,20 +7277,20 @@ contains
                   units='kg m-2 s-1',                                                &
                   long='phosphorus uptake rate by plants, by size-class x pft in kg P per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_puptake_scpf)
 
              call this%set_history_var(vname='FATES_PEFFLUX_SZPF',                   &
                   units='kg m-2 s-1',                                                &
                   long='phosphorus efflux, root to soil, by size-class x pft in kg P per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_pefflux_scpf)
 
              call this%set_history_var(vname='FATES_PDEMAND_SZPF', units='kg m-2 s-1', &
                   long='plant P need (algorithm dependent), by size-class x pft in kg P per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                               &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_pdemand_scpf)
 
           end if phosphorus_active_if1
