@@ -1010,7 +1010,7 @@ contains
                                      ! This diagnostic only tracks
                                      currentSite%flux_diags%elem(el)%burned_liveveg = &
                                           currentSite%flux_diags%elem(el)%burned_liveveg + & 
-                                          leaf_burn_frac * leaf_m * nc%n
+                                          leaf_burn_frac * leaf_m * nc%n * area_inv
                                      
                                   end do
 

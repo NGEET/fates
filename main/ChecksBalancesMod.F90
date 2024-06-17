@@ -292,10 +292,10 @@ contains
                !                    veg loss from exported harvest - 
                !                    seed turnover
                
-               tot_litter_input = sum(ediag%leaf_litter_input(:)) + &
-                                  sum(ediag%root_litter_input(:)) + &
-                                  sum(ediag%cwd_ag_input(:)) + &
-                                  sum(ediag%cwd_bg_input(:))
+               tot_litter_input = (sum(ediag%leaf_litter_input(:)) + &
+                                   sum(ediag%root_litter_input(:)) + &
+                                   sum(ediag%cwd_ag_input(:)) + &
+                                   sum(ediag%cwd_bg_input(:)))*area_inv
 
                select case(element_list(el))
                case(carbon12_element)
@@ -327,7 +327,10 @@ contains
                !ibal%iflux_litter = ibal%iflux_litter + &
                !     ediag%netflux_litter * sec_per_day
 
-               ediag%err_liveveg = ibal%state_liveveg - ibal%iflux_liveveg
+               ediag%err_liveveg = ibal%iflux_liveveg - ibal%state_liveveg
+
+               print*, ediag%err_liveveg, diag%npp, site_mass%net_root_uptake*area_inv, tot_litter_input, &
+                    ediag%burned_liveveg, site_mass%seed_in*area_inv, ediag%tot_seed_turnover
                
                ! Perform the comparison between integrated flux and state
                !if(abs(ediag%err_liveveg) > iflux_tol(el) ) then
