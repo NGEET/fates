@@ -2309,6 +2309,8 @@ contains
     
     if (hlm_use_ed_st3.eq.itrue) return
 
+    call CheckIntegratedMassPools(sites)
+    
     if(hlm_hist_level_dynam>0) then
        call update_history_dyn1(this,nc,nsites,sites,bc_in)
        if(hlm_hist_level_dynam>1) then
@@ -2316,7 +2318,7 @@ contains
        end if
     end if
 
-    call CheckIntegratedMassPools(sites)
+    
     
     return
   end subroutine update_history_dyn
