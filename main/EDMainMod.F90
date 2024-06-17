@@ -621,8 +621,9 @@ contains
                currentCohort%daily_c_efflux*currentCohort%n
 
           ! Save NPP diagnostic for flux accounting [kg/m2/day]
+
           currentSite%flux_diags%npp = currentSite%flux_diags%npp + &
-               (currentCohort%npp_acc - currentCohort%resp_excess) * currentCohort%n * area_inv
+               (currentCohort%npp_acc_hold/hlm_days_per_year  - currentCohort%resp_excess) * currentCohort%n * area_inv
           
           ! And simultaneously add the input fluxes to mass balance accounting
           site_cmass%gpp_acc   = site_cmass%gpp_acc + &
