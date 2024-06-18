@@ -245,12 +245,12 @@ contains
 
   ! ==================================================================
 
-  subroutine CheckIntegratedMassPools(sites)
+  subroutine CheckIntegratedMassPools(site)
 
     
-    type(ed_site_type), intent(inout), target :: sites(:)
+    type(ed_site_type), intent(inout) :: site
 
-    integer  :: nsites
+    !integer  :: nsites
     integer  :: el
     integer  :: s
     real(r8) :: tot_veg_turnover
@@ -259,25 +259,26 @@ contains
     real(r8) :: biomass_stock
     real(r8) :: seed_stock
     real(r8) :: litter_stock
+    real(r8) :: total_stock
     
     logical,parameter :: check_iflux_bal = .true.  
 
     if(check_iflux_bal) then
        
-       nsites = ubound(sites,dim=1)
+       !nsites = ubound(sites,dim=1)
 
-       do s = 1,nsites
+       !do s = 1,nsites
        
           ! For carbon balance checks, we need to initialize the
           ! total carbon stock
           do el=1,num_elements
-             call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
+             call SiteMassStock(site,el,total_stock, &
                   biomass_stock,litter_stock,seed_stock)
 
-             associate(ibal => sites(s)%iflux_balance(el), &
-                      ediag => sites(s)%flux_diags%elem(el), &
-                      diag  => sites(s)%flux_diags, &
-                      site_mass => sites(s)%mass_balance(el))
+             associate(ibal => site%iflux_balance(el), &
+                      ediag => site%flux_diags%elem(el), &
+                      diag  => site%flux_diags, &
+                      site_mass => site%mass_balance(el))
                
                ! Initialize the integrated flux balance diagnostics
                ! No need to initialize the instantaneous states, those are re-calculated
@@ -329,8 +330,7 @@ contains
 
                ediag%err_liveveg = ibal%iflux_liveveg - ibal%state_liveveg
 
-               print*, ediag%err_liveveg, diag%npp, site_mass%net_root_uptake*area_inv, tot_litter_input, &
-                    ediag%burned_liveveg, site_mass%seed_in*area_inv, ediag%tot_seed_turnover
+               !print*, ediag%err_liveveg, ediag%err_liveveg/ibal%state_liveveg, ibal%state_liveveg, net_uptake, tot_litter_input
                
                ! Perform the comparison between integrated flux and state
                !if(abs(ediag%err_liveveg) > iflux_tol(el) ) then
@@ -362,7 +362,7 @@ contains
                
              end associate
           end do
-       end do
+       !end do
     end if
 
     return

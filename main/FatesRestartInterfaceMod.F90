@@ -268,6 +268,8 @@ module FatesRestartInterfaceMod
   integer :: ir_oldstock_mbal
   integer :: ir_errfates_mbal
   integer :: ir_woodprod_mbal
+  integer :: ir_liveveg_intflux_el
+  integer :: ir_liveveg_err_el
   integer :: ir_prt_base     ! Base index for all PRT variables
 
   ! site-level input seed from dispersal
@@ -1036,6 +1038,7 @@ contains
 
     ! Patch Level Litter Pools are potentially multi-element
     if(hlm_use_sp.eq.ifalse)then
+
        call this%RegisterCohortVector(symbol_base='fates_ag_cwd', vtype=cohort_r8, &
             long_name_base='above ground CWD',  &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
@@ -1132,6 +1135,20 @@ contains
             units='kg/ha', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_errfates_mbal)
 
+
+       ! Time integrated mass balance accounting [kg/m2]
+       call this%RegisterCohortVector(symbol_base='fates_liveveg_intflux', vtype=site_r8, &
+            long_name_base='total mass of live vegetation of each chemical species, integrated from fluxes', &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_liveveg_intflux_el)
+    
+
+       call this%RegisterCohortVector(symbol_base='fates_liveveg_err', vtype=site_r8, &
+            long_name_base='total mass error of live vegetation of each chemical species, from integrated fluxes', &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_liveveg_err_el)
+       
+       
     end if
     
     call this%RegisterCohortVector(symbol_base='fates_woodproduct', vtype=site_r8, &
@@ -2269,6 +2286,9 @@ contains
                 this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
                 this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%wood_product
 
+                this%rvars(ir_liveveg_intflux_el+el-1)%r81d(io_idx_si) = sites(s)%iflux_balance(el)%iflux_liveveg
+                this%rvars(ir_liveveg_err_el+el-1)%r81d(io_idx_si) = sites(s)%flux_diags%elem(el)%err_liveveg
+                
              end do
           end if
 
@@ -3234,6 +3254,10 @@ contains
                 sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
                 sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
                 sites(s)%mass_balance(el)%wood_product = this%rvars(ir_woodprod_mbal+el-1)%r81d(io_idx_si)
+
+                sites(s)%iflux_balance(el)%iflux_liveveg = this%rvars(ir_liveveg_intflux_el+el-1)%r81d(io_idx_si) 
+                sites(s)%flux_diags%elem(el)%err_liveveg = this%rvars(ir_liveveg_err_el+el-1)%r81d(io_idx_si)
+                
              end do
           end if
           

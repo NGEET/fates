@@ -91,6 +91,7 @@ module EDMainMod
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
+  use ChecksBalancesMod        , only : CheckIntegratedMassPools
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
   use EDTypesMod               , only : AREA_INV
   use PRTGenericMod,          only : carbon12_element
@@ -307,7 +308,12 @@ contains
        call terminate_patches(currentSite)
     end if
 
+    ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
+
+    ! Check to see if the time integrated fluxes match the state
+    call CheckIntegratedMassPools(currentSite)
+    
     
   end subroutine ed_ecosystem_dynamics
 
