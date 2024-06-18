@@ -4023,7 +4023,7 @@ contains
                            hio_bdead_md_canopy_si_scls(io_si,scls) = hio_bdead_md_canopy_si_scls(io_si,scls) + &
                                 struct_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                            hio_seed_prod_canopy_si_scls(io_si,scls) = hio_seed_prod_canopy_si_scls(io_si,scls) + &
-                                ccohort%seed_prod * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                                ccohort%seed_prod * ccohort%n / m2_per_ha / sec_per_day
 
                            hio_npp_leaf_canopy_si_scls(io_si,scls) = hio_npp_leaf_canopy_si_scls(io_si,scls) + &
                                 leaf_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
@@ -4160,7 +4160,7 @@ contains
                            hio_bdead_md_understory_si_scls(io_si,scls) = hio_bdead_md_understory_si_scls(io_si,scls) + &
                                 struct_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                            hio_seed_prod_understory_si_scls(io_si,scls) = hio_seed_prod_understory_si_scls(io_si,scls) + &
-                                ccohort%seed_prod * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                                ccohort%seed_prod * ccohort%n / m2_per_ha  / sec_per_day
 
                            hio_npp_leaf_understory_si_scls(io_si,scls) = hio_npp_leaf_understory_si_scls(io_si,scls) + &
                                 leaf_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
