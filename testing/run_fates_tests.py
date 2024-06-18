@@ -27,6 +27,7 @@ specify anything, the script will use the default FATES parameter cdl file.
 
 """
 import os
+import configparser
 import argparse
 import matplotlib.pyplot as plt
 from build_fortran_tests import build_unit_tests, build_exists
@@ -40,46 +41,212 @@ add_cime_lib_to_path()
 from CIME.utils import run_cmd_no_fail # pylint: disable=wrong-import-position,import-error,wrong-import-order
 
 # Constants for this script
+_DEFAULT_CONFIG_FILE = "functional_tests.cfg"
 _DEFAULT_CDL_PATH = os.path.abspath("../parameter_files/fates_params_default.cdl")
 _CMAKE_BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")
 _TEST_NAME = "fates_tests"
 _TEST_SUB_DIR = "testing"
 
-# Dictionary with needed constants for running the executables and reading in the
-# output files - developers who add tests should add things here.
+def commandline_args():
+    """Parse and return command-line arguments"""
 
-# NOTE: if the functional test you write requires a parameter file read in as a
-# command-line argument, this should be the *first* (or only) argument in the
-# command-line argument list
-_ALL_TESTS_DICT = {
-        "allometry": {
-          "test_dir": "fates_allom_ftest",
-          "test_exe": "FATES_allom_exe",
-          "out_file": "allometry_out.nc",
-          "has_unit_test": False,
-          "use_param_file": True,
-          "other_args": [],
-          "plotting_function": plot_allometry_dat,
-        },
-        "quadratic": {
-          "test_dir": "fates_math_ftest",
-          "test_exe": "FATES_math_exe",
-          "out_file": "quad_out.nc",
-          "has_unit_test": False,
-          "use_param_file": False,
-          "other_args": [],
-          "plotting_function": plot_quadratic_dat,
-        },
-        "fire_weather":{
-            "test_dir": "fates_fire_weather_utest",
-            "test_exe": None,
-            "out_file": None,
-            "has_unit_test": True,
-            "use_param_file": False,
-            "other_args": [],
-            "plotting_function": None,
-        }
-    }
+    description = """
+    Driver for running FATES unit and functional tests
+
+    Typical usage:
+
+    ./run_fates_tests -t allometry
+
+    """
+    parser = argparse.ArgumentParser(
+        description=description, formatter_class=argparse.RawTextHelpFormatter
+    )
+
+    parser.add_argument(
+        "-f",
+        "--parameter-file",
+        type=str,
+        default=_DEFAULT_CDL_PATH,
+        help="Parameter file to run the FATES tests with.\n"
+        "Can be a netcdf (.nc) or cdl (.cdl) file.\n"
+        "If no file is specified the script will use the default .cdl file in the\n"
+        "parameter_files directory.\n",
+    )
+
+    parser.add_argument(
+        "-b",
+        "--build-dir",
+        type=str,
+        default="../_build",
+        help="Directory where tests are built.\n"
+        "Will be created if it does not exist.\n",
+    )
+
+    parser.add_argument(
+        "-r",
+        "--run-dir",
+        type=str,
+        default="../_run",
+        help="Directory where tests are run.\n"
+        "Will be created if it does not exist.\n",
+    )
+
+    parser.add_argument(
+        "--make-j",
+        type=int,
+        default=8,
+        help="Number of processes to use for build.",
+    )
+
+    parser.add_argument(
+        "-c",
+        "--clean",
+        action="store_true",
+        help="Clean build directory before building.\n"
+        "Removes CMake cache and runs 'make clean'.\n",
+    )
+
+    parser.add_argument(
+      "--skip-build",
+      action="store_true",
+      help="Skip building and compiling the test code.\n"
+      "Only do this if you already have run build.\n"
+      "Script will check to make sure executables are present.\n",
+    )
+
+    parser.add_argument(
+      "--skip-run-executables",
+      action="store_true",
+      help="Skip running test code executables.\n"
+      "Only do this if you already have run the code previously.\n"
+      "Script will check to make sure required output files are present.\n",
+    )
+
+    parser.add_argument(
+      "--save-figs",
+      action="store_true",
+      help="Write out generated figures to files.\n"
+      "Will be placed in run_dir/plots.\n"
+      "Should probably do this on remote machines.\n",
+    )
+    
+    parser.add_argument(
+      "--verbose-make",
+      action="store_true",
+      help="Run make with verbose output."
+    )
+
+    parser.add_argument(
+      "-t",
+      "--test-list",
+      action="store",
+      dest="test_list",
+      type=str,
+      default="all",
+      help="Test(s) to run. Comma-separated list of test names, or 'all'\n"
+      "for all tests. If not supplied, will run all tests."
+    )
+
+    args = parser.parse_args()
+
+    check_arg_validity(args)
+
+    return args
+
+def check_arg_validity(args):
+    """Checks validity of input script arguments
+
+    Args:
+        args (parse_args): input arguments
+    """
+    # check to make sure parameter file exists and is one of the correct forms
+    check_param_file(args.parameter_file)
+
+    # make sure build directory exists
+    if args.skip_build:
+        if args.verbose_make:
+            raise argparse.ArgumentError(None, "Can't run verbose make and skip build.\n" 
+                                         "Re-run script without --skip-build")
+        check_build_dir(args.build_dir, args.test_dict)
+
+    # make sure relevant output files exist:
+    if args.skip_run_executables:
+        check_out_files(args.run_dir, args.test_dict)
+        
+def check_param_file(param_file):
+    """Checks to see if param_file exists and is of the correct form (.nc or .cdl)
+
+    Args:
+        param_file (str): path to parameter file
+
+    Raises:
+        argparse.ArgumentError: Parameter file is not of the correct form (.nc or .cdl)
+        argparse.ArgumentError: Can't find parameter file
+    """
+    file_suffix = os.path.basename(param_file).split(".")[-1]
+    if not file_suffix in ['cdl', 'nc']:
+        raise argparse.ArgumentError(None, "Must supply parameter file with .cdl or .nc ending.")
+    if not os.path.isfile(param_file):
+        raise argparse.ArgumentError(None, f"Cannot find file {param_file}.")
+    
+def check_build_dir(build_dir, test_dict):
+    """Checks to see if all required build directories and executables are present
+
+    Args:
+        build_dir (str): build directory
+        test_list (list, str): list of test names
+
+    Raises:
+        argparse.ArgumentError: Can't find a required build directory or executable
+    """
+    for attributes in test_dict.values():
+        if not build_exists(build_dir, attributes['test_dir'], attributes['test_exe']):
+            raise argparse.ArgumentError(None, "Build directory or executable does not exist.\n"
+                                "Re-run script without --skip-build.")
+            
+def check_out_files(run_dir, test_dict):
+    """Checks to see that required output files are present in the run directory
+
+    Args:
+        run_dir (str): run directory
+        test_dict (dict): dictionary of tests to run
+
+    Raises:
+        argparse.ArgumentError: Can't find a required output file
+    """
+    for test, attributes in dict(filter(lambda pair: pair[1]['out_file'] is not None,
+                                            test_dict.items())).items():
+        if not os.path.isfile(os.path.join(os.path.abspath(run_dir), attributes['out_file'])):
+            raise argparse.ArgumentError(None, f"Required file for {test} test does not exist.\n"
+                                "Re-run script without --skip-run.")
+
+def parse_test_list(full_test_dict, test_string):
+    """Parses the input test list and checks for errors
+
+    Args:
+        test (str): user-supplied comma-separated list of test names
+
+    Returns:
+        dictionary: filtered dictionary of tests to run
+
+    Raises:
+        RuntimeError: Invalid test name supplied
+    """
+    valid_test_names = full_test_dict.keys()
+
+    if test_string != "all":
+        test_list = test_string.split(',')
+        for test in test_list:
+            if test not in valid_test_names:
+                raise argparse.ArgumentTypeError("Invalid test supplied, \n"
+                                                 "must supply one of:\n"
+                                  f"{', '.join(valid_test_names)}\n"
+                                  "or do not supply a test name to run all tests.")
+        test_dict = {key: full_test_dict[key] for key in test_list}
+    else:
+        test_dict = full_test_dict
+
+    return test_dict
 
 def run_fortran_exectuables(build_dir, test_dir, test_exe, run_dir, args):
     """Run the generated Fortran executables
@@ -226,232 +393,42 @@ def run_tests(clean, verbose_make, build_tests, run_executables, build_dir, run_
                                         os.path.join(run_dir_path, 'plots', test))
     # show plots
     plt.show()
-
-def out_file_exists(run_dir, out_file):
-    """Checks to see if the file out_file exists in the run_dir
-
-    Args:
-        run_dir (str): full path to run directory
-        out_file (str): output file name
-
-    Returns:
-        bool: yes/no file exists in correct location
-    """
-    return os.path.isfile(os.path.join(run_dir, out_file))
-
-def parse_test_list(test_string):
-    """Parses the input test list and checks for errors
+        
+def config_to_dict(config_file):
+    """Convert a config file to a python dictionary
 
     Args:
-        test (str): user-supplied comma-separated list of test names
+        config_file (str): full path to config file
 
     Returns:
-        dictionary: filtered dictionary of tests to run
-
-    Raises:
-        RuntimeError: Invalid test name supplied
+        dictionary: dictionary of config file
     """
-    valid_test_names = _ALL_TESTS_DICT.keys()
+    config = configparser.ConfigParser()
+    config.read(config_file)
 
-    if test_string != "all":
-        test_list = test_string.split(',')
-        for test in test_list:
-            if test not in valid_test_names:
-                raise argparse.ArgumentTypeError("Invalid test supplied, \n"
-                                                 "must supply one of:\n"
-                                  f"{', '.join(valid_test_names)}\n"
-                                  "or do not supply a test name to run all tests.")
-        test_dict = {key: _ALL_TESTS_DICT[key] for key in test_list}
-    else:
-        test_dict = _ALL_TESTS_DICT
-
-    return test_dict
-
-def commandline_args():
-    """Parse and return command-line arguments"""
-
-    description = """
-    Driver for running FATES unit and functional tests
-
-    Typical usage:
-
-    ./run_fates_tests -f parameter_file.nc
-
-    """
-    parser = argparse.ArgumentParser(
-        description=description, formatter_class=argparse.RawTextHelpFormatter
-    )
-
-    parser.add_argument(
-        "-f",
-        "--parameter-file",
-        type=str,
-        default=_DEFAULT_CDL_PATH,
-        help="Parameter file to run the FATES tests with.\n"
-        "Can be a netcdf (.nc) or cdl (.cdl) file.\n"
-        "If no file is specified the script will use the default .cdl file in the\n"
-        "parameter_files directory.\n",
-    )
-
-    parser.add_argument(
-        "-b",
-        "--build-dir",
-        type=str,
-        default="../_build",
-        help="Directory where tests are built.\n"
-        "Will be created if it does not exist.\n",
-    )
-
-    parser.add_argument(
-        "-r",
-        "--run-dir",
-        type=str,
-        default="../_run",
-        help="Directory where tests are run.\n"
-        "Will be created if it does not exist.\n",
-    )
-
-    parser.add_argument(
-        "--make-j",
-        type=int,
-        default=8,
-        help="Number of processes to use for build.",
-    )
-
-    parser.add_argument(
-        "-c",
-        "--clean",
-        action="store_true",
-        help="Clean build directory before building.\n"
-        "Removes CMake cache and runs 'make clean'.\n",
-    )
-
-    parser.add_argument(
-      "--skip-build",
-      action="store_true",
-      help="Skip building and compiling the test code.\n"
-      "Only do this if you already have run build.\n"
-      "Script will check to make sure executables are present.\n",
-    )
-
-    parser.add_argument(
-      "--skip-run-executables",
-      action="store_true",
-      help="Skip running test code executables.\n"
-      "Only do this if you already have run the code previously.\n"
-      "Script will check to make sure required output files are present.\n",
-    )
-
-    parser.add_argument(
-      "--save-figs",
-      action="store_true",
-      help="Write out generated figures to files.\n"
-      "Will be placed in run_dir/plots.\n"
-      "Should probably do this on remote machines.\n",
-    )
+    dictionary = {}
+    for section in config.sections():
+        dictionary[section] = {}
+        for option in config.options(section):
+            dictionary[section][option] = config.get(section, option)
     
-    parser.add_argument(
-      "--verbose-make",
-      action="store_true",
-      help="Run make with verbose output."
-    )
-
-    parser.add_argument(
-      "-t",
-      "--test-list",
-      action="store",
-      dest="test_dict",
-      type=parse_test_list,
-      default="all",
-      help="Test(s) to run. Comma-separated list of test names, or 'all'\n"
-      "for all tests. If not supplied, will run all tests."
-    )
-
-    args = parser.parse_args()
-
-    check_arg_validity(args)
-
-    return args
-
-def check_param_file(param_file):
-    """Checks to see if param_file exists and is of the correct form (.nc or .cdl)
-
-    Args:
-        param_file (str): path to parameter file
-
-    Raises:
-        argparse.ArgumentError: Parameter file is not of the correct form (.nc or .cdl)
-        argparse.ArgumentError: Can't find parameter file
-    """
-    file_suffix = os.path.basename(param_file).split(".")[-1]
-    if not file_suffix in ['cdl', 'nc']:
-        raise argparse.ArgumentError(None, "Must supply parameter file with .cdl or .nc ending.")
-    if not os.path.isfile(param_file):
-        raise argparse.ArgumentError(None, f"Cannot find file {param_file}.")
-
-def check_build_dir(build_dir, test_dict):
-    """Checks to see if all required build directories and executables are present
-
-    Args:
-        build_dir (str): build directory
-        test_list (list, str): list of test names
-
-    Raises:
-        argparse.ArgumentError: Can't find a required build directory or executable
-    """
-    for attributes in test_dict.values():
-        if not build_exists(build_dir, attributes['test_dir'], attributes['test_exe']):
-            raise argparse.ArgumentError(None, "Build directory or executable does not exist.\n"
-                                "Re-run script without --skip-build.")
-
-def check_out_files(run_dir, test_dict):
-    """Checks to see that required output files are present in the run directory
-
-    Args:
-        run_dir (str): run directory
-        test_dict (dict): dictionary of tests to run
-
-    Raises:
-        argparse.ArgumentError: Can't find a required output file
-    """
-    for test, attributes in dict(filter(lambda pair: pair[1]['out_file'] is not None,
-                                            test_dict.items())).items():
-        if not out_file_exists(os.path.abspath(run_dir), attributes['out_file']):
-            raise argparse.ArgumentError(None, f"Required file for {test} test does not exist.\n"
-                                "Re-run script without --skip-run.")
-
-def check_arg_validity(args):
-    """Checks validity of input script arguments
-
-    Args:
-        args (parse_args): input arguments
-    """
-    # check to make sure parameter file exists and is one of the correct forms
-    check_param_file(args.parameter_file)
-
-    # make sure build directory exists
-    if args.skip_build:
-        if args.verbose_make:
-            raise argparse.ArgumentError(None, "Can't run verbose make and skip build.\n" 
-                                         "Re-run script without --skip-build")
-        check_build_dir(args.build_dir, args.test_dict)
-
-    # make sure relevant output files exist:
-    if args.skip_run_executables:
-        check_out_files(args.run_dir, args.test_dict)
-
+    return dictionary
+    
 def main():
     """Main script
       Reads in command-line arguments and then runs the tests.
     """
-
+    
+    functional_test_dict = config_to_dict(_DEFAULT_CONFIG_FILE)
+    
     args = commandline_args()
+    test_dict = parse_test_list(functional_test_dict, args.test_list)
 
     build = not args.skip_build
     run = not args.skip_run_executables
 
     run_tests(args.clean, args.verbose_make, build, run, args.build_dir, args.run_dir, 
-              args.make_j, args.parameter_file, args.save_figs, args.test_dict)
+              args.make_j, args.parameter_file, args.save_figs, test_dict)
 
 if __name__ == "__main__":
     main()
