@@ -27,12 +27,11 @@ specify anything, the script will use the default FATES parameter cdl file.
 
 """
 import os
-import configparser
 import argparse
 import matplotlib.pyplot as plt
-from build_fortran_tests import build_unit_tests, build_exists
+from build_fortran_tests import build_tests, build_exists
 from path_utils import add_cime_lib_to_path
-from utils import copy_file, create_nc_file
+from utils import copy_file, create_nc_from_cdl, config_to_dict, str_to_list
 from functional_testing.allometry.allometry_plotting import plot_allometry_dat
 from functional_testing.math_utils.math_plotting import plot_quadratic_dat
 
@@ -40,11 +39,10 @@ add_cime_lib_to_path()
 
 from CIME.utils import run_cmd_no_fail # pylint: disable=wrong-import-position,import-error,wrong-import-order
 
-# Constants for this script
+# constants for this script
 _DEFAULT_CONFIG_FILE = "functional_tests.cfg"
 _DEFAULT_CDL_PATH = os.path.abspath("../parameter_files/fates_params_default.cdl")
 _CMAKE_BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")
-_TEST_NAME = "fates_tests"
 _TEST_SUB_DIR = "testing"
 
 def commandline_args():
@@ -77,7 +75,7 @@ def commandline_args():
         "-b",
         "--build-dir",
         type=str,
-        default="../_build",
+        default=os.path.join(_CMAKE_BASE_DIR, "_build"),
         help="Directory where tests are built.\n"
         "Will be created if it does not exist.\n",
     )
@@ -86,7 +84,7 @@ def commandline_args():
         "-r",
         "--run-dir",
         type=str,
-        default="../_run",
+        default=os.path.join(_CMAKE_BASE_DIR, "_run"),
         help="Directory where tests are run.\n"
         "Will be created if it does not exist.\n",
     )
@@ -248,87 +246,14 @@ def parse_test_list(full_test_dict, test_string):
 
     return test_dict
 
-def run_fortran_exectuables(build_dir, test_dir, test_exe, run_dir, args):
-    """Run the generated Fortran executables
-
-    Args:
-        build_dir (str): full path to build directory
-        run_dir (str): full path to run directory
-        test_dir (str): test directory within the run directory
-        test_exe (str): test executable to run
-        args ([str]):   arguments for executable
-    """
-
-    # move executable to run directory
-    exe_path = os.path.join(build_dir, _TEST_SUB_DIR, test_dir, test_exe)
-    copy_file(exe_path, run_dir)
-
-    # run the executable
-    new_exe_path = os.path.join(run_dir, test_exe)
-    run_command = [new_exe_path]
-    run_command.extend(args)
-
-    os.chdir(run_dir)
-    out = run_cmd_no_fail(" ".join(run_command), combine_output=True)
-    print(out)
-
-def make_plotdirs(run_dir, test_dict):
-    """Create plotting directories if they don't already exist
-
-    Args:
-        run_dir (str): full path to run directory
-        test_dict (dict): dictionary of test to run
-    """
-    # make main plot directory
-    plot_dir = os.path.join(run_dir, 'plots')
-    if not os.path.isdir(plot_dir):
-        os.mkdir(plot_dir)
-
-    # make sub-plot directories
-    for test in dict(filter(lambda pair: pair[1]['plotting_function'] is not None,
-                                            test_dict.items())):
-        sub_dir = os.path.join(plot_dir, test)
-        if not os.path.isdir(sub_dir):
-            os.mkdir(sub_dir)
-
-def create_param_file(param_file, run_dir):
-    """Creates and/or move the default or input parameter file to the run directory
-    Creates a netcdf file from a cdl file if a cdl file is supplied
-
-    Args:
-        param_file (str): path to parmaeter file
-        run_dir (str): full path to run directory
-
-    Raises:
-        RuntimeError: Supplied parameter file is not netcdf (.cd) or cdl (.cdl)
-
-    Returns:
-        str: full path to new parameter file name/location
-    """
-    if param_file is None:
-        print("Using default parameter file.")
-        param_file = _DEFAULT_CDL_PATH
-        param_file_update = create_nc_file(param_file, run_dir)
-    else:
-        print(f"Using parameter file {param_file}.")
-        file_suffix = os.path.basename(param_file).split(".")[-1]
-        if file_suffix == 'cdl':
-            param_file_update = create_nc_file(param_file, run_dir)
-        elif file_suffix == "nc":
-            param_file_update = copy_file(param_file, run_dir)
-        else:
-            raise RuntimeError("Must supply parameter file with .cdl or .nc ending.")
-
-    return param_file_update
-
-def run_tests(clean, verbose_make, build_tests, run_executables, build_dir, run_dir,
+def run_tests(clean, verbose_make, build, run_executables, build_dir, run_dir,
               make_j, param_file, save_figs, test_dict):
     """Builds and runs the fates tests
 
     Args:
         clean (bool): whether or not to clean the build directory
         verbose_make (bool): whether or not to run make with verbose output
-        build_tests (bool): whether or not to build the exectuables
+        build (bool): whether or not to build the exectuables
         run_executables (bool): whether or not to run the executables
         build_dir (str): build directory
         run_dir (str): run directory
@@ -356,8 +281,8 @@ def run_tests(clean, verbose_make, build_tests, run_executables, build_dir, run_
     param_file = create_param_file(param_file, run_dir)
 
     # compile code
-    if build_tests:
-        build_unit_tests(build_dir, _TEST_NAME, _CMAKE_BASE_DIR, make_j, clean=clean,
+    if build:
+        build_tests(build_dir, _CMAKE_BASE_DIR, make_j, clean=clean,
                          verbose=verbose_make)
 
     # run executables for each test in test list
@@ -368,6 +293,7 @@ def run_tests(clean, verbose_make, build_tests, run_executables, build_dir, run_
                                             test_dict.items())).values():
             # prepend parameter file (if required) to argument list
             args = attributes['other_args']
+            print(args)
             if attributes['use_param_file']:
                 args.insert(0, param_file)
             # run
@@ -393,27 +319,80 @@ def run_tests(clean, verbose_make, build_tests, run_executables, build_dir, run_
                                         os.path.join(run_dir_path, 'plots', test))
     # show plots
     plt.show()
-        
-def config_to_dict(config_file):
-    """Convert a config file to a python dictionary
+    
+def make_plotdirs(run_dir, test_dict):
+    """Create plotting directories if they don't already exist
 
     Args:
-        config_file (str): full path to config file
+        run_dir (str): full path to run directory
+        test_dict (dict): dictionary of test to run
+    """
+    # make main plot directory
+    plot_dir = os.path.join(run_dir, 'plots')
+    if not os.path.isdir(plot_dir):
+        os.mkdir(plot_dir)
+
+    # make sub-plot directories
+    for test in dict(filter(lambda pair: pair[1]['plotting_function'] is not None,
+                                            test_dict.items())):
+        sub_dir = os.path.join(plot_dir, test)
+        if not os.path.isdir(sub_dir):
+            os.mkdir(sub_dir)
+            
+def create_param_file(param_file, run_dir):
+    """Creates and/or move the default or input parameter file to the run directory
+    Creates a netcdf file from a cdl file if a cdl file is supplied
+
+    Args:
+        param_file (str): path to parmaeter file
+        run_dir (str): full path to run directory
+
+    Raises:
+        RuntimeError: Supplied parameter file is not netcdf (.cd) or cdl (.cdl)
 
     Returns:
-        dictionary: dictionary of config file
+        str: full path to new parameter file name/location
     """
-    config = configparser.ConfigParser()
-    config.read(config_file)
+    if param_file is None:
+        print("Using default parameter file.")
+        param_file = _DEFAULT_CDL_PATH
+        param_file_update = create_nc_from_cdl(param_file, run_dir)
+    else:
+        print(f"Using parameter file {param_file}.")
+        file_suffix = os.path.basename(param_file).split(".")[-1]
+        if file_suffix == 'cdl':
+            param_file_update = create_nc_from_cdl(param_file, run_dir)
+        elif file_suffix == "nc":
+            param_file_update = copy_file(param_file, run_dir)
+        else:
+            raise RuntimeError("Must supply parameter file with .cdl or .nc ending.")
 
-    dictionary = {}
-    for section in config.sections():
-        dictionary[section] = {}
-        for option in config.options(section):
-            dictionary[section][option] = config.get(section, option)
-    
-    return dictionary
-    
+    return param_file_update
+
+def run_fortran_exectuables(build_dir, test_dir, test_exe, run_dir, args):
+    """Run the generated Fortran executables
+
+    Args:
+        build_dir (str): full path to build directory
+        run_dir (str): full path to run directory
+        test_dir (str): test directory within the run directory
+        test_exe (str): test executable to run
+        args ([str]):   arguments for executable
+    """
+
+    # move executable to run directory
+    exe_path = os.path.join(build_dir, _TEST_SUB_DIR, test_dir, test_exe)
+    copy_file(exe_path, run_dir)
+
+    # run the executable
+    new_exe_path = os.path.join(run_dir, test_exe)
+    run_command = [new_exe_path]
+    run_command.extend(args)
+
+    os.chdir(run_dir)
+    out = run_cmd_no_fail(" ".join(run_command), combine_output=True)
+    print(out)
+        
 def main():
     """Main script
       Reads in command-line arguments and then runs the tests.
@@ -423,12 +402,12 @@ def main():
     
     args = commandline_args()
     test_dict = parse_test_list(functional_test_dict, args.test_list)
+    
+    #build = not args.skip_build
+    #run = not args.skip_run_executables
 
-    build = not args.skip_build
-    run = not args.skip_run_executables
-
-    run_tests(args.clean, args.verbose_make, build, run, args.build_dir, args.run_dir, 
-              args.make_j, args.parameter_file, args.save_figs, test_dict)
+    #run_tests(args.clean, args.verbose_make, build, run, args.build_dir, args.run_dir, 
+    #          args.make_j, args.parameter_file, args.save_figs, test_dict)
 
 if __name__ == "__main__":
     main()
