@@ -1751,6 +1751,7 @@ contains
                 call PRTDeciduousTurnover(currentCohort%prt,ipft,sapw_organ  , eff_sapw_drop_fraction  )
                 call PRTDeciduousTurnover(currentCohort%prt,ipft,struct_organ, eff_struct_drop_fraction)
              end if
+
           end if shed_block
 
           if(debug) call currentCohort%prt%CheckMassConservation(ipft,1)
@@ -2834,6 +2835,8 @@ contains
     ! Object tracking site level mass balance for each element
     site_mass => currentSite%mass_balance(element_pos(element_id))
 
+    ! Transfer litter from turnover of living plants
+    
     currentCohort => currentPatch%shortest
     do while(associated(currentCohort))
 
@@ -2844,7 +2847,9 @@ contains
        store_m_turnover  = currentCohort%prt%GetTurnover(store_organ,element_id)
        fnrt_m_turnover   = currentCohort%prt%GetTurnover(fnrt_organ,element_id)
        repro_m_turnover  = currentCohort%prt%GetTurnover(repro_organ,element_id)
+       
 
+       
        store_m         = currentCohort%prt%GetState(store_organ,element_id)
        fnrt_m          = currentCohort%prt%GetState(fnrt_organ,element_id)
        repro_m         = currentCohort%prt%GetState(repro_organ,element_id)
@@ -2885,7 +2890,7 @@ contains
 
        elflux_diags%leaf_litter_input(pft) = &
             elflux_diags%leaf_litter_input(pft) +  &
-            leaf_m_turnover * currentCohort%n
+            (leaf_m_turnover+repro_m_turnover) * currentCohort%n
 
        root_fines_tot = (fnrt_m_turnover + store_m_turnover ) * &
             plant_dens
@@ -2968,12 +2973,6 @@ contains
 
        dead_n_natural = dead_n - dead_n_dlogging - dead_n_ilogging
 
-
-       elflux_diags%leaf_litter_input(pft) = &
-            elflux_diags%leaf_litter_input(pft) +  &
-            leaf_m * dead_n*currentPatch%area
-
-
        ! %n has not been updated due to mortality yet, thus
        ! the litter flux has already been counted since it captured
        ! the losses of live trees and those flagged for death
@@ -2993,6 +2992,10 @@ contains
                   root_fines_tot * currentSite%rootfrac_scr(ilyr) * dcmpy_frac
           end do
        end do
+
+       elflux_diags%leaf_litter_input(pft) = &
+            elflux_diags%leaf_litter_input(pft) +  &
+            (leaf_m+repro_m) * dead_n*currentPatch%area
 
        elflux_diags%root_litter_input(pft) = &
             elflux_diags%root_litter_input(pft) +  &
@@ -3046,7 +3049,7 @@ contains
                   prt_params%allom_agb_frac(pft)
 
              elflux_diags%cwd_ag_input(c)  = elflux_diags%cwd_ag_input(c) + &
-                  SF_val_CWD_frac_adj(c) * (dead_n_natural+dead_n_ilogging) * &
+                  (struct_m + sapw_m) * SF_val_CWD_frac_adj(c) * (dead_n_natural+dead_n_ilogging) * &
                   currentPatch%area * prt_params%allom_agb_frac(pft)
 
           else
