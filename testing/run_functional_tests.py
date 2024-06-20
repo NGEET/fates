@@ -19,8 +19,8 @@ Additionally, this requires netcdf and netcdff as well as a fortran compiler.
 You must also have a .cime folder in your home directory which specifies machine
 configurations for CIME.
 
-This script builds and runs various FATES unit and functional tests, and plots any
-relevant output from those tests.
+This script builds and runs FATES functional tests, and plots any relevant output from 
+those tests.
 
 You can supply your own parameter file (either a .cdl or a .nc file), or if you do not
 specify anything, the script will use the default FATES parameter cdl file.
@@ -29,11 +29,15 @@ specify anything, the script will use the default FATES parameter cdl file.
 import os
 import argparse
 import matplotlib.pyplot as plt
+
 from build_fortran_tests import build_tests, build_exists
 from path_utils import add_cime_lib_to_path
-from utils import copy_file, create_nc_from_cdl, config_to_dict, str_to_list
-from functional_testing.allometry.allometry_plotting import plot_allometry_dat
-from functional_testing.math_utils.math_plotting import plot_quadratic_dat
+from utils import copy_file, create_nc_from_cdl, config_to_dict
+
+# add testing subclasses here
+from testing_classes import Heuristic
+from functional_testing.allometry.allometry_test import AllometryTest
+from functional_testing.math_utils.math_utils_test import QuadraticTest
 
 add_cime_lib_to_path()
 
@@ -49,7 +53,7 @@ def commandline_args():
     """Parse and return command-line arguments"""
 
     description = """
-    Driver for running FATES unit and functional tests
+    Driver for running FATES functional tests
 
     Typical usage:
 
@@ -159,6 +163,13 @@ def check_arg_validity(args):
     """
     # check to make sure parameter file exists and is one of the correct forms
     check_param_file(args.parameter_file)
+    
+    # make sure relevant output files exist:
+    if args.skip_run_executables:
+        # if you skip the run we assume you want to skip the build
+        print("--skip-run specified, assuming --skip-build")
+        args.skip_build = True
+        check_out_files(args.run_dir, args.test_dict)
 
     # make sure build directory exists
     if args.skip_build:
@@ -167,10 +178,6 @@ def check_arg_validity(args):
                                          "Re-run script without --skip-build")
         check_build_dir(args.build_dir, args.test_dict)
 
-    # make sure relevant output files exist:
-    if args.skip_run_executables:
-        check_out_files(args.run_dir, args.test_dict)
-        
 def check_param_file(param_file):
     """Checks to see if param_file exists and is of the correct form (.nc or .cdl)
 
@@ -201,7 +208,7 @@ def check_build_dir(build_dir, test_dict):
         if not build_exists(build_dir, attributes['test_dir'], attributes['test_exe']):
             raise argparse.ArgumentError(None, "Build directory or executable does not exist.\n"
                                 "Re-run script without --skip-build.")
-            
+           
 def check_out_files(run_dir, test_dict):
     """Checks to see that required output files are present in the run directory
 
@@ -285,40 +292,40 @@ def run_tests(clean, verbose_make, build, run_executables, build_dir, run_dir,
         build_tests(build_dir, _CMAKE_BASE_DIR, make_j, clean=clean,
                          verbose=verbose_make)
 
-    # run executables for each test in test list
-    if run_executables:
-        print("Running executables")
-        # we don't run executables for only pfunit tests
-        for attributes in dict(filter(lambda pair: pair[1]['test_exe'] is not None,
-                                            test_dict.items())).values():
-            # prepend parameter file (if required) to argument list
-            args = attributes['other_args']
-            print(args)
-            if attributes['use_param_file']:
-                args.insert(0, param_file)
-            # run
-            run_fortran_exectuables(build_dir_path, attributes['test_dir'],
-                            attributes['test_exe'], run_dir_path, args)
+    # # run executables for each test in test list
+    # if run_executables:
+    #     print("Running executables")
+    #     # we don't run executables for only pfunit tests
+    #     for attributes in dict(filter(lambda pair: pair[1]['test_exe'] is not None,
+    #                                         test_dict.items())).values():
+    #         # prepend parameter file (if required) to argument list
+    #         args = attributes['other_args']
+    #         print(args)
+    #         if attributes['use_param_file']:
+    #             args.insert(0, param_file)
+    #         # run
+    #         run_fortran_exectuables(build_dir_path, attributes['test_dir'],
+    #                         attributes['test_exe'], run_dir_path, args)
             
-    # run unit tests 
-    for test, attributes in dict(filter(lambda pair: pair[1]['has_unit_test'],
-                                        test_dict.items())).items():
-        print(f"Running unit tests for {test}.")
+    # # run unit tests 
+    # for test, attributes in dict(filter(lambda pair: pair[1]['has_unit_test'],
+    #                                     test_dict.items())).items():
+    #     print(f"Running unit tests for {test}.")
         
-        test_dir = os.path.join(build_dir_path, _TEST_SUB_DIR, attributes['test_dir'])
-        ctest_command = ["ctest", "--output-on-failure"]
-        output = run_cmd_no_fail(" ".join(ctest_command), from_dir=test_dir, 
-                                 combine_output=True)
-        print(output)
+    #     test_dir = os.path.join(build_dir_path, _TEST_SUB_DIR, attributes['test_dir'])
+    #     ctest_command = ["ctest", "--output-on-failure"]
+    #     output = run_cmd_no_fail(" ".join(ctest_command), from_dir=test_dir, 
+    #                              combine_output=True)
+    #     print(output)
 
-    # plot output for relevant tests
-    for test, attributes in dict(filter(lambda pair: pair[1]['plotting_function'] is not None,
-                                            test_dict.items())).items():
-        attributes['plotting_function'](run_dir_path,
-                                        attributes['out_file'], save_figs,
-                                        os.path.join(run_dir_path, 'plots', test))
-    # show plots
-    plt.show()
+    # # plot output for relevant tests
+    # for test, attributes in dict(filter(lambda pair: pair[1]['plotting_function'] is not None,
+    #                                         test_dict.items())).items():
+    #     attributes['plotting_function'](run_dir_path,
+    #                                     attributes['out_file'], save_figs,
+    #                                     os.path.join(run_dir_path, 'plots', test))
+    # # show plots
+    # plt.show()
     
 def make_plotdirs(run_dir, test_dict):
     """Create plotting directories if they don't already exist
@@ -398,16 +405,24 @@ def main():
       Reads in command-line arguments and then runs the tests.
     """
     
-    functional_test_dict = config_to_dict(_DEFAULT_CONFIG_FILE)
+    full_test_dict = config_to_dict(_DEFAULT_CONFIG_FILE)
+    subclasses = Heuristic.__subclasses__()
     
     args = commandline_args()
-    test_dict = parse_test_list(functional_test_dict, args.test_list)
+    config_dict = parse_test_list(full_test_dict, args.test_list)
     
-    #build = not args.skip_build
-    #run = not args.skip_run_executables
+    ## for now just turn into a dictionary?
+    test_dict = {}
+    for name in config_dict.keys():
+        my_class = list(filter(lambda subclass: subclass.name == name, subclasses))[0](config_dict[name])
+        test_dict[name] = my_class.to_dict()
+    print(test_dict)
 
-    #run_tests(args.clean, args.verbose_make, build, run, args.build_dir, args.run_dir, 
-    #          args.make_j, args.parameter_file, args.save_figs, test_dict)
-
+    build = not args.skip_build
+    run = not args.skip_run_executables
+    
+    # run_tests(args.clean, args.verbose_make, build, run, args.build_dir, args.run_dir, 
+    #           args.make_j, args.parameter_file, args.save_figs, test_dict)
+        
 if __name__ == "__main__":
     main()

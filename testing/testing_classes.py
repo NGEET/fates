@@ -4,19 +4,16 @@ from utils import str_to_bool, str_to_list
 class Heuristic(ABC):
     """Class for running FATES heuristics"""
 
-    def __init__(self, name, test_dir, test_exe, out_file, use_param_file, other_args):
-        super().__init__(name, test_dir, test_exe, 'functional')
+    def __init__(self, name:str, test_dir:str, test_exe:str, out_file:str,
+                 use_param_file:str, other_args:str):
+        self.name = name
+        self.test_dir = test_dir
+        self.text_exe = test_exe
         self.out_file = out_file
         self.use_param_file = str_to_bool(use_param_file)
         self.other_args = str_to_list(other_args)
     
     @abstractmethod
-    def plot_output(self, run_dir:str, out_file:str, save_figs:bool, plot_dir:str):
-        """plot output for this test
-
-        Args:
-            run_dir (str): path to run directory
-            out_file (str): name of output file to read in
-            save_figs (bool): whether or not to save figs to png
-            plot_dir (str): where to save figs
-        """
+    def plot_output(self, run_dir:str, save_figs:bool, plot_dir:str):
+        pass
+    

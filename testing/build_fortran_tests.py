@@ -92,7 +92,7 @@ def clean_cmake_files():
             or file.startswith(".env_mach_specific")
             ):
             os.remove(file)
-            
+           
 def get_extra_cmake_args(build_dir:str, mpilib:str) -> str:
     """Makes a fake case to grab the required cmake arguments
     Args:

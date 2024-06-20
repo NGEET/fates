@@ -4,6 +4,7 @@
 import math
 import os
 import configparser
+import matplotlib.pyplot as plt
 from path_utils import add_cime_lib_to_path
 
 add_cime_lib_to_path()
@@ -136,7 +137,7 @@ def str_to_bool(val:str) -> bool:
     """
     if val.lower() in ('y', 'yes', 't', 'true', 'on', '1'):
         return True
-    if val.lower in ('n', 'no', 'f', 'false', 'off', '0'):
+    if val.lower() in ('n', 'no', 'f', 'false', 'off', '0'):
         return False
     raise ValueError(f"invalid truth value {val}")
 
@@ -154,3 +155,42 @@ def str_to_list(val:str) -> list:
         return []
     res = val.strip('][').split(',')
     return [n.strip() for n in res]
+
+def blank_plot(x_max: float, x_min: float, y_max: float, y_min: float, 
+                draw_horizontal_lines :bool=False):
+    """Generate a blank plot with set attributes
+
+    Args:
+        x_max (float): maximum x value
+        x_min (float): minimum x value
+        y_max (float): maximum y value
+        y_min (float): minimum y value
+        draw_horizontal_lines (bool, optional): whether or not to draw horizontal
+        lines across plot. Defaults to False.
+    """
+
+    plt.figure(figsize=(7, 5))
+    axis = plt.subplot(111)
+    axis.spines["top"].set_visible(False)
+    axis.spines["bottom"].set_visible(False)
+    axis.spines["right"].set_visible(False)
+    axis.spines["left"].set_visible(False)
+
+    axis.get_xaxis().tick_bottom()
+    axis.get_yaxis().tick_left()
+
+    plt.xlim(0.0, x_max)
+    plt.ylim(0.0, y_max)
+
+    plt.yticks(fontsize=10)
+    plt.xticks(fontsize=10)
+
+    if draw_horizontal_lines:
+        inc = (int(y_max) - y_min)/20
+        for i in range(0, 20):
+            plt.plot(range(math.floor(x_min), math.ceil(x_max)),
+                        [0.0 + i*inc] * len(range(math.floor(x_min), math.ceil(x_max))),
+                        "--", lw=0.5, color="black", alpha=0.3)
+
+    plt.tick_params(bottom=False, top=False, left=False, right=False)
+    
