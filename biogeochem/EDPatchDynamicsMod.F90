@@ -556,6 +556,7 @@ contains
     type (fates_patch_type) , pointer :: buffer_patch, temp_patch, copyPatch, previousPatch
     real(r8) :: nocomp_pft_area_vector(numpft)
     real(r8) :: nocomp_pft_area_vector_filled(numpft)
+    real(r8) :: nocomp_pft_area_vector_alt(numpft)
     real(r8) :: fraction_to_keep
     integer  :: i_land_use_label
     integer  :: i_pft
@@ -1505,8 +1506,13 @@ contains
                       if ( currentSite%area_pft(i_pft,i_land_use_label) .gt. nearzero .and. .not. buffer_patch_in_linked_list) then
                          !
                          if (nocomp_pft_area_vector_filled(i_pft) .lt. currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:))) then
-                            !
-                            newp_area = currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:)) - nocomp_pft_area_vector_filled(i_pft)
+
+                            ! Slightly complicated way of making sure that the same pfts are subtracted from each other which may help to avoid precision
+                            ! errors due to differencing between very large and very small areas
+                            nocomp_pft_area_vector_alt(:) = nocomp_pft_area_vector(:)
+                            nocomp_pft_area_vector_alt(i_pft) = 0._r8
+                            newp_area = (currentSite%area_pft(i_pft,i_land_use_label) * nocomp_pft_area_vector(i_pft)) - nocomp_pft_area_vector_filled(i_pft)
+                            newp_area = newp_area + sum(currentSite%area_pft(i_pft,i_land_use_label)*nocomp_pft_area_vector_alt(:))
 
                             ! only bother doing this if the new new patch area needed is greater than some tiny amount
                             if ( newp_area .gt. rsnbl_math_prec * 0.01_r8) then
