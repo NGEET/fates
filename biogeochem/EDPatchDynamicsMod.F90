@@ -1499,8 +1499,10 @@ contains
 
                    ! now we need to loop through the nocomp PFTs, and split the buffer patch into a set of patches to put back in the linked list
                    nocomp_pft_loop_2: do i_pft = 1, numpft
-                      !
-                      if ( currentSite%area_pft(i_pft,i_land_use_label) .gt. nearzero) then
+
+                      ! Check the area fraction to makes sure that this pft should have area.  Also make sure that the buffer patch hasn't been 
+                      ! added to the linked list already
+                      if ( currentSite%area_pft(i_pft,i_land_use_label) .gt. nearzero .and. .not. buffer_patch_in_linked_list) then
                          !
                          if (nocomp_pft_area_vector_filled(i_pft) .lt. currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:))) then
                             !
