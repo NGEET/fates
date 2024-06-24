@@ -14,7 +14,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : i_term_mort_type_cstarv
   use FatesConstantsMod        , only : i_term_mort_type_canlev
   use FatesConstantsMod        , only : i_term_mort_type_numdens
-  use FatesConstantsMo         , only : nocomp_bareground_land
+  use FatesConstantsMod        , only : nocomp_bareground_land
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDParamsMod              , only : nclmax, maxpft
@@ -89,6 +89,51 @@ module FatesHistoryInterfaceMod
   ! CIME Globals
   use shr_log_mod              , only : errMsg => shr_log_errMsg
   use shr_infnan_mod           , only : isnan => shr_infnan_isnan
+
+  use FatesConstantsMod        , only : g_per_kg
+  use FatesConstantsMod        , only : kg_per_g
+  use FatesConstantsMod        , only : ha_per_m2
+  use FatesConstantsMod        , only : days_per_sec
+  use FatesConstantsMod        , only : sec_per_day
+  use FatesConstantsMod        , only : days_per_sec
+  use FatesConstantsMod        , only : days_per_year
+  use FatesConstantsMod        , only : years_per_day
+  use FatesConstantsMod        , only : m2_per_km2
+  use FatesConstantsMod        , only : J_per_kJ
+  use FatesConstantsMod        , only : m2_per_ha
+  use FatesConstantsMod        , only : ha_per_m2
+  use FatesConstantsMod        , only : m_per_cm
+  use FatesConstantsMod        , only : m_per_mm
+  use FatesConstantsMod        , only : sec_per_min
+  use FatesConstantsMod        , only : umol_per_mol,mol_per_umol
+  use FatesConstantsMod        , only : pa_per_mpa
+  use FatesConstantsMod        , only : dens_fresh_liquid_water
+  use FatesConstantsMod        , only : grav_earth
+  use FatesLitterMod           , only : litter_type
+  use FatesConstantsMod        , only : secondaryland
+
+  use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
+  use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
+  use PRTGenericMod            , only : carbon12_element
+  use PRTGenericMod            , only : nitrogen_element, phosphorus_element
+  use PRTGenericMod            , only : prt_carbon_allom_hyp
+  use PRTAllometricCNPMod      , only : stoich_max,stoich_growth_min
+  use FatesSizeAgeTypeIndicesMod, only : get_layersizetype_class_index
+  use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
+
+  use FatesLitterMod      , only : nfsc
+  use FatesLitterMod      , only : ncwd
+  use FatesConstantsMod   , only : ican_upper
+  use FatesConstantsMod   , only : ican_ustory
+  use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
+  use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
+  use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
+  use FatesSizeAgeTypeIndicesMod, only : get_agefuel_class_index
+  use FatesSizeAgeTypeIndicesMod, only : get_height_index
+  use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
+  use FatesSizeAgeTypeIndicesMod, only : get_cdamagesize_class_index
+  use FatesSizeAgeTypeIndicesMod, only : get_cdamagesizepft_class_index
+  use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
 
   implicit none
   private          ! By default everything is private
