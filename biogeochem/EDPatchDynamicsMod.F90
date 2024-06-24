@@ -1511,7 +1511,7 @@ contains
                                   ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
                                   allocate(temp_patch)
 
-                                  call split_patch(currentSite, buffer_patch, temp_patch, fraction_to_keep)
+                                  call split_patch(currentSite, buffer_patch, temp_patch, fraction_to_keep, newp_area)
 
                                   ! give the new patch the intended nocomp PFT label
                                   temp_patch%nocomp_pft_label = i_pft
@@ -1621,16 +1621,17 @@ contains
 
   ! -----------------------------------------------------------------------------------------
 
-  subroutine split_patch(currentSite, currentPatch, new_patch, fraction_to_keep)
+  subroutine split_patch(currentSite, currentPatch, new_patch, fraction_to_keep, new_area)
     !
     ! !DESCRIPTION:
     !  Split a patch into two patches that are identical except in their areas
     !
     ! !ARGUMENTS:
     type(ed_site_type),intent(inout) :: currentSite
-    type(fates_patch_type) , intent(inout), pointer :: currentPatch   ! Donor Patch
-    type(fates_patch_type) , intent(inout), pointer :: new_patch      ! New Patch
-    real(r8), intent(in)    :: fraction_to_keep  ! fraction of currentPatch to keep, the rest goes to newpatch
+    type(fates_patch_type) , intent(inout), pointer :: currentPatch      ! Donor Patch
+    type(fates_patch_type) , intent(inout), pointer :: new_patch         ! New Patch
+    real(r8), intent(in)                            :: fraction_to_keep  ! fraction of currentPatch to keep, the rest goes to newpatch
+    real(r8), intent(in), optional                  :: area_to_remove     ! area of currentPatch to remove, the rest goes to newpatch
     !
     ! !LOCAL VARIABLES:
     integer  :: el                           ! element loop index
@@ -1641,11 +1642,19 @@ contains
     integer  :: tnull                        ! is there a tallest cohort?
     integer  :: snull                        ! is there a shortest cohort?
     integer  :: pft
+    real(r8) :: temp_area
+
+    temp_area = 0._r8
+    if (present(area_to_remove)) then
+       temp_area = area_to_remove
+    else
+       temp_area = currentPatch%area - (currentPatch%area * fraction_to_keep)
+    end if
 
     ! first we need to make the new patch
-    call new_patch%Create(0._r8, &
-         currentPatch%area * (1._r8 - fraction_to_keep), currentPatch%land_use_label, currentPatch%nocomp_pft_label, &
-         num_swb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
+    call new_patch%Create(0._r8, temp_area, &
+         currentPatch%land_use_label, currentPatch%nocomp_pft_label, &
+         num_swb, numpft, currentSite%nlevsoil, hlm_current_tod, &
          regeneration_model)
 
     ! Initialize the litter pools to zero, these
@@ -1663,7 +1672,7 @@ contains
 
     call CopyPatchMeansTimers(currentPatch, new_patch)
 
-    call TransLitterNewPatch( currentSite, currentPatch, new_patch, currentPatch%area * (1.-fraction_to_keep))
+    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area)
 
     currentPatch%burnt_frac_litter(:) = 0._r8
 
@@ -1730,7 +1739,7 @@ contains
     call sort_cohorts(currentPatch)
 
     !update area of donor patch
-    currentPatch%area = currentPatch%area * fraction_to_keep
+    currentPatch%area = currentPatch%area - temp_area
 
   end subroutine split_patch
 
