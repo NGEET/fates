@@ -1269,7 +1269,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine AgeLeaves(this,ipft,period_sec)
+   subroutine AgeLeaves(this,ipft,icanlayer,period_sec)
 
      ! -----------------------------------------------------------------------------------
      ! If we have more than one leaf age classification, allow
@@ -1282,6 +1282,7 @@ contains
 
      class(prt_vartypes)              :: this
      integer,intent(in)               :: ipft
+     integer,intent(in)               :: icanlayer
      real(r8),intent(in)              :: period_sec  ! Time period over which this routine
                                                      ! is called [seconds] daily=86400
      integer                          :: nleafage
@@ -1291,7 +1292,7 @@ contains
      integer                          :: element_id
      real(r8)                         :: leaf_age_flux_frac
      real(r8),dimension(max_nleafage) :: leaf_m0
-
+     real(r8)                         :: leaf_long
 
      do el = 1, num_elements
 
@@ -1311,9 +1312,15 @@ contains
              do i_age = 1,nleafage-1
                 if (prt_params%leaf_long(ipft,i_age)>nearzero) then
 
+                   if (icanlayer  .eq.  1)  then
+                      leaf_long = prt_params%leaf_long(ipft,i_age)
+                   else
+                      leaf_long = prt_params%leaf_long_ustory(ipft,i_age)
+                   end if
+
                    ! Units: [-] = [sec] * [day/sec] * [years/day] * [1/years]
-                   leaf_age_flux_frac = period_sec * days_per_sec * years_per_day / prt_params%leaf_long(ipft,i_age)
-                   
+                   leaf_age_flux_frac = period_sec * days_per_sec * years_per_day / leaf_long
+                                   
                    leaf_m(i_age)    = leaf_m(i_age)   - leaf_m0(i_age) * leaf_age_flux_frac
                    leaf_m(i_age+1)  = leaf_m(i_age+1) + leaf_m0(i_age) * leaf_age_flux_frac
                    
