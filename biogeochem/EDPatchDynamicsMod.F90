@@ -559,7 +559,7 @@ contains
     real(r8) :: fraction_to_keep
     integer  :: i_land_use_label
     integer  :: i_pft
-    real(r8) :: newp_area
+    real(r8) :: newp_area, area_to_keep
     logical  :: buffer_patch_in_linked_list
     integer  :: n_pfts_by_landuse
     integer  :: which_pft_allowed
@@ -1424,11 +1424,15 @@ contains
                 do while(associated(currentPatch))
                    if (currentPatch%changed_landuse_this_ts .and. currentPatch%land_use_label .eq. i_land_use_label) then
 
-                      fraction_to_keep = (currentSite%area_pft(currentPatch%nocomp_pft_label,i_land_use_label) * sum(nocomp_pft_area_vector(:)) &
-                           - nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label)) / currentPatch%area
+                      ! Calculate the areas to be given to potentially give to the buffer patch and those to keep in the current patch
+                      area_to_keep = currentSite%area_pft(currentPatch%nocomp_pft_label,i_land_use_label) * sum(nocomp_pft_area_vector(:)) - & 
+                                     nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label)
+                      newp_area = currentPatch%area - area_to_keep
+                      fraction_to_keep = area_to_keep / currentPatch%area
 
-                      if (fraction_to_keep .le. nearzero) then
+                      if (fraction_to_keep .le. nearzero .or. area_to_keep .lt. rsnbl_math_prec) then
                          ! we don't want any patch area with this PFT identity at all anymore. Fuse it into the buffer patch.
+
                          currentPatch%nocomp_pft_label = 0
                          if (associated(currentPatch%older)) then
                             previousPatch => currentPatch%older
@@ -1441,13 +1445,13 @@ contains
 
                          buffer_patch_used = .true.
 
-                      elseif ( (1._r8 - fraction_to_keep) .gt. rsnbl_math_prec) then
+                      elseif ( area_to_keep .ge. rsnbl_math_prec .and. newp_area .ge. rsnbl_math_prec) then
                          ! we have more patch are of this PFT than we want, but we do want to keep some of it.
                          ! we want to split the patch into two here. leave one patch as-is, and put the rest into the buffer patch.
 
                          allocate(temp_patch)
 
-                         call split_patch(currentSite, currentPatch, temp_patch, fraction_to_keep)
+                         call split_patch(currentSite, currentPatch, temp_patch, fraction_to_keep, newp_area)
                          !
                          temp_patch%nocomp_pft_label = 0
 
@@ -1461,9 +1465,11 @@ contains
                          buffer_patch_used = .true.
                       else
                          ! we want to keep all of this patch (and possibly more)
+
                          nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label) = &
                               nocomp_pft_area_vector_filled(currentPatch%nocomp_pft_label) + currentPatch%area
                          currentPatch%changed_landuse_this_ts = .false.
+
                       endif
                    end if
 
