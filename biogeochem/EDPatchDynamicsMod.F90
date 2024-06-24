@@ -1514,13 +1514,14 @@ contains
                             newp_area = (currentSite%area_pft(i_pft,i_land_use_label) * nocomp_pft_area_vector(i_pft)) - nocomp_pft_area_vector_filled(i_pft)
                             newp_area = newp_area + sum(currentSite%area_pft(i_pft,i_land_use_label)*nocomp_pft_area_vector_alt(:))
 
-                            ! Compute fraction to keep in buffer
-                            fraction_to_keep = (buffer_patch%area - newp_area) / buffer_patch%area
+                            ! Compute area and fraction to keep in buffer
+                            area_to_keep = buffer_patch%area - newp_area
+                            fraction_to_keep = area_to_keep / buffer_patch%area
 
                             ! only bother doing this if the new new patch area needed is greater than some tiny amount
                             if ( newp_area .gt. rsnbl_math_prec * 0.01_r8) then
 
-                               if (fraction_to_keep .gt. rsnbl_math_prec) then
+                               if (area_to_keep .gt. rsnbl_math_prec) then
 
                                   ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
                                   allocate(temp_patch)
