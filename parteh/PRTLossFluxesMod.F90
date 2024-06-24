@@ -749,7 +749,7 @@ contains
          ! if we want to change this)
          ! -------------------------------------------------------------------------------------
          if ( (prt_params%leaf_long(ipft,aclass_sen_id) > nearzero ) .and. &
-              int(prt_params%evergreen(ipft))==itrue ) then
+              prt_params%evergreen(ipft)==itrue ) then
 
             if(is_drought) then
                base_turnover(leaf_organ) = years_per_day / &
@@ -766,7 +766,7 @@ contains
       else   ! understory trees
          aclass_sen_id = size(prt_params%leaf_long_ustory(ipft,:))
          if ( (prt_params%leaf_long_ustory(ipft,aclass_sen_id) > nearzero ) .and. &
-              int(prt_params%evergreen(ipft))==itrue ) then
+              prt_params%evergreen(ipft)==itrue ) then
 
             if(is_drought) then
                base_turnover(leaf_organ) = years_per_day / &

@@ -668,7 +668,7 @@ contains
     real(r8) :: target_c_area
 
     real(r8) :: pft_leaf_lifespan         ! Leaf lifespan of each PFT [years]
-    real(r8) :: leaf_long                 ! temporarly leaf lifespan before accounting for deciduousness 
+    real(r8) :: leaf_long                 ! temporary leaf lifespan before accounting for deciduousness 
     !----------------------------------------------------------------------
 
     ipatch = 1 ! Start counting patches
