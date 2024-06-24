@@ -1621,7 +1621,7 @@ contains
 
   ! -----------------------------------------------------------------------------------------
 
-  subroutine split_patch(currentSite, currentPatch, new_patch, fraction_to_keep, new_area)
+  subroutine split_patch(currentSite, currentPatch, new_patch, fraction_to_keep, area_to_remove)
     !
     ! !DESCRIPTION:
     !  Split a patch into two patches that are identical except in their areas
