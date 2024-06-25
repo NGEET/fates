@@ -1504,8 +1504,6 @@ contains
                       ! Check the area fraction to makes sure that this pft should have area.  Also make sure that the buffer patch hasn't been 
                       ! added to the linked list already
                       if ( currentSite%area_pft(i_pft,i_land_use_label) .gt. nearzero .and. .not. buffer_patch_in_linked_list) then
-                         !
-                         if (nocomp_pft_area_vector_filled(i_pft) .lt. currentSite%area_pft(i_pft,i_land_use_label) * sum(nocomp_pft_area_vector(:))) then
 
                             ! Slightly complicated way of making sure that the same pfts are subtracted from each other which may help to avoid precision
                             ! errors due to differencing between very large and very small areas
@@ -1551,7 +1549,6 @@ contains
 
                                end if
                             end if
-                         end if
                       end if
                    end do nocomp_pft_loop_2
 
