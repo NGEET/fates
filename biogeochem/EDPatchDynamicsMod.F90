@@ -1505,50 +1505,50 @@ contains
                       ! added to the linked list already
                       if ( currentSite%area_pft(i_pft,i_land_use_label) .gt. nearzero .and. .not. buffer_patch_in_linked_list) then
 
-                            ! Slightly complicated way of making sure that the same pfts are subtracted from each other which may help to avoid precision
-                            ! errors due to differencing between very large and very small areas
-                            nocomp_pft_area_vector_alt(:) = nocomp_pft_area_vector(:)
-                            nocomp_pft_area_vector_alt(i_pft) = 0._r8
-                            newp_area = (currentSite%area_pft(i_pft,i_land_use_label) * nocomp_pft_area_vector(i_pft)) - nocomp_pft_area_vector_filled(i_pft)
-                            newp_area = newp_area + sum(currentSite%area_pft(i_pft,i_land_use_label)*nocomp_pft_area_vector_alt(:))
+                         ! Slightly complicated way of making sure that the same pfts are subtracted from each other which may help to avoid precision
+                         ! errors due to differencing between very large and very small areas
+                         nocomp_pft_area_vector_alt(:) = nocomp_pft_area_vector(:)
+                         nocomp_pft_area_vector_alt(i_pft) = 0._r8
+                         newp_area = (currentSite%area_pft(i_pft,i_land_use_label) * nocomp_pft_area_vector(i_pft)) - nocomp_pft_area_vector_filled(i_pft)
+                         newp_area = newp_area + sum(currentSite%area_pft(i_pft,i_land_use_label)*nocomp_pft_area_vector_alt(:))
 
-                            ! Compute area and fraction to keep in buffer
-                            area_to_keep = buffer_patch%area - newp_area
-                            fraction_to_keep = area_to_keep / buffer_patch%area
+                         ! Compute area and fraction to keep in buffer
+                         area_to_keep = buffer_patch%area - newp_area
+                         fraction_to_keep = area_to_keep / buffer_patch%area
 
-                            ! only bother doing this if the new new patch area needed is greater than some tiny amount
-                            if ( newp_area .gt. rsnbl_math_prec * 0.01_r8) then
+                         ! only bother doing this if the new new patch area needed is greater than some tiny amount
+                         if ( newp_area .gt. rsnbl_math_prec * 0.01_r8) then
 
-                               if (area_to_keep .gt. rsnbl_math_prec) then
+                            if (area_to_keep .gt. rsnbl_math_prec) then
 
-                                  ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
-                                  allocate(temp_patch)
+                               ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
+                               allocate(temp_patch)
 
-                                  call split_patch(currentSite, buffer_patch, temp_patch, fraction_to_keep, newp_area)
+                               call split_patch(currentSite, buffer_patch, temp_patch, fraction_to_keep, newp_area)
 
-                                  ! give the new patch the intended nocomp PFT label
-                                  temp_patch%nocomp_pft_label = i_pft
+                               ! give the new patch the intended nocomp PFT label
+                               temp_patch%nocomp_pft_label = i_pft
 
-                                  ! track that we have added this patch area
-                                  nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + temp_patch%area
+                               ! track that we have added this patch area
+                               nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + temp_patch%area
 
-                                  ! put the new patch into the linked list
-                                  call InsertPatch(currentSite, temp_patch)
+                               ! put the new patch into the linked list
+                               call InsertPatch(currentSite, temp_patch)
 
-                               else
-                                  ! give the buffer patch the intended nocomp PFT label
-                                  buffer_patch%nocomp_pft_label = i_pft
+                            else
+                               ! give the buffer patch the intended nocomp PFT label
+                               buffer_patch%nocomp_pft_label = i_pft
 
-                                  ! track that we have added this patch area
-                                  nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + buffer_patch%area
+                               ! track that we have added this patch area
+                               nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + buffer_patch%area
 
-                                  ! put the buffer patch directly into the linked list
-                                  call InsertPatch(currentSite, buffer_patch)
+                               ! put the buffer patch directly into the linked list
+                               call InsertPatch(currentSite, buffer_patch)
 
-                                  buffer_patch_in_linked_list = .true.
+                               buffer_patch_in_linked_list = .true.
 
-                               end if
                             end if
+                         end if
                       end if
                    end do nocomp_pft_loop_2
 
