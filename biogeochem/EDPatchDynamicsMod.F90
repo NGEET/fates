@@ -557,10 +557,12 @@ contains
     real(r8) :: nocomp_pft_area_vector(numpft)
     real(r8) :: nocomp_pft_area_vector_filled(numpft)
     real(r8) :: nocomp_pft_area_vector_alt(numpft)
-    real(r8) :: fraction_to_keep
+    real(r8) :: newp_area_buffer_frac(numpft) 
+    real(r8) :: newp_area_vector(numpft) 
+    real(r8) :: max_val
     integer  :: i_land_use_label
     integer  :: i_pft
-    real(r8) :: newp_area, area_to_keep
+    real(r8) :: newp_area, area_to_keep, fraction_to_keep
     logical  :: buffer_patch_in_linked_list
     integer  :: n_pfts_by_landuse
     integer  :: which_pft_allowed
@@ -1498,7 +1500,38 @@ contains
                       call endrun(msg=errMsg(sourcefile, __LINE__))
                    end if
 
-                   ! now we need to loop through the nocomp PFTs, and split the buffer patch into a set of patches to put back in the linked list
+                   ! It's possible that we only need to move all of the buffer into one patch, so first determine what the new patch areas look
+                   ! like and compare to the buffer patch area
+                   newp_area_vector(:)= (currentSite%area_pft(:,i_land_use_label) * sum(nocomp_pft_area_vector(:))) - nocomp_pft_area_vector_filled(:)
+                   newp_area_buffer_frac(:) = newp_area_vector(:) / buffer_patch%area
+
+                   ! Find the maximum value of the vector
+                   max_val = maxval(newp_area_buffer_frac)
+
+                   ! If the max value is the only value in the array then loop through the array to find the max value pft index and insert buffer
+                   if (abs(sum(newp_area_buffer_frac(:)) - max_val) .le. nearzero) then
+                      i_pft = 1
+                      do while(.not. buffer_patch_in_linked_list)
+                         if (abs(newp_area_buffer_frac(i_pft) - max_val) .le. nearzero) then
+                            
+                            ! give the buffer patch the intended nocomp PFT label
+                            buffer_patch%nocomp_pft_label = i_pft
+
+                            ! track that we have added this patch area
+                            nocomp_pft_area_vector_filled(i_pft) = nocomp_pft_area_vector_filled(i_pft) + buffer_patch%area
+
+                            ! put the buffer patch directly into the linked list
+                            call InsertPatch(currentSite, buffer_patch)
+                            
+                            ! Set flag to skip the next pft loop
+                            buffer_patch_in_linked_list = .true.
+                         end if
+                         i_pft = i_pft + 1
+                      end do
+                   end if
+
+                   ! Now we need to loop through the nocomp PFTs, and split the buffer patch into a set of patches to put back in the linked list
+                   ! if not already done so above
                    nocomp_pft_loop_2: do i_pft = 1, numpft
 
                       ! Check the area fraction to makes sure that this pft should have area.  Also make sure that the buffer patch hasn't been 
