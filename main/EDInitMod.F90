@@ -760,7 +760,7 @@ contains
              if (newparea  .gt. min_patch_area_forced) then
                 
                 allocate(newp)
- 
+
                 call newp%Create(age, newparea, nocomp_bareground_land, nocomp_bareground,     &
                      num_swb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
                      regeneration_model)
@@ -776,14 +776,20 @@ contains
                 ! Initialize the litter pools to zero, these
                 ! pools will be populated by looping over the existing patches
                 ! and transfering in mass
+                if(hlm_use_sp.eq.itrue)then
+                   litt_init = fates_unset_r8
+                else
+                   litt_init = 0._r8
+                end if
                 do el=1,num_elements
-                   call newp%litter(el)%InitConditions(init_leaf_fines=0._r8, &
-                        init_root_fines=0._r8, &
-                        init_ag_cwd=0._r8, &
-                        init_bg_cwd=0._r8, &
-                        init_seed=0._r8,   &
-                        init_seed_germ=0._r8)
+                   call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
+                        init_root_fines=litt_init, &
+                        init_ag_cwd=litt_init, &
+                        init_bg_cwd=litt_init, &
+                        init_seed=litt_init,   &
+                        init_seed_germ=litt_init)
                 end do
+
              else
                 area_error = area_error + newparea
              endif
@@ -796,12 +802,9 @@ contains
           endif
 
 
-          !          not_all_bareground_if: if ((1._r8 - sites(s)%area_bareground) .gt. nearzero) then
-
           ! Next, create the non-bareground patches. We do this for either of two scenarios:
           ! If 1) we are not doing both nocomp & fixed-biogeo
           !    2) we are, but there is some non-zero bare-ground area
-          
           not_all_bare_if: if( ((1._r8 - sites(s)%area_bareground) > nearzero) .or. &
                                      (.not.(hlm_use_nocomp.eq.itrue .and. hlm_use_fixed_biogeog.eq.itrue)) ) then
           
