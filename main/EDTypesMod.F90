@@ -4,6 +4,10 @@ module EDTypesMod
   use FatesGlobals,          only : endrun => fates_endrun
   use FatesConstantsMod,     only : ifalse
   use FatesConstantsMod,     only : itrue
+  use FatesConstantsMod,     only : nocomp_bareground_land
+  use FatesConstantsMod,     only : secondaryland
+  use FatesConstantsMod,     only : secondary_age_threshold
+  use FatesConstantsMod,     only : nearzero
   use FatesGlobals,          only : fates_log
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
@@ -217,7 +221,10 @@ module EDTypesMod
 
      real(r8) :: frag_out         ! Litter and coarse woody debris fragmentation flux [kg/site/day]
 
-     real(r8) :: wood_product          ! Total mass exported as wood product [kg/site/day]
+     real(r8) :: wood_product_harvest(maxpft)    ! Total mass exported as wood product from wood harvest [kg/site/day]
+
+     real(r8) :: wood_product_landusechange(maxpft)    ! Total mass exported as wood product from land use change [kg/site/day]
+
      real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
 
      real(r8) :: flux_generic_in       ! Used for prescribed or artificial input fluxes
@@ -262,7 +269,9 @@ module EDTypesMod
      real(r8) ::  lon                                          ! longitude: degrees 
 
      ! Fixed Biogeography mode inputs
-     real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs    
+     real(r8), allocatable :: area_PFT(:,:)                    ! Area allocated to individual PFTs, indexed by land use class  [ha/ha of non-bareground area]
+     real(r8) :: area_bareground                               ! Area allocated to bare ground in nocomp configurations (corresponds to HLM PFT 0) [ha/ha]
+
      integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
 
      ! Total area of patches in each age bin [m2]
@@ -459,6 +468,15 @@ module EDTypesMod
      real(r8) :: primary_land_patchfusion_error             ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
      real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats) ! land use transition matrix as read in from HLM and aggregated to FATES land use types [m2/m2/year]
 
+     real(r8) :: min_allowed_landuse_fraction             ! minimum amount of land-use type below which the resulting patches would be too small [m2/m2]
+     logical, allocatable :: landuse_vector_gt_min(:)     ! is the land use state vector for each land use type greater than the minimum below which we ignore?
+     logical :: transition_landuse_from_off_to_on         ! special flag to use only when reading restarts, which triggers procedure to initialize land use
+
+     contains
+
+       procedure, public :: get_current_landuse_statevector
+       procedure, public :: get_secondary_young_fraction
+
   end type ed_site_type
 
   ! Make public necessary subroutines and functions
@@ -507,7 +525,8 @@ module EDTypesMod
       this%seed_in           = 0._r8
       this%seed_out          = 0._r8
       this%frag_out          = 0._r8
-      this%wood_product      = 0._r8
+      this%wood_product_harvest(:)        = 0._r8
+      this%wood_product_landusechange(:)  = 0._r8
       this%burn_flux_to_atm  = 0._r8
       this%flux_generic_in   = 0._r8
       this%flux_generic_out  = 0._r8
@@ -533,7 +552,82 @@ module EDTypesMod
    write(fates_log(),*) '----------------------------------------'
    return
 
-end subroutine dump_site
+  end subroutine dump_site
 
-  
+  ! =====================================================================================
+
+  function get_current_landuse_statevector(this) result(current_state_vector)
+
+     !
+     ! !DESCRIPTION:
+     !  Calculate how much of a site is each land use category.
+     !  this does not include bare ground when nocomp + fixed biogeography is on,
+     !  so will not sum to one in that case. otherwise it will sum to one.
+     !
+     ! !USES:
+     !
+     ! !ARGUMENTS:
+     class(ed_site_type) :: this
+     real(r8)            :: current_state_vector(n_landuse_cats)
+
+     ! !LOCAL VARIABLES:
+     type(fates_patch_type), pointer :: currentPatch
+
+     current_state_vector(:) = 0._r8
+
+     currentPatch => this%oldest_patch
+     do while (associated(currentPatch))
+        if (currentPatch%land_use_label .gt. nocomp_bareground_land) then
+           current_state_vector(currentPatch%land_use_label) = &
+                current_state_vector(currentPatch%land_use_label) + &
+                currentPatch%area/AREA
+        end if
+        currentPatch => currentPatch%younger
+     end do
+
+   end function get_current_landuse_statevector
+
+   ! =====================================================================================
+
+   function get_secondary_young_fraction(this) result(secondary_young_fraction)
+
+     !
+     ! !DESCRIPTION:
+     !  Calculate how much of the secondary area is "young", i.e. below the age threshold.
+     !  If no seconday patch area at all, return -1.
+     !
+     ! !USES:
+     !
+     ! !ARGUMENTS:
+     class(ed_site_type) :: this
+     real(r8)            :: secondary_young_fraction
+     real(r8)            :: secondary_young_area
+     real(r8)            :: secondary_old_area
+
+     ! !LOCAL VARIABLES:
+     type(fates_patch_type), pointer :: currentPatch
+
+     secondary_young_area = 0._r8
+     secondary_old_area = 0._r8
+
+     currentPatch => this%oldest_patch
+     do while (associated(currentPatch))
+        if (currentPatch%land_use_label .eq. secondaryland) then
+           if ( currentPatch%age .ge. secondary_age_threshold ) then
+              secondary_old_area = secondary_old_area + currentPatch%area
+           else
+              secondary_young_area = secondary_young_area + currentPatch%area
+           end if
+        end if
+        currentPatch => currentPatch%younger
+     end do
+
+     if ( (secondary_young_area + secondary_old_area) .gt. nearzero ) then
+        secondary_young_fraction = secondary_young_area / (secondary_young_area + secondary_old_area)
+     else
+        secondary_young_fraction = -1._r8
+     endif
+
+   end function get_secondary_young_fraction
+
 end module EDTypesMod

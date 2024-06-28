@@ -41,6 +41,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : n_landuse_cats
    use FatesConstantsMod         , only : primaryland
    use FatesConstantsMod         , only : secondaryland
+   use FatesConstantsMod         , only : n_crop_lu_types
    use FatesConstantsMod         , only : n_term_mort_types
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
@@ -417,7 +418,7 @@ contains
   ! ===========================================================================
 
   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats, num_luh2_states, &
-       num_luh2_transitions, natpft_lb,natpft_ub)
+       num_luh2_transitions, surfpft_lb,surfpft_ub)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -430,7 +431,7 @@ contains
       integer,intent(in)              :: num_lu_harvest_cats
       integer,intent(in)              :: num_luh2_states
       integer,intent(in)              :: num_luh2_transitions
-      integer,intent(in)              :: natpft_lb,natpft_ub ! dimension bounds of the array holding surface file pft data
+      integer,intent(in)              :: surfpft_lb,surfpft_ub ! dimension bounds of the array holding surface file pft data
       
       ! Allocate input boundaries
 
@@ -563,7 +564,13 @@ contains
          allocate(bc_in%hlm_harvest_catnames(0))
       end if
 
-      allocate(bc_in%pft_areafrac(natpft_lb:natpft_ub))
+      if ( hlm_use_fixed_biogeog .eq. itrue) then
+         if (hlm_use_luh .eq. itrue ) then
+            allocate(bc_in%pft_areafrac_lu(size( EDPftvarcon_inst%hlm_pft_map,2),n_landuse_cats-n_crop_lu_types))
+         else
+            allocate(bc_in%pft_areafrac(surfpft_lb:surfpft_ub))
+         endif
+      endif
 
       ! LUH2 state and transition data
       if (hlm_use_luh .eq. itrue) then
@@ -575,10 +582,11 @@ contains
 
       ! Variables for SP mode. 
       if(hlm_use_sp.eq.itrue) then
-        allocate(bc_in%hlm_sp_tlai(natpft_lb:natpft_ub))
-        allocate(bc_in%hlm_sp_tsai(natpft_lb:natpft_ub))     
-        allocate(bc_in%hlm_sp_htop(natpft_lb:natpft_ub))
-      end if 
+        allocate(bc_in%hlm_sp_tlai(surfpft_lb:surfpft_ub))
+        allocate(bc_in%hlm_sp_tsai(surfpft_lb:surfpft_ub))
+        allocate(bc_in%hlm_sp_htop(surfpft_lb:surfpft_ub))
+     end if
+
       return
    end subroutine allocate_bcin
 
@@ -611,14 +619,13 @@ contains
       allocate(bc_out%rssha_pa(maxpatch_total))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(maxpatch_total,num_swb))
-      allocate(bc_out%albi_parb(maxpatch_total,num_swb))
-      allocate(bc_out%fabd_parb(maxpatch_total,num_swb))
-      allocate(bc_out%fabi_parb(maxpatch_total,num_swb))
-      allocate(bc_out%ftdd_parb(maxpatch_total,num_swb))
-      allocate(bc_out%ftid_parb(maxpatch_total,num_swb))
-      allocate(bc_out%ftii_parb(maxpatch_total,num_swb))
-
+      allocate(bc_out%albd_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%albi_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%fabd_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%fabi_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%ftdd_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%ftid_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%ftii_parb(fates_maxPatchesPerSite,num_swb))
 
       ! We allocate the boundary conditions to the BGC
       ! model, regardless of what scheme we use. The BGC
@@ -1928,6 +1935,12 @@ contains
                hlm_use_luh = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_luh = ',ival,' to FATES'
+               end if
+
+            case('use_fates_potentialveg')
+               hlm_use_potentialveg = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_potentialveg = ',ival,' to FATES'
                end if
 
             case('num_luh2_states')
