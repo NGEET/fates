@@ -287,6 +287,7 @@ contains
                ! 0=use fates logging parameters directly when logging_time == .true.
                ! this means harvest the whole cohort area
                harvest_rate = 1._r8
+               cur_harvest_tag = 0
 
             else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_area_fraction) then
                ! We are harvesting based on areal fraction, not carbon/biomass terms. 
