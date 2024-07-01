@@ -270,6 +270,8 @@ module FatesRestartInterfaceMod
   integer :: ir_woodprod_mbal
   integer :: ir_liveveg_intflux_el
   integer :: ir_liveveg_err_el
+  integer :: ir_litter_intflux_el
+  integer :: ir_litter_err_el
   integer :: ir_prt_base     ! Base index for all PRT variables
 
   ! site-level input seed from dispersal
@@ -1141,13 +1143,21 @@ contains
             long_name_base='total mass of live vegetation of each chemical species, integrated from fluxes', &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_liveveg_intflux_el)
-    
 
        call this%RegisterCohortVector(symbol_base='fates_liveveg_err', vtype=site_r8, &
             long_name_base='total mass error of live vegetation of each chemical species, from integrated fluxes', &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_liveveg_err_el)
        
+       call this%RegisterCohortVector(symbol_base='fates_litter_intflux', vtype=site_r8, &
+            long_name_base='total mass of litter of each chemical species, integrated from fluxes', &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_intflux_el)
+
+       call this%RegisterCohortVector(symbol_base='fates_litter_err', vtype=site_r8, &
+            long_name_base='total mass error of litter of each chemical species, from integrated fluxes', &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_err_el)
        
     end if
     
@@ -2288,6 +2298,9 @@ contains
 
                 this%rvars(ir_liveveg_intflux_el+el-1)%r81d(io_idx_si) = sites(s)%iflux_balance(el)%iflux_liveveg
                 this%rvars(ir_liveveg_err_el+el-1)%r81d(io_idx_si) = sites(s)%flux_diags%elem(el)%err_liveveg
+
+                this%rvars(ir_litter_intflux_el+el-1)%r81d(io_idx_si) = sites(s)%iflux_balance(el)%iflux_litter
+                this%rvars(ir_litter_err_el+el-1)%r81d(io_idx_si) = sites(s)%flux_diags%elem(el)%err_litter
                 
              end do
           end if
@@ -3257,6 +3270,9 @@ contains
 
                 sites(s)%iflux_balance(el)%iflux_liveveg = this%rvars(ir_liveveg_intflux_el+el-1)%r81d(io_idx_si) 
                 sites(s)%flux_diags%elem(el)%err_liveveg = this%rvars(ir_liveveg_err_el+el-1)%r81d(io_idx_si)
+
+                sites(s)%iflux_balance(el)%iflux_litter = this%rvars(ir_litter_intflux_el+el-1)%r81d(io_idx_si) 
+                sites(s)%flux_diags%elem(el)%err_litter = this%rvars(ir_litter_err_el+el-1)%r81d(io_idx_si)
                 
              end do
           end if

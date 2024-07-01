@@ -396,6 +396,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_nir_rad_err_si
   integer :: ih_fire_c_to_atm_si
   integer :: ih_interr_liveveg_elem
+  integer :: ih_interr_litter_elem
   integer :: ih_cbal_err_fates_si
   integer :: ih_err_fates_elem
 
@@ -3283,7 +3284,8 @@ contains
              hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
              hio_disturbance_rate_si_lulu         => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
              hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d, &
-             hio_interr_liveveg_elem              => this%hvars(ih_interr_liveveg_elem)%r82d)
+             hio_interr_liveveg_elem              => this%hvars(ih_interr_liveveg_elem)%r82d, &
+             hio_interr_litter_elem               => this%hvars(ih_interr_litter_elem)%r82d)
 
           model_day_int = nint(hlm_model_day)
 
@@ -3327,7 +3329,8 @@ contains
                 hio_err_fates_elem(io_si,el) = sites(s)%mass_balance(el)%err_fates / sec_per_day
 
                 hio_interr_liveveg_elem(io_si,el) =  sites(s)%flux_diags%elem(el)%err_liveveg
-                
+
+                hio_interr_litter_elem(io_si,el) = sites(s)%flux_diags%elem(el)%err_litter
                 
                 ! Total element lost to atmosphere from burning (kg/site/day -> kg/m2/s)
                 hio_burn_flux_elem(io_si,el) = &
@@ -8390,6 +8393,12 @@ contains
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,            &
                index = ih_interr_liveveg_elem)
 
+          call this%set_history_var(vname='FATES_INTERR_LITTER_EL',units='kg m-2',             &
+               long='Bias error between integrated flux and (minus) state in litter ', &
+               use_default='active', avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',           &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,            &
+               index = ih_interr_litter_elem)
+          
           call this%set_history_var(vname='FATES_LITTER_AG_FINE_EL', units='kg m-2', &
                long='mass of aboveground litter in fines (leaves, nonviable seed) by element', &
                use_default='active', avgflag='A', vtype=site_elem_r8,               &

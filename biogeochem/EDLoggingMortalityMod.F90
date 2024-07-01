@@ -29,6 +29,7 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : dtype_ilog
    use FatesConstantsMod , only : dtype_ifall
    use FatesConstantsMod , only : dtype_ifire
+   use EDTypesMod        , only : area_inv
    use EDPftvarcon       , only : EDPftvarcon_inst
    use EDPftvarcon       , only : GetDecompyFrac
    use PRTParametersMod  , only : prt_params
@@ -1052,6 +1053,10 @@ contains
 
             currentCohort => currentCohort%taller
          end do
+
+         ! Amount of trunk mass exported off site [kg/m2]
+         elflux_diags%exported_harvest = elflux_diags%exported_harvest + &
+              trunk_product_site * area_inv
 
          ! Update the amount of carbon exported from the site through logging
          ! operations.  Currently we assume only above-ground portion

@@ -174,12 +174,11 @@ module EDTypesMod
      real(r8) :: tot_seed_turnover ! decay of living seed bank to
                                    ! fragmented litter [kg/m2/day]
      real(r8) :: exported_harvest  ! mass of harvested vegetation exported and not sent to litter [kg/m2/day]
-     
+     real(r8) :: burned_liveveg    ! Amount of mass burned from living plants [kg/m2/day]
      real(r8) :: err_liveveg       ! Error from comparing [state-integrated flux]
                                    ! in live vegetation [kg/m2]
-
      real(r8) :: err_litter        ! Net change in litter [kg/m2]
-     real(r8) :: burned_liveveg    ! Amount of mass burned from living plants [kg/m2/day]
+     
      
   end type elem_diag_type
 
@@ -571,7 +570,7 @@ module EDTypesMod
          this%elem(el)%exported_harvest   = 0._r8
          this%elem(el)%err_liveveg   = 0._r8
          this%elem(el)%err_litter   = 0._r8
-         this%elem(el)%burned_liveveg   = 0._r8
+
       end do
 
      this%npp = 0._r8

@@ -2368,6 +2368,10 @@ contains
                    trunk_product_site = trunk_product_site + &
                         woodproduct_mass
 
+                   ! Amount of trunk mass exported off site [kg/m2]
+                   elflux_diags%exported_harvest = elflux_diags%exported_harvest + &
+                        woodproduct_mass * area_inv
+                   
                    site_mass%wood_product = site_mass%wood_product + &
                         woodproduct_mass
                 endif
