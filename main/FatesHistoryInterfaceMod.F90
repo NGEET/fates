@@ -2375,7 +2375,7 @@ contains
          hio_sum_fuel_si         => this%hvars(ih_sum_fuel_si)%r81d,  &
          hio_litter_in_si        => this%hvars(ih_litter_in_si)%r81d, &
          hio_litter_out_si       => this%hvars(ih_litter_out_si)%r81d, &
-         hio_npp_si              => this%hvars(ih_npp_si)%r82d, &
+         hio_npp_si              => this%hvars(ih_npp_si)%r81d, &
          hio_aresp_si            => this%hvars(ih_aresp_si)%r81d, &
          hio_growth_resp_si      => this%hvars(ih_growth_resp_si)%r81d, &
          hio_seed_bank_si        => this%hvars(ih_seed_bank_si)%r81d, &
