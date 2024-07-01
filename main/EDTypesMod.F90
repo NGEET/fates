@@ -155,15 +155,11 @@ module EDTypesMod
      ! file after number densities of plants have changed. They also
      ! allow the history flux diagnostics to be rebuilt during restart
      !
-     !
      ! Litter fluxes are the total from 
      ! (1) turnover from living plants
      ! (2) mass transfer from non-disturbance inducing mortality events
      ! (3) mass transfer from disturbance inducing mortality events
      ! [kg / ha / day]
-     !
-     !
-     !
      ! ---------------------------------------------------------------------------------
      
      real(r8) :: cwd_ag_input(1:ncwd)               
@@ -175,6 +171,9 @@ module EDTypesMod
                                    ! fragmented litter [kg/m2/day]
      real(r8) :: exported_harvest  ! mass of harvested vegetation exported and not sent to litter [kg/m2/day]
      real(r8) :: burned_liveveg    ! Amount of mass burned from living plants [kg/m2/day]
+
+     ! Integrated Error Terms ( Int. Flux - State ) 
+     
      real(r8) :: err_liveveg       ! Error from comparing [state-integrated flux]
                                    ! in live vegetation [kg/m2]
      real(r8) :: err_litter        ! Net change in litter [kg/m2]
@@ -229,7 +228,9 @@ module EDTypesMod
      
      ! Nutrient Flux Diagnostics
      
-     real(r8) :: resp_excess
+     real(r8) :: resp_excess  ! plant carbon respired due to carbon overflow
+                              ! this happens when nutrients are limiting construction
+                              ! of new tissues kg m-2 s-1
      real(r8) :: nh4_uptake   ! plant nh4 uptake, kg m-2 s-1
      real(r8) :: no3_uptake   ! plant no3 uptake, kg m-2 s-1
      real(r8) :: sym_nfix     ! plant N uptake via symbiotic fixation kg m-2 s-1
