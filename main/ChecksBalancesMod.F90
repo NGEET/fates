@@ -330,7 +330,7 @@ contains
 
                ediag%err_liveveg = ibal%iflux_liveveg - ibal%state_liveveg
 
-               !print*, ediag%err_liveveg, ediag%err_liveveg/ibal%state_liveveg, ibal%state_liveveg, net_uptake, tot_litter_input
+               !print*, ediag%err_liveveg!, ediag%err_liveveg/ibal%state_liveveg, ibal%state_liveveg, net_uptake, tot_litter_input
                
                ! Perform the comparison between integrated flux and state
                !if(abs(ediag%err_liveveg) > iflux_tol(el) ) then
