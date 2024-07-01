@@ -348,7 +348,7 @@ contains
                 !      this is a best (bad) guess at fine root MR + total root GR
                 !      (kgC/indiv/yr) -> gC/m2/s
                 bc_out%root_resp(1:bc_in%nlevsoil) = bc_out%root_resp(1:bc_in%nlevsoil) + &
-                     ccohort%resp_acc_hold*years_per_day*g_per_kg*days_per_sec* &
+                     (ccohort%resp_m_acc_hold + ccohort%resp_g_acc_hold)*years_per_day*g_per_kg*days_per_sec* &
                      ccohort%n*area_inv*(1._r8-prt_params%allom_agb_frac(pft)) * csite%rootfrac_scr(1:bc_in%nlevsoil)
                 
              end if

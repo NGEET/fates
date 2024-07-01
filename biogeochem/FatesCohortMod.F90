@@ -142,13 +142,15 @@ module FatesCohortMod
     real(r8) :: gpp_acc
     real(r8) :: gpp_acc_hold
 
-    real(r8) :: npp_tstep                 ! Net Primary Production (see above *)
     real(r8) :: npp_acc
     real(r8) :: npp_acc_hold
 
-    real(r8) :: resp_tstep                ! Autotrophic respiration (see above *)
-    real(r8) :: resp_acc
-    real(r8) :: resp_acc_hold
+    real(r8) :: resp_m_tstep              ! Maintenance respiration (see above *)
+    real(r8) :: resp_m_acc
+    real(r8) :: resp_m_acc_hold
+
+    real(r8) :: resp_g_acc                ! Growth respication can only be calculated at the daily timestep
+    real(r8) :: resp_g_acc_hold
 
     real(r8) :: c13disc_clm               ! carbon 13 discrimination in new synthesized carbon at each indiv/timestep [ppm]
     real(r8) :: c13disc_acc               ! carbon 13 discrimination in new synthesized carbon at each indiv/day
@@ -376,12 +378,13 @@ module FatesCohortMod
       this%gpp_tstep               = nan
       this%gpp_acc                 = nan
       this%gpp_acc_hold            = nan
-      this%npp_tstep               = nan 
       this%npp_acc                 = nan 
       this%npp_acc_hold            = nan
-      this%resp_tstep              = nan 
-      this%resp_acc                = nan 
-      this%resp_acc_hold           = nan
+      this%resp_m_tstep            = nan 
+      this%resp_m_acc              = nan 
+      this%resp_m_acc_hold         = nan
+      this%resp_g_acc              = nan 
+      this%resp_g_acc_hold         = nan
       this%c13disc_clm             = nan
       this%c13disc_acc             = nan
       this%vcmax25top              = nan
@@ -478,17 +481,18 @@ module FatesCohortMod
       this%size_class_lasttimestep = 0
       this%gpp_tstep               = 0._r8
       this%gpp_acc                 = 0._r8
-      this%npp_tstep               = 0._r8
       this%npp_acc                 = 0._r8
-      this%resp_tstep              = 0._r8
-      this%resp_acc                = 0._r8
+      this%resp_m_tstep            = 0._r8
+      this%resp_m_acc              = 0._r8
+      this%resp_g_acc              = 0._r8
 
       ! do not zero these, they are not built
       ! so more appropriate to leave unzerod
       ! to prevent uninitialized use
       ! this%gpp_acc_hold            = nan
       ! this%npp_acc_hold            = nan
-      ! this%resp_acc_hold           = nan
+      ! this%resp_m_acc_hold         = nan
+      ! this%resp_g_acc_hold         = nan
       
       this%c13disc_clm             = 0._r8
       this%c13disc_acc             = 0._r8
@@ -707,12 +711,13 @@ module FatesCohortMod
       copyCohort%gpp_tstep               = this%gpp_tstep
       copyCohort%gpp_acc                 = this%gpp_acc
       copyCohort%gpp_acc_hold            = this%gpp_acc_hold
-      copyCohort%npp_tstep               = this%npp_tstep
       copyCohort%npp_acc                 = this%npp_acc
       copyCohort%npp_acc_hold            = this%npp_acc_hold
-      copyCohort%resp_tstep              = this%resp_tstep
-      copyCohort%resp_acc                = this%resp_acc
-      copyCohort%resp_acc_hold           = this%resp_acc_hold
+      copyCohort%resp_m_tstep            = this%resp_m_tstep
+      copyCohort%resp_m_acc              = this%resp_m_acc
+      copyCohort%resp_m_acc_hold         = this%resp_m_acc_hold
+      copyCohort%resp_g_acc              = this%resp_g_acc
+      copyCohort%resp_g_acc_hold         = this%resp_g_acc_hold
       copyCohort%c13disc_clm             = this%c13disc_clm
       copyCohort%c13disc_acc             = this%c13disc_acc
       copyCohort%vcmax25top              = this%vcmax25top
@@ -1048,14 +1053,14 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%gpp_acc                = ', this%gpp_acc
       write(fates_log(),*) 'cohort%gpp_tstep              = ', this%gpp_tstep
       write(fates_log(),*) 'cohort%npp_acc_hold           = ', this%npp_acc_hold
-      write(fates_log(),*) 'cohort%npp_tstep              = ', this%npp_tstep
       write(fates_log(),*) 'cohort%npp_acc                = ', this%npp_acc
-      write(fates_log(),*) 'cohort%resp_tstep             = ', this%resp_tstep
-      write(fates_log(),*) 'cohort%resp_acc               = ', this%resp_acc
-      write(fates_log(),*) 'cohort%resp_acc_hold          = ', this%resp_acc_hold
+      write(fates_log(),*) 'cohort%resp_m_tstep           = ', this%resp_m_tstep
+      write(fates_log(),*) 'cohort%resp_m_acc             = ', this%resp_m_acc
+      write(fates_log(),*) 'cohort%resp_m_acc_hold        = ', this%resp_m_acc_hold
+      write(fates_log(),*) 'cohort%resp_g_acc             = ', this%resp_g_acc
+      write(fates_log(),*) 'cohort%resp_g_acc_hold        = ', this%resp_g_acc_hold
       write(fates_log(),*) 'cohort%rdark                  = ', this%rdark
       write(fates_log(),*) 'cohort%resp_m                 = ', this%resp_m
-      write(fates_log(),*) 'cohort%resp_g_tstep           = ', this%resp_g_tstep
       write(fates_log(),*) 'cohort%livestem_mr            = ', this%livestem_mr
       write(fates_log(),*) 'cohort%livecroot_mr           = ', this%livecroot_mr
       write(fates_log(),*) 'cohort%froot_mr               = ', this%froot_mr

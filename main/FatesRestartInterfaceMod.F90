@@ -132,10 +132,12 @@ module FatesRestartInterfaceMod
   integer :: ir_nplant_co
   integer :: ir_gpp_acc_co
   integer :: ir_npp_acc_co
-  integer :: ir_resp_acc_co
+  integer :: ir_resp_m_acc_co
+  integer :: ir_resp_g_acc_co
   integer :: ir_gpp_acc_hold_co
   integer :: ir_npp_acc_hold_co
-  integer :: ir_resp_acc_hold_co
+  integer :: ir_resp_m_acc_hold_co
+  integer :: ir_resp_g_acc_hold_co
   integer :: ir_resp_excess_co
   integer :: ir_bmort_co
   integer :: ir_hmort_co
@@ -180,7 +182,7 @@ module FatesRestartInterfaceMod
 
 
   integer :: ir_ddbhdt_co
-  integer :: ir_resp_tstep_co
+  integer :: ir_resp_m_tstep_co
   integer :: ir_pft_co
   integer :: ir_status_co
   integer :: ir_efleaf_co
@@ -853,10 +855,15 @@ contains
          units='kgC/indiv', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_acc_co )
 
-    call this%set_restart_var(vname='fates_resp_acc', vtype=cohort_r8, &
-         long_name='ed cohort - accumulated respiration over dynamics step', &
+    call this%set_restart_var(vname='fates_resp_m_acc', vtype=cohort_r8, &
+         long_name='ed cohort - accumulated maintenance respiration over dynamics step', &
          units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_acc_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_m_acc_co )
+
+    call this%set_restart_var(vname='fates_resp_g_acc', vtype=cohort_r8, &
+         long_name='ed cohort - accumulated growth respiration over dynamics step', &
+         units='kgC/indiv', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_g_acc_co )
 
     call this%set_restart_var(vname='fates_gpp_acc_hold', vtype=cohort_r8, &
          long_name='ed cohort - current step gpp', &
@@ -868,10 +875,15 @@ contains
          units='kgC/indiv/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_acc_hold_co )
 
-    call this%set_restart_var(vname='fates_resp_acc_hold', vtype=cohort_r8, &
-         long_name='ed cohort - current step resp', &
+    call this%set_restart_var(vname='fates_resp_m_acc_hold', vtype=cohort_r8, &
+         long_name='ed cohort - current step maint resp', &
          units='kgC/indiv/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_acc_hold_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_m_acc_hold_co )
+
+    call this%set_restart_var(vname='fates_resp_g_acc_hold', vtype=cohort_r8, &
+         long_name='ed cohort - current step growth resp', &
+         units='kgC/indiv/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_g_acc_hold_co )
 
     call this%set_restart_var(vname='fates_resp_excess', vtype=cohort_r8, &
          long_name='ed cohort - maintenance respiration deficit', &
@@ -935,10 +947,10 @@ contains
          units='cm/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ddbhdt_co )
 
-    call this%set_restart_var(vname='fates_resp_tstep', vtype=cohort_r8, &
-         long_name='ed cohort - autotrophic respiration over timestep', &
+    call this%set_restart_var(vname='fates_resp_m_tstep', vtype=cohort_r8, &
+         long_name='ed cohort - maintenance respiration over timestep', &
          units='kgC/indiv/timestep', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_tstep_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_m_tstep_co )
 
     call this%set_restart_var(vname='fates_pft', vtype=cohort_int, &
          long_name='ed cohort - plant functional type', units='index', flushval = flushzero, &
@@ -2056,9 +2068,11 @@ contains
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
            rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
            rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
-           rio_resp_acc_co             => this%rvars(ir_resp_acc_co)%r81d, &
+           rio_resp_m_acc_co           => this%rvars(ir_resp_m_acc_co)%r81d, &
+           rio_resp_g_acc_co           => this%rvars(ir_resp_g_acc_co)%r81d, &
            rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
-           rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
+           rio_resp_m_acc_hold_co      => this%rvars(ir_resp_m_acc_hold_co)%r81d, &
+           rio_resp_g_acc_hold_co      => this%rvars(ir_resp_g_acc_hold_co)%r81d, &
            rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
            rio_resp_excess_co           => this%rvars(ir_resp_excess_co)%r81d, &
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
@@ -2072,7 +2086,7 @@ contains
            rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
            rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
            rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
-           rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
+           rio_resp_m_tstep_co         => this%rvars(ir_resp_m_tstep_co)%r81d, &
            rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
            rio_status_co               => this%rvars(ir_status_co)%int1d, &
            rio_efleaf_co               => this%rvars(ir_efleaf_co)%r81d, &
@@ -2378,9 +2392,11 @@ contains
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
                 rio_npp_acc_co(io_idx_co)      = ccohort%npp_acc
-                rio_resp_acc_co(io_idx_co)     = ccohort%resp_acc
+                rio_resp_m_acc_co(io_idx_co)     = ccohort%resp_m_acc
+                rio_resp_g_acc_co(io_idx_co)     = ccohort%resp_g_acc
                 rio_gpp_acc_hold_co(io_idx_co) = ccohort%gpp_acc_hold
-                rio_resp_acc_hold_co(io_idx_co) = ccohort%resp_acc_hold
+                rio_resp_m_acc_hold_co(io_idx_co) = ccohort%resp_m_acc_hold
+                rio_resp_g_acc_hold_co(io_idx_co) = ccohort%resp_g_acc_hold
                 rio_npp_acc_hold_co(io_idx_co) = ccohort%npp_acc_hold
 
                 rio_resp_excess_co(io_idx_co)   = ccohort%resp_excess
@@ -2400,7 +2416,7 @@ contains
                 rio_lmort_infra_co(io_idx_co)        = ccohort%lmort_infra
 
                 rio_ddbhdt_co(io_idx_co)       = ccohort%ddbhdt
-                rio_resp_tstep_co(io_idx_co)   = ccohort%resp_tstep
+                rio_resp_m_tstep_co(io_idx_co) = ccohort%resp_m_tstep
                 rio_pft_co(io_idx_co)          = ccohort%pft
                 rio_status_co(io_idx_co)       = ccohort%status_coh
                 rio_efleaf_co(io_idx_co)       = ccohort%efleaf_coh
@@ -3023,9 +3039,11 @@ contains
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
           rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
           rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
-          rio_resp_acc_co             => this%rvars(ir_resp_acc_co)%r81d, &
+          rio_resp_m_acc_co           => this%rvars(ir_resp_m_acc_co)%r81d, &
+          rio_resp_g_acc_co           => this%rvars(ir_resp_g_acc_co)%r81d, &
           rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
-          rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
+          rio_resp_m_acc_hold_co      => this%rvars(ir_resp_m_acc_hold_co)%r81d, &
+          rio_resp_g_acc_hold_co      => this%rvars(ir_resp_g_acc_hold_co)%r81d, &
           rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
           rio_resp_excess_co           => this%rvars(ir_resp_excess_co)%r81d, &
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
@@ -3039,7 +3057,7 @@ contains
           rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
           rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
           rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
-          rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
+          rio_resp_m_tstep_co         => this%rvars(ir_resp_m_tstep_co)%r81d, &
           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
           rio_status_co               => this%rvars(ir_status_co)%int1d, &
           rio_efleaf_co               => this%rvars(ir_efleaf_co)%r81d, &
@@ -3319,9 +3337,11 @@ contains
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)
-                ccohort%resp_acc     = rio_resp_acc_co(io_idx_co)
+                ccohort%resp_m_acc   = rio_resp_m_acc_co(io_idx_co)
+                ccohort%resp_g_acc   = rio_resp_g_acc_co(io_idx_co)
                 ccohort%gpp_acc_hold = rio_gpp_acc_hold_co(io_idx_co)
-                ccohort%resp_acc_hold = rio_resp_acc_hold_co(io_idx_co)
+                ccohort%resp_m_acc_hold = rio_resp_m_acc_hold_co(io_idx_co)
+                ccohort%resp_g_acc_hold = rio_resp_g_acc_hold_co(io_idx_co)
                 ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
                 ccohort%resp_excess   = rio_resp_excess_co(io_idx_co)
 
@@ -3341,7 +3361,7 @@ contains
                 ccohort%lmort_infra        = rio_lmort_infra_co(io_idx_co)
 
                 ccohort%ddbhdt       = rio_ddbhdt_co(io_idx_co)
-                ccohort%resp_tstep   = rio_resp_tstep_co(io_idx_co)
+                ccohort%resp_m_tstep = rio_resp_m_tstep_co(io_idx_co)
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)
                 ccohort%efleaf_coh   = rio_efleaf_co(io_idx_co)
