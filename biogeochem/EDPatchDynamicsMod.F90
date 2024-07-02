@@ -27,6 +27,7 @@ module EDPatchDynamicsMod
   use FatesCohortMod       , only : fates_cohort_type
   use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : site_fluxdiags_type
+  use EDTypesMod           , only : elem_diag_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : min_patch_area_forced
   use EDParamsMod          , only : nclmax
@@ -1005,6 +1006,12 @@ contains
                                      currentSite%mass_balance(el)%burn_flux_to_atm = &
                                           currentSite%mass_balance(el)%burn_flux_to_atm + &
                                           leaf_burn_frac * leaf_m * nc%n
+
+                                     ! This diagnostic only tracks
+                                     currentSite%flux_diags%elem(el)%burned_liveveg = &
+                                          currentSite%flux_diags%elem(el)%burned_liveveg + & 
+                                          leaf_burn_frac * leaf_m * nc%n * area_inv
+                                     
                                   end do
 
                                   ! Here the mass is removed from the plant
@@ -1682,7 +1689,7 @@ contains
     type(litter_type), pointer         :: new_litt
     type(litter_type), pointer         :: curr_litt
     type(site_massbal_type), pointer   :: site_mass
-    type(site_fluxdiags_type), pointer :: flux_diags
+    type(elem_diag_type), pointer      :: elflux_diags
 
     real(r8) :: donatable_mass       ! non-burned litter mass provided by the donor [kg]
                                      ! some may or may not be retained by the donor
@@ -1755,7 +1762,7 @@ contains
        
        element_id = element_list(el)
        site_mass  => currentSite%mass_balance(el)
-       flux_diags => currentSite%flux_diags(el)
+       elflux_diags => currentSite%flux_diags%elem(el)
        curr_litt  => currentPatch%litter(el)      ! Litter pool of "current" patch
        new_litt   => newPatch%litter(el)          ! Litter pool of "new" patch
        
@@ -1815,6 +1822,8 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
+             
+             
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -1831,12 +1840,12 @@ contains
              end do
 
              ! Track as diagnostic fluxes
-             flux_diags%leaf_litter_input(pft) = &
-                  flux_diags%leaf_litter_input(pft) + &
+             elflux_diags%leaf_litter_input(pft) = &
+                  elflux_diags%leaf_litter_input(pft) + &
                   num_dead_trees * (leaf_m+repro_m) * (1.0_r8-currentCohort%fraction_crown_burned)
 
-             flux_diags%root_litter_input(pft) = &
-                  flux_diags%root_litter_input(pft) + &
+             elflux_diags%root_litter_input(pft) = &
+                  elflux_diags%root_litter_input(pft) + &
                   (fnrt_m + store_m) * num_dead_trees
 
              ! coarse root biomass per tree
@@ -1858,9 +1867,9 @@ contains
                          donatable_mass * retain_m2
 
                    ! track diagnostics
-                   flux_diags%cwd_bg_input(c) = &
-                         flux_diags%cwd_bg_input(c) + &
-                         donatable_mass
+                   elflux_diags%cwd_bg_input(c) = &
+                        elflux_diags%cwd_bg_input(c) + &
+                        donatable_mass
                 enddo
              end do
 
@@ -1879,7 +1888,7 @@ contains
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
-                flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass
+                elflux_diags%cwd_ag_input(c) = elflux_diags%cwd_ag_input(c) + donatable_mass
              enddo
 
 
@@ -1922,7 +1931,7 @@ contains
     type(litter_type), pointer         :: new_litt
     type(litter_type), pointer         :: curr_litt
     type(site_massbal_type), pointer   :: site_mass
-    type(site_fluxdiags_type), pointer :: flux_diags
+    type(elem_diag_type), pointer      :: elflux_diags
 
     real(r8) :: remainder_area       ! amount of area remaining in patch after donation
     real(r8) :: num_dead
@@ -1969,7 +1978,7 @@ contains
        
        element_id = element_list(el)
        site_mass  => currentSite%mass_balance(el)
-       flux_diags => currentSite%flux_diags(el)
+       elflux_diags => currentSite%flux_diags%elem(el)
        curr_litt  => currentPatch%litter(el)   ! Litter pool of "current" patch
        new_litt   => newPatch%litter(el)       ! Litter pool of "new" patch
 
@@ -2099,17 +2108,17 @@ contains
           
           ! track diagnostic fluxes
           do c=1,ncwd
-             flux_diags%cwd_ag_input(c) = & 
-                  flux_diags%cwd_ag_input(c) + SF_val_CWD_frac_adj(c) * ag_wood
+             elflux_diags%cwd_ag_input(c) = & 
+                  elflux_diags%cwd_ag_input(c) + SF_val_CWD_frac_adj(c) * ag_wood
              
-             flux_diags%cwd_bg_input(c) = &
-                  flux_diags%cwd_bg_input(c) + SF_val_CWD_frac_adj(c) * bg_wood
+             elflux_diags%cwd_bg_input(c) = &
+                  elflux_diags%cwd_bg_input(c) + SF_val_CWD_frac_adj(c) * bg_wood
           end do
 
-          flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + &
+          elflux_diags%leaf_litter_input(pft) = elflux_diags%leaf_litter_input(pft) + &
                num_dead*(leaf_m + repro_m)
 
-          flux_diags%root_litter_input(pft) = flux_diags%root_litter_input(pft) + & 
+          elflux_diags%root_litter_input(pft) = elflux_diags%root_litter_input(pft) + & 
                num_dead * (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft)))
           
 
@@ -2152,7 +2161,7 @@ contains
     type(litter_type), pointer         :: new_litt
     type(litter_type), pointer         :: curr_litt
     type(site_massbal_type), pointer   :: site_mass
-    type(site_fluxdiags_type), pointer :: flux_diags
+    type(elem_diag_type), pointer      :: elflux_diags
 
     real(r8) :: donatable_mass       ! non-burned litter mass provided by the donor [kg]
                                      ! some may or may not be retained by the donor
@@ -2233,7 +2242,7 @@ contains
 
           element_id = element_list(el)
           site_mass  => currentSite%mass_balance(el)
-          flux_diags => currentSite%flux_diags(el)
+          elflux_diags => currentSite%flux_diags%elem(el)
           curr_litt  => currentPatch%litter(el)      ! Litter pool of "current" patch
           new_litt   => newPatch%litter(el)          ! Litter pool of "new" patch
 
@@ -2290,7 +2299,7 @@ contains
              end do
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
+             
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -2307,12 +2316,12 @@ contains
              end do
 
              ! Track as diagnostic fluxes
-             flux_diags%leaf_litter_input(pft) = &
-                  flux_diags%leaf_litter_input(pft) + &
+             elflux_diags%leaf_litter_input(pft) = &
+                  elflux_diags%leaf_litter_input(pft) + &
                   num_dead_trees * (leaf_m+repro_m) * (1.0_r8-burn_frac_landusetransition)
 
-             flux_diags%root_litter_input(pft) = &
-                  flux_diags%root_litter_input(pft) + &
+             elflux_diags%root_litter_input(pft) = &
+                  elflux_diags%root_litter_input(pft) + &
                   (fnrt_m + store_m) * num_dead_trees
 
              ! coarse root biomass per tree
@@ -2330,8 +2339,8 @@ contains
                         donatable_mass * retain_m2
 
                    ! track diagnostics
-                   flux_diags%cwd_bg_input(c) = &
-                        flux_diags%cwd_bg_input(c) + &
+                   elflux_diags%cwd_bg_input(c) = &
+                        elflux_diags%cwd_bg_input(c) + &
                         donatable_mass
                 enddo
              end do
@@ -2359,12 +2368,16 @@ contains
                    trunk_product_site = trunk_product_site + &
                         woodproduct_mass
 
+                   ! Amount of trunk mass exported off site [kg/m2]
+                   elflux_diags%exported_harvest = elflux_diags%exported_harvest + &
+                        woodproduct_mass * area_inv
+                   
                    site_mass%wood_product = site_mass%wood_product + &
                         woodproduct_mass
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
-                flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass
+                elflux_diags%cwd_ag_input(c) = elflux_diags%cwd_ag_input(c) + donatable_mass
              enddo
 
              currentCohort => currentCohort%taller

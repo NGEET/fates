@@ -33,7 +33,7 @@ module EDInitMod
   use FatesCohortMod            , only : fates_cohort_type
   use EDTypesMod                , only : numWaterMem
   use EDTypesMod                , only : num_vegtemp_mem
-  use EDTypesMod                , only : AREA
+  use EDTypesMod                , only : area, area_inv
   use EDTypesMod                , only : init_spread_near_bare_ground
   use EDTypesMod                , only : init_spread_inventory
   use FatesConstantsMod         , only : leaves_on
@@ -145,7 +145,7 @@ contains
     allocate(site_in%fmort_rate_crown(1:nlevsclass,1:numpft))
     allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
     allocate(site_in%mass_balance(1:num_elements))
-    allocate(site_in%flux_diags(1:num_elements))
+    allocate(site_in%iflux_balance(1:num_elements))
 
     if (hlm_use_tree_damage .eq. itrue) then 
        allocate(site_in%term_nindivs_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
@@ -206,10 +206,21 @@ contains
     allocate(site_in%sp_tsai(1:numpft))
     allocate(site_in%sp_htop(1:numpft))
 
+    ! Allocate site-level flux diagnostics
+    ! -----------------------------------------------------------------------
+    allocate(site_in%flux_diags%elem(1:num_elements))
     do el=1,num_elements
-       allocate(site_in%flux_diags(el)%leaf_litter_input(1:numpft))
-       allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
+       allocate(site_in%flux_diags%elem(el)%leaf_litter_input(1:numpft))
+       allocate(site_in%flux_diags%elem(el)%root_litter_input(1:numpft))
     end do
+    allocate(site_in%flux_diags%nh4_uptake_scpf(numpft*nlevsclass))
+    allocate(site_in%flux_diags%no3_uptake_scpf(numpft*nlevsclass))
+    allocate(site_in%flux_diags%sym_nfix_scpf(numpft*nlevsclass))
+    allocate(site_in%flux_diags%n_efflux_scpf(numpft*nlevsclass))
+    allocate(site_in%flux_diags%p_uptake_scpf(numpft*nlevsclass))
+    allocate(site_in%flux_diags%p_efflux_scpf(numpft*nlevsclass))
+    
+    
 
     ! Initialize the static soil
     ! arrays from the boundary (initial) condition
@@ -282,9 +293,10 @@ contains
        ! Zero the state variables used for checking mass conservation
        call site_in%mass_balance(el)%ZeroMassBalState()
        call site_in%mass_balance(el)%ZeroMassBalFlux()
-       call site_in%flux_diags(el)%ZeroFluxDiags()
     end do
 
+    call site_in%flux_diags%ZeroFluxDiags()
+    
     ! This will be initialized in FatesSoilBGCFluxMod:PrepCH4BCs()
     ! It checks to see if the value is below -9000. If it is,
     ! it will assume the first value of the smoother is set
@@ -472,7 +484,7 @@ contains
                    write(fates_log(),*) 'negative area',s,ft,sites(s)%area_pft(ft)
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
-                sites(s)%area_pft(ft)= sites(s)%area_pft(ft) * AREA ! rescale units to m2.
+                sites(s)%area_pft(ft)= sites(s)%area_pft(ft) * area ! rescale units to m2.
              end do
 
              ! re-normalize PFT area to ensure it sums to one.
@@ -801,6 +813,13 @@ contains
           do el=1,num_elements
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                   biomass_stock,litter_stock,seed_stock)
+
+             ! Initialize the integrated flux balance diagnostics
+             ! No need to initialize the instantaneous states, those are re-calculated
+             sites(s)%iflux_balance(el)%iflux_liveveg = &
+                  (biomass_stock + seed_stock)*area_inv
+             sites(s)%iflux_balance(el)%iflux_litter  = litter_stock * area_inv
+             
           end do
 
           call set_patchno(sites(s))
@@ -847,6 +866,10 @@ contains
        end do
     end if
 
+
+    
+
+    
     return
   end subroutine init_patches
 

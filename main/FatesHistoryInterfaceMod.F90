@@ -22,6 +22,7 @@ module FatesHistoryInterfaceMod
   use PRTGenericMod            , only : num_elements
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
   use EDTypesMod               , only : site_fluxdiags_type
+  use EDTypesMod               , only : elem_diag_type
   use EDtypesMod               , only : ed_site_type
   use FatesCohortMod           , only : fates_cohort_type
   use FatesPatchMod            , only : fates_patch_type
@@ -279,10 +280,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_pefflux_si
   integer :: ih_nefflux_scpf
   integer :: ih_pefflux_scpf
-  integer :: ih_ndemand_si
-  integer :: ih_ndemand_scpf
-  integer :: ih_pdemand_si
-  integer :: ih_pdemand_scpf
   integer :: ih_nfix_si
   integer :: ih_nfix_scpf
 
@@ -398,7 +395,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_vis_rad_err_si
   integer :: ih_nir_rad_err_si
   integer :: ih_fire_c_to_atm_si
-
+  integer :: ih_interr_liveveg_elem
+  integer :: ih_interr_litter_elem
   integer :: ih_cbal_err_fates_si
   integer :: ih_err_fates_elem
 
@@ -2178,11 +2176,6 @@ contains
                           this%hvars(ih_nefflux_si)%r81d(io_si) + & 
                           ccohort%daily_n_efflux*uconv
 
-                     ! Demand
-                     this%hvars(ih_ndemand_si)%r81d(io_si) = &
-                          this%hvars(ih_ndemand_si)%r81d(io_si) + &
-                          ccohort%daily_n_demand*uconv
-
                   case (phosphorus_element)
 
                      ! Mineralized uptake of PO4
@@ -2195,11 +2188,6 @@ contains
                           this%hvars(ih_pefflux_si)%r81d(io_si) + &
                           ccohort%daily_p_efflux*uconv
 
-                     ! Demand
-                     this%hvars(ih_pdemand_si)%r81d(io_si) = &
-                          this%hvars(ih_pdemand_si)%r81d(io_si) + & 
-                          ccohort%daily_p_demand*uconv
-                     
                   end select
                end do
 
@@ -2268,11 +2256,6 @@ contains
                           this%hvars(ih_nefflux_scpf)%r82d(io_si,iscpf) + &
                           ccohort%daily_n_efflux*uconv
 
-                     ! Demand
-                     this%hvars(ih_ndemand_scpf)%r82d(io_si,iscpf) = &
-                          this%hvars(ih_ndemand_scpf)%r82d(io_si,iscpf) + & 
-                          ccohort%daily_n_demand*uconv
-
                   case (phosphorus_element)
 
                      ! Mineralized uptake of PO4
@@ -2284,11 +2267,6 @@ contains
                      this%hvars(ih_pefflux_scpf)%r82d(io_si,iscpf) = &
                           this%hvars(ih_pefflux_scpf)%r82d(io_si,iscpf) + & 
                           ccohort%daily_p_efflux*uconv
-
-                     ! Demand
-                     this%hvars(ih_pdemand_scpf)%r82d(io_si,iscpf) = &
-                          this%hvars(ih_pdemand_scpf)%r82d(io_si,iscpf) + &
-                          ccohort%daily_p_demand*uconv
 
                   end select
                end do
@@ -2337,6 +2315,9 @@ contains
           call update_history_dyn2(this,nc,nsites,sites,bc_in)
        end if
     end if
+
+    
+    
     return
   end subroutine update_history_dyn
 
@@ -2355,7 +2336,7 @@ contains
 
     type(fates_cohort_type), pointer :: ccohort
     type(fates_patch_type),  pointer :: cpatch
-    type(site_fluxdiags_type), pointer :: flux_diags_c ! Pointer to site level carbon fluxes
+    type(elem_diag_type), pointer :: elflux_diags_c ! Pointer to site level carbon fluxes
     type(litter_type), pointer :: litt     ! Generic pointer to any litter pool
 
     integer  :: s                  ! site counter
@@ -2485,6 +2466,8 @@ contains
          hio_cbal_err_fates_si(io_si) = &
               sites(s)%mass_balance(element_pos(carbon12_element))%err_fates / sec_per_day
 
+         
+         
          ! Total carbon lost to atmosphere from burning (kgC/site/day -> kgC/m2/s)
          hio_fire_c_to_atm_si(io_si) = &
               sites(s)%mass_balance(element_pos(carbon12_element))%burn_flux_to_atm * &
@@ -2602,12 +2585,12 @@ contains
               sites(s)%term_crownarea_ustory * days_per_year + &
               sites(s)%imort_crownarea
 
-         flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
+         elflux_diags_c => sites(s)%flux_diags%elem(element_pos(carbon12_element))
 
-         hio_litter_in_si(io_si) = (sum(flux_diags_c%cwd_ag_input(:)) + &
-              sum(flux_diags_c%cwd_bg_input(:)) + &
-              sum(flux_diags_c%leaf_litter_input(:)) + &
-              sum(flux_diags_c%root_litter_input(:))) * &
+         hio_litter_in_si(io_si) = (sum(elflux_diags_c%cwd_ag_input(:)) + &
+              sum(elflux_diags_c%cwd_bg_input(:)) + &
+              sum(elflux_diags_c%leaf_litter_input(:)) + &
+              sum(elflux_diags_c%root_litter_input(:))) * &
               AREA_INV * days_per_sec
 
          ! Loop through patches to sum up diagonistics
@@ -3081,8 +3064,8 @@ contains
 
     integer  :: i_dist, j_dist
 
-    type(site_fluxdiags_type), pointer :: flux_diags
-    type(site_fluxdiags_type), pointer :: flux_diags_c
+    type(elem_diag_type), pointer :: elflux_diags
+    type(elem_diag_type), pointer :: elflux_diags_c
 
 
     real(r8), parameter :: reallytalltrees = 1000.   ! some large number (m)
@@ -3300,7 +3283,9 @@ contains
              hio_nplant_canopy_si_scag            => this%hvars(ih_nplant_canopy_si_scag)%r82d, &
              hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
              hio_disturbance_rate_si_lulu         => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
-             hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d)
+             hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d, &
+             hio_interr_liveveg_elem              => this%hvars(ih_interr_liveveg_elem)%r82d, &
+             hio_interr_litter_elem               => this%hvars(ih_interr_litter_elem)%r82d)
 
           model_day_int = nint(hlm_model_day)
 
@@ -3343,6 +3328,10 @@ contains
                 ! Total model error [kg/day -> kg/s]  (all elements)
                 hio_err_fates_elem(io_si,el) = sites(s)%mass_balance(el)%err_fates / sec_per_day
 
+                hio_interr_liveveg_elem(io_si,el) =  sites(s)%flux_diags%elem(el)%err_liveveg
+
+                hio_interr_litter_elem(io_si,el) = sites(s)%flux_diags%elem(el)%err_litter
+                
                 ! Total element lost to atmosphere from burning (kg/site/day -> kg/m2/s)
                 hio_burn_flux_elem(io_si,el) = &
                      sites(s)%mass_balance(el)%burn_flux_to_atm * ha_per_m2 *           &
@@ -4037,7 +4026,7 @@ contains
                            hio_bdead_md_canopy_si_scls(io_si,scls) = hio_bdead_md_canopy_si_scls(io_si,scls) + &
                                 struct_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                            hio_seed_prod_canopy_si_scls(io_si,scls) = hio_seed_prod_canopy_si_scls(io_si,scls) + &
-                                ccohort%seed_prod * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                                ccohort%seed_prod * ccohort%n / m2_per_ha / sec_per_day
 
                            hio_npp_leaf_canopy_si_scls(io_si,scls) = hio_npp_leaf_canopy_si_scls(io_si,scls) + &
                                 leaf_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
@@ -4174,7 +4163,7 @@ contains
                            hio_bdead_md_understory_si_scls(io_si,scls) = hio_bdead_md_understory_si_scls(io_si,scls) + &
                                 struct_m_turnover * ccohort%n / m2_per_ha / days_per_year / sec_per_day
                            hio_seed_prod_understory_si_scls(io_si,scls) = hio_seed_prod_understory_si_scls(io_si,scls) + &
-                                ccohort%seed_prod * ccohort%n / m2_per_ha / days_per_year / sec_per_day
+                                ccohort%seed_prod * ccohort%n / m2_per_ha  / sec_per_day
 
                            hio_npp_leaf_understory_si_scls(io_si,scls) = hio_npp_leaf_understory_si_scls(io_si,scls) + &
                                 leaf_m_net_alloc * ccohort%n / m2_per_ha / days_per_year / sec_per_day
@@ -4567,7 +4556,7 @@ contains
              ! Some carbon only litter diagnostics (legacy)
              ! ------------------------------------------------------------------------------
 
-             flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
+             elflux_diags_c => sites(s)%flux_diags%elem(element_pos(carbon12_element))
 
              ! ------------------------------------------------------------------------------
              ! Diagnostics discretized by element type
@@ -4575,12 +4564,12 @@ contains
 
              do el = 1, num_elements
 
-                flux_diags => sites(s)%flux_diags(el)
+                elflux_diags => sites(s)%flux_diags%elem(el)
 
                 ! Sum up all input litter fluxes (above below, fines, cwd) [kg/ha/day]
-                hio_litter_in_elem(io_si, el) = (sum(flux_diags%cwd_ag_input(:)) +    &
-                     sum(flux_diags%cwd_bg_input(:)) + sum(flux_diags%leaf_litter_input(:)) + &
-                     sum(flux_diags%root_litter_input(:))) / m2_per_ha / sec_per_day
+                hio_litter_in_elem(io_si, el) = (sum(elflux_diags%cwd_ag_input(:)) +    &
+                     sum(elflux_diags%cwd_bg_input(:)) + sum(elflux_diags%leaf_litter_input(:)) + &
+                     sum(elflux_diags%root_litter_input(:))) / m2_per_ha / sec_per_day
 
 
                 ! Plant multi-element states and fluxes
@@ -4828,10 +4817,10 @@ contains
 
              do i_cwd = 1, ncwd
                 hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) = hio_cwd_ag_in_si_cwdsc(io_si, i_cwd) + &
-                     flux_diags_c%cwd_ag_input(i_cwd) / days_per_year / sec_per_day
+                     elflux_diags_c%cwd_ag_input(i_cwd) / days_per_year / sec_per_day
 
                 hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) = hio_cwd_bg_in_si_cwdsc(io_si, i_cwd) + &
-                     flux_diags_c%cwd_bg_input(i_cwd) / days_per_year / sec_per_day
+                     elflux_diags_c%cwd_bg_input(i_cwd) / days_per_year / sec_per_day
 
              end do
              
@@ -6433,12 +6422,6 @@ contains
                upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_nefflux_si)
 
-          call this%set_history_var(vname='FATES_NDEMAND', units='kg m-2 s-1',      &
-               long='plant nitrogen need (algorithm dependent) in kg N per m2 per second', &
-               use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
-               index = ih_ndemand_si)
-
           call this%set_history_var(vname='FATES_NFIX_SYM', units='kg m-2 s-1',      &
                long='symbiotic dinitrogen fixation in kg N per m2 per second', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
@@ -6536,11 +6519,6 @@ contains
                upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_pefflux_si)
 
-          call this%set_history_var(vname='FATES_PDEMAND', units='kg m-2 s-1',      &
-               long='plant phosphorus need (algorithm dependent) in kg P per m2 per second', &
-               use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
-               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
-               index = ih_pdemand_si)
        end if phosphorus_active_if0
 
        call this%set_history_var(vname='FATES_STRUCTC', units='kg m-2',           &
@@ -6701,6 +6679,8 @@ contains
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_cbal_err_fates_si)
 
+
+       
        call this%set_history_var(vname='FATES_LEAF_ALLOC', units='kg m-2 s-1',    &
             long='allocation to leaves in kg carbon per m2 per second',          &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
@@ -7170,12 +7150,6 @@ contains
                   hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_nefflux_scpf)
 
-             call this%set_history_var(vname='FATES_NDEMAND_SZPF', units='kg m-2 s-1', &
-                  long='plant N need (algorithm dependent), by size-class x pft in kg N per m2 per second', &
-                  use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
-                  initialize=initialize_variables, index = ih_ndemand_scpf)
-
              call this%set_history_var(vname='FATES_NFIX_SYM_SZPF', units='kg m-2 s-1', &
                   long='symbiotic dinitrogen fixation, by size-class x pft in kg N per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
@@ -7300,12 +7274,6 @@ contains
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
                   hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_pefflux_scpf)
-
-             call this%set_history_var(vname='FATES_PDEMAND_SZPF', units='kg m-2 s-1', &
-                  long='plant P need (algorithm dependent), by size-class x pft in kg P per m2 per second', &
-                  use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
-                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
-                  initialize=initialize_variables, index = ih_pdemand_scpf)
 
           end if phosphorus_active_if1
 
@@ -8419,6 +8387,18 @@ contains
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index = ih_err_fates_elem)
 
+          call this%set_history_var(vname='FATES_INTERR_LIVEVEG_EL',units='kg m-2',             &
+               long='Bias error between integrated flux and (minus) state in live vegetation ', &
+               use_default='active', avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',           &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,            &
+               index = ih_interr_liveveg_elem)
+
+          call this%set_history_var(vname='FATES_INTERR_LITTER_EL',units='kg m-2',             &
+               long='Bias error between integrated flux and (minus) state in litter ', &
+               use_default='active', avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',           &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,            &
+               index = ih_interr_litter_elem)
+          
           call this%set_history_var(vname='FATES_LITTER_AG_FINE_EL', units='kg m-2', &
                long='mass of aboveground litter in fines (leaves, nonviable seed) by element', &
                use_default='active', avgflag='A', vtype=site_elem_r8,               &
