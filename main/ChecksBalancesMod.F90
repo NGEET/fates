@@ -314,7 +314,8 @@ contains
                  - tot_litter_input    &
                  - ediag%burned_liveveg &
                  - ediag%exported_harvest & 
-                 + site_mass%seed_in*area_inv & 
+                 + site_mass%seed_in*area_inv &
+                 - site_mass%seed_out*area_inv &
                  - ediag%tot_seed_turnover)
 
             ! Flux for litter: veg turnover + seed turnover - "these are tot_litter_input"
@@ -323,7 +324,7 @@ contains
 
             ibal%iflux_litter = ibal%iflux_litter + &
                  tot_litter_input - &
-                 site_mass%frag_out*area_inv - &
+                 (site_mass%frag_out*area_inv - ediag%tot_seed_turnover) - &
                  (site_mass%burn_flux_to_atm*area_inv - ediag%burned_liveveg)
 
 
