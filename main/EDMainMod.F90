@@ -310,8 +310,7 @@ contains
     ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
 
-    ! Check to see if the time integrated fluxes match the state
-    call CheckIntegratedMassPools(currentSite)
+   
     
     
   end subroutine ed_ecosystem_dynamics
@@ -827,6 +826,9 @@ contains
        currentPatch => currentPatch%younger
        
     enddo
+
+    ! Check to see if the time integrated fluxes match the state
+    call CheckIntegratedMassPools(currentSite)
     
     ! The HLMs need to know about nutrient demand, and/or
     ! root mass and affinities
