@@ -117,8 +117,8 @@ module FatesPatchMod
                                                         !   from all cohorts that donate to canopy_area
 
     integer  :: canopy_mask(nclmax,maxpft)                  ! is there any of this pft in this canopy layer?      
-    integer  :: nrad(nclmax,maxpft)                         ! number of exposed leaf layers for each canopy layer and pft
-    integer  :: ncan(nclmax,maxpft)                         ! number of total   leaf layers for each canopy layer and pft
+    integer  :: nrad(nclmax,maxpft)                         ! number of exposed vegetation layers for each canopy layer and pft
+    integer  :: nleaf(nclmax,maxpft)                        ! number of total leaf layers for each canopy layer and pft
     real(r8) :: c_stomata                                   ! mean stomatal conductance of all leaves in the patch   [umol/m2/s]
     real(r8) :: c_lblayer                                   ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
     
@@ -307,7 +307,7 @@ module FatesPatchMod
                                            ! as defined in the allocation space
     
       ncan = this%ncl_p
-      nveg = maxval(this%ncan(:,:))
+      nveg = maxval(this%nleaf(:,:))
 
       ! Assume we will need to allocate, unless the
       ! arrays already are allocated and require the same size
@@ -456,7 +456,7 @@ module FatesPatchMod
      
       this%canopy_mask(:,:)             = fates_unset_int
       this%nrad(:,:)                    = fates_unset_int
-      this%ncan(:,:)                    = fates_unset_int
+      this%nleaf(:,:)                   = fates_unset_int
       this%c_stomata                    = nan 
       this%c_lblayer                    = nan
       

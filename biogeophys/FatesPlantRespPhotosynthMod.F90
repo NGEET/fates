@@ -372,7 +372,7 @@ contains
                   ! Part III. Calculate the number of sublayers for each pft and layer.
                   ! And then identify which layer/pft combinations have things in them.
                   ! Output:
-                  ! currentPatch%ncan(:,:)
+                  ! currentPatch%nleaf(:,:)
                   ! currentPatch%canopy_mask(:,:)
                   call UpdateCanopyNCanNRadPresent(currentPatch)
 
@@ -1978,16 +1978,16 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine calculates two patch level quanities:
-    ! currentPatch%ncan   and
+    ! currentPatch%nleaf   and
     ! currentPatch%canopy_mask
     !
-    ! currentPatch%ncan(:,:) is a two dimensional array that indicates
+    ! currentPatch%nleaf(:,:) is a two dimensional array that indicates
     ! the total number of leaf layers (including those that are not exposed to light)
     ! in each canopy layer and for each functional type.
     !
     ! currentPatch%nrad(:,:) is a two dimensional array that indicates
     ! the total number of EXPOSED leaf layers, but for all intents and purposes
-    ! in the photosynthesis routine, this appears to be the same as %ncan...
+    ! in the photosynthesis routine, this appears to be the same as %nleaf...
     !
     ! currentPatch%canopy_mask(:,:) has the same dimensions, is binary, and
     ! indicates whether or not leaf layers are present (by evaluating the canopy area
@@ -2008,14 +2008,14 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     ! of the layer/pft index it is in
     ! ---------------------------------------------------------------------------------
 
-    currentPatch%ncan(:,:) = 0
+    currentPatch%nleaf(:,:) = 0
     ! redo the canopy structure algorithm to get round a
     ! bug that is happening for site 125, FT13.
     currentCohort => currentPatch%tallest
     do while(associated(currentCohort))
 
-       currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft) = &
-            max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft), &
+       currentPatch%nleaf(currentCohort%canopy_layer,currentCohort%pft) = &
+            max(currentPatch%nleaf(currentCohort%canopy_layer,currentCohort%pft), &
             currentCohort%NV)
 
        currentCohort => currentCohort%shorter
@@ -2023,7 +2023,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     enddo !cohort
 
     ! NRAD = NCAN ...
-    currentPatch%nrad = currentPatch%ncan
+    currentPatch%nrad = currentPatch%nleaf
 
     ! Now loop through and identify which layer and pft combo has scattering elements
     do cl = 1,currentPatch%ncl_p

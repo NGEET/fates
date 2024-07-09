@@ -1500,7 +1500,7 @@ contains
     ! The following patch level diagnostics are updated here:
     !
     ! currentPatch%canopy_layer_tlai(cl)   ! total leaf area index of canopy layer
-    ! currentPatch%ncan(cl,ft)             ! number of vegetation layers needed
+    ! currentPatch%nleaf(cl,ft)             ! number of vegetation layers needed
     !                                      ! in this patch's pft/canopy-layer
     ! currentPatch%nrad(cl,ft)             ! same as ncan, but does not include
     !                                      ! layers occluded by snow
@@ -1558,8 +1558,8 @@ contains
     cpatch => currentSite%oldest_patch
     do while(associated(cpatch))
 
-       cpatch%ncan(:,:) = 0
-       ! This routine updates the %ncan array
+       cpatch%nleaf(:,:) = 0
+       ! This routine updates the %nleaf array
        call UpdatePatchLAI(cpatch)
 
 
@@ -1589,7 +1589,7 @@ contains
        ! UNDER THE SNOW, BUT WE DONT REALLY USE IT TO FILTER
        ! THEM OUT. CHECK THE CODE AND CONSIDER REMOVING NRAD
        ! ALTOGETHER (RGK 05-2024)
-       cpatch%nrad(:,:) = cpatch%ncan(:,:)
+       cpatch%nrad(:,:) = cpatch%nleaf(:,:)
        
        ! ------------------------------------------------------------------------------
        ! It is remotely possible that in deserts we will not have any canopy
@@ -1629,7 +1629,7 @@ contains
                    fleaf = 0._r8
                 endif
 
-                cpatch%nrad(cl,ft) = cpatch%ncan(cl,ft)
+                cpatch%nrad(cl,ft) = cpatch%nleaf(cl,ft)
 
                 if (cpatch%nrad(cl,ft) > nlevleaf ) then
                    write(fates_log(), *) 'Number of radiative leaf layers is larger'
@@ -1789,7 +1789,7 @@ contains
           ! --------------------------------------------------------------------------
 
           do cl = 1,cpatch%NCL_p
-             do iv = 1,cpatch%ncan(cl,ft)
+             do iv = 1,cpatch%nleaf(cl,ft)
 
                 if( debug .and. sum(cpatch%canopy_area_profile(cl,:,iv)) > 1.0001_r8 ) then
 
@@ -1814,7 +1814,7 @@ contains
              end do
 
              do ft = 1,numpft
-                do iv = 1,cpatch%ncan(cl,ft)
+                do iv = 1,cpatch%nleaf(cl,ft)
 
                    if( cpatch%canopy_area_profile(cl,ft,iv) > nearzero ) then
 
@@ -2235,7 +2235,7 @@ contains
                  currentPatch%total_canopy_area)
             
             ! Update the number of number of vegetation layers
-            currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
+            currentPatch%nleaf(cl,ft) = max(currentPatch%nleaf(cl,ft),currentCohort%NV)
 
             ! Update the patch canopy layer tlai (LAI per canopy area)
             currentPatch%canopy_layer_tlai(cl) = currentPatch%canopy_layer_tlai(cl) +  &
