@@ -65,6 +65,7 @@ module FatesPatchMod
     integer  :: ncl_p                        ! number of occupied canopy layers
     integer  :: land_use_label               ! patch label for land use classification (primaryland, secondaryland, etc)
     real(r8) :: age_since_anthro_disturbance ! average age for secondary forest since last anthropogenic disturbance [years]
+    logical  :: changed_landuse_this_ts      ! logical flag to track patches that have just undergone land use change [only used with nocomp and land use change]
 
     !---------------------------------------------------------------------------
 
@@ -690,7 +691,7 @@ module FatesPatchMod
 
     !===========================================================================
 
-    subroutine Create(this, age, area, label, nocomp_pft, num_swb, num_pft,    &
+    subroutine Create(this, age, area, land_use_label, nocomp_pft, num_swb, num_pft,    &
       num_levsoil, current_tod, regeneration_model) 
       !
       ! DESCRIPTION:
@@ -701,7 +702,7 @@ module FatesPatchMod
       class(fates_patch_type), intent(inout) :: this               ! patch object
       real(r8),                intent(in)    :: age                ! notional age of this patch in years
       real(r8),                intent(in)    :: area               ! initial area of this patch in m2. 
-      integer,                 intent(in)    :: label              ! anthropogenic disturbance label
+      integer,                 intent(in)    :: land_use_label     ! land use label
       integer,                 intent(in)    :: nocomp_pft         ! no-competition mode pft label
       integer,                 intent(in)    :: num_swb            ! number of shortwave broad-bands to track
       integer,                 intent(in)    :: num_pft            ! number of pfts to simulate
@@ -729,8 +730,8 @@ module FatesPatchMod
       this%area      = area 
 
       ! assign anthropgenic disturbance category and label
-      this%land_use_label = label
-      if (label .eq. secondaryland) then
+      this%land_use_label = land_use_label
+      if (land_use_label .eq. secondaryland) then
         this%age_since_anthro_disturbance = age
       else
         this%age_since_anthro_disturbance = fates_unset_r8
@@ -740,6 +741,8 @@ module FatesPatchMod
       this%tr_soil_dir(:) = 1.0_r8
       this%tr_soil_dif(:) = 1.0_r8
       this%NCL_p          = 1
+
+      this%changed_landuse_this_ts = .false.
 
     end subroutine Create
 

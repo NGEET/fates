@@ -124,6 +124,8 @@ module FatesInterfaceTypesMod
                                                          ! bc_in%hlm_harvest_rates and bc_in%hlm_harvest_catnames
 
    integer, public :: hlm_use_luh                   ! flag to signal whether or not to use luh2 drivers
+   integer, public :: hlm_use_potentialveg          ! flag to signal whether or not to use potential vegetation only
+                                                    ! (i.e., no land use and instead force all lands to be primary)
    integer, public :: hlm_num_luh2_states           ! number of land use state types provided in LUH2 forcing dataset
 
    integer, public :: hlm_num_luh2_transitions      ! number of land use transition types provided in LUH2 forcing dataset
@@ -240,7 +242,7 @@ module FatesInterfaceTypesMod
    ! dataset than the number of PFTs in FATES, we have to allocate with
    ! the prior so that we can hold the LAI data
    integer, public :: fates_maxPatchesPerSite
-   
+
    integer, public :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
                                                            ! competitors that will be generated on each site
    
@@ -572,7 +574,12 @@ module FatesInterfaceTypesMod
       real(r8) :: site_area    ! Actual area of current site [m2], only used in carbon-based harvest
 
       ! Fixed biogeography mode 
-      real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
+      real(r8), allocatable :: pft_areafrac(:)          ! Fractional area of the FATES column occupied by each PFT
+
+      ! Fixed biogeography mode with land use active
+      real(r8), allocatable :: pft_areafrac_lu(:,:)     ! Fractional area occupied by each PFT on each land use type
+      real(r8) :: baregroundfrac                        ! fractional area held as bare-ground
+
     
      ! Satellite Phenology (SP) input variables.  (where each patch only has one PFT)
      ! ---------------------------------------------------------------------------------

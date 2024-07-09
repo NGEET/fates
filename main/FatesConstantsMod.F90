@@ -45,14 +45,21 @@ module FatesConstantsMod
   integer , parameter, public :: dtype_ilog   = 3          ! index for logging generated disturbance event
   integer , parameter, public :: dtype_ilandusechange = 4  ! index for land use change disturbance (not including logging)
 
-  ! Labels for patch disturbance history
+  ! Labels for patch land use type information
   integer, parameter, public :: n_landuse_cats = 5
   integer, parameter, public :: primaryland = 1
   integer, parameter, public :: secondaryland = 2
   integer, parameter, public :: rangeland = 3
   integer, parameter, public :: pastureland = 4
   integer, parameter, public :: cropland = 5
+  logical, parameter, dimension(n_landuse_cats), public :: is_crop = [.false., .false.,.false.,.false.,.true.]
+  integer, parameter, public :: n_crop_lu_types = 1
 
+  ! Bareground nocomp land use label
+  integer, parameter, public :: nocomp_bareground_land = 0  ! not a real land use type, only for labeling any bare-ground nocomp patches
+
+  ! Bareground nocomp PFT label for no competition mode
+  integer, parameter, public :: nocomp_bareground = 0
 
   integer, parameter, public :: leaves_on  = 2  ! Flag specifying that a deciduous plant has leaves
                                                 ! and should be allocating to them as well
@@ -82,9 +89,6 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   integer, parameter, public :: ican_upper = 1  ! nominal index for the upper canopy
   integer, parameter, public :: ican_ustory = 2 ! nominal index for diagnostics that refer to understory layers 
                                                 !  (all layers that are not the top canopy layer)
-
-  ! Bareground label for no competition mode
-  integer, parameter, public :: nocomp_bareground = 0
 
   ! Flags specifying how phosphorous uptake and turnover interacts
   ! with the host model.
@@ -168,6 +172,9 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   ! for multiplication/division procedures, also allowing for 3 orders
   ! of magnitude of buffer error (ie instead of 1e-15)
   real(fates_r8), parameter, public :: rsnbl_math_prec = 1.0e-12_fates_r8
+
+  ! in nocomp simulations, what is the minimum PFT fraction for any given land use type?
+  real(fates_r8), parameter, public :: min_nocomp_pftfrac_perlanduse = 0.01_fates_r8
 
   ! This is the precision of 8byte reals (~1e-308)
   real(fates_r8), parameter, public :: tinyr8 = tiny(1.0_fates_r8)
