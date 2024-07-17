@@ -4305,13 +4305,13 @@ contains
              ! divide so-far-just-summed but to-be-averaged patch-age-class
              ! variables by patch-age-class area to get mean values
              do ipa2 = 1, nlevage
-                if (hio_fracarea_si_age(io_si, ipa2) .gt. nearzero) then
-                   hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_fracarea_si_age(io_si, ipa2)*AREA)
-                   hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_fracarea_si_age(io_si, ipa2)*AREA)
+                if (sites(s)%area_by_age(ipa2) .gt. nearzero) then
+                   hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / sites(s)%area_by_age(ipa2)
+                   hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / sites(s)%area_by_age(ipa2)
                    do ft = 1, numpft
                       iagepft = ipa2 + (ft-1) * nlevage
                       hio_scorch_height_si_agepft(io_si, iagepft) = &
-                           hio_scorch_height_si_agepft(io_si, iagepft) / (hio_fracarea_si_age(io_si, ipa2)*AREA)
+                           hio_scorch_height_si_agepft(io_si, iagepft) / sites(s)%area_by_age(ipa2)
                    enddo
                 else
                    hio_lai_si_age(io_si, ipa2) = 0._r8
