@@ -660,7 +660,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_c_stomata_si_age
   integer :: ih_c_lblayer_si_age
   integer :: ih_agesince_anthrodist_si_age
-  integer :: ih_secondarylands_area_si_age
+  integer :: ih_secondarylands_fracarea_si_age
   integer :: ih_area_burnt_si_age
   ! integer :: ih_fire_rate_of_spread_front_si_age
   integer :: ih_fire_intensity_si_age
@@ -3271,7 +3271,7 @@ contains
            hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
            hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
            hio_agesince_anthrodist_si_age     => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
-           hio_secondarylands_area_si_age    => this%hvars(ih_secondarylands_area_si_age)%r82d, &
+           hio_secondarylands_fracarea_si_age    => this%hvars(ih_secondarylands_fracarea_si_age)%r82d, &
            hio_fracarea_si_landuse     => this%hvars(ih_fracarea_si_landuse)%r82d, &
            hio_area_burnt_si_age              => this%hvars(ih_area_burnt_si_age)%r82d, &
                                 ! hio_fire_rate_of_spread_front_si_age  => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
@@ -3447,8 +3447,8 @@ contains
                         + ageclass_fracarea
 
                    ageclass_fracarea = cpatch%area * AREA_INV  ! WRONG; should be: cpatch%area / age_class_area
-                   hio_secondarylands_area_si_age(io_si,cpatch%age_class) = &
-                        hio_secondarylands_area_si_age(io_si,cpatch%age_class) & 
+                   hio_secondarylands_fracarea_si_age(io_si,cpatch%age_class) = &
+                        hio_secondarylands_fracarea_si_age(io_si,cpatch%age_class) &
                         + ageclass_fracarea
                 endif
 
@@ -7050,7 +7050,7 @@ contains
                long='secondary forest patch area age distribution since any kind of disturbance', &
                use_default='inactive', avgflag='A', vtype=site_age_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
-               index=ih_secondarylands_area_si_age)
+               index=ih_secondarylands_fracarea_si_age)
 
           call this%set_history_var(vname='FATES_FRAGMENTATION_SCALER_SL', units='', &
                long='factor (0-1) by which litter/cwd fragmentation proceeds relative to max rate by soil layer',  &
