@@ -3451,9 +3451,14 @@ contains
                    ! for scorch height, weight the value by patch area within any
                    ! given age class - in the event that there is more than one
                    ! patch per age class.
-                   iagepft = cpatch%age_class + (ft-1) * nlevage
-                   hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
-                        cpatch%Scorch_ht(ft) * cpatch%area
+                   if (sites(s)%area_by_age(cpatch%age_class) .gt. nearzero) then
+                      iagepft = cpatch%age_class + (ft-1) * nlevage
+                      weight = cpatch%area / sites(s)%area_by_age(cpatch%age_class)
+                      hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
+                           cpatch%Scorch_ht(ft) * weight
+                   else
+                      hio_scorch_height_si_agepft(io_si,iagepft) = 0._r8
+                   end if
 
                    ! and also pft-labeled patch areas in the event that we are in nocomp mode
                    if ( hlm_use_nocomp .eq. itrue .and. cpatch%nocomp_pft_label .eq. ft) then 
@@ -4307,22 +4312,6 @@ contains
                 ipa = ipa + 1
                 cpatch => cpatch%younger
              end do patchloop !patch loop
-
-
-
-
-             ! divide so-far-just-summed but to-be-averaged patch-age-class
-             ! variables by patch-age-class area to get mean values
-             do ipa2 = 1, nlevage
-                if (sites(s)%area_by_age(ipa2) .gt. nearzero) then
-                   do ft = 1, numpft
-                      iagepft = ipa2 + (ft-1) * nlevage
-                      hio_scorch_height_si_agepft(io_si, iagepft) = &
-                           hio_scorch_height_si_agepft(io_si, iagepft) / sites(s)%area_by_age(ipa2)
-                   enddo
-             end do
-
-
 
              ! pass the cohort termination mortality as a flux to the history, and then reset the termination mortality buffer
              ! note there are various ways of reporting the total mortality, so pass to these as well
