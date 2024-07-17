@@ -5189,7 +5189,7 @@ contains
     real(r8) :: npp         ! npp for this time-step (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: aresp       ! autotrophic respiration (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
-    real(r8) :: patch_area_by_age(nlevage)  ! patch area in each bin for normalizing purposes
+    real(r8) :: ageclass_area  ! [m2]
     real(r8) :: canopy_area_by_age(nlevage) ! canopy area in each bin for normalizing purposes
     real(r8) :: site_area_veg_inv           ! 1/area of the site that is not bare-ground 
     integer  :: ipa2     ! patch incrementer
@@ -5271,16 +5271,12 @@ contains
 
          ipa = 0
 
-         patch_area_by_age(1:nlevage) = 0._r8
          canopy_area_by_age(1:nlevage) = 0._r8
 
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
 
             ipa = ipa + 1
-
-            patch_area_by_age(cpatch%age_class)  = &
-                 patch_area_by_age(cpatch%age_class) + cpatch%area
 
             canopy_area_by_age(cpatch%age_class) = &
                  canopy_area_by_age(cpatch%age_class) + cpatch%total_canopy_area
@@ -5341,11 +5337,17 @@ contains
                          ccohort%froot_mr * n_perm2
 
                     ! accumulate fluxes per patch age bin
-                    hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
-                         + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv
+                    ageclass_area = sites(s)%area_by_age(cpatch%age_class)
+                    if (ageclass_area .gt. nearzero) then
+                       hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
+                            + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv / ageclass_area
 
-                    hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
-                         + npp * ccohort%n * dt_tstep_inv
+                       hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
+                            + npp * ccohort%n * dt_tstep_inv / ageclass_area
+                    else
+                       hio_gpp_si_age(io_si,cpatch%age_class) = 0._r8
+                       hio_npp_si_age(io_si,cpatch%age_class) = 0._r8
+                    end if
 
                     ! accumulate fluxes on canopy- and understory- separated fluxes
                     if (ccohort%canopy_layer .eq. 1) then
@@ -5578,16 +5580,6 @@ contains
          ! Normalize age stratified diagnostics
          ! ----------------------------------------------------------------
          do ipa2 = 1, nlevage
-            if (patch_area_by_age(ipa2) .gt. nearzero) then
-               hio_gpp_si_age(io_si, ipa2) = &
-                    hio_gpp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
-               hio_npp_si_age(io_si, ipa2) = &
-                    hio_npp_si_age(io_si, ipa2) / (patch_area_by_age(ipa2))
-            else
-               hio_gpp_si_age(io_si, ipa2) = 0._r8
-               hio_npp_si_age(io_si, ipa2) = 0._r8
-            endif
-
             ! Normalize resistance diagnostics
             if (canopy_area_by_age(ipa2) .gt. nearzero) then
                hio_c_stomata_si_age(io_si,ipa2) = &
