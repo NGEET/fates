@@ -3059,6 +3059,8 @@ contains
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
                                            ! time-since-anthropogenic-disturbance of secondary forest
     real(r8) :: patch_fracarea  ! Fraction of area for this patch
+    real(r8) :: ageclass_fracarea  ! Fraction of area for this age class
+    real(r8) :: ageclass_canopy_fracarea  ! Fraction of canopy area for this age class
     real(r8) :: frac_canopy_in_bin  ! fraction of a leaf's canopy that is within a given height bin
     real(r8) :: binbottom,bintop    ! edges of height bins
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
@@ -3084,6 +3086,7 @@ contains
     real(r8) :: storec_canopy_scpf(numpft*nlevsclass)
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
     real(r8) :: weight
+    real(r8) :: denominator
     real(r8) :: age_class_area  ! [m2]
 
     integer  :: i_dist, j_dist
@@ -3428,8 +3431,9 @@ contains
 
 
                 if ( ED_val_comp_excln .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
+                   weight = cpatch%area * AREA_INV  ! WRONG; should be: cpatch%area / age_class_area
                    hio_zstar_si_age(io_si,cpatch%age_class) = hio_zstar_si_age(io_si,cpatch%age_class) &
-                        + cpatch%zstar * cpatch%area * AREA_INV
+                        + cpatch%zstar * weight
                 endif
 
                 ! some diagnostics on secondary forest area and its age distribution
@@ -3437,13 +3441,15 @@ contains
 
                    ageclass_since_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
 
+                   ageclass_fracarea = cpatch%area * AREA_INV  ! WRONG; should be: cpatch%area / sites(s)%age_class_area(ageclass_since_anthrodist)
                    hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist) = &
                         hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist)  &
-                        + cpatch%area * AREA_INV
+                        + ageclass_fracarea
 
+                   ageclass_fracarea = cpatch%area * AREA_INV  ! WRONG; should be: cpatch%area / age_class_area
                    hio_secondarylands_area_si_age(io_si,cpatch%age_class) = &
                         hio_secondarylands_area_si_age(io_si,cpatch%age_class) & 
-                        + cpatch%area * AREA_INV
+                        + ageclass_fracarea
                 endif
 
 
@@ -3477,20 +3483,23 @@ contains
 
                 end do
 
+                ! Weight for the following per-age-class fire variables
+                weight = cpatch%area * AREA_INV  ! WRONG; should be: cpatch%area / age_class_area
+
                 ! fractional area burnt [frac/day] -> [frac/sec]
                 hio_area_burnt_si_age(io_si,cpatch%age_class) = hio_area_burnt_si_age(io_si,cpatch%age_class) + &
-                     cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
+                     cpatch%frac_burnt * weight / sec_per_day
 
                 ! hio_fire_rate_of_spread_front_si_age(io_si, cpatch%age_class) = hio_fire_rate_of_spread_si_age(io_si, cpatch%age_class) + &
-                !    cpatch%ros_front * cpatch*frac_burnt * cpatch%area * AREA_INV
+                !    cpatch%ros_front * cpatch*frac_burnt * weight
 
                 ! Fire intensity weighted by burned fraction [kJ/m/s] -> [J/m/s]
                 hio_fire_intensity_si_age(io_si, cpatch%age_class) = hio_fire_intensity_si_age(io_si, cpatch%age_class) + &
-                     cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
+                     cpatch%FI * cpatch%frac_burnt * weight * J_per_kJ
 
                 ! Fuel sum [kg/m2]
                 hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) = hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) +  &
-                     cpatch%sum_fuel * cpatch%area * AREA_INV
+                     cpatch%sum_fuel * weight
 
 
 
@@ -3510,8 +3519,9 @@ contains
 
                    n_perm2 = ccohort%n * AREA_INV
 
+                   ageclass_canopy_fracarea = ccohort%c_area * AREA_INV  ! WRONG; *AREA_INV should be /age_class_area
                    hio_canopy_area_si_age(io_si,cpatch%age_class) = hio_canopy_area_si_age(io_si,cpatch%age_class) &
-                        + ccohort%c_area * AREA_INV
+                        + ageclass_canopy_fracarea
 
                    ! calculate leaf height distribution, assuming leaf area is evenly distributed thru crown depth
                    call CrownDepth(ccohort%height,ft,crown_depth)
@@ -3605,7 +3615,7 @@ contains
 
                          ! update total biomass per age bin
                          hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
-                              + total_m * ccohort%n * AREA_INV
+                              + total_m * ccohort%n * AREA_INV  ! Wrong; *AREA_INV should be /age_class_area
 
                          if (ccohort%canopy_layer .eq. 1) then
                             storec_canopy_scpf(i_scpf) = &
