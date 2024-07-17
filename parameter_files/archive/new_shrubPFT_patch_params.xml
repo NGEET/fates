@@ -3,18 +3,9 @@
 	<!-- This parameter patch file updates the parameter file with the changes -->
 	<!-- Introduces a new cold arctic shrub PFT, first by duplicating the default -->
 	<!-- #9  broadleaf_colddecid_extratrop_shrub, then updating the parameters -->
-	<!-- based on Yanlan Liu's publication in Earth's Future. -->
+	<!-- based on Yanlan Liu's 2024 publication in Earth's Future. -->
 
-  <base_file>fates_params_default.cdl</base_file>
-  <new_file>fates_params_newshrub.cdl</new_file>
-  <pft_trim_list>1,2,3,4,5,6,7,8,9,9,10,11,12</pft_trim_list>
-  <parameters>
-
-    <!-- Naming conventions: date stamp and the last tag it was valid through  -->
-
-    <!-- 221017_api24.1.0 -->
-
-    <!-- PFT KEY -->
+	<!-- NEW PFT KEY -->
     <!-- 1  broadleaf_evergreen_tropical_tree     -->
     <!-- 2  needleleaf_evergreen_extratrop_tree   -->
     <!-- 3  needleleaf_colddecid_extratrop_tree   -->
@@ -24,37 +15,83 @@
     <!-- 7  broadleaf_evergreen_extratrop_shrub   -->
     <!-- 8  broadleaf_hydrodecid_extratrop_shrub  -->
     <!-- 9  broadleaf_colddecid_extratrop_shrub   -->
-    <!-- 9  NEW ARCTIC SHRUB broadleaf_colddecid_arctic_shrub   -->
-    <!-- 10 arctic_c3_grass                       -->
-    <!-- 11 cool_c3_grass                         -->
-    <!-- 12 c4_grass                              -->
-    <!-- if specifying a multi-dimensional parameter, use the PFTs as the outer dimension in the ordering below -->
+    <!-- 10 broadleaf_colddecid_arctic_shrub      -->
+    <!-- 11 arctic_c3_grass                       -->
+    <!-- 12 cool_c3_grass                         -->
+    <!-- 13 c4_grass                              -->
+
+  <base_file>fates_params_default.cdl</base_file>
+  <new_file>fates_params_newshrub.cdl</new_file>
+  <pft_trim_list>1,2,3,4,5,6,7,8,9,9,10,11,12</pft_trim_list>
+  <parameters>
+
+    <!-- Naming conventions: date stamp and the last tag it was valid through  -->
+    <!-- api36.0.0_051724 -->
+
 
     <!-- Override values for the new PFT, this is now PFT 10 -->
     <!-- because it duplicated the 9th PFT -->
     <pft_group ids="10">
-      <fates_allom_d2bl1> 0.0562629 </fates_allom_d2bl1>
-      <fates_allom_d2bl2> 1.5655218 </fates_allom_d2bl2>
-      <fates_allom_agb2> 0.6106841 </fates_allom_agb2>
-      <fates_allom_agb3> 1.7917681 </fates_allom_agb3>
-      <fates_allom_d2h1> 0.7275712 </fates_allom_d2h1>
-      <fates_allom_d2h2> 0.3767251 </fates_allom_d2h2>
-      <fates_recruit_hgt_min> 0.7919644 </fates_recruit_hgt_min>
-      <fates_allom_dbh_maxheight> 1.9916315 </fates_allom_dbh_maxheight>
-      <fates_allom_d2ca_coefficient_min> 0.2952334 </fates_allom_d2ca_coefficient_min>
-      <fates_alloc_store_priority_frac> 0.7 </fates_alloc_store_priority_frac>
+      <fates_allom_d2bl1> 0.0481934 </fates_allom_d2bl1>
+      <fates_allom_d2bl2> 1.7176758 </fates_allom_d2bl2>
+      <fates_allom_agb2> 0.6853945 </fates_allom_agb2>
+      <fates_allom_agb3> 1.7628613 </fates_allom_agb3>
+      <fates_allom_d2h1> 0.7781250 </fates_allom_d2h1>
+      <fates_allom_d2h2> 0.4027002 </fates_allom_d2h2>
+      <fates_recruit_height_min> 0.8 </fates_recruit_height_min>
+      <fates_allom_dbh_maxheight> 1.9443359 </fates_allom_dbh_maxheight>
+      <fates_allom_d2ca_coefficient_min> 0.3166497 </fates_allom_d2ca_coefficient_min>
+      <fates_allom_d2ca_coefficient_max> 0.3166497 </fates_allom_d2ca_coefficient_max>
+      <fates_alloc_store_priority_frac> 0.6 </fates_alloc_store_priority_frac>
       <fates_alloc_storage_cushion> 1.4 </fates_alloc_storage_cushion>
-      <fates_leaf_slatop> 0.028 </fates_leaf_slatop>
-      <fates_leaf_vcmax25top> 58 </fates_leaf_vcmax25top>
-      <fates_grperc> 0.10 </fates_grperc>
-      <fates_mort_scalar_hydrfailure> 0.7 </fates_mort_scalar_hydrfailure>
-      <fates_mort_scalar_coldstress> 3.2 </fates_mort_scalar_coldstress>
-      <fates_mort_bmort> 0.013 </fates_mort_bmort>
-      <fates_mort_freezetol> -89.5 </fates_mort_freezetol>
-      <fates_frag_seed_decay_rate> 0.49 </fates_frag_seed_decay_rate>
-      <fates_seed_germination_rate> 0.52 </fates_seed_germination_rate>
+      <fates_leaf_slatop> 0.032 </fates_leaf_slatop>
+      <fates_leaf_vcmax25top> 54 </fates_leaf_vcmax25top>
+      <fates_mort_scalar_hydrfailure> 0.8 </fates_mort_scalar_hydrfailure>
+      <fates_mort_scalar_cstarvation> 0.57 </fates_mort_scalar_cstarvation>
+      <fates_mort_scalar_coldstress> 3.5 </fates_mort_scalar_coldstress>
+      <fates_mort_bmort> 0.010 </fates_mort_bmort>
+      <fates_mort_freezetol> -95 </fates_mort_freezetol>
+      <fates_frag_seed_decay_rate> 0.46 </fates_frag_seed_decay_rate>
+      <fates_recruit_seed_germination_rate> 0.49 </fates_recruit_seed_germination_rate>
+    </pft_group>
+
+    <!-- Updating parameters for c3_arctic grass based on Yanlan's work. Now PFT #11 -->
+    <pft_group ids="11">
+      <fates_recruit_height_min> 0.11 </fates_recruit_height_min>
+      <fates_alloc_store_priority_frac> 0.6 </fates_alloc_store_priority_frac>
+      <fates_leaf_slatop> 0.027 </fates_leaf_slatop>
+      <fates_leaf_vcmax25top> 86 </fates_leaf_vcmax25top>
+      <fates_grperc> 0.16 </fates_grperc>
+      <fates_mort_scalar_coldstress> 2.3 </fates_mort_scalar_coldstress>
+      <fates_mort_freezetol> -89 </fates_mort_freezetol>
+      <fates_frag_seed_decay_rate> 0.35 </fates_frag_seed_decay_rate>
+      <fates_recruit_seed_germination_rate> 0.29 </fates_recruit_seed_germination_rate>
     </pft_group>
     <non_pft_group></non_pft_group>
+
+    <!-- Creates a new 10th column, and separates the two cold-deciduous shrubs-->
+    <!-- into 0.3 for extratropical, and 0.7 for arctic -->
+    <!-- Introduces a 1:1 match for FATES hydro-deciduous shrub and HLM deciduous temperate shrub -->
+    <mods>
+      <mod type="variable_change" name="fates_hlm_pft_map">
+        <di> fates_hlm_pftno, fates_pft </di>
+        <val>  0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0.3, 0.7, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ;
+        </val>
+      </mod>
+    </mods>
 
   </parameters>
 </all>
