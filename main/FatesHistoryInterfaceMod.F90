@@ -2389,7 +2389,7 @@ contains
     real(r8) :: struct_m_net_alloc ! mass allocated to structure [kg/yr]
     real(r8) :: repro_m_net_alloc  ! mass allocated to reproduction [kg/yr]
     real(r8) :: n_perm2            ! abundance per m2
-    real(r8) :: area_frac  ! Fraction of area for this patch
+    real(r8) :: patch_fracarea  ! Fraction of area for this patch
     
     associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
          hio_npatches_sec_si     => this%hvars(ih_npatches_sec_si)%r81d, &
@@ -2685,7 +2685,7 @@ contains
 
             litt => cpatch%litter(element_pos(carbon12_element))
 
-            area_frac = cpatch%area * AREA_INV
+            patch_fracarea = cpatch%area * AREA_INV
 
             ! Sum up all output fluxes (fragmentation) kgC/m2/day -> kgC/m2/s
             hio_litter_out_si(io_si) = hio_litter_out_si(io_si) + &
@@ -2695,29 +2695,29 @@ contains
                  sum(litt%bg_cwd_frag(:,:)) + &
                  sum(litt%seed_decay(:)) + &
                  sum(litt%seed_germ_decay(:))) * &
-                 area_frac * days_per_sec
+                 patch_fracarea * days_per_sec
 
             ! Sum up total seed bank (germinated and ungerminated)
             hio_seed_bank_si(io_si) = hio_seed_bank_si(io_si) + &
                  (sum(litt%seed(:))+sum(litt%seed_germ(:))) * &
-                 area_frac
+                 patch_fracarea
 
             ! Sum up total seed bank (just ungerminated)
             hio_ungerm_seed_bank_si(io_si) = hio_ungerm_seed_bank_si(io_si) + &
-                 sum(litt%seed(:)) * area_frac
+                 sum(litt%seed(:)) * patch_fracarea
 
             ! Sum up total seedling pool  
             hio_seedling_pool_si(io_si) = hio_seedling_pool_si(io_si) + &
-                 sum(litt%seed_germ(:)) * area_frac
+                 sum(litt%seed_germ(:)) * patch_fracarea
 
             ! Sum up the input flux into the seed bank (local and external)
             hio_seeds_in_si(io_si) = hio_seeds_in_si(io_si) + &
                  (sum(litt%seed_in_local(:)) + sum(litt%seed_in_extern(:))) * &
-                 area_frac * days_per_sec
+                 patch_fracarea * days_per_sec
 
             hio_seeds_in_local_si(io_si) = hio_seeds_in_local_si(io_si) + &
                  sum(litt%seed_in_local(:)) * &
-                 area_frac * days_per_sec
+                 patch_fracarea * days_per_sec
 
             ! loop through cohorts on patch
             ccohort => cpatch%shortest
@@ -3058,7 +3058,7 @@ contains
     real(r8) :: n_perm2            ! abundance per m2
     integer  :: ageclass_since_anthrodist  ! what is the equivalent age class for
                                            ! time-since-anthropogenic-disturbance of secondary forest
-    real(r8) :: area_frac  ! Fraction of area for this patch
+    real(r8) :: patch_fracarea  ! Fraction of area for this patch
     real(r8) :: frac_canopy_in_bin  ! fraction of a leaf's canopy that is within a given height bin
     real(r8) :: binbottom,bintop    ! edges of height bins
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
@@ -4633,7 +4633,7 @@ contains
 
                    litt => cpatch%litter(el)
 
-                   area_frac = cpatch%area * AREA_INV
+                   patch_fracarea = cpatch%area * AREA_INV
 
                    ! Sum up all output fluxes (fragmentation)
                    hio_litter_out_elem(io_si,el) = hio_litter_out_elem(io_si,el) + &
