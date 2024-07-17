@@ -5382,7 +5382,7 @@ contains
                   end associate
                endif
 
-!!! canopy leaf carbon balance
+               !!! canopy leaf carbon balance
                ican = ccohort%canopy_layer
                do ileaf=1,ccohort%nv
                   cnlf_indx = ileaf + (ican-1) * nlevleaf
