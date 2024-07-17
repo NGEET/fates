@@ -5190,6 +5190,7 @@ contains
     real(r8) :: aresp       ! autotrophic respiration (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8) :: ageclass_area  ! [m2]
+    real(r8) :: ageclass_canopy_area  ! [m2]
     real(r8) :: canopy_area_by_age(nlevage) ! canopy area in each bin for normalizing purposes
     real(r8) :: site_area_veg_inv           ! 1/area of the site that is not bare-ground 
     integer  :: ipa2     ! patch incrementer
@@ -5256,9 +5257,12 @@ contains
          call this%zero_site_hvars(sites(s), upfreq_in=group_hifr_complx)
          
          site_area_veg_inv = 0._r8
+         canopy_area_by_age(1:nlevage) = 0._r8
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
             site_area_veg_inv = site_area_veg_inv + cpatch%total_canopy_area
+            canopy_area_by_age(cpatch%age_class) = &
+                 canopy_area_by_age(cpatch%age_class) + cpatch%total_canopy_area
             cpatch => cpatch%younger
          end do !patch loop
 
@@ -5271,26 +5275,28 @@ contains
 
          ipa = 0
 
-         canopy_area_by_age(1:nlevage) = 0._r8
-
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
 
             ipa = ipa + 1
+            ageclass_area = sites(s)%area_by_age(cpatch%age_class)
+            ageclass_canopy_area = canopy_area_by_age(cpatch%age_class)
 
-            canopy_area_by_age(cpatch%age_class) = &
-                 canopy_area_by_age(cpatch%age_class) + cpatch%total_canopy_area
+            ! Canopy resistance terms
+            if (ageclass_canopy_area .gt. nearzero) then
+               hio_c_stomata_si_age(io_si,cpatch%age_class) = &
+                    hio_c_stomata_si_age(io_si,cpatch%age_class) + &
+                    cpatch%c_stomata * cpatch%total_canopy_area * mol_per_umol / &
+                    ageclass_canopy_area
 
-
-
-            ! Canopy resitance terms
-            hio_c_stomata_si_age(io_si,cpatch%age_class) = &
-                 hio_c_stomata_si_age(io_si,cpatch%age_class) + &
-                 cpatch%c_stomata * cpatch%total_canopy_area * mol_per_umol
-
-            hio_c_lblayer_si_age(io_si,cpatch%age_class) = &
-                 hio_c_lblayer_si_age(io_si,cpatch%age_class) + &
-                 cpatch%c_lblayer * cpatch%total_canopy_area * mol_per_umol
+               hio_c_lblayer_si_age(io_si,cpatch%age_class) = &
+                    hio_c_lblayer_si_age(io_si,cpatch%age_class) + &
+                    cpatch%c_lblayer * cpatch%total_canopy_area * mol_per_umol / &
+                    ageclass_canopy_area
+            else
+               hio_c_stomata_si_age(io_si,cpatch%age_class) = 0._r8
+               hio_c_lblayer_si_age(io_si,cpatch%age_class) = 0._r8
+            end if
 
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -5337,7 +5343,6 @@ contains
                          ccohort%froot_mr * n_perm2
 
                     ! accumulate fluxes per patch age bin
-                    ageclass_area = sites(s)%area_by_age(cpatch%age_class)
                     if (ageclass_area .gt. nearzero) then
                        hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
                             + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv / ageclass_area
@@ -5575,24 +5580,6 @@ contains
             end if
 
          end do do_ican2
-
-
-         ! Normalize age stratified diagnostics
-         ! ----------------------------------------------------------------
-         do ipa2 = 1, nlevage
-            ! Normalize resistance diagnostics
-            if (canopy_area_by_age(ipa2) .gt. nearzero) then
-               hio_c_stomata_si_age(io_si,ipa2) = &
-                    hio_c_stomata_si_age(io_si,ipa2) / canopy_area_by_age(ipa2)
-
-               hio_c_lblayer_si_age(io_si,ipa2) = &
-                    hio_c_lblayer_si_age(io_si,ipa2) / canopy_area_by_age(ipa2)
-            else
-               hio_c_stomata_si_age(io_si,ipa2) = 0._r8
-               hio_c_lblayer_si_age(io_si,ipa2) = 0._r8
-            end if
-
-         end do
 
       enddo do_sites ! site loop
 
