@@ -3083,6 +3083,7 @@ contains
     real(r8) :: storep_understory_scpf(numpft*nlevsclass)
     real(r8) :: storec_canopy_scpf(numpft*nlevsclass)
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
+    real(r8) :: weight
 
     integer  :: i_dist, j_dist
 
@@ -3406,12 +3407,20 @@ contains
                 end if
                    
                 ! Increment some patch-age-resolved diagnostics
-                hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
-                     + sum(cpatch%tlai_profile(:,:,:) * cpatch%canopy_area_profile(:,:,:) ) * cpatch%total_canopy_area
-                
-                hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
-                     + cpatch%ncl_p * cpatch%area
-                
+                if (sites(s)%area_by_age(cpatch%age_class) .gt. nearzero) then
+                   weight = cpatch%total_canopy_area / sites(s)%area_by_age(cpatch%age_class)
+                   hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
+                        + sum(cpatch%tlai_profile(:,:,:) * cpatch%canopy_area_profile(:,:,:) ) &
+                        * weight
+
+                   weight = cpatch%area / sites(s)%area_by_age(cpatch%age_class)
+                   hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
+                        + cpatch%ncl_p * weight
+                else
+                   hio_lai_si_age(io_si,cpatch%age_class) = 0._r8
+                   hio_ncl_si_age(io_si,cpatch%age_class) = 0._r8
+                end if
+
                 hio_npatches_si_age(io_si,cpatch%age_class) = hio_npatches_si_age(io_si,cpatch%age_class) + 1._r8
 
 
@@ -4306,17 +4315,11 @@ contains
              ! variables by patch-age-class area to get mean values
              do ipa2 = 1, nlevage
                 if (sites(s)%area_by_age(ipa2) .gt. nearzero) then
-                   hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / sites(s)%area_by_age(ipa2)
-                   hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / sites(s)%area_by_age(ipa2)
                    do ft = 1, numpft
                       iagepft = ipa2 + (ft-1) * nlevage
                       hio_scorch_height_si_agepft(io_si, iagepft) = &
                            hio_scorch_height_si_agepft(io_si, iagepft) / sites(s)%area_by_age(ipa2)
                    enddo
-                else
-                   hio_lai_si_age(io_si, ipa2) = 0._r8
-                   hio_ncl_si_age(io_si, ipa2) = 0._r8
-                endif
              end do
 
 
