@@ -358,7 +358,7 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_primaryland_fusion_error_si
 
-  integer :: ih_area_si_landuse
+  integer :: ih_fracarea_si_landuse
   integer :: ih_disturbance_rate_si_lulu
   integer :: ih_transition_matrix_si_lulu
   
@@ -648,7 +648,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_seeds_in_gc_si_pft
 
   ! indices to (site x patch-age) variables
-  integer :: ih_area_si_age
+  integer :: ih_fracarea_si_age
   integer :: ih_lai_si_age
   integer :: ih_canopy_area_si_age
   integer :: ih_gpp_si_age
@@ -3258,7 +3258,7 @@ contains
            hio_scorch_height_si_agepft          => this%hvars(ih_scorch_height_si_agepft)%r82d, &
            hio_yesterdaycanopylevel_canopy_si_scls     => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
            hio_yesterdaycanopylevel_understory_si_scls => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
-           hio_area_si_age         => this%hvars(ih_area_si_age)%r82d, &
+           hio_fracarea_si_age         => this%hvars(ih_fracarea_si_age)%r82d, &
            hio_lai_si_age          => this%hvars(ih_lai_si_age)%r82d, &
            hio_canopy_area_si_age  => this%hvars(ih_canopy_area_si_age)%r82d, &
            hio_ncl_si_age          => this%hvars(ih_ncl_si_age)%r82d, &
@@ -3267,7 +3267,7 @@ contains
            hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
            hio_agesince_anthrodist_si_age     => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
            hio_secondarylands_area_si_age    => this%hvars(ih_secondarylands_area_si_age)%r82d, &
-           hio_area_si_landuse     => this%hvars(ih_area_si_landuse)%r82d, &
+           hio_fracarea_si_landuse     => this%hvars(ih_fracarea_si_landuse)%r82d, &
            hio_area_burnt_si_age              => this%hvars(ih_area_burnt_si_age)%r82d, &
                                 ! hio_fire_rate_of_spread_front_si_age  => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
            hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
@@ -3395,13 +3395,13 @@ contains
                 cpatch%age_class  = get_age_class_index(cpatch%age)
 
                 ! Increment the fractional area in each age class bin
-                hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
+                hio_fracarea_si_age(io_si,cpatch%age_class) = hio_fracarea_si_age(io_si,cpatch%age_class) &
                      + cpatch%area * AREA_INV
 
                 ! ignore land use info on nocomp bareground (where landuse label = 0)
                 if (cpatch%land_use_label .gt. nocomp_bareground_land) then 
-                   hio_area_si_landuse(io_si, cpatch%land_use_label) = &
-                        hio_area_si_landuse(io_si, cpatch%land_use_label) &
+                   hio_fracarea_si_landuse(io_si, cpatch%land_use_label) = &
+                        hio_fracarea_si_landuse(io_si, cpatch%land_use_label) &
                         + cpatch%area * AREA_INV
                 end if
                    
@@ -4305,13 +4305,13 @@ contains
              ! divide so-far-just-summed but to-be-averaged patch-age-class
              ! variables by patch-age-class area to get mean values
              do ipa2 = 1, nlevage
-                if (hio_area_si_age(io_si, ipa2) .gt. nearzero) then
-                   hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
-                   hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_area_si_age(io_si, ipa2)*AREA)
+                if (hio_fracarea_si_age(io_si, ipa2) .gt. nearzero) then
+                   hio_lai_si_age(io_si, ipa2) = hio_lai_si_age(io_si, ipa2) / (hio_fracarea_si_age(io_si, ipa2)*AREA)
+                   hio_ncl_si_age(io_si, ipa2) = hio_ncl_si_age(io_si, ipa2) / (hio_fracarea_si_age(io_si, ipa2)*AREA)
                    do ft = 1, numpft
                       iagepft = ipa2 + (ft-1) * nlevage
                       hio_scorch_height_si_agepft(io_si, iagepft) = &
-                           hio_scorch_height_si_agepft(io_si, iagepft) / (hio_area_si_age(io_si, ipa2)*AREA)
+                           hio_scorch_height_si_agepft(io_si, iagepft) / (hio_fracarea_si_age(io_si, ipa2)*AREA)
                    enddo
                 else
                    hio_lai_si_age(io_si, ipa2) = 0._r8
@@ -6794,7 +6794,7 @@ contains
           call this%set_history_var(vname='FATES_PATCHAREA_LU', units='m2 m-2',      &
                long='patch area by land use type', use_default='active',  &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
-               ivar=ivar, initialize=initialize_variables, index=ih_area_si_landuse)
+               ivar=ivar, initialize=initialize_variables, index=ih_fracarea_si_landuse)
           
           call this%set_history_var(vname='FATES_TRANSITION_MATRIX_LULU', units='m2 m-2 yr-1',      &
                long='land use transition matrix', use_default='active',  &
@@ -6977,7 +6977,7 @@ contains
           call this%set_history_var(vname='FATES_PATCHAREA_AP', units='m2 m-2',      &
                long='patch area by age bin per m2 land area', use_default='active',  &
                avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,  &
-               initialize=initialize_variables, index=ih_area_si_age)
+               initialize=initialize_variables, index=ih_fracarea_si_age)
 
           call this%set_history_var(vname='FATES_LAI_AP', units='m2 m-2',            &
                long='total leaf area index by age bin per m2 land area',                   &
