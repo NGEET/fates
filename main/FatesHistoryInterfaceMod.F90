@@ -3084,6 +3084,7 @@ contains
     real(r8) :: storec_canopy_scpf(numpft*nlevsclass)
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
     real(r8) :: weight
+    real(r8) :: age_class_area  ! [m2]
 
     integer  :: i_dist, j_dist
 
@@ -3394,6 +3395,7 @@ contains
 
 
                 cpatch%age_class  = get_age_class_index(cpatch%age)
+                age_class_area = sites(s)%area_by_age(cpatch%age_class)
 
                 ! Increment the fractional area in each age class bin
                 hio_fracarea_si_age(io_si,cpatch%age_class) = hio_fracarea_si_age(io_si,cpatch%age_class) &
@@ -3407,13 +3409,13 @@ contains
                 end if
                    
                 ! Increment some patch-age-resolved diagnostics
-                if (sites(s)%area_by_age(cpatch%age_class) .gt. nearzero) then
-                   weight = cpatch%total_canopy_area / sites(s)%area_by_age(cpatch%age_class)
+                if (age_class_area .gt. nearzero) then
+                   weight = cpatch%total_canopy_area / age_class_area
                    hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
                         + sum(cpatch%tlai_profile(:,:,:) * cpatch%canopy_area_profile(:,:,:) ) &
                         * weight
 
-                   weight = cpatch%area / sites(s)%area_by_age(cpatch%age_class)
+                   weight = cpatch%area / age_class_area
                    hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
                         + cpatch%ncl_p * weight
                 else
@@ -3451,9 +3453,9 @@ contains
                    ! for scorch height, weight the value by patch area within any
                    ! given age class - in the event that there is more than one
                    ! patch per age class.
-                   if (sites(s)%area_by_age(cpatch%age_class) .gt. nearzero) then
+                   if (age_class_area .gt. nearzero) then
                       iagepft = cpatch%age_class + (ft-1) * nlevage
-                      weight = cpatch%area / sites(s)%area_by_age(cpatch%age_class)
+                      weight = cpatch%area / age_class_area
                       hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
                            cpatch%Scorch_ht(ft) * weight
                    else
