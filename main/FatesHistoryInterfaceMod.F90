@@ -3404,9 +3404,9 @@ contains
                 age_class_area = sites(s)%area_by_age(cpatch%age_class)
 
                 ! Get denominators for non-site-level variables
-                scag_denominator_area = m2_per_ha
-                scagpft_denominator_area = m2_per_ha
-                apfc_denominator_area = AREA
+                scag_denominator_area = age_class_area
+                scagpft_denominator_area = age_class_area
+                apfc_denominator_area = age_class_area
 
                 ! Increment the fractional area in each age class bin
                 hio_fracarea_si_age(io_si,cpatch%age_class) = hio_fracarea_si_age(io_si,cpatch%age_class) &
