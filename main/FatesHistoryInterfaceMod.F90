@@ -3089,6 +3089,7 @@ contains
     real(r8) :: denominator
     real(r8) :: age_class_area  ! [m2]
     real(r8) :: scag_denominator_area  ! Denominator for variables partitioned by size and age class [m2]
+    real(r8) :: scagpft_denominator_area  ! Denominator for variables partitioned by size class, age class, and PFT [m2]
     real(r8) :: apfc_denominator_area  ! Denominator for variables partitioned by age and fuel class [m2]
 
     integer  :: i_dist, j_dist
@@ -3404,6 +3405,7 @@ contains
 
                 ! Get denominators for non-site-level variables
                 scag_denominator_area = m2_per_ha
+                scagpft_denominator_area = m2_per_ha
                 apfc_denominator_area = AREA
 
                 ! Increment the fractional area in each age class bin
@@ -3971,7 +3973,7 @@ contains
                         ! update size, age, and PFT - indexed quantities
                         iscagpft = get_sizeagepft_class_index(ccohort%dbh,cpatch%age,ccohort%pft)
 
-                        hio_nplant_si_scagpft(io_si,iscagpft) = hio_nplant_si_scagpft(io_si,iscagpft) + ccohort%n / m2_per_ha
+                        hio_nplant_si_scagpft(io_si,iscagpft) = hio_nplant_si_scagpft(io_si,iscagpft) + ccohort%n / scagpft_denominator_area
 
                         ! update age and PFT - indexed quantities
                         iagepft = get_agepft_class_index(cpatch%age,ccohort%pft)
