@@ -3971,10 +3971,10 @@ contains
                         iagepft = get_agepft_class_index(cpatch%age,ccohort%pft)
 
                         hio_npp_si_agepft(io_si,iagepft) = hio_npp_si_agepft(io_si,iagepft) + &
-                             ccohort%n * ccohort%npp_acc_hold * AREA_INV / days_per_year / sec_per_day
+                             ccohort%n * ccohort%npp_acc_hold / age_class_area / days_per_year / sec_per_day
 
                         hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) + &
-                             total_m * ccohort%n * AREA_INV
+                             total_m * ccohort%n / age_class_area
 
                         ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
                         canlayer: if (ccohort%canopy_layer .eq. 1) then
