@@ -3441,12 +3441,18 @@ contains
 
                    ageclass_since_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
 
-                   ageclass_fracarea = cpatch%area * AREA_INV  ! WRONG; should be: cpatch%area / sites(s)%age_class_area(ageclass_since_anthrodist)
+                   ! The value for each age class is the fraction of the site that is secondary land
+                   ! of that age class. So summing across age classes in the output file should give
+                   ! you the fraction of each site that's secondary land. If instead we want this to
+                   ! sum to 1 (so that each age class gives the fraction of secondary land in the
+                   ! age class), then instead of multiplying by AREA_INV, divide by total secondary
+                   ! land area.
+                   ageclass_fracarea = cpatch%area * AREA_INV
+
                    hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist) = &
                         hio_agesince_anthrodist_si_age(io_si,ageclass_since_anthrodist)  &
                         + ageclass_fracarea
 
-                   ageclass_fracarea = cpatch%area * AREA_INV  ! WRONG; should be: cpatch%area / age_class_area
                    hio_secondarylands_fracarea_si_age(io_si,cpatch%age_class) = &
                         hio_secondarylands_fracarea_si_age(io_si,cpatch%age_class) &
                         + ageclass_fracarea
