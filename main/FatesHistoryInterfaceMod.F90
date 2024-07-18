@@ -3089,6 +3089,7 @@ contains
     real(r8) :: denominator
     real(r8) :: age_class_area  ! [m2]
     real(r8) :: scag_denominator_area  ! Denominator for variables partitioned by size and age class [m2]
+    real(r8) :: apfc_denominator_area  ! Denominator for variables partitioned by age and fuel class [m2]
 
     integer  :: i_dist, j_dist
 
@@ -3403,6 +3404,7 @@ contains
 
                 ! Get denominators for non-site-level variables
                 scag_denominator_area = m2_per_ha
+                apfc_denominator_area = AREA
 
                 ! Increment the fractional area in each age class bin
                 hio_fracarea_si_age(io_si,cpatch%age_class) = hio_fracarea_si_age(io_si,cpatch%age_class) &
@@ -4294,7 +4296,7 @@ contains
 
                    i_agefuel = get_agefuel_class_index(cpatch%age,i_fuel)
                    hio_fuel_amount_age_fuel(io_si,i_agefuel) = hio_fuel_amount_age_fuel(io_si,i_agefuel) + &
-                        cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * cpatch%area * AREA_INV
+                        cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * cpatch%area / apfc_denominator_area
 
                    hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
                         cpatch%litter_moisture(i_fuel) * cpatch%area * AREA_INV
