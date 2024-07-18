@@ -3088,6 +3088,7 @@ contains
     real(r8) :: weight
     real(r8) :: denominator
     real(r8) :: age_class_area  ! [m2]
+    real(r8) :: scag_denominator_area  ! Denominator for variables partitioned by size and age class [m2]
 
     integer  :: i_dist, j_dist
 
@@ -3399,6 +3400,9 @@ contains
 
                 cpatch%age_class  = get_age_class_index(cpatch%age)
                 age_class_area = sites(s)%area_by_age(cpatch%age_class)
+
+                ! Get denominators for non-site-level variables
+                scag_denominator_area = m2_per_ha
 
                 ! Increment the fractional area in each age class bin
                 hio_fracarea_si_age(io_si,cpatch%age_class) = hio_fracarea_si_age(io_si,cpatch%age_class) &
@@ -3957,7 +3961,7 @@ contains
 
                         iscag = get_sizeage_class_index(ccohort%dbh,cpatch%age)
 
-                        hio_nplant_si_scag(io_si,iscag) = hio_nplant_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
+                        hio_nplant_si_scag(io_si,iscag) = hio_nplant_si_scag(io_si,iscag) + ccohort%n / scag_denominator_area
 
                         hio_nplant_si_scls(io_si,scls) = hio_nplant_si_scls(io_si,scls) + ccohort%n / m2_per_ha
 
@@ -3978,12 +3982,12 @@ contains
 
                         ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
                         canlayer: if (ccohort%canopy_layer .eq. 1) then
-                           hio_nplant_canopy_si_scag(io_si,iscag) = hio_nplant_canopy_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
+                           hio_nplant_canopy_si_scag(io_si,iscag) = hio_nplant_canopy_si_scag(io_si,iscag) + ccohort%n / scag_denominator_area
                            hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
                                 (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
                                 ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * ccohort%n / m2_per_ha
                            hio_ddbh_canopy_si_scag(io_si,iscag) = hio_ddbh_canopy_si_scag(io_si,iscag) + &
-                                ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
+                                ccohort%ddbhdt*ccohort%n * m_per_cm / scag_denominator_area
                            hio_bstor_canopy_si_scpf(io_si,scpf) = hio_bstor_canopy_si_scpf(io_si,scpf) + &
                                 store_m * ccohort%n / m2_per_ha
                            hio_bleaf_canopy_si_scpf(io_si,scpf) = hio_bleaf_canopy_si_scpf(io_si,scpf) + &
@@ -4104,12 +4108,12 @@ contains
 
 
                         else canlayer
-                           hio_nplant_understory_si_scag(io_si,iscag) = hio_nplant_understory_si_scag(io_si,iscag) + ccohort%n / m2_per_ha
+                           hio_nplant_understory_si_scag(io_si,iscag) = hio_nplant_understory_si_scag(io_si,iscag) + ccohort%n / scag_denominator_area
                            hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
                                 (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
                                 ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * ccohort%n / m2_per_ha
                            hio_ddbh_understory_si_scag(io_si,iscag) = hio_ddbh_understory_si_scag(io_si,iscag) + &
-                                ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
+                                ccohort%ddbhdt*ccohort%n * m_per_cm / scag_denominator_area
                            hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
                                 store_m * ccohort%n / m2_per_ha
                            hio_bleaf_understory_si_scpf(io_si,scpf) = hio_bleaf_understory_si_scpf(io_si,scpf) + &
@@ -4456,9 +4460,9 @@ contains
                    ! for scag variables, also treat as happening in the newly-disurbed patch
 
                    hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
-                        sites(s)%fmort_rate_canopy(i_scls, ft) / m2_per_ha
+                        sites(s)%fmort_rate_canopy(i_scls, ft) / scag_denominator_area
                    hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                        sites(s)%fmort_rate_ustory(i_scls, ft) / m2_per_ha
+                        sites(s)%fmort_rate_ustory(i_scls, ft) / scag_denominator_area
 
                    ! while in this loop, pass the fusion-induced growth rate flux to history
                    hio_growthflux_fusion_si_scpf(io_si,i_scpf) = hio_growthflux_fusion_si_scpf(io_si,i_scpf) + &
