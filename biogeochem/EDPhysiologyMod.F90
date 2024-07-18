@@ -34,7 +34,6 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : mpa_per_mm_suction
   use FatesConstantsMod, only    : g_per_kg
   use FatesConstantsMod, only    : ndays_per_year
-  use FatesConstantsMod, only    : nocomp_bareground
   use FatesConstantsMod, only    : nocomp_bareground_land
   use FatesConstantsMod, only    : is_crop
   use FatesConstantsMod, only    : area_error_2
@@ -3156,44 +3155,40 @@ contains
     catanf(t1) = 11.75_r8 +(29.7_r8 / pi) * atan( pi * 0.031_r8  * ( t1 - 15.4_r8 ))
     catanf_30 = catanf(30._r8)
 
-    if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then
-
-       ! Use the hlm temp and moisture decomp fractions by default
-       if ( use_hlm_soil_scalar ) then
-
-         ! Calculate the fragmentation_scaler
-         currentPatch%fragmentation_scaler =  min(1.0_r8,max(0.0_r8,bc_in%t_scalar_sisl * bc_in%w_scalar_sisl))
-
-       else
-
-         if ( .not. use_century_tfunc ) then
-            !calculate rate constant scalar for soil temperature,assuming that the base rate constants
-            !are assigned for non-moisture limiting conditions at 25C.
-            if (currentPatch%tveg24%GetMean()  >=  tfrz) then
-               t_scalar = q10_mr**((currentPatch%tveg24%GetMean()-(tfrz+25._r8))/10._r8)
-               !  Q10**((t_soisno(c,j)-(tfrz+25._r8))/10._r8)
-            else
-               t_scalar = (q10_mr**(-25._r8/10._r8))*(q10_froz**((currentPatch%tveg24%GetMean()-tfrz)/10._r8))
-               !  Q10**(-25._r8/10._r8))*(froz_q10**((t_soisno(c,j)-tfrz)/10._r8)
-            endif
-         else
-            ! original century uses an arctangent function to calculate the
-            ! temperature dependence of decomposition
-            t_scalar = max(catanf(currentPatch%tveg24%GetMean()-tfrz)/catanf_30,0.01_r8)
-         endif
-
-         !Moisture Limitations
-         !BTRAN APPROACH - is quite simple, but max's out decomp at all unstressed
-         !soil moisture values, which is not realistic.
-         !litter decomp is proportional to water limitation on average...
-         w_scalar = sum(currentPatch%btran_ft(1:numpft))/real(numpft,r8)
+    ! Use the hlm temp and moisture decomp fractions by default
+    if ( use_hlm_soil_scalar ) then
 
        ! Calculate the fragmentation_scaler
-         currentPatch%fragmentation_scaler(:) =  min(1.0_r8,max(0.0_r8,t_scalar * w_scalar))
+       currentPatch%fragmentation_scaler =  min(1.0_r8,max(0.0_r8,bc_in%t_scalar_sisl * bc_in%w_scalar_sisl))
 
-      endif ! scalar
+    else
 
-    endif ! not bare ground
+       if ( .not. use_century_tfunc ) then
+          !calculate rate constant scalar for soil temperature,assuming that the base rate constants
+          !are assigned for non-moisture limiting conditions at 25C.
+          if (currentPatch%tveg24%GetMean()  >=  tfrz) then
+             t_scalar = q10_mr**((currentPatch%tveg24%GetMean()-(tfrz+25._r8))/10._r8)
+             !  Q10**((t_soisno(c,j)-(tfrz+25._r8))/10._r8)
+          else
+             t_scalar = (q10_mr**(-25._r8/10._r8))*(q10_froz**((currentPatch%tveg24%GetMean()-tfrz)/10._r8))
+             !  Q10**(-25._r8/10._r8))*(froz_q10**((t_soisno(c,j)-tfrz)/10._r8)
+          endif
+       else
+          ! original century uses an arctangent function to calculate the
+          ! temperature dependence of decomposition
+          t_scalar = max(catanf(currentPatch%tveg24%GetMean()-tfrz)/catanf_30,0.01_r8)
+       endif
+
+       !Moisture Limitations
+       !BTRAN APPROACH - is quite simple, but max's out decomp at all unstressed
+       !soil moisture values, which is not realistic.
+       !litter decomp is proportional to water limitation on average...
+       w_scalar = sum(currentPatch%btran_ft(1:numpft))/real(numpft,r8)
+
+       ! Calculate the fragmentation_scaler
+       currentPatch%fragmentation_scaler(:) =  min(1.0_r8,max(0.0_r8,t_scalar * w_scalar))
+
+    endif ! scalar
 
   end subroutine fragmentation_scaler
 

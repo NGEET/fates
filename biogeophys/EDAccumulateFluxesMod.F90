@@ -13,8 +13,6 @@ module EDAccumulateFluxesMod
   use FatesGlobals, only      : fates_log
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   use FatesConstantsMod , only : r8 => fates_r8
-  use FatesConstantsMod , only : nocomp_bareground
-
 
   implicit none
   private
@@ -70,50 +68,49 @@ contains
        
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
-          if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
-             ifp = ifp+1
 
-             if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
-                ccohort => cpatch%shortest
-                do while(associated(ccohort))
+          ifp = ifp+1
 
-                   ! Accumulate fluxes from hourly to daily values. 
-                   ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
-
-                   if ( debug ) then
-
-                      write(fates_log(),*) 'EDAccumFlux 64 ',ccohort%npp_tstep
-                      write(fates_log(),*) 'EDAccumFlux 66 ',ccohort%gpp_tstep
-                      write(fates_log(),*) 'EDAccumFlux 67 ',ccohort%resp_tstep
-
-                   endif
-
-                   ccohort%npp_acc  = ccohort%npp_acc  + ccohort%npp_tstep 
-                   ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
-                   ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
-
-                   ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
+          if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
+             ccohort => cpatch%shortest
+             do while(associated(ccohort))
+                
+                ! Accumulate fluxes from hourly to daily values. 
+                ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
+                
+                if ( debug ) then
                    
-                   ! weighted mean of D13C by gpp
-                   if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
-                      ccohort%c13disc_acc = 0.0_r8
-                   else
-                      ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + &
-                           (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
-                           (ccohort%gpp_acc + ccohort%gpp_tstep)
-                   endif
-
-                   do iv=1,ccohort%nv
-                      if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 
-                         ccohort%year_net_uptake(iv) = 0._r8
-                      end if
-                      ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + ccohort%ts_net_uptake(iv)
-                   enddo
-
-                   ccohort => ccohort%taller
-                enddo ! while(associated(ccohort))
-             end if
-          end if ! not bare ground
+                   write(fates_log(),*) 'EDAccumFlux 64 ',ccohort%npp_tstep
+                   write(fates_log(),*) 'EDAccumFlux 66 ',ccohort%gpp_tstep
+                   write(fates_log(),*) 'EDAccumFlux 67 ',ccohort%resp_tstep
+                   
+                endif
+                
+                ccohort%npp_acc  = ccohort%npp_acc  + ccohort%npp_tstep 
+                ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
+                ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
+                
+                ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
+                
+                ! weighted mean of D13C by gpp
+                if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
+                   ccohort%c13disc_acc = 0.0_r8
+                else
+                   ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + &
+                        (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
+                        (ccohort%gpp_acc + ccohort%gpp_tstep)
+                endif
+                
+                do iv=1,ccohort%nv
+                   if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 
+                      ccohort%year_net_uptake(iv) = 0._r8
+                   end if
+                   ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + ccohort%ts_net_uptake(iv)
+                enddo
+                
+                ccohort => ccohort%taller
+             enddo ! while(associated(ccohort))
+          end if
           cpatch => cpatch%younger
        end do  ! while(associated(cpatch))
     end do
