@@ -3431,7 +3431,7 @@ contains
 
 
                 if ( ED_val_comp_excln .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
-                   weight = cpatch%area * AREA_INV  ! WRONG; should be: cpatch%area / age_class_area
+                   weight = cpatch%area / age_class_area
                    hio_zstar_si_age(io_si,cpatch%age_class) = hio_zstar_si_age(io_si,cpatch%age_class) &
                         + cpatch%zstar * weight
                 endif
@@ -3484,7 +3484,7 @@ contains
                 end do
 
                 ! Weight for the following per-age-class fire variables
-                weight = cpatch%area * AREA_INV  ! WRONG; should be: cpatch%area / age_class_area
+                weight = cpatch%area / age_class_area
 
                 ! fractional area burnt [frac/day] -> [frac/sec]
                 hio_area_burnt_si_age(io_si,cpatch%age_class) = hio_area_burnt_si_age(io_si,cpatch%age_class) + &
@@ -3519,7 +3519,7 @@ contains
 
                    n_perm2 = ccohort%n * AREA_INV
 
-                   ageclass_canopy_fracarea = ccohort%c_area * AREA_INV  ! WRONG; *AREA_INV should be /age_class_area
+                   ageclass_canopy_fracarea = ccohort%c_area / age_class_area
                    hio_canopy_area_si_age(io_si,cpatch%age_class) = hio_canopy_area_si_age(io_si,cpatch%age_class) &
                         + ageclass_canopy_fracarea
 
@@ -3615,7 +3615,7 @@ contains
 
                          ! update total biomass per age bin
                          hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
-                              + total_m * ccohort%n * AREA_INV  ! Wrong; *AREA_INV should be /age_class_area
+                              + total_m * ccohort%n / age_class_area
 
                          if (ccohort%canopy_layer .eq. 1) then
                             storec_canopy_scpf(i_scpf) = &
