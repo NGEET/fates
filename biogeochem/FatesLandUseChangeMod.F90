@@ -15,6 +15,7 @@ module FatesLandUseChangeMod
   use FatesInterfaceTypesMod    , only : hlm_use_luh
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_states
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
+  use FatesInterfaceTypesMod    , only : hlm_use_potentialveg
   use FatesUtilsMod             , only : FindIndex
   use EDTypesMod                , only : area_site => area
 
@@ -27,11 +28,12 @@ module FatesLandUseChangeMod
 
   character(len=*), parameter :: sourcefile = __FILE__
 
-  public :: get_landuse_transition_rates
-  public :: get_landusechange_rules
-  public :: get_luh_statedata
+  public :: GetLanduseTransitionRates
+  public :: GetLanduseChangeRules
+  public :: GetLUHStatedata
+  public :: GetInitLanduseTransitionRates
+  public :: GetInitLanduseHarvestRate
   public :: fates_grazing
-
 
   ! module data
   integer, parameter :: max_luh2_types_per_fates_lu_type = 5
@@ -61,16 +63,19 @@ module FatesLandUseChangeMod
 contains
 
   ! ============================================================================
-  subroutine get_landuse_transition_rates(bc_in, landuse_transition_matrix)
+  subroutine GetLanduseTransitionRates(bc_in, min_allowed_landuse_fraction, landuse_transition_matrix, &
+       landuse_vector_gt_min)
 
 
-    ! The purpose of this routine is to ingest the land use transition rate information that the host model has read in from a dataset,
-    ! aggregate land use types to those being used in the simulation, and output a transition matrix that can be used to drive patch
-    ! disturbance rates.
+    ! The purpose of this routine is to ingest the land use transition rate information that the host
+    ! model has read in from a dataset,aggregate land use types to those being used in the simulation,
+    ! and output a transition matrix that can be used to drive patch disturbance rates.
 
     ! !ARGUMENTS:
     type(bc_in_type) , intent(in) :: bc_in
-    real(r8), intent(inout) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
+    real(r8), intent(in)          :: min_allowed_landuse_fraction
+    real(r8), intent(inout)       :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
+    logical,  intent(inout)       :: landuse_vector_gt_min(n_landuse_cats)
 
     ! !LOCAL VARIABLES:
     type(luh2_fates_lutype_map) :: lumap
@@ -80,42 +85,67 @@ contains
     real(r8) :: urban_fraction
     real(r8) :: temp_vector(hlm_num_luh2_transitions)
     logical  :: modified_flag
+    real(r8) :: state_vector(n_landuse_cats)  ! [m2/m2]
+    integer  :: i_lu
 
     ! zero the transition matrix and the urban fraction
     landuse_transition_matrix(:,:) = 0._r8
     urban_fraction = 0._r8
 
-    ! Check the LUH data incoming to see if any of the transitions are NaN
-    temp_vector = bc_in%hlm_luh_transitions
-    call CheckLUHData(temp_vector,modified_flag)
-    if (.not. modified_flag) then
-       ! identify urban fraction so that it can be factored into the land use state output
-       urban_fraction = bc_in%hlm_luh_states(FindIndex(bc_in%hlm_luh_state_names,'urban'))
+    ! if we are using potential veg only, then keep all transitions equal to zero.
+    if (hlm_use_potentialveg .eq. ifalse) then
+
+       ! Check the LUH data incoming to see if any of the transitions are NaN
+       temp_vector = bc_in%hlm_luh_transitions
+       call CheckLUHData(temp_vector,modified_flag)
+       if (.not. modified_flag) then
+          ! identify urban fraction so that it can be factored into the land use state output
+          urban_fraction = bc_in%hlm_luh_states(FindIndex(bc_in%hlm_luh_state_names,'urban'))
+       end if
+
+       !! TODO: may need some logic here to ask whether or not ot perform land use change on this timestep.
+       !! current code occurs every day. If not doing transition every day, need to update units.
+
+       transitions_loop: do i_luh2_transitions = 1, hlm_num_luh2_transitions
+
+          ! transition names are written in form xxxxx_to_yyyyy where x and y are donor and receiver state names
+          transition_name = bc_in%hlm_luh_transition_names(i_luh2_transitions)
+          donor_name = transition_name(1:5)
+          receiver_name = transition_name(10:14)
+
+          ! Get the fates land use type index associated with the luh2 state types
+          i_donor= lumap%GetIndex(donor_name)
+          i_receiver = lumap%GetIndex(receiver_name)
+
+          ! Avoid transitions with 'urban' as those are handled seperately
+          ! Also ignore diagonal elements of transition matrix.
+          if (.not.(i_donor .eq. fates_unset_int .or. i_receiver .eq. fates_unset_int .or. &
+               i_donor .eq. i_receiver)) then
+             landuse_transition_matrix(i_donor,i_receiver) = &
+                  landuse_transition_matrix(i_donor,i_receiver) +  temp_vector(i_luh2_transitions) &
+                  * years_per_day / (1._r8 - urban_fraction)
+
+          end if
+       end do transitions_loop
+
+       ! zero all transitions where the receiving land use type state vector is less than the minimum allowed,
+       ! and otherwise if this is the first timestep where the minimum was exceeded,
+       ! then apply all transitions from primary to this type and reset the flag
+       ! note that the flag resetting should not happen for secondary lands, as this is handled in the
+       ! logging logic
+       call GetLUHStatedata(bc_in, state_vector)
+       do i_lu = secondaryland, n_landuse_cats
+          if ( state_vector(i_lu) .le. min_allowed_landuse_fraction ) then
+             landuse_transition_matrix(:,i_lu) = 0._r8
+          else if ((.not. landuse_vector_gt_min(i_lu)) .and. (i_lu .ne. secondaryland)) then
+             landuse_transition_matrix(:,i_lu) = 0._r8
+             landuse_transition_matrix(primaryland,i_lu) = state_vector(i_lu)
+             landuse_vector_gt_min(i_lu) = .true.
+          end if
+       end do
     end if
 
-    !!TODO: may need some logic here to ask whether or not ot perform land use change on this timestep. current code occurs every day.
-    !!If not doing transition every day, need to update units.
-
-    transitions_loop: do i_luh2_transitions = 1, hlm_num_luh2_transitions
-
-       ! transition names are written in form xxxxx_to_yyyyy where x and y are donor and receiver state names
-       transition_name = bc_in%hlm_luh_transition_names(i_luh2_transitions)
-       donor_name = transition_name(1:5)
-       receiver_name = transition_name(10:14)
-
-       ! Get the fates land use type index associated with the luh2 state types
-       i_donor= lumap%GetIndex(donor_name)
-       i_receiver = lumap%GetIndex(receiver_name)
-
-       ! Avoid transitions with 'urban' as those are handled seperately
-       if (.not.(i_donor .eq. fates_unset_int .or. i_receiver .eq. fates_unset_int)) then
-          landuse_transition_matrix(i_donor,i_receiver) = &
-               landuse_transition_matrix(i_donor,i_receiver) +  temp_vector(i_luh2_transitions) * years_per_day / (1._r8 - urban_fraction)
-
-       end if
-    end do transitions_loop
-
-  end subroutine get_landuse_transition_rates
+  end subroutine GetLanduseTransitionRates
 
   !----------------------------------------------------------------------------------------------------
 
@@ -143,18 +173,20 @@ contains
 
   !----------------------------------------------------------------------------------------------------
 
-  subroutine get_landusechange_rules(clearing_matrix)
+  subroutine GetLanduseChangeRules(clearing_matrix)
 
-    ! the purpose of this is to define a ruleset for when to clear the vegetation in transitioning from one land use type to another
+    ! the purpose of this is to define a ruleset for when to clear the vegetation in transitioning
+    ! from one land use type to another
 
     logical, intent(out) :: clearing_matrix(n_landuse_cats,n_landuse_cats)
     
-    ! default value of ruleset 4 above means that plants are not cleared during land use change transitions to rangeland, whereas plants are
-    ! cleared in transitions to pasturelands and croplands.
-    integer, parameter    :: ruleset = 4   ! ruleset to apply from table 1 of Ma et al (2020) https://doi.org/10.5194/gmd-13-3203-2020
+    ! default value of ruleset 4 above means that plants are not cleared during land use change
+    ! transitions to rangeland, whereas plants are cleared in transitions to pasturelands and croplands.
+    integer, parameter    :: ruleset = 4   ! ruleset to apply from table 1 of Ma et al (2020)
+    ! https://doi.org/10.5194/gmd-13-3203-2020
 
-    ! clearing matrix applies from the donor to the receiver land use type of the newly-transferred patch area
-    ! values of clearing matrix: false => do not clear; true => clear
+    ! clearing matrix applies from the donor to the receiver land use type of the newly-transferred
+    ! patch area values of clearing matrix: false => do not clear; true => clear
 
     clearing_matrix(:,:) = .false.
 
@@ -162,8 +194,10 @@ contains
 
     case(1)
 
-       ! note that this ruleset isnt exactly what is in Ma et al. rulesets 1 and 2, because FATES does not make the distinction
-       ! between forested and non-forested lands from a land use/land cover perspective.
+       ! note that this ruleset isnt exactly what is in Ma et al. rulesets 1 and 2, because FATES
+       ! does not make the distinction between forested and non-forested lands from a land use/land
+       ! cover perspective.
+
        clearing_matrix(:,cropland) = .true.
        clearing_matrix(:,pastureland) = .true.
        clearing_matrix(primaryland,rangeland) = .true.
@@ -228,11 +262,11 @@ contains
 
     end select
 
-  end subroutine get_landusechange_rules
+  end subroutine GetLanduseChangeRules
 
   !----------------------------------------------------------------------------------------------------
 
-  subroutine get_luh_statedata(bc_in, state_vector)
+  subroutine GetLUHStatedata(bc_in, state_vector)
 
     type(bc_in_type) , intent(in) :: bc_in
     real(r8), intent(out) :: state_vector(n_landuse_cats)  ! [m2/m2]
@@ -250,36 +284,45 @@ contains
     state_vector(:) = 0._r8
     urban_fraction = 0._r8
 
-    ! Check to see if the incoming state vector is NaN.
-    temp_vector = bc_in%hlm_luh_states
-    call CheckLUHData(temp_vector,modified_flag)
-    if (.not. modified_flag) then
-       ! identify urban fraction so that it can be factored into the land use state output
-       urban_fraction = bc_in%hlm_luh_states(FindIndex(bc_in%hlm_luh_state_names,'urban'))
-    end if
-
-    ! loop over all states and add up the ones that correspond to a given fates land use type
-    do i_luh2_states = 1, hlm_num_luh2_states
-
-       ! Get the luh2 state name and determine fates aggregated land use
-       ! type index from the state to lutype map
-       state_name = bc_in%hlm_luh_state_names(i_luh2_states)
-       ii = lumap%GetIndex(state_name)
-
-       ! Avoid 'urban' states whose indices have been given unset values
-       if (ii .ne. fates_unset_int) then
-          state_vector(ii) = state_vector(ii) + &
-               temp_vector(i_luh2_states) / (1._r8 - urban_fraction)
+    if (hlm_use_potentialveg .eq. itrue) then
+       state_vector(primaryland) = 1._r8
+    else
+       ! Check to see if the incoming state vector is NaN.
+       temp_vector = bc_in%hlm_luh_states
+       call CheckLUHData(temp_vector,modified_flag)
+       if (.not. modified_flag) then
+          ! identify urban fraction so that it can be factored into the land use state output
+          urban_fraction = bc_in%hlm_luh_states(FindIndex(bc_in%hlm_luh_state_names,'urban'))
        end if
-    end do
 
-    ! check to ensure total area == 1, and correct if not
-    if ( abs(sum(state_vector(:)) - 1._r8) .gt. nearzero ) then
-       write(fates_log(),*) 'warning: sum(state_vector) = ', sum(state_vector(:))
-       state_vector = state_vector / sum(state_vector)
+       ! loop over all states and add up the ones that correspond to a given fates land use type
+       do i_luh2_states = 1, hlm_num_luh2_states
+
+          ! Get the luh2 state name and determine fates aggregated land use
+          ! type index from the state to lutype map
+          state_name = bc_in%hlm_luh_state_names(i_luh2_states)
+          ii = lumap%GetIndex(state_name)
+
+          ! Avoid 'urban' states whose indices have been given unset values
+          if (ii .ne. fates_unset_int) then
+             state_vector(ii) = state_vector(ii) + &
+                  temp_vector(i_luh2_states) / (1._r8 - urban_fraction)
+          end if
+       end do
+
+       ! if all zeros, make all primary lands
+       if ( sum(state_vector(:)) .gt. nearzero ) then
+
+          ! check to ensure total area == 1, and correct if not
+          if ( abs(sum(state_vector(:)) - 1._r8) .gt. nearzero ) then
+             state_vector(:) = state_vector(:) / sum(state_vector(:))
+          end if
+       else
+          state_vector(primaryland) = 1._r8
+       endif
     end if
 
-  end subroutine get_luh_statedata
+  end subroutine GetLUHStatedata
 
   !----------------------------------------------------------------------------------------------------
 
@@ -292,8 +335,8 @@ contains
 
     ! Check to see if the incoming luh2 vector is NaN.
     ! This suggests that there is a discepency where the HLM and LUH2 states
-    ! there is vegetated ground. E.g. LUH2 data is missing for glacier-margin regions such as Antarctica.
-    ! In this case, states should be Nan.  If so,
+    ! there is vegetated ground. E.g. LUH2 data is missing for glacier-margin
+    ! regions such as Antarctica. In this case, states should be Nan.  If so,
     ! set the current state to be all primary forest, and all transitions to be zero.
     ! If only a portion of the vector is NaN, there is something  amiss with
     ! the data, so end the run.
@@ -306,7 +349,8 @@ contains
           luh_vector(primaryland) = 1._r8
        end if
        modified_flag = .true.
-       !write(fates_log(),*) 'WARNING: land use state is all NaN; setting state as all primary forest.' ! GL DIAG
+       !write(fates_log(),*) 'WARNING: land use state is all NaN;
+       !setting state as all primary forest.' ! GL DIAG
     else if (any(isnan(luh_vector))) then
        if (any(.not. isnan(luh_vector))) then
           write(fates_log(),*) 'ERROR: land use vector has NaN'
@@ -316,6 +360,71 @@ contains
 
   end subroutine CheckLUHData
 
+
+  subroutine GetInitLanduseHarvestRate(bc_in, min_allowed_landuse_fraction, harvest_rate, &
+       landuse_vector_gt_min)
+
+    ! the purpose of this subroutine is, only under the case where we are transitioning from a spinup
+    ! run that did not have land use to a run that does, to apply the land-use changes needed to get
+    ! to the state vector in a single daily instance. this is for the hrvest rate from primary lands,
+    ! i.e. the transition from primary to secondary lands. thus instead of using the harvest dataset
+    ! itself, it only uses the state vector for what land use compositoin we want to achieve, and log
+    ! the forests accordingly.
+
+    ! !ARGUMENTS:
+    type(bc_in_type) , intent(in) :: bc_in
+    real(r8), intent(in)          :: min_allowed_landuse_fraction
+    real(r8), intent(out)         :: harvest_rate  ! [m2/ m2 / day]
+    logical,  intent(inout)       :: landuse_vector_gt_min(n_landuse_cats)
+
+    ! LOCALS
+    real(r8) ::  state_vector(n_landuse_cats)  ! [m2/m2]
+    
+    call GetLUHStatedata(bc_in, state_vector)
+
+    ! only do this if the state vector exceeds the minimum viable patch size, and if so, note that in the
+    ! landuse_vector_gt_min flag (which will be coming in as .false. because of the use_potentialveg logic).
+    if ( state_vector(secondaryland) .gt. min_allowed_landuse_fraction) then
+       harvest_rate = state_vector(secondaryland)
+       landuse_vector_gt_min(secondaryland) = .true.
+    endif
+
+  end subroutine GetInitLanduseHarvestRate
+
+  subroutine GetInitLanduseTransitionRates(bc_in, min_allowed_landuse_fraction, &
+       landuse_transition_matrix, landuse_vector_gt_min)
+    
+    ! The purpose of this subroutine is, only under the case where we are transitioning from a spinup
+    ! run that did not have land use to a run that does, to apply the land-use changes needed to get
+    ! to the state vector in a single daily instance. This is for the transitions other than harvest,
+    ! i.e. from primary lands to all other categories aside from secondary lands. 
+
+    ! !ARGUMENTS:
+    type(bc_in_type) , intent(in) :: bc_in
+    real(r8), intent(in)          :: min_allowed_landuse_fraction
+    real(r8), intent(inout)       :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
+    logical,  intent(inout)       :: landuse_vector_gt_min(n_landuse_cats)
+
+    ! LOCALS
+    real(r8) ::  state_vector(n_landuse_cats)  ! [m2/m2]
+    integer  :: i
+
+    landuse_transition_matrix(:,:) = 0._r8
+    
+    call GetLUHStatedata(bc_in, state_vector)
+
+    ! only do this if the state vector exceeds the minimum viable patch size, and if so, note that
+    ! in the landuse_vector_gt_min flag (which will be coming in as .false. because of the
+    ! use_potentialveg logic).
+    do i = secondaryland+1,n_landuse_cats
+       if ( state_vector(i) .gt. min_allowed_landuse_fraction) then
+          landuse_transition_matrix(primaryland,i) = state_vector(i)
+          landuse_vector_gt_min(i) = .true.
+       end if
+    end do
+    
+  end subroutine GetInitLanduseTransitionRates
+    
   !----------------------------------------------------------------------------------------------------
 
   subroutine fates_grazing(prt, ft, land_use_label, height)

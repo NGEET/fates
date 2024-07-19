@@ -18,9 +18,6 @@ module SFParamsMod
    !
    ! this is what the user can use for the actual values
    !
-
-   real(r8),protected, public :: SF_val_fdi_a
-   real(r8),protected, public :: SF_val_fdi_b
    real(r8),protected, public :: SF_val_fdi_alpha
    real(r8),protected, public :: SF_val_miner_total
    real(r8),protected, public :: SF_val_fuel_energy
@@ -41,8 +38,6 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_mid_moisture_Coeff(NFSC)
    real(r8),protected, public :: SF_val_mid_moisture_Slope(NFSC)
 
-   character(len=param_string_length),parameter :: SF_name_fdi_a = "fates_fire_fdi_a"
-   character(len=param_string_length),parameter :: SF_name_fdi_b = "fates_fire_fdi_b"
    character(len=param_string_length),parameter :: SF_name_fdi_alpha = "fates_fire_fdi_alpha"
    character(len=param_string_length),parameter :: SF_name_miner_total = "fates_fire_miner_total"
    character(len=param_string_length),parameter :: SF_name_fuel_energy = "fates_fire_fuel_energy"
@@ -148,8 +143,6 @@ contains
 
     implicit none
 
-    SF_val_fdi_a = nan
-    SF_val_fdi_b = nan
     SF_val_fdi_alpha = nan
     SF_val_miner_total = nan
     SF_val_fuel_energy = nan
@@ -214,12 +207,6 @@ contains
 
     character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
     
-    call fates_params%RegisterParameter(name=SF_name_fdi_a, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_fdi_b, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=SF_name_fdi_alpha, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -258,13 +245,6 @@ contains
 
     class(fates_parameters_type), intent(inout) :: fates_params
     real(r8) :: tmp_real
-    
-
-    call fates_params%RetrieveParameter(name=SF_name_fdi_a, &
-         data=SF_val_fdi_a)
-
-    call fates_params%RetrieveParameter(name=SF_name_fdi_b, &
-         data=SF_val_fdi_b)
 
     call fates_params%RetrieveParameter(name=SF_name_fdi_alpha, &
          data=SF_val_fdi_alpha)

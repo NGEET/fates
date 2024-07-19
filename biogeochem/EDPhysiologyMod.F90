@@ -18,6 +18,7 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod, only    : hlm_use_nocomp
+  use EDParamsMod           , only    : crop_lu_pft_vector     
   use FatesInterfaceTypesMod, only    : hlm_nitrogen_spec
   use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
   use FatesInterfaceTypesMod, only    : hlm_use_tree_damage
@@ -34,6 +35,8 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : g_per_kg
   use FatesConstantsMod, only    : ndays_per_year
   use FatesConstantsMod, only    : nocomp_bareground
+  use FatesConstantsMod, only    : nocomp_bareground_land
+  use FatesConstantsMod, only    : is_crop
   use FatesConstantsMod, only    : area_error_2
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTParametersMod , only    : prt_params
@@ -45,7 +48,7 @@ module EDPhysiologyMod
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai
   use FatesAllometryMod   , only : leafc_from_treelai
-  use FatesAllometryMod   , only : decay_coeff_kn
+  use FatesAllometryMod   , only : decay_coeff_vcmax
   use FatesLitterMod      , only : litter_type
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
@@ -140,7 +143,8 @@ module EDPhysiologyMod
   use FatesParameterDerivedMod, only : param_derived
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
-  
+  use FatesInterfaceTypesMod    , only : hlm_use_luh
+
   implicit none
   private
 
@@ -765,7 +769,10 @@ contains
 
                 ! Calculate sla_levleaf following the sla profile with overlying leaf area
                 ! Scale for leaf nitrogen profile
-                kn = decay_coeff_kn(ipft,currentCohort%vcmax25top)
+                kn = decay_coeff_vcmax(currentCohort%vcmax25top, &
+                     prt_params%leafn_vert_scaler_coeff1(ipft), &
+                     prt_params%leafn_vert_scaler_coeff2(ipft))
+                
                 ! Nscaler value at leaf level z
                 nscaler_levleaf = exp(-kn * cumulative_lai)
                 ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
@@ -2489,20 +2496,35 @@ contains
       real(r8)                          :: seedling_layer_smp ! soil matric potential at seedling rooting depth [mm H2O suction]
       integer, parameter                :: recruitstatus = 1  ! whether the newly created cohorts are recruited or initialized
       integer                           :: ilayer_seedling_root ! the soil layer at seedling rooting depth
-
+      logical                           :: use_this_pft         ! logical flag for whether or not to allow a given PFT to recruit
       !---------------------------------------------------------------------------
 
       do ft = 1, numpft
 
-         ! The following if block is for the prescribed biogeography and/or nocomp modes.
-         ! Since currentSite%use_this_pft is a site-level quantity and thus only limits whether a given PFT
-         ! is permitted on a given gridcell or not, it applies to the prescribed biogeography case only.
-         ! If nocomp is enabled, then we must determine whether a given PFT is allowed on a given patch or not.
+       ! The following if block is for the prescribed biogeography and/or nocomp modes and/or crop land use types
+       ! Since currentSite%use_this_pft is a site-level quantity and thus only limits whether a given PFT
+       ! is permitted on a given gridcell or not, it applies to the prescribed biogeography case only.
+       ! If nocomp is enabled, then we must determine whether a given PFT is allowed on a given patch or not.
+       ! Whether or not nocomp or prescribed biogeography is enabled, if land use change is enabled, then we only want to
+       ! allow crop PFTs on patches with crop land use types
 
-         if (currentSite%use_this_pft(ft) .eq. itrue  .and.                    &
-            ((hlm_use_nocomp .eq. ifalse) .or.                                 &
-            (ft .eq. currentPatch%nocomp_pft_label))) then
+       use_this_pft = .false.
+       if(currentSite%use_this_pft(ft).eq.itrue &
+            .and. ((hlm_use_nocomp .eq. ifalse) .or. (ft .eq. currentPatch%nocomp_pft_label)))then
+          use_this_pft = .true.
+       end if
 
+       if ( currentPatch%land_use_label .ne. nocomp_bareground_land ) then ! cdk
+          if ((hlm_use_luh .eq. itrue) .and. (is_crop(currentPatch%land_use_label))) then
+             if ( crop_lu_pft_vector(currentPatch%land_use_label) .eq. ft ) then
+                use_this_pft = .true.
+             else
+                use_this_pft = .false.
+             end if
+          end if
+       endif
+
+       use_this_pft_if: if(use_this_pft) then
             height             = EDPftvarcon_inst%hgt_min(ft)
             stem_drop_fraction = prt_params%phen_stem_drop_fraction(ft)
             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(ft)
@@ -2746,11 +2768,11 @@ contains
                currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + cohort_n
 
             endif any_recruits
-         endif !use_this_pft
+         endif use_this_pft_if
       enddo  !pft loop
    end subroutine recruitment
 
-  ! ======================================================================================
+   ! ======================================================================================
 
   subroutine CWDInput( currentSite, currentPatch, litt, bc_in)
 
@@ -3037,7 +3059,7 @@ contains
                   SF_val_CWD_frac_adj(c) * dead_n_dlogging * &
                   prt_params%allom_agb_frac(pft)
 
-             site_mass%wood_product = site_mass%wood_product + &
+             site_mass%wood_product_harvest(pft) = site_mass%wood_product_harvest(pft) + &
                   trunk_wood * currentPatch%area * logging_export_frac
 
              ! Add AG wood to litter from the non-exported fraction of wood
