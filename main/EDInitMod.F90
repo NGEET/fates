@@ -276,6 +276,7 @@ contains
     ! Disturbance rates tracking
     site_in%primary_land_patchfusion_error = 0.0_r8
     site_in%disturbance_rates(:,:,:) = 0.0_r8
+    site_in%landuse_transition_matrix(:,:) = 0.0_r8
 
     ! FIRE
     site_in%FDI              = 0.0_r8     ! daily fire danger index (0-1)
