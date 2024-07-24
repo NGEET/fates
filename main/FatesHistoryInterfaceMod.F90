@@ -4018,9 +4018,6 @@ contains
 
                         ! update SCPF/SCLS- and canopy/subcanopy- partitioned quantities
                         canlayer: if (ccohort%canopy_layer .eq. 1) then
-                           hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
-                                (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                                ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * ccohort%n / m2_per_ha
                            hio_bstor_canopy_si_scpf(io_si,scpf) = hio_bstor_canopy_si_scpf(io_si,scpf) + &
                                 store_m * ccohort%n / m2_per_ha
                            hio_bleaf_canopy_si_scpf(io_si,scpf) = hio_bleaf_canopy_si_scpf(io_si,scpf) + &
@@ -4028,12 +4025,16 @@ contains
                            hio_lai_canopy_si_scpf(io_si,scpf) = hio_lai_canopy_si_scpf(io_si,scpf) + &
                                 ccohort%treelai*ccohort%c_area * AREA_INV
                            if (scag_denominator_area .gt. nearzero) then
+                              hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
+                                   (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
+                                   ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * ccohort%n / scag_denominator_area
                               hio_nplant_canopy_si_scag(io_si,iscag) = hio_nplant_canopy_si_scag(io_si,iscag) + ccohort%n / scag_denominator_area
                               hio_ddbh_canopy_si_scag(io_si,iscag) = hio_ddbh_canopy_si_scag(io_si,iscag) + &
                                    ccohort%ddbhdt*ccohort%n * m_per_cm / scag_denominator_area
                            else
                               hio_nplant_canopy_si_scag(io_si,iscag) = 0._r8
                               hio_ddbh_canopy_si_scag(io_si,iscag) = 0._r8
+                              hio_mortality_canopy_si_scag(io_si,iscag) = 0._r8
                            end if
                            hio_crownarea_canopy_si_scpf(io_si,scpf) = hio_crownarea_canopy_si_scpf(io_si,scpf) + &
                                 ccohort%c_area * AREA_INV
@@ -4148,9 +4149,6 @@ contains
 
 
                         else canlayer
-                           hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                                (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                                ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * ccohort%n / m2_per_ha
                            hio_bstor_understory_si_scpf(io_si,scpf) = hio_bstor_understory_si_scpf(io_si,scpf) + &
                                 store_m * ccohort%n / m2_per_ha
                            hio_bleaf_understory_si_scpf(io_si,scpf) = hio_bleaf_understory_si_scpf(io_si,scpf) + &
@@ -4160,6 +4158,13 @@ contains
                                    ccohort%n / scag_denominator_area
                               hio_ddbh_understory_si_scag(io_si,iscag) = hio_ddbh_understory_si_scag(io_si,iscag) + &
                                    ccohort%ddbhdt*ccohort%n * m_per_cm / scag_denominator_area
+                              hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
+                                   (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
+                                   ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * ccohort%n / scag_denominator_area
+                           else
+                              hio_nplant_understory_si_scag(io_si,iscag) = 0._r8
+                              hio_ddbh_understory_si_scag(io_si,iscag) = 0._r8
+                              hio_mortality_understory_si_scag(io_si,iscag) = 0._r8
                            end if
 
                            hio_lai_understory_si_scpf(io_si,scpf) = hio_lai_understory_si_scpf(io_si,scpf) + &
@@ -4471,8 +4476,12 @@ contains
                         sites(s)%imort_rate(i_scls, ft) / m2_per_ha
                    !
                    iscag = i_scls ! since imort is by definition something that only happens in newly disturbed patches, treat as such
-                   hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                        sites(s)%imort_rate(i_scls, ft) / m2_per_ha
+                   if (scag_denominator_area .gt. nearzero) then
+                      hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
+                           sites(s)%imort_rate(i_scls, ft) / scag_denominator_area
+                   else
+                      hio_mortality_understory_si_scag(io_si,iscag) = 0._r8
+                   end if
 
                    ! fire mortality from the site-level diagnostic rates
                    hio_m5_si_scpf(io_si,i_scpf) = (sites(s)%fmort_rate_canopy(i_scls, ft) + &
