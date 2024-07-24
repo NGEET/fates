@@ -1679,7 +1679,7 @@ data:
 
  fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
 
- fates_landuse_grazing_rate = 0.0, 0.0, 0.04, 0.04, 0.0 ;
+ fates_landuse_grazing_rate = 0.0, 0.0, 0.0, 0.0, 0.0 ;
 
  fates_max_nocomp_pfts_by_landuse = 4, 4, 1, 1, 1 ;
 
