@@ -125,7 +125,8 @@ module FatesHistoryInterfaceMod
   use FatesLitterMod      , only : ncwd
   use FatesConstantsMod   , only : ican_upper
   use FatesConstantsMod   , only : ican_ustory
-  use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index
+  use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index_from_classes
+  use FatesSizeAgeTypeIndicesMod, only : get_sizeage_class_index_from_dbh_age
   use FatesSizeAgeTypeIndicesMod, only : get_sizeagepft_class_index
   use FatesSizeAgeTypeIndicesMod, only : get_agepft_class_index
   use FatesSizeAgeTypeIndicesMod, only : get_agefuel_class_index
@@ -3471,6 +3472,28 @@ contains
                 endif
 
 
+                ! sizeclass-patchage-resolved outputs representing mortality variables specific to size class and PFT
+                do i_scls = 1,nlevsclass
+                   iscag = get_sizeage_class_index_from_classes(i_scls, cpatch%age_class)
+                   if (scag_denominator_area .gt. nearzero) then
+                       do ft = 1,numpft
+                         ! Impact mortality
+                         hio_mortality_understory_si_scag(io_si,iscag) = &
+                              hio_mortality_understory_si_scag(io_si,iscag) + &
+                              sites(s)%imort_rate(i_scls, ft) / scag_denominator_area
+                         ! Fire mortality
+                         hio_mortality_canopy_si_scag(io_si,iscag) = &
+                              hio_mortality_canopy_si_scag(io_si,iscag) + &
+                              sites(s)%fmort_rate_canopy(i_scls, ft) / scag_denominator_area
+                         hio_mortality_understory_si_scag(io_si,iscag) = &
+                              hio_mortality_understory_si_scag(io_si,iscag) + &
+                              sites(s)%fmort_rate_ustory(i_scls, ft) / scag_denominator_area
+                       end do
+                   else
+                      hio_mortality_understory_si_scag(io_si,iscag) = 0._r8
+                      hio_mortality_canopy_si_scag(io_si,iscag) = 0._r8
+                   end if
+                end do
 
                 ! patch-age-resolved fire variables
                 do ft = 1,numpft
@@ -3982,7 +4005,7 @@ contains
 
                         ! update size-class x patch-age related quantities
 
-                        iscag = get_sizeage_class_index(ccohort%dbh,cpatch%age)
+                        iscag = get_sizeage_class_index_from_dbh_age(ccohort%dbh,cpatch%age)
 
                         if (scag_denominator_area .gt. nearzero) then
                            hio_nplant_si_scag(io_si,iscag) = hio_nplant_si_scag(io_si,iscag) + ccohort%n / scag_denominator_area
@@ -4475,13 +4498,6 @@ contains
                    hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
                         sites(s)%imort_rate(i_scls, ft) / m2_per_ha
                    !
-                   iscag = i_scls ! since imort is by definition something that only happens in newly disturbed patches, treat as such
-                   if (scag_denominator_area .gt. nearzero) then
-                      hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                           sites(s)%imort_rate(i_scls, ft) / scag_denominator_area
-                   else
-                      hio_mortality_understory_si_scag(io_si,iscag) = 0._r8
-                   end if
 
                    ! fire mortality from the site-level diagnostic rates
                    hio_m5_si_scpf(io_si,i_scpf) = (sites(s)%fmort_rate_canopy(i_scls, ft) + &
@@ -4512,19 +4528,6 @@ contains
 
                    hio_mortality_understory_si_scls(io_si,i_scls) = hio_mortality_understory_si_scls(io_si,i_scls) + &
                         sites(s)%fmort_rate_ustory(i_scls, ft) / m2_per_ha
-
-                   !
-                   ! for scag variables, also treat as happening in the newly-disurbed patch
-
-                   if (scag_denominator_area .gt. nearzero) then
-                      hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
-                           sites(s)%fmort_rate_canopy(i_scls, ft) / scag_denominator_area
-                      hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                           sites(s)%fmort_rate_ustory(i_scls, ft) / scag_denominator_area
-                   else
-                      hio_mortality_canopy_si_scag(io_si,iscag) = 0._r8
-                      hio_mortality_understory_si_scag(io_si,iscag) = 0._r8
-                   end if
 
                    ! while in this loop, pass the fusion-induced growth rate flux to history
                    hio_growthflux_fusion_si_scpf(io_si,i_scpf) = hio_growthflux_fusion_si_scpf(io_si,i_scpf) + &
