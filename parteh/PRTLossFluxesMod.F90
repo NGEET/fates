@@ -918,7 +918,7 @@ contains
           do i_pos = 1,prt_global%state_descriptor(i_var)%num_pos
              
              ! The mass that is leaving the plant
-             consumed_mass = mass_fraction * prt%variables(i_var)%val(i_pos)
+             herbivore_consumed_mass = mass_fraction * prt%variables(i_var)%val(i_pos)
              
              ! Track the amount of mass being eaten (+ is amount lost)
              prt%variables(i_var)%herbivory(i_pos) = prt%variables(i_var)%herbivory(i_pos) &

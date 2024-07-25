@@ -2785,7 +2785,9 @@ contains
     ! and turnover in dying trees.
     !
     ! !USES:
-
+    use EDParamsMod           , only : landuse_grazing_carbon_use_eff
+    use EDParamsMod           , only : landuse_grazing_nitrogen_use_eff
+    use EDParamsMod           , only : landuse_grazing_phosphorus_use_eff
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target :: currentSite
@@ -2832,6 +2834,8 @@ contains
     integer  :: numlevsoil        ! Actual number of soil layers
 
     real(r8) :: SF_val_CWD_frac_adj(4) !SF_val_CWD_frac adjusted based on cohort dbh
+    real(r8) :: leaf_herbivory
+    real(r8) :: herbivory_element_use_efficiency
     !----------------------------------------------------------------------
 
     ! -----------------------------------------------------------------------------------
@@ -2842,13 +2846,13 @@ contains
 
     element_id = litt%element_id
 
-    select case(element):
-       case(carbon12_element):
-          herbivory_element_use_efficiency = fates_landuse_grazing_carbon_use_eff
-       case(nitrogen_element):
-          herbivory_element_use_efficiency = fates_landuse_grazing_nitrogen_use_eff
-       case (phosphorus_element):
-          herbivory_element_use_efficiency = fates_landuse_grazing_phosphorus_use_eff
+    select case(element_id)
+       case (carbon12_element)
+          herbivory_element_use_efficiency = landuse_grazing_carbon_use_eff
+       case (nitrogen_element)
+          herbivory_element_use_efficiency = landuse_grazing_nitrogen_use_eff
+       case (phosphorus_element)
+          herbivory_element_use_efficiency = landuse_grazing_phosphorus_use_eff
     end select
 
     ! Object tracking flux diagnostics for each element
