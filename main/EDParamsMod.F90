@@ -602,7 +602,7 @@ contains
     call fates_params%RegisterParameter(name=name_landuse_grazing_nitrogen_use_eff, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=name_landuse_grazing_phosporus_use_eff, dimension_shape=dimension_shape_scalar, &
+    call fates_params%RegisterParameter(name=name_landuse_grazing_phosphorus_use_eff, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     ! non-scalar parameters

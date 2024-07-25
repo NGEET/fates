@@ -432,22 +432,32 @@ contains
     use PRTGenericMod,    only : leaf_organ
     use PRTGenericMod,    only : prt_vartypes
     use PRTLossFluxesMod, only : PRTHerbivoryLosses
+    use EDParamsMod     , only : landuse_grazing_rate
+    use EDParamsMod     , only : landuse_grazing_maxheight
+    use EDPftvarcon     , only : EDPftvarcon_inst
+    use PRTParametersMod, only : prt_params
+    use FatesAllometryMod,only : CrownDepth
 
     ! apply grazing and browsing to plants as a function of PFT, height (for woody plants), and land use label.
 
     class(prt_vartypes), intent(inout), pointer :: prt
     integer, intent(in)  :: ft
-    integer, intent(in)  :: land_use-label
+    integer, intent(in)  :: land_use_label
     real(r8), intent(in) :: height
 
     real(r8) :: grazing_rate    ! rate of grazing (or browsing) of leaf tissue [day -1]
-
-    grazing_rate = fates_landuse_grazing_rate(land_use_label) * fates_landuse_grazing_palatability(ft)
-
+    real(r8) :: crown_depth
+    
+    grazing_rate = landuse_grazing_rate(land_use_label) * EDPftvarcon_inst%landuse_grazing_palatability(ft)
+    
     if ( grazing_rate .gt. 0._r8) then
-       if (woody(ft)) then
+       if (prt_params%woody(ft)) then
+
+          call CrownDepth(height,ft,crown_depth)
+          
           grazing_rate = grazing_rate * &
-               max(0._r8, min(1._r8, (fates_landuse_grazing_maxheight - height*fates_allom_crown_depth_frac(ft)/(height - height*fates_allom_crown_depth_frac(ft)))))
+               max(0._r8, min(1._r8, &
+               (landuse_grazing_maxheight - (height - crown_depth )) / crown_depth))
        endif
 
        call PRTHerbivoryLosses(prt, leaf_organ, grazing_rate)
