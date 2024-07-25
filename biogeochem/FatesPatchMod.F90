@@ -535,6 +535,21 @@ module FatesPatchMod
       this%fabi_sha_z(:,:,:) = 0._r8
       this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
       this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+
+      ! Added
+      this%elai_profile(:,:,:)          = 0._r8
+      this%esai_profile(:,:,:)          = 0._r8
+      this%tlai_profile(:,:,:)          = 0._r8
+      this%tsai_profile(:,:,:)          = 0._r8
+      this%canopy_area_profile(:,:,:)   = 0._r8
+      
+      this%ed_laisun_z(:,:,:)           = 0._r8
+      this%ed_laisha_z(:,:,:)           = 0._r8
+      this%ed_parsun_z(:,:,:)           = 0._r8
+      this%ed_parsha_z(:,:,:)           = 0._r8
+      
+      this%parprof_pft_dir_z(:,:,:)     = 0._r8
+      this%parprof_pft_dif_z(:,:,:)     = 0._r8
       
     end subroutine ZeroDynamics
     
