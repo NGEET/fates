@@ -217,6 +217,21 @@ contains
             ! Cohort needs to know which column its in
             cohort%twostr_col = n_col(ican)
 
+            if ( twostr%scelg(ican,n_col(ican))%area .gt. 1.1_r8) then
+               ! cdk error here.
+               write(fates_log(),*) 'error in calc of twostr%scelg(ican,n_col(ican))%area. should be less than 1'
+               write(fates_log(),*) twostr%scelg(ican,n_col(ican))%area
+               write(fates_log(),*) cohort%c_area, patch%total_canopy_area
+               call patch%Dump()
+               cohort => patch%tallest
+               do while (associated(cohort))
+                  write(fates_log(),*) ' ------- dumping cohort ------'
+                  call cohort%Dump()
+                  write(fates_log(),*) ''
+                  cohort => cohort%shorter
+               enddo
+            endif
+
             cohort => cohort%shorter
          enddo
 
