@@ -1557,12 +1557,12 @@ contains
 
     cpatch => currentSite%oldest_patch
     do while(associated(cpatch))
-
+       
        cpatch%nleaf(:,:) = 0
        ! This routine updates the %nleaf array
        call UpdatePatchLAI(cpatch)
-
-
+          
+          
        ! This call assesses if the large, dynamically allocated
        ! patch arrays need to be allocated for the first time,
        ! or resized
@@ -1589,14 +1589,21 @@ contains
        ! UNDER THE SNOW, BUT WE DONT REALLY USE IT TO FILTER
        ! THEM OUT. CHECK THE CODE AND CONSIDER REMOVING NRAD
        ! ALTOGETHER (RGK 05-2024)
-       cpatch%nrad(:,:) = cpatch%nleaf(:,:)
+       !cpatch%nrad(:,:) = cpatch%nleaf(:,:)
        
        ! ------------------------------------------------------------------------------
        ! It is remotely possible that in deserts we will not have any canopy
        ! area, ie not plants at all...
        ! ------------------------------------------------------------------------------
 
-       if_any_canopy_area: if (cpatch%total_canopy_area > nearzero ) then
+       if_any_canopy_area: if (cpatch%total_canopy_area <= nearzero ) then
+
+          cpatch%nleaf(:,:) = 0
+          cpatch%nrad(:,:) = 0
+          
+       else
+
+          cpatch%nrad(:,:) = cpatch%nleaf(:,:)
           
           ! -----------------------------------------------------------------------------
           ! Standard canopy layering model.

@@ -394,10 +394,11 @@ module FatesPatchMod
       this%elai_profile(:,:,:)          = nan 
       this%esai_profile(:,:,:)          = nan   
       this%tlai_profile(:,:,:)          = nan 
-      this%tsai_profile(:,:,:)          = nan 
+      this%tsai_profile(:,:,:)          = nan
       this%canopy_area_profile(:,:,:)   = nan  
       this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = nan
       this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = nan
+
       this%fabd_sun_z(:,:,:)            = nan 
       this%fabd_sha_z(:,:,:)            = nan 
       this%fabi_sun_z(:,:,:)            = nan 
@@ -538,16 +539,15 @@ module FatesPatchMod
 
       ! Added
       this%elai_profile(:,:,:)          = 0._r8
-      this%esai_profile(:,:,:)          = 0._r8
-      this%tlai_profile(:,:,:)          = 0._r8
-      this%tsai_profile(:,:,:)          = 0._r8
-      this%canopy_area_profile(:,:,:)   = 0._r8
+      !this%esai_profile(:,:,:)          = 0._r8
+      !this%tlai_profile(:,:,:)          = 0._r8
+      !this%tsai_profile(:,:,:)          = 0._r8
+      !this%canopy_area_profile(:,:,:)   = 0._r8
       
       this%ed_laisun_z(:,:,:)           = 0._r8
       this%ed_laisha_z(:,:,:)           = 0._r8
       this%ed_parsun_z(:,:,:)           = 0._r8
       this%ed_parsha_z(:,:,:)           = 0._r8
-      
       this%parprof_pft_dir_z(:,:,:)     = 0._r8
       this%parprof_pft_dif_z(:,:,:)     = 0._r8
       
