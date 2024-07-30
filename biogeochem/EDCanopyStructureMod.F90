@@ -1596,12 +1596,12 @@ contains
        ! area, ie not plants at all...
        ! ------------------------------------------------------------------------------
 
-       if_any_canopy_area: if (cpatch%total_canopy_area <= nearzero ) then
+!       if_any_canopy_area: if (cpatch%total_canopy_area <= nearzero ) then
 
-          cpatch%nleaf(:,:) = 0
-          cpatch%nrad(:,:) = 0
+!          cpatch%nleaf(:,:) = 0
+!          cpatch%nrad(:,:) = 0
           
-       else
+!       else
 
           cpatch%nrad(:,:) = cpatch%nleaf(:,:)
           
@@ -1873,7 +1873,7 @@ contains
           end if
 
              
-       end if if_any_canopy_area
+       !end if if_any_canopy_area
 
        cpatch => cpatch%younger
 
