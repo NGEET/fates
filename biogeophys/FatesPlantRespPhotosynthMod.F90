@@ -356,6 +356,8 @@ contains
                bc_out(s)%rssun_pa(ifp)     = 0._r8
                bc_out(s)%rssha_pa(ifp)     = 0._r8
 
+               psn_z(:,:,:) = 0._r8
+               
                g_sb_leaves = 0._r8
                patch_la    = 0._r8
 
