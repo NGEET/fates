@@ -539,10 +539,10 @@ module FatesPatchMod
 
       ! Added
       this%elai_profile(:,:,:)          = 0._r8
-      !this%esai_profile(:,:,:)          = 0._r8
-      !this%tlai_profile(:,:,:)          = 0._r8
-      !this%tsai_profile(:,:,:)          = 0._r8
-      !this%canopy_area_profile(:,:,:)   = 0._r8
+      this%esai_profile(:,:,:)          = 0._r8
+      this%tlai_profile(:,:,:)          = 0._r8
+      this%tsai_profile(:,:,:)          = 0._r8
+      this%canopy_area_profile(:,:,:)   = 0._r8
       
       this%ed_laisun_z(:,:,:)           = 0._r8
       this%ed_laisha_z(:,:,:)           = 0._r8

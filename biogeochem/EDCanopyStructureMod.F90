@@ -1573,17 +1573,7 @@ contains
        call cpatch%NanDynamics()
        call cpatch%ZeroDynamics()
        
-       ! --------------------------------------------------------------------------------
-       ! Calculate tree and canopy areas.
-       ! calculate tree lai and sai.
-       ! --------------------------------------------------------------------------------
-
-       cpatch%tlai_profile(:,:,:)         = 0._r8
-       cpatch%tsai_profile(:,:,:)         = 0._r8
-       cpatch%elai_profile(:,:,:)         = 0._r8
-       cpatch%esai_profile(:,:,:)         = 0._r8
-       cpatch%canopy_area_profile(:,:,:)  = 0._r8
-       cpatch%canopy_mask(:,:)            = 0
+       cpatch%canopy_mask(:,:) = 0
 
        ! TO-DO: NRAD HYPOTHETICALLY WOULDNT INCLUDE LAYERS
        ! UNDER THE SNOW, BUT WE DONT REALLY USE IT TO FILTER
