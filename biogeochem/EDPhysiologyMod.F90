@@ -668,6 +668,7 @@ contains
     real(r8) :: target_c_area
 
     real(r8) :: pft_leaf_lifespan         ! Leaf lifespan of each PFT [years]
+    real(r8) :: leaf_long                 ! temporary leaf lifespan before accounting for deciduousness 
     !----------------------------------------------------------------------
 
     ipatch = 1 ! Start counting patches
@@ -740,6 +741,14 @@ contains
           ! Identify current canopy layer (cl)
           cl = currentCohort%canopy_layer
 
+          ! Get leaf lifespan- depends on canopy layer
+          if  (cl .eq. 1 ) then
+             leaf_long = sum(prt_params%leaf_long(ipft,:))
+          else
+             leaf_long = sum(prt_params%leaf_long_ustory(ipft,:))
+          end if
+          
+
           ! PFT-level maximum SLA value, even if under a thick canopy (same units as slatop)
           sla_max = prt_params%slamax(ipft)
 
@@ -788,10 +797,10 @@ contains
                    ! Drought-decidous costs. Assume time-span to be the least between
                    !    1 year and the life span provided by the parameter file.
                    pft_leaf_lifespan = &
-                      min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:)))
+                      min(decid_leaf_long_max,leaf_long)
 
                 else !evergreen costs
-                   pft_leaf_lifespan = sum(prt_params%leaf_long(ipft,:))
+                   pft_leaf_lifespan = leaf_long
                 end if
 
                 ! Leaf cost at leaf level z (kgC m-2 year-1) accounting for sla profile
@@ -1270,6 +1279,8 @@ contains
        ! (defined as a PFT parameter) and the maximum canopy leaf life span allowed
        ! for drought deciduous (local parameter). The sum term accounts for the
        ! total leaf life span of this cohort.
+       ! Note we only use canopy leaf lifespan here and assume  that understory cohorts
+       ! would  behave the same as canopy cohorts with regards to phenology. 
        ndays_pft_leaf_lifespan = &
           nint(ndays_per_year*min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:))))
 
