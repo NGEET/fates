@@ -3769,7 +3769,7 @@ contains
         currentpatch => sites(s)%oldest_patch
         do while (associated(currentpatch))
            ifp = ifp+1
-
+           
            currentPatch%f_sun      (:,:,:) = 0._r8
            currentPatch%fabd_sun_z (:,:,:) = 0._r8
            currentPatch%fabd_sha_z (:,:,:) = 0._r8
