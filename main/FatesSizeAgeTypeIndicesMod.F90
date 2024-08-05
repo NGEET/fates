@@ -19,7 +19,8 @@ module FatesSizeAgeTypeIndicesMod
 
   ! Make public necessary subroutines and functions
   public :: get_age_class_index
-  public :: get_sizeage_class_index
+  public :: get_sizeage_class_index_from_classes
+  public :: get_sizeage_class_index_from_dbh_age
   public :: sizetype_class_index
   public :: get_size_class_index
   public :: get_height_index
@@ -75,7 +76,21 @@ contains
 
   ! =====================================================================================
 
-  function get_sizeage_class_index(dbh,age) result(size_by_age_class)
+  function get_sizeage_class_index_from_classes(size_class, age_class) result(size_by_age_class)
+
+     ! Arguments
+     integer, intent(in) :: size_class
+     integer, intent(in) :: age_class
+
+     integer             :: size_by_age_class
+
+     size_by_age_class = (age_class-1)*nlevsclass + size_class
+
+  end function get_sizeage_class_index_from_classes
+
+  ! =====================================================================================
+
+  function get_sizeage_class_index_from_dbh_age(dbh,age) result(size_by_age_class)
      
      ! Arguments
      real(r8),intent(in) :: dbh
@@ -89,9 +104,9 @@ contains
 
      age_class         = get_age_class_index(age)
      
-     size_by_age_class = (age_class-1)*nlevsclass + size_class
+     size_by_age_class = get_sizeage_class_index_from_classes(size_class, age_class)
 
-  end function get_sizeage_class_index
+  end function get_sizeage_class_index_from_dbh_age
 
   !======================================================================================
 
