@@ -689,7 +689,8 @@ contains
                                    ! pool [kg]
       real(r8) :: retrans_frac     ! A temp for the retranslocated fraction
       real(r8) :: retrans_mass     ! The mass re-translocated [kg]
-
+      real(r8) :: leaf_long        ! Leaf lifespan [years], either canopy or understory
+      
       ! A temp for the actual turnover removed from pool
       real(r8), dimension(num_organ_types) :: base_turnover   
 
@@ -744,46 +745,28 @@ contains
          ! The last index of the leaf longevity array contains the turnover
          ! timescale for the senescent pool.
          aclass_sen_id = size(prt_params%leaf_long(ipft,:))
+         leaf_long = prt_params%leaf_long(ipft,aclass_sen_id)
+      else
          
-         ! Only evergreens have maintenance turnover (must also change trimming logic
-         ! if we want to change this)
-         ! -------------------------------------------------------------------------------------
-         if ( (prt_params%leaf_long(ipft,aclass_sen_id) > nearzero ) .and. &
-              prt_params%evergreen(ipft)==itrue ) then
-
-            if(is_drought) then
-               base_turnover(leaf_organ) = years_per_day / &
-                    (prt_params%leaf_long(ipft,aclass_sen_id) * &
-                    prt_params%senleaf_long_fdrought(ipft) ) 
-            else
-               base_turnover(leaf_organ) = years_per_day / &
-                    prt_params%leaf_long(ipft,aclass_sen_id)
-            end if
-         else
-            base_turnover(leaf_organ) = 0.0_r8
-         endif
-
-      else   ! understory trees
          aclass_sen_id = size(prt_params%leaf_long_ustory(ipft,:))
-         if ( (prt_params%leaf_long_ustory(ipft,aclass_sen_id) > nearzero ) .and. &
-              prt_params%evergreen(ipft)==itrue ) then
-
-            if(is_drought) then
-               base_turnover(leaf_organ) = years_per_day / &
-                    (prt_params%leaf_long_ustory(ipft,aclass_sen_id) * &
-                    prt_params%senleaf_long_fdrought(ipft) ) 
-            else
-               base_turnover(leaf_organ) = years_per_day / &
-                    prt_params%leaf_long_ustory(ipft,aclass_sen_id)
-            end if
+         leaf_long = prt_params%leaf_long_ustory(ipft,aclass_sen_id)
+      end if
+         
+      ! Only evergreens have maintenance turnover (must also change trimming logic
+      ! if we want to change this)
+      ! -------------------------------------------------------------------------------------
+      if ( leaf_long > nearzero .and. prt_params%evergreen(ipft)==itrue ) then
+         
+         if(is_drought) then
+            base_turnover(leaf_organ) = years_per_day / &
+                 (leaf_long * prt_params%senleaf_long_fdrought(ipft) ) 
          else
-            base_turnover(leaf_organ) = 0.0_r8
-         endif
-
-      end if ! end if canopy layer
-
-
-
+            base_turnover(leaf_organ) = years_per_day / leaf_long
+         end if
+         
+      else
+         base_turnover(leaf_organ) = 0.0_r8
+      endif
       
       base_turnover(repro_organ)  = 0.0_r8
 
