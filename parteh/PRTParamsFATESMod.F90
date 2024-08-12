@@ -790,7 +790,7 @@ contains
     dim_names(1) = dimension_name_pft
     dim_names(2) = dimension_name_leaf_age
 
-    name = 'fates_turnover_leaf'
+    name = 'fates_turnover_leaf_canopy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -874,7 +874,7 @@ contains
      
      character(len=param_string_length) :: name
 
-     name = 'fates_turnover_leaf'
+     name = 'fates_turnover_leaf_canopy'
      call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%leaf_long)
 
