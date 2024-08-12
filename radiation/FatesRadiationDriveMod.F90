@@ -17,7 +17,6 @@ module FatesRadiationDriveMod
   use FatesConstantsMod , only : fates_unset_r8
   use FatesConstantsMod , only : itrue
   use FatesConstantsMod , only : pi_const
-  use FatesConstantsMod , only : nocomp_bareground
   use FatesConstantsMod , only : nearzero
   use FatesInterfaceTypesMod , only : bc_in_type
   use FatesInterfaceTypesMod , only : bc_out_type
@@ -100,33 +99,53 @@ contains
        ifp = 0
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
-
-          ! do not do albedo calculations for bare ground patch in SP mode
-          ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
-          ! ifp=1 is the first vegetated patch.
           
-          if_notbareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
+          ifp = ifp+1
 
-             ifp = ifp+1
+          ! Zero diagnostics
+          currentPatch%f_sun      (:,:,:) = 0._r8
+          currentPatch%fabd_sun_z (:,:,:) = 0._r8
+          currentPatch%fabd_sha_z (:,:,:) = 0._r8
+          currentPatch%fabi_sun_z (:,:,:) = 0._r8
+          currentPatch%fabi_sha_z (:,:,:) = 0._r8
+          currentPatch%fabd       (:)     = 0._r8
+          currentPatch%fabi       (:)     = 0._r8
+          currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
+          currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+          currentPatch%rad_error(:)           = hlm_hio_ignore_val
+          currentPatch%solar_zenith_flag      = bc_in(s)%filter_vegzen_pa(ifp)
+          currentPatch%solar_zenith_angle     = bc_in(s)%coszen_pa(ifp)
+          currentPatch%gnd_alb_dif(1:num_swb) = bc_in(s)%albgr_dif_rb(1:num_swb)
+          currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
+          currentPatch%fcansno                = bc_in(s)%fcansno_pa(ifp)
+          
+
+          if_noveg: if(currentPatch%total_canopy_area < nearzero) then
              
-             ! Zero diagnostics
-             currentPatch%f_sun      (:,:,:) = 0._r8
-             currentPatch%fabd_sun_z (:,:,:) = 0._r8
-             currentPatch%fabd_sha_z (:,:,:) = 0._r8
-             currentPatch%fabi_sun_z (:,:,:) = 0._r8
-             currentPatch%fabi_sha_z (:,:,:) = 0._r8
-             currentPatch%fabd       (:)     = 0._r8
-             currentPatch%fabi       (:)     = 0._r8
-             currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
-             currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
              
-             currentPatch%rad_error(:)              = hlm_hio_ignore_val
+             ! For a bare-ground patch, either imposed by a no-comp mode
+             ! or because we are in a desert and no plants can grown,
+             ! there is no light is absorbed by the canopy
+             ! (which isn't there anyway), all light it transmitted. The
+             ! albedo will be the soil albedo. Note: On the host-side
+             ! these numbers will be weighted by a zero anyway, so
+             ! any initialization will probably work fine because
+             ! the host has its own bare-ground methods, but we set these
+             ! values for constistency sake.
              
-             currentPatch%solar_zenith_flag         = bc_in(s)%filter_vegzen_pa(ifp)
-             currentPatch%solar_zenith_angle        = bc_in(s)%coszen_pa(ifp)
-             currentPatch%gnd_alb_dif(1:num_swb) = bc_in(s)%albgr_dif_rb(1:num_swb)
-             currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
-             currentPatch%fcansno                   = bc_in(s)%fcansno_pa(ifp)
+             do ib = 1,num_swb
+                bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
+                bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
+             end do
+             bc_out(s)%fabi_parb(ifp,:)            = 0._r8
+             bc_out(s)%fabd_parb(ifp,:)            = 0._r8
+             bc_out(s)%ftdd_parb(ifp,:)            = 1._r8
+             bc_out(s)%ftid_parb(ifp,:)            = 1._r8
+             bc_out(s)%ftii_parb(ifp,:)            = 1._r8 
+
+
+          else !if_noveg
+
              
              if(radiation_model.eq.twostr_solver) then
                 call currentPatch%twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp))
@@ -240,7 +259,7 @@ contains
                 end if if_nrad
 
              endif if_zenith_flag
-          end if if_notbareground
+          end if if_noveg
 
           currentPatch => currentPatch%younger
        end do       ! Loop linked-list patches
@@ -287,218 +306,212 @@ contains
 
        do while (associated(cpatch))
 
-          if_notbareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
-             ! do not do albedo calculations for bare ground patch in SP mode
-             ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
-             ! ifp=1 is the first vegetated patch.
-             ifp=ifp+1
+          ifp=ifp+1
+          
+          ! Initialize diagnostics
+          cpatch%ed_parsun_z(:,:,:) = 0._r8
+          cpatch%ed_parsha_z(:,:,:) = 0._r8
+          cpatch%ed_laisun_z(:,:,:) = 0._r8
+          cpatch%ed_laisha_z(:,:,:) = 0._r8
+          cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
+          cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
+          
+          bc_out(s)%fsun_pa(ifp) = 0._r8
+          
+          ! preserve_b4b will be removed soon. This is kept here to prevent
+          ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
+          if(.not.preserve_b4b)then
+             bc_out(s)%laisun_pa(ifp) = 0._r8
+             bc_out(s)%laisha_pa(ifp) = calc_areaindex(cpatch,'elai')
+          end if
 
-             ! Initialize diagnostics
-             cpatch%ed_parsun_z(:,:,:) = 0._r8
-             cpatch%ed_parsha_z(:,:,:) = 0._r8
-             cpatch%ed_laisun_z(:,:,:) = 0._r8
-             cpatch%ed_laisha_z(:,:,:) = 0._r8
-             cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
-             cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
+          sunlai  = 0._r8
+          shalai  = 0._r8
+          if_norm_twostr: if (radiation_model.eq.norman_solver) then
 
-             bc_out(s)%fsun_pa(ifp) = 0._r8
+             ! Loop over patches to calculate laisun_z and laisha_z for each layer.
+             ! Derive canopy laisun, laisha, and fsun from layer sums.
+             ! If sun/shade big leaf code, nrad=1 and fsun_z(p,1) and tlai_z(p,1) from
+             ! SurfaceAlbedo is canopy integrated so that layer value equals canopy value.
 
+             ! cpatch%f_sun is calculated in the surface_albedo routine...
+
+             do cl = 1, cpatch%ncl_p
+                do ft = 1,numpft
+                   ! preserve_b4b will be removed soon. This is kept here to prevent
+                   ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
+                   if(.not.preserve_b4b) then
+                      sunlai = sunlai + sum(cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
+                           cpatch%f_sun(cl,ft,1:cpatch%nrad(cl,ft)))
+                      shalai = shalai + sum(cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
+                   else
+                      do iv = 1,cpatch%nrad(cl,ft)
+                         cpatch%ed_laisun_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
+                              cpatch%f_sun(CL,ft,iv)
+
+                         cpatch%ed_laisha_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
+                              (1._r8 - cpatch%f_sun(CL,ft,iv))
+
+                      end do
+
+                      !needed for the VOC emissions, etc.
+                      sunlai = sunlai + sum(cpatch%ed_laisun_z(CL,ft,1:cpatch%nrad(CL,ft)))
+                      shalai = shalai + sum(cpatch%ed_laisha_z(CL,ft,1:cpatch%nrad(CL,ft)))
+
+                   end if
+                end do
+             end do
              ! preserve_b4b will be removed soon. This is kept here to prevent
              ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
              if(.not.preserve_b4b)then
-                bc_out(s)%laisun_pa(ifp) = 0._r8
-                bc_out(s)%laisha_pa(ifp) = calc_areaindex(cpatch,'elai')
+                shalai = shalai-sunlai
              end if
 
-             sunlai  = 0._r8
-             shalai  = 0._r8
-             if_norm_twostr: if (radiation_model.eq.norman_solver) then
-                
-                ! Loop over patches to calculate laisun_z and laisha_z for each layer.
-                ! Derive canopy laisun, laisha, and fsun from layer sums.
-                ! If sun/shade big leaf code, nrad=1 and fsun_z(p,1) and tlai_z(p,1) from
-                ! SurfaceAlbedo is canopy integrated so that layer value equals canopy value.
-                
-                ! cpatch%f_sun is calculated in the surface_albedo routine...
-                
-                do cl = 1, cpatch%ncl_p
-                   do ft = 1,numpft
-                      ! preserve_b4b will be removed soon. This is kept here to prevent
-                      ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
-                      if(.not.preserve_b4b) then
-                         sunlai = sunlai + sum(cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
-                              cpatch%f_sun(cl,ft,1:cpatch%nrad(cl,ft)))
-                         shalai = shalai + sum(cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
-                      else
-                         do iv = 1,cpatch%nrad(cl,ft)
-                            cpatch%ed_laisun_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
-                                 cpatch%f_sun(CL,ft,iv)
-
-                            cpatch%ed_laisha_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
-                                 (1._r8 - cpatch%f_sun(CL,ft,iv))
-                            
-                         end do
-
-                         !needed for the VOC emissions, etc.
-                         sunlai = sunlai + sum(cpatch%ed_laisun_z(CL,ft,1:cpatch%nrad(CL,ft)))
-                         shalai = shalai + sum(cpatch%ed_laisha_z(CL,ft,1:cpatch%nrad(CL,ft)))
-                         
-                      end if
-                   end do
-                end do
-                ! preserve_b4b will be removed soon. This is kept here to prevent
-                ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
-                if(.not.preserve_b4b)then
-                   shalai = shalai-sunlai
-                end if
-                
-                if(sunlai+shalai > 0._r8)then
-                   bc_out(s)%fsun_pa(ifp) = sunlai / (sunlai+shalai)
-                else
-                   bc_out(s)%fsun_pa(ifp) = 0._r8
-                endif
-                
-                if(debug)then
-                   if(bc_out(s)%fsun_pa(ifp) > 1._r8)then
-                      write(fates_log(),*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
-                           sunlai,shalai
-                   endif
-                end if
-                
-                elai = calc_areaindex(cpatch,'elai')
-                
-                bc_out(s)%laisun_pa(ifp) = elai*bc_out(s)%fsun_pa(ifp)
-                bc_out(s)%laisha_pa(ifp) = elai*(1.0_r8-bc_out(s)%fsun_pa(ifp))
-                
-                ! Absorbed PAR profile through canopy
-                ! If sun/shade big leaf code, nrad=1 and fluxes from SurfaceAlbedo
-                ! are canopy integrated so that layer values equal big leaf values.
-                
-                do cl = 1, cpatch%ncl_p
-                   do ft = 1,numpft
-                      do iv = 1, cpatch%nrad(cl,ft)
-                         
-                         cpatch%ed_parsun_z(cl,ft,iv) = &
-                              bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sun_z(cl,ft,iv) + &
-                              bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sun_z(cl,ft,iv)
-                         
-                         cpatch%ed_parsha_z(cl,ft,iv) = &
-                              bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sha_z(cl,ft,iv) + &
-                              bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sha_z(cl,ft,iv)
-                         
-                      end do !iv
-                   end do !ft
-                end do !cl
-                
-                ! Convert normalized radiation error units from fraction of radiation to W/m2
-                do ib = 1,num_swb
-                   cpatch%rad_error(ib) = cpatch%rad_error(ib) * &
-                        (bc_in(s)%solad_parb(ifp,ib) + bc_in(s)%solai_parb(ifp,ib))
-                end do
-                
-                ! output the actual PAR profiles through the canopy for diagnostic purposes
-                do cl = 1, cpatch%ncl_p
-                   do ft = 1,numpft
-                      do iv = 1, cpatch%nrad(cl,ft)
-                         cpatch%parprof_pft_dir_z(cl,ft,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
-                              cpatch%nrmlzd_parprof_pft_dir_z(idirect,cl,ft,iv)) + &
-                              (bc_in(s)%solai_parb(ifp,ipar) * &
-                              cpatch%nrmlzd_parprof_pft_dir_z(idiffuse,cl,ft,iv))
-                         
-                         cpatch%parprof_pft_dif_z(cl,ft,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
-                              cpatch%nrmlzd_parprof_pft_dif_z(idirect,cl,ft,iv)) + &
-                              (bc_in(s)%solai_parb(ifp,ipar) * &
-                              cpatch%nrmlzd_parprof_pft_dif_z(idiffuse,cl,ft,iv))
-                         
-                      end do ! iv
-                   end do    ! ft
-                end do       ! cl
-                
+             if(sunlai+shalai > 0._r8)then
+                bc_out(s)%fsun_pa(ifp) = sunlai / (sunlai+shalai)
              else
+                bc_out(s)%fsun_pa(ifp) = 0._r8
+             endif
 
-                ! If there is no sun out, we have a trivial solution
-                if_zenithflag: if(cpatch%solar_zenith_flag ) then
-                   
-                   ! Two-stream 
-                   ! -----------------------------------------------------------
-                   do ib = 1,num_swb
-                      cpatch%twostr%band(ib)%Rbeam_atm = bc_in(s)%solad_parb(ifp,ib)
-                      cpatch%twostr%band(ib)%Rdiff_atm = bc_in(s)%solai_parb(ifp,ib)
-                   end do
-                   
-                   area_vlpfcl(:,:,:) = 0._r8
-                   cpatch%f_sun(:,:,:) = 0._r8
-                   
-                   call FatesPatchFSun(cpatch,    &
-                        bc_out(s)%fsun_pa(ifp),   &
-                        bc_out(s)%laisun_pa(ifp), &
-                        bc_out(s)%laisha_pa(ifp))
-                   
-                   associate(twostr => cpatch%twostr)
-                     
-                     do_cl: do cl = 1,twostr%n_lyr
-                        do_icol: do icol = 1,twostr%n_col(cl)
-                           
-                           ft = twostr%scelg(cl,icol)%pft
-                           if_notair: if (ft>0) then
-                              area_frac = twostr%scelg(cl,icol)%area
-                              vai = twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai
-                              nv = minloc(dlower_vai, DIM=1, MASK=(dlower_vai>vai))
-                              do iv = 1, nv
-                                 
-                                 vai_top = dlower_vai(iv)-dinc_vai(iv)
-                                 vai_bot = min(dlower_vai(iv),twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai)
-                                 
-                                 cpatch%parprof_pft_dir_z(cl,ft,iv) = cpatch%parprof_pft_dir_z(cl,ft,iv) + &
-                                      area_frac*twostr%GetRb(cl,icol,ivis,vai_top)
-                                 cpatch%parprof_pft_dif_z(cl,ft,iv) = cpatch%parprof_pft_dif_z(cl,ft,iv) + &
-                                      area_frac*twostr%GetRdDn(cl,icol,ivis,vai_top) + &
-                                      area_frac*twostr%GetRdUp(cl,icol,ivis,vai_top)
-                                 
-                                 call twostr%GetAbsRad(cl,icol,ipar,vai_top,vai_bot, &
-                                      Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac)
-                                 
-                                 cpatch%f_sun(cl,ft,iv) = cpatch%f_sun(cl,ft,iv) + &
-                                      area_frac*leaf_sun_frac
-                                 cpatch%ed_parsun_z(cl,ft,iv) = cpatch%ed_parsun_z(cl,ft,iv) + &
-                                      area_frac*(rd_abs_leaf*leaf_sun_frac + rb_abs_leaf)
-                                 cpatch%ed_parsha_z(cl,ft,iv) = cpatch%ed_parsha_z(cl,ft,iv) + &
-                                      area_frac*rd_abs_leaf*(1._r8-leaf_sun_frac)
-                                 
-                                 area_vlpfcl(iv,ft,cl) = area_vlpfcl(iv,ft,cl) + area_frac
-                              end do
-                           end if if_notair
-                        end do do_icol
-                        
-                        do ft = 1,numpft
-                           do_iv: do iv = 1, nlevleaf
-                              if(area_vlpfcl(iv,ft,cl)<nearzero) exit do_iv
-                              cpatch%parprof_pft_dir_z(cl,ft,iv) = &
-                                   cpatch%parprof_pft_dir_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
-                              cpatch%parprof_pft_dif_z(cl,ft,iv) = &
-                                   cpatch%parprof_pft_dif_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
-                              cpatch%f_sun(cl,ft,iv) = cpatch%f_sun(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
-                              cpatch%ed_parsun_z(cl,ft,iv) = cpatch%ed_parsun_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
-                              cpatch%ed_parsha_z(cl,ft,iv) = cpatch%ed_parsha_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
-                           end do do_iv
-                        end do
-                        
-                     end do do_cl
+             if(debug)then
+                if(bc_out(s)%fsun_pa(ifp) > 1._r8)then
+                   write(fates_log(),*) 'too much leaf area in profile',  bc_out(s)%fsun_pa(ifp), &
+                        sunlai,shalai
+                endif
+             end if
 
-                   end associate
+             elai = calc_areaindex(cpatch,'elai')
 
-                end if if_zenithflag
-             endif if_norm_twostr
-             
-          end if if_notbareground
-          
-          cpatch => cpatch%younger
-       enddo
+             bc_out(s)%laisun_pa(ifp) = elai*bc_out(s)%fsun_pa(ifp)
+             bc_out(s)%laisha_pa(ifp) = elai*(1.0_r8-bc_out(s)%fsun_pa(ifp))
 
+             ! Absorbed PAR profile through canopy
+             ! If sun/shade big leaf code, nrad=1 and fluxes from SurfaceAlbedo
+             ! are canopy integrated so that layer values equal big leaf values.
 
+             do cl = 1, cpatch%ncl_p
+                do ft = 1,numpft
+                   do iv = 1, cpatch%nrad(cl,ft)
+
+                      cpatch%ed_parsun_z(cl,ft,iv) = &
+                           bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sun_z(cl,ft,iv) + &
+                           bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sun_z(cl,ft,iv)
+
+                      cpatch%ed_parsha_z(cl,ft,iv) = &
+                           bc_in(s)%solad_parb(ifp,ipar)*cpatch%fabd_sha_z(cl,ft,iv) + &
+                           bc_in(s)%solai_parb(ifp,ipar)*cpatch%fabi_sha_z(cl,ft,iv)
+
+                   end do !iv
+                end do !ft
+             end do !cl
+
+             ! Convert normalized radiation error units from fraction of radiation to W/m2
+             do ib = 1,num_swb
+                cpatch%rad_error(ib) = cpatch%rad_error(ib) * &
+                     (bc_in(s)%solad_parb(ifp,ib) + bc_in(s)%solai_parb(ifp,ib))
+             end do
+
+             ! output the actual PAR profiles through the canopy for diagnostic purposes
+             do cl = 1, cpatch%ncl_p
+                do ft = 1,numpft
+                   do iv = 1, cpatch%nrad(cl,ft)
+                      cpatch%parprof_pft_dir_z(cl,ft,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
+                           cpatch%nrmlzd_parprof_pft_dir_z(idirect,cl,ft,iv)) + &
+                           (bc_in(s)%solai_parb(ifp,ipar) * &
+                           cpatch%nrmlzd_parprof_pft_dir_z(idiffuse,cl,ft,iv))
+
+                      cpatch%parprof_pft_dif_z(cl,ft,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
+                           cpatch%nrmlzd_parprof_pft_dif_z(idirect,cl,ft,iv)) + &
+                           (bc_in(s)%solai_parb(ifp,ipar) * &
+                           cpatch%nrmlzd_parprof_pft_dif_z(idiffuse,cl,ft,iv))
+
+                   end do ! iv
+                end do    ! ft
+             end do       ! cl
+
+          else
+
+             ! If there is no sun out, we have a trivial solution
+             if_zenithflag: if(cpatch%solar_zenith_flag ) then
+
+                ! Two-stream 
+                ! -----------------------------------------------------------
+                do ib = 1,num_swb
+                   cpatch%twostr%band(ib)%Rbeam_atm = bc_in(s)%solad_parb(ifp,ib)
+                   cpatch%twostr%band(ib)%Rdiff_atm = bc_in(s)%solai_parb(ifp,ib)
+                end do
+
+                area_vlpfcl(:,:,:) = 0._r8
+                cpatch%f_sun(:,:,:) = 0._r8
+
+                call FatesPatchFSun(cpatch,    &
+                     bc_out(s)%fsun_pa(ifp),   &
+                     bc_out(s)%laisun_pa(ifp), &
+                     bc_out(s)%laisha_pa(ifp))
+
+                associate(twostr => cpatch%twostr)
+
+                  do_cl: do cl = 1,twostr%n_lyr
+                     do_icol: do icol = 1,twostr%n_col(cl)
+
+                        ft = twostr%scelg(cl,icol)%pft
+                        if_notair: if (ft>0) then
+                           area_frac = twostr%scelg(cl,icol)%area
+                           vai = twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai
+                           nv = minloc(dlower_vai, DIM=1, MASK=(dlower_vai>vai))
+                           do iv = 1, nv
+
+                              vai_top = dlower_vai(iv)-dinc_vai(iv)
+                              vai_bot = min(dlower_vai(iv),twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai)
+
+                              cpatch%parprof_pft_dir_z(cl,ft,iv) = cpatch%parprof_pft_dir_z(cl,ft,iv) + &
+                                   area_frac*twostr%GetRb(cl,icol,ivis,vai_top)
+                              cpatch%parprof_pft_dif_z(cl,ft,iv) = cpatch%parprof_pft_dif_z(cl,ft,iv) + &
+                                   area_frac*twostr%GetRdDn(cl,icol,ivis,vai_top) + &
+                                   area_frac*twostr%GetRdUp(cl,icol,ivis,vai_top)
+
+                              call twostr%GetAbsRad(cl,icol,ipar,vai_top,vai_bot, &
+                                   Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac)
+
+                              cpatch%f_sun(cl,ft,iv) = cpatch%f_sun(cl,ft,iv) + &
+                                   area_frac*leaf_sun_frac
+                              cpatch%ed_parsun_z(cl,ft,iv) = cpatch%ed_parsun_z(cl,ft,iv) + &
+                                   area_frac*(rd_abs_leaf*leaf_sun_frac + rb_abs_leaf)
+                              cpatch%ed_parsha_z(cl,ft,iv) = cpatch%ed_parsha_z(cl,ft,iv) + &
+                                   area_frac*rd_abs_leaf*(1._r8-leaf_sun_frac)
+
+                              area_vlpfcl(iv,ft,cl) = area_vlpfcl(iv,ft,cl) + area_frac
+                           end do
+                        end if if_notair
+                     end do do_icol
+
+                     do ft = 1,numpft
+                        do_iv: do iv = 1, nlevleaf
+                           if(area_vlpfcl(iv,ft,cl)<nearzero) exit do_iv
+                           cpatch%parprof_pft_dir_z(cl,ft,iv) = &
+                                cpatch%parprof_pft_dir_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
+                           cpatch%parprof_pft_dif_z(cl,ft,iv) = &
+                                cpatch%parprof_pft_dif_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
+                           cpatch%f_sun(cl,ft,iv) = cpatch%f_sun(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
+                           cpatch%ed_parsun_z(cl,ft,iv) = cpatch%ed_parsun_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
+                           cpatch%ed_parsha_z(cl,ft,iv) = cpatch%ed_parsha_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
+                        end do do_iv
+                     end do
+
+                  end do do_cl
+
+                end associate
+
+             end if if_zenithflag
+          endif if_norm_twostr
+
+       cpatch => cpatch%younger
     enddo
-    return
 
-  end subroutine FatesSunShadeFracs
+
+ enddo
+ return
+
+end subroutine FatesSunShadeFracs
 
 end module FatesRadiationDriveMod

@@ -49,6 +49,7 @@ module EDCanopyStructureMod
   use PRTGenericMod,          only : carbon12_element
   use FatesTwoStreamUtilsMod, only : FatesConstructRadElements
   use FatesRadiationMemMod  , only : twostr_solver
+  use FatesInterfaceTypesMod, only : hlm_hio_ignore_val
   
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -1891,127 +1892,120 @@ contains
        c = fcolumn(s)
        do while(associated(currentPatch))
 
-          if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
+          ifp = ifp+1
 
-             ifp = ifp+1
+          if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
+             if(debug)then
+                write(fates_log(),*) 'ED: canopy area bigger than area', &
+                     currentPatch%total_canopy_area ,currentPatch%area
+             end if
+             currentPatch%total_canopy_area = currentPatch%area
+          endif
 
-             if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
-                if(debug)then
-                   write(fates_log(),*) 'ED: canopy area bigger than area', &
-                        currentPatch%total_canopy_area ,currentPatch%area
-                end if
-                currentPatch%total_canopy_area = currentPatch%area
-             endif
+          if (associated(currentPatch%tallest)) then
+             bc_out(s)%htop_pa(ifp) = currentPatch%tallest%height
+          else
+             ! FIX(RF,040113) - should this be a parameter for the minimum possible vegetation height?
+             bc_out(s)%htop_pa(ifp) = 0.1_r8
+          endif
 
-             if (associated(currentPatch%tallest)) then
-                bc_out(s)%htop_pa(ifp) = currentPatch%tallest%height
-             else
-                ! FIX(RF,040113) - should this be a parameter for the minimum possible vegetation height?
-                bc_out(s)%htop_pa(ifp) = 0.1_r8
-             endif
+          bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
 
-             bc_out(s)%hbot_pa(ifp) = max(0._r8, min(0.2_r8, bc_out(s)%htop_pa(ifp)- 1.0_r8))
+          ! Use canopy-only crown area weighting for all cohorts in the patch to define the characteristic
+          ! Roughness length and displacement height used by the HLM
+          ! use total LAI + SAI to weight the leaft characteristic dimension
+          ! Avoid this if running in satellite phenology mode
+          ! ----------------------------------------------------------------------------
 
-             ! Use canopy-only crown area weighting for all cohorts in the patch to define the characteristic
-             ! Roughness length and displacement height used by the HLM
-             ! use total LAI + SAI to weight the leaft characteristic dimension
-             ! Avoid this if running in satellite phenology mode
-             ! ----------------------------------------------------------------------------
-
-             if (currentPatch%total_canopy_area > nearzero) then
-                currentCohort => currentPatch%shortest
-                do while(associated(currentCohort))
-                   if (currentCohort%canopy_layer .eq. 1) then
-                      weight = min(1.0_r8,currentCohort%c_area/currentPatch%total_canopy_area)
-                      bc_out(s)%z0m_pa(ifp) = bc_out(s)%z0m_pa(ifp) + &
-                           EDPftvarcon_inst%z0mr(currentCohort%pft) * currentCohort%height * weight
-                      bc_out(s)%displa_pa(ifp) = bc_out(s)%displa_pa(ifp) + &
-                           EDPftvarcon_inst%displar(currentCohort%pft) * currentCohort%height * weight
-                   endif
-                   currentCohort => currentCohort%taller
-                end do
-
-                ! for lai, scale to total LAI + SAI in patch.  first add up all the LAI and SAI in the patch
-                total_patch_leaf_stem_area = 0._r8
-                currentCohort => currentPatch%shortest
-                do while(associated(currentCohort))
-                   total_patch_leaf_stem_area = total_patch_leaf_stem_area + &
-                        (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area
-                   currentCohort => currentCohort%taller
-                end do
-
-                ! make sure there is some leaf and stem area
-                if (total_patch_leaf_stem_area > nearzero) then
-                   currentCohort => currentPatch%shortest
-                   do while(associated(currentCohort))
-                      ! weight dleaf by the relative totals of leaf and stem area
-                      weight = (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area / total_patch_leaf_stem_area
-                      bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
-                           EDPftvarcon_inst%dleaf(currentCohort%pft) * weight
-                      currentCohort => currentCohort%taller
-                   end do
-                else
-                   ! dummy case
-                   bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
+          if (currentPatch%total_canopy_area > nearzero) then
+             currentCohort => currentPatch%shortest
+             do while(associated(currentCohort))
+                if (currentCohort%canopy_layer .eq. 1) then
+                   weight = min(1.0_r8,currentCohort%c_area/currentPatch%total_canopy_area)
+                   bc_out(s)%z0m_pa(ifp) = bc_out(s)%z0m_pa(ifp) + &
+                        EDPftvarcon_inst%z0mr(currentCohort%pft) * currentCohort%height * weight
+                   bc_out(s)%displa_pa(ifp) = bc_out(s)%displa_pa(ifp) + &
+                        EDPftvarcon_inst%displar(currentCohort%pft) * currentCohort%height * weight
                 endif
+                currentCohort => currentCohort%taller
+             end do
+
+             ! for lai, scale to total LAI + SAI in patch.  first add up all the LAI and SAI in the patch
+             total_patch_leaf_stem_area = 0._r8
+             currentCohort => currentPatch%shortest
+             do while(associated(currentCohort))
+                total_patch_leaf_stem_area = total_patch_leaf_stem_area + &
+                     (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area
+                currentCohort => currentCohort%taller
+             end do
+
+             ! make sure there is some leaf and stem area
+             if (total_patch_leaf_stem_area > nearzero) then
+                currentCohort => currentPatch%shortest
+                do while(associated(currentCohort))
+                   ! weight dleaf by the relative totals of leaf and stem area
+                   weight = (currentCohort%treelai + currentCohort%treesai) * currentCohort%c_area / total_patch_leaf_stem_area
+                   bc_out(s)%dleaf_pa(ifp) = bc_out(s)%dleaf_pa(ifp) + &
+                        EDPftvarcon_inst%dleaf(currentCohort%pft) * weight
+                   currentCohort => currentCohort%taller
+                end do
              else
-                ! if no canopy, then use dummy values (first PFT) of aerodynamic properties
-                bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
-                bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
+                ! dummy case
                 bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
              endif
-             ! -----------------------------------------------------------------------------
+          else
+             ! if no canopy, then use dummy values (first PFT) of aerodynamic properties
+             bc_out(s)%z0m_pa(ifp)    = EDPftvarcon_inst%z0mr(1) * bc_out(s)%htop_pa(ifp)
+             bc_out(s)%displa_pa(ifp) = EDPftvarcon_inst%displar(1) * bc_out(s)%htop_pa(ifp)
+             bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
+          endif
+          ! -----------------------------------------------------------------------------
 
-             ! We are assuming here that grass is all located underneath tree canopies.
-             ! The alternative is to assume it is all spatial distinct from tree canopies.
-             ! In which case, the bare area would have to be reduced by the grass area...
-             ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants
-             ! currentPatch%area/AREA is the fraction of the soil covered by this patch.
+          ! We are assuming here that grass is all located underneath tree canopies.
+          ! The alternative is to assume it is all spatial distinct from tree canopies.
+          ! In which case, the bare area would have to be reduced by the grass area...
+          ! currentPatch%total_canopy_area/currentPatch%area is fraction of this patch cover by plants
+          ! currentPatch%area/AREA is the fraction of the soil covered by this patch.
 
-             if(currentPatch%area.gt.0.0_r8)then
-                bc_out(s)%canopy_fraction_pa(ifp) = &
-                     min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
-             else
-                bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
-             endif
+          if(currentPatch%area.gt.0.0_r8)then
+             bc_out(s)%canopy_fraction_pa(ifp) = &
+                  min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)*(currentPatch%area/AREA)
+          else
+             bc_out(s)%canopy_fraction_pa(ifp) = 0.0_r8
+          endif
 
-             bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
-                  (currentPatch%area/AREA)
+          bare_frac_area = (1.0_r8 - min(1.0_r8,currentPatch%total_canopy_area/currentPatch%area)) * &
+               (currentPatch%area/AREA)
 
-             total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
+          total_patch_area = total_patch_area + bc_out(s)%canopy_fraction_pa(ifp) + bare_frac_area
 
-             total_canopy_area = total_canopy_area + bc_out(s)%canopy_fraction_pa(ifp)
+          total_canopy_area = total_canopy_area + bc_out(s)%canopy_fraction_pa(ifp)
 
-             bc_out(s)%nocomp_pft_label_pa(ifp) = currentPatch%nocomp_pft_label
+          bc_out(s)%nocomp_pft_label_pa(ifp) = currentPatch%nocomp_pft_label
 
-             ! Calculate area indices for output boundary to HLM
-             ! It is assumed that cpatch%canopy_area_profile and cpat%xai_profiles
-             ! have been updated (ie ed_leaf_area_profile has been called since dynamics has been called)
+          ! Calculate area indices for output boundary to HLM
+          ! It is assumed that cpatch%canopy_area_profile and cpat%xai_profiles
+          ! have been updated (ie ed_leaf_area_profile has been called since dynamics has been called)
 
-             bc_out(s)%elai_pa(ifp) = calc_areaindex(currentPatch,'elai')
-             bc_out(s)%tlai_pa(ifp) = calc_areaindex(currentPatch,'tlai')
-             bc_out(s)%esai_pa(ifp) = calc_areaindex(currentPatch,'esai')
-             bc_out(s)%tsai_pa(ifp) = calc_areaindex(currentPatch,'tsai')
+          bc_out(s)%elai_pa(ifp) = calc_areaindex(currentPatch,'elai')
+          bc_out(s)%tlai_pa(ifp) = calc_areaindex(currentPatch,'tlai')
+          bc_out(s)%esai_pa(ifp) = calc_areaindex(currentPatch,'esai')
+          bc_out(s)%tsai_pa(ifp) = calc_areaindex(currentPatch,'tsai')
 
-             ! Fraction of vegetation free of snow. This is used to flag those
-             ! patches which shall under-go photosynthesis
-             ! INTERF-TODO: we may want to stop using frac_veg_nosno_alb and let
-             ! FATES internal variables decide if photosynthesis is possible
-             ! we are essentially calculating it inside FATES to tell the
-             ! host to tell itself when to do things (circuitous). Just have
-             ! to determine where else it is used
+          ! Fraction of vegetation free of snow. This is used to flag those
+          ! patches which shall under-go photosynthesis
+          ! INTERF-TODO: we may want to stop using frac_veg_nosno_alb and let
+          ! FATES internal variables decide if photosynthesis is possible
+          ! we are essentially calculating it inside FATES to tell the
+          ! host to tell itself when to do things (circuitous). Just have
+          ! to determine where else it is used
 
-             if ((bc_out(s)%elai_pa(ifp) + bc_out(s)%esai_pa(ifp)) > 0._r8) then
-                bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 1.0_r8
-             else
-                bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
-             end if
-
-          else  ! nocomp or SP, and currentPatch%nocomp_pft_label .eq. 0
-
-             total_patch_area = total_patch_area + currentPatch%area/AREA
-
+          if ((bc_out(s)%elai_pa(ifp) + bc_out(s)%esai_pa(ifp)) > 0._r8) then
+             bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 1.0_r8
+          else
+             bc_out(s)%frac_veg_nosno_alb_pa(ifp) = 0.0_r8
           end if
+
           currentPatch => currentPatch%younger
        end do
 
@@ -2033,11 +2027,8 @@ contains
           currentPatch => sites(s)%oldest_patch
           ifp = 0
           do while(associated(currentPatch))
-             if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then ! for vegetated patches only
-                ifp = ifp+1
-                bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
-             endif ! veg patch
-
+             ifp = ifp+1
+             bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
              currentPatch => currentPatch%younger
           end do
 
@@ -2282,7 +2273,7 @@ contains
     real(r8) :: c_area
     real(r8) :: arealayer
 
-    z = 1
+    z = 0
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
        z = max(z,currentCohort%canopy_layer)

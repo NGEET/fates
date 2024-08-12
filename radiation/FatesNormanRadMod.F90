@@ -16,7 +16,6 @@ module FatesNormanRadMod
   use FatesConstantsMod      , only : r8 => fates_r8
   use FatesConstantsMod      , only : itrue
   use FatesConstantsMod      , only : pi_const
-  use FatesConstantsMod      , only : nocomp_bareground
   use FatesInterfaceTypesMod , only : bc_in_type
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : numpft
