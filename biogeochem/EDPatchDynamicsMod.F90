@@ -69,7 +69,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : logging_time
   use EDLoggingMortalityMod, only : get_harvest_rate_area
   use EDLoggingMortalityMod, only : get_harvest_rate_carbon
-  use EDLoggingMortalityMod, only : get_harvestable_carbon
+  use EDLoggingMortalityMod, only : get_harvestable_carbon, get_harvestable_patch_carbon
   use EDLoggingMortalityMod, only : get_harvest_debt
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
@@ -214,6 +214,7 @@ contains
     real(r8) :: tempsum
     real(r8) :: mean_temp
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
+    real(r8) :: harvestable_patch_c
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag_csite(hlm_num_lu_harvest_cats)  ! harvest tag of current site
     real(r8) :: remain_harvest_rate(hlm_num_lu_harvest_cats)  ! temporary variable holding the remining harvest demand
@@ -224,15 +225,14 @@ contains
     integer, parameter :: harvest_age_priority = 1 ! Tag to determine if we give priority to the oldest
                                                    ! patch
                                                    ! 0 - no;
-                                                   ! 1 - yes, maximize the oldest;
-                                                   ! 2 - yes, sigmoid (To be added). and more other?
+                                                   ! 1 - yes, maximize the oldest.
     integer :: exchanged     ! used in bubble sorting
     integer :: temp_order    ! used in bubble sorting
     real(r8) :: temp_age     ! used in bubble sorting
+    real(r8) :: temp_totc    ! for debug test
     integer :: ipatch, jpatch ! used in bubble sorting
     integer, allocatable :: order_of_patches(:)  ! Record a copy of patch order for bubble sort
     real(r8), allocatable :: sec_age_patches(:)   ! Record a copy of secondary forest age for bubble sort
-
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -243,7 +243,7 @@ contains
     call get_frac_site_primary(site_in, frac_site_primary)
     call get_frac_site_secondary_mature(site_in, frac_site_secondary_mature)
 
-    ! get available biomass for harvest for all patches
+    ! get available biomass carbon for harvest for all patches
     call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
     ! Initialize local variables
@@ -273,7 +273,7 @@ contains
     if (logging_time) then
 
        ! First loop to count number of patches and initialize order
-       ! with patchno
+       ! using patchno
        currentPatch => site_in%oldest_patch
 
        do while (associated(currentPatch))
@@ -283,7 +283,7 @@ contains
           currentPatch => currentPatch%younger
        end do
 
-       ! Second loop to assign order patches and age_since_anthro_disturbance
+       ! Second loop to assign order of patches and age_since_anthro_disturbance
        allocate(order_of_patches(1:npatches))
        allocate(sec_age_patches(1:npatches))
 
@@ -364,41 +364,80 @@ contains
                        h_index = 4
                        frac_site = 1._r8 - frac_site_primary - frac_site_secondary_mature
                     end if
-                    ! Obtain harvest rate of the corresponding patch
+                    ! Obtain uniform harvest rate (area fraction) of the corresponding patch
                     if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
                         call get_harvest_rate_carbon (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                              bc_in%hlm_harvest_rates, currentPatch%age_since_anthro_disturbance, harvestable_forest_c, &
-                              harvest_rate, harvest_tag)
+                             bc_in%hlm_harvest_rates, currentPatch%age_since_anthro_disturbance, harvestable_forest_c, &
+                             harvest_rate, harvest_tag)
                     else
                         call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
                              bc_in%hlm_harvest_rates, frac_site_primary, frac_site_secondary_mature, &
                              currentPatch%age_since_anthro_disturbance, harvest_rate)
                     end if
-                    ! Check if is the first time, if so initialize remain_harvest_rate
+                    ! For the first time, initialize remain_harvest_rate
                     if(remain_harvest_rate(h_index) < 0) then
-                       remain_harvest_rate(h_index) = harvest_rate
+                       if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
+                          ! In kgC ha-1, no need to scale
+                          remain_harvest_rate(h_index) = bc_in%hlm_harvest_rates(h_index)
+                       else
+                          ! In area fraction (0 - 1) after scaling to the area of per patch land use type
+                          remain_harvest_rate(h_index) = harvest_rate
+                       end if
                     end if
                     ! Only calculate harvest rate scale for non-zero harvest rate
                     if (harvest_rate > 1e-7) then
-                       ! Compare the patch area and see if larger than remain_harvest_rate
-                       if((currentPatch%area/(AREA*frac_site)) >= remain_harvest_rate(h_index)) then
-                           currentPatch%harvest_rate_scale = remain_harvest_rate(h_index) / &
-                               (currentPatch%area/(AREA*frac_site)+1e-7) / harvest_rate
-                           remain_harvest_rate(h_index) = 0._r8
+                       if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
+                          ! Compare the patch level harvestable carbon and see if larger than remain_harvest_rate
+                          ! Note the scaling factor applied on area fraction as harvest unit
+                          call get_harvestable_patch_carbon(currentPatch, harvestable_patch_c)
+                          if(harvestable_patch_c >= remain_harvest_rate(h_index)) then
+                              currentPatch%harvest_rate_scale = remain_harvest_rate(h_index) / &
+                                  (harvestable_patch_c + 1e-7) / harvest_rate
+                              remain_harvest_rate(h_index) = 0._r8
+                          else
+                              ! harvest almost 100%, leave 1% to prevent removing the patch completely, which may cause
+                              ! model crashing under nocomp mode
+                              currentPatch%harvest_rate_scale = 0.99_r8 / harvest_rate
+                              remain_harvest_rate(h_index) = remain_harvest_rate(h_index) - 0.99_r8 * harvestable_patch_c
+                          end if
                        else
-                           ! harvest almost 100%, leave 1% to prevent removing the patch completely, which may cause
-                           ! model crash under nocomp mode
-                           currentPatch%harvest_rate_scale = 0.99_r8 / harvest_rate
-                           remain_harvest_rate(h_index) = remain_harvest_rate(h_index) - 0.99_r8 * (currentPatch%area/(AREA*frac_site))
+                          ! Compare the patch area and see if larger than remain_harvest_rate
+                          if((currentPatch%area/(AREA*frac_site)) >= remain_harvest_rate(h_index)) then
+                              currentPatch%harvest_rate_scale = remain_harvest_rate(h_index) / &
+                                  (currentPatch%area/(AREA*frac_site)+1e-7) / harvest_rate
+                              remain_harvest_rate(h_index) = 0._r8
+                          else
+                              ! leave 1% to prevent removing the patch completely
+                              currentPatch%harvest_rate_scale = 0.99_r8 / harvest_rate
+                              remain_harvest_rate(h_index) = remain_harvest_rate(h_index) - 0.99_r8 * (currentPatch%area/(AREA*frac_site))
+                          end if
                        end if
                     end if
+
+                    ! Shijie: For diagnosing the harvestable carbon
+                    temp_totc = 0._r8
+                    currentCohort => currentPatch%tallest
+ 
+                    do while (associated(currentCohort))
+
+                       if (currentCohort%canopy_layer>=1) then
+                          temp_totc = temp_totc + (currentCohort%prt%GetState(sapw_organ, carbon12_element) + &
+                              currentCohort%prt%GetState(struct_organ, carbon12_element)) * currentCohort%n * AREA_INV
+                       end if
+                       currentCohort => currentCohort%shorter
+
+                    end do
+
        write(fates_log(),*) 'See patch number:', currentPatch%patchno
        write(fates_log(),*) 'See patch age:', currentPatch%age
+       write(fates_log(),*) 'See patch total carbon (kgc m-2):', temp_totc
        write(fates_log(),*) 'See patch age sec:', currentPatch%age_since_anthro_disturbance
        write(fates_log(),*) 'See patch order sec:', currentPatch%order_age_since_anthro
        write(fates_log(),*) 'See harvest index:', h_index
        write(fates_log(),*) 'See harvest rate scale:', currentPatch%harvest_rate_scale
+       write(fates_log(),*) 'See original harvest rate:', bc_in%hlm_harvest_rates(h_index)
        write(fates_log(),*) 'See harvest rate:', harvest_rate
+       write(fates_log(),*) 'See harvestable_forest_c:', harvestable_forest_c
        write(fates_log(),*) 'See site fraction:', frac_site
        write(fates_log(),*) 'See sec mature fraction:', frac_site_secondary_mature
        write(fates_log(),*) 'See sec young fraction:', 1 - frac_site_primary - frac_site_secondary_mature
@@ -2623,7 +2662,7 @@ contains
     real(r8) :: primary_land_fraction_beforefusion,primary_land_fraction_afterfusion
     integer  :: pftlabelmin, pftlabelmax
 
-    integer, parameter :: merge_strategy = 0  ! 0 - biomass profile based only
+    integer, parameter :: merge_strategy = 1  ! 0 - biomass profile based only
                                               ! 1 - age + biomass profile based
     !
     real(r8) :: agetol  !tolerance of patch fusion routine. Starts off high and is reduced to 0.0 if there are too many patches.
@@ -2632,7 +2671,7 @@ contains
     currentSite => csite 
 
     profiletol = ED_val_patch_fusion_tol
-    agetol = 5._r8
+    agetol = 0.1_r8
 
     primary_land_fraction_beforefusion = 0._r8
     primary_land_fraction_afterfusion = 0._r8
@@ -2774,7 +2813,8 @@ contains
                                         !---------------------------------------------------------------------!
                                         ! Look for differences in profile biomass, above the minimum biomass  !
                                         !---------------------------------------------------------------------!
-                                        if(norm  > profiletol)then
+                                        if(currentPatch%land_use_label .eq. primaryland .and. &
+                                            norm  > profiletol)then
 
                                            fuse_flag = 0 !do not fuse  - keep apart. 
 
@@ -2784,7 +2824,7 @@ contains
                                         if(merge_strategy == 1) then
                                            if(currentPatch%land_use_label .eq. secondaryland .and. &
                                            abs(currentPatch%age_since_anthro_disturbance - &
-                                               tpp%age_since_anthro_disturbance) <= agetol) then
+                                               tpp%age_since_anthro_disturbance) >= agetol) then
 
                                               fuse_flag = 0 !do not fuse  - keep apart. 
 
@@ -2826,7 +2866,7 @@ contains
                             !------------------------------------------------------------------------!
 
                             profiletol = ED_val_patch_fusion_tol
-                            agetol = 5._r8
+                            agetol = 0.1_r8
 
                          endif fuseflagset_if
                       endif different_patches_if
@@ -2862,7 +2902,7 @@ contains
           if(nopatches(i_lulabel) > maxpatches_by_landuse(i_lulabel))then
              iterate = 1
              profiletol = profiletol * patch_fusion_tolerance_relaxation_increment
-             agetol = 0._r8
+             agetol = agetol * patch_fusion_tolerance_relaxation_increment !(1._r8/patch_fusion_tolerance_relaxation_increment)
 
              !---------------------------------------------------------------------!
              ! Making profile tolerance larger means that more fusion will happen  !
