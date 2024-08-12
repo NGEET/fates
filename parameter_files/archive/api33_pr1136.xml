@@ -31,8 +31,12 @@
       <di> fates_pft </di>
       <un> years </un>
       <ln> understory leaf lifespan in years </ln>
-      <val> 5, 8, 1, 3, 1, 1, 3, 1, 1, 1, 1, 1 </val>
+      <val> 1.5, 4, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1, 1 </val>
     </mod>
+
+    <mod type="variable_change" name="fates_turnover_leaf">
+      <na> fates_turnover_leaf_canopy </na>
+    </mod> 
     
   </mods>
 </all>
