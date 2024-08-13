@@ -75,44 +75,34 @@
     <mod type="variable_change" name="fates_allom_l2fr">
       <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.67, 0.67, 1.41 </val>
     </mod>
-    <mod type="variable_change" name="">
-      <na> fates_allom_lmode </na>
+    <mod type="variable_change" name="fates_allom_lmode">
       <val>2, 2, 2, 2, 2, 2, 1, 1, 1, 5, 5, 5 </val>
     </mod>
-    <mod type="variable_change" name="">
-      <na> fates_allom_smode </na>
+    <mod type="variable_change" name="fates_allom_smode">
       <val>1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2 </val>
     </mod>
-    <mod type="variable_change" name="">
-      <na>fates_leaf_slamax  </na>
+    <mod type="variable_change" name="fates_leaf_slamax">
       <val>0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.012, 0.03, 0.03, 0.05, 0.05, 0.05 </val>
     </mod>
-    <mod type="variable_change" name="">
-      <na>fates_leaf_slatop  </na>
+    <mod type="variable_change" name="fates_leaf_slatop">
       <val>0.012, 0.005, 0.024, 0.009, 0.03, 0.03, 0.012, 0.03, 0.03, 0.05, 0.05, 0.05 </val>
     </mod>
-    <mod type="variable_change" name="">
-      <na>fates_recruit_height_min </na>
+    <mod type="variable_change" name="fates_recruit_height_min">
       <val>1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 </val>
     </mod>
-    <mod type="variable_change" name="">
-      <na>fates_recruit_seed_alloc </na>
+    <mod type="variable_change" name="fates_recruit_seed_alloc">
       <val>0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0, 0, 0 </val>
     </mod>
-    <mod type="variable_change" name="">
-      <na>fates_recruit_seed_alloc_mature </na>
+    <mod type="variable_change" name="fates_recruit_seed_alloc_mature">
       <val>0, 0, 0, 0, 0, 0, 0.9, 0.9, 0.9, 0.25, 0.25, 0.2 </val>
     </mod>
-    <mod type="variable_change" name="">
-      <na>fates_recruit_seed_dbh_repro_threshold </na>
+    <mod type="variable_change" name="fates_recruit_seed_dbh_repro_threshold">
       <val>90, 80, 80, 80, 90, 80, 3, 3, 2, 3, 3, 3 </val>
     </mod>
-    <mod type="variable_change" name="">
-      <na>fates_cnp_prescribed_nuptake</na>
+    <mod type="variable_change" name="fates_cnp_prescribed_nuptake">
       <val> 0,0,0,0,0,0,0,0,0,0,0,0 </val>
     </mod>
-    <mod type="variable_change" name="">
-      <na>fates_cnp_prescribed_puptake</na>
+    <mod type="variable_change" name="fates_cnp_prescribed_puptake">
       <val> 0,0,0,0,0,0,0,0,0,0,0,0 </val>
     </mod>
     <mod type="variable_del">
@@ -132,6 +122,7 @@
       <ln> Leaf longevity (ie turnover timescale) of understory plants. </ln>
       <val> 1.5, 4, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1, 1 </val>
     </mod>
+
   </mods>
 
   
