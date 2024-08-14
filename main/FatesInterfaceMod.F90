@@ -2240,7 +2240,7 @@ subroutine SeedlingParPatch(cpatch, &
      cl_par = 0._r8
      cl_area = 0._r8
      do ipft = 1,numpft
-        iv = cpatch%ncan(cl,ipft)
+        iv = cpatch%nleaf(cl,ipft)
         ! Avoid calculating when there are no leaf layers for the given pft in the current canopy layer
         if (iv .ne. 0) then
            cl_par = cl_par + cpatch%canopy_area_profile(cl,ipft,1)* &

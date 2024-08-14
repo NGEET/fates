@@ -87,9 +87,6 @@ contains
     !real(r8), parameter :: init_max_vai_diff_per_elem = 0.2_r8
     !type(fates_cohort_type), pointer :: elem_co_ptrs(ncl*max_el_per_layer,100)
 
-    
-    
-
     max_elements = -1
     ifp=0
     patch => site%oldest_patch
