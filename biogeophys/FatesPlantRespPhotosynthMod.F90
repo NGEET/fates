@@ -1301,6 +1301,13 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! Fraction of light absorbed by non-photosynthetic pigments
   real(r8),parameter :: fnps = 0.15_r8
 
+  ! term accounting that two photons are needed to fully transport a single 
+  ! electron in photosystem 2
+  real(r8), parameter :: photon_to_e = 0.5_r8
+
+  ! Unit conversion of w/m2 to umol photons m-2 s-1
+  real(r8), parameter :: wm2_to_umolm2s = 4.6_r8
+  
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
@@ -1364,7 +1371,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
         do  sunsha = 1,2
            ! Electron transport rate for C3 plants.
-           ! Convert par from W/m2 to umol photons/m**2/s using the factor 4.6
+           ! Convert par from W/m2 to umol photons/m**2/s
            ! Convert from units of par absorbed per unit ground area to par
            ! absorbed per unit leaf area.
 
@@ -1372,7 +1379,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               if(( laisun_lsl * canopy_area_lsl) > min_la_to_solve)then
 
                  qabs = parsun_lsl / (laisun_lsl * canopy_area_lsl )
-                 qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
+                 qabs = qabs * photon_to_e * (1._r8 - fnps) * wm2_to_umolm2s
 
               else
                  qabs = 0.0_r8
@@ -1382,7 +1389,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               if( (parsha_lsl>nearzero) .and. (laisha_lsl * canopy_area_lsl) > min_la_to_solve  ) then
 
                  qabs = parsha_lsl / (laisha_lsl * canopy_area_lsl)
-                 qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
+                 qabs = qabs * photon_to_e * (1._r8 - fnps) *  wm2_to_umolm2s
               else                 
                  ! The radiative transfer schemes are imperfect
                  ! they can sometimes generate negative values here
@@ -1438,14 +1445,14 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                  if(sunsha == 1)then !sunlit
                     !guard against /0's in the night.
                     if((laisun_lsl * canopy_area_lsl) > 0.0000000001_r8) then
-                       aj = quant_eff(c3c4_path_index) * parsun_lsl * 4.6_r8
+                       aj = quant_eff(c3c4_path_index) * parsun_lsl * wm2_to_umolm2s
                        !convert from per cohort to per m2 of leaf)
                        aj = aj / (laisun_lsl * canopy_area_lsl)
                     else
                        aj = 0._r8
                     end if
                  else
-                    aj = quant_eff(c3c4_path_index) * parsha_lsl * 4.6_r8
+                    aj = quant_eff(c3c4_path_index) * parsha_lsl * wm2_to_umolm2s
                     aj = aj / (laisha_lsl * canopy_area_lsl)
                  end if
 
@@ -1488,6 +1495,31 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               ! With an <= 0, then gs_mol = stomatal_intercept_btran
               leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * a_gs * can_press 		   
               leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
+
+              ! A note about the use of the quadratic equations for calculating stomatal conductance
+              ! ------------------------------------------------------------------------------------
+              ! These two following models calculate the conductance between the intercellular leaf
+              ! space and the leaf surface, not the canopy air space.  Transport between the leaf
+              ! surface and the canopy air space is governed by the leaf boundary layer conductance.
+              ! However, we need to estimate the properties at the surface of the leaf to solve for
+              ! the stomatal conductance. We do this by using Fick's law (gradient resistance
+              ! approximation of diffusion) to estimate the flux of water vapor across the
+              ! leaf boundary layer, and balancing that with the flux across the stomata. It
+              ! results in the following equation for leaf surface humidity:
+              !
+              ! e_s = (e_i g_s + e_c g_b)/(g_b + g_s)
+              !
+              ! The leaf surface humidity (e_s) becomes an expression of canopy humidity (e_c),
+              ! intercellular humidity (e_i, which is the saturation humidity at leaf temperature),
+              ! boundary layer conductance (g_b) (these are all known) and stomatal conductance
+              ! (g_s) (this is still unknown).  This expression is substituted into the stomatal
+              ! conductance equation. The resulting form of these equations becomes a quadratic.
+              !
+              ! For a detailed explanation, see the FATES technical note, section
+              ! "1.11 Stomatal Conductance"
+              !
+              ! ------------------------------------------------------------------------------------
+              
               
               if ( stomatal_model == medlyn_model ) then
                  !stomatal conductance calculated from Medlyn et al. (2011), the numerical &

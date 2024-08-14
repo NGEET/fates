@@ -1050,21 +1050,11 @@ contains
        call bbgw_allom(d,ipft, elongf_stem,bbgw,dbbgwdd)
        bsap = bagw + bbgw
 
-       ! replicate the crown damage code
-       ! Do we really need this for grass? I would think this can be helpful for
-       ! grazing in the future. --XLG
-       if(crowndamage > 1)then
-          call GetCrownReduction(crowndamage, crown_reduction)
-          bsap = elongf_stem * (bsap - (bsap * agb_frac * branch_frac * crown_reduction))
-          if(present(dbsapdd))then
-             dbsapdd = elongf_stem * &
-                  (dbagwdd + dbbgwdd - ((dbagwdd + dbbgwdd) * agb_frac * branch_frac * crown_reduction))
-          end if
-       else
-          bsap = elongf_stem * bsap
-          if (present(dbsapdd))then
-             dbsapdd = elongf_stem * (dbagwdd + dbbgwdd)
-          end if
+       ! This is a grass-only functionnal type, no need to run crown-damage effects
+
+       bsap = elongf_stem * bsap
+       if (present(dbsapdd))then
+          dbsapdd = elongf_stem * (dbagwdd + dbbgwdd)
        end if
        
        if(present(dbsapdd))then
