@@ -20,7 +20,7 @@
 		 the variables -->
   <!-- -->
   
-  <base_file>archive/api36.0.0_params_default.cdl</base_file>
+  <base_file>archive/api36.1.0_params_default.cdl</base_file>
   <new_file>fates_params_default.cdl</new_file>
   <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
   <mods>
