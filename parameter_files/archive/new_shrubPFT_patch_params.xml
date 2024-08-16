@@ -113,13 +113,30 @@
       <fates_frag_seed_decay_rate> 0.35 </fates_frag_seed_decay_rate>
       <fates_recruit_seed_germination_rate> 0.29 </fates_recruit_seed_germination_rate>
     </pft_group>
+
+    <!-- Update the HLM-PFT map since PFTs 9, 10, 11 now share area -->
+    <!-- Splits the HLM deciduous boreal shrub (which must sum to 1.0)  -->
+    <!-- into 0.1 for the evergreen arctic, and 0.8 for cold-decid arctic -->
+    <!-- and leaves 0.1 in the orginial non-arctic extratrop cold-decid shrub -->
+    <pft_group ids="9" >
+      <fates_hlm_pft_map> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.1, 0, 0, 0 </fates_hlm_pft_map>
+    </pft_group>
+
+    <pft_group ids="10">
+      <fates_hlm_pft_map> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.1, 0, 0, 0 </fates_hlm_pft_map>
+    </pft_group>
+
+    <pft_group ids="11">
+      <fates_hlm_pft_map> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.8, 0, 0, 0 </fates_hlm_pft_map>
+    </pft_group>
     <non_pft_group></non_pft_group>
+
 
     <!-- Creates a new 10th and 11th column, for the two new arctic shrub PFTs -->
     <!-- then splits the HLM deciduous boreal shrub (which must sum to 1.0)  -->
     <!-- into 0.1 for the evergreen arctic, and 0.8 for cold-decid arctic -->
     <!-- and leaves 0.1 in the orginial non-arctic extratrop cold-decid shrub -->
-    <mods>
+    <!--<mods>
       <mod type="variable_change" name="fates_hlm_pft_map">
         <di> fates_hlm_pftno, fates_pft </di>
         <val>  0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -138,7 +155,7 @@
                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ;
         </val>
       </mod>
-    </mods>
+    </mods>   -->
 
   </parameters>
 </all>
