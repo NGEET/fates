@@ -348,6 +348,18 @@ variables:
 	double fates_hydro_vg_n_node(fates_hydr_organs, fates_pft) ;
 		fates_hydro_vg_n_node:units = "unitless" ;
 		fates_hydro_vg_n_node:long_name = "(used if hydr_htftype_node = 2),n in van Genuchten 1980 model, pore size distribution parameter" ;
+	double fates_landuse_harvest_pprod10(fates_pft) ;
+		fates_landuse_harvest_pprod10:units = "fraction" ;
+		fates_landuse_harvest_pprod10:long_name = "fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
+	double fates_landuse_luc_frac_burned(fates_pft) ;
+		fates_landuse_luc_frac_burned:units = "fraction" ;
+		fates_landuse_luc_frac_burned:long_name = "fraction of land use change-generated and not-exported material that is burned (the remainder goes to litter)" ;
+	double fates_landuse_luc_frac_exported(fates_pft) ;
+		fates_landuse_luc_frac_exported:units = "fraction" ;
+		fates_landuse_luc_frac_exported:long_name = "fraction of land use change-generated wood material that is exported to wood product (the remainder is either burned or goes to litter)" ;
+	double fates_landuse_luc_pprod10(fates_pft) ;
+		fates_landuse_luc_pprod10:units = "fraction" ;
+		fates_landuse_luc_pprod10:long_name = "fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
@@ -690,6 +702,12 @@ variables:
 	double fates_frag_cwd_frac(fates_NCWD) ;
 		fates_frag_cwd_frac:units = "fraction" ;
 		fates_frag_cwd_frac:long_name = "fraction of woody (bdead+bsw) biomass destined for CWD pool" ;
+	double fates_landuse_crop_lu_pft_vector(fates_landuseclass) ;
+		fates_landuse_crop_lu_pft_vector:units = "NA" ;
+		fates_landuse_crop_lu_pft_vector:long_name = "the FATES PFT index to use on a given crop land-use type (dummy value of -999 for non-crop types)" ;
+	double fates_max_nocomp_pfts_by_landuse(fates_landuseclass) ;
+		fates_max_nocomp_pfts_by_landuse:units = "count" ;
+		fates_max_nocomp_pfts_by_landuse:long_name = "maximum number of nocomp PFTs on each land use type (only used in nocomp mode)" ;
 	double fates_maxpatches_by_landuse(fates_landuseclass) ;
 		fates_maxpatches_by_landuse:units = "count" ;
 		fates_maxpatches_by_landuse:long_name = "maximum number of patches per site on each land use type" ;
@@ -732,15 +750,9 @@ variables:
 	double fates_fire_durat_slope ;
 		fates_fire_durat_slope:units = "NA" ;
 		fates_fire_durat_slope:long_name = "spitfire parameter, fire max duration slope, Equation 14 Thonicke et al 2010" ;
-	double fates_fire_fdi_a ;
-		fates_fire_fdi_a:units = "NA" ;
-		fates_fire_fdi_a:long_name = "spitfire parameter, fire danger index,  EQ 5 Thonicke et al 2010" ;
 	double fates_fire_fdi_alpha ;
 		fates_fire_fdi_alpha:units = "NA" ;
 		fates_fire_fdi_alpha:long_name = "spitfire parameter, EQ 7 Venevsky et al. GCB 2002,(modified EQ 8 Thonicke et al. 2010) " ;
-	double fates_fire_fdi_b ;
-		fates_fire_fdi_b:units = "NA" ;
-		fates_fire_fdi_b:long_name = "spitfire parameter, fire danger index, EQ 5 Thonicke et al 2010 " ;
 	double fates_fire_fuel_energy ;
 		fates_fire_fuel_energy:units = "kJ/kg" ;
 		fates_fire_fuel_energy:long_name = "spitfire parameter, heat content of fuel" ;
@@ -810,9 +822,6 @@ variables:
 	double fates_landuse_logging_mechanical_frac ;
 		fates_landuse_logging_mechanical_frac:units = "fraction" ;
 		fates_landuse_logging_mechanical_frac:long_name = "Fraction of stems killed due infrastructure an other mechanical means" ;
-	double fates_landuse_pprodharv10_forest_mean ;
-		fates_landuse_pprodharv10_forest_mean:units = "fraction" ;
-		fates_landuse_pprodharv10_forest_mean:long_name = "mean harvest mortality proportion of deadstem to 10-yr product (pprodharv10) of all woody PFT types" ;
 	double fates_leaf_photo_temp_acclim_thome_time ;
 		fates_leaf_photo_temp_acclim_thome_time:units = "years" ;
 		fates_leaf_photo_temp_acclim_thome_time:long_name = "Length of the window for the long-term (i.e. T_home in Kumarathunge et al 2019) exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_leaf_photo_tempsens_model = 2)" ;
@@ -1294,6 +1303,16 @@ data:
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
+ fates_landuse_harvest_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 1 ;
+
+ fates_landuse_luc_frac_burned = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+    0.5, 0.5, 0.5 ;
+
+ fates_landuse_luc_frac_exported = 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.2, 0.2, 
+    0.2, 0, 0, 0 ;
+
+ fates_landuse_luc_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 1 ;
+
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 
  fates_leaf_jmaxha = 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540, 
@@ -1638,6 +1657,10 @@ data:
 
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
 
+ fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
+
+ fates_max_nocomp_pfts_by_landuse = 4, 4, 1, 1, 1 ;
+
  fates_maxpatches_by_landuse = 9, 4, 1, 1, 1 ;
 
  fates_canopy_closure_thresh = 0.8 ;
@@ -1666,11 +1689,7 @@ data:
 
  fates_fire_durat_slope = -11.06 ;
 
- fates_fire_fdi_a = 17.62 ;
-
  fates_fire_fdi_alpha = 0.00037 ;
-
- fates_fire_fdi_b = 243.12 ;
 
  fates_fire_fuel_energy = 18000 ;
 
@@ -1717,8 +1736,6 @@ data:
  fates_landuse_logging_export_frac = 0.8 ;
 
  fates_landuse_logging_mechanical_frac = 0.05 ;
-
- fates_landuse_pprodharv10_forest_mean = 0.8125 ;
 
  fates_leaf_photo_temp_acclim_thome_time = 30 ;
 
