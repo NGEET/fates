@@ -1,0 +1,3 @@
+[submodule "tools/landuse"]
+	path = tools/landuse
+	url = https://github.com/NGEET/tools-fates-landusedata
