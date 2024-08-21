@@ -1,3 +1,6 @@
 [submodule "tools/landusedata"]
 	path = tools/landusedata
 	url = https://github.com/NGEET/tools-fates-landusedata
+	fxrequired = AlwaysRequired
+	# Standard Fork to compare to with "git fleximod test" to ensure personal forks aren't committed
+	fxDONOTUSEurl = https://github.com/NGEET/tools-fates-landusedata
