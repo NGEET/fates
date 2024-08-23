@@ -538,7 +538,7 @@ module EDTypesMod
    
   ! =====================================================================================
 
-  subroutine CalculateTreeGrassArea(csite, tree_fraction, grass_fraction, bare_fraction)
+  subroutine CalculateTreeGrassAreaSite(csite, tree_fraction, grass_fraction, bare_fraction)
     !
     !  DESCRIPTION:
     !  Calculates total grass, tree, and bare fractions for a site
@@ -571,7 +571,7 @@ module EDTypesMod
     grass_fraction = min(grass_fraction, 1.0_r8 - tree_fraction)
     bare_fraction = 1.0_r8 - tree_fraction - grass_fraction
 
-  end subroutine CalculateTreeGrassArea
+  end subroutine CalculateTreeGrassAreaSite
 
   !---------------------------------------------------------------------------------------
 
