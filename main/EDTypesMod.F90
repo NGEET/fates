@@ -481,7 +481,7 @@ module EDTypesMod
 
   ! Make public necessary subroutines and functions
   public :: dump_site
-  public :: CalculateTreeGrassArea
+  public :: CalculateTreeGrassAreaSite
 
   contains
       
