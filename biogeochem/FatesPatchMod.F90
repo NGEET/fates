@@ -579,29 +579,6 @@ module FatesPatchMod
       
       ! RADIATION
       this%rad_error(:)                      = 0.0_r8
-<<<<<<< HEAD
-      this%fabd_sun_z(:,:,:)                 = 0.0_r8 
-      this%fabd_sha_z(:,:,:)                 = 0.0_r8 
-      this%fabi_sun_z(:,:,:)                 = 0.0_r8 
-      this%fabi_sha_z(:,:,:)                 = 0.0_r8  
-      this%ed_parsun_z(:,:,:)                = 0.0_r8 
-      this%ed_parsha_z(:,:,:)                = 0.0_r8
-      this%ed_laisun_z(:,:,:)                = 0._r8
-      this%ed_laisha_z(:,:,:)                = 0._r8
-      this%f_sun                             = 0.0_r8
-||||||| b8e4eee5
-      this%fabd_sun_z(:,:,:)                 = 0.0_r8 
-      this%fabd_sha_z(:,:,:)                 = 0.0_r8 
-      this%fabi_sun_z(:,:,:)                 = 0.0_r8 
-      this%fabi_sha_z(:,:,:)                 = 0.0_r8  
-      this%ed_parsun_z(:,:,:)                = 0.0_r8 
-      this%ed_parsha_z(:,:,:)                = 0.0_r8
-      this%ed_laisun_z(:,:,:)           = 0._r8
-      this%ed_laisha_z(:,:,:)           = 0._r8
-      this%f_sun                             = 0.0_r8
-=======
-
->>>>>>> main
       this%tr_soil_dir_dif(:)                = 0.0_r8
       this%fab(:)                            = 0.0_r8
       this%fabi(:)                           = 0.0_r8
