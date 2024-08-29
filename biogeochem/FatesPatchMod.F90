@@ -6,6 +6,7 @@ module FatesPatchMod
   use FatesConstantsMod,   only : primaryland, secondaryland
   use FatesConstantsMod,   only : n_landuse_cats
   use FatesConstantsMod,   only : TRS_regeneration
+  use FatesConstantsMod,   only : itrue
   use FatesGlobals,        only : fates_log
   use FatesGlobals,        only : endrun => fates_endrun
   use FatesUtilsMod,       only : check_hlm_list
@@ -16,6 +17,8 @@ module FatesPatchMod
   use FatesLitterMod,      only : litter_type
   use PRTGenericMod,       only : num_elements
   use PRTGenericMod,       only : element_list
+  use PRTParametersMod,    only : prt_params
+  use FatesConstantsMod,   only : nocomp_bareground
   use EDParamsMod,         only : nlevleaf, nclmax, maxpft
   use FatesConstantsMod,   only : n_dbh_bins, n_dist_types
   use FatesConstantsMod,   only : t_water_freeze_k_1atm
@@ -100,6 +103,7 @@ module FatesPatchMod
                                                               !   used to determine attenuation of parameters during photosynthesis
     real(r8) :: total_canopy_area                           ! area that is covered by vegetation [m2]
     real(r8) :: total_tree_area                             ! area that is covered by woody vegetation [m2]
+    real(r8) :: total_grass_area                            ! area that is covered by non-woody vegetation [m2]
     real(r8) :: zstar                                       ! height of smallest canopy tree, only meaningful in "strict PPA" mode [m]
 
     ! exposed leaf area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
@@ -213,7 +217,6 @@ module FatesPatchMod
     ! fire spread
     real(r8)              :: ros_front               ! rate of forward  spread of fire [m/min]
     real(r8)              :: ros_back                ! rate of backward spread of fire [m/min]
-    real(r8)              :: effect_wspeed           ! windspeed modified by fraction of relative grass and tree cover [m/min]
     real(r8)              :: tau_l                   ! duration of lethal heating [min]
     real(r8)              :: fi                      ! average fire intensity of flaming front [kJ/m/s] or [kW/m]
     integer               :: fire                    ! is there a fire? [1=yes; 0=no]
@@ -241,6 +244,7 @@ module FatesPatchMod
       procedure :: InitRunningMeans
       procedure :: InitLitter
       procedure :: Create
+      procedure :: UpdateTreeGrassArea
       procedure :: FreeMemory
       procedure :: Dump
       procedure :: CheckVars
@@ -451,7 +455,8 @@ module FatesPatchMod
       this%pft_agb_profile(:,:)         = nan
       this%canopy_layer_tlai(:)         = nan               
       this%total_canopy_area            = nan
-      this%total_tree_area              = nan 
+      this%total_tree_area              = nan
+      this%total_grass_area             = nan
       this%zstar                        = nan 
 
      
@@ -511,7 +516,6 @@ module FatesPatchMod
       this%litter_moisture(:)           = nan
       this%ros_front                    = nan
       this%ros_back                     = nan   
-      this%effect_wspeed                = nan    
       this%tau_l                        = nan
       this%fi                           = nan 
       this%fire                         = fates_unset_int
@@ -565,7 +569,8 @@ module FatesPatchMod
           
       ! LEAF ORGANIZATION
       this%canopy_layer_tlai(:)              = 0.0_r8
-      this%total_tree_area                   = 0.0_r8  
+      this%total_tree_area                   = 0.0_r8
+      this%total_grass_area                  = 0.0_r8
       this%zstar                             = 0.0_r8
       
       this%c_stomata                         = 0.0_r8 
@@ -574,7 +579,6 @@ module FatesPatchMod
       
       ! RADIATION
       this%rad_error(:)                      = 0.0_r8
-
       this%tr_soil_dir_dif(:)                = 0.0_r8
       this%fab(:)                            = 0.0_r8
       this%fabi(:)                           = 0.0_r8
@@ -606,7 +610,6 @@ module FatesPatchMod
       this%litter_moisture(:)                = 0.0_r8
       this%ros_front                         = 0.0_r8
       this%ros_back                          = 0.0_r8
-      this%effect_wspeed                     = 0.0_r8
       this%tau_l                             = 0.0_r8
       this%fi                                = 0.0_r8
       this%fd                                = 0.0_r8
@@ -763,6 +766,42 @@ module FatesPatchMod
 
     !===========================================================================
 
+    subroutine UpdateTreeGrassArea(this)
+      !
+      ! DESCRIPTION:
+      ! calculate and update the total tree area and grass area (by canopy) on patch
+      !
+
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this ! patch object 
+
+      ! LOCALS:
+      type(fates_cohort_Type), pointer :: currentCohort ! cohort object
+      real(r8)                         :: tree_area     ! treed area of patch [m2]
+      real(r8)                         :: grass_area    ! grass area of patch [m2]
+
+      if (this%nocomp_pft_label /= nocomp_bareground) then 
+        tree_area = 0.0_r8
+        grass_area = 0.0_r8
+        
+        currentCohort => this%tallest
+        do while(associated(currentCohort))
+          if (prt_params%woody(currentCohort%pft) == itrue) then
+            tree_area = tree_area + currentCohort%c_area
+          else
+            grass_area = grass_area + currentCohort%c_area
+          end if
+          currentCohort => currentCohort%shorter
+        end do
+        
+        this%total_tree_area = min(tree_area, this%area)
+        this%total_grass_area = min(grass_area, this%area)
+      end if 
+
+    end subroutine UpdateTreeGrassArea
+
+    !===========================================================================
+
     subroutine FreeMemory(this, regeneration_model, numpft)
       !
       ! DESCRIPTION:
@@ -913,6 +952,7 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%ncl_p              = ',this%ncl_p
       write(fates_log(),*) 'pa%total_canopy_area  = ',this%total_canopy_area
       write(fates_log(),*) 'pa%total_tree_area    = ',this%total_tree_area
+      write(fates_log(),*) 'pa%total_grass_area   = ',this%total_grass_area
       write(fates_log(),*) 'pa%zstar              = ',this%zstar
       write(fates_log(),*) 'pa%solar_zenith_flag  = ',this%solar_zenith_flag
       write(fates_log(),*) 'pa%solar_zenith_angle = ',this%solar_zenith_angle

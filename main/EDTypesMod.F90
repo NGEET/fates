@@ -481,6 +481,7 @@ module EDTypesMod
 
   ! Make public necessary subroutines and functions
   public :: dump_site
+  public :: CalculateTreeGrassAreaSite
 
   contains
       
@@ -536,6 +537,43 @@ module EDTypesMod
   end subroutine ZeroMassBalFlux
    
   ! =====================================================================================
+
+  subroutine CalculateTreeGrassAreaSite(csite, tree_fraction, grass_fraction, bare_fraction)
+    !
+    !  DESCRIPTION:
+    !  Calculates total grass, tree, and bare fractions for a site
+
+    use FatesConstantsMod, only : nocomp_bareground
+
+    ! ARGUMENTS:
+    type(ed_site_type), intent(inout) :: csite          ! site object
+    real(r8),           intent(out)   :: tree_fraction  ! total site tree fraction
+    real(r8),           intent(out)   :: grass_fraction ! total site grass fraction
+    real(r8),           intent(out)   :: bare_fraction  ! total site bare fraction
+
+    ! LOCALS:
+    type(fates_patch_type), pointer :: currentPatch ! patch object
+    
+    tree_fraction = 0.0_r8
+    grass_fraction = 0.0_r8
+    
+    currentPatch => csite%oldest_patch
+    do while(associated(currentPatch))
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
+        call currentPatch%UpdateTreeGrassArea()
+        tree_fraction = tree_fraction + currentPatch%total_tree_area/AREA
+        grass_fraction = grass_fraction + currentPatch%total_grass_area/AREA
+      end if 
+      currentPatch => currentPatch%younger
+    end do
+
+    ! if cover > 1.0, grasses are under the trees
+    grass_fraction = min(grass_fraction, 1.0_r8 - tree_fraction)
+    bare_fraction = 1.0_r8 - tree_fraction - grass_fraction
+
+  end subroutine CalculateTreeGrassAreaSite
+
+  !---------------------------------------------------------------------------------------
 
   subroutine dump_site(csite) 
 
