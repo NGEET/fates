@@ -982,8 +982,6 @@ contains
           currentPatch%ros_back                   = 0._r8
           currentPatch%scorch_ht(:)               = 0._r8
           currentPatch%frac_burnt                 = 0._r8
-          currentPatch%burnt_frac_litter(:)       = 0._r8
-
           currentPatch => currentPatch%older
        enddo
     enddo

@@ -219,8 +219,6 @@ module FatesPatchMod
     real(r8)              :: scorch_ht(maxpft)       ! scorch height [m] 
     real(r8)              :: frac_burnt              ! fraction burnt [0-1/day]  
     real(r8)              :: tfc_ros                 ! total intensity-relevant fuel consumed - no trunks [kgC/m2 of burned ground/day]
-    real(r8)              :: burnt_frac_litter(nfsc) ! fraction of each litter pool burned, conditional on it being burned [0-1]
-
     !---------------------------------------------------------------------------
     
     ! PLANT HYDRAULICS (not currently used in hydraulics RGK 03-2018)  
@@ -510,8 +508,7 @@ module FatesPatchMod
       this%scorch_ht(:)                 = nan 
       this%frac_burnt                   = nan
       this%tfc_ros                      = nan    
-      this%burnt_frac_litter(:)         = nan
-
+      
     end subroutine NanValues
 
     !===========================================================================
@@ -596,7 +593,6 @@ module FatesPatchMod
       this%scorch_ht(:)                      = 0.0_r8  
       this%frac_burnt                        = 0.0_r8  
       this%tfc_ros                           = 0.0_r8
-      this%burnt_frac_litter(:)              = 0.0_r8
 
     end subroutine ZeroValues
 

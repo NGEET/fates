@@ -102,7 +102,6 @@ contains
     use FatesConstantsMod, only : sec_per_day, sec_per_min
     use EDTypesMod,        only : CalculateTreeGrassAreaSite
 
-
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
     type(bc_in_type),   intent(in)            :: bc_in
@@ -348,10 +347,6 @@ contains
   !*****************************************************************
     !returns the  the hypothetic fuel consumed by the fire
 
-    use SFParamsMod, only : SF_val_miner_total, SF_val_min_moisture, &
-         SF_val_mid_moisture, SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope, &
-         SF_val_mid_moisture_Coeff, SF_val_mid_moisture_Slope
-
     type(ed_site_type) , intent(in), target :: currentSite
     type(fates_patch_type), pointer    :: currentPatch
     type(litter_type), pointer      :: litt_c           ! carbon 12 litter pool
@@ -367,46 +362,8 @@ contains
     do while(associated(currentPatch))
 
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
-
-       currentPatch%burnt_frac_litter(:) = 1.0_r8       
-       ! Calculate fraction of litter is burnt for all classes. 
-       ! Equation B1 in Thonicke et al. 2010---
-       do c = 1, nfsc    !work out the burnt fraction for all pools, even if those pools dont exist.         
-          moist = currentPatch%fuel%effective_moisture(c)                  
-          ! 1. Very dry litter
-          if (moist <= SF_val_min_moisture(c)) then
-             currentPatch%burnt_frac_litter(c) = 1.0_r8  
-          endif
-          ! 2. Low to medium moistures
-          if (moist > SF_val_min_moisture(c).and.moist <= SF_val_mid_moisture(c)) then
-             currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_low_moisture_Coeff(c)- &
-                  SF_val_low_moisture_Slope(c)*moist)) 
-          else
-          ! For medium to high moistures. 
-             if (moist > SF_val_mid_moisture(c).and.moist <= 1.0_r8) then
-                currentPatch%burnt_frac_litter(c) = max(0.0_r8,min(1.0_r8,SF_val_mid_moisture_Coeff(c)- &
-                     SF_val_mid_moisture_Slope(c)*moist))
-             endif
-
-          endif
-          ! Very wet litter        
-          if (moist >= 1.0_r8) then !this shouldn't happen? 
-             currentPatch%burnt_frac_litter(c) = 0.0_r8  
-          endif          
-       enddo !c   
-
-       ! we can't ever kill -all- of the grass. 
-       currentPatch%burnt_frac_litter(lg_sf) = min(0.8_r8,currentPatch%burnt_frac_litter(lg_sf ))  
-
-       ! reduce burnt amount for mineral content. 
-       currentPatch%burnt_frac_litter(:) = currentPatch%burnt_frac_litter(:) * (1.0_r8-SF_val_miner_total) 
-
-       !---Calculate amount of fuel burnt.---    
-
-       litt_c => currentPatch%litter(element_pos(carbon12_element))
-       FC_ground(tw_sf:tr_sf) = currentPatch%burnt_frac_litter(tw_sf:tr_sf) * litt_c%ag_cwd(tw_sf:tr_sf)
-       FC_ground(dl_sf)       = currentPatch%burnt_frac_litter(dl_sf)   * sum(litt_c%leaf_fines(:))
-       FC_ground(lg_sf)       = currentPatch%burnt_frac_litter(lg_sf)   * currentPatch%livegrass      
+         
+         currentPatch%fuel%BurnFuel(fc_ground)
 
        ! Following used for determination of cambial kill follows from Peterson & Ryan (1986) scheme 
        ! less empirical cf current scheme used in SPITFIRE which attempts to mesh Rothermel 
@@ -415,17 +372,16 @@ contains
        ! taul is the duration of the lethal heating.  
        ! The /10 is to convert from kgC/m2 into gC/cm2, as in the Peterson and Ryan paper #Rosie,Jun 2013
         
-       do c = 1,nfsc  
+       do c = 1,nfsc_notrunks  
           tau_b(c)   =  39.4_r8 *(currentPatch%currentPatch%fuel%frac_loading(c)*currentPatch%fuel%total_loading/0.45_r8/10._r8)* &
-               (1.0_r8-((1.0_r8-currentPatch%burnt_frac_litter(c))**0.5_r8))  
+               (1.0_r8-((1.0_r8-currentPatch%fuel%frac_burnt(c))**0.5_r8))  
        enddo
-       tau_b(tr_sf)   =  0.0_r8
        ! Cap the residence time to 8mins, as suggested by literature survey by P&R (1986).
        currentPatch%tau_l = min(8.0_r8,sum(tau_b)) 
 
        !---calculate overall fuel consumed by spreading fire --- 
        ! ignore 1000hr fuels. Just interested in fuels affecting ROS   
-       currentPatch%TFC_ROS = sum(FC_ground)-FC_ground(tr_sf)  
+       currentPatch%TFC_ROS = sum(FC_ground)
 
        end if ! nocomp_pft_label check
 

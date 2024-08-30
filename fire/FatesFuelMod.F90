@@ -15,8 +15,10 @@ module FatesFuelMod
   type, public :: fuel_type
     
     real(r8) :: loading(nfsc_notrunks)      ! fuel loading of non-trunks fuel class [kgC/m2]
+    real(r8) :: trunk_loading               ! fuel loading of trunk fuel class [kgC/m2]
     real(r8) :: effective_moisture(nfsc)    ! fuel effective moisture all fuel class (moisture/MEF) [m3/m3]
     real(r8) :: frac_loading(nfsc_notrunks) ! fractional loading of non-trunk fuel classes [0-1] 
+    real(r8) :: frac_burnt(nfsc)            ! fraction of litter burnt by fire [0-1]
     real(r8) :: total_loading               ! total fuel loading - DOES NOT INCLUDE TRUNKS [kgC/m2]
     real(r8) :: average_moisture            ! weighted average of fuel moisture across non-trunk fuel classes [m3/m3]
     real(r8) :: bulk_density                ! weighted average of bulk density across non-trunk fuel classes [kg/m3]
@@ -32,6 +34,7 @@ module FatesFuelMod
       procedure :: UpdateFuelMoisture
       procedure :: AverageBulkDensity
       procedure :: AverageSAV
+      procedure :: BurnFuel
 
   end type fuel_type
   
@@ -46,7 +49,9 @@ module FatesFuelMod
       
       ! just zero everything
       this%loading(1:nfsc_notrunks) = 0.0_r8
+      this%trunk_loading = 0.0_r8
       this%frac_loading(1:nfsc_notrunks) = 0.0_r8
+      this%frac_burnt(1:nfsc) = 0.0_r8  
       this%effective_moisture(1:nfsc) = 0.0_r8
       this%total_loading = 0.0_r8
       this%average_moisture = 0.0_r8 
@@ -77,6 +82,7 @@ module FatesFuelMod
       this%loading(fuel_classes%small_branches()) = small_branch_litter
       this%loading(fuel_classes%large_branches()) = large_branch_litter
       this%loading(fuel_classes%live_grass()) = live_grass
+      this%trunk_loading = trunk_litter
 
     end subroutine CalculateLoading
 
@@ -160,6 +166,79 @@ module FatesFuelMod
       end if
        
     end subroutine UpdateFuelMoisture
+    
+    !-------------------------------------------------------------------------------------
+    
+    real(r8) function CalculateFractionBurnt(effective_moisture, min_moisture,           &
+      mid_moisture, moisture_coeff_low, moisture_slope_low, moisture_coeff_mid,          &
+      moisture_slope_mid)
+      ! DESCRIPTION:
+      !   Calculates fraction burnt of fuel based on input fuel moisture
+      
+      ! Based on Equation B1 from Thonicke et al. 2010
+
+      ! ARGUMENTS:
+      real(r8), intent(in) :: effective_moisture ! effective fuel moisture [m3/m3]
+      real(r8), intent(in) :: min_moisture       ! minimum moisture content for initial equation [m3/m3]
+      real(r8), intent(in) :: mid_moisture       ! medium moisture content for initial equation [m3/m3]
+      real(r8), intent(in) :: moisture_coeff_low ! coefficient for low moisture content [m3/m3]
+      real(r8), intent(in) :: moisture_slope_low ! slope for low moisture content [m3/m3]
+      real(r8), intent(in) :: moisture_coeff_mid ! coefficient for medium moisture content [m3/m3]
+      real(r8), intent(in) :: moisture_slope_mid ! slope for low medium content [m3/m3] 
+      
+      if (effective_moisture <= min_moisture) then 
+        CalculateFractionBurnt = 1.0_r8
+      else if (effective_moisture > min_moisture .and. effective_moisture <= mid_moisture) then 
+        CalculateFractionBurnt = max(0.0_r8, min(1.0_r8, moisture_coeff_low -            &
+          moisture_slope_low*effective_moisture))
+      else if (effective_moisture > mid_moisture .and. effective_moisture <= 1.0_r8) then 
+        CalculateFractionBurnt = max(0.0_r8, min(1.0_r8, moisture_coeff_mid -            &
+          moisture_slope_mid*effective_moisture))
+      else 
+        CalculateFractionBurnt = 0.0_r8
+      end if
+      
+    end function CalculateFractionBurnt
+    
+    !-------------------------------------------------------------------------------------
+    
+    subroutine BurnFuel(this, fuel_consumed)
+      ! DESCRIPTION:
+      !   Calculates how much fuel burns
+      
+      ! USES
+      use SFParamsMod, only : SF_val_miner_total, SF_val_min_moisture
+      use SFParamsMod, only : SF_val_mid_moisture, SF_val_low_moisture_Coeff
+      use SFParamsMod, only : SF_val_low_moisture_Slope, SF_val_mid_moisture_Coeff
+      use SFParamsMod, only : SF_val_mid_moisture_Slope
+
+      ! ARGUMENTS:
+      class(fuel_type), intent(inout) :: this                         ! fuel class
+      real(r8),         intent(out)   :: fuel_consumed(nsfc_notrunks) ! amount of fuel consumed in non-trunk litter classes [kgC/m2]
+      
+      ! LOCALS:
+      integer :: i ! looping index for fuel classes
+      
+      do i in 1, nfsc
+        this%frac_burnt = CalculateFractionBurnt(this%effective_moisture(i),             &
+          SF_val_min_moisture(i), SF_val_mid_moisture(i), SF_val_low_moisture_Coeff(i),  &
+          SF_val_low_moisture_Slope(i), SF_val_mid_moisture_Coeff(i),                    &
+          SF_val_mid_moisture_Slope(i))
+      end do 
+          
+      ! we can't ever kill all of the grass
+      this%frac_burnt(fuel_classes%live_grass()) = min(0.8_r8,                           &
+        this%frac_burnt(fuel_classes%live_grass()))  
+
+      ! reduce burnt amount for mineral content
+      this%frac_burnt(1:nfsc) = this%frac_burnt(1:nfsc)*(1.0_r8 - SF_val_miner_total) 
+      
+      ! calculate amount of fuel burned
+      do i = 1, nfsc_notrunks
+        fuel_consumed(i) = this%frac_burnt(i)*this%loading(i)
+      end do
+       
+    end subroutine BurnFuel
     
     !-------------------------------------------------------------------------------------
     

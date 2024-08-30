@@ -764,11 +764,11 @@ contains
 
                             ! Transfer the litter existing already in the donor patch to the new patch
                             ! This call will only transfer non-burned litter to new patch
-                            ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
+                            ! and burned litter to atmosphere. Thus it is important to zero fuel%frac_burnt when
                             ! fire is not the current disturbance regime.
 
                             if(i_disturbance_type .ne. dtype_ifire) then
-                               currentPatch%burnt_frac_litter(:) = 0._r8
+                               currentPatch%fuel%frac_burnt(:) = 0._r8
                             end if
 
                             call CopyPatchMeansTimers(currentPatch, newPatch)
@@ -1052,7 +1052,7 @@ contains
 
                                      ! Grasses determine their fraction of leaves burned here
 
-                                     leaf_burn_frac = currentPatch%burnt_frac_litter(lg_sf)
+                                     leaf_burn_frac = currentPatch%fuel%frac_burnt(fuel_classes%live_grass())
                                   endif
 
                                   ! Perform a check to make sure that spitfire gave
@@ -1720,7 +1720,7 @@ contains
 
     call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area)
 
-    currentPatch%burnt_frac_litter(:) = 0._r8
+    currentPatch%fuel%frac_burnt(:) = 0._r8
 
     ! Next, we loop through the cohorts in the donor patch, copy them with
     ! area modified number density into the new-patch, and apply survivorship.
@@ -2075,10 +2075,10 @@ contains
              
           ! Transfer above ground CWD
           donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               (1._r8 - currentPatch%burnt_frac_litter(c))
+                               (1._r8 - currentPatch%fuel%frac_burnt(c))
 
           burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               currentPatch%burnt_frac_litter(c)
+                               currentPatch%fuel%frac_burnt(c)
  
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
@@ -2099,10 +2099,10 @@ contains
 
            ! Transfer leaf fines
            donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
+                                      (1._r8 - currentPatch%fuel%frac_burnt(fuel_clases%dead_leaves()))
 
            burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      currentPatch%burnt_frac_litter(dl_sf)
+                                      currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
 
            new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
@@ -3297,7 +3297,7 @@ contains
     rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area) * inv_sum_area
     rp%scorch_ht(:)         = (dp%scorch_ht(:)*dp%area + rp%scorch_ht(:)*rp%area) * inv_sum_area
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
-    rp%burnt_frac_litter(:) = (dp%burnt_frac_litter(:)*dp%area + rp%burnt_frac_litter(:)*rp%area) * inv_sum_area
+    rp%fuel%frac_burnt(:) = (dp%fuel%frac_burnt(:)*dp%area + rp%fuel%frac_burnt(:)*rp%area) * inv_sum_area
     rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area) * inv_sum_area
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
