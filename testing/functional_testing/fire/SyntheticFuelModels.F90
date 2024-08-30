@@ -119,28 +119,28 @@ module SyntheticFuelModels
     type(synthetic_fuel_model), allocatable :: temporary_array(:) ! temporary array to hold data while re-allocating
     
     ! first make sure we have enough space in the array
-    if (allocated(this%fuel_types)) then
+    if (allocated(this%fuel_models)) then
       ! already allocated to some size
-      if (this%num_fuel_types == size(this%fuel_types)) then 
+      if (this%num_fuel_models == size(this%fuel_models)) then 
         ! need to add more space
-        allocate(temporary_array(size(this%fuel_types) + chunk_size))
-        temporary_array(1:size(this%fuel_types)) = this%fuel_types
-        call move_alloc(temporary_array, this%fuel_types)
+        allocate(temporary_array(size(this%fuel_models) + chunk_size))
+        temporary_array(1:size(this%fuel_models)) = this%fuel_models
+        call move_alloc(temporary_array, this%fuel_models)
       end if 
       
-      this%num_fuel_types = this%num_fuel_types + 1
+      this%num_fuel_models = this%num_fuel_models + 1
   
     else 
       ! first element in array 
-      allocate(this%fuel_types(chunk_size))
-      this%num_fuel_types = 1
+      allocate(this%fuel_models(chunk_size))
+      this%num_fuel_models = 1
     end if 
     
     call fuel_model%InitFuelModel(fuel_model_index, carrier, fuel_model_name,            &
       wind_adj_factor, hr1_loading, hr10_loading, hr100_loading, live_herb_loading,      &
       live_woody_loading, fuel_depth)
     
-    this%fuel_types(this%num_fuel_types) = fuel_model
+    this%fuel_models(this%num_fuel_models) = fuel_model
       
   end subroutine AddFuelModel
   
@@ -159,8 +159,8 @@ module SyntheticFuelModels
     ! LOCALS:
     integer :: i ! looping index 
     
-    do i = 1, this%num_fuel_types
-      if (this%fuel_types(i)%fuel_model_index == fuel_model_index) then
+    do i = 1, this%num_fuel_models
+      if (this%fuel_models(i)%fuel_model_index == fuel_model_index) then
         FuelModelPosition = i
         return
       end if

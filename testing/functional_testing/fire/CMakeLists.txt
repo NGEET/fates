@@ -1,7 +1,7 @@
 set(fire_test_sources 
             FatesTestFuel.F90
             FatesTestFireMod.F90
-            SyntheticFuelTypes.F90)
+            SyntheticFuelModels.F90)
 
 set(NETCDF_C_DIR ${NETCDF_C_PATH})
 set(NETCDF_FORTRAN_DIR ${NETCDF_F_PATH})

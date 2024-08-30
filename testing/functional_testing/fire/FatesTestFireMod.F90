@@ -10,9 +10,9 @@ module FatesTestFireMod
   use SFNesterovMod,       only : nesterov_index
   use FatesUnitTestIOMod,  only : OpenNCFile, GetVar, CloseNCFile, RegisterNCDims
   use FatesUnitTestIOMod,  only : RegisterVar, EndNCDef, WriteVar
-  use FatesUnitTestIOMod,  only : type_double, type_int
+  use FatesUnitTestIOMod,  only : type_double, type_int, type_char
   use FatesFuelClassesMod, only : nfsc, nfsc_notrunks
-  use SyntheticFuelTypes,  only : fuel_types_array_class
+  use SyntheticFuelModels, only : fuel_models_array_class
   use SFParamsMod,         only : SF_val_CWD_frac
   use FatesFuelMod,        only : fuel_type
 
@@ -25,16 +25,18 @@ module FatesTestFireMod
 
     !=====================================================================================
 
-    subroutine SetUpFuel(fuel, fuel_models, fuel_model_index)
+    subroutine SetUpFuel(fuel, fuel_model_array, fuel_model_index, fuel_name, fuel_carrier)
       !
       ! DESCRIPTION:
       ! Sets up fuel loading
       !
     
       ! ARGUMENTS:
-      type(fuel_type),              intent(inout) :: fuel             ! fuel object
-      type(fuel_types_array_class), intent(in)    :: fuel_models      ! array of fuel models
-      integer,                      intent(in)    :: fuel_model_index ! fuel model index
+      type(fuel_type),               intent(inout) :: fuel             ! fuel object
+      type(fuel_models_array_class), intent(in)    :: fuel_model_array ! array of fuel models
+      integer,                       intent(in)    :: fuel_model_index ! fuel model index
+      character(len=100),            intent(out)   :: fuel_name        ! name of fuel model
+      character(len=2),              intent(out)   :: fuel_carrier     ! fuel carrier for fuel model
       
       ! LOCALS:
       integer                         :: i                   ! position of fuel model in array
@@ -46,19 +48,22 @@ module FatesTestFireMod
       
 
       ! get fuel model position in array
-      i = fuel_models%FuelModelPosition(fuel_model_index)
+      i = fuel_model_array%FuelModelPosition(fuel_model_index)
       
       ! fuel model data
-      leaf_litter = fuel_models%fuel_types(i)%hr1_loading
-      twig_litter = fuel_models%fuel_types(i)%hr10_loading
+      leaf_litter = fuel_model_array%fuel_models(i)%hr1_loading
+      twig_litter = fuel_model_array%fuel_models(i)%hr10_loading
       
       ! small vs. large branches based on input parameter file
-      small_branch_litter = fuel_models%fuel_types(i)%hr100_loading*SF_val_CWD_frac(2)/ &
+      small_branch_litter = fuel_model_array%fuel_models(i)%hr100_loading*SF_val_CWD_frac(2)/ &
         (SF_val_CWD_frac(2) + SF_val_CWD_frac(3))
-      large_branch_litter = fuel_models%fuel_types(i)%hr100_loading*SF_val_CWD_frac(3)/ &
+      large_branch_litter = fuel_model_array%fuel_models(i)%hr100_loading*SF_val_CWD_frac(3)/ &
         (SF_val_CWD_frac(2) + SF_val_CWD_frac(3))
         
-      grass_litter = fuel_models%fuel_types(i)%live_herb_loading
+      grass_litter = fuel_model_array%fuel_models(i)%live_herb_loading
+      
+      fuel_name = fuel_model_array%fuel_models(i)%fuel_model_name
+      fuel_carrier = fuel_model_array%fuel_models(i)%carrier
       
       call fuel%CalculateLoading(leaf_litter, twig_litter, small_branch_litter,    &
         large_branch_litter, 0.0_r8, grass_litter)
@@ -100,27 +105,30 @@ module FatesTestFireMod
     !=====================================================================================
 
     subroutine WriteFireData(out_file, nsteps, nfuelmods, temp_degC, precip, rh, NI,     &
-      loading, frac_loading, fuel_BD, fuel_SAV, total_loading, fuel_models)
+      loading, frac_loading, fuel_BD, fuel_SAV, total_loading, fuel_moisture,            &
+      fuel_models, carriers)
       !
       ! DESCRIPTION:
       ! writes out data from the unit test
       !
     
       ! ARGUMENTS:
-      character(len=*), intent(in) :: out_file
-      integer,          intent(in) :: nsteps
-      integer,          intent(in) :: nfuelmods
-      real(r8),         intent(in) :: temp_degC(:)
-      real(r8),         intent(in) :: precip(:)
-      real(r8),         intent(in) :: rh(:)
-      real(r8),         intent(in) :: NI(:)
-      real(r8),         intent(in) :: loading(:,:)
-      real(r8),         intent(in) :: frac_loading(:,:)
-      real(r8),         intent(in) :: total_loading(:)
-      real(r8),         intent(in) :: fuel_BD(:)
-      real(r8),         intent(in) :: fuel_SAV(:)
-      integer,          intent(in) :: fuel_models(:)
-
+      character(len=*),   intent(in) :: out_file
+      integer,            intent(in) :: nsteps
+      integer,            intent(in) :: nfuelmods
+      real(r8),           intent(in) :: temp_degC(:)
+      real(r8),           intent(in) :: precip(:)
+      real(r8),           intent(in) :: rh(:)
+      real(r8),           intent(in) :: NI(:)
+      real(r8),           intent(in) :: loading(:,:)
+      real(r8),           intent(in) :: frac_loading(:,:)
+      real(r8),           intent(in) :: total_loading(:)
+      real(r8),           intent(in) :: fuel_moisture(:,:)
+      real(r8),           intent(in) :: fuel_BD(:)
+      real(r8),           intent(in) :: fuel_SAV(:)
+      integer,            intent(in) :: fuel_models(:)
+      character(len=2),   intent(in) :: carriers(:)
+      
       ! LOCALS:
       integer, allocatable :: time_index(:) ! array of time index
       integer              :: ncid         ! netcdf id
@@ -135,13 +143,15 @@ module FatesTestFireMod
       integer              :: frac_loadingID
       integer              :: tot_loadingID
       integer              :: BDID, SAVID
+      integer              :: moistID
+      integer              :: cID
       
       ! create pft indices
       allocate(time_index(nsteps))
       do i = 1, nsteps
         time_index(i) = i
       end do
-
+      
       ! dimension names
       dim_names = [character(len=20) :: 'time', 'litter_class', 'fuel_model']
 
@@ -170,8 +180,13 @@ module FatesTestFireMod
         [character(len=20)  :: 'units', 'long_name'],                 &
         [character(len=150) :: '', 'fuel model index'], 2, modID)
 
-        
       ! then register actual variables
+    
+      ! register fuel carriers
+      call RegisterVar(ncid, 'carrier', dimIDs(3:3), type_char,            &
+        [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
+        [character(len=150) :: 'fuel_model_index', '', 'carrier of fuel'],  &
+        3, cID)
         
       ! register temperature
       call RegisterVar(ncid, 'temp_degC', dimIDs(1:1), type_double,      &
@@ -196,6 +211,12 @@ module FatesTestFireMod
         [character(len=20)  :: 'coordinates', 'units', 'long_name'], &
         [character(len=150) :: 'time', '', 'Nesterov Index'],        &                                                  
         3, NIID)
+        
+      ! register fuel moisture
+      call RegisterVar(ncid, 'fuel_moisture', (/dimIDs(1), dimIDs(3)/), type_double,   &
+        [character(len=20)  :: 'coordinates', 'units', 'long_name'],                   &
+        [character(len=150) :: 'time fuel_model', 'm3 m-3', 'average fuel moisture'],  &                                                  
+        3, moistID)
         
       ! register fuel loading
       call RegisterVar(ncid, 'fuel_loading', dimIDs(2:3), type_double,                 &
@@ -227,14 +248,14 @@ module FatesTestFireMod
         [character(len=150) :: 'fuel_model', 'cm-1', 'fuel surface area to volume ratio'],  &                                                  
         3, SAVID)
         
-        
       ! finish defining variables
       call EndNCDef(ncid)
 
       ! write out data
       call WriteVar(ncid, timeID, time_index)
       call WriteVar(ncid, litterID, (/1, 2, 3, 4, 5/))
-      call WriteVar(ncid, modID, fuel_models)
+      call WriteVar(ncid, modID, fuel_models(:))
+      call WriteVar(ncid, cID, carriers(:))
       call WriteVar(ncid, tempID, temp_degC(:))
       call WriteVar(ncid, precipID, precip(:))
       call WriteVar(ncid, rhID, rh(:))
@@ -242,6 +263,7 @@ module FatesTestFireMod
       call WriteVar(ncid, loadingID, loading(:,:))
       call WriteVar(ncid, frac_loadingID, frac_loading(:,:))
       call WriteVar(ncid, tot_loadingID, total_loading(:))
+      call WriteVar(ncid, moistiD, fuel_moisture(:,:))
       call WriteVar(ncid, BDID, fuel_BD(:))
       call WriteVar(ncid, SAVID, fuel_SAV(:))
  
