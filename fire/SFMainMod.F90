@@ -100,15 +100,12 @@ contains
 
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesConstantsMod, only : sec_per_day, sec_per_min
-    use EDTypesMod,        only : CalculateTreeGrassArea
+    use EDTypesMod,        only : CalculateTreeGrassAreaSite
 
-    ! CONSTANTS:
-    real(r8), parameter :: wind_atten_treed = 0.4_r8 ! wind attenuation factor for tree fraction
-    real(r8), parameter :: wind_atten_grass = 0.6_r8 ! wind attenuation factor for grass fraction
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
-    type(bc_in_type),    intent(in)           :: bc_in
+    type(bc_in_type),   intent(in)            :: bc_in
 
     ! LOCALS:  
     type(fates_patch_type), pointer :: currentPatch   ! patch object
@@ -147,7 +144,7 @@ contains
     call currentSite%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
 
     ! calculate site-level tree, grass, and bare fraction
-    call CalculateTreeGrassArea(currentSite, tree_fraction, grass_fraction, bare_fraction)
+    call CalculateTreeGrassAreaSite(currentSite, tree_fraction, grass_fraction, bare_fraction)
 
     ! update effective wind speed
     call currentSite%fireWeather%UpdateEffectiveWindSpeed(wind*sec_per_min, tree_fraction, &

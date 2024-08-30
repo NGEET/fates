@@ -186,13 +186,16 @@ contains
 
     ! leaf maintenance (dark) respiration [umol CO2/m**2/s]
     real(r8) :: lmr_z(nlevleaf,maxpft,nclmax)
-
+    
     ! stomatal resistance [s/m]
     real(r8) :: rs_z(nlevleaf,maxpft,nclmax)
 
     ! net leaf photosynthesis averaged over sun and shade leaves. [umol CO2/m**2/s]
     real(r8) :: anet_av_z(nlevleaf,maxpft,nclmax)
 
+    ! Photosynthesis [umol /m2 /s]
+    real(r8) :: psn_z(nlevleaf,maxpft,nclmax)
+    
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
     logical :: rate_mask_z(nlevleaf,maxpft,nclmax)
@@ -353,6 +356,8 @@ contains
                bc_out(s)%rssun_pa(ifp)     = 0._r8
                bc_out(s)%rssha_pa(ifp)     = 0._r8
 
+               psn_z(:,:,:) = 0._r8
+               
                g_sb_leaves = 0._r8
                patch_la    = 0._r8
 
@@ -369,7 +374,7 @@ contains
                   ! Part III. Calculate the number of sublayers for each pft and layer.
                   ! And then identify which layer/pft combinations have things in them.
                   ! Output:
-                  ! currentPatch%ncan(:,:)
+                  ! currentPatch%nleaf(:,:)
                   ! currentPatch%canopy_mask(:,:)
                   call UpdateCanopyNCanNRadPresent(currentPatch)
 
@@ -723,7 +728,7 @@ contains
                                       lmr_z(iv,ft,cl),                    &  ! in
                                       leaf_psi,                           &  ! in
                                       bc_in(s)%rb_pa(ifp),                &  ! in  
-                                      currentPatch%psn_z(cl,ft,iv),       &  ! out
+                                      psn_z(iv,ft,cl),                    &  ! out
                                       rs_z(iv,ft,cl),                     &  ! out
                                       anet_av_z(iv,ft,cl),                &  ! out
                                       c13disc_z(cl,ft,iv))                   ! out
@@ -755,7 +760,7 @@ contains
                            if(radiation_model.eq.norman_solver) then
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   currentPatch%psn_z(cl,ft,1:nv),        & !in
+                                   psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    currentPatch%elai_profile(cl,ft,1:nv), & !in
@@ -773,7 +778,7 @@ contains
                            else
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   currentPatch%psn_z(cl,ft,1:nv),        & !in
+                                   psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    cohort_layer_elai(1:nv),               & !in
@@ -1975,16 +1980,16 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine calculates two patch level quanities:
-    ! currentPatch%ncan   and
+    ! currentPatch%nleaf   and
     ! currentPatch%canopy_mask
     !
-    ! currentPatch%ncan(:,:) is a two dimensional array that indicates
+    ! currentPatch%nleaf(:,:) is a two dimensional array that indicates
     ! the total number of leaf layers (including those that are not exposed to light)
     ! in each canopy layer and for each functional type.
     !
     ! currentPatch%nrad(:,:) is a two dimensional array that indicates
     ! the total number of EXPOSED leaf layers, but for all intents and purposes
-    ! in the photosynthesis routine, this appears to be the same as %ncan...
+    ! in the photosynthesis routine, this appears to be the same as %nleaf...
     !
     ! currentPatch%canopy_mask(:,:) has the same dimensions, is binary, and
     ! indicates whether or not leaf layers are present (by evaluating the canopy area
@@ -2005,14 +2010,14 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     ! of the layer/pft index it is in
     ! ---------------------------------------------------------------------------------
 
-    currentPatch%ncan(:,:) = 0
+    currentPatch%nleaf(:,:) = 0
     ! redo the canopy structure algorithm to get round a
     ! bug that is happening for site 125, FT13.
     currentCohort => currentPatch%tallest
     do while(associated(currentCohort))
 
-       currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft) = &
-            max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft), &
+       currentPatch%nleaf(currentCohort%canopy_layer,currentCohort%pft) = &
+            max(currentPatch%nleaf(currentCohort%canopy_layer,currentCohort%pft), &
             currentCohort%NV)
 
        currentCohort => currentCohort%shorter
@@ -2020,10 +2025,10 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     enddo !cohort
 
     ! NRAD = NCAN ...
-    currentPatch%nrad = currentPatch%ncan
+    currentPatch%nrad = currentPatch%nleaf
 
     ! Now loop through and identify which layer and pft combo has scattering elements
-    do cl = 1,nclmax
+    do cl = 1,currentPatch%ncl_p
        do ft = 1,numpft
           currentPatch%canopy_mask(cl,ft) = 0
           do iv = 1, currentPatch%nrad(cl,ft);
