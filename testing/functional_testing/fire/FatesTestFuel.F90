@@ -5,7 +5,7 @@ program FatesTestFuel
   use FatesTestFireMod,            only : SetUpFuel, ReadDatmData, WriteFireData
   use FatesArgumentUtils,          only : command_line_arg
   use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
-  use SyntheticFuelTypes,          only : fuel_types_array_class
+  use SyntheticFuelModels,         only : fuel_models_array_class
   use SFFireWeatherMod,            only : fire_weather
   use SFNesterovMod,               only : nesterov_index
   use FatesFuelMod,                only : fuel_type
@@ -17,7 +17,7 @@ program FatesTestFuel
   
   ! LOCALS:
   type(fates_unit_test_param_reader)             :: param_reader      ! param reader instance
-  type(fuel_types_array_class)                   :: fuel_types_array  ! array of fuel models
+  type(fuel_models_array_class)                  :: fuel_models_array  ! array of fuel models
   class(fire_weather),               pointer     :: fireWeather       ! fire weather object
   type(fuel_type),                   allocatable :: fuel(:)           ! fuel objects                          
   character(len=:),                  allocatable :: param_file        ! input parameter file
@@ -74,11 +74,11 @@ program FatesTestFuel
   
   ! set up fuel objects and calculate loading
   allocate(fuel(num_fuel_models))
-  call fuel_types_array%GetFuelModels()
+  call fuel_models_array%GetFuelModels()
   do f = 1, num_fuel_models
     
     ! uses data from fuel_models to initialize fuel
-    call SetUpFuel(fuel(f), fuel_types_array, fuel_models(f))
+    call SetUpFuel(fuel(f), fuel_models_array, fuel_models(f))
     
     ! sum up fuel and calculate loading
     call fuel(f)%SumLoading()
