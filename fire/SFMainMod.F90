@@ -25,7 +25,7 @@ module SFMainMod
   use FatesCohortMod,         only : fates_cohort_type
   use EDtypesMod,             only : AREA
   use FatesLitterMod,         only : litter_type
-  use FatesFuelClassesMod,    only : nfsc
+  use FatesFuelClassesMod,    only : nfsc, nfsc_notrunks
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : sapw_organ
@@ -241,7 +241,7 @@ contains
        ! ----start spreading---
 
        if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) &
-            'SF - currentPatch%fuel%bulk_density ',currentPatch%currentPatch%fuel%bulk_density
+            'SF - currentPatch%fuel%bulk_density ',currentPatch%fuel%bulk_density
        if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) &
             'SF - SF_val_part_dens ',SF_val_part_dens
 
@@ -311,7 +311,7 @@ contains
 
        ! mw_weight = relative fuel moisture/fuel moisture of extinction
        ! average values for litter pools (dead leaves, twigs, small and large branches) plus grass
-       mw_weight = currentPatch%currentPatch%fuel%average_moisture/currentPatch%fuel%MEF
+       mw_weight = currentPatch%fuel%average_moisture/currentPatch%fuel%MEF
        
        ! Equation in table A1 Thonicke et al. 2010. 
        ! moist_damp is unitless
@@ -363,7 +363,7 @@ contains
 
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
          
-         currentPatch%fuel%BurnFuel(fc_ground)
+         call currentPatch%fuel%BurnFuel(fc_ground)
 
        ! Following used for determination of cambial kill follows from Peterson & Ryan (1986) scheme 
        ! less empirical cf current scheme used in SPITFIRE which attempts to mesh Rothermel 
@@ -373,7 +373,7 @@ contains
        ! The /10 is to convert from kgC/m2 into gC/cm2, as in the Peterson and Ryan paper #Rosie,Jun 2013
         
        do c = 1,nfsc_notrunks  
-          tau_b(c)   =  39.4_r8 *(currentPatch%currentPatch%fuel%frac_loading(c)*currentPatch%fuel%total_loading/0.45_r8/10._r8)* &
+          tau_b(c)   =  39.4_r8 *(currentPatch%fuel%frac_loading(c)*currentPatch%fuel%total_loading/0.45_r8/10._r8)* &
                (1.0_r8-((1.0_r8-currentPatch%fuel%frac_burnt(c))**0.5_r8))  
        enddo
        ! Cap the residence time to 8mins, as suggested by literature survey by P&R (1986).

@@ -40,7 +40,8 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,  only : nlevsclass
   use FatesInterfaceTypesMod,  only : nlevdamage
   use FatesLitterMod,          only : litter_type
-  use FatesLitterMod,          only : ncwd, nfsc
+  use FatesLitterMod,          only : ncwd
+  use FatesFuelClassesMod,     only : nfsc
   use FatesLitterMod,          only : ndcmpy
   use EDTypesMod,              only : area
   use EDParamsMod,             only : nlevleaf

@@ -37,8 +37,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : ican_upper
   use PRTGenericMod        , only : num_elements
   use PRTGenericMod        , only : element_list
-  use FatesLitterMod       , only : lg_sf
-  use FatesLitterMod       , only : dl_sf
+  use FatesFuelClassesMod  , only : fuel_classes
   use FatesConstantsMod    , only : N_DIST_TYPES
   use EDTypesMod           , only : AREA_INV
   use EDTypesMod           , only : dump_site
@@ -2099,7 +2098,7 @@ contains
 
            ! Transfer leaf fines
            donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      (1._r8 - currentPatch%fuel%frac_burnt(fuel_clases%dead_leaves()))
+                                      (1._r8 - currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves()))
 
            burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
                                       currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
