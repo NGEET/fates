@@ -214,12 +214,12 @@ module FatesFuelMod
 
       ! ARGUMENTS:
       class(fuel_type), intent(inout) :: this                         ! fuel class
-      real(r8),         intent(out)   :: fuel_consumed(nsfc_notrunks) ! amount of fuel consumed in non-trunk litter classes [kgC/m2]
+      real(r8),         intent(out)   :: fuel_consumed(nfsc_notrunks) ! amount of fuel consumed in non-trunk litter classes [kgC/m2]
       
       ! LOCALS:
       integer :: i ! looping index for fuel classes
       
-      do i in 1, nfsc
+      do i = 1, nfsc
         this%frac_burnt = CalculateFractionBurnt(this%effective_moisture(i),             &
           SF_val_min_moisture(i), SF_val_mid_moisture(i), SF_val_low_moisture_Coeff(i),  &
           SF_val_low_moisture_Slope(i), SF_val_mid_moisture_Coeff(i),                    &

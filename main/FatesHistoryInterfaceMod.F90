@@ -121,7 +121,7 @@ module FatesHistoryInterfaceMod
   use FatesSizeAgeTypeIndicesMod, only : get_layersizetype_class_index
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
 
-  use FatesLitterMod      , only : nfsc
+  use FatesFuelClassesMod , only : nfsc
   use FatesLitterMod      , only : ncwd
   use FatesConstantsMod   , only : ican_upper
   use FatesConstantsMod   , only : ican_ustory
@@ -4255,7 +4255,7 @@ contains
                    hio_fragmentation_scaler_sl(io_si,ilyr) = hio_fragmentation_scaler_sl(io_si,ilyr) + cpatch%fragmentation_scaler(ilyr) * cpatch%area * AREA_INV
                 end do
 
-                do i_fuel = 1,nfsc
+                do i_fuel = 1, nfsc
 
                    i_agefuel = get_agefuel_class_index(cpatch%age,i_fuel)
                    hio_fuel_amount_age_fuel(io_si,i_agefuel) = hio_fuel_amount_age_fuel(io_si,i_agefuel) + &
