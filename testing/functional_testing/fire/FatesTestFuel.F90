@@ -43,15 +43,15 @@ program FatesTestFuel
   character(len=*), parameter :: out_file = 'fuel_out.nc' ! output file 
   
   ! fuel models to test
-  !integer, parameter, dimension(3) :: fuel_models = (/102, 183, 164/)
-  integer, parameter, dimension(52) :: fuel_models = (/1, 2, 101, 102, 104, 107, 121,    &
-                                                      122, 3, 103, 105, 106, 108, 109,   &
-                                                      123, 124, 4, 5, 6, 141, 142, 145,  &
-                                                      147, 161, 164, 10, 7, 143, 144,    &
-                                                      146, 148, 149, 162, 163, 8, 9,     &
-                                                      181, 182, 183, 184, 185, 186, 187, &
-                                                      188, 189, 11, 12, 13, 201, 202,    &
-                                                      203, 204/)
+  integer, parameter, dimension(3) :: fuel_models = (/102, 183, 164/)
+  ! integer, parameter, dimension(52) :: fuel_models = (/1, 2, 101, 102, 104, 107, 121,    &
+  !                                                     122, 3, 103, 105, 106, 108, 109,   &
+  !                                                     123, 124, 4, 5, 6, 141, 142, 145,  &
+  !                                                     147, 161, 164, 10, 7, 143, 144,    &
+  !                                                     146, 148, 149, 162, 163, 8, 9,     &
+  !                                                     181, 182, 183, 184, 185, 186, 187, &
+  !                                                     188, 189, 11, 12, 13, 201, 202,    &
+  !                                                     203, 204/)
   
   ! number of fuel models to test
   num_fuel_models = size(fuel_models)
