@@ -25,14 +25,15 @@ module SFMainMod
   use FatesCohortMod,         only : fates_cohort_type
   use EDtypesMod,             only : AREA
   use FatesLitterMod,         only : litter_type
-  use FatesFuelClassesMod,    only : nfsc, nfsc_notrunks
+  use FatesFuelClassesMod,    only : nfsc
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : sapw_organ
   use PRTGenericMod,          only : struct_organ
   use FatesInterfaceTypesMod, only : numpft
   use FatesAllometryMod,      only : CrownDepth
-
+  use FatesFuelClassesMod,    only : fuel_classes
+  
   implicit none
   private
 
@@ -158,7 +159,8 @@ contains
     !  DESCRIPTION:
     !  Updates fuel characteristics on each patch of the site
 
-    use SFParamsMod, only : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
+    use SFParamsMod,       only : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
+    use FatesConstantsMod, only : nearzero
 
     ! ARGUMENTS:
     type(ed_site_type), intent(in), target :: currentSite  ! site object
@@ -166,7 +168,16 @@ contains
     ! LOCALS:
     type(fates_patch_type), pointer :: currentPatch ! FATES patch 
     type(litter_type),      pointer :: litter       ! pointer to patch litter class
-
+    integer :: lg_sf, tr_sf, lb_sf, sb_sf, dl_sf, tw_sf
+    integer :: i
+    
+    dl_sf = fuel_classes%dead_leaves()
+    lg_sf = fuel_classes%live_grass()
+    tr_sf = fuel_classes%trunks()
+    lb_sf = fuel_classes%large_branches()
+    sb_sf = fuel_classes%small_branches()
+    tw_sf = fuel_classes%twigs()
+    
     currentPatch => currentSite%oldest_patch 
     do while(associated(currentPatch))  
 
@@ -177,22 +188,67 @@ contains
 
         ! update fuel loading [kgC/m2]
         litter => currentPatch%litter(element_pos(carbon12_element))
-        call currentPatch%fuel%CalculateLoading(sum(litter%leaf_fines(:)),          &
-          litter%ag_cwd(1), litter%ag_cwd(2), litter%ag_cwd(3), litter%ag_cwd(4),   &
-          currentPatch%livegrass)
+         call currentPatch%fuel%CalculateLoading(sum(litter%leaf_fines(:)),          &
+            litter%ag_cwd(1), litter%ag_cwd(2), litter%ag_cwd(3), litter%ag_cwd(4),  &
+            currentPatch%livegrass)
+            
+         ! sum up fuel classes and calculate fractional loading for each
+         call currentPatch%fuel%SumLoading()
+         call currentPatch%fuel%CalculateFractionalLoading()
+        
+         if (currentPatch%fuel%total_loading > 0.0) then        
+            
+            ! calculate fuel moisture [m3/m3]
+            call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,   &
+               currentSite%fireWeather)
+            
+            ! calculate geometric properties
+            !call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
+            !call currentPatch%fuel%AverageSAV(SF_val_SAV)
+               
+            currentPatch%fuel%bulk_density = 0.0_r8
+            currentPatch%fuel%SAV = 0.0_r8
+            do i = 1, nfsc               
+               ! average bulk density and SAV across all fuel types except trunks 
+               if (i /= fuel_classes%trunks()) then 
+                  currentPatch%fuel%bulk_density = currentPatch%fuel%bulk_density + currentPatch%fuel%frac_loading(i)*SF_val_FBD(i)
+                  currentPatch%fuel%SAV = currentPatch%fuel%SAV + currentPatch%fuel%frac_loading(i)*SF_val_SAV(i)
+               end if 
+            end do
+   
+            ! ! Average properties over the first three litter pools (twigs, s branches, l branches) 
+            ! currentPatch%fuel%bulk_density = sum(currentPatch%fuel%frac_loading(tw_sf:lb_sf) * SF_val_FBD(tw_sf:lb_sf))     
+            ! currentPatch%fuel%SAV = sum(currentPatch%fuel%frac_loading(tw_sf:lb_sf) * SF_val_SAV(tw_sf:lb_sf))              
+    
+            ! ! Add on properties of dead leaves and live grass pools (5 & 6)
+            ! currentPatch%fuel%bulk_density = currentPatch%fuel%bulk_density + sum(currentPatch%fuel%frac_loading(dl_sf:lg_sf) * SF_val_FBD(dl_sf:lg_sf))      
+            ! currentPatch%fuel%SAV = currentPatch%fuel%SAV + sum(currentPatch%fuel%frac_loading(dl_sf:lg_sf) * SF_val_SAV(dl_sf:lg_sf))
 
-        ! sum up fuel classes and calculate fractional loading for each
-        call currentPatch%fuel%SumLoading()
-        call currentPatch%fuel%CalculateFractionalLoading()
-
-        ! calculate fuel moisture [m3/m3]
-        call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,  &
-          currentSite%fireWeather)
-
-        ! calculate geometric properties
-        call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
-        call currentPatch%fuel%AverageSAV(SF_val_SAV)
-
+            ! ! Correct averaging for the fact that we are not using the trunks pool for fire ROS and intensity (5)
+            ! ! Consumption of fuel in trunk pool does not influence fire ROS or intensity (Pyne 1996)
+            ! if ((1.0_r8 - currentPatch%fuel%frac_loading(tr_sf)) > nearzero) then
+            !    currentPatch%fuel%bulk_density = currentPatch%fuel%bulk_density*(1.0_r8/(1.0_r8-currentPatch%fuel%frac_loading(tr_sf)))
+            !    currentPatch%fuel%SAV = currentPatch%fuel%SAV*(1.0_r8/(1.0_r8-currentPatch%fuel%frac_loading(tr_sf)))
+            ! else
+            !    ! somehow the fuel is all trunk. put dummy values from large branches so as not to break things later in code.
+            !    currentPatch%fuel%bulk_density = SF_val_FBD(lb_sf)
+            !    currentPatch%fuel%SAV = SF_val_SAV(lb_sf)
+            ! endif
+         
+            ! ! remove trunks from patch%sum_fuel because they should not be included in fire equations
+            ! ! NOTE: ACF will update this soon to be more clean/bug-proof
+            ! currentPatch%fuel%total_loading = currentPatch%fuel%total_loading - litter%ag_cwd(tr_sf)
+            
+         else
+  
+            currentPatch%fuel%SAV = sum(SF_val_SAV(1:nfsc))/(nfsc) ! make average sav to avoid crashing code. 
+            
+            ! FIX(SPM,032414) refactor...should not have 0 fuel unless everything is burnt off
+            currentPatch%fuel%bulk_density = 0.0000000001_r8 
+            currentPatch%fuel%frac_loading(:) = 0.0000000001_r8 
+            currentPatch%fuel%total_loading = 0.0000000001_r8
+  
+         endif
       end if 
       currentPatch => currentPatch%younger
     end do 
@@ -346,6 +402,9 @@ contains
   subroutine  ground_fuel_consumption ( currentSite ) 
   !*****************************************************************
     !returns the  the hypothetic fuel consumed by the fire
+      use SFParamsMod, only: SF_val_mid_moisture, SF_val_mid_moisture_Coeff, SF_val_mid_moisture_Slope
+      use SFParamsMod, only : SF_val_min_moisture, SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope
+      use SFParamsMod, only : SF_val_miner_total
 
     type(ed_site_type) , intent(in), target :: currentSite
     type(fates_patch_type), pointer    :: currentPatch
@@ -354,8 +413,13 @@ contains
     real(r8) :: moist           !effective fuel moisture
     real(r8) :: tau_b(nfsc)     !lethal heating rates for each fuel class (min) 
     real(r8) :: fc_ground(nfsc) !total amount of fuel consumed per area of burned ground (kg C / m2 of burned area)
-
+    integer :: tr_sf, tw_sf, dl_sf, lg_sf
     integer  :: c
+    
+    tr_sf = fuel_classes%trunks()
+    tw_sf = fuel_classes%twigs()
+    dl_sf = fuel_classes%dead_leaves()
+    lg_sf = fuel_classes%live_grass()
 
     currentPatch => currentSite%oldest_patch;  
 
@@ -363,7 +427,47 @@ contains
 
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
          
-         call currentPatch%fuel%BurnFuel(fc_ground)
+         currentPatch%fuel%frac_burnt(:) = 1.0_r8       
+         ! Calculate fraction of litter is burnt for all classes. 
+         ! Equation B1 in Thonicke et al. 2010---
+         do c = 1, nfsc    !work out the burnt fraction for all pools, even if those pools dont exist.         
+            moist = currentPatch%fuel%effective_moisture(c)                  
+            ! 1. Very dry litter
+            if (moist <= SF_val_min_moisture(c)) then
+               currentPatch%fuel%frac_burnt(c) = 1.0_r8  
+            endif
+            ! 2. Low to medium moistures
+            if (moist > SF_val_min_moisture(c).and.moist <= SF_val_mid_moisture(c)) then
+               currentPatch%fuel%frac_burnt(c) = max(0.0_r8,min(1.0_r8,SF_val_low_moisture_Coeff(c)- &
+                    SF_val_low_moisture_Slope(c)*moist)) 
+            else
+            ! For medium to high moistures. 
+               if (moist > SF_val_mid_moisture(c).and.moist <= 1.0_r8) then
+                  currentPatch%fuel%frac_burnt(c) = max(0.0_r8,min(1.0_r8,SF_val_mid_moisture_Coeff(c)- &
+                       SF_val_mid_moisture_Slope(c)*moist))
+               endif
+  
+            endif
+            ! Very wet litter        
+            if (moist >= 1.0_r8) then !this shouldn't happen? 
+               currentPatch%fuel%frac_burnt(c) = 0.0_r8  
+            endif          
+         enddo !c   
+  
+         ! we can't ever kill -all- of the grass. 
+         currentPatch%fuel%frac_burnt(lg_sf) = min(0.8_r8,currentPatch%fuel%frac_burnt(lg_sf ))  
+  
+         ! reduce burnt amount for mineral content. 
+         currentPatch%fuel%frac_burnt(:) = currentPatch%fuel%frac_burnt(:) * (1.0_r8-SF_val_miner_total) 
+  
+         !---Calculate amount of fuel burnt.---    
+  
+         litt_c => currentPatch%litter(element_pos(carbon12_element))
+         FC_ground(tw_sf:tr_sf) = currentPatch%fuel%frac_burnt(tw_sf:tr_sf) * litt_c%ag_cwd(tw_sf:tr_sf)
+         FC_ground(dl_sf)       = currentPatch%fuel%frac_burnt(dl_sf)   * sum(litt_c%leaf_fines(:))
+         FC_ground(lg_sf)       = currentPatch%fuel%frac_burnt(lg_sf)   * currentPatch%livegrass  
+         
+         !call currentPatch%fuel%BurnFuel(fc_ground)
 
        ! Following used for determination of cambial kill follows from Peterson & Ryan (1986) scheme 
        ! less empirical cf current scheme used in SPITFIRE which attempts to mesh Rothermel 
@@ -372,16 +476,17 @@ contains
        ! taul is the duration of the lethal heating.  
        ! The /10 is to convert from kgC/m2 into gC/cm2, as in the Peterson and Ryan paper #Rosie,Jun 2013
         
-       do c = 1,nfsc_notrunks  
+       do c = 1,nfsc 
           tau_b(c)   =  39.4_r8 *(currentPatch%fuel%frac_loading(c)*currentPatch%fuel%total_loading/0.45_r8/10._r8)* &
                (1.0_r8-((1.0_r8-currentPatch%fuel%frac_burnt(c))**0.5_r8))  
        enddo
+       tau_b(tr_sf)   =  0.0_r8
        ! Cap the residence time to 8mins, as suggested by literature survey by P&R (1986).
        currentPatch%tau_l = min(8.0_r8,sum(tau_b)) 
 
        !---calculate overall fuel consumed by spreading fire --- 
        ! ignore 1000hr fuels. Just interested in fuels affecting ROS   
-       currentPatch%TFC_ROS = sum(FC_ground)
+       currentPatch%TFC_ROS = sum(FC_ground)-FC_ground(tr_sf)  
 
        end if ! nocomp_pft_label check
 
