@@ -123,8 +123,6 @@ module FatesPatchMod
     ! RADIATION
     real(r8) :: rad_error(num_swb)                        ! radiation consv error by band [W/m2]
     real(r8) :: fcansno                                   ! fraction of canopy covered in snow [0-1]
-    logical  :: solar_zenith_flag                         ! integer flag specifying daylight (based on zenith angle)
-    real(r8) :: solar_zenith_angle                        ! solar zenith angle [radians]
     real(r8) :: gnd_alb_dif(num_swb)                      ! ground albedo for diffuse rad, both bands [0-1]
     real(r8) :: gnd_alb_dir(num_swb)                      ! ground albedo for direct rad, both bands [0-1]
     
@@ -329,8 +327,6 @@ module FatesPatchMod
       ! RADIATION
       this%rad_error(:)                 = nan
       this%fcansno                      = nan 
-      this%solar_zenith_flag            = .false. 
-      this%solar_zenith_angle           = nan 
       this%gnd_alb_dif(:)               = nan 
       this%gnd_alb_dir(:)               = nan
       this%fabd_sun_z(:,:,:)            = nan 
@@ -560,7 +556,7 @@ module FatesPatchMod
     !===========================================================================
 
     subroutine Create(this, age, area, land_use_label, nocomp_pft, num_swb, num_pft,    &
-      num_levsoil, current_tod, regeneration_model) 
+      num_levsoil, current_tod, regeneration_model)
       !
       ! DESCRIPTION:
       ! create a new patch with input and default values
@@ -577,7 +573,7 @@ module FatesPatchMod
       integer,                 intent(in)    :: num_levsoil        ! number of soil layers
       integer,                 intent(in)    :: current_tod        ! time of day [seconds past 0Z]
       integer,                 intent(in)    :: regeneration_model ! regeneration model version
-    
+      
       ! initialize patch
       ! sets all values to nan, then some values to zero
       call this%Init(num_swb, num_levsoil)
@@ -741,8 +737,6 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%total_canopy_area  = ',this%total_canopy_area
       write(fates_log(),*) 'pa%total_tree_area    = ',this%total_tree_area
       write(fates_log(),*) 'pa%zstar              = ',this%zstar
-      write(fates_log(),*) 'pa%solar_zenith_flag  = ',this%solar_zenith_flag
-      write(fates_log(),*) 'pa%solar_zenith_angle = ',this%solar_zenith_angle
       write(fates_log(),*) 'pa%gnd_alb_dif        = ',this%gnd_alb_dif(:)
       write(fates_log(),*) 'pa%gnd_alb_dir        = ',this%gnd_alb_dir(:)
       write(fates_log(),*) 'pa%c_stomata          = ',this%c_stomata

@@ -13,6 +13,7 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod,       only : n_landuse_cats
   use FatesConstantsMod,       only : default_regeneration
   use FatesConstantsMod,       only : TRS_regeneration
+  use FatesConstantsMod , only : nocomp_bareground
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
   use FatesIODimensionsMod,    only : fates_io_dimension_type
@@ -164,8 +165,7 @@ module FatesRestartInterfaceMod
 
   ! Radiation
   integer :: ir_fcansno_pa
-  integer :: ir_solar_zenith_flag_pa
-  integer :: ir_solar_zenith_angle_pa
+  integer :: ir_solar_zenith_angle
   integer :: ir_gnd_alb_dif_pasb
   integer :: ir_gnd_alb_dir_pasb
 
@@ -758,13 +758,9 @@ contains
          long_name='Fraction of canopy covered in snow', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fcansno_pa )
 
-    call this%set_restart_var(vname='fates_solar_zenith_flag_pa', vtype=cohort_int, &
-         long_name='switch specifying if zenith is positive', units='unitless', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_solar_zenith_flag_pa )
-
-    call this%set_restart_var(vname='fates_solar_zenith_angle_pa', vtype=cohort_r8, &
-         long_name='the angle of the solar zenith for each patch', units='radians', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_solar_zenith_angle_pa )
+    call this%set_restart_var(vname='fates_solar_zenith_angle', vtype=site_r8, &
+         long_name='the angle of the solar zenith', units='radians', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_solar_zenith_angle )
 
 
 
@@ -2074,8 +2070,7 @@ contains
            rio_landuse_config_s        => this%rvars(ir_landuse_config_si)%int1d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
-           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
-           rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
+           rio_solar_zenith_angle      => this%rvars(ir_solar_zenith_angle)%r81d, &
            rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_crowndamage_co          => this%rvars(ir_crowndamage_co)%int1d, &
@@ -2514,14 +2509,6 @@ contains
 
              rio_fcansno_pa( io_idx_co_1st )   = cpatch%fcansno
 
-             ! Set zenith angle info
-             if ( cpatch%solar_zenith_flag ) then
-                rio_solar_zenith_flag_pa(io_idx_co_1st)     = itrue
-             else
-                rio_solar_zenith_flag_pa(io_idx_co_1st)     = ifalse
-             endif
-             rio_solar_zenith_angle_pa( io_idx_co_1st) = cpatch%solar_zenith_angle
-
              if ( debug ) then
                 write(fates_log(),*) 'offsetNumCohorts III ' &
                       ,io_idx_co,cohortsperpatch
@@ -2687,8 +2674,7 @@ contains
           rio_gdd_si(io_idx_si)           = sites(s)%grow_deg_days
           rio_phenmodeldate_si(io_idx_si) = sites(s)%phen_model_date
 
- 
-
+          rio_solar_zenith_angle(io_idx_si) = sites(s)%coszen  
 
           rio_fireweather_index_si(io_idx_si) = sites(s)%fireWeather%fire_weather_index
           rio_snow_depth_si(io_idx_si)   = sites(s)%snow_depth
@@ -3069,8 +3055,7 @@ contains
           rio_landuse_config_si       => this%rvars(ir_landuse_config_si)%int1d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
-          rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
-          rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
+          rio_solar_zenith_angle      => this%rvars(ir_solar_zenith_angle)%r81d, &
           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_crowndamage_co          => this%rvars(ir_crowndamage_co)%int1d, &
@@ -3470,8 +3455,6 @@ contains
              cpatch%fcansno            = rio_fcansno_pa(io_idx_co_1st)
 
              ! Set zenith angle info
-             cpatch%solar_zenith_flag  = ( rio_solar_zenith_flag_pa(io_idx_co_1st) .eq. itrue )
-             cpatch%solar_zenith_angle = rio_solar_zenith_angle_pa(io_idx_co_1st)
 
              cpatch%ncl_p = this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st)
              cpatch%zstar = this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st)
@@ -3710,8 +3693,8 @@ contains
           sites(s)%grow_deg_days  = rio_gdd_si(io_idx_si)
           sites(s)%phen_model_date= rio_phenmodeldate_si(io_idx_si)
 
+          sites(s)%coszen         = rio_solar_zenith_angle(io_idx_si)
          
-
           sites(s)%fireWeather%fire_weather_index  = rio_fireweather_index_si(io_idx_si)
           sites(s)%snow_depth     = rio_snow_depth_si(io_idx_si)
           sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
@@ -3763,111 +3746,119 @@ contains
      integer                      :: ib            ! radiation band counter
      integer                      :: ifp           ! patch counter
 
-     do s = 1, nsites
+     do_sites: do s = 1, nsites
 
-        ifp = 0
-        currentpatch => sites(s)%oldest_patch
-        do while (associated(currentpatch))
-           ifp = ifp+1
+        bc_out(s)%albd_parb(:,:) = 0._r8  ! output HLM
+        bc_out(s)%albi_parb(:,:) = 0._r8  ! output HLM
+        bc_out(s)%fabi_parb(:,:) = 0._r8  ! output HLM
+        bc_out(s)%fabd_parb(:,:) = 0._r8  ! output HLM
+        bc_out(s)%ftdd_parb(:,:) = 1._r8  ! output HLM
+        bc_out(s)%ftid_parb(:,:) = 1._r8  ! output HLM
+        bc_out(s)%ftii_parb(:,:) = 1._r8  ! output HLM
 
-           currentPatch%f_sun      (:,:,:) = 0._r8
-           currentPatch%fabd_sun_z (:,:,:) = 0._r8
-           currentPatch%fabd_sha_z (:,:,:) = 0._r8
-           currentPatch%fabi_sun_z (:,:,:) = 0._r8
-           currentPatch%fabi_sha_z (:,:,:) = 0._r8
-           currentPatch%fabd       (:)     = 0._r8
-           currentPatch%fabi       (:)     = 0._r8
+        ! If this is a hybrid or branch style
+        ! restart, the zenith angle may have changed
+        ! in the host model. Ensure that
+        ! the cosine of the zenit is at least a nominal
+        ! amount above zero, so that calculations
+        ! can be performed on the solver 
+        !sites(s)%coszen = max(0.001_r8,sites(s)%coszen)
 
-           ! zero diagnostic radiation profiles
-           currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
-           currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+        !RGK-2SBF write(fates_log(),*)'rest-albedo-solve-cosz:',s,sites(s)%coszen
+        
+        !if_cosz: if(sites(s)%coszen>0._r8)then
+        
+           ifp = 0
+           currentpatch => sites(s)%oldest_patch
+           while_patch: do while (associated(currentpatch))
+              
+              currentPatch%f_sun      (:,:,:) = 0._r8
+              currentPatch%fabd_sun_z (:,:,:) = 0._r8
+              currentPatch%fabd_sha_z (:,:,:) = 0._r8
+              currentPatch%fabi_sun_z (:,:,:) = 0._r8
+              currentPatch%fabi_sha_z (:,:,:) = 0._r8
+              currentPatch%fabd       (:)     = 0._r8
+              currentPatch%fabi       (:)     = 0._r8
+              
+              ! zero diagnostic radiation profiles
+              currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
+              currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+              
+              currentPatch%rad_error(:) = 0._r8
+              
+              if_notbareground: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then
 
-           currentPatch%rad_error(:) = 0._r8
-           
-           ! -----------------------------------------------------------
-           ! When calling norman radiation from the short-timestep
-           ! we are passing in boundary conditions to set the following
-           ! variables:
-           ! currentPatch%solar_zenith_flag     (is there daylight?)
-           ! currentPatch%solar_zenith_angle    (what is the value?)
-           ! -----------------------------------------------------------
+                 ifp = ifp+1
 
-           if(currentPatch%solar_zenith_flag)then
+                 if (.false.) then !maxval(currentPatch%nrad(1,:))==0)then
+                    !there are no leaf layers in this patch. it is effectively bare ground.
+                    ! no radiation is absorbed
+                    bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
+                    bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
+                    do ib = 1,num_swb
+                       
+                       bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dir(ib)
+                       bc_out(s)%albi_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
+                       bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
+                       bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
+                       bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
+                    enddo
+                 else
+                    
+                    select case(radiation_model)
+                    case(norman_solver)
+                       
+                       call PatchNormanRadiation (currentPatch, &
+                            sites(s)%coszen, &
+                            bc_out(s)%albd_parb(ifp,:), &
+                            bc_out(s)%albi_parb(ifp,:), &
+                            bc_out(s)%fabd_parb(ifp,:), &
+                            bc_out(s)%fabi_parb(ifp,:), &
+                            bc_out(s)%ftdd_parb(ifp,:), &
+                            bc_out(s)%ftid_parb(ifp,:), &
+                            bc_out(s)%ftii_parb(ifp,:))
+                       
 
-              bc_out(s)%albd_parb(ifp,:) = 0._r8  ! output HLM
-              bc_out(s)%albi_parb(ifp,:) = 0._r8  ! output HLM
-              bc_out(s)%fabi_parb(ifp,:) = 0._r8  ! output HLM
-              bc_out(s)%fabd_parb(ifp,:) = 0._r8  ! output HLM
-              bc_out(s)%ftdd_parb(ifp,:) = 1._r8  ! output HLM
-              bc_out(s)%ftid_parb(ifp,:) = 1._r8  ! output HLM
-              bc_out(s)%ftii_parb(ifp,:) = 1._r8  ! output HLM
+                    case(twostr_solver)
+                       associate( twostr => currentPatch%twostr)
+                         
+                         call twostr%CanopyPrep(currentPatch%fcansno)
+                         call twostr%ZenithPrep(max(0.001_r8,sites(s)%coszen))
 
-              if (maxval(currentPatch%nrad(1,:))==0)then
-                 !there are no leaf layers in this patch. it is effectively bare ground.
-                 ! no radiation is absorbed
-                 bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
-                 bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
-                 do ib = 1,num_swb
-
-                    bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dir(ib)
-                    bc_out(s)%albi_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
-                    bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
-                    bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
-                    bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
-                 enddo
-              else
-
-                 select case(radiation_model)
-                 case(norman_solver)
+                         !RGK-2SBF write(fates_log(),*)'rest-p:',s,currentPatch%patchno, &
+                         ! currentPatch%gnd_alb_dif(1),currentPatch%gnd_alb_dir(1),currentPatch%fcansno
+                         
+                         do ib = 1,num_swb
+                            
+                            twostr%band(ib)%albedo_grnd_diff = currentPatch%gnd_alb_dif(ib)
+                            twostr%band(ib)%albedo_grnd_beam = currentPatch%gnd_alb_dir(ib)
+                            
+                            call twostr%Solve(ib,             &  ! in
+                                 normalized_upper_boundary,   &  ! in
+                                 1.0_r8,1.0_r8,               &  ! in
+                                 sites(s)%taulambda_2str,     &  ! inout (scratch)
+                                 sites(s)%omega_2str,         &  ! inout (scratch)
+                                 sites(s)%ipiv_2str,          &  ! inout (scratch)
+                                 bc_out(s)%albd_parb(ifp,ib), &  ! out
+                                 bc_out(s)%albi_parb(ifp,ib), &  ! out
+                                 currentPatch%rad_error(ib),  &  ! out
+                                 bc_out(s)%fabd_parb(ifp,ib), &  ! out
+                                 bc_out(s)%fabi_parb(ifp,ib), &  ! out
+                                 bc_out(s)%ftdd_parb(ifp,ib), &  ! out
+                                 bc_out(s)%ftid_parb(ifp,ib), &  ! out
+                                 bc_out(s)%ftii_parb(ifp,ib))
+                            
+                         end do
+                       end associate
+                    end select
+                    
+                 endif ! is there vegetation?
                  
-                    call PatchNormanRadiation (currentPatch, &
-                         bc_out(s)%albd_parb(ifp,:), &
-                         bc_out(s)%albi_parb(ifp,:), &
-                         bc_out(s)%fabd_parb(ifp,:), &
-                         bc_out(s)%fabi_parb(ifp,:), &
-                         bc_out(s)%ftdd_parb(ifp,:), &
-                         bc_out(s)%ftid_parb(ifp,:), &
-                         bc_out(s)%ftii_parb(ifp,:))
-
-
-                 case(twostr_solver)
-                    associate( twostr => currentPatch%twostr)
-
-                      call twostr%CanopyPrep(currentPatch%fcansno)
-                      call twostr%ZenithPrep(currentPatch%solar_zenith_angle)
-                      
-                      do ib = 1,num_swb
-                         
-                         twostr%band(ib)%albedo_grnd_diff = currentPatch%gnd_alb_dif(ib)
-                         twostr%band(ib)%albedo_grnd_beam = currentPatch%gnd_alb_dir(ib)
-                         
-                         call twostr%Solve(ib,             &  ! in
-                              normalized_upper_boundary,   &  ! in
-                              1.0_r8,1.0_r8,               &  ! in
-                              sites(s)%taulambda_2str,     &  ! inout (scratch)
-                              sites(s)%omega_2str,         &  ! inout (scratch)
-                              sites(s)%ipiv_2str,          &  ! inout (scratch)
-                              bc_out(s)%albd_parb(ifp,ib), &  ! out
-                              bc_out(s)%albi_parb(ifp,ib), &  ! out
-                              currentPatch%rad_error(ib),  &  ! out
-                              bc_out(s)%fabd_parb(ifp,ib), &  ! out
-                              bc_out(s)%fabi_parb(ifp,ib), &  ! out
-                              bc_out(s)%ftdd_parb(ifp,ib), &  ! out
-                              bc_out(s)%ftid_parb(ifp,ib), &  ! out
-                              bc_out(s)%ftii_parb(ifp,ib))
-                                                  
-                      end do
-                      
-                    end associate
-                    
-                 end select
-                    
-              endif ! is there vegetation?
-
-           end if    ! if the vegetation and zenith filter is active
-           currentPatch => currentPatch%younger
-        end do       ! Loop linked-list patches
-     enddo           ! Loop Sites
+              end if if_notbareground    ! if the vegetation and zenith filter is active
+              currentPatch => currentPatch%younger
+           end do while_patch
+        !end if if_cosz
+     enddo do_sites
 
      return
    end subroutine update_3dpatch_radiation

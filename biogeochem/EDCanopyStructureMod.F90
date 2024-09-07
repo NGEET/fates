@@ -1441,7 +1441,7 @@ contains
        call leaf_area_profile(sites(s))
        
        if(radiation_model.eq.twostr_solver) then
-          call FatesConstructRadElements(sites(s),bc_in(s)%fcansno_pa,bc_in(s)%coszen_pa)
+          call FatesConstructRadElements(sites(s),bc_in(s)%fcansno_pa)
        end if
        
     end do ! site loop
@@ -1839,10 +1839,14 @@ contains
              
        end if if_any_canopy_area
 
+       !write(fates_log(),*)'leaf_area_profile: nrad: ',maxval(currentPatch%nrad(1,:))
+       
        currentPatch => currentPatch%younger
 
     enddo !patch
 
+    
+    
     return
   end subroutine leaf_area_profile
 

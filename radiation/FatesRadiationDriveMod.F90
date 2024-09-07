@@ -59,7 +59,7 @@ module FatesRadiationDriveMod
   
 contains
 
-  subroutine FatesNormalizedCanopyRadiation(nsites, sites, bc_in, bc_out )
+  subroutine FatesNormalizedCanopyRadiation(site, coszen_in, bc_in, bc_out )
 
     ! Perform normalized (ie per unit downwelling radiative forcing) radiation
     ! scattering of the vegetation canopy.
@@ -75,13 +75,14 @@ contains
 
     ! !ARGUMENTS:
 
-    integer,            intent(in)            :: nsites
-    type(ed_site_type), intent(inout), target :: sites(nsites)      ! FATES site vector
-    type(bc_in_type),   intent(in)            :: bc_in(nsites)
-    type(bc_out_type),  intent(inout)         :: bc_out(nsites)
+    !integer,            intent(in)            :: nsites
+    type(ed_site_type), intent(inout), target :: site! s(nsites)      ! FATES site vector
+    real(r8), intent(in)                      :: coszen_in ! cosine of zenith (sole place of input)
+    type(bc_in_type),   intent(in)            :: bc_in !(nsites)
+    type(bc_out_type),  intent(inout)         :: bc_out !(nsites)
 
     ! !LOCAL VARIABLES:
-    integer :: s                                   ! site loop counter
+    !integer :: s                                   ! site loop counter
     integer :: ifp                                 ! patch loop counter
     integer :: ib                                  ! radiation broad band counter
     type(fates_patch_type), pointer :: currentPatch   ! patch pointer
@@ -95,10 +96,14 @@ contains
     ! -------------------------------------------------------------------------------
 
 
-    do s = 1, nsites
+    !do s = 1, nsites
 
+       site%coszen = coszen_in
+
+       !RGK-2SBF write(fates_log(),*)'albedo-solve-cosz:',site%coszen,site%lat,site%lon
+       
        ifp = 0
-       currentpatch => sites(s)%oldest_patch
+       currentpatch => site%oldest_patch
        do while (associated(currentpatch))
 
           ! do not do albedo calculations for bare ground patch in SP mode
@@ -122,18 +127,11 @@ contains
              
              currentPatch%rad_error(:)              = hlm_hio_ignore_val
              
-             currentPatch%solar_zenith_flag         = bc_in(s)%filter_vegzen_pa(ifp)
-             currentPatch%solar_zenith_angle        = bc_in(s)%coszen_pa(ifp)
-             currentPatch%gnd_alb_dif(1:num_swb) = bc_in(s)%albgr_dif_rb(1:num_swb)
-             currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
-             currentPatch%fcansno                   = bc_in(s)%fcansno_pa(ifp)
+             currentPatch%gnd_alb_dif(1:num_swb) = bc_in%albgr_dif_rb(1:num_swb)
+             currentPatch%gnd_alb_dir(1:num_swb) = bc_in%albgr_dir_rb(1:num_swb)
+             currentPatch%fcansno                = bc_in%fcansno_pa(ifp)
              
-             if(radiation_model.eq.twostr_solver) then
-                call currentPatch%twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp))
-                call currentPatch%twostr%ZenithPrep(bc_in(s)%coszen_pa(ifp))
-             end if
-
-             if_zenith_flag: if(.not.currentPatch%solar_zenith_flag )then
+             if_zenith_flag: if(.not.(site%coszen>0._r8) )then
 
                 ! Sun below horizon, trivial solution
                 ! Note (RGK-MLO): Investigate twilight mechanics for
@@ -142,37 +140,37 @@ contains
                 ! Temporarily turn off to preserve b4b
                 ! preserve_b4b will be removed soon. This is kept here to prevent
                 ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23) 
-                if (.not.preserve_b4b) then
-                   bc_out(s)%albd_parb(ifp,:)            = 1._r8
-                   bc_out(s)%albi_parb(ifp,:)            = 1._r8
-                   bc_out(s)%fabi_parb(ifp,:)            = 0._r8
-                   bc_out(s)%fabd_parb(ifp,:)            = 0._r8
-                   bc_out(s)%ftdd_parb(ifp,:)            = 0._r8
-                   bc_out(s)%ftid_parb(ifp,:)            = 0._r8
-                   bc_out(s)%ftii_parb(ifp,:)            = 0._r8
-                end if
+                !if (.not.preserve_b4b) then
+                   bc_out%albd_parb(ifp,:)            = 1._r8
+                   bc_out%albi_parb(ifp,:)            = 1._r8
+                   bc_out%fabi_parb(ifp,:)            = 0._r8
+                   bc_out%fabd_parb(ifp,:)            = 0._r8
+                   bc_out%ftdd_parb(ifp,:)            = 0._r8
+                   bc_out%ftid_parb(ifp,:)            = 0._r8
+                   bc_out%ftii_parb(ifp,:)            = 0._r8
+                !end if
              else
 
-                bc_out(s)%albd_parb(ifp,:)            = 0._r8  ! output HLM
-                bc_out(s)%albi_parb(ifp,:)            = 0._r8  ! output HLM
-                bc_out(s)%fabi_parb(ifp,:)            = 0._r8  ! output HLM
-                bc_out(s)%fabd_parb(ifp,:)            = 0._r8  ! output HLM
-                bc_out(s)%ftdd_parb(ifp,:)            = 1._r8 ! output HLM
-                bc_out(s)%ftid_parb(ifp,:)            = 1._r8 ! output HLM
-                bc_out(s)%ftii_parb(ifp,:)            = 1._r8 ! output HLM
+                bc_out%albd_parb(ifp,:)            = 0._r8  ! output HLM
+                bc_out%albi_parb(ifp,:)            = 0._r8  ! output HLM
+                bc_out%fabi_parb(ifp,:)            = 0._r8  ! output HLM
+                bc_out%fabd_parb(ifp,:)            = 0._r8  ! output HLM
+                bc_out%ftdd_parb(ifp,:)            = 1._r8 ! output HLM
+                bc_out%ftid_parb(ifp,:)            = 1._r8 ! output HLM
+                bc_out%ftii_parb(ifp,:)            = 1._r8 ! output HLM
 
-                if_nrad: if (maxval(currentPatch%nrad(1,:))==0)then
+                if_nrad: if (.false.) then !maxval(currentPatch%nrad(1,:))==0)then
                    ! there are no leaf layers in this patch. it is effectively bare ground.
-                   bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
-                   bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
+                   bc_out%fabd_parb(ifp,:) = 0.0_r8
+                   bc_out%fabi_parb(ifp,:) = 0.0_r8
                    currentPatch%rad_error(:)  = 0.0_r8
 
                    do ib = 1,num_swb
-                      bc_out(s)%albd_parb(ifp,ib) = bc_in(s)%albgr_dir_rb(ib)
-                      bc_out(s)%albi_parb(ifp,ib) = bc_in(s)%albgr_dif_rb(ib)
-                      bc_out(s)%ftdd_parb(ifp,ib) = 1.0_r8
-                      bc_out(s)%ftid_parb(ifp,ib) = 0.0_r8
-                      bc_out(s)%ftii_parb(ifp,ib) = 1.0_r8
+                      bc_out%albd_parb(ifp,ib) = bc_in%albgr_dir_rb(ib)
+                      bc_out%albi_parb(ifp,ib) = bc_in%albgr_dif_rb(ib)
+                      bc_out%ftdd_parb(ifp,ib) = 1.0_r8
+                      bc_out%ftid_parb(ifp,ib) = 0.0_r8
+                      bc_out%ftii_parb(ifp,ib) = 1.0_r8
                    enddo
 
                 else
@@ -181,53 +179,56 @@ contains
                    case(norman_solver)
 
                       call PatchNormanRadiation (currentPatch, &
-                           bc_out(s)%albd_parb(ifp,:), &   ! Surface Albedo direct
-                           bc_out(s)%albi_parb(ifp,:), &   ! Surface Albedo (indirect) diffuse
-                           bc_out(s)%fabd_parb(ifp,:), &   ! Fraction direct absorbed by canopy per unit incident
-                           bc_out(s)%fabi_parb(ifp,:), &   ! Fraction diffuse absorbed by canopy per unit incident
-                           bc_out(s)%ftdd_parb(ifp,:), &   ! Down direct flux below canopy per unit direct at top
-                           bc_out(s)%ftid_parb(ifp,:), &   ! Down diffuse flux below canopy per unit direct at top
-                           bc_out(s)%ftii_parb(ifp,:))     ! Down diffuse flux below canopy per unit diffuse at top
+                           site%coszen, &
+                           bc_out%albd_parb(ifp,:), &   ! Surface Albedo direct
+                           bc_out%albi_parb(ifp,:), &   ! Surface Albedo (indirect) diffuse
+                           bc_out%fabd_parb(ifp,:), &   ! Fraction direct absorbed by canopy per unit incident
+                           bc_out%fabi_parb(ifp,:), &   ! Fraction diffuse absorbed by canopy per unit incident
+                           bc_out%ftdd_parb(ifp,:), &   ! Down direct flux below canopy per unit direct at top
+                           bc_out%ftid_parb(ifp,:), &   ! Down diffuse flux below canopy per unit direct at top
+                           bc_out%ftii_parb(ifp,:))     ! Down diffuse flux below canopy per unit diffuse at top
 
                    case(twostr_solver)
 
                         associate( twostr => currentPatch%twostr)
 
-                        !call twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp))
-                        !call twostr%ZenithPrep(bc_in(s)%coszen_pa(ifp))
+                        call twostr%CanopyPrep(bc_in%fcansno_pa(ifp)) 
+                        call twostr%ZenithPrep(max(0.001,site%coszen))
 
+                        !RGK-2SBF write(fates_log(),*)'solve-patch:',currentPatch%patchno,bc_in%fcansno_pa(ifp)
+                        
                         do ib = 1,num_swb
 
-                           twostr%band(ib)%albedo_grnd_diff = bc_in(s)%albgr_dif_rb(ib)
-                           twostr%band(ib)%albedo_grnd_beam = bc_in(s)%albgr_dir_rb(ib)
+                           twostr%band(ib)%albedo_grnd_diff = bc_in%albgr_dif_rb(ib)
+                           twostr%band(ib)%albedo_grnd_beam = bc_in%albgr_dir_rb(ib)
 
                            call twostr%Solve(ib,             &  ! in
                                 normalized_upper_boundary,   &  ! in
                                 1.0_r8,1.0_r8,               &  ! in
-                                sites(s)%taulambda_2str,        &  ! inout (scratch)
-                                sites(s)%omega_2str,            &  ! inout (scratch)
-                                sites(s)%ipiv_2str,             &  ! inout (scratch)
-                                bc_out(s)%albd_parb(ifp,ib), &  ! out
-                                bc_out(s)%albi_parb(ifp,ib), &  ! out
+                                site%taulambda_2str,        &  ! inout (scratch)
+                                site%omega_2str,            &  ! inout (scratch)
+                                site%ipiv_2str,             &  ! inout (scratch)
+                                bc_out%albd_parb(ifp,ib), &  ! out
+                                bc_out%albi_parb(ifp,ib), &  ! out
                                 currentPatch%rad_error(ib),  &  ! out
-                                bc_out(s)%fabd_parb(ifp,ib), &  ! out
-                                bc_out(s)%fabi_parb(ifp,ib), &  ! out
-                                bc_out(s)%ftdd_parb(ifp,ib), &  ! out
-                                bc_out(s)%ftid_parb(ifp,ib), &  ! out
-                                bc_out(s)%ftii_parb(ifp,ib))
+                                bc_out%fabd_parb(ifp,ib), &  ! out
+                                bc_out%fabi_parb(ifp,ib), &  ! out
+                                bc_out%ftdd_parb(ifp,ib), &  ! out
+                                bc_out%ftid_parb(ifp,ib), &  ! out
+                                bc_out%ftii_parb(ifp,ib))
 
                            if(debug) then
                               currentPatch%twostr%band(ib)%Rbeam_atm = 1._r8
                               currentPatch%twostr%band(ib)%Rdiff_atm = 1._r8
-                              call CheckPatchRadiationBalance(currentPatch, sites(s)%snow_depth, & 
-                                   ib, bc_out(s)%fabd_parb(ifp,ib),bc_out(s)%fabi_parb(ifp,ib))
+                              call CheckPatchRadiationBalance(currentPatch, site%snow_depth, & 
+                                   ib, bc_out%fabd_parb(ifp,ib),bc_out%fabi_parb(ifp,ib))
                               currentPatch%twostr%band(ib)%Rbeam_atm = fates_unset_r8
                               currentPatch%twostr%band(ib)%Rdiff_atm = fates_unset_r8
 
-                              if(bc_out(s)%fabi_parb(ifp,ib)>1.0 .or. bc_out(s)%fabd_parb(ifp,ib)>1.0)then
+                              if(bc_out%fabi_parb(ifp,ib)>1.0 .or. bc_out%fabd_parb(ifp,ib)>1.0)then
                                  write(fates_log(),*) 'absorbed fraction > 1.0?'
-                                 write(fates_log(),*) ifp,ib,bc_out(s)%fabi_parb(ifp,ib),bc_out(s)%fabd_parb(ifp,ib)
-                                 call twostr%Dump(ib,lat=sites(s)%lat,lon=sites(s)%lon)
+                                 write(fates_log(),*) ifp,ib,bc_out%fabi_parb(ifp,ib),bc_out%fabd_parb(ifp,ib)
+                                 call twostr%Dump(ib,lat=site%lat,lon=site%lon)
                                  call endrun(msg=errMsg(sourcefile, __LINE__))
                               end if
                            end if
@@ -244,7 +245,7 @@ contains
 
           currentPatch => currentPatch%younger
        end do       ! Loop linked-list patches
-    enddo           ! Loop Sites
+    !enddo           ! Loop Sites
 
     return
   end subroutine FatesNormalizedCanopyRadiation
@@ -279,9 +280,13 @@ contains
     real(r8) :: area_frac
     real(r8) :: Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac
     real(r8) :: vai
-
+    logical  :: call_fail
+    type(fates_patch_type), pointer :: fpatch ! patch pointer for failure reporting
+    
     do s = 1,nsites
 
+       !RGK-2SBF  write(fates_log(),*)'sunshade-cosz:',sites(s)%coszen,sites(s)%lat,sites(s)%lon
+       
        ifp = 0
        cpatch => sites(s)%oldest_patch
 
@@ -293,6 +298,8 @@ contains
              ! ifp=1 is the first vegetated patch.
              ifp=ifp+1
 
+             !write(fates_log(),*)'patch info:',s,cpatch%nocomp_pft_label,cpatch%land_use_label
+             
              ! Initialize diagnostics
              cpatch%ed_parsun_z(:,:,:) = 0._r8
              cpatch%ed_parsha_z(:,:,:) = 0._r8
@@ -417,19 +424,22 @@ contains
              else
 
                 ! If there is no sun out, we have a trivial solution
-                if_zenithflag: if(cpatch%solar_zenith_flag ) then
-                   
+                !RGK-2SBF  write(fates_log(),*)'sunshade-patch:',s,cpatch%patchno,cpatch%fcansno
+                
+                if_zenithflag: if( sites(s)%coszen>0._r8 ) then
+
                    ! Two-stream 
                    ! -----------------------------------------------------------
                    do ib = 1,num_swb
                       cpatch%twostr%band(ib)%Rbeam_atm = bc_in(s)%solad_parb(ifp,ib)
                       cpatch%twostr%band(ib)%Rdiff_atm = bc_in(s)%solai_parb(ifp,ib)
+
                    end do
                    
                    area_vlpfcl(:,:,:) = 0._r8
                    cpatch%f_sun(:,:,:) = 0._r8
                    
-                   call FatesPatchFSun(cpatch,    &
+                   call FatesPatchFSun(sites(s),cpatch,    &
                         bc_out(s)%fsun_pa(ifp),   &
                         bc_out(s)%laisun_pa(ifp), &
                         bc_out(s)%laisha_pa(ifp))
@@ -456,7 +466,18 @@ contains
                                       area_frac*twostr%GetRdUp(cl,icol,ivis,vai_top)
                                  
                                  call twostr%GetAbsRad(cl,icol,ipar,vai_top,vai_bot, &
-                                      Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac)
+                                      Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac,call_fail)
+
+                                 if(call_fail) then
+                                    write(fates_log(),*) 'patch failure:',cpatch%patchno,' of:'
+                                    fpatch => sites(s)%oldest_patch
+                                    do while (associated(fpatch))
+                                       write(fates_log(),*) fpatch%patchno
+                                       fpatch => fpatch%younger
+                                    end do
+                                    call twostr%Dump(ipar,lat=sites(s)%lat,lon=sites(s)%lon)
+                                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                                 end if
                                  
                                  cpatch%f_sun(cl,ft,iv) = cpatch%f_sun(cl,ft,iv) + &
                                       area_frac*leaf_sun_frac
