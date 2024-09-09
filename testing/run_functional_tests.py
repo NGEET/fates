@@ -35,7 +35,7 @@ from path_utils import add_cime_lib_to_path
 from utils import copy_file, create_nc_from_cdl, config_to_dict, parse_test_list
 
 # add testing subclasses here
-from testing_classes import Heuristic
+from functional_class import FunctionalTest
 from functional_testing.allometry.allometry_test import AllometryTest
 from functional_testing.math_utils.math_utils_test import QuadraticTest
 
@@ -362,7 +362,7 @@ def main():
     """
     
     full_test_dict = config_to_dict(_DEFAULT_CONFIG_FILE)
-    subclasses = Heuristic.__subclasses__()
+    subclasses = FunctionalTest.__subclasses__()
     
     args = commandline_args()
     config_dict = parse_test_list(full_test_dict, args.test_list)

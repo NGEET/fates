@@ -5,9 +5,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from utils import round_up, get_color_palette, blank_plot
-from testing_classes import Heuristic
+from functional_class import FunctionalTest
 
-class AllometryTest(Heuristic):
+class AllometryTest(FunctionalTest):
     
     name = 'allometry'
     

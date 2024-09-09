@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from utils import str_to_bool, str_to_list
 
-class Heuristic(ABC):
-    """Class for running FATES heuristics"""
+class FunctionalTest(ABC):
+    """Class for running FATES functional tests"""
 
     def __init__(self, name:str, test_dir:str, test_exe:str, out_file:str,
                  use_param_file:str, other_args:str):
