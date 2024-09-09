@@ -81,7 +81,6 @@ module FatesFuelMod
       this%loading(fuel_classes%small_branches()) = small_branch_litter
       this%loading(fuel_classes%large_branches()) = large_branch_litter
       this%loading(fuel_classes%live_grass()) = live_grass
-      
       this%loading(fuel_classes%trunks()) = trunk_litter
       this%trunk_loading = trunk_litter
 
