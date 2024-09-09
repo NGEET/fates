@@ -16,6 +16,7 @@ class AllometryTest(Heuristic):
                          test_dict['test_exe'], test_dict['out_file'], 
                          test_dict['use_param_file'],
                          test_dict['other_args'])
+        self.plot = True
       
     def plot_output(self, run_dir: str, save_figs: bool, plot_dir: str):
         """Plots all allometry plots

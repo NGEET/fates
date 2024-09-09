@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt
 
 from build_fortran_tests import build_tests, build_exists
 from path_utils import add_cime_lib_to_path
-from utils import copy_file, create_nc_from_cdl, config_to_dict
+from utils import copy_file, create_nc_from_cdl, config_to_dict, parse_test_list
 
 # add testing subclasses here
 from testing_classes import Heuristic
@@ -57,7 +57,7 @@ def commandline_args():
 
     Typical usage:
 
-    ./run_fates_tests -t allometry
+    ./run_fates_functional_tests -t allometry
 
     """
     parser = argparse.ArgumentParser(
@@ -225,37 +225,9 @@ def check_out_files(run_dir, test_dict):
             raise argparse.ArgumentError(None, f"Required file for {test} test does not exist.\n"
                                 "Re-run script without --skip-run.")
 
-def parse_test_list(full_test_dict, test_string):
-    """Parses the input test list and checks for errors
-
-    Args:
-        test (str): user-supplied comma-separated list of test names
-
-    Returns:
-        dictionary: filtered dictionary of tests to run
-
-    Raises:
-        RuntimeError: Invalid test name supplied
-    """
-    valid_test_names = full_test_dict.keys()
-
-    if test_string != "all":
-        test_list = test_string.split(',')
-        for test in test_list:
-            if test not in valid_test_names:
-                raise argparse.ArgumentTypeError("Invalid test supplied, \n"
-                                                 "must supply one of:\n"
-                                  f"{', '.join(valid_test_names)}\n"
-                                  "or do not supply a test name to run all tests.")
-        test_dict = {key: full_test_dict[key] for key in test_list}
-    else:
-        test_dict = full_test_dict
-
-    return test_dict
-
-def run_tests(clean, verbose_make, build, run_executables, build_dir, run_dir,
+def run_functional_tests(clean, verbose_make, build, run_executables, build_dir, run_dir,
               make_j, param_file, save_figs, test_dict):
-    """Builds and runs the fates tests
+    """Builds and runs the fates functional tests
 
     Args:
         clean (bool): whether or not to clean the build directory
@@ -267,7 +239,7 @@ def run_tests(clean, verbose_make, build, run_executables, build_dir, run_dir,
         make_j (int): number of processors for the build
         param_file (str): input FATES parameter file
         save_figs (bool): whether or not to write figures to file
-        test_dict (dict): dictionary of tests to run
+        test_dict (dict): dictionary of test classes to run
     """
 
     # absolute path to desired build directory
@@ -292,40 +264,25 @@ def run_tests(clean, verbose_make, build, run_executables, build_dir, run_dir,
         build_tests(build_dir, _CMAKE_BASE_DIR, make_j, clean=clean,
                          verbose=verbose_make)
 
-    # # run executables for each test in test list
-    # if run_executables:
-    #     print("Running executables")
-    #     # we don't run executables for only pfunit tests
-    #     for attributes in dict(filter(lambda pair: pair[1]['test_exe'] is not None,
-    #                                         test_dict.items())).values():
-    #         # prepend parameter file (if required) to argument list
-    #         args = attributes['other_args']
-    #         print(args)
-    #         if attributes['use_param_file']:
-    #             args.insert(0, param_file)
-    #         # run
-    #         run_fortran_exectuables(build_dir_path, attributes['test_dir'],
-    #                         attributes['test_exe'], run_dir_path, args)
+    # run executables for each test in test list
+    if run_executables:
+        print("Running executables")
+        for _, test in test_dict.items():
+            # prepend parameter file (if required) to argument list
+            args = test.other_args
+            if test.use_param_file:
+                args.insert(0, param_file)
+            # run
+            run_fortran_exectuables(build_dir_path, test.test_dir,
+                            test.test_exe, run_dir_path, args)
             
-    # # run unit tests 
-    # for test, attributes in dict(filter(lambda pair: pair[1]['has_unit_test'],
-    #                                     test_dict.items())).items():
-    #     print(f"Running unit tests for {test}.")
-        
-    #     test_dir = os.path.join(build_dir_path, _TEST_SUB_DIR, attributes['test_dir'])
-    #     ctest_command = ["ctest", "--output-on-failure"]
-    #     output = run_cmd_no_fail(" ".join(ctest_command), from_dir=test_dir, 
-    #                              combine_output=True)
-    #     print(output)
-
-    # # plot output for relevant tests
-    # for test, attributes in dict(filter(lambda pair: pair[1]['plotting_function'] is not None,
-    #                                         test_dict.items())).items():
-    #     attributes['plotting_function'](run_dir_path,
-    #                                     attributes['out_file'], save_figs,
-    #                                     os.path.join(run_dir_path, 'plots', test))
-    # # show plots
-    # plt.show()
+    # plot output for relevant tests
+    for name, test in dict(filter(lambda pair: pair[1].plot,
+                                            test_dict.items())).items():
+        test.plot_output(run_dir_path, save_figs, 
+                         os.path.join(run_dir_path, 'plots', name))
+    # show plots
+    plt.show()
     
 def make_plotdirs(run_dir, test_dict):
     """Create plotting directories if they don't already exist
@@ -338,10 +295,9 @@ def make_plotdirs(run_dir, test_dict):
     plot_dir = os.path.join(run_dir, 'plots')
     if not os.path.isdir(plot_dir):
         os.mkdir(plot_dir)
-
+    
     # make sub-plot directories
-    for test in dict(filter(lambda pair: pair[1]['plotting_function'] is not None,
-                                            test_dict.items())):
+    for test in dict(filter(lambda pair: pair[1].plot, test_dict.items())):
         sub_dir = os.path.join(plot_dir, test)
         if not os.path.isdir(sub_dir):
             os.mkdir(sub_dir)
@@ -411,18 +367,18 @@ def main():
     args = commandline_args()
     config_dict = parse_test_list(full_test_dict, args.test_list)
     
-    ## for now just turn into a dictionary?
+    # for now just turn into a dictionary?
     test_dict = {}
     for name in config_dict.keys():
-        my_class = list(filter(lambda subclass: subclass.name == name, subclasses))[0](config_dict[name])
-        test_dict[name] = my_class.to_dict()
-    print(test_dict)
+        test_class = list(filter(lambda subclass: subclass.name == name, subclasses))[0](config_dict[name])
+        test_dict[name] = test_class
 
     build = not args.skip_build
     run = not args.skip_run_executables
     
-    # run_tests(args.clean, args.verbose_make, build, run, args.build_dir, args.run_dir, 
-    #           args.make_j, args.parameter_file, args.save_figs, test_dict)
+    run_functional_tests(args.clean, args.verbose_make, build, run, args.build_dir, 
+                         args.run_dir, args.make_j, args.parameter_file, args.save_figs, 
+                         test_dict)
         
 if __name__ == "__main__":
     main()

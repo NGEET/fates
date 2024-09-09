@@ -4,6 +4,7 @@
 import math
 import os
 import configparser
+import argparse
 import matplotlib.pyplot as plt
 from path_utils import add_cime_lib_to_path
 
@@ -122,6 +123,34 @@ def config_to_dict(config_file:str) -> dict:
             dictionary[section][option] = config.get(section, option)
     
     return dictionary
+
+def parse_test_list(full_test_dict, test_string):
+    """Parses the input test list and checks for errors
+
+    Args:
+        test (str): user-supplied comma-separated list of test names
+
+    Returns:
+        dictionary: filtered dictionary of tests to run
+
+    Raises:
+        RuntimeError: Invalid test name supplied
+    """
+    valid_test_names = full_test_dict.keys()
+
+    if test_string != "all":
+        test_list = test_string.split(',')
+        for test in test_list:
+            if test not in valid_test_names:
+                raise argparse.ArgumentTypeError("Invalid test supplied, \n"
+                                                 "must supply one of:\n"
+                                  f"{', '.join(valid_test_names)}\n"
+                                  "or do not supply a test name to run all tests.")
+        test_dict = {key: full_test_dict[key] for key in test_list}
+    else:
+        test_dict = full_test_dict
+
+    return test_dict
 
 def str_to_bool(val:str) -> bool:
     """Convert a string representation of truth to True or False.
