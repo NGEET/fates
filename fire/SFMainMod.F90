@@ -9,8 +9,7 @@
   use FatesConstantsMod     , only : itrue, ifalse
   use FatesConstantsMod     , only : pi_const
   use FatesConstantsMod     , only : nocomp_bareground
-  use FatesInterfaceTypesMod     , only : hlm_masterproc ! 1= master process, 0=not master process
-  use EDTypesMod            , only : numWaterMem
+  use FatesInterfaceTypesMod, only : hlm_masterproc ! 1= master process, 0=not master process
   use FatesGlobals          , only : fates_log
   use FatesInterfaceTypesMod, only : hlm_spitfire_mode
   use FatesInterfaceTypesMod, only : hlm_sf_nofire_def
@@ -39,13 +38,9 @@
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : leaf_organ
-  use PRTGenericMod,          only : fnrt_organ
   use PRTGenericMod,          only : sapw_organ
-  use PRTGenericMod,          only : store_organ
-  use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : SetState
-  use FatesInterfaceTypesMod     , only : numpft
+  use FatesInterfaceTypesMod, only : numpft
   use FatesAllometryMod,      only : CrownDepth
   use FatesConstantsMod,      only : nearzero
 
@@ -56,7 +51,6 @@
   public :: charecteristics_of_fuel
   public :: rate_of_spread
   public :: ground_fuel_consumption
-  public :: wind_effect
   public :: area_burnt_intensity
   public :: crown_scorching
   public :: crown_damage
@@ -95,7 +89,6 @@ contains
 
     if (hlm_spitfire_mode > hlm_sf_nofire_def) then
       call UpdateFireWeather(currentSite, bc_in)
-      call wind_effect(currentSite, bc_in) 
       call charecteristics_of_fuel(currentSite)
       call rate_of_spread(currentSite)
       call ground_fuel_consumption(currentSite)
@@ -113,33 +106,41 @@ contains
   subroutine UpdateFireWeather(currentSite, bc_in)
     !
     !  DESCRIPTION:
-    !  Updates the site's fire weather index
+    !  Updates the site's fire weather index and calculates effective windspeed based on 
+    !   vegetation characteristics
+    !  Currently we use tree and grass fraction averaged over whole grid (site) to 
+    !  prevent extreme divergence
 
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-    use FatesConstantsMod, only : sec_per_day
+    use FatesConstantsMod, only : sec_per_day, sec_per_min
+    use EDTypesMod,        only : CalculateTreeGrassAreaSite
+
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
-    type(bc_in_type),    intent(in)           :: bc_in
+    type(bc_in_type),   intent(in)            :: bc_in
 
     ! LOCALS:  
-    type(fates_patch_type),  pointer :: currentPatch ! patch object
-    real(r8)                         :: temp_C       ! daily averaged temperature [deg C]
-    real(r8)                         :: precip       ! daily precip [mm/day]
-    real(r8)                         :: rh           ! daily relative humidity [%]
-    real(r8)                         :: wind         ! wind speed [m/s]
-    integer                          :: iofp         ! index of oldest the fates patch
+    type(fates_patch_type), pointer :: currentPatch   ! patch object
+    real(r8)                        :: temp_C         ! daily averaged temperature [deg C]
+    real(r8)                        :: precip         ! daily precip [mm/day]
+    real(r8)                        :: rh             ! daily relative humidity [%]
+    real(r8)                        :: wind           ! wind speed [m/s]
+    real(r8)                        :: tree_fraction  ! site-level tree fraction [0-1]
+    real(r8)                        :: grass_fraction ! site-level grass fraction [0-1]
+    real(r8)                        :: bare_fraction  ! site-level bare ground fraction [0-1]
+    integer                         :: iofp           ! index of oldest the fates patch
   
     ! NOTE that the boundary conditions of temperature, precipitation and relative humidity
     ! are available at the patch level. We are currently using a simplification where the whole site
     ! is simply using the values associated with the first patch.
-    ! which probably won't have much inpact, unless we decide to ever calculated fire weather for each patch.  
+    ! which probably won't have much impact, unless we decide to ever calculated fire weather for each patch.  
     
     currentPatch => currentSite%oldest_patch
 
     ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
     ! for the iofp index (i.e. the next younger patch)
-    if(currentPatch%nocomp_pft_label .eq. nocomp_bareground)then
+    if (currentPatch%nocomp_pft_label == nocomp_bareground) then
       currentPatch => currentPatch%younger
     endif
 
@@ -149,8 +150,18 @@ contains
     rh = bc_in%relhumid24_pa(iofp)
     wind = bc_in%wind24_pa(iofp)
 
+    ! convert to m/min 
+    currentSite%wind = wind*sec_per_min 
+
     ! update fire weather index
-    call currentSite%fireWeather%Update(temp_C, precip, rh, wind)
+    call currentSite%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
+
+    ! calculate site-level tree, grass, and bare fraction
+    call CalculateTreeGrassAreaSite(currentSite, tree_fraction, grass_fraction, bare_fraction)
+
+    ! update effective wind speed
+    call currentSite%fireWeather%UpdateEffectiveWindSpeed(wind*sec_per_min, tree_fraction, &
+      grass_fraction, bare_fraction)
 
   end subroutine UpdateFireWeather
 
@@ -339,108 +350,7 @@ contains
   end subroutine charecteristics_of_fuel
 
 
-  !*****************************************************************
-  subroutine  wind_effect ( currentSite, bc_in) 
-  !*****************************************************************.
 
-    ! Routine called daily from within ED within a site loop.
-    ! Calculates the effective windspeed based on vegetation charecteristics.
-    ! currentSite%wind is daily wind converted to m/min for Spitfire units 
-
-    use FatesConstantsMod, only : sec_per_min
-
-    type(ed_site_type) , intent(inout), target :: currentSite
-    type(bc_in_type)   , intent(in)            :: bc_in
-
-    type(fates_patch_type) , pointer :: currentPatch
-    type(fates_cohort_type), pointer :: currentCohort
-
-    real(r8) :: total_grass_area     ! per patch,in m2
-    real(r8) :: tree_fraction        ! site level. no units
-    real(r8) :: grass_fraction       ! site level. no units
-    real(r8) :: bare_fraction        ! site level. no units 
-    integer  :: iofp                 ! index of oldest fates patch
-
-
-    currentPatch => currentSite%oldest_patch
-
-    ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
-    ! for the iofp index (i.e. the next younger patch)
-    if(currentPatch%nocomp_pft_label .eq. nocomp_bareground)then
-      currentPatch => currentPatch%younger
-    endif
-
-    ! note - this is a patch level temperature, which probably won't have much inpact, 
-    ! unless we decide to ever calculated the NI for each patch.  
-    iofp = currentPatch%patchno
-    currentSite%wind = bc_in%wind24_pa(iofp) * sec_per_min !Convert to m/min for SPITFIRE
-
-    if(write_SF == itrue)then
-       if ( hlm_masterproc == itrue ) write(fates_log(),*) 'wind24', currentSite%wind
-    endif
-    ! --- influence of wind speed, corrected for surface roughness----
-    ! --- averaged over the whole grid cell to prevent extreme divergence 
-    ! average_wspeed = 0.0_r8   
-    tree_fraction = 0.0_r8
-    grass_fraction = 0.0_r8
-    currentPatch=>currentSite%oldest_patch;  
-    do while(associated(currentPatch))
-
-       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
-       
-       currentPatch%total_tree_area = 0.0_r8
-       total_grass_area = 0.0_r8
-       currentCohort => currentPatch%tallest
- 
-       do while(associated(currentCohort))
-          if (debug) write(fates_log(),*) 'SF currentCohort%c_area ',currentCohort%c_area
-          if( prt_params%woody(currentCohort%pft) == itrue)then
-             currentPatch%total_tree_area = currentPatch%total_tree_area + currentCohort%c_area
-          else
-             total_grass_area = total_grass_area + currentCohort%c_area
-          endif
-          currentCohort => currentCohort%shorter
-       enddo
-       tree_fraction = tree_fraction + min(currentPatch%area,currentPatch%total_tree_area)/AREA
-       grass_fraction = grass_fraction + min(currentPatch%area,total_grass_area)/AREA 
-       
-       if(debug)then
-         write(fates_log(),*) 'SF  currentPatch%area ',currentPatch%area
-         write(fates_log(),*) 'SF  currentPatch%total_area ',currentPatch%total_tree_area
-         write(fates_log(),*) 'SF  total_grass_area ',tree_fraction,grass_fraction
-         write(fates_log(),*) 'SF  AREA ',AREA
-       endif
-
-       endif !nocomp_pft_label check
-       
-       currentPatch => currentPatch%younger
-    enddo !currentPatch loop
-
-    !if there is a cover of more than one, then the grasses are under the trees
-    grass_fraction = min(grass_fraction,1.0_r8-tree_fraction) 
-    bare_fraction = 1.0_r8 - tree_fraction - grass_fraction
-    if(write_sf == itrue)then
-       if ( hlm_masterproc == itrue ) write(fates_log(),*) 'grass, trees, bare', &
-            grass_fraction, tree_fraction, bare_fraction
-    endif
-
-    currentPatch=>currentSite%oldest_patch;
-
-    do while(associated(currentPatch))       
-       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
-
-       currentPatch%total_tree_area = min(currentPatch%total_tree_area,currentPatch%area)
-       ! effect_wspeed in units m/min      
-       currentPatch%effect_wspeed = currentSite%wind * (tree_fraction*0.4_r8+(grass_fraction+bare_fraction)*0.6_r8)
-
-       endif ! nocomp_pft_label check
-      
-       currentPatch => currentPatch%younger
-    enddo !end patch loop
-
-  end subroutine wind_effect
-
-  !*****************************************************************
   subroutine rate_of_spread ( currentSite ) 
     !*****************************************************************.
     !Routine called daily from within ED within a site loop.
@@ -520,8 +430,6 @@ contains
 
        if (debug) then
           if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - c ',c
-          if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - currentPatch%effect_wspeed ', &
-                                                                         currentPatch%effect_wspeed
           if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - b ',b
           if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - beta_ratio ',beta_ratio
           if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - e ',e
@@ -530,7 +438,7 @@ contains
        ! Equation A5 in Thonicke et al. 2010
        ! phi_wind (unitless)
        ! convert current_wspeed (wind at elev relevant to fire) from m/min to ft/min for Rothermel ROS eqn
-       phi_wind = c * ((3.281_r8*currentPatch%effect_wspeed)**b)*(beta_ratio**(-e))
+       phi_wind = c * ((3.281_r8*currentSite%fireWeather%effective_windspeed)**b)*(beta_ratio**(-e))
 
 
        ! ---propagating flux----
@@ -571,7 +479,6 @@ contains
        else ! Equation 9. Thonicke et al. 2010. 
             ! forward ROS in m/min
           currentPatch%ROS_front = (ir*xi*(1.0_r8+phi_wind)) / (currentPatch%fuel_bulkd*eps*q_ig)
-          ! write(fates_log(),*) 'ROS',currentPatch%ROS_front,phi_wind,currentPatch%effect_wspeed
           ! write(fates_log(),*) 'ros calcs',currentPatch%fuel_bulkd,ir,xi,eps,q_ig
        endif
        ! Equation 10 in Thonicke et al. 2010
@@ -795,16 +702,16 @@ contains
              write(fates_log(),*) 'SF  AREA ',AREA
           endif         
  
-          if ((currentPatch%effect_wspeed*m_per_min__to__km_per_hour) < 1._r8) then !16.67m/min = 1km/hr 
+          if ((currentSite%fireWeather%effective_windspeed*m_per_min__to__km_per_hour) < 1._r8) then !16.67m/min = 1km/hr 
              lb = 1.0_r8
           else
              if (tree_fraction_patch > forest_grassland_lengthtobreadth_threshold) then      !benchmark forest cover, Staver 2010
                  ! EQ 79 forest fuels (Canadian Forest Fire Behavior Prediction System Ont.Inf.Rep. ST-X-3, 1992)
                  lb = (1.0_r8 + (8.729_r8 * &
-                      ((1.0_r8 -(exp(-0.03_r8 * m_per_min__to__km_per_hour * currentPatch%effect_wspeed)))**2.155_r8)))
+                      ((1.0_r8 -(exp(-0.03_r8 * m_per_min__to__km_per_hour * currentSite%fireWeather%effective_windspeed)))**2.155_r8)))
              else ! EQ 80 grass fuels (CFFBPS Ont.Inf.Rep. ST-X-3, 1992, but with a correction from an errata published within 
                   ! Information Report GLC-X-10 by Wotton et al., 2009 for a typo in CFFBPS Ont.Inf.Rep. ST-X-3, 1992)
-                 lb = (1.1_r8*((m_per_min__to__km_per_hour * currentPatch%effect_wspeed)**0.464_r8))
+                 lb = (1.1_r8*((m_per_min__to__km_per_hour * currentSite%fireWeather%effective_windspeed)**0.464_r8))
              endif
           endif
 
