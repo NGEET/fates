@@ -10,6 +10,7 @@ _FATES_ROOT = os.path.normpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir)
 )
 
+
 def add_cime_lib_to_path() -> str:
     """Adds the CIME python library to the python path, to allow importing
        modules from that library
@@ -19,11 +20,12 @@ def add_cime_lib_to_path() -> str:
     """
     cime_path = path_to_cime()
     prepend_to_python_path(cime_path)
-    
+
     cime_lib_path = os.path.join(cime_path, "CIME", "Tools")
     prepend_to_python_path(cime_lib_path)
-    
+
     return cime_path
+
 
 def path_to_cime() -> str:
     """Returns the path to cime, if it can be found
@@ -39,6 +41,7 @@ def path_to_cime() -> str:
         return cime_path
     raise RuntimeError("Cannot find cime.")
 
+
 def path_to_fates_root():
     """Returns Returns the path to the root directory of FATES
 
@@ -47,7 +50,8 @@ def path_to_fates_root():
     """
     return _FATES_ROOT
 
-def prepend_to_python_path(path:str):
+
+def prepend_to_python_path(path: str):
     """Adds the given path to python's sys.path if not already there
        Path is added near the beginning, so that it takes precedence over existing
        entries in path.

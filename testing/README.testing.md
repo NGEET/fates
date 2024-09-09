@@ -38,11 +38,14 @@ First, determine if you are going to create a functional or unit test. Remember,
 unit tests must have a pass/fail outcome. These are best for testing edgecases, error
 handling, or where we know exactly what the result should be from a method.
 
-First, add your test to either the `functional_tests.cfg` or `unit_tests.cfg` config file, depending on the test you want to create.
+First, add your test to either the `functional_tests.cfg` or `unit_tests.cfg` config file,
+depending on the test you want to create.
 
 ### Config file information
 
-The `test_dir` is where cmake will place relevant libraries created from your test. The convention is to call this directory `fates_{testname}_ftest` for functional tests and `fates_{testname}_utest` for unit tests.
+The `test_dir` is where cmake will place relevant libraries created from your test.
+The convention is to call this directory `fates_{testname}_ftest` for functional tests
+and `fates_{testname}_utest` for unit tests.
 
 The `test_exe` (only applicable for functional tests) is the executable the script will
 create based on your test program. The convention is to call it `FATES_{testname}_exe`.
@@ -53,7 +56,8 @@ may or may not create. Set the value to `None` if your test does not create one.
 Set `use_param_file` to `True` if your test uses the FATES parameter file, and `False` 
 otherwise. This is only applicable for functional tests.
 
-Add any other arguments your test needs in the `other_args` list. This is only applicable for functional tests.
+Add any other arguments your test needs in the `other_args` list.
+This is only applicable for functional tests.
 
 ### Cmake setup
 
@@ -64,7 +68,8 @@ In the file `testing/CMakeLists.txt` add your test directory to the list of test
 
 `add_subdirectory(functional_testing/my_new_test fates_new_test_ftest)`
 
-The first argument must match your directory name, and the second must match the `test_dir` value you set up in the config file above.
+The first argument must match your directory name, and the second must match the
+`test_dir` value you set up in the config file above.
 
 Inside your new testing directory create a new `CMakeLists.txt` file to tell cmake
 how to build and compile your program. It may be easiest to copy an existing one

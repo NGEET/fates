@@ -26,12 +26,13 @@ from utils import config_to_dict, parse_test_list
 
 add_cime_lib_to_path()
 
-from CIME.utils import run_cmd_no_fail # pylint: disable=wrong-import-position,import-error,wrong-import-order
+from CIME.utils import run_cmd_no_fail  # pylint: disable=wrong-import-position,import-error,wrong-import-order
 
 # constants for this script
 _CMAKE_BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")
 _DEFAULT_CONFIG_FILE = "unit_tests.cfg"
 _TEST_SUB_DIR = "testing"
+
 
 def commandline_args():
     """Parse and return command-line arguments"""
@@ -73,25 +74,24 @@ def commandline_args():
     )
 
     parser.add_argument(
-      "--verbose-make",
-      action="store_true",
-      help="Run make with verbose output."
+        "--verbose-make", action="store_true", help="Run make with verbose output."
     )
-    
+
     parser.add_argument(
-      "-t",
-      "--test-list",
-      action="store",
-      dest="test_list",
-      type=str,
-      default="all",
-      help="Test(s) to run. Comma-separated list of test names, or 'all'\n"
-      "for all tests. If not supplied, will run all tests."
+        "-t",
+        "--test-list",
+        action="store",
+        dest="test_list",
+        type=str,
+        default="all",
+        help="Test(s) to run. Comma-separated list of test names, or 'all'\n"
+        "for all tests. If not supplied, will run all tests.",
     )
 
     args = parser.parse_args()
 
     return args
+
 
 def run_unit_tests(clean, verbose_make, build_dir, make_j, test_dict):
     """Builds and runs the fates unit tests
@@ -108,30 +108,36 @@ def run_unit_tests(clean, verbose_make, build_dir, make_j, test_dict):
     build_dir_path = os.path.abspath(build_dir)
 
     # compile code
-    build_tests(build_dir_path, _CMAKE_BASE_DIR, make_j, clean=clean,
-                verbose=verbose_make)
-            
+    build_tests(
+        build_dir_path, _CMAKE_BASE_DIR, make_j, clean=clean, verbose=verbose_make
+    )
+
     # run unit tests
-    print(f"Running unit tests...")
+    print("Running unit tests...")
     for _, attributes in test_dict.items():
-        
-        test_dir = os.path.join(build_dir_path, _TEST_SUB_DIR, attributes['test_dir'])
+
+        test_dir = os.path.join(build_dir_path, _TEST_SUB_DIR, attributes["test_dir"])
         ctest_command = ["ctest", "--output-on-failure"]
-        output = run_cmd_no_fail(" ".join(ctest_command), from_dir=test_dir, 
-                                 combine_output=True)
+        output = run_cmd_no_fail(
+            " ".join(ctest_command), from_dir=test_dir, combine_output=True
+        )
         print(output)
-    
+
+
 def main():
     """Main script
-      Reads in command-line arguments and then runs the tests.
+    Reads in command-line arguments and then runs the tests.
     """
-    
+
     full_test_dict = config_to_dict(_DEFAULT_CONFIG_FILE)
 
     args = commandline_args()
     test_dict = parse_test_list(full_test_dict, args.test_list)
-        
-    run_unit_tests(args.clean, args.verbose_make, args.build_dir, args.make_j, test_dict)
-        
+
+    run_unit_tests(
+        args.clean, args.verbose_make, args.build_dir, args.make_j, test_dict
+    )
+
+
 if __name__ == "__main__":
     main()

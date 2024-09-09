@@ -19,7 +19,7 @@ Additionally, this requires netcdf and netcdff as well as a fortran compiler.
 You must also have a .cime folder in your home directory which specifies machine
 configurations for CIME.
 
-This script builds and runs FATES functional tests, and plots any relevant output from 
+This script builds and runs FATES functional tests, and plots any relevant output from
 those tests.
 
 You can supply your own parameter file (either a .cdl or a .nc file), or if you do not
@@ -36,18 +36,19 @@ from utils import copy_file, create_nc_from_cdl, config_to_dict, parse_test_list
 
 # add testing subclasses here
 from functional_class import FunctionalTest
-from functional_testing.allometry.allometry_test import AllometryTest
-from functional_testing.math_utils.math_utils_test import QuadraticTest
+from functional_testing.allometry.allometry_test import AllometryTest # pylint: disable=unused-import
+from functional_testing.math_utils.math_utils_test import QuadraticTest # pylint: disable=unused-import
 
 add_cime_lib_to_path()
 
-from CIME.utils import run_cmd_no_fail # pylint: disable=wrong-import-position,import-error,wrong-import-order
+from CIME.utils import run_cmd_no_fail  # pylint: disable=wrong-import-position,import-error,wrong-import-order
 
 # constants for this script
 _DEFAULT_CONFIG_FILE = "functional_tests.cfg"
 _DEFAULT_CDL_PATH = os.path.abspath("../parameter_files/fates_params_default.cdl")
 _CMAKE_BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")
 _TEST_SUB_DIR = "testing"
+
 
 def commandline_args():
     """Parse and return command-line arguments"""
@@ -109,44 +110,42 @@ def commandline_args():
     )
 
     parser.add_argument(
-      "--skip-build",
-      action="store_true",
-      help="Skip building and compiling the test code.\n"
-      "Only do this if you already have run build.\n"
-      "Script will check to make sure executables are present.\n",
+        "--skip-build",
+        action="store_true",
+        help="Skip building and compiling the test code.\n"
+        "Only do this if you already have run build.\n"
+        "Script will check to make sure executables are present.\n",
     )
 
     parser.add_argument(
-      "--skip-run-executables",
-      action="store_true",
-      help="Skip running test code executables.\n"
-      "Only do this if you already have run the code previously.\n"
-      "Script will check to make sure required output files are present.\n",
+        "--skip-run-executables",
+        action="store_true",
+        help="Skip running test code executables.\n"
+        "Only do this if you already have run the code previously.\n"
+        "Script will check to make sure required output files are present.\n",
     )
 
     parser.add_argument(
-      "--save-figs",
-      action="store_true",
-      help="Write out generated figures to files.\n"
-      "Will be placed in run_dir/plots.\n"
-      "Should probably do this on remote machines.\n",
-    )
-    
-    parser.add_argument(
-      "--verbose-make",
-      action="store_true",
-      help="Run make with verbose output."
+        "--save-figs",
+        action="store_true",
+        help="Write out generated figures to files.\n"
+        "Will be placed in run_dir/plots.\n"
+        "Should probably do this on remote machines.\n",
     )
 
     parser.add_argument(
-      "-t",
-      "--test-list",
-      action="store",
-      dest="test_list",
-      type=str,
-      default="all",
-      help="Test(s) to run. Comma-separated list of test names, or 'all'\n"
-      "for all tests. If not supplied, will run all tests."
+        "--verbose-make", action="store_true", help="Run make with verbose output."
+    )
+
+    parser.add_argument(
+        "-t",
+        "--test-list",
+        action="store",
+        dest="test_list",
+        type=str,
+        default="all",
+        help="Test(s) to run. Comma-separated list of test names, or 'all'\n"
+        "for all tests. If not supplied, will run all tests.",
     )
 
     args = parser.parse_args()
@@ -154,6 +153,7 @@ def commandline_args():
     check_arg_validity(args)
 
     return args
+
 
 def check_arg_validity(args):
     """Checks validity of input script arguments
@@ -163,7 +163,7 @@ def check_arg_validity(args):
     """
     # check to make sure parameter file exists and is one of the correct forms
     check_param_file(args.parameter_file)
-    
+
     # make sure relevant output files exist:
     if args.skip_run_executables:
         # if you skip the run we assume you want to skip the build
@@ -174,9 +174,13 @@ def check_arg_validity(args):
     # make sure build directory exists
     if args.skip_build:
         if args.verbose_make:
-            raise argparse.ArgumentError(None, "Can't run verbose make and skip build.\n" 
-                                         "Re-run script without --skip-build")
+            raise argparse.ArgumentError(
+                None,
+                "Can't run verbose make and skip build.\n"
+                "Re-run script without --skip-build",
+            )
         check_build_dir(args.build_dir, args.test_dict)
+
 
 def check_param_file(param_file):
     """Checks to see if param_file exists and is of the correct form (.nc or .cdl)
@@ -189,11 +193,14 @@ def check_param_file(param_file):
         argparse.ArgumentError: Can't find parameter file
     """
     file_suffix = os.path.basename(param_file).split(".")[-1]
-    if not file_suffix in ['cdl', 'nc']:
-        raise argparse.ArgumentError(None, "Must supply parameter file with .cdl or .nc ending.")
+    if not file_suffix in ["cdl", "nc"]:
+        raise argparse.ArgumentError(
+            None, "Must supply parameter file with .cdl or .nc ending."
+        )
     if not os.path.isfile(param_file):
         raise argparse.ArgumentError(None, f"Cannot find file {param_file}.")
-    
+
+
 def check_build_dir(build_dir, test_dict):
     """Checks to see if all required build directories and executables are present
 
@@ -205,10 +212,14 @@ def check_build_dir(build_dir, test_dict):
         argparse.ArgumentError: Can't find a required build directory or executable
     """
     for attributes in test_dict.values():
-        if not build_exists(build_dir, attributes['test_dir'], attributes['test_exe']):
-            raise argparse.ArgumentError(None, "Build directory or executable does not exist.\n"
-                                "Re-run script without --skip-build.")
-           
+        if not build_exists(build_dir, attributes["test_dir"], attributes["test_exe"]):
+            raise argparse.ArgumentError(
+                None,
+                "Build directory or executable does not exist.\n"
+                "Re-run script without --skip-build.",
+            )
+
+
 def check_out_files(run_dir, test_dict):
     """Checks to see that required output files are present in the run directory
 
@@ -219,14 +230,31 @@ def check_out_files(run_dir, test_dict):
     Raises:
         argparse.ArgumentError: Can't find a required output file
     """
-    for test, attributes in dict(filter(lambda pair: pair[1]['out_file'] is not None,
-                                            test_dict.items())).items():
-        if not os.path.isfile(os.path.join(os.path.abspath(run_dir), attributes['out_file'])):
-            raise argparse.ArgumentError(None, f"Required file for {test} test does not exist.\n"
-                                "Re-run script without --skip-run.")
+    for test, attributes in dict(
+        filter(lambda pair: pair[1]["out_file"] is not None, test_dict.items())
+    ).items():
+        if not os.path.isfile(
+            os.path.join(os.path.abspath(run_dir), attributes["out_file"])
+        ):
+            raise argparse.ArgumentError(
+                None,
+                f"Required file for {test} test does not exist.\n"
+                "Re-run script without --skip-run.",
+            )
 
-def run_functional_tests(clean, verbose_make, build, run_executables, build_dir, run_dir,
-              make_j, param_file, save_figs, test_dict):
+
+def run_functional_tests(
+    clean,
+    verbose_make,
+    build,
+    run_executables,
+    build_dir,
+    run_dir,
+    make_j,
+    param_file,
+    save_figs,
+    test_dict,
+):
     """Builds and runs the fates functional tests
 
     Args:
@@ -261,8 +289,9 @@ def run_functional_tests(clean, verbose_make, build, run_executables, build_dir,
 
     # compile code
     if build:
-        build_tests(build_dir, _CMAKE_BASE_DIR, make_j, clean=clean,
-                         verbose=verbose_make)
+        build_tests(
+            build_dir, _CMAKE_BASE_DIR, make_j, clean=clean, verbose=verbose_make
+        )
 
     # run executables for each test in test list
     if run_executables:
@@ -273,17 +302,21 @@ def run_functional_tests(clean, verbose_make, build, run_executables, build_dir,
             if test.use_param_file:
                 args.insert(0, param_file)
             # run
-            run_fortran_exectuables(build_dir_path, test.test_dir,
-                            test.test_exe, run_dir_path, args)
-            
+            run_fortran_exectuables(
+                build_dir_path, test.test_dir, test.test_exe, run_dir_path, args
+            )
+
     # plot output for relevant tests
-    for name, test in dict(filter(lambda pair: pair[1].plot,
-                                            test_dict.items())).items():
-        test.plot_output(run_dir_path, save_figs, 
-                         os.path.join(run_dir_path, 'plots', name))
+    for name, test in dict(
+        filter(lambda pair: pair[1].plot, test_dict.items())
+    ).items():
+        test.plot_output(
+            run_dir_path, save_figs, os.path.join(run_dir_path, "plots", name)
+        )
     # show plots
     plt.show()
-    
+
+
 def make_plotdirs(run_dir, test_dict):
     """Create plotting directories if they don't already exist
 
@@ -292,16 +325,17 @@ def make_plotdirs(run_dir, test_dict):
         test_dict (dict): dictionary of test to run
     """
     # make main plot directory
-    plot_dir = os.path.join(run_dir, 'plots')
+    plot_dir = os.path.join(run_dir, "plots")
     if not os.path.isdir(plot_dir):
         os.mkdir(plot_dir)
-    
+
     # make sub-plot directories
     for test in dict(filter(lambda pair: pair[1].plot, test_dict.items())):
         sub_dir = os.path.join(plot_dir, test)
         if not os.path.isdir(sub_dir):
             os.mkdir(sub_dir)
-            
+
+
 def create_param_file(param_file, run_dir):
     """Creates and/or move the default or input parameter file to the run directory
     Creates a netcdf file from a cdl file if a cdl file is supplied
@@ -323,7 +357,7 @@ def create_param_file(param_file, run_dir):
     else:
         print(f"Using parameter file {param_file}.")
         file_suffix = os.path.basename(param_file).split(".")[-1]
-        if file_suffix == 'cdl':
+        if file_suffix == "cdl":
             param_file_update = create_nc_from_cdl(param_file, run_dir)
         elif file_suffix == "nc":
             param_file_update = copy_file(param_file, run_dir)
@@ -331,6 +365,7 @@ def create_param_file(param_file, run_dir):
             raise RuntimeError("Must supply parameter file with .cdl or .nc ending.")
 
     return param_file_update
+
 
 def run_fortran_exectuables(build_dir, test_dir, test_exe, run_dir, args):
     """Run the generated Fortran executables
@@ -355,30 +390,42 @@ def run_fortran_exectuables(build_dir, test_dir, test_exe, run_dir, args):
     os.chdir(run_dir)
     out = run_cmd_no_fail(" ".join(run_command), combine_output=True)
     print(out)
-        
+
+
 def main():
     """Main script
-      Reads in command-line arguments and then runs the tests.
+    Reads in command-line arguments and then runs the tests.
     """
-    
+
     full_test_dict = config_to_dict(_DEFAULT_CONFIG_FILE)
     subclasses = FunctionalTest.__subclasses__()
-    
+
     args = commandline_args()
     config_dict = parse_test_list(full_test_dict, args.test_list)
-    
-    # for now just turn into a dictionary?
+
     test_dict = {}
     for name in config_dict.keys():
-        test_class = list(filter(lambda subclass: subclass.name == name, subclasses))[0](config_dict[name])
+        test_class = list(filter(lambda subclass: subclass.name == name, subclasses))[
+            0
+        ](config_dict[name])
         test_dict[name] = test_class
 
     build = not args.skip_build
     run = not args.skip_run_executables
-    
-    run_functional_tests(args.clean, args.verbose_make, build, run, args.build_dir, 
-                         args.run_dir, args.make_j, args.parameter_file, args.save_figs, 
-                         test_dict)
-        
+
+    run_functional_tests(
+        args.clean,
+        args.verbose_make,
+        build,
+        run,
+        args.build_dir,
+        args.run_dir,
+        args.make_j,
+        args.parameter_file,
+        args.save_figs,
+        test_dict,
+    )
+
+
 if __name__ == "__main__":
     main()
