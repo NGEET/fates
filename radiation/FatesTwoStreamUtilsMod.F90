@@ -297,7 +297,7 @@ contains
     ! The scratch space needs to be 2x the number of computational elements
     ! for the patch with the most elements.
     
-    if(allocated(site%taulambda_2str) .and. max_elements>0 )then
+    if(allocated(site%taulambda_2str)) then ! .and. max_elements>0 )then
        n_scr = ubound(site%taulambda_2str,dim=1)
        allocate_scratch = .false.
        if(2*max_elements > n_scr) then
