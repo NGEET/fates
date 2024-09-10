@@ -812,6 +812,7 @@ module FatesHistoryInterfaceMod
      procedure :: update_history_hifrq
      procedure :: update_history_hifrq1
      procedure :: update_history_hifrq2
+     procedure :: update_history_hifrq2_ageclass
      procedure :: update_history_hydraulics
      procedure :: update_history_nutrflux
 
@@ -4871,6 +4872,7 @@ contains
        call update_history_hifrq1(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
        if(hlm_hist_level_hifrq>1) then
           call update_history_hifrq2(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+          call update_history_hifrq2_ageclass(this,nsites,sites,dt_tstep)
        end if
     end if
 
@@ -5155,10 +5157,6 @@ contains
          hio_froot_mr_understory_si_scls     => this%hvars(ih_froot_mr_understory_si_scls)%r82d, &
          hio_resp_g_understory_si_scls       => this%hvars(ih_resp_g_understory_si_scls)%r82d, &
          hio_resp_m_understory_si_scls       => this%hvars(ih_resp_m_understory_si_scls)%r82d, &
-         hio_gpp_si_age                      => this%hvars(ih_gpp_si_age)%r82d, &
-         hio_gpp_si_landuse                  => this%hvars(ih_gpp_si_landuse)%r82d, &
-         hio_c_stomata_si_age                => this%hvars(ih_c_stomata_si_age)%r82d, &
-         hio_c_lblayer_si_age                => this%hvars(ih_c_lblayer_si_age)%r82d, &
          hio_parsun_z_si_cnlf                => this%hvars(ih_parsun_z_si_cnlf)%r82d, &
          hio_parsha_z_si_cnlf                => this%hvars(ih_parsha_z_si_cnlf)%r82d, &
          hio_ts_net_uptake_si_cnlf           => this%hvars(ih_ts_net_uptake_si_cnlf)%r82d, &
@@ -5215,22 +5213,6 @@ contains
             ageclass_area = sites(s)%area_by_age(cpatch%age_class)
             ageclass_canopy_area = canopy_area_by_age(cpatch%age_class)
 
-            ! Canopy resistance terms
-            if (ageclass_canopy_area .gt. nearzero) then
-               hio_c_stomata_si_age(io_si,cpatch%age_class) = &
-                    hio_c_stomata_si_age(io_si,cpatch%age_class) + &
-                    cpatch%c_stomata * cpatch%total_canopy_area * mol_per_umol / &
-                    ageclass_canopy_area
-
-               hio_c_lblayer_si_age(io_si,cpatch%age_class) = &
-                    hio_c_lblayer_si_age(io_si,cpatch%age_class) + &
-                    cpatch%c_lblayer * cpatch%total_canopy_area * mol_per_umol / &
-                    ageclass_canopy_area
-            else
-               hio_c_stomata_si_age(io_si,cpatch%age_class) = 0._r8
-               hio_c_lblayer_si_age(io_si,cpatch%age_class) = 0._r8
-            end if
-
             ccohort => cpatch%shortest
             do while(associated(ccohort))
 
@@ -5271,18 +5253,6 @@ contains
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
                          ccohort%froot_mr * n_perm2
-
-                    ! accumulate fluxes per patch age bin
-                    if (ageclass_area .gt. nearzero) then
-                       hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
-                            + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv / ageclass_area
-
-                       hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
-                            + npp * ccohort%n * dt_tstep_inv / ageclass_area
-                    else
-                       hio_gpp_si_age(io_si,cpatch%age_class) = 0._r8
-                       hio_npp_si_age(io_si,cpatch%age_class) = 0._r8
-                    end if
 
                     ! accumulate fluxes on canopy- and understory- separated fluxes
                     if (ccohort%canopy_layer .eq. 1) then
@@ -5516,6 +5486,104 @@ contains
     end associate
 
   end subroutine update_history_hifrq2
+
+  ! ===============================================================================================
+
+  subroutine update_history_hifrq2_ageclass(this,nsites,sites,dt_tstep)
+    !
+    ! Arguments
+    class(fates_history_interface_type)             :: this
+    integer                 , intent(in)            :: nsites
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    real(r8)                , intent(in)            :: dt_tstep
+
+    type(fates_cohort_type), pointer :: ccohort
+    type(fates_patch_type),  pointer :: cpatch
+    integer :: s, io_si, ipa
+    real(r8) :: ageclass_area, ageclass_canopy_area
+    real(r8) :: canopy_area_by_age(nlevage)
+    real(r8) :: weight
+    real(r8) :: dt_tstep_inv          ! Time step in frequency units (/s)
+
+    associate( &
+       hio_c_lblayer_si_age => this%hvars(ih_c_lblayer_si_age)%r82d, &
+       hio_c_stomata_si_age => this%hvars(ih_c_stomata_si_age)%r82d, &
+       hio_gpp_si_age       => this%hvars(ih_gpp_si_age)%r82d, &
+       hio_npp_si_age       => this%hvars(ih_npp_si_age)%r82d &
+    )
+
+    dt_tstep_inv = 1.0_r8 / dt_tstep
+
+    do_sites: do s = 1,nsites
+
+       ! Get site-wide canopy area
+       canopy_area_by_age(1:nlevage) = 0._r8
+       cpatch => sites(s)%oldest_patch
+       do while(associated(cpatch))
+          canopy_area_by_age(cpatch%age_class) = &
+               canopy_area_by_age(cpatch%age_class) + cpatch%total_canopy_area
+          cpatch => cpatch%younger
+        end do !patch loop
+
+       io_si  = sites(s)%h_gid
+       ipa = 0
+
+       ! Get ageclass-stratified variables
+       cpatch => sites(s)%oldest_patch
+       do while(associated(cpatch))
+          ipa = ipa + 1
+            ageclass_area = sites(s)%area_by_age(cpatch%age_class)
+            ageclass_canopy_area = canopy_area_by_age(cpatch%age_class)
+
+            ! Canopy resistance terms
+            if (ageclass_canopy_area .gt. nearzero) then
+               weight = cpatch%total_canopy_area / ageclass_canopy_area
+
+               hio_c_stomata_si_age(io_si,cpatch%age_class) = &
+                    hio_c_stomata_si_age(io_si,cpatch%age_class) + &
+                    cpatch%c_stomata * mol_per_umol &
+                    * weight
+
+               hio_c_lblayer_si_age(io_si,cpatch%age_class) = &
+                    hio_c_lblayer_si_age(io_si,cpatch%age_class) + &
+                    cpatch%c_lblayer * mol_per_umol &
+                    * weight
+            else
+               hio_c_stomata_si_age(io_si,cpatch%age_class) = 0._r8
+               hio_c_lblayer_si_age(io_si,cpatch%age_class) = 0._r8
+            end if
+
+          ccohort => cpatch%shortest
+          do while(associated(ccohort))
+             if (ccohort%isnew) then
+                ccohort => ccohort%taller
+                cycle
+             end if
+
+             if (ageclass_area .gt. nearzero) then
+                weight = ccohort%n / ageclass_area
+                hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
+                     + ccohort%gpp_tstep * dt_tstep_inv &
+                     * weight
+
+                hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
+                     + ccohort%npp_tstep * dt_tstep_inv &
+                     * weight
+             else
+                hio_gpp_si_age(io_si,cpatch%age_class) = 0._r8
+                hio_npp_si_age(io_si,cpatch%age_class) = 0._r8
+             end if
+
+             ccohort => ccohort%taller
+          end do  ! cohort loop
+
+          cpatch => cpatch%younger
+       end do  ! patch loop
+    end do do_sites
+
+  end associate
+
+  end subroutine update_history_hifrq2_ageclass
 
   ! =====================================================================================
 
