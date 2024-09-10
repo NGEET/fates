@@ -9,7 +9,7 @@ program FatesTestFuel
   use SFFireWeatherMod,            only : fire_weather
   use SFNesterovMod,               only : nesterov_index
   use FatesFuelMod,                only : fuel_type
-  use FatesFuelClassesMod,         only : nfsc, nfsc_notrunks
+  use FatesFuelClassesMod,         only : nfsc
   use SFParamsMod,                 only : SF_val_SAV, SF_val_drying_ratio
   use SFParamsMod,                 only : SF_val_FBD
   
@@ -44,14 +44,6 @@ program FatesTestFuel
   
   ! fuel models to test
   integer, parameter, dimension(3) :: fuel_models = (/102, 183, 164/)
-  ! integer, parameter, dimension(52) :: fuel_models = (/1, 2, 101, 102, 104, 107, 121,    &
-  !                                                     122, 3, 103, 105, 106, 108, 109,   &
-  !                                                     123, 124, 4, 5, 6, 141, 142, 145,  &
-  !                                                     147, 161, 164, 10, 7, 143, 144,    &
-  !                                                     146, 148, 149, 162, 163, 8, 9,     &
-  !                                                     181, 182, 183, 184, 185, 186, 187, &
-  !                                                     188, 189, 11, 12, 13, 201, 202,    &
-  !                                                     203, 204/)
   
   ! number of fuel models to test
   num_fuel_models = size(fuel_models)
@@ -63,8 +55,8 @@ program FatesTestFuel
   allocate(wind(n_days))
   allocate(NI(n_days))
   allocate(fuel_moisture(n_days, num_fuel_models))
-  allocate(fuel_loading(nfsc_notrunks, num_fuel_models))
-  allocate(frac_loading(nfsc_notrunks, num_fuel_models))
+  allocate(fuel_loading(nfsc, num_fuel_models))
+  allocate(frac_loading(nfsc, num_fuel_models))
   allocate(fuel_BD(num_fuel_models))
   allocate(fuel_SAV(num_fuel_models))
   allocate(total_loading(num_fuel_models))
