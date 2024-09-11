@@ -11,7 +11,7 @@ module FatesTestFireMod
   use FatesUnitTestIOMod,  only : OpenNCFile, GetVar, CloseNCFile, RegisterNCDims
   use FatesUnitTestIOMod,  only : RegisterVar, EndNCDef, WriteVar
   use FatesUnitTestIOMod,  only : type_double, type_int, type_char
-  use FatesFuelClassesMod, only : nfsc, nfsc_notrunks
+  use FatesFuelClassesMod, only : nfsc
   use SyntheticFuelModels, only : fuel_models_array_class
   use SFParamsMod,         only : SF_val_CWD_frac
   use FatesFuelMod,        only : fuel_type
@@ -159,7 +159,7 @@ module FatesTestFireMod
       call OpenNCFile(trim(out_file), ncid, 'readwrite')
 
       ! register dimensions
-      call RegisterNCDims(ncid, dim_names, (/nsteps, nfsc_notrunks, nfuelmods/), 3, dimIDs)
+      call RegisterNCDims(ncid, dim_names, (/nsteps, nfsc, nfuelmods/), 3, dimIDs)
 
       ! first register dimension variables
       

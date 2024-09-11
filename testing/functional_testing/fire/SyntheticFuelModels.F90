@@ -5,6 +5,15 @@ module SyntheticFuelModels
   implicit none
   private
   
+  integer, parameter, public, dimension(52) :: all_fuel_models = (/1, 2, 101, 102, 104,  &
+                                                      107, 121, 122, 3, 103, 105, 106,   &
+                                                      108, 109, 123, 124, 4, 5, 6, 141,  &
+                                                      142, 145, 147, 161, 164, 10, 7,    &
+                                                      143, 144, 146, 148, 149, 162,      &
+                                                      163, 8, 9, 181, 182, 183, 184,     &
+                                                      185, 186, 187, 188, 189, 11, 12,   &
+                                                      13, 201, 202, 203, 204/)
+  
   integer,  parameter :: chunk_size = 10
   real(r8), parameter :: ustons_to_kg = 907.185_r8
   real(r8), parameter :: acres_to_m2 = 4046.86_r8
