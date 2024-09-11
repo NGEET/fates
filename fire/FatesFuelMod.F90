@@ -130,7 +130,8 @@ module FatesFuelMod
           end if 
         end do 
       else 
-        this%frac_loading(1:nfsc) = 0.0_r8
+        this%frac_loading(1:nfsc) = 0.0000000001_r8 
+        this%total_loading = 0.0000000001_r8
       end if 
 
     end subroutine CalculateFractionalLoading
@@ -186,25 +187,7 @@ module FatesFuelMod
             this%MEF = this%MEF + this%frac_loading(i)*moisture_of_extinction(i)
           end if 
         end do
-        
-  
-        ! this%MEF = sum(this%frac_loading(tw_sf:lb_sf)*moisture_of_extinction(tw_sf:lb_sf))              
-        ! this%average_moisture = sum(this%frac_loading(tw_sf:lb_sf)*moisture(tw_sf:lb_sf))
-        
-        ! this%MEF = this%MEF + sum(this%frac_loading(dl_sf:lg_sf)*moisture_of_extinction(dl_sf:lg_sf))            
-        ! this%average_moisture = this%average_moisture + sum(this%frac_loading(dl_sf:lg_sf)*moisture(dl_sf:lg_sf))
-        
-        ! ! Correct averaging for the fact that we are not using the trunks pool for fire ROS and intensity (5)
-        ! ! Consumption of fuel in trunk pool does not influence fire ROS or intensity (Pyne 1996)
-        ! if ((1.0_r8 - this%frac_loading(tr_sf)) > nearzero) then
-        !   this%MEF = this%MEF*(1.0_r8/(1.0_r8 - this%frac_loading(tr_sf)))
-        !   this%average_moisture = this%average_moisture*(1.0_r8/(1.0_r8 - this%frac_loading(tr_sf)))
-        ! else
-        !   ! somehow the fuel is all trunk. put dummy values from large branches so as not to break things later in code.
-        !   this%MEF = moisture_of_extinction(lb_sf)
-        !   this%average_moisture = moisture(lb_sf)
-        ! endif
-        
+                
       else 
         this%effective_moisture(1:nfsc) = 0.0_r8
         this%average_moisture = 0.0000000001_r8 
@@ -300,12 +283,21 @@ module FatesFuelMod
       class(fuel_type),   intent(inout) :: this               ! fuel class
       real(r8),           intent(in)    :: bulk_density(nfsc) ! bulk density of all fuel types [kg/m2]
       
-      if (this%total_loading > nearzero) then 
-        this%bulk_density = sum(this%frac_loading(1:nfsc)*bulk_density(1:nfsc))
-      else 
+      ! LOCALS:
+      integer :: i ! looping index
+      
+      if (this%total_loading > nearzero) then
         this%bulk_density = 0.0_r8
+        do i = 1, nfsc               
+          ! average bulk density across all fuel types except trunks 
+          if (i /= fuel_classes%trunks()) then 
+            this%bulk_density = this%bulk_density + this%frac_loading(i)*bulk_density(i)
+          end if 
+        end do
+      else 
+        this%bulk_density = 0.0000000001_r8
       end if
-    
+      
     end subroutine AverageBulkDensity
     
     !-------------------------------------------------------------------------------------
@@ -318,10 +310,16 @@ module FatesFuelMod
       class(fuel_type),   intent(inout) :: this           ! fuel class
       real(r8),           intent(in)    :: sav_fuel(nfsc) ! surface area to volume ratio of all fuel types [/cm]
       
-      if (this%total_loading > nearzero) then 
-        this%SAV = sum(this%frac_loading(1:nfsc)*sav_fuel(1:nfsc))
-      else 
+      if (this%total_loading > nearzero) then
         this%SAV = 0.0_r8
+        do i = 1, nfsc               
+          ! average bulk density across all fuel types except trunks 
+          if (i /= fuel_classes%trunks()) then 
+            this%SAV = this%SAV + this%frac_loading(i)*sav_fuel(i)
+          end if 
+        end do
+      else 
+        this%SAV = sum(sav_fuel(1:nfsc))/nfsc ! make average sav to avoid crashing code
       end if
     
     end subroutine AverageSAV

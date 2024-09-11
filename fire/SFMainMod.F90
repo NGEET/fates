@@ -158,9 +158,9 @@ contains
     !
     !  DESCRIPTION:
     !  Updates fuel characteristics on each patch of the site
+    !
 
-    use SFParamsMod,       only : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
-    use FatesConstantsMod, only : nearzero
+    use SFParamsMod, only : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
 
     ! ARGUMENTS:
     type(ed_site_type), intent(in), target :: currentSite  ! site object
@@ -168,15 +168,6 @@ contains
     ! LOCALS:
     type(fates_patch_type), pointer :: currentPatch ! FATES patch 
     type(litter_type),      pointer :: litter       ! pointer to patch litter class
-    integer :: lg_sf, tr_sf, lb_sf, sb_sf, dl_sf, tw_sf
-    integer :: i
-    
-    dl_sf = fuel_classes%dead_leaves()
-    lg_sf = fuel_classes%live_grass()
-    tr_sf = fuel_classes%trunks()
-    lb_sf = fuel_classes%large_branches()
-    sb_sf = fuel_classes%small_branches()
-    tw_sf = fuel_classes%twigs()
     
     currentPatch => currentSite%oldest_patch 
     do while(associated(currentPatch))  
@@ -188,69 +179,25 @@ contains
 
         ! update fuel loading [kgC/m2]
         litter => currentPatch%litter(element_pos(carbon12_element))
-         call currentPatch%fuel%CalculateLoading(sum(litter%leaf_fines(:)),          &
-            litter%ag_cwd(1), litter%ag_cwd(2), litter%ag_cwd(3), litter%ag_cwd(4),  &
-            currentPatch%livegrass)
+        call currentPatch%fuel%CalculateLoading(sum(litter%leaf_fines(:)),               &
+          litter%ag_cwd(1), litter%ag_cwd(2), litter%ag_cwd(3), litter%ag_cwd(4),        &
+          currentPatch%livegrass)
             
-         ! sum up fuel classes and calculate fractional loading for each
-         call currentPatch%fuel%SumLoading()
-         call currentPatch%fuel%CalculateFractionalLoading()
+        ! sum up fuel classes and calculate fractional loading for each
+        call currentPatch%fuel%SumLoading()
+        call currentPatch%fuel%CalculateFractionalLoading()
+      
+        ! calculate fuel moisture [m3/m3]
+        call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,       &
+          currentSite%fireWeather)
         
-         if (currentPatch%fuel%total_loading > 0.0) then        
-            
-            ! calculate fuel moisture [m3/m3]
-            call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,   &
-               currentSite%fireWeather)
-            
-            ! calculate geometric properties
-            !call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
-            !call currentPatch%fuel%AverageSAV(SF_val_SAV)
+        ! calculate geometric properties
+        call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
+        call currentPatch%fuel%AverageSAV(SF_val_SAV)
                
-            currentPatch%fuel%bulk_density = 0.0_r8
-            currentPatch%fuel%SAV = 0.0_r8
-            do i = 1, nfsc               
-               ! average bulk density and SAV across all fuel types except trunks 
-               if (i /= fuel_classes%trunks()) then 
-                  currentPatch%fuel%bulk_density = currentPatch%fuel%bulk_density + currentPatch%fuel%frac_loading(i)*SF_val_FBD(i)
-                  currentPatch%fuel%SAV = currentPatch%fuel%SAV + currentPatch%fuel%frac_loading(i)*SF_val_SAV(i)
-               end if 
-            end do
-   
-            ! ! Average properties over the first three litter pools (twigs, s branches, l branches) 
-            ! currentPatch%fuel%bulk_density = sum(currentPatch%fuel%frac_loading(tw_sf:lb_sf) * SF_val_FBD(tw_sf:lb_sf))     
-            ! currentPatch%fuel%SAV = sum(currentPatch%fuel%frac_loading(tw_sf:lb_sf) * SF_val_SAV(tw_sf:lb_sf))              
-    
-            ! ! Add on properties of dead leaves and live grass pools (5 & 6)
-            ! currentPatch%fuel%bulk_density = currentPatch%fuel%bulk_density + sum(currentPatch%fuel%frac_loading(dl_sf:lg_sf) * SF_val_FBD(dl_sf:lg_sf))      
-            ! currentPatch%fuel%SAV = currentPatch%fuel%SAV + sum(currentPatch%fuel%frac_loading(dl_sf:lg_sf) * SF_val_SAV(dl_sf:lg_sf))
-
-            ! ! Correct averaging for the fact that we are not using the trunks pool for fire ROS and intensity (5)
-            ! ! Consumption of fuel in trunk pool does not influence fire ROS or intensity (Pyne 1996)
-            ! if ((1.0_r8 - currentPatch%fuel%frac_loading(tr_sf)) > nearzero) then
-            !    currentPatch%fuel%bulk_density = currentPatch%fuel%bulk_density*(1.0_r8/(1.0_r8-currentPatch%fuel%frac_loading(tr_sf)))
-            !    currentPatch%fuel%SAV = currentPatch%fuel%SAV*(1.0_r8/(1.0_r8-currentPatch%fuel%frac_loading(tr_sf)))
-            ! else
-            !    ! somehow the fuel is all trunk. put dummy values from large branches so as not to break things later in code.
-            !    currentPatch%fuel%bulk_density = SF_val_FBD(lb_sf)
-            !    currentPatch%fuel%SAV = SF_val_SAV(lb_sf)
-            ! endif
-         
-            ! ! remove trunks from patch%sum_fuel because they should not be included in fire equations
-            ! ! NOTE: ACF will update this soon to be more clean/bug-proof
-            ! currentPatch%fuel%total_loading = currentPatch%fuel%total_loading - litter%ag_cwd(tr_sf)
-            
-         else
-  
-            currentPatch%fuel%SAV = sum(SF_val_SAV(1:nfsc))/(nfsc) ! make average sav to avoid crashing code. 
-            
-            ! FIX(SPM,032414) refactor...should not have 0 fuel unless everything is burnt off
-            currentPatch%fuel%bulk_density = 0.0000000001_r8 
-            currentPatch%fuel%frac_loading(:) = 0.0000000001_r8 
-            currentPatch%fuel%total_loading = 0.0000000001_r8
-  
-         endif
       end if 
       currentPatch => currentPatch%younger
+      
     end do 
 
   end subroutine UpdateFuelCharacteristics
