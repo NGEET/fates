@@ -214,10 +214,10 @@ module FatesPatchMod
     real(r8)              :: fi                      ! average fire intensity of flaming front [kJ/m/s] or [kW/m]
     integer               :: fire                    ! is there a fire? [1=yes; 0=no]
     real(r8)              :: fd                      ! fire duration [min]
+    real(r8)              :: frac_burnt              ! fraction of patch burnt by fire
 
     ! fire effects      
     real(r8)              :: scorch_ht(maxpft)       ! scorch height [m] 
-    real(r8)              :: frac_burnt              ! fraction burnt [0-1/day]  
     real(r8)              :: tfc_ros                 ! total intensity-relevant fuel consumed - no trunks [kgC/m2 of burned ground/day]
     !---------------------------------------------------------------------------
     
@@ -506,8 +506,8 @@ module FatesPatchMod
       this%fire                         = fates_unset_int
       this%fd                           = nan 
       this%scorch_ht(:)                 = nan 
+      this%tfc_ros                      = nan
       this%frac_burnt                   = nan
-      this%tfc_ros                      = nan    
       
     end subroutine NanValues
 
@@ -591,8 +591,8 @@ module FatesPatchMod
       this%fi                                = 0.0_r8
       this%fd                                = 0.0_r8
       this%scorch_ht(:)                      = 0.0_r8  
-      this%frac_burnt                        = 0.0_r8  
       this%tfc_ros                           = 0.0_r8
+      this%frac_burnt                        = 0.0_r8
 
     end subroutine ZeroValues
 

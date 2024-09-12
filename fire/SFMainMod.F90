@@ -73,6 +73,8 @@ contains
       currentPatch%fire = 0
       currentPatch => currentPatch%older
     end do
+    
+    
 
     if (hlm_spitfire_mode > hlm_sf_nofire_def) then
       call UpdateFireWeather(currentSite, bc_in)
@@ -213,7 +215,7 @@ contains
                              SF_val_part_dens,   &
                              SF_val_miner_damp,  &
                              SF_val_fuel_energy
-    
+    use FatesConstantsMod, only : nearzero
     type(ed_site_type), intent(in), target :: currentSite
 
     type(fates_patch_type), pointer :: currentPatch
@@ -236,7 +238,12 @@ contains
 
     do while(associated(currentPatch))
 
-       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
+      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground .and. currentPatch%fuel%total_loading > 0.0_r8)then
+         
+         if (hlm_masterproc == itrue) then 
+            write(fates_log(), *) 'bulk_density', currentPatch%fuel%bulk_density
+            write(fates_log(), *) 'sav', currentPatch%fuel%SAV
+         end if
               
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
        currentPatch%fuel%total_loading = currentPatch%fuel%total_loading * (1.0_r8 - SF_val_miner_total) !net of minerals
@@ -249,16 +256,26 @@ contains
             'SF - SF_val_part_dens ',SF_val_part_dens
 
        ! beta = packing ratio (unitless)
-       ! fraction of fuel array volume occupied by fuel or compactness of fuel bed 
+       ! fraction of fuel array volume occupied by fuel or compactness of fuel bed
        beta = currentPatch%fuel%bulk_density/SF_val_part_dens
        
        ! Equation A6 in Thonicke et al. 2010
-       ! packing ratio (unitless) 
-       beta_op = 0.200395_r8 *(currentPatch%fuel%SAV**(-0.8189_r8))
+       ! packing ratio (unitless)
+       if (currentPatch%fuel%SAV < nearzero) then
+        if ( hlm_masterproc == itrue) write(fates_log(),*) 'SF - sav ',currentPatch%fuel%SAV
+        if ( hlm_masterproc == itrue) write(fates_log(),*) 'SF - loading ',currentPatch%fuel%total_loading
+        beta_op = 0.0_r8 
+       else  
+        beta_op = 0.200395_r8 *(currentPatch%fuel%SAV**(-0.8189_r8))
+       end if
 
        if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - beta ',beta
        if ( hlm_masterproc == itrue .and.debug) write(fates_log(),*) 'SF - beta_op ',beta_op
-       beta_ratio = beta/beta_op   !unitless
+       if (beta_op < nearzero) then 
+        beta_ratio = 0.0_r8
+       else
+        beta_ratio = beta/beta_op   !unitless
+       end if
 
        if(write_sf == itrue)then
           if ( hlm_masterproc == itrue ) write(fates_log(),*) 'esf ',currentPatch%fuel%average_moisture

@@ -14,20 +14,20 @@ module FatesFuelMod
 
   type, public :: fuel_type
     
-    real(r8) :: loading(nfsc)             ! fuel loading of non-trunks fuel class [kgC/m2]
-    real(r8) :: trunk_loading             ! fuel loading of trunk fuel class [kgC/m2]
-    real(r8) :: effective_moisture(nfsc)  ! fuel effective moisture all fuel class (moisture/MEF) [m3/m3]
-    real(r8) :: frac_loading(nfsc)        ! fractional loading of non-trunk fuel classes [0-1] 
-    real(r8) :: frac_burnt(nfsc)          ! fraction of litter burnt by fire [0-1]
-    real(r8) :: total_loading             ! total fuel loading - DOES NOT INCLUDE TRUNKS [kgC/m2]
-    real(r8) :: average_moisture          ! weighted average of fuel moisture across non-trunk fuel classes [m3/m3]
-    real(r8) :: bulk_density              ! weighted average of bulk density across non-trunk fuel classes [kg/m3]
-    real(r8) :: SAV                       ! weighted average of surface area to volume ratio across non-trunk fuel classes [/cm]
-    real(r8) :: MEF                       ! weighted average of moisture of extinction across non-trunk fuel classes [m3/m3]
+    real(r8) :: loading(nfsc)            ! fuel loading of each fuel class [kgC/m2]
+    real(r8) :: effective_moisture(nfsc) ! fuel effective moisture all fuel class (moisture/MEF) [m3/m3]
+    real(r8) :: frac_loading(nfsc)       ! fractional loading of all fuel classes [0-1] 
+    real(r8) :: frac_burnt(nfsc)         ! fraction of litter burnt by fire [0-1]
+    real(r8) :: total_loading            ! total fuel loading - DOES NOT INCLUDE TRUNKS [kgC/m2]
+    real(r8) :: average_moisture         ! weighted average of fuel moisture across non-trunk fuel classes [m3/m3]
+    real(r8) :: bulk_density             ! weighted average of bulk density across non-trunk fuel classes [kg/m3]
+    real(r8) :: SAV                      ! weighted average of surface area to volume ratio across non-trunk fuel classes [/cm]
+    real(r8) :: MEF                      ! weighted average of moisture of extinction across non-trunk fuel classes [m3/m3]
 
     contains
       
       procedure :: Init
+      procedure :: Fuse
       procedure :: CalculateLoading
       procedure :: SumLoading
       procedure :: CalculateFractionalLoading
@@ -48,7 +48,6 @@ module FatesFuelMod
       
       ! just zero everything
       this%loading(1:nfsc) = 0.0_r8
-      this%trunk_loading = 0.0_r8
       this%frac_loading(1:nfsc) = 0.0_r8
       this%frac_burnt(1:nfsc) = 0.0_r8  
       this%effective_moisture(1:nfsc) = 0.0_r8
@@ -59,6 +58,48 @@ module FatesFuelMod
       this%MEF = 0.0_r8 
 
     end subroutine Init 
+    
+    !-------------------------------------------------------------------------------------
+    
+    subroutine Fuse(this, self_area, donor_area, donor_fuel)
+      ! DESCRIPTION:
+      !   Fuse attributes of this object with another
+
+      ! ARGUMENTS:
+      class(fuel_type), intent(inout) :: this       ! fuel class
+      real(r8),         intent(in)    :: self_area  ! area of this fuel class's patch [m2]
+      real(r8),         intent(in)    :: donor_area ! area of donor fuel class's patch [m2]
+      type(fuel_type),  intent(in)    :: donor_fuel ! donor fuel class
+      
+      ! LOCALS:
+      integer  :: i            ! looping index
+      real(r8) :: self_weight  ! weighting of the receiving fuel class
+      real(r8) :: donor_weight ! weighting of the donor fuel class
+      
+      self_weight = self_area/(donor_area + self_area)
+      donor_weight = 1.0_r8 - self_weight
+      
+      do i = 1, nfsc 
+        this%loading(i) = this%loading(i)*self_weight +                                  &
+          donor_fuel%loading(i)*donor_weight
+        this%frac_loading(i) = this%frac_loading(i)*self_weight +                        &
+          donor_fuel%frac_loading(i)*donor_weight
+        this%frac_burnt(i) = this%frac_burnt(i)*self_weight +                            &
+          donor_fuel%frac_burnt(i)*donor_weight
+        this%effective_moisture(i) = this%effective_moisture(i)*self_weight +            &
+          donor_fuel%effective_moisture(i)*donor_weight
+      end do 
+      
+      this%total_loading = this%total_loading*self_weight +                              &
+        donor_fuel%total_loading*donor_weight
+      this%average_moisture = this%average_moisture*self_weight +                        &
+        donor_fuel%average_moisture*donor_weight
+      this%bulk_density = this%bulk_density*self_weight +                                &
+        donor_fuel%bulk_density*donor_weight      
+      this%SAV = this%SAV*self_weight + donor_fuel%SAV*donor_weight
+      this%MEF = this%MEF*self_weight + donor_fuel%MEF*donor_weight    
+      
+    end subroutine Fuse
 
     !-------------------------------------------------------------------------------------
 
@@ -82,7 +123,6 @@ module FatesFuelMod
       this%loading(fuel_classes%large_branches()) = large_branch_litter
       this%loading(fuel_classes%live_grass()) = live_grass
       this%loading(fuel_classes%trunks()) = trunk_litter
-      this%trunk_loading = trunk_litter
 
     end subroutine CalculateLoading
 
@@ -126,6 +166,8 @@ module FatesFuelMod
         do i = 1, nfsc 
           if (i /= fuel_classes%trunks()) then 
             this%frac_loading(i) = this%loading(i)/this%total_loading
+          else 
+            this%frac_loading(i) = 0.0_r8
           end if 
         end do 
       else 
@@ -141,8 +183,6 @@ module FatesFuelMod
       ! DESCRIPTION:
       !   Updates fuel moisture depending on what fire weather class is in use
       
-      use SFParamsMod, only : SF_val_SAV, SF_val_drying_ratio
-      
       ! ARGUMENTS:
       class(fuel_type),    intent(inout) :: this             ! fuel class
       real(r8),            intent(in)    :: sav_fuel(nfsc)   ! surface area to volume ratio of all fuel types [/cm]
@@ -152,14 +192,7 @@ module FatesFuelMod
       real(r8) :: moisture(nfsc)               ! fuel moisture [m3/m3]
       real(r8) :: moisture_of_extinction(nfsc) ! fuel moisture of extinction [m3/m3]
       integer  :: i                            ! looping index
-      integer  :: tw_sf, dl_sf, lg_sf, lb_sf, tr_sf
-      
-      tw_sf = fuel_classes%twigs()
-      dl_sf = fuel_classes%dead_leaves()
-      lg_sf = fuel_classes%live_grass()
-      lb_sf = fuel_classes%large_branches()
-      tr_sf = fuel_classes%trunks()
-      
+ 
       if (this%total_loading > nearzero) then 
         ! calculate fuel moisture [m3/m3] for each fuel class depending on what
         ! fire weather class is in use
@@ -309,6 +342,9 @@ module FatesFuelMod
       class(fuel_type),   intent(inout) :: this           ! fuel class
       real(r8),           intent(in)    :: sav_fuel(nfsc) ! surface area to volume ratio of all fuel types [/cm]
       
+      ! LOCALS:
+      integer :: i ! looping index
+      
       if (this%total_loading > nearzero) then
         this%SAV = 0.0_r8
         do i = 1, nfsc               
@@ -323,6 +359,6 @@ module FatesFuelMod
     
     end subroutine AverageSAV
     
-    !-------------------------------------------------------------------------------------
+  !---------------------------------------------------------------------------------------
     
 end module FatesFuelMod

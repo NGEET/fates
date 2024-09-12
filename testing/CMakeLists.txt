@@ -7,3 +7,4 @@ add_subdirectory(functional_testing/fire fates_fuel_test)
 
 ## Unit tests
 add_subdirectory(unit_testing/fire_weather_test fates_fire_weather_utest)
+add_subdirectory(unit_testing/fire_fuel_test fates_fire_fuel_utest)

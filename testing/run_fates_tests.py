@@ -88,6 +88,15 @@ _ALL_TESTS_DICT = {
             "use_param_file": False,
             "other_args": [],
             "plotting_function": None,
+        },
+        "fuel":{
+            "test_dir": "fates_fire_fuel_utest",
+            "test_exe": None,
+            "out_file": None,
+            "has_unit_test": True,
+            "use_param_file": False,
+            "other_args": [],
+            "plotting_function": None,
         }
     }
 
