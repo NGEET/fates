@@ -140,7 +140,10 @@ contains
     wind = bc_in%wind24_pa(iofp)
 
     ! convert to m/min 
-    currentSite%wind = wind*sec_per_min 
+    currentSite%wind = wind*sec_per_min
+    if (hlm_masterproc == itrue) then 
+      write(fates_log(),*) 'wind_in', wind
+    end if 
 
     ! update fire weather index
     call currentSite%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
@@ -196,6 +199,11 @@ contains
         ! calculate geometric properties
         call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
         call currentPatch%fuel%AverageSAV(SF_val_SAV)
+        if (currentSite%lat == 10.0 .and. currentSite%lon == 120.0 .and. currentPatch%patchno ==2 ) then
+            write(fates_log(), *) 'sav', currentPatch%fuel%SAV
+            write(fates_log(), *) 'bd', currentPatch%fuel%bulk_density
+            write(fates_log(), *) 'leaf_fines', sum(litter%leaf_fines(:))
+        end if 
                
       end if 
       currentPatch => currentPatch%younger
@@ -238,13 +246,8 @@ contains
 
     do while(associated(currentPatch))
 
-      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground .and. currentPatch%fuel%total_loading > 0.0_r8)then
-         
-         if (hlm_masterproc == itrue) then 
-            write(fates_log(), *) 'bulk_density', currentPatch%fuel%bulk_density
-            write(fates_log(), *) 'sav', currentPatch%fuel%SAV
-         end if
-              
+      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground .and. currentPatch%fuel%total_loading > nearzero)then
+                       
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
        currentPatch%fuel%total_loading = currentPatch%fuel%total_loading * (1.0_r8 - SF_val_miner_total) !net of minerals
 
