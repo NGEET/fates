@@ -286,6 +286,9 @@ module EDPftvarcon
      real(r8), allocatable :: landusechange_frac_exported(:)  ! fraction of land use change-generated wood material that is exported to wood product (the remainder is either burned or goes to litter)
      real(r8), allocatable :: landusechange_pprod10(:)        ! fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)
 
+     ! Grazing
+     real(r8), allocatable :: landuse_grazing_palatability(:) ! Relative intensity of leaf grazing/browsing per PFT (unitless 0-1)
+
    contains
      procedure, public :: Init => EDpftconInit
      procedure, public :: Register
@@ -818,7 +821,11 @@ contains
     name = 'fates_landuse_luc_pprod10'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
+
+    name = 'fates_landuse_grazing_palatability'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_dev_arbitrary_pft'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -1302,6 +1309,10 @@ contains
     name = 'fates_landuse_luc_pprod10'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%landusechange_pprod10)
+
+    name = 'fates_landuse_grazing_palatability'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landuse_grazing_palatability)
 
   end subroutine Receive_PFT
 
