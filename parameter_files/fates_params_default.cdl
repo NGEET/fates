@@ -1713,7 +1713,7 @@ data:
 
  fates_hydro_psicap = -0.6 ;
 
- fates_hydro_solver = 1 ;
+ fates_hydro_solver = 2 ;
 
  fates_landuse_logging_coll_under_frac = 0.55983 ;
 
