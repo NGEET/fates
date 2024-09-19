@@ -279,7 +279,7 @@ module EDPftvarcon
      ! Table that maps HLM pfts to FATES pfts for fixed biogeography mode
      ! The values are area fractions (NOT IMPLEMENTED)
      real(r8), allocatable :: hlm_pft_map(:,:)
-     real(r8), allocatable :: wesley_pft_index_fordrydep
+     real(r8), allocatable :: wesley_pft_index_fordrydep(:)
 
    contains
      procedure, public :: Init => EDpftconInit
