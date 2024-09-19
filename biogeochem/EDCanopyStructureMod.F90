@@ -2002,8 +2002,8 @@ contains
              total_canopy_area = total_canopy_area + bc_out(s)%canopy_fraction_pa(ifp)
 
              bc_out(s)%nocomp_pft_label_pa(ifp) = currentPatch%nocomp_pft_label
-             bc_out(s)%wesley_pft_label_pa(ifp) = currentPatch%EDPftvarcon_inst%wesley_pft_index_fordrydep(currentPatch%nocomp_pft_label)
-
+             bc_out(s)%wesley_pft_label_pa(ifp) = EDPftvarcon_inst%wesley_pft_index_fordrydep(currentPatch%nocomp_pft_label)
+             bc_out(s)%drydep_season_pa(ifp) = currentPatch%drydep_season
 
              if(currentPatch%nocomp_pft_label.gt.0)then
                 bc_out(s)%nocomp_MEGAN_pft_label_pa(ifp) = EDPftvarcon_inst%voc_pftindex(currentPatch%nocomp_pft_label)

@@ -287,7 +287,7 @@ module EDPftvarcon
      real(r8), allocatable :: landusechange_frac_exported(:)  ! fraction of land use change-generated wood material that is exported to wood product (the remainder is either burned or goes to litter)
      real(r8), allocatable :: landusechange_pprod10(:)        ! fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)
 
-     real(r8), allocatable :: wesley_pft_index_fordrydep
+     real(r8), allocatable :: wesley_pft_index_fordrydep(:)
 
 
    contains
