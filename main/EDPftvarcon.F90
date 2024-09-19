@@ -287,6 +287,9 @@ module EDPftvarcon
      real(r8), allocatable :: landusechange_frac_exported(:)  ! fraction of land use change-generated wood material that is exported to wood product (the remainder is either burned or goes to litter)
      real(r8), allocatable :: landusechange_pprod10(:)        ! fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)
 
+     real(r8), allocatable :: wesley_pft_index_fordrydep
+
+
    contains
      procedure, public :: Init => EDpftconInit
      procedure, public :: Register
@@ -828,6 +831,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_wesley_pft_index_fordrydep'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     ! adding the hlm_pft_map variable with two dimensions - FATES PFTno and HLM PFTno
     pftmap_dim_names(1) = dimension_name_pft
     pftmap_dim_names(2) = dimension_name_hlm_pftno
@@ -1291,6 +1298,10 @@ contains
     name = 'fates_cnp_eca_lambda_ptase'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_lambda_ptase)
+
+    name = 'fates_wesley_pft_index_fordrydep'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%wesley_pft_index_fordrydep)
 
     name = 'fates_hlm_pft_map'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1805,6 +1816,7 @@ contains
         write(fates_log(),fmt0) 'hydro_pinot_node = ',EDPftvarcon_inst%hydr_pinot_node
         write(fates_log(),fmt0) 'hydro_kmax_node = ',EDPftvarcon_inst%hydr_kmax_node
         write(fates_log(),fmt0) 'hlm_pft_map = ', EDPftvarcon_inst%hlm_pft_map
+        write(fates_log(),fmt0) 'wesley_pft_index_fordrydep = ', EDPftvarcon_inst%wesley_pft_index_fordrydep
         write(fates_log(),fmt0) 'hydro_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
         write(fates_log(),fmt0) 'hydro_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
         write(fates_log(),fmt0) 'hydro_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
