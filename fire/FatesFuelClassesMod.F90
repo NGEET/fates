@@ -5,19 +5,17 @@ module FatesFuelClassesMod
   implicit none
   private
 
-  integer, parameter, public :: nfsc = 6                 ! number of total fuel classes  
-  !integer, parameter, public :: nfsc_notrunks = nfsc - 1 ! number of fuel classes without trunks
-  
+  integer, parameter, public :: nfsc = 6 ! number of total fuel classes  
+    
   type :: fuel_classes_type
     ! There are six fuel classes:
-    ! 1) twigs, 2) small branches, 3) large branches
-    ! 4) dead leaves, 5) live grass, 6) trunks
+    ! 1) twigs, 2) small branches, 3) large branches 4) trunks
+    ! 5) dead leaves, 6) live grass
     integer, private :: twigs_i = 1          ! array index for twigs pool
     integer, private :: small_branches_i = 2 ! array index for small branches pool
     integer, private :: large_branches_i = 3 ! array index for large branches pool
     integer, private :: dead_leaves_i = 5    ! array index for dead leaves pool
     integer, private :: live_grass_i = 6     ! array index for live grass pool
-    
     integer, private :: trunks_i = 4         ! array index for trunks pool
 
     contains 
