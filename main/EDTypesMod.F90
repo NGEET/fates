@@ -1,4 +1,4 @@
-smodule EDTypesMod
+module EDTypesMod
 
   use FatesConstantsMod,     only : r8 => fates_r8
   use FatesGlobals,          only : endrun => fates_endrun
