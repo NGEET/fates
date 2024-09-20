@@ -394,6 +394,7 @@ contains
     fates%bc_out(s)%nocomp_pft_label_pa(:) = 0
     fates%bc_out(s)%nocomp_MEGAN_pft_label_pa(:) = 0
     fates%bc_out(s)%wesley_pft_label_pa(:) = 0
+    fates%bc_out(s)%drydep_season_pa(:) = 0
     fates%bc_out(s)%canopy_fraction_pa(:) = 0.0_r8
     fates%bc_out(s)%frac_veg_nosno_alb_pa(:) = 0.0_r8
     
@@ -723,6 +724,7 @@ contains
       allocate(bc_out%nocomp_pft_label_pa(maxpatch_total))
       allocate(bc_out%nocomp_MEGAN_pft_label_pa(maxpatch_total))      
       allocate(bc_out%wesley_pft_label_pa(maxpatch_total))
+      allocate(bc_out%drydep_season_pa(maxpatch_total))
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then

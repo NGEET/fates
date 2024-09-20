@@ -754,7 +754,7 @@ module FatesInterfaceTypesMod
 
      integer, allocatable :: nocomp_pft_label_pa(:) ! in nocomp and SP mode, each patch has a PFT identity. 
      integer, allocatable :: wesley_pft_label_pa(:) ! For dry deposition, each FATES PFT needs to correspond to a PFT from the 'wesley 1989' scheme 
-
+     integer, allocatable :: drydep_season_pa(:) ! For dry deposition, we need to define the season index, from 1-5, for the purposes of detrmining the deposition velocity parameters. See drydep code for details of season indices. 
 
      integer, allocatable :: nocomp_MEGAN_pft_label_pa(:) ! Index to map from FATES NOCOMP PFT identity into MEGAN PFT space. 
           
