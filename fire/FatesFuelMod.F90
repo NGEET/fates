@@ -171,8 +171,8 @@ module FatesFuelMod
           end if 
         end do 
       else 
-        this%frac_loading(1:nfsc) = 0.0000000001_r8 
-        this%total_loading = 0.0000000001_r8
+        this%frac_loading(1:nfsc) = 0.0_r8
+        this%total_loading = 0.0_r8
       end if 
 
     end subroutine CalculateFractionalLoading
@@ -222,8 +222,8 @@ module FatesFuelMod
                 
       else 
         this%effective_moisture(1:nfsc) = 0.0_r8
-        this%average_moisture = 0.0000000001_r8 
-        this%MEF = 0.0000000001_r8
+        this%average_moisture = 0.0_r8
+        this%MEF = 0.0_r8
       end if
        
     end subroutine UpdateFuelMoisture
@@ -254,7 +254,6 @@ module FatesFuelMod
         else
           alpha_FMC = sav_fuel(i)/drying_ratio
         end if
-        ! Equation 
         moisture(i) = exp(-1.0_r8*alpha_FMC*NI)
       end do
       
@@ -327,7 +326,7 @@ module FatesFuelMod
           end if 
         end do
       else 
-        this%bulk_density = 0.0000000001_r8
+        this%bulk_density = sum(bulk_density(1:nfsc))/nfsc 
       end if
       
     end subroutine AverageBulkDensity
@@ -354,7 +353,7 @@ module FatesFuelMod
           end if 
         end do
       else 
-        this%SAV = sum(sav_fuel(1:nfsc))/nfsc ! make average sav to avoid crashing code
+        this%SAV = sum(sav_fuel(1:nfsc))/nfsc 
       end if
     
     end subroutine AverageSAV

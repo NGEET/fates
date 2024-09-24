@@ -199,11 +199,6 @@ contains
         ! calculate geometric properties
         call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
         call currentPatch%fuel%AverageSAV(SF_val_SAV)
-        if (currentSite%lat == 10.0 .and. currentSite%lon == 120.0 .and. currentPatch%patchno ==2 ) then
-            write(fates_log(), *) 'sav', currentPatch%fuel%SAV
-            write(fates_log(), *) 'bd', currentPatch%fuel%bulk_density
-            write(fates_log(), *) 'leaf_fines', sum(litter%leaf_fines(:))
-        end if 
                
       end if 
       currentPatch => currentPatch%younger
@@ -265,8 +260,6 @@ contains
        ! Equation A6 in Thonicke et al. 2010
        ! packing ratio (unitless)
        if (currentPatch%fuel%SAV < nearzero) then
-        if ( hlm_masterproc == itrue) write(fates_log(),*) 'SF - sav ',currentPatch%fuel%SAV
-        if ( hlm_masterproc == itrue) write(fates_log(),*) 'SF - loading ',currentPatch%fuel%total_loading
         beta_op = 0.0_r8 
        else  
         beta_op = 0.200395_r8 *(currentPatch%fuel%SAV**(-0.8189_r8))
