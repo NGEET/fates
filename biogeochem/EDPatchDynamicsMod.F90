@@ -3286,12 +3286,6 @@ contains
     rp%fuel%average_moisture   = (dp%fuel%average_moisture*dp%area + rp%fuel%average_moisture*rp%area) * inv_sum_area
     rp%fuel%effective_moisture = (dp%fuel%effective_moisture(:)*dp%area + rp%fuel%effective_moisture(:)*rp%area) * inv_sum_area
     rp%livegrass               = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
-    !rp%fuel%total_loading      = (dp%fuel%total_loading*dp%area + rp%fuel%total_loading*rp%area) * inv_sum_area
-    !rp%fuel%frac_loading       = (dp%fuel%frac_loading(:)*dp%area + rp%fuel%frac_loading(:)*rp%area) * inv_sum_area
-    !rp%fuel%loading            = (dp%fuel%loading(:)*dp%area + rp%fuel%loading(:)*rp%area) * inv_sum_area
-    !rp%fuel%bulk_density       = (dp%fuel%bulk_density*dp%area + rp%fuel%bulk_density*rp%area) * inv_sum_area
-    !rp%fuel%SAV                = (dp%fuel%SAV*dp%area + rp%fuel%SAV*rp%area) * inv_sum_area
-    !rp%fuel%MEF                = (dp%fuel%MEF*dp%area + rp%fuel%MEF*rp%area) * inv_sum_area
     rp%ros_front               = (dp%ros_front*dp%area + rp%ros_front*rp%area) * inv_sum_area
     rp%tau_l                   = (dp%tau_l*dp%area + rp%tau_l*rp%area) * inv_sum_area
     rp%tfc_ros              = (dp%tfc_ros*dp%area + rp%tfc_ros*rp%area) * inv_sum_area
@@ -3299,8 +3293,7 @@ contains
     rp%fd                   = (dp%fd*dp%area + rp%fd*rp%area) * inv_sum_area
     rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area) * inv_sum_area
     rp%scorch_ht(:)         = (dp%scorch_ht(:)*dp%area + rp%scorch_ht(:)*rp%area) * inv_sum_area
-    !rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
-    !rp%fuel%frac_burnt(:)   = (dp%fuel%frac_burnt(:)*dp%area + rp%fuel%frac_burnt(:)*rp%area) * inv_sum_area
+    rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
     rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area) * inv_sum_area
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
