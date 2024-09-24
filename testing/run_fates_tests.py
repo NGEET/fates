@@ -89,7 +89,7 @@ _ALL_TESTS_DICT = {
             "other_args": [],
             "plotting_function": None,
         },
-        "fuel":{
+        "fuelu":{
             "test_dir": "fates_fire_fuel_utest",
             "test_exe": None,
             "out_file": None,

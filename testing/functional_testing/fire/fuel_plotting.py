@@ -29,8 +29,8 @@ def plot_fuel_dat(run_dir, out_file, save_figs, plot_dir):
     
 def plot_barchart(fuel_dat, var, varname, units, save_figs, plot_dir, by_litter_type=True):
     
-    litter_classes = ['twigs', 'small branches', 'large branches', 'dead leaves', 'live grass']
-    colors = ['darksalmon', 'peru', 'saddlebrown', 'moccasin', 'yellowgreen']
+    litter_classes = ['twigs', 'small branches', 'large branches', 'trunks', 'dead leaves', 'live grass']
+    colors = ['darksalmon', 'peru', 'saddlebrown', 'black', 'moccasin', 'yellowgreen']
     fuel_models = [str(f) for f in fuel_dat.fuel_model.values]
     
     if by_litter_type:

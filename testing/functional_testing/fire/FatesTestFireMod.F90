@@ -253,7 +253,7 @@ module FatesTestFireMod
 
       ! write out data
       call WriteVar(ncid, timeID, time_index)
-      call WriteVar(ncid, litterID, (/1, 2, 3, 4, 5/))
+      call WriteVar(ncid, litterID, (/1, 2, 3, 4, 5, 6/))
       call WriteVar(ncid, modID, fuel_models(:))
       call WriteVar(ncid, cID, carriers(:))
       call WriteVar(ncid, tempID, temp_degC(:))
