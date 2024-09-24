@@ -140,7 +140,10 @@ contains
     wind = bc_in%wind24_pa(iofp)
 
     ! convert to m/min 
-    currentSite%wind = wind*sec_per_min 
+    currentSite%wind = wind*sec_per_min
+    if (hlm_masterproc == itrue) then 
+      write(fates_log(),*) 'wind_in', wind
+    end if 
 
     ! update fire weather index
     call currentSite%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
@@ -238,13 +241,8 @@ contains
 
     do while(associated(currentPatch))
 
-      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground .and. currentPatch%fuel%total_loading > 0.0_r8)then
-         
-         if (hlm_masterproc == itrue) then 
-            write(fates_log(), *) 'bulk_density', currentPatch%fuel%bulk_density
-            write(fates_log(), *) 'sav', currentPatch%fuel%SAV
-         end if
-              
+      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground .and. currentPatch%fuel%total_loading > nearzero)then
+                       
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
        currentPatch%fuel%total_loading = currentPatch%fuel%total_loading * (1.0_r8 - SF_val_miner_total) !net of minerals
 
@@ -262,8 +260,6 @@ contains
        ! Equation A6 in Thonicke et al. 2010
        ! packing ratio (unitless)
        if (currentPatch%fuel%SAV < nearzero) then
-        if ( hlm_masterproc == itrue) write(fates_log(),*) 'SF - sav ',currentPatch%fuel%SAV
-        if ( hlm_masterproc == itrue) write(fates_log(),*) 'SF - loading ',currentPatch%fuel%total_loading
         beta_op = 0.0_r8 
        else  
         beta_op = 0.200395_r8 *(currentPatch%fuel%SAV**(-0.8189_r8))
