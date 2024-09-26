@@ -37,8 +37,8 @@
     <!-- 13 cool_c3_grass                         -->
     <!-- 14 c4_grass                              -->
 
-  <base_file>fates_params_default.cdl</base_file>
-  <new_file>fates_params_newshrub.cdl</new_file>
+  <base_file>archive/api36.1.0_params_default.cdl</base_file>
+  <new_file>fates_params_default.cdl</new_file>
   <pft_trim_list>1,2,3,4,5,6,7,8,9,7,9,10,11,12</pft_trim_list>
   <parameters>
 
