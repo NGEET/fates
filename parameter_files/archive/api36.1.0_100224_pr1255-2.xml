@@ -37,7 +37,16 @@
     <!-- 13 cool_c3_grass                         -->
     <!-- 14 c4_grass                              -->
 
-  <base_file>archive/api36.1.0_params_default.cdl</base_file>
+
+  <!-- This is the second of two patch files necessary to update from API 36 to API 36.1.  The two files
+       require different patch update tools which requires that they be run sequentially.  If you have not
+       done so already, make sure to review the instructions in api36.1.0_100224_patch_params-1.xml before
+       proceeding. -->
+
+  <!-- To use this patch file run the following command: -->
+  <!--   Run `python ../tools/BatchPatchParams.py -/-f archive/api36.1.0_100224_patch_params-2.xml` -->
+
+  <base_file>fates_params_default.cdl</base_file>
   <new_file>fates_params_default.cdl</new_file>
   <pft_trim_list>1,2,3,4,5,6,7,8,9,7,9,10,11,12</pft_trim_list>
   <parameters>

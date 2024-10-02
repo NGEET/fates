@@ -6,8 +6,12 @@
        understory leaf turnover specifications, and changing default behavior of
        nutrient uptake to be fully coupled. -->
 
+  <!-- This is the first of two patch files necessary to update from API 36 to API 36.1.  The two files
+       require different patch update tools which requires that they be run sequentially.  After running
+       the command as noted below, make sure to review the instructions in api36.1.0_100224_patch_params-2.xml. -->
+
   <!-- To use this patch file run the following command: -->
-  <!--   Run `python ../tools/UpdateParamAPI.py -/-f archive/api33.0.0_020524_patch_params.xml` -->
+  <!--   Run `python ../tools/UpdateParamAPI.py -/-f archive/api36.1.0_100224_patch_params-1.xml` -->
 
   <!-- General xml file usage notes: -->
   <!-- Special mod types "variable_add": creates a new variable
@@ -20,7 +24,7 @@
 		 the variables -->
   <!-- -->
   
-  <base_file>archive/api36.1.0_params_default.cdl</base_file>
+  <base_file>archive/api36.1.0_100224_params_default.cdl</base_file>
   <new_file>fates_params_default.cdl</new_file>
   <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
   <mods>
