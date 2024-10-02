@@ -75,13 +75,13 @@ def main():
     else:
     
         try:
-            outputval = float(args.val)
+            outputval = np.float64(args.val)
             if args.changeshape:
                 raise Exception
         except:
             try:
-                #print('output variable not interpretable as real. trying array')
-                outputval = np.fromstring(args.val, sep=',', dtype=np.float32)
+                print('output variable not interpretable as real. trying array')
+                outputval = np.fromstring(args.val, sep=',', dtype=np.float64)
                 if len(outputval) == 0:
                     raise RuntimeError('output variable needs to have size greater than zero')
             except:
@@ -240,7 +240,7 @@ def main():
                                               ' New length is shorter than old, so its been truncated.')
                                         x[0:length_specified,:] = variable[0:length_specified,:]
                         else:
-                            x.assignValue(float(variable.data))
+                            x.assignValue(np.float64(variable.data))
                     #
                     var = ncfile.variables[args.varname]
                 else:
