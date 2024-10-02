@@ -162,24 +162,24 @@ module FatesFuelMod
       ! sum up loading just in case
       call this%SumLoading()
       
-      if (this%total_loading > nearzero) then
+      if (this%total_loading > 0.0_r8) then
         do i = 1, nfsc 
           if (i /= fuel_classes%trunks()) then 
             this%frac_loading(i) = this%loading(i)/this%total_loading
           else 
-            this%frac_loading(i) = 0.0_r8
+            this%frac_loading(i) = 0.0000000001_r8 
           end if 
         end do 
       else 
-        this%frac_loading(1:nfsc) = 0.0_r8
-        this%total_loading = 0.0_r8
+        this%frac_loading(1:nfsc) = 0.0000000001_r8 
+        this%total_loading = 0.0000000001_r8 
       end if 
 
     end subroutine CalculateFractionalLoading
 
     !-------------------------------------------------------------------------------------
     
-    subroutine UpdateFuelMoisture(this, sav_fuel, drying_ratio, fireWeatherClass)
+    subroutine UpdateFuelMoisture(this, sav_fuel, drying_ratio, fireWeatherClass, MEF_trunks, moisture_trunks)
       ! DESCRIPTION:
       !   Updates fuel moisture depending on what fire weather class is in use
       
@@ -188,12 +188,14 @@ module FatesFuelMod
       real(r8),            intent(in)    :: sav_fuel(nfsc)   ! surface area to volume ratio of all fuel types [/cm]
       real(r8),            intent(in)    :: drying_ratio     ! drying ratio
       class(fire_weather), intent(in)    :: fireWeatherClass ! fireWeatherClass
+      real(r8),            intent(out)    :: MEF_trunks     ! drying ratio
+      real(r8),            intent(out)    :: moisture_trunks     ! drying ratio
       
       real(r8) :: moisture(nfsc)               ! fuel moisture [m3/m3]
       real(r8) :: moisture_of_extinction(nfsc) ! fuel moisture of extinction [m3/m3]
       integer  :: i                            ! looping index
  
-      if (this%total_loading > nearzero) then 
+      if (this%total_loading + this%loading(fuel_classes%trunks()) > 0.0_r8) then 
         ! calculate fuel moisture [m3/m3] for each fuel class depending on what
         ! fire weather class is in use
         select type (fireWeatherClass)
@@ -219,13 +221,15 @@ module FatesFuelMod
             this%MEF = this%MEF + this%frac_loading(i)*moisture_of_extinction(i)
           end if 
         end do
+        MEF_trunks = moisture_of_extinction(fuel_classes%trunks())
+        moisture_trunks = moisture(fuel_classes%trunks())
                 
       else 
-        this%effective_moisture(1:nfsc) = 0.0_r8
-        this%average_moisture = 0.0_r8
-        this%MEF = 0.0_r8
+        this%effective_moisture(1:nfsc) = 0.0000000001_r8
+        this%average_moisture = 0.0000000001_r8
+        this%MEF = 0.0000000001_r8
       end if
-       
+      
     end subroutine UpdateFuelMoisture
     
     !-------------------------------------------------------------------------------------
@@ -296,7 +300,7 @@ module FatesFuelMod
       real(r8), parameter :: MEF_a = 0.524_r8
       real(r8), parameter :: MEF_b = 0.066_r8
       
-      if (sav <= nearzero) then
+      if (sav <= 0.0_r8) then
         MoistureOfExtinction = 0.0_r8
       else
         MoistureOfExtinction = MEF_a - MEF_b*log(sav)
@@ -317,7 +321,7 @@ module FatesFuelMod
       ! LOCALS:
       integer :: i ! looping index
       
-      if (this%total_loading > nearzero) then
+      if (this%total_loading > 0.0_r8) then
         this%bulk_density = 0.0_r8
         do i = 1, nfsc               
           ! average bulk density across all fuel types except trunks 
@@ -326,7 +330,7 @@ module FatesFuelMod
           end if 
         end do
       else 
-        this%bulk_density = sum(bulk_density(1:nfsc))/nfsc 
+        this%bulk_density = 0.0000000001_r8 !sum(bulk_density(1:nfsc))/nfsc 
       end if
       
     end subroutine AverageBulkDensity
@@ -344,7 +348,7 @@ module FatesFuelMod
       ! LOCALS:
       integer :: i ! looping index
       
-      if (this%total_loading > nearzero) then
+      if (this%total_loading > 0.0_r8) then
         this%SAV = 0.0_r8
         do i = 1, nfsc               
           ! average bulk density across all fuel types except trunks 

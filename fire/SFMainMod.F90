@@ -8,7 +8,7 @@ module SFMainMod
   use FatesConstantsMod,      only : r8 => fates_r8
   use FatesConstantsMod,      only : itrue, ifalse
   use FatesConstantsMod,      only : pi_const
-  use FatesConstantsMod,      only : nocomp_bareground
+  use FatesConstantsMod,      only : nocomp_bareground, nearzero
   use FatesGlobals,           only : fates_log
   use FatesInterfaceTypesMod, only : hlm_masterproc 
   use FatesInterfaceTypesMod, only : hlm_spitfire_mode
@@ -74,8 +74,6 @@ contains
       currentPatch => currentPatch%older
     end do
     
-    
-
     if (hlm_spitfire_mode > hlm_sf_nofire_def) then
       call UpdateFireWeather(currentSite, bc_in)
       call UpdateFuelCharacteristics(currentSite)
@@ -173,6 +171,7 @@ contains
     ! LOCALS:
     type(fates_patch_type), pointer :: currentPatch ! FATES patch 
     type(litter_type),      pointer :: litter       ! pointer to patch litter class
+    real(r8) :: MEF_trunks, fuel_moisture_trunks
     
     currentPatch => currentSite%oldest_patch 
     do while(associated(currentPatch))  
@@ -190,16 +189,32 @@ contains
             
         ! sum up fuel classes and calculate fractional loading for each
         call currentPatch%fuel%SumLoading()
-        call currentPatch%fuel%CalculateFractionalLoading()
-      
-        ! calculate fuel moisture [m3/m3]
-        call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,       &
-          currentSite%fireWeather)
         
-        ! calculate geometric properties
-        call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
-        call currentPatch%fuel%AverageSAV(SF_val_SAV)
-               
+        if (currentPatch%fuel%total_loading + currentPatch%fuel%loading(fuel_classes%trunks()) > 0.0) then 
+          call currentPatch%fuel%CalculateFractionalLoading()
+          
+          ! calculate fuel moisture [m3/m3]
+          call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,       &
+            currentSite%fireWeather, MEF_trunks, fuel_moisture_trunks)
+          
+          ! calculate geometric properties
+          call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
+          call currentPatch%fuel%AverageSAV(SF_val_SAV)
+          
+          if (currentPatch%fuel%total_loading <= 0.0 .and. currentPatch%fuel%loading(fuel_classes%trunks()) > nearzero) then 
+            currentPatch%fuel%bulk_density = SF_val_FBD(fuel_classes%trunks())
+            currentPatch%fuel%SAV = SF_val_SAV(fuel_classes%trunks())
+            currentPatch%fuel%MEF = MEF_trunks
+            currentPatch%fuel%average_moisture = fuel_moisture_trunks
+          end if
+        else
+          currentPatch%fuel%SAV = sum(SF_val_SAV(1:nfsc))/(nfsc)
+          currentPatch%fuel%average_moisture = 0.0000000001_r8 
+          currentPatch%fuel%bulk_density     = 0.0000000001_r8 
+          currentPatch%fuel%frac_loading(:)   = 0.0000000001_r8 
+          currentPatch%fuel%MEF       = 0.0000000001_r8
+          currentPatch%fuel%total_loading       = 0.0000000001_r8
+        end if   
       end if 
       currentPatch => currentPatch%younger
       
@@ -241,7 +256,7 @@ contains
 
     do while(associated(currentPatch))
 
-      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground .and. currentPatch%fuel%total_loading > nearzero)then
+      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground) then
                        
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
        currentPatch%fuel%total_loading = currentPatch%fuel%total_loading * (1.0_r8 - SF_val_miner_total) !net of minerals
@@ -350,7 +365,7 @@ contains
        ! backward ROS from Can FBP System (1992) in m/min
        ! backward ROS wind not changed by vegetation 
        currentPatch%ROS_back = currentPatch%ROS_front*exp(-0.012_r8*currentSite%wind) 
-
+       
        end if ! nocomp_pft_label check
        currentPatch => currentPatch%younger
 

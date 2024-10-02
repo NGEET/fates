@@ -3388,7 +3388,6 @@ contains
           olderp%younger       => null()
        end if
 
-
        if(associated(olderp))then
           ! Update the older patch's new younger patch (becuase it isn't dp anymore)
           olderp%younger => youngerp
