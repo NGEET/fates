@@ -15,7 +15,7 @@ module SFNesterovMod
 
       procedure, public :: Init => init_nesterov_fire_weather
       procedure, public :: UpdateIndex => update_nesterov_index
-      
+            
   end type nesterov_index
 
   real(r8), parameter :: min_precip_thresh = 3.0_r8 ! threshold for precipitation above which to zero NI [mm/day]
@@ -104,5 +104,6 @@ module SFNesterovMod
       dewpoint = (dewpoint_b*yipsolon)/(dewpoint_a - yipsolon) 
     
     end function dewpoint
-
+    
+    !-------------------------------------------------------------------------------------
 end module SFNesterovMod

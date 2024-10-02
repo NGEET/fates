@@ -1122,7 +1122,7 @@ contains
     
     subroutine fates_history_maps
        
-       use FatesLitterMod, only : NFSC
+       use FatesFuelClassesMod, only : nfsc
        use EDParamsMod, only : nclmax
        use EDParamsMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges

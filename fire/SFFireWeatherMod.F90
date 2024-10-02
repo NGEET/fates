@@ -40,7 +40,8 @@ module SFFireWeatherMod
       real(r8),            intent(in)    :: wind
       
     end subroutine update_fire_weather
-  end interface
+    
+   end interface
 
   contains 
 
