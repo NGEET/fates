@@ -57,6 +57,7 @@
     <!-- Override values for the new evergreen arctic PFT, this is now PFT 10 -->
     <!-- which duplicated the orginial 7th PFT -->
     <pft_group ids="10">
+      <fates_pftname> broadleaf_evergreen_arctic_shrub </fates_pftname>
       <fates_allom_d2bl1> 0.0481934 </fates_allom_d2bl1>
       <fates_allom_d2bl2> 1.0600586 </fates_allom_d2bl2>
       <fates_allom_agb2> 0.5289883 </fates_allom_agb2>
@@ -85,6 +86,7 @@
     <!-- Override values for the new colddecid arctic PFT, this is now PFT 11 -->
     <!-- which duplicated the orginial 9th PFT -->
     <pft_group ids="11">
+      <fates_pftname> broadleaf_colddecid_arctic_shrub </fates_pftname>
       <fates_allom_d2bl1> 0.0481934 </fates_allom_d2bl1>
       <fates_allom_d2bl2> 1.7176758 </fates_allom_d2bl2>
       <fates_allom_agb2> 0.6853945 </fates_allom_agb2>
