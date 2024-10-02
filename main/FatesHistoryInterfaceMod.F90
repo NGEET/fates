@@ -4712,7 +4712,6 @@ contains
     type(fates_patch_type),  pointer :: cpatch
     integer :: s, ipa, ft, iagepft, i_agefuel, iscag, i_fuel, i_scls, io_si
     real(r8) :: weight
-    real(r8) :: age_class_area
     real(r8) :: mort
     real(r8) :: sapw_m             ! Sapwood mass (elemental, c,n or p) [kg/plant]
     real(r8) :: struct_m           ! Structural mass ""
@@ -4751,7 +4750,6 @@ contains
        cpatch => sites(s)%oldest_patch
        patchloop: do while(associated(cpatch))
           cpatch%age_class  = get_age_class_index(cpatch%age)
-          age_class_area = sites(s)%area_by_age(cpatch%age_class)
 
           hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl_p * cpatch%area * AREA_INV
 
@@ -4761,30 +4759,21 @@ contains
           end do
 
           ! Within each age class, ...
-          if (age_class_area .gt. nearzero) then
-             ! ... weighted by patch area relative to total age class area
-             weight = cpatch%area / age_class_area
-             hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
-                  + cpatch%ncl_p * weight
-             do ft = 1,numpft
-                iagepft = get_agepft_class_index(cpatch%age,ft)
-                hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
-                     cpatch%Scorch_ht(ft) * weight
-             end do
+          ! ... weighted by patch area relative to total site area
+          weight = cpatch%area * AREA_INV
+          hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
+               + cpatch%ncl_p * weight
+          do ft = 1,numpft
+             iagepft = get_agepft_class_index(cpatch%age,ft)
+             hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
+                  cpatch%Scorch_ht(ft) * weight
+          end do
    
-             ! ... weighted by patch CANOPY area relative to total age class area
-             weight = cpatch%total_canopy_area / age_class_area
-             hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
-                  + sum(cpatch%tlai_profile(:,:,:) * cpatch%canopy_area_profile(:,:,:) ) &
-                  * weight
-          else
-             hio_lai_si_age(io_si,cpatch%age_class) = 0._r8
-             hio_ncl_si_age(io_si,cpatch%age_class) = 0._r8
-             do ft = 1,numpft
-                iagepft = get_agepft_class_index(cpatch%age,ft)
-                hio_scorch_height_si_agepft(io_si,iagepft) = 0._r8
-             end do
-          end if
+          ! ... weighted by patch CANOPY area relative to total site area
+          weight = cpatch%total_canopy_area * AREA_INV
+          hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
+               + sum(cpatch%tlai_profile(:,:,:) * cpatch%canopy_area_profile(:,:,:) ) &
+               * weight
 
           ! Supposedly weighted by burned fraction, but never actually divided by total burned fraction!
           weight = cpatch%area * AREA_INV * cpatch%frac_burnt
@@ -5602,8 +5591,7 @@ contains
     type(fates_cohort_type), pointer :: ccohort
     type(fates_patch_type),  pointer :: cpatch
     integer :: s, io_si, ipa
-    real(r8) :: ageclass_area, ageclass_canopy_area
-    real(r8) :: canopy_area_by_age(nlevage)
+    real(r8) :: site_canopy_area
     real(r8) :: weight
     real(r8) :: dt_tstep_inv          ! Time step in frequency units (/s)
 
@@ -5619,11 +5607,10 @@ contains
     do_sites: do s = 1,nsites
 
        ! Get site-wide canopy area
-       canopy_area_by_age(1:nlevage) = 0._r8
+       site_canopy_area = 0._r8
        cpatch => sites(s)%oldest_patch
        do while(associated(cpatch))
-          canopy_area_by_age(cpatch%age_class) = &
-               canopy_area_by_age(cpatch%age_class) + cpatch%total_canopy_area
+          site_canopy_area = site_canopy_area + cpatch%total_canopy_area
           cpatch => cpatch%younger
         end do !patch loop
 
@@ -5634,12 +5621,10 @@ contains
        cpatch => sites(s)%oldest_patch
        do while(associated(cpatch))
           ipa = ipa + 1
-            ageclass_area = sites(s)%area_by_age(cpatch%age_class)
-            ageclass_canopy_area = canopy_area_by_age(cpatch%age_class)
 
             ! Canopy resistance terms
-            if (ageclass_canopy_area .gt. nearzero) then
-               weight = cpatch%total_canopy_area / ageclass_canopy_area
+            if (site_canopy_area .gt. nearzero) then
+               weight = cpatch%total_canopy_area / site_canopy_area
 
                hio_c_stomata_si_age(io_si,cpatch%age_class) = &
                     hio_c_stomata_si_age(io_si,cpatch%age_class) + &
@@ -5662,19 +5647,14 @@ contains
                 cycle
              end if
 
-             if (ageclass_area .gt. nearzero) then
-                weight = ccohort%n / ageclass_area
-                hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
-                     + ccohort%gpp_tstep * dt_tstep_inv &
-                     * weight
+             weight = ccohort%n * AREA_INV
+             hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
+                  + ccohort%gpp_tstep * dt_tstep_inv &
+                  * weight
 
-                hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
-                     + ccohort%npp_tstep * dt_tstep_inv &
-                     * weight
-             else
-                hio_gpp_si_age(io_si,cpatch%age_class) = 0._r8
-                hio_npp_si_age(io_si,cpatch%age_class) = 0._r8
-             end if
+             hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
+                  + ccohort%npp_tstep * dt_tstep_inv &
+                  * weight
 
              ccohort => ccohort%taller
           end do  ! cohort loop
