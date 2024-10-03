@@ -2903,35 +2903,19 @@ contains
                      hio_canopy_biomass_si(io_si) = hio_canopy_biomass_si(io_si) + n_perm2 * total_m
 
                      hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-                          (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                          ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * &
-                          total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
-                          (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
-                          ccohort%n * ha_per_m2
+                          ccohort%SumMortForHistory(per_year = .false.) * total_m * ccohort%n * ha_per_m2
 
                      hio_canopy_mortality_crownarea_si(io_si) = hio_canopy_mortality_crownarea_si(io_si) + &
-                          (ccohort%bmort + ccohort%hmort + ccohort%cmort + & 
-                          ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * &
-                          ccohort%c_area  + &
-                          (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                          ccohort%c_area * sec_per_day * days_per_year
+                          ccohort%SumMortForHistory(per_year = .true.) * ccohort%c_area
 
                   else
                      hio_ustory_biomass_si(io_si) = hio_ustory_biomass_si(io_si) + n_perm2 * total_m
 
                      hio_ustory_mortality_carbonflux_si(io_si) = hio_ustory_mortality_carbonflux_si(io_si) + &
-                          (ccohort%bmort + ccohort%hmort + ccohort%cmort +   &
-                          ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * &
-                          total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
-                          (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
-                          ccohort%n * ha_per_m2
+                          ccohort%SumMortForHistory(per_year = .false.) * total_m * ccohort%n * ha_per_m2
 
                      hio_ustory_mortality_crownarea_si(io_si) = hio_ustory_mortality_crownarea_si(io_si) + &
-                          (ccohort%bmort + ccohort%hmort + ccohort%cmort + & 
-                          ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * &
-                          ccohort%c_area  + &
-                          (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                          ccohort%c_area * sec_per_day * days_per_year
+                          ccohort%SumMortForHistory(per_year = .true.) * ccohort%c_area
 
                   end if
 
@@ -3757,11 +3741,9 @@ contains
                            icdpf = get_cdamagesizepft_class_index(ccohort%dbh, ccohort%crowndamage, ccohort%pft)
 
                            this%hvars(ih_mortality_si_cdpf)%r82d(io_si,icdpf) = &
-                                this%hvars(ih_mortality_si_cdpf)%r82d(io_si,icdpf) + &
-                                (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort + &
-                                ccohort%smort + ccohort%asmort + ccohort%dgmort) * ccohort%n / m2_per_ha + &
-                                (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                                ccohort%n * sec_per_day * days_per_year / m2_per_ha
+                                this%hvars(ih_mortality_si_cdpf)%r82d(io_si,icdpf)  + &
+                                ccohort%SumMortForHistory(per_year = .true.) * &
+                                ccohort%n / m2_per_ha
 
                            ! crown damage by size by pft
                            this%hvars(ih_nplant_si_cdpf)%r82d(io_si, icdpf) = &
@@ -3795,10 +3777,7 @@ contains
                         total_m  = alive_m + store_m + struct_m
 
                         hio_mortality_carbonflux_si_pft(io_si,ccohort%pft) = hio_mortality_carbonflux_si_pft(io_si,ccohort%pft) + &
-                             (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                             ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * &
-                             total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
-                             (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
+                             ccohort%SumMortForHistory(per_year = .false.) * total_m * &
                              ccohort%n * ha_per_m2
 
 
@@ -3877,10 +3856,7 @@ contains
                            !     ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n
 
                            hio_mortality_canopy_si_scpf(io_si,scpf) = hio_mortality_canopy_si_scpf(io_si,scpf)+ &
-                                (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort + &
-                                ccohort%smort + ccohort%asmort + ccohort%dgmort) * ccohort%n / m2_per_ha + &
-                                (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                                ccohort%n * sec_per_day * days_per_year / m2_per_ha
+                                ccohort%SumMortForHistory(per_year = .true.) * ccohort%n / m2_per_ha
 
                            hio_m3_mortality_canopy_si_scpf(io_si,scpf) = hio_m3_mortality_canopy_si_scpf(io_si,scpf) + &
                                 ccohort%cmort * ccohort%n / m2_per_ha
@@ -3908,10 +3884,7 @@ contains
 
                            ! sum of all mortality
                            hio_mortality_canopy_si_scls(io_si,scls) = hio_mortality_canopy_si_scls(io_si,scls) + &
-                                (ccohort%bmort + ccohort%hmort + ccohort%cmort +   &
-                                ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * ccohort%n / m2_per_ha + &
-                                (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                                ccohort%n * sec_per_day * days_per_year / m2_per_ha
+                                ccohort%SumMortForHistory(per_year = .true.) * ccohort%n / m2_per_ha
 
                            hio_m3_mortality_canopy_si_scls(io_si,scls) = hio_m3_mortality_canopy_si_scls(io_si,scls) + &
                                 ccohort%cmort * ccohort%n / m2_per_ha
@@ -3934,10 +3907,7 @@ contains
 
                               this%hvars(ih_mortality_canopy_si_cdpf)%r82d(io_si,icdpf) = &
                                    this%hvars(ih_mortality_canopy_si_cdpf)%r82d(io_si,icdpf)+ &
-                                   (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort +  ccohort%smort + &
-                                   ccohort%asmort + ccohort%dgmort) * ccohort%n / m2_per_ha + &
-                                   (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                                   ccohort%n * sec_per_day * days_per_year / m2_per_ha
+                                   ccohort%SumMortForHistory(per_year = .true.) * ccohort%n / m2_per_ha
 
                               ! nplants by damage 
                               this%hvars(ih_nplant_canopy_si_cdpf)%r82d(io_si,icdpf) = &
@@ -4001,10 +3971,7 @@ contains
                            !      ccohort%frmort + ccohort%smort + ccohort%asmort) * ccohort%n
 
                            hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
-                                (ccohort%bmort + ccohort%hmort + ccohort%cmort + &
-                                ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * ccohort%n / m2_per_ha + &
-                                (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                                ccohort%n * sec_per_day * days_per_year / m2_per_ha
+                                ccohort%SumMortForHistory(per_year = .true.) * ccohort%n / m2_per_ha
 
                            hio_m3_mortality_understory_si_scpf(io_si,scpf) = hio_m3_mortality_understory_si_scpf(io_si,scpf) + &
                                 ccohort%cmort * ccohort%n / m2_per_ha
@@ -4041,10 +4008,7 @@ contains
 
                            ! sum of all mortality
                            hio_mortality_understory_si_scls(io_si,scls) = hio_mortality_understory_si_scls(io_si,scls) + &
-                                (ccohort%bmort + ccohort%hmort + ccohort%cmort +   &
-                                ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * ccohort%n / m2_per_ha + &
-                                (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                                ccohort%n * sec_per_day * days_per_year / m2_per_ha
+                                ccohort%SumMortForHistory(per_year = .true.) * ccohort%n / m2_per_ha
 
                            hio_m3_mortality_understory_si_scls(io_si,scls) = hio_m3_mortality_understory_si_scls(io_si,scls) + &
                                 ccohort%cmort * ccohort%n / m2_per_ha
@@ -4070,10 +4034,7 @@ contains
                               ! total mortality of understory cohorts by damage x size x pft
                               this%hvars(ih_mortality_understory_si_cdpf)%r82d(io_si,icdpf) = &
                                    this%hvars(ih_mortality_understory_si_cdpf)%r82d(io_si,icdpf) + &
-                                   (ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort + &
-                                   ccohort%smort + ccohort%asmort + ccohort%dgmort) * ccohort%n / m2_per_ha + &
-                                   (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * &
-                                   ccohort%n * sec_per_day * days_per_year / m2_per_ha
+                                   ccohort%SumMortForHistory(per_year = .true.) * ccohort%n / m2_per_ha
 
                               this%hvars(ih_nplant_understory_si_cdpf)%r82d(io_si,icdpf) = &
                                    this%hvars(ih_nplant_understory_si_cdpf)%r82d(io_si,icdpf) + &
@@ -4871,8 +4832,7 @@ contains
                      total_m * weight
 
                 ! Canopy vs. understory variables
-                mort = ccohort%bmort + ccohort%hmort + ccohort%cmort + ccohort%frmort + ccohort%smort + &
-                     ccohort%asmort + ccohort%dgmort
+                mort = ccohort%SumMortForHistory(per_year = .true.)
                 if (ccohort%canopy_layer .eq. 1) then
                    hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
                         mort * weight
