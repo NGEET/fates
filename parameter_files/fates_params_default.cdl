@@ -951,8 +951,8 @@ data:
   "broadleaf_evergreen_extratrop_shrub        ",
   "broadleaf_hydrodecid_extratrop_shrub       ",
   "broadleaf_colddecid_extratrop_shrub       ",
-  "broadleaf_evergreen_extratrop_shrub        ",
-  "broadleaf_colddecid_extratrop_shrub       ",
+  " broadleaf_evergreen_arctic_shrub                           ",
+  " broadleaf_colddecid_arctic_shrub                           ",
   "arctic_c3_grass                            ",
   "cool_c3_grass                              ",
   "c4_grass                                   " ;
