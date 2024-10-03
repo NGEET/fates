@@ -5,6 +5,8 @@ module FatesCohortMod
   use FatesConstantsMod,          only : ifalse, itrue
   use FatesConstantsMod,          only : nearzero
   use FatesConstantsMod,          only : ican_upper, ican_ustory
+  use FatesConstantsMod,          only : sec_per_day, days_per_year
+  use FatesConstantsMod,          only : days_per_sec, years_per_day
   use EDParamsMod,                only : nlevleaf
   use FatesGlobals,               only : endrun => fates_endrun
   use FatesGlobals,               only : fates_log
@@ -286,6 +288,7 @@ module FatesCohortMod
     procedure :: Copy
     procedure :: FreeMemory
     procedure :: CanUpperUnder
+    procedure, public :: SumMortForHistory
     procedure :: InitPRTBoundaryConditions
     procedure :: UpdateCohortBioPhysRates
     procedure :: Dump
@@ -999,6 +1002,39 @@ module FatesCohortMod
       
     end function CanUpperUnder
    
+    !===========================================================================
+
+    function SumMortForHistory(this, per_year) result(mort_sum)
+      !
+      ! DESCRIPTION:
+      ! Sum the various cohort-level mortality variables for saving to history.
+      !
+
+      ! ARGUMENTS:
+      class(fates_cohort_type) :: this ! current cohort of interest
+      logical                  :: per_year
+      !
+      ! VARIABLES
+      real(r8) :: mort_natural
+      real(r8) :: mort_logging
+      real(r8) :: mort_sum
+
+      ! "Natural" mortality
+      mort_natural = this%bmort + this%hmort + this%cmort + this%frmort + this%smort + this%asmort + this%dgmort
+      if (.not. per_year) then
+         mort_natural = mort_natural * days_per_sec * years_per_day
+      end if
+
+      ! Logging mortality
+      mort_logging = this%lmort_direct + this%lmort_collateral + this%lmort_infra
+      if (per_year) then
+         mort_logging = mort_logging * sec_per_day * days_per_year
+      end if
+
+      mort_sum = mort_natural + mort_logging
+
+    end function SumMortForHistory
+
     !===========================================================================
 
     subroutine Dump(this)
