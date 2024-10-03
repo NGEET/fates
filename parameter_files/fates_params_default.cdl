@@ -1621,7 +1621,7 @@ data:
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ;
 
- fates_wesley_pft_index_fordrydep =  1, 2, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12 ;
+ fates_wesley_pft_index_fordrydep =  4, 5, 5, 4, 4, 4, 11, 11, 11 ,3, 3,  3 ;
 
  fates_fire_FBD = 15.4, 16.8, 19.6, 999, 4, 4 ;
 
