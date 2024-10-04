@@ -1,0 +1,14 @@
+name: fates_testing
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pip
+  - python=3.12
+  - matplotlib
+  - netcdf4
+  - numpy
+  - pandas
+  - scipy
+  - xarray
+  - xesmf
