@@ -3010,7 +3010,6 @@ contains
     integer  :: iscag_anthrodist  ! what is the equivalent age class for
                                   ! time-since-anthropogenic-disturbance of secondary forest
     real(r8) :: patch_fracarea  ! Fraction of area for this patch
-    real(r8) :: ageclass_fracarea  ! Fraction of area for this age class
     real(r8) :: frac_canopy_in_bin  ! fraction of a leaf's canopy that is within a given height bin
     real(r8) :: binbottom,bintop    ! edges of height bins
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
@@ -3031,7 +3030,6 @@ contains
     real(r8) :: storep_understory_scpf(numpft*nlevsclass)
     real(r8) :: storec_canopy_scpf(numpft*nlevsclass)
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
-    real(r8) :: age_class_area  ! [m2]
 
     integer  :: i_dist, j_dist
 
@@ -3325,7 +3323,6 @@ contains
 
 
                 cpatch%age_class  = get_age_class_index(cpatch%age)
-                age_class_area = sites(s)%area_by_age(cpatch%age_class)
                 hio_fracarea_si(io_si) = hio_fracarea_si(io_si) &
                      + cpatch%area * AREA_INV
 
@@ -3344,15 +3341,14 @@ contains
                 if ( cpatch%land_use_label .eq. secondaryland ) then
 
                    iscag_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
-                   ageclass_fracarea = cpatch%area * AREA_INV
 
                    hio_agesince_anthrodist_si(io_si) = &
                         hio_agesince_anthrodist_si(io_si)  &
-                        + ageclass_fracarea
+                        + cpatch%area * AREA_INV
 
                     hio_secondarylands_fracarea_si(io_si) = &
                          hio_secondarylands_fracarea_si(io_si) &
-                         + ageclass_fracarea
+                         + cpatch%area * AREA_INV
                 endif
 
                 ! patch-age-resolved fire variables
@@ -5225,8 +5221,6 @@ contains
     integer  :: ft               ! functional type index
     real(r8) :: n_density   ! individual of cohort per m2.
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
-    real(r8) :: ageclass_area  ! [m2]
-    real(r8) :: ageclass_canopy_area  ! [m2]
     real(r8) :: canopy_area_by_age(nlevage) ! canopy area in each bin for normalizing purposes
     real(r8) :: site_area_veg_inv           ! 1/area of the site that is not bare-ground 
     integer  :: ipa2     ! patch incrementer
@@ -5311,8 +5305,6 @@ contains
          do while(associated(cpatch))
 
             ipa = ipa + 1
-            ageclass_area = sites(s)%area_by_age(cpatch%age_class)
-            ageclass_canopy_area = canopy_area_by_age(cpatch%age_class)
 
             ccohort => cpatch%shortest
             do while(associated(ccohort))
