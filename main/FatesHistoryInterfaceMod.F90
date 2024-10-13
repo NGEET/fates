@@ -4724,8 +4724,7 @@ contains
 
     type(fates_cohort_type), pointer :: ccohort
     type(fates_patch_type),  pointer :: cpatch
-    integer :: s, ipa, ft, iagepft, i_agefuel, iscag, i_fuel, i_scls, io_si
-    real(r8) :: weight
+    integer :: s, ft, iagepft, i_agefuel, iscag, i_fuel, i_scls, io_si
     real(r8) :: mort
     real(r8) :: sapw_m             ! Sapwood mass (elemental, c,n or p) [kg/plant]
     real(r8) :: struct_m           ! Structural mass ""
@@ -4735,6 +4734,9 @@ contains
     real(r8) :: alive_m            ! Alive biomass (sap+leaf+fineroot+repro+storage) ""
     real(r8) :: total_m            ! Total vegetation mass
     real(r8) :: repro_m            ! Total reproductive mass (on plant) ""
+    real(r8) :: patch_area_div_site_area     ! Weighting based on patch area relative to site area
+    real(r8) :: patch_canarea_div_site_area  ! Weighting based on patch canopy area relative to site area
+    real(r8) :: cohort_n_div_site_area       ! Weighting based on cohort density relative to site area
 
     associate( &
          hio_lai_si_age => this%hvars(ih_lai_si_age)%r82d, &
@@ -4751,7 +4753,7 @@ contains
          hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
          hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
          hio_biomass_si_agepft                => this%hvars(ih_biomass_si_agepft)%r82d, &
-         hio_npp_si_agepft  => this%hvars(ih_npp_si_agepft)%r82d, &  ! TODO: Move to update_history_hifrq2_ageclass? Maybe not, because it comes from npp_acc_hold
+         hio_npp_si_agepft  => this%hvars(ih_npp_si_agepft)%r82d, &  ! TODO: Move to update_history_hifrq2_ageclass, as gpp? Maybe not, because it comes from npp_acc_hold
          hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
          hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
          hio_ddbh_understory_si_scag          => this%hvars(ih_ddbh_understory_si_scag)%r82d)
@@ -4759,63 +4761,77 @@ contains
     siteloop: do s = 1,nsites
        io_si  = sites(s)%h_gid
 
-       ! Loop through patches to sum up diagonistics
-       ipa = 0
+       ! Loop through patches to sum up diagnostics
        cpatch => sites(s)%oldest_patch
        patchloop: do while(associated(cpatch))
           cpatch%age_class  = get_age_class_index(cpatch%age)
+          patch_area_div_site_area = cpatch%area * AREA_INV
+          patch_canarea_div_site_area = cpatch%total_canopy_area * AREA_INV
 
-          hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl_p * cpatch%area * AREA_INV
+          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+          !!! Weighting by patch area relative to total site area !!!
+          !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+          hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl_p * patch_area_div_site_area
 
           do ft = 1,numpft
              hio_scorch_height_si_pft(io_si,ft) = hio_scorch_height_si_pft(io_si,ft) + &
-                  cpatch%Scorch_ht(ft) * cpatch%area * AREA_INV
+                  cpatch%Scorch_ht(ft) * patch_area_div_site_area
           end do
 
-          ! Within each age class, ...
-          ! ... weighted by patch area relative to total site area
-          weight = cpatch%area * AREA_INV
           hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
-               + cpatch%ncl_p * weight
+               + cpatch%ncl_p * patch_area_div_site_area
           do ft = 1,numpft
              iagepft = get_agepft_class_index(cpatch%age,ft)
              hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
-                  cpatch%Scorch_ht(ft) * weight
+                  cpatch%Scorch_ht(ft) * patch_area_div_site_area
           end do
-   
-          ! ... weighted by patch CANOPY area relative to total site area
-          weight = cpatch%total_canopy_area * AREA_INV
-          hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
-               + sum(cpatch%tlai_profile(:,:,:) * cpatch%canopy_area_profile(:,:,:) ) &
-               * weight
-
-          ! Supposedly weighted by burned fraction, but never actually divided by total burned fraction!
-          weight = cpatch%area * AREA_INV * cpatch%frac_burnt
-          hio_fire_intensity_si_age(io_si, cpatch%age_class) = hio_fire_intensity_si_age(io_si,    cpatch%age_class) + &
-              cpatch%FI * J_per_kJ &  ! [kJ/m/s] -> [J/m/s]
-              * weight
-
-          ! If you SUM across all age classes, you should get the mean site value.
-          weight = cpatch%area * AREA_INV
 
           hio_area_burnt_si_age(io_si,cpatch%age_class) = hio_area_burnt_si_age(io_si,cpatch%age_class) + &
                cpatch%frac_burnt / sec_per_day &  ! [frac/day] -> [frac/sec]
-               * weight
+               * patch_area_div_site_area
           hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) = hio_fire_sum_fuel_si_age(io_si, cpatch%age_class)   +  &
-               cpatch%sum_fuel * weight
+               cpatch%sum_fuel * patch_area_div_site_area
           do i_fuel = 1,nfsc
              i_agefuel = get_agefuel_class_index(cpatch%age,i_fuel)
              hio_fuel_amount_age_fuel(io_si,i_agefuel) = hio_fuel_amount_age_fuel(io_si,i_agefuel) + &
-                  cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * weight
+                  cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * patch_area_div_site_area
           end do
 
           ! only valid when "strict ppa" enabled
           if ( ED_val_comp_excln .lt. 0._r8 ) then
              hio_zstar_si_age(io_si,cpatch%age_class) = hio_zstar_si_age(io_si,cpatch%age_class) &
-                  + cpatch%zstar * weight
+                  + cpatch%zstar * patch_area_div_site_area
              hio_zstar_si(io_si) = hio_zstar_si(io_si) &
-                  + cpatch%zstar * weight
+                  + cpatch%zstar * patch_area_div_site_area
           end if
+
+          !!!!!!!!!!!!!!!!!!!!!!!
+          !!! Other weighting !!!
+          !!!!!!!!!!!!!!!!!!!!!!!
+
+          ! LAI is weighted by patch canopy area relative to total site area---NOT site CANOPY
+          ! area---because bare ground is included in LAI calculation.
+          hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
+               + sum(cpatch%tlai_profile(:,:,:) * cpatch%canopy_area_profile(:,:,:) ) &
+               * patch_canarea_div_site_area
+
+          ! TODO: Supposedly weighted by burned fraction, but never actually divided by total site-wide burned fraction!
+          hio_fire_intensity_si_age(io_si, cpatch%age_class) = hio_fire_intensity_si_age(io_si,cpatch%age_class) + &
+              cpatch%FI * J_per_kJ &  ! [kJ/m/s] -> [J/m/s]
+              * cpatch%frac_burnt * patch_area_div_site_area
+
+          cpatch => cpatch%younger
+       end do patchloop
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !!! Weighting by cohort density relative to total site area !!!
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+       ! Loop through patches to sum up diagnostics
+       cpatch => sites(s)%oldest_patch
+       patchloop: do while(associated(cpatch))
+          cpatch%age_class  = get_age_class_index(cpatch%age)
 
           ! Loop through cohorts on patch
           ccohort => cpatch%shortest
@@ -4831,7 +4847,7 @@ contains
                   ccohort%coage_class, ccohort%coage_by_pft_class)
 
              ! If you SUM across all age classes, you should get the mean site value.
-             weight = ccohort%n * AREA_INV
+             cohort_n_div_site_area = ccohort%n * AREA_INV
    
              iscag = get_sizeage_class_index(ccohort%dbh, cpatch%age)
              iagepft = get_agepft_class_index(cpatch%age,ccohort%pft)
@@ -4846,39 +4862,40 @@ contains
              alive_m  = leaf_m + fnrt_m + sapw_m
              total_m  = alive_m + store_m + struct_m
              hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
-                  + total_m * weight
-             hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) + &
-                  total_m * weight
+                  + total_m * cohort_n_div_site_area
+             hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) &
+                  + total_m * cohort_n_div_site_area
 
              if (.not. (ccohort%isnew)) then
                 hio_npp_si_agepft(io_si,iagepft) = hio_npp_si_agepft(io_si,iagepft) + &
                      ccohort%npp_acc_hold / days_per_year / sec_per_day &  ! [kgC/indiv/yr] -> [kgC/s]
-                     * weight
+                     * cohort_n_div_site_area
 
                 ! Canopy vs. understory variables
                 mort = ccohort%SumMortForHistory(per_year = .true.)
                 if (ccohort%canopy_layer .eq. 1) then
                    hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
-                        mort * weight
+                        mort * cohort_n_div_site_area
                    hio_ddbh_canopy_si_scag(io_si,iscag) = hio_ddbh_canopy_si_scag(io_si,iscag) + &
                         ccohort%ddbhdt * m_per_cm &  ! [m] -> [cm]
-                        * weight
+                        * cohort_n_div_site_area
                 else
                    hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,   iscag) + &
-                        mort * weight
+                        mort * cohort_n_div_site_area
                    hio_ddbh_understory_si_scag(io_si,iscag) = hio_ddbh_understory_si_scag(io_si,iscag) + &
                         ccohort%ddbhdt * m_per_cm &  ! [m] -> [cm]
-                        * weight
+                        * cohort_n_div_site_area
                 end if  ! canopy layer?
              end if  ! cohort is new?
 
              ccohort => ccohort%taller
           end do cohortloop
 
-          ipa = ipa + 1
           cpatch => cpatch%younger
        end do patchloop
 
+       ! The mortality components in this loop already include cohort density (cohort%n), so they
+       ! don't use cohort_n_div_site_area.
        do ft = 1, numpft
           do i_scls = 1,nlevsclass
 
@@ -4889,23 +4906,20 @@ contains
              ! add imort to other mortality terms. consider imort as understory mortality even if it happens in
              ! cohorts that may have been promoted as part of the patch creation, and use the pre-calculated site-level
              ! values to avoid biasing the results by the dramatically-reduced number densities in cohorts that are subject to imort
-             weight = AREA_INV
              hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                  sites(s)%imort_rate(i_scls, ft) * weight
+                  sites(s)%imort_rate(i_scls, ft) * AREA_INV
 
              ! add fire mortality to other mortality terms
-             weight = AREA_INV
              hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
-                  sites(s)%fmort_rate_canopy(i_scls, ft) * weight
+                  sites(s)%fmort_rate_canopy(i_scls, ft) * AREA_INV
              hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                  sites(s)%fmort_rate_ustory(i_scls, ft) * weight
+                  sites(s)%fmort_rate_ustory(i_scls, ft) * AREA_INV
 
              ! add termination mortality to other mortality terms
-             weight = AREA_INV * days_per_year
              hio_mortality_canopy_si_scag(io_si,iscag) = hio_mortality_canopy_si_scag(io_si,iscag) + &
-                  sum(sites(s)%term_nindivs_canopy(:,i_scls,ft)) * weight
+                  sum(sites(s)%term_nindivs_canopy(:,i_scls,ft)) * days_per_year * AREA_INV
              hio_mortality_understory_si_scag(io_si,iscag) = hio_mortality_understory_si_scag(io_si,iscag) + &
-                  sum(sites(s)%term_nindivs_ustory(:,i_scls,ft)) * weight
+                  sum(sites(s)%term_nindivs_ustory(:,i_scls,ft)) * days_per_year * AREA_INV
 
           end do  ! size class loop
        end do  ! pft loop
