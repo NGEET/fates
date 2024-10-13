@@ -1,6 +1,7 @@
 module FatesHistoryVariableType
 
   use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : fates_long_string_length
   use FatesGlobals, only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesIODimensionsMod, only   : fates_io_dimension_type
@@ -34,7 +35,7 @@ module FatesHistoryVariableType
   type, public :: fates_history_variable_type
      character(len=40)    :: vname
      character(len=24)    :: units
-     character(len=128)   :: long
+     character(len=fates_long_string_length) :: long
      character(len=24)    :: use_default ! States whether a variable should be turned
                                          ! on the output files by default (active/inactive)
                                          ! It is a good idea to set inactive for very large
