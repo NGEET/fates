@@ -5625,10 +5625,11 @@ contains
 
     type(fates_cohort_type), pointer :: ccohort
     type(fates_patch_type),  pointer :: cpatch
-    integer :: s, io_si, ipa
+    integer :: s, io_si
     real(r8) :: site_canopy_area
-    real(r8) :: weight
     real(r8) :: dt_tstep_inv          ! Time step in frequency units (/s)
+    real(r8) :: patch_canarea_div_site_canarea  ! Weighting based on patch canopy area relative to site canopy area
+    real(r8) :: cohort_n_div_site_area          ! Weighting based on cohort density relative to site area
 
     associate( &
        hio_c_lblayer_si_age => this%hvars(ih_c_lblayer_si_age)%r82d, &
@@ -5647,33 +5648,30 @@ contains
        do while(associated(cpatch))
           site_canopy_area = site_canopy_area + cpatch%total_canopy_area
           cpatch => cpatch%younger
-        end do !patch loop
+       end do
 
        io_si  = sites(s)%h_gid
-       ipa = 0
 
        ! Get ageclass-stratified variables
        cpatch => sites(s)%oldest_patch
        do while(associated(cpatch))
-          ipa = ipa + 1
 
-            ! Canopy resistance terms
-            if (site_canopy_area .gt. nearzero) then
-               weight = cpatch%total_canopy_area / site_canopy_area
+          ! Canopy resistance terms
+          if (site_canopy_area .gt. nearzero) then
+             patch_canarea_div_site_canarea = cpatch%total_canopy_area / site_canopy_area
+             hio_c_stomata_si_age(io_si,cpatch%age_class) = &
+                  hio_c_stomata_si_age(io_si,cpatch%age_class) + &
+                  cpatch%c_stomata * mol_per_umol &
+                  * patch_canarea_div_site_canarea
 
-               hio_c_stomata_si_age(io_si,cpatch%age_class) = &
-                    hio_c_stomata_si_age(io_si,cpatch%age_class) + &
-                    cpatch%c_stomata * mol_per_umol &
-                    * weight
-
-               hio_c_lblayer_si_age(io_si,cpatch%age_class) = &
-                    hio_c_lblayer_si_age(io_si,cpatch%age_class) + &
-                    cpatch%c_lblayer * mol_per_umol &
-                    * weight
-            else
-               hio_c_stomata_si_age(io_si,cpatch%age_class) = 0._r8
-               hio_c_lblayer_si_age(io_si,cpatch%age_class) = 0._r8
-            end if
+             hio_c_lblayer_si_age(io_si,cpatch%age_class) = &
+                  hio_c_lblayer_si_age(io_si,cpatch%age_class) + &
+                  cpatch%c_lblayer * mol_per_umol &
+                  * patch_canarea_div_site_canarea
+          else
+             hio_c_stomata_si_age(io_si,cpatch%age_class) = 0._r8
+             hio_c_lblayer_si_age(io_si,cpatch%age_class) = 0._r8
+          end if
 
           ccohort => cpatch%shortest
           do while(associated(ccohort))
@@ -5681,15 +5679,15 @@ contains
                 ccohort => ccohort%taller
                 cycle
              end if
+             cohort_n_div_site_area = ccohort%n * AREA_INV
 
-             weight = ccohort%n * AREA_INV
              hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
                   + ccohort%gpp_tstep * dt_tstep_inv &
-                  * weight
+                  * cohort_n_div_site_area
 
              hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
                   + ccohort%npp_tstep * dt_tstep_inv &
-                  * weight
+                  * cohort_n_div_site_area
 
              ccohort => ccohort%taller
           end do  ! cohort loop
