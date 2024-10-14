@@ -399,7 +399,7 @@ def main(argv):
 
     # Relative Humidity Ranges
     rh_max = 0.99
-    rh_min = 0.20
+    rh_min = 0.02
     rh_n   = 100
     rh_vec = np.linspace(rh_min,rh_max,num=rh_n)
     
@@ -411,6 +411,7 @@ def main(argv):
     # 1 mol/m2/s was roughly the middle of the distribution
     # when generating conductances at BCI using a static canopy
     # and local driver data.
+    
     bl_cond_const = 1.e6
 
     # Lets look at canopy top
@@ -480,7 +481,7 @@ def main(argv):
     print('\n')
     print('Experiment 1: Evaluating Photosynthesis Equations by pft/Tl/RH/PR')
     
-    for pft in [0,11]: #range(numpft):
+    for pft in range(numpft):
 
         if(do_evalvjkbytemp):
             print('\n')
@@ -638,7 +639,6 @@ def main(argv):
         ax2.set_ylabel('Gs \n [mol/m2/s]')
         ax2.yaxis.set_label_position("right")
         ax2.yaxis.tick_right()
-        ax2.axhline(y=bl_cond_const*1.e-6,linewidth=2, color=[0.3,0.3,0.3])
         ax2.set_xticklabels([])
         
         LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,ac,'RH','APAR',False)
