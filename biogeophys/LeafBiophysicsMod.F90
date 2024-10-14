@@ -233,10 +233,12 @@ contains
     ! Evaluate trival solution, if there is no positive net assimiolation
     ! the stomatal conductance is the intercept conductance
     if (anet <= nearzero) then
-     !  print*,"SIB:",stomatal_intercept_btran
        gs = stomatal_intercept_btran
        return
     end if
+
+    
+   
     
     ! stomatal conductance calculated from Medlyn et al. (2011), the numerical &
     ! implementation was adapted from the equations in CLM5.0 [kPa]
@@ -300,7 +302,6 @@ contains
     
     ! Apply a constraint to the vapor pressure
     ceair = GetConstrainedVPress(can_vpress,veg_esat)
-    !print*,can_vpress,veg_esat,ceair
     
     if(zero_bl_resist) then
 
@@ -439,7 +440,7 @@ contains
        ac,                &  ! out
        aj,                &  ! out
        ap,                &  ! out
-       co2_inter_c)                   ! out
+       co2_intercel)                   ! out
 
 
     ! ------------------------------------------------------------------------------------
@@ -480,7 +481,7 @@ contains
     real(r8), intent(out) :: aj               ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
     real(r8), intent(out) :: ap               ! product-limited (C3) or CO2-limited
                                               ! (C4) gross photosynthesis (umol CO2/m**2/s)
-    real(r8), intent(out) :: co2_inter_c      ! intercellular leaf CO2 (Pa)
+    real(r8), intent(out) :: co2_intercel      ! intercellular leaf CO2 (Pa)
 
     ! Important Note on the gas pressures as input arguments.  This photosynthesis scheme will iteratively
     ! solve for the co2 partial pressure at the leaf surface (ie in the stomata). The reference
@@ -502,13 +503,12 @@ contains
     real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
     real(r8) :: r1,r2             ! roots of quadratic equation
     
-    real(r8) :: co2_inter_c_old   ! intercellular leaf CO2 (Pa) (previous iteration)
+    real(r8) :: co2_intercel_old   ! intercellular leaf CO2 (Pa) (previous iteration)
     logical  :: loop_continue     ! Loop control variable
     integer  :: niter             ! iteration loop index
  
     real(r8) :: ai                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
     real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
-    real(r8) :: init_co2_inter_c  ! First guess intercellular co2 specific to C path
     real(r8) :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
     real(r8) :: veg_esat                             ! Saturation vapor pressure at leaf-surface [Pa]
     real(r8) :: veg_qs                               ! DUMMY, specific humidity at leaf-surface [kg/kg]
@@ -519,7 +519,8 @@ contains
 
     ! For plants with no leaves, a miniscule amount of conductance
     ! can happen through the stems, at a partial rate of cuticular conductance
-    real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
+    ! THIS IS NOT USED
+    !real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
 
    
 
@@ -530,18 +531,13 @@ contains
 
     ! When iteratively solving for intercellular co2 concentration, this
     ! is the maximum tolerable change to accept convergence [Pa]
-    real(r8),parameter :: co2_inter_c_tol = 1._r8
+    real(r8),parameter :: co2_intercel_tol = 1._r8
 
     ! Maximum number of iterations on intercelluar co2 solver until is quits
-    integer, parameter :: max_iters = 2
+    integer, parameter :: max_iters = 10
 
     ! empirical curvature parameter for ap photosynthesis co-limitation
     real(r8),parameter :: theta_ip = 0.999_r8
-
-    ! We force leaf co2 partial pressure to have a floor of 1e-6 Pa
-    ! this is incredibly small, shouldnt need it, and probably has no effect?
-    logical, parameter :: use_mincap_leafco2 = .true.
-
 
     ! Set diagnostics as un-initialized
     ac         = -999._r8
@@ -576,11 +572,11 @@ contains
 
 
     ! Not trivial solution, some biomass and some light
-
+    ! Initialize first guess of intercellular co2 conc [Pa]
     if (lb_params%c3psn(ft) == c3_path_index) then
-       init_co2_inter_c = init_a2l_co2_c3 * can_co2_ppress
+       co2_intercel = init_a2l_co2_c3 * can_co2_ppress
     else
-       init_co2_inter_c = init_a2l_co2_c4 * can_co2_ppress
+       co2_intercel = init_a2l_co2_c4 * can_co2_ppress
     end if
 
     ! Perform iterative solution to converge on net assimilation,
@@ -589,9 +585,6 @@ contains
     ! based off of updated intercellular co2 concentration until
     ! there is minimal deviation from last attempt
 
-    ! Initialize intercellular co2
-    co2_inter_c = init_co2_inter_c
-
     niter = 0
     loop_continue = .true.
     iter_loop: do while(loop_continue)
@@ -599,25 +592,28 @@ contains
        ! Increment iteration counter. Stop if too many iterations
        niter = niter + 1
 
-       ! Save old co2_inter_c
-       co2_inter_c_old = co2_inter_c
+       ! Save old co2_intercel
+       co2_intercel_old = co2_intercel
 
        ! Photosynthesis limitation rate calculations
        if (lb_params%c3psn(ft) == c3_path_index)then
 
           ! C3: Rubisco-limited photosynthesis
-          ac = AgrossRubiscoC3(vcmax,co2_inter_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
+          ac = AgrossRubiscoC3(vcmax,co2_intercel,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
 
           ! C3: RuBP-limited photosynthesis
-          aj = AgrossRuBPC3(par_abs,jmax,co2_inter_c,co2_cpoint )
+          aj = AgrossRuBPC3(par_abs,jmax,co2_intercel,co2_cpoint )
 
           ! Gross photosynthesis smoothing calculations. Co-limit ac and aj.
+          ! RGK: We can remove this smoothing, right? theta is always nearly 1...?
           aquad = lb_params%theta_cj_c3
           bquad = -(ac + aj)
           cquad = ac * aj
           call QuadraticRoots(aquad, bquad, cquad, r1, r2)
           agross_out = min(r1,r2)
 
+          ! RGK: agross_out = min(ac,aj)
+          
        else
 
           ! C4: Rubisco-limited photosynthesis
@@ -627,7 +623,7 @@ contains
           aj = AgrossRuBPC4(par_abs)
             
           ! C4: PEP carboxylase-limited (CO2-limited)
-          ap = AgrossPEPC4(co2_inter_c,co2_rcurve_islope,can_press)
+          ap = AgrossPEPC4(co2_intercel,co2_rcurve_islope,can_press)
                       
           ! Gross photosynthesis smoothing calculations. First co-limit ac and aj. Then co-limit ap
 
@@ -642,11 +638,12 @@ contains
           cquad = ai * ap
           call QuadraticRoots(aquad, bquad, cquad, r1, r2)
           agross_out = min(r1,r2)
-
+          
+          ! RGK:  agross_out = minval([ac,aj,ap])
+          
        end if
 
-       ! Calculate anet, only exit iteration with negative anet when
-       ! using anet in calculating gs this is version B  
+       ! Calculate anet
        anet_out = agross_out  - lmr
 
        if (  lb_params%stomatal_assim_model == gross_assim_model ) then
@@ -656,9 +653,14 @@ contains
           end if
           a_gs = agross_out
        else
+
+          ! RGK: I'm not sure why we break out here.  Anet can be negative when the plant
+          ! is performing photosynthesis, but respiration is larger than production, I see
+          ! no reason to exit the solver early...
           if (anet_out < 0._r8) then
              loop_continue = .false.
           end if
+          
           a_gs = anet_out
        end if
 
@@ -687,14 +689,20 @@ contains
        ! ------------------------------------------------------------------------------------
 
        leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb * anet_out * can_press 		   
-       leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
-       
+
+       ! RGK: THIS 1e-6 CAP IS UNREASONBLY LOW. Units are Pascals. If the leaf internal CO2 is below 1
+       ! pascal even, that is incredibly low. It should be some moderate fraction of
+       ! atmospheric CO2 (which is roughly 40ish circa 2024), something that is much closer
+       ! to that value than even 25% to 200%
+       ! leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
        
        ! Determine saturation vapor pressure at the leaf surface, from temp and atm-pressure
        call QSat(veg_tempk, can_press, veg_qs, veg_esat)
+
+       ! RGK: Should this be moved here?
+       ! veg_esat = StomatalVaporPressureFromLWP(leaf_psi, k_lwp, veg_tempk, can_press, can_vpress)
        
        if ( lb_params%stomatal_model == medlyn_model ) then
-
           call StomatalCondMedlyn(anet_out,ft,veg_esat,can_vpress,stomatal_intercept_btran, &
                                   leaf_co2_ppress,can_press,gb,gs_out)
        else
@@ -714,16 +722,17 @@ contains
           end if
        end if
 
-       ! Derive new estimate for co2_inter_c
-       co2_inter_c = can_co2_ppress - anet_out * can_press * &
+       ! Derive new estimate for co2_intercel
+       co2_intercel = can_co2_ppress - anet_out * can_press * &
             (h2o_co2_bl_diffuse_ratio*gs_out+h2o_co2_stoma_diffuse_ratio*gb) / (gb*gs_out)
 
-       ! Check for co2_inter_c convergence. Delta co2_inter_c/pair = mol/mol.
-       ! Multiply by 10**6 to convert to umol/mol (ppm). Exit iteration if
-       ! convergence criteria of +/- 1 x 10**-6 ppm is met OR if at least ten
-       ! iterations (niter=10) are completed
+       ! Check for co2_intercel convergence.
+       ! The tolerance is if the new solution is less than 1 Pascal within
+       ! the previous solution.  Typical values for the range are 20-50,
+       ! with values less than atmospheric during production, and values
+       ! greater than atmospheric during dark respiration
 
-       if( abs(co2_inter_c-co2_inter_c_old) < co2_inter_c_tol .or. niter >= max_iters) then
+       if( abs(co2_intercel-co2_intercel_old) < co2_intercel_tol .or. niter >= max_iters) then
           loop_continue = .false.
        end if
     end do iter_loop
@@ -735,9 +744,9 @@ contains
     ! just hard code b and \alpha_s for now, might move to parameter set in future
     ! b = 27.0 alpha_s = 4.4
     ! TODO, not considering C4 or CAM right now, may need to address this
-    ! note co2_inter_c is intracelluar CO2, not intercelluar
+    ! note co2_intercel is intracelluar CO2, not intercelluar
     c13disc_out = 4.4_r8 + (27.0_r8 - 4.4_r8) * &
-         min (can_co2_ppress, max (co2_inter_c, 0._r8)) / can_co2_ppress
+         min (can_co2_ppress, max (co2_intercel, 0._r8)) / can_co2_ppress
 
     return
   end subroutine LeafLayerPhotosynthesis
@@ -770,6 +779,10 @@ contains
     !
     ! Note: unit conversions drop out b/c [m3/kg]*[kg/g]*[J/MJ] = 1e-3*1.e-3*1e6 = 1.0
     !
+    !
+    ! RGK: Not clear to me, why this is not coupled into the stomatal conductance schemes.
+    ! this should affect Anet...No?
+    !   
     ! Junyan Ding 2021
     ! -------------------------------------------------------------------------------------
 
