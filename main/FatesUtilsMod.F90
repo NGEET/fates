@@ -20,12 +20,27 @@ module FatesUtilsMod
   public :: FindIndex
   public :: QuadraticRootsNSWC
   public :: QuadraticRootsSridharachary
+  public :: ArrayNint
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
   
 contains
   
+  subroutine ArrayNint(realarr,intarr)
+
+    real(r8),intent(in)  :: realarr(:)
+    integer,intent(out)  :: intarr(:)
+    integer  :: i
+
+    do i = 1,size(realarr,dim=1)
+       intarr(i) = nint(realarr(i))
+    end do
+    
+    return
+  end subroutine ArrayNint
+
+  ! =============================================================================================
   
   function check_hlm_list(hlms,hlm_name) result(astatus)
     

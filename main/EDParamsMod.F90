@@ -46,9 +46,7 @@ module EDParamsMod
    real(r8),protected, public :: sdlng2sap_par_timescale !Length of the window for the exponential 
                                                                !moving average of par at the seedling layer used to 
                                                                !calculate seedling to sapling transition rates
-   integer,protected, public :: photo_tempsens_model  ! switch for choosing the model that defines the temperature
-                                                      ! sensitivity of photosynthetic parameters (vcmax, jmax).
-                                                      ! 1=non-acclimating, 2=Kumarathunge et al., 2019
+   
 
    integer,protected, public :: radiation_model       ! Switch betrween Norman (1) and Two-stream (2) radiation models
 
@@ -76,8 +74,6 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_cohort_age_fusion_tol         ! minimum fraction in differece in cohort age between cohorts
    real(r8),protected, public :: ED_val_patch_fusion_tol              ! minimum fraction in difference in profiles between patches
    real(r8),protected, public :: ED_val_canopy_closure_thresh         ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
-   integer,protected, public  :: stomatal_model                       ! switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn
-   integer,protected, public  :: dayl_switch                          ! switch for turning on or off day length factor scaling for photosynthetic parameters
    integer,protected, public  :: regeneration_model                   ! Switch for choosing between regeneration models:
                                                                       ! (1) for Fates default
                                                                       ! (2) for the Tree Recruitment Scheme (Hanbury-Brown et al., 2022)
@@ -90,11 +86,7 @@ module EDParamsMod
    real(r8), protected, public :: cg_strikes             ! fraction of cloud to ground lightning strikes (0-1)
    character(len=param_string_length),parameter :: fates_name_cg_strikes="fates_fire_cg_strikes"
 
-   ! empirical curvature parameters for ac, aj photosynthesis co-limitation, c3 and c4 plants respectively
-   real(r8),protected,public  :: theta_cj_c3    ! Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants
-   real(r8),protected,public  :: theta_cj_c4    ! Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants
-
-     ! Global identifier of how nutrients interact with the host land model
+   ! Global identifier of how nutrients interact with the host land model
   ! either they are fully coupled, or they generate uptake rates synthetically
   ! in prescribed mode. In the latter, there is both NO mass removed from the HLM's soil
   ! BGC N and P pools, and there is also none removed.
@@ -144,7 +136,6 @@ module EDParamsMod
    integer, protected,allocatable,public :: hydr_htftype_node(:)
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_leaf_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_thome_time = "fates_leaf_photo_temp_acclim_thome_time"
-   character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_leaf_photo_tempsens_model"
    character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_leaf_model"
    character(len=param_string_length),parameter,public :: name_radiation_model = "fates_rad_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydro_htftype_node"
@@ -169,13 +160,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_cohort_age_fusion_tol = "fates_cohort_age_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
-   character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "fates_leaf_stomatal_model"
-   character(len=param_string_length),parameter,public :: ED_name_dayl_switch= "fates_daylength_factor_switch"
    character(len=param_string_length),parameter,public :: ED_name_regeneration_model= "fates_regeneration_model"
-
-   character(len=param_string_length),parameter,public :: name_theta_cj_c3 = "fates_leaf_theta_cj_c3"
-   character(len=param_string_length),parameter,public :: name_theta_cj_c4 = "fates_leaf_theta_cj_c4"
-   
    character(len=param_string_length),parameter :: fates_name_q10_mr="fates_q10_mr"
    character(len=param_string_length),parameter :: fates_name_q10_froz="fates_q10_froz"
 
@@ -221,10 +206,6 @@ module EDParamsMod
    ! ----------------------------------------------------------------------------------------------
    real(r8),protected,public :: bgc_soil_salinity ! site-level soil salinity for FATES when not coupled to dynamic soil BGC of salinity
    character(len=param_string_length),parameter,public :: bgc_name_soil_salinity= "fates_soil_salinity"      
-
-   ! Switch designating whether to use net or gross assimilation in the stomata model
-   integer, protected, public :: stomatal_assim_model
-   character(len=param_string_length), parameter, public :: stomatal_assim_name = "fates_leaf_stomatal_assim_model"
 
    ! Integer code that options how damage events are structured
    integer, protected, public :: damage_event_code
@@ -320,7 +301,6 @@ contains
     sdlng_mdd_timescale                   = nan
     sdlng2sap_par_timescale               = nan
     photo_temp_acclim_thome_time          = nan
-    photo_tempsens_model                  = -9
     maintresp_leaf_model                  = -9
     radiation_model                       = -9
     fates_mortality_disturbance_fraction  = nan
@@ -344,10 +324,7 @@ contains
     ED_val_cohort_age_fusion_tol          = nan
     ED_val_patch_fusion_tol               = nan
     ED_val_canopy_closure_thresh          = nan
-    stomatal_model                        = -9
-    dayl_switch                           = -9
     regeneration_model                    = -9
-    stomatal_assim_model                  = -9
     max_cohort_per_patch                  = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
@@ -366,8 +343,6 @@ contains
     eca_plant_escalar                     = nan
     q10_mr                                = nan
     q10_froz                              = nan
-    theta_cj_c3                           = nan
-    theta_cj_c4                           = nan
     dev_arbitrary                         = nan
     damage_event_code                     = -9
     damage_canopy_layer_code              = -9
@@ -419,19 +394,10 @@ contains
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_thome_time, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=name_photo_tempsens_model,dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=name_radiation_model,dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=name_maintresp_model,dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
-    call fates_params%RegisterParameter(name=name_theta_cj_c3, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
-    call fates_params%RegisterParameter(name=name_theta_cj_c4, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
@@ -497,18 +463,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_canopy_closure_thresh, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_stomatal_model, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_dayl_switch, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=ED_name_regeneration_model, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 	 
-    call fates_params%RegisterParameter(name=stomatal_assim_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=maxcohort_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
@@ -647,10 +604,6 @@ contains
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_thome_time, &
          data=photo_temp_acclim_thome_time)
 
-    call fates_params%RetrieveParameter(name=name_photo_tempsens_model, &
-         data=tmpreal)
-    photo_tempsens_model = nint(tmpreal)
-
     call fates_params%RetrieveParameter(name=name_radiation_model, &
          data=tmpreal)
     radiation_model = nint(tmpreal)
@@ -723,21 +676,9 @@ contains
     call fates_params%RetrieveParameter(name=ED_name_canopy_closure_thresh, &
          data=ED_val_canopy_closure_thresh)
 
-    call fates_params%RetrieveParameter(name=ED_name_stomatal_model, &
-         data=tmpreal)
-    stomatal_model = nint(tmpreal)
-
-    call fates_params%RetrieveParameter(name=ED_name_dayl_switch, &
-         data=tmpreal)
-    dayl_switch = nint(tmpreal)
-
     call fates_params%RetrieveParameter(name=ED_name_regeneration_model, &
          data=tmpreal)
     regeneration_model = nint(tmpreal)
-    
-    call fates_params%RetrieveParameter(name=stomatal_assim_name, &
-         data=tmpreal)
-    stomatal_assim_model = nint(tmpreal)
     
     call fates_params%RetrieveParameter(name=maxcohort_name, &
          data=tmpreal)
@@ -791,12 +732,6 @@ contains
 
     call fates_params%RetrieveParameter(name=eca_name_plant_escalar, &
           data=eca_plant_escalar)
-
-    call fates_params%RetrieveParameter(name=name_theta_cj_c3, &
-          data=theta_cj_c3)
-
-     call fates_params%RetrieveParameter(name=name_theta_cj_c4, &
-          data=theta_cj_c4)
      
     call fates_params%RetrieveParameter(name=fates_name_q10_mr, &
           data=q10_mr)
@@ -909,9 +844,6 @@ contains
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh
         write(fates_log(),fmt0) 'regeneration_model = ',regeneration_model
-        write(fates_log(),fmt0) 'dayl_switch = ',dayl_switch      
-        write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model
-        write(fates_log(),fmt0) 'stomatal_assim_model = ',stomatal_assim_model            
         write(fates_log(),fmt0) 'hydro_kmax_rsurf1 = ',hydr_kmax_rsurf1
         write(fates_log(),fmt0) 'hydro_kmax_rsurf2 = ',hydr_kmax_rsurf2  
         write(fates_log(),fmt0) 'hydro_psi0 = ',hydr_psi0
