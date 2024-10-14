@@ -2530,6 +2530,8 @@ contains
 
          ! Nesterov index (unitless)
          hio_nesterov_fire_danger_si(io_si) = sites(s)%fireWeather%fire_weather_index
+         
+         hio_effect_wspeed_si(io_si) = sites(s)%fireWeather%effective_windspeed/sec_per_min
 
          ! number of ignitions [#/km2/day -> #/m2/s]
          hio_fire_nignitions_si(io_si) = sites(s)%NF_successful / m2_per_km2 /  &
@@ -2606,7 +2608,7 @@ contains
               sites(s)%fmort_crownarea_ustory + &
               sites(s)%term_crownarea_ustory * days_per_year + &
               sites(s)%imort_crownarea
-
+        
          flux_diags_c => sites(s)%flux_diags(element_pos(carbon12_element))
 
          hio_litter_in_si(io_si) = (sum(flux_diags_c%cwd_ag_input(:)) + &
@@ -2670,7 +2672,6 @@ contains
 
             ! Update Fire Variables
             hio_spitfire_ros_si(io_si)         = hio_spitfire_ros_si(io_si) + cpatch%ROS_front * cpatch%area * AREA_INV / sec_per_min
-            hio_effect_wspeed_si(io_si)        = hio_effect_wspeed_si(io_si) + cpatch%effect_wspeed * cpatch%area * AREA_INV / sec_per_min
             hio_tfc_ros_si(io_si)              = hio_tfc_ros_si(io_si) + cpatch%TFC_ROS * cpatch%area * AREA_INV
             hio_fire_intensity_si(io_si)       = hio_fire_intensity_si(io_si) + cpatch%FI * cpatch%area * AREA_INV * J_per_kJ
             hio_fire_area_si(io_si)            = hio_fire_area_si(io_si) + cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
@@ -5395,7 +5396,7 @@ contains
 
             do_pft1: do ipft=1,numpft
                do_canlev1: do ican=1,cpatch%ncl_p
-                  do_leaflev1: do ileaf=1,cpatch%ncan(ican,ipft)
+                  do_leaflev1: do ileaf=1,cpatch%nleaf(ican,ipft)
 
                      ! calculate where we are on multiplexed dimensions
                      clllpf_indx = ileaf + (ican-1) * nlevleaf + (ipft-1) * nlevleaf * nclmax

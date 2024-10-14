@@ -28,7 +28,6 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : site_fluxdiags_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : min_patch_area_forced
-  use EDParamsMod          , only : nclmax
   use EDParamsMod          , only : regeneration_model
   use FatesInterfaceTypesMod, only : numpft
   use FatesConstantsMod     , only : dtype_ifall
@@ -3290,7 +3289,6 @@ contains
     rp%fuel_sav             = (dp%fuel_sav*dp%area + rp%fuel_sav*rp%area) * inv_sum_area
     rp%fuel_mef             = (dp%fuel_mef*dp%area + rp%fuel_mef*rp%area) * inv_sum_area
     rp%ros_front            = (dp%ros_front*dp%area + rp%ros_front*rp%area) * inv_sum_area
-    rp%effect_wspeed        = (dp%effect_wspeed*dp%area + rp%effect_wspeed*rp%area) * inv_sum_area
     rp%tau_l                = (dp%tau_l*dp%area + rp%tau_l*rp%area) * inv_sum_area
     rp%fuel_frac(:)         = (dp%fuel_frac(:)*dp%area + rp%fuel_frac(:)*rp%area) * inv_sum_area
     rp%tfc_ros              = (dp%tfc_ros*dp%area + rp%tfc_ros*rp%area) * inv_sum_area

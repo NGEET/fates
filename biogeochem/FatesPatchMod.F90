@@ -6,6 +6,7 @@ module FatesPatchMod
   use FatesConstantsMod,   only : primaryland, secondaryland
   use FatesConstantsMod,   only : n_landuse_cats
   use FatesConstantsMod,   only : TRS_regeneration
+  use FatesConstantsMod,   only : itrue
   use FatesGlobals,        only : fates_log
   use FatesGlobals,        only : endrun => fates_endrun
   use FatesUtilsMod,       only : check_hlm_list
@@ -16,6 +17,8 @@ module FatesPatchMod
   use FatesLitterMod,      only : litter_type
   use PRTGenericMod,       only : num_elements
   use PRTGenericMod,       only : element_list
+  use PRTParametersMod,    only : prt_params
+  use FatesConstantsMod,   only : nocomp_bareground
   use EDParamsMod,         only : nlevleaf, nclmax, maxpft
   use FatesConstantsMod,   only : n_dbh_bins, n_dist_types
   use FatesConstantsMod,   only : t_water_freeze_k_1atm
@@ -26,6 +29,7 @@ module FatesPatchMod
   use FatesRadiationMemMod,only : num_swb
   use FatesRadiationMemMod,only : num_rad_stream_types
   use FatesInterfaceTypesMod,only : hlm_hio_ignore_val
+  use FatesInterfaceTypesMod, only : numpft
   use shr_infnan_mod,      only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,         only : errMsg => shr_log_errMsg
 
@@ -99,24 +103,31 @@ module FatesPatchMod
                                                               !   used to determine attenuation of parameters during photosynthesis
     real(r8) :: total_canopy_area                           ! area that is covered by vegetation [m2]
     real(r8) :: total_tree_area                             ! area that is covered by woody vegetation [m2]
+    real(r8) :: total_grass_area                            ! area that is covered by non-woody vegetation [m2]
     real(r8) :: zstar                                       ! height of smallest canopy tree, only meaningful in "strict PPA" mode [m]
-    real(r8) :: elai_profile(nclmax,maxpft,nlevleaf)        ! exposed leaf area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
-    real(r8) :: esai_profile(nclmax,maxpft,nlevleaf)        ! exposed stem area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
-    real(r8) :: tlai_profile(nclmax,maxpft,nlevleaf) 
-    real(r8) :: tsai_profile(nclmax,maxpft,nlevleaf) 
-    real(r8) :: canopy_area_profile(nclmax,maxpft,nlevleaf) ! fraction of crown area per canopy area in each layer
-                                                              !   they will sum to 1.0 in the fully closed canopy layers
-                                                              !   but only in leaf-layers that contain contributions
-                                                              !   from all cohorts that donate to canopy_area
+
+    ! exposed leaf area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]
+    real(r8), allocatable :: elai_profile(:,:,:)  ! nclmax,maxpft,nlevleaf)
+    ! exposed stem area in each canopy layer, pft, and leaf layer [m2 leaf/m2 contributing crown area]      
+    real(r8), allocatable :: esai_profile(:,:,:)  ! nclmax,maxpft,nlevleaf)
+    ! total leaf area (includes that which is under snow-pack) 
+    real(r8), allocatable :: tlai_profile(:,:,:)  ! nclmax,maxpft,nlevleaf)
+    ! total stem area (includes that which is under snow-pack)
+    real(r8), allocatable :: tsai_profile(:,:,:)  ! nclmax,maxpft,nlevleaf)
+    
+    real(r8), allocatable :: canopy_area_profile(:,:,:) ! nclmax,maxpft,nlevleaf) ! fraction of crown area per canopy area in each layer
+                                                        !   they will sum to 1.0 in the fully closed canopy layers
+                                                        !   but only in leaf-layers that contain contributions
+                                                        !   from all cohorts that donate to canopy_area
+
     integer  :: canopy_mask(nclmax,maxpft)                  ! is there any of this pft in this canopy layer?      
-    integer  :: nrad(nclmax,maxpft)                         ! number of exposed leaf layers for each canopy layer and pft
-    integer  :: ncan(nclmax,maxpft)                         ! number of total   leaf layers for each canopy layer and pft
+    integer  :: nrad(nclmax,maxpft)                         ! number of exposed vegetation layers for each canopy layer and pft
+    integer  :: nleaf(nclmax,maxpft)                        ! number of total leaf layers for each canopy layer and pft
     real(r8) :: c_stomata                                   ! mean stomatal conductance of all leaves in the patch   [umol/m2/s]
     real(r8) :: c_lblayer                                   ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
     
-    real(r8) :: psn_z(nclmax,maxpft,nlevleaf)
-    real(r8) :: nrmlzd_parprof_pft_dir_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)
-    real(r8) :: nrmlzd_parprof_pft_dif_z(num_rad_stream_types,nclmax,maxpft,nlevleaf)
+    real(r8),allocatable :: nrmlzd_parprof_pft_dir_z(:,:,:,:) !num_rad_stream_types,nclmax,maxpft,nlevleaf)
+    real(r8),allocatable :: nrmlzd_parprof_pft_dif_z(:,:,:,:) !num_rad_stream_types,nclmax,maxpft,nlevleaf)
 
     !---------------------------------------------------------------------------
 
@@ -130,20 +141,20 @@ module FatesPatchMod
     
     
     ! organized by canopy layer, pft, and leaf layer
-    real(r8) :: fabd_sun_z(nclmax,maxpft,nlevleaf)        ! sun fraction of direct light absorbed [0-1]
-    real(r8) :: fabd_sha_z(nclmax,maxpft,nlevleaf)        ! shade fraction of direct light absorbed [0-1]
-    real(r8) :: fabi_sun_z(nclmax,maxpft,nlevleaf)        ! sun fraction of indirect light absorbed [0-1]
-    real(r8) :: fabi_sha_z(nclmax,maxpft,nlevleaf)        ! shade fraction of indirect light absorbed [0-1]
-    real(r8) :: ed_parsun_z(nclmax,maxpft,nlevleaf)       ! PAR absorbed in the sun [W/m2]   
-    real(r8) :: ed_parsha_z(nclmax,maxpft,nlevleaf)       ! PAR absorbed in the shade [W/m2]
-    real(r8) :: f_sun(nclmax,maxpft,nlevleaf)             ! fraction of leaves in the sun [0-1]
-    real(r8) :: ed_laisun_z(nclmax,maxpft,nlevleaf)
-    real(r8) :: ed_laisha_z(nclmax,maxpft,nlevleaf)
+    real(r8),allocatable :: fabd_sun_z(:,:,:)    !nclmax,maxpft,nlevleaf)        ! sun fraction of direct light absorbed [0-1]
+    real(r8),allocatable :: fabd_sha_z(:,:,:)    !nclmax,maxpft,nlevleaf)        ! shade fraction of direct light absorbed [0-1]
+    real(r8),allocatable :: fabi_sun_z(:,:,:)    !nclmax,maxpft,nlevleaf)        ! sun fraction of indirect light absorbed [0-1]
+    real(r8),allocatable :: fabi_sha_z(:,:,:)    !nclmax,maxpft,nlevleaf)        ! shade fraction of indirect light absorbed [0-1]
+    real(r8),allocatable :: ed_parsun_z(:,:,:)   !nclmax,maxpft,nlevleaf)       ! PAR absorbed in the sun [W/m2]   
+    real(r8),allocatable :: ed_parsha_z(:,:,:)   !nclmax,maxpft,nlevleaf)       ! PAR absorbed in the shade [W/m2]
+    real(r8),allocatable :: f_sun(:,:,:)         !nclmax,maxpft,nlevleaf)             ! fraction of leaves in the sun [0-1]
+    real(r8),allocatable :: ed_laisun_z(:,:,:)   !nclmax,maxpft,nlevleaf)
+    real(r8),allocatable :: ed_laisha_z(:,:,:)   !nclmax,maxpft,nlevleaf)
 
     
     ! radiation profiles for comparison against observations
-    real(r8) :: parprof_pft_dir_z(nclmax,maxpft,nlevleaf) ! direct-beam PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
-    real(r8) :: parprof_pft_dif_z(nclmax,maxpft,nlevleaf) ! diffuse     PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
+    real(r8),allocatable :: parprof_pft_dir_z(:,:,:)   !nclmax,maxpft,nlevleaf) ! direct-beam PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
+    real(r8),allocatable :: parprof_pft_dif_z(:,:,:)   !nclmax,maxpft,nlevleaf) ! diffuse     PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
     
     real(r8), allocatable :: tr_soil_dir(:)               ! fraction of incoming direct radiation transmitted to the soil as direct, by numSWB [0-1]
     real(r8), allocatable :: tr_soil_dif(:)               ! fraction of incoming diffuse radiation that is transmitted to the soil as diffuse [0-1]
@@ -206,7 +217,6 @@ module FatesPatchMod
     ! fire spread
     real(r8)              :: ros_front               ! rate of forward  spread of fire [m/min]
     real(r8)              :: ros_back                ! rate of backward spread of fire [m/min]
-    real(r8)              :: effect_wspeed           ! windspeed modified by fraction of relative grass and tree cover [m/min]
     real(r8)              :: tau_l                   ! duration of lethal heating [min]
     real(r8)              :: fi                      ! average fire intensity of flaming front [kJ/m/s] or [kW/m]
     integer               :: fire                    ! is there a fire? [1=yes; 0=no]
@@ -226,11 +236,15 @@ module FatesPatchMod
     contains
 
       procedure :: Init
-      procedure :: NanValues 
+      procedure :: NanValues
+      procedure :: NanDynamics
       procedure :: ZeroValues
+      procedure :: ZeroDynamics
+      procedure :: ReAllocateDynamics
       procedure :: InitRunningMeans
       procedure :: InitLitter
       procedure :: Create
+      procedure :: UpdateTreeGrassArea
       procedure :: FreeMemory
       procedure :: Dump
       procedure :: CheckVars
@@ -273,6 +287,138 @@ module FatesPatchMod
 
     !===========================================================================
 
+    subroutine ReAllocateDynamics(this)
+
+      ! ------------------------------------------------------------------------
+      ! Perform allocations and re-allocations of potentially large patch arrays
+      !
+      ! Note that this routine is called at the very end of dynamics, after trimming
+      ! and after canopy structure. This is important because we want to allocate
+      ! the array spaces for leaf area and radiation scattering based on the most
+      ! updated values.  Note, that this routine is also called before we re-initialize
+      ! radiation scattering during restarts.
+      ! ------------------------------------------------------------------------
+
+      ! arguments
+      class(fates_patch_type), intent(inout) :: this        ! patch object
+
+      ! locals
+      logical  :: re_allocate              ! Should we re-allocate the patch arrays?
+      integer  :: prev_nveg                ! Previous number of vegetation layers
+      integer  :: nveg                     ! Number of vegetation layers
+      integer  :: ncan                     ! Number of canopy layers
+      integer  :: prev_ncan                ! Number of canopy layers previously
+                                           ! as defined in the allocation space
+    
+      ncan = this%ncl_p
+      nveg = maxval(this%nleaf(:,:))
+
+      ! Assume we will need to allocate, unless the
+      ! arrays already are allocated and require the same size
+      re_allocate = .true.
+
+      ! If the large patch arrays are not new, deallocate them
+      if(allocated(this%elai_profile)) then
+
+         prev_ncan = ubound(this%tlai_profile,1)
+         prev_nveg = ubound(this%tlai_profile,3)
+
+         ! We re-allocate if the number of canopy layers has changed, or
+         ! if the number of vegetation layers is larger than previously.
+         ! However, we also re-allocate if the number of vegetation layers
+         ! is not just smaller than previously allocated, but A GOOD BIT smaller
+         ! than previously allocated.  Why?
+         ! We do this so that we are not always re-allocating.
+
+         if( prev_ncan .ne. ncan .or. (nveg>prev_nveg) .or. (nveg<prev_nveg-2) ) then
+
+            deallocate(this%tlai_profile)
+            deallocate(this%tsai_profile)
+            deallocate(this%elai_profile)
+            deallocate(this%esai_profile)
+            deallocate(this%f_sun)
+            deallocate(this%fabd_sun_z)
+            deallocate(this%fabd_sha_z)
+            deallocate(this%fabi_sun_z)
+            deallocate(this%fabi_sha_z)
+            deallocate(this%nrmlzd_parprof_pft_dir_z)
+            deallocate(this%nrmlzd_parprof_pft_dif_z)
+            deallocate(this%ed_parsun_z)
+            deallocate(this%ed_parsha_z)
+            deallocate(this%ed_laisun_z)
+            deallocate(this%ed_laisha_z)
+            deallocate(this%parprof_pft_dir_z)
+            deallocate(this%parprof_pft_dif_z)
+            deallocate(this%canopy_area_profile)
+         else
+            ! The number of canopy layers has not changed
+            ! no need to deallocate or reallocate
+            re_allocate = .false.
+         end if
+
+      end if
+
+      ! Allocate dynamic patch arrays
+
+      if(re_allocate) then
+
+         ! Add a little bit of buffer to the nveg
+         ! so it doesn't need to be reallocated as much
+         nveg = nveg + 1
+         
+         allocate(this%tlai_profile(ncan,numpft,nveg))
+         allocate(this%tsai_profile(ncan,numpft,nveg))
+         allocate(this%elai_profile(ncan,numpft,nveg))
+         allocate(this%esai_profile(ncan,numpft,nveg))
+         allocate(this%canopy_area_profile(ncan,numpft,nveg))
+         allocate(this%f_sun(ncan,numpft,nveg))
+         allocate(this%fabd_sun_z(ncan,numpft,nveg))
+         allocate(this%fabd_sha_z(ncan,numpft,nveg))
+         allocate(this%fabi_sun_z(ncan,numpft,nveg))
+         allocate(this%fabi_sha_z(ncan,numpft,nveg))
+         allocate(this%nrmlzd_parprof_pft_dir_z(num_rad_stream_types,ncan,numpft,nveg))
+         allocate(this%nrmlzd_parprof_pft_dif_z(num_rad_stream_types,ncan,numpft,nveg))
+         allocate(this%ed_parsun_z(ncan,numpft,nveg))
+         allocate(this%ed_parsha_z(ncan,numpft,nveg))
+         allocate(this%ed_laisun_z(ncan,numpft,nveg))
+         allocate(this%ed_laisha_z(ncan,numpft,nveg))
+         allocate(this%parprof_pft_dir_z(ncan,numpft,nveg))
+         allocate(this%parprof_pft_dif_z(ncan,numpft,nveg))
+      end if
+
+      return
+    end subroutine ReAllocateDynamics
+    
+    !===========================================================================
+    
+    subroutine NanDynamics(this)
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this ! patch object
+
+      this%elai_profile(:,:,:)          = nan 
+      this%esai_profile(:,:,:)          = nan   
+      this%tlai_profile(:,:,:)          = nan 
+      this%tsai_profile(:,:,:)          = nan
+      this%canopy_area_profile(:,:,:)   = nan  
+      this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = nan
+      this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = nan
+
+      this%fabd_sun_z(:,:,:)            = nan 
+      this%fabd_sha_z(:,:,:)            = nan 
+      this%fabi_sun_z(:,:,:)            = nan 
+      this%fabi_sha_z(:,:,:)            = nan
+      this%ed_laisun_z(:,:,:)           = nan 
+      this%ed_laisha_z(:,:,:)           = nan 
+      this%ed_parsun_z(:,:,:)           = nan 
+      this%ed_parsha_z(:,:,:)           = nan 
+      this%f_sun(:,:,:)                 = nan
+      this%parprof_pft_dir_z(:,:,:)     = nan 
+      this%parprof_pft_dif_z(:,:,:)     = nan
+      
+    end subroutine NanDynamics
+
+    !===========================================================================
+    
     subroutine NanValues(this)
       !
       !  DESCRIPTION:
@@ -309,23 +455,19 @@ module FatesPatchMod
       this%pft_agb_profile(:,:)         = nan
       this%canopy_layer_tlai(:)         = nan               
       this%total_canopy_area            = nan
-      this%total_tree_area              = nan 
+      this%total_tree_area              = nan
+      this%total_grass_area             = nan
       this%zstar                        = nan 
-      this%elai_profile(:,:,:)          = nan 
-      this%esai_profile(:,:,:)          = nan   
-      this%tlai_profile(:,:,:)          = nan 
-      this%tsai_profile(:,:,:)          = nan 
-      this%canopy_area_profile(:,:,:)   = nan  
+
+     
       this%canopy_mask(:,:)             = fates_unset_int
       this%nrad(:,:)                    = fates_unset_int
-      this%ncan(:,:)                    = fates_unset_int
+      this%nleaf(:,:)                   = fates_unset_int
       this%c_stomata                    = nan 
       this%c_lblayer                    = nan
       
-      this%psn_z(:,:,:)                 = nan 
-      this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = nan
-      this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = nan
 
+      
       ! RADIATION
       this%rad_error(:)                 = nan
       this%fcansno                      = nan 
@@ -333,17 +475,9 @@ module FatesPatchMod
       this%solar_zenith_angle           = nan 
       this%gnd_alb_dif(:)               = nan 
       this%gnd_alb_dir(:)               = nan
-      this%fabd_sun_z(:,:,:)            = nan 
-      this%fabd_sha_z(:,:,:)            = nan 
-      this%fabi_sun_z(:,:,:)            = nan 
-      this%fabi_sha_z(:,:,:)            = nan
-      this%ed_laisun_z(:,:,:)           = nan 
-      this%ed_laisha_z(:,:,:)           = nan 
-      this%ed_parsun_z(:,:,:)           = nan 
-      this%ed_parsha_z(:,:,:)           = nan 
-      this%f_sun(:,:,:)                 = nan
-      this%parprof_pft_dir_z(:,:,:)     = nan 
-      this%parprof_pft_dif_z(:,:,:)     = nan
+
+      
+
       this%tr_soil_dir(:)               = nan    
       this%tr_soil_dif(:)               = nan    
       this%tr_soil_dir_dif(:)           = nan
@@ -382,7 +516,6 @@ module FatesPatchMod
       this%litter_moisture(:)           = nan
       this%ros_front                    = nan
       this%ros_back                     = nan   
-      this%effect_wspeed                = nan    
       this%tau_l                        = nan
       this%fi                           = nan 
       this%fire                         = fates_unset_int
@@ -396,6 +529,34 @@ module FatesPatchMod
 
     !===========================================================================
 
+    subroutine ZeroDynamics(this)
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this
+
+      this%f_sun(:,:,:) = 0._r8
+      this%fabd_sun_z(:,:,:) = 0._r8
+      this%fabi_sun_z(:,:,:) = 0._r8
+      this%fabd_sha_z(:,:,:) = 0._r8
+      this%fabi_sha_z(:,:,:) = 0._r8
+      this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
+      this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+
+      ! Added
+      this%elai_profile(:,:,:)          = 0._r8
+      this%esai_profile(:,:,:)          = 0._r8
+      this%tlai_profile(:,:,:)          = 0._r8
+      this%tsai_profile(:,:,:)          = 0._r8
+      this%canopy_area_profile(:,:,:)   = 0._r8
+      
+      this%ed_laisun_z(:,:,:)           = 0._r8
+      this%ed_laisha_z(:,:,:)           = 0._r8
+      this%ed_parsun_z(:,:,:)           = 0._r8
+      this%ed_parsha_z(:,:,:)           = 0._r8
+      this%parprof_pft_dir_z(:,:,:)     = 0._r8
+      this%parprof_pft_dif_z(:,:,:)     = 0._r8
+      
+    end subroutine ZeroDynamics
+    
     subroutine ZeroValues(this)
       !
       ! DESCRIPTION:
@@ -408,26 +569,16 @@ module FatesPatchMod
           
       ! LEAF ORGANIZATION
       this%canopy_layer_tlai(:)              = 0.0_r8
-      this%total_tree_area                   = 0.0_r8  
+      this%total_tree_area                   = 0.0_r8
+      this%total_grass_area                  = 0.0_r8
       this%zstar                             = 0.0_r8
-      this%elai_profile(:,:,:)               = 0.0_r8
+      
       this%c_stomata                         = 0.0_r8 
       this%c_lblayer                         = 0.0_r8
-      this%psn_z(:,:,:)                      = 0.0_r8
-      this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0.0_r8
-      this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0.0_r8
 
+      
       ! RADIATION
       this%rad_error(:)                      = 0.0_r8
-      this%fabd_sun_z(:,:,:)                 = 0.0_r8 
-      this%fabd_sha_z(:,:,:)                 = 0.0_r8 
-      this%fabi_sun_z(:,:,:)                 = 0.0_r8 
-      this%fabi_sha_z(:,:,:)                 = 0.0_r8  
-      this%ed_parsun_z(:,:,:)                = 0.0_r8 
-      this%ed_parsha_z(:,:,:)                = 0.0_r8
-      this%ed_laisun_z(:,:,:)           = 0._r8
-      this%ed_laisha_z(:,:,:)           = 0._r8
-      this%f_sun                             = 0.0_r8
       this%tr_soil_dir_dif(:)                = 0.0_r8
       this%fab(:)                            = 0.0_r8
       this%fabi(:)                           = 0.0_r8
@@ -459,7 +610,6 @@ module FatesPatchMod
       this%litter_moisture(:)                = 0.0_r8
       this%ros_front                         = 0.0_r8
       this%ros_back                          = 0.0_r8
-      this%effect_wspeed                     = 0.0_r8
       this%tau_l                             = 0.0_r8
       this%fi                                = 0.0_r8
       this%fd                                = 0.0_r8
@@ -616,6 +766,42 @@ module FatesPatchMod
 
     !===========================================================================
 
+    subroutine UpdateTreeGrassArea(this)
+      !
+      ! DESCRIPTION:
+      ! calculate and update the total tree area and grass area (by canopy) on patch
+      !
+
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this ! patch object 
+
+      ! LOCALS:
+      type(fates_cohort_Type), pointer :: currentCohort ! cohort object
+      real(r8)                         :: tree_area     ! treed area of patch [m2]
+      real(r8)                         :: grass_area    ! grass area of patch [m2]
+
+      if (this%nocomp_pft_label /= nocomp_bareground) then 
+        tree_area = 0.0_r8
+        grass_area = 0.0_r8
+        
+        currentCohort => this%tallest
+        do while(associated(currentCohort))
+          if (prt_params%woody(currentCohort%pft) == itrue) then
+            tree_area = tree_area + currentCohort%c_area
+          else
+            grass_area = grass_area + currentCohort%c_area
+          end if
+          currentCohort => currentCohort%shorter
+        end do
+        
+        this%total_tree_area = min(tree_area, this%area)
+        this%total_grass_area = min(grass_area, this%area)
+      end if 
+
+    end subroutine UpdateTreeGrassArea
+
+    !===========================================================================
+
     subroutine FreeMemory(this, regeneration_model, numpft)
       !
       ! DESCRIPTION:
@@ -676,6 +862,32 @@ module FatesPatchMod
                  this%fragmentation_scaler,     &
                  stat=istat, errmsg=smsg)
 
+      ! These arrays are allocated via a call from EDCanopyStructureMod
+      ! while determining how many canopy and leaf layers the patch has.
+      ! Its possible that patches may be spawned and destroyed before
+      ! ever reaching that routine, thus we must check to see
+      ! if the they are already allocated.
+      if(allocated(this%elai_profile)) then
+         deallocate(this%tlai_profile)
+         deallocate(this%tsai_profile)
+         deallocate(this%elai_profile)
+         deallocate(this%esai_profile)
+         deallocate(this%f_sun)
+         deallocate(this%fabd_sun_z)
+         deallocate(this%fabd_sha_z)
+         deallocate(this%fabi_sun_z)
+         deallocate(this%fabi_sha_z)
+         deallocate(this%nrmlzd_parprof_pft_dir_z)
+         deallocate(this%nrmlzd_parprof_pft_dif_z)
+         deallocate(this%ed_parsun_z)
+         deallocate(this%ed_parsha_z)
+         deallocate(this%ed_laisun_z)
+         deallocate(this%ed_laisha_z)
+         deallocate(this%parprof_pft_dir_z)
+         deallocate(this%parprof_pft_dif_z)
+         deallocate(this%canopy_area_profile)
+      end if
+      
       if (istat/=0) then
         write(fates_log(),*) 'dealloc009: fail on deallocate patch vectors:'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -740,6 +952,7 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%ncl_p              = ',this%ncl_p
       write(fates_log(),*) 'pa%total_canopy_area  = ',this%total_canopy_area
       write(fates_log(),*) 'pa%total_tree_area    = ',this%total_tree_area
+      write(fates_log(),*) 'pa%total_grass_area   = ',this%total_grass_area
       write(fates_log(),*) 'pa%zstar              = ',this%zstar
       write(fates_log(),*) 'pa%solar_zenith_flag  = ',this%solar_zenith_flag
       write(fates_log(),*) 'pa%solar_zenith_angle = ',this%solar_zenith_angle
