@@ -293,7 +293,7 @@ def main():
             print("dimension: {}, removed".format(dimname))
             
         elif(mod.attrib['type'].strip() == 'variable_add'):
-
+            print("Adding Parameter")
             try:
                 paramname = mod.find('na').text.strip()
             except:
@@ -365,6 +365,7 @@ def main():
 
             
         elif(mod.attrib['type'] == 'variable_del'):
+            print("Deleting Parameter")
             try:
                 paramname = mod.find('na').text.strip()
             except:
@@ -376,6 +377,8 @@ def main():
             
         elif(mod.attrib['type'] == 'variable_change'):  
 
+            print("Changing Parameter")
+            
             try:
                 paramname_o = mod.attrib['name'].strip()
             except:
@@ -404,6 +407,8 @@ def main():
             # Change the parameter's name and/or the dimensionality
             if(not isinstance(newparamname,type(None)) or not isinstance(dimnames,type(None))):
 
+                print("Changing Name")
+                
                 # Initialize the parameter name to pass to the create variable function
                 # If this is None, a dimension update is happening and this will be updated
                 # below
@@ -448,7 +453,8 @@ def main():
 
             else:
                 ncvar = ncvar_o
-
+                dims_o = ncvar_o.dimensions
+                
             # Change the metadata:
             try:
                 units = mod.find('un').text.strip()

@@ -186,13 +186,16 @@ contains
 
     ! leaf maintenance (dark) respiration [umol CO2/m**2/s]
     real(r8) :: lmr_z(nlevleaf,maxpft,nclmax)
-
+    
     ! stomatal resistance [s/m]
     real(r8) :: rs_z(nlevleaf,maxpft,nclmax)
 
     ! net leaf photosynthesis averaged over sun and shade leaves. [umol CO2/m**2/s]
     real(r8) :: anet_av_z(nlevleaf,maxpft,nclmax)
 
+    ! Photosynthesis [umol /m2 /s]
+    real(r8) :: psn_z(nlevleaf,maxpft,nclmax)
+    
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
     logical :: rate_mask_z(nlevleaf,maxpft,nclmax)
@@ -353,6 +356,8 @@ contains
                bc_out(s)%rssun_pa(ifp)     = 0._r8
                bc_out(s)%rssha_pa(ifp)     = 0._r8
 
+               psn_z(:,:,:) = 0._r8
+               
                g_sb_leaves = 0._r8
                patch_la    = 0._r8
 
@@ -369,7 +374,7 @@ contains
                   ! Part III. Calculate the number of sublayers for each pft and layer.
                   ! And then identify which layer/pft combinations have things in them.
                   ! Output:
-                  ! currentPatch%ncan(:,:)
+                  ! currentPatch%nleaf(:,:)
                   ! currentPatch%canopy_mask(:,:)
                   call UpdateCanopyNCanNRadPresent(currentPatch)
 
@@ -723,7 +728,7 @@ contains
                                       lmr_z(iv,ft,cl),                    &  ! in
                                       leaf_psi,                           &  ! in
                                       bc_in(s)%rb_pa(ifp),                &  ! in  
-                                      currentPatch%psn_z(cl,ft,iv),       &  ! out
+                                      psn_z(iv,ft,cl),                    &  ! out
                                       rs_z(iv,ft,cl),                     &  ! out
                                       anet_av_z(iv,ft,cl),                &  ! out
                                       c13disc_z(cl,ft,iv))                   ! out
@@ -755,7 +760,7 @@ contains
                            if(radiation_model.eq.norman_solver) then
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   currentPatch%psn_z(cl,ft,1:nv),        & !in
+                                   psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    currentPatch%elai_profile(cl,ft,1:nv), & !in
@@ -773,7 +778,7 @@ contains
                            else
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   currentPatch%psn_z(cl,ft,1:nv),        & !in
+                                   psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    cohort_layer_elai(1:nv),               & !in
@@ -1301,6 +1306,13 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! Fraction of light absorbed by non-photosynthetic pigments
   real(r8),parameter :: fnps = 0.15_r8
 
+  ! term accounting that two photons are needed to fully transport a single 
+  ! electron in photosystem 2
+  real(r8), parameter :: photon_to_e = 0.5_r8
+
+  ! Unit conversion of w/m2 to umol photons m-2 s-1
+  real(r8), parameter :: wm2_to_umolm2s = 4.6_r8
+  
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
@@ -1319,6 +1331,9 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! empirical curvature parameter for ap photosynthesis co-limitation
   real(r8),parameter :: theta_ip = 0.999_r8
 
+  ! minimum Leaf area to solve, too little has shown instability
+  real(r8), parameter :: min_la_to_solve = 0.0000000001_r8
+  
   associate( bb_slope  => EDPftvarcon_inst%bb_slope      ,& ! slope of BB relationship, unitless
        medlyn_slope=> EDPftvarcon_inst%medlyn_slope          , & ! Slope for Medlyn stomatal conductance model method, the unit is KPa^0.5
        stomatal_intercept=> EDPftvarcon_inst%stomatal_intercept )  !Unstressed minimum stomatal conductance, the unit is umol/m**2/s
@@ -1361,24 +1376,31 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
         do  sunsha = 1,2
            ! Electron transport rate for C3 plants.
-           ! Convert par from W/m2 to umol photons/m**2/s using the factor 4.6
+           ! Convert par from W/m2 to umol photons/m**2/s
            ! Convert from units of par absorbed per unit ground area to par
            ! absorbed per unit leaf area.
 
            if(sunsha == 1)then !sunlit
-              if(( laisun_lsl * canopy_area_lsl) > 0.0000000001_r8)then
+              if(( laisun_lsl * canopy_area_lsl) > min_la_to_solve)then
 
                  qabs = parsun_lsl / (laisun_lsl * canopy_area_lsl )
-                 qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
+                 qabs = qabs * photon_to_e * (1._r8 - fnps) * wm2_to_umolm2s
 
               else
                  qabs = 0.0_r8
               end if
            else
 
-              qabs = parsha_lsl / (laisha_lsl * canopy_area_lsl)
-              qabs = qabs * 0.5_r8 * (1._r8 - fnps) *  4.6_r8
+              if( (parsha_lsl>nearzero) .and. (laisha_lsl * canopy_area_lsl) > min_la_to_solve  ) then
 
+                 qabs = parsha_lsl / (laisha_lsl * canopy_area_lsl)
+                 qabs = qabs * photon_to_e * (1._r8 - fnps) *  wm2_to_umolm2s
+              else                 
+                 ! The radiative transfer schemes are imperfect
+                 ! they can sometimes generate negative values here
+                 qabs = 0._r8
+              end if
+              
            end if
 
            !convert the absorbed par into absorbed par per m2 of leaf,
@@ -1428,14 +1450,14 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                  if(sunsha == 1)then !sunlit
                     !guard against /0's in the night.
                     if((laisun_lsl * canopy_area_lsl) > 0.0000000001_r8) then
-                       aj = quant_eff(c3c4_path_index) * parsun_lsl * 4.6_r8
+                       aj = quant_eff(c3c4_path_index) * parsun_lsl * wm2_to_umolm2s
                        !convert from per cohort to per m2 of leaf)
                        aj = aj / (laisun_lsl * canopy_area_lsl)
                     else
                        aj = 0._r8
                     end if
                  else
-                    aj = quant_eff(c3c4_path_index) * parsha_lsl * 4.6_r8
+                    aj = quant_eff(c3c4_path_index) * parsha_lsl * wm2_to_umolm2s
                     aj = aj / (laisha_lsl * canopy_area_lsl)
                  end if
 
@@ -1478,6 +1500,31 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               ! With an <= 0, then gs_mol = stomatal_intercept_btran
               leaf_co2_ppress = can_co2_ppress- h2o_co2_bl_diffuse_ratio/gb_mol * a_gs * can_press 		   
               leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
+
+              ! A note about the use of the quadratic equations for calculating stomatal conductance
+              ! ------------------------------------------------------------------------------------
+              ! These two following models calculate the conductance between the intercellular leaf
+              ! space and the leaf surface, not the canopy air space.  Transport between the leaf
+              ! surface and the canopy air space is governed by the leaf boundary layer conductance.
+              ! However, we need to estimate the properties at the surface of the leaf to solve for
+              ! the stomatal conductance. We do this by using Fick's law (gradient resistance
+              ! approximation of diffusion) to estimate the flux of water vapor across the
+              ! leaf boundary layer, and balancing that with the flux across the stomata. It
+              ! results in the following equation for leaf surface humidity:
+              !
+              ! e_s = (e_i g_s + e_c g_b)/(g_b + g_s)
+              !
+              ! The leaf surface humidity (e_s) becomes an expression of canopy humidity (e_c),
+              ! intercellular humidity (e_i, which is the saturation humidity at leaf temperature),
+              ! boundary layer conductance (g_b) (these are all known) and stomatal conductance
+              ! (g_s) (this is still unknown).  This expression is substituted into the stomatal
+              ! conductance equation. The resulting form of these equations becomes a quadratic.
+              !
+              ! For a detailed explanation, see the FATES technical note, section
+              ! "1.11 Stomatal Conductance"
+              !
+              ! ------------------------------------------------------------------------------------
+              
               
               if ( stomatal_model == medlyn_model ) then
                  !stomatal conductance calculated from Medlyn et al. (2011), the numerical &
@@ -1933,16 +1980,16 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine calculates two patch level quanities:
-    ! currentPatch%ncan   and
+    ! currentPatch%nleaf   and
     ! currentPatch%canopy_mask
     !
-    ! currentPatch%ncan(:,:) is a two dimensional array that indicates
+    ! currentPatch%nleaf(:,:) is a two dimensional array that indicates
     ! the total number of leaf layers (including those that are not exposed to light)
     ! in each canopy layer and for each functional type.
     !
     ! currentPatch%nrad(:,:) is a two dimensional array that indicates
     ! the total number of EXPOSED leaf layers, but for all intents and purposes
-    ! in the photosynthesis routine, this appears to be the same as %ncan...
+    ! in the photosynthesis routine, this appears to be the same as %nleaf...
     !
     ! currentPatch%canopy_mask(:,:) has the same dimensions, is binary, and
     ! indicates whether or not leaf layers are present (by evaluating the canopy area
@@ -1963,14 +2010,14 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     ! of the layer/pft index it is in
     ! ---------------------------------------------------------------------------------
 
-    currentPatch%ncan(:,:) = 0
+    currentPatch%nleaf(:,:) = 0
     ! redo the canopy structure algorithm to get round a
     ! bug that is happening for site 125, FT13.
     currentCohort => currentPatch%tallest
     do while(associated(currentCohort))
 
-       currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft) = &
-            max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft), &
+       currentPatch%nleaf(currentCohort%canopy_layer,currentCohort%pft) = &
+            max(currentPatch%nleaf(currentCohort%canopy_layer,currentCohort%pft), &
             currentCohort%NV)
 
        currentCohort => currentCohort%shorter
@@ -1978,10 +2025,10 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     enddo !cohort
 
     ! NRAD = NCAN ...
-    currentPatch%nrad = currentPatch%ncan
+    currentPatch%nrad = currentPatch%nleaf
 
     ! Now loop through and identify which layer and pft combo has scattering elements
-    do cl = 1,nclmax
+    do cl = 1,currentPatch%ncl_p
        do ft = 1,numpft
           currentPatch%canopy_mask(cl,ft) = 0
           do iv = 1, currentPatch%nrad(cl,ft);
