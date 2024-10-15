@@ -372,16 +372,29 @@ def main(argv):
         if (param.attrib['name']=='fates_maintresp_leaf_model'):
             fates_maintresp_leaf_model = int(param.text.split(',')[0])
 
-    
-            
-    #if(do_paramsense):
-    #    ParamSense()
-        
     # Leaf temperature ranges [C]
     leaf_tempc_min = -20.0
-    leaf_tempc_max = 40.0
-    leaf_tempc_n = 100
+    leaf_tempc_max = 50.0
+    leaf_tempc_n = 75
     leaf_tempc_vec = np.linspace(leaf_tempc_min,leaf_tempc_max,num=leaf_tempc_n)
+
+    # Relative Humidity Ranges
+    rh_max = 0.99
+    rh_min = 0.02
+    rh_n   = 75
+    rh_vec = np.linspace(rh_min,rh_max,num=rh_n)
+    
+    # Absorbed PAR ranges [W/m2]
+    par_abs_min = 0.01
+    par_abs_max = 100
+    par_abs_n  = 75
+    par_abs_vec = np.linspace(par_abs_min,par_abs_max,num=par_abs_n)
+
+    # Boundary Conductance ranges [umol/m2/s]
+    gb_min =  500000.0            # Lower limit imposed by CLM/ELM
+    gb_max = 2500000.0            # Roughly largest values seen at BCI
+    gb_n  = 5
+    gb_vec = np.linspace(gb_min,gb_max,num=gb_n)
     
     # These variables are mostly dependent on leaf temperature,
     # and weakly dependent on atmospheric pressure
@@ -390,18 +403,7 @@ def main(argv):
     mm_kco2_vec = np.zeros([leaf_tempc_n])
     mm_ko2_vec = np.zeros([leaf_tempc_n])
     co2_cpoint_vec = np.zeros([leaf_tempc_n])
-    
-    # Absorbed PAR ranges [W/m2]
-    par_abs_min = 0.01
-    par_abs_max = 100
-    par_abs_n  = 100
-    par_abs_vec = np.linspace(par_abs_min,par_abs_max,num=par_abs_n)
 
-    # Relative Humidity Ranges
-    rh_max = 0.99
-    rh_min = 0.02
-    rh_n   = 100
-    rh_vec = np.linspace(rh_min,rh_max,num=rh_n)
     
     # Generic boundary layer conductance from Kimura et al ~1.2 cm/s
     # reasonable ranges for green houses are 0-3 cm/s
@@ -496,15 +498,15 @@ def main(argv):
         jmax  = np.zeros([leaf_tempc_n])
         kp    = np.zeros([leaf_tempc_n])
         lmr    = np.zeros([leaf_tempc_n])
-        agross = np.zeros([leaf_tempc_n,rh_n,par_abs_n])
-        gstoma = np.zeros([leaf_tempc_n,rh_n,par_abs_n])
-        anet   = np.zeros([leaf_tempc_n,rh_n,par_abs_n])
-        ac     = np.zeros([leaf_tempc_n,rh_n,par_abs_n])
-        aj     = np.zeros([leaf_tempc_n,rh_n,par_abs_n])
-        ap     = np.zeros([leaf_tempc_n,rh_n,par_abs_n])
-        co2_interc = np.zeros([leaf_tempc_n,rh_n,par_abs_n])
-
-        gs_max_sun_k = np.zeros([leaf_tempc_n,rh_n])
+        
+        agross = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
+        gstoma = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
+        anet   = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
+        ac     = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
+        aj     = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
+        ap     = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
+        co2_interc = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
+        minag = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n],dtype=np.int32)
         
         # When calling component limitations exclusively
         # using an approximation of interstitial co2 as
@@ -565,41 +567,45 @@ def main(argv):
                 for ir, rh in enumerate(rh_vec):
 
                     vpress = rh * veg_esat_vec[it]
-            
-                    iret = f90_leaflayerphoto_sub(c8(par_abs),  \
-                                                  c8(1.0),     \
-                                                  ci(pft+1),   \
-                                                  c8(vcmax[it]),   \
-                                                  c8(jmax[it]),    \
-                                                  c8(kp[it]),      \
-                                                  c8(leaf_tempk), \
-                                                  c8(can_press_1atm), \
-                                                  c8(co2_ppress_400ppm), \
-                                                  c8(o2_ppress_209kppm), \
-                                                  c8(btran_nolimit), \
-                                                  c8(bl_cond_const), \
-                                                  c8(vpress), \
-                                                  c8(mm_kco2_vec[it]), \
-                                                  c8(mm_ko2_vec[it]), \
-                                                  c8(co2_cpoint_vec[it]), \
-                                                  c8(lmr[it]), \
-                                                  c8(zero_lwp), \
-                                                  byref(agross_f), \
-                                                  byref(gstoma_f), \
-                                                  byref(anet_f), \
-                                                  byref(c13_f), \
-                                                  byref(ac_f), \
-                                                  byref(aj_f), \
-                                                  byref(ap_f), \
-                                                  byref(co2_interc_f))
 
-                    agross[it,ir,ip] = agross_f.value
-                    gstoma[it,ir,ip] = gstoma_f.value
-                    anet[it,ir,ip] = anet_f.value
-                    ac[it,ir,ip] = ac_f.value
-                    aj[it,ir,ip] = aj_f.value
-                    ap[it,ir,ip] = ap_f.value
-                    co2_interc[it,ir,ip] = co2_interc_f.value
+                    for ig, gb in enumerate(gb_vec):
+                        
+                        iret = f90_leaflayerphoto_sub(c8(par_abs),  \
+                                                      c8(1.0),     \
+                                                      ci(pft+1),   \
+                                                      c8(vcmax[it]),   \
+                                                      c8(jmax[it]),    \
+                                                      c8(kp[it]),      \
+                                                      c8(leaf_tempk), \
+                                                      c8(can_press_1atm), \
+                                                      c8(co2_ppress_400ppm), \
+                                                      c8(o2_ppress_209kppm), \
+                                                      c8(btran_nolimit), \
+                                                      c8(gb), \
+                                                      c8(vpress), \
+                                                      c8(mm_kco2_vec[it]), \
+                                                      c8(mm_ko2_vec[it]), \
+                                                      c8(co2_cpoint_vec[it]), \
+                                                      c8(lmr[it]), \
+                                                      c8(zero_lwp), \
+                                                      byref(agross_f), \
+                                                      byref(gstoma_f), \
+                                                      byref(anet_f), \
+                                                      byref(c13_f), \
+                                                      byref(ac_f), \
+                                                      byref(aj_f), \
+                                                      byref(ap_f), \
+                                                      byref(co2_interc_f))
+                        
+
+                        agross[it,ir,ip,ig] = agross_f.value
+                        gstoma[it,ir,ip,ig] = gstoma_f.value
+                        anet[it,ir,ip,ig] = anet_f.value
+                        ac[it,ir,ip,ig] = ac_f.value
+                        aj[it,ir,ip,ig] = aj_f.value
+                        ap[it,ir,ip,ig] = ap_f.value
+                        minag[it,ir,ip,ig] = np.argmin([ac_f.value,aj_f.value,ap_f.value])
+                        co2_interc[it,ir,ip,ig] = co2_interc_f.value
 
 
         # Plot out component gross assimilation rates
@@ -608,6 +614,8 @@ def main(argv):
             
         fig2,ax1 = plt.subplots(1,1,figsize=(6.5,5.5))
 
+        gb_id = 1
+        
         ax1.plot(leaf_tempc_vec,ac2,label='Ac')
         ix2_10 = int(par_abs_n*0.1)
         ix2_50 = int(par_abs_n*0.5)
@@ -631,27 +639,30 @@ def main(argv):
         
         fig3, ((ax1,ax2),(ax3,ax4),(ax5,ax6),(ax7,ax8)) = plt.subplots(4,2,figsize=(7.,9.))
 
-        LinePlotY3dM1(ax1,leaf_tempc_vec,rh_vec,par_abs_vec,agross,'RH','APAR',True)
+        #par_abs_vec[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n])
+        #,gb_id
+        
+        LinePlotY3dM1(ax1,leaf_tempc_vec,rh_vec,par_abs_vec,agross[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',True)
         ax1.set_ylabel('Agross \n [umol/m2/s]')
         ax1.set_xticklabels([])
         
-        LinePlotY3dM1(ax2,leaf_tempc_vec,rh_vec,par_abs_vec,gstoma*1.e-6,'RH','APAR',False)
+        LinePlotY3dM1(ax2,leaf_tempc_vec,rh_vec,par_abs_vec,gstoma[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n])*1.e-6,'RH','APAR',False)
         ax2.set_ylabel('Gs \n [mol/m2/s]')
         ax2.yaxis.set_label_position("right")
         ax2.yaxis.tick_right()
         ax2.set_xticklabels([])
         
-        LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,ac,'RH','APAR',False)
+        LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,ac[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
         ax3.set_ylabel('Ac (Rubisco) \n [umol/m2/s]')
         ax3.set_xticklabels([])
         
-        LinePlotY3dM1(ax4,leaf_tempc_vec,rh_vec,par_abs_vec,aj,'RH','APAR',False)
+        LinePlotY3dM1(ax4,leaf_tempc_vec,rh_vec,par_abs_vec,aj[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
         ax4.set_ylabel('Aj (RuBP) \n [umol/m2/s]')
         ax4.yaxis.set_label_position("right")
         ax4.yaxis.tick_right()
         ax4.set_xticklabels([])
         
-        LinePlotY3dM1(ax5,leaf_tempc_vec,rh_vec,par_abs_vec,co2_interc,'RH','APAR',False)
+        LinePlotY3dM1(ax5,leaf_tempc_vec,rh_vec,par_abs_vec,co2_interc[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
         ax5.set_ylabel('Ci \n [Pa]')
         ax5.axhline(y=co2_ppress_400ppm,linewidth=2, color=[0.3,0.3,0.3])
         

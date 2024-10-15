@@ -653,14 +653,6 @@ contains
           end if
           a_gs = agross_out
        else
-
-          ! RGK: I'm not sure why we break out here.  Anet can be negative when the plant
-          ! is performing photosynthesis, but respiration is larger than production, I see
-          ! no reason to exit the solver early...
-          if (anet_out < 0._r8) then
-             loop_continue = .false.
-          end if
-          
           a_gs = anet_out
        end if
 
@@ -689,12 +681,7 @@ contains
        ! ------------------------------------------------------------------------------------
 
        leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb * anet_out * can_press 		   
-
-       ! RGK: THIS 1e-6 CAP IS UNREASONBLY LOW. Units are Pascals. If the leaf internal CO2 is below 1
-       ! pascal even, that is incredibly low. It should be some moderate fraction of
-       ! atmospheric CO2 (which is roughly 40ish circa 2024), something that is much closer
-       ! to that value than even 25% to 200%
-       ! leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
+       leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
        
        ! Determine saturation vapor pressure at the leaf surface, from temp and atm-pressure
        call QSat(veg_tempk, can_press, veg_qs, veg_esat)
