@@ -33,13 +33,6 @@ from operator import add
 sys.path.append('../shared/py_src')
 from PyF90Utils import c8, ci, cchar, c8_arr, ci_arr, ccharnb
 
-import torch
-from torch import nn
-from torch.utils.data import DataLoader
-from torchvision import datasets
-from torchvision.transforms import ToTensor
-
-
 font = {'family' : 'sans-serif',
         'weight' : 'normal',
         'size'   : 11}
@@ -163,7 +156,6 @@ def EvalVJKByTemp(pft,fates_leaf_vcmax25top,leaf_c3psn):
     jmax_f  = c_double(-9)
     kp_f    = c_double(-9)
     
-    print('Evaluating PFT {}'.format(pft+1))
     jmax25_top,kp25_top =  GetJmaxKp25Top(fates_leaf_vcmax25top)
     vcmax = np.zeros([leaf_tempc_n])
     jmax  = np.zeros([leaf_tempc_n])
@@ -506,7 +498,7 @@ def main(argv):
         aj     = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
         ap     = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
         co2_interc = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
-        minag = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n],dtype=np.int32)
+        minag = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
         
         # When calling component limitations exclusively
         # using an approximation of interstitial co2 as
@@ -604,7 +596,10 @@ def main(argv):
                         ac[it,ir,ip,ig] = ac_f.value
                         aj[it,ir,ip,ig] = aj_f.value
                         ap[it,ir,ip,ig] = ap_f.value
-                        minag[it,ir,ip,ig] = np.argmin([ac_f.value,aj_f.value,ap_f.value])
+                        if(leaf_c3psn == 0):
+                            minag[it,ir,ip,ig] = float(np.argmin([ac_f.value,aj_f.value,ap_f.value]))+1
+                        else:
+                            minag[it,ir,ip,ig] = float(np.argmin([ac_f.value,aj_f.value]))+1
                         co2_interc[it,ir,ip,ig] = co2_interc_f.value
 
 
@@ -614,8 +609,6 @@ def main(argv):
             
         fig2,ax1 = plt.subplots(1,1,figsize=(6.5,5.5))
 
-        gb_id = 1
-        
         ax1.plot(leaf_tempc_vec,ac2,label='Ac')
         ix2_10 = int(par_abs_n*0.1)
         ix2_50 = int(par_abs_n*0.5)
@@ -623,10 +616,8 @@ def main(argv):
         ax1.plot(leaf_tempc_vec,aj2[:,ix2_10],color=[0.5,0.5,0.5],linestyle='dotted',label='Aj apar=%4.1f'%(par_abs_vec[ix2_10]))
         ax1.plot(leaf_tempc_vec,aj2[:,ix2_50],color=[0.5,0.5,0.5],linestyle='dashed',label='Aj apar=%4.1f'%(par_abs_vec[ix2_50]))
         ax1.plot(leaf_tempc_vec,aj2[:,ix2_90],color=[0.5,0.5,0.5],linestyle='solid',label='Aj apar=%4.1f'%(par_abs_vec[ix2_90]))
-        #if(leaf_c3psn[pft] == 0):
-        #    ax1.axhline(y=ap2,linewidth=2, color=[0.3,0.3,0.3])
         ax1.plot(leaf_tempc_vec,ap2[:],color='orange',linestyle='solid',label='Ap')
-        
+        ax1.plot(leaf_tempc_vec, lmr, color=[0.7,0.5,0.3],linestyle='solid',label='Rdark')
         ax1.set_ylabel('[umol/m2/s]')
         ax1.set_xlabel('Leaf Temperature [C]')
         ax1.set_title('PFT: %3i, Vcmax25: %4.1f, Jmax25: %4.1f, Ci: %4.1f'%(pft+1,fates_leaf_vcmax25top[pft],jmax25_top,ci_ppress_static))
@@ -637,51 +628,31 @@ def main(argv):
         # 10th, 50th and 90th percentiles of both RH and PAR
         # Agross, Anet, Gstoma, Ac, Aj, Ap
         
-        fig3, ((ax1,ax2),(ax3,ax4),(ax5,ax6),(ax7,ax8)) = plt.subplots(4,2,figsize=(7.,9.))
+        fig3, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(7.,8.))
 
-        #par_abs_vec[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n])
-        #,gb_id
+        gb_id = 1
         
-        LinePlotY3dM1(ax1,leaf_tempc_vec,rh_vec,par_abs_vec,agross[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',True)
+        LinePlotY3dM1(ax1,leaf_tempc_vec,rh_vec,par_abs_vec, \
+                      agross[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',True)
         ax1.set_ylabel('Agross \n [umol/m2/s]')
         ax1.set_xticklabels([])
         
-        LinePlotY3dM1(ax2,leaf_tempc_vec,rh_vec,par_abs_vec,gstoma[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n])*1.e-6,'RH','APAR',False)
+        LinePlotY3dM1(ax2,leaf_tempc_vec,rh_vec,par_abs_vec,\
+                      gstoma[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n])*1.e-6,'RH','APAR',False)
         ax2.set_ylabel('Gs \n [mol/m2/s]')
         ax2.yaxis.set_label_position("right")
         ax2.yaxis.tick_right()
-        ax2.set_xticklabels([])
-        
-        LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,ac[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
-        ax3.set_ylabel('Ac (Rubisco) \n [umol/m2/s]')
-        ax3.set_xticklabels([])
-        
-        LinePlotY3dM1(ax4,leaf_tempc_vec,rh_vec,par_abs_vec,aj[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
-        ax4.set_ylabel('Aj (RuBP) \n [umol/m2/s]')
-        ax4.yaxis.set_label_position("right")
-        ax4.yaxis.tick_right()
-        ax4.set_xticklabels([])
-        
-        LinePlotY3dM1(ax5,leaf_tempc_vec,rh_vec,par_abs_vec,co2_interc[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
-        ax5.set_ylabel('Ci \n [Pa]')
-        ax5.axhline(y=co2_ppress_400ppm,linewidth=2, color=[0.3,0.3,0.3])
-        
-        ax6.plot(leaf_tempc_vec, lmr)
-        ax6.set_ylabel('LMR \n [umol/m2/s]')
-        ax6.grid(True)
-        ax6.yaxis.set_label_position("right")
-        ax6.yaxis.tick_right()
-        
-        ax5.set_xlabel('Leaf Temperature [C]')
-        ax6.set_xlabel('Leaf Temperature [C]')
 
-        ax7.axis("off")
-        ax8.axis("off")
-        
-        
+        LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
+                      minag[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
+        ax3.set_ylabel('Minimizing \n Assimilation')
+
+        ax3.set_xlabel('Leaf Temperature [C]')
+        ax1.set_xlabel('Leaf Temperature [C]')
+        ax4.axis('off')
         plt.tight_layout()
         plt.subplots_adjust(wspace=0.02, hspace=0.03)
-        fig3.legend(loc='lower center',labelspacing = 0.2)
+        fig3.legend(loc='lower right',labelspacing = 0.2, fontsize=12)
         
         
         plt.show()
