@@ -66,16 +66,6 @@ module FatesPatchMod
     real(r8) :: age_since_anthro_disturbance ! average age for secondary forest since last anthropogenic disturbance [years]
     logical  :: changed_landuse_this_ts      ! logical flag to track patches that have just undergone land use change [only used with nocomp and land use change]
     logical  :: is_forest                    ! whether the patch is "forest" according to FATES param file % tree threshold
-    logical  :: is_forest_pct10              ! whether the patch is "forest" (tree cover >10%)
-    logical  :: is_forest_pct25              ! whether the patch is "forest" (tree cover >25%)
-    logical  :: is_forest_pct50              ! whether the patch is "forest" (tree cover >50%)
-    logical  :: is_forest_pct75              ! whether the patch is "forest" (tree cover >75%)
-    logical  :: is_forest_pct90              ! whether the patch is "forest" (tree cover >90%)
-    logical  :: is_forest_pct10_0grass       ! whether the patch is "forest" (tree cover >10%, no grass)
-    logical  :: is_forest_pct25_0grass       ! whether the patch is "forest" (tree cover >25%, no grass)
-    logical  :: is_forest_pct50_0grass       ! whether the patch is "forest" (tree cover >50%, no grass)
-    logical  :: is_forest_pct75_0grass       ! whether the patch is "forest" (tree cover >75%, no grass)
-    logical  :: is_forest_pct90_0grass       ! whether the patch is "forest" (tree cover >90%, no grass)
 
     !---------------------------------------------------------------------------
 
@@ -316,16 +306,6 @@ module FatesPatchMod
       this%land_use_label               = fates_unset_int
       this%age_since_anthro_disturbance = nan
       this%is_forest                    = .false.
-      this%is_forest_pct10              = .false.
-      this%is_forest_pct25              = .false.
-      this%is_forest_pct50              = .false.
-      this%is_forest_pct75              = .false.
-      this%is_forest_pct90              = .false.
-      this%is_forest_pct10_0grass       = .false.
-      this%is_forest_pct25_0grass       = .false.
-      this%is_forest_pct50_0grass       = .false.
-      this%is_forest_pct75_0grass       = .false.
-      this%is_forest_pct90_0grass       = .false.
       
       ! LEAF ORGANIZATION
       this%pft_agb_profile(:,:)         = nan

@@ -2375,7 +2375,8 @@ contains
 
   subroutine update_history_dyn1(this,nc,nsites,sites,bc_in)
 
-
+    use FatesEcotypesMod, only : is_patch_forest_tcthresh
+    use FatesEcotypesMod, only : is_patch_forest_tcthresh_grassbmthresh
 
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -2712,25 +2713,25 @@ contains
                merge(1._r8, 0._r8, cpatch%is_forest) * cpatch%area * AREA_INV
             ! according to experimental definitions
             hio_is_forest_pct10_si(io_si) = hio_is_forest_pct10_si(io_si) + &
-               merge(1._r8, 0._r8, cpatch%is_forest_pct10) * cpatch%area * AREA_INV
+               merge(1._r8, 0._r8, is_patch_forest_tcthresh(cpatch, 0.1_r8)) * cpatch%area * AREA_INV
             hio_is_forest_pct25_si(io_si) = hio_is_forest_pct25_si(io_si) + &
-               merge(1._r8, 0._r8, cpatch%is_forest_pct25) * cpatch%area * AREA_INV
+               merge(1._r8, 0._r8, is_patch_forest_tcthresh(cpatch, 0.25_r8)) * cpatch%area * AREA_INV
             hio_is_forest_pct50_si(io_si) = hio_is_forest_pct50_si(io_si) + &
-               merge(1._r8, 0._r8, cpatch%is_forest_pct50) * cpatch%area * AREA_INV
+               merge(1._r8, 0._r8, is_patch_forest_tcthresh(cpatch, 0.5_r8)) * cpatch%area * AREA_INV
             hio_is_forest_pct75_si(io_si) = hio_is_forest_pct75_si(io_si) + &
-               merge(1._r8, 0._r8, cpatch%is_forest_pct75) * cpatch%area * AREA_INV
+               merge(1._r8, 0._r8, is_patch_forest_tcthresh(cpatch, 0.75_r8)) * cpatch%area * AREA_INV
             hio_is_forest_pct90_si(io_si) = hio_is_forest_pct90_si(io_si) + &
-               merge(1._r8, 0._r8, cpatch%is_forest_pct90) * cpatch%area * AREA_INV
+               merge(1._r8, 0._r8, is_patch_forest_tcthresh(cpatch, 0.9_r8)) * cpatch%area * AREA_INV
             hio_is_forest_pct10_0grass_si(io_si) = hio_is_forest_pct10_0grass_si(io_si) + &
-               merge(1._r8, 0._r8, cpatch%is_forest_pct10_0grass) * cpatch%area * AREA_INV
+               merge(1._r8, 0._r8, is_patch_forest_tcthresh_grassbmthresh(cpatch, 0.1_r8, 0._r8)) * cpatch%area * AREA_INV
             hio_is_forest_pct25_0grass_si(io_si) = hio_is_forest_pct25_0grass_si(io_si) + &
-               merge(1._r8, 0._r8, cpatch%is_forest_pct25_0grass) * cpatch%area * AREA_INV
+               merge(1._r8, 0._r8, is_patch_forest_tcthresh_grassbmthresh(cpatch, 0.25_r8, 0._r8)) * cpatch%area * AREA_INV
             hio_is_forest_pct50_0grass_si(io_si) = hio_is_forest_pct50_0grass_si(io_si) + &
-               merge(1._r8, 0._r8, cpatch%is_forest_pct50_0grass) * cpatch%area * AREA_INV
+               merge(1._r8, 0._r8, is_patch_forest_tcthresh_grassbmthresh(cpatch, 0.5_r8, 0._r8)) * cpatch%area * AREA_INV
             hio_is_forest_pct75_0grass_si(io_si) = hio_is_forest_pct75_0grass_si(io_si) + &
-               merge(1._r8, 0._r8, cpatch%is_forest_pct75_0grass) * cpatch%area * AREA_INV
+               merge(1._r8, 0._r8, is_patch_forest_tcthresh_grassbmthresh(cpatch, 0.75_r8, 0._r8)) * cpatch%area * AREA_INV
             hio_is_forest_pct90_0grass_si(io_si) = hio_is_forest_pct90_0grass_si(io_si) + &
-               merge(1._r8, 0._r8, cpatch%is_forest_pct90_0grass) * cpatch%area * AREA_INV
+               merge(1._r8, 0._r8, is_patch_forest_tcthresh_grassbmthresh(cpatch, 0.9_r8, 0._r8)) * cpatch%area * AREA_INV
 
             ! Patch specific variables that are already calculated
             ! These things are all duplicated. Should they all be converted to LL or array structures RF?
