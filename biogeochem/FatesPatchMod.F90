@@ -69,7 +69,8 @@ module FatesPatchMod
     integer  :: land_use_label               ! patch label for land use classification (primaryland, secondaryland, etc)
     real(r8) :: age_since_anthro_disturbance ! average age for secondary forest since last anthropogenic disturbance [years]
     logical  :: changed_landuse_this_ts      ! logical flag to track patches that have just undergone land use change [only used with nocomp and land use change]
-    integer :: drydep_season                 ! marker for the season according to the dry deposition code definitions. 
+
+
 
     !---------------------------------------------------------------------------
 
@@ -448,7 +449,6 @@ module FatesPatchMod
       this%age_class                    = fates_unset_int
       this%area                         = nan    
       this%countcohorts                 = fates_unset_int 
-      this%drydep_season                = fates_unset_int
       this%ncl_p                        = fates_unset_int
       this%land_use_label               = fates_unset_int
       this%age_since_anthro_disturbance = nan
@@ -757,7 +757,6 @@ module FatesPatchMod
         this%age_since_anthro_disturbance = fates_unset_r8
       endif
       this%nocomp_pft_label = nocomp_pft
-      this%drydep_season = 1 ! initialize season at summer time. 
       
       this%tr_soil_dir(:) = 1.0_r8
       this%tr_soil_dif(:) = 1.0_r8
@@ -952,7 +951,6 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%age_class          = ',this%age_class
       write(fates_log(),*) 'pa%area               = ',this%area
       write(fates_log(),*) 'pa%countcohorts       = ',this%countcohorts
-      write(fates_log(),*) 'pa%drydep_season       = ',this%drydep_season
       write(fates_log(),*) 'pa%ncl_p              = ',this%ncl_p
       write(fates_log(),*) 'pa%total_canopy_area  = ',this%total_canopy_area
       write(fates_log(),*) 'pa%total_tree_area    = ',this%total_tree_area
