@@ -12,7 +12,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from datetime import datetime
 import argparse
-#from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.backends.backend_pdf import PdfPages
 import platform
 import xml.etree.ElementTree as ET
 import numpy as np
@@ -138,7 +138,7 @@ def GetJmaxKp25Top(vcmax25_top):
 # Plot support routines
 # ========================================================================
 
-def EvalVJKByTemp(pft,fates_leaf_vcmax25top,leaf_c3psn):
+def EvalVJKByTemp(pft,fates_leaf_vcmax25top,leaf_c3psn,pdf):
 
     
 
@@ -201,7 +201,10 @@ def EvalVJKByTemp(pft,fates_leaf_vcmax25top,leaf_c3psn):
         ax4.axis("off")
     else:
         ax1.set_xlabel('Leaf Temperature [C]')
-        
+
+    if(pdf):
+        pdf.savefig(fig)
+        plt.close(fig) 
         
             
 
@@ -221,76 +224,41 @@ def LinePlotY3dM1(ax,x1,x2,x3,y3d,str_x2,str_x3,add_labels):
     
     # Find the indices on the second and third dimensions
     # that are the 10th,50th and 90th percentiles
-    ix2_10 = int(len(x2)*0.0)
-    ix2_50 = int(len(x2)*0.5)
-    ix2_90 = int(len(x2)*0.99)
-    ix3_10 = int(len(x3)*0.0)
-    ix3_50 = int(len(x3)*0.5)
-    ix3_90 = int(len(x3)*0.99)
+    ix2_10 = int(len(x2)*0.1)
+    ix2_90 = int(len(x2)*0.90)
+    ix3_10 = int(len(x3)*0.1)
+    ix3_90 = int(len(x3)*0.90)
 
+    redish = [0.8,0.3,0.2]
+    bluish = [0.3,0.3,0.8]
 
     ix2 = ix2_10;ix3=ix3_10;
     fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
     if(add_labels):
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dotted',color='red',label=fmt_str)
+        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color=bluish,label=fmt_str)
     else:
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dotted',color='red')
-        
-    ix2 = ix2_10;ix3=ix3_50;
-    fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
-    if(add_labels):
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color='red',label=fmt_str)
-    else:
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color='red')
+        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color=bluish)
         
     ix2 = ix2_10;ix3=ix3_90;
     fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
     if(add_labels):
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color='red',label=fmt_str)
+        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color=bluish,label=fmt_str)
     else:
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color='red')
-        
-    ix2 = ix2_50;ix3=ix3_10;
-    fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
-    if(add_labels):
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dotted',color='black',label=fmt_str)
-    else:
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dotted',color='black')
-        
-    ix2 = ix2_50;ix3=ix3_50;
-    fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
-    if(add_labels):
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color='black',label=fmt_str)
-    else:
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color='black')
-        
-    ix2 = ix2_50;ix3=ix3_90;
-    fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
-    if(add_labels):
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color='black',label=fmt_str)
-    else:
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color='black')
+        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color=bluish)
         
     ix2 = ix2_90;ix3=ix3_10;
     fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
     if(add_labels):
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dotted',color='blue',label=fmt_str)
+        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color=redish,label=fmt_str)
     else:
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dotted',color='blue')
-        
-    ix2 = ix2_90;ix3=ix3_50;
-    fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
-    if(add_labels):
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color='blue',label=fmt_str)
-    else:
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color='blue')
+        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color=redish)
         
     ix2 = ix2_90;ix3=ix3_90;
     fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
     if(add_labels):
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color='blue',label=fmt_str)
+        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color=redish,label=fmt_str)
     else:
-        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color='blue')
+        ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color=redish)
         
     ax.grid(True)
     
@@ -301,11 +269,19 @@ def LinePlotY3dM1(ax,x1,x2,x3,y3d,str_x2,str_x3,add_labels):
 
 
 def main(argv):
-
+    
 
     # Load the xml control file
     xmlfile = "leaf_biophys_controls.xml"
     xmlroot = ET.parse(xmlfile).getroot()
+
+    # Determine if we are generating a pdf
+    # -----------------------------------------------------------------------------------
+    try:
+        pdf_file = xmlroot.find('pdf_out_file').text.strip()
+        pdf = PdfPages(pdf_file)
+    except:
+        pdf = None
     
     numpft = int(xmlroot.find('numpft').text.strip())
 
@@ -377,7 +353,7 @@ def main(argv):
     rh_vec = np.linspace(rh_min,rh_max,num=rh_n)
     
     # Absorbed PAR ranges [W/m2]
-    par_abs_min = 0.01
+    par_abs_min = 10.0
     par_abs_max = 100
     par_abs_n  = 75
     par_abs_vec = np.linspace(par_abs_min,par_abs_max,num=par_abs_n)
@@ -475,12 +451,12 @@ def main(argv):
     print('\n')
     print('Experiment 1: Evaluating Photosynthesis Equations by pft/Tl/RH/PR')
     
-    for pft in range(numpft):
+    for pft in [0]: #range(numpft):
 
         if(do_evalvjkbytemp):
             print('\n')
             print('Experiment 1: Evaluating Vcmax,Jmax,Kp by Temperature')
-            EvalVJKByTemp(pft,fates_leaf_vcmax25top[pft],leaf_c3psn[pft])
+            EvalVJKByTemp(pft,fates_leaf_vcmax25top[pft],leaf_c3psn[pft],pdf)
 
         
         print('Evaluating PFT {}'.format(pft+1))
@@ -623,20 +599,20 @@ def main(argv):
         ax1.set_title('PFT: %3i, Vcmax25: %4.1f, Jmax25: %4.1f, Ci: %4.1f'%(pft+1,fates_leaf_vcmax25top[pft],jmax25_top,ci_ppress_static))
         ax1.grid(True)
         fig2.legend(loc='upper left')
-
+        if(pdf):
+            pdf.savefig(fig2)
+            plt.close(fig2)
+            
         # Lets plot metrics by temperature, using the
         # 10th, 50th and 90th percentiles of both RH and PAR
         # Agross, Anet, Gstoma, Ac, Aj, Ap
         
-        fig3, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(7.,8.))
-
-        gb_id = 1
-        
+        fig3, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(8.,7.))
+        gb_id = 0
         LinePlotY3dM1(ax1,leaf_tempc_vec,rh_vec,par_abs_vec, \
                       agross[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',True)
         ax1.set_ylabel('Agross \n [umol/m2/s]')
         ax1.set_xticklabels([])
-        
         LinePlotY3dM1(ax2,leaf_tempc_vec,rh_vec,par_abs_vec,\
                       gstoma[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n])*1.e-6,'RH','APAR',False)
         ax2.set_ylabel('Gs \n [mol/m2/s]')
@@ -644,20 +620,112 @@ def main(argv):
         ax2.yaxis.tick_right()
 
         LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
-                      minag[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
-        ax3.set_ylabel('Minimizing \n Assimilation')
-
+                      co2_interc[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
+        ax3.set_ylabel('Ci [Pa]')
+        ax3.axhline(y=co2_ppress_400ppm,color=[0.3,0.3,0.3])
+        
+        #LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
+        #              minag[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
+        #ax3.set_ylabel('Minimizing \n Assimilation (MA)')
         ax3.set_xlabel('Leaf Temperature [C]')
         ax1.set_xlabel('Leaf Temperature [C]')
+
+
+        ax4.text(0.25,0.6,'PFT: %2i \ng_b = %4.2f [mol/m2/s]'%(pft+1,gb_vec[gb_id]*1.e-6))
         ax4.axis('off')
+        
         plt.tight_layout()
         plt.subplots_adjust(wspace=0.02, hspace=0.03)
-        fig3.legend(loc='lower right',labelspacing = 0.2, fontsize=12)
+        fig3.legend(loc='lower right', bbox_to_anchor=(0.87, 0.06),labelspacing = 0.2, fontsize=12, ncol=1) #, fancybox=True, shadow=True)
+        if(pdf):
+            pdf.savefig(fig3)
+            plt.close(fig3)
         
-        
-        plt.show()
+        fig5, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(8.,7.))
+        gb_id = 4
+        LinePlotY3dM1(ax1,leaf_tempc_vec,rh_vec,par_abs_vec, \
+                      agross[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',True)
+        ax1.set_ylabel('Agross \n [umol/m2/s]')
+        ax1.set_xticklabels([])
+        LinePlotY3dM1(ax2,leaf_tempc_vec,rh_vec,par_abs_vec,\
+                      gstoma[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n])*1.e-6,'RH','APAR',False)
+        ax2.set_ylabel('Gs \n [mol/m2/s]')
+        ax2.yaxis.set_label_position("right")
+        ax2.yaxis.tick_right()
 
-    
+        LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
+                      co2_interc[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
+        ax3.set_ylabel('Ci [Pa]')
+        ax3.axhline(y=co2_ppress_400ppm,color=[0.3,0.3,0.3])
+        
+        #LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
+        #              minag[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
+        #ax3.set_ylabel('Minimizing \n Assimilation (MA)')
+        ax3.set_xlabel('Leaf Temperature [C]')
+        ax1.set_xlabel('Leaf Temperature [C]')
+
+
+        ax4.text(0.25,0.6,'PFT: %2i \ng_b = %4.2f [mol/m2/s]'%(pft+1,gb_vec[gb_id]*1.e-6))
+        ax4.axis('off')
+        
+        plt.tight_layout()
+        plt.subplots_adjust(wspace=0.02, hspace=0.03)
+        #fig3.legend(loc='lower right',labelspacing = 0.2, fontsize=12)
+        fig5.legend(loc='lower right', bbox_to_anchor=(0.87, 0.06),labelspacing = 0.2, fontsize=12, ncol=1) #, fancybox=True, shadow=True)
+        if(pdf):
+            pdf.savefig(fig5)
+            plt.close(fig5)
+
+        
+        
+        # Metrics across the boundary layer conductivity gradient
+        
+        # Metrics across the humidity Gradient  (fixed conductance)
+        fig4, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(8.,7.))
+        gb_id = 1
+        LinePlotY3dM1(ax1,rh_vec,leaf_tempc_vec,par_abs_vec, \
+                      np.transpose(agross,(1,0,2,3 ))[:,:,:,gb_id].reshape([rh_n,leaf_tempc_n,par_abs_n]),'Tveg','APAR',True)
+        
+        ax1.set_ylabel('Agross \n [umol/m2/s]')
+        ax1.set_xticklabels([])
+        LinePlotY3dM1(ax2,rh_vec,leaf_tempc_vec,par_abs_vec,\
+                      np.transpose(gstoma,(1,0,2,3 ))[:,:,:,gb_id].reshape([rh_n,leaf_tempc_n,par_abs_n])*1.e-6,'Tveg','APAR',False)
+        ax2.set_ylabel('Gs \n [mol/m2/s]')
+        ax2.yaxis.set_label_position("right")
+        ax2.yaxis.tick_right()
+
+        LinePlotY3dM1(ax3,rh_vec,leaf_tempc_vec,par_abs_vec,\
+                      np.transpose(co2_interc,(1,0,2,3 ))[:,:,:,gb_id].reshape([rh_n,leaf_tempc_n,par_abs_n]),'Tveg','APAR',False)
+        ax3.set_ylabel('Ci [Pa]')
+        ax3.axhline(y=co2_ppress_400ppm,color=[0.3,0.3,0.3])
+
+        ax3.set_xlabel('Relative Humidity [%]')
+        ax1.set_xlabel('Relative Humidity [%]')
+
+
+        ax4.text(0.25,0.6,'PFT: %2i \ng_b = %4.2f [mol/m2/s]'%(pft+1,gb_vec[gb_id]*1.e-6))
+        ax4.axis('off')
+        
+        plt.tight_layout()
+        plt.subplots_adjust(wspace=0.02, hspace=0.03)
+        fig4.legend(loc='lower right', bbox_to_anchor=(0.87, 0.06),labelspacing = 0.2, fontsize=12, ncol=1) #, fancybox=True, shadow=True)
+        if(pdf):
+            pdf.savefig(fig4)
+            plt.close(fig4)
+
+
+        
+        # Metrics across the PAR Gradient
+
+
+        # Show for each pft
+        if(not pdf):
+            plt.show()
+
+            
+    if(pdf):
+        pdf.close()
+        
     print('Deallocating parameter space')
     iret = f90_dealloc_leaf_param_sub()
     

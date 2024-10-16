@@ -440,7 +440,7 @@ contains
        ac,                &  ! out
        aj,                &  ! out
        ap,                &  ! out
-       co2_intercel)                   ! out
+       co2_intracel)                   ! out
 
 
     ! ------------------------------------------------------------------------------------
@@ -481,7 +481,7 @@ contains
     real(r8), intent(out) :: aj               ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
     real(r8), intent(out) :: ap               ! product-limited (C3) or CO2-limited
                                               ! (C4) gross photosynthesis (umol CO2/m**2/s)
-    real(r8), intent(out) :: co2_intercel      ! intercellular leaf CO2 (Pa)
+    real(r8), intent(out) :: co2_intracel      ! intracellular leaf CO2 (Pa)
 
     ! Important Note on the gas pressures as input arguments.  This photosynthesis scheme will iteratively
     ! solve for the co2 partial pressure at the leaf surface (ie in the stomata). The reference
@@ -503,7 +503,7 @@ contains
     real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
     real(r8) :: r1,r2             ! roots of quadratic equation
     
-    real(r8) :: co2_intercel_old   ! intercellular leaf CO2 (Pa) (previous iteration)
+    real(r8) :: co2_intracel_old   ! intracellular leaf CO2 (Pa) (previous iteration)
     logical  :: loop_continue     ! Loop control variable
     integer  :: niter             ! iteration loop index
  
@@ -524,17 +524,17 @@ contains
 
    
 
-    ! First guess on ratio between intercellular co2 and the atmosphere
+    ! First guess on ratio between intracellular co2 and the atmosphere
     ! an iterator converges on actual
     real(r8),parameter :: init_a2l_co2_c3 = 0.7_r8
     real(r8),parameter :: init_a2l_co2_c4 = 0.4_r8
 
-    ! When iteratively solving for intercellular co2 concentration, this
+    ! When iteratively solving for intracellular co2 concentration, this
     ! is the maximum tolerable change to accept convergence [Pa]
-    real(r8),parameter :: co2_intercel_tol = 1._r8
+    real(r8),parameter :: co2_intracel_tol = 0.1_r8
 
-    ! Maximum number of iterations on intercelluar co2 solver until is quits
-    integer, parameter :: max_iters = 10
+    ! Maximum number of iterations on intracelluar co2 solver until is quits
+    integer, parameter :: max_iters = 50
 
     ! empirical curvature parameter for ap photosynthesis co-limitation
     real(r8),parameter :: theta_ip = 0.999_r8
@@ -572,17 +572,17 @@ contains
 
 
     ! Not trivial solution, some biomass and some light
-    ! Initialize first guess of intercellular co2 conc [Pa]
+    ! Initialize first guess of intracellular co2 conc [Pa]
     if (lb_params%c3psn(ft) == c3_path_index) then
-       co2_intercel = init_a2l_co2_c3 * can_co2_ppress
+       co2_intracel = init_a2l_co2_c3 * can_co2_ppress
     else
-       co2_intercel = init_a2l_co2_c4 * can_co2_ppress
+       co2_intracel = init_a2l_co2_c4 * can_co2_ppress
     end if
 
     ! Perform iterative solution to converge on net assimilation,
-    ! stomatal conductance and intercellular co2 concentration
+    ! stomatal conductance and intracellular co2 concentration
     ! this is not a gradient method, it merely re-runs calculations
-    ! based off of updated intercellular co2 concentration until
+    ! based off of updated intracellular co2 concentration until
     ! there is minimal deviation from last attempt
 
     niter = 0
@@ -592,17 +592,17 @@ contains
        ! Increment iteration counter. Stop if too many iterations
        niter = niter + 1
 
-       ! Save old co2_intercel
-       co2_intercel_old = co2_intercel
+       ! Save old co2_intracel
+       co2_intracel_old = co2_intracel
 
        ! Photosynthesis limitation rate calculations
        if (lb_params%c3psn(ft) == c3_path_index)then
 
           ! C3: Rubisco-limited photosynthesis
-          ac = AgrossRubiscoC3(vcmax,co2_intercel,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
+          ac = AgrossRubiscoC3(vcmax,co2_intracel,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
 
           ! C3: RuBP-limited photosynthesis
-          aj = AgrossRuBPC3(par_abs,jmax,co2_intercel,co2_cpoint )
+          aj = AgrossRuBPC3(par_abs,jmax,co2_intracel,co2_cpoint )
 
           ! Gross photosynthesis smoothing calculations. Co-limit ac and aj.
           ! RGK: We can remove this smoothing, right? theta is always nearly 1...?
@@ -623,7 +623,7 @@ contains
           aj = AgrossRuBPC4(par_abs)
             
           ! C4: PEP carboxylase-limited (CO2-limited)
-          ap = AgrossPEPC4(co2_intercel,co2_rcurve_islope,can_press)
+          ap = AgrossPEPC4(co2_intracel,co2_rcurve_islope,can_press)
                       
           ! Gross photosynthesis smoothing calculations. First co-limit ac and aj. Then co-limit ap
 
@@ -658,7 +658,7 @@ contains
 
        ! A note about the use of the quadratic equations for calculating stomatal conductance
        ! ------------------------------------------------------------------------------------
-       ! These two following models calculate the conductance between the intercellular leaf
+       ! These two following models calculate the conductance between the intracellular leaf
        ! space and the leaf surface, not the canopy air space.  Transport between the leaf
        ! surface and the canopy air space is governed by the leaf boundary layer conductance.
        ! However, we need to estimate the properties at the surface of the leaf to solve for
@@ -670,7 +670,7 @@ contains
        ! e_s = (e_i g_s + e_c g_b)/(g_b + g_s)
        !
        ! The leaf surface humidity (e_s) becomes an expression of canopy humidity (e_c),
-       ! intercellular humidity (e_i, which is the saturation humidity at leaf temperature),
+       ! intracellular humidity (e_i, which is the saturation humidity at leaf temperature),
        ! boundary layer conductance (g_b) (these are all known) and stomatal conductance
        ! (g_s) (this is still unknown).  This expression is substituted into the stomatal
        ! conductance equation. The resulting form of these equations becomes a quadratic.
@@ -709,19 +709,28 @@ contains
           end if
        end if
 
-       ! Derive new estimate for co2_intercel
-       co2_intercel = can_co2_ppress - anet_out * can_press * &
-            (h2o_co2_bl_diffuse_ratio*gs_out+h2o_co2_stoma_diffuse_ratio*gb) / (gb*gs_out)
+       ! Derive new estimate for co2_intracel
+       co2_intracel = can_co2_ppress - anet_out * can_press * &
+            (h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/gs_out)
+       
+!            (h2o_co2_bl_diffuse_ratio*gs_out+h2o_co2_stoma_diffuse_ratio*gb) / (gb*gs_out)
 
-       ! Check for co2_intercel convergence.
+       ! Check for co2_intracel convergence.
        ! The tolerance is if the new solution is less than 1 Pascal within
        ! the previous solution.  Typical values for the range are 20-50,
        ! with values less than atmospheric during production, and values
        ! greater than atmospheric during dark respiration
 
-       if( abs(co2_intercel-co2_intercel_old) < co2_intercel_tol .or. niter >= max_iters) then
+       if( abs(co2_intracel-co2_intracel_old) < co2_intracel_tol .or. niter > max_iters) then
           loop_continue = .false.
        end if
+       if(debug)then
+          if( niter == max_iters) then
+             write(fates_log(),*) 'photosynthesis exceeded the iteration limit'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+       end if
+       
     end do iter_loop
 
     ! estimate carbon 13 discrimination in leaf level carbon
@@ -731,9 +740,9 @@ contains
     ! just hard code b and \alpha_s for now, might move to parameter set in future
     ! b = 27.0 alpha_s = 4.4
     ! TODO, not considering C4 or CAM right now, may need to address this
-    ! note co2_intercel is intracelluar CO2, not intercelluar
+    ! note co2_intracel is intracelluar CO2, not intercelluar
     c13disc_out = 4.4_r8 + (27.0_r8 - 4.4_r8) * &
-         min (can_co2_ppress, max (co2_intercel, 0._r8)) / can_co2_ppress
+         min (can_co2_ppress, max (co2_intracel, 0._r8)) / can_co2_ppress
 
     return
   end subroutine LeafLayerPhotosynthesis

@@ -2,13 +2,14 @@
 <all>
 
   <!-- Parameters for leaf biophysics unit tests -->
+  <pdf_out_file>base_pfts.pdf</pdf_out_file>
   <numpft> 12 </numpft>
   <f90_params> <!-- parameters that are in the f90 structure -->
     <scalar_dim>
       <param name='fates_daylength_factor_switch'>1</param>
       <param name='fates_leaf_theta_cj_c3'>0.999</param>
       <param name='fates_leaf_theta_cj_c4'>0.999</param>
-      <param name='fates_leaf_stomatal_model'>2</param>
+      <param name='fates_leaf_stomatal_model'>1</param>
       <param name='fates_leaf_stomatal_assim_model'>1</param>
       <param name='fates_leaf_photo_tempsens_model'>1</param>
     </scalar_dim>
