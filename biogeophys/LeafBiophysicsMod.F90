@@ -389,52 +389,69 @@ contains
 
   ! =======================================================================================
 
-  subroutine CiFunc(ci, p, iv, c, gb_mol, je, cair, oair, lmr_z, par_z,&
-       rh_can, gs_mol)
+  subroutine CiFunc(ci, &
+       pft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+       can_co2_ppress,can_o2_ppress,can_press,lmr,par_abs,gb_veg_tempk, &
+       anet,agross,gs,fval)
 
+    ! -----------------------------------------------------------------------------------
+    ! DESCRIPTION:
+    ! The photosynthesis solver must solve 3 equations simultaneously,
+    ! Anet, Stomatal Conductance and the update to Ci.  To solve this,
+    ! we search values of Ci that satisfy the equations, and create an evaluation
+    ! function "fval" that is the difference between the input value and the predicted
+    ! value of ci.
     !
-    !! DESCRIPTION:
-    ! evaluate the function
+    ! fval = ci_input - ci_updated
+    !
+    !
+    ! The updated ci:
     ! ci =  ca - (1.37rb+1.65rs))*patm*anet
     !
-    ! remark:  I am attempting to maintain the original code structure, also
-    ! considering one may be interested to output relevant variables for the
-    ! photosynthesis model, I have decided to add these relevant variables to
-    ! the relevant data types.
+    ! Thus:
+    ! fval = ci_input - [ca-(1.37rb+1.65rs))*patm*anet]
     !
-    !!ARGUMENTS:
-    real(r8)             , intent(in)    :: ci       ! intracellular leaf CO2 (Pa)
-    real(r8)             , intent(in)    :: lmr      ! leaf maintenance respiration rate (umol CO2/m**2/s)
-    real(r8)             , intent(in)    :: par      ! par absorbed per unit lai (w/m**2)
-    real(r8)             , intent(in)    :: gb_mol   ! leaf boundary layer conductance (umol H2O/m**2/s)
+    ! This method is strongly based off of Jinyun Tang's 2011 code for CLM
+    ! -----------------------------------------------------------------------------------
 
-    real(r8)             , intent(in)    :: je       ! electron transport rate (umol electrons/m**2/s)
-    real(r8)             , intent(in)    :: cair     ! Atmospheric CO2 partial pressure (Pa)
-    real(r8)             , intent(in)    :: oair     ! Atmospheric O2 partial pressure (Pa)
     
-    real(r8)             , intent(in)    :: rh_can   ! canopy air realtive humidity
-    integer              , intent(in)    :: p, iv, c ! pft, vegetation type and column indexes
+    real(r8)             , intent(in)    :: ci       ! intracellular leaf CO2 (Pa)
+    integer              , intent(in)    :: pft      ! plant functional type index
+    real(r8)             , intent(in)    :: vcmax
+    real(r8)             , intent(in)    :: jmax
+    real(r8)             , intent(in)    :: kp             ! co2_rcurve_islope
+    real(r8)             , intent(in)    :: co2_cpoint
+    real(r8)             , intent(in)    :: mm_kco2
+    real(r8)             , intent(in)    :: mm_ko2
+    real(r8)             , intent(in)    :: can_co2_ppress
+    real(r8)             , intent(in)    :: can_o2_ppress
+    real(r8)             , intent(in)    :: can_press
+   
+    real(r8)             , intent(in)    :: lmr      ! leaf maintenance respiration rate (umol CO2/m**2/s)
+    real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai (w/m**2)
+    real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
+    real(r8)             , intent(in)    :: veg_tempk
     
+    real(r8)             , intent(out)   :: anet
+    real(r8)             , intent(out)   :: agross
+    real(r8)             , intent(out)   :: gs
+    real(r8)             , intent(out)   :: fval
+    
+    real(r8) :: ac,aj,ap,a_gs
+    real(r8) :: leaf_co2_ppress 
     !------------------------------------------------------------------------------
 
     ! Photosynthesis limitation rate calculations
     if (lb_params%c3psn(ft) == c3_path_index)then
        
        ! C3: Rubisco-limited photosynthesis
-       ac = AgrossRubiscoC3(vcmax,co2_intracel,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
+       ac = AgrossRubiscoC3(vcmax,ci,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
        
        ! C3: RuBP-limited photosynthesis
-       aj = AgrossRuBPC3(par_abs,jmax,co2_intracel,co2_cpoint )
-       
-       ! Gross photosynthesis smoothing calculations. Co-limit ac and aj.
-       ! RGK: We can remove this smoothing, right? theta is always nearly 1...?
-       aquad = lb_params%theta_cj_c3
-       bquad = -(ac + aj)
-       cquad = ac * aj
-       call QuadraticRoots(aquad, bquad, cquad, r1, r2)
-       agross_out = min(r1,r2)
-       
-       ! RGK: agross_out = min(ac,aj)
+       aj = AgrossRuBPC3(par_abs,jmax,ci,co2_cpoint )
+
+       ! Take the minimum, no smoothing
+       agross = min(ac,aj)
        
     else
        
@@ -445,37 +462,24 @@ contains
        aj = AgrossRuBPC4(par_abs)
        
        ! C4: PEP carboxylase-limited (CO2-limited)
-       ap = AgrossPEPC4(co2_intracel,co2_rcurve_islope,can_press)
+       ap = AgrossPEPC4(ci,co2_rcurve_islope,can_press)
        
-       ! Gross photosynthesis smoothing calculations. First co-limit ac and aj. Then co-limit ap
-       
-       aquad = lb_params%theta_cj_c4
-       bquad = -(ac + aj)
-       cquad = ac * aj
-       call QuadraticRoots(aquad, bquad, cquad, r1, r2)
-       ai = min(r1,r2)
-       
-       aquad = theta_ip
-       bquad = -(ai + ap)
-       cquad = ai * ap
-       call QuadraticRoots(aquad, bquad, cquad, r1, r2)
-       agross_out = min(r1,r2)
-       
-       ! RGK:  agross_out = minval([ac,aj,ap])
+       ! Take the minimum, no smoothing
+       agross = minval([ac,aj,ap])
        
     end if
 
     ! Calculate anet
-    anet_out = agross_out  - lmr
+    anet = agross  - lmr
     
     if (  lb_params%stomatal_assim_model == gross_assim_model ) then
        if ( lb_params%stomatal_model == medlyn_model ) then
           write (fates_log(),*) 'Gross Assimilation conductance is incompatible with the Medlyn model'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
-       a_gs = agross_out
+       a_gs = agross
     else
-       a_gs = anet_out
+       a_gs = anet
     end if
 
     ! A note about the use of the quadratic equations for calculating stomatal conductance
@@ -508,146 +512,28 @@ contains
     ! Determine saturation vapor pressure at the leaf surface, from temp and atm-pressure
     call QSat(veg_tempk, can_press, veg_qs, veg_esat)
     
-    ! RGK: Should this be moved here?
-    ! veg_esat = StomatalVaporPressureFromLWP(leaf_psi, k_lwp, veg_tempk, can_press, can_vpress)
-    
     if ( lb_params%stomatal_model == medlyn_model ) then
-       call StomatalCondMedlyn(anet_out,ft,veg_esat,can_vpress,stomatal_intercept_btran, &
-            leaf_co2_ppress,can_press,gb,gs_out)
+       call StomatalCondMedlyn(anet,ft,veg_esat,can_vpress,stomatal_intercept_btran, &
+            leaf_co2_ppress,can_press,gb,gs)
     else
        call StomatalCondBallBerry(a_gs,ft,veg_esat,can_vpress,stomatal_intercept_btran, &
-            leaf_co2_ppress,can_press,gb,gs_out)
+            leaf_co2_ppress,can_press,gb,gs)
     end if
     
     ! Derive new estimate for co2_intracel
-    co2_intracel = can_co2_ppress - anet_out * can_press * &
-         (h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/gs_out)
+    ! co2_intracel = can_co2_ppress - anet_out * can_press * &
+    ! (h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/gs_out)
     
-    ! fval =ci - cair + an(p,iv) * forc_pbot(c) * (1.4_r8*gs_mol+1.6_r8*gb_mol) / (gb_mol*gs_mol)
-    ! cair - an*P*(1.4/gb + 1.6/gs) + fval = ci
-
+    ! fval = ci_input - ci_predicted
+    fval = ci - (can_co2_ppress - anet * can_press * &
+         (h2o_co2_bl_diffuse_ratio*gs + h2o_co2_stoma_diffuse_ratio*gb)/(gb*gs))
+    
     
     end associate
 
   end subroutine CiFunc
-  
-  !------------------------------------------------------------------------------
-  subroutine brent(x, x1,x2,f1, f2, tol, ip, iv, ic, gb_mol, je, cair, oair,&
-       lmr_z, par_z, rh_can, gs_mol, &
-       atm2lnd_inst, photosyns_inst)
-    !
-    !!DESCRIPTION:
-    !Use Brent's method to find the root of a single variable function CiFunc, which is known to exist between x1 and x2.
-    !The found root will be updated until its accuracy is tol.
 
-    !!REVISION HISTORY:
-    !Dec 14/2012: Jinyun Tang, modified from numerical recipes in F90 by press et al. 1188-1189
-    !
-    !!ARGUMENTS:
-    real(r8), intent(out) :: x                ! indepedent variable of the single value function CiFunc(x)
-    real(r8), intent(in) :: x1, x2, f1, f2    ! minimum and maximum of the variable domain to search for the solution CiFunc(x1) = f1, CiFunc(x2)=f2
-    real(r8), intent(in) :: tol               ! the error tolerance
-    real(r8), intent(in) :: lmr_z             ! canopy layer: leaf maintenance respiration rate (umol CO2/m**2/s)
-    real(r8), intent(in) :: par_z             ! par absorbed per unit lai for canopy layer (w/m**2)
-    real(r8), intent(in) :: gb_mol            ! leaf boundary layer conductance (umol H2O/m**2/s)
-    real(r8), intent(in) :: je                ! electron transport rate (umol electrons/m**2/s)
-    real(r8), intent(in) :: cair              ! Atmospheric CO2 partial pressure (Pa)
-    real(r8), intent(in) :: oair              ! Atmospheric O2 partial pressure (Pa)
-    real(r8), intent(in) :: rh_can            ! inside canopy relative humidity
-    integer,  intent(in) :: ip, iv, ic        ! pft, c3/c4, and column index
-    ! gs_mol is "inout" rather than "out" to
-    ! prevent returning nan when the code returns from this subroutine
-    ! before assigning a value to this variable
-    real(r8), intent(inout) :: gs_mol         ! leaf stomatal conductance (umol H2O/m**2/s)
-    type(atm2lnd_type)  , intent(in)    :: atm2lnd_inst
-    type(photosyns_type), intent(inout) :: photosyns_inst
-    !
-    !!LOCAL VARIABLES:
-    integer, parameter :: itmax=20            !maximum number of iterations
-    real(r8), parameter :: eps=1.e-2_r8       !relative error tolerance
-    integer :: iter
-    real(r8)  :: a,b,c,d,e,fa,fb,fc,p,q,r,s,tol1,xm
-    !------------------------------------------------------------------------------
-
-    a=x1
-    b=x2
-    fa=f1
-    fb=f2
-    if((fa > 0._r8 .and. fb > 0._r8).or.(fa < 0._r8 .and. fb < 0._r8))then
-       write(iulog,*) 'root must be bracketed for brent'
-       call endrun(subgrid_index=ip, subgrid_level=subgrid_level_patch, msg=errmsg(sourcefile, __LINE__))
-    endif
-    c=b
-    fc=fb
-    iter = 0
-    do
-       if(iter==itmax)exit
-       iter=iter+1
-       if((fb > 0._r8 .and. fc > 0._r8) .or. (fb < 0._r8 .and. fc < 0._r8))then
-          c=a   !Rename a, b, c and adjust bounding interval d.
-          fc=fa
-          d=b-a
-          e=d
-       endif
-       if( abs(fc) < abs(fb)) then
-          a=b
-          b=c
-          c=a
-          fa=fb
-          fb=fc
-          fc=fa
-       endif
-       tol1=2._r8*eps*abs(b)+0.5_r8*tol  !Convergence check.
-       xm=0.5_r8*(c-b)
-       if(abs(xm) <= tol1 .or. fb == 0.)then
-          x=b
-          return
-       endif
-       if(abs(e) >= tol1 .and. abs(fa) > abs(fb)) then
-          s=fb/fa !Attempt inverse quadratic interpolation.
-          if(a == c) then
-             p=2._r8*xm*s
-             q=1._r8-s
-          else
-             q=fa/fc
-             r=fb/fc
-             p=s*(2._r8*xm*q*(q-r)-(b-a)*(r-1._r8))
-             q=(q-1._r8)*(r-1._r8)*(s-1._r8)
-          endif
-          if(p > 0._r8) q=-q !Check whether in bounds.
-          p=abs(p)
-          if(2._r8*p < min(3._r8*xm*q-abs(tol1*q),abs(e*q))) then
-             e=d !Accept interpolation.
-             d=p/q
-          else
-             d=xm  !Interpolation failed, use bisection.
-             e=d
-          endif
-       else !Bounds decreasing too slowly, use bisection.
-          d=xm
-          e=d
-       endif
-       a=b !Move last best guess to a.
-       fa=fb
-       if(abs(d) > tol1) then !Evaluate new trial root.
-          b=b+d
-       else
-          b=b+sign(tol1,xm)
-       endif
-
-       call CiFunc(b, fb, ip, iv, ic, gb_mol, je, cair, oair, lmr_z, par_z, rh_can, gs_mol, &
-         atm2lnd_inst, photosyns_inst)
-
-       if(fb==0._r8)exit
-
-    enddo
-
-    if(iter==itmax)write(iulog,*) 'brent exceeding maximum iterations', b, fb
-    x=b
-
-    return
-  end subroutine brent
-
+  ! =====================================================================================
   
   subroutine LeafLayerPhotosynthesis(par_abs,           &  ! in
        leaf_area,         &  ! in
@@ -754,13 +640,6 @@ contains
     ! ------------------------------------------------------------------------
     
 
-    ! For plants with no leaves, a miniscule amount of conductance
-    ! can happen through the stems, at a partial rate of cuticular conductance
-    ! THIS IS NOT USED
-    !real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
-
-   
-
     ! First guess on ratio between intracellular co2 and the atmosphere
     ! an iterator converges on actual
     real(r8),parameter :: init_a2l_co2_c3 = 0.7_r8
@@ -768,10 +647,10 @@ contains
 
     ! When iteratively solving for intracellular co2 concentration, this
     ! is the maximum tolerable change to accept convergence [Pa]
-    real(r8),parameter :: co2_intracel_tol = 0.1_r8
+    real(r8),parameter :: ci_tol = 0.1_r8
 
     ! Maximum number of iterations on intracelluar co2 solver until is quits
-    integer, parameter :: max_iters = 50
+    integer, parameter :: max_iters = 10
 
     ! empirical curvature parameter for ap photosynthesis co-limitation
     real(r8),parameter :: theta_ip = 0.999_r8
@@ -816,263 +695,50 @@ contains
        ci0 = init_a2l_co2_c4 * can_co2_ppress
     end if
 
-    ! ----------------------------------------------------------------------
-    ! The method of simultaneous solve for intracellular CO2,
-    ! net assimilation and conductance follow methods created for CLM
-    ! Dec 14/2012 by Jinyun Tang.
-    ! "Use a hybrid solver to find the root of equation
-    ! f(x) = x- h(x),
-    ! we want to find x, s.t. f(x) = 0.
-    ! the hybrid approach combines the strength of the newton secant approach
-    ! (find the solution domain) and the bisection approach implemented with
-    ! the Brent's method to guarrantee convergence.
-
-    ci = ci0
-    call CiFunc(ci, p, iv, c, gb_mol, je, cair, oair, lmr_z, par_z, rh_can, gs_mol, &
-                atm2lnd_inst, photosyns_inst)
-    f0 = ci0 - ci
-
-    ! If there is no change in Ci, then we are done
-    if(f0 == 0._r8)return
-
-    minx=ci0
-    minf=f0
-    
-    ci1 = ci0 * 0.99_r8
-    ci = ci1
-    call CiFunc(ci,p, iv, c, gb_mol, je, cair, oair, lmr_z, par_z, rh_can, gs_mol, &
-         atm2lnd_inst, photosyns_inst)
-    f1 = ci1 - ci
-
-    ! If there is no change in Ci, then we are done
-    if(f1==0._r8)then
-       return
-    endif
-
-    ! Start the secant method with either the original
-    ! guess, or its perturbation, whichever gave the smaller delta
-    ! (this probably has negligable effect on result)
-    if(f1<minf)then
-       minx=ci1
-       minf=f1
-    endif
-
-    !first use the secant approach, then use the brent approach as a backup
-    iter = 0
-    do
-       iter = iter + 1
-       dx = - f1 * (ci1-ci0)/(f1-f0)
-       x = x1 + dx
-       tol = abs(x) * eps
-       if(abs(dx)<tol)then
-          x0 = x
-          exit
-       endif
-       x0 = x1
-       f0 = f1
-       x1 = x
-
-       call CiFunc(x1,f1, p, iv, c, gb_mol, je, cair, oair, lmr_z, par_z, rh_can, gs_mol, &
-            atm2lnd_inst, photosyns_inst)
-
-       if(f1<minf)then
-          minx=x1
-          minf=f1
-       endif
-       if(abs(f1)<=eps1)then
-          x0 = x1
-          exit
-       endif
-
-       !if a root zone is found, use the brent method for a robust backup strategy
-       if(f1 * f0 < 0._r8)then
-
-          call brent(x, x0,x1,f0,f1, tol, p, iv, c, gb_mol, je, cair, oair, &
-               lmr_z, par_z, rh_can, gs_mol, &
-               atm2lnd_inst, photosyns_inst)
-
-          x0=x
-          exit
-       endif
-       if(iter>itmax)then
-          !in case of failing to converge within itmax iterations
-          !stop at the minimum function
-          !this happens because of some other issues besides the stomatal conductance calculation
-          !and it happens usually in very dry places and more likely with c4 plants.
-
-          call CiFunc(minx,f1, p, iv, c, gb_mol, je, cair, oair, lmr_z, par_z, rh_can, gs_mol, &
-               atm2lnd_inst, photosyns_inst)
-
-          exit
-       endif
-    enddo
-
-
-    
-    ! Perform iterative solution to converge on net assimilation,
-    ! stomatal conductance and intracellular co2 concentration
-    ! this is not a gradient method, it merely re-runs calculations
-    ! based off of updated intracellular co2 concentration until
-    ! there is minimal deviation from last attempt
-
     niter = 0
     loop_continue = .true.
     iter_loop: do while(loop_continue)
-
+       
        ! Increment iteration counter. Stop if too many iterations
        niter = niter + 1
 
-       ! Save old co2_intracel
-       co2_intracel_old = co2_intracel
-
-       ! Photosynthesis limitation rate calculations
-       if (lb_params%c3psn(ft) == c3_path_index)then
-
-          ! C3: Rubisco-limited photosynthesis
-          ac = AgrossRubiscoC3(vcmax,co2_intracel,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
-
-          ! C3: RuBP-limited photosynthesis
-          aj = AgrossRuBPC3(par_abs,jmax,co2_intracel,co2_cpoint )
-
-          ! Gross photosynthesis smoothing calculations. Co-limit ac and aj.
-          ! RGK: We can remove this smoothing, right? theta is always nearly 1...?
-          aquad = lb_params%theta_cj_c3
-          bquad = -(ac + aj)
-          cquad = ac * aj
-          call QuadraticRoots(aquad, bquad, cquad, r1, r2)
-          agross_out = min(r1,r2)
-
-          ! RGK: agross_out = min(ac,aj)
-          
-       else
-
-          ! C4: Rubisco-limited photosynthesis
-          ac = vcmax
-
-          ! C4: RuBP-limited photosynthesis
-          aj = AgrossRuBPC4(par_abs)
-            
-          ! C4: PEP carboxylase-limited (CO2-limited)
-          ap = AgrossPEPC4(co2_intracel,co2_rcurve_islope,can_press)
-                      
-          ! Gross photosynthesis smoothing calculations. First co-limit ac and aj. Then co-limit ap
-
-          aquad = lb_params%theta_cj_c4
-          bquad = -(ac + aj)
-          cquad = ac * aj
-          call QuadraticRoots(aquad, bquad, cquad, r1, r2)
-          ai = min(r1,r2)
-
-          aquad = theta_ip
-          bquad = -(ai + ap)
-          cquad = ai * ap
-          call QuadraticRoots(aquad, bquad, cquad, r1, r2)
-          agross_out = min(r1,r2)
-          
-          ! RGK:  agross_out = minval([ac,aj,ap])
-          
-       end if
-
-       ! Calculate anet
-       anet_out = agross_out  - lmr
-
-       if (  lb_params%stomatal_assim_model == gross_assim_model ) then
-          if ( lb_params%stomatal_model == medlyn_model ) then
-             write (fates_log(),*) 'Gross Assimilation conductance is incompatible with the Medlyn model'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-          a_gs = agross_out
-       else
-          a_gs = anet_out
-       end if
-
-       ! A note about the use of the quadratic equations for calculating stomatal conductance
-       ! ------------------------------------------------------------------------------------
-       ! These two following models calculate the conductance between the intracellular leaf
-       ! space and the leaf surface, not the canopy air space.  Transport between the leaf
-       ! surface and the canopy air space is governed by the leaf boundary layer conductance.
-       ! However, we need to estimate the properties at the surface of the leaf to solve for
-       ! the stomatal conductance. We do this by using Fick's law (gradient resistance
-       ! approximation of diffusion) to estimate the flux of water vapor across the
-       ! leaf boundary layer, and balancing that with the flux across the stomata. It
-       ! results in the following equation for leaf surface humidity:
-       !
-       ! e_s = (e_i g_s + e_c g_b)/(g_b + g_s)
-       !
-       ! The leaf surface humidity (e_s) becomes an expression of canopy humidity (e_c),
-       ! intracellular humidity (e_i, which is the saturation humidity at leaf temperature),
-       ! boundary layer conductance (g_b) (these are all known) and stomatal conductance
-       ! (g_s) (this is still unknown).  This expression is substituted into the stomatal
-       ! conductance equation. The resulting form of these equations becomes a quadratic.
-       !
-       ! For a detailed explanation, see the FATES technical note, section
-       ! "1.11 Stomatal Conductance"
-       !
-       ! ------------------------------------------------------------------------------------
-
-       leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb * anet_out * can_press 		   
-       leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
+       ! This function calculates the difference between
+       ! the guessed ci (ie ci0) and an updated value and returns
+       ! anet, agross, gs and the difference in ci (fval)
+       ! We encapsulate this process in the CiFunc() because
+       ! this is the objective funtion that we want the root of
+       ! in various search methods such as NR, Secant and bisection
        
-       ! Determine saturation vapor pressure at the leaf surface, from temp and atm-pressure
-       call QSat(veg_tempk, can_press, veg_qs, veg_esat)
+       call CiFunc(ci0, &
+            pft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+            can_co2_ppress,can_o2_ppress,can_press,lmr,par_abs,gb_veg_tempk, &
+            anet,agross,gs,fval)
 
-       ! RGK: Should this be moved here?
-       ! veg_esat = StomatalVaporPressureFromLWP(leaf_psi, k_lwp, veg_tempk, can_press, can_vpress)
-       
-       if ( lb_params%stomatal_model == medlyn_model ) then
-          call StomatalCondMedlyn(anet_out,ft,veg_esat,can_vpress,stomatal_intercept_btran, &
-                                  leaf_co2_ppress,can_press,gb,gs_out)
-       else
-          call StomatalCondBallBerry(a_gs,ft,veg_esat,can_vpress,stomatal_intercept_btran, &
-                                     leaf_co2_ppress,can_press,gb,gs_out)
-       end if
+       ! fval = ci_input - ci_predicted
+       ! ci_predicted = ci_input - fval
+       ci = ci0 - fval
 
-       ! Ensure that the conductance is above some nominal incredibly small value
-       ! gs_out = max(gs_out,gsmin0_20C1A_mol)
-
-       if(debug) then
-          if(gs_out < stomatal_intercept_btran) then
-             write(fates_log(),*) 'stomatal conductance is below the intercept, shouldnt be:',gs_out
-             write(fates_log(),*) 'input:', lb_params%stomatal_model,anet_out,a_gs,ft,veg_esat,can_vpress
-             write(fates_log(),*) 'input:',stomatal_intercept_btran,leaf_co2_ppress,can_press,gb
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-       end if
-
-       ! Derive new estimate for co2_intracel
-       co2_intracel = can_co2_ppress - anet_out * can_press * &
-            (h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/gs_out)
-       
-!            (h2o_co2_bl_diffuse_ratio*gs_out+h2o_co2_stoma_diffuse_ratio*gb) / (gb*gs_out)
-
-       ! Check for co2_intracel convergence.
-       ! The tolerance is if the new solution is less than 1 Pascal within
-       ! the previous solution.  Typical values for the range are 20-50,
-       ! with values less than atmospheric during production, and values
-       ! greater than atmospheric during dark respiration
-
-       if( abs(co2_intracel-co2_intracel_old) < co2_intracel_tol .or. niter > max_iters) then
+       if( abs(fval) < ci_tol ) then
           loop_continue = .false.
        end if
-       if(debug)then
-          if( niter == max_iters) then
-             write(fates_log(),*) 'photosynthesis exceeded the iteration limit'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
+
+       ci0 = ci
+       
+       if( niter == max_iters) then
+          !call CiBisection()
+          exit iter_loop
        end if
        
     end do iter_loop
 
-    ! estimate carbon 13 discrimination in leaf level carbon
-    ! flux Liang WEI and Hang ZHOU 2018, based on
-    ! Ubierna and Farquhar, 2014 doi:10.1111/pce.12346, using the simplified model:
+    
     ! $\Delta ^{13} C = \alpha_s + (b - \alpha_s) \cdot \frac{C_i}{C_a}$
     ! just hard code b and \alpha_s for now, might move to parameter set in future
     ! b = 27.0 alpha_s = 4.4
     ! TODO, not considering C4 or CAM right now, may need to address this
     ! note co2_intracel is intracelluar CO2, not intercelluar
     c13disc_out = 4.4_r8 + (27.0_r8 - 4.4_r8) * &
-         min (can_co2_ppress, max (co2_intracel, 0._r8)) / can_co2_ppress
+         min (can_co2_ppress, max (ci, 0._r8)) / can_co2_ppress
 
     return
   end subroutine LeafLayerPhotosynthesis
