@@ -282,7 +282,11 @@ module FatesHistoryInterfaceMod
   integer :: ih_pefflux_scpf
   integer :: ih_nfix_si
   integer :: ih_nfix_scpf
-
+  integer :: ih_ndemand_si
+  integer :: ih_ndemand_scpf
+  integer :: ih_pdemand_si
+  integer :: ih_pdemand_scpf
+  
   integer :: ih_trimming_si
   integer :: ih_area_plant_si
   integer :: ih_area_trees_si
@@ -2176,6 +2180,11 @@ contains
                           this%hvars(ih_nefflux_si)%r81d(io_si) + & 
                           ccohort%daily_n_efflux*uconv
 
+                     ! Demand
+                     this%hvars(ih_ndemand_si)%r81d(io_si) = &
+                          this%hvars(ih_ndemand_si)%r81d(io_si) + &
+                          ccohort%daily_n_demand*uconv
+                     
                   case (phosphorus_element)
 
                      ! Mineralized uptake of PO4
@@ -2188,6 +2197,11 @@ contains
                           this%hvars(ih_pefflux_si)%r81d(io_si) + &
                           ccohort%daily_p_efflux*uconv
 
+                     ! Demand
+                     this%hvars(ih_pdemand_si)%r81d(io_si) = &
+                          this%hvars(ih_pdemand_si)%r81d(io_si) + & 
+                          ccohort%daily_p_demand*uconv
+                     
                   end select
                end do
 
@@ -2256,6 +2270,11 @@ contains
                           this%hvars(ih_nefflux_scpf)%r82d(io_si,iscpf) + &
                           ccohort%daily_n_efflux*uconv
 
+                     ! Demand
+                     this%hvars(ih_ndemand_scpf)%r82d(io_si,iscpf) = &
+                          this%hvars(ih_ndemand_scpf)%r82d(io_si,iscpf) + &
+                          ccohort%daily_n_demand*uconv
+                     
                   case (phosphorus_element)
 
                      ! Mineralized uptake of PO4
@@ -2267,7 +2286,12 @@ contains
                      this%hvars(ih_pefflux_scpf)%r82d(io_si,iscpf) = &
                           this%hvars(ih_pefflux_scpf)%r82d(io_si,iscpf) + & 
                           ccohort%daily_p_efflux*uconv
-
+                     
+                     ! Demand
+                     this%hvars(ih_pdemand_scpf)%r82d(io_si,iscpf) = &
+                          this%hvars(ih_pdemand_scpf)%r82d(io_si,iscpf) + &
+                          ccohort%daily_p_demand*uconv
+                     
                   end select
                end do
 
@@ -6422,6 +6446,12 @@ contains
                upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_nefflux_si)
 
+          call this%set_history_var(vname='FATES_NDEMAND', units='kg m-2 s-1',      &
+               long='plant nitrogen need (algorithm dependent) in kg N per m2 per second', &
+               use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
+               index = ih_ndemand_si)
+          
           call this%set_history_var(vname='FATES_NFIX_SYM', units='kg m-2 s-1',      &
                long='symbiotic dinitrogen fixation in kg N per m2 per second', &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
@@ -6519,6 +6549,12 @@ contains
                upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
                index = ih_pefflux_si)
 
+          call this%set_history_var(vname='FATES_PDEMAND', units='kg m-2 s-1',      &
+               long='plant phosphorus need (algorithm dependent) in kg P per m2 per second', &
+               use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
+               upfreq=group_nflx_simple, ivar=ivar, initialize=initialize_variables,              &
+               index = ih_pdemand_si)
+          
        end if phosphorus_active_if0
 
        call this%set_history_var(vname='FATES_STRUCTC', units='kg m-2',           &
@@ -7150,6 +7186,12 @@ contains
                   hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_nefflux_scpf)
 
+             call this%set_history_var(vname='FATES_NDEMAND_SZPF', units='kg m-2 s-1', &
+                  long='plant N need (algorithm dependent), by size-class x pft in kg N per m2 per second', &
+                  use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
+                  initialize=initialize_variables, index = ih_ndemand_scpf)
+             
              call this%set_history_var(vname='FATES_NFIX_SYM_SZPF', units='kg m-2 s-1', &
                   long='symbiotic dinitrogen fixation, by size-class x pft in kg N per m2 per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
@@ -7274,7 +7316,13 @@ contains
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
                   hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
                   initialize=initialize_variables, index = ih_pefflux_scpf)
-
+             
+             call this%set_history_var(vname='FATES_PDEMAND_SZPF', units='kg m-2 s-1', &
+                  long='plant P need (algorithm dependent), by size-class x pft in kg P per m2 per second', &
+                  use_default='inactive', avgflag='A', vtype=site_size_pft_r8,       &
+                  hlms='CLM:ALM', upfreq=group_nflx_complx, ivar=ivar,                               &
+                  initialize=initialize_variables, index = ih_pdemand_scpf)
+             
           end if phosphorus_active_if1
 
           call this%set_history_var(vname='FATES_CROWNAREA_CLLL', units='m2 m-2',    &
