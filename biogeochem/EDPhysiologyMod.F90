@@ -18,6 +18,7 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod, only    : hlm_use_nocomp
+  use EDParamsMod           , only    : crop_lu_pft_vector     
   use FatesInterfaceTypesMod, only    : hlm_nitrogen_spec
   use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
   use FatesInterfaceTypesMod, only    : hlm_use_tree_damage
@@ -34,6 +35,8 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : g_per_kg
   use FatesConstantsMod, only    : ndays_per_year
   use FatesConstantsMod, only    : nocomp_bareground
+  use FatesConstantsMod, only    : nocomp_bareground_land
+  use FatesConstantsMod, only    : is_crop
   use FatesConstantsMod, only    : area_error_2
   use EDPftvarcon      , only    : EDPftvarcon_inst
   use PRTParametersMod , only    : prt_params
@@ -141,7 +144,8 @@ module EDPhysiologyMod
   use FatesParameterDerivedMod, only : param_derived
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
-  
+  use FatesInterfaceTypesMod    , only : hlm_use_luh
+
   implicit none
   private
 
@@ -667,6 +671,7 @@ contains
     real(r8) :: target_c_area
 
     real(r8) :: pft_leaf_lifespan         ! Leaf lifespan of each PFT [years]
+    real(r8) :: leaf_long                 ! temporary leaf lifespan before accounting for deciduousness 
     !----------------------------------------------------------------------
 
     ipatch = 1 ! Start counting patches
@@ -739,6 +744,14 @@ contains
           ! Identify current canopy layer (cl)
           cl = currentCohort%canopy_layer
 
+          ! Get leaf lifespan- depends on canopy layer
+          if  (cl .eq. 1 ) then
+             leaf_long = sum(prt_params%leaf_long(ipft,:))
+          else
+             leaf_long = sum(prt_params%leaf_long_ustory(ipft,:))
+          end if
+          
+
           ! PFT-level maximum SLA value, even if under a thick canopy (same units as slatop)
           sla_max = prt_params%slamax(ipft)
 
@@ -787,10 +800,10 @@ contains
                    ! Drought-decidous costs. Assume time-span to be the least between
                    !    1 year and the life span provided by the parameter file.
                    pft_leaf_lifespan = &
-                      min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:)))
+                      min(decid_leaf_long_max,leaf_long)
 
                 else !evergreen costs
-                   pft_leaf_lifespan = sum(prt_params%leaf_long(ipft,:))
+                   pft_leaf_lifespan = leaf_long
                 end if
 
                 ! Leaf cost at leaf level z (kgC m-2 year-1) accounting for sla profile
@@ -1269,6 +1282,8 @@ contains
        ! (defined as a PFT parameter) and the maximum canopy leaf life span allowed
        ! for drought deciduous (local parameter). The sum term accounts for the
        ! total leaf life span of this cohort.
+       ! Note we only use canopy leaf lifespan here and assume  that understory cohorts
+       ! would  behave the same as canopy cohorts with regards to phenology. 
        ndays_pft_leaf_lifespan = &
           nint(ndays_per_year*min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:))))
 
@@ -2496,20 +2511,35 @@ contains
       real(r8)                          :: seedling_layer_smp ! soil matric potential at seedling rooting depth [mm H2O suction]
       integer, parameter                :: recruitstatus = 1  ! whether the newly created cohorts are recruited or initialized
       integer                           :: ilayer_seedling_root ! the soil layer at seedling rooting depth
-
+      logical                           :: use_this_pft         ! logical flag for whether or not to allow a given PFT to recruit
       !---------------------------------------------------------------------------
 
       do ft = 1, numpft
 
-         ! The following if block is for the prescribed biogeography and/or nocomp modes.
-         ! Since currentSite%use_this_pft is a site-level quantity and thus only limits whether a given PFT
-         ! is permitted on a given gridcell or not, it applies to the prescribed biogeography case only.
-         ! If nocomp is enabled, then we must determine whether a given PFT is allowed on a given patch or not.
+       ! The following if block is for the prescribed biogeography and/or nocomp modes and/or crop land use types
+       ! Since currentSite%use_this_pft is a site-level quantity and thus only limits whether a given PFT
+       ! is permitted on a given gridcell or not, it applies to the prescribed biogeography case only.
+       ! If nocomp is enabled, then we must determine whether a given PFT is allowed on a given patch or not.
+       ! Whether or not nocomp or prescribed biogeography is enabled, if land use change is enabled, then we only want to
+       ! allow crop PFTs on patches with crop land use types
 
-         if (currentSite%use_this_pft(ft) .eq. itrue  .and.                    &
-            ((hlm_use_nocomp .eq. ifalse) .or.                                 &
-            (ft .eq. currentPatch%nocomp_pft_label))) then
+       use_this_pft = .false.
+       if(currentSite%use_this_pft(ft).eq.itrue &
+            .and. ((hlm_use_nocomp .eq. ifalse) .or. (ft .eq. currentPatch%nocomp_pft_label)))then
+          use_this_pft = .true.
+       end if
 
+       if ( currentPatch%land_use_label .ne. nocomp_bareground_land ) then ! cdk
+          if ((hlm_use_luh .eq. itrue) .and. (is_crop(currentPatch%land_use_label))) then
+             if ( crop_lu_pft_vector(currentPatch%land_use_label) .eq. ft ) then
+                use_this_pft = .true.
+             else
+                use_this_pft = .false.
+             end if
+          end if
+       endif
+
+       use_this_pft_if: if(use_this_pft) then
             height             = EDPftvarcon_inst%hgt_min(ft)
             stem_drop_fraction = prt_params%phen_stem_drop_fraction(ft)
             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(ft)
@@ -2755,11 +2785,11 @@ contains
                currentSite%recruitment_rate(ft) = currentSite%recruitment_rate(ft) + cohort_n
 
             endif any_recruits
-         endif !use_this_pft
+         endif use_this_pft_if
       enddo  !pft loop
    end subroutine recruitment
 
-  ! ======================================================================================
+   ! ======================================================================================
 
   subroutine CWDInput( currentSite, currentPatch, litt, bc_in)
 
@@ -3030,7 +3060,7 @@ contains
                   SF_val_CWD_frac_adj(c) * dead_n_dlogging * &
                   prt_params%allom_agb_frac(pft)
 
-             site_mass%wood_product = site_mass%wood_product + &
+             site_mass%wood_product_harvest(pft) = site_mass%wood_product_harvest(pft) + &
                   trunk_wood * currentPatch%area * logging_export_frac
 
              ! Add AG wood to litter from the non-exported fraction of wood

@@ -30,6 +30,7 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : dtype_ifall
    use FatesConstantsMod , only : dtype_ifire
    use EDTypesMod        , only : area_inv
+   use FatesConstantsMod , only : n_landuse_cats
    use EDPftvarcon       , only : EDPftvarcon_inst
    use EDPftvarcon       , only : GetDecompyFrac
    use PRTParametersMod  , only : prt_params
@@ -55,6 +56,7 @@ module EDLoggingMortalityMod
    use FatesInterfaceTypesMod , only : hlm_num_lu_harvest_cats
    use FatesInterfaceTypesMod , only : hlm_use_logging 
    use FatesInterfaceTypesMod , only : hlm_use_planthydro
+   use FatesInterfaceTypesMod , only : hlm_use_luh
    use FatesConstantsMod , only : itrue,ifalse
    use FatesGlobals      , only : endrun => fates_endrun 
    use FatesGlobals      , only : fates_log
@@ -71,7 +73,10 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : hlm_harvest_area_fraction
    use FatesConstantsMod , only : hlm_harvest_carbon
    use FatesConstantsMod, only : fates_check_param_set
-
+   use FatesInterfaceTypesMod , only : numpft
+   use FatesLandUseChangeMod, only : GetInitLanduseHarvestRate
+   use FatesLandUseChangeMod, only : GetLUHStatedata
+     
    implicit none
    private
 
@@ -197,15 +202,17 @@ contains
 
    ! ======================================================================================
 
-   subroutine LoggingMortality_frac( pft_i, dbh, canopy_layer, lmort_direct, &
+   subroutine LoggingMortality_frac( currentSite, bc_in, pft_i, dbh, canopy_layer, lmort_direct, &
                                      lmort_collateral,lmort_infra, l_degrad, &
                                      hlm_harvest_rates, hlm_harvest_catnames, &
                                      hlm_harvest_units, &
                                      patch_land_use_label, secondary_age, &
-                                     frac_site_primary, harvestable_forest_c, &
+                                     frac_site_primary, frac_site_secondary, harvestable_forest_c, &
                                      harvest_tag)
 
-      ! Arguments
+     ! Arguments
+      type(ed_site_type), intent(inout), target :: currentSite     ! site structure
+      type(bc_in_type), intent(in) :: bc_in
       integer,  intent(in)  :: pft_i            ! pft index 
       real(r8), intent(in)  :: dbh              ! diameter at breast height (cm)
       integer,  intent(in)  :: canopy_layer     ! canopy layer of this cohort
@@ -217,6 +224,7 @@ contains
       real(r8), intent(in) :: harvestable_forest_c(:)  ! total harvestable forest carbon 
                                                        ! of all hlm harvest categories
       real(r8), intent(in) :: frac_site_primary
+      real(r8), intent(in) :: frac_site_secondary
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
@@ -234,6 +242,9 @@ contains
       ! Local variables
       integer :: cur_harvest_tag ! the harvest tag of the cohort today
       real(r8) :: harvest_rate ! the final harvest rate to apply to this cohort today
+      real(r8) :: state_vector(n_landuse_cats)
+      logical  :: site_secondaryland_first_exceeding_min
+      real(r8) :: secondary_young_fraction  ! what fraction of secondary land is young secondary land
 
       ! todo: probably lower the dbhmin default value to 30 cm
       ! todo: change the default logging_event_code to 1 september (-244)
@@ -241,55 +252,92 @@ contains
       ! todo: check outputs against the LUH2 carbon data
       ! todo: eventually set up distinct harvest practices, each with a set of input paramaeters
       ! todo: implement harvested carbon inputs
-      
-      if (logging_time) then 
 
-         ! Pass logging rates to cohort level 
-         
-         if (hlm_use_lu_harvest == ifalse) then
-            ! 0=use fates logging parameters directly when logging_time == .true.
-            ! this means harvest the whole cohort area
-            harvest_rate = 1._r8
-            
-         else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_area_fraction) then
-            ! We are harvesting based on areal fraction, not carbon/biomass terms. 
-            ! 1=use area fraction from hlm
-            ! combine forest and non-forest fracs and then apply:
-            ! primary and secondary area fractions to the logging rates, which are fates parameters
-            
-            ! Definitions of the underlying harvest land category variables
-            ! these are hardcoded to match the LUH input data via landuse.timseries file (see dynHarvestMod)
-            ! these are fractions of vegetated area harvested, split into five land category variables
-            ! HARVEST_VH1 = harvest from primary forest
-            ! HARVEST_VH2 = harvest from primary non-forest
-            ! HARVEST_SH1 = harvest from secondary mature forest
-            ! HARVEST_SH2 = harvest from secondary young forest
-            ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
+      ! The transition_landuse_from_off_to_on is for handling the special case of the first timestep after leaving potential
+      ! vegetation mode. In this case, all prior historical land-use, including harvest, needs to be applied on that first day.
+      ! So logging rates on that day are what is required to deforest exactly the amount of primary lands that will give the
+      ! amount of secondary lands dictated by the land use state vector for that year, rather than whatever the continuous
+      ! logging rate for that year is supposed to be according to the land use transition matrix.
+      if (.not. currentSite%transition_landuse_from_off_to_on) then
 
-            ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
-            call get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, &
-                 hlm_harvest_rates, frac_site_primary, secondary_age, harvest_rate)
+         ! Check if the secondaryland exceeds the minimum if in landuse mode
+         site_secondaryland_first_exceeding_min = .false.
+         if (hlm_use_luh .eq. itrue) then
+            call GetLUHStatedata(bc_in, state_vector)
+            site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. currentSite%min_allowed_landuse_fraction) &
+                 .and. (.not. currentSite%landuse_vector_gt_min(secondaryland))
+         end if
+
+         ! if the total intended area of secondary lands are less than what we can consider without having too-small patches,
+         ! or if that was the case until just now, then there is special logic
+         if (site_secondaryland_first_exceeding_min) then
+            if ( patch_land_use_label .eq. primaryland) then
+               harvest_rate = state_vector(secondaryland) / state_vector(primaryland)
+               write(fates_log(), *) 'applying state_vector(secondaryland) to plants.', pft_i
+            else
+               harvest_rate = 0._r8
+            endif
 
             ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
             harvest_tag = 2
             cur_harvest_tag = 2
+         elseif (logging_time) then 
 
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate
-            end if
+            ! Pass logging rates to cohort level 
 
-         else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_carbon) then
-            ! 2=use carbon from hlm
-            ! shall call another subroutine, which transfers biomass/carbon into fraction
+            if (hlm_use_lu_harvest == ifalse) then
+               ! 0=use fates logging parameters directly when logging_time == .true.
+               ! this means harvest the whole cohort area
+               harvest_rate = 1._r8
 
-            call get_harvest_rate_carbon (patch_land_use_label, hlm_harvest_catnames, &
-                  hlm_harvest_rates, secondary_age, harvestable_forest_c, &
-                  harvest_rate, harvest_tag, cur_harvest_tag)
+            else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_area_fraction) then
+               ! We are harvesting based on areal fraction, not carbon/biomass terms. 
+               ! 1=use area fraction from hlm
+               ! combine forest and non-forest fracs and then apply:
+               ! primary and secondary area fractions to the logging rates, which are fates parameters
 
-            if (fates_global_verbose()) then
-               write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate, harvestable_forest_c
-            end if
-            
+               ! Definitions of the underlying harvest land category variables
+               ! these are hardcoded to match the LUH input data via landuse.timseries file (see dynHarvestMod)
+               ! these are fractions of vegetated area harvested, split into five land category variables
+               ! HARVEST_VH1 = harvest from primary forest
+               ! HARVEST_VH2 = harvest from primary non-forest
+               ! HARVEST_SH1 = harvest from secondary mature forest
+               ! HARVEST_SH2 = harvest from secondary young forest
+               ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
+
+               secondary_young_fraction = currentSite%get_secondary_young_fraction()
+
+               ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
+               call get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, &
+                    hlm_harvest_rates, frac_site_primary, frac_site_secondary, secondary_young_fraction, secondary_age, harvest_rate)
+
+               ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
+               harvest_tag = 2
+               cur_harvest_tag = 2
+
+               if (fates_global_verbose()) then
+                  write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate
+               end if
+
+            else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_carbon) then
+               ! 2=use carbon from hlm
+               ! shall call another subroutine, which transfers biomass/carbon into fraction
+
+               call get_harvest_rate_carbon (patch_land_use_label, hlm_harvest_catnames, &
+                    hlm_harvest_rates, secondary_age, harvestable_forest_c, &
+                    harvest_rate, harvest_tag, cur_harvest_tag)
+
+               if (fates_global_verbose()) then
+                  write(fates_log(), *) 'Successfully Read Harvest Rate from HLM.', hlm_harvest_rates(:), harvest_rate, harvestable_forest_c
+               end if
+
+            endif
+
+         else
+            harvest_rate = 0._r8
+            ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
+            harvest_tag = 2
+            cur_harvest_tag = 2
          endif
 
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
@@ -298,7 +346,7 @@ contains
             if (cur_harvest_tag == 0) then
                ! direct logging rates, based on dbh min and max criteria
                if (dbh >= logging_dbhmin .and. .not. &
-                  ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
+                    ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
                   ! the logic of the above line is a bit unintuitive but allows turning off the dbhmax comparison entirely.
                   ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
                   ! the opposite of what would otherwise be expected...
@@ -307,7 +355,7 @@ contains
                   lmort_direct = 0.0_r8
                end if
             else
-                lmort_direct = 0.0_r8
+               lmort_direct = 0.0_r8
             end if
 
             ! infrastructure (roads, skid trails, etc) mortality rates
@@ -337,13 +385,20 @@ contains
          else
             l_degrad = 0._r8
          endif
-         
-      else 
-         lmort_direct    = 0.0_r8
+
+      else
+         call GetInitLanduseHarvestRate(bc_in, currentSite%min_allowed_landuse_fraction, &
+              harvest_rate, currentSite%landuse_vector_gt_min)
+         lmort_direct     = 0.0_r8
          lmort_collateral = 0.0_r8
          lmort_infra      = 0.0_r8
          l_degrad         = 0.0_r8
-      end if
+         if(prt_params%woody(pft_i) == itrue)then
+            lmort_direct     = harvest_rate
+         else if (canopy_layer .eq. 1) then
+            l_degrad         = harvest_rate
+         endif
+      endif
 
    end subroutine LoggingMortality_frac
 
@@ -351,13 +406,13 @@ contains
    ! ============================================================================
 
    subroutine get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, hlm_harvest_rates, &
-                 frac_site_primary, secondary_age, harvest_rate)
+                 frac_site_primary, frac_site_secondary, secondary_young_fraction, secondary_age, harvest_rate)
 
 
      ! -------------------------------------------------------------------------------------------
      !
      !  DESCRIPTION:
-     !  get the area-based harvest rates based on info passed to FATES from the bioundary conditions in.
+     !  get the area-based harvest rates based on info passed to FATES from the boundary conditions in.
      !  assumes logging_time == true
 
       ! Arguments
@@ -366,6 +421,8 @@ contains
       integer, intent(in) :: patch_land_use_label    ! patch level land_use_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(in) :: frac_site_primary
+      real(r8), intent(in) :: frac_site_secondary
+      real(r8), intent(in) :: secondary_young_fraction  ! what fraction of secondary land is young secondary land
       real(r8), intent(out) :: harvest_rate
 
       ! Local Variables
@@ -398,19 +455,26 @@ contains
      !  Normalize by site-level primary or secondary forest fraction
      !  since harvest_rate is specified as a fraction of the gridcell
      !  also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
+     !  For secondary, also need to normalize by the young/old fraction.
      if (patch_land_use_label .eq. primaryland) then
         if (frac_site_primary .gt. fates_tiny) then
-           harvest_rate = min((harvest_rate / frac_site_primary),frac_site_primary)
+           harvest_rate = min((harvest_rate / frac_site_primary),1._r8)
+        else
+           harvest_rate = 0._r8
+        endif
+     else if (patch_land_use_label .eq. secondaryland) then
+        ! the .gt. -0.5 in the next line is because frac_site_secondary returns -1 if no secondary area.
+        if (frac_site_secondary .gt. fates_tiny .and. frac_site_secondary .gt. -0.5_r8) then
+           if (secondary_age .lt. secondary_age_threshold) then
+              harvest_rate = min((harvest_rate / (frac_site_secondary * secondary_young_fraction)), 1._r8)
+           else
+              harvest_rate = min((harvest_rate / (frac_site_secondary * (1._r8 - secondary_young_fraction))), 1._r8)
+           endif
         else
            harvest_rate = 0._r8
         endif
      else
-        if ((1._r8-frac_site_primary) .gt. fates_tiny) then
-           harvest_rate = min((harvest_rate / (1._r8-frac_site_primary)),&
-                (1._r8-frac_site_primary))
-        else
-           harvest_rate = 0._r8
-        endif
+        harvest_rate = 0._r8
      endif
 
      ! calculate today's harvest rate
@@ -440,8 +504,6 @@ contains
 
      !USES:
      use SFParamsMod,  only : SF_val_cwd_frac
-     use EDTypesMod,   only : AREA_INV
-
 
      ! -------------------------------------------------------------------------------------------
      !
@@ -494,7 +556,7 @@ contains
               harvestable_cohort_c = logging_direct_frac * ( sapw_m + struct_m ) * &
                      prt_params%allom_agb_frac(currentCohort%pft) * &
                      SF_val_CWD_frac(ncwd) * logging_export_frac * &
-                     currentCohort%n * AREA_INV * site_area
+                     currentCohort%n * area_inv * site_area
 
               ! No harvest for trees without canopy 
               if (currentCohort%canopy_layer>=1) then
@@ -985,7 +1047,7 @@ contains
                   ag_wood * logging_export_frac
 
             ! This is for checking the total mass balance [kg/site/day]
-            site_mass%wood_product = site_mass%wood_product + &
+            site_mass%wood_product_harvest(pft) = site_mass%wood_product_harvest(pft) + &
                   ag_wood * logging_export_frac
 
             new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
@@ -1108,17 +1170,16 @@ contains
       ! Harvested C flux in HLM.
       ! ----------------------------------------------------------------------------------
       use EDtypesMod             , only : ed_site_type
-      use EDTypesMod             , only : AREA_INV
       use PRTGenericMod          , only : element_pos
       use PRTGenericMod          , only : carbon12_element
       use FatesInterfaceTypesMod , only : bc_out_type
-      use EDParamsMod            , only : pprodharv10_forest_mean
   
       ! Arguments
       type(ed_site_type), intent(inout), target :: currentSite     ! site structure
       type(bc_out_type), intent(inout)          :: bc_out
   
       integer :: icode
+      integer :: i_pft
       real(r8) :: unit_trans_factor
   
 
@@ -1129,13 +1190,26 @@ contains
       ! Calculate the unit transfer factor (from kgC m-2 day-1 to gC m-2 s-1)
       unit_trans_factor = g_per_kg * days_per_sec
 
-      bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
-          currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
-          AREA_INV * pprodharv10_forest_mean * unit_trans_factor
-      bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
-          currentSite%mass_balance(element_pos(carbon12_element))%wood_product * &
-          AREA_INV * (1._r8 - pprodharv10_forest_mean) * unit_trans_factor  
-  
+      ! harvest-associated wood product pools
+      do i_pft = 1,numpft
+         bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
+              currentSite%mass_balance(element_pos(carbon12_element))%wood_product_harvest(i_pft) * &
+              area_inv * EDPftvarcon_inst%harvest_pprod10(i_pft) * unit_trans_factor
+         bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
+              currentSite%mass_balance(element_pos(carbon12_element))%wood_product_harvest(i_pft) * &
+              area_inv * (1._r8 - EDPftvarcon_inst%harvest_pprod10(i_pft)) * unit_trans_factor
+      end do
+
+      ! land-use-change-associated wood product pools
+      do i_pft = 1,numpft
+         bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
+              currentSite%mass_balance(element_pos(carbon12_element))%wood_product_landusechange(i_pft) * &
+              area_inv * EDPftvarcon_inst%landusechange_pprod10(i_pft) * unit_trans_factor
+         bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
+              currentSite%mass_balance(element_pos(carbon12_element))%wood_product_landusechange(i_pft) * &
+              area_inv * (1._r8 - EDPftvarcon_inst%landusechange_pprod10(i_pft)) * unit_trans_factor
+      end do
+
       return
 
    end subroutine UpdateHarvestC

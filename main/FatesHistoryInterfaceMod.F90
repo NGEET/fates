@@ -14,6 +14,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : i_term_mort_type_cstarv
   use FatesConstantsMod        , only : i_term_mort_type_canlev
   use FatesConstantsMod        , only : i_term_mort_type_numdens
+  use FatesConstantsMod        , only : nocomp_bareground_land
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDParamsMod              , only : nclmax, maxpft
@@ -89,6 +90,7 @@ module FatesHistoryInterfaceMod
   ! CIME Globals
   use shr_log_mod              , only : errMsg => shr_log_errMsg
   use shr_infnan_mod           , only : isnan => shr_infnan_isnan
+
   use FatesConstantsMod        , only : g_per_kg
   use FatesConstantsMod        , only : kg_per_g
   use FatesConstantsMod        , only : ha_per_m2
@@ -133,8 +135,6 @@ module FatesHistoryInterfaceMod
   use FatesSizeAgeTypeIndicesMod, only : get_cdamagesize_class_index
   use FatesSizeAgeTypeIndicesMod, only : get_cdamagesizepft_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
-  use FatesInterfaceTypesMod    , only : nlevdamage
-
 
   implicit none
   private          ! By default everything is private
@@ -361,14 +361,16 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_area_si_landuse
   integer :: ih_disturbance_rate_si_lulu
-
+  integer :: ih_transition_matrix_si_lulu
+  
   integer :: ih_fire_disturbance_rate_si
   integer :: ih_logging_disturbance_rate_si
   integer :: ih_fall_disturbance_rate_si
-  integer :: ih_harvest_carbonflux_si
   integer :: ih_harvest_debt_si
   integer :: ih_harvest_debt_sec_si
-
+  integer :: ih_harvest_woodprod_carbonflux_si
+  integer :: ih_luchange_woodprod_carbonflux_si
+  
   ! Indices to site by size-class by age variables
   integer :: ih_nplant_si_scag
   integer :: ih_nplant_canopy_si_scag
@@ -2435,7 +2437,6 @@ contains
          hio_fire_disturbance_rate_si      => this%hvars(ih_fire_disturbance_rate_si)%r81d, &
          hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
          hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
-         hio_harvest_carbonflux_si => this%hvars(ih_harvest_carbonflux_si)%r81d, &
          hio_harvest_debt_si     => this%hvars(ih_harvest_debt_si)%r81d, &
          hio_harvest_debt_sec_si => this%hvars(ih_harvest_debt_sec_si)%r81d, &
          hio_npp_leaf_si         => this%hvars(ih_npp_leaf_si)%r81d, &
@@ -2466,8 +2467,9 @@ contains
          hio_tlongterm                        => this%hvars(ih_tlongterm_si)%r81d, &
          hio_tgrowth                          => this%hvars(ih_tgrowth_si)%r81d, &
          hio_lai_si                           => this%hvars(ih_lai_si)%r81d, &
-         hio_elai_si                          => this%hvars(ih_elai_si)%r81d)
-
+         hio_elai_si                          => this%hvars(ih_elai_si)%r81d, &
+         hio_harvest_woodprod_carbonflux_si   => this%hvars(ih_harvest_woodprod_carbonflux_si)%r81d, &
+         hio_luchange_woodprod_carbonflux_si => this%hvars(ih_luchange_woodprod_carbonflux_si)%r81d)
 
       ! ---------------------------------------------------------------------------------
       ! Loop through the FATES scale hierarchy and fill the history IO arrays
@@ -2535,6 +2537,8 @@ contains
 
          ! Nesterov index (unitless)
          hio_nesterov_fire_danger_si(io_si) = sites(s)%fireWeather%fire_weather_index
+         
+         hio_effect_wspeed_si(io_si) = sites(s)%fireWeather%effective_windspeed/sec_per_min
 
          ! number of ignitions [#/km2/day -> #/m2/s]
          hio_fire_nignitions_si(io_si) = sites(s)%NF_successful / m2_per_km2 /  &
@@ -2571,9 +2575,12 @@ contains
               sum(sites(s)%disturbance_rates(dtype_ifall,1:n_landuse_cats,1:n_landuse_cats)) * &
               days_per_year
 
-         hio_harvest_carbonflux_si(io_si) = &
-              sites(s)%mass_balance(element_pos(carbon12_element))%wood_product * AREA_INV
+         hio_harvest_woodprod_carbonflux_si(io_si) = AREA_INV * &
+              sum(sites(s)%mass_balance(element_pos(carbon12_element))%wood_product_harvest(1:numpft))
 
+         hio_luchange_woodprod_carbonflux_si(io_si) = AREA_INV * &
+              sum(sites(s)%mass_balance(element_pos(carbon12_element))%wood_product_landusechange(1:numpft))
+          
 
          ! carbon flux associated with mortality of trees dying by fire
          hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
@@ -2608,6 +2615,7 @@ contains
               sites(s)%fmort_crownarea_ustory + &
               sites(s)%term_crownarea_ustory * days_per_year + &
               sites(s)%imort_crownarea
+
 
          elflux_diags_c => sites(s)%flux_diags%elem(element_pos(carbon12_element))
 
@@ -2672,7 +2680,6 @@ contains
 
             ! Update Fire Variables
             hio_spitfire_ros_si(io_si)         = hio_spitfire_ros_si(io_si) + cpatch%ROS_front * cpatch%area * AREA_INV / sec_per_min
-            hio_effect_wspeed_si(io_si)        = hio_effect_wspeed_si(io_si) + cpatch%effect_wspeed * cpatch%area * AREA_INV / sec_per_min
             hio_tfc_ros_si(io_si)              = hio_tfc_ros_si(io_si) + cpatch%TFC_ROS * cpatch%area * AREA_INV
             hio_fire_intensity_si(io_si)       = hio_fire_intensity_si(io_si) + cpatch%FI * cpatch%area * AREA_INV * J_per_kJ
             hio_fire_area_si(io_si)            = hio_fire_area_si(io_si) + cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
@@ -3310,6 +3317,8 @@ contains
              hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d, &
              hio_interr_liveveg_elem              => this%hvars(ih_interr_liveveg_elem)%r82d, &
              hio_interr_litter_elem               => this%hvars(ih_interr_litter_elem)%r82d)
+             hio_transition_matrix_si_lulu      => this%hvars(ih_transition_matrix_si_lulu)%r82d)
+
 
           model_day_int = nint(hlm_model_day)
 
@@ -3336,17 +3345,22 @@ contains
              storep_understory_scpf(:) = 0._r8
              storec_canopy_scpf(:) = 0._r8
              storec_understory_scpf(:) = 0._r8
-
-             ! roll up disturbance rates in land-use x land-use array into a single dimension
+             
              do i_dist = 1, n_landuse_cats
                 do j_dist = 1, n_landuse_cats
+                   
+                   ! roll up disturbance rates in land-use x land-use array into a single dimension
                    hio_disturbance_rate_si_lulu(io_si, i_dist+n_landuse_cats*(j_dist-1)) = &
                         sum(sites(s)%disturbance_rates(1:n_dist_types,i_dist, j_dist)) * &
                         days_per_year
+
+                   ! get the land use transition matrix and output that to history.
+                   ! (mainly a sanity check, can maybe remove before integration)
+                   hio_transition_matrix_si_lulu(io_si, i_dist+n_landuse_cats*(j_dist-1)) = &
+                        sites(s)%landuse_transition_matrix(i_dist, j_dist)
                 end do
              end do
-
-
+             
              do el = 1, num_elements
 
                 ! Total model error [kg/day -> kg/s]  (all elements)
@@ -3400,10 +3414,13 @@ contains
                 hio_area_si_age(io_si,cpatch%age_class) = hio_area_si_age(io_si,cpatch%age_class) &
                      + cpatch%area * AREA_INV
 
-                hio_area_si_landuse(io_si, cpatch%land_use_label) = &
-                     hio_area_si_landuse(io_si, cpatch%land_use_label) &
-                     + cpatch%area * AREA_INV
-
+                ! ignore land use info on nocomp bareground (where landuse label = 0)
+                if (cpatch%land_use_label .gt. nocomp_bareground_land) then 
+                   hio_area_si_landuse(io_si, cpatch%land_use_label) = &
+                        hio_area_si_landuse(io_si, cpatch%land_use_label) &
+                        + cpatch%area * AREA_INV
+                end if
+                   
                 ! Increment some patch-age-resolved diagnostics
                 hio_lai_si_age(io_si,cpatch%age_class) = hio_lai_si_age(io_si,cpatch%age_class) &
                      + sum(cpatch%tlai_profile(:,:,:) * cpatch%canopy_area_profile(:,:,:) ) * cpatch%total_canopy_area
@@ -5014,14 +5031,17 @@ contains
          ! Diagnostics that are only relevant if there is vegetation present on this site
          ! ie, non-zero canopy area
 
-
-         site_area_veg_inv = 0._r8
-         cpatch => sites(s)%oldest_patch
-         do while(associated(cpatch))
-            site_area_veg_inv = site_area_veg_inv + cpatch%total_canopy_area
-            cpatch => cpatch%younger
-         end do !patch loop
-
+         if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
+            site_area_veg_inv = area - sites(s)%area_bareground * area
+         else
+            site_area_veg_inv = 0._r8
+            cpatch => sites(s)%oldest_patch
+            do while(associated(cpatch))
+               site_area_veg_inv = site_area_veg_inv + cpatch%total_canopy_area
+               cpatch => cpatch%younger
+            end do !patch loop
+         end if
+         
          if_veg_area: if(site_area_veg_inv < nearzero) then
 
             hio_c_stomata_si(io_si) = hlm_hio_ignore_val
@@ -5391,7 +5411,7 @@ contains
 
             do_pft1: do ipft=1,numpft
                do_canlev1: do ican=1,cpatch%ncl_p
-                  do_leaflev1: do ileaf=1,cpatch%ncan(ican,ipft)
+                  do_leaflev1: do ileaf=1,cpatch%nleaf(ican,ipft)
 
                      ! calculate where we are on multiplexed dimensions
                      clllpf_indx = ileaf + (ican-1) * nlevleaf + (ipft-1) * nlevleaf * nclmax
@@ -6217,15 +6237,7 @@ contains
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_lai_secondary_si)
 
-       call this%set_history_var(vname='FATES_PATCHAREA_LU', units='m2 m-2',      &
-            long='patch area by land use type', use_default='active',  &
-            avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,  &
-            initialize=initialize_variables, index=ih_area_si_landuse)
-
-       call this%set_history_var(vname='FATES_DISTURBANCE_RATE_MATRIX_LULU', units='m2 m-2 yr-1',      &
-            long='disturbance rates by land use type x land use type matrix', use_default='active',  &
-            avgflag='A', vtype=site_lulu_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,  &
-            initialize=initialize_variables, index=ih_disturbance_rate_si_lulu)
+ 
 
        ! Secondary forest area and age diagnostics
 
@@ -6613,14 +6625,21 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_fall_disturbance_rate_si)
-
-       call this%set_history_var(vname='FATES_HARVEST_CARBON_FLUX',               &
+       
+       call this%set_history_var(vname='FATES_HARVEST_WOODPROD_C_FLUX',           &
             units='kg m-2 yr-1',                                                  &
-            long='harvest carbon flux in kg carbon per m2 per year',              &
+            long='harvest-associated wood product carbon flux in kg C per m2 per year', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-            index = ih_harvest_carbonflux_si)
-
+            index = ih_harvest_woodprod_carbonflux_si)
+       
+       call this%set_history_var(vname='FATES_LUCHANGE_WOODPROD_C_FLUX',     &
+            units='kg m-2 yr-1',                                                  &
+            long='land-use-change-associated wood product carbon flux in kg C per m2 per year', &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            index = ih_luchange_woodprod_carbonflux_si)
+       
        call this%set_history_var(vname='FATES_TVEG24', units='degree_Celsius', &
             long='fates 24-hr running mean vegetation temperature by site', &
             use_default='active', &
@@ -6791,6 +6810,21 @@ contains
 
        if_dyn1: if(hlm_hist_level_dynam>1) then
 
+          call this%set_history_var(vname='FATES_PATCHAREA_LU', units='m2 m-2',      &
+               long='patch area by land use type', use_default='active',  &
+               avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
+               ivar=ivar, initialize=initialize_variables, index=ih_area_si_landuse)
+          
+          call this%set_history_var(vname='FATES_TRANSITION_MATRIX_LULU', units='m2 m-2 yr-1',      &
+               long='land use transition matrix', use_default='active',  &
+               avgflag='A', vtype=site_lulu_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,  &
+               initialize=initialize_variables, index=ih_transition_matrix_si_lulu)
+       
+          call this%set_history_var(vname='FATES_DISTURBANCE_RATE_MATRIX_LULU', units='m2 m-2 yr-1',   &
+               long='disturbance rates by land use type x land use type matrix', use_default='active', &
+               avgflag='A', vtype=site_lulu_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,  &
+               initialize=initialize_variables, index=ih_disturbance_rate_si_lulu)
+          
           call this%set_history_var(vname='FATES_VEGC_PF', units='kg m-2',           &
                long='total PFT-level biomass in kg of carbon per land area',         &
                use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &

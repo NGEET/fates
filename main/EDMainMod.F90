@@ -75,6 +75,7 @@ module EDMainMod
   use EDTypesMod               , only : phen_dstat_timeon
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : primaryland, secondaryland
+  use FatesConstantsMod        , only : n_landuse_cats  
   use FatesConstantsMod        , only : nearzero
   use FatesConstantsMod        , only : m2_per_ha
   use FatesConstantsMod        , only : sec_per_day
@@ -88,7 +89,6 @@ module EDMainMod
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use EDLoggingMortalityMod    , only : get_harvestable_carbon
   use DamageMainMod            , only : IsItDamageTime
-  use EDPatchDynamicsMod       , only : get_frac_site_primary
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
   use ChecksBalancesMod        , only : CheckIntegratedMassPools
@@ -220,6 +220,11 @@ contains
        ! Integrate state variables from annual rates to daily timestep
        call ed_integrate_state_variables(currentSite, bc_in, bc_out )
 
+       ! at this point in the call sequence, if flag to transition_landuse_from_off_to_on was set, unset it as it is no longer needed
+       if(currentSite%transition_landuse_from_off_to_on) then
+          currentSite%transition_landuse_from_off_to_on = .false.
+       endif
+       
     else
        ! ed_intergrate_state_variables is where the new cohort flag
        ! is set. This flag designates wether a cohort has
@@ -284,6 +289,7 @@ contains
 
     ! make new patches from disturbed land
     if (do_patch_dynamics.eq.itrue ) then
+
        call spawn_patches(currentSite, bc_in)
 
        call TotalBalanceCheck(currentSite,3)
@@ -304,7 +310,7 @@ contains
        call TotalBalanceCheck(currentSite,4)
 
        ! kill patches that are too small
-       call terminate_patches(currentSite)
+       call terminate_patches(currentSite, bc_in)
     end if
 
     ! Final instantaneous mass balance check
@@ -371,7 +377,7 @@ contains
                                       ! a lowered damage state. This cohort should bypass several calculations
                                       ! because it inherited them (such as daily carbon balance)
     real(r8) :: target_leaf_c
-    real(r8) :: frac_site_primary
+    real(r8) :: current_fates_landuse_state_vector(n_landuse_cats)
 
     real(r8) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
     integer  :: harvest_tag(hlm_num_lu_harvest_cats)
@@ -407,7 +413,7 @@ contains
     
     !-----------------------------------------------------------------------
 
-    call get_frac_site_primary(currentSite, frac_site_primary)
+    current_fates_landuse_state_vector = currentSite%get_current_landuse_statevector()
 
     ! Clear site GPP and AR passing to HLM
     bc_out%gpp_site = 0._r8
@@ -472,8 +478,8 @@ contains
              call Mortality_Derivative(currentSite, currentCohort, bc_in,      &
                currentPatch%btran_ft, mean_temp,                               &
                currentPatch%land_use_label,                                    &
-               currentPatch%age_since_anthro_disturbance, frac_site_primary,   &
-                 harvestable_forest_c, harvest_tag)
+               currentPatch%age_since_anthro_disturbance, current_fates_landuse_state_vector(primaryland),   &
+               current_fates_landuse_state_vector(secondaryland), harvestable_forest_c, harvest_tag)
 
              ! -----------------------------------------------------------------------------
              ! Apply Plant Allocation and Reactive Transport
@@ -531,7 +537,7 @@ contains
                 is_drought = .true.
              end if
 
-             call PRTMaintTurnover(currentCohort%prt,ft,is_drought)
+             call PRTMaintTurnover(currentCohort%prt,ft, currentCohort%canopy_layer,is_drought)
              
              ! -----------------------------------------------------------------------------------
              ! Call the routine that advances leaves in age.
@@ -539,7 +545,7 @@ contains
              ! age bin, to the next bin. This will not handle movement
              ! of mass from the oldest bin into the litter pool, that is something else.
              ! -----------------------------------------------------------------------------------
-             call currentCohort%prt%AgeLeaves(ft,sec_per_day)
+             call currentCohort%prt%AgeLeaves(ft,currentCohort%canopy_layer, sec_per_day)
 
              ! Plants can acquire N from 3 sources (excluding re-absorption),
              ! the source doesn't affect how its allocated (yet), so they
@@ -919,7 +925,8 @@ contains
                   site_mass%flux_generic_in + &
                   site_mass%patch_resize_err
 
-       flux_out = site_mass%wood_product + &
+       flux_out = sum(site_mass%wood_product_harvest(:)) + &
+                  sum(site_mass%wood_product_landusechange(:)) + &
                   site_mass%burn_flux_to_atm + &
                   site_mass%seed_out + &
                   site_mass%flux_generic_out + &
@@ -949,7 +956,8 @@ contains
           write(fates_log(),*) 'net_root_uptake: ',site_mass%net_root_uptake
           write(fates_log(),*) 'gpp_acc: ',site_mass%gpp_acc
           write(fates_log(),*) 'flux_generic_in: ',site_mass%flux_generic_in
-          write(fates_log(),*) 'wood_product: ',site_mass%wood_product
+          write(fates_log(),*) 'wood_product_harvest: ',site_mass%wood_product_harvest(:)
+          write(fates_log(),*) 'wood_product_landusechange: ',site_mass%wood_product_landusechange(:)
           write(fates_log(),*) 'error from patch resizing: ',site_mass%patch_resize_err
           write(fates_log(),*) 'burn_flux_to_atm: ',site_mass%burn_flux_to_atm
           write(fates_log(),*) 'seed_out: ',site_mass%seed_out

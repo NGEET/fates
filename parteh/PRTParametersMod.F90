@@ -55,6 +55,7 @@ module PRTParametersMod
                                                          !   longevity across all leaf age classes is also
                                                          !   the maximum length of the growing (i.e., leaves on)
                                                          !   season.
+     real(r8), allocatable :: leaf_long_ustory(:,:)      ! As above but for understory trees
      real(r8), allocatable :: root_long(:)               ! root turnover time (longevity) (pft)             [yr]
      real(r8), allocatable :: branch_long(:)             ! Turnover time for branchfall on live trees (pft) [yr]
      real(r8), allocatable :: turnover_nitr_retrans(:,:) ! nitrogen re-translocation fraction (pft x organ)
