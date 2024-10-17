@@ -308,7 +308,7 @@ contains
             case(phosphorus_element)
                net_uptake = site_mass%net_root_uptake*area_inv
             case default
-               write(fates_log(),*) 'FATES: Invalid choice for cohort_fusion_conservation_method'
+               write(fates_log(),*) 'FATES: an invalid chemical species was detected'
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end select
 
@@ -338,9 +338,6 @@ contains
 
             ediag%err_litter  = ibal%iflux_litter - ibal%state_litter
 
-
-            
-            !print*, ediag%err_liveveg!, ediag%err_liveveg/ibal%state_liveveg, ibal%state_liveveg, net_uptake, tot_litter_input
 
             ! Perform the comparison between integrated flux and state
             !if(abs(ediag%err_liveveg) > iflux_tol(el) ) then
