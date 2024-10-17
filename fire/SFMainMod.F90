@@ -189,35 +189,18 @@ contains
             
         ! sum up fuel classes and calculate fractional loading for each
         call currentPatch%fuel%SumLoading()
+        call currentPatch%fuel%CalculateFractionalLoading()
+          
+        ! calculate fuel moisture [m3/m3]
+        call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,       &
+          currentSite%fireWeather, MEF_trunks, fuel_moisture_trunks)
         
-        if (currentPatch%fuel%total_loading + currentPatch%fuel%loading(fuel_classes%trunks()) > 0.0) then 
-          call currentPatch%fuel%CalculateFractionalLoading()
-          
-          ! calculate fuel moisture [m3/m3]
-          call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,       &
-            currentSite%fireWeather, MEF_trunks, fuel_moisture_trunks)
-          
-          ! calculate geometric properties
-          call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
-          call currentPatch%fuel%AverageSAV(SF_val_SAV)
-          
-          if (currentPatch%fuel%total_loading <= 0.0 .and. currentPatch%fuel%loading(fuel_classes%trunks()) > nearzero) then 
-            currentPatch%fuel%bulk_density = SF_val_FBD(fuel_classes%trunks())
-            currentPatch%fuel%SAV = SF_val_SAV(fuel_classes%trunks())
-            currentPatch%fuel%MEF = MEF_trunks
-            currentPatch%fuel%average_moisture = fuel_moisture_trunks
-          end if
-        else
-          currentPatch%fuel%SAV = sum(SF_val_SAV(1:nfsc))/(nfsc)
-          currentPatch%fuel%average_moisture = 0.0000000001_r8 
-          currentPatch%fuel%bulk_density     = 0.0000000001_r8 
-          currentPatch%fuel%frac_loading(:)   = 0.0000000001_r8 
-          currentPatch%fuel%MEF       = 0.0000000001_r8
-          currentPatch%fuel%total_loading       = 0.0000000001_r8
-        end if   
+        ! calculate geometric properties
+        call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
+        call currentPatch%fuel%AverageSAV(SF_val_SAV)
+            
       end if 
       currentPatch => currentPatch%younger
-      
     end do 
 
   end subroutine UpdateFuelCharacteristics
@@ -256,7 +239,7 @@ contains
 
     do while(associated(currentPatch))
 
-      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground) then
+      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground .and. currentPatch%fuel%total_loading > nearzero) then
                        
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
        currentPatch%fuel%total_loading = currentPatch%fuel%total_loading * (1.0_r8 - SF_val_miner_total) !net of minerals
