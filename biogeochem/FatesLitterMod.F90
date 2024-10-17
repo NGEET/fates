@@ -54,18 +54,6 @@ module FatesLitterMod
    integer, public, parameter :: ilabile     = 1   ! Array index for labile portion
    integer, public, parameter :: icellulose  = 2   ! Array index for cellulose portion
    integer, public, parameter :: ilignin     = 3   ! Array index for the lignin portion
-
-    ! SPITFIRE     
-
-  integer,  parameter, public :: NFSC                 = NCWD+2     ! number fuel size classes  (4 cwd size classes, leaf litter, and grass)
-  integer,  parameter, public :: tw_sf                = 1          ! array index of twig pool for spitfire
-  integer,  parameter, public :: lb_sf                = 3          ! array index of large branch pool for spitfire
-  integer,  parameter, public :: tr_sf                = 4          ! array index of dead trunk pool for spitfire
-  integer,  parameter, public :: dl_sf                = 5          ! array index of dead leaf pool for spitfire (dead grass and dead leaves)
-  integer,  parameter, public :: lg_sf                = 6          ! array index of live grass pool for spitfire
-
-
-
    type, public ::  litter_type
       
       ! This object is allocated for each element (C, N, P, etc) that we wish to track.
