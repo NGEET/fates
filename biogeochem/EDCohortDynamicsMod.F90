@@ -693,8 +693,8 @@ end subroutine create_cohort
 
        end do
 
-       elflux_diags%leaf_litter_input(pft) = &
-             elflux_diags%leaf_litter_input(pft) +  &
+       elflux_diags%surf_fine_litter_input(pft) = &
+             elflux_diags%surf_fine_litter_input(pft) +  &
              (leaf_m+repro_m) * nplant
        elflux_diags%root_litter_input(pft) = &
              elflux_diags%root_litter_input(pft) +  &

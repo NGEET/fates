@@ -1026,7 +1026,7 @@ contains
             end do
                
             ! track as diagnostic fluxes
-            elflux_diags%leaf_litter_input(pft) = elflux_diags%leaf_litter_input(pft) + & 
+            elflux_diags%surf_fine_litter_input(pft) = elflux_diags%surf_fine_litter_input(pft) + & 
                  leaf_litter
             
             elflux_diags%root_litter_input(pft) = elflux_diags%root_litter_input(pft) + & 

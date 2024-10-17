@@ -369,8 +369,8 @@ contains
                         ndcohort%n * dcmpy_frac / cpatch%area
                 end do
 
-                elflux_diags%leaf_litter_input(ipft) = &
-                     elflux_diags%leaf_litter_input(ipft) +  &
+                elflux_diags%surf_fine_litter_input(ipft) = &
+                     elflux_diags%surf_fine_litter_input(ipft) +  &
                      (store_loss+leaf_loss+repro_loss) * ndcohort%n
                 
                 call adjust_SF_CWD_frac(ndcohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
@@ -2888,8 +2888,8 @@ contains
        !        about double counting.
        ! ---------------------------------------------------------------------------------
 
-       elflux_diags%leaf_litter_input(pft) = &
-            elflux_diags%leaf_litter_input(pft) +  &
+       elflux_diags%surf_fine_litter_input(pft) = &
+            elflux_diags%surf_fine_litter_input(pft) +  &
             (leaf_m_turnover+repro_m_turnover) * currentCohort%n
 
        root_fines_tot = (fnrt_m_turnover + store_m_turnover ) * &
@@ -2993,8 +2993,8 @@ contains
           end do
        end do
 
-       elflux_diags%leaf_litter_input(pft) = &
-            elflux_diags%leaf_litter_input(pft) +  &
+       elflux_diags%surf_fine_litter_input(pft) = &
+            elflux_diags%surf_fine_litter_input(pft) +  &
             (leaf_m+repro_m) * dead_n*currentPatch%area
 
        elflux_diags%root_litter_input(pft) = &

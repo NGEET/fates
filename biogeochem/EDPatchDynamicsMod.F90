@@ -1840,8 +1840,8 @@ contains
              end do
 
              ! Track as diagnostic fluxes
-             elflux_diags%leaf_litter_input(pft) = &
-                  elflux_diags%leaf_litter_input(pft) + &
+             elflux_diags%surf_fine_litter_input(pft) = &
+                  elflux_diags%surf_fine_litter_input(pft) + &
                   num_dead_trees * (leaf_m+repro_m) * (1.0_r8-currentCohort%fraction_crown_burned)
 
              elflux_diags%root_litter_input(pft) = &
@@ -2115,7 +2115,7 @@ contains
                   elflux_diags%cwd_bg_input(c) + SF_val_CWD_frac_adj(c) * bg_wood
           end do
 
-          elflux_diags%leaf_litter_input(pft) = elflux_diags%leaf_litter_input(pft) + &
+          elflux_diags%surf_fine_litter_input(pft) = elflux_diags%surf_fine_litter_input(pft) + &
                num_dead*(leaf_m + repro_m)
 
           elflux_diags%root_litter_input(pft) = elflux_diags%root_litter_input(pft) + & 
@@ -2316,8 +2316,8 @@ contains
              end do
 
              ! Track as diagnostic fluxes
-             elflux_diags%leaf_litter_input(pft) = &
-                  elflux_diags%leaf_litter_input(pft) + &
+             elflux_diags%surf_fine_litter_input(pft) = &
+                  elflux_diags%surf_fine_litter_input(pft) + &
                   num_dead_trees * (leaf_m+repro_m) * (1.0_r8-burn_frac_landusetransition)
 
              elflux_diags%root_litter_input(pft) = &
