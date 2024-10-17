@@ -247,7 +247,13 @@ contains
 
   subroutine CheckIntegratedMassPools(site)
 
-
+    ! -----------------------------------------------------------------------------------
+    !
+    ! This subroutine checks that the time integrated net fluxes in and out of
+    ! the vegetation and the litter actually match the quantity in those pools.
+    !
+    ! -----------------------------------------------------------------------------------
+    
     type(ed_site_type), intent(inout) :: site
 
     !integer  :: nsites
