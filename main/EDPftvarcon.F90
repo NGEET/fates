@@ -2240,7 +2240,7 @@ contains
 
         end if
         
-        if(EDPftvarcon_inst%voc_pftindex(ipft) .le. 0 or EDPftvarcon_inst%voc_pftindex(ipft) .gt. 5 ) then
+        if(EDPftvarcon_inst%voc_pftindex(ipft) .le. 0 .or. EDPftvarcon_inst%voc_pftindex(ipft) .gt. 5 ) then
 
            write(fates_log(),*) 'MEGAN indices must be between 1 and 5'
            call endrun(msg=errMsg(sourcefile, __LINE__))
