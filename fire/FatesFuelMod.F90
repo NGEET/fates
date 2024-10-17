@@ -179,7 +179,7 @@ module FatesFuelMod
 
     !-------------------------------------------------------------------------------------
     
-    subroutine UpdateFuelMoisture(this, sav_fuel, drying_ratio, fireWeatherClass, MEF_trunks, moisture_trunks)
+    subroutine UpdateFuelMoisture(this, sav_fuel, drying_ratio, fireWeatherClass)
       ! DESCRIPTION:
       !   Updates fuel moisture depending on what fire weather class is in use
       
@@ -188,8 +188,6 @@ module FatesFuelMod
       real(r8),            intent(in)    :: sav_fuel(nfsc)   ! surface area to volume ratio of all fuel types [/cm]
       real(r8),            intent(in)    :: drying_ratio     ! drying ratio
       class(fire_weather), intent(in)    :: fireWeatherClass ! fireWeatherClass
-      real(r8),            intent(out)    :: MEF_trunks     ! drying ratio
-      real(r8),            intent(out)    :: moisture_trunks     ! drying ratio
       
       real(r8) :: moisture(nfsc)               ! fuel moisture [m3/m3]
       real(r8) :: moisture_of_extinction(nfsc) ! fuel moisture of extinction [m3/m3]
@@ -221,9 +219,7 @@ module FatesFuelMod
             this%MEF = this%MEF + this%frac_loading(i)*moisture_of_extinction(i)
           end if 
         end do
-        MEF_trunks = moisture_of_extinction(fuel_classes%trunks())
-        moisture_trunks = moisture(fuel_classes%trunks())
-                
+
       else 
         this%effective_moisture(1:nfsc) = 0.0_r8
         this%average_moisture = 0.0_r8

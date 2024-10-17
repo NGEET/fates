@@ -139,9 +139,6 @@ contains
 
     ! convert to m/min 
     currentSite%wind = wind*sec_per_min
-    if (hlm_masterproc == itrue) then 
-      write(fates_log(),*) 'wind_in', wind
-    end if 
 
     ! update fire weather index
     call currentSite%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
@@ -193,7 +190,7 @@ contains
           
         ! calculate fuel moisture [m3/m3]
         call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,       &
-          currentSite%fireWeather, MEF_trunks, fuel_moisture_trunks)
+          currentSite%fireWeather)
         
         ! calculate geometric properties
         call currentPatch%fuel%AverageBulkDensity(SF_val_FBD)
