@@ -214,7 +214,7 @@ contains
     ! -----------------------------------------------------------------------
     allocate(site_in%flux_diags%elem(1:num_elements))
     do el=1,num_elements
-       allocate(site_in%flux_diags%elem(el)%leaf_litter_input(1:numpft))
+       allocate(site_in%flux_diags%elem(el)%surf_fine_litter_input(1:numpft))
        allocate(site_in%flux_diags%elem(el)%root_litter_input(1:numpft))
     end do
     allocate(site_in%flux_diags%nh4_uptake_scpf(numpft*nlevsclass))

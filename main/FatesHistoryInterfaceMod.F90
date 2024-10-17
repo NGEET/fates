@@ -2621,7 +2621,7 @@ contains
 
          hio_litter_in_si(io_si) = (sum(elflux_diags_c%cwd_ag_input(:)) + &
               sum(elflux_diags_c%cwd_bg_input(:)) + &
-              sum(elflux_diags_c%leaf_litter_input(:)) + &
+              sum(elflux_diags_c%surf_fine_litter_input(:)) + &
               sum(elflux_diags_c%root_litter_input(:))) * &
               AREA_INV * days_per_sec
 
@@ -4609,7 +4609,7 @@ contains
 
                 ! Sum up all input litter fluxes (above below, fines, cwd) [kg/ha/day]
                 hio_litter_in_elem(io_si, el) = (sum(elflux_diags%cwd_ag_input(:)) +    &
-                     sum(elflux_diags%cwd_bg_input(:)) + sum(elflux_diags%leaf_litter_input(:)) + &
+                     sum(elflux_diags%cwd_bg_input(:)) + sum(elflux_diags%surf_fine_litter_input(:)) + &
                      sum(elflux_diags%root_litter_input(:))) / m2_per_ha / sec_per_day
 
 

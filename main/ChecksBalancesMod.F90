@@ -295,7 +295,7 @@ contains
             !                    veg loss from exported harvest - 
             !                    seed turnover
 
-            tot_litter_input = (sum(ediag%leaf_litter_input(:)) + &
+            tot_litter_input = (sum(ediag%surf_fine_litter_input(:)) + &
                  sum(ediag%root_litter_input(:)) + &
                  sum(ediag%cwd_ag_input(:)) + &
                  sum(ediag%cwd_bg_input(:)))*area_inv

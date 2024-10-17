@@ -168,7 +168,7 @@ module EDTypesMod
      
      real(r8) :: cwd_ag_input(1:ncwd)               
      real(r8) :: cwd_bg_input(1:ncwd)               
-     real(r8),allocatable :: leaf_litter_input(:)
+     real(r8),allocatable :: surf_fine_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
 
      real(r8) :: tot_seed_turnover ! decay of living seed bank to
@@ -583,7 +583,7 @@ module EDTypesMod
       do el = 1,num_elements
          this%elem(el)%cwd_ag_input(:)      = 0._r8
          this%elem(el)%cwd_bg_input(:)      = 0._r8
-         this%elem(el)%leaf_litter_input(:) = 0._r8
+         this%elem(el)%surf_fine_litter_input(:) = 0._r8
          this%elem(el)%root_litter_input(:) = 0._r8
          this%elem(el)%burned_liveveg       = 0._r8
          this%elem(el)%tot_seed_turnover   = 0._r8
