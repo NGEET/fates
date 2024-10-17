@@ -328,6 +328,9 @@ contains
        if (this%c_index .ne. donor%c_index) then
           write(fates_log(), *) 'trying to fuse two fixed-window averages'
           write(fates_log(), *) 'that are at different points in the window?'
+          write(fates_log(), *) 'c_mean', this%c_mean,  donor%c_mean
+          write(fates_log(), *) 'l_mean', this%l_mean,  donor%l_mean
+          write(fates_log(), *) 'c_index', this%c_index,  donor%c_index
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if

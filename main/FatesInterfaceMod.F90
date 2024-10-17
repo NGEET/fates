@@ -41,6 +41,8 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : n_landuse_cats
    use FatesConstantsMod         , only : primaryland
    use FatesConstantsMod         , only : secondaryland
+   use FatesConstantsMod         , only : n_crop_lu_types
+   use FatesConstantsMod         , only : n_term_mort_types
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -418,7 +420,7 @@ contains
   ! ===========================================================================
 
   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats, num_luh2_states, &
-       num_luh2_transitions, natpft_lb,natpft_ub)
+       num_luh2_transitions, surfpft_lb,surfpft_ub)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -431,7 +433,7 @@ contains
       integer,intent(in)              :: num_lu_harvest_cats
       integer,intent(in)              :: num_luh2_states
       integer,intent(in)              :: num_luh2_transitions
-      integer,intent(in)              :: natpft_lb,natpft_ub ! dimension bounds of the array holding surface file pft data
+      integer,intent(in)              :: surfpft_lb,surfpft_ub ! dimension bounds of the array holding surface file pft data
       
       ! Allocate input boundaries
 
@@ -564,7 +566,13 @@ contains
          allocate(bc_in%hlm_harvest_catnames(0))
       end if
 
-      allocate(bc_in%pft_areafrac(natpft_lb:natpft_ub))
+      if ( hlm_use_fixed_biogeog .eq. itrue) then
+         if (hlm_use_luh .eq. itrue ) then
+            allocate(bc_in%pft_areafrac_lu(size( EDPftvarcon_inst%hlm_pft_map,2),n_landuse_cats-n_crop_lu_types))
+         else
+            allocate(bc_in%pft_areafrac(surfpft_lb:surfpft_ub))
+         endif
+      endif
 
       ! LUH2 state and transition data
       if (hlm_use_luh .eq. itrue) then
@@ -576,10 +584,11 @@ contains
 
       ! Variables for SP mode. 
       if(hlm_use_sp.eq.itrue) then
-        allocate(bc_in%hlm_sp_tlai(natpft_lb:natpft_ub))
-        allocate(bc_in%hlm_sp_tsai(natpft_lb:natpft_ub))     
-        allocate(bc_in%hlm_sp_htop(natpft_lb:natpft_ub))
-      end if 
+        allocate(bc_in%hlm_sp_tlai(surfpft_lb:surfpft_ub))
+        allocate(bc_in%hlm_sp_tsai(surfpft_lb:surfpft_ub))
+        allocate(bc_in%hlm_sp_htop(surfpft_lb:surfpft_ub))
+     end if
+
       return
    end subroutine allocate_bcin
 
@@ -612,14 +621,13 @@ contains
       allocate(bc_out%rssha_pa(maxpatch_total))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(maxpatch_total,num_swb))
-      allocate(bc_out%albi_parb(maxpatch_total,num_swb))
-      allocate(bc_out%fabd_parb(maxpatch_total,num_swb))
-      allocate(bc_out%fabi_parb(maxpatch_total,num_swb))
-      allocate(bc_out%ftdd_parb(maxpatch_total,num_swb))
-      allocate(bc_out%ftid_parb(maxpatch_total,num_swb))
-      allocate(bc_out%ftii_parb(maxpatch_total,num_swb))
-
+      allocate(bc_out%albd_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%albi_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%fabd_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%fabi_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%ftdd_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%ftid_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%ftii_parb(fates_maxPatchesPerSite,num_swb))
 
       ! We allocate the boundary conditions to the BGC
       ! model, regardless of what scheme we use. The BGC
@@ -880,7 +888,7 @@ contains
          end if
          
          fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
-              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft)
+              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft*n_term_mort_types)
 
          if(hlm_use_planthydro==itrue)then
             fates_maxElementsPerSite = max(fates_maxElementsPerSite, nshell*nlevsoi_hyd_max )
@@ -1477,7 +1485,10 @@ contains
          hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
+         hlm_hist_level_dynam = unset_int
+         hlm_hist_level_hifrq = unset_int
 
+         
       case('check_allset')
          
          if(hlm_numSWb .eq. unset_int) then
@@ -1677,6 +1688,16 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_hist_level_dynam .eq. unset_int) then
+            write(fates_log(), *) 'switch defining dynamics history level is unset, hlm_hist_level_dynam, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+          if(hlm_hist_level_hifrq .eq. unset_int) then
+            write(fates_log(), *) 'switch defining high-frequency history level is unset, hlm_hist_level_hifrq, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+
          if(hlm_use_ch4 .eq. unset_int) then
             write(fates_log(), *) 'switch for the HLMs CH4 module unset: hlm_use_ch4, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1843,6 +1864,9 @@ contains
                   write(fates_log(),*) 'Transfering hlm_seeddisp_cadence= ',ival,' to FATES'
                end if
 
+           
+               
+               
             case('spitfire_mode')
                hlm_spitfire_mode = ival
                if (fates_global_verbose()) then
@@ -1916,6 +1940,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_luh = ',ival,' to FATES'
                end if
 
+            case('use_fates_potentialveg')
+               hlm_use_potentialveg = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_potentialveg = ',ival,' to FATES'
+               end if
+
             case('num_luh2_states')
                hlm_num_luh2_states = ival
                if (fates_global_verbose()) then
@@ -1958,6 +1988,19 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_inventory_init= ',ival,' to FATES'
                end if
 
+            case('hist_hifrq_dimlevel')
+               hlm_hist_level_hifrq = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_level_hifrq= ',ival,' to FATES'
+               end if
+               
+            case('hist_dynam_dimlevel')
+               hlm_hist_level_dynam = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_level_dynam= ',ival,' to FATES'
+               end if
+
+               
             case default
                write(fates_log(), *) 'fates NL tag not recognized:',trim(tag)
                !! call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1980,6 +2023,8 @@ contains
 
          if(present(cval))then
             select case (trim(tag))
+
+          
                
             case('hlm_name')
                hlm_name = trim(cval)
@@ -2198,7 +2243,7 @@ subroutine SeedlingParPatch(cpatch, &
      cl_par = 0._r8
      cl_area = 0._r8
      do ipft = 1,numpft
-        iv = cpatch%ncan(cl,ipft)
+        iv = cpatch%nleaf(cl,ipft)
         ! Avoid calculating when there are no leaf layers for the given pft in the current canopy layer
         if (iv .ne. 0) then
            cl_par = cl_par + cpatch%canopy_area_profile(cl,ipft,1)* &

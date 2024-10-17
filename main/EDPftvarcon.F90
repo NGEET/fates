@@ -92,6 +92,12 @@ module EDPftvarcon
 
      real(r8), allocatable :: maintresp_leaf_ryan1991_baserate(:)  ! leaf maintenance respiration per Ryan et al 1991
 
+    
+     
+     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff1(:) ! leaf maintenance respiration decrease through the canopy param 1
+                                                                   ! only with Atkin et al. 2017 respiration model
+     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff2(:) ! leaf maintenance respiration decrease through the canopy param 2
+                                                                   ! only with Atkin et al. 2017 respiraiton model 
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: mort_ip_size_senescence(:) ! inflection point of dbh dependent senescence
      real(r8), allocatable :: mort_r_size_senescence(:)  ! rate of change in mortality with dbh
@@ -272,9 +278,14 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_thetas_node(:,:) ! saturated water content (cm3/cm3)
 
      ! Table that maps HLM pfts to FATES pfts for fixed biogeography mode
-     ! The values are area fractions (NOT IMPLEMENTED)
+     ! The values are area fractions
      real(r8), allocatable :: hlm_pft_map(:,:)
 
+     ! Land-use and land-use change related PFT parameters
+     real(r8), allocatable :: harvest_pprod10(:)              ! fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)
+     real(r8), allocatable :: landusechange_frac_burned(:)    ! fraction of land use change-generated and not-exported material that is burned (the remainder goes to litter)
+     real(r8), allocatable :: landusechange_frac_exported(:)  ! fraction of land use change-generated wood material that is exported to wood product (the remainder is either burned or goes to litter)
+     real(r8), allocatable :: landusechange_pprod10(:)        ! fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)
 
    contains
      procedure, public :: Init => EDpftconInit
@@ -475,6 +486,16 @@ contains
     name = 'fates_maintresp_leaf_ryan1991_baserate'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+
+    
+    name = 'fates_maintresp_leaf_vert_scaler_coeff1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_maintresp_leaf_vert_scaler_coeff2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -787,6 +808,22 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_landuse_harvest_pprod10'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_landuse_luc_frac_burned'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_landuse_luc_frac_exported'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_landuse_luc_pprod10'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     name = 'fates_dev_arbitrary_pft'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -920,6 +957,14 @@ contains
     name = 'fates_maintresp_leaf_ryan1991_baserate'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%maintresp_leaf_ryan1991_baserate)
+
+    name = 'fates_maintresp_leaf_vert_scaler_coeff1'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%maintresp_leaf_vert_scaler_coeff1)
+
+    name = 'fates_maintresp_leaf_vert_scaler_coeff2'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%maintresp_leaf_vert_scaler_coeff2)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1250,6 +1295,22 @@ contains
     name = 'fates_hlm_pft_map'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%hlm_pft_map)
+
+    name = 'fates_landuse_harvest_pprod10'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%harvest_pprod10)
+
+    name = 'fates_landuse_luc_frac_burned'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landusechange_frac_burned)
+
+    name = 'fates_landuse_luc_frac_exported'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landusechange_frac_exported)
+
+    name = 'fates_landuse_luc_pprod10'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landusechange_pprod10)
 
   end subroutine Receive_PFT
 
@@ -1747,6 +1808,8 @@ contains
         write(fates_log(),fmt0) 'hydro_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
         write(fates_log(),fmt0) 'hydro_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
         write(fates_log(),fmt0) 'hydro_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
+        write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff1 = ',EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1
+        write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff2 = ',EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2
         write(fates_log(),*) '-------------------------------------------------'
 
      end if
@@ -1774,10 +1837,13 @@ contains
     use FatesConstantsMod, only : lmr_r_2
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
-    use EDParamsMod        , only : radiation_model
+    use EDParamsMod        , only : radiation_model, dayl_switch
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
-    
+    use FatesInterfaceTypesMod, only : hlm_use_nocomp
+    use EDParamsMod        , only : max_nocomp_pfts_by_landuse, maxpatches_by_landuse
+    use FatesConstantsMod  , only : n_landuse_cats
+
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
 
@@ -1790,6 +1856,7 @@ contains
      integer :: norgans  ! size of the plant organ dimension
      integer  :: hlm_pft    ! used in fixed biogeog mode
      integer  :: fates_pft  ! used in fixed biogeog mode
+     integer  :: i_lu    ! land use index
 
      real(r8) :: sumarea    ! area of PFTs in nocomp mode.
      real(r8) :: neg_lmr_temp ! temperature at which lmr would got negative 
@@ -1820,6 +1887,13 @@ contains
         call endrun(msg=errMsg(sourcefile, __LINE__))
      end if
 
+     if(.not.any(dayl_switch == [itrue,ifalse])) then
+        write(fates_log(),*) 'The only valid switch options for '
+        write(fates_log(),*) 'fates_daylength_factor_switch is 0 or 1 ...'
+        write(fates_log(),*) 'You specified fates_daylength_factor_switch = ',dayl_switch
+        write(fates_log(),*) 'Aborting'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
 
      select case (hlm_parteh_mode)
      case (prt_cnp_flex_allom_hyp)
@@ -1855,7 +1929,6 @@ contains
                     call endrun(msg=errMsg(sourcefile, __LINE__))
                  end if
               end if
-
            end if
         end if
         
@@ -1881,7 +1954,25 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         end if
-        
+
+        ! We are using a simple phosphatase model right now. There is
+        ! no critical value (lambda) , and there is no preferential uptake (alpha).
+        ! Make sure these parameters are both set to 0.
+
+        if ((hlm_phosphorus_spec>0) .and. (trim(hlm_nu_com).eq.'ECA')) then
+           if (any(abs(EDPftvarcon_inst%eca_lambda_ptase(:)) > nearzero ) ) then
+              write(fates_log(),*) 'Critical Values for phosphatase in ECA are not'
+              write(fates_log(),*) 'enabled right now. Please set fates_eca_lambda_ptase = 0'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+           if (any(abs(EDPftvarcon_inst%eca_alpha_ptase(:)) > nearzero ) ) then
+              write(fates_log(),*) 'There is no preferential plant uptake of P from phosphatase'
+              write(fates_log(),*) 'enabled right now. Please set fates_eca_alpha_ptase = 0'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
         
      case (prt_carbon_allom_hyp)
         ! No additional checks needed for now.
@@ -1924,6 +2015,9 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
      end if
+
+
+     
 
      do ipft = 1,npft
 
@@ -2099,6 +2193,19 @@ contains
         end if
            
 
+        ! Check to make sure that if a grass sapwood allometry is used, it is not
+        ! a woody plant.
+        if ( ( prt_params%allom_smode(ipft)==2 ) .and. (prt_params%woody(ipft)==itrue) ) then
+           write(fates_log(),*) 'Allometry mode 2 is a mode that is only appropriate'
+           write(fates_log(),*) 'for a grass functional type. Sapwood allometry is set with'
+           write(fates_log(),*) 'fates_allom_smode in the parameter file. Woody versus non woody'
+           write(fates_log(),*) 'plants are set via fates_woody in the parameter file.'
+           write(fates_log(),*) 'Current settings for pft number: ',ipft
+           write(fates_log(),*) 'fates_woody: true'
+           write(fates_log(),*) 'fates_allom_smode: ',prt_params%allom_smode(ipft)
+           write(fates_log(),*) 'Please correct this discrepancy before re-running. Aborting.'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
 
         ! Check if fraction of storage to reproduction is between 0-1
         ! ----------------------------------------------------------------------------------
@@ -2157,6 +2264,25 @@ contains
         
      end do !ipft
 
+
+     ! if nocomp is enabled, check to make sure the max number of nocomp PFTs per land use is
+     ! less than or equal to the max number of patches per land use. (unless this is an
+     ! SP run, then all PFTS are tracked on the primary LU and the others are allocated
+     ! zero patch space
+
+     if ( hlm_use_nocomp .eq. itrue .and. hlm_use_sp.eq.ifalse) then
+        do i_lu = 1, n_landuse_cats
+           if (max_nocomp_pfts_by_landuse(i_lu) .gt. maxpatches_by_landuse(i_lu)) then
+              write(fates_log(),*) 'The max number of nocomp PFTs must all be less than or equal to the number of patches, for a given land use type'
+              write(fates_log(),*) 'land use index:',i_lu
+              write(fates_log(),*) 'max_nocomp_pfts_by_landuse(i_lu):', max_nocomp_pfts_by_landuse(i_lu)
+              write(fates_log(),*) 'maxpatches_by_landuse(i_lu):', maxpatches_by_landuse(i_lu)
+              write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end do
+     endif
+     
 
      ! Check the temperature at which Rdark would become negative for each PFT -
      ! given their parameters
