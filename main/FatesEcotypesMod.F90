@@ -31,6 +31,8 @@ contains
 
   if (patchptr%area > 0._r8) then
       tree_fraction = patchptr%total_tree_area / patchptr%area
+  else
+      tree_fraction = 0._r8
   end if
 
   is_patch_forest_tcthresh = tree_fraction > forest_tree_fraction_threshold
