@@ -66,7 +66,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : nlevcoage
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesInterfaceTypesMod        , only : hlm_use_fixed_biogeog
-  use FatesInterfaceTypesMod        , only : num_edge_forest_bins
+  use FatesInterfaceTypesMod        , only : nlevedgeforest
   use FatesRadiationMemMod          , only : ivis,inir
   use FatesInterfaceTypesMod        , only : hlm_hist_level_hifrq,hlm_hist_level_dynam
   use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
@@ -832,7 +832,7 @@ module FatesHistoryInterfaceMod
      !! THESE WERE EXPLICITLY PRIVATE WHEN TYPE WAS PUBLIC
      integer, private :: column_index_, levsoil_index_, levscpf_index_
      integer, private :: levscls_index_, levpft_index_, levage_index_
-     integer, private :: levedgebin_index_
+     integer, private :: levedgeforest_index_
      integer, private :: levfuel_index_, levcwdsc_index_, levscag_index_
      integer, private :: levcan_index_, levcnlf_index_, levcnlfpft_index_
      integer, private :: levcdpf_index_, levcdsc_index_, levcdam_index_ 
@@ -874,7 +874,7 @@ module FatesHistoryInterfaceMod
      procedure :: levcacls_index
      procedure :: levpft_index
      procedure :: levage_index
-     procedure :: levedgebin_index
+     procedure :: levedgeforest_index
      procedure :: levfuel_index
      procedure :: levcwdsc_index
      procedure :: levcan_index
@@ -911,7 +911,7 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levscls_index
      procedure, private :: set_levpft_index
      procedure, private :: set_levage_index
-     procedure, private :: set_levedgebin_index
+     procedure, private :: set_levedgeforest_index
      procedure, private :: set_levfuel_index
      procedure, private :: set_levcwdsc_index
      procedure, private :: set_levcan_index
@@ -957,7 +957,7 @@ contains
 
     use FatesIODimensionsMod, only : column, levsoil, levscpf
     use FatesIODimensionsMod, only : levscls, levpft, levage
-    use FatesIODimensionsMod, only : levedgebin
+    use FatesIODimensionsMod, only : levedge
     use FatesIODimensionsMod, only : levcacls, levcapf
     use FatesIODimensionsMod, only : levfuel, levcwdsc, levscag
     use FatesIODimensionsMod, only : levscagpft, levagepft
@@ -1018,9 +1018,9 @@ contains
          fates_bounds%age_class_begin, fates_bounds%age_class_end)
 
     dim_count = dim_count + 1
-    call this%set_levedgebin_index(dim_count)
-    call this%dim_bounds(dim_count)%Init(levedgebin, num_threads, &
-         fates_bounds%edgebin_begin, fates_bounds%edgebin_end)
+    call this%set_levedgeforest_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levedge, num_threads, &
+         fates_bounds%edgeforest_class_begin, fates_bounds%edgeforest_class_end)
 
     dim_count = dim_count + 1
     call this%set_levfuel_index(dim_count)
@@ -1175,9 +1175,9 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%age_class_begin, thread_bounds%age_class_end)
 
-    index = this%levedgebin_index()
+    index = this%levedgeforest_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
-         thread_bounds%edgebin_begin, thread_bounds%edgebin_end)
+         thread_bounds%edgeforest_class_begin, thread_bounds%edgeforest_class_end)
 
     index = this%levfuel_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
@@ -1299,7 +1299,7 @@ contains
     call this%set_dim_indices(site_age_r8, 2, this%levage_index())
 
     call this%set_dim_indices(site_edgebin_r8, 1, this%column_index())
-    call this%set_dim_indices(site_edgebin_r8, 2, this%levedgebin_index())
+    call this%set_dim_indices(site_edgebin_r8, 2, this%levedgeforest_index())
 
     call this%set_dim_indices(site_fuel_r8, 1, this%column_index())
     call this%set_dim_indices(site_fuel_r8, 2, this%levfuel_index())
@@ -1519,18 +1519,18 @@ contains
   end function levage_index
 
   ! =======================================================================
-  subroutine set_levedgebin_index(this, index)
+  subroutine set_levedgeforest_index(this, index)
     implicit none
     class(fates_history_interface_type), intent(inout) :: this
     integer, intent(in) :: index
-    this%levedgebin_index_ = index
-  end subroutine set_levedgebin_index
+    this%levedgeforest_index_ = index
+  end subroutine set_levedgeforest_index
 
-  integer function levedgebin_index(this)
+  integer function levedgeforest_index(this)
     implicit none
     class(fates_history_interface_type), intent(in) :: this
-    levedgebin_index = this%levedgebin_index_
-  end function levedgebin_index
+    levedgeforest_index = this%levedgeforest_index_
+  end function levedgeforest_index
 
   ! =======================================================================
   subroutine set_levfuel_index(this, index)
@@ -3449,9 +3449,9 @@ contains
                      + cpatch%area * AREA_INV
                 ! area of forest in each edge bin
                 if (cpatch%is_forest) then
-                   binloop: do b = 1, num_edge_forest_bins
+                   binloop: do b = 1, nlevedgeforest
                       hio_forest_edge_bin_area_si(io_si,b) = hio_forest_edge_bin_area_si(io_si,b) + &
-                      cpatch%area_in_edge_forest_bins(b)
+                      cpatch%area_in_edgeforest_bins(b)
                    end do binloop
                 end if
 

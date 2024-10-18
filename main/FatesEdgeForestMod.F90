@@ -1,7 +1,7 @@
 module FatesEdgeForestMod
 
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesInterfaceTypesMod, only : num_edge_forest_bins
+  use FatesInterfaceTypesMod, only : nlevedgeforest
   use FatesGlobals, only : fates_log
   use FatesGlobals, only : endrun => fates_endrun
   use shr_log_mod, only : errMsg => shr_log_errMsg
@@ -13,10 +13,10 @@ module FatesEdgeForestMod
   private  ! By default everything is private
 
   ! Make public necessary subroutines and functions
-  public :: calculate_edge_area
+  public :: calculate_edgeforest_area
   ! Public for unit testing
   public :: indexx
-  public :: get_fraction_of_forest_in_each_bin
+  public :: get_fraction_of_edgeforest_in_each_bin
   public :: gffeb_lognorm_numerator
   public :: gffeb_lognorm_denominator
 
@@ -151,7 +151,7 @@ contains
     gffeb_lognorm_denominator = sigma * sqrt(2*pi) * x
   end function gffeb_lognorm_denominator
 
-  subroutine get_fraction_of_forest_in_each_bin(x, num_edge_forest_bins, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_bin, norm)
+  subroutine get_fraction_of_edgeforest_in_each_bin(x, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_bin, norm)
     ! DESCRIPTION:
     ! Get the fraction of forest in each bin.
     !
@@ -160,7 +160,7 @@ contains
     !
     ! ARGUMENTS
     real(r8), intent(in)  :: x  ! Independent variable in the fit
-    integer, intent(in) :: num_edge_forest_bins
+    integer, intent(in) :: nlevedgeforest
     real(r8), dimension(:), intent(in) :: efb_amplitudes
     real(r8), dimension(:), intent(in) :: efb_sigmas
     real(r8), dimension(:), intent(in) :: efb_centers
@@ -184,9 +184,9 @@ contains
        do_norm = .true.
     end if
 
-    binloop: do b = 1, num_edge_forest_bins
+    binloop: do b = 1, nlevedgeforest
        A = efb_amplitudes(b)
-       if (b == num_edge_forest_bins) then
+       if (b == nlevedgeforest) then
           ! Exponential
           fraction_forest_in_bin(b) = A * exp(-x/efb_decay)
        else
@@ -214,7 +214,7 @@ contains
     end if
 
 
-  end subroutine get_fraction_of_forest_in_each_bin
+  end subroutine get_fraction_of_edgeforest_in_each_bin
 
 
   subroutine assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
@@ -237,7 +237,7 @@ contains
     real(r8) :: remaining_to_assign_from_patch_m2
     real(r8) :: remaining_to_assign_to_bin_m2
     ! For checks
-    real(r8), dimension(num_edge_forest_bins) :: bin_area_sums
+    real(r8), dimension(nlevedgeforest) :: bin_area_sums
     real(r8), parameter :: tol = 1.e-9_r8  ! m2
     real(r8) :: err_chk
 
@@ -265,9 +265,9 @@ contains
        end if
 
        ! Assign this patch's area
-       currentPatch%area_in_edge_forest_bins(:) = 0._r8
+       currentPatch%area_in_edgeforest_bins(:) = 0._r8
        remaining_to_assign_from_patch_m2 = currentPatch%area
-       binloop: do b = 1, num_edge_forest_bins
+       binloop: do b = 1, nlevedgeforest
 
           ! How much area is left for this bin?
           remaining_to_assign_to_bin_m2 = sum(fraction_forest_in_each_bin(1:b))*area_forest_patches - sum_forest_bins_so_far_m2
@@ -276,11 +276,11 @@ contains
           end if
 
           ! Assign area
-          currentPatch%area_in_edge_forest_bins(b) = min(remaining_to_assign_from_patch_m2, remaining_to_assign_to_bin_m2)
-          remaining_to_assign_from_patch_m2 = remaining_to_assign_from_patch_m2 - currentPatch%area_in_edge_forest_bins(b)
+          currentPatch%area_in_edgeforest_bins(b) = min(remaining_to_assign_from_patch_m2, remaining_to_assign_to_bin_m2)
+          remaining_to_assign_from_patch_m2 = remaining_to_assign_from_patch_m2 - currentPatch%area_in_edgeforest_bins(b)
 
           ! Update accounting
-          sum_forest_bins_so_far_m2 = sum_forest_bins_so_far_m2 + currentPatch%area_in_edge_forest_bins(b)
+          sum_forest_bins_so_far_m2 = sum_forest_bins_so_far_m2 + currentPatch%area_in_edgeforest_bins(b)
 
           if (remaining_to_assign_from_patch_m2 == 0._r8) then
              exit
@@ -293,7 +293,7 @@ contains
           write(fates_log(),*) "ERROR: not enough or too much patch area was assigned to bins (check 1); remainder = ",err_chk
           call endrun(msg=errMsg(__FILE__, __LINE__))
        end if
-       err_chk = currentPatch%area - sum(currentPatch%area_in_edge_forest_bins)
+       err_chk = currentPatch%area - sum(currentPatch%area_in_edgeforest_bins)
        if (abs(err_chk) > tol) then
           write(fates_log(),*) "ERROR: not enough or too much patch area was assigned to bins (check 2); remainder = ",err_chk
           call endrun(msg=errMsg(__FILE__, __LINE__))
@@ -308,22 +308,22 @@ contains
        if (currentPatch%is_forest) then
 
           ! Check that all area of each forest patch is assigned
-          err_chk = sum(currentPatch%area_in_edge_forest_bins) - currentPatch%area
+          err_chk = sum(currentPatch%area_in_edgeforest_bins) - currentPatch%area
           if (abs(err_chk) > tol) then
              write(fates_log(),*) "ERROR: unexpected patch forest bin sum (check 3); actual minus expected = ",err_chk
              call endrun(msg=errMsg(__FILE__, __LINE__))
           end if
 
           ! Accumulate site-wide area in each bin
-          binloop_check4a: do b = 1, num_edge_forest_bins
-             bin_area_sums(b) = bin_area_sums(b) + currentPatch%area_in_edge_forest_bins(b) / area_forest_patches
+          binloop_check4a: do b = 1, nlevedgeforest
+             bin_area_sums(b) = bin_area_sums(b) + currentPatch%area_in_edgeforest_bins(b) / area_forest_patches
           end do binloop_check4a
 
        end if
        currentPatch => currentPatch%younger
     end do allpatchloop_check
     ! Check that fraction in each bin is what was expected
-    binloop_check4b: do b = 1, num_edge_forest_bins
+    binloop_check4b: do b = 1, nlevedgeforest
        err_chk = bin_area_sums(b) - fraction_forest_in_each_bin(b)
        if (abs(err_chk) > tol) then
           write(fates_log(),*) "ERROR: unexpected bin sum (check 4); actual minus expected = ",err_chk
@@ -333,7 +333,7 @@ contains
   end subroutine assign_patches_to_bins
 
 
-  subroutine calculate_edge_area(site)
+  subroutine calculate_edgeforest_area(site)
     ! DESCRIPTION:
     ! Loop through forest patches in decreasing order of proximity, calculating the
     ! area of each patch that is in each edge bin.
@@ -352,7 +352,7 @@ contains
     real(r8) :: area_forest_patches
     real(r8) :: area
     real(r8) :: pct_nonforest
-    real(r8), dimension(num_edge_forest_bins), target :: fraction_forest_in_each_bin
+    real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
 
     ! Skip sites with no forest patches
     call get_number_of_forest_patches(site, n_forest_patches, area_forest_patches, area)
@@ -370,7 +370,7 @@ contains
 
     ! Get percentage of nonforest area in each bin
     pct_nonforest = 100._r8 * (area - area_forest_patches) / area
-    call get_fraction_of_forest_in_each_bin(pct_nonforest, num_edge_forest_bins, ED_val_edgeforest_amplitudes, ED_val_edgeforest_sigmas, ED_val_edgeforest_centers, ED_val_edgeforest_decay, fraction_forest_in_each_bin)
+    call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, ED_val_edgeforest_amplitudes, ED_val_edgeforest_sigmas, ED_val_edgeforest_centers, ED_val_edgeforest_decay, fraction_forest_in_each_bin)
 
     ! Assign patches to bins
     call assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
@@ -378,7 +378,7 @@ contains
     ! Clean up
     deallocate(indices)
     deallocate(index_forestpatches_to_allpatches)
-  end subroutine calculate_edge_area
+  end subroutine calculate_edgeforest_area
 
 
 

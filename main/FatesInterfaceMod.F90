@@ -46,8 +46,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : secondaryland
    use FatesConstantsMod         , only : n_crop_lu_types
    use FatesConstantsMod         , only : n_term_mort_types
-   use FatesInterfaceTypesMod    , only : num_edge_forest_bins
-   use EDParamsMod               , only : ED_val_edgeforest_bin_edges
+   use FatesInterfaceTypesMod    , only : nlevedgeforest
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -69,6 +68,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : sdlng_mdd_timescale
    use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
+   use EDParamsMod               , only : ED_val_edgeforest_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
    use FatesParametersInterface  , only : fates_param_reader_type
@@ -944,10 +944,10 @@ contains
          ! Identify number of size and age class bins for history output
          ! assume these arrays are 1-indexed
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
+         nlevedgeforest = size(ED_val_edgeforest_bin_edges,dim=1)
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
          nlevdamage = size(ED_val_history_damage_bin_edges, dim=1)
-         num_edge_forest_bins = size(ED_val_edgeforest_bin_edges, dim=1)
          
          ! do some checks on the size, age, and height bin arrays to make sure they make sense:
          ! make sure that all start at zero, and that both are monotonically increasing
@@ -957,6 +957,10 @@ contains
          endif
          if ( ED_val_history_ageclass_bin_edges(1) .ne. 0._r8 ) then
             write(fates_log(), *) 'age class bins specified in parameter file must start at zero'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         endif
+         if ( ED_val_edgeforest_bin_edges(1) .ne. 0._r8 ) then
+            write(fates_log(), *) 'edge forest class bins specified in parameter file must start at zero'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
          if ( ED_val_history_height_bin_edges(1) .ne. 0._r8 ) then
@@ -975,6 +979,12 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
+         do i = 2,nlevedgeforest
+            if ( (ED_val_edgeforest_bin_edges(i) - ED_val_edgeforest_bin_edges(i-1)) .le. 0._r8) then
+               write(fates_log(), *) 'edge forest class bins specified in parameter file must be monotonically increasing'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+         end do
          do i = 2,nlevheight
             if ( (ED_val_history_height_bin_edges(i) - ED_val_history_height_bin_edges(i-1)) .le. 0._r8) then
                write(fates_log(), *) 'height class bins specified in parameter file must be monotonically increasing'
@@ -989,15 +999,15 @@ contains
          end do
 
          ! Check that the right number of edge forest parameters are given
-         if (size(ED_val_edgeforest_amplitudes, dim=1) .ne. num_edge_forest_bins) then
+         if (size(ED_val_edgeforest_amplitudes, dim=1) .ne. nlevedgeforest) then
             write(fates_log(), *) 'Length of fates_edgeforest_amplitudes does not match length of fates_edgeforest_bin_edges'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         if (size(ED_val_edgeforest_sigmas, dim=1) .ne. num_edge_forest_bins) then
+         if (size(ED_val_edgeforest_sigmas, dim=1) .ne. nlevedgeforest) then
             write(fates_log(), *) 'Length of fates_edgeforest_sigmas does not match length of fates_edgeforest_bin_edges'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         if (size(ED_val_edgeforest_centers, dim=1) .ne. num_edge_forest_bins) then
+         if (size(ED_val_edgeforest_centers, dim=1) .ne. nlevedgeforest) then
                call endrun(msg=errMsg(sourcefile, __LINE__))
                write(fates_log(), *) 'Length of fates_edgeforest_centers does not match length of fates_edgeforest_bin_edges'
          end if
@@ -1147,6 +1157,7 @@ contains
        use EDParamsMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
+       use EDParamsMod, only : ED_val_edgeforest_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges
        use EDParamsMod, only : ED_val_history_coageclass_bin_edges
 
@@ -1180,7 +1191,7 @@ contains
        allocate( fates_hdim_levfuel(1:NFSC   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
-       allocate( fates_hdim_levedgebin(1:num_edge_forest_bins   ))
+       allocate( fates_hdim_levedge(1:nlevedgeforest   ))
        allocate( fates_hdim_levheight(1:nlevheight   ))
        allocate( fates_hdim_levcoage(1:nlevcoage ))
        allocate( fates_hdim_pfmap_levcapf(1:nlevcoage*numpft))
@@ -1221,7 +1232,7 @@ contains
        ! Fill the IO array of plant size classes
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
        fates_hdim_levage(:) = ED_val_history_ageclass_bin_edges(:)
-       fates_hdim_levedgebin(:) = ED_val_edgeforest_bin_edges(:)
+       fates_hdim_levedge(:) = ED_val_edgeforest_bin_edges(:)
        fates_hdim_levheight(:) = ED_val_history_height_bin_edges(:)
        fates_hdim_levcoage(:) = ED_val_history_coageclass_bin_edges(:)
        fates_hdim_levleaf(:) = dlower_vai(:)

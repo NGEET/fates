@@ -350,7 +350,7 @@ contains
     use FatesConstantsMod, only : sec_per_min
     use FatesEcotypesMod , only : is_patch_forest
     use EDParamsMod      , only : forest_tree_fraction_threshold
-    use FatesEdgeForestMod, only : calculate_edge_area
+    use FatesEdgeForestMod, only : calculate_edgeforest_area
 
     type(ed_site_type) , intent(inout), target :: currentSite
     type(bc_in_type)   , intent(in)            :: bc_in
@@ -429,7 +429,7 @@ contains
     endif
 
     ! Must come after patch loop with is_patch_forest() call
-    call calculate_edge_area(currentSite)
+    call calculate_edgeforest_area(currentSite)
 
     currentPatch=>currentSite%oldest_patch;
 
