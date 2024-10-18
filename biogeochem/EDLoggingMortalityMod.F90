@@ -19,6 +19,7 @@ module EDLoggingMortalityMod
    use FatesPatchMod     , only : fates_patch_type
    use EDTypesMod        , only : site_massbal_type
    use EDTypesMod        , only : site_fluxdiags_type
+   use EDTypesMod        , only : elem_diag_type
    use FatesLitterMod    , only : ncwd
    use FatesLitterMod    , only : ndcmpy
    use FatesLitterMod    , only : litter_type
@@ -28,6 +29,7 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : dtype_ilog
    use FatesConstantsMod , only : dtype_ifall
    use FatesConstantsMod , only : dtype_ifire
+   use EDTypesMod        , only : area_inv
    use FatesConstantsMod , only : n_landuse_cats
    use EDPftvarcon       , only : EDPftvarcon_inst
    use EDPftvarcon       , only : GetDecompyFrac
@@ -502,8 +504,6 @@ contains
 
      !USES:
      use SFParamsMod,  only : SF_val_cwd_frac
-     use EDTypesMod,   only : AREA_INV
-
 
      ! -------------------------------------------------------------------------------------------
      !
@@ -556,7 +556,7 @@ contains
               harvestable_cohort_c = logging_direct_frac * ( sapw_m + struct_m ) * &
                      prt_params%allom_agb_frac(currentCohort%pft) * &
                      SF_val_CWD_frac(ncwd) * logging_export_frac * &
-                     currentCohort%n * AREA_INV * site_area
+                     currentCohort%n * area_inv * site_area
 
               ! No harvest for trees without canopy 
               if (currentCohort%canopy_layer>=1) then
@@ -795,9 +795,9 @@ contains
 
 
       !LOCAL VARIABLES:
-      type(fates_cohort_type), pointer      :: currentCohort
+      type(fates_cohort_type), pointer   :: currentCohort
       type(site_massbal_type), pointer   :: site_mass
-      type(site_fluxdiags_type), pointer :: flux_diags
+      type(elem_diag_type), pointer      :: elflux_diags
       type(litter_type),pointer          :: new_litt
       type(litter_type),pointer          :: cur_litt
 
@@ -855,12 +855,12 @@ contains
   
   
       do el = 1,num_elements
-         
+
          element_id = element_list(el)
          site_mass => currentSite%mass_balance(el)
-         flux_diags=> currentSite%flux_diags(el)
+         elflux_diags=> currentSite%flux_diags%elem(el)
          cur_litt  => currentPatch%litter(el)   ! Litter pool of "current" patch
-         new_litt  => newPatch%litter(el)       ! Litter pool of "new" patch
+         new_litt  => newPatch%litter(el)        ! Litter pool of "new" patch
          
          ! Zero some site level accumulator diagnsotics
          trunk_product_site  = 0.0_r8
@@ -958,10 +958,10 @@ contains
 
                
                ! Diagnostics on fluxes into the AG and BG CWD pools
-               flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + & 
+               elflux_diags%cwd_ag_input(c) = elflux_diags%cwd_ag_input(c) + & 
                     SF_val_CWD_frac_adj(c) * ag_wood
                
-               flux_diags%cwd_bg_input(c) = flux_diags%cwd_bg_input(c) + & 
+               elflux_diags%cwd_bg_input(c) = elflux_diags%cwd_bg_input(c) + & 
                     SF_val_CWD_frac_adj(c) * bg_wood
             
                ! Diagnostic specific to resource management code
@@ -999,10 +999,10 @@ contains
 
             end do
 
-            flux_diags%cwd_ag_input(ncwd) = flux_diags%cwd_ag_input(ncwd) + & 
+            elflux_diags%cwd_ag_input(ncwd) = elflux_diags%cwd_ag_input(ncwd) + & 
                  SF_val_CWD_frac_adj(ncwd) * ag_wood
             
-            flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + & 
+            elflux_diags%cwd_bg_input(ncwd) = elflux_diags%cwd_bg_input(ncwd) + & 
                  SF_val_CWD_frac_adj(ncwd) * bg_wood
 
             if( element_id .eq. carbon12_element) then
@@ -1027,7 +1027,7 @@ contains
                       retain_m2
             end do
             
-            flux_diags%cwd_bg_input(ncwd) = flux_diags%cwd_bg_input(ncwd) + &
+            elflux_diags%cwd_bg_input(ncwd) = elflux_diags%cwd_bg_input(ncwd) + &
                   bg_wood
             
             ! ----------------------------------------------------------------------------------------
@@ -1088,10 +1088,10 @@ contains
             end do
                
             ! track as diagnostic fluxes
-            flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + & 
+            elflux_diags%surf_fine_litter_input(pft) = elflux_diags%surf_fine_litter_input(pft) + & 
                  leaf_litter
             
-            flux_diags%root_litter_input(pft) = flux_diags%root_litter_input(pft) + & 
+            elflux_diags%root_litter_input(pft) = elflux_diags%root_litter_input(pft) + & 
                  root_litter
             
             ! Logging specific diagnostics
@@ -1115,6 +1115,10 @@ contains
 
             currentCohort => currentCohort%taller
          end do
+
+         ! Amount of trunk mass exported off site [kg/m2]
+         elflux_diags%exported_harvest = elflux_diags%exported_harvest + &
+              trunk_product_site * area_inv
 
          ! Update the amount of carbon exported from the site through logging
          ! operations.  Currently we assume only above-ground portion
@@ -1166,7 +1170,6 @@ contains
       ! Harvested C flux in HLM.
       ! ----------------------------------------------------------------------------------
       use EDtypesMod             , only : ed_site_type
-      use EDTypesMod             , only : AREA_INV
       use PRTGenericMod          , only : element_pos
       use PRTGenericMod          , only : carbon12_element
       use FatesInterfaceTypesMod , only : bc_out_type
@@ -1191,20 +1194,20 @@ contains
       do i_pft = 1,numpft
          bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
               currentSite%mass_balance(element_pos(carbon12_element))%wood_product_harvest(i_pft) * &
-              AREA_INV * EDPftvarcon_inst%harvest_pprod10(i_pft) * unit_trans_factor
+              area_inv * EDPftvarcon_inst%harvest_pprod10(i_pft) * unit_trans_factor
          bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
               currentSite%mass_balance(element_pos(carbon12_element))%wood_product_harvest(i_pft) * &
-              AREA_INV * (1._r8 - EDPftvarcon_inst%harvest_pprod10(i_pft)) * unit_trans_factor
+              area_inv * (1._r8 - EDPftvarcon_inst%harvest_pprod10(i_pft)) * unit_trans_factor
       end do
 
       ! land-use-change-associated wood product pools
       do i_pft = 1,numpft
          bc_out%hrv_deadstemc_to_prod10c = bc_out%hrv_deadstemc_to_prod10c + &
               currentSite%mass_balance(element_pos(carbon12_element))%wood_product_landusechange(i_pft) * &
-              AREA_INV * EDPftvarcon_inst%landusechange_pprod10(i_pft) * unit_trans_factor
+              area_inv * EDPftvarcon_inst%landusechange_pprod10(i_pft) * unit_trans_factor
          bc_out%hrv_deadstemc_to_prod100c = bc_out%hrv_deadstemc_to_prod100c + &
               currentSite%mass_balance(element_pos(carbon12_element))%wood_product_landusechange(i_pft) * &
-              AREA_INV * (1._r8 - EDPftvarcon_inst%landusechange_pprod10(i_pft)) * unit_trans_factor
+              area_inv * (1._r8 - EDPftvarcon_inst%landusechange_pprod10(i_pft)) * unit_trans_factor
       end do
 
       return
