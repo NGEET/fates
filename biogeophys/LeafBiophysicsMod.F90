@@ -54,7 +54,6 @@ module LeafBiophysicsMod
   public :: LowstorageMainRespReduction
   public :: GetConstrainedVPress
   public :: DecayCoeffVcmax
-  public :: StomatalVaporPressureFromLWP
   public :: QSat
   public :: AgrossRubiscoC3
   public :: AgrossRuBPC3
@@ -131,7 +130,7 @@ module LeafBiophysicsMod
   
   ! empirical curvature parameter for electron transport rate
   real(r8),parameter :: theta_psii = 0.7_r8
-  
+
   ! These are parameter constants read in externally
   ! some are differentiated by PFT, others are not
   ! -------------------------------------------------------------------------------------
@@ -273,7 +272,6 @@ contains
     real(r8), intent(out) :: gs                      ! leaf stomatal conductance (umol H2O/m**2/s)
 
                                                      ! locals
-    real(r8) :: hs                                   ! vapor pressure over saturation vapor pressure ratio
     real(r8) :: ceair                                ! constrained vapor pressure (Pa)
     real(r8) :: aquad,bquad,cquad                    ! quadradic solve terms
     real(r8) :: r1,r2                                ! quadradic solve roots
@@ -285,7 +283,6 @@ contains
     
     ! Apply a constraint to the vapor pressure
     ceair = GetConstrainedVPress(can_vpress,veg_esat)
-    
     aquad = leaf_co2_ppress
     bquad = leaf_co2_ppress*(gb - stomatal_intercept_btran) - lb_params%bb_slope(ft) * a_gs * can_press
     cquad = -gb*(leaf_co2_ppress * stomatal_intercept_btran + &
@@ -294,17 +291,30 @@ contains
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
     gs = max(r1,r2)
 
+    ! Testing poor convergence
+    !if( ceair/veg_esat < 0.04_r8 ) then
+    !   print*,"weird constrained:",ceair,veg_esat
+    !   stop
+    !end if
+
+    !if(leaf_co2_ppress < 5._r8) then
+    !   print*,"low leaf_co2_ppress:",leaf_co2_ppress
+    !   stop
+    !end if
+    
+    !gs = lb_params%bb_slope(ft)*a_gs*(ceair/veg_esat)/leaf_co2_ppress*can_press + stomatal_intercept_btran
+    
 
     return
   end subroutine StomatalCondBallBerry
 
   ! =====================================================================================
   
-  function AgrossRubiscoC3(vcmax,co2_inter_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2) result(ac)
+  function AgrossRubiscoC3(vcmax,ci,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2) result(ac)
 
     ! Input
     real(r8) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
-    real(r8) :: co2_inter_c       ! intercellular leaf CO2 (Pa)
+    real(r8) :: ci                ! intracellular leaf CO2 (Pa)
     real(r8) :: co2_cpoint        ! CO2 compensation point (Pa)
     real(r8) :: can_o2_ppress     ! Partial pressure of O2 near the leaf surface (Pa)
     real(r8) :: mm_kco2           ! Michaelis-Menten constant for CO2 (Pa)
@@ -313,23 +323,23 @@ contains
     ! Output
     real(r8) :: ac               ! Rubisco-limited gross photosynthesis (umol CO2/m**2/s)
     
-    ac = vcmax * max(co2_inter_c-co2_cpoint, 0._r8) / &
-         (co2_inter_c+mm_kco2 * (1._r8+can_o2_ppress / mm_ko2 ))
+    ac = vcmax * max(ci-co2_cpoint, 0._r8) / &
+         (ci+mm_kco2 * (1._r8+can_o2_ppress / mm_ko2 ))
     
   end function AgrossRubiscoC3
   
   ! =====================================================================================
 
-  function AgrossRuBPC3(par_abs_wm2,jmax,co2_inter_c,co2_cpoint ) result(aj)
+  function AgrossRuBPC3(par_abs_wm2,jmax,ci,co2_cpoint ) result(aj)
 
     ! Input
-    real(r8) :: par_abs_wm2           ! Absorbed PAR per leaf area [W/m2]
+    real(r8) :: par_abs_wm2       ! Absorbed PAR per leaf area [W/m2]
     real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8) :: co2_inter_c      ! intercellular leaf CO2 (Pa)
+    real(r8) :: ci                ! intracellular leaf CO2 (Pa)
     real(r8) :: co2_cpoint        ! CO2 compensation point (Pa)
 
     ! Output
-    real(r8) :: aj               ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
+    real(r8) :: aj                ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
 
     ! locals
     real(r8) :: par_abs_umol      ! Absorbed PAR that gets to the photocenters,
@@ -352,10 +362,10 @@ contains
     cquad = par_abs_umol * jmax
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
     je = min(r1,r2)
-    
-    aj = je * max(co2_inter_c-co2_cpoint, 0._r8) / &
-                 (4._r8*co2_inter_c+8._r8*co2_cpoint)
 
+    aj = je * max(ci-co2_cpoint, 0._r8) / &
+                 (4._r8*ci+8._r8*co2_cpoint)
+    
     
   end function AgrossRuBPC3
   
@@ -375,23 +385,24 @@ contains
 
   ! =======================================================================================
 
-  function AgrossPEPC4(co2_inter_c,co2_rcurve_islope,can_press) result(ap)
+  function AgrossPEPC4(ci,kp,can_press) result(ap)
 
-    real(r8) :: co2_inter_c       ! intercellular leaf CO2 (Pa)
-    real(r8) :: co2_rcurve_islope ! initial slope of CO2 response curve (C4 plants)
+    real(r8) :: ci                ! intracellular leaf CO2 (Pa)
+    real(r8) :: kp                ! initial slope of CO2 response curve (C4 plants)
     real(r8) :: can_press         ! Air pressure near the surface of the leaf (Pa)
     real(r8) :: ap                ! product-limited (C3) or CO2-limited
                                   ! (C4) gross photosynthesis (umol CO2/m**2/s)
 
-    ap = co2_rcurve_islope * max(co2_inter_c, 0._r8) / can_press
+    ap = kp * max(ci, 0._r8) / can_press
     
   end function AgrossPEPC4
 
   ! =======================================================================================
 
   subroutine CiFunc(ci, &
-       pft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-       can_co2_ppress,can_o2_ppress,can_press,lmr,par_abs,gb_veg_tempk, &
+       ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+       stomatal_intercept_btran, &       
        anet,agross,gs,fval)
 
     ! -----------------------------------------------------------------------------------
@@ -404,7 +415,6 @@ contains
     !
     ! fval = ci_input - ci_updated
     !
-    !
     ! The updated ci:
     ! ci =  ca - (1.37rb+1.65rs))*patm*anet
     !
@@ -415,8 +425,8 @@ contains
     ! -----------------------------------------------------------------------------------
 
     
-    real(r8)             , intent(in)    :: ci       ! intracellular leaf CO2 (Pa)
-    integer              , intent(in)    :: pft      ! plant functional type index
+    real(r8)             , intent(in)    :: ci       ! Input (trial) intracellular leaf CO2 (Pa)
+    integer              , intent(in)    :: ft       ! plant functional type index
     real(r8)             , intent(in)    :: vcmax
     real(r8)             , intent(in)    :: jmax
     real(r8)             , intent(in)    :: kp             ! co2_rcurve_islope
@@ -426,19 +436,28 @@ contains
     real(r8)             , intent(in)    :: can_co2_ppress
     real(r8)             , intent(in)    :: can_o2_ppress
     real(r8)             , intent(in)    :: can_press
-   
+    real(r8)             , intent(in)    :: can_vpress
     real(r8)             , intent(in)    :: lmr      ! leaf maintenance respiration rate (umol CO2/m**2/s)
     real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai (w/m**2)
     real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8)             , intent(in)    :: veg_tempk
+    real(r8)             , intent(in)    :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
     
     real(r8)             , intent(out)   :: anet
     real(r8)             , intent(out)   :: agross
     real(r8)             , intent(out)   :: gs
     real(r8)             , intent(out)   :: fval
-    
-    real(r8) :: ac,aj,ap,a_gs
-    real(r8) :: leaf_co2_ppress 
+
+    real(r8) :: veg_esat                             ! Saturation vapor pressure at leaf-surface [Pa]
+    real(r8) :: veg_qs                               ! DUMMY, specific humidity at leaf-surface [kg/kg]
+
+    real(r8) :: a_gs              ! The assimilation (a) for calculating conductance (gs)
+                                  ! is either = to anet or agross
+    real(r8) :: ac               ! Rubisco-limited gross photosynthesis (umol CO2/m**2/s)
+    real(r8) :: aj               ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
+    real(r8) :: ap               ! product-limited (C3) or CO2-limited
+                                              ! (C4) gross photosynthesis (umol CO2/m**2/s)
+    real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
     !------------------------------------------------------------------------------
 
     ! Photosynthesis limitation rate calculations
@@ -462,7 +481,7 @@ contains
        aj = AgrossRuBPC4(par_abs)
        
        ! C4: PEP carboxylase-limited (CO2-limited)
-       ap = AgrossPEPC4(ci,co2_rcurve_islope,can_press)
+       ap = AgrossPEPC4(ci,kp,can_press)
        
        ! Take the minimum, no smoothing
        agross = minval([ac,aj,ap])
@@ -505,8 +524,8 @@ contains
     ! "1.11 Stomatal Conductance"
     !
     ! ------------------------------------------------------------------------------------
-    
-    leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb * anet_out * can_press 		   
+
+    leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb * anet * can_press
     leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
     
     ! Determine saturation vapor pressure at the leaf surface, from temp and atm-pressure
@@ -520,19 +539,146 @@ contains
             leaf_co2_ppress,can_press,gb,gs)
     end if
     
-    ! Derive new estimate for co2_intracel
-    ! co2_intracel = can_co2_ppress - anet_out * can_press * &
+    ! Derive new estimate for ci
+    ! ci = can_co2_ppress - anet * can_press * &
     ! (h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/gs_out)
     
     ! fval = ci_input - ci_predicted
     fval = ci - (can_co2_ppress - anet * can_press * &
          (h2o_co2_bl_diffuse_ratio*gs + h2o_co2_stoma_diffuse_ratio*gb)/(gb*gs))
     
-    
-    end associate
-
   end subroutine CiFunc
 
+  ! ====================================================================================
+  
+  subroutine CiBisection(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+       stomatal_intercept_btran, &       
+       anet,agross,gs,ci,solve_iter)
+
+    ! -----------------------------------------------------------------------------------
+    !
+    ! Co-solve for photosynthesis and stomatal conductance via a bisectional search for
+    ! intracellular CO2. This is an inefficient yet robust search method that we resort
+    ! to if the recursive solver cannot find an answer within its convergence criteria.
+    ! -----------------------------------------------------------------------------------
+    
+    integer              , intent(in)    :: ft       ! plant functional type index
+    real(r8)             , intent(in)    :: vcmax
+    real(r8)             , intent(in)    :: jmax
+    real(r8)             , intent(in)    :: kp             ! co2_rcurve_islope
+    real(r8)             , intent(in)    :: co2_cpoint
+    real(r8)             , intent(in)    :: mm_kco2
+    real(r8)             , intent(in)    :: mm_ko2
+    real(r8)             , intent(in)    :: can_co2_ppress
+    real(r8)             , intent(in)    :: can_o2_ppress
+    real(r8)             , intent(in)    :: can_press
+    real(r8)             , intent(in)    :: can_vpress
+    real(r8)             , intent(in)    :: lmr      ! leaf maintenance respiration rate (umol CO2/m**2/s)
+    real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai (w/m**2)
+    real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
+    real(r8)             , intent(in)    :: veg_tempk
+    real(r8)             , intent(in)    :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
+    
+    real(r8)             , intent(out)   :: anet
+    real(r8)             , intent(out)   :: agross
+    real(r8)             , intent(out)   :: gs
+    real(r8)             , intent(out)   :: ci
+    integer              , intent(out)   :: solve_iter
+
+    ! With bisection, we need to keep track of three different ci values at any given time
+    ! The high, the low and the bisection.
+
+    real(r8) :: ci_h, fval_h
+    real(r8) :: ci_l, fval_l
+    real(r8) :: ci_b, fval_b
+
+    logical :: loop_continue   ! Continue bisecting until tolerance reached
+    
+    ! First guess on ratio between intracellular co2 and the atmosphere
+    ! an iterator converges on actual
+    real(r8),parameter :: init_ci_low  = 0.01_r8
+    real(r8),parameter :: init_ci_high = 4.0_r8
+
+    ! When iteratively solving for intracellular co2 concentration, this
+    ! is the maximum tolerable change to accept convergence [Pa]
+    real(r8),parameter :: ci_tol = 0.01_r8
+
+    ! Maximum number of iterations on intracelluar co2 solver until is quits
+    integer, parameter :: max_iters = 200
+
+    ci_h = can_co2_ppress * init_ci_high
+    ci_l = can_co2_ppress * init_ci_low
+
+    call CiFunc(ci_h, &
+         ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+         stomatal_intercept_btran, &
+         anet,agross,gs,fval_h)
+    
+    call CiFunc(ci_l, &
+         ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+         stomatal_intercept_btran, &
+         anet,agross,gs,fval_l)
+
+    ! It is necessary that our starting points are on opposite sides of the root
+
+    if( nint(fval_h/abs(fval_h)) .eq. nint(fval_l/abs(fval_l)) ) then
+       print*,ci_h,fval_h,ci_l,fval_l              
+       write(fates_log(),*) 'While attempting bisection for Ci calculations,'
+       write(fates_log(),*) 'the two starting values for Ci were on the same'
+       write(fates_log(),*) 'side of the root. Try increasing and decreasing'
+       write(fates_log(),*) 'init_ci_high and init_ci_low respectively'
+       write(fates_log(),*) ci_h,fval_h,ci_l,fval_l
+       call endrun(msg=errMsg(sourcefile, __LINE__)) 
+    end if
+
+    solve_iter = 0
+    loop_continue = .true.
+    ci_b = 0.5*(ci_l+ci_h)
+    bi_iter_loop: do while(loop_continue)
+
+       solve_iter = solve_iter + 1
+       
+       call CiFunc(ci_b, &
+            ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+            can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+            stomatal_intercept_btran, &
+            anet,agross,gs,fval_b)
+
+       if(fval_b<ci_tol) then
+          loop_continue = .false.
+       end if
+       
+       if( solve_iter == max_iters) then
+          write (fates_log(),*) 'Ci bisection during photosynthesis failed'
+          write (fates_log(),*) 'try increasing tolerance or widening the starting points'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       
+       ! Determining which side of the interval we want to retain
+       if( nint(fval_b/abs(fval_b)) .eq. nint(fval_h/abs(fval_h)) ) then
+          fval_h = fval_b
+          ci_h   = ci_b
+       else
+          fval_l = fval_b
+          ci_l   = ci_b
+       end if
+
+       ci_b = 0.5*(ci_l+ci_h)
+
+    end do bi_iter_loop
+    
+    ! The Ci value that is constent with the last call to CiFunc()
+    ! is the bisection point minus the difference
+    
+    ci = ci_b - fval_b
+    
+
+    return
+  end subroutine CiBisection
+  
   ! =====================================================================================
   
   subroutine LeafLayerPhotosynthesis(par_abs,           &  ! in
@@ -540,7 +686,7 @@ contains
        ft,                &  ! in
        vcmax,             &  ! in
        jmax,              &  ! in
-       co2_rcurve_islope, &  ! in
+       kp,                &  ! in
        veg_tempk,         &  ! in
        can_press,         &  ! in
        can_co2_ppress,    &  ! in
@@ -552,15 +698,16 @@ contains
        mm_ko2,            &  ! in
        co2_cpoint,        &  ! in
        lmr,               &  ! in
-       leaf_psi,          &  ! in   (currently dummy)
-       agross_out,        &  ! out
-       gs_out,            &  ! out
-       anet_out,          &  ! out
-       c13disc_out,       &  ! out
+       agross,            &  ! out
+       gs,                &  ! out
+       anet,              &  ! out
+       c13disc,           &  ! out
        ac,                &  ! out
        aj,                &  ! out
        ap,                &  ! out
-       co2_intracel)                   ! out
+       ci,                &  ! out
+       solve_flag,        &  ! out
+       solve_iter)           ! out
 
 
     ! ------------------------------------------------------------------------------------
@@ -579,7 +726,7 @@ contains
     integer,  intent(in) :: ft                ! (plant) Functional Type Index
     real(r8), intent(in) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
     real(r8), intent(in) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8), intent(in) :: co2_rcurve_islope ! initial slope of CO2 response curve (C4 plants)
+    real(r8), intent(in) :: kp                ! initial slope of CO2 response curve (C4 plants)
     real(r8), intent(in) :: veg_tempk         ! vegetation temperature
     real(r8), intent(in) :: can_press         ! Air pressure near the surface of the leaf (Pa)
     real(r8), intent(in) :: can_co2_ppress    ! Partial pressure of CO2 near the leaf surface (Pa)
@@ -591,18 +738,20 @@ contains
     real(r8), intent(in) :: mm_ko2            ! Michaelis-Menten constant for O2 (Pa)
     real(r8), intent(in) :: co2_cpoint        ! CO2 compensation point (Pa)
     real(r8), intent(in) :: lmr               ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
-    real(r8), intent(in) :: leaf_psi          ! Leaf water potential [MPa]
-
-    real(r8), intent(out) :: agross_out       ! gross photosynthesis (umolC/m2/s)
-    real(r8), intent(out) :: gs_out           ! leaf stomatal conductance (umol H2O/m**2/s)
-    real(r8), intent(out) :: anet_out         ! net leaf photosynthesis (umol CO2/m**2/s)
-    real(r8), intent(out) :: c13disc_out      ! carbon 13 in newly assimilated carbon
+    real(r8), intent(out) :: agross           ! gross photosynthesis (umolC/m2/s)
+    real(r8), intent(out) :: gs               ! leaf stomatal conductance (umol H2O/m**2/s)
+    real(r8), intent(out) :: anet             ! net leaf photosynthesis (umol CO2/m**2/s)
+    real(r8), intent(out) :: c13disc          ! carbon 13 in newly assimilated carbon
     real(r8), intent(out) :: ac               ! Rubisco-limited gross photosynthesis (umol CO2/m**2/s)
     real(r8), intent(out) :: aj               ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
     real(r8), intent(out) :: ap               ! product-limited (C3) or CO2-limited
                                               ! (C4) gross photosynthesis (umol CO2/m**2/s)
     real(r8), intent(out) :: ci               ! intracellular leaf CO2 (Pa)
-
+    integer,  intent(out) :: solve_flag       ! 0) no solve required, no sun or leaf
+                                              ! 1) solved by simple recursion
+                                              ! 2) bisection was required
+    integer,  intent(out) :: solve_iter       ! Number of iterations required for the solve
+    
     ! Important Note on the gas pressures as input arguments.  This photosynthesis scheme will iteratively
     ! solve for the co2 partial pressure at the leaf surface (ie in the stomata). The reference
     ! point for these input values are NOT within that boundary layer that separates the stomata from
@@ -617,25 +766,12 @@ contains
     
     ! Locals
     ! ------------------------------------------------------------------------
-
-    real(r8) :: ci0, ci1          ! Local perturbation values of intracellular co2 [Pa]
-    real(r8) :: f0, f1            ! Change in intracellular co2 through
+    real(r8) :: ci0               ! Local perturbation values of intracellular co2 [Pa]
+    real(r8) :: fval              ! Change in intracellular co2 through
                                   ! one iteration of a solve (ci_init - ci) [Pa]
-    
-    real(r8) :: a_gs              ! The assimilation (a) for calculating conductance (gs)
-                                  ! is either = to anet or agross
-    real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
-    real(r8) :: r1,r2             ! roots of quadratic equation
-    
     logical  :: loop_continue     ! Loop control variable
-    integer  :: niter             ! iteration loop index
- 
-    real(r8) :: ai                ! intermediate co-limited photosynthesis (umol CO2/m**2/s)
-    real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
     real(r8) :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
-    real(r8) :: veg_esat                             ! Saturation vapor pressure at leaf-surface [Pa]
-    real(r8) :: veg_qs                               ! DUMMY, specific humidity at leaf-surface [kg/kg]
-       
+      
     ! Parameters
     ! ------------------------------------------------------------------------
     
@@ -650,24 +786,25 @@ contains
     real(r8),parameter :: ci_tol = 0.1_r8
 
     ! Maximum number of iterations on intracelluar co2 solver until is quits
-    integer, parameter :: max_iters = 10
-
-    ! empirical curvature parameter for ap photosynthesis co-limitation
-    real(r8),parameter :: theta_ip = 0.999_r8
+    integer, parameter :: max_iters = 100
 
     ! Set diagnostics as un-initialized
     ac         = -999._r8
     aj         = -999._r8
     ap         = -999._r8
+
+    ! Assume a trival solve until we encounter both leaf and light
+    solve_iter = 0
+    solve_flag = 0
     
     ! Trivial solution - No biomass - no photosynthesis, no conductance, no respiration, no nothin
     ! --------------------------------------------------------------------------------------------
 
     if(  leaf_area < nearzero ) then
-       agross_out   = 0._r8
-       gs_out    = 0._r8 
-       anet_out  = 0._r8
-       c13disc_out = 0._r8
+       agross  = 0._r8
+       gs      = 0._r8 
+       anet    = 0._r8
+       c13disc = 0._r8
        return
     end if
 
@@ -679,13 +816,12 @@ contains
     ! Stomatal conductance is the intercept of the conductance functions
     ! ---------------------------------------------------------------------------------------------
     if (par_abs < nearzero ) then
-       anet_out   = -lmr
-       agross_out    = 0._r8
-       gs_out     = stomatal_intercept_btran
-       c13disc_out  = 0.0_r8
+       anet    = -lmr
+       agross  = 0._r8
+       gs      = stomatal_intercept_btran
+       c13disc = 0.0_r8
        return
     end if
-
 
     ! Not trivial solution, some biomass and some light
     ! Initialize first guess of intracellular co2 conc [Pa]
@@ -695,12 +831,13 @@ contains
        ci0 = init_a2l_co2_c4 * can_co2_ppress
     end if
 
-    niter = 0
+    solve_iter = 0
+    solve_flag = 1
     loop_continue = .true.
     iter_loop: do while(loop_continue)
        
        ! Increment iteration counter. Stop if too many iterations
-       niter = niter + 1
+       solve_iter = solve_iter + 1
 
        ! This function calculates the difference between
        ! the guessed ci (ie ci0) and an updated value and returns
@@ -710,8 +847,9 @@ contains
        ! in various search methods such as NR, Secant and bisection
        
        call CiFunc(ci0, &
-            pft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-            can_co2_ppress,can_o2_ppress,can_press,lmr,par_abs,gb_veg_tempk, &
+            ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+            can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+            stomatal_intercept_btran, &
             anet,agross,gs,fval)
 
        ! fval = ci_input - ci_predicted
@@ -724,8 +862,16 @@ contains
 
        ci0 = ci
        
-       if( niter == max_iters) then
-          !call CiBisection()
+       if( solve_iter == max_iters) then
+          solve_flag = 2
+
+          call CiBisection( &
+               ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+               can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+               stomatal_intercept_btran, &
+               anet,agross,gs,ci,solve_iter)
+
+          
           exit iter_loop
        end if
        
@@ -736,8 +882,8 @@ contains
     ! just hard code b and \alpha_s for now, might move to parameter set in future
     ! b = 27.0 alpha_s = 4.4
     ! TODO, not considering C4 or CAM right now, may need to address this
-    ! note co2_intracel is intracelluar CO2, not intercelluar
-    c13disc_out = 4.4_r8 + (27.0_r8 - 4.4_r8) * &
+
+    c13disc = 4.4_r8 + (27.0_r8 - 4.4_r8) * &
          min (can_co2_ppress, max (ci, 0._r8)) / can_co2_ppress
 
     return
@@ -859,84 +1005,6 @@ contains
 
   end function LeafHumidityStomaResis
 
-  ! =====================================================================================
-  
-  function StomatalVaporPressureFromLWP(leaf_psi, k_lwp, veg_tempk, &
-                                        can_press, can_vpress) result(stoma_esat)
-
-    ! -------------------------------------------------------------------------------------
-    ! This calculates inner leaf humidity as a function of mesophyll water potential 
-    ! Adopted from  Vesala et al., 2017
-    ! https://www.frontiersin.org/articles/10.3389/fpls.2017.00054/full
-    !
-    ! Equation 1 in Vesala et al:
-    ! lwp_star = wi/w0 = exp( k_lwp*leaf_psi*molar_mass_water/(rgas * veg_tempk) )
-    !
-    ! Terms:
-    ! leaf_psi: leaf water potential [MPa]
-    ! k_lwp: inner leaf humidity scaling coefficient [-]
-    ! rgas: universal gas constant, [J/K/mol], 8.3144598
-    ! molar_mass_water, molar mass of water, [g/mol]: 18.0
-    !
-    ! Junyan Ding 2021
-    ! Adapted by Ryan Knox to use alternate functions like QSat() or inside
-    ! Medlyn/BB solvers
-    ! -------------------------------------------------------------------------------------
-
-    ! Input
-    real(r8) :: leaf_psi   ! Leaf water potential [MPa]
-    real(r8) :: k_lwp      ! Scaling coefficient for the ratio of leaf xylem (user parameter)
-    real(r8) :: veg_tempk  ! Leaf temperature     [K]
-    real(r8) :: can_press  ! Atmospheric Pressure in the canopy [Pa]
-    real(r8) :: can_vpress ! Actual Vapor Pressure in the canopy [Pa]
-    
-    ! Output
-    real(r8) :: stoma_esat ! The vapor pressure at the surface of the stomata [Pa]
-
-    
-    real(r8) :: lwp_star   ! leaf water potential scaling coefficient
-    real(r8) :: qs,es      ! saturation specific humidity [kg/kg] and vapor pressure [Pa]
-    real(r8) :: stoma_qsat ! The specific humidity at the surface of the stomata [kg/kg]
-
-    
-    ! for inner leaf humidity:
-    !    0 means total dehydrated leaf
-    !    1 means total saturated leaf
-
-    ! Note: if k_lwp is zero, LWP_star will be 1. 
-    
-    if (leaf_psi<0._r8) then
-       lwp_star = exp(k_lwp*leaf_psi*molar_mass_water/(rgas_J_K_mol*veg_tempk))
-    else 
-       lwp_star = 1._r8
-    end if
-
-    call QSat(veg_tempk, can_press, qs, es)
-
-    ! Calculate the reduced specific humidity based off of the scaled
-    ! down saturated specific humidity at the leaf surface [kg/kg]
-    stoma_qsat = lwp_star * qs
-
-    ! Convert humidity to a vapor pressure [kg/kg] -> [Pa]
-    ! qs = es * 0.622 / (p - 0.378*es)
-    ! qs = 0.622 / (p/es - 0.378)
-    ! qs (p/es - 0.378) = 0.622 
-    ! qs*p/es  = 0.622 + qs*0.378
-    ! 1/es  = (0.622 + qs*0.378)/(qs*p)
-    ! es = (qs*p)/(0.622 + qs*0.378)
-
-    stoma_esat = (stoma_qsat*can_press)/(0.622_r8 + stoma_qsat*0.378_r8)
-
-    ! We don't allow reverse transpiration, prevent the stomatal surface
-    ! vapor pressure from being lower than the actual!
-
-    stoma_esat = max(can_vpress,stoma_esat)
-    
-    
-  end function StomatalVaporPressureFromLWP
-
-
-  
   ! =====================================================================================
 
   function ft1_f(tl, ha) result(ans)
@@ -1235,7 +1303,7 @@ contains
   subroutine LeafLayerBiophysicalRates( ft,            &
        vcmax25top_ft, &
        jmax25top_ft, &
-       co2_rcurve_islope25top_ft, &
+       kp25_ft, &
        nscaler,    &
        veg_tempk,      &
        dayl_factor, &
@@ -1244,7 +1312,7 @@ contains
        btran, &
        vcmax, &
        jmax, &
-       co2_rcurve_islope )
+       kp )
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine calculates the localized rates of several key photosynthesis
@@ -1256,7 +1324,7 @@ contains
     ! The output biophysical rates are:
     ! vcmax: maximum rate of carboxilation,
     ! jmax: maximum electron transport rate,
-    ! co2_rcurve_islope: initial slope of CO2 response curve (C4 plants)
+    ! kp: initial slope of CO2 response curve (C4 plants)
     ! ---------------------------------------------------------------------------------
 
     ! Arguments
@@ -1268,7 +1336,7 @@ contains
                                                       ! for this pft (umol CO2/m**2/s)
     real(r8), intent(in) :: jmax25top_ft              ! canopy top maximum electron transport rate at 25C
                                                       ! for this pft (umol electrons/m**2/s)
-    real(r8), intent(in) :: co2_rcurve_islope25top_ft ! initial slope of CO2 response curve
+    real(r8), intent(in) :: kp25_ft                   ! initial slope of CO2 response curve
                                                       ! (C4 plants) at 25C, canopy top, this pft
     real(r8), intent(in) :: veg_tempk                 ! vegetation temperature
     real(r8), intent(in) :: dayl_factor               ! daylength scaling factor (0-1)
@@ -1279,7 +1347,7 @@ contains
     real(r8), intent(out) :: vcmax                    ! maximum rate of carboxylation (umol co2/m**2/s)
     real(r8), intent(out) :: jmax                     ! maximum electron transport rate
                                                       ! (umol electrons/m**2/s)
-    real(r8), intent(out) :: co2_rcurve_islope        ! initial slope of CO2 response curve (C4 plants)
+    real(r8), intent(out) :: kp                       ! initial slope of CO2 response curve (C4 plants)
 
     ! Locals
     ! -------------------------------------------------------------------------------
@@ -1287,8 +1355,6 @@ contains
     ! (umol CO2/m**2/s)
     real(r8) :: jmax25              ! leaf layer: maximum electron transport rate at 25C
     ! (umol electrons/m**2/s)
-    real(r8) :: co2_rcurve_islope25 ! leaf layer: Initial slope of CO2 response curve
-    ! (C4 plants) at 25C
     real(r8) :: dayl_factor_local   ! Local version of daylength factor
 
     ! Parameters
@@ -1357,8 +1423,6 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
     
-    co2_rcurve_islope25 = co2_rcurve_islope25top_ft * nscaler
-    
     ! Adjust for temperature
     ! photosynthetic pathway: 0. = c4, 1. = c3
     
@@ -1372,8 +1436,8 @@ contains
     
     jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
     
-    !q10 response of product limited psn.
-    co2_rcurve_islope = co2_rcurve_islope25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
+
+    kp = kp25_ft * nscaler * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
  
  
     ! Adjust for water limitations
@@ -1422,7 +1486,7 @@ contains
   
   ! =====================================================================================
 
-  subroutine LowstorageMainRespReduction(frac, pft, maintresp_reduction_factor)
+  subroutine LowstorageMainRespReduction(frac, ft, maintresp_reduction_factor)
 
     ! This subroutine reduces maintenance respiration rates when storage pool is low.  The premise
     ! of this is that mortality of plants increases when storage is low because they are not able
@@ -1433,7 +1497,7 @@ contains
     ! Arguments
     ! ------------------------------------------------------------------------------
     real(r8), intent(in) :: frac      ! ratio of storage to target leaf biomass
-    integer,  intent(in) :: pft       ! what pft is this cohort?
+    integer,  intent(in) :: ft       ! what pft is this cohort?
     real(r8), intent(out) :: maintresp_reduction_factor  ! the factor by which to reduce maintenance respiration
 
     ! --------------------------------------------------------------------------------
@@ -1450,14 +1514,14 @@ contains
     ! ---------------------------------------------------------------------------------
 
     if( frac .lt. 1._r8 )then
-       if ( abs(lb_params%maintresp_reduction_curvature(pft)-1._r8) > nearzero ) then
-          maintresp_reduction_factor = (1._r8 - lb_params%maintresp_reduction_intercept(pft)) + &
-               lb_params%maintresp_reduction_intercept(pft) * &
-               (1._r8 - lb_params%maintresp_reduction_curvature(pft)**frac) &
-               / (1._r8-lb_params%maintresp_reduction_curvature(pft))
+       if ( abs(lb_params%maintresp_reduction_curvature(ft)-1._r8) > nearzero ) then
+          maintresp_reduction_factor = (1._r8 - lb_params%maintresp_reduction_intercept(ft)) + &
+               lb_params%maintresp_reduction_intercept(ft) * &
+               (1._r8 - lb_params%maintresp_reduction_curvature(ft)**frac) &
+               / (1._r8-lb_params%maintresp_reduction_curvature(ft))
        else  ! avoid nan answer for linear case
-          maintresp_reduction_factor = (1._r8 - lb_params%maintresp_reduction_intercept(pft)) + &
-               lb_params%maintresp_reduction_intercept(pft) * frac
+          maintresp_reduction_factor = (1._r8 - lb_params%maintresp_reduction_intercept(ft)) + &
+               lb_params%maintresp_reduction_intercept(ft) * frac
        endif
 
     else

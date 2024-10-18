@@ -419,6 +419,8 @@ def main(argv):
     co2_cpoint_f = c_double(-9.0)
     qsdt_dummy_f = c_double(-9.0)
     esdt_dummy_f = c_double(-9.0)
+    solve_flag   = c_int(-9)
+    solve_iter   = c_int(-9)
 
     print('Prepping Canopy Gas Parameters')
     
@@ -555,7 +557,6 @@ def main(argv):
                                                       c8(mm_ko2_vec[it]), \
                                                       c8(co2_cpoint_vec[it]), \
                                                       c8(lmr[it]), \
-                                                      c8(zero_lwp), \
                                                       byref(agross_f), \
                                                       byref(gstoma_f), \
                                                       byref(anet_f), \
@@ -563,7 +564,9 @@ def main(argv):
                                                       byref(ac_f), \
                                                       byref(aj_f), \
                                                       byref(ap_f), \
-                                                      byref(co2_interc_f))
+                                                      byref(co2_interc_f), \
+                                                      byref(solve_flag), \
+                                                      byref(solve_iter) )
                         
 
                         agross[it,ir,ip,ig] = agross_f.value
@@ -656,7 +659,11 @@ def main(argv):
         LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
                       co2_interc[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
         ax3.set_ylabel('Ci [Pa]')
+        #LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
+        #              minag[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
+        #ax3.set_ylabel('Minag [id]')
         ax3.axhline(y=co2_ppress_400ppm,color=[0.3,0.3,0.3])
+        ax3.plot(leaf_tempc_vec,co2_cpoint_vec)
         
         #LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
         #              minag[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
