@@ -2,7 +2,7 @@
 <all>
   <notes>This parameter dataset was created by Ryan Knox rgknox@lbl.gov. Please contact if using in published work. The calibration uses the following datasets: [1] Ely et al. 2019. Leaf mass area, Panama. NGEE-Tropics data collection.http://dx.doi.org/10.15486/ngt/1411973 and [2] Condit et al. 2019. Complete data from the Barro Colorado 50-ha plot. https://doi.org/10.15146/5xcp-0d46. [3] Koven et al. 2019. Benchmarking and parameter sensitivity of physiological and vegetation dynamics using the functionally assembled terrestrial ecosystem simulator. Biogeosciences. The ECA nutrient aquisition parmeters are unconstrained, the file output naming convention vmn6phi is shorthand for vmax for nitrogen uptake is order e-6 and for phosphorus is excessively high.  These parameters were calibrated with the special fates modification in main/EDTypesMod.F90: nclmax = 3</notes>
   <base_file>fates_params_default.cdl</base_file>
-  <new_file>fates_params_opt224_092023_api26.cdl</new_file>
+  <new_file>fates_params_opt224_0424_api34.cdl</new_file>
   <pft_trim_list>1</pft_trim_list>
   <parameters>
     
