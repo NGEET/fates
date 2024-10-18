@@ -6400,7 +6400,7 @@ contains
 
        call this%set_history_var(vname='FATES_AREA_PLANTS_AP', units='m2 m-2',   &
             long='area occupied by all plants per m2 land area (by patch age)', use_default='active', &
-            avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, &
+            avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=1, ivar=ivar,  &
             initialize=initialize_variables, index=ih_fracarea_plant_si_age)
 
        call this%set_history_var(vname='FATES_AREA_TREES', units='m2 m-2',        &
@@ -6412,85 +6412,85 @@ contains
        call this%set_history_var(vname='FATES_AREA_TREES_AP', units='m2 m-2',    &
             long='area occupied by woody plants per m2 land area (by patch age)', use_default='active', &
             avgflag='A', vtype=site_age_r8, hlms='CLM:ALM',                       &
-            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_fracarea_trees_si_age)
 
        call this%set_history_var(vname='FATES_IS_FOREST', units='',               &
             long='whether patch is forest', use_default='inactive',               &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_is_forest_si)
 
        call this%set_history_var(vname='FATES_IS_FOREST_AP', units='',            &
             long='whether patch is forest (by patch age)', use_default='inactive',&
             avgflag='A', vtype=site_age_r8, hlms='CLM:ALM',                       &
-            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_is_forest_si_age)
 
        call this%set_history_var(vname='FATES_IS_FOREST_PCT10', units='',        &
             long='whether patch is forest (10% threshold)', use_default='inactive',&
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,        &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_is_forest_pct10_si)
 
        call this%set_history_var(vname='FATES_IS_FOREST_PCT25', units='',        &
             long='whether patch is forest (25% threshold)', use_default='inactive',&
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_is_forest_pct25_si)
 
        call this%set_history_var(vname='FATES_IS_FOREST_PCT50', units='',        &
             long='whether patch is forest (50% threshold)', use_default='inactive',&
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_is_forest_pct50_si)
 
        call this%set_history_var(vname='FATES_IS_FOREST_PCT75', units='',        &
             long='whether patch is forest (75% threshold)', use_default='inactive',&
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_is_forest_pct75_si)
 
        call this%set_history_var(vname='FATES_IS_FOREST_PCT90', units='',        &
             long='whether patch is forest (90% threshold)', use_default='inactive',&
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_is_forest_pct90_si)
 
        call this%set_history_var(vname='FATES_IS_FOREST_PCT10_0GRASS', units='',        &
             long='whether patch is forest (10% threshold, no grass)', use_default='inactive',&
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_is_forest_pct10_0grass_si)
 
        call this%set_history_var(vname='FATES_IS_FOREST_PCT25_0GRASS', units='',        &
             long='whether patch is forest (25% threshold, no grass)', use_default='inactive',&
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_is_forest_pct25_0grass_si)
 
        call this%set_history_var(vname='FATES_IS_FOREST_PCT50_0GRASS', units='',        &
             long='whether patch is forest (50% threshold, no grass)', use_default='inactive',&
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_is_forest_pct50_0grass_si)
 
        call this%set_history_var(vname='FATES_IS_FOREST_PCT75_0GRASS', units='',        &
             long='whether patch is forest (75% threshold, no grass)', use_default='inactive',&
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_is_forest_pct75_0grass_si)
 
        call this%set_history_var(vname='FATES_IS_FOREST_PCT90_0GRASS', units='',        &
             long='whether patch is forest (90% threshold, no grass)', use_default='inactive',&
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_is_forest_pct90_0grass_si)
 
        call this%set_history_var(vname='FATES_FOREST_AREA_EB', units='m2',  &
             long='area of forest in each edge bin', use_default='inactive', &
             avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM',             &
-            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,           &
             index=ih_forest_edge_bin_area_si)
 
        call this%set_history_var(vname='FATES_FRACTION', units='m2 m-2',          &
