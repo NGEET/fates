@@ -3316,7 +3316,7 @@ contains
              hio_disturbance_rate_si_lulu         => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
              hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d, &
              hio_interr_liveveg_elem              => this%hvars(ih_interr_liveveg_elem)%r82d, &
-             hio_interr_litter_elem               => this%hvars(ih_interr_litter_elem)%r82d)
+             hio_interr_litter_elem               => this%hvars(ih_interr_litter_elem)%r82d, &
              hio_transition_matrix_si_lulu      => this%hvars(ih_transition_matrix_si_lulu)%r82d)
 
 
