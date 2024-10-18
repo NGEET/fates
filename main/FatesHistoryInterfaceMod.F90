@@ -957,7 +957,7 @@ contains
 
     use FatesIODimensionsMod, only : column, levsoil, levscpf
     use FatesIODimensionsMod, only : levscls, levpft, levage
-    use FatesIODimensionsMod, only : levedge
+    use FatesIODimensionsMod, only : levedgeforest
     use FatesIODimensionsMod, only : levcacls, levcapf
     use FatesIODimensionsMod, only : levfuel, levcwdsc, levscag
     use FatesIODimensionsMod, only : levscagpft, levagepft
@@ -1019,7 +1019,7 @@ contains
 
     dim_count = dim_count + 1
     call this%set_levedgeforest_index(dim_count)
-    call this%dim_bounds(dim_count)%Init(levedge, num_threads, &
+    call this%dim_bounds(dim_count)%Init(levedgeforest, num_threads, &
          fates_bounds%edgeforest_class_begin, fates_bounds%edgeforest_class_end)
 
     dim_count = dim_count + 1

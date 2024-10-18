@@ -881,9 +881,6 @@ contains
     call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_centers, &
          data=ED_val_edgeforest_centers)
 
-    call fates_params%RetrieveParameterAllocate(name=ED_name_crop_lu_pft_vector, &
-         data=tmp_vector_by_landuse1)
-
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_height_bin_edges, &
           data=ED_val_history_height_bin_edges)
 
@@ -892,6 +889,9 @@ contains
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_damage_bin_edges, &
          data=ED_val_history_damage_bin_edges)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_crop_lu_pft_vector, &
+         data=tmp_vector_by_landuse1)
 
     crop_lu_pft_vector(:) = nint(tmp_vector_by_landuse1(:))
     deallocate(tmp_vector_by_landuse1)
