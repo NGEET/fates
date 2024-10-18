@@ -3881,8 +3881,9 @@ contains
     type (fates_patch_type), intent(in), pointer :: CurrentPatch
     real(r8)            :: pseudo_age    
     real(r8), parameter :: max_actual_age = 1.e4  ! hard to imagine a patch older than 10,000 years
+    real(r8), parameter :: max_actual_age_squared = 1.e8
 
-    pseudo_age = real(CurrentPatch%land_use_label,r8) * max_actual_age**2 + &
+    pseudo_age = real(CurrentPatch%land_use_label,r8) * max_actual_age_squared + &
          real(CurrentPatch%nocomp_pft_label,r8) * max_actual_age + CurrentPatch%age
     
   end function get_pseudo_patch_age
