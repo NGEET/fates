@@ -600,6 +600,9 @@ def main(argv):
         if(pdf):
             pdf.savefig(fig2)
             plt.close(fig2)
+        else:
+            plt.savefig('images/rates_pft%2.2i.png'%(pft))
+            
             
         # Lets plot metrics by temperature, using the
         # 10th, 50th and 90th percentiles of both RH and PAR
@@ -638,7 +641,11 @@ def main(argv):
         if(pdf):
             pdf.savefig(fig3)
             plt.close(fig3)
-        
+        else:
+            plt.savefig('images/AgGsCI_temp_v1_pft%2.2i.png'%(pft))
+
+
+            
         fig5, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(8.,7.))
         gb_id = 4
         LinePlotY3dM1(ax1,leaf_tempc_vec,rh_vec,par_abs_vec, \
@@ -677,7 +684,8 @@ def main(argv):
         if(pdf):
             pdf.savefig(fig5)
             plt.close(fig5)
-
+        else:
+            plt.savefig('images/AgGsCI_temp_v2_pft%2.2i.png'%(pft))
         
         
         # Metrics across the boundary layer conductivity gradient
@@ -714,7 +722,8 @@ def main(argv):
         if(pdf):
             pdf.savefig(fig4)
             plt.close(fig4)
-
+        else:
+            plt.savefig('images/AgGsCI_temp_v3_pft%2.2i.png'%(pft))
 
         
         # Metrics across the PAR Gradient
