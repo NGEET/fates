@@ -14,7 +14,7 @@ from datetime import datetime
 import argparse
 from matplotlib.backends.backend_pdf import PdfPages
 import platform
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as et
 import numpy as np
 import matplotlib
 import os
@@ -86,14 +86,6 @@ o2_ppress_209kppm = 0.2095*can_press_1atm
 # intercellular CO2
 ci_ppress_static = 0.7*co2_ppress_400ppm
 
-
-# Respiration does affect conductance, which also affects
-# photosynthesis, but for now we use 0
-zero_lmr = 0.0
-
-# Set Leaf water potential to zero for some calcs
-zero_lwp = 0.0
-
 # When there is hydrualic limitation on photosynthesis
 # (via Vcmax reductions), then the btran factor is 1
 btran_nolimit = 1.0
@@ -139,8 +131,6 @@ def GetJmaxKp25Top(vcmax25_top):
 # ========================================================================
 
 def EvalVJKByTemp(pft,fates_leaf_vcmax25top,leaf_c3psn,pdf):
-
-    
 
     # Plot out vcmax, jmax and kp as a function of temperature
     # Assumes canopy top position, and is dependent on the
@@ -269,16 +259,21 @@ def LinePlotY3dM1(ax,x1,x2,x3,y3d,str_x2,str_x3,add_labels):
 
 
 def main(argv):
-    
 
+    parser = argparse.ArgumentParser(description='Parse command line arguments to this script.')
+    parser.add_argument('--fin', dest='xmlfile', type=str, help="XML control file, required.", required=True)
+    parser.add_argument('--fout', dest='pdffile', type=str, help="PDF output file, not required..", required=False)
+    args = parser.parse_args()
+
+    
     # Load the xml control file
-    xmlfile = "leaf_biophys_controls.xml"
-    xmlroot = ET.parse(xmlfile).getroot()
+    # -----------------------------------------------------------------------------------
+    xmlroot = et.parse(args.xmlfile).getroot()
 
     # Determine if we are generating a pdf
     # -----------------------------------------------------------------------------------
     try:
-        pdf_file = xmlroot.find('pdf_out_file').text.strip()
+        pdf_file = args.pdffile
         pdf = PdfPages(pdf_file)
     except:
         pdf = None
