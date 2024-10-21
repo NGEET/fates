@@ -149,9 +149,6 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   integer, parameter, public :: cstarvation_model_lin = 1 ! Linear scaling
   integer, parameter, public :: cstarvation_model_exp = 2 ! Exponential scaling
 
-  ! Edge forest parameters
-  real(fates_r8), parameter, public :: ED_val_edgeforest_decay = 4.151608208778201
-
   ! Error Tolerances
 
   ! Allowable error in carbon allocations, should be applied to estimates
