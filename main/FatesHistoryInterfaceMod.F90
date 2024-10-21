@@ -2464,7 +2464,6 @@ contains
          hio_area_plant_si       => this%hvars(ih_area_plant_si)%r81d, &
          hio_area_trees_si  => this%hvars(ih_area_trees_si)%r81d, &
          hio_is_forest_si        => this%hvars(ih_is_forest_si)%r81d, &
-         hio_is_forest_si_age    => this%hvars(ih_is_forest_si_age)%r82d, &
          hio_is_forest_pct10_si  => this%hvars(ih_is_forest_pct10_si)%r81d, &
          hio_is_forest_pct25_si  => this%hvars(ih_is_forest_pct25_si)%r81d, &
          hio_is_forest_pct50_si  => this%hvars(ih_is_forest_pct50_si)%r81d, &
@@ -2743,8 +2742,6 @@ contains
 
             ! whether patch is forest according to FATES parameter file threshold
             hio_is_forest_si(io_si) = hio_is_forest_si(io_si) + &
-               merge(1._r8, 0._r8, cpatch%is_forest) * cpatch%area * AREA_INV
-            hio_is_forest_si_age(io_si,cpatch%age_class) = hio_is_forest_si_age(io_si,cpatch%age_class) + &
                merge(1._r8, 0._r8, cpatch%is_forest) * cpatch%area * AREA_INV
             ! according to experimental definitions
             hio_is_forest_pct10_si(io_si) = hio_is_forest_pct10_si(io_si) + cpatch%area * AREA_INV * &
@@ -4800,6 +4797,7 @@ contains
 
     associate( &
          hio_lai_si_age => this%hvars(ih_lai_si_age)%r82d, &
+         hio_is_forest_si_age => this%hvars(ih_is_forest_si_age)%r82d, &
          hio_ncl_si => this%hvars(ih_ncl_si)%r81d, &
          hio_ncl_si_age => this%hvars(ih_ncl_si_age)%r82d, &
          hio_scorch_height_si_pft => this%hvars(ih_scorch_height_si_pft)%r82d, &
@@ -4881,6 +4879,10 @@ contains
              hio_zstar_si(io_si) = hio_zstar_si(io_si) &
                   + cpatch%zstar * patch_area_div_site_area
           end if
+
+          ! whether patch is forest according to FATES parameter file threshold
+          hio_is_forest_si_age(io_si,cpatch%age_class) = hio_is_forest_si_age(io_si,cpatch%age_class) + &
+               merge(1._r8, 0._r8, cpatch%is_forest) * patch_area_div_site_area
 
           ! some diagnostics on secondary forest area and its age distribution
           if ( cpatch%land_use_label .eq. secondaryland ) then
