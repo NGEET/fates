@@ -207,7 +207,7 @@ contains
                                      hlm_harvest_rates, hlm_harvest_catnames, &
                                      hlm_harvest_units, &
                                      patch_land_use_label, secondary_age, &
-                                     frac_site_primary, frac_site_secondary, harvestable_forest_c, &
+                                     current_fates_landuse_state_vector, harvestable_forest_c, &
                                      harvest_tag)
 
      ! Arguments
@@ -223,8 +223,7 @@ contains
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
       real(r8), intent(in) :: harvestable_forest_c(:)  ! total harvestable forest carbon 
                                                        ! of all hlm harvest categories
-      real(r8), intent(in) :: frac_site_primary
-      real(r8), intent(in) :: frac_site_secondary
+      real(r8), intent(in) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
@@ -309,7 +308,7 @@ contains
 
                ! Get the area-based harvest rates based on info passed to FATES from the boundary condition
                call get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, &
-                    hlm_harvest_rates, frac_site_primary, frac_site_secondary, secondary_young_fraction, secondary_age, harvest_rate)
+                    hlm_harvest_rates, current_fates_landuse_state_vector, secondary_young_fraction, secondary_age, harvest_rate)
 
                ! For area-based harvest, harvest_tag shall always be 2 (not applicable).
                harvest_tag = 2
@@ -406,7 +405,7 @@ contains
    ! ============================================================================
 
    subroutine get_harvest_rate_area (patch_land_use_label, hlm_harvest_catnames, hlm_harvest_rates, &
-                 frac_site_primary, frac_site_secondary, secondary_young_fraction, secondary_age, harvest_rate)
+                 current_fates_landuse_state_vector, secondary_young_fraction, secondary_age, harvest_rate)
 
 
      ! -------------------------------------------------------------------------------------------
@@ -420,14 +419,16 @@ contains
       character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
       integer, intent(in) :: patch_land_use_label    ! patch level land_use_label
       real(r8), intent(in) :: secondary_age     ! patch level age_since_anthro_disturbance
-      real(r8), intent(in) :: frac_site_primary
-      real(r8), intent(in) :: frac_site_secondary
+      real(r8), intent(in) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
       real(r8), intent(in) :: secondary_young_fraction  ! what fraction of secondary land is young secondary land
       real(r8), intent(out) :: harvest_rate
 
       ! Local Variables
       integer :: h_index   ! for looping over harvest categories
       integer :: icode   ! Integer equivalent of the event code (parameter file only allows reals)
+      real(r8) :: frac_site_primary
+      real(r8) :: frac_site_secondary
+      real(r8) :: frac_not_bareground
 
      ! Loop around harvest categories to determine the annual hlm harvest rate for the current cohort based on patch history info
      ! We do account forest only since non-forest harvest has geographical mismatch to LUH2 dataset
@@ -456,19 +457,23 @@ contains
      !  since harvest_rate is specified as a fraction of the gridcell
      !  also need to put a cap so as not to harvest more primary or secondary area than there is in a gridcell
      !  For secondary, also need to normalize by the young/old fraction.
+     !  Lastly, we need to remove the bare ground fraction since the harvest rates are per unit area of the not-bare-ground fraction.
+     frac_site_primary = current_fates_landuse_state_vector(primaryland)
+     frac_site_secondary = current_fates_landuse_state_vector(secondaryland)
+     frac_not_bareground = sum(current_fates_landuse_state_vector(:))
      if (patch_land_use_label .eq. primaryland) then
-        if (frac_site_primary .gt. fates_tiny) then
-           harvest_rate = min((harvest_rate / frac_site_primary),1._r8)
+        if (frac_site_primary .gt. fates_tiny .and. frac_not_bareground .gt. fates_tiny) then
+           harvest_rate = min((harvest_rate / (frac_site_primary / frac_not_bareground)),1._r8)
         else
            harvest_rate = 0._r8
         endif
      else if (patch_land_use_label .eq. secondaryland) then
         ! the .gt. -0.5 in the next line is because frac_site_secondary returns -1 if no secondary area.
-        if (frac_site_secondary .gt. fates_tiny .and. frac_site_secondary .gt. -0.5_r8) then
+        if (frac_site_secondary .gt. fates_tiny .and. frac_site_secondary .gt. -0.5_r8 .and. frac_not_bareground .gt. fates_tiny) then
            if (secondary_age .lt. secondary_age_threshold) then
-              harvest_rate = min((harvest_rate / (frac_site_secondary * secondary_young_fraction)), 1._r8)
+              harvest_rate = min((harvest_rate / ((frac_site_secondary / frac_not_bareground) * secondary_young_fraction)), 1._r8)
            else
-              harvest_rate = min((harvest_rate / (frac_site_secondary * (1._r8 - secondary_young_fraction))), 1._r8)
+              harvest_rate = min((harvest_rate / ((frac_site_secondary / frac_not_bareground) * (1._r8 - secondary_young_fraction))), 1._r8)
            endif
         else
            harvest_rate = 0._r8

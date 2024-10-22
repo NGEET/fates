@@ -271,8 +271,7 @@ contains
                 bc_in%hlm_harvest_units, &
                 currentPatch%land_use_label, &
                 currentPatch%age_since_anthro_disturbance, &
-                current_fates_landuse_state_vector(primaryland), &
-                current_fates_landuse_state_vector(secondaryland), &
+                current_fates_landuse_state_vector, &
                 harvestable_forest_c, &
                 harvest_tag)
          
@@ -401,8 +400,7 @@ contains
                      harvest_rate, harvest_tag)
              else
                 call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                     bc_in%hlm_harvest_rates, current_fates_landuse_state_vector(primaryland), &
-                     current_fates_landuse_state_vector(secondaryland), secondary_young_fraction, &
+                     bc_in%hlm_harvest_rates, current_fates_landuse_state_vector, secondary_young_fraction, &
                      currentPatch%age_since_anthro_disturbance, harvest_rate)
              end if
 
