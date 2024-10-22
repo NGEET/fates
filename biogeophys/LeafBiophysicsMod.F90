@@ -202,6 +202,16 @@ contains
   
   subroutine StomatalCondMedlyn(anet,ft,veg_esat,can_vpress,stomatal_intercept_btran,leaf_co2_ppress,can_press,gb,gs)
 
+    ! -----------------------------------------------------------------------------------
+    ! Calculate stomatal conductance (gs [umol/m2/s]) via the Medlyn approach, described in:
+    ! Medlyn et al. Reconciling the optimal and empirical approaches to modelling stomatal
+    ! conductance.  Global Change Biology (2011) 17, 2134–2144, doi: 10.1111/j.1365-2486.2010.02375.x
+    !
+    ! THe implementation, and adaptation to include a leaf boundary layer in serial
+    ! resitance was taken from CLM5.0 [kPa]
+    ! -----------------------------------------------------------------------------------
+
+    
     ! Input
     real(r8), intent(in) :: anet                     ! net leaf photosynthesis (umol CO2/m**2/s)
     integer, intent(in)  :: ft                       ! plant functional type index
@@ -223,6 +233,8 @@ contains
     real(r8) :: aquad,bquad,cquad                    ! quadradic solve terms
     real(r8) :: r1,r2                                ! quadradic solve roots
 
+    real(r8),parameter :: min_vpd_pa = 50._r8        ! Minimum allowable vpd [Pa]
+    
     ! Evaluate trival solution, if there is no positive net assimiolation
     ! the stomatal conductance is the intercept conductance
     if (anet <= nearzero) then
@@ -230,13 +242,7 @@ contains
        return
     end if
 
-    
-   
-    
-    ! stomatal conductance calculated from Medlyn et al. (2011), the numerical &
-    ! implementation was adapted from the equations in CLM5.0 [kPa]
-
-    vpd =  max((veg_esat - can_vpress), 50._r8) * kpa_per_pa       !addapted from CLM5. Put some constraint on VPD
+    vpd =  max((veg_esat - can_vpress), min_vpd_pa) * kpa_per_pa
 
     term = h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press)
     aquad = 1.0_r8
@@ -283,6 +289,7 @@ contains
     
     ! Apply a constraint to the vapor pressure
     ceair = GetConstrainedVPress(can_vpress,veg_esat)
+    ceair = can_vpress
     aquad = leaf_co2_ppress
     bquad = leaf_co2_ppress*(gb - stomatal_intercept_btran) - lb_params%bb_slope(ft) * a_gs * can_press
     cquad = -gb*(leaf_co2_ppress * stomatal_intercept_btran + &
@@ -290,20 +297,6 @@ contains
     
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
     gs = max(r1,r2)
-
-    ! Testing poor convergence
-    !if( ceair/veg_esat < 0.04_r8 ) then
-    !   print*,"weird constrained:",ceair,veg_esat
-    !   stop
-    !end if
-
-    !if(leaf_co2_ppress < 5._r8) then
-    !   print*,"low leaf_co2_ppress:",leaf_co2_ppress
-    !   stop
-    !end if
-    
-    !gs = lb_params%bb_slope(ft)*a_gs*(ceair/veg_esat)/leaf_co2_ppress*can_press + stomatal_intercept_btran
-    
 
     return
   end subroutine StomatalCondBallBerry
@@ -647,7 +640,7 @@ contains
             stomatal_intercept_btran, &
             anet,agross,gs,fval_b)
 
-       if(fval_b<ci_tol) then
+       if(abs(fval_b)<ci_tol) then
           loop_continue = .false.
        end if
        
@@ -1531,26 +1524,24 @@ contains
 
   end subroutine LowstorageMainRespReduction
 
-
-
   ! =====================================================================================
 
   real(r8) function GetConstrainedVPress(air_vpress,veg_esat) result(ceair)
 
     ! Return a constrained vapor pressure [Pa]
+    ! This function is used to make sure that Ball-Berry conductance is well
+    ! behaved.
     
-    real(r8) :: air_vpress   ! vapor pressure of the air (unconstrained) [Pa]
-    real(r8) :: veg_esat     ! saturated vapor pressure [Pa]
-
-    ! Constrain eair >= 0.05*esat_tv so that solution does not blow up. This ensures
-    ! that hs (ie air_vpress / veg_esat)  in the Ball-Berry equation does not go to zero.
-    ! Also eair <= veg_esat so that hs <= 1
+    real(r8) :: air_vpress              ! vapor pressure of the air (unconstrained) [Pa]
+    real(r8) :: veg_esat                ! saturated vapor pressure [Pa]
+    real(r8) :: min_frac_esat = 0.01_r8 ! We don't allow vapor pressures
+                                        ! below this fraction amount of saturation vapor pressure
     
-    ceair = min( max(air_vpress, 0.05_r8*veg_esat ),veg_esat )
+    ceair = min( max(air_vpress, min_frac_esat*veg_esat ),veg_esat )
     
   end function GetConstrainedVPress
 
-   ! ====================================================================================
+  ! ====================================================================================
   
   real(r8) function GetStomatalInterceptBtran(ft,btran) result(stomatal_intercept_btran)
 
