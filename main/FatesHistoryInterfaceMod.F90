@@ -113,6 +113,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : grav_earth
   use FatesLitterMod           , only : litter_type
   use FatesConstantsMod        , only : secondaryland
+  use FatesConstantsMod        , only : primaryland
 
   use PRTGenericMod            , only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
@@ -664,6 +665,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_c_lblayer_si_age
   integer :: ih_agesince_anthrodist_si_age
   integer :: ih_secondarylands_area_si_age
+  integer :: ih_primarylands_area_si_age
   integer :: ih_area_burnt_si_age
   ! integer :: ih_fire_rate_of_spread_front_si_age
   integer :: ih_fire_intensity_si_age
@@ -3275,6 +3277,7 @@ contains
            hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
            hio_agesince_anthrodist_si_age     => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
            hio_secondarylands_area_si_age    => this%hvars(ih_secondarylands_area_si_age)%r82d, &
+           hio_primarylands_area_si_age      => this%hvars(ih_primarylands_area_si_age)%r82d, &
            hio_area_si_landuse     => this%hvars(ih_area_si_landuse)%r82d, &
            hio_area_burnt_si_age              => this%hvars(ih_area_burnt_si_age)%r82d, &
                                 ! hio_fire_rate_of_spread_front_si_age  => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
@@ -3449,6 +3452,12 @@ contains
                    hio_secondarylands_area_si_age(io_si,cpatch%age_class) = &
                         hio_secondarylands_area_si_age(io_si,cpatch%age_class) & 
                         + cpatch%area * AREA_INV
+
+                else if ( cpatch%land_use_label .eq. primaryland) then
+                   hio_primarylands_area_si_age(io_si,cpatch%age_class) = &
+                        hio_primarylands_area_si_age(io_si,cpatch%age_class) & 
+                        + cpatch%area * AREA_INV
+
                 endif
 
 
@@ -7053,19 +7062,26 @@ contains
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_biomass_si_age)
 
-          call this%set_history_var(vname='FATES_SECONDAREA_ANTHRODIST_AP',          &
+          call this%set_history_var(vname='FATES_SECONDARY_ANTHRODISTAGE_AP',          &
                units='m2 m-2',                                                       &
-               long='secondary forest patch area age distribution since anthropgenic disturbance', &
+               long='secondary forest patch area age distribution since anthropogenic disturbance', &
                use_default='inactive', avgflag='A', vtype=site_age_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_agesince_anthrodist_si_age)
 
-          call this%set_history_var(vname='FATES_SECONDAREA_DIST_AP',                &
+          call this%set_history_var(vname='FATES_SECONDARY_AREA_AP',                &
                units='m2 m-2',                                                       &
                long='secondary forest patch area age distribution since any kind of disturbance', &
                use_default='inactive', avgflag='A', vtype=site_age_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_secondarylands_area_si_age)
+
+          call this%set_history_var(vname='FATES_PRIMARY_AREA_AP',                &
+               units='m2 m-2',                                                       &
+               long='primary forest patch area age distribution since any kind of disturbance', &
+               use_default='inactive', avgflag='A', vtype=site_age_r8,               &
+               hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
+               index=ih_primarylands_area_si_age)
 
           call this%set_history_var(vname='FATES_FRAGMENTATION_SCALER_SL', units='', &
                long='factor (0-1) by which litter/cwd fragmentation proceeds relative to max rate by soil layer',  &
