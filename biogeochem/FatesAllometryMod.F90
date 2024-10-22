@@ -829,29 +829,33 @@ contains
 
     if( (treelai + tree_sai) > (sum(dinc_vai)) )then
 
-       call h_allom(dbh,pft,h)
+       ! output warning message. use a separate warning index for each PFT that encounters this error.
+       warn_msg = 'Lai+sai for cohort maxed out the array size. lai, sai, pft, dbh: '//trim(N2S(treelai))// &
+            ', '//trim(N2S(tree_sai))//', '//trim(I2S(pft))//', '//trim(N2S(dbh))
+       call FatesWarn(warn_msg,index=100+pft)
 
-       write(fates_log(),*) 'The leaf and stem are predicted for a cohort, maxed out the array size'
-       write(fates_log(),*) 'lai: ',treelai
-       write(fates_log(),*) 'sai: ',tree_sai
-       write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
-       write(fates_log(),*) 'target_bleaf: ', target_bleaf
-       write(fates_log(),*) 'area: ', c_area
-       write(fates_log(),*) 'target_lai: ',target_lai
-       write(fates_log(),*) 'dinc_vai:',dinc_vai
-       write(fates_log(),*) 'nlevleaf,sum(dinc_vai):',nlevleaf,sum(dinc_vai)
-       write(fates_log(),*) 'pft: ',pft
-       write(fates_log(),*) 'call id: ',call_id
-       write(fates_log(),*) 'n: ',nplant
-       write(fates_log(),*) 'dbh: ',dbh,' dbh_max: ',prt_params%allom_dbh_maxheight(pft)
-       write(fates_log(),*) 'h: ',h
-       write(fates_log(),*) 'canopy_trim: ',canopy_trim
-       write(fates_log(),*) 'canopy layer: ',cl
-       write(fates_log(),*) 'canopy_tlai: ',canopy_lai(:)
-       write(fates_log(),*) 'vcmax25top: ',vcmax25top
-       call endrun(msg=errMsg(sourcefile, __LINE__))
+       ! old error message below.
+       ! call h_allom(dbh,pft,h)
+       ! write(fates_log(),*) 'lai: ',treelai
+       ! write(fates_log(),*) 'sai: ',tree_sai
+       ! write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
+       ! write(fates_log(),*) 'target_bleaf: ', target_bleaf
+       ! write(fates_log(),*) 'area: ', c_area
+       ! write(fates_log(),*) 'target_lai: ',target_lai
+       ! write(fates_log(),*) 'dinc_vai:',dinc_vai
+       ! write(fates_log(),*) 'nlevleaf,sum(dinc_vai):',nlevleaf,sum(dinc_vai)
+       ! write(fates_log(),*) 'pft: ',pft
+       ! write(fates_log(),*) 'call id: ',call_id
+       ! write(fates_log(),*) 'n: ',nplant
+       ! write(fates_log(),*) 'dbh: ',dbh,' dbh_max: ',prt_params%allom_dbh_maxheight(pft)
+       ! write(fates_log(),*) 'h: ',h
+       ! write(fates_log(),*) 'canopy_trim: ',canopy_trim
+       ! write(fates_log(),*) 'canopy layer: ',cl
+       ! write(fates_log(),*) 'canopy_tlai: ',canopy_lai(:)
+       ! write(fates_log(),*) 'vcmax25top: ',vcmax25top
+       ! call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
-    
+
 
 
     return
