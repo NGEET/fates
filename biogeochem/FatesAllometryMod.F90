@@ -1445,7 +1445,7 @@ contains
   
   ! Calculate sapwood cross-sectional area assuming sapwood geometry as a 
   ! cylinder and basal diameter is the diameter of the cylinder 
-  sapw_area = (pi_const * (d / (2.0_r8)**2.0_r8)) / cm2_per_m2
+  sapw_area = (pi_const * ((d / 2.0_r8)**2.0_r8)) / cm2_per_m2
 
   return
 
