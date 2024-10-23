@@ -53,6 +53,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_freq_day
   use FatesInterfaceTypesMod        , only : hlm_parteh_mode
+  use FatesInterfaceTypesMod        , only : hlm_use_sp
   use EDParamsMod              , only : ED_val_comp_excln
   use EDParamsMod              , only : ED_val_phen_coldtemp
   use EDParamsMod                   , only : nlevleaf
@@ -3101,9 +3102,7 @@ contains
 
     real(r8), parameter :: reallytalltrees = 1000.   ! some large number (m)
 
-!
-    associate( hio_err_fates_elem      => this%hvars(ih_err_fates_elem)%r82d, &
-         hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
+    associate( hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
          hio_biomass_sec_si_pft  => this%hvars(ih_biomass_sec_si_pft)%r82d, &
          hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
          hio_storebiomass_si_pft => this%hvars(ih_storebiomass_si_pft)%r82d, &
@@ -3315,10 +3314,7 @@ contains
              hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
              hio_disturbance_rate_si_lulu         => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
              hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d, &
-             hio_interr_liveveg_elem              => this%hvars(ih_interr_liveveg_elem)%r82d, &
-             hio_interr_litter_elem               => this%hvars(ih_interr_litter_elem)%r82d, &
              hio_transition_matrix_si_lulu      => this%hvars(ih_transition_matrix_si_lulu)%r82d)
-
 
           model_day_int = nint(hlm_model_day)
 
@@ -3363,13 +3359,17 @@ contains
              
              do el = 1, num_elements
 
-                ! Total model error [kg/day -> kg/s]  (all elements)
-                hio_err_fates_elem(io_si,el) = sites(s)%mass_balance(el)%err_fates / sec_per_day
+                if((.not.hlm_use_ed_st3) .and.	(.not.hlm_use_sp))then
 
-                hio_interr_liveveg_elem(io_si,el) =  sites(s)%flux_diags%elem(el)%err_liveveg
+                   ! Total model error [kg/day -> kg/s]  (all elements)
+                   this%hvars(ih_err_fates_elem)%r82d(io_si,el) = sites(s)%mass_balance(el)%err_fates / sec_per_day
+                   
+                   this%hvars(ih_interr_liveveg_elem)%r82d(io_si,el) =  sites(s)%flux_diags%elem(el)%err_liveveg
 
-                hio_interr_litter_elem(io_si,el) = sites(s)%flux_diags%elem(el)%err_litter
-                
+                   this%hvars(ih_interr_litter_elem)%r82d(io_si,el) = sites(s)%flux_diags%elem(el)%err_litter
+                   
+                end if
+                   
                 ! Total element lost to atmosphere from burning (kg/site/day -> kg/m2/s)
                 hio_burn_flux_elem(io_si,el) = &
                      sites(s)%mass_balance(el)%burn_flux_to_atm * ha_per_m2 *           &
@@ -8462,25 +8462,26 @@ contains
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_burn_flux_elem)
 
-
-          call this%set_history_var(vname='FATES_ERROR_EL', units='kg s-1',          &
-               long='total mass-balance error in kg per second by element',          &
-               use_default='active', avgflag='A', vtype=site_elem_r8,                &
-               hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
-               index = ih_err_fates_elem)
-
-          call this%set_history_var(vname='FATES_INTERR_LIVEVEG_EL',units='kg m-2',             &
-               long='Bias error between integrated flux and (minus) state in live vegetation ', &
-               use_default='active', avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',           &
-               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,            &
-               index = ih_interr_liveveg_elem)
-
-          call this%set_history_var(vname='FATES_INTERR_LITTER_EL',units='kg m-2',             &
-               long='Bias error between integrated flux and (minus) state in litter ', &
-               use_default='active', avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',           &
-               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,            &
-               index = ih_interr_litter_elem)
-          
+          if((.not.hlm_use_ed_st3) .and. (.not.hlm_use_sp))then
+             call this%set_history_var(vname='FATES_ERROR_EL', units='kg s-1',          &
+                  long='total mass-balance error in kg per second by element',          &
+                  use_default='active', avgflag='A', vtype=site_elem_r8,                &
+                  hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
+                  index = ih_err_fates_elem)
+             
+             call this%set_history_var(vname='FATES_INTERR_LIVEVEG_EL',units='kg m-2',             &
+                  long='Bias error between integrated flux and (minus) state in live vegetation ', &
+                  use_default='active', avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',           &
+                  upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,            &
+                  index = ih_interr_liveveg_elem)
+             
+             call this%set_history_var(vname='FATES_INTERR_LITTER_EL',units='kg m-2',             &
+                  long='Bias error between integrated flux and (minus) state in litter ', &
+                  use_default='active', avgflag='A', vtype=site_elem_r8, hlms='CLM:ALM',           &
+                  upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,            &
+                  index = ih_interr_litter_elem)
+          end if
+             
           call this%set_history_var(vname='FATES_LITTER_AG_FINE_EL', units='kg m-2', &
                long='mass of aboveground litter in fines (leaves, nonviable seed) by element', &
                use_default='active', avgflag='A', vtype=site_elem_r8,               &

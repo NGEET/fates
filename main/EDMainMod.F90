@@ -834,7 +834,10 @@ contains
     enddo
 
     ! Check to see if the time integrated fluxes match the state
-    call CheckIntegratedMassPools(currentSite)
+    ! Dont call this if we are restarting, it will double count the flux
+    if(.not.is_restarting)then
+       call CheckIntegratedMassPools(currentSite)
+    end if
     
     ! The HLMs need to know about nutrient demand, and/or
     ! root mass and affinities
