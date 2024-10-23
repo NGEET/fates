@@ -1424,8 +1424,9 @@ contains
   !---------------------------------------------------------------------------
   ! This function calculates sapwood cross-sectional area specifically for grass
   ! PFT using basal diameter (cm) of the entire plant as size reference, 
-  ! assume basal area as the sum of cross-sectional area of each grass tiller 
-  ! so that water transport through sapwood can be seen as a collective behavior 
+  ! assume sapwood area of the entire plant as the sum of the cross-sectional area 
+  ! of each grass tiller 
+  ! such that water transport through sapwood can be seen as a collective behavior 
   ! of all tillers
   ! No reference. Might update this to more theoretical-based approach once there
   ! is empirical evidence
