@@ -3849,7 +3849,7 @@ contains
 
     patch_inserted = .false.
     
-    if (get_pseudo_patch_age(newPatch) .le. get_pseudo_patch_age(currentSite%youngest_patch)) then
+    if (GetPseudoPatchAge(newPatch) .le. GetPseudoPatchAge(currentSite%youngest_patch)) then
 
        ! insert new patch at the head of the linked list
        newPatch%older   => currentSite%youngest_patch
@@ -3858,7 +3858,7 @@ contains
        currentSite%youngest_patch => newPatch
 
        patch_inserted = .true.
-    else if (get_pseudo_patch_age(newPatch) .ge. get_pseudo_patch_age(currentSite%oldest_patch)) then
+    else if (GetPseudoPatchAge(newPatch) .ge. GetPseudoPatchAge(currentSite%oldest_patch)) then
 
        ! insert new patch at the end of the linked list
        newPatch%younger   => currentSite%oldest_patch
@@ -3872,7 +3872,7 @@ contains
        ! has a pseudo age older than it, and put it ahead of that patch
        currentPatch => currentSite%youngest_patch
        do while (associated(currentPatch) .and. ( .not. patch_inserted) )   
-          if (get_pseudo_patch_age(newPatch) .lt. get_pseudo_patch_age(currentPatch)) then
+          if (GetPseudoPatchAge(newPatch) .lt. GetPseudoPatchAge(currentPatch)) then
              newPatch%older => currentPatch
              newPatch%younger => currentPatch%younger
              currentPatch%younger%older => newPatch
@@ -3894,7 +3894,7 @@ contains
 
   ! =====================================================================================
 
-  function get_pseudo_patch_age(CurrentPatch) result(pseudo_age)
+  function GetPseudoPatchAge(CurrentPatch) result(pseudo_age)
     
     ! Purpose: we want to sort the patches in a way that takes into account both their
     ! continuous and categorical variables. Calculate a pseudo age that does this, by taking
@@ -3912,7 +3912,7 @@ contains
     pseudo_age = -1.0_r8 * (real(CurrentPatch%land_use_label,r8) * max_actual_age_squared + &
          real(CurrentPatch%nocomp_pft_label,r8) * max_actual_age) + CurrentPatch%age
     
-  end function get_pseudo_patch_age
+  end function GetPseudoPatchAge
 
   ! =====================================================================================
 
