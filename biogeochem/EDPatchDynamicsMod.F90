@@ -3825,10 +3825,18 @@ contains
     !    /       \         /       \        /        \
     !  PFT1 --- PFT2  |  PFT1 --- PFT2  |  PFT1 --- PFT2    --  etc
     !  / \      /  \     / \      /  \     / \      /  \  
-    ! Y - O    Y -  O   Y - O    Y  - O   Y - O    Y -  O   --  etc
+    ! O - Y    O -  Y   O - Y    O  - Y   O - Y    O -  Y   --  etc
 
     ! I.e. to treat land use as the outermost loop element, then nocomp PFT as next loop element,
-    ! and then age as the innermost loop element
+    ! and then age as the innermost loop element.  Visualizing the above as a linked list patches:
+
+    ! LU1/PFT1/O <-> LU1/PFT1/Y <-> LU1/PFT2/O <- ... -> LU3/PFT2/O <-> LU3/PFT2/Y
+
+    ! Mapping this setup onto the existing "older/younger" scheme means that lower number
+    ! land use and pft labels are considered "older".  Note that this matches the current
+    ! initialization scheme in which patches are created and linked in increasing pft
+    ! numerical order starting from 1.  This also aligns with the current set_patchno scheme
+    ! in which patches are given an indexable number for the API iteration loops.
     
     ! The way to accomplsh this most simply is to define a pseudo-age that includes all of the
     ! above info and sort the patches based on the pseudo-age. i.e. take some number larger
@@ -3891,14 +3899,18 @@ contains
     ! Purpose: we want to sort the patches in a way that takes into account both their
     ! continuous and categorical variables. Calculate a pseudo age that does this, by taking
     ! the integer labels, multiplying these by large numbers, and adding to the continuous age.
+    ! Note to ensure that lower integer land use label and pft label numbers are considered
+    ! "younger" (i.e higher index patchno) in the linked list, they are summed and multiplied by
+    ! negative one.  The patch age is still added normally to this partial pseudoage calculation
+    ! as increasing age number still correlates with a "younger" patch (i.e. increasing patchno)
 
     type (fates_patch_type), intent(in), pointer :: CurrentPatch
     real(r8)            :: pseudo_age    
     real(r8), parameter :: max_actual_age = 1.e4  ! hard to imagine a patch older than 10,000 years
     real(r8), parameter :: max_actual_age_squared = 1.e8
 
-    pseudo_age = real(CurrentPatch%land_use_label,r8) * max_actual_age_squared + &
-         real(CurrentPatch%nocomp_pft_label,r8) * max_actual_age + CurrentPatch%age
+    pseudo_age = -1.0_r8 * (real(CurrentPatch%land_use_label,r8) * max_actual_age_squared + &
+         real(CurrentPatch%nocomp_pft_label,r8) * max_actual_age) + CurrentPatch%age
     
   end function get_pseudo_patch_age
 
