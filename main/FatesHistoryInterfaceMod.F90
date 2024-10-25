@@ -355,7 +355,12 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_primaryland_fusion_error_si
 
+  ! land-use-resolved variables
   integer :: ih_area_si_landuse
+  integer :: ih_biomass_si_landuse
+  integer :: ih_burnedarea_si_landuse
+
+  ! land use by land use variables
   integer :: ih_disturbance_rate_si_lulu
   integer :: ih_transition_matrix_si_lulu
   
@@ -3209,7 +3214,9 @@ contains
            hio_agesince_anthrodist_si_age     => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
            hio_secondarylands_area_si_age    => this%hvars(ih_secondarylands_area_si_age)%r82d, &
            hio_primarylands_area_si_age      => this%hvars(ih_primarylands_area_si_age)%r82d, &
-           hio_area_si_landuse     => this%hvars(ih_area_si_landuse)%r82d, &
+           hio_area_si_landuse               => this%hvars(ih_area_si_landuse)%r82d, &
+           hio_biomass_si_landuse            => this%hvars(ih_biomass_si_landuse)%r82d, &
+           hio_burnedarea_si_landuse         => this%hvars(ih_burnedarea_si_landuse)%r82d, &
            hio_area_burnt_si_age              => this%hvars(ih_area_burnt_si_age)%r82d, &
                                 ! hio_fire_rate_of_spread_front_si_age  => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
            hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
@@ -3353,6 +3360,10 @@ contains
                    hio_area_si_landuse(io_si, cpatch%land_use_label) = &
                         hio_area_si_landuse(io_si, cpatch%land_use_label) &
                         + cpatch%area * AREA_INV
+
+                   hio_burnedarea_si_landuse(io_si, cpatch%land_use_label) = &
+                        hio_burnedarea_si_landuse(io_si, cpatch%land_use_label) + &
+                        cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
                 end if
                    
                 ! Increment some patch-age-resolved diagnostics
@@ -3538,6 +3549,11 @@ contains
 
                          ! update total biomass per age bin
                          hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
+                              + total_m * ccohort%n * AREA_INV
+
+                         ! biomass by land use type
+                         hio_biomass_si_landuse(io_si, cpatch%land_use_label) = &
+                              hio_biomass_si_landuse(io_si, cpatch%land_use_label) &
                               + total_m * ccohort%n * AREA_INV
 
                          if (ccohort%canopy_layer .eq. 1) then
@@ -6660,7 +6676,17 @@ contains
                long='patch area by land use type', use_default='active',  &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
                ivar=ivar, initialize=initialize_variables, index=ih_area_si_landuse)
-          
+
+          call this%set_history_var(vname='FATES_VEGC_LU', units='kg m-2',      &
+               long='Vegetation Carbon by land use type', use_default='active',  &
+               avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
+               ivar=ivar, initialize=initialize_variables, index=ih_biomass_si_landuse)
+
+          call this%set_history_var(vname='FATES_BURNEDAREA_LU', units='s-1',      &
+               long='burned area by land use type', use_default='active',  &
+               avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
+               ivar=ivar, initialize=initialize_variables, index=ih_burnedarea_si_landuse)
+
           call this%set_history_var(vname='FATES_TRANSITION_MATRIX_LULU', units='m2 m-2 yr-1',      &
                long='land use transition matrix', use_default='active',  &
                avgflag='A', vtype=site_lulu_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,  &
