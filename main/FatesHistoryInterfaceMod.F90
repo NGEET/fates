@@ -359,6 +359,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_area_si_landuse
   integer :: ih_biomass_si_landuse
   integer :: ih_burnedarea_si_landuse
+  integer :: ih_gpp_si_landuse
+  integer :: ih_npp_si_landuse
 
   ! land use by land use variables
   integer :: ih_disturbance_rate_si_lulu
@@ -5131,6 +5133,8 @@ contains
          hio_resp_m_understory_si_scls       => this%hvars(ih_resp_m_understory_si_scls)%r82d, &
          hio_gpp_si_age                      => this%hvars(ih_gpp_si_age)%r82d, &
          hio_npp_si_age                      => this%hvars(ih_npp_si_age)%r82d, &
+         hio_gpp_si_landuse                  => this%hvars(ih_gpp_si_landuse)%r82d, &
+         hio_npp_si_landuse                  => this%hvars(ih_npp_si_landuse)%r82d, &
          hio_c_stomata_si_age                => this%hvars(ih_c_stomata_si_age)%r82d, &
          hio_c_lblayer_si_age                => this%hvars(ih_c_lblayer_si_age)%r82d, &
          hio_parsun_z_si_cnlf                => this%hvars(ih_parsun_z_si_cnlf)%r82d, &
@@ -5254,6 +5258,14 @@ contains
 
                     hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
                          + npp * ccohort%n * dt_tstep_inv
+
+                    if (cpatch%land_use_label .gt. nocomp_bareground_land) then
+                       hio_gpp_si_landuse(io_si,cpatch%land_use_label) = hio_gpp_si_landuse(io_si,cpatch%land_use_label) &
+                            + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv
+
+                       hio_npp_si_landuse(io_si,cpatch%land_use_label) = hio_npp_si_landuse(io_si,cpatch%land_use_label) &
+                            + npp * ccohort%n * dt_tstep_inv
+                    end if
 
                     ! accumulate fluxes on canopy- and understory- separated fluxes
                     if (ccohort%canopy_layer .eq. 1) then
@@ -8565,6 +8577,18 @@ contains
                use_default='inactive', avgflag='A', vtype=site_age_r8,               &
                hlms='CLM:ALM', upfreq=group_hifr_complx, ivar=ivar, initialize=initialize_variables, &
                index = ih_gpp_si_age)
+
+          call this%set_history_var(vname='FATES_NPP_LU', units='kg m-2 s-1',        &
+               long='net primary productivity by age bin in kg carbon per m2 per second', &
+               use_default='inactive', avgflag='A', vtype=site_landuse_r8,               &
+               hlms='CLM:ALM', upfreq=group_hifr_complx, ivar=ivar, initialize=initialize_variables, &
+               index = ih_npp_si_landuse)
+
+          call this%set_history_var(vname='FATES_GPP_LU', units='kg m-2 s-1',        &
+               long='gross primary productivity by age bin in kg carbon per m2 per second', &
+               use_default='inactive', avgflag='A', vtype=site_landuse_r8,               &
+               hlms='CLM:ALM', upfreq=group_hifr_complx, ivar=ivar, initialize=initialize_variables, &
+               index = ih_gpp_si_landuse)
 
           call this%set_history_var(vname='FATES_RDARK_USTORY_SZ',               &
                units = 'kg m-2 s-1',                                                &
