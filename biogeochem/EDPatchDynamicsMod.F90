@@ -3901,8 +3901,8 @@ contains
     ! the integer labels, multiplying these by large numbers, and adding to the continuous age.
     ! Note to ensure that lower integer land use label and pft label numbers are considered
     ! "younger" (i.e higher index patchno) in the linked list, they are summed and multiplied by
-    ! negative one.  The patch age is still added normally to this partial pseudoage calculation
-    ! as increasing age number still correlates with a "younger" patch (i.e. increasing patchno)
+    ! negative one.  The patch age is still added normally to this negative pseudoage calculation
+    ! as a higher age will result in a less negative number correlating with an "older" patch.
 
     type (fates_patch_type), intent(in), pointer :: CurrentPatch
     real(r8)            :: pseudo_age    
