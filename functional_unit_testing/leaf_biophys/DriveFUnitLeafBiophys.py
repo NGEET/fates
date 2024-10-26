@@ -214,9 +214,9 @@ def LinePlotY3dM1(ax,x1,x2,x3,y3d,str_x2,str_x3,add_labels):
     
     # Find the indices on the second and third dimensions
     # that are the 10th,50th and 90th percentiles
-    ix2_10 = int(len(x2)*0.1)
+    ix2_10 = int(len(x2)*0.05)
     ix2_90 = int(len(x2)*0.90)
-    ix3_10 = int(len(x3)*0.1)
+    ix3_10 = int(len(x3)*0.05)
     ix3_90 = int(len(x3)*0.90)
 
     redish = [0.8,0.3,0.2]
@@ -336,27 +336,27 @@ def main(argv):
             fates_maintresp_leaf_model = int(param.text.split(',')[0])
 
     # Leaf temperature ranges [C]
-    leaf_tempc_min = -20.0
+    leaf_tempc_min = -30.0
     leaf_tempc_max = 50.0
     leaf_tempc_n = 75
     leaf_tempc_vec = np.linspace(leaf_tempc_min,leaf_tempc_max,num=leaf_tempc_n)
 
     # Relative Humidity Ranges
     rh_max = 0.99
-    rh_min = 0.02
+    rh_min = 0.001
     rh_n   = 75
     rh_vec = np.linspace(rh_min,rh_max,num=rh_n)
     
     # Absorbed PAR ranges [W/m2]
-    par_abs_min = 10.0
-    par_abs_max = 100
+    par_abs_min = 1.0
+    par_abs_max = 200
     par_abs_n  = 75
     par_abs_vec = np.linspace(par_abs_min,par_abs_max,num=par_abs_n)
 
     # Boundary Conductance ranges [umol/m2/s]
     gb_min =  500000.0            # Lower limit imposed by CLM/ELM
-    gb_max = 2500000.0            # Roughly largest values seen at BCI
-    gb_n  = 5
+    gb_max = 3500000.0            # 50% larger than  Roughly largestthe largest values seen at BCI (which are 2.5mol/m2/s)
+    gb_n  = 7
     gb_vec = np.linspace(gb_min,gb_max,num=gb_n)
     
     # These variables are mostly dependent on leaf temperature,
@@ -414,8 +414,8 @@ def main(argv):
     co2_cpoint_f = c_double(-9.0)
     qsdt_dummy_f = c_double(-9.0)
     esdt_dummy_f = c_double(-9.0)
-    solve_flag   = c_int(-9)
-    solve_iter   = c_int(-9)
+    solve_flag_f = c_int(-9)
+    solve_iter_f = c_int(-9)
 
     print('Prepping Canopy Gas Parameters')
     
@@ -448,7 +448,7 @@ def main(argv):
     print('\n')
     print('Experiment 1: Evaluating Photosynthesis Equations by pft/Tl/RH/PR')
     
-    for pft in [0]: #range(numpft):
+    for pft in [11]: #range(numpft):
 
         if(do_evalvjkbytemp):
             print('\n')
@@ -472,6 +472,8 @@ def main(argv):
         ap     = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
         co2_interc = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
         minag = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
+        iters  = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
+
         
         # When calling component limitations exclusively
         # using an approximation of interstitial co2 as
@@ -560,8 +562,8 @@ def main(argv):
                                                       byref(aj_f), \
                                                       byref(ap_f), \
                                                       byref(co2_interc_f), \
-                                                      byref(solve_flag), \
-                                                      byref(solve_iter) )
+                                                      byref(solve_flag_f), \
+                                                      byref(solve_iter_f) )
                         
 
                         agross[it,ir,ip,ig] = agross_f.value
@@ -575,7 +577,7 @@ def main(argv):
                         else:
                             minag[it,ir,ip,ig] = float(np.argmin([ac_f.value,aj_f.value]))+1
                         co2_interc[it,ir,ip,ig] = co2_interc_f.value
-
+                        iters[it,ir,ip,ig] = solve_iter_f.value
 
         # Plot out component gross assimilation rates
         # by temperature with constant Ci, and by Ci with
@@ -725,7 +727,18 @@ def main(argv):
         else:
             plt.savefig('images/AgGsCI_temp_v3_pft%2.2i.png'%(pft))
 
+
+        # Look at the iteration diagnostics
+        fig7, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(8.,7.))
+
+        bins = [0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5,18.5,19.5]
         
+        ax1.hist( iters.reshape(-1),log=True, bins=bins)
+        ax1.set_xlabel('Iterations')
+        ax1.set_ylabel('Histogram Counts')
+        #ax1.set_xticks(bins[0:-1]+0.5)
+        ax1.grid('on')
+            
         # Metrics across the PAR Gradient
 
 

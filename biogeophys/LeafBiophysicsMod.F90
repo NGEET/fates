@@ -62,6 +62,8 @@ module LeafBiophysicsMod
   public :: StomatalCondMedlyn
   public :: StomatalCondBallBerry
   public :: VeloToMolarCF
+  public :: CiMinMax
+  
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -323,7 +325,29 @@ contains
   
   ! =====================================================================================
 
-  function AgrossRuBPC3(par_abs_wm2,jmax,ci,co2_cpoint ) result(aj)
+  function GetJe(par_abs_wm2,jmax) result(je)
+
+    ! Input
+    real(r8) :: par_abs_wm2       ! Absorbed PAR per leaf area [W/m2]
+    real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
+    real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
+    real(r8) :: r1,r2             ! roots of quadratic equation
+    real(r8) :: par_abs_umol      ! Absorbed PAR that gets to the photocenters,
+    
+    par_abs_umol = par_abs_wm2*photon_to_e*(1.0_r8 - fnps)
+    
+    ! convert the absorbed par into absorbed par per m2 of leaf,
+    ! so it is consistant with the vcmax and lmr numbers.
+    aquad = theta_psii
+    bquad = -(par_abs_umol + jmax)
+    cquad = par_abs_umol * jmax
+    call QuadraticRoots(aquad, bquad, cquad, r1, r2)
+    je = min(r1,r2)
+    
+  end function GetJe
+    
+  function AgrossRuBPC3(par_abs_wm2,jmax,ci,co2_cpoint) result(aj)
 
     ! Input
     real(r8) :: par_abs_wm2       ! Absorbed PAR per leaf area [W/m2]
@@ -390,6 +414,159 @@ contains
     
   end function AgrossPEPC4
 
+  ! =======================================================================================
+
+
+  subroutine CiMinMax(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs, &
+       gb,veg_tempk,stomatal_intercept_btran,ci_min,ci_max)
+
+    ! This routine is used to find the first values of Ci that are the bounds
+    ! for the bisection algorithm. It finds the values associated with minimum
+    ! and maximum conductance when equating the source and sink limitations
+    ! on net photosynthesis.
+
+    
+    integer              , intent(in)    :: ft       ! plant functional type index
+    real(r8)             , intent(in)    :: vcmax
+    real(r8)             , intent(in)    :: jmax
+    real(r8)             , intent(in)    :: kp             ! co2_rcurve_islope
+    real(r8)             , intent(in)    :: co2_cpoint
+    real(r8)             , intent(in)    :: mm_kco2
+    real(r8)             , intent(in)    :: mm_ko2
+    real(r8)             , intent(in)    :: can_co2_ppress
+    real(r8)             , intent(in)    :: can_o2_ppress
+    real(r8)             , intent(in)    :: can_press
+    real(r8)             , intent(in)    :: can_vpress
+    real(r8)             , intent(in)    :: lmr      ! leaf maintenance respiration rate (umol CO2/m**2/s)
+    real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai (w/m**2)
+    real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
+    real(r8)             , intent(in)    :: veg_tempk
+    real(r8)             , intent(in)    :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
+
+    real(r8) :: ci_max_c,ci_max_j,ci_max_p
+    real(r8) :: ci_min_c,ci_min_j,ci_min_p
+    
+    real(r8), intent(out) :: ci_max
+    real(r8), intent(out) :: ci_min
+
+    ! Intermediate terms
+    real(r8) :: a,b,c,d,e,f,g,Je
+
+    if (lb_params%c3psn(ft) == c4_path_index)then
+       write(fates_log(),*) 'bisection should not be needed for c4 photosynthesis solves'
+       write(fates_log(),*) 'but somehow, here we are.'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+       
+       
+    Je = GetJe(par_abs,jmax)
+    
+    ! Find ci at maximum conductance (1/inf = 0)
+    
+    a = can_co2_ppress
+    b = can_press*(h2o_co2_bl_diffuse_ratio/gb)
+    c = vcmax
+    d = vcmax*co2_cpoint
+    e = 1._r8
+    f = mm_kco2*(1._r8+can_o2_ppress / mm_ko2 )
+    g = lmr
+    ci_max_c = CiFromAnetDiffGrad(a,b,c,d,e,f,g) 
+
+    ! check the math
+    if(debug)then
+       if ( abs((can_co2_ppress-ci_max_c)/b - &
+            (AgrossRubiscoC3(vcmax,ci_max_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)-lmr)  ) > 1.e-3_r8 ) then
+          write(fates_log(),*) 'incorrect ci_max_c:',ci_max_c,(can_co2_ppress-ci_max_c)/b, &
+               AgrossRubiscoC3(vcmax,ci_max_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)-lmr
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
+    
+    c = Je
+    d = Je*co2_cpoint
+    e = 4._r8
+    f = 8._r8*co2_cpoint
+    g = lmr
+    ci_max_j = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
+    
+    if(debug)then
+       if ( abs((can_co2_ppress-ci_max_j)/b - &
+            (AgrossRuBPC3(par_abs,jmax,ci_max_j,co2_cpoint)-lmr))  > 1.e-3_r8 ) then
+          write(fates_log(),*)'incorrect ci_max_j:',ci_max_j,(can_co2_ppress-ci_max_j)/b, &
+               AgrossRuBPC3(par_abs,jmax,ci_max_j,co2_cpoint)-lmr
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
+    
+    ! Find ci at minimum conductance (1/g0)
+
+    a = can_co2_ppress
+    b = can_press*(h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/stomatal_intercept_btran)
+    c = vcmax
+    d = vcmax*co2_cpoint
+    e = 1._r8
+    f = mm_kco2*(1._r8+can_o2_ppress / mm_ko2 )
+    g = lmr
+    ci_min_c = CiFromAnetDiffGrad(a,b,c,d,e,f,g) 
+
+    ! check the math
+    if(debug)then
+       if ( abs((can_co2_ppress-ci_min_c)/b - &
+            (AgrossRubiscoC3(vcmax,ci_min_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)-lmr)  ) > 1.e-3_r8 ) then
+          write(fates_log(),*)'incorrect ci_min_c:',ci_max_c,(can_co2_ppress-ci_min_c)/b, &
+               AgrossRubiscoC3(vcmax,ci_min_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)-lmr
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
+    
+    
+    c = Je
+    d = Je*co2_cpoint
+    e = 4._r8
+    f = 8._r8*co2_cpoint
+    g = lmr
+    ci_min_j = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
+    
+    if(debug)then
+       if ( abs((can_co2_ppress-ci_min_j)/b - &
+            (AgrossRuBPC3(par_abs,jmax,ci_min_j,co2_cpoint)-lmr))  > 1.e-3_r8 ) then
+          write(fates_log(),*)'incorrect ci_min_j:',ci_min_j,(can_co2_ppress-ci_min_j)/b, &
+               AgrossRuBPC3(par_abs,jmax,ci_min_j,co2_cpoint)-lmr
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
+
+    ci_max = min(ci_max_c,ci_max_j)
+    ci_min = min(ci_min_c,ci_min_j)
+
+    
+  end subroutine CiMinMax
+
+
+  function CiFromAnetDiffGrad(a,b,c,d,e,f,g) result(ci)
+
+    ! When the equation for net photosynthesis is coupled with the diffusion
+    ! flux equation, for both Rubisco and RuBP limited assimilation
+    ! the form is like so:
+    !
+    ! (a-ci)/b = (c*ci - d)/(e*ci + f) - g 
+    !
+    ! The expression below simply solves for ci
+    ! This function is called to find endpoints, where conductance is maximized
+    ! and minimized, to perform a binary search
+    
+    real(r8) :: a,b,c,d,e,f,g  ! compound terms to solve the
+                             ! coupled Anet and diffusive flux gradient equations
+
+    real(r8) :: ci  ! intracellular co2 [Pa]
+    
+    ci = -( (-a*e + b*c - b*e*g + f)- &
+         sqrt((a*e - b*c + b*e*g - f)**2._r8 + 4._r8 *e* (a*f + b*d + b*f*g)) )/(2._r8*e)
+
+    
+  end function CiFromAnetDiffGrad
+  
   ! =======================================================================================
 
   subroutine CiFunc(ci, &
@@ -577,7 +754,7 @@ contains
     real(r8)             , intent(out)   :: agross
     real(r8)             , intent(out)   :: gs
     real(r8)             , intent(out)   :: ci
-    integer              , intent(out)   :: solve_iter
+    integer              , intent(inout) :: solve_iter
 
     ! With bisection, we need to keep track of three different ci values at any given time
     ! The high, the low and the bisection.
@@ -595,13 +772,18 @@ contains
 
     ! When iteratively solving for intracellular co2 concentration, this
     ! is the maximum tolerable change to accept convergence [Pa]
-    real(r8),parameter :: ci_tol = 0.01_r8
+    real(r8),parameter :: ci_tol = 0.1_r8
 
     ! Maximum number of iterations on intracelluar co2 solver until is quits
     integer, parameter :: max_iters = 200
 
-    ci_h = can_co2_ppress * init_ci_high
-    ci_l = can_co2_ppress * init_ci_low
+
+    call CiMinMax(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs, &
+       gb,veg_tempk,stomatal_intercept_btran,ci_l,ci_h)
+    
+    !ci_h = can_co2_ppress * init_ci_high
+    !ci_l = can_co2_ppress * init_ci_low
 
     call CiFunc(ci_h, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
@@ -627,7 +809,6 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__)) 
     end if
 
-    solve_iter = 0
     loop_continue = .true.
     ci_b = 0.5*(ci_l+ci_h)
     bi_iter_loop: do while(loop_continue)
@@ -699,7 +880,6 @@ contains
        aj,                &  ! out
        ap,                &  ! out
        ci,                &  ! out
-       solve_flag,        &  ! out
        solve_iter)           ! out
 
 
@@ -740,9 +920,6 @@ contains
     real(r8), intent(out) :: ap               ! product-limited (C3) or CO2-limited
                                               ! (C4) gross photosynthesis (umol CO2/m**2/s)
     real(r8), intent(out) :: ci               ! intracellular leaf CO2 (Pa)
-    integer,  intent(out) :: solve_flag       ! 0) no solve required, no sun or leaf
-                                              ! 1) solved by simple recursion
-                                              ! 2) bisection was required
     integer,  intent(out) :: solve_iter       ! Number of iterations required for the solve
     
     ! Important Note on the gas pressures as input arguments.  This photosynthesis scheme will iteratively
@@ -779,7 +956,7 @@ contains
     real(r8),parameter :: ci_tol = 0.1_r8
 
     ! Maximum number of iterations on intracelluar co2 solver until is quits
-    integer, parameter :: max_iters = 100
+    integer, parameter :: max_iters = 10
 
     ! Set diagnostics as un-initialized
     ac         = -999._r8
@@ -788,7 +965,6 @@ contains
 
     ! Assume a trival solve until we encounter both leaf and light
     solve_iter = 0
-    solve_flag = 0
     
     ! Trivial solution - No biomass - no photosynthesis, no conductance, no respiration, no nothin
     ! --------------------------------------------------------------------------------------------
@@ -824,8 +1000,6 @@ contains
        ci0 = init_a2l_co2_c4 * can_co2_ppress
     end if
 
-    solve_iter = 0
-    solve_flag = 1
     loop_continue = .true.
     iter_loop: do while(loop_continue)
        
@@ -856,7 +1030,6 @@ contains
        ci0 = ci
        
        if( solve_iter == max_iters) then
-          solve_flag = 2
 
           call CiBisection( &
                ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &

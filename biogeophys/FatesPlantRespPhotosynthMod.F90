@@ -290,7 +290,8 @@ contains
     integer  :: nv                  ! number of leaf layers
     integer  :: NCL_p               ! number of canopy layers in patch
     integer  :: iage                ! loop counter for leaf age classes
-
+    integer  :: solve_iter
+    
     ! Parameters
     !
     ! Base rate is at 20C. Adjust to 25C using the CN Q10 = 1.5
@@ -741,15 +742,15 @@ contains
                                          mm_ko2,                             &  ! in
                                          co2_cpoint,                         &  ! in
                                          lmr_z(iv,ft,cl),                    &  ! in
-                                         leaf_psi,                           &  ! in
                                          psn_ll,                             &  ! out
                                          gstoma_ll,                          &  ! out
                                          anet_ll,                            &  ! out
                                          c13disc_ll,                         &  ! out
                                          ac_utest,                           &  ! out (unit tests)
-                                         aj_utest,                                 &  ! out (unit tests)
-                                         ap_utest,                                 &  ! out (unit tests)
-                                         co2_inter_c_utest)                           ! out (unit tests)
+                                         aj_utest,                           &  ! out (unit tests)
+                                         ap_utest,                           &  ! out (unit tests)
+                                         co2_inter_c_utest,                  &  ! out (unit tests)
+                                         solve_iter)                            ! out performance tracking
 
                                     ! Average output quantities across sunlit and shaded leaves
                                     ! Convert from molar to velocity (umol /m**2/s) to (m/s)
@@ -1379,14 +1380,14 @@ contains
     ! of the layer/pft index it is in
     ! ---------------------------------------------------------------------------------
 
-    currentPatch%ncan(:,:) = 0
+    currentPatch%nleaf(:,:) = 0
     ! redo the canopy structure algorithm to get round a
     ! bug that is happening for site 125, FT13.
     currentCohort => currentPatch%tallest
     do while(associated(currentCohort))
 
-       currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft) = &
-            max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft), &
+       currentPatch%nleaf(currentCohort%canopy_layer,currentCohort%pft) = &
+            max(currentPatch%nleaf(currentCohort%canopy_layer,currentCohort%pft), &
             currentCohort%NV)
 
        currentCohort => currentCohort%shorter
@@ -1394,7 +1395,7 @@ contains
     enddo !cohort
 
     ! NRAD = NCAN ...
-    currentPatch%nrad = currentPatch%ncan
+    currentPatch%nrad = currentPatch%nleaf
 
     ! Now loop through and identify which layer and pft combo has scattering elements
     do cl = 1,nclmax
