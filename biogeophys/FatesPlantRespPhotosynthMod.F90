@@ -23,6 +23,7 @@ module FATESPlantRespPhotosynthMod
   use FatesGlobals,      only : endrun => fates_endrun
   use FatesGlobals,      only : fates_log
   use FatesGlobals,      only : FatesWarn,N2S,A2S,I2S
+  use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : itrue
   use FatesConstantsMod, only : nearzero
@@ -193,6 +194,9 @@ contains
     ! net leaf photosynthesis averaged over sun and shade leaves. [umol CO2/m**2/s]
     real(r8) :: anet_av_z(nlevleaf,maxpft,nclmax)
 
+    ! internal leaf Co2 memory variable (for passing into MEGAN) Pa
+     real(r8) :: internal_co2_z(nlevleaf,maxpft,nclmax)
+    
     ! Photosynthesis [umol /m2 /s]
     real(r8) :: psn_z(nlevleaf,maxpft,nclmax)
     
@@ -355,9 +359,10 @@ contains
                ! ---------------------------------------------------------------------------
                bc_out(s)%rssun_pa(ifp)     = 0._r8
                bc_out(s)%rssha_pa(ifp)     = 0._r8
-
-               psn_z(:,:,:) = 0._r8
+               bc_out(s)%ci_pa(ifp)     = 0._r8
                
+               psn_z(:,:,:) = 0._r8
+               !internal_co2_z(:,:,:) = 0._r8
                g_sb_leaves = 0._r8
                patch_la    = 0._r8
 
@@ -731,6 +736,7 @@ contains
                                       psn_z(iv,ft,cl),                    &  ! out
                                       rs_z(iv,ft,cl),                     &  ! out
                                       anet_av_z(iv,ft,cl),                &  ! out
+                                      internal_co2_z(iv,ft,cl),           &  ! out
                                       c13disc_z(cl,ft,iv))                   ! out
 
                                  rate_mask_z(iv,ft,cl) = .true.
@@ -1080,7 +1086,13 @@ contains
                      ! when it comes time to calculate a flux rate per unit ground
                      bc_out(s)%rssun_pa(ifp) = r_stomata
                      bc_out(s)%rssha_pa(ifp) = r_stomata
-                     
+
+                     if(hlm_use_nocomp)then
+                        bc_out(s)%ci_pa(ifp) = internal_co2_z(1,currentpatch%nocomp_pft_label,1)
+                     else
+                        bc_out(s)%ci_pa(ifp) = -999
+                     endif 
+              
                      ! This value is used for diagnostics, the molar form of conductance
                      ! is what is used in the field usually, so we track that form
                      currentPatch%c_stomata  = cf / r_stomata
@@ -1204,6 +1216,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
      psn_out,           &  ! out
      rstoma_out,        &  ! out
      anet_av_out,       &  ! out
+     internal_co2_out,   & ! out
      c13disc_z)            ! out
 
 
@@ -1263,6 +1276,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   real(r8), intent(out) :: rstoma_out     ! stomatal resistance (1/gs_lsl) (s/m)
   real(r8), intent(out) :: anet_av_out    ! net leaf photosynthesis (umol CO2/m**2/s)
   ! averaged over sun and shade leaves.
+  real(r8), intent(out) :: internal_co2_out    ! internal co2 diagnostic (Pa) 
   real(r8), intent(out) :: c13disc_z      ! carbon 13 in newly assimilated carbon
 
  
@@ -1354,6 +1368,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
  
      anet_av_out = -lmr
      psn_out     = 0._r8
+     internal_co2_out =  init_co2_inter_c
 
      ! The cuticular conductance already factored in maximum resistance as a bound
      ! no need to re-bound it
@@ -1372,6 +1387,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
         psn_out     = 0._r8    ! psn is accumulated across sun and shaded leaves.
         rstoma_out  = 0._r8    ! 1/rs is accumulated across sun and shaded leaves.
         anet_av_out = 0._r8
+        internal_co2_out = 0._r8
         gstoma  = 0._r8
 
         do  sunsha = 1,2
@@ -1599,10 +1615,12 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
            if(sunsha == 1)then !sunlit
               psn_out     = psn_out + agross * f_sun_lsl
               anet_av_out = anet_av_out + anet * f_sun_lsl
+              internal_co2_out = internal_co2_out + co2_inter_c * f_sun_lsl
               gstoma  = gstoma + 1._r8/(min(1._r8/gs, rsmax0)) * f_sun_lsl
            else
               psn_out = psn_out + agross * (1.0_r8-f_sun_lsl)
               anet_av_out = anet_av_out + anet * (1.0_r8-f_sun_lsl)
+              internal_co2_out = internal_co2_out + co2_inter_c * (1.0_r8 -f_sun_lsl)              
               gstoma  = gstoma + &
                    1._r8/(min(1._r8/gs, rsmax0)) * (1.0_r8-f_sun_lsl)
            end if
@@ -1648,7 +1666,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
         psn_out     = 0._r8
         anet_av_out = 0._r8
-
+        internal_co2_out = 0._r8
         rstoma_out  = min(rsmax0,cf/(stem_cuticle_loss_frac*stomatal_intercept(ft)))
         c13disc_z = 0.0_r8
 
