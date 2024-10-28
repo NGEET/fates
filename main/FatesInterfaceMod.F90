@@ -325,6 +325,7 @@ contains
     ! Output boundaries
     fates%bc_out(s)%active_suction_sl(:) = .false.
     fates%bc_out(s)%fsun_pa(:)      = 0.0_r8
+    fates%bc_out(s)%ci_pa(:)        = 0.0_r8    
     fates%bc_out(s)%laisun_pa(:)    = 0.0_r8
     fates%bc_out(s)%laisha_pa(:)    = 0.0_r8
     fates%bc_out(s)%rootr_pasl(:,:) = 0.0_r8
@@ -607,6 +608,7 @@ contains
       
       ! Radiation
       allocate(bc_out%fsun_pa(maxpatch_total))
+      allocate(bc_out%ci_pa(maxpatch_total))
       allocate(bc_out%laisun_pa(maxpatch_total))
       allocate(bc_out%laisha_pa(maxpatch_total))
       

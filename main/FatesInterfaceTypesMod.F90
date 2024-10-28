@@ -600,6 +600,10 @@ module FatesInterfaceTypesMod
       
       ! Shaded canopy LAI
       real(r8),allocatable :: laisha_pa(:)
+
+      ! Average internal CO2 concentration
+      real(r8), allocatable :: ci_pa(:)
+      
       
       ! Logical stating whether a soil layer can have water uptake by plants
       ! The only condition right now is that liquid water exists
