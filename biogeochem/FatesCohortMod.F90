@@ -1008,13 +1008,16 @@ module FatesCohortMod
       !
       ! DESCRIPTION:
       ! Sum the various cohort-level mortality variables for saving to history.
-      !
+      ! Units depend on per_year:
+      !    per_year  true: kg m-2 yr-1
+      !    per_year false: kg m-2 s-1
 
       ! ARGUMENTS:
       class(fates_cohort_type) :: this ! current cohort of interest
       logical                  :: per_year
       !
       ! VARIABLES
+      ! Units depend on per_year; see description above.
       real(r8) :: mort_natural
       real(r8) :: mort_logging
       real(r8) :: mort_sum
@@ -1022,12 +1025,14 @@ module FatesCohortMod
       ! "Natural" mortality
       mort_natural = this%bmort + this%hmort + this%cmort + this%frmort + this%smort + this%asmort + this%dgmort
       if (.not. per_year) then
+         ! Convert kg m-2 yr-1 to kg m-2 s-1
          mort_natural = mort_natural * days_per_sec * years_per_day
       end if
 
       ! Logging mortality
       mort_logging = this%lmort_direct + this%lmort_collateral + this%lmort_infra
       if (per_year) then
+         ! Convert kg m-2 s-1 to kg m-2 yr-1
          mort_logging = mort_logging * sec_per_day * days_per_year
       end if
 
