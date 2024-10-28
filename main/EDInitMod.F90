@@ -706,6 +706,12 @@ contains
           do el=1,num_elements
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                   biomass_stock,litter_stock,seed_stock)
+             ! Initialize the integrated flux balance diagnostics
+             ! No need to initialize the instantaneous states, those are re-calculated                                                  
+             sites(s)%iflux_balance(el)%iflux_liveveg = &
+                  (biomass_stock + seed_stock)*area_inv
+             sites(s)%iflux_balance(el)%iflux_litter  = litter_stock * area_inv
+
           end do
           call set_patchno(sites(s))
        enddo
@@ -972,7 +978,7 @@ contains
           do el=1,num_elements
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                   biomass_stock,litter_stock,seed_stock)
-
+             
              ! Initialize the integrated flux balance diagnostics
              ! No need to initialize the instantaneous states, those are re-calculated
              sites(s)%iflux_balance(el)%iflux_liveveg = &
@@ -983,7 +989,7 @@ contains
 
           call set_patchno(sites(s))
 
-       enddo sites_loop !s
+       enddo sites_loop 
     end if
 
     ! zero all the patch fire variables for the first timestep
