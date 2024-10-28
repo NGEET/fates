@@ -272,6 +272,10 @@ module FatesRestartInterfaceMod
   integer :: ir_rootlittin_flxdg
   integer :: ir_oldstock_mbal
   integer :: ir_errfates_mbal
+  integer :: ir_liveveg_intflux_el
+  integer :: ir_liveveg_err_el
+  integer :: ir_litter_intflux_el
+  integer :: ir_litter_err_el
   integer :: ir_woodprod_harvest_mbal
   integer :: ir_woodprod_landusechange_mbal
   integer :: ir_prt_base     ! Base index for all PRT variables
@@ -1059,6 +1063,7 @@ contains
 
     ! Patch Level Litter Pools are potentially multi-element
     if(hlm_use_sp.eq.ifalse)then
+
        call this%RegisterCohortVector(symbol_base='fates_ag_cwd', vtype=cohort_r8, &
             long_name_base='above ground CWD',  &
             units='kg/m2', veclength=num_elements, flushval = flushzero, &
@@ -1155,6 +1160,28 @@ contains
             units='kg/ha', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_errfates_mbal)
 
+
+       ! Time integrated mass balance accounting [kg/m2]
+       call this%RegisterCohortVector(symbol_base='fates_liveveg_intflux', vtype=site_r8, &
+            long_name_base='total mass of live vegetation of each chemical species, integrated from fluxes', &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_liveveg_intflux_el)
+
+       call this%RegisterCohortVector(symbol_base='fates_liveveg_err', vtype=site_r8, &
+            long_name_base='total mass error of live vegetation of each chemical species, from integrated fluxes', &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_liveveg_err_el)
+       
+       call this%RegisterCohortVector(symbol_base='fates_litter_intflux', vtype=site_r8, &
+            long_name_base='total mass of litter of each chemical species, integrated from fluxes', &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_intflux_el)
+
+       call this%RegisterCohortVector(symbol_base='fates_litter_err', vtype=site_r8, &
+            long_name_base='total mass error of litter of each chemical species, from integrated fluxes', &
+            units='kg/m2', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_err_el)
+       
     end if
     
    call this%RegisterCohortVector(symbol_base='fates_woodprod_harv', vtype=cohort_r8, &
@@ -2305,14 +2332,14 @@ contains
                 io_idx_si_scpf = io_idx_co_1st
 
                 do i_cwd=1,ncwd
-                   this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_ag_input(i_cwd)
-                   this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags(el)%cwd_bg_input(i_cwd)
+                   this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags%elem(el)%cwd_ag_input(i_cwd)
+                   this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags%elem(el)%cwd_bg_input(i_cwd)
                    io_idx_si_cwd = io_idx_si_cwd + 1
                 end do
 
                 do i_pft=1,numpft
-                   this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%leaf_litter_input(i_pft)
-                   this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags(el)%root_litter_input(i_pft)
+                   this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags%elem(el)%surf_fine_litter_input(i_pft)
+                   this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags%elem(el)%root_litter_input(i_pft)
                    this%rvars(ir_woodprod_harvest_mbal+el-1)%r81d(io_idx_si_pft) = sites(s)%mass_balance(el)%wood_product_harvest(i_pft)
                    this%rvars(ir_woodprod_landusechange_mbal+el-1)%r81d(io_idx_si_pft) = sites(s)%mass_balance(el)%wood_product_landusechange(i_pft)
                    io_idx_si_pft = io_idx_si_pft + 1
@@ -2321,6 +2348,12 @@ contains
                 this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
                 this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
 
+                this%rvars(ir_liveveg_intflux_el+el-1)%r81d(io_idx_si) = sites(s)%iflux_balance(el)%iflux_liveveg
+                this%rvars(ir_liveveg_err_el+el-1)%r81d(io_idx_si) = sites(s)%flux_diags%elem(el)%err_liveveg
+
+                this%rvars(ir_litter_intflux_el+el-1)%r81d(io_idx_si) = sites(s)%iflux_balance(el)%iflux_litter
+                this%rvars(ir_litter_err_el+el-1)%r81d(io_idx_si) = sites(s)%flux_diags%elem(el)%err_litter
+                
              end do
           end if
 
@@ -3288,14 +3321,14 @@ contains
                 io_idx_si_scpf = io_idx_co_1st
 
                 do i_cwd=1,ncwd
-                   sites(s)%flux_diags(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd)
-                   sites(s)%flux_diags(el)%cwd_bg_input(i_cwd) = this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd)
+                   sites(s)%flux_diags%elem(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd)
+                   sites(s)%flux_diags%elem(el)%cwd_bg_input(i_cwd) = this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd)
                    io_idx_si_cwd = io_idx_si_cwd + 1
                 end do
 
                 do i_pft=1,numpft
-                   sites(s)%flux_diags(el)%leaf_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft)
-                   sites(s)%flux_diags(el)%root_litter_input(i_pft) = this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft)
+                   sites(s)%flux_diags%elem(el)%surf_fine_litter_input(i_pft) = this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft)
+                   sites(s)%flux_diags%elem(el)%root_litter_input(i_pft) = this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft)
                    sites(s)%mass_balance(el)%wood_product_harvest(i_pft) = this%rvars(ir_woodprod_harvest_mbal+el-1)%r81d(io_idx_si_pft)
                    sites(s)%mass_balance(el)%wood_product_landusechange(i_pft) = this%rvars(ir_woodprod_landusechange_mbal+el-1)%r81d(io_idx_si_pft)
                    io_idx_si_pft = io_idx_si_pft + 1
@@ -3303,6 +3336,13 @@ contains
 
                 sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
                 sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
+
+                sites(s)%iflux_balance(el)%iflux_liveveg = this%rvars(ir_liveveg_intflux_el+el-1)%r81d(io_idx_si) 
+                sites(s)%flux_diags%elem(el)%err_liveveg = this%rvars(ir_liveveg_err_el+el-1)%r81d(io_idx_si)
+
+                sites(s)%iflux_balance(el)%iflux_litter = this%rvars(ir_litter_intflux_el+el-1)%r81d(io_idx_si) 
+                sites(s)%flux_diags%elem(el)%err_litter = this%rvars(ir_litter_err_el+el-1)%r81d(io_idx_si)
+                
              end do
           end if
           

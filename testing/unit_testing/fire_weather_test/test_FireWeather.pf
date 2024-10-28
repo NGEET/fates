@@ -12,9 +12,7 @@ module test_FireWeather
 
   @TestCase
   type, extends(TestCase) :: TestFireWeather
-    
     class(fire_weather), allocatable :: fireWeatherNesterov
-    
     contains
       procedure :: setUp
       procedure :: tearDown 
@@ -36,32 +34,81 @@ module test_FireWeather
     end subroutine tearDown
 
     @Test 
-    subroutine zero_NI_rain(this)
+    subroutine UpdateIndex_OverPrecipThreshold_ZerosNI(this)
       ! test that over 3 mm of rain is 0.0
-      class(TestFireWeather), intent(inout) :: this ! fire weather object
+      class(TestFireWeather), intent(inout) :: this            ! fire weather test object
+      real(r8)                              :: tempC = 25.0_r8 ! temperature [degC]
+      real(r8)                              :: precip = 3.1_r8 ! precipitation [mm]
+      real(r8)                              :: rh = 10.0_r8    ! relative humidity [%]
+      real(r8)                              :: wind = 0.0_r8   ! wind speed [m/s]
 
-      call this%fireWeatherNesterov%Update(25.0_r8, 3.1_r8, 10.0_r8, 0.0_r8)
+
+      call this%fireWeatherNesterov%UpdateIndex(tempC, precip, rh, wind)
+
       @assertEqual(this%fireWeatherNesterov%fire_weather_index, 0.0_r8, tolerance=tol)
-      this%fireWeatherNesterov%fire_weather_index = 0.0_r8
-    end subroutine zero_NI_rain
+
+    end subroutine UpdateIndex_OverPrecipThreshold_ZerosNI
 
     @Test
-    subroutine NI_rain_min(this)
-      ! test that at 3 mm is over zero
-      class(TestFireWeather), intent(inout) :: this ! fire weather object
+    subroutine UpdateIndex_AtPrecipThreshold_AccumulateNI(this)
+      ! test that at 3 mm is over 0.0
+      class(TestFireWeather), intent(inout) :: this ! fire weather test object
+      real(r8)                              :: tempC = 25.0_r8 ! temperature [degC]
+      real(r8)                              :: precip = 3.0_r8 ! precipitation [mm]
+      real(r8)                              :: rh = 10.0_r8    ! relative humidity [%]
+      real(r8)                              :: wind = 0.0_r8   ! wind speed [m/s]
 
-      call this%fireWeatherNesterov%Update(25.0_r8, 3.0_r8, 10.0_r8, 0.0_r8)
+      call this%fireWeatherNesterov%UpdateIndex(tempC, precip, rh, wind)
+
       @assertGreaterThan(this%fireWeatherNesterov%fire_weather_index, 0.0_r8, tolerance=tol)
-      this%fireWeatherNesterov%fire_weather_index = 0.0_r8
-    end subroutine NI_rain_min
+
+    end subroutine UpdateIndex_AtPrecipThreshold_AccumulateNI
 
     @Test
-    subroutine NI_not_negative(this)
+    subroutine UpdateIndex_NegativeCalculation_ZerosNI(this)
       ! test that NI is not negative
-      class(TestFireWeather), intent(inout) :: this ! fire weather object
+      class(TestFireWeather), intent(inout) :: this ! fire weather test object
+      real(r8)                              :: tempC = -30.0_r8 ! temperature [degC]
+      real(r8)                              :: precip = 0.0_r8  ! precipitation [mm]
+      real(r8)                              :: rh = 99.0_r8     ! relative humidity [%]
+      real(r8)                              :: wind = 0.0_r8    ! wind speed [m/s]
+      
 
-      call this%fireWeatherNesterov%Update(-30.0_r8, 0.0_r8, 99.0_r8, 0.0_r8)
+      call this%fireWeatherNesterov%UpdateIndex(tempC, precip, rh, wind)
+
       @assertEqual(this%fireWeatherNesterov%fire_weather_index, 0.0_r8, tolerance=tol)
-    end subroutine NI_not_negative
+
+    end subroutine UpdateIndex_NegativeCalculation_ZerosNI
+
+    @Test
+    subroutine UpdateEffectiveWindSpeed_ZeroWindSpeed_ZeroEffectiveWindSpeed(this)
+      ! test that effective wind speed is zero when wind speed is zero
+      class(TestFireWeather), intent(inout) :: this                    ! fire weather test object
+      real(r8)                              :: wind_speed = 0.0_r8     ! wind speed [m/s]
+      real(r8)                              :: tree_fraction = 0.5_r8  ! tree fraction [0-1]
+      real(r8)                              :: grass_fraction = 0.5_r8 ! grass fraction [0-1]
+      real(r8)                              :: bare_fraction = 0.0_r8  ! bare fraction [0-1]
+
+      call this%fireWeatherNesterov%UpdateEffectiveWindSpeed(wind_speed, tree_fraction,  &
+        grass_fraction, bare_fraction)
+      @assertEqual(this%fireWeatherNesterov%effective_windspeed, 0.0_r8, tolerance=tol)
+  
+    end subroutine UpdateEffectiveWindSpeed_ZeroWindSpeed_ZeroEffectiveWindSpeed
+
+    @Test
+    subroutine UpdateEffectiveWindSpeed_WindSpeed_AttenuatesWindSpeed(this)
+      ! test that effective wind speed is less than input wind speed
+      class(TestFireWeather), intent(inout) :: this                    ! fire weather test object
+      real(r8)                              :: wind_speed = 50.0_r8    ! wind speed [m/s]
+      real(r8)                              :: tree_fraction = 0.5_r8  ! tree fraction [0-1]
+      real(r8)                              :: grass_fraction = 0.5_r8 ! grass fraction [0-1]
+      real(r8)                              :: bare_fraction = 0.0_r8  ! bare fraction [0-1]
+
+      call this%fireWeatherNesterov%UpdateEffectiveWindSpeed(wind_speed, tree_fraction,  &
+        grass_fraction, bare_fraction)
+        
+      @assertLessThan(this%fireWeatherNesterov%effective_windspeed, wind_speed, tolerance=tol)
+  
+    end subroutine UpdateEffectiveWindSpeed_WindSpeed_AttenuatesWindSpeed
 
   end module test_FireWeather
