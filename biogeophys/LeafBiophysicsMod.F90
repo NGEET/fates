@@ -255,6 +255,8 @@ contains
     cquad = stomatal_intercept_btran*stomatal_intercept_btran + &
          (2.0*stomatal_intercept_btran + term * &
          (1.0 - lb_params%medlyn_slope(ft)* lb_params%medlyn_slope(ft) / vpd)) * term
+
+    !print*,"PREMED"
     
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
     gs = max(r1,r2)
@@ -298,6 +300,8 @@ contains
     bquad = leaf_co2_ppress*(gb - stomatal_intercept_btran) - lb_params%bb_slope(ft) * a_gs * can_press
     cquad = -gb*(leaf_co2_ppress * stomatal_intercept_btran + &
          lb_params%bb_slope(ft) * a_gs * can_press * ceair/ veg_esat )
+
+    !print*,"PREBALL"
     
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
     gs = max(r1,r2)
@@ -349,10 +353,10 @@ contains
     
   end function GetJe
     
-  function AgrossRuBPC3(par_abs_wm2,jmax,ci,co2_cpoint) result(aj)
+  function AgrossRuBPC3(par_abs_umol,jmax,ci,co2_cpoint) result(aj)
 
     ! Input
-    real(r8) :: par_abs_wm2       ! Absorbed PAR per leaf area [W/m2]
+    real(r8) :: par_abs_umol      ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
     real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
     real(r8) :: ci                ! intracellular leaf CO2 (Pa)
     real(r8) :: co2_cpoint        ! CO2 compensation point (Pa)
@@ -361,9 +365,9 @@ contains
     real(r8) :: aj                ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
 
     ! locals
-    real(r8) :: par_abs_umol      ! Absorbed PAR that gets to the photocenters,
-                                  ! converted to umol photons/m2/s
-    real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
+    real(r8) :: jpar              ! electron transport rate in the photocenters
+                                  ! that matches absorbed par (umol electrons/m**2/s)
+    real(r8) :: je                ! actual electron transport rate (umol electrons/m**2/s)
     real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
     real(r8) :: r1,r2             ! roots of quadratic equation
     
@@ -372,13 +376,16 @@ contains
     ! that absorbed only by the photocenters (fnps) and also
     ! convert from photon energy into electron transport rate (photon_to_e)
     
-    par_abs_umol = par_abs_wm2*photon_to_e*(1.0_r8 - fnps)
+    jpar = par_abs_umol*photon_to_e*(1.0_r8 - fnps)
     
     ! convert the absorbed par into absorbed par per m2 of leaf,
     ! so it is consistant with the vcmax and lmr numbers.
     aquad = theta_psii
-    bquad = -(par_abs_umol + jmax)
-    cquad = par_abs_umol * jmax
+    bquad = -(jpar + jmax)
+    cquad = jpar * jmax
+
+    !print*,"PREJ", aquad,bquad,cquad
+    
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
     je = min(r1,r2)
 
@@ -390,15 +397,15 @@ contains
   
   ! =======================================================================================
 
-  function AgrossRuBPC4(par_abs_wm2) result(aj)
+  function AgrossRuBPC4(par_abs_umol) result(aj)
 
-    real(r8) :: par_abs_wm2      ! Absorbed PAR per leaf area [W/m2]
+    real(r8) :: par_abs_umol     ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
     real(r8) :: aj               ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
 
     ! quantum efficiency, used only for C4 (mol CO2 / mol photons)
     real(r8),parameter :: c4_quant_eff = 0.05_r8
     
-    aj = c4_quant_eff*par_abs_wm2*photon_to_e*(1.0_r8 - fnps)
+    aj = c4_quant_eff*par_abs_umol*photon_to_e*(1.0_r8 - fnps)
     
   end function AgrossRuBPC4
 
@@ -630,6 +637,9 @@ contains
     real(r8) :: ap               ! product-limited (C3) or CO2-limited
                                               ! (C4) gross photosynthesis (umol CO2/m**2/s)
     real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
+
+    logical,parameter :: short_circuit_aj = .true.
+    
     !------------------------------------------------------------------------------
 
     ! Photosynthesis limitation rate calculations
@@ -643,6 +653,10 @@ contains
 
        ! Take the minimum, no smoothing
        agross = min(ac,aj)
+
+       if(short_circuit_aj)then
+          agross = ac
+       end if
        
     else
        
@@ -896,7 +910,7 @@ contains
 
     ! Arguments
     ! ------------------------------------------------------------------------------------
-    real(r8), intent(in) :: par_abs           ! Absorbed PAR per leaf area [W/m2]
+    real(r8), intent(in) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m2 leaf/s]
     real(r8), intent(in) :: leaf_area         ! leaf area per ground area [m2/m2] 
     integer,  intent(in) :: ft                ! (plant) Functional Type Index
     real(r8), intent(in) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)

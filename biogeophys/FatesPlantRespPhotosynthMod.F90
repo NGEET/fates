@@ -191,7 +191,7 @@ contains
     real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1)
     real(r8) :: stomatal_intercept_btran   ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
     real(r8) :: kn                 ! leaf nitrogen decay coefficient
-    real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
+    !real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
     real(r8) :: gb_mol             ! leaf boundary layer conductance (molar form: [umol /m**2/s])
     real(r8) :: nscaler            ! leaf nitrogen scaling coefficient
     real(r8) :: rdark_scaler       ! scaling coefficient for Atkin dark respiration
@@ -724,6 +724,25 @@ contains
                                     else
                                        hydr_k_lwp = 1._r8
                                     end if
+
+                                    !print*,"PSN IN:",par_abs,    &  ! in
+                                    !     leaf_area,                          &  ! in
+                                    !     ft,                                 &  ! in
+                                    !     vcmax_z,                            &  ! in
+                                    !     jmax_z,                             &  ! in
+                                    !     kp_z,                               &  ! in
+                                    !     bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                    !     bc_in(s)%forc_pbot,                 &  ! in
+                                    !     bc_in(s)%cair_pa(ifp),              &  ! in
+                                    !     bc_in(s)%oair_pa(ifp),              &  ! in
+                                    !     btran_eff,                          &  ! in
+                                    !     gb_mol,                             &  ! in
+                                    !     bc_in(s)%eair_pa(ifp),              &  ! in 
+                                    !     mm_kco2,                            &  ! in
+                                    !     mm_ko2,                             &  ! in
+                                    !     co2_cpoint,                         &  ! in
+                                    !     lmr_z(iv,ft,cl)
+
                                     
                                     call LeafLayerPhotosynthesis(par_abs,    &  ! in
                                          leaf_area,                          &  ! in
@@ -1123,7 +1142,10 @@ contains
                      
                      ! This value is used for diagnostics, the molar form of conductance
                      ! is what is used in the field usually, so we track that form
-                     currentPatch%c_stomata  = cf / r_stomata
+                     ! cf = s/ umol/m2 -> s/m
+                     !real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
+
+                     currentPatch%c_stomata  = VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp))   / r_stomata
                      
                   else !if_any_lai
                      
@@ -1133,13 +1155,13 @@ contains
                      
                      ! This value is used for diagnostics, the molar form of conductance
                      ! is what is used in the field usually, so we track that form
-                     currentPatch%c_stomata  = cf / rsmax0
+                     currentPatch%c_stomata  = VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp)) / rsmax0
                      
                   end if if_any_lai
 
                   ! This value is used for diagnostics, the molar form of conductance
                   ! is what is used in the field usually, so we track that form
-                  currentPatch%c_lblayer = cf / bc_in(s)%rb_pa(ifp)
+                  currentPatch%c_lblayer = VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp)) / bc_in(s)%rb_pa(ifp)
 
                end if if_filter2
 
@@ -1419,7 +1441,7 @@ contains
   real(r8) function ConvertPar(leaf_area, par_wm2) result(par_umolm2s)
     !
     ! DESCRIPTION:
-    ! Convert par from W/m2 to umol photons/m2/s
+    ! Convert par from W/m2 to umol photons/m2leaf/s
     !
 
     ! ARGUMENTS:
