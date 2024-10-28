@@ -133,6 +133,8 @@ module LeafBiophysicsMod
   ! empirical curvature parameter for electron transport rate
   real(r8),parameter :: theta_psii = 0.7_r8
 
+  logical, parameter :: base_compare_revert = .true.
+  
   ! These are parameter constants read in externally
   ! some are differentiated by PFT, others are not
   ! -------------------------------------------------------------------------------------
@@ -1023,10 +1025,16 @@ contains
        ! ci_predicted = ci_input - fval
        ci = ci0 - fval
 
-       if( abs(fval) < ci_tol ) then
-          loop_continue = .false.
+       if(.not.base_compare_revert) then
+          if( abs(fval) < ci_tol ) then
+             loop_continue = .false.
+          end if
+       else
+          if ((abs(fval)/can_press*1.e06_r8 <=  2.e-06_r8) .or. solve_iter == 5) then
+             loop_continue = .false.
+          end if
        end if
-
+          
        ci0 = ci
        
        if( solve_iter == max_iters) then
