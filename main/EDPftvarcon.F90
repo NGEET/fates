@@ -2239,10 +2239,9 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
         end if
-        
-        if(EDPftvarcon_inst%voc_pftindex(ipft) .le. 0 .or. EDPftvarcon_inst%voc_pftindex(ipft) .gt. 5 ) then
-
-           write(fates_log(),*) 'MEGAN indices must be between 1 and 5'
+        write(*,*)  EDPftvarcon_inst%voc_pftindex(:)
+        if(EDPftvarcon_inst%voc_pftindex(ipft) .le. 0 .or. EDPftvarcon_inst%voc_pftindex(ipft) .gt. 16 ) then
+           write(fates_log(),*) 'MEGAN indices must be between 1 and 16',ipft,EDPftvarcon_inst%voc_pftindex(ipft)
            call endrun(msg=errMsg(sourcefile, __LINE__))
        endif
         
