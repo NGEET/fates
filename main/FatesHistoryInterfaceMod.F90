@@ -3359,7 +3359,7 @@ contains
              
              do el = 1, num_elements
 
-                if((.not.hlm_use_ed_st3) .and.	(.not.hlm_use_sp))then
+                if((hlm_use_ed_st3 .eq. ifalse) .and. (hlm_use_sp .eq. ifalse)) then
 
                    ! Total model error [kg/day -> kg/s]  (all elements)
                    this%hvars(ih_err_fates_elem)%r82d(io_si,el) = sites(s)%mass_balance(el)%err_fates / sec_per_day
@@ -8462,7 +8462,7 @@ contains
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_burn_flux_elem)
 
-          if((.not.hlm_use_ed_st3) .and. (.not.hlm_use_sp))then
+          if((hlm_use_ed_st3 .eq. ifalse) .and. (hlm_use_sp .eq. ifalse))then
              call this%set_history_var(vname='FATES_ERROR_EL', units='kg s-1',          &
                   long='total mass-balance error in kg per second by element',          &
                   use_default='active', avgflag='A', vtype=site_elem_r8,                &
