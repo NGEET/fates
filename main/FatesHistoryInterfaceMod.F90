@@ -2410,6 +2410,7 @@ contains
          hio_npatches_sec_si     => this%hvars(ih_npatches_sec_si)%r81d, &
          hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
          hio_ncohorts_sec_si     => this%hvars(ih_ncohorts_sec_si)%r81d, &
+         hio_ncl_si              => this%hvars(ih_ncl_si)%r81d, &
          hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
          hio_area_plant_si       => this%hvars(ih_area_plant_si)%r81d, &
          hio_area_trees_si  => this%hvars(ih_area_trees_si)%r81d, &
@@ -2647,6 +2648,8 @@ contains
             hio_elai_si(io_si) = hio_elai_si(io_si) + sum( cpatch%canopy_area_profile(:,:,:) * cpatch%elai_profile(:,:,:) ) * &
                  cpatch%total_canopy_area * AREA_INV
             
+            hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl_p * cpatch%area * AREA_INV
+
             ! 24hr veg temperature
             hio_tveg24(io_si) = hio_tveg24(io_si) + &
                  (cpatch%tveg24%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
@@ -4702,7 +4705,6 @@ contains
 
     associate( &
          hio_lai_si_age => this%hvars(ih_lai_si_age)%r82d, &
-         hio_ncl_si => this%hvars(ih_ncl_si)%r81d, &
          hio_ncl_si_age => this%hvars(ih_ncl_si_age)%r82d, &
          hio_scorch_height_si_pft => this%hvars(ih_scorch_height_si_pft)%r82d, &
          hio_scorch_height_si_agepft => this%hvars(ih_scorch_height_si_agepft)%r82d, &
@@ -4747,8 +4749,6 @@ contains
           ! Increment the fractional area in each age class bin
           hio_fracarea_si_age(io_si,cpatch%age_class) = hio_fracarea_si_age(io_si,cpatch%age_class) &
           + cpatch%area * AREA_INV
-
-          hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl_p * patch_area_div_site_area
 
           do ft = 1,numpft
              hio_scorch_height_si_pft(io_si,ft) = hio_scorch_height_si_pft(io_si,ft) + &
