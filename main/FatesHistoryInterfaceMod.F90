@@ -816,14 +816,14 @@ module FatesHistoryInterfaceMod
      procedure :: assemble_history_output_types
 
      procedure :: update_history_dyn
-     procedure :: update_history_dyn1
-     procedure :: update_history_dyn2
-     procedure :: update_history_dyn2_ageclass
-     procedure :: reset_history_dyn2
+     procedure :: update_history_dyn_sitelevel
+     procedure :: update_history_dyn_subsite
+     procedure :: update_history_dyn_subsite_ageclass
+     procedure :: reset_history_dyn_subsite
      procedure :: update_history_hifrq
-     procedure :: update_history_hifrq1
-     procedure :: update_history_hifrq2
-     procedure :: update_history_hifrq2_ageclass
+     procedure :: update_history_hifrq_sitelevel
+     procedure :: update_history_hifrq_subsite
+     procedure :: update_history_hifrq_subsite_ageclass
      procedure :: update_history_hydraulics
      procedure :: update_history_nutrflux
 
@@ -2330,11 +2330,11 @@ contains
     if (hlm_use_ed_st3.eq.itrue) return
 
     if(hlm_hist_level_dynam>0) then
-       call update_history_dyn1(this,nc,nsites,sites,bc_in)
+       call update_history_dyn_sitelevel(this,nc,nsites,sites,bc_in)
        if(hlm_hist_level_dynam>1) then
-          call update_history_dyn2(this,nc,nsites,sites,bc_in)
-          call update_history_dyn2_ageclass(this,nc,nsites,sites,bc_in)
-          call reset_history_dyn2(this, nsites, sites)
+          call update_history_dyn_subsite(this,nc,nsites,sites,bc_in)
+          call update_history_dyn_subsite_ageclass(this,nc,nsites,sites,bc_in)
+          call reset_history_dyn_subsite(this, nsites, sites)
        end if
     end if
 
@@ -2345,8 +2345,13 @@ contains
 
   ! =========================================================================
 
-  subroutine update_history_dyn1(this,nc,nsites,sites,bc_in)
+  subroutine update_history_dyn_sitelevel(this,nc,nsites,sites,bc_in)
 
+    ! ---------------------------------------------------------------------------------
+    ! This subroutine is intended to update all history variables with upfreq ==
+    ! group_dyna_simple that are saved at the site level. So, eg., FATES_VEGC is
+    ! updated here, but not FATES_VEGC_PF.
+    ! ---------------------------------------------------------------------------------
 
 
     ! Arguments
@@ -2966,11 +2971,18 @@ contains
 
     end associate
     return
-  end subroutine update_history_dyn1
+  end subroutine update_history_dyn_sitelevel
 
   ! =========================================================================================
 
-  subroutine update_history_dyn2(this,nc,nsites,sites,bc_in)
+  subroutine update_history_dyn_subsite(this,nc,nsites,sites,bc_in)
+
+    ! ---------------------------------------------------------------------------------
+    ! This subroutine is intended to update all history variables with upfreq ==
+    ! group_dyna_complx (i.e., that have a dimension in addition to that for the site
+    ! level) that do NOT include age class. So, eg., FATES_VEGC_PF is updated here,
+    ! but not FATES_VEGC or FATES_VEGC_APPF.
+    ! ---------------------------------------------------------------------------------
 
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -4636,11 +4648,18 @@ contains
     end associate
 
     return
-  end subroutine update_history_dyn2
+  end subroutine update_history_dyn_subsite
 
   ! =========================================================================================
 
-  subroutine update_history_dyn2_ageclass(this,nc,nsites,sites,bc_in)
+  subroutine update_history_dyn_subsite_ageclass(this,nc,nsites,sites,bc_in)
+
+    ! ---------------------------------------------------------------------------------
+    ! This subroutine is intended to update all history variables with upfreq ==
+    ! group_dyna_complx that have a dimension in addition to that for the site level
+    ! which DO include age class. So, eg., FATES_VEGC_APPF is updated here,
+    ! but not FATES_VEGC or FATES_VEGC_PF.
+    ! ---------------------------------------------------------------------------------
 
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -4682,7 +4701,7 @@ contains
          hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
          hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
          hio_biomass_si_agepft                => this%hvars(ih_biomass_si_agepft)%r82d, &
-         hio_npp_si_agepft  => this%hvars(ih_npp_si_agepft)%r82d, &  ! TODO: Move to update_history_hifrq2_ageclass, as gpp? Maybe not, because it comes from npp_acc_hold
+         hio_npp_si_agepft  => this%hvars(ih_npp_si_agepft)%r82d, &  ! TODO: Move to update_history_hifrq_subsite_ageclass, as gpp? Maybe not, because it comes from npp_acc_hold
          hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
          hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
          hio_npatches_si_age                  => this%hvars(ih_npatches_si_age)%r82d, &
@@ -4898,11 +4917,11 @@ contains
     end do siteloop
 
     end associate
-  end subroutine update_history_dyn2_ageclass
+  end subroutine update_history_dyn_subsite_ageclass
 
   ! ===============================================================================================
 
-  subroutine reset_history_dyn2(this, nsites, sites)
+  subroutine reset_history_dyn_subsite(this, nsites, sites)
 
     ! ------------------------------------------------------------------------------------
     ! This resets some variables that need to be zeroed out after dyn2 history subroutines
@@ -4944,7 +4963,7 @@ contains
        sites(s)%fmort_cflux_canopy_damage(:,:) = 0._r8
        sites(s)%fmort_cflux_ustory_damage(:,:) = 0._r8
     end do siteloop
-  end subroutine reset_history_dyn2
+  end subroutine reset_history_dyn_subsite
 
   ! ===============================================================================================
 
@@ -4967,10 +4986,10 @@ contains
     real(r8)                , intent(in)            :: dt_tstep
     
     if(hlm_hist_level_hifrq>0) then
-       call update_history_hifrq1(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+       call update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
        if(hlm_hist_level_hifrq>1) then
-          call update_history_hifrq2(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
-          call update_history_hifrq2_ageclass(this,nsites,sites,dt_tstep)
+          call update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+          call update_history_hifrq_subsite_ageclass(this,nsites,sites,dt_tstep)
        end if
     end if
 
@@ -4978,7 +4997,13 @@ contains
     return
   end subroutine update_history_hifrq
 
-  subroutine update_history_hifrq1(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+  subroutine update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+
+     ! ---------------------------------------------------------------------------------
+     ! This subroutine is intended to update all history variables with upfreq ==
+     ! group_hifrq_simple: i.e., those that are saved at the site level. So, eg.,
+     ! FATES_GPP is updated here, but not FATES_GPP_AP.
+     ! ---------------------------------------------------------------------------------
 
     !
     ! Arguments
@@ -5192,16 +5217,18 @@ contains
 
     end associate
     return
-  end subroutine update_history_hifrq1
+  end subroutine update_history_hifrq_sitelevel
 
   ! ===============================================================================================
 
-  subroutine update_history_hifrq2(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+  subroutine update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
 
     ! ---------------------------------------------------------------------------------
-    ! This is the call to update the history IO arrays for multi-dimension arrays
-    ! that change rapidly.  This is an expensive call, the model will probably run
-    ! much faster if the user is not using any of these diagnostics.
+    ! This subroutine is intended to update all history variables with upfreq ==
+    ! group_hifrq_complex (i.e., that have a dimension in addition to that for the site
+    ! level) that do NOT include age class. So, e.g., FATES_GPP_PF would be updated
+    ! here, but not FATES_GPP or FATES_GPP_AP. This is an expensive call; the model
+    ! will probably run much faster if the user is not using any of these diagnostics.
     ! ---------------------------------------------------------------------------------
 
     !
@@ -5579,11 +5606,20 @@ contains
 
     end associate
 
-  end subroutine update_history_hifrq2
+  end subroutine update_history_hifrq_subsite
 
   ! ===============================================================================================
 
-  subroutine update_history_hifrq2_ageclass(this,nsites,sites,dt_tstep)
+  subroutine update_history_hifrq_subsite_ageclass(this,nsites,sites,dt_tstep)
+
+    ! ---------------------------------------------------------------------------------
+    ! This subroutine is intended to update all history variables with upfreq ==
+    ! group_hifrq_complex (i.e., that have a dimension in addition to that for the site
+    ! level) that DO include age class. So, e.g., FATES_GPP_AP is updated here, but not
+    ! FATES_GPP or FATES_GPP_PF. This is an expensive call; the model will probably run
+    ! much faster if the user is not using any of these diagnostics.
+    ! ---------------------------------------------------------------------------------
+
     !
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -5666,7 +5702,7 @@ contains
 
   end associate
 
-  end subroutine update_history_hifrq2_ageclass
+  end subroutine update_history_hifrq_subsite_ageclass
 
   ! =====================================================================================
 
