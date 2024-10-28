@@ -4737,7 +4737,7 @@ contains
          hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
          hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
          hio_biomass_si_agepft                => this%hvars(ih_biomass_si_agepft)%r82d, &
-         hio_npp_si_agepft  => this%hvars(ih_npp_si_agepft)%r82d, &  ! TODO: Move to update_history_hifrq_subsite_ageclass, as gpp? Maybe not, because it comes from npp_acc_hold
+         hio_npp_si_agepft                    => this%hvars(ih_npp_si_agepft)%r82d, &
          hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
          hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
          hio_npatches_si_age                  => this%hvars(ih_npatches_si_age)%r82d, &
