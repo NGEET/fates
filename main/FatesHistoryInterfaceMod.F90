@@ -5332,7 +5332,6 @@ contains
     real(r8) :: npp         ! npp for this time-step (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: aresp       ! autotrophic respiration (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
-    real(r8) :: canopy_area_by_age(nlevage) ! canopy area in each bin for normalizing purposes
     real(r8) :: site_area_veg_inv           ! 1/area of the site that is not bare-ground 
     integer  :: ipa2     ! patch incrementer
     integer :: clllpf_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
@@ -5394,12 +5393,9 @@ contains
          call this%zero_site_hvars(sites(s), upfreq_in=group_hifr_complx)
          
          site_area_veg_inv = 0._r8
-         canopy_area_by_age(1:nlevage) = 0._r8
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
             site_area_veg_inv = site_area_veg_inv + cpatch%total_canopy_area
-            canopy_area_by_age(cpatch%age_class) = &
-                 canopy_area_by_age(cpatch%age_class) + cpatch%total_canopy_area
             cpatch => cpatch%younger
          end do !patch loop
 
