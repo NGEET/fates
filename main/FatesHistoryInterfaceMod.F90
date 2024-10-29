@@ -3375,9 +3375,9 @@ contains
                         hio_agesince_anthrodist_si(io_si)  &
                         + cpatch%area * AREA_INV
 
-                    hio_secondarylands_fracarea_si(io_si) = &
-                         hio_secondarylands_fracarea_si(io_si) &
-                         + cpatch%area * AREA_INV
+                   hio_secondarylands_fracarea_si(io_si) = &
+                        hio_secondarylands_fracarea_si(io_si) &
+                        + cpatch%area * AREA_INV
                 endif
 
                 ! patch-age-resolved fire variables
