@@ -5,7 +5,7 @@ module test_FireFuel
   !
   use FatesConstantsMod,   only : r8 => fates_r8
   use FatesFuelMod,        only : fuel_type
-  use FatesFuelClassesMod, only : fuel_classes, nfsc
+  use FatesFuelClassesMod, only : fuel_classes, num_fuel_classes
   use funit
 
   implicit none
@@ -78,7 +78,7 @@ module test_FireFuel
       real(r8)                           :: frac_loading            ! what the fractional loading should be [0-1]
       integer                            :: i                       ! looping index
       
-      total_loading = dummy_litter*float(nfsc - 1)
+      total_loading = dummy_litter*float(num_fuel_classes - 1)
       frac_loading = dummy_litter/total_loading
 
       call this%fuel%CalculateLoading(dummy_litter, dummy_litter, dummy_litter,          &
@@ -87,7 +87,7 @@ module test_FireFuel
       call this%fuel%SumLoading()
       call this%fuel%CalculateFractionalLoading()
 
-      do i = 1, nfsc 
+      do i = 1, num_fuel_classes 
         if (i /= fuel_classes%trunks()) then 
           @assertEqual(this%fuel%frac_loading(i), frac_loading, tolerance=tol)
         else 

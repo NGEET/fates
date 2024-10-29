@@ -41,7 +41,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,  only : nlevdamage
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
-  use FatesFuelClassesMod,     only : nfsc
+  use FatesFuelClassesMod,     only : num_fuel_classes
   use FatesLitterMod,          only : ndcmpy
   use EDTypesMod,              only : area
   use EDParamsMod,             only : nlevleaf
@@ -2540,7 +2540,7 @@ contains
                 end do
 
                 io_idx_pa_cwd  = io_idx_co_1st
-                do i = 1,nfsc
+                do i = 1,num_fuel_classes
                    this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd) = cpatch%fuel%effective_moisture(i)
                    io_idx_pa_cwd      = io_idx_pa_cwd + 1
                 end do
@@ -3509,7 +3509,7 @@ contains
                 end do
 
                 io_idx_pa_cwd  = io_idx_co_1st
-                do i = 1,nfsc
+                do i = 1,num_fuel_classes
                    cpatch%fuel%effective_moisture(i) = this%rvars(ir_litter_moisture_pa_nfsc)%r81d(io_idx_pa_cwd)
                    io_idx_pa_cwd      = io_idx_pa_cwd + 1
                 end do

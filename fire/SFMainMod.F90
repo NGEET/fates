@@ -25,7 +25,7 @@ module SFMainMod
   use FatesCohortMod,         only : fates_cohort_type
   use EDtypesMod,             only : AREA
   use FatesLitterMod,         only : litter_type
-  use FatesFuelClassesMod,    only : nfsc
+  use FatesFuelClassesMod,    only : num_fuel_classes
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : sapw_organ
@@ -366,8 +366,8 @@ contains
     type(litter_type), pointer      :: litt_c           ! carbon 12 litter pool
     
     real(r8) :: moist           !effective fuel moisture
-    real(r8) :: tau_b(nfsc)     !lethal heating rates for each fuel class (min) 
-    real(r8) :: fc_ground(nfsc) !total amount of fuel consumed per area of burned ground (kg C / m2 of burned area)
+    real(r8) :: tau_b(num_fuel_classes)     !lethal heating rates for each fuel class (min) 
+    real(r8) :: fc_ground(num_fuel_classes) !total amount of fuel consumed per area of burned ground (kg C / m2 of burned area)
     integer :: tr_sf, tw_sf, dl_sf, lg_sf
     integer  :: c
     
@@ -385,7 +385,7 @@ contains
          currentPatch%fuel%frac_burnt(:) = 1.0_r8       
          ! Calculate fraction of litter is burnt for all classes. 
          ! Equation B1 in Thonicke et al. 2010---
-         do c = 1, nfsc    !work out the burnt fraction for all pools, even if those pools dont exist.         
+         do c = 1, num_fuel_classes    !work out the burnt fraction for all pools, even if those pools dont exist.         
             moist = currentPatch%fuel%effective_moisture(c)                  
             ! 1. Very dry litter
             if (moist <= SF_val_min_moisture(c)) then
@@ -431,7 +431,7 @@ contains
        ! taul is the duration of the lethal heating.  
        ! The /10 is to convert from kgC/m2 into gC/cm2, as in the Peterson and Ryan paper #Rosie,Jun 2013
         
-       do c = 1,nfsc 
+       do c = 1,num_fuel_classes 
           tau_b(c)   =  39.4_r8 *(currentPatch%fuel%frac_loading(c)*currentPatch%fuel%total_loading/0.45_r8/10._r8)* &
                (1.0_r8-((1.0_r8-currentPatch%fuel%frac_burnt(c))**0.5_r8))  
        enddo

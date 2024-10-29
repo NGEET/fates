@@ -9,7 +9,7 @@ program FatesTestFuel
   use SFFireWeatherMod,            only : fire_weather
   use SFNesterovMod,               only : nesterov_index
   use FatesFuelMod,                only : fuel_type
-  use FatesFuelClassesMod,         only : nfsc
+  use FatesFuelClassesMod,         only : num_fuel_classes
   use SFParamsMod,                 only : SF_val_SAV, SF_val_drying_ratio
   use SFParamsMod,                 only : SF_val_FBD
   
@@ -55,8 +55,8 @@ program FatesTestFuel
   allocate(wind(n_days))
   allocate(NI(n_days))
   allocate(fuel_moisture(n_days, num_fuel_models))
-  allocate(fuel_loading(nfsc, num_fuel_models))
-  allocate(frac_loading(nfsc, num_fuel_models))
+  allocate(fuel_loading(num_fuel_classes, num_fuel_models))
+  allocate(frac_loading(num_fuel_classes, num_fuel_models))
   allocate(fuel_BD(num_fuel_models))
   allocate(fuel_SAV(num_fuel_models))
   allocate(total_loading(num_fuel_models))
