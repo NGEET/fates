@@ -4802,7 +4802,9 @@ contains
                + sum(cpatch%tlai_profile(:,:,:) * cpatch%canopy_area_profile(:,:,:) ) &
                * patch_canarea_div_site_area
 
-          ! TODO: Supposedly weighted by burned fraction, but never actually divided by total site-wide burned fraction!
+          ! These fire variables are intended to be weighted by fire area. However, for precision
+          ! reasons, we don't divide by site-wide burned area here. Instead, in the long_name of
+          ! the history file variable, we tell the users to do that division themselves.
           hio_fire_intensity_si_age(io_si, cpatch%age_class) = hio_fire_intensity_si_age(io_si,cpatch%age_class) + &
               cpatch%FI * J_per_kJ &  ! [kJ/m/s] -> [J/m/s]
               * cpatch%frac_burnt * patch_area_div_site_area
