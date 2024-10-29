@@ -734,7 +734,7 @@ contains
                            end do leaf_layer_loop
 
                            ! Zero cohort flux accumulators.
-                           currentCohort%npp_tstep  = 0.0_r8
+                           
                            currentCohort%resp_m_tstep = 0.0_r8
                            currentCohort%gpp_tstep  = 0.0_r8
                            currentCohort%rdark      = 0.0_r8

@@ -520,7 +520,7 @@ contains
 
              ! at this point we have the info we need to calculate growth respiration
              ! as a "tax" on the difference between daily GPP and daily maintenance respiration
-             if (hlm_use_ed_prescribed_phys .eq. itrue) then
+             if (hlm_use_ed_prescribed_phys .eq. ifalse) then
                 currentCohort%resp_g_acc = prt_params%grperc(ft) * &
                      max(0._r8,(currentCohort%gpp_acc - currentCohort%resp_m_acc))
                 currentCohort%resp_g_acc_hold = currentCohort%resp_g_acc * real(hlm_days_per_year,r8)
