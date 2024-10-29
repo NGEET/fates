@@ -3283,8 +3283,6 @@ contains
     
     call rp%tveg_longterm%FuseRMean(dp%tveg_longterm,rp%area*inv_sum_area)
 
-    rp%fuel%average_moisture   = (dp%fuel%average_moisture*dp%area + rp%fuel%average_moisture*rp%area) * inv_sum_area
-    rp%fuel%effective_moisture = (dp%fuel%effective_moisture(:)*dp%area + rp%fuel%effective_moisture(:)*rp%area) * inv_sum_area
     rp%livegrass               = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
     rp%ros_front               = (dp%ros_front*dp%area + rp%ros_front*rp%area) * inv_sum_area
     rp%tau_l                   = (dp%tau_l*dp%area + rp%tau_l*rp%area) * inv_sum_area

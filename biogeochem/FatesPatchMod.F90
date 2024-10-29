@@ -906,24 +906,24 @@ module FatesPatchMod
       end if
       
       if (istat/=0) then
-        write(fates_log(),*) 'dealloc009: fail on deallocate patch vectors:'//trim(smsg)
+        write(fates_log(),*) 'dealloc010: fail on deallocate patch vectors:'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
       
       ! deallocate running means
       deallocate(this%tveg24, stat=istat, errmsg=smsg)
       if (istat/=0) then
-        write(fates_log(),*) 'dealloc010: fail on deallocate(this%tveg24):'//trim(smsg)
+        write(fates_log(),*) 'dealloc011: fail on deallocate(this%tveg24):'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
       deallocate(this%tveg_lpa, stat=istat, errmsg=smsg)
       if (istat/=0) then
-        write(fates_log(),*) 'dealloc011: fail on deallocate(this%tveg_lpa):'//trim(smsg)
+        write(fates_log(),*) 'dealloc012: fail on deallocate(this%tveg_lpa):'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
       deallocate(this%tveg_longterm, stat=istat, errmsg=smsg)
       if (istat/=0) then
-        write(fates_log(),*) 'dealloc012: fail on deallocate(this%tveg_longterm):'//trim(smsg)
+        write(fates_log(),*) 'dealloc013: fail on deallocate(this%tveg_longterm):'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
 

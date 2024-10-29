@@ -93,3 +93,4 @@ def plot_moisture_dat(fuel_dat, save_figs, plot_dir):
     if save_figs:
         fig_name = os.path.join(plot_dir, "fuel_moisture_plot.png")
         plt.savefig(fig_name)
+        
