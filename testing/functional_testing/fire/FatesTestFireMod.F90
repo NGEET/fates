@@ -65,7 +65,7 @@ module FatesTestFireMod
       fuel_name = fuel_model_array%fuel_models(i)%fuel_model_name
       fuel_carrier = fuel_model_array%fuel_models(i)%carrier
       
-      call fuel%CalculateLoading(leaf_litter, twig_litter, small_branch_litter,    &
+      call fuel%UpdateLoading(leaf_litter, twig_litter, small_branch_litter,    &
         large_branch_litter, 0.0_r8, grass_litter)
       
     end subroutine SetUpFuel

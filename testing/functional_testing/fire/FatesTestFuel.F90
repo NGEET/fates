@@ -98,8 +98,8 @@ program FatesTestFuel
     fuel_loading(:,f) = fuel(f)%loading(:)
     non_trunk_loading(f) = fuel(f)%non_trunk_loading
     frac_loading(:,f) = fuel(f)%frac_loading(:)
-    fuel_BD(f) = fuel(f)%bulk_density
-    fuel_SAV(f) = fuel(f)%SAV
+    fuel_BD(f) = fuel(f)%bulk_density_notrunks
+    fuel_SAV(f) = fuel(f)%SAV_notrunks
         
   end do
   

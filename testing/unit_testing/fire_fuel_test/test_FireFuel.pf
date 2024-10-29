@@ -27,7 +27,7 @@ module test_FireFuel
     end subroutine setUp
 
     @Test 
-    subroutine CalculateLoading_CorrectInputOrder(this)
+    subroutine UpdateLoading_CorrectInputOrder(this)
       ! test that the calculate loading subroutine correctly sets the fuel values
       class(TestFireFuel), intent(inout) :: this                   ! fuel test object
       real(r8)                           :: leaf_litter  = 5.0_r8  ! leaf litter [kgC/m2]
@@ -37,7 +37,7 @@ module test_FireFuel
       real(r8)                           :: trunk_litter = 25.0_r8 ! trunk branch litter [kgC/m2]
       real(r8)                           :: live_grass   = 30.0_r8 ! live grass [kgC/m2]
 
-      call this%fuel%CalculateLoading(leaf_litter, twig_litter, sm_br_litter,            &
+      call this%fuel%UpdateLoading(leaf_litter, twig_litter, sm_br_litter,            &
         lg_br_litter, trunk_litter, live_grass)
 
       @assertEqual(this%fuel%loading(fuel_classes%dead_leaves()), leaf_litter, tolerance=tol)
@@ -47,7 +47,7 @@ module test_FireFuel
       @assertEqual(this%fuel%loading(fuel_classes%trunks()), trunk_litter, tolerance=tol)
       @assertEqual(this%fuel%loading(fuel_classes%live_grass()), live_grass, tolerance=tol)
 
-    end subroutine CalculateLoading_CorrectInputOrder
+    end subroutine UpdateLoading_CorrectInputOrder
 
     @Test
     subroutine SumLoading_CorrectValues(this)
@@ -59,7 +59,7 @@ module test_FireFuel
       
       non_trunk_loading = dummy_litter*5.0_r8
 
-      call this%fuel%CalculateLoading(dummy_litter, dummy_litter, dummy_litter,          &
+      call this%fuel%UpdateLoading(dummy_litter, dummy_litter, dummy_litter,          &
         dummy_litter, trunk_litter, dummy_litter)
       
       call this%fuel%SumLoading()
@@ -81,7 +81,7 @@ module test_FireFuel
       non_trunk_loading = dummy_litter*float(num_fuel_classes - 1)
       frac_loading = dummy_litter/non_trunk_loading
 
-      call this%fuel%CalculateLoading(dummy_litter, dummy_litter, dummy_litter,          &
+      call this%fuel%UpdateLoading(dummy_litter, dummy_litter, dummy_litter,          &
         dummy_litter, trunk_litter, dummy_litter)
       
       call this%fuel%SumLoading()
