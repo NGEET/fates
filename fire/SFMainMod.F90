@@ -236,10 +236,10 @@ contains
 
     do while(associated(currentPatch))
 
-      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground .and. currentPatch%fuel%total_loading > nearzero) then
+      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground .and. currentPatch%fuel%non_trunk_loading > nearzero) then
                        
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
-       currentPatch%fuel%total_loading = currentPatch%fuel%total_loading * (1.0_r8 - SF_val_miner_total) !net of minerals
+       currentPatch%fuel%non_trunk_loading = currentPatch%fuel%non_trunk_loading * (1.0_r8 - SF_val_miner_total) !net of minerals
 
        ! ----start spreading---
 
@@ -330,8 +330,8 @@ contains
             (3.52_r8*(mw_weight**3.0_r8))))
 
        ! ir = reaction intenisty in kJ/m2/min
-       ! currentPatch%fuel%total_loading converted from kgC/m2 to kgBiomass/m2 for ir calculation
-       ir = reaction_v_opt*(currentPatch%fuel%total_loading/0.45_r8)*SF_val_fuel_energy*moist_damp*SF_val_miner_damp 
+       ! currentPatch%fuel%non_trunk_loading converted from kgC/m2 to kgBiomass/m2 for ir calculation
+       ir = reaction_v_opt*(currentPatch%fuel%non_trunk_loading/0.45_r8)*SF_val_fuel_energy*moist_damp*SF_val_miner_damp 
 
        ! write(fates_log(),*) 'ir',gamma_aptr,moist_damp,SF_val_fuel_energy,SF_val_miner_damp
 
@@ -432,7 +432,7 @@ contains
        ! The /10 is to convert from kgC/m2 into gC/cm2, as in the Peterson and Ryan paper #Rosie,Jun 2013
         
        do c = 1,num_fuel_classes 
-          tau_b(c)   =  39.4_r8 *(currentPatch%fuel%frac_loading(c)*currentPatch%fuel%total_loading/0.45_r8/10._r8)* &
+          tau_b(c)   =  39.4_r8 *(currentPatch%fuel%frac_loading(c)*currentPatch%fuel%non_trunk_loading/0.45_r8/10._r8)* &
                (1.0_r8-((1.0_r8-currentPatch%fuel%frac_burnt(c))**0.5_r8))  
        enddo
        tau_b(tr_sf)   =  0.0_r8

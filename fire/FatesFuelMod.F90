@@ -167,17 +167,17 @@ module FatesFuelMod
       ! sum up loading just in case
       call this%SumLoading()
       
-      if (this%total_loading > nearzero) then
+      if (this%non_trunk_loading > nearzero) then
         do i = 1, num_fuel_classes 
           if (i /= fuel_classes%trunks()) then 
-            this%frac_loading(i) = this%loading(i)/this%total_loading
+            this%frac_loading(i) = this%loading(i)/this%non_trunk_loading
           else 
             this%frac_loading(i) = 0.0_r8
           end if 
         end do 
       else 
         this%frac_loading(1:num_fuel_classes) = 0.0_r8
-        this%total_loading = 0.0_r8
+        this%non_trunk_loading = 0.0_r8
       end if 
 
     end subroutine CalculateFractionalLoading
@@ -198,7 +198,7 @@ module FatesFuelMod
       real(r8) :: moisture_of_extinction(num_fuel_classes) ! fuel moisture of extinction [m3/m3]
       integer  :: i                                        ! looping index
  
-      if (this%total_loading + this%loading(fuel_classes%trunks()) > nearzero) then 
+      if (this%non_trunk_loading + this%loading(fuel_classes%trunks()) > nearzero) then 
         ! calculate fuel moisture [m3/m3] for each fuel class depending on what
         ! fire weather class is in use
         select type (fireWeatherClass)
@@ -322,7 +322,7 @@ module FatesFuelMod
       ! LOCALS:
       integer :: i ! looping index
       
-      if (this%total_loading > nearzero) then
+      if (this%non_trunk_loading > nearzero) then
         this%bulk_density = 0.0_r8
         do i = 1, num_fuel_classes               
           ! average bulk density across all fuel types except trunks 
@@ -349,7 +349,7 @@ module FatesFuelMod
       ! LOCALS:
       integer :: i ! looping index
       
-      if (this%total_loading > nearzero) then
+      if (this%non_trunk_loading > nearzero) then
         this%SAV = 0.0_r8
         do i = 1, num_fuel_classes               
           ! average bulk density across all fuel types except trunks 

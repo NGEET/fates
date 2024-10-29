@@ -16,27 +16,27 @@ program FatesTestFuel
   implicit none
   
   ! LOCALS:
-  type(fates_unit_test_param_reader)             :: param_reader       ! param reader instance
-  type(fuel_models_array_class)                  :: fuel_models_array  ! array of fuel models
-  class(fire_weather),               pointer     :: fireWeather        ! fire weather object
-  type(fuel_type),                   allocatable :: fuel(:)            ! fuel objects                          
-  character(len=:),                  allocatable :: param_file         ! input parameter file
-  character(len=:),                  allocatable :: datm_file          ! input DATM driver file
-  real(r8),                          allocatable :: temp_degC(:)       ! daily air temperature [degC]
-  real(r8),                          allocatable :: precip(:)          ! daily precipitation [mm]
-  real(r8),                          allocatable :: rh(:)              ! daily relative humidity [%]
-  real(r8),                          allocatable :: wind(:)            ! daily wind speed [m/s]
-  real(r8),                          allocatable :: NI(:)              ! Nesterov index
-  real(r8),                          allocatable :: fuel_loading(:,:)  ! fuel loading [kgC/m2]
-  real(r8),                          allocatable :: total_loading(:)   ! total fuel loading [kgC/m2]
-  real(r8),                          allocatable :: frac_loading(:,:)  ! fractional fuel loading [0-1]
-  real(r8),                          allocatable :: fuel_BD(:)         ! bulk density of fuel [kg/m3]
-  real(r8),                          allocatable :: fuel_SAV(:)        ! fuel surface area to volume ratio [/cm]
-  real(r8),                          allocatable :: fuel_moisture(:,:) ! fuel moisture [m3/m3]
-  character(len=100),                allocatable :: fuel_names(:)      ! names of fuel models
-  character(len=2),                  allocatable :: carriers(:)        ! carriers of fuel models
-  integer                                        :: i, f               ! looping indices
-  integer                                        :: num_fuel_models    ! number of fuel models to test
+  type(fates_unit_test_param_reader)             :: param_reader         ! param reader instance
+  type(fuel_models_array_class)                  :: fuel_models_array    ! array of fuel models
+  class(fire_weather),               pointer     :: fireWeather          ! fire weather object
+  type(fuel_type),                   allocatable :: fuel(:)              ! fuel objects                          
+  character(len=:),                  allocatable :: param_file           ! input parameter file
+  character(len=:),                  allocatable :: datm_file            ! input DATM driver file
+  real(r8),                          allocatable :: temp_degC(:)         ! daily air temperature [degC]
+  real(r8),                          allocatable :: precip(:)            ! daily precipitation [mm]
+  real(r8),                          allocatable :: rh(:)                ! daily relative humidity [%]
+  real(r8),                          allocatable :: wind(:)              ! daily wind speed [m/s]
+  real(r8),                          allocatable :: NI(:)                ! Nesterov index
+  real(r8),                          allocatable :: fuel_loading(:,:)    ! fuel loading [kgC/m2]
+  real(r8),                          allocatable :: non_trunk_loading(:) ! non-trunk fuel loading [kgC/m2]
+  real(r8),                          allocatable :: frac_loading(:,:)    ! fractional fuel loading [0-1]
+  real(r8),                          allocatable :: fuel_BD(:)           ! bulk density of fuel [kg/m3]
+  real(r8),                          allocatable :: fuel_SAV(:)          ! fuel surface area to volume ratio [/cm]
+  real(r8),                          allocatable :: fuel_moisture(:,:)   ! fuel moisture [m3/m3]
+  character(len=100),                allocatable :: fuel_names(:)        ! names of fuel models
+  character(len=2),                  allocatable :: carriers(:)          ! carriers of fuel models
+  integer                                        :: i, f                 ! looping indices
+  integer                                        :: num_fuel_models      ! number of fuel models to test
   
   ! CONSTANTS:
   integer,          parameter :: n_days = 365             ! number of days to run simulation
@@ -59,7 +59,7 @@ program FatesTestFuel
   allocate(frac_loading(num_fuel_classes, num_fuel_models))
   allocate(fuel_BD(num_fuel_models))
   allocate(fuel_SAV(num_fuel_models))
-  allocate(total_loading(num_fuel_models))
+  allocate(non_trunk_loading(num_fuel_models))
   allocate(fuel_names(num_fuel_models))
   allocate(carriers(num_fuel_models))
   
@@ -96,7 +96,7 @@ program FatesTestFuel
     
     ! save values
     fuel_loading(:,f) = fuel(f)%loading(:)
-    total_loading(f) = fuel(f)%total_loading
+    non_trunk_loading(f) = fuel(f)%non_trunk_loading
     frac_loading(:,f) = fuel(f)%frac_loading(:)
     fuel_BD(f) = fuel(f)%bulk_density
     fuel_SAV(f) = fuel(f)%SAV
@@ -117,7 +117,7 @@ program FatesTestFuel
   
   ! write out data
   call WriteFireData(out_file, n_days, num_fuel_models, temp_degC, precip, rh, NI,       &
-    fuel_loading, frac_loading, fuel_BD, fuel_SAV, total_loading, fuel_moisture,         &
+    fuel_loading, frac_loading, fuel_BD, fuel_SAV, non_trunk_loading, fuel_moisture,         &
     fuel_models, carriers)
   
 end program FatesTestFuel

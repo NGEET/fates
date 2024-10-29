@@ -55,16 +55,16 @@ module test_FireFuel
       class(TestFireFuel), intent(inout) :: this                    ! fuel test object
       real(r8)                           :: dummy_litter = 5.0_r8   ! dummy litter value [kgC/m2]
       real(r8)                           :: trunk_litter = 100.0_r8 ! trunk branch litter [kgC/m2]
-      real(r8)                           :: total_loading           ! what total loading should be [kgC/m2]
+      real(r8)                           :: non_trunk_loading       ! what non-trunk loading should be [kgC/m2]
       
-      total_loading = dummy_litter*5.0_r8
+      non_trunk_loading = dummy_litter*5.0_r8
 
       call this%fuel%CalculateLoading(dummy_litter, dummy_litter, dummy_litter,          &
         dummy_litter, trunk_litter, dummy_litter)
       
       call this%fuel%SumLoading()
 
-      @assertEqual(this%fuel%total_loading, total_loading, tolerance=tol)
+      @assertEqual(this%fuel%non_trunk_loading, non_trunk_loading, tolerance=tol)
 
     end subroutine SumLoading_CorrectValues
 
@@ -74,12 +74,12 @@ module test_FireFuel
       class(TestFireFuel), intent(inout) :: this                    ! fuel test object
       real(r8)                           :: dummy_litter = 5.0_r8   ! dummy litter value [kgC/m2]
       real(r8)                           :: trunk_litter = 100.0_r8 ! trunk branch litter [kgC/m2]
-      real(r8)                           :: total_loading           ! what total loading should be [kgC/m2]
+      real(r8)                           :: non_trunk_loading       ! what non-trunk loading should be [kgC/m2]
       real(r8)                           :: frac_loading            ! what the fractional loading should be [0-1]
       integer                            :: i                       ! looping index
       
-      total_loading = dummy_litter*float(num_fuel_classes - 1)
-      frac_loading = dummy_litter/total_loading
+      non_trunk_loading = dummy_litter*float(num_fuel_classes - 1)
+      frac_loading = dummy_litter/non_trunk_loading
 
       call this%fuel%CalculateLoading(dummy_litter, dummy_litter, dummy_litter,          &
         dummy_litter, trunk_litter, dummy_litter)

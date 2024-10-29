@@ -2679,7 +2679,7 @@ contains
             hio_fire_fuel_eff_moist_si(io_si)  = hio_fire_fuel_eff_moist_si(io_si) + cpatch%fuel%average_moisture * cpatch%area * AREA_INV
             hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel%SAV * cpatch%area * AREA_INV / m_per_cm
             hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel%MEF * cpatch%area * AREA_INV
-            hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%fuel%total_loading * cpatch%area * AREA_INV
+            hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%fuel%non_trunk_loading * cpatch%area * AREA_INV
 
             hio_fire_intensity_area_product_si(io_si) = hio_fire_intensity_area_product_si(io_si) + &
                  cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
@@ -3475,7 +3475,7 @@ contains
 
                 ! Fuel sum [kg/m2]
                 hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) = hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) +  &
-                     cpatch%fuel%total_loading * cpatch%area * AREA_INV
+                     cpatch%fuel%non_trunk_loading * cpatch%area * AREA_INV
 
 
 
@@ -4259,13 +4259,13 @@ contains
 
                    i_agefuel = get_agefuel_class_index(cpatch%age,i_fuel)
                    hio_fuel_amount_age_fuel(io_si,i_agefuel) = hio_fuel_amount_age_fuel(io_si,i_agefuel) + &
-                        cpatch%fuel%frac_loading(i_fuel) * cpatch%fuel%total_loading * cpatch%area * AREA_INV
+                        cpatch%fuel%frac_loading(i_fuel) * cpatch%fuel%non_trunk_loading * cpatch%area * AREA_INV
 
                    hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
                         cpatch%fuel%effective_moisture(i_fuel) * cpatch%area * AREA_INV
 
                    hio_fuel_amount_si_fuel(io_si, i_fuel) = hio_fuel_amount_si_fuel(io_si, i_fuel) + &
-                        cpatch%fuel%frac_loading(i_fuel) * cpatch%fuel%total_loading * cpatch%area * AREA_INV
+                        cpatch%fuel%frac_loading(i_fuel) * cpatch%fuel%non_trunk_loading * cpatch%area * AREA_INV
 
                    hio_burnt_frac_litter_si_fuel(io_si, i_fuel) = hio_burnt_frac_litter_si_fuel(io_si, i_fuel) + &
                         cpatch%fuel%frac_burnt(i_fuel) * cpatch%frac_burnt * cpatch%area * AREA_INV

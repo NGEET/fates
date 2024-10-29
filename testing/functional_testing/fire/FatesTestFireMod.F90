@@ -105,7 +105,7 @@ module FatesTestFireMod
     !=====================================================================================
 
     subroutine WriteFireData(out_file, nsteps, nfuelmods, temp_degC, precip, rh, NI,     &
-      loading, frac_loading, fuel_BD, fuel_SAV, total_loading, fuel_moisture,            &
+      loading, frac_loading, fuel_BD, fuel_SAV, non_trunk_loading, fuel_moisture,            &
       fuel_models, carriers)
       !
       ! DESCRIPTION:
@@ -122,7 +122,7 @@ module FatesTestFireMod
       real(r8),           intent(in) :: NI(:)
       real(r8),           intent(in) :: loading(:,:)
       real(r8),           intent(in) :: frac_loading(:,:)
-      real(r8),           intent(in) :: total_loading(:)
+      real(r8),           intent(in) :: non_trunk_loading(:)
       real(r8),           intent(in) :: fuel_moisture(:,:)
       real(r8),           intent(in) :: fuel_BD(:)
       real(r8),           intent(in) :: fuel_SAV(:)
@@ -230,8 +230,8 @@ module FatesTestFireMod
         [character(len=150) :: 'litter_class fuel_model', '', 'fractional loading'],   &                                                    
         3, frac_loadingID)
         
-      ! register total fuel loading
-      call RegisterVar(ncid, 'total_loading', dimIDs(3:3), type_double,    &
+      ! register non-trunk fuel loading
+      call RegisterVar(ncid, 'non_trunk_loading', dimIDs(3:3), type_double,    &
         [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
         [character(len=150) :: 'fuel_model', 'kgC m-2', 'total loading'],  &                                                  
         3, tot_loadingID)
@@ -262,7 +262,7 @@ module FatesTestFireMod
       call WriteVar(ncid, NIID, NI(:))
       call WriteVar(ncid, loadingID, loading(:,:))
       call WriteVar(ncid, frac_loadingID, frac_loading(:,:))
-      call WriteVar(ncid, tot_loadingID, total_loading(:))
+      call WriteVar(ncid, tot_loadingID, non_trunk_loading(:))
       call WriteVar(ncid, moistiD, fuel_moisture(:,:))
       call WriteVar(ncid, BDID, fuel_BD(:))
       call WriteVar(ncid, SAVID, fuel_SAV(:))
