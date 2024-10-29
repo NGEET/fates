@@ -4860,15 +4860,6 @@ contains
           ! Loop through cohorts on patch
           ccohort => cpatch%shortest
           cohortloop: do while(associated(ccohort))
-             ! TODO: Unnecessary?
-             ! get indices for size class x pft and cohort age x pft
-             ! size class is the fastest changing dimension
-             call sizetype_class_index(ccohort%dbh, ccohort%pft,                &
-                  ccohort%size_class, ccohort%size_by_pft_class)
-             ! cohort age is the fastest changing dimension
-             ! TODO: Unnecessary?
-             call coagetype_class_index(ccohort%coage, ccohort%pft,             &
-                  ccohort%coage_class, ccohort%coage_by_pft_class)
 
              ! If you SUM across all age classes, you should get the mean site value.
              cohort_n_div_site_area = ccohort%n * AREA_INV
