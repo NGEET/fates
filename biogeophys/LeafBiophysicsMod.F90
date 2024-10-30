@@ -134,6 +134,10 @@ module LeafBiophysicsMod
   real(r8),parameter :: theta_psii = 0.7_r8
 
   logical, parameter :: base_compare_revert = .true.
+
+  ! For plants with no leaves, a miniscule amount of conductance
+  ! can happen through the stems, at a partial rate of cuticular conductance
+  real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
   
   ! These are parameter constants read in externally
   ! some are differentiated by PFT, others are not
@@ -247,7 +251,7 @@ contains
     end if
 
     vpd =  max((veg_esat - can_vpress), min_vpd_pa) * kpa_per_pa
-
+    
     term = h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press)
     aquad = 1.0_r8
     bquad = -(2.0 * (stomatal_intercept_btran+ term) + (lb_params%medlyn_slope(ft) * term)**2 / &
@@ -266,7 +270,7 @@ contains
 
   ! =======================================================================================
 
-  subroutine StomatalCondBallBerry(a_gs,ft,veg_esat,can_vpress,stomatal_intercept_btran,leaf_co2_ppress,can_press, gb, gs)
+  subroutine StomatalCondBallBerry(a_gs,a_net,ft,veg_esat,can_vpress,stomatal_intercept_btran,leaf_co2_ppress,can_press, gb, gs)
 
 
                                                      ! Input
@@ -279,7 +283,7 @@ contains
     real(r8), intent(in) :: leaf_co2_ppress          ! CO2 partial pressure at leaf surface (Pa)
     real(r8), intent(in) :: a_gs                     ! The assimilation (a) for calculating conductance (gs)
                                                      ! is either = to anet or agross
-
+    real(r8), intent(in) :: a_net
                                                      ! Output
     real(r8), intent(out) :: gs                      ! leaf stomatal conductance (umol H2O/m**2/s)
 
@@ -295,13 +299,18 @@ contains
     
     ! Apply a constraint to the vapor pressure
     ceair = GetConstrainedVPress(can_vpress,veg_esat)
-    ceair = can_vpress
+    !ceair = can_vpress
+    
     aquad = leaf_co2_ppress
     bquad = leaf_co2_ppress*(gb - stomatal_intercept_btran) - lb_params%bb_slope(ft) * a_gs * can_press
-    cquad = -gb*(leaf_co2_ppress * stomatal_intercept_btran + &
-         lb_params%bb_slope(ft) * a_gs * can_press * ceair/ veg_esat )
-
-    !print*,"PREBALL"
+    
+    if(.not.base_compare_revert) then
+       cquad = -gb*(leaf_co2_ppress * stomatal_intercept_btran + &
+            lb_params%bb_slope(ft) * a_gs * can_press * ceair/ veg_esat )
+    else
+       cquad = -gb*(leaf_co2_ppress * stomatal_intercept_btran + &
+            lb_params%bb_slope(ft) * a_net* can_press * ceair/ veg_esat )
+    end if
     
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
     gs = max(r1,r2)
@@ -684,6 +693,9 @@ contains
        end if
        a_gs = agross
     else
+
+    
+       
        a_gs = anet
     end if
 
@@ -711,7 +723,7 @@ contains
     !
     ! ------------------------------------------------------------------------------------
 
-    leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb * anet * can_press
+    leaf_co2_ppress = can_co2_ppress - h2o_co2_bl_diffuse_ratio/gb * a_gs * can_press
     leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
     
     ! Determine saturation vapor pressure at the leaf surface, from temp and atm-pressure
@@ -721,7 +733,7 @@ contains
        call StomatalCondMedlyn(anet,ft,veg_esat,can_vpress,stomatal_intercept_btran, &
             leaf_co2_ppress,can_press,gb,gs)
     else
-       call StomatalCondBallBerry(a_gs,ft,veg_esat,can_vpress,stomatal_intercept_btran, &
+       call StomatalCondBallBerry(a_gs,anet,ft,veg_esat,can_vpress,stomatal_intercept_btran, &
             leaf_co2_ppress,can_press,gb,gs)
     end if
     
@@ -732,6 +744,12 @@ contains
     ! fval = ci_input - ci_predicted
     fval = ci - (can_co2_ppress - anet * can_press * &
          (h2o_co2_bl_diffuse_ratio*gs + h2o_co2_stoma_diffuse_ratio*gb)/(gb*gs))
+
+    if(base_compare_revert) then
+       if (anet < 0._r8) then
+          fval = 0
+       end if
+    end if
     
   end subroutine CiFunc
 
@@ -871,7 +889,8 @@ contains
   
   ! =====================================================================================
   
-  subroutine LeafLayerPhotosynthesis(par_abs,           &  ! in
+  subroutine LeafLayerPhotosynthesis(par_sun, & ! in
+       par_abs,           &  ! in
        leaf_area,         &  ! in
        ft,                &  ! in
        vcmax,             &  ! in
@@ -910,6 +929,7 @@ contains
 
     ! Arguments
     ! ------------------------------------------------------------------------------------
+    real(r8), intent(in) :: par_sun           ! Used only for comparing with base (temporary)
     real(r8), intent(in) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m2 leaf/s]
     real(r8), intent(in) :: leaf_area         ! leaf area per ground area [m2/m2] 
     integer,  intent(in) :: ft                ! (plant) Functional Type Index
@@ -981,33 +1001,72 @@ contains
 
     ! Assume a trival solve until we encounter both leaf and light
     solve_iter = 0
-    
-    ! Trivial solution - No biomass - no photosynthesis, no conductance, no respiration, no nothin
-    ! --------------------------------------------------------------------------------------------
-
-    if(  leaf_area < nearzero ) then
-       agross  = 0._r8
-       gs      = 0._r8 
-       anet    = 0._r8
-       c13disc = 0._r8
-       return
-    end if
 
     ! Find the stomatal conductance intercept
-
     stomatal_intercept_btran = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft)*btran)
-    
-    ! Less, but still trivial solution - biomass, but no light, no photosynthesis
-    ! Stomatal conductance is the intercept of the conductance functions
-    ! ---------------------------------------------------------------------------------------------
-    if (par_abs < nearzero ) then
-       anet    = -lmr
-       agross  = 0._r8
-       gs      = stomatal_intercept_btran
-       c13disc = 0.0_r8
-       return
-    end if
 
+    base_compare_trivial: if(base_compare_revert) then
+
+       if ( par_sun <= 0._r8 ) then  ! night time
+          
+          anet    = -lmr
+          agross  = 0._r8
+          gs      = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft)*btran)
+          c13disc = 0.0_r8 
+          return
+          
+       else
+          
+          if ( leaf_area <= 0._r8 ) then
+          
+             ! No leaf area. This layer is present only because of stems.
+             ! Net assimilation is zero, not negative because there are
+             ! no leaves to even respire
+             ! (leaves are off, or have reduced to 0)
+             
+             agross  = 0._r8
+             anet    = 0._r8
+             gs      = max(gsmin0_20C1A_mol,stem_cuticle_loss_frac*lb_params%stomatal_intercept(ft))
+             c13disc = 0.0_r8
+
+             return
+          end if
+          
+       end if
+          
+    else
+
+
+       
+
+       ! Trivial solution - No biomass - no photosynthesis, no respiration, only some conductance
+       ! associated with stem loss (RGK-2024: This stem loss will have NO impact, since we
+       ! weight conductance by leaf area when we scale it up to the patch level, where it is
+       ! applied to the energy balance routine.)
+       ! --------------------------------------------------------------------------------------------
+
+       if(  leaf_area < nearzero ) then
+          agross  = 0._r8
+          gs      =  max(gsmin0_20C1A_mol,stem_cuticle_loss_frac*lb_params%stomatal_intercept(ft))
+          anet    = 0._r8
+          c13disc = 0._r8
+          return
+       end if
+
+
+       ! Less, but still trivial solution - biomass, but no light, no photosynthesis
+       ! Stomatal conductance is the intercept of the conductance functions
+       ! ---------------------------------------------------------------------------------------------
+       if (par_abs < nearzero ) then
+          anet    = -lmr
+          agross  = 0._r8
+          gs      = stomatal_intercept_btran
+          c13disc = 0.0_r8
+          return
+       end if
+
+    end if base_compare_trivial
+    
     ! Not trivial solution, some biomass and some light
     ! Initialize first guess of intracellular co2 conc [Pa]
     if (lb_params%c3psn(ft) == c3_path_index) then

@@ -744,7 +744,8 @@ contains
                                     !     lmr_z(iv,ft,cl)
 
                                     
-                                    call LeafLayerPhotosynthesis(par_abs,    &  ! in
+                                    call LeafLayerPhotosynthesis(par_per_sunla, & !
+                                         par_abs,                            &  ! in
                                          leaf_area,                          &  ! in
                                          ft,                                 &  ! in
                                          vcmax_z,                            &  ! in
@@ -785,11 +786,15 @@ contains
                                  ! Stomatal resistance of the leaf-layer
                                  if ( (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
 
+                                    gstoma = max(gstoma,1._r8/rsmax0)
                                     rs_z(iv,ft,cl) = LeafHumidityStomaResis(leaf_psi, EDPftvarcon_inst%hydr_k_lwp(ft), bc_in(s)%t_veg_pa(ifp), &
                                          bc_in(s)%cair_pa(ifp),bc_in(s)%forc_pbot, bc_in(s)%rb_pa(ifp), gstoma, ft)
                                     
                                  else
-                                    rs_z(iv,ft,cl)= 1._r8/gstoma
+                                    ! if gstoma is truly zero, this will be weighted by zero
+                                    
+                                    rs_z(iv,ft,cl)= 1._r8/max(gstoma,1._r8/rsmax0)
+
                                  end if
                                  
                                  rate_mask_z(iv,ft,cl) = .true.
