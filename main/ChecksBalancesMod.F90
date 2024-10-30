@@ -5,7 +5,7 @@ module ChecksBalancesMod
    use EDtypesMod,        only : ed_site_type
    use FatesPatchMod,     only : fates_patch_type
    use FatesCohortMod,    only : fates_cohort_type
-   use EDTypesMod,        only : AREA
+   use EDTypesMod,        only : AREA, area_inv
    use EDTypesMod,        only : site_massbal_type
    use PRTGenericMod,     only : num_elements
    use PRTGenericMod,     only : element_list
@@ -16,6 +16,8 @@ module ChecksBalancesMod
    use FatesLitterMod,    only : ncwd
    use FatesLitterMod,    only : ndcmpy
    use PRTGenericMod,     only : carbon12_element
+   use PRTGenericMod,     only : nitrogen_element
+   use PRTGenericMod,     only : phosphorus_element
    use PRTGenericMod,     only : leaf_organ
    use PRTGenericMod,     only : fnrt_organ
    use PRTGenericMod,     only : sapw_organ
@@ -31,7 +33,8 @@ module ChecksBalancesMod
    private
    public :: SiteMassStock
    public :: PatchMassStock
-
+   public :: CheckIntegratedMassPools
+   
    character(len=*), parameter, private :: sourcefile = &
         __FILE__
 
@@ -240,7 +243,137 @@ contains
     return
   end subroutine CheckLitterPools
 
+  ! ==================================================================
 
+  subroutine CheckIntegratedMassPools(site)
+
+    ! -----------------------------------------------------------------------------------
+    !
+    ! This subroutine checks that the time integrated net fluxes in and out of
+    ! the vegetation and the litter actually match the quantity in those pools.
+    !
+    ! -----------------------------------------------------------------------------------
+    
+    type(ed_site_type), intent(inout) :: site
+
+    !integer  :: nsites
+    integer  :: el
+    integer  :: s
+    real(r8) :: tot_veg_turnover
+    real(r8) :: tot_litter_input
+    real(r8) :: net_uptake
+    real(r8) :: biomass_stock
+    real(r8) :: seed_stock
+    real(r8) :: litter_stock
+    real(r8) :: total_stock
+
+    logical,parameter :: check_iflux_bal = .true.  
+
+    if(check_iflux_bal) then
+
+       ! For carbon balance checks, we need to initialize the
+       ! total carbon stock
+       do el=1,num_elements
+          call SiteMassStock(site,el,total_stock, &
+               biomass_stock,litter_stock,seed_stock)
+
+          associate(ibal => site%iflux_balance(el), &
+               ediag => site%flux_diags%elem(el), &
+               diag  => site%flux_diags, &
+               site_mass => site%mass_balance(el))
+
+            ! Initialize the integrated flux balance diagnostics
+            ! No need to initialize the instantaneous states, those are re-calculated
+
+            ibal%state_liveveg = (biomass_stock + seed_stock)*area_inv
+            ibal%state_litter  = litter_stock * area_inv
+
+            ! Flux for live veg: net uptake (either NPP or net nutrient uptake) +
+            !                    net spatial seed flux -
+            !                    veg turnover to litter -
+            !                    veg loss to fire (SEEDS DONT BURN) -
+            !                    veg loss from exported harvest - 
+            !                    seed turnover
+
+            tot_litter_input = (sum(ediag%surf_fine_litter_input(:)) + &
+                 sum(ediag%root_litter_input(:)) + &
+                 sum(ediag%cwd_ag_input(:)) + &
+                 sum(ediag%cwd_bg_input(:)))*area_inv
+
+            select case(element_list(el))
+            case(carbon12_element)
+               net_uptake = diag%npp + site_mass%net_root_uptake*area_inv
+            case(nitrogen_element)
+               net_uptake = site_mass%net_root_uptake*area_inv
+            case(phosphorus_element)
+               net_uptake = site_mass%net_root_uptake*area_inv
+            case default
+               write(fates_log(),*) 'FATES: an invalid chemical species was detected'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end select
+
+            ! Fluxes are in [kg/m2/day] so they can be added,
+            ! the frequency is /day so no conversion necessary
+            ! to integrate to [kg/m2]
+            ibal%iflux_liveveg = ibal%iflux_liveveg + &
+                 ( net_uptake          &
+                 - tot_litter_input    &
+                 - ediag%burned_liveveg &
+                 - ediag%exported_harvest & 
+                 + site_mass%seed_in*area_inv &
+                 - site_mass%seed_out*area_inv &
+                 - ediag%tot_seed_turnover)
+
+            ! Flux for litter: veg turnover + seed turnover - "these are tot_litter_input"
+            !                  fragmentation - 
+            !                  burned litter
+
+            ibal%iflux_litter = ibal%iflux_litter + &
+                 tot_litter_input - &
+                 (site_mass%frag_out*area_inv - ediag%tot_seed_turnover) - &
+                 (site_mass%burn_flux_to_atm*area_inv - ediag%burned_liveveg)
+
+
+            ediag%err_liveveg = ibal%iflux_liveveg - ibal%state_liveveg
+
+            ediag%err_litter  = ibal%iflux_litter - ibal%state_litter
+
+
+            ! Perform the comparison between integrated flux and state
+            !if(abs(ediag%err_liveveg) > iflux_tol(el) ) then
+            !   write(fates_log(),*) 'The fluxes in to an out of live vegetation are integrated'
+            !   write(fates_log(),*) 'in time over the length of the FATES simulation.'
+            !   write(fates_log(),*) 'This integrated quantity is compared with the instantaneous'
+            !   write(fates_log(),*) 'assessment of the total mass, they should be the same quanitity'
+            !   write(fates_log(),*) 'within a tolerance, but there is a discrepancy.'
+            !   write(fates_log(),*) 'state_liveveg: ',ibal%state_liveveg
+            !   write(fates_log(),*) 'iflux_liveveg: ',ibal%iflux_liveveg
+            !   write(fates_log(),*) 'state - iflux: ',ibal%state_liveveg - &
+            !                                          ibal%iflux_liveveg
+            !   call endrun(msg=errMsg(sourcefile, __LINE__))
+            !end if
+
+            !if(abs(ibal%state_litter - ibal%iflux_litter) > iflux_tol(el) ) then
+            !   write(fates_log(),*) 'The fluxes in to an out of litter are integrated'
+            !   write(fates_log(),*) 'in time over the length of the FATES simulation.'
+            !   write(fates_log(),*) 'This integrated quantity is compared with the instantaneous'
+            !   write(fates_log(),*) 'assessment of the total mass, they should be the same quanitity'
+            !   write(fates_log(),*) 'within a tolerance, but there is a discrepancy.'
+            !   write(fates_log(),*) 'state_litter: ',ibal%state_litter
+            !   write(fates_log(),*) 'iflux_litter: ',ibal%iflux_litter
+            !   write(fates_log(),*) 'state - iflux: ',ibal%state_litter - &
+            !                                          ibal%iflux_litter
+            !   call endrun(msg=errMsg(sourcefile, __LINE__))
+            !end if
+
+
+          end associate
+       end do
+
+    end if
+
+    return
+  end subroutine CheckIntegratedMassPools
 
 
    

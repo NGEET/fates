@@ -6,7 +6,6 @@ module FatesCohortMod
   use FatesConstantsMod,          only : nearzero
   use FatesConstantsMod,          only : ican_upper, ican_ustory
   use EDParamsMod,                only : nlevleaf
-  use EDParamsMod,                only : nclmax
   use FatesGlobals,               only : endrun => fates_endrun
   use FatesGlobals,               only : fates_log
   use PRTGenericMod,              only : max_nleafage
@@ -560,7 +559,7 @@ module FatesCohortMod
       real(r8),                 intent(in)             :: ctrim            ! fraction of the maximum leaf biomass 
       real(r8),                 intent(in)             :: spread           ! how spread crowns are in horizontal space
       real(r8),                 intent(in)             :: carea            ! area of cohort, for SP mode [m2]
-      real(r8),                 intent(in)             :: can_tlai(nclmax) ! patch-level total LAI of each leaf layer
+      real(r8),                 intent(in)             :: can_tlai(:)      ! patch-level total LAI of each canopy layer
       real(r8),                 intent(in)             :: elongf_leaf      ! leaf elongation factor [fraction]
       real(r8),                 intent(in)             :: elongf_fnrt      ! fine-root "elongation factor" [fraction]
       real(r8),                 intent(in)             :: elongf_stem      ! stem "elongation factor" [fraction]

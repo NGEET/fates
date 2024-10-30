@@ -69,6 +69,7 @@ module FatesSoilBGCFluxMod
   use FatesConstantsMod, only    : sec_per_day
   use FatesConstantsMod, only    : years_per_day
   use FatesConstantsMod, only    : itrue
+  use FatesConstantsMod, only    : nocomp_bareground
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod    , only : ncwd
   use FatesLitterMod    , only : ndcmpy
@@ -218,13 +219,14 @@ contains
                 ccohort%daily_p_demand = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day
                 ! P Uptake:  Convert g/m2/day -> kg/plant/day
                 ccohort%daily_p_gain = bc_in(s)%plant_p_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
+
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
           end do
           
        end if
-          
+
        ! These can now be zero'd
        bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
        bc_in(s)%plant_no3_uptake_flux(:,:) = 0._r8
@@ -287,107 +289,108 @@ contains
     fp = 0
     cpatch => csite%oldest_patch
     do while (associated(cpatch))
-       
-       ! Patch ordering when passing boundary conditions
-       ! always goes from oldest to youngest, following
-       ! the convention of EDPatchDynamics::set_patchno()
-       
-       fp    = fp + 1
-       
-       agnpp = 0._r8
-       bgnpp = 0._r8
-       woody_area = 0._r8
-       plant_area = 0._r8
-       
-       ccohort => cpatch%tallest
-       do while (associated(ccohort))
+       if_notbare: if(cpatch%nocomp_pft_label .ne. nocomp_bareground)then
+          ! Patch ordering when passing boundary conditions
+          ! always goes from oldest to youngest, following
+          ! the convention of EDPatchDynamics::set_patchno()
           
-          ! For consistency, only apply calculations to non-new
-          ! cohorts. New cohorts will not have respiration rates
-          ! at this point in the call sequence.
+          fp    = fp + 1
           
-          if(.not.ccohort%isnew) then
+          agnpp = 0._r8
+          bgnpp = 0._r8
+          woody_area = 0._r8
+          plant_area = 0._r8
+          
+          ccohort => cpatch%tallest
+          do while (associated(ccohort))
              
-             pft   = ccohort%pft
+             ! For consistency, only apply calculations to non-new
+             ! cohorts. New cohorts will not have respiration rates
+             ! at this point in the call sequence.
              
-             call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil, &
-                  bc_in%max_rooting_depth_index_col )
-             
-             fnrt_c   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
-             
-             ! [kgC/day]
-             sapw_net_alloc   = ccohort%prt%GetNetAlloc(sapw_organ, carbon12_element) * days_per_sec
-             store_net_alloc  = ccohort%prt%GetNetAlloc(store_organ, carbon12_element) * days_per_sec
-             leaf_net_alloc   = ccohort%prt%GetNetAlloc(leaf_organ, carbon12_element) * days_per_sec
-             fnrt_net_alloc   = ccohort%prt%GetNetAlloc(fnrt_organ, carbon12_element) * days_per_sec
-             struct_net_alloc = ccohort%prt%GetNetAlloc(struct_organ, carbon12_element) * days_per_sec
-             repro_net_alloc  = ccohort%prt%GetNetAlloc(repro_organ, carbon12_element) * days_per_sec
-             
-             ! [kgC/plant/day] -> [gC/m2/s]
-             agnpp = agnpp + ccohort%n/cpatch%area * (leaf_net_alloc + repro_net_alloc + &
-                  prt_params%allom_agb_frac(pft)*(sapw_net_alloc+store_net_alloc+struct_net_alloc)) * g_per_kg
-             
-             ! [kgC/plant/day] -> [gC/m2/s]
-             bgnpp = bgnpp + ccohort%n/cpatch%area * (fnrt_net_alloc  + &
-                  (1._r8-prt_params%allom_agb_frac(pft))*(sapw_net_alloc+store_net_alloc+struct_net_alloc)) * g_per_kg
-             
-             if(hlm_use_ch4==itrue)then
+             if(.not.ccohort%isnew) then
                 
-                ! Fine root fraction over depth
-                bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) = &
-                     bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) + &
-                     csite%rootfrac_scr(1:bc_in%nlevsoil)
+                pft   = ccohort%pft
                 
-                ! Fine root carbon, convert [kg/plant] -> [g/m2]
-                bc_out%frootc_pa(fp) = &
-                     bc_out%frootc_pa(fp) + &
-                     fnrt_c*ccohort%n/cpatch%area * g_per_kg
+                call set_root_fraction(csite%rootfrac_scr, pft, csite%zi_soil, &
+                     bc_in%max_rooting_depth_index_col )
                 
-                ! (gC/m2/s) root respiration (fine root MR + total root GR)
-                ! RGK: We do not save root respiration and average over the day. Until we do
-                !      this is a best (bad) guess at fine root MR + total root GR
-                !      (kgC/indiv/yr) -> gC/m2/s
-                bc_out%root_resp(1:bc_in%nlevsoil) = bc_out%root_resp(1:bc_in%nlevsoil) + &
-                     (ccohort%resp_m_acc_hold + ccohort%resp_g_acc_hold)*years_per_day*g_per_kg*days_per_sec* &
-                     ccohort%n*area_inv*(1._r8-prt_params%allom_agb_frac(pft)) * csite%rootfrac_scr(1:bc_in%nlevsoil)
+                fnrt_c   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
                 
-             end if
-             
-             if( prt_params%woody(pft)==itrue ) then
-                woody_area = woody_area + ccohort%c_area
-             end if
-             plant_area = plant_area + ccohort%c_area
-             
-             
-          end if
-          
-          ccohort => ccohort%shorter
-       end do
-       
-       if(hlm_use_ch4==itrue)then
-          if( sum(bc_out%rootfr_pa(fp,1:bc_in%nlevsoil)) > nearzero) then
-             bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) = &
-                  bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) / &
-                  sum(bc_out%rootfr_pa(fp,1:bc_in%nlevsoil)) 
-          end if
-          
-          ! RGK: These averages should switch to the new patch averaging methods
-          !      when available.  Right now we are not doing any time averaging
-          !      because it would be mixing the memory of patches, which
-          !      would be arguably worse than just using the instantaneous value
-          
-          ! gC/m2/s
-          bc_out%annavg_agnpp_pa(fp) = agnpp
-          bc_out%annavg_bgnpp_pa(fp) = bgnpp
-          ! gc/m2/yr
-          bc_out%annsum_npp_pa(fp) = (bgnpp+agnpp)*days_per_year*sec_per_day
+                ! [kgC/day]
+                sapw_net_alloc   = ccohort%prt%GetNetAlloc(sapw_organ, carbon12_element) * days_per_sec
+                store_net_alloc  = ccohort%prt%GetNetAlloc(store_organ, carbon12_element) * days_per_sec
+                leaf_net_alloc   = ccohort%prt%GetNetAlloc(leaf_organ, carbon12_element) * days_per_sec
+                fnrt_net_alloc   = ccohort%prt%GetNetAlloc(fnrt_organ, carbon12_element) * days_per_sec
+                struct_net_alloc = ccohort%prt%GetNetAlloc(struct_organ, carbon12_element) * days_per_sec
+                repro_net_alloc  = ccohort%prt%GetNetAlloc(repro_organ, carbon12_element) * days_per_sec
+                
+                ! [kgC/plant/day] -> [gC/m2/s]
+                agnpp = agnpp + ccohort%n/cpatch%area * (leaf_net_alloc + repro_net_alloc + &
+                     prt_params%allom_agb_frac(pft)*(sapw_net_alloc+store_net_alloc+struct_net_alloc)) * g_per_kg
+                
+                ! [kgC/plant/day] -> [gC/m2/s]
+                bgnpp = bgnpp + ccohort%n/cpatch%area * (fnrt_net_alloc  + &
+                     (1._r8-prt_params%allom_agb_frac(pft))*(sapw_net_alloc+store_net_alloc+struct_net_alloc)) * g_per_kg
+                
+                if(hlm_use_ch4==itrue)then
+                   
+                   ! Fine root fraction over depth
+                   bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) = &
+                        bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) + &
+                        csite%rootfrac_scr(1:bc_in%nlevsoil)
+                   
+                   ! Fine root carbon, convert [kg/plant] -> [g/m2]
+                   bc_out%frootc_pa(fp) = &
+                        bc_out%frootc_pa(fp) + &
+                        fnrt_c*ccohort%n/cpatch%area * g_per_kg
+                   
+                   ! (gC/m2/s) root respiration (fine root MR + total root GR)
+                   ! RGK: We do not save root respiration and average over the day. Until we do
+                   !      this is a best (bad) guess at fine root MR + total root GR
+                   !      (kgC/indiv/yr) -> gC/m2/s
+                   bc_out%root_resp(1:bc_in%nlevsoil) = bc_out%root_resp(1:bc_in%nlevsoil) + &
+                        (ccohort%resp_m_acc_hold + ccohort%resp_g_acc_hold)*years_per_day*g_per_kg*days_per_sec* &
+                        ccohort%n*area_inv*(1._r8-prt_params%allom_agb_frac(pft)) * csite%rootfrac_scr(1:bc_in%nlevsoil)
 
-          if(plant_area>nearzero) then
-             bc_out%woody_frac_aere_pa(fp) = woody_area/plant_area
-          end if
-    
-       end if
+                    
+                end if
+                
+                if( prt_params%woody(pft)==itrue ) then
+                   woody_area = woody_area + ccohort%c_area
+                end if
+                plant_area = plant_area + ccohort%c_area
+                
+                
+             end if
+             
+             ccohort => ccohort%shorter
+          end do
        
+          if(hlm_use_ch4==itrue)then
+             if( sum(bc_out%rootfr_pa(fp,1:bc_in%nlevsoil)) > nearzero) then
+                bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) = &
+                     bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) / &
+                     sum(bc_out%rootfr_pa(fp,1:bc_in%nlevsoil)) 
+             end if
+             
+             ! RGK: These averages should switch to the new patch averaging methods
+             !      when available.  Right now we are not doing any time averaging
+             !      because it would be mixing the memory of patches, which
+             !      would be arguably worse than just using the instantaneous value
+             
+             ! gC/m2/s
+             bc_out%annavg_agnpp_pa(fp) = agnpp
+             bc_out%annavg_bgnpp_pa(fp) = bgnpp
+             ! gc/m2/yr
+             bc_out%annsum_npp_pa(fp) = (bgnpp+agnpp)*days_per_year*sec_per_day
+
+             if(plant_area>nearzero) then
+                bc_out%woody_frac_aere_pa(fp) = woody_area/plant_area
+             end if
+    
+          end if
+       end if if_notbare
        cpatch => cpatch%younger
     end do
     
