@@ -91,6 +91,7 @@ module EDMainMod
   use DamageMainMod            , only : IsItDamageTime
   use FatesGlobals             , only : endrun => fates_endrun
   use ChecksBalancesMod        , only : SiteMassStock
+  use ChecksBalancesMod        , only : CheckIntegratedMassPools
   use EDMortalityFunctionsMod  , only : Mortality_Derivative
   use EDTypesMod               , only : AREA_INV
   use PRTGenericMod,          only : carbon12_element
@@ -101,7 +102,6 @@ module EDMainMod
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTLossFluxesMod,       only : PRTMaintTurnover
-  use PRTLossFluxesMod,       only : PRTReproRelease
   use EDPftvarcon,            only : EDPftvarcon_inst
   use FatesHistoryInterfaceMod, only : fates_hist
 
@@ -163,9 +163,10 @@ contains
 
     do el = 1,num_elements
        call currentSite%mass_balance(el)%ZeroMassBalFlux()
-       call currentSite%flux_diags(el)%ZeroFluxDiags()
     end do
+    call currentSite%flux_diags%ZeroFluxDiags()
 
+    
     ! Call a routine that simply identifies if logging should occur
     ! This is limited to a global event until more structured event handling is enabled
     call IsItLoggingTime(hlm_masterproc,currentSite)
@@ -312,7 +313,11 @@ contains
        call terminate_patches(currentSite, bc_in)
     end if
 
+    ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
+
+   
+    
     
   end subroutine ed_ecosystem_dynamics
 
@@ -624,6 +629,11 @@ contains
           currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake = &
                currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake - &
                currentCohort%daily_c_efflux*currentCohort%n
+
+          ! Save NPP diagnostic for flux accounting [kg/m2/day]
+
+          currentSite%flux_diags%npp = currentSite%flux_diags%npp + &
+               (currentCohort%npp_acc_hold/hlm_days_per_year  - currentCohort%resp_excess) * currentCohort%n * area_inv
           
           ! And simultaneously add the input fluxes to mass balance accounting
           site_cmass%gpp_acc   = site_cmass%gpp_acc + &
@@ -822,6 +832,12 @@ contains
        currentPatch => currentPatch%younger
        
     enddo
+
+    ! Check to see if the time integrated fluxes match the state
+    ! Dont call this if we are restarting, it will double count the flux
+    if(.not.is_restarting)then
+       call CheckIntegratedMassPools(currentSite)
+    end if
     
     ! The HLMs need to know about nutrient demand, and/or
     ! root mass and affinities

@@ -219,13 +219,14 @@ contains
                 ccohort%daily_p_demand = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day
                 ! P Uptake:  Convert g/m2/day -> kg/plant/day
                 ccohort%daily_p_gain = bc_in(s)%plant_p_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
+
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
           end do
           
        end if
-          
+
        ! These can now be zero'd
        bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
        bc_in(s)%plant_no3_uptake_flux(:,:) = 0._r8
