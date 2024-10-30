@@ -32,8 +32,8 @@ module FatesFuelMod
       procedure :: SumLoading
       procedure :: CalculateFractionalLoading
       procedure :: UpdateFuelMoisture
-      procedure :: AverageBulkDensity
-      procedure :: AverageSAV
+      procedure :: AverageBulkDensity_NoTrunks
+      procedure :: AverageSAV_NoTrunks
 
   end type fuel_type
   
@@ -302,7 +302,7 @@ module FatesFuelMod
       real(r8), parameter :: MEF_b = 0.066_r8
       
       if (sav <= 0.0_r8) then
-        write(fates_log(), *) 'SAV cannot be negative - SAV = ' // sav
+        write(fates_log(), *) 'SAV cannot be negative - SAV'
         call endrun(msg=errMsg(__FILE__, __LINE__))
       else
         MoistureOfExtinction = MEF_a - MEF_b*log(sav)

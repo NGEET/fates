@@ -91,8 +91,8 @@ program FatesTestFuel
     call fuel(f)%CalculateFractionalLoading()
     
     ! calculate geometric properties
-    call fuel(f)%AverageBulkDensity(SF_val_FBD)
-    call fuel(f)%AverageSAV(SF_val_SAV)
+    call fuel(f)%AverageBulkDensity_NoTrunks(SF_val_FBD)
+    call fuel(f)%AverageSAV_NoTrunks(SF_val_SAV)
     
     ! save values
     fuel_loading(:,f) = fuel(f)%loading(:)

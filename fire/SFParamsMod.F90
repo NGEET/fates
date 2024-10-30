@@ -32,7 +32,7 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_SAV(num_fuel_classes)
    real(r8),protected, public :: SF_val_FBD(num_fuel_classes)
    real(r8),protected, public :: SF_val_min_moisture(num_fuel_classes)
-   real(r8),protected, public :: SF_val_mid_moisture(NFSC)
+   real(r8),protected, public :: SF_val_mid_moisture(num_fuel_classes)
    real(r8),protected, public :: SF_val_low_moisture_Coeff(num_fuel_classes)
    real(r8),protected, public :: SF_val_low_moisture_Slope(num_fuel_classes)
    real(r8),protected, public :: SF_val_mid_moisture_Coeff(num_fuel_classes)
