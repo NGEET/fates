@@ -157,7 +157,7 @@ def main():
                                            'fates_history_damage_bins',
                                            'fates_NCWD','fates_litterclass','fates_leafage_class', \
                                            'fates_plant_organs','fates_hydr_organs','fates_hlm_pftno', \
-                                           'fates_leafage_class','fates_landuse_class']:
+                                           'fates_leafage_class','fates_landuseclass']:
                     otherdimpresent = True
                     otherdimname = var.dimensions[i]
                     otherdimlength = var.shape[i]
