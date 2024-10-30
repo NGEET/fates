@@ -19,7 +19,7 @@ module FatesFuelMod
     real(r8) :: frac_loading(num_fuel_classes)       ! fractional loading of all fuel classes [0-1] 
     real(r8) :: frac_burnt(num_fuel_classes)         ! fraction of litter burnt by fire [0-1]
     real(r8) :: non_trunk_loading                    ! total fuel loading excluding trunks [kgC/m2]
-    real(r8) :: average_moisture                     ! weighted average of fuel moisture across non-trunk fuel classes [m3/m3]
+    real(r8) :: average_moisture_notrunks            ! weighted average of fuel moisture across non-trunk fuel classes [m3/m3]
     real(r8) :: bulk_density_notrunks                ! weighted average of bulk density across non-trunk fuel classes [kg/m3]
     real(r8) :: SAV_notrunks                         ! weighted average of surface area to volume ratio across non-trunk fuel classes [/cm]
     real(r8) :: MEF_notrunks                         ! weighted average of moisture of extinction across non-trunk fuel classes [m3/m3]
@@ -52,7 +52,7 @@ module FatesFuelMod
       this%frac_burnt(1:num_fuel_classes) = 0.0_r8  
       this%effective_moisture(1:num_fuel_classes) = 0.0_r8
       this%non_trunk_loading = 0.0_r8
-      this%average_moisture = 0.0_r8 
+      this%average_moisture_notrunks = 0.0_r8 
       this%bulk_density_notrunks = 0.0_r8
       this%SAV_notrunks = 0.0_r8
       this%MEF_notrunks = 0.0_r8 
@@ -92,8 +92,8 @@ module FatesFuelMod
       
       this%non_trunk_loading = this%non_trunk_loading*self_weight +                      &
         donor_fuel%non_trunk_loading*donor_weight
-      this%average_moisture = this%average_moisture*self_weight +                        &
-        donor_fuel%average_moisture*donor_weight
+      this%average_moisture_notrunks = this%average_moisture_notrunks*self_weight +                        &
+        donor_fuel%average_moisture_notrunks*donor_weight
       this%bulk_density_notrunks = this%bulk_density_notrunks*self_weight +              &
         donor_fuel%bulk_density_notrunks*donor_weight      
       this%SAV_notrunks = this%SAV_notrunks*self_weight + donor_fuel%SAV_notrunks*donor_weight
@@ -211,7 +211,7 @@ module FatesFuelMod
             call endrun(msg=errMsg( __FILE__, __LINE__))
         end select
         
-        this%average_moisture = 0.0_r8
+        this%average_moisture_notrunks = 0.0_r8
         this%MEF_notrunks = 0.0_r8
         do i = 1, num_fuel_classes
           ! calculate moisture of extinction and fuel effective moisture
@@ -220,14 +220,14 @@ module FatesFuelMod
           
           ! average fuel moisture  and MEF across all fuel types except trunks [m3/m3]
           if (i /= fuel_classes%trunks()) then 
-            this%average_moisture = this%average_moisture + this%frac_loading(i)*moisture(i)
+            this%average_moisture_notrunks = this%average_moisture_notrunks + this%frac_loading(i)*moisture(i)
             this%MEF_notrunks = this%MEF_notrunks + this%frac_loading(i)*moisture_of_extinction(i)
           end if 
         end do
 
       else 
         this%effective_moisture(1:num_fuel_classes) = 0.0_r8
-        this%average_moisture = 0.0_r8
+        this%average_moisture_notrunks = 0.0_r8
         this%MEF_notrunks = 0.0_r8
       end if
       

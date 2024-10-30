@@ -111,7 +111,7 @@ program FatesTestFuel
     ! calculate fuel moisture [m3/m3]
     do f = 1, num_fuel_models
       call fuel(f)%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio, fireWeather)
-      fuel_moisture(i, f) = fuel(f)%average_moisture
+      fuel_moisture(i, f) = fuel(f)%average_moisture_notrunks
     end do
   end do 
   

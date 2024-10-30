@@ -6,7 +6,7 @@ module SyntheticFuelModels
   private
   
   ! Fuel model numbers come from Scott and Burgen (2005) RMRS-GTR-153
-  
+
   integer, parameter, public, dimension(52) :: all_fuel_models = (/1, 2, 101, 102, 104,  &
                                                       107, 121, 122, 3, 103, 105, 106,   &
                                                       108, 109, 123, 124, 4, 5, 6, 141,  &

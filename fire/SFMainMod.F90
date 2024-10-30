@@ -269,7 +269,7 @@ contains
        end if
 
        if(write_sf == itrue)then
-          if ( hlm_masterproc == itrue ) write(fates_log(),*) 'average moisture',currentPatch%fuel%average_moisture
+          if ( hlm_masterproc == itrue ) write(fates_log(),*) 'average moisture',currentPatch%fuel%average_moisture_notrunks
        endif
 
        ! ---heat of pre-ignition---
@@ -277,7 +277,7 @@ contains
        !  Rothermel EQ12= 250 Btu/lb + 1116 Btu/lb * average_moisture
        !  conversion of Rothermel (1972) EQ12 in BTU/lb to current kJ/kg 
        !  q_ig in kJ/kg 
-       q_ig = q_dry +2594.0_r8 * currentPatch%fuel%average_moisture
+       q_ig = q_dry +2594.0_r8 * currentPatch%fuel%average_moisture_notrunks
 
        ! ---effective heating number---
        ! Equation A3 in Thonicke et al. 2010.  
@@ -322,7 +322,7 @@ contains
 
        ! mw_weight = relative fuel moisture/fuel moisture of extinction
        ! average values for litter pools (dead leaves, twigs, small and large branches) plus grass
-       mw_weight = currentPatch%fuel%average_moisture/currentPatch%fuel%MEF_notrunks
+       mw_weight = currentPatch%fuel%average_moisture_notrunks/currentPatch%fuel%MEF_notrunks
        
        ! Equation in table A1 Thonicke et al. 2010. 
        ! moist_damp is unitless
