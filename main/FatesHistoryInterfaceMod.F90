@@ -2822,7 +2822,8 @@ contains
                        ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
 
                   hio_aresp_si(io_si) = hio_aresp_si(io_si) + &
-                       (ccohort%resp_g_acc_hold + ccohort%resp_m_acc_hold) * n_perm2 / days_per_year / sec_per_day
+                       (ccohort%resp_g_acc_hold + ccohort%resp_m_acc_hold + &
+                       ccohort%resp_excess_hold) * n_perm2 / days_per_year / sec_per_day
 
                   ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
                   sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, carbon12_element) * days_per_year
@@ -3934,7 +3935,8 @@ contains
                            hio_gpp_canopy_si_scpf(io_si,scpf) = hio_gpp_canopy_si_scpf(io_si,scpf) +  &
                                 n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
                            hio_ar_canopy_si_scpf(io_si,scpf) = hio_ar_canopy_si_scpf(io_si,scpf) + &
-                                n_perm2*(ccohort%resp_m_acc_hold + ccohort%resp_g_acc_hold) / days_per_year / sec_per_day
+                                n_perm2*(ccohort%resp_m_acc_hold + ccohort%resp_g_acc_hold + &
+                                ccohort%resp_excess_hold) / days_per_year / sec_per_day
                            ! growth increment
                            hio_ddbh_canopy_si_scpf(io_si,scpf) = hio_ddbh_canopy_si_scpf(io_si,scpf) + &
                                 ccohort%ddbhdt*ccohort%n * m_per_cm / m2_per_ha
@@ -4069,7 +4071,8 @@ contains
                            hio_gpp_understory_si_scpf(io_si,scpf)      = hio_gpp_understory_si_scpf(io_si,scpf)      + &
                                 n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
                            hio_ar_understory_si_scpf(io_si,scpf)      = hio_ar_understory_si_scpf(io_si,scpf)      + &
-                                n_perm2*(ccohort%resp_m_acc_hold + ccohort%resp_g_acc_hold) / days_per_year / sec_per_day
+                                n_perm2*(ccohort%resp_m_acc_hold + ccohort%resp_g_acc_hold + &
+                                ccohort%resp_excess_hold) / days_per_year / sec_per_day
 
                            ! growth increment
                            hio_ddbh_understory_si_scpf(io_si,scpf) = hio_ddbh_understory_si_scpf(io_si,scpf) + &
@@ -5025,7 +5028,7 @@ contains
                      ! Net Ecosystem Production [kgC/m2/s]. Use yesterday's growth respiration
                      hio_nep_si(io_si) = hio_nep_si(io_si) + &
                           (ccohort%gpp_tstep-ccohort%resp_m_tstep) * n_perm2 * dt_tstep_inv - &
-                          ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
+                          (ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * n_perm2 / days_per_year / sec_per_day
 
                      hio_gpp_si(io_si) = hio_gpp_si(io_si) + &
                           ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
@@ -5112,14 +5115,12 @@ contains
     integer  :: ivar             ! index of IO variable object vector
     integer  :: ft               ! functional type index
     real(r8) :: n_density   ! individual of cohort per m2.
-    real(r8) :: resp_g      ! growth respiration per timestep [kgC/indiv/step]
-    real(r8) :: npp         ! npp for this time-step (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
     real(r8) :: patch_area_by_age(nlevage)  ! patch area in each bin for normalizing purposes
     real(r8) :: canopy_area_by_age(nlevage) ! canopy area in each bin for normalizing purposes
     real(r8) :: site_area_veg_inv           ! 1/area of the site that is not bare-ground 
     integer  :: ipa2     ! patch incrementer
-    integer :: clllpf_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
+    integer  :: clllpf_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
     real(r8) :: clllpf_area  ! area footprint (m2) for the current cl x ll x pft bin
     real(r8) :: clll_area    ! area footprint (m2) for the cl x ll bin (ie adds up pfts in parallel)
     real(r8) :: cl_area      ! total weight of all ll x pft bins in the canopy layer
@@ -5211,8 +5212,6 @@ contains
             canopy_area_by_age(cpatch%age_class) = &
                  canopy_area_by_age(cpatch%age_class) + cpatch%total_canopy_area
 
-
-
             ! Canopy resitance terms
             hio_c_stomata_si_age(io_si,cpatch%age_class) = &
                  hio_c_stomata_si_age(io_si,cpatch%age_class) + &
@@ -5233,13 +5232,14 @@ contains
                   associate( scpf => ccohort%size_by_pft_class, &
                        scls => ccohort%size_class )
 
-                    ! Total AR (kgC/m2/s) = (kgC/plant/step) / (s/step) * (plant/m2)   ! CDK: this should be daily
+                    ! Total AR (kgC/m2/s) = (kgC/plant/step) / (s/step) * (plant/m2)
                     hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
-                         (ccohort%resp_m_tstep*dt_tstep_inv) * n_perm2
+                         (ccohort%resp_m_tstep*dt_tstep_inv) * n_perm2 + &
+                         ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
 
                     ! Growth AR (kgC/m2/s)   ! CDK: this should be daily
                     hio_ar_grow_si_scpf(io_si,scpf) = hio_ar_grow_si_scpf(io_si,scpf) + &
-                         (ccohort%resp_g_tstep*dt_tstep_inv) * n_perm2
+                         ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
 
                     ! Maint AR (kgC/m2/s)
                     hio_ar_maint_si_scpf(io_si,scpf) = hio_ar_maint_si_scpf(io_si,scpf) + &
@@ -5279,7 +5279,7 @@ contains
                        hio_froot_mr_canopy_si_scls(io_si,scls) = hio_froot_mr_canopy_si_scls(io_si,scls) + &
                             ccohort%froot_mr  * ccohort%n * ha_per_m2
                        hio_resp_g_canopy_si_scls(io_si,scls) = hio_resp_g_canopy_si_scls(io_si,scls) + &
-                            resp_g  * ccohort%n * dt_tstep_inv * ha_per_m2
+                            ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
                        hio_resp_m_canopy_si_scls(io_si,scls) = hio_resp_m_canopy_si_scls(io_si,scls) + &
                             ccohort%resp_m_tstep  * ccohort%n * dt_tstep_inv * ha_per_m2
                     else
@@ -5294,7 +5294,7 @@ contains
                        hio_froot_mr_understory_si_scls(io_si,scls) = hio_froot_mr_understory_si_scls(io_si,scls) + &
                             ccohort%froot_mr  * ccohort%n  * ha_per_m2
                        hio_resp_g_understory_si_scls(io_si,scls) = hio_resp_g_understory_si_scls(io_si,scls) + &
-                            resp_g  * ccohort%n * dt_tstep_inv  * ha_per_m2
+                            ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
                        hio_resp_m_understory_si_scls(io_si,scls) = hio_resp_m_understory_si_scls(io_si,scls) + &
                             ccohort%resp_m_tstep  * ccohort%n * dt_tstep_inv  * ha_per_m2
                     endif

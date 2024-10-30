@@ -521,21 +521,22 @@ contains
              ! at this point we have the info we need to calculate growth respiration
              ! as a "tax" on the difference between daily GPP and daily maintenance respiration
              if (hlm_use_ed_prescribed_phys .eq. ifalse) then
-                currentCohort%resp_g_acc = prt_params%grperc(ft) * &
-                     max(0._r8,(currentCohort%gpp_acc - currentCohort%resp_m_acc))
-                currentCohort%resp_g_acc_hold = currentCohort%resp_g_acc * real(hlm_days_per_year,r8)
+
+                currentCohort%resp_g_acc_hold = prt_params%grperc(ft) * &
+                     max(0._r8,(currentCohort%gpp_acc - currentCohort%resp_m_acc)) * real(hlm_days_per_year,r8)
+
              else
                 ! set growth respiration to zero in prescribed physiology mode,
                 ! that way the npp_acc vars will be set to the nominal gpp values set above.
-                currentCohort%resp_g_acc = 0._r8
                 currentCohort%resp_g_acc_hold = 0._r8
              endif
 
              ! calculate the npp as the difference between gpp and autotrophic respiration
              ! (NPP is also updated if there is any excess respiration from nutrient limitations)
-             currentCohort%npp_acc       = currentCohort%gpp_acc - (currentCohort%resp_m_acc + currentCohort%resp_g_acc)
-             currentCohort%npp_acc_hold  = currentCohort%gpp_acc_hold - (currentCohort%resp_m_acc_hold + currentCohort%resp_g_acc_hold)
-
+             currentCohort%npp_acc       = currentCohort%gpp_acc - &
+                  (currentCohort%resp_m_acc + currentCohort%resp_g_acc_hold/real(hlm_days_per_year,r8))
+             currentCohort%npp_acc_hold  = currentCohort%gpp_acc_hold - &
+                  (currentCohort%resp_m_acc_hold + currentCohort%resp_g_acc_hold)
              
 
              ! Conduct Maintenance Turnover (parteh)
@@ -661,8 +662,9 @@ contains
                 currentCohort%gpp_acc * currentCohort%n
 
           site_cmass%aresp_acc = site_cmass%aresp_acc + &
-               (currentCohort%resp_m_acc+currentCohort%resp_g_acc+currentCohort%resp_excess_hold) * &
-               currentCohort%n
+               currentCohort%resp_m_acc*currentCohort%n + & 
+               (currentCohort%resp_g_acc_hold+currentCohort%resp_excess_hold) * &
+               currentCohort%n/real( hlm_days_per_year,r8)
 
           call currentCohort%prt%CheckMassConservation(ft,5)
 
@@ -1083,19 +1085,16 @@ contains
 
           currentCohort%isnew=.false.
 
-          
-          currentCohort%resp_g_acc = prt_params%grperc(ft) * &
-               max(0._r8,(currentCohort%gpp_acc - currentCohort%resp_m_acc))
+          currentCohort%resp_g_acc_hold = prt_params%grperc(ft) * &
+               max(0._r8,(currentCohort%gpp_acc - currentCohort%resp_m_acc))*real(hlm_days_per_year,r8)
           
           currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
           currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
-          currentCohort%resp_g_acc_hold = currentCohort%resp_g_acc * real(hlm_days_per_year,r8)
           currentCohort%resp_m_acc_hold = currentCohort%resp_m_acc * real(hlm_days_per_year,r8)
           
           currentCohort%resp_excess_hold = 0._r8
           currentCohort%npp_acc  = 0.0_r8
           currentCohort%gpp_acc  = 0.0_r8
-          currentCohort%resp_g_acc = 0.0_r8
           currentCohort%resp_m_acc = 0.0_r8
 
           ! No need to set the "net_art" terms to zero

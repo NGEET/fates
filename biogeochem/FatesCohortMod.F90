@@ -213,7 +213,6 @@ module FatesCohortMod
                                  ! NEP
 
     real(r8) :: rdark            ! dark respiration [kgC/indiv/s]
-    real(r8) :: resp_g_tstep     ! growth respiration [kgC/indiv/timestep]
     real(r8) :: resp_m_unreduced ! diagnostic-only unreduced maintenance respiration [kgC/indiv/timestep]
     real(r8) :: livestem_mr      ! aboveground live stem maintenance respiration [kgC/indiv/s]
     real(r8) :: livecroot_mr     ! belowground live stem maintenance respiration [kgC/indiv/s]
@@ -419,7 +418,6 @@ module FatesCohortMod
    
       ! RESPIRATION COMPONENTS
       this%rdark                   = nan
-      this%resp_g_tstep            = nan 
       this%resp_m_unreduced        = nan 
       this%resp_excess_hold        = nan 
       this%livestem_mr             = nan 
@@ -526,7 +524,6 @@ module FatesCohortMod
       this%daily_p_demand          = -9._r8
       this%seed_prod               = 0._r8
       this%rdark                   = 0._r8
-      this%resp_g_tstep            = 0._r8
       this%resp_m_unreduced        = 0._r8
       this%livestem_mr             = 0._r8
       this%livecroot_mr            = 0._r8
@@ -753,7 +750,6 @@ module FatesCohortMod
 
       ! RESPIRATION COMPONENTS
       copyCohort%rdark                   = this%rdark
-      copyCohort%resp_g_tstep            = this%resp_g_tstep
       copyCohort%resp_m_unreduced        = this%resp_m_unreduced
       copyCohort%resp_excess_hold        = this%resp_excess_hold
       copyCohort%livestem_mr             = this%livestem_mr
