@@ -1071,8 +1071,6 @@ end subroutine create_cohort
                                       currentCohort%resp_m_acc_hold  = &
                                            (currentCohort%n*currentCohort%resp_m_acc_hold + &
                                            nextc%n*nextc%resp_m_acc_hold)/newn
-                                      currentCohort%resp_g_acc       = (currentCohort%n*currentCohort%resp_g_acc    + &
-                                           nextc%n*nextc%resp_g_acc)/newn
                                       currentCohort%resp_g_acc_hold  = &
                                            (currentCohort%n*currentCohort%resp_g_acc_hold + &
                                            nextc%n*nextc%resp_g_acc_hold)/newn

@@ -133,7 +133,6 @@ module FatesRestartInterfaceMod
   integer :: ir_gpp_acc_co
   integer :: ir_npp_acc_co
   integer :: ir_resp_m_acc_co
-  integer :: ir_resp_g_acc_co
   integer :: ir_gpp_acc_hold_co
   integer :: ir_npp_acc_hold_co
   integer :: ir_resp_m_acc_hold_co
@@ -859,11 +858,6 @@ contains
          long_name='ed cohort - accumulated maintenance respiration over dynamics step', &
          units='kgC/indiv', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_m_acc_co )
-
-    call this%set_restart_var(vname='fates_resp_g_acc', vtype=cohort_r8, &
-         long_name='ed cohort - accumulated growth respiration over dynamics step', &
-         units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_g_acc_co )
 
     call this%set_restart_var(vname='fates_gpp_acc_hold', vtype=cohort_r8, &
          long_name='ed cohort - current step gpp', &
@@ -2069,7 +2063,6 @@ contains
            rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
            rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
            rio_resp_m_acc_co           => this%rvars(ir_resp_m_acc_co)%r81d, &
-           rio_resp_g_acc_co           => this%rvars(ir_resp_g_acc_co)%r81d, &
            rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
            rio_resp_m_acc_hold_co      => this%rvars(ir_resp_m_acc_hold_co)%r81d, &
            rio_resp_g_acc_hold_co      => this%rvars(ir_resp_g_acc_hold_co)%r81d, &
@@ -2393,7 +2386,6 @@ contains
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
                 rio_npp_acc_co(io_idx_co)      = ccohort%npp_acc
                 rio_resp_m_acc_co(io_idx_co)     = ccohort%resp_m_acc
-                rio_resp_g_acc_co(io_idx_co)     = ccohort%resp_g_acc
                 rio_gpp_acc_hold_co(io_idx_co) = ccohort%gpp_acc_hold
                 rio_resp_m_acc_hold_co(io_idx_co) = ccohort%resp_m_acc_hold
                 rio_resp_g_acc_hold_co(io_idx_co) = ccohort%resp_g_acc_hold
@@ -3040,7 +3032,6 @@ contains
           rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
           rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
           rio_resp_m_acc_co           => this%rvars(ir_resp_m_acc_co)%r81d, &
-          rio_resp_g_acc_co           => this%rvars(ir_resp_g_acc_co)%r81d, &
           rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
           rio_resp_m_acc_hold_co      => this%rvars(ir_resp_m_acc_hold_co)%r81d, &
           rio_resp_g_acc_hold_co      => this%rvars(ir_resp_g_acc_hold_co)%r81d, &
@@ -3338,7 +3329,6 @@ contains
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)
                 ccohort%resp_m_acc   = rio_resp_m_acc_co(io_idx_co)
-                ccohort%resp_g_acc   = rio_resp_g_acc_co(io_idx_co)
                 ccohort%gpp_acc_hold = rio_gpp_acc_hold_co(io_idx_co)
                 ccohort%resp_m_acc_hold = rio_resp_m_acc_hold_co(io_idx_co)
                 ccohort%resp_g_acc_hold = rio_resp_g_acc_hold_co(io_idx_co)

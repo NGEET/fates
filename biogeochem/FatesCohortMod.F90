@@ -148,8 +148,6 @@ module FatesCohortMod
     real(r8) :: resp_m_tstep              ! Maintenance respiration (see above *)
     real(r8) :: resp_m_acc
     real(r8) :: resp_m_acc_hold
-
-    real(r8) :: resp_g_acc                ! Growth respication can only be calculated at the daily timestep
     real(r8) :: resp_g_acc_hold
 
     real(r8) :: c13disc_clm               ! carbon 13 discrimination in new synthesized carbon at each indiv/timestep [ppm]
@@ -387,7 +385,6 @@ module FatesCohortMod
       this%resp_m_tstep            = nan 
       this%resp_m_acc              = nan 
       this%resp_m_acc_hold         = nan
-      this%resp_g_acc              = nan 
       this%resp_g_acc_hold         = nan
       this%c13disc_clm             = nan
       this%c13disc_acc             = nan
@@ -486,7 +483,6 @@ module FatesCohortMod
       this%npp_acc                 = 0._r8
       this%resp_m_tstep            = 0._r8
       this%resp_m_acc              = 0._r8
-      this%resp_g_acc              = 0._r8
 
       ! do not zero these, they are not built
       ! so more appropriate to leave unzerod
@@ -716,7 +712,6 @@ module FatesCohortMod
       copyCohort%resp_m_tstep            = this%resp_m_tstep
       copyCohort%resp_m_acc              = this%resp_m_acc
       copyCohort%resp_m_acc_hold         = this%resp_m_acc_hold
-      copyCohort%resp_g_acc              = this%resp_g_acc
       copyCohort%resp_g_acc_hold         = this%resp_g_acc_hold
       copyCohort%c13disc_clm             = this%c13disc_clm
       copyCohort%c13disc_acc             = this%c13disc_acc
@@ -1055,7 +1050,6 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%resp_m_tstep           = ', this%resp_m_tstep
       write(fates_log(),*) 'cohort%resp_m_acc             = ', this%resp_m_acc
       write(fates_log(),*) 'cohort%resp_m_acc_hold        = ', this%resp_m_acc_hold
-      write(fates_log(),*) 'cohort%resp_g_acc             = ', this%resp_g_acc
       write(fates_log(),*) 'cohort%resp_g_acc_hold        = ', this%resp_g_acc_hold
       write(fates_log(),*) 'cohort%rdark                  = ', this%rdark
       write(fates_log(),*) 'cohort%livestem_mr            = ', this%livestem_mr
