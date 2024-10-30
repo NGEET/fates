@@ -5024,14 +5024,14 @@ contains
                      
                      ! Net Ecosystem Production [kgC/m2/s]. Use yesterday's growth respiration
                      hio_nep_si(io_si) = hio_nep_si(io_si) + &
-                          (ccohort%gpp_tstep-ccohort%resp_m) * n_perm2 * dt_tstep_inv - &
+                          (ccohort%gpp_tstep-ccohort%resp_m_tstep) * n_perm2 * dt_tstep_inv - &
                           ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
 
                      hio_gpp_si(io_si) = hio_gpp_si(io_si) + &
                           ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
 
                      hio_maint_resp_si(io_si) = hio_maint_resp_si(io_si) + &
-                          ccohort%resp_m * n_perm2 * dt_tstep_inv
+                          ccohort%resp_m_tstep * n_perm2 * dt_tstep_inv
 
                      hio_maint_resp_unreduced_si(io_si) = hio_maint_resp_unreduced_si(io_si) + &
                           ccohort%resp_m_unreduced * n_perm2 * dt_tstep_inv
@@ -5042,7 +5042,7 @@ contains
                              ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
 
                         hio_maint_resp_secondary_si(io_si) = hio_maint_resp_secondary_si(io_si) + &
-                             ccohort%resp_m * n_perm2 * dt_tstep_inv
+                             ccohort%resp_m_tstep * n_perm2 * dt_tstep_inv
                      end if
 
                      ! Maintenance respiration of different organs
@@ -5243,7 +5243,7 @@ contains
 
                     ! Maint AR (kgC/m2/s)
                     hio_ar_maint_si_scpf(io_si,scpf) = hio_ar_maint_si_scpf(io_si,scpf) + &
-                         (ccohort%resp_m*dt_tstep_inv) * n_perm2
+                         (ccohort%resp_m_tstep*dt_tstep_inv) * n_perm2
 
                     ! Maintenance AR partition variables are stored as rates (kgC/plant/s)
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
@@ -5281,7 +5281,7 @@ contains
                        hio_resp_g_canopy_si_scls(io_si,scls) = hio_resp_g_canopy_si_scls(io_si,scls) + &
                             resp_g  * ccohort%n * dt_tstep_inv * ha_per_m2
                        hio_resp_m_canopy_si_scls(io_si,scls) = hio_resp_m_canopy_si_scls(io_si,scls) + &
-                            ccohort%resp_m  * ccohort%n * dt_tstep_inv * ha_per_m2
+                            ccohort%resp_m_tstep  * ccohort%n * dt_tstep_inv * ha_per_m2
                     else
 
                        ! size-resolved respiration fluxes are in kg C / m2 / s
@@ -5296,7 +5296,7 @@ contains
                        hio_resp_g_understory_si_scls(io_si,scls) = hio_resp_g_understory_si_scls(io_si,scls) + &
                             resp_g  * ccohort%n * dt_tstep_inv  * ha_per_m2
                        hio_resp_m_understory_si_scls(io_si,scls) = hio_resp_m_understory_si_scls(io_si,scls) + &
-                            ccohort%resp_m  * ccohort%n * dt_tstep_inv  * ha_per_m2
+                            ccohort%resp_m_tstep  * ccohort%n * dt_tstep_inv  * ha_per_m2
                     endif
                   end associate
                endif

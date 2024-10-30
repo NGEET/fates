@@ -475,7 +475,7 @@ contains
                currentPatch%btran_ft, mean_temp,                               &
                currentPatch%land_use_label,                                    &
                currentPatch%age_since_anthro_disturbance, frac_site_primary,   &
-                 harvestable_forest_c, harvest_tag)
+               harvestable_forest_c, harvest_tag)
 
              ! -----------------------------------------------------------------------------
              ! Apply Plant Allocation and Reactive Transport
@@ -532,14 +532,11 @@ contains
              endif
 
              ! calculate the npp as the difference between gpp and autotrophic respiration
+             ! (NPP is also updated if there is any excess respiration from nutrient limitations)
              currentCohort%npp_acc       = currentCohort%gpp_acc - (currentCohort%resp_m_acc + currentCohort%resp_g_acc)
              currentCohort%npp_acc_hold  = currentCohort%gpp_acc_hold - (currentCohort%resp_m_acc_hold + currentCohort%resp_g_acc_hold)
 
-             ! Passing gpp_acc_hold to HLM 
-             bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
-                  AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
-             bc_out%ar_site = bc_out%ar_site + (currentCohort%resp_m_acc_hold + currentCohort%resp_g_acc_hold) * & 
-                  AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
+             
 
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
@@ -567,7 +564,7 @@ contains
              currentCohort%daily_n_gain = currentCohort%daily_nh4_uptake + &
                   currentCohort%daily_no3_uptake + currentCohort%sym_nfix_daily
 
-             currentCohort%resp_excess = 0._r8
+             currentCohort%resp_excess_hold = 0._r8
              
           end if if_not_newlyrecovered
 
@@ -616,11 +613,28 @@ contains
           end if
 
           call currentCohort%prt%DailyPRT(phase=3)
+
+          ! If nutrients are limiting growth, and carbon continues
+          ! to accumulate beyond the plant's storage capacity, then
+          ! it will burn carbon as what we call "excess respiration"
+          ! We must subtract this term from NPP
+          
+          currentCohort%npp_acc_hold  = currentCohort%npp_acc_hold - currentCohort%resp_excess_hold
+
+          ! Passing gpp_acc_hold to HLM 
+          bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
+               AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
+          bc_out%ar_site = bc_out%ar_site + (currentCohort%resp_m_acc_hold + &
+               currentCohort%resp_g_acc_hold + currentCohort%resp_excess_hold) * & 
+               AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
+          
           
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
 
           ! -----------------------------------------------------------------------------
+
+
           
           call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in )
 
@@ -647,7 +661,7 @@ contains
                 currentCohort%gpp_acc * currentCohort%n
 
           site_cmass%aresp_acc = site_cmass%aresp_acc + &
-               (currentCohort%resp_m_acc+currentCohort%resp_g_acc+currentCohort%resp_excess) * &
+               (currentCohort%resp_m_acc+currentCohort%resp_g_acc+currentCohort%resp_excess_hold) * &
                currentCohort%n
 
           call currentCohort%prt%CheckMassConservation(ft,5)
@@ -1004,7 +1018,7 @@ contains
                         write(fates_log(),*) 'leaf: ',leaf_m,' structure: ',struct_m,' store: ',store_m
                         write(fates_log(),*) 'fineroot: ',fnrt_m,' repro: ',repro_m,' sapwood: ',sapw_m
                         write(fates_log(),*) 'num plant: ',currentCohort%n
-                        write(fates_log(),*) 'resp excess: ',currentCohort%resp_excess*currentCohort%n
+                        write(fates_log(),*) 'resp excess: ',currentCohort%resp_excess_hold*currentCohort%n
 
                         if(element_list(el).eq.nitrogen_element) then
                            write(fates_log(),*) 'NH4 uptake: ',currentCohort%daily_nh4_uptake*currentCohort%n
@@ -1059,6 +1073,9 @@ contains
     type(fates_patch_type), pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
 
+    bc_out%gpp_site = 0._r8
+    bc_out%ar_site = 0._r8
+    
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
        currentCohort => currentPatch%shortest
@@ -1066,11 +1083,16 @@ contains
 
           currentCohort%isnew=.false.
 
+          
+          currentCohort%resp_g_acc = prt_params%grperc(ft) * &
+               max(0._r8,(currentCohort%gpp_acc - currentCohort%resp_m_acc))
+          
           currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
           currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
           currentCohort%resp_g_acc_hold = currentCohort%resp_g_acc * real(hlm_days_per_year,r8)
           currentCohort%resp_m_acc_hold = currentCohort%resp_m_acc * real(hlm_days_per_year,r8)
-
+          
+          currentCohort%resp_excess_hold = 0._r8
           currentCohort%npp_acc  = 0.0_r8
           currentCohort%gpp_acc  = 0.0_r8
           currentCohort%resp_g_acc = 0.0_r8
@@ -1096,6 +1118,13 @@ contains
           ! Shouldn't need to zero any nutrient fluxes
           ! as they should just be zero, no uptake
           ! in ST3 mode.
+
+          ! Passing 
+          bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
+               AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
+          bc_out%ar_site = bc_out%ar_site + (currentCohort%resp_m_acc_hold + &
+               currentCohort%resp_g_acc_hold + currentCohort%resp_excess_hold) * & 
+               AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
 
           currentCohort => currentCohort%taller
        enddo

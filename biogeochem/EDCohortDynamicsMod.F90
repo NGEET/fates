@@ -1083,8 +1083,9 @@ end subroutine create_cohort
                                            (currentCohort%n*currentCohort%gpp_acc_hold + &
                                            nextc%n*nextc%gpp_acc_hold)/newn
 
-                                      currentCohort%resp_excess = (currentCohort%n*currentCohort%resp_excess + &
-                                           nextc%n*nextc%resp_excess)/newn
+                                      currentCohort%resp_excess_hold = &
+                                           (currentCohort%n*currentCohort%resp_excess_hold + &
+                                           nextc%n*nextc%resp_excess_hold)/newn
 
                                       currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
                                            nextc%n*nextc%dmort)/newn

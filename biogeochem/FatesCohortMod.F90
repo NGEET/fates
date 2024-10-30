@@ -205,11 +205,16 @@ module FatesCohortMod
     integer :: twostr_col  ! The column index in the two-stream solution that this cohort is part of
     
     ! RESPIRATION COMPONENTS
+    real(r8) :: resp_excess_hold ! respiration of excess carbon [kgC/indiv/day]
+                                 ! note: this is flagged "hold" because it is calculated
+                                 ! at the end of the day (dynamics) but is used
+                                 ! on the following day (like growth respiration)
+                                 ! to aid in reporting a more accurate sub-daily
+                                 ! NEP
+
     real(r8) :: rdark            ! dark respiration [kgC/indiv/s]
     real(r8) :: resp_g_tstep     ! growth respiration [kgC/indiv/timestep]
-    real(r8) :: resp_m           ! maintenance respiration [kgC/indiv/timestep] 
     real(r8) :: resp_m_unreduced ! diagnostic-only unreduced maintenance respiration [kgC/indiv/timestep]
-    real(r8) :: resp_excess      ! respiration of excess carbon [kgC/indiv/day]
     real(r8) :: livestem_mr      ! aboveground live stem maintenance respiration [kgC/indiv/s]
     real(r8) :: livecroot_mr     ! belowground live stem maintenance respiration [kgC/indiv/s]
     real(r8) :: froot_mr         ! live fine root maintenance respiration [kgC/indiv/s]
@@ -415,9 +420,8 @@ module FatesCohortMod
       ! RESPIRATION COMPONENTS
       this%rdark                   = nan
       this%resp_g_tstep            = nan 
-      this%resp_m                  = nan 
       this%resp_m_unreduced        = nan 
-      this%resp_excess             = nan 
+      this%resp_excess_hold        = nan 
       this%livestem_mr             = nan 
       this%livecroot_mr            = nan 
       this%froot_mr                = nan 
@@ -493,6 +497,7 @@ module FatesCohortMod
       ! this%npp_acc_hold            = nan
       ! this%resp_m_acc_hold         = nan
       ! this%resp_g_acc_hold         = nan
+      ! this%resp_excess_hold        = nan
       
       this%c13disc_clm             = 0._r8
       this%c13disc_acc             = 0._r8
@@ -522,9 +527,7 @@ module FatesCohortMod
       this%seed_prod               = 0._r8
       this%rdark                   = 0._r8
       this%resp_g_tstep            = 0._r8
-      this%resp_m                  = 0._r8
       this%resp_m_unreduced        = 0._r8
-      this%resp_excess             = 0._r8
       this%livestem_mr             = 0._r8
       this%livecroot_mr            = 0._r8
       this%froot_mr                = 0._r8
@@ -751,9 +754,8 @@ module FatesCohortMod
       ! RESPIRATION COMPONENTS
       copyCohort%rdark                   = this%rdark
       copyCohort%resp_g_tstep            = this%resp_g_tstep
-      copyCohort%resp_m                  = this%resp_m
       copyCohort%resp_m_unreduced        = this%resp_m_unreduced
-      copyCohort%resp_excess             = this%resp_excess
+      copyCohort%resp_excess_hold        = this%resp_excess_hold
       copyCohort%livestem_mr             = this%livestem_mr
       copyCohort%livecroot_mr            = this%livecroot_mr
       copyCohort%froot_mr                = this%froot_mr
@@ -886,7 +888,7 @@ module FatesCohortMod
         call this%prt%RegisterBCIn(acnp_bc_in_id_cdamage, bc_ival=this%crowndamage)
         
         call this%prt%RegisterBCInOut(acnp_bc_inout_id_dbh, bc_rval=this%dbh)
-        call this%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess, bc_rval=this%resp_excess)
+        call this%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess, bc_rval=this%resp_excess_hold)
         call this%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr, bc_rval=this%l2fr)
         call this%prt%RegisterBCInOut(acnp_bc_inout_id_cx_int, bc_rval=this%cx_int)
         call this%prt%RegisterBCInOut(acnp_bc_inout_id_emadcxdt, bc_rval=this%ema_dcxdt)
@@ -1060,7 +1062,6 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%resp_g_acc             = ', this%resp_g_acc
       write(fates_log(),*) 'cohort%resp_g_acc_hold        = ', this%resp_g_acc_hold
       write(fates_log(),*) 'cohort%rdark                  = ', this%rdark
-      write(fates_log(),*) 'cohort%resp_m                 = ', this%resp_m
       write(fates_log(),*) 'cohort%livestem_mr            = ', this%livestem_mr
       write(fates_log(),*) 'cohort%livecroot_mr           = ', this%livecroot_mr
       write(fates_log(),*) 'cohort%froot_mr               = ', this%froot_mr

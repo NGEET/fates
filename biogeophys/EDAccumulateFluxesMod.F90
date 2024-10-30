@@ -80,13 +80,6 @@ contains
                    ! Accumulate fluxes from hourly to daily values. 
                    ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
 
-                   if ( debug ) then
-
-                      write(fates_log(),*) 'EDAccumFlux 66 ',ccohort%gpp_tstep
-                      write(fates_log(),*) 'EDAccumFlux 67 ',ccohort%resp_m_tstep
-
-                   endif
-
                    ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
                    ccohort%resp_m_acc = ccohort%resp_m_acc + ccohort%resp_m_tstep
 
