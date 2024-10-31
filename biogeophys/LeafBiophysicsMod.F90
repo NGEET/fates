@@ -47,7 +47,6 @@ module LeafBiophysicsMod
   public :: LeafLayerPhotosynthesis
   public :: LeafHumidityStomaResis
   public :: GetCanopyGasParameters
-  public :: GetStomatalInterceptBtran
   public :: LeafLayerMaintenanceRespiration_Ryan_1991
   public :: LeafLayerMaintenanceRespiration_Atkin_etal_2017
   public :: LeafLayerBiophysicalRates
@@ -1034,7 +1033,6 @@ contains
        write (fates_log(),*)'yes_btran_stomatal_intercept_method = 1'
        write (fates_log(),*)'you specified stomatal_intercept_method = ',stomatal_intercept_method
        call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
     end if
 
        
