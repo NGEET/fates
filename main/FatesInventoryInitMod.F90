@@ -798,6 +798,7 @@ contains
       class(prt_vartypes), pointer                :: prt_obj
       real(r8)                                    :: c_time        ! Time patch was recorded
       character(len=patchname_strlen)             :: p_name        ! The patch associated with this cohort
+      character(len=patchname_strlen)             :: c_name        ! Cohort name
       real(r8)                                    :: c_dbh         ! diameter at breast height (cm)
       real(r8)                                    :: c_height      ! tree height (m)
       integer                                     :: c_pft         ! plant functional type index
@@ -840,11 +841,17 @@ contains
       real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
       real(r8), parameter :: abnormal_large_height = 500.0_r8   ! I've never heard of a tree > 500m tall
       integer,  parameter :: recruitstatus = 0
+      logical, parameter :: old_type1_override = .false.
 
-     
-      read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_dbh, &
-            c_height, c_pft, c_nplant
-
+      if(old_type1_override) then
+         ! time patch cohort dbh hite pft nplant bdead alive Avgrg 
+         read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, &
+              c_height, c_pft, c_nplant
+      else
+         read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_dbh, &
+              c_height, c_pft, c_nplant
+      end if
+         
       if( debug_inv) then
          write(*,fmt=wr_fmt) &
               c_time, p_name, c_dbh, c_height, c_pft, c_nplant
