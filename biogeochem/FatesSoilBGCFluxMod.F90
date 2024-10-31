@@ -123,9 +123,7 @@ contains
     ! Locals
     integer                       :: nsites        ! number of sites
     integer                       :: s             ! site loop index
-    integer                       :: j             ! soil layer
     integer                       :: icomp         ! competitor index
-    integer                       :: id            ! decomp layer index
     integer                       :: pft           ! pft index
     type(fates_patch_type), pointer  :: cpatch        ! current patch pointer
     type(fates_cohort_type), pointer :: ccohort       ! current cohort pointer
@@ -647,7 +645,6 @@ contains
     integer  :: nlev_eff_decomp  ! number of effective decomp layers
     real(r8) :: area_frac        ! fraction of site's area of current patch
     real(r8) :: z_decomp         ! Used for calculating depth midpoints of decomp layers
-    integer  :: s                ! Site index
     integer  :: el               ! Element index (C,N,P,etc)
     integer  :: j                ! Soil layer index
     integer  :: id               ! Decomposition layer index

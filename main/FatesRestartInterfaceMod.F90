@@ -2476,7 +2476,7 @@ contains
                 rio_resp_g_acc_hold_co(io_idx_co) = ccohort%resp_g_acc_hold
                 rio_npp_acc_hold_co(io_idx_co) = ccohort%npp_acc_hold
 
-                rio_resp_excess_co(io_idx_co)   = ccohort%resp_excess
+                rio_resp_excess_co(io_idx_co)   = ccohort%resp_excess_hold
 
                 rio_bmort_co(io_idx_co)        = ccohort%bmort
                 rio_hmort_co(io_idx_co)        = ccohort%hmort
@@ -3442,7 +3442,7 @@ contains
                 ccohort%resp_m_acc_hold = rio_resp_m_acc_hold_co(io_idx_co)
                 ccohort%resp_g_acc_hold = rio_resp_g_acc_hold_co(io_idx_co)
                 ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
-                ccohort%resp_excess   = rio_resp_excess_co(io_idx_co)
+                ccohort%resp_excess_hold   = rio_resp_excess_co(io_idx_co)
 
                 ccohort%bmort        = rio_bmort_co(io_idx_co)
                 ccohort%hmort        = rio_hmort_co(io_idx_co)

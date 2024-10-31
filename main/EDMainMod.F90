@@ -102,6 +102,7 @@ module EDMainMod
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTLossFluxesMod,       only : PRTMaintTurnover
+  use PRTParametersMod      , only : prt_params
   use EDPftvarcon,            only : EDPftvarcon_inst
   use FatesHistoryInterfaceMod, only : fates_hist
 
@@ -232,7 +233,7 @@ contains
        ! values.  If we aren't entering that sequence, we need to set the flag
        ! Make sure cohorts are marked as non-recruits
 
-       call bypass_dynamics(currentSite)
+       call bypass_dynamics(currentSite,bc_out)
 
     end if
 
@@ -340,7 +341,7 @@ contains
     use FatesConstantsMod, only : itrue
     use FatesConstantsMod     , only : nearzero
     use EDCanopyStructureMod  , only : canopy_structure
-    use PRTParametersMod      , only : prt_params
+
 
     ! !ARGUMENTS:
 
@@ -666,7 +667,7 @@ contains
           ! Save NPP diagnostic for flux accounting [kg/m2/day]
 
           currentSite%flux_diags%npp = currentSite%flux_diags%npp + &
-               (currentCohort%npp_acc_hold/hlm_days_per_year  - currentCohort%resp_excess) * currentCohort%n * area_inv
+               currentCohort%npp_acc_hold/hlm_days_per_year * currentCohort%n * area_inv
           
           ! And simultaneously add the input fluxes to mass balance accounting
           site_cmass%gpp_acc   = site_cmass%gpp_acc + &
@@ -699,7 +700,7 @@ contains
 
           currentCohort%npp_acc  = 0.0_r8
           currentCohort%gpp_acc  = 0.0_r8
-          currentCohort%resp_acc = 0.0_r8
+          currentCohort%resp_m_acc = 0.0_r8
 
           ! BOC...update tree 'hydraulic geometry'
           ! (size --> heights of elements --> hydraulic path lengths -->
@@ -1075,7 +1076,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine bypass_dynamics(currentSite)
+  subroutine bypass_dynamics(currentSite, bc_out)
 
     ! ----------------------------------------------------------------------------------
     ! If dynamics are bypassed, various fluxes, rates and flags need to be set
@@ -1085,8 +1086,9 @@ contains
     ! ----------------------------------------------------------------------------------
 
     ! Arguments
-    type(ed_site_type)      , intent(inout), target  :: currentSite
-
+    type(ed_site_type)      , intent(inout) :: currentSite
+    type(bc_out_type)       , intent(inout) :: bc_out
+    
     ! Locals
     type(fates_patch_type), pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
@@ -1101,7 +1103,7 @@ contains
 
           currentCohort%isnew=.false.
 
-          currentCohort%resp_g_acc_hold = prt_params%grperc(ft) * &
+          currentCohort%resp_g_acc_hold = prt_params%grperc(currentCohort%pft) * &
                max(0._r8,(currentCohort%gpp_acc - currentCohort%resp_m_acc))*real(hlm_days_per_year,r8)
           
           currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)

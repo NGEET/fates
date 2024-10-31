@@ -2157,7 +2157,7 @@ contains
                      ! Excess carbon respired
                      this%hvars(ih_excess_resp_si)%r81d(io_si) = &
                           this%hvars(ih_excess_resp_si)%r81d(io_si) + &
-                          ccohort%resp_excess*uconv
+                          ccohort%resp_excess_hold*uconv/days_per_year
 
                   case (nitrogen_element) 
 
