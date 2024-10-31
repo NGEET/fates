@@ -138,6 +138,25 @@ module LeafBiophysicsMod
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
+
+
+  ! The stomatal slope can either be scaled by btran or not. FATES had
+  ! a precedent of using this into 2024, but discussions here: https://github.com/NGEET/fates/issues/719
+  ! suggest this is incorrect and or double/counting
+  
+  integer, parameter :: no_btran_stomatal_intercept_method = 0
+  integer, parameter :: yes_btran_stomatal_intercept_method = 1
+  integer, parameter :: stomatal_intercept_method = yes_btran_stomatal_intercept_method
+
+
+  ! Jmax has not been scaled by btran as of 11/24, but discussions here suggest that
+  ! it may be worth testing or using this, see: https://github.com/NGEET/fates/issues/719
+
+  integer, parameter :: no_btran_scale_jmax_method = 0
+  integer, parameter :: yes_btran_scale_jmax_method = 1
+  integer, parameter :: scale_jmax_method = no_btran_scale_jmax_method
+  
+  
   
   ! These are parameter constants read in externally
   ! some are differentiated by PFT, others are not
@@ -976,7 +995,7 @@ contains
     real(r8) :: fval              ! Change in intracellular co2 through
                                   ! one iteration of a solve (ci_init - ci) [Pa]
     logical  :: loop_continue     ! Loop control variable
-    real(r8) :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
+    real(r8) :: eff_stomatal_intercept ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
       
     ! Parameters
     ! ------------------------------------------------------------------------
@@ -1003,15 +1022,38 @@ contains
     solve_iter = 0
 
     ! Find the stomatal conductance intercept
-    stomatal_intercept_btran = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft)*btran)
 
+    if( stomatal_intercept_method .eq. yes_btran_stomatal_intercept_method ) then
+       eff_stomatal_intercept = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft)*btran)
+    elseif( stomatal_intercept_method .eq. no_btran_stomatal_intercept_method ) then
+       eff_stomatal_intercept = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft))
+    else
+       write (fates_log(),*)'error, incorrect stomatal slope scaling method (stomatal_intercept_method) applied'
+       write (fates_log(),*)'valid options are:'
+       write (fates_log(),*)'no_btran_stomatal_intercept_method = 0'
+       write (fates_log(),*)'yes_btran_stomatal_intercept_method = 1'
+       write (fates_log(),*)'you specified stomatal_intercept_method = ',stomatal_intercept_method
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    end if
+
+       
     base_compare_trivial: if(base_compare_revert) then
 
+       if(stomatal_intercept_method .eq. no_btran_stomatal_intercept_method ) then
+          write (fates_log(),*)'error,cant turn off btran stomatal intercept scaling while in revert mode'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       if(scale_jmax_method == yes_btran_scale_jmax_method) then
+          write (fates_log(),*)'error,cant turn on btran jmax scaling while in revert mode'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       
        if ( par_sun <= 0._r8 ) then  ! night time
           
           anet    = -lmr
           agross  = 0._r8
-          gs      = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft)*btran)
+          gs      = eff_stomatal_intercept
           c13disc = 0.0_r8 
           return
           
@@ -1026,7 +1068,7 @@ contains
              
              agross  = 0._r8
              anet    = 0._r8
-             gs      = max(gsmin0_20C1A_mol,stem_cuticle_loss_frac*lb_params%stomatal_intercept(ft))
+             gs      = eff_stomatal_intercept
              c13disc = 0.0_r8
 
              return
@@ -1035,8 +1077,6 @@ contains
        end if
           
     else
-
-
        
 
        ! Trivial solution - No biomass - no photosynthesis, no respiration, only some conductance
@@ -1047,7 +1087,7 @@ contains
 
        if(  leaf_area < nearzero ) then
           agross  = 0._r8
-          gs      =  max(gsmin0_20C1A_mol,stem_cuticle_loss_frac*lb_params%stomatal_intercept(ft))
+          gs      = max(gsmin0_20C1A_mol,stem_cuticle_loss_frac*eff_stomatal_intercept)
           anet    = 0._r8
           c13disc = 0._r8
           return
@@ -1060,7 +1100,7 @@ contains
        if (par_abs < nearzero ) then
           anet    = -lmr
           agross  = 0._r8
-          gs      = stomatal_intercept_btran
+          gs      = eff_stomatal_intercept
           c13disc = 0.0_r8
           return
        end if
@@ -1091,7 +1131,7 @@ contains
        call CiFunc(ci0, &
             ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
             can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-            stomatal_intercept_btran, &
+            eff_stomatal_intercept, &
             anet,agross,gs,fval)
 
        ! fval = ci_input - ci_predicted
@@ -1101,24 +1141,24 @@ contains
        if(.not.base_compare_revert) then
           if( abs(fval) < ci_tol ) then
              loop_continue = .false.
+             exit iter_loop
           end if
        else
           if ((abs(fval)/can_press*1.e06_r8 <=  2.e-06_r8) .or. solve_iter == 5) then
              loop_continue = .false.
+             exit iter_loop
           end if
        end if
           
        ci0 = ci
        
        if( solve_iter == max_iters) then
-
           call CiBisection( &
                ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
                can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-               stomatal_intercept_btran, &
+               eff_stomatal_intercept, &
                anet,agross,gs,ci,solve_iter)
-
-          
+          loop_continue = .false.
           exit iter_loop
        end if
        
@@ -1675,16 +1715,30 @@ contains
     
     if (lb_params%c3psn(ft) == c3_path_index) then
        vcmax = vcmax25 * ft1_f(veg_tempk, vcmaxha) * fth_f(veg_tempk, vcmaxhd, vcmaxse, vcmaxc)
+       kp = -9999._r8
     else
        vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
        vcmax = vcmax / (1._r8 + exp( 0.2_r8*((tfrz+15._r8)-veg_tempk ) ))
        vcmax = vcmax / (1._r8 + exp( 0.3_r8*(veg_tempk-(tfrz+40._r8)) ))
+       kp = kp25_ft * nscaler * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
     end if
-    
-    jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
-    
 
-    kp = kp25_ft * nscaler * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
+    
+    if(  scale_jmax_method .eq. no_btran_scale_jmax_method) then
+       jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
+    elseif( scale_jmax_method .eq. yes_btran_scale_jmax_method) then
+       jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc) * btran
+    else
+       write (fates_log(),*)'error, incorrect jmax scaling method (scale_jmax_method) applied'
+       write (fates_log(),*)'valid options are:'
+       write (fates_log(),*)'no_btran_scale_jmax_method = 0'
+       write (fates_log(),*)'yes_btran_scale_jmax_method = 1'
+       write (fates_log(),*)'you specified scale_jmax_method = ',scale_jmax_method
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
+    
+   
  
  
     ! Adjust for water limitations
@@ -1794,23 +1848,6 @@ contains
     ceair = min( max(air_vpress, min_frac_esat*veg_esat ),veg_esat )
     
   end function GetConstrainedVPress
-
-  ! ====================================================================================
-  
-  real(r8) function GetStomatalInterceptBtran(ft,btran) result(stomatal_intercept_btran)
-
-    ! This helper function returns the stomatal intercept for conductance equations.
-    ! The core mechanic here is to multiply the user parameter by the moisture limitation
-    ! function "btran". It also places a lower limit on this based off of the minimum
-    ! allowable conductance.
-    
-    ! Arguments
-    integer  :: ft
-    real(r8) :: btran
-
-    stomatal_intercept_btran = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft)*btran )
-    
-  end function GetStomatalInterceptBtran
 
   ! =====================================================================================
 

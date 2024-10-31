@@ -189,7 +189,6 @@ contains
     real(r8) :: mm_ko2             ! Michaelis-Menten constant for O2 (Pa)
     real(r8) :: co2_cpoint         ! CO2 compensation point (Pa)
     real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1)
-    real(r8) :: stomatal_intercept_btran   ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
     real(r8) :: kn                 ! leaf nitrogen decay coefficient
     !real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
     real(r8) :: gb_mol             ! leaf boundary layer conductance (molar form: [umol /m**2/s])
@@ -522,14 +521,10 @@ contains
                                     leaf_psi = fates_unset_r8
 
                                  end if
-                                 
-                                
-                                 
 
                                  if(do_fates_salinity)then
                                     btran_eff = btran_eff*currentPatch%bstress_sal_ft(ft)
                                  endif
-
 
                                  ! Bonan et al (2011) JGR, 116, doi:10.1029/2010JG001593 used
                                  ! kn = 0.11. Here, derive kn from vcmax25 as in Lloyd et al 
@@ -571,6 +566,49 @@ contains
 
                                  end select
 
+                                 
+                                 ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
+
+                                 select case (maintresp_leaf_model)
+
+                                 case (lmrmodel_ryan_1991)
+
+                                    call LeafLayerMaintenanceRespiration_Ryan_1991( lnc_top,     &  ! in
+                                         nscaler,                  &  ! in
+                                         ft,                       &  ! in
+                                         bc_in(s)%t_veg_pa(ifp),   &  ! in
+                                         lmr_z(iv,ft,cl))             ! out
+
+                                 case (lmrmodel_atkin_etal_2017)
+
+                                    ! This uses the relationship between leaf N and respiration from Atkin et al 
+                                    ! for the top of the canopy, but then scales through the canopy based on a rdark_scaler.
+                                    ! To assume proportionality with N through the canopy following Lloyd et al. 2010, use the
+                                    ! default parameter value of 2.43, which results in the scaling of photosynthesis and respiration
+                                    ! being proportional through the canopy. To have a steeper decrease in respiration than photosynthesis
+                                    ! this number can be smaller. There is some observational evidence for this being the case
+                                    ! in Lamour et al. 2023. 
+                                    
+                                    kn = DecayCoeffVcmax(currentCohort%vcmax25top, &
+                                         EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1(ft), &
+                                         EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2(ft))
+
+                                    rdark_scaler = exp(-kn * cumulative_lai)
+                                    
+                                    call LeafLayerMaintenanceRespiration_Atkin_etal_2017( lnc_top, &  ! in
+                                         rdark_scaler,                       &  ! in
+                                         ft,                                 &  ! in
+                                         bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                         currentPatch%tveg_lpa%GetMean(),    &  ! in
+                                         lmr_z(iv,ft,cl))                       ! out
+
+                                 case default
+
+                                    write (fates_log(),*)'error, incorrect leaf respiration model specified'
+                                    call endrun(msg=errMsg(sourcefile, __LINE__))
+
+                                 end select
+                                 
                                  ! Pre-process PAR absorbed per unit leaf area for different schemes
                                  ! par_per_sunla = [W absorbed beam+diffuse radiation / m2 of sunlit leaves]
                                  ! par_per_shala = [W absorbed diffuse radiation / m2 of shaded leaves]
@@ -630,47 +668,7 @@ contains
                                  end if if_radsolver
 
 
-                                 ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
-
-                                 select case (maintresp_leaf_model)
-
-                                 case (lmrmodel_ryan_1991)
-
-                                    call LeafLayerMaintenanceRespiration_Ryan_1991( lnc_top,     &  ! in
-                                         nscaler,                  &  ! in
-                                         ft,                       &  ! in
-                                         bc_in(s)%t_veg_pa(ifp),   &  ! in
-                                         lmr_z(iv,ft,cl))             ! out
-
-                                 case (lmrmodel_atkin_etal_2017)
-
-                                    ! This uses the relationship between leaf N and respiration from Atkin et al 
-                                    ! for the top of the canopy, but then scales through the canopy based on a rdark_scaler.
-                                    ! To assume proportionality with N through the canopy following Lloyd et al. 2010, use the
-                                    ! default parameter value of 2.43, which results in the scaling of photosynthesis and respiration
-                                    ! being proportional through the canopy. To have a steeper decrease in respiration than photosynthesis
-                                    ! this number can be smaller. There is some observational evidence for this being the case
-                                    ! in Lamour et al. 2023. 
-                                    
-                                    kn = DecayCoeffVcmax(currentCohort%vcmax25top, &
-                                         EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1(ft), &
-                                         EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2(ft))
-
-                                    rdark_scaler = exp(-kn * cumulative_lai)
-                                    
-                                    call LeafLayerMaintenanceRespiration_Atkin_etal_2017( lnc_top, &  ! in
-                                         rdark_scaler,                       &  ! in
-                                         ft,                                 &  ! in
-                                         bc_in(s)%t_veg_pa(ifp),             &  ! in
-                                         currentPatch%tveg_lpa%GetMean(),    &  ! in
-                                         lmr_z(iv,ft,cl))                       ! out
-
-                                 case default
-
-                                    write (fates_log(),*)'error, incorrect leaf respiration model specified'
-                                    call endrun(msg=errMsg(sourcefile, __LINE__))
-
-                                 end select
+                           
                                  
                                  ! Perform photosynthesis calculations on sunlit and shaded leaves
                                  ! ---------------------------------------------------------------
