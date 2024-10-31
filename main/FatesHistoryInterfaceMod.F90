@@ -5306,7 +5306,7 @@ contains
                     ! Total AR (kgC/m2/s) = (kgC/plant/step) / (s/step) * (plant/m2)
                     hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
                          (ccohort%resp_m_tstep*dt_tstep_inv) * n_perm2 + &
-                         ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
+                         (ccohort%resp_g_acc_hold + ccohort%resp_excess_hold)* n_perm2 / days_per_year / sec_per_day
 
                     ! Growth AR (kgC/m2/s)   ! CDK: this should be daily
                     hio_ar_grow_si_scpf(io_si,scpf) = hio_ar_grow_si_scpf(io_si,scpf) + &

@@ -625,7 +625,9 @@ contains
           ! If nutrients are limiting growth, and carbon continues
           ! to accumulate beyond the plant's storage capacity, then
           ! it will burn carbon as what we call "excess respiration"
-          ! We must subtract this term from NPP
+          ! We must subtract this term from NPP. We do not need to subtract it from
+          ! currentCohort%npp_acc, it has already been removed from this in
+          ! the daily growth code (PARTEH).
           
           currentCohort%npp_acc_hold  = currentCohort%npp_acc_hold - currentCohort%resp_excess_hold
 

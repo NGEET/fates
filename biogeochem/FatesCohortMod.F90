@@ -133,8 +133,11 @@ module FatesCohortMod
     !            after the dynamics call-sequence is completed.  [kgC/indiv/day]
     ! _acc_hold: While _acc is zero'd after the dynamics call sequence and then integrated, 
     !            _acc_hold "holds" the integrated value until the next time dynamics is 
-    !            called. This is necessary for restarts. This variable also has units
-    !            converted to a useful rate [kgC/indiv/yr]
+    !            called. This is useful because growth and excess respiration
+    !            are calculated once daily, but we want to remove the average
+    !            flux from the daily NEP signal, so we remove it from the next day.
+    !            The hold variables are also useful for rebuilding history on restart.
+    !            Units converted to a useful rate [kgC/indiv/yr]
     ! --------------------------------------------------------------------------
 
     real(r8) :: gpp_tstep                 ! Gross Primary Production (see above *)
@@ -202,7 +205,7 @@ module FatesCohortMod
     integer :: twostr_col  ! The column index in the two-stream solution that this cohort is part of
     
     ! RESPIRATION COMPONENTS
-    real(r8) :: resp_excess_hold ! respiration of excess carbon [kgC/indiv/day]
+    real(r8) :: resp_excess_hold ! respiration of excess carbon [kgC/indiv/yr]
                                  ! note: this is flagged "hold" because it is calculated
                                  ! at the end of the day (dynamics) but is used
                                  ! on the following day (like growth respiration)
