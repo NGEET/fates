@@ -6,7 +6,6 @@ module FatesCohortMod
   use FatesConstantsMod,          only : nearzero
   use FatesConstantsMod,          only : ican_upper, ican_ustory
   use EDParamsMod,                only : nlevleaf
-  use EDParamsMod,                only : nclmax
   use FatesGlobals,               only : endrun => fates_endrun
   use FatesGlobals,               only : fates_log
   use PRTGenericMod,              only : max_nleafage
@@ -134,8 +133,11 @@ module FatesCohortMod
     !            after the dynamics call-sequence is completed.  [kgC/indiv/day]
     ! _acc_hold: While _acc is zero'd after the dynamics call sequence and then integrated, 
     !            _acc_hold "holds" the integrated value until the next time dynamics is 
-    !            called. This is necessary for restarts. This variable also has units
-    !            converted to a useful rate [kgC/indiv/yr]
+    !            called. This is useful because growth and excess respiration
+    !            are calculated once daily, but we want to remove the average
+    !            flux from the daily NEP signal, so we remove it from the next day.
+    !            The hold variables are also useful for rebuilding history on restart.
+    !            Units converted to a useful rate [kgC/indiv/yr]
     ! --------------------------------------------------------------------------
 
     real(r8) :: gpp_tstep                 ! Gross Primary Production (see above *)
@@ -148,8 +150,6 @@ module FatesCohortMod
     real(r8) :: resp_m_tstep              ! Maintenance respiration (see above *)
     real(r8) :: resp_m_acc
     real(r8) :: resp_m_acc_hold
-
-    real(r8) :: resp_g_acc                ! Growth respication can only be calculated at the daily timestep
     real(r8) :: resp_g_acc_hold
 
     real(r8) :: c13disc_clm               ! carbon 13 discrimination in new synthesized carbon at each indiv/timestep [ppm]
@@ -205,11 +205,15 @@ module FatesCohortMod
     integer :: twostr_col  ! The column index in the two-stream solution that this cohort is part of
     
     ! RESPIRATION COMPONENTS
+    real(r8) :: resp_excess_hold ! respiration of excess carbon [kgC/indiv/yr]
+                                 ! note: this is flagged "hold" because it is calculated
+                                 ! at the end of the day (dynamics) but is used
+                                 ! on the following day (like growth respiration)
+                                 ! to aid in reporting a more accurate sub-daily
+                                 ! NEP
+
     real(r8) :: rdark            ! dark respiration [kgC/indiv/s]
-    real(r8) :: resp_g_tstep     ! growth respiration [kgC/indiv/timestep]
-    real(r8) :: resp_m           ! maintenance respiration [kgC/indiv/timestep] 
     real(r8) :: resp_m_unreduced ! diagnostic-only unreduced maintenance respiration [kgC/indiv/timestep]
-    real(r8) :: resp_excess      ! respiration of excess carbon [kgC/indiv/day]
     real(r8) :: livestem_mr      ! aboveground live stem maintenance respiration [kgC/indiv/s]
     real(r8) :: livecroot_mr     ! belowground live stem maintenance respiration [kgC/indiv/s]
     real(r8) :: froot_mr         ! live fine root maintenance respiration [kgC/indiv/s]
@@ -383,7 +387,6 @@ module FatesCohortMod
       this%resp_m_tstep            = nan 
       this%resp_m_acc              = nan 
       this%resp_m_acc_hold         = nan
-      this%resp_g_acc              = nan 
       this%resp_g_acc_hold         = nan
       this%c13disc_clm             = nan
       this%c13disc_acc             = nan
@@ -414,10 +417,8 @@ module FatesCohortMod
    
       ! RESPIRATION COMPONENTS
       this%rdark                   = nan
-      this%resp_g_tstep            = nan 
-      this%resp_m                  = nan 
       this%resp_m_unreduced        = nan 
-      this%resp_excess             = nan 
+      this%resp_excess_hold        = nan 
       this%livestem_mr             = nan 
       this%livecroot_mr            = nan 
       this%froot_mr                = nan 
@@ -484,7 +485,6 @@ module FatesCohortMod
       this%npp_acc                 = 0._r8
       this%resp_m_tstep            = 0._r8
       this%resp_m_acc              = 0._r8
-      this%resp_g_acc              = 0._r8
 
       ! do not zero these, they are not built
       ! so more appropriate to leave unzerod
@@ -493,6 +493,7 @@ module FatesCohortMod
       ! this%npp_acc_hold            = nan
       ! this%resp_m_acc_hold         = nan
       ! this%resp_g_acc_hold         = nan
+      ! this%resp_excess_hold        = nan
       
       this%c13disc_clm             = 0._r8
       this%c13disc_acc             = 0._r8
@@ -521,10 +522,7 @@ module FatesCohortMod
       this%daily_p_demand          = -9._r8
       this%seed_prod               = 0._r8
       this%rdark                   = 0._r8
-      this%resp_g_tstep            = 0._r8
-      this%resp_m                  = 0._r8
       this%resp_m_unreduced        = 0._r8
-      this%resp_excess             = 0._r8
       this%livestem_mr             = 0._r8
       this%livecroot_mr            = 0._r8
       this%froot_mr                = 0._r8
@@ -564,7 +562,7 @@ module FatesCohortMod
       real(r8),                 intent(in)             :: ctrim            ! fraction of the maximum leaf biomass 
       real(r8),                 intent(in)             :: spread           ! how spread crowns are in horizontal space
       real(r8),                 intent(in)             :: carea            ! area of cohort, for SP mode [m2]
-      real(r8),                 intent(in)             :: can_tlai(nclmax) ! patch-level total LAI of each leaf layer
+      real(r8),                 intent(in)             :: can_tlai(:)      ! patch-level total LAI of each canopy layer
       real(r8),                 intent(in)             :: elongf_leaf      ! leaf elongation factor [fraction]
       real(r8),                 intent(in)             :: elongf_fnrt      ! fine-root "elongation factor" [fraction]
       real(r8),                 intent(in)             :: elongf_stem      ! stem "elongation factor" [fraction]
@@ -716,7 +714,6 @@ module FatesCohortMod
       copyCohort%resp_m_tstep            = this%resp_m_tstep
       copyCohort%resp_m_acc              = this%resp_m_acc
       copyCohort%resp_m_acc_hold         = this%resp_m_acc_hold
-      copyCohort%resp_g_acc              = this%resp_g_acc
       copyCohort%resp_g_acc_hold         = this%resp_g_acc_hold
       copyCohort%c13disc_clm             = this%c13disc_clm
       copyCohort%c13disc_acc             = this%c13disc_acc
@@ -750,10 +747,8 @@ module FatesCohortMod
 
       ! RESPIRATION COMPONENTS
       copyCohort%rdark                   = this%rdark
-      copyCohort%resp_g_tstep            = this%resp_g_tstep
-      copyCohort%resp_m                  = this%resp_m
       copyCohort%resp_m_unreduced        = this%resp_m_unreduced
-      copyCohort%resp_excess             = this%resp_excess
+      copyCohort%resp_excess_hold        = this%resp_excess_hold
       copyCohort%livestem_mr             = this%livestem_mr
       copyCohort%livecroot_mr            = this%livecroot_mr
       copyCohort%froot_mr                = this%froot_mr
@@ -886,7 +881,7 @@ module FatesCohortMod
         call this%prt%RegisterBCIn(acnp_bc_in_id_cdamage, bc_ival=this%crowndamage)
         
         call this%prt%RegisterBCInOut(acnp_bc_inout_id_dbh, bc_rval=this%dbh)
-        call this%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess, bc_rval=this%resp_excess)
+        call this%prt%RegisterBCInOut(acnp_bc_inout_id_resp_excess, bc_rval=this%resp_excess_hold)
         call this%prt%RegisterBCInOut(acnp_bc_inout_id_l2fr, bc_rval=this%l2fr)
         call this%prt%RegisterBCInOut(acnp_bc_inout_id_cx_int, bc_rval=this%cx_int)
         call this%prt%RegisterBCInOut(acnp_bc_inout_id_emadcxdt, bc_rval=this%ema_dcxdt)
@@ -1057,10 +1052,8 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%resp_m_tstep           = ', this%resp_m_tstep
       write(fates_log(),*) 'cohort%resp_m_acc             = ', this%resp_m_acc
       write(fates_log(),*) 'cohort%resp_m_acc_hold        = ', this%resp_m_acc_hold
-      write(fates_log(),*) 'cohort%resp_g_acc             = ', this%resp_g_acc
       write(fates_log(),*) 'cohort%resp_g_acc_hold        = ', this%resp_g_acc_hold
       write(fates_log(),*) 'cohort%rdark                  = ', this%rdark
-      write(fates_log(),*) 'cohort%resp_m                 = ', this%resp_m
       write(fates_log(),*) 'cohort%livestem_mr            = ', this%livestem_mr
       write(fates_log(),*) 'cohort%livecroot_mr           = ', this%livecroot_mr
       write(fates_log(),*) 'cohort%froot_mr               = ', this%froot_mr

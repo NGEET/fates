@@ -104,7 +104,10 @@ module EDParamsMod
 
    real(r8), parameter, public :: soil_tfrz_thresh = -2.0_r8 ! Soil temperature threshold below which hydraulic failure mortality is off (non-hydro only) in degrees C
    
-   integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
+   integer, parameter, public :: nclmax = 2   ! Maximum number of canopy layers (used only for scratch arrays)
+                                              ! We would make this even higher, but making this
+                                              ! a little lower keeps the size down on some output arrays
+                                              ! For large arrays at patch level we use dynamic allocation
 
    ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
    integer, parameter, public :: nlevleaf = 30   ! number of leaf+stem layers in each canopy layer
@@ -182,7 +185,9 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
+   character(len=param_string_length),parameter,public :: ED_name_crop_lu_pft_vector = "fates_landuse_crop_lu_pft_vector"
    character(len=param_string_length),parameter,public :: ED_name_maxpatches_by_landuse = "fates_maxpatches_by_landuse"
+   character(len=param_string_length),parameter,public :: ED_name_max_nocomp_pfts_by_landuse = "fates_max_nocomp_pfts_by_landuse"
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -236,7 +241,11 @@ module EDParamsMod
    ! thus they are not protected here.
    
    integer, public :: maxpatches_by_landuse(n_landuse_cats)
+   integer, public :: max_nocomp_pfts_by_landuse(n_landuse_cats)
    integer, public :: maxpatch_total
+
+   ! which crops can be grown on a given crop land use type
+   integer,protected,public :: crop_lu_pft_vector(n_landuse_cats)
 
    ! Maximum allowable cohorts per patch
    integer, protected, public :: max_cohort_per_patch
@@ -278,10 +287,6 @@ module EDParamsMod
    real(r8),protected,public :: logging_export_frac        ! "fraction of trunk product being shipped offsite, the 
                                                     ! leftovers will be left onsite as large CWD
    character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_landuse_logging_export_frac"   
-
-   real(r8),protected,public :: pprodharv10_forest_mean ! "mean harvest mortality proportion of deadstem to 10-yr 
-                                                        ! product pool (pprodharv10) of all woody PFT types
-   character(len=param_string_length),parameter,public :: logging_name_pprodharv10="fates_landuse_pprodharv10_forest_mean"
 
    real(r8),protected,public :: eca_plant_escalar  ! scaling factor for plant fine root biomass to 
                                                ! calculate nutrient carrier enzyme abundance (ECA)
@@ -358,7 +363,6 @@ contains
     logging_event_code                    = nan
     logging_dbhmax_infra                  = nan
     logging_export_frac                   = nan
-    pprodharv10_forest_mean               = nan
     eca_plant_escalar                     = nan
     q10_mr                                = nan
     q10_froz                              = nan
@@ -553,9 +557,6 @@ contains
     call fates_params%RegisterParameter(name=logging_name_export_frac, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=logging_name_pprodharv10, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=eca_name_plant_escalar, dimension_shape=dimension_shape_scalar, & 
          dimension_names=dim_names_scalar)
 
@@ -600,7 +601,13 @@ contains
     call fates_params%RegisterParameter(name=ED_name_history_damage_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_damageclass)
 
+    call fates_params%RegisterParameter(name=ED_name_crop_lu_pft_vector, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
+
     call fates_params%RegisterParameter(name=ED_name_maxpatches_by_landuse, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
+
+    call fates_params%RegisterParameter(name=ED_name_max_nocomp_pfts_by_landuse, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_landuse)
 
   end subroutine FatesRegisterParams
@@ -618,8 +625,10 @@ contains
 
     real(r8) :: tmpreal ! local real variable for changing type on read
     real(r8), allocatable :: hydr_htftype_real(:)
-    real(r8) :: tmp_vector_by_landuse(n_landuse_cats)  ! local real vector for changing type on read
-    
+    real(r8), allocatable :: tmp_vector_by_landuse1(:)  ! local real vector for changing type on read
+    real(r8), allocatable :: tmp_vector_by_landuse2(:)  ! local real vector for changing type on read
+    real(r8), allocatable :: tmp_vector_by_landuse3(:)  ! local real vector for changing type on read
+
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
 
@@ -780,9 +789,6 @@ contains
     call fates_params%RetrieveParameter(name=logging_name_export_frac, &
           data=logging_export_frac)
 
-    call fates_params%RetrieveParameter(name=logging_name_pprodharv10, &
-         data=pprodharv10_forest_mean)
-    
     call fates_params%RetrieveParameter(name=eca_name_plant_escalar, &
           data=eca_plant_escalar)
 
@@ -832,11 +838,24 @@ contains
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_damage_bin_edges, &
          data=ED_val_history_damage_bin_edges)
 
-    call fates_params%RetrieveParameter(name=ED_name_maxpatches_by_landuse, &
-         data=tmp_vector_by_landuse)
+    call fates_params%RetrieveParameterAllocate(name=ED_name_crop_lu_pft_vector, &
+         data=tmp_vector_by_landuse1)
 
-    maxpatches_by_landuse(:) = nint(tmp_vector_by_landuse(:))
+    crop_lu_pft_vector(:) = nint(tmp_vector_by_landuse1(:))
+    deallocate(tmp_vector_by_landuse1)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_maxpatches_by_landuse, &
+         data=tmp_vector_by_landuse2)
+
+    maxpatches_by_landuse(:) = nint(tmp_vector_by_landuse2(:))
     maxpatch_total = sum(maxpatches_by_landuse(:))
+    deallocate(tmp_vector_by_landuse2)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_max_nocomp_pfts_by_landuse, &
+         data=tmp_vector_by_landuse3)
+
+    max_nocomp_pfts_by_landuse(:) = nint(tmp_vector_by_landuse3(:))
+    deallocate(tmp_vector_by_landuse3)
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_hydr_htftype_node, &
          data=hydr_htftype_real)
