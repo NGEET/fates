@@ -470,6 +470,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_npp_agsw_si_scpf
   integer :: ih_npp_agdw_si_scpf
   integer :: ih_npp_stor_si_scpf
+  integer :: ih_grazing_si
 
   integer :: ih_mortality_canopy_si_scpf
   integer :: ih_mortality_understory_si_scpf
@@ -2388,6 +2389,7 @@ contains
     real(r8) :: fnrt_m_net_alloc   ! mass allocated to fine-root [kg/yr]
     real(r8) :: struct_m_net_alloc ! mass allocated to structure [kg/yr]
     real(r8) :: repro_m_net_alloc  ! mass allocated to reproduction [kg/yr]
+    real(r8) :: leaf_herbivory     ! mass of leaves eaten by herbivores [kg/yr]
     real(r8) :: n_perm2            ! abundance per m2
     real(r8) :: area_frac  ! Fraction of area for this patch
     
@@ -2440,6 +2442,7 @@ contains
          hio_npp_froot_si        => this%hvars(ih_npp_froot_si)%r81d, &
          hio_npp_croot_si        => this%hvars(ih_npp_croot_si)%r81d, &
          hio_npp_stor_si         => this%hvars(ih_npp_stor_si)%r81d, &
+         hio_grazing_si          => this%hvars(ih_grazing_si)%r81d, &
          hio_canopy_mortality_crownarea_si     => this%hvars(ih_canopy_mortality_crownarea_si)%r81d, &
          hio_ustory_mortality_crownarea_si => this%hvars(ih_understory_mortality_crownarea_si)%r81d, &
          hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
@@ -2890,6 +2893,9 @@ contains
                        days_per_year / sec_per_day
                   hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) +               &
                        store_m_net_alloc * n_perm2 / days_per_year / sec_per_day
+
+                  leaf_herbivory   = ccohort%prt%GetHerbivory(leaf_organ, carbon12_element) * days_per_year  !cdkcdk
+                  hio_grazing_si(io_si) = hio_grazing_si(io_si) + leaf_herbivory * n_perm2 / days_per_year / sec_per_day
 
                   ! Woody State Variables (basal area growth increment)
                   if ( prt_params%woody(ft) == itrue) then
@@ -6752,6 +6758,12 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_npp_stor_si)
+
+       call this%set_history_var(vname='FATES_GRAZING', units='kg m-2 s-1',    &
+            long='grazing by herbivores of leaves in kg carbon per m2 per second',          &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            index = ih_grazing_si)
 
        hydro_active_if: if(hlm_use_planthydro.eq.itrue) then
           call this%set_history_var(vname='FATES_VEGH2O_DEAD', units = 'kg m-2',  &
