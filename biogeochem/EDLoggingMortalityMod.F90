@@ -306,7 +306,7 @@ contains
                ! HARVEST_SH2 = harvest from secondary young forest
                ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
 
-               ! if using the direct LUH2 drivers, the variabel names are instead (if using area-based logging):
+               ! if using the direct LUH2 drivers, the variable names are instead (if using area-based logging):
                ! 'primf_harv', 'primn_harv', 'secmf_harv', 'secyf_harv', 'secnf_harv'
 
                secondary_young_fraction = currentSite%get_secondary_young_fraction()
@@ -392,24 +392,19 @@ contains
 
       else
          ! the logic below is mainly to prevent conversion of bare ground land; everything else should be primary at this point.
+         lmort_direct     = 0.0_r8
+         lmort_collateral = 0.0_r8
+         lmort_infra      = 0.0_r8
+         l_degrad         = 0.0_r8
          if ( patch_land_use_label .eq. primaryland ) then
             call GetInitLanduseHarvestRate(bc_in, currentSite%min_allowed_landuse_fraction, &
                  harvest_rate, currentSite%landuse_vector_gt_min)
-            lmort_direct     = 0.0_r8
-            lmort_collateral = 0.0_r8
-            lmort_infra      = 0.0_r8
-            l_degrad         = 0.0_r8
             if(prt_params%woody(pft_i) == itrue)then
                lmort_direct     = harvest_rate
             else if (canopy_layer .eq. 1) then
                l_degrad         = harvest_rate
             endif
-         else if ( patch_land_use_label .eq. nocomp_bareground_land ) then
-            lmort_direct     = 0.0_r8
-            lmort_collateral = 0.0_r8
-            lmort_infra      = 0.0_r8
-            l_degrad         = 0.0_r8
-         else
+         else if ( patch_land_use_label .ne. nocomp_bareground_land ) then
             write(fates_log(),*) 'trying to transition away from something that isnt either primary or bare ground,'
             write(fates_log(),*) 'on what should be a first timestep away from potential vaegetatino. this shouldnt happen.'
             write(fates_log(),*) 'exiting'

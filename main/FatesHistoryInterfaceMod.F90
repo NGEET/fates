@@ -6127,7 +6127,7 @@ contains
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_elai_si)
        
-        call this%set_history_var(vname='FATES_WOOD_PRODUCT', units='kg m-2',      &
+       call this%set_history_var(vname='FATES_WOOD_PRODUCT', units='kg m-2',      &
             long='total wood product from logging in kg carbon per m2 land area', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',   &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
