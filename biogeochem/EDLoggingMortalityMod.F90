@@ -306,7 +306,7 @@ contains
                ! HARVEST_SH2 = harvest from secondary young forest
                ! HARVEST_SH3 = harvest from secondary non-forest (assume this is young for biomass)
 
-               ! if using the direct LUH2 drivers, the variabel names are instead (if using area-based logging):
+               ! if using the direct LUH2 drivers, the variable names are instead (if using area-based logging):
                ! 'primf_harv', 'primn_harv', 'secmf_harv', 'secyf_harv', 'secnf_harv'
 
                secondary_young_fraction = currentSite%get_secondary_young_fraction()
