@@ -290,10 +290,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_nfix_scpf
 
   integer :: ih_trimming_si
-  integer :: ih_area_plant_si
-  integer :: ih_fracarea_plant_si_age
-  integer :: ih_area_trees_si
-  integer :: ih_fracarea_trees_si_age
+  integer :: ih_fracarea_plant_si
+  integer :: ih_fracarea_trees_si
   integer :: ih_is_forest_si
   integer :: ih_is_forest_si_age
   integer :: ih_is_forest_pct10_si
@@ -465,12 +463,12 @@ module FatesHistoryInterfaceMod
   integer :: ih_nesterov_fire_danger_si
   integer :: ih_fire_nignitions_si
   integer :: ih_fire_fdi_si
-  integer :: ih_fire_intensity_area_product_si
+  integer :: ih_fire_intensity_fracarea_product_si
   integer :: ih_spitfire_ros_si
   integer :: ih_effect_wspeed_si
   integer :: ih_tfc_ros_si
   integer :: ih_fire_intensity_si
-  integer :: ih_fire_area_si
+  integer :: ih_fire_fracarea_si
   integer :: ih_fire_fuel_bulkd_si
   integer :: ih_fire_fuel_eff_moist_si
   integer :: ih_fire_fuel_sav_si
@@ -557,8 +555,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_promotion_rate_si_scls
   integer :: ih_trimming_canopy_si_scls
   integer :: ih_trimming_understory_si_scls
-  integer :: ih_crown_area_canopy_si_scls
-  integer :: ih_crown_area_understory_si_scls
+  integer :: ih_crown_fracarea_canopy_si_scls
+  integer :: ih_crown_fracarea_understory_si_scls
   integer :: ih_ddbh_canopy_si_scls
   integer :: ih_ddbh_understory_si_scls
   integer :: ih_agb_si_scls
@@ -667,14 +665,14 @@ module FatesHistoryInterfaceMod
   integer :: ih_seeds_in_gc_si_pft
 
   ! Non-per-ageclass equivalents of per-ageclass variables
-  integer :: ih_canopy_area_si
+  integer :: ih_canopy_fracarea_si
   integer :: ih_ncl_si
   integer :: ih_fracarea_si
 
   ! indices to (site x patch-age) variables
   integer :: ih_fracarea_si_age
   integer :: ih_lai_si_age
-  integer :: ih_canopy_area_si_age
+  integer :: ih_canopy_fracarea_si_age
   integer :: ih_gpp_si_age
   integer :: ih_npp_si_age
   integer :: ih_ncl_si_age
@@ -688,7 +686,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_agesince_anthrodist_si_age
   integer :: ih_secondarylands_fracarea_si
   integer :: ih_secondarylands_fracarea_si_age
-  integer :: ih_area_burnt_si_age
+  integer :: ih_fracarea_burnt_si_age
   ! integer :: ih_fire_rate_of_spread_front_si_age
   integer :: ih_fire_intensity_si_age
   integer :: ih_fire_sum_fuel_si_age
@@ -852,14 +850,14 @@ module FatesHistoryInterfaceMod
      procedure :: assemble_history_output_types
 
      procedure :: update_history_dyn
-     procedure :: update_history_dyn1
-     procedure :: update_history_dyn2
-     procedure :: update_history_dyn2_ageclass
-     procedure :: reset_history_dyn2
+     procedure :: update_history_dyn_sitelevel
+     procedure :: update_history_dyn_subsite
+     procedure :: update_history_dyn_subsite_ageclass
+     procedure :: reset_history_dyn_subsite
      procedure :: update_history_hifrq
-     procedure :: update_history_hifrq1
-     procedure :: update_history_hifrq2
-     procedure :: update_history_hifrq2_ageclass
+     procedure :: update_history_hifrq_sitelevel
+     procedure :: update_history_hifrq_subsite
+     procedure :: update_history_hifrq_subsite_ageclass
      procedure :: update_history_hydraulics
      procedure :: update_history_nutrflux
 
@@ -2387,11 +2385,11 @@ contains
     if (hlm_use_ed_st3.eq.itrue) return
 
     if(hlm_hist_level_dynam>0) then
-       call update_history_dyn1(this,nc,nsites,sites,bc_in)
+       call update_history_dyn_sitelevel(this,nc,nsites,sites,bc_in)
        if(hlm_hist_level_dynam>1) then
-          call update_history_dyn2(this,nc,nsites,sites,bc_in)
-          call update_history_dyn2_ageclass(this,nc,nsites,sites,bc_in)
-          call reset_history_dyn2(this, nsites, sites)
+          call update_history_dyn_subsite(this,nc,nsites,sites,bc_in)
+          call update_history_dyn_subsite_ageclass(this,nc,nsites,sites,bc_in)
+          call reset_history_dyn_subsite(this, nsites, sites)
        end if
     end if
     return
@@ -2399,7 +2397,13 @@ contains
 
   ! =========================================================================
 
-  subroutine update_history_dyn1(this,nc,nsites,sites,bc_in)
+  subroutine update_history_dyn_sitelevel(this,nc,nsites,sites,bc_in)
+
+    ! ---------------------------------------------------------------------------------
+    ! This subroutine is intended to update all history variables with upfreq ==
+    ! group_dyna_simple that are saved at the site level. So, eg., FATES_VEGC is
+    ! updated here, but not FATES_VEGC_PF.
+    ! ---------------------------------------------------------------------------------
 
     use FatesEcotypesMod, only : is_patch_forest
 
@@ -2450,9 +2454,10 @@ contains
          hio_npatches_sec_si     => this%hvars(ih_npatches_sec_si)%r81d, &
          hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
          hio_ncohorts_sec_si     => this%hvars(ih_ncohorts_sec_si)%r81d, &
+         hio_ncl_si              => this%hvars(ih_ncl_si)%r81d, &
          hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
-         hio_area_plant_si       => this%hvars(ih_area_plant_si)%r81d, &
-         hio_area_trees_si  => this%hvars(ih_area_trees_si)%r81d, &
+         hio_fracarea_plant_si   => this%hvars(ih_fracarea_plant_si)%r81d, &
+         hio_fracarea_trees_si   => this%hvars(ih_fracarea_trees_si)%r81d, &
          hio_is_forest_si        => this%hvars(ih_is_forest_si)%r81d, &
          hio_is_forest_pct10_si  => this%hvars(ih_is_forest_pct10_si)%r81d, &
          hio_is_forest_pct25_si  => this%hvars(ih_is_forest_pct25_si)%r81d, &
@@ -2475,8 +2480,8 @@ contains
          hio_tfc_ros_si          => this%hvars(ih_tfc_ros_si)%r81d, &
          hio_effect_wspeed_si    => this%hvars(ih_effect_wspeed_si)%r81d, &
          hio_fire_intensity_si   => this%hvars(ih_fire_intensity_si)%r81d, &
-         hio_fire_intensity_area_product_si => this%hvars(ih_fire_intensity_area_product_si)%r81d, &
-         hio_fire_area_si        => this%hvars(ih_fire_area_si)%r81d, &
+         hio_fire_intensity_fracarea_product_si => this%hvars(ih_fire_intensity_fracarea_product_si)%r81d, &
+         hio_fire_fracarea_si    => this%hvars(ih_fire_fracarea_si)%r81d, &
          hio_fire_fuel_bulkd_si  => this%hvars(ih_fire_fuel_bulkd_si)%r81d, &
          hio_fire_fuel_eff_moist_si => this%hvars(ih_fire_fuel_eff_moist_si)%r81d, &
          hio_fire_fuel_sav_si    => this%hvars(ih_fire_fuel_sav_si)%r81d, &
@@ -2698,6 +2703,8 @@ contains
             hio_elai_si(io_si) = hio_elai_si(io_si) + sum( cpatch%canopy_area_profile(:,:,:) * cpatch%elai_profile(:,:,:) ) * &
                  cpatch%total_canopy_area * AREA_INV
             
+            hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl_p * cpatch%area * AREA_INV
+
             ! 24hr veg temperature
             hio_tveg24(io_si) = hio_tveg24(io_si) + &
                  (cpatch%tveg24%GetMean()- t_water_freeze_k_1atm)*cpatch%area*AREA_INV
@@ -2726,9 +2733,9 @@ contains
                hio_trimming_si(io_si) = hio_trimming_si(io_si) + cpatch%tallest%canopy_trim * cpatch%area * AREA_INV
             endif
 
-            ! area occupied by plants and trees [m2/m2]
-            hio_area_plant_si(io_si) = hio_area_plant_si(io_si) + min(cpatch%total_canopy_area,cpatch%area) * AREA_INV
-            hio_area_trees_si(io_si) = hio_area_trees_si(io_si) + min(cpatch%total_tree_area,cpatch%area) * AREA_INV
+            ! fractional area occupied by plants and trees [m2/m2]
+            hio_fracarea_plant_si(io_si) = hio_fracarea_plant_si(io_si) + min(cpatch%total_canopy_area,cpatch%area) * AREA_INV
+            hio_fracarea_trees_si(io_si) = hio_fracarea_trees_si(io_si) + min(cpatch%total_tree_area,cpatch%area) * AREA_INV
 
             ! whether patch is forest according to FATES parameter file threshold
             hio_is_forest_si(io_si) = hio_is_forest_si(io_si) + &
@@ -2764,14 +2771,14 @@ contains
             hio_effect_wspeed_si(io_si)        = hio_effect_wspeed_si(io_si) + cpatch%effect_wspeed * cpatch%area * AREA_INV / sec_per_min
             hio_tfc_ros_si(io_si)              = hio_tfc_ros_si(io_si) + cpatch%TFC_ROS * cpatch%area * AREA_INV
             hio_fire_intensity_si(io_si)       = hio_fire_intensity_si(io_si) + cpatch%FI * cpatch%area * AREA_INV * J_per_kJ
-            hio_fire_area_si(io_si)            = hio_fire_area_si(io_si) + cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
+            hio_fire_fracarea_si(io_si)        = hio_fire_fracarea_si(io_si) + cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
             hio_fire_fuel_bulkd_si(io_si)      = hio_fire_fuel_bulkd_si(io_si) + cpatch%fuel_bulkd * cpatch%area * AREA_INV
             hio_fire_fuel_eff_moist_si(io_si)  = hio_fire_fuel_eff_moist_si(io_si) + cpatch%fuel_eff_moist * cpatch%area * AREA_INV
             hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel_sav * cpatch%area * AREA_INV / m_per_cm
             hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel_mef * cpatch%area * AREA_INV
             hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%sum_fuel * cpatch%area * AREA_INV
 
-            hio_fire_intensity_area_product_si(io_si) = hio_fire_intensity_area_product_si(io_si) + &
+            hio_fire_intensity_fracarea_product_si(io_si) = hio_fire_intensity_fracarea_product_si(io_si) + &
                  cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
 
             litt => cpatch%litter(element_pos(carbon12_element))
@@ -3086,11 +3093,18 @@ contains
 
     end associate
     return
-  end subroutine update_history_dyn1
+  end subroutine update_history_dyn_sitelevel
 
   ! =========================================================================================
 
-  subroutine update_history_dyn2(this,nc,nsites,sites,bc_in)
+  subroutine update_history_dyn_subsite(this,nc,nsites,sites,bc_in)
+
+    ! ---------------------------------------------------------------------------------
+    ! This subroutine is intended to update all history variables with upfreq ==
+    ! group_dyna_complx (i.e., that have a dimension in addition to that for the site
+    ! level) that do NOT include age class. So, eg., FATES_VEGC_PF is updated here,
+    ! but not FATES_VEGC or FATES_VEGC_APPF.
+    ! ---------------------------------------------------------------------------------
 
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -3296,8 +3310,8 @@ contains
            hio_promotion_rate_si_scls        => this%hvars(ih_promotion_rate_si_scls)%r82d, &
            hio_trimming_canopy_si_scls         => this%hvars(ih_trimming_canopy_si_scls)%r82d, &
            hio_trimming_understory_si_scls     => this%hvars(ih_trimming_understory_si_scls)%r82d, &
-           hio_crown_area_canopy_si_scls         => this%hvars(ih_crown_area_canopy_si_scls)%r82d, &
-           hio_crown_area_understory_si_scls     => this%hvars(ih_crown_area_understory_si_scls)%r82d, &
+           hio_crown_fracarea_canopy_si_scls   => this%hvars(ih_crown_fracarea_canopy_si_scls)%r82d, &
+           hio_crown_fracarea_understory_si_scls => this%hvars(ih_crown_fracarea_understory_si_scls)%r82d, &
            hio_leaf_md_canopy_si_scls           => this%hvars(ih_leaf_md_canopy_si_scls)%r82d, &
            hio_root_md_canopy_si_scls           => this%hvars(ih_root_md_canopy_si_scls)%r82d, &
            hio_carbon_balance_canopy_si_scls    => this%hvars(ih_carbon_balance_canopy_si_scls)%r82d, &
@@ -3327,9 +3341,9 @@ contains
            hio_yesterdaycanopylevel_canopy_si_scls     => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
            hio_yesterdaycanopylevel_understory_si_scls => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
            hio_fracarea_si         => this%hvars(ih_fracarea_si)%r81d, &
-           hio_canopy_area_si  => this%hvars(ih_canopy_area_si)%r81d, &
+           hio_canopy_fracarea_si  => this%hvars(ih_canopy_fracarea_si)%r81d, &
            hio_agesince_anthrodist_si     => this%hvars(ih_agesince_anthrodist_si)%r81d, &
-           hio_secondarylands_fracarea_si    => this%hvars(ih_secondarylands_fracarea_si)%r81d, &
+           hio_secondarylands_fracarea_si => this%hvars(ih_secondarylands_fracarea_si)%r81d, &
            hio_fracarea_si_landuse     => this%hvars(ih_fracarea_si_landuse)%r82d, &
            hio_burnt_frac_litter_si_fuel      => this%hvars(ih_burnt_frac_litter_si_fuel)%r82d, &
            hio_fuel_amount_si_fuel            => this%hvars(ih_fuel_amount_si_fuel)%r82d, &
@@ -3468,9 +3482,9 @@ contains
                         hio_agesince_anthrodist_si(io_si)  &
                         + cpatch%area * AREA_INV
 
-                    hio_secondarylands_fracarea_si(io_si) = &
-                         hio_secondarylands_fracarea_si(io_si) &
-                         + cpatch%area * AREA_INV
+                   hio_secondarylands_fracarea_si(io_si) = &
+                        hio_secondarylands_fracarea_si(io_si) &
+                        + cpatch%area * AREA_INV
                 endif
 
                 ! patch-age-resolved fire variables
@@ -3508,7 +3522,7 @@ contains
 
                    n_perm2 = ccohort%n * AREA_INV
 
-                   hio_canopy_area_si(io_si) = hio_canopy_area_si(io_si) + ccohort%c_area * AREA_INV
+                   hio_canopy_fracarea_si(io_si) = hio_canopy_fracarea_si(io_si) + ccohort%c_area * AREA_INV
 
                    ! calculate leaf height distribution, assuming leaf area is evenly distributed thru crown depth
                    call CrownDepth(ccohort%height,ft,crown_depth)
@@ -3958,7 +3972,7 @@ contains
                                 ccohort%treesai*ccohort%c_area * AREA_INV
                            hio_trimming_canopy_si_scls(io_si,scls) = hio_trimming_canopy_si_scls(io_si,scls) + &
                                 ccohort%n * ccohort%canopy_trim / m2_per_ha
-                           hio_crown_area_canopy_si_scls(io_si,scls) = hio_crown_area_canopy_si_scls(io_si,scls) + &
+                           hio_crown_fracarea_canopy_si_scls(io_si,scls) = hio_crown_fracarea_canopy_si_scls(io_si,scls) + &
                                 ccohort%c_area * AREA_INV
                            hio_gpp_canopy_si_scpf(io_si,scpf) = hio_gpp_canopy_si_scpf(io_si,scpf) +  &
                                 n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
@@ -4078,7 +4092,7 @@ contains
                                 ccohort%treelai*ccohort%c_area  * AREA_INV
                            hio_trimming_understory_si_scls(io_si,scls) = hio_trimming_understory_si_scls(io_si,scls) + &
                                 ccohort%n * ccohort%canopy_trim / m2_per_ha
-                           hio_crown_area_understory_si_scls(io_si,scls) = hio_crown_area_understory_si_scls(io_si,scls) + &
+                           hio_crown_fracarea_understory_si_scls(io_si,scls) = hio_crown_fracarea_understory_si_scls(io_si,scls) + &
                                 ccohort%c_area * AREA_INV
                            hio_gpp_understory_si_scpf(io_si,scpf)      = hio_gpp_understory_si_scpf(io_si,scpf)      + &
                                 n_perm2*ccohort%gpp_acc_hold / days_per_year / sec_per_day
@@ -4754,11 +4768,18 @@ contains
     end associate
 
     return
-  end subroutine update_history_dyn2
+  end subroutine update_history_dyn_subsite
 
   ! =========================================================================================
 
-  subroutine update_history_dyn2_ageclass(this,nc,nsites,sites,bc_in)
+  subroutine update_history_dyn_subsite_ageclass(this,nc,nsites,sites,bc_in)
+
+    ! ---------------------------------------------------------------------------------
+    ! This subroutine is intended to update all history variables with upfreq ==
+    ! group_dyna_complx that have a dimension in addition to that for the site level
+    ! which DO include age class. So, eg., FATES_VEGC_APPF is updated here,
+    ! but not FATES_VEGC or FATES_VEGC_PF.
+    ! ---------------------------------------------------------------------------------
 
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -4788,13 +4809,12 @@ contains
     associate( &
          hio_lai_si_age => this%hvars(ih_lai_si_age)%r82d, &
          hio_is_forest_si_age => this%hvars(ih_is_forest_si_age)%r82d, &
-         hio_ncl_si => this%hvars(ih_ncl_si)%r81d, &
          hio_ncl_si_age => this%hvars(ih_ncl_si_age)%r82d, &
          hio_scorch_height_si_pft => this%hvars(ih_scorch_height_si_pft)%r82d, &
          hio_scorch_height_si_agepft => this%hvars(ih_scorch_height_si_agepft)%r82d, &
          hio_zstar_si        => this%hvars(ih_zstar_si)%r81d, &
          hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
-         hio_area_burnt_si_age              => this%hvars(ih_area_burnt_si_age)%r82d, &
+         hio_fracarea_burnt_si_age          => this%hvars(ih_fracarea_burnt_si_age)%r82d, &
          hio_fire_sum_fuel_si_age           => this%hvars(ih_fire_sum_fuel_si_age)%r82d, &
          hio_fuel_amount_age_fuel            => this%hvars(ih_fuel_amount_age_fuel)%r82d, &
 !         hio_fire_rate_of_spread_front_si_age => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
@@ -4802,11 +4822,11 @@ contains
          hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
          hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
          hio_biomass_si_agepft                => this%hvars(ih_biomass_si_agepft)%r82d, &
-         hio_npp_si_agepft  => this%hvars(ih_npp_si_agepft)%r82d, &  ! TODO: Move to update_history_hifrq2_ageclass, as gpp? Maybe not, because it comes from npp_acc_hold
+         hio_npp_si_agepft                    => this%hvars(ih_npp_si_agepft)%r82d, &
          hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
          hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
          hio_npatches_si_age                  => this%hvars(ih_npatches_si_age)%r82d, &
-         hio_canopy_area_si_age               => this%hvars(ih_canopy_area_si_age)%r82d, &
+         hio_canopy_fracarea_si_age           => this%hvars(ih_canopy_fracarea_si_age)%r82d, &
          hio_nplant_si_scag                   => this%hvars(ih_nplant_si_scag)%r82d, &
          hio_nplant_si_scagpft                => this%hvars(ih_nplant_si_scagpft)%r82d, &
          hio_nplant_canopy_si_scag            => this%hvars(ih_nplant_canopy_si_scag)%r82d, &
@@ -4836,8 +4856,6 @@ contains
           hio_fracarea_si_age(io_si,cpatch%age_class) = hio_fracarea_si_age(io_si,cpatch%age_class) &
           + cpatch%area * AREA_INV
 
-          hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl_p * patch_area_div_site_area
-
           do ft = 1,numpft
              hio_scorch_height_si_pft(io_si,ft) = hio_scorch_height_si_pft(io_si,ft) + &
                   cpatch%Scorch_ht(ft) * patch_area_div_site_area
@@ -4851,7 +4869,7 @@ contains
                   cpatch%Scorch_ht(ft) * patch_area_div_site_area
           end do
 
-          hio_area_burnt_si_age(io_si,cpatch%age_class) = hio_area_burnt_si_age(io_si,cpatch%age_class) + &
+          hio_fracarea_burnt_si_age(io_si,cpatch%age_class) = hio_fracarea_burnt_si_age(io_si,cpatch%age_class) + &
                cpatch%frac_burnt / sec_per_day &  ! [frac/day] -> [frac/sec]
                * patch_area_div_site_area
           hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) = hio_fire_sum_fuel_si_age(io_si, cpatch%age_class)   +  &
@@ -4898,7 +4916,9 @@ contains
                + sum(cpatch%tlai_profile(:,:,:) * cpatch%canopy_area_profile(:,:,:) ) &
                * patch_canarea_div_site_area
 
-          ! TODO: Supposedly weighted by burned fraction, but never actually divided by total site-wide burned fraction!
+          ! These fire variables are intended to be weighted by fire area. However, for precision
+          ! reasons, we don't divide by site-wide burned area here. Instead, in the long_name of
+          ! the history file variable, we tell the users to do that division themselves.
           hio_fire_intensity_si_age(io_si, cpatch%age_class) = hio_fire_intensity_si_age(io_si,cpatch%age_class) + &
               cpatch%FI * J_per_kJ &  ! [kJ/m/s] -> [J/m/s]
               * cpatch%frac_burnt * patch_area_div_site_area
@@ -4918,7 +4938,7 @@ contains
           ! Weighted by cohort canopy area relative to site area
           ccohort => cpatch%shortest
           cohortloop: do while(associated(ccohort))
-             hio_canopy_area_si_age(io_si,cpatch%age_class) = hio_canopy_area_si_age(io_si,cpatch%age_class) &
+             hio_canopy_fracarea_si_age(io_si,cpatch%age_class) = hio_canopy_fracarea_si_age(io_si,cpatch%age_class) &
                   + ccohort%c_area * AREA_INV
              ccohort => ccohort%taller
           end do cohortloop
@@ -4941,15 +4961,6 @@ contains
           ! Loop through cohorts on patch
           ccohort => cpatch%shortest
           cohortloop: do while(associated(ccohort))
-             ! TODO: Unnecessary?
-             ! get indices for size class x pft and cohort age x pft
-             ! size class is the fastest changing dimension
-             call sizetype_class_index(ccohort%dbh, ccohort%pft,                &
-                  ccohort%size_class, ccohort%size_by_pft_class)
-             ! cohort age is the fastest changing dimension
-             ! TODO: Unnecessary?
-             call coagetype_class_index(ccohort%coage, ccohort%pft,             &
-                  ccohort%coage_class, ccohort%coage_by_pft_class)
 
              ! If you SUM across all age classes, you should get the mean site value.
              cohort_n_div_site_area = ccohort%n * AREA_INV
@@ -5036,11 +5047,11 @@ contains
     end do siteloop
 
     end associate
-  end subroutine update_history_dyn2_ageclass
+  end subroutine update_history_dyn_subsite_ageclass
 
   ! ===============================================================================================
 
-  subroutine reset_history_dyn2(this, nsites, sites)
+  subroutine reset_history_dyn_subsite(this, nsites, sites)
 
     ! ------------------------------------------------------------------------------------
     ! This resets some variables that need to be zeroed out after dyn2 history subroutines
@@ -5082,7 +5093,7 @@ contains
        sites(s)%fmort_cflux_canopy_damage(:,:) = 0._r8
        sites(s)%fmort_cflux_ustory_damage(:,:) = 0._r8
     end do siteloop
-  end subroutine reset_history_dyn2
+  end subroutine reset_history_dyn_subsite
 
   ! ===============================================================================================
 
@@ -5105,10 +5116,10 @@ contains
     real(r8)                , intent(in)            :: dt_tstep
     
     if(hlm_hist_level_hifrq>0) then
-       call update_history_hifrq1(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+       call update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
        if(hlm_hist_level_hifrq>1) then
-          call update_history_hifrq2(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
-          call update_history_hifrq2_ageclass(this,nsites,sites,dt_tstep)
+          call update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+          call update_history_hifrq_subsite_ageclass(this,nsites,sites,dt_tstep)
        end if
     end if
 
@@ -5116,7 +5127,13 @@ contains
     return
   end subroutine update_history_hifrq
 
-  subroutine update_history_hifrq1(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+  subroutine update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+
+     ! ---------------------------------------------------------------------------------
+     ! This subroutine is intended to update all history variables with upfreq ==
+     ! group_hifrq_simple: i.e., those that are saved at the site level. So, eg.,
+     ! FATES_GPP is updated here, but not FATES_GPP_AP.
+     ! ---------------------------------------------------------------------------------
 
     !
     ! Arguments
@@ -5373,16 +5390,18 @@ contains
 
     end associate
     return
-  end subroutine update_history_hifrq1
+  end subroutine update_history_hifrq_sitelevel
 
   ! ===============================================================================================
 
-  subroutine update_history_hifrq2(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+  subroutine update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
 
     ! ---------------------------------------------------------------------------------
-    ! This is the call to update the history IO arrays for multi-dimension arrays
-    ! that change rapidly.  This is an expensive call, the model will probably run
-    ! much faster if the user is not using any of these diagnostics.
+    ! This subroutine is intended to update all history variables with upfreq ==
+    ! group_hifrq_complex (i.e., that have a dimension in addition to that for the site
+    ! level) that do NOT include age class. So, e.g., FATES_GPP_PF would be updated
+    ! here, but not FATES_GPP or FATES_GPP_AP. This is an expensive call; the model
+    ! will probably run much faster if the user is not using any of these diagnostics.
     ! ---------------------------------------------------------------------------------
 
     !
@@ -5407,7 +5426,6 @@ contains
     real(r8) :: npp         ! npp for this time-step (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: aresp       ! autotrophic respiration (adjusted for g resp) [kgC/indiv/step]
     real(r8) :: n_perm2     ! individuals per m2 for the whole column
-    real(r8) :: canopy_area_by_age(nlevage) ! canopy area in each bin for normalizing purposes
     real(r8) :: site_area_veg_inv           ! 1/area of the site that is not bare-ground 
     integer  :: ipa2     ! patch incrementer
     integer :: clllpf_indx, cnlf_indx, ipft, ican, ileaf ! more iterators and indices
@@ -5469,12 +5487,9 @@ contains
          call this%zero_site_hvars(sites(s), upfreq_in=group_hifr_complx)
          
          site_area_veg_inv = 0._r8
-         canopy_area_by_age(1:nlevage) = 0._r8
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
             site_area_veg_inv = site_area_veg_inv + cpatch%total_canopy_area
-            canopy_area_by_age(cpatch%age_class) = &
-                 canopy_area_by_age(cpatch%age_class) + cpatch%total_canopy_area
             cpatch => cpatch%younger
          end do !patch loop
 
@@ -5767,11 +5782,20 @@ contains
 
     end associate
 
-  end subroutine update_history_hifrq2
+  end subroutine update_history_hifrq_subsite
 
   ! ===============================================================================================
 
-  subroutine update_history_hifrq2_ageclass(this,nsites,sites,dt_tstep)
+  subroutine update_history_hifrq_subsite_ageclass(this,nsites,sites,dt_tstep)
+
+    ! ---------------------------------------------------------------------------------
+    ! This subroutine is intended to update all history variables with upfreq ==
+    ! group_hifrq_complex (i.e., that have a dimension in addition to that for the site
+    ! level) that DO include age class. So, e.g., FATES_GPP_AP is updated here, but not
+    ! FATES_GPP or FATES_GPP_PF. This is an expensive call; the model will probably run
+    ! much faster if the user is not using any of these diagnostics.
+    ! ---------------------------------------------------------------------------------
+
     !
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -5854,7 +5878,7 @@ contains
 
   end associate
 
-  end subroutine update_history_hifrq2_ageclass
+  end subroutine update_history_hifrq_subsite_ageclass
 
   ! =====================================================================================
 
@@ -6398,7 +6422,7 @@ contains
        call this%set_history_var(vname='FATES_AREA_PLANTS', units='m2 m-2',       &
             long='area occupied by all plants per m2 land area', use_default='active', &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,      &
-            initialize=initialize_variables, index=ih_area_plant_si)
+            initialize=initialize_variables, index=ih_fracarea_plant_si)
 
        call this%set_history_var(vname='FATES_AREA_PLANTS_AP', units='m2 m-2',   &
             long='area occupied by all plants per m2 land area (by patch age)', use_default='active', &
@@ -6409,7 +6433,7 @@ contains
             long='area occupied by woody plants per m2 land area', use_default='active', &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-            index=ih_area_trees_si)
+            index=ih_fracarea_trees_si)
 
        call this%set_history_var(vname='FATES_AREA_TREES_AP', units='m2 m-2',    &
             long='area occupied by woody plants per m2 land area (by patch age)', use_default='active', &
@@ -6645,13 +6669,13 @@ contains
             long='product of surface fire intensity and burned area fraction -- divide by FATES_BURNFRAC to get area-weighted mean intensity', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-            index=ih_fire_intensity_area_product_si)
+            index=ih_fire_intensity_fracarea_product_si)
 
        call this%set_history_var(vname='FATES_BURNFRAC', units='s-1',             &
             long='burned area fraction per second', use_default='active',         &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-            index=ih_fire_area_si)
+            index=ih_fire_fracarea_si)
 
        call this%set_history_var(vname='FATES_FUEL_MEF', units='m3 m-3',          &
             long='fuel moisture of extinction (volumetric)',                      &
@@ -7327,7 +7351,7 @@ contains
           call this%set_history_var(vname='FATES_CANOPYAREA', units='m2 m-2',     &
                long='canopy area per m2 land area', use_default='inactive', &
                avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,  &
-               initialize=initialize_variables, index=ih_canopy_area_si)
+               initialize=initialize_variables, index=ih_canopy_fracarea_si)
 
           call this%set_history_var(vname='FATES_NCL', units='',                  &
                long='number of canopy levels',                            &
@@ -7359,7 +7383,7 @@ contains
                this%per_ageclass_norm_info('FATES_PATCHAREA/FATES_PATCHAREA_AP'),    &
                use_default='active', &
                avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,  &
-               initialize=initialize_variables, index=ih_canopy_area_si_age)
+               initialize=initialize_variables, index=ih_canopy_fracarea_si_age)
 
           call this%set_history_var(vname='FATES_NCL_AP', units='',                  &
                long='number of canopy levels by age bin' //                          &
@@ -7466,7 +7490,7 @@ contains
                long='spitfire fraction area burnt (per second) by patch age',        &
                use_default='active', avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
-               index = ih_area_burnt_si_age)
+               index = ih_fracarea_burnt_si_age)
 
           call this%set_history_var(vname='FATES_FIRE_INTENSITY_BURNFRAC_AP',        &
                units='J m-1 s-1', &
@@ -8571,13 +8595,13 @@ contains
                long='total crown area of canopy plants by size class',              &
                use_default='inactive', avgflag='A', vtype=site_size_r8,             &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
-               initialize=initialize_variables, index = ih_crown_area_canopy_si_scls)
+               initialize=initialize_variables, index = ih_crown_fracarea_canopy_si_scls)
 
           call this%set_history_var(vname='FATES_CROWNAREA_USTORY_SZ', units = 'm2 m-2', &
                long='total crown area of understory plants by size class',          &
                use_default='inactive', avgflag='A', vtype=site_size_r8,             &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
-               initialize=initialize_variables, index = ih_crown_area_understory_si_scls)
+               initialize=initialize_variables, index = ih_crown_fracarea_understory_si_scls)
 
           call this%set_history_var(vname='FATES_LEAFCTURN_CANOPY_SZ',               &
                units = 'kg m-2 s-1',                                                &
