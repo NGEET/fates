@@ -78,6 +78,20 @@ contains
     integer :: max_elements     ! Maximum number of scattering elements on the site
     integer :: n_scr            ! The size of the scratch arrays
     logical :: allocate_scratch ! Whether to re-allocate the scratch arrays
+    integer  :: icolmax         ! Column index for each layer with largest are footprint
+    real(r8) :: areamax         ! The area footprint of the largest column
+    
+    ! its possible that there is more horizontal area taken up by the cohorts
+    ! than there is ground, which is simply a result numerical and algorithmic
+    ! imprecision in the rest of FATES. If this is true, then we need
+    ! to somehow force the total area of our scattering elements to be exactly
+    ! 1 and not slightly more. One way is to just chop off some area of the
+    ! largest scattering element (simple way), the other is to chop off that
+    ! area but also increase the LAI+SAI. The latter is conservative, but
+    ! could create indexing problems when transfering fluxes back into FATES arrays
+    
+    logical, parameter :: do_simple_area_correct = .true.
+    
     
     ! These parameters are not used yet
     !real(r8) :: max_vai_diff_per_elem ! The maximum vai difference in any element
@@ -119,6 +133,13 @@ contains
          ! an air element is needed for all the non
          ! occupied space, even if the canopy_open_frac
          ! is zero.
+         ! If the area of the elements does not match
+         ! the area of the canopy space within 1.e-7_r8
+         ! then we either add the space in the form of air
+         ! or we compress the space by literally squeezing
+         ! the elements (which consequently increases their
+         ! LAI and SAI to conserve area)
+        
             
          if(patch%total_canopy_area>nearzero)then
             canopy_frac(:) = 0._r8
@@ -230,24 +251,30 @@ contains
             end if
 
             ! If the layer is overfull, remove some from area from
-            ! the first element that is 10x larger than the threshold
+            ! the element with the largest footprint
 
             if_overfull: if( (canopy_frac(ican)-1._r8)>area_err_thresh ) then
+
+               ! First find the element with the largest footprint
+               icolmax = -1
+               areamax = 0
                do icol = 1,n_col(ican)
-                  if(twostr%scelg(ican,icol)%area > 10._r8*(canopy_frac(ican)-1._r8))then
-                      area_ratio = (twostr%scelg(ican,icol)%area + (1._r8-canopy_frac(ican)))/twostr%scelg(ican,icol)%area
-                     twostr%scelg(ican,icol)%area = twostr%scelg(ican,icol)%area * area_ratio
-                     twostr%scelg(ican,icol)%lai  = twostr%scelg(ican,icol)%lai / area_ratio
-                     twostr%scelg(ican,icol)%sai  = twostr%scelg(ican,icol)%sai / area_ratio
-                     canopy_frac(ican) = 1.0_r8
-                     exit if_overfull
+                  if(twostr%scelg(ican,icol)%area>areamax) then
+                     icolmax = icol
+                     areamax = twostr%scelg(ican,icol)%area
                   end if
                end do
                
-               !write(fates_log(),*) 'overfull areas'
-               !twostr%cosz = coszen_pa(ifp)
-               !     call twostr%Dump(1,lat=site%lat,lon=site%lon)
-               !     call endrun(msg=errMsg(sourcefile, __LINE__))
+               ! Test out a simpler way to correct area errors
+               if(do_simple_area_correct) then
+                  twostr%scelg(ican,icolmax)%area = twostr%scelg(ican,icolmax)%area - (canopy_frac(ican)-1._r8)
+               else
+                  area_ratio = (twostr%scelg(ican,icolmax)%area + (1._r8-canopy_frac(ican)))/twostr%scelg(ican,icolmax)%area
+                  twostr%scelg(ican,icolmax)%area = twostr%scelg(ican,icolmax)%area * area_ratio
+                  twostr%scelg(ican,icolmax)%lai  = twostr%scelg(ican,icolmax)%lai / area_ratio
+                  twostr%scelg(ican,icolmax)%sai  = twostr%scelg(ican,icolmax)%sai / area_ratio
+               end if
+
             end if if_overfull
 
          end do
