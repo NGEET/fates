@@ -290,6 +290,7 @@ contains
     integer  :: NCL_p               ! number of canopy layers in patch
     integer  :: iage                ! loop counter for leaf age classes
     integer  :: solve_iter
+    integer  :: ico
     
     ! Parameters
     !
@@ -406,14 +407,17 @@ contains
                   lmr_z(:,:,:)     = 0._r8
                                     
                   if_any_cohorts: if(currentPatch%countcohorts > 0.0)then
+
                      currentCohort => currentPatch%tallest
+                     ico = 0
                      do_cohort_drive: do while (associated(currentCohort)) ! Cohort loop
 
                         ! Identify the canopy layer (cl), functional type (ft)
                         ! and the leaf layer (IV) for this cohort
                         ft = currentCohort%pft
                         cl = currentCohort%canopy_layer
-
+                        ico = ico + 1
+                        
                         ! Calculate the cohort specific elai profile
                         ! And the top and bottom edges of the veg area index
                         ! of each layer bin are. Note, if the layers
@@ -786,6 +790,8 @@ contains
                                     
                                  end do do_sunsha
 
+                                 
+                                 
                                  ! Stomatal resistance of the leaf-layer
                                  if ( (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
 
@@ -805,6 +811,10 @@ contains
                               end if rate_mask_if
                            end do leaf_layer_loop
 
+                           if(maxval(psn_z(:,ft,cl))>nearzero .and. ico==2) then
+                              print*,psn_z(1:8,ft,cl)
+                           end if
+                           
                            ! Zero cohort flux accumulators.
                            currentCohort%npp_tstep  = 0.0_r8
                            currentCohort%resp_tstep = 0.0_r8
@@ -861,11 +871,6 @@ contains
                                    currentCohort%rdark,                   & !out
                                    currentCohort%c13disc_clm,             & !out
                                    cohort_eleaf_area)                       !out
-                           end if
-
-                           if(maxval(psn_z(:,ft,cl))>nearzero)then
-                              print*,currentCohort%gpp_tstep
-                              stop
                            end if
 
                               
@@ -1096,6 +1101,16 @@ contains
                         currentCohort => currentCohort%shorter
                      enddo do_cohort_drive
 
+                     
+                     if(maxval(psn_z(:,1,1))>nearzero)then
+                        currentCohort => currentPatch%tallest
+                        do while (associated(currentCohort)) ! Cohort loop
+                           print*,currentCohort%gpp_tstep,currentCohort%pft,currentCohort%canopy_layer
+                           currentCohort => currentCohort%shorter
+                        enddo
+                        stop
+                     end if
+                     
                   end if if_any_cohorts
 
                   ! Normalize canopy total conductance by the effective LAI
