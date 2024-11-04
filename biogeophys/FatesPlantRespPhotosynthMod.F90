@@ -491,6 +491,14 @@ contains
                                    (nleafage > 1) .or. &
                                    (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
 
+                                 
+                                 ! These values are incremented, therefore since
+                                 ! sometimes we re-do layers, we need to re-zero them as well
+                                 ! since it is not an over-write
+                                 psn_z(iv,ft,cl) = 0._r8
+                                 anet_av_z(iv,ft,cl) = 0._r8
+                                 c13disc_z(iv,ft,cl) = 0._r8
+                                 
                                  if (hlm_use_planthydro.eq.itrue ) then
 
                                     btran_eff = currentCohort%co_hydr%btran 
@@ -727,31 +735,6 @@ contains
                                        hydr_k_lwp = 1._r8
                                     end if
 
-                                    !print*,"vcmax:",vcmax_z,jmax_z
-                                    !print*,"tveg(c):",bc_in(s)%t_veg_pa(ifp)-273.15
-                                    !print*,"Pas:", bc_in(s)%forc_pbot,bc_in(s)%cair_pa(ifp),bc_in(s)%oair_pa(ifp)
-                                    !print*,"btran,gb_mol:",btran_eff,gb_mol*1.e-6
-                                    !print*,"vap,kco2,ko2,cc:",bc_in(s)%eair_pa(ifp),mm_kco2,mm_ko2,co2_cpoint
-                                    
-                                    !print*,"PSN IN:",par_abs,    &  ! in
-                                    !     leaf_area,                          &  ! in
-                                    !     ft,                                 &  ! in
-                                    !     vcmax_z,                            &  ! in
-                                    !     jmax_z,                             &  ! in
-                                    !     kp_z,                               &  ! in
-                                    !     bc_in(s)%t_veg_pa(ifp),             &  ! in
-                                    !     bc_in(s)%forc_pbot,                 &  ! in
-                                    !     bc_in(s)%cair_pa(ifp),              &  ! in
-                                    !     bc_in(s)%oair_pa(ifp),              &  ! in
-                                    !     btran_eff,                          &  ! in
-                                    !     gb_mol,                             &  ! in
-                                    !     bc_in(s)%eair_pa(ifp),              &  ! in 
-                                    !     mm_kco2,                            &  ! in
-                                    !     mm_ko2,                             &  ! in
-                                    !     co2_cpoint,                         &  ! in
-                                    !     lmr_z(iv,ft,cl)
-
-                                    
                                     call LeafLayerPhotosynthesis(par_per_sunla, & !
                                          par_abs,                            &  ! in
                                          leaf_area,                          &  ! in
@@ -811,9 +794,9 @@ contains
                               end if rate_mask_if
                            end do leaf_layer_loop
 
-                           if(maxval(psn_z(:,ft,cl))>nearzero .and. ico==2) then
-                              print*,psn_z(1:8,ft,cl)
-                           end if
+                           !if(maxval(psn_z(:,ft,cl))>nearzero .and. ico==2) then
+                           !   print*,psn_z(1:8,ft,cl)
+                           !end if
                            
                            ! Zero cohort flux accumulators.
                            currentCohort%npp_tstep  = 0.0_r8
@@ -1101,15 +1084,14 @@ contains
                         currentCohort => currentCohort%shorter
                      enddo do_cohort_drive
 
-                     
-                     if(maxval(psn_z(:,1,1))>nearzero)then
-                        currentCohort => currentPatch%tallest
-                        do while (associated(currentCohort)) ! Cohort loop
-                           print*,currentCohort%gpp_tstep,currentCohort%pft,currentCohort%canopy_layer
-                           currentCohort => currentCohort%shorter
-                        enddo
-                        stop
-                     end if
+                     !if(maxval(psn_z(:,1,1))>nearzero)then
+                     !   currentCohort => currentPatch%tallest
+                     !   do while (associated(currentCohort)) ! Cohort loop
+                     !      print*,currentCohort%gpp_tstep,currentCohort%pft,currentCohort%canopy_layer
+                     !      currentCohort => currentCohort%shorter
+                     !   enddo
+                     !   stop
+                     !end if
                      
                   end if if_any_cohorts
 
