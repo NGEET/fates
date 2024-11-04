@@ -223,28 +223,28 @@ def LinePlotY3dM1(ax,x1,x2,x3,y3d,str_x2,str_x3,add_labels):
     bluish = [0.3,0.3,0.8]
 
     ix2 = ix2_10;ix3=ix3_10;
-    fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
+    fmt_str = '%s = %5.2f %s = %5.2f'%(str_x2,x2[ix2],str_x3,x3[ix3])
     if(add_labels):
         ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color=bluish,label=fmt_str)
     else:
         ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color=bluish)
         
     ix2 = ix2_10;ix3=ix3_90;
-    fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
+    fmt_str = '%s = %5.2f %s = %5.2f'%(str_x2,x2[ix2],str_x3,x3[ix3])
     if(add_labels):
         ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color=bluish,label=fmt_str)
     else:
         ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color=bluish)
         
     ix2 = ix2_90;ix3=ix3_10;
-    fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
+    fmt_str = '%s = %5.2f %s = %5.2f'%(str_x2,x2[ix2],str_x3,x3[ix3])
     if(add_labels):
         ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color=redish,label=fmt_str)
     else:
         ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='dashed',color=redish)
         
     ix2 = ix2_90;ix3=ix3_90;
-    fmt_str = '%s = %4.1f %s = %4.1f'%(str_x2,x2[ix2],str_x3,x3[ix3])
+    fmt_str = '%s = %5.2f %s = %5.2f'%(str_x2,x2[ix2],str_x3,x3[ix3])
     if(add_labels):
         ap1 = ax.plot(x1,y3d[:,ix2,ix3],linestyle='solid',color=redish,label=fmt_str)
     else:
@@ -343,7 +343,7 @@ def main(argv):
 
     # Relative Humidity Ranges
     rh_max = 0.99
-    rh_min = 0.001
+    rh_min = 0.01
     rh_n   = 75
     rh_vec = np.linspace(rh_min,rh_max,num=rh_n)
     
@@ -393,6 +393,10 @@ def main(argv):
 
     nscaler = 1.0
 
+    # Set convergence tolerance
+    #ci_tol = 2.*can_press_1atm
+    ci_tol = 0.1
+    
     # Initialize fortran return values
     # these are all temps and doubles
     vcmax_f      = c_double(-9.0)
@@ -414,7 +418,6 @@ def main(argv):
     co2_cpoint_f = c_double(-9.0)
     qsdt_dummy_f = c_double(-9.0)
     esdt_dummy_f = c_double(-9.0)
-    solve_flag_f = c_int(-9)
     solve_iter_f = c_int(-9)
 
     print('Prepping Canopy Gas Parameters')
@@ -448,7 +451,7 @@ def main(argv):
     print('\n')
     print('Experiment 1: Evaluating Photosynthesis Equations by pft/Tl/RH/PR')
     
-    for pft in [11]: #range(numpft):
+    for pft in [0]: #range(numpft):
 
         if(do_evalvjkbytemp):
             print('\n')
@@ -537,7 +540,8 @@ def main(argv):
 
                     for ig, gb in enumerate(gb_vec):
                         
-                        iret = f90_leaflayerphoto_sub(c8(par_abs),  \
+                        iret = f90_leaflayerphoto_sub(c8(par_abs), \
+                                                      c8(par_abs),  \
                                                       c8(1.0),     \
                                                       ci(pft+1),   \
                                                       c8(vcmax[it]),   \
@@ -554,6 +558,7 @@ def main(argv):
                                                       c8(mm_ko2_vec[it]), \
                                                       c8(co2_cpoint_vec[it]), \
                                                       c8(lmr[it]), \
+                                                      c8(ci_tol), \
                                                       byref(agross_f), \
                                                       byref(gstoma_f), \
                                                       byref(anet_f), \
@@ -562,7 +567,6 @@ def main(argv):
                                                       byref(aj_f), \
                                                       byref(ap_f), \
                                                       byref(co2_interc_f), \
-                                                      byref(solve_flag_f), \
                                                       byref(solve_iter_f) )
                         
 

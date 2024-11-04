@@ -132,7 +132,7 @@ module LeafBiophysicsMod
   ! empirical curvature parameter for electron transport rate
   real(r8),parameter :: theta_psii = 0.7_r8
 
-  logical, parameter :: base_compare_revert = .true.
+  logical, parameter :: base_compare_revert = .false.
 
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
@@ -154,8 +154,11 @@ module LeafBiophysicsMod
   integer, parameter :: no_btran_scale_jmax_method = 0
   integer, parameter :: yes_btran_scale_jmax_method = 1
   integer, parameter :: scale_jmax_method = no_btran_scale_jmax_method
-  
-  
+
+  ! REVERT THIS TO GLOBAL AFTER EVALUTION OF TOLERANCE SENSITIVITY
+  ! When iteratively solving for intracellular co2 concentration, this
+  ! is the maximum tolerable change to accept convergence [Pa]
+  !real(r8),parameter :: ci_tol = 0.1_r8
   
   ! These are parameter constants read in externally
   ! some are differentiated by PFT, others are not
@@ -448,9 +451,9 @@ contains
   ! =======================================================================================
 
 
-  subroutine CiMinMax(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs, &
-       gb,veg_tempk,stomatal_intercept_btran,ci_min,ci_max)
+  subroutine CiMinMax(ft,vcmax,jmax,co2_cpoint,mm_kco2,mm_ko2, &
+       can_co2_ppress,can_o2_ppress,can_press,lmr,par_abs, &
+       gb,stomatal_intercept_btran,ci_min,ci_max)
 
     ! This routine is used to find the first values of Ci that are the bounds
     ! for the bisection algorithm. It finds the values associated with minimum
@@ -461,22 +464,19 @@ contains
     integer              , intent(in)    :: ft       ! plant functional type index
     real(r8)             , intent(in)    :: vcmax
     real(r8)             , intent(in)    :: jmax
-    real(r8)             , intent(in)    :: kp             ! co2_rcurve_islope
     real(r8)             , intent(in)    :: co2_cpoint
     real(r8)             , intent(in)    :: mm_kco2
     real(r8)             , intent(in)    :: mm_ko2
     real(r8)             , intent(in)    :: can_co2_ppress
     real(r8)             , intent(in)    :: can_o2_ppress
     real(r8)             , intent(in)    :: can_press
-    real(r8)             , intent(in)    :: can_vpress
     real(r8)             , intent(in)    :: lmr      ! leaf maintenance respiration rate (umol CO2/m**2/s)
     real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai (w/m**2)
     real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
-    real(r8)             , intent(in)    :: veg_tempk
     real(r8)             , intent(in)    :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
 
-    real(r8) :: ci_max_c,ci_max_j,ci_max_p
-    real(r8) :: ci_min_c,ci_min_j,ci_min_p
+    real(r8) :: ci_max_c,ci_max_j
+    real(r8) :: ci_min_c,ci_min_j
     
     real(r8), intent(out) :: ci_max
     real(r8), intent(out) :: ci_min
@@ -574,6 +574,7 @@ contains
     
   end subroutine CiMinMax
 
+  ! =====================================================================================
 
   function CiFromAnetDiffGrad(a,b,c,d,e,f,g) result(ci)
 
@@ -603,7 +604,7 @@ contains
   subroutine CiFunc(ci, &
        ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-       stomatal_intercept_btran, &       
+       stomatal_intercept_btran, &
        anet,agross,gs,fval)
 
     ! -----------------------------------------------------------------------------------
@@ -660,8 +661,6 @@ contains
                                               ! (C4) gross photosynthesis (umol CO2/m**2/s)
     real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
 
-    logical,parameter :: short_circuit_aj = .true.
-    
     !------------------------------------------------------------------------------
 
     ! Photosynthesis limitation rate calculations
@@ -676,10 +675,6 @@ contains
        ! Take the minimum, no smoothing
        agross = min(ac,aj)
 
-       if(short_circuit_aj)then
-          agross = ac
-       end if
-       
     else
        
        ! C4: Rubisco-limited photosynthesis
@@ -767,7 +762,7 @@ contains
   
   subroutine CiBisection(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-       stomatal_intercept_btran, &       
+       stomatal_intercept_btran,ci_tol, &       
        anet,agross,gs,ci,solve_iter)
 
     ! -----------------------------------------------------------------------------------
@@ -793,7 +788,7 @@ contains
     real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8)             , intent(in)    :: veg_tempk
     real(r8)             , intent(in)    :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
-    
+    real(r8)             , intent(in)    :: ci_tol            ! Convergence tolerance for solutions for intracellular CO2 (Pa)
     real(r8)             , intent(out)   :: anet
     real(r8)             , intent(out)   :: agross
     real(r8)             , intent(out)   :: gs
@@ -814,17 +809,13 @@ contains
     !real(r8),parameter :: init_ci_low  = 0.01_r8
     !real(r8),parameter :: init_ci_high = 4.0_r8
 
-    ! When iteratively solving for intracellular co2 concentration, this
-    ! is the maximum tolerable change to accept convergence [Pa]
-    real(r8),parameter :: ci_tol = 0.1_r8
-
     ! Maximum number of iterations on intracelluar co2 solver until is quits
     integer, parameter :: max_iters = 200
 
     ! Find the starting points (end-points) for bisection
-    call CiMinMax(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs, &
-       gb,veg_tempk,stomatal_intercept_btran,ci_l,ci_h)
+    call CiMinMax(ft,vcmax,jmax,co2_cpoint,mm_kco2,mm_ko2, &
+       can_co2_ppress,can_o2_ppress,can_press,lmr,par_abs, &
+       gb,stomatal_intercept_btran,ci_l,ci_h)
     
     call CiFunc(ci_h, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
@@ -914,6 +905,7 @@ contains
        mm_ko2,            &  ! in
        co2_cpoint,        &  ! in
        lmr,               &  ! in
+       ci_tol,            &  ! in
        agross,            &  ! out
        gs,                &  ! out
        anet,              &  ! out
@@ -954,6 +946,7 @@ contains
     real(r8), intent(in) :: mm_ko2            ! Michaelis-Menten constant for O2 (Pa)
     real(r8), intent(in) :: co2_cpoint        ! CO2 compensation point (Pa)
     real(r8), intent(in) :: lmr               ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
+    real(r8), intent(in) :: ci_tol            ! Convergence tolerance for solutions for intracellular CO2 (Pa)
     real(r8), intent(out) :: agross           ! gross photosynthesis (umolC/m2/s)
     real(r8), intent(out) :: gs               ! leaf stomatal conductance (umol H2O/m**2/s)
     real(r8), intent(out) :: anet             ! net leaf photosynthesis (umol CO2/m**2/s)
@@ -994,9 +987,7 @@ contains
     real(r8),parameter :: init_a2l_co2_c3 = 0.7_r8
     real(r8),parameter :: init_a2l_co2_c4 = 0.4_r8
 
-    ! When iteratively solving for intracellular co2 concentration, this
-    ! is the maximum tolerable change to accept convergence [Pa]
-    real(r8),parameter :: ci_tol = 0.1_r8
+    
 
     ! Maximum number of iterations on intracelluar co2 solver until is quits
     integer, parameter :: max_iters = 10
@@ -1125,25 +1116,28 @@ contains
        ! ci_predicted = ci_input - fval
        ci = ci0 - fval
 
-       if(.not.base_compare_revert) then
-          if( abs(fval) < ci_tol ) then
-             loop_continue = .false.
-             exit iter_loop
-          end if
-       else
-          if ((abs(fval)/can_press*1.e06_r8 <=  2.e-06_r8) .or. solve_iter == 5) then
+       
+       ! In main, ci_tol = 2*can_press
+       ! Special convergence requirement to satisfy B4B with main
+       if (ci_tol > can_press) then
+          if (solve_iter == 5) then
              loop_continue = .false.
              exit iter_loop
           end if
        end if
-          
+
+       if (abs(fval) <= ci_tol ) then
+          loop_continue = .false.
+          exit iter_loop
+       end if
+
        ci0 = ci
        
        if( solve_iter == max_iters) then
           call CiBisection( &
                ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
                can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-               eff_stomatal_intercept, &
+               eff_stomatal_intercept,ci_tol, &
                anet,agross,gs,ci,solve_iter)
           loop_continue = .false.
           exit iter_loop

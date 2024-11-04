@@ -69,10 +69,10 @@ contains
     select case(trim(pname))
     case('fates_daylength_factor_switch')
        lb_params%dayl_switch = nint(val)
-    case('fates_leaf_theta_cj_c3')
-       lb_params%theta_cj_c3 = val
-    case('fates_leaf_theta_cj_c4')
-       lb_params%theta_cj_c4 = val
+    !case('fates_leaf_theta_cj_c3')
+    !   lb_params%theta_cj_c3 = val
+    !case('fates_leaf_theta_cj_c4')
+    !   lb_params%theta_cj_c4 = val
     case('fates_leaf_stomatal_model')
        lb_params%stomatal_model = nint(val)
     case('fates_leaf_stomatal_assim_model')
@@ -122,8 +122,8 @@ contains
 
     print*,"Leaf Biophys Parameters In Structure lb_params: "
     print*,'fates_daylength_factor_switch: ',lb_params%dayl_switch
-    print*,'fates_leaf_theta_cj_c3: ',lb_params%theta_cj_c3
-    print*,'fates_leaf_theta_cj_c4: ',lb_params%theta_cj_c4
+    !print*,'fates_leaf_theta_cj_c3: ',lb_params%theta_cj_c3
+    !print*,'fates_leaf_theta_cj_c4: ',lb_params%theta_cj_c4
     print*,'fates_leaf_stomatal_model: ',lb_params%stomatal_model
     print*,'fates_leaf_stomatal_assim_model: ',lb_params%stomatal_assim_model
     print*,'fates_leaf_photo_tempsens_model: ',lb_params%photo_tempsens_model
