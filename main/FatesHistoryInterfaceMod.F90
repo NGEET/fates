@@ -671,6 +671,8 @@ module FatesHistoryInterfaceMod
 
   ! indices to (site x patch-age) variables
   integer :: ih_fracarea_si_age
+  integer :: ih_fracarea_plant_si_age
+  integer :: ih_fracarea_trees_si_age
   integer :: ih_lai_si_age
   integer :: ih_canopy_fracarea_si_age
   integer :: ih_gpp_si_age
