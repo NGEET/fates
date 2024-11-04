@@ -1179,10 +1179,10 @@ contains
        else
            ilon_sign = 'W'
        end if
-
-       write(pss_name_out,'(A8, I2.2, A1, I5.5, A1)') &
+ 
+       write(pss_name_out,'(A8,I2.2,A1,I5.5,A1,A1,I3.3,A1,I5.5,A1,A4)') &
              'pss_out_',ilat_int,'.',ilat_dec,ilat_sign,'_',ilon_int,'.',ilon_dec,ilon_sign,'.txt'
-       write(css_name_out,'(A8, I2.2,  A1, A1, I3.3, A1)') &
+       write(css_name_out,'(A8,I2.2,A1,I5.5,A1,A1,I3.3,A1,I5.5,A1,A4)') &
              'css_out_',ilat_int,'.',ilat_dec,ilat_sign,'_',ilon_int,'.',ilon_dec,ilon_sign,'.txt'
 
        pss_file_out       = shr_file_getUnit()
@@ -1208,7 +1208,7 @@ contains
            do while(associated(currentcohort))
                icohort=icohort+1
                write(css_file_out,*) '0000 ',trim(patch_str), &
-                     currentCohort%dbh,currentCohort%height,currentCohort%pft,currentCohort%n/currentPatch%area
+                     currentCohort%dbh,-3.0_r8,currentCohort%pft,currentCohort%n/currentPatch%area
 
                currentcohort => currentcohort%shorter
            end do
