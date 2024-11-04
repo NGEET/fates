@@ -278,8 +278,6 @@ contains
          (2.0*stomatal_intercept_btran + term * &
          (1.0 - lb_params%medlyn_slope(ft)* lb_params%medlyn_slope(ft) / vpd)) * term
 
-    !print*,"PREMED"
-    
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
     gs = max(r1,r2)
        

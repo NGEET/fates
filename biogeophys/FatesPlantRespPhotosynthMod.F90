@@ -779,17 +779,12 @@ contains
                                     ! Average output quantities across sunlit and shaded leaves
                                     ! Convert from molar to velocity (umol /m**2/s) to (m/s)
                                     gstoma = gstoma + area_frac* (gstoma_ll / VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp)))
-
-                                    
-                                    print*,psn_ll
                                     
                                     psn_z(iv,ft,cl) = psn_z(iv,ft,cl) + area_frac * psn_ll
                                     anet_av_z(iv,ft,cl) = anet_av_z(iv,ft,cl) + area_frac * anet_ll
                                     c13disc_z(iv,ft,cl) = c13disc_z(iv,ft,cl) + area_frac * c13disc_ll
                                     
                                  end do do_sunsha
-
-                                 if(par_per_sunla>nearzero)stop
 
                                  ! Stomatal resistance of the leaf-layer
                                  if ( (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
@@ -849,6 +844,8 @@ contains
 
                            else
 
+                              
+                              
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
                                    psn_z(1:nv,ft,cl),        & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
@@ -866,7 +863,12 @@ contains
                                    cohort_eleaf_area)                       !out
                            end if
 
+                           if(maxval(psn_z(:,ft,cl))>nearzero)then
+                              print*,currentCohort%gpp_tstep
+                              stop
+                           end if
 
+                              
                            ! Net Uptake does not need to be scaled, just transfer directly
                            currentCohort%ts_net_uptake(1:nv) = anet_av_z(1:nv,ft,cl) * umolC_to_kgC
 
