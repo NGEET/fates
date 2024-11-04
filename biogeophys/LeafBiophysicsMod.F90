@@ -181,10 +181,10 @@ module LeafBiophysicsMod
      real(r8),allocatable :: jmaxhd(:)                            ! deactivation energy for jmax (J/mol)
      real(r8),allocatable :: vcmaxse(:)                           ! entropy term for vcmax (J/mol/K)
      real(r8),allocatable :: jmaxse(:)                            ! entropy term for jmax (J/mol/K)
-     real(r8)             :: theta_cj_c3                          ! Empirical curvature parameter for ac and 
-                                                                  ! aj photosynthesis co-limitation in c3 plants
-     real(r8)             :: theta_cj_c4                          ! Empirical curvature parameter for ac and aj
-                                                                  ! photosynthesis co-limitation in c4 plants
+     !real(r8)             :: theta_cj_c3                          ! Empirical curvature parameter for ac and 
+     !                                                             ! aj photosynthesis co-limitation in c3 plants
+     !real(r8)             :: theta_cj_c4                          ! Empirical curvature parameter for ac and aj
+     !                                                             ! photosynthesis co-limitation in c4 plants
      integer              :: dayl_switch                          ! switch for turning on or off day length factor
                                                                   ! scaling for photosynthetic parameters
      integer              :: photo_tempsens_model                 ! switch for choosing the model that defines the temperature

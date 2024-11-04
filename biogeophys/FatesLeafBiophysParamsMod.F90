@@ -22,7 +22,10 @@ module FatesLeafBiophysParamsMod
 
   public :: LeafBiophysRegisterParams
   public :: LeafBiophysReceiveParams
-
+  public :: LeafBiophysReportParams
+  
+  character(len=*), parameter :: sourcefile = &
+        __FILE__
 
   integer, parameter  :: lower_bound_pft = 1
 
@@ -47,13 +50,13 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    name = 'fates_leaf_theta_cj_c3'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    !name = 'fates_leaf_theta_cj_c3'
+    !call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
+    !     dimension_names=dim_names_scalar)
 
-    name = 'fates_leaf_theta_cj_c4'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
+    !name = 'fates_leaf_theta_cj_c4'
+    !call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
+    !     dimension_names=dim_names_scalar)
 
     name = 'fates_leaf_stomatal_model'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
@@ -143,13 +146,13 @@ contains
     character(len=param_string_length) :: name
 
     
-    name = 'fates_leaf_theta_cj_c3'
-    call fates_params%RetrieveParameter(name=name, &
-         data=lb_params%theta_cj_c3)
+    !name = 'fates_leaf_theta_cj_c3'
+    !call fates_params%RetrieveParameter(name=name, &
+    !     data=lb_params%theta_cj_c3)
 
-    name = 'fates_leaf_theta_cj_c4'
-    call fates_params%RetrieveParameter(name=name, &
-         data=lb_params%theta_cj_c4)
+    !name = 'fates_leaf_theta_cj_c4'
+    !call fates_params%RetrieveParameter(name=name, &
+    !     data=lb_params%theta_cj_c4)
 
     name = 'fates_daylength_factor_switch'
     call fates_params%RetrieveParameter(name=name, &
@@ -248,20 +251,34 @@ contains
     logical, intent(in) :: is_master  ! Only log if this is the master proc
 
     logical, parameter :: debug_report = .false.
-    character(len=32),parameter :: fmt0 = '(a,100(F12.4,1X))'
-
+    character(len=32),parameter :: fmt_rout = '(a,F16.8)'
+    character(len=32),parameter :: fmt_iout = '(a,I8)'
+    
     integer :: npft,ipft
 
     if(debug_report .and. is_master) then
-       write(fates_log(),fmt0) 'c3psn = ',lb_params%c3psn
-       write(fates_log(),fmt0) 'vcmaxha = ',lb_params%vcmaxha
-       write(fates_log(),fmt0) 'jmaxha = ',lb_params%jmaxha
-       write(fates_log(),fmt0) 'vcmaxhd = ',lb_params%vcmaxhd
-       write(fates_log(),fmt0) 'jmaxhd = ',lb_params%jmaxhd
-       write(fates_log(),fmt0) 'vcmaxse = ',lb_params%vcmaxse
-       write(fates_log(),fmt0) 'jmaxse = ',lb_params%jmaxse
-       write(fates_log(),fmt0) 'dayl_switch = ',lb_params%dayl_switch     
+       write(fates_log(),fmt_iout) 'fates_leaf_c3psn = ',lb_params%c3psn
+       write(fates_log(),fmt_rout) 'fates_leaf_vcmaxha = ',lb_params%vcmaxha
+       write(fates_log(),fmt_rout) 'fates_leaf_jmaxha = ',lb_params%jmaxha
+       write(fates_log(),fmt_rout) 'fates_leaf_vcmaxhd = ',lb_params%vcmaxhd
+       write(fates_log(),fmt_rout) 'fates_leaf_jmaxhd = ',lb_params%jmaxhd
+       write(fates_log(),fmt_rout) 'fates_leaf_vcmaxse = ',lb_params%vcmaxse
+       write(fates_log(),fmt_rout) 'fates_leaf_jmaxse = ',lb_params%jmaxse
+       write(fates_log(),fmt_iout) 'fates_daylength_factor_switch = ',lb_params%dayl_switch
+       write(fates_log(),fmt_iout) 'fates_leaf_stomatal_model = ',lb_params%stomatal_model
+       write(fates_log(),fmt_iout) 'fates_leaf_stomatal_assim_model = ',lb_params%stomatal_assim_model
+       write(fates_log(),fmt_iout) 'fates_leaf_photo_tempsens_model = ',lb_params%photo_tempsens_model
+       write(fates_log(),fmt_rout) 'fates_leaf_stomatal_slope_medlyn = ',lb_params%medlyn_slope
+       write(fates_log(),fmt_rout) 'fates_leaf_stomatal_slope_ballberry = ',lb_params%bb_slope
+       write(fates_log(),fmt_rout) 'fates_leaf_stomatal_intercept = ',lb_params%stomatal_intercept
+       write(fates_log(),fmt_rout) 'fates_maintresp_leaf_ryan1991_baserate = ',lb_params%maintresp_leaf_ryan1991_baserate
+       write(fates_log(),fmt_rout) 'fates_maintresp_leaf_atkin2017_baserate = ',lb_params%maintresp_leaf_atkin2017_baserate
+       write(fates_log(),fmt_rout) 'fates_maintresp_reduction_curvature = ',lb_params%maintresp_reduction_curvature
+       write(fates_log(),fmt_rout) 'fates_maintresp_reduction_intercept = ',lb_params%maintresp_reduction_intercept
+       write(fates_log(),fmt_rout) 'fates_maintresp_reduction_upthresh = ',lb_params%maintresp_reduction_upthresh
     end if
+
+    
   end subroutine LeafBiophysReportParams
 
 end module FatesLeafBiophysParamsMod

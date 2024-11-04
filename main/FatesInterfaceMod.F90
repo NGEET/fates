@@ -71,7 +71,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
    use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
    use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
-   use FatesLeafBiophysParamsMod , only : LeafBiophysRegisterParams, LeafBiophysReceiveParams
+   use FatesLeafBiophysParamsMod , only : LeafBiophysRegisterParams, LeafBiophysReceiveParams,LeafBiophysReportParams
    use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
    use EDParamsMod               , only : p_uptake_mode
    use EDParamsMod               , only : n_uptake_mode
@@ -2072,6 +2072,7 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
+      call LeafBiophysReportParams(masterproc)
       call PRTDerivedParams()              ! Update PARTEH derived constants
       call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters

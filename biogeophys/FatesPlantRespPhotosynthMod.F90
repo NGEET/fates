@@ -170,10 +170,10 @@ contains
     real(r8) :: anet_av_z(nlevleaf,maxpft,nclmax)
 
     ! photsynthesis
-    real(r8) :: psn_z(nclmax,maxpft,nlevleaf) 
+    real(r8) :: psn_z(nlevleaf,maxpft,nclmax) 
 
     ! carbon 13 in newly assimilated carbon at leaf level
-    real(r8) :: c13disc_z(nclmax,maxpft,nlevleaf)
+    real(r8) :: c13disc_z(nlevleaf,maxpft,nclmax) 
     
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
@@ -723,6 +723,12 @@ contains
                                        hydr_k_lwp = 1._r8
                                     end if
 
+                                    !print*,"vcmax:",vcmax_z,jmax_z
+                                    !print*,"tveg(c):",bc_in(s)%t_veg_pa(ifp)-273.15
+                                    !print*,"Pas:", bc_in(s)%forc_pbot,bc_in(s)%cair_pa(ifp),bc_in(s)%oair_pa(ifp)
+                                    !print*,"btran,gb_mol:",btran_eff,gb_mol*1.e-6
+                                    !print*,"vap,kco2,ko2,cc:",bc_in(s)%eair_pa(ifp),mm_kco2,mm_ko2,co2_cpoint
+                                    
                                     !print*,"PSN IN:",par_abs,    &  ! in
                                     !     leaf_area,                          &  ! in
                                     !     ft,                                 &  ! in
@@ -774,9 +780,9 @@ contains
                                     ! Convert from molar to velocity (umol /m**2/s) to (m/s)
                                     gstoma = gstoma + area_frac* (gstoma_ll / VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp)))
                                     
-                                    psn_z(cl,ft,iv) = psn_z(cl,ft,iv) + area_frac * psn_ll
+                                    psn_z(iv,ft,cl) = psn_z(iv,ft,cl) + area_frac * psn_ll
                                     anet_av_z(iv,ft,cl) = anet_av_z(iv,ft,cl) + area_frac * anet_ll
-                                    c13disc_z(cl,ft,iv) = c13disc_z(cl,ft,iv) + area_frac * c13disc_ll
+                                    c13disc_z(iv,ft,cl) = c13disc_z(iv,ft,cl) + area_frac * c13disc_ll
                                     
                                  end do do_sunsha
 
@@ -822,11 +828,11 @@ contains
                            if(radiation_model.eq.norman_solver) then
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   psn_z(cl,ft,1:nv),        & !in
+                                   psn_z(1:nv,ft,cl),        & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    currentPatch%elai_profile(cl,ft,1:nv), & !in
-                                   c13disc_z(cl, ft, 1:nv),               & !in
+                                   c13disc_z(1:nv,ft,cl),                 & !in
                                    currentCohort%c_area,                  & !in
                                    currentCohort%n,                       & !in
                                    bc_in(s)%rb_pa(ifp),                   & !in
@@ -840,11 +846,11 @@ contains
                            else
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   psn_z(cl,ft,1:nv),        & !in
+                                   psn_z(1:nv,ft,cl),        & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    cohort_layer_elai(1:nv),               & !in
-                                   c13disc_z(cl, ft, 1:nv),               & !in
+                                   c13disc_z(1:nv,ft,cl),                 & !in
                                    currentCohort%c_area,                  & !in
                                    currentCohort%n,                       & !in
                                    bc_in(s)%rb_pa(ifp),                   & !in
@@ -1240,21 +1246,21 @@ contains
 
   ! =======================================================================================
 
-  subroutine ScaleLeafLayerFluxToCohort(nv,          & ! in   currentCohort%nv
-       psn_llz,     & ! in   psn_z(1:currentCohort%nv,ft,cl)
-       lmr_llz,     & ! in   lmr_z(1:currentCohort%nv,ft,cl)
-       rs_llz,      & ! in   rs_z(1:currentCohort%nv,ft,cl)
-       elai_llz,    & ! in   %elai_profile(cl,ft,1:currentCohort%nv)
-       c13disc_llz, & ! in   c13disc_z(cl, ft, 1:currentCohort%nv)
-       c_area,      & ! in   currentCohort%c_area
-       nplant,      & ! in   currentCohort%n
-       rb,          & ! in   bc_in(s)%rb_pa(ifp)
-       maintresp_reduction_factor, & ! in
-       g_sb_laweight, & ! out  currentCohort%g_sb_laweight [m/s] [m2-leaf]
-       gpp,         &   ! out  currentCohort%gpp_tstep
-       rdark,       &   ! out  currentCohort%rdark
-       c13disc_clm, &   ! out currentCohort%c13disc_clm
-       cohort_eleaf_area ) ! out [m2]
+  subroutine ScaleLeafLayerFluxToCohort(nv, &                         ! in
+                                        psn_llz,     &                ! in 
+                                        lmr_llz,     &                ! in 
+                                        rs_llz,      &                ! in 
+                                        elai_llz,    &                ! in 
+                                        c13disc_llz, &                ! in 
+                                        c_area,      &                ! in 
+                                        nplant,      &                ! in 
+                                        rb,          &                ! in 
+                                        maintresp_reduction_factor, & ! in
+                                        g_sb_laweight, &              ! out 
+                                        gpp,         &                ! out 
+                                        rdark,       &                ! out 
+                                        c13disc_clm, &                ! out 
+                                        cohort_eleaf_area )           ! out
 
     ! ------------------------------------------------------------------------------------
     ! This subroutine effectively integrates leaf carbon fluxes over the
@@ -1284,7 +1290,7 @@ contains
     real(r8), intent(out) :: cohort_eleaf_area ! Effective leaf area of the cohort [m2]
     real(r8), intent(out) :: c13disc_clm       ! unpacked Cohort level c13 discrimination
     real(r8)              :: sum_weight        ! sum of weight for unpacking d13c flux (c13disc_z) from
-    ! (canopy_layer, pft, leaf_layer) matrix to cohort (c13disc_clm)
+                                               ! (canopy_layer, pft, leaf_layer) matrix to cohort (c13disc_clm)
 
     ! GPP IN THIS SUBROUTINE IS A RATE. THE CALLING ARGUMENT IS GPP_TSTEP. AFTER THIS
     ! CALL THE RATE WILL BE MULTIPLIED BY THE INTERVAL TO GIVE THE INTEGRATED QUANT.
