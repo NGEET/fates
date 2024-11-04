@@ -410,9 +410,6 @@ contains
     aquad = theta_psii
     bquad = -(jpar + jmax)
     cquad = jpar * jmax
-
-    !print*,"PREJ", aquad,bquad,cquad
-    
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
     je = min(r1,r2)
 
@@ -593,7 +590,7 @@ contains
     ! and minimized, to perform a binary search
     
     real(r8) :: a,b,c,d,e,f,g  ! compound terms to solve the
-                             ! coupled Anet and diffusive flux gradient equations
+                               ! coupled Anet and diffusive flux gradient equations
 
     real(r8) :: ci  ! intracellular co2 [Pa]
     
@@ -711,9 +708,6 @@ contains
        end if
        a_gs = agross
     else
-
-    
-       
        a_gs = anet
     end if
 
@@ -819,8 +813,8 @@ contains
     
     ! First guess on ratio between intracellular co2 and the atmosphere
     ! an iterator converges on actual
-    real(r8),parameter :: init_ci_low  = 0.01_r8
-    real(r8),parameter :: init_ci_high = 4.0_r8
+    !real(r8),parameter :: init_ci_low  = 0.01_r8
+    !real(r8),parameter :: init_ci_high = 4.0_r8
 
     ! When iteratively solving for intracellular co2 concentration, this
     ! is the maximum tolerable change to accept convergence [Pa]
@@ -829,14 +823,11 @@ contains
     ! Maximum number of iterations on intracelluar co2 solver until is quits
     integer, parameter :: max_iters = 200
 
-
+    ! Find the starting points (end-points) for bisection
     call CiMinMax(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs, &
        gb,veg_tempk,stomatal_intercept_btran,ci_l,ci_h)
     
-    !ci_h = can_co2_ppress * init_ci_high
-    !ci_l = can_co2_ppress * init_ci_low
-
     call CiFunc(ci_h, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
          can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
@@ -1734,10 +1725,6 @@ contains
        write (fates_log(),*)'you specified scale_jmax_method = ',scale_jmax_method
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
-
-    
-   
- 
  
     ! Adjust for water limitations
     vcmax = vcmax * btran
