@@ -998,20 +998,6 @@ contains
             end if
          end do
 
-         ! Check that the right number of edge forest parameters are given
-         if (size(ED_val_edgeforest_amplitudes, dim=1) .ne. nlevedgeforest) then
-            write(fates_log(), *) 'Length of fates_edgeforest_amplitudes does not match length of fates_edgeforest_bin_edges'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-         if (size(ED_val_edgeforest_sigmas, dim=1) .ne. nlevedgeforest) then
-            write(fates_log(), *) 'Length of fates_edgeforest_sigmas does not match length of fates_edgeforest_bin_edges'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-         if (size(ED_val_edgeforest_centers, dim=1) .ne. nlevedgeforest) then
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-               write(fates_log(), *) 'Length of fates_edgeforest_centers does not match length of fates_edgeforest_bin_edges'
-         end if
-         
          ! Set the fates dispersal kernel mode if there are any seed dispersal parameters set.
          ! The validation of the parameter values is check in FatesCheckParams prior to this check.
          ! This is currently hard coded, but could be added as a fates parameter file option,
