@@ -339,7 +339,10 @@ contains
     ! area of each patch that is in each edge bin.
     !
     ! USES:
-    use EDParamsMod, only : ED_val_edgeforest_amplitudes, ED_val_edgeforest_sigmas, ED_val_edgeforest_centers, ED_val_edgeforest_decay
+    use EDParamsMod, only : ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center
+    use EDParamsMod, only : ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center
+    use EDParamsMod, only : ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c
+    use EDParamsMod, only : ED_val_edgeforest_bin_edges
     !
     ! ARGUMENTS:
     type(ed_site_type), pointer, intent(in) :: site
@@ -370,7 +373,7 @@ contains
 
     ! Get percentage of nonforest area in each bin
     pct_nonforest = 100._r8 * (area - area_forest_patches) / area
-    call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, ED_val_edgeforest_amplitudes, ED_val_edgeforest_sigmas, ED_val_edgeforest_centers, ED_val_edgeforest_decay, fraction_forest_in_each_bin)
+   !  call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, ED_val_edgeforest_amplitudes, ED_val_edgeforest_sigmas, ED_val_edgeforest_centers, ED_val_edgeforest_decay, fraction_forest_in_each_bin)
 
     ! Assign patches to bins
     call assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)

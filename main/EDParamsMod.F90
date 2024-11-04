@@ -117,13 +117,17 @@ module EDParamsMod
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
 
-   ! Edge forest bin parameters which are just single values
-   real(r8),protected,public :: ED_val_edgeforest_decay
-   ! Edge forest bin parameters whose size is defined in parameter file (i.e., dependent on number of bins)
+   ! Edge forest bin parameters
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_gaussian_amplitude(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_gaussian_sigma(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_gaussian_center(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_lognormal_amplitude(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_lognormal_sigma(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_lognormal_center(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_quadratic_a(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_quadratic_b(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_quadratic_c(:)
    real(r8),protected,allocatable,public :: ED_val_edgeforest_bin_edges(:)
-   real(r8),protected,allocatable,public :: ED_val_edgeforest_amplitudes(:)
-   real(r8),protected,allocatable,public :: ED_val_edgeforest_sigmas(:)
-   real(r8),protected,allocatable,public :: ED_val_edgeforest_centers(:)
 
    ! Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses
    ! (THIS PARAMETER IS UNUSED, FEEL FREE TO USE IT FOR WHATEVER PURPOSE YOU LIKE. WE CAN
@@ -187,11 +191,16 @@ module EDParamsMod
    ! non-scalar parameter names
    character(len=param_string_length),parameter,public :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
    character(len=param_string_length),parameter,public :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"      
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_gaussian_amplitude = "fates_edgeforest_gaussian_amplitude"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_gaussian_sigma = "fates_edgeforest_gaussian_sigma"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_gaussian_center = "fates_edgeforest_gaussian_center"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_lognormal_amplitude = "fates_edgeforest_lognormal_amplitude"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_lognormal_sigma = "fates_edgeforest_lognormal_sigma"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_lognormal_center = "fates_edgeforest_lognormal_center"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_quadratic_a = "fates_edgeforest_quadratic_a"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_quadratic_b = "fates_edgeforest_quadratic_b"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_quadratic_c = "fates_edgeforest_quadratic_c"
    character(len=param_string_length),parameter,public :: ED_name_edgeforest_bin_edges = "fates_edgeforest_bin_edges"
-   character(len=param_string_length),parameter,public :: ED_name_edgeforest_amplitudes = "fates_edgeforest_amplitudes"
-   character(len=param_string_length),parameter,public :: ED_name_edgeforest_decay = "fates_edgeforest_decay"
-   character(len=param_string_length),parameter,public :: ED_name_edgeforest_sigmas = "fates_edgeforest_sigmas"
-   character(len=param_string_length),parameter,public :: ED_name_edgeforest_centers = "fates_edgeforest_centers"
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
@@ -605,19 +614,34 @@ contains
     call fates_params%RegisterParameter(name=ED_name_history_ageclass_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_ageclass)
 
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_gaussian_amplitude, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_gaussian_sigma, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_gaussian_center, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_lognormal_amplitude, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_lognormal_sigma, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_lognormal_center, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_quadratic_a, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_quadratic_b, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_quadratic_c, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
     call fates_params%RegisterParameter(name=ED_name_edgeforest_bin_edges, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names_edgeforest)
-
-    call fates_params%RegisterParameter(name=ED_name_edgeforest_amplitudes, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names_edgeforest)
-
-    call fates_params%RegisterParameter(name=ED_name_edgeforest_decay, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_edgeforest)
-
-    call fates_params%RegisterParameter(name=ED_name_edgeforest_sigmas, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names_edgeforest)
-
-    call fates_params%RegisterParameter(name=ED_name_edgeforest_centers, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_edgeforest)
 
     call fates_params%RegisterParameter(name=ED_name_history_height_bin_edges, dimension_shape=dimension_shape_1d, &
@@ -866,20 +890,35 @@ contains
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_ageclass_bin_edges, &
           data=ED_val_history_ageclass_bin_edges)
 
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_gaussian_amplitude, &
+         data=ED_val_edgeforest_gaussian_amplitude)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_gaussian_sigma, &
+         data=ED_val_edgeforest_gaussian_sigma)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_gaussian_center, &
+         data=ED_val_edgeforest_gaussian_center)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_lognormal_amplitude, &
+         data=ED_val_edgeforest_lognormal_amplitude)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_lognormal_sigma, &
+         data=ED_val_edgeforest_lognormal_sigma)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_lognormal_center, &
+         data=ED_val_edgeforest_lognormal_center)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_quadratic_a, &
+         data=ED_val_edgeforest_quadratic_a)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_quadratic_b, &
+         data=ED_val_edgeforest_quadratic_b)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_quadratic_c, &
+         data=ED_val_edgeforest_quadratic_c)
+
     call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_bin_edges, &
          data=ED_val_edgeforest_bin_edges)
-
-    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_amplitudes, &
-         data=ED_val_edgeforest_amplitudes)
-
-    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_sigmas, &
-         data=ED_val_edgeforest_sigmas)
-
-    call fates_params%RetrieveParameter(name=ED_name_edgeforest_decay, &
-         data=ED_val_edgeforest_decay)
-
-    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_centers, &
-         data=ED_val_edgeforest_centers)
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_height_bin_edges, &
           data=ED_val_history_height_bin_edges)
