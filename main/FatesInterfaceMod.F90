@@ -15,9 +15,6 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_vai_top_bin_width
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
-   use EDParamsMod               , only : ED_val_edgeforest_amplitudes
-   use EDParamsMod               , only : ED_val_edgeforest_centers
-   use EDParamsMod               , only : ED_val_edgeforest_sigmas
    use EDParamsMod               , only : maxpatch_total
    use EDParamsMod               , only : maxpatches_by_landuse
    use EDParamsMod               , only : max_cohort_per_patch
