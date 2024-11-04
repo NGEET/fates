@@ -263,9 +263,8 @@ contains
     real(r8)               :: cohort_elai
     real(r8)               :: cohort_esai
     real(r8)               :: laisun,laisha
-    real(r8)               :: leaf_area_sun, leaf_area_sha
     real(r8)               :: leaf_area    ! m2 leaf per m2 footprint, for either sunlit or shaded leaf
-    real(r8)               :: par_abs      ! absorbed PAR per m2 of leaf
+    real(r8)               :: par_abs      ! absorbed PAR [umol photons/m2leaf/s]
     real(r8)               :: par_sun, par_sha
     real(r8)               :: canopy_area
     real(r8)               :: elai
@@ -784,7 +783,6 @@ contains
                                     
                                  else
                                     ! if gstoma is truly zero, this will be weighted by zero
-                                    
                                     rs_z(iv,ft,cl)= 1._r8/max(gstoma,1._r8/rsmax0)
 
                                  end if
@@ -1457,8 +1455,8 @@ contains
     !
 
     ! ARGUMENTS:
-    real(r8), intent(in) :: leaf_area ! leaf area index [m2/m2]
-    real(r8), intent(in) :: par_wm2   ! absorbed PAR [W/m2] per m2 of ground
+    real(r8), intent(in) :: leaf_area ! leaf area index [m2 leaf / m2 ground]
+    real(r8), intent(in) :: par_wm2   ! absorbed PAR [W/m2 ground]
 
     ! minimum Leaf area to solve, too little has shown instability
     real(r8), parameter :: min_la_to_solve = 0.0000000001_r8
