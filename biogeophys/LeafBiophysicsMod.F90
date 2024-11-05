@@ -86,7 +86,6 @@ module LeafBiophysicsMod
   ! Set this to true to perform debugging
   logical,parameter   ::  debug = .true.
 
-
   ! Ratio of H2O/CO2 gas diffusion in stomatal airspace (approximate)
   real(r8),parameter :: h2o_co2_stoma_diffuse_ratio = 1.6_r8
 
@@ -112,12 +111,12 @@ module LeafBiophysicsMod
   integer, parameter :: photosynth_acclim_model_none = 1
   integer, parameter :: photosynth_acclim_model_kumarathunge_etal_2019 = 2
 
-
   ! Rdark constants from Atkin et al., 2017 https://doi.org/10.1007/978-3-319-68703-2_6
   ! and Heskel et al., 2016 https://doi.org/10.1073/pnas.1520282113
   real(r8), parameter :: lmr_b = 0.1012_r8       ! (degrees C**-1)
   real(r8), parameter :: lmr_c = -0.0005_r8      ! (degrees C**-2)
   real(r8), parameter :: lmr_TrefC = 25._r8      ! (degrees C)
+  
   ! These two are public for error checking during parameter read-in
   real(r8), parameter, public :: lmr_r_1 = 0.2061_r8     ! (umol CO2/m**2/s / (gN/(m2 leaf))) 
   real(r8), parameter, public :: lmr_r_2 = -0.0402_r8    ! (umol CO2/m**2/s/degree C)
@@ -132,8 +131,10 @@ module LeafBiophysicsMod
   ! empirical curvature parameter for electron transport rate
   real(r8),parameter :: theta_psii = 0.7_r8
 
+  ! Set this to true to match results with main
   logical, parameter :: base_compare_revert = .false.
 
+  
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
@@ -158,7 +159,7 @@ module LeafBiophysicsMod
   ! REVERT THIS TO GLOBAL AFTER EVALUTION OF TOLERANCE SENSITIVITY
   ! When iteratively solving for intracellular co2 concentration, this
   ! is the maximum tolerable change to accept convergence [Pa]
-  !real(r8),parameter :: ci_tol = 0.1_r8
+  ! real(r8),parameter :: ci_tol = 0.1_r8
   
   ! These are parameter constants read in externally
   ! some are differentiated by PFT, others are not
