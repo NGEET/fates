@@ -292,7 +292,10 @@ contains
     integer  :: ico
     
     ! Parameters
-    !
+    ! Convergence tolerance on solving intracellular CO2 concentration
+
+    real(r8), parameter :: ci_tol = 0.5_r8
+    
     ! Base rate is at 20C. Adjust to 25C using the CN Q10 = 1.5
     ! (gC/gN/s)
     ! ------------------------------------------------------------------------
@@ -752,6 +755,7 @@ contains
                                          mm_ko2,                             &  ! in
                                          co2_cpoint,                         &  ! in
                                          lmr_z(iv,ft,cl),                    &  ! in
+                                         ci_tol,                             &  ! in
                                          psn_ll,                             &  ! out
                                          gstoma_ll,                          &  ! out
                                          anet_ll,                            &  ! out
