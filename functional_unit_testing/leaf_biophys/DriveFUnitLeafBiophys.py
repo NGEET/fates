@@ -255,7 +255,269 @@ def LinePlotY3dM1(ax,x1,x2,x3,y3d,str_x2,str_x3,add_labels):
     
 
 # =======================================================================================
+def TestCiTol(fates_leaf_vcmax25top,leaf_c3psn,fates_stoich_nitr,fates_leaf_slatop,fates_maintresp_leaf_model,pdf):
 
+   
+    
+    # Initialize fortran return values
+    # these are all temps and doubles
+    vcmax_f      = c_double(-9.0)
+    jmax_f       = c_double(-9.0)
+    kp_f         = c_double(-9.0)
+    agross_f     = c_double(-9.0)
+    gstoma_f     = c_double(-9.0)
+    anet_f       = c_double(-9.0)
+    lmr_f        = c_double(-9.0)
+    c13_f        = c_double(-9.0)
+    ac_f         = c_double(-9.0)
+    aj_f         = c_double(-9.0)
+    ap_f         = c_double(-9.0)
+    co2_interc_f = c_double(-9.0)
+    veg_qs_f     = c_double(-9.0)
+    veg_es_f     = c_double(-9.0)
+    mm_kco2_f    = c_double(-9.0)
+    mm_ko2_f     = c_double(-9.0)
+    co2_cpoint_f = c_double(-9.0)
+    qsdt_dummy_f = c_double(-9.0)
+    esdt_dummy_f = c_double(-9.0)
+    solve_iter_f = c_int(-9)
+
+
+    pft_n = len(fates_leaf_vcmax25top)
+    
+    gb_min = 0.5e6
+    gb_max = 3.e6
+    gb_n = 5
+    gb_vec = np.linspace(gb_min,gb_max,gb_n)
+
+    ci_tol_n = 5
+    ci_tol_min = -3
+    ci_tol_max = 1
+    ci_tol_vec = np.logspace(ci_tol_min, ci_tol_max, num=ci_tol_n, base=10.0)
+
+    # Leaf temperature ranges [C]
+    leaf_tempc_min = -30.0
+    leaf_tempc_max = 50.0
+    leaf_tempc_n = 15
+    leaf_tempc_vec = np.linspace(leaf_tempc_min,leaf_tempc_max,num=leaf_tempc_n)
+
+    # Relative Humidity Ranges
+    rh_max = 0.95
+    rh_min = 0.10
+    rh_n   = 15
+    rh_vec = np.linspace(rh_min,rh_max,num=rh_n)
+    
+    # Absorbed PAR ranges [W/m2]
+    par_abs_min = 0
+    par_abs_max = 300
+    par_abs_n  = 15
+    par_abs_vec = np.linspace(par_abs_min,par_abs_max,num=par_abs_n)
+    
+    agross = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n,pft_n,ci_tol_n])
+    gstoma = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n,pft_n,ci_tol_n])
+    solves = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n,pft_n,ci_tol_n])
+    
+
+    for ipft in range(pft_n):
+
+        jmax25_top,kp25_top =  GetJmaxKp25Top(fates_leaf_vcmax25top[ipft])
+        # Leaf Nitrogen Concentration at the top
+        lnc_top  = fates_stoich_nitr[ipft]/fates_leaf_slatop[ipft]
+    
+        for it, leaf_tempc in enumerate(leaf_tempc_vec):
+
+            leaf_tempk = leaf_tempc + tfrz_1atm
+
+            iret = f90_qsat_sub(c8(leaf_tempk),c8(can_press_1atm), \
+                                byref(veg_qs_f),byref(veg_es_f), \
+                                byref(qsdt_dummy_f),byref(esdt_dummy_f))
+
+            iret = f90_cangas_sub(c8(can_press_1atm), \
+                                  c8(o2_ppress_209kppm), \
+                                  c8(leaf_tempk), \
+                                  byref(mm_kco2_f), \
+                                  byref(mm_ko2_f), \
+                                  byref(co2_cpoint_f))
+        
+            iret = f90_biophysrate_sub(ci(ipft+1), c8(fates_leaf_vcmax25top[ipft]), \
+                                       c8(jmax25_top), c8(kp25_top), \
+                                       c8(nscaler_top), c8(leaf_tempk), c8(dayl_factor_full), \
+                                       c8(t_growth_kum),c8(t_home_kum),c8(btran_nolimit), \
+                                       byref(vcmax_f), byref(jmax_f), byref(kp_f))
+        
+            # Leaf Maintenance Respiration (temp and pft dependent)
+            if(fates_maintresp_leaf_model==1):
+                iret = f90_lmr_ryan_sub(c8(lnc_top),c8(nscaler_top), ci(ipft+1), c8(leaf_tempk), byref(lmr_f))
+            elif(fates_maintresp_leaf_model==2):
+                iret = f90_lmr_atkin_sub(c8(lnc_top),c8(rdark_scaler),c8(leaf_tempk),c8(atkin_mean_leaf_tempk),byref(lmr_f) )
+            else:
+                print('unknown leaf respiration model')
+                exit(1)
+            
+            for ip, par_abs in enumerate(par_abs_vec):
+
+                for ir, rh in enumerate(rh_vec):
+
+                    vpress = rh * veg_es_f.value
+                
+                    for ig, gb_umol in enumerate(gb_vec):
+                    
+                        for ic, ci_tol in enumerate(ci_tol_vec):
+                        
+                            iret = f90_leaflayerphoto_sub(c8(par_abs), \
+                                                          c8(par_abs),  \
+                                                          c8(1.0),     \
+                                                          ci(ipft+1),   \
+                                                          c8(vcmax_f.value),   \
+                                                          c8(jmax_f.value),    \
+                                                          c8(kp_f.value),      \
+                                                          c8(leaf_tempk), \
+                                                          c8(can_press_1atm), \
+                                                          c8(co2_ppress_400ppm), \
+                                                          c8(o2_ppress_209kppm), \
+                                                          c8(btran_nolimit), \
+                                                          c8(gb_umol), \
+                                                          c8(vpress), \
+                                                          c8(mm_kco2_f.value), \
+                                                          c8(mm_ko2_f.value), \
+                                                          c8(co2_cpoint_f.value), \
+                                                          c8(lmr_f.value), \
+                                                          c8(ci_tol), \
+                                                          byref(agross_f), \
+                                                          byref(gstoma_f), \
+                                                          byref(anet_f), \
+                                                          byref(c13_f), \
+                                                          byref(ac_f), \
+                                                          byref(aj_f), \
+                                                          byref(ap_f), \
+                                                          byref(co2_interc_f), \
+                                                          byref(solve_iter_f) )
+                        
+                            agross[it,ir,ip,ig,ipft,ic] = agross_f.value
+                            gstoma[it,ir,ip,ig,ipft,ic] = gstoma_f.value*1.e-6
+                            solves[it,ir,ip,ig,ipft,ic] = float(solve_iter_f.value)
+
+                            
+    mpl.rcParams['lines.markersize'] = 2                
+    fig10,axs = plt.subplots(4,3,figsize=(8.5,9.5))
+
+    axs = axs.reshape(-1)
+
+    agmax = np.max(agross)
+    gsmax = np.max(gstoma)
+    svmax = np.max(solves)
+
+    dsmax = -10
+    dsmin = 10
+
+    for ic, ci_tol in enumerate(ci_tol_vec):
+        dsmax = np.max([dsmax,np.max( solves[:,:,:,:,:,0].reshape(-1)-solves[:,:,:,:,:,ic].reshape(-1)) ])
+        dsmin = np.min([dsmax,np.min( solves[:,:,:,:,:,0].reshape(-1)-solves[:,:,:,:,:,ic].reshape(-1)) ])
+
+    
+    hbins = np.linspace(dsmin-0.5,dsmax+0.5,int(dsmax-dsmin+2.0))
+    hbinc = np.linspace(dsmin,dsmax,int(dsmax-dsmin+1))
+    
+    ax0 = axs[0]
+    ax0.scatter( agross[:,:,:,:,:,0].reshape(-1),agross[:,:,:,:,:,1].reshape(-1),marker='.')
+    ax0.set_xlim([0,agmax])
+    ax0.set_ylim([0,agmax])
+    ax0.set_title('Ag [umol/m2/s]')
+    ax0.set_ylabel('Ci_tol = %7.3f Pa'%(ci_tol_vec[1]))
+    ax0.set_xticklabels('')
+    ax0.grid(True)
+
+    ax1 = axs[1]
+    ax1.scatter( gstoma[:,:,:,:,:,0].reshape(-1),gstoma[:,:,:,:,:,1].reshape(-1),marker='.')
+    ax1.set_xlim([0,gsmax])
+    ax1.set_ylim([0,gsmax])
+    ax1.set_title('gs [mol/m2/s]')
+    ax1.set_xticklabels('')
+    ax1.grid(True)
+
+    ax2 = axs[2]
+    delhist = solves[:,:,:,:,:,0].reshape(-1)-solves[:,:,:,:,:,1].reshape(-1)
+    ax2.hist(delhist,bins=hbins)
+    ax2.set_xticks(hbinc)
+    ax2.set_title('Solver Count Reduction')
+    ax2.grid(True)
+    ax2.set_xticklabels('')
+    ax2.set_yticklabels('')
+    
+    ax3 = axs[3]
+    ax3.scatter( agross[:,:,:,:,:,0].reshape(-1),agross[:,:,:,:,:,2].reshape(-1),marker='.')
+    ax3.set_xlim([0,agmax])
+    ax3.set_ylim([0,agmax])
+    ax3.set_ylabel('Ci_tol = %7.3f Pa'%(ci_tol_vec[2]))
+    ax3.grid(True)
+    ax3.set_xticklabels('')
+    
+    ax4 = axs[4]
+    ax4.scatter( gstoma[:,:,:,:,:,0].reshape(-1),gstoma[:,:,:,:,:,2].reshape(-1),marker='.')
+    ax4.set_xlim([0,gsmax])
+    ax4.set_ylim([0,gsmax])
+    ax4.grid(True)
+    ax4.set_xticklabels('')
+    
+    ax5 = axs[5]
+    delhist = solves[:,:,:,:,:,0].reshape(-1)-solves[:,:,:,:,:,2].reshape(-1)
+    ax5.hist(delhist,bins=hbins)
+    ax5.grid(True)
+    ax5.set_xticks(hbinc)
+    ax5.set_xticklabels('')
+    ax5.set_yticklabels('')
+    
+    ax6 = axs[6]
+    ax6.scatter( agross[:,:,:,:,:,0].reshape(-1),agross[:,:,:,:,:,3].reshape(-1),marker='.')
+    ax6.set_xlim([0,agmax])
+    ax6.set_ylim([0,agmax])
+    ax6.set_ylabel('Ci_tol = %7.3f Pa'%(ci_tol_vec[3]))
+    ax6.grid(True)
+    ax6.set_xticklabels('')
+    
+    ax7 = axs[7]
+    ax7.scatter( gstoma[:,:,:,:,:,0].reshape(-1),gstoma[:,:,:,:,:,3].reshape(-1),marker='.')
+    ax7.set_xlim([0,gsmax])
+    ax7.set_ylim([0,gsmax])
+    ax7.grid(True)
+    ax7.set_xticklabels('')
+    
+    ax8 = axs[8]
+    delhist = solves[:,:,:,:,:,0].reshape(-1)-solves[:,:,:,:,:,3].reshape(-1)
+    ax8.hist(delhist,bins=hbins)
+    ax8.grid(True)
+    ax8.set_xticks(hbinc)
+    ax8.set_xticklabels('')
+    ax8.set_yticklabels('')
+    
+    ax9 = axs[9]
+    ax9.scatter( agross[:,:,:,:,:,0].reshape(-1),agross[:,:,:,:,:,4].reshape(-1),marker='.')
+    ax9.set_xlim([0,agmax])
+    ax9.set_ylim([0,agmax])
+    ax9.set_ylabel('Ci_tol = %7.3f Pa'%(ci_tol_vec[4]))
+    ax9.set_xlabel('Ci_tol = %7.3f Pa'%(ci_tol_vec[0]))
+    ax9.grid(True)
+
+    ax10 = axs[10]
+    ax10.scatter( gstoma[:,:,:,:,:,0].reshape(-1),gstoma[:,:,:,:,:,4].reshape(-1),marker='.')
+    ax10.set_xlim([0,gsmax])
+    ax10.set_ylim([0,gsmax])
+    ax10.grid(True)
+    ax10.set_xlabel('Ci_tol = %7.3f Pa'%(ci_tol_vec[0]))
+
+    ax11 = axs[11]
+    delhist = solves[:,:,:,:,:,0].reshape(-1)-solves[:,:,:,:,:,4].reshape(-1)
+    ax11.hist(delhist,bins=hbins)
+    ax11.grid(True)
+    ax11.set_xticks(hbinc)
+    ax11.set_yticklabels('')
+    
+    plt.subplots_adjust(wspace=0.25,hspace=0.0)
+
+    if(pdf):
+        pdf.savefig(fig10)
+    else:
+        plt.show()
 
 
 def main(argv):
@@ -335,6 +597,15 @@ def main(argv):
         if (param.attrib['name']=='fates_maintresp_leaf_model'):
             fates_maintresp_leaf_model = int(param.text.split(',')[0])
 
+
+    # Look at CI tolerances
+    TestCiTol(fates_leaf_vcmax25top,leaf_c3psn, \
+              fates_stoich_nitr,fates_leaf_slatop,fates_maintresp_leaf_model,pdf)
+
+    if(pdf):
+        pdf.close()
+        exit(0)
+        
     # Leaf temperature ranges [C]
     leaf_tempc_min = -30.0
     leaf_tempc_max = 50.0
@@ -420,6 +691,8 @@ def main(argv):
     esdt_dummy_f = c_double(-9.0)
     solve_iter_f = c_int(-9)
 
+    
+    
     print('Prepping Canopy Gas Parameters')
     
     for it, leaf_tempc in enumerate(leaf_tempc_vec):
@@ -466,6 +739,10 @@ def main(argv):
         jmax  = np.zeros([leaf_tempc_n])
         kp    = np.zeros([leaf_tempc_n])
         lmr    = np.zeros([leaf_tempc_n])
+
+
+
+    
         
         agross = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
         gstoma = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
@@ -735,7 +1012,10 @@ def main(argv):
         # Look at the iteration diagnostics
         fig7, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(8.,7.))
 
-        bins = [0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5,18.5,19.5]
+        maxiters = np.max(iters.reshape(-1))
+        #code.interact(local=dict(globals(), **locals()))
+        bins = np.linspace(0.5,maxiters+0.5,int(maxiters+1))
+        #bins = [0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5,18.5,19.5]
         
         ax1.hist( iters.reshape(-1),log=True, bins=bins)
         ax1.set_xlabel('Iterations')

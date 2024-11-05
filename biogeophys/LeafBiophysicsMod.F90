@@ -132,7 +132,7 @@ module LeafBiophysicsMod
   real(r8),parameter :: theta_psii = 0.7_r8
 
   ! Set this to true to match results with main
-  logical, parameter :: base_compare_revert = .false.
+  logical, parameter :: base_compare_revert = .true.
 
   
   ! For plants with no leaves, a miniscule amount of conductance
@@ -817,6 +817,7 @@ contains
     call CiMinMax(ft,vcmax,jmax,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,lmr,par_abs, &
        gb,stomatal_intercept_btran,ci_l,ci_h)
+
     
     call CiFunc(ci_h, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
@@ -1120,18 +1121,18 @@ contains
        
        ! In main, ci_tol = 2*can_press
        ! Special convergence requirement to satisfy B4B with main
-       if (ci_tol > can_press) then
-          if (solve_iter == 5) then
+       if(base_compare_revert) then
+          if ((abs(fval)/can_press*1.e06_r8 <=  2.e-06_r8) .or. solve_iter == 5) then
+             loop_continue = .false.
+             exit iter_loop
+          end if
+       else
+          if (abs(fval) <= ci_tol ) then
              loop_continue = .false.
              exit iter_loop
           end if
        end if
-
-       if (abs(fval) <= ci_tol ) then
-          loop_continue = .false.
-          exit iter_loop
-       end if
-
+          
        ci0 = ci
        
        if( solve_iter == max_iters) then
