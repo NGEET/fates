@@ -1081,7 +1081,7 @@ contains
       leaf_m   = this%GetState(leaf_organ, element_id)
       fnrt_m   = this%GetState(fnrt_organ, element_id)
       store_m  = this%GetState(store_organ, element_id)
-      repro_m  = this%GetState(repro_organ, element_id)
+      repro_m  = this%GetState(repro_organ, element_id)  ! 2024-11-06: Is zero for now; include for future-proofing
 
       alive_m  = leaf_m + fnrt_m + sapw_m
       total_m  = alive_m + store_m + struct_m + repro_m
