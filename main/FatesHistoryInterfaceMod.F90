@@ -2760,15 +2760,8 @@ contains
                ! Mass pools [kg]
                elloop: do el = 1, num_elements
 
-                  sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
-                  struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
-                  leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
-                  fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
-                  store_m  = ccohort%prt%GetState(store_organ, element_list(el))
-                  repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
-
-                  alive_m  = leaf_m + fnrt_m + sapw_m
-                  total_m  = alive_m + store_m + struct_m
+                  call ccohort%prt%GetBiomass(element_list(el), &
+                       sapw_m, struct_m, leaf_m, fnrt_m, store_m, repro_m, alive_m, total_m)
 
                   ! Plant multi-element states and fluxes
                   ! Zero states, and set the fluxes
@@ -3479,14 +3472,8 @@ contains
                    ! Mass pools [kg]
                    elloop: do el = 1, num_elements
 
-                      sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
-                      struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
-                      leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
-                      fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
-                      store_m  = ccohort%prt%GetState(store_organ, element_list(el))
-                      repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))  ! TODO: Unused?
-                      alive_m  = leaf_m + fnrt_m + sapw_m
-                      total_m  = alive_m + store_m + struct_m
+                      call ccohort%prt%GetBiomass(element_list(el), &
+                           sapw_m, struct_m, leaf_m, fnrt_m, store_m, repro_m, alive_m, total_m)
 
                       i_scpf = ccohort%size_by_pft_class
 
@@ -3802,14 +3789,8 @@ contains
                         end if
 
                         ! Carbon only metrics
-                        sapw_m   = ccohort%prt%GetState(sapw_organ, carbon12_element)
-                        struct_m = ccohort%prt%GetState(struct_organ, carbon12_element)
-                        leaf_m   = ccohort%prt%GetState(leaf_organ, carbon12_element)
-                        fnrt_m   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
-                        store_m  = ccohort%prt%GetState(store_organ, carbon12_element)
-                        repro_m  = ccohort%prt%GetState(repro_organ, carbon12_element)  ! TODO: Unused?
-                        alive_m  = leaf_m + fnrt_m + sapw_m
-                        total_m  = alive_m + store_m + struct_m
+                        call ccohort%prt%GetBiomass(carbon12_element, &
+                             sapw_m, struct_m, leaf_m, fnrt_m, store_m, repro_m, alive_m, total_m)
 
                         hio_mortality_carbonflux_si_pft(io_si,ccohort%pft) = hio_mortality_carbonflux_si_pft(io_si,ccohort%pft) + &
                              ccohort%SumMortForHistory(per_year = .false.) * total_m * &
@@ -4508,13 +4489,8 @@ contains
                    ccohort => cpatch%tallest
                    do while(associated(ccohort))
 
-                      sapw_m   = ccohort%prt%GetState(sapw_organ, element_list(el))
-                      struct_m = ccohort%prt%GetState(struct_organ, element_list(el))
-                      leaf_m   = ccohort%prt%GetState(leaf_organ, element_list(el))
-                      fnrt_m   = ccohort%prt%GetState(fnrt_organ, element_list(el))
-                      store_m  = ccohort%prt%GetState(store_organ, element_list(el))
-                      repro_m  = ccohort%prt%GetState(repro_organ, element_list(el))
-                      total_m  = sapw_m+struct_m+leaf_m+fnrt_m+store_m+repro_m
+                      call ccohort%prt%GetBiomass(element_list(el), &
+                           sapw_m, struct_m, leaf_m, fnrt_m, store_m, repro_m, alive_m, total_m)
 
 
                       i_scpf = ccohort%size_by_pft_class
@@ -4869,14 +4845,8 @@ contains
              iscagpft = get_sizeagepft_class_index(ccohort%dbh,cpatch%age,ccohort%pft)
 
              ! Biomass
-             sapw_m   = ccohort%prt%GetState(sapw_organ, carbon12_element)
-             struct_m = ccohort%prt%GetState(struct_organ, carbon12_element)
-             leaf_m   = ccohort%prt%GetState(leaf_organ, carbon12_element)
-             fnrt_m   = ccohort%prt%GetState(fnrt_organ, carbon12_element)
-             store_m  = ccohort%prt%GetState(store_organ, carbon12_element)
-             repro_m  = ccohort%prt%GetState(repro_organ, carbon12_element)  ! TODO: Unused?
-             alive_m  = leaf_m + fnrt_m + sapw_m
-             total_m  = alive_m + store_m + struct_m
+             call ccohort%prt%GetBiomass(carbon12_element, &
+                  sapw_m, struct_m, leaf_m, fnrt_m, store_m, repro_m, alive_m, total_m)
              hio_biomass_si_age(io_si,cpatch%age_class) = hio_biomass_si_age(io_si,cpatch%age_class) &
                   + total_m * cohort_n_div_site_area
              hio_biomass_si_agepft(io_si,iagepft) = hio_biomass_si_agepft(io_si,iagepft) &
