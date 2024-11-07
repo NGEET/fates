@@ -20,6 +20,8 @@ contains
     integer, intent(in) :: numpft
     
     allocate(lb_params%c3psn(numpft))
+    allocate(lb_params%stomatal_btran_model(numpft))
+    allocate(lb_params%agross_btran_model(numpft))
     allocate(lb_params%medlyn_slope(numpft))
     allocate(lb_params%bb_slope(numpft))
     allocate(lb_params%stomatal_intercept(numpft))
@@ -41,6 +43,8 @@ contains
   subroutine DeallocLeafParam()
     
     deallocate(lb_params%c3psn)
+    deallocate(lb_params%stomatal_btran_model)
+    deallocate(lb_params%agross_btran_model)
     deallocate(lb_params%medlyn_slope)
     deallocate(lb_params%bb_slope)
     deallocate(lb_params%stomatal_intercept)
@@ -69,10 +73,6 @@ contains
     select case(trim(pname))
     case('fates_daylength_factor_switch')
        lb_params%dayl_switch = nint(val)
-    !case('fates_leaf_theta_cj_c3')
-    !   lb_params%theta_cj_c3 = val
-    !case('fates_leaf_theta_cj_c4')
-    !   lb_params%theta_cj_c4 = val
     case('fates_leaf_stomatal_model')
        lb_params%stomatal_model = nint(val)
     case('fates_leaf_stomatal_assim_model')
@@ -81,6 +81,10 @@ contains
        lb_params%photo_tempsens_model = nint(val)
     case('fates_leaf_c3psn')
        lb_params%c3psn(pft) = nint(val)
+    case('fates_leaf_stomatal_btran_model')
+       lb_params%stomatal_btran_model(pft) = nint(val)
+    case('fates_leaf_agross_btran_model')
+       lb_params%agross_btran_model(pft) = nint(val)
     case('fates_leaf_stomatal_slope_ballberry')
        lb_params%bb_slope(pft) = val
     case('fates_leaf_stomatal_slope_medlyn')

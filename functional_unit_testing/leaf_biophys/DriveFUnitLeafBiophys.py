@@ -50,6 +50,8 @@ dump_parameters = False
 # Should we evaluate vcmax, jmax and kp actual?
 do_evalvjkbytemp = True
 
+# Do an analysis on convergence
+do_test_citol = False
 
 # Freezing point of water in Kelvin (at standard atmosphere)
 tfrz_1atm = 273.15
@@ -145,6 +147,8 @@ def EvalVJKByTemp(pft,fates_leaf_vcmax25top,leaf_c3psn,pdf):
     vcmax_f = c_double(-9)
     jmax_f  = c_double(-9)
     kp_f    = c_double(-9)
+    gs0_f   = c_double(-9)
+    gs1_f   = c_double(-9)
     
     jmax25_top,kp25_top =  GetJmaxKp25Top(fates_leaf_vcmax25top)
     vcmax = np.zeros([leaf_tempc_n])
@@ -154,13 +158,13 @@ def EvalVJKByTemp(pft,fates_leaf_vcmax25top,leaf_c3psn,pdf):
     for it, leaf_tempc in enumerate(leaf_tempc_vec):
 
         leaf_tempk = leaf_tempc + tfrz_1atm
-        
+
         iret = f90_biophysrate_sub(ci(pft+1), c8(fates_leaf_vcmax25top), \
                                    c8(jmax25_top), c8(kp25_top), \
                                    c8(nscaler_top), c8(leaf_tempk), c8(dayl_factor_full), \
                                    c8(t_growth_kum),c8(t_home_kum),c8(btran_nolimit), \
-                                   byref(vcmax_f), byref(jmax_f), byref(kp_f))
-            
+                                   byref(vcmax_f), byref(jmax_f), byref(kp_f),byref(gs0_f),byref(gs1_f))
+
         vcmax[it] = vcmax_f.value
         jmax[it]  = jmax_f.value
         kp[it]    = kp_f.value
@@ -281,7 +285,8 @@ def TestCiTol(fates_leaf_vcmax25top,leaf_c3psn,fates_stoich_nitr,fates_leaf_slat
     qsdt_dummy_f = c_double(-9.0)
     esdt_dummy_f = c_double(-9.0)
     solve_iter_f = c_int(-9)
-
+    gs0_f        = c_double(-9.0)
+    gs1_f        = c_double(-9.0)
 
     pft_n = len(fates_leaf_vcmax25top)
     
@@ -343,7 +348,7 @@ def TestCiTol(fates_leaf_vcmax25top,leaf_c3psn,fates_stoich_nitr,fates_leaf_slat
                                        c8(jmax25_top), c8(kp25_top), \
                                        c8(nscaler_top), c8(leaf_tempk), c8(dayl_factor_full), \
                                        c8(t_growth_kum),c8(t_home_kum),c8(btran_nolimit), \
-                                       byref(vcmax_f), byref(jmax_f), byref(kp_f))
+                                       byref(vcmax_f), byref(jmax_f), byref(kp_f),byref(gs0_f),byref(gs1_f))
         
             # Leaf Maintenance Respiration (temp and pft dependent)
             if(fates_maintresp_leaf_model==1):
@@ -371,11 +376,12 @@ def TestCiTol(fates_leaf_vcmax25top,leaf_c3psn,fates_stoich_nitr,fates_leaf_slat
                                                           c8(vcmax_f.value),   \
                                                           c8(jmax_f.value),    \
                                                           c8(kp_f.value),      \
+                                                          c8(gs0_f.value),      \
+                                                          c8(gs1_f.value),      \
                                                           c8(leaf_tempk), \
                                                           c8(can_press_1atm), \
                                                           c8(co2_ppress_400ppm), \
                                                           c8(o2_ppress_209kppm), \
-                                                          c8(btran_nolimit), \
                                                           c8(gb_umol), \
                                                           c8(vpress), \
                                                           c8(mm_kco2_f.value), \
@@ -599,12 +605,10 @@ def main(argv):
 
 
     # Look at CI tolerances
-    TestCiTol(fates_leaf_vcmax25top,leaf_c3psn, \
-              fates_stoich_nitr,fates_leaf_slatop,fates_maintresp_leaf_model,pdf)
+    if(do_test_citol):
+        TestCiTol(fates_leaf_vcmax25top,leaf_c3psn, \
+                  fates_stoich_nitr,fates_leaf_slatop,fates_maintresp_leaf_model,pdf)
 
-    if(pdf):
-        pdf.close()
-        exit(0)
         
     # Leaf temperature ranges [C]
     leaf_tempc_min = -30.0
@@ -629,6 +633,13 @@ def main(argv):
     gb_max = 3500000.0            # 50% larger than  Roughly largestthe largest values seen at BCI (which are 2.5mol/m2/s)
     gb_n  = 7
     gb_vec = np.linspace(gb_min,gb_max,num=gb_n)
+
+    # btran ranges
+
+    btran_n   = 10
+    btran_min = 0.001
+    btran_max = 1.0
+    btran_vec = np.linspace(btran_min,btran_max,num=btran_n)
     
     # These variables are mostly dependent on leaf temperature,
     # and weakly dependent on atmospheric pressure
@@ -666,7 +677,7 @@ def main(argv):
 
     # Set convergence tolerance
     #ci_tol = 2.*can_press_1atm
-    ci_tol = 0.1
+    ci_tol = 1.0
     
     # Initialize fortran return values
     # these are all temps and doubles
@@ -690,7 +701,8 @@ def main(argv):
     qsdt_dummy_f = c_double(-9.0)
     esdt_dummy_f = c_double(-9.0)
     solve_iter_f = c_int(-9)
-
+    gs0_f        = c_double(-9.0)
+    gs1_f        = c_double(-9.0)
     
     
     print('Prepping Canopy Gas Parameters')
@@ -735,15 +747,11 @@ def main(argv):
         print('Evaluating PFT {}'.format(pft+1))
         
         jmax25_top,kp25_top =  GetJmaxKp25Top(fates_leaf_vcmax25top[pft])
+
         vcmax = np.zeros([leaf_tempc_n])
         jmax  = np.zeros([leaf_tempc_n])
         kp    = np.zeros([leaf_tempc_n])
         lmr    = np.zeros([leaf_tempc_n])
-
-
-
-    
-        
         agross = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
         gstoma = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
         anet   = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
@@ -774,7 +782,7 @@ def main(argv):
                                        c8(jmax25_top), c8(kp25_top), \
                                        c8(nscaler), c8(leaf_tempk), c8(dayl_factor_full), \
                                        c8(t_growth_kum),c8(t_home_kum),c8(btran_nolimit), \
-                                       byref(vcmax_f), byref(jmax_f), byref(kp_f))
+                                       byref(vcmax_f), byref(jmax_f), byref(kp_f), byref(gs0_f), byref(gs1_f))
             
             vcmax[it] = vcmax_f.value
             jmax[it]  = jmax_f.value
@@ -824,11 +832,12 @@ def main(argv):
                                                       c8(vcmax[it]),   \
                                                       c8(jmax[it]),    \
                                                       c8(kp[it]),      \
+                                                      c8(gs0_f.value), \
+                                                      c8(gs1_f.value), \
                                                       c8(leaf_tempk), \
                                                       c8(can_press_1atm), \
                                                       c8(co2_ppress_400ppm), \
                                                       c8(o2_ppress_209kppm), \
-                                                      c8(btran_nolimit), \
                                                       c8(gb), \
                                                       c8(vpress), \
                                                       c8(mm_kco2_vec[it]), \

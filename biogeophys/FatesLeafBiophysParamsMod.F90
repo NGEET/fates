@@ -75,6 +75,14 @@ contains
     name = 'fates_leaf_c3psn'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leaf_stomatal_btran_model'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leaf_agross_btran_model'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
     name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -174,7 +182,6 @@ contains
          data=tmpscalar)
     lb_params%photo_tempsens_model = nint(tmpscalar)
 
-
     name = 'fates_leaf_c3psn'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=tmpreal)
@@ -182,6 +189,19 @@ contains
     call ArrayNint(tmpreal,lb_params%c3psn)
     deallocate(tmpreal)
 
+    name = 'fates_leaf_stomatal_btran_model'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=tmpreal)
+    allocate(lb_params%stomatal_btran_model(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,lb_params%stomatal_btran_model)
+    deallocate(tmpreal)
+
+    name = 'fates_leaf_agross_btran_model'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=tmpreal)
+    allocate(lb_params%agross_btran_model(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,lb_params%agross_btran_model)
+    deallocate(tmpreal)
     
     name = 'fates_leaf_stomatal_slope_medlyn'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -243,6 +263,18 @@ contains
     return
   end subroutine LeafBiophysReceiveParams
 
+  ! ====================================================================================
+  
+  ! subroutine LeafBiophysCheckParams()
+     !write (fates_log(),*)'error, incorrect stomatal slope scaling method (stomatal_intercept_method) applied'
+     !write (fates_log(),*)'valid options are:'
+     !write (fates_log(),*)'btran_on_gs = 0, 
+     !write (fates_log(),*)'btran_on_gs  = 1, apply btran to the stomatal conductance intercept'
+     !write (fates_log(),*)'btran_on_gs_gs1
+     !write (fates_log(),*)'you specified stomatal_intercept_method = ',stomatal_intercept_method
+     !call endrun(msg=errMsg(sourcefile, __LINE__))
+  ! end if
+   
   ! =====================================================================================
 
   subroutine LeafBiophysReportParams(is_master)
@@ -258,6 +290,8 @@ contains
 
     if(debug_report .and. is_master) then
        write(fates_log(),fmt_iout) 'fates_leaf_c3psn = ',lb_params%c3psn
+       write(fates_log(),fmt_iout) 'fates_leaf_stomatal_btran_model = ',lb_params%stomatal_btran_model
+       write(fates_log(),fmt_iout) 'fates_leaf_agross_btran_model = ',lb_params%stomatal_agross_model
        write(fates_log(),fmt_rout) 'fates_leaf_vcmaxha = ',lb_params%vcmaxha
        write(fates_log(),fmt_rout) 'fates_leaf_jmaxha = ',lb_params%jmaxha
        write(fates_log(),fmt_rout) 'fates_leaf_vcmaxhd = ',lb_params%vcmaxhd

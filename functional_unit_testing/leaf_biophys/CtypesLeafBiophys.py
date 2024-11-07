@@ -78,6 +78,8 @@ f90_agross_pepc4  = getattr(f90_leaf_biophys_obj,GetModSymbol('bld/LeafBiophysic
 f90_gs_medlyn = getattr(f90_leaf_biophys_obj,GetModSymbol('bld/LeafBiophysicsMod.o','StomatalCondMedlyn'))
 f90_gs_ballberry = getattr(f90_leaf_biophys_obj,GetModSymbol('bld/LeafBiophysicsMod.o','StomatalCondBallBerry'))
 f90_velotomolarcf_sub = getattr(f90_leaf_biophys_obj,GetModSymbol('bld/LeafBiophysicsMod.o','VeloToMolarCF'))
+f90_cifunc_sub = getattr(f90_leaf_biophys_obj,GetModSymbol('bld/LeafBiophysicsMod.o','CiFunc'))
+f90_cibisection_sub = getattr(f90_leaf_biophys_obj,GetModSymbol('bld/LeafBiophysicsMod.o','CiBisection'))
 
 # For functions, define the return value
 f90_agross_rubiscoc3.restype = c_double
@@ -85,4 +87,3 @@ f90_agross_rubpc3.restype = c_double
 f90_agross_rubpc4.restype = c_double
 f90_agross_pepc4.restype = c_double
 f90_velotomolarcf_sub.restype = c_double
-    

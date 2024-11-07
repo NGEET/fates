@@ -62,7 +62,8 @@ module LeafBiophysicsMod
   public :: StomatalCondBallBerry
   public :: VeloToMolarCF
   public :: CiMinMax
-  
+  public :: CiFunc
+  public :: CiBisection
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -132,7 +133,7 @@ module LeafBiophysicsMod
   real(r8),parameter :: theta_psii = 0.7_r8
 
   ! Set this to true to match results with main
-  logical, parameter :: base_compare_revert = .true.
+  logical, parameter :: base_compare_revert = .false.
 
   
   ! For plants with no leaves, a miniscule amount of conductance
@@ -143,11 +144,16 @@ module LeafBiophysicsMod
   ! The stomatal slope can either be scaled by btran or not. FATES had
   ! a precedent of using this into 2024, but discussions here: https://github.com/NGEET/fates/issues/719
   ! suggest this is incorrect and or double/counting
-  
-  integer, parameter :: no_btran_stomatal_intercept_method = 0
-  integer, parameter :: yes_btran_stomatal_intercept_method = 1
-  integer, parameter :: stomatal_intercept_method = yes_btran_stomatal_intercept_method
 
+  integer, parameter :: btran_on_gs_none = 0     ! do not apply btran to conductance terms
+  integer, parameter :: btran_on_gs_gs0 = 1      ! apply btran to stomatal intercept (API 36.1)
+  integer, parameter :: btran_on_gs_gs1 = 2      ! apply btran to stomatal slope
+  integer, parameter :: btran_on_gs_gs01 = 3     ! apply btran to both stomatal slope and intercept
+  
+  integer, parameter :: btran_on_ag_none  = 0       ! do not apply btran to vcmax or jmax
+  integer, parameter :: btran_on_ag_vcmax = 1       ! apply btran to vcmax (API 36.1)
+  integer, parameter :: btran_on_ag_vcmax_jmax = 2  ! apply btran to vcmax and jmax
+  
 
   ! Jmax has not been scaled by btran as of 11/24, but discussions here suggest that
   ! it may be worth testing or using this, see: https://github.com/NGEET/fates/issues/719
@@ -185,10 +191,6 @@ module LeafBiophysicsMod
      real(r8),allocatable :: jmaxhd(:)                            ! deactivation energy for jmax (J/mol)
      real(r8),allocatable :: vcmaxse(:)                           ! entropy term for vcmax (J/mol/K)
      real(r8),allocatable :: jmaxse(:)                            ! entropy term for jmax (J/mol/K)
-     !real(r8)             :: theta_cj_c3                          ! Empirical curvature parameter for ac and 
-     !                                                             ! aj photosynthesis co-limitation in c3 plants
-     !real(r8)             :: theta_cj_c4                          ! Empirical curvature parameter for ac and aj
-     !                                                             ! photosynthesis co-limitation in c4 plants
      integer              :: dayl_switch                          ! switch for turning on or off day length factor
                                                                   ! scaling for photosynthetic parameters
      integer              :: photo_tempsens_model                 ! switch for choosing the model that defines the temperature
@@ -198,6 +200,15 @@ module LeafBiophysicsMod
                                                                   ! gross assimilation in the stomata model
      integer              :: stomatal_model                       ! switch for choosing between stomatal conductance models,
                                                                   ! for Ball-Berry, 2 for Medlyn
+     integer,allocatable :: stomatal_btran_model(:)               ! index for how btran effects conductance
+                                                                  ! 0: btran does not scale the stomatal slope or intercept
+                                                                  ! 1: btran scales the stomatal intercept only
+                                                                  ! 2: btran scales the stomatal slope only
+                                                                  ! 3: btran scales both stomatal slope and intercept
+     integer,allocatable :: agross_btran_model(:)                 ! index for how btran scales gross assimilation processes
+                                                                  ! 0: btran does not scale vcmax or jmax
+                                                                  ! 1: btran scales only vcmax
+                                                                  ! 2: btran scales both vcmax and jmax
      
      ! -------------------------------------------------------------------------------------
      ! Note the omission of several parameter constants:
@@ -230,7 +241,7 @@ module LeafBiophysicsMod
 
 contains
   
-  subroutine StomatalCondMedlyn(anet,ft,veg_esat,can_vpress,stomatal_intercept_btran,leaf_co2_ppress,can_press,gb,gs)
+  subroutine StomatalCondMedlyn(anet,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press,gb,gs)
 
     ! -----------------------------------------------------------------------------------
     ! Calculate stomatal conductance (gs [umol/m2/s]) via the Medlyn approach, described in:
@@ -244,12 +255,12 @@ contains
     
     ! Input
     real(r8), intent(in) :: anet                     ! net leaf photosynthesis (umol CO2/m**2/s)
-    integer, intent(in)  :: ft                       ! plant functional type index
     real(r8), intent(in) :: veg_esat                 ! saturation vapor pressure at veg_tempk (Pa)
     real(r8), intent(in) :: can_press                ! Air pressure NEAR the surface of the leaf (Pa)
     real(r8), intent(in) :: gb                       ! leaf boundary layer conductance (umol /m**2/s)
     real(r8), intent(in) :: can_vpress               ! vapor pressure of canopy air (Pa)
-    real(r8), intent(in) :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
+    real(r8), intent(in) :: gs0,gs1                  ! stomatal intercept and slope
+                                                     ! is either 1.0 or btran depending on hypothesis
     real(r8), intent(in) :: leaf_co2_ppress          ! CO2 partial pressure at the leaf surface (Pa)
                                                      ! at the boundary layer interface with the leaf
 
@@ -268,7 +279,7 @@ contains
     ! Evaluate trival solution, if there is no positive net assimiolation
     ! the stomatal conductance is the intercept conductance
     if (anet <= nearzero) then
-       gs = stomatal_intercept_btran
+       gs = gs0
        return
     end if
 
@@ -276,11 +287,9 @@ contains
     
     term = h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press)
     aquad = 1.0_r8
-    bquad = -(2.0 * (stomatal_intercept_btran+ term) + (lb_params%medlyn_slope(ft) * term)**2 / &
-         (gb * vpd ))
-    cquad = stomatal_intercept_btran*stomatal_intercept_btran + &
-         (2.0*stomatal_intercept_btran + term * &
-         (1.0 - lb_params%medlyn_slope(ft)* lb_params%medlyn_slope(ft) / vpd)) * term
+    bquad = -(2.0 * (gs0 + term) + (gs1 * term)**2 / (gb * vpd ))
+    cquad = gs0*gs0 +  (2.0*gs0 + term * &
+            (1.0 - gs1*gs1 / vpd)) * term
 
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
     gs = max(r1,r2)
@@ -290,16 +299,15 @@ contains
 
   ! =======================================================================================
 
-  subroutine StomatalCondBallBerry(a_gs,a_net,ft,veg_esat,can_vpress,stomatal_intercept_btran,leaf_co2_ppress,can_press, gb, gs)
+  subroutine StomatalCondBallBerry(a_gs,a_net,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press, gb, gs)
 
 
                                                      ! Input
-    integer, intent(in)  :: ft                       ! plant functional type index
     real(r8), intent(in) :: veg_esat                 ! saturation vapor pressure at veg_tempk (Pa)
     real(r8), intent(in) :: can_press                ! Air pressure NEAR the surface of the leaf (Pa)
     real(r8), intent(in) :: gb                       ! leaf boundary layer conductance (umol /m**2/s)
     real(r8), intent(in) :: can_vpress               ! vapor pressure of the canopy air (Pa)
-    real(r8), intent(in) :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
+    real(r8), intent(in) :: gs0,gs1                  ! Stomatal intercept and slope (umol H2O/m**2/s)
     real(r8), intent(in) :: leaf_co2_ppress          ! CO2 partial pressure at leaf surface (Pa)
     real(r8), intent(in) :: a_gs                     ! The assimilation (a) for calculating conductance (gs)
                                                      ! is either = to anet or agross
@@ -313,7 +321,7 @@ contains
     real(r8) :: r1,r2                                ! quadradic solve roots
 
     if (a_gs <= nearzero) then
-       gs = stomatal_intercept_btran
+       gs = gs0
        return
     end if
     
@@ -322,14 +330,12 @@ contains
     !ceair = can_vpress
     
     aquad = leaf_co2_ppress
-    bquad = leaf_co2_ppress*(gb - stomatal_intercept_btran) - lb_params%bb_slope(ft) * a_gs * can_press
+    bquad = leaf_co2_ppress*(gb - gs0) - gs1 * a_gs * can_press
     
     if(.not.base_compare_revert) then
-       cquad = -gb*(leaf_co2_ppress * stomatal_intercept_btran + &
-            lb_params%bb_slope(ft) * a_gs * can_press * ceair/ veg_esat )
+       cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_gs * can_press * ceair/ veg_esat )
     else
-       cquad = -gb*(leaf_co2_ppress * stomatal_intercept_btran + &
-            lb_params%bb_slope(ft) * a_net* can_press * ceair/ veg_esat )
+       cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_net* can_press * ceair/ veg_esat )
     end if
     
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
@@ -454,7 +460,7 @@ contains
 
   subroutine CiMinMax(ft,vcmax,jmax,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,lmr,par_abs, &
-       gb,stomatal_intercept_btran,ci_min,ci_max)
+       gb,gs0,ci_min,ci_max)
 
     ! This routine is used to find the first values of Ci that are the bounds
     ! for the bisection algorithm. It finds the values associated with minimum
@@ -474,17 +480,21 @@ contains
     real(r8)             , intent(in)    :: lmr      ! leaf maintenance respiration rate (umol CO2/m**2/s)
     real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai (w/m**2)
     real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
-    real(r8)             , intent(in)    :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
+    real(r8)             , intent(in)    :: gs0      ! stomatal intercept
 
-    real(r8) :: ci_max_c,ci_max_j
-    real(r8) :: ci_min_c,ci_min_j
+    real(r8) :: ci_c,ci_j  ! Ci for Rubisco and RuBP respectively
+    real(r8) :: ac,aj      ! Agross for Rubisco and RuBP respectively
     
-    real(r8), intent(out) :: ci_max
-    real(r8), intent(out) :: ci_min
+    real(r8), intent(out) :: ci_max  ! Ci at maximum conductance
+    real(r8), intent(out) :: ci_min  ! Ci at minimum conductance
 
     ! Intermediate terms
     real(r8) :: a,b,c,d,e,f,g,Je
-
+    real(r8),parameter :: gs0_undershoot = 0.9_r8 ! We have to make sure that the
+                                                  ! we find a Ci that accomodates the lowest
+                                                  ! possible conductance, so we undershoot 
+                                                  ! the lowest value gs0 by this margin
+    
     if (lb_params%c3psn(ft) == c4_path_index)then
        write(fates_log(),*) 'bisection should not be needed for c4 photosynthesis solves'
        write(fates_log(),*) 'but somehow, here we are.'
@@ -503,14 +513,13 @@ contains
     e = 1._r8
     f = mm_kco2*(1._r8+can_o2_ppress / mm_ko2 )
     g = lmr
-    ci_max_c = CiFromAnetDiffGrad(a,b,c,d,e,f,g) 
-
+    ci_c = CiFromAnetDiffGrad(a,b,c,d,e,f,g) 
+    ac = AgrossRubiscoC3(vcmax,ci_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
+    
     ! check the math
     if(debug)then
-       if ( abs((can_co2_ppress-ci_max_c)/b - &
-            (AgrossRubiscoC3(vcmax,ci_max_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)-lmr)  ) > 1.e-3_r8 ) then
-          write(fates_log(),*) 'incorrect ci_max_c:',ci_max_c,(can_co2_ppress-ci_max_c)/b, &
-               AgrossRubiscoC3(vcmax,ci_max_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)-lmr
+       if ( abs((can_co2_ppress-ci_c)/b - (ac-lmr)  ) > 1.e-3_r8 ) then
+          write(fates_log(),*) 'incorrect ci_c, max cond:',ci_c,(can_co2_ppress-ci_c)/b,ac-lmr
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
@@ -520,34 +529,39 @@ contains
     e = 4._r8
     f = 8._r8*co2_cpoint
     g = lmr
-    ci_max_j = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
+    ci_j = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
+    aj = AgrossRuBPC3(par_abs,jmax,ci_j,co2_cpoint)
     
     if(debug)then
-       if ( abs((can_co2_ppress-ci_max_j)/b - &
-            (AgrossRuBPC3(par_abs,jmax,ci_max_j,co2_cpoint)-lmr))  > 1.e-3_r8 ) then
-          write(fates_log(),*)'incorrect ci_max_j:',ci_max_j,(can_co2_ppress-ci_max_j)/b, &
-               AgrossRuBPC3(par_abs,jmax,ci_max_j,co2_cpoint)-lmr
+       if ( abs((can_co2_ppress-ci_j)/b - (aj-lmr))  > 1.e-3_r8 ) then
+          write(fates_log(),*)'incorrect ci_j, max cond:',ci_j,(can_co2_ppress-ci_j)/b,aj-lmr
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
-    
+
+    ! Take the Ci that matches the minimizing gross assimilation
+    if(aj>ac)then
+       ci_max = ci_c
+    else
+       ci_max = ci_j
+    end if
+
     ! Find ci at minimum conductance (1/g0)
 
     a = can_co2_ppress
-    b = can_press*(h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/stomatal_intercept_btran)
+    b = can_press*(h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/(gs0_undershoot*gs0))
     c = vcmax
     d = vcmax*co2_cpoint
     e = 1._r8
     f = mm_kco2*(1._r8+can_o2_ppress / mm_ko2 )
     g = lmr
-    ci_min_c = CiFromAnetDiffGrad(a,b,c,d,e,f,g) 
-
+    ci_c = CiFromAnetDiffGrad(a,b,c,d,e,f,g) 
+    ac = AgrossRubiscoC3(vcmax,ci_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
+    
     ! check the math
     if(debug)then
-       if ( abs((can_co2_ppress-ci_min_c)/b - &
-            (AgrossRubiscoC3(vcmax,ci_min_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)-lmr)  ) > 1.e-3_r8 ) then
-          write(fates_log(),*)'incorrect ci_min_c:',ci_max_c,(can_co2_ppress-ci_min_c)/b, &
-               AgrossRubiscoC3(vcmax,ci_min_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)-lmr
+       if ( abs((can_co2_ppress-ci_c)/b - (ac-lmr)  ) > 1.e-3_r8 ) then
+          write(fates_log(),*)'incorrect ci_c, min cond:',ci_c,(can_co2_ppress-ci_c)/b,ac-lmr
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
@@ -558,20 +572,21 @@ contains
     e = 4._r8
     f = 8._r8*co2_cpoint
     g = lmr
-    ci_min_j = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
+    ci_j = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
+    aj = AgrossRuBPC3(par_abs,jmax,ci_j,co2_cpoint)
     
     if(debug)then
-       if ( abs((can_co2_ppress-ci_min_j)/b - &
-            (AgrossRuBPC3(par_abs,jmax,ci_min_j,co2_cpoint)-lmr))  > 1.e-3_r8 ) then
-          write(fates_log(),*)'incorrect ci_min_j:',ci_min_j,(can_co2_ppress-ci_min_j)/b, &
-               AgrossRuBPC3(par_abs,jmax,ci_min_j,co2_cpoint)-lmr
+       if ( abs((can_co2_ppress-ci_j)/b -(aj-lmr))  > 1.e-3_r8 ) then
+          write(fates_log(),*)'incorrect ci_j, min cond:',ci_j,(can_co2_ppress-ci_j)/b,aj-lmr
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
-
-    ci_max = min(ci_max_c,ci_max_j)
-    ci_min = min(ci_min_c,ci_min_j)
-
+    
+    if(aj>ac)then
+       ci_min = ci_c
+    else
+       ci_min = ci_j
+    end if
     
   end subroutine CiMinMax
 
@@ -591,12 +606,35 @@ contains
     
     real(r8) :: a,b,c,d,e,f,g  ! compound terms to solve the
                                ! coupled Anet and diffusive flux gradient equations
-
+    real(r8) :: ci1,ci2        ! The two roots
+    real(r8) :: ci_term1,ci_term2
     real(r8) :: ci  ! intracellular co2 [Pa]
     
-    ci = -( (-a*e + b*c - b*e*g + f)- &
-         sqrt((a*e - b*c + b*e*g - f)**2._r8 + 4._r8 *e* (a*f + b*d + b*f*g)) )/(2._r8*e)
+    ci_term1 = (a*e - b*c + b*e*g - f)/(2._r8*e)
+    ci_term2 = sqrt((a*e - b*c + b*e*g - f)**2._r8 + 4._r8 *e* (a*f + b*d + b*f*g)) /(2._r8*e)
 
+    ci1 = ci_term1 + ci_term2
+
+    ci2 = ci_term1 - ci_term2
+
+    ! One root should be negative, but...
+
+    if ( nint(ci1/abs(ci1)) .eq. nint(ci2/abs(ci2)) ) then
+       ! If both roots are the same, not sure what to do!
+       write (fates_log(),*) 'while finding ci roots for min/max conductance'
+       write (fates_log(),*) 'both roots were the same sign:',ci1,ci2
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    
+    
+    ci = max(ci1,ci2)
+
+    
+    !ci = -( (-a*e + b*c - b*e*g + f)- &
+    !     sqrt((a*e - b*c + b*e*g - f)**2._r8 + 4._r8 *e* (a*f + b*d + b*f*g)) )/(2._r8*e)
+
+
+    
     
   end function CiFromAnetDiffGrad
   
@@ -605,7 +643,7 @@ contains
   subroutine CiFunc(ci, &
        ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-       stomatal_intercept_btran, &
+       gs0, gs1, &
        anet,agross,gs,fval)
 
     ! -----------------------------------------------------------------------------------
@@ -644,8 +682,8 @@ contains
     real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai (w/m**2)
     real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8)             , intent(in)    :: veg_tempk
-    real(r8)             , intent(in)    :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
-    
+    real(r8)             , intent(in)    :: gs0      ! conductance intercept (umol H20/m2/s)
+    real(r8)             , intent(in)    :: gs1      ! conductance intercept (umol H20/m2/s)
     real(r8)             , intent(out)   :: anet
     real(r8)             , intent(out)   :: agross
     real(r8)             , intent(out)   :: gs
@@ -736,10 +774,10 @@ contains
     call QSat(veg_tempk, can_press, veg_qs, veg_esat)
     
     if ( lb_params%stomatal_model == medlyn_model ) then
-       call StomatalCondMedlyn(anet,ft,veg_esat,can_vpress,stomatal_intercept_btran, &
+       call StomatalCondMedlyn(anet,veg_esat,can_vpress,gs0,gs1, &
             leaf_co2_ppress,can_press,gb,gs)
     else
-       call StomatalCondBallBerry(a_gs,anet,ft,veg_esat,can_vpress,stomatal_intercept_btran, &
+       call StomatalCondBallBerry(a_gs,anet,veg_esat,can_vpress,gs0,gs1, &
             leaf_co2_ppress,can_press,gb,gs)
     end if
     
@@ -763,7 +801,7 @@ contains
   
   subroutine CiBisection(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-       stomatal_intercept_btran,ci_tol, &       
+       gs0,gs1,ci_tol, &       
        anet,agross,gs,ci,solve_iter)
 
     ! -----------------------------------------------------------------------------------
@@ -788,7 +826,7 @@ contains
     real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai (w/m**2)
     real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8)             , intent(in)    :: veg_tempk
-    real(r8)             , intent(in)    :: stomatal_intercept_btran ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
+    real(r8)             , intent(in)    :: gs0,gs1        ! stomatal intercept and slope
     real(r8)             , intent(in)    :: ci_tol            ! Convergence tolerance for solutions for intracellular CO2 (Pa)
     real(r8)             , intent(out)   :: anet
     real(r8)             , intent(out)   :: agross
@@ -814,33 +852,35 @@ contains
     integer, parameter :: max_iters = 200
 
     ! Find the starting points (end-points) for bisection
+    ! We dont need stomatal slope because we just want the two extremes
+    ! which is the intercept and infinite conductance
     call CiMinMax(ft,vcmax,jmax,co2_cpoint,mm_kco2,mm_ko2, &
-       can_co2_ppress,can_o2_ppress,can_press,lmr,par_abs, &
-       gb,stomatal_intercept_btran,ci_l,ci_h)
-
+         can_co2_ppress,can_o2_ppress,can_press,lmr,par_abs, &
+         gb,gs0,ci_l,ci_h)
     
     call CiFunc(ci_h, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
          can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-         stomatal_intercept_btran, &
+         gs0,gs1, & 
          anet,agross,gs,fval_h)
     
     call CiFunc(ci_l, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
          can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-         stomatal_intercept_btran, &
+         gs0,gs1, &
          anet,agross,gs,fval_l)
 
+         
     ! It is necessary that our starting points are on opposite sides of the root
-
+    
     if( nint(fval_h/abs(fval_h)) .eq. nint(fval_l/abs(fval_l)) ) then
-       print*,ci_h,fval_h,ci_l,fval_l              
+       print*,ci_h,fval_h,ci_l,fval_l
        write(fates_log(),*) 'While attempting bisection for Ci calculations,'
        write(fates_log(),*) 'the two starting values for Ci were on the same'
        write(fates_log(),*) 'side of the root. Try increasing and decreasing'
        write(fates_log(),*) 'init_ci_high and init_ci_low respectively'
        write(fates_log(),*) ci_h,fval_h,ci_l,fval_l
-       call endrun(msg=errMsg(sourcefile, __LINE__)) 
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
     loop_continue = .true.
@@ -848,11 +888,11 @@ contains
     bi_iter_loop: do while(loop_continue)
 
        solve_iter = solve_iter + 1
-       
+
        call CiFunc(ci_b, &
             ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
             can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-            stomatal_intercept_btran, &
+            gs0,gs1, &
             anet,agross,gs,fval_b)
 
        if(abs(fval_b)<ci_tol) then
@@ -882,7 +922,6 @@ contains
     ! is the bisection point minus the difference
     
     ci = ci_b - fval_b
-    
 
     return
   end subroutine CiBisection
@@ -896,11 +935,12 @@ contains
        vcmax,             &  ! in
        jmax,              &  ! in
        kp,                &  ! in
+       gs0,               &  ! in
+       gs1,               &  ! in
        veg_tempk,         &  ! in
        can_press,         &  ! in
        can_co2_ppress,    &  ! in
        can_o2_ppress,     &  ! in
-       btran,             &  ! in
        gb,                &  ! in
        can_vpress,        &  ! in
        mm_kco2,           &  ! in
@@ -937,11 +977,12 @@ contains
     real(r8), intent(in) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
     real(r8), intent(in) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
     real(r8), intent(in) :: kp                ! initial slope of CO2 response curve (C4 plants)
+    real(r8), intent(in) :: gs0               ! effective stomatal conductance intercept
+    real(r8), intent(in) :: gs1               ! effective stomatal conductance slope
     real(r8), intent(in) :: veg_tempk         ! vegetation temperature
     real(r8), intent(in) :: can_press         ! Air pressure near the surface of the leaf (Pa)
     real(r8), intent(in) :: can_co2_ppress    ! Partial pressure of CO2 near the leaf surface (Pa)
     real(r8), intent(in) :: can_o2_ppress     ! Partial pressure of O2 near the leaf surface (Pa)
-    real(r8), intent(in) :: btran             ! transpiration wetness factor (0 to 1)
     real(r8), intent(in) :: gb                ! leaf boundary layer conductance (umol /m**2/s)
     real(r8), intent(in) :: can_vpress        ! vapor pressure of the canopy air (Pa)
     real(r8), intent(in) :: mm_kco2           ! Michaelis-Menten constant for CO2 (Pa)
@@ -978,7 +1019,6 @@ contains
     real(r8) :: fval              ! Change in intracellular co2 through
                                   ! one iteration of a solve (ci_init - ci) [Pa]
     logical  :: loop_continue     ! Loop control variable
-    real(r8) :: eff_stomatal_intercept ! water-stressed minimum stomatal conductance (umol H2O/m**2/s)
       
     ! Parameters
     ! ------------------------------------------------------------------------
@@ -1002,38 +1042,13 @@ contains
     ! Assume a trival solve until we encounter both leaf and light
     solve_iter = 0
 
-    ! Find the stomatal conductance intercept
-
-    if( stomatal_intercept_method .eq. yes_btran_stomatal_intercept_method ) then
-       eff_stomatal_intercept = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft)*btran)
-    elseif( stomatal_intercept_method .eq. no_btran_stomatal_intercept_method ) then
-       eff_stomatal_intercept = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft))
-    else
-       write (fates_log(),*)'error, incorrect stomatal slope scaling method (stomatal_intercept_method) applied'
-       write (fates_log(),*)'valid options are:'
-       write (fates_log(),*)'no_btran_stomatal_intercept_method = 0'
-       write (fates_log(),*)'yes_btran_stomatal_intercept_method = 1'
-       write (fates_log(),*)'you specified stomatal_intercept_method = ',stomatal_intercept_method
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
-
-       
     base_compare_trivial: if(base_compare_revert) then
 
-       if(stomatal_intercept_method .eq. no_btran_stomatal_intercept_method ) then
-          write (fates_log(),*)'error,cant turn off btran stomatal intercept scaling while in revert mode'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-       if(scale_jmax_method == yes_btran_scale_jmax_method) then
-          write (fates_log(),*)'error,cant turn on btran jmax scaling while in revert mode'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-       
        if ( par_sun <= 0._r8 ) then  ! night time
           
           anet    = -lmr
           agross  = 0._r8
-          gs      = eff_stomatal_intercept
+          gs      = gs0
           c13disc = 0.0_r8 
           return
           
@@ -1048,7 +1063,7 @@ contains
              
              agross  = 0._r8
              anet    = 0._r8
-             gs      = eff_stomatal_intercept
+             gs      = gs0
              c13disc = 0.0_r8
 
              return
@@ -1057,17 +1072,10 @@ contains
        end if
           
     else
-       
-
-       ! Trivial solution - No biomass - no photosynthesis, no respiration, only some conductance
-       ! associated with stem loss (RGK-2024: This stem loss will have NO impact, since we
-       ! weight conductance by leaf area when we scale it up to the patch level, where it is
-       ! applied to the energy balance routine.)
-       ! --------------------------------------------------------------------------------------------
-
+     
        if(  leaf_area < nearzero ) then
           agross  = 0._r8
-          gs      = max(gsmin0_20C1A_mol,stem_cuticle_loss_frac*eff_stomatal_intercept)
+          gs      = max(gsmin0_20C1A_mol,stem_cuticle_loss_frac*gs0)
           anet    = 0._r8
           c13disc = 0._r8
           return
@@ -1080,7 +1088,7 @@ contains
        if (par_abs < nearzero ) then
           anet    = -lmr
           agross  = 0._r8
-          gs      = eff_stomatal_intercept
+          gs      = gs0
           c13disc = 0.0_r8
           return
        end if
@@ -1111,7 +1119,7 @@ contains
        call CiFunc(ci0, &
             ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
             can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-            eff_stomatal_intercept, &
+            gs0,gs1, &
             anet,agross,gs,fval)
 
        ! fval = ci_input - ci_predicted
@@ -1139,7 +1147,7 @@ contains
           call CiBisection( &
                ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
                can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-               eff_stomatal_intercept,ci_tol, &
+               gs0,gs1,ci_tol, &
                anet,agross,gs,ci,solve_iter)
           loop_continue = .false.
           exit iter_loop
@@ -1582,7 +1590,9 @@ contains
        btran, &
        vcmax, &
        jmax, &
-       kp )
+       kp, &
+       gs0, &
+       gs1)
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine calculates the localized rates of several key photosynthesis
@@ -1618,7 +1628,10 @@ contains
     real(r8), intent(out) :: jmax                     ! maximum electron transport rate
                                                       ! (umol electrons/m**2/s)
     real(r8), intent(out) :: kp                       ! initial slope of CO2 response curve (C4 plants)
+    real(r8), intent(out) :: gs0                      ! effective stomatal intercept
+    real(r8), intent(out) :: gs1                      ! effective stomatal slope
 
+    
     ! Locals
     ! -------------------------------------------------------------------------------
     real(r8) :: vcmax25             ! leaf layer: maximum rate of carboxylation at 25C
@@ -1706,23 +1719,49 @@ contains
        kp = kp25_ft * nscaler * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
     end if
 
-    
-    if(  scale_jmax_method .eq. no_btran_scale_jmax_method) then
-       jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
-    elseif( scale_jmax_method .eq. yes_btran_scale_jmax_method) then
-       jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc) * btran
-    else
-       write (fates_log(),*)'error, incorrect jmax scaling method (scale_jmax_method) applied'
-       write (fates_log(),*)'valid options are:'
-       write (fates_log(),*)'no_btran_scale_jmax_method = 0'
-       write (fates_log(),*)'yes_btran_scale_jmax_method = 1'
-       write (fates_log(),*)'you specified scale_jmax_method = ',scale_jmax_method
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
+    jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
  
-    ! Adjust for water limitations
-    vcmax = vcmax * btran
 
+    ! Adjust various rates for water limitations
+    ! -----------------------------------------------------------------------------------
+    
+    ! Apply water limitations to Vcmax
+    if(lb_params%agross_btran_model(ft) .ne. btran_on_ag_none) then
+       vcmax = vcmax * btran
+    end if
+
+    ! Apply water limitations to Jmax
+    if(lb_params%agross_btran_model(ft) .eq. btran_on_ag_vcmax_jmax) then
+       jmax = jmax * btran
+    end if
+
+    ! Apply water limitations to stomatal intercept (hypothesis dependent)
+
+    if(lb_params%stomatal_btran_model(ft)==btran_on_gs_gs0 .or. &
+       lb_params%stomatal_btran_model(ft)==btran_on_gs_gs01 )then
+       gs0 = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft)*btran)
+    else
+       gs0 = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft))
+    end if
+
+    ! Apply water limitations to stomatal slope (hypothesis dependent)
+
+    if(lb_params%stomatal_btran_model(ft)==btran_on_gs_gs1 .or. &
+       lb_params%stomatal_btran_model(ft)==btran_on_gs_gs01)then
+       if(lb_params%stomatal_model.eq.medlyn_model ) then
+          gs1 = lb_params%medlyn_slope(ft)*btran
+       else
+          gs1 = lb_params%bb_slope(ft)*btran
+       end if
+    else
+       if(lb_params%stomatal_model.eq.medlyn_model ) then
+          gs1 = lb_params%medlyn_slope(ft)
+       else
+          gs1 = lb_params%bb_slope(ft)
+       end if
+    end if
+
+    
     return
 
   end subroutine LeafLayerBiophysicalRates
