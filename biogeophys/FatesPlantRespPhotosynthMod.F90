@@ -276,6 +276,8 @@ contains
     real(r8)               :: anet_ll      ! leaf level net assimilation   [umol CO2/m**2/s]
     real(r8)               :: c13disc_ll   ! leaf level c13 assimilation
     real(r8)               :: hydr_k_lwp   ! inner leaf humidity scaling coefficient [-]
+    real(r8)               :: gs0          ! stomatal intercept, possibly scaled by btran depending on hypothesis
+    real(r8)               :: gs1          ! stomatal slope, possibly scaled by btran depending on hypothesis
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -716,7 +718,9 @@ contains
                                          btran_eff,                           &  ! in
                                          vcmax_z,                             &  ! out
                                          jmax_z,                              &  ! out
-                                         kp_z )                                  ! out
+                                         kp_z,                                &  ! out
+                                         gs0,                                 &  ! out
+                                         gs1 )                                   ! out
 
                                     ! Part IX: This call calculates the actual photosynthesis for the
                                     ! leaf layer, as well as the stomatal resistance and the net assimilated carbon.
@@ -744,11 +748,12 @@ contains
                                          vcmax_z,                            &  ! in
                                          jmax_z,                             &  ! in
                                          kp_z,                               &  ! in
+                                         gs0,                                &  ! in
+                                         gs1,                                &  ! in
                                          bc_in(s)%t_veg_pa(ifp),             &  ! in
                                          bc_in(s)%forc_pbot,                 &  ! in
                                          bc_in(s)%cair_pa(ifp),              &  ! in
                                          bc_in(s)%oair_pa(ifp),              &  ! in
-                                         btran_eff,                          &  ! in
                                          gb_mol,                             &  ! in
                                          bc_in(s)%eair_pa(ifp),              &  ! in 
                                          mm_kco2,                            &  ! in
