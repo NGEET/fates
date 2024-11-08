@@ -6,7 +6,7 @@ module FatesLeafBiophysParamsMod
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
   use shr_log_mod      , only : errMsg => shr_log_errMsg
-  use LeafBiophysicsMod, only : lb_params
+  use LeafBiophysicsMod, only : lb_params,btran_on_gs_gs1,btran_on_ag_none
   use FatesParametersInterface, only : fates_parameters_type
   ! Register the parameters we want the host to provide, and
   ! indicate whether they are fates parameters or host parameters
@@ -76,13 +76,13 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leaf_stomatal_btran_model'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    !name = 'fates_leaf_stomatal_btran_model'
+    !call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+    !     dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leaf_agross_btran_model'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    !name = 'fates_leaf_agross_btran_model'
+    !call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+    !     dimension_names=dim_names, lower_bounds=dim_lower_bound)
     
     name = 'fates_leaf_stomatal_slope_ballberry'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -189,19 +189,26 @@ contains
     call ArrayNint(tmpreal,lb_params%c3psn)
     deallocate(tmpreal)
 
-    name = 'fates_leaf_stomatal_btran_model'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
+    ! Placeholder (enable for API 37, RGK)
+    !name = 'fates_leaf_stomatal_btran_model'
+    !call fates_params%RetrieveParameterAllocate(name=name, &
+    !     data=tmpreal)
     allocate(lb_params%stomatal_btran_model(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,lb_params%stomatal_btran_model)
-    deallocate(tmpreal)
+    !call ArrayNint(tmpreal,lb_params%stomatal_btran_model)
+    !deallocate(tmpreal)
 
-    name = 'fates_leaf_agross_btran_model'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
+    ! BTRAN affects stomatal slope only
+    lb_params%stomatal_btran_model(:) = btran_on_gs_gs1
+    
+    !name = 'fates_leaf_agross_btran_model'
+    !call fates_params%RetrieveParameterAllocate(name=name, &
+    !     data=tmpreal)
     allocate(lb_params%agross_btran_model(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,lb_params%agross_btran_model)
-    deallocate(tmpreal)
+    !call ArrayNint(tmpreal,lb_params%agross_btran_model)
+    !deallocate(tmpreal)
+    
+     ! BTRAN does not affect vcmax or jmax
+    lb_params%stomatal_btran_model(:) = btran_on_ag_none
     
     name = 'fates_leaf_stomatal_slope_medlyn'
     call fates_params%RetrieveParameterAllocate(name=name, &

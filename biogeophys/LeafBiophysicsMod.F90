@@ -132,6 +132,12 @@ module LeafBiophysicsMod
   ! empirical curvature parameter for electron transport rate
   real(r8),parameter :: theta_psii = 0.7_r8
 
+
+  ! curvature parameter for quadratic smoothing of C4 gross assimilation
+  real(r8),parameter :: theta_ip = 0.999_r8
+  real(r8),parameter :: theta_cj_c4 = 0.999_r8
+
+  
   ! Set this to true to match results with main
   logical, parameter :: base_compare_revert = .false.
 
@@ -154,7 +160,6 @@ module LeafBiophysicsMod
   integer, parameter :: btran_on_ag_vcmax = 1       ! apply btran to vcmax (API 36.1)
   integer, parameter :: btran_on_ag_vcmax_jmax = 2  ! apply btran to vcmax and jmax
   
-
   ! Jmax has not been scaled by btran as of 11/24, but discussions here suggest that
   ! it may be worth testing or using this, see: https://github.com/NGEET/fates/issues/719
 
@@ -694,12 +699,15 @@ contains
 
     real(r8) :: a_gs              ! The assimilation (a) for calculating conductance (gs)
                                   ! is either = to anet or agross
-    real(r8) :: ac               ! Rubisco-limited gross photosynthesis (umol CO2/m**2/s)
-    real(r8) :: aj               ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
-    real(r8) :: ap               ! product-limited (C3) or CO2-limited
+    real(r8) :: ac                ! Rubisco-limited gross photosynthesis (umol CO2/m**2/s)
+    real(r8) :: aj                ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
+    real(r8) :: ap                ! product-limited (C3) or CO2-limited
                                               ! (C4) gross photosynthesis (umol CO2/m**2/s)
     real(r8) :: leaf_co2_ppress   ! CO2 partial pressure at leaf surface (Pa)
-
+    real(r8) :: ai                ! For C4, smoothed co-limited assimilation of Rubisco/RuBP
+    real(r8) :: aquad,bquad,cquad ! a,b,c terms in the quadratic equation
+    real(r8) :: r1,r2             ! The roots from the quadratic
+    
     !------------------------------------------------------------------------------
 
     ! Photosynthesis limitation rate calculations
@@ -725,8 +733,18 @@ contains
        ! C4: PEP carboxylase-limited (CO2-limited)
        ap = AgrossPEPC4(ci,kp,can_press)
        
-       ! Take the minimum, no smoothing
-       agross = minval([ac,aj,ap])
+       aquad = theta_cj_c4
+       bquad = -(ac + aj)
+       cquad = ac * aj
+       call QuadraticRoots(aquad, bquad, cquad, r1, r2)
+       ai = min(r1,r2)
+       
+       aquad = theta_ip
+       bquad = -(ai + ap)
+       cquad = ai * ap
+       call QuadraticRoots(aquad, bquad, cquad, r1, r2)
+       agross = min(r1,r2)
+
        
     end if
 
@@ -1724,7 +1742,7 @@ contains
 
     ! Adjust various rates for water limitations
     ! -----------------------------------------------------------------------------------
-    
+
     ! Apply water limitations to Vcmax
     if(lb_params%agross_btran_model(ft) .ne. btran_on_ag_none) then
        vcmax = vcmax * btran
@@ -1760,7 +1778,6 @@ contains
           gs1 = lb_params%bb_slope(ft)
        end if
     end if
-
     
     return
 

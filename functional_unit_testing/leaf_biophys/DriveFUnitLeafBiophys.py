@@ -48,7 +48,7 @@ matplotlib.rc('font', **font)
 dump_parameters = False
 
 # Should we evaluate vcmax, jmax and kp actual?
-do_evalvjkbytemp = True
+do_evalvjkbytemp = False
 
 # Do an analysis on convergence
 do_test_citol = False
@@ -613,33 +613,33 @@ def main(argv):
     # Leaf temperature ranges [C]
     leaf_tempc_min = -30.0
     leaf_tempc_max = 50.0
-    leaf_tempc_n = 75
+    leaf_tempc_n = 50
     leaf_tempc_vec = np.linspace(leaf_tempc_min,leaf_tempc_max,num=leaf_tempc_n)
 
     # Relative Humidity Ranges
     rh_max = 0.99
     rh_min = 0.01
-    rh_n   = 75
+    rh_n   = 10
     rh_vec = np.linspace(rh_min,rh_max,num=rh_n)
     
     # Absorbed PAR ranges [W/m2]
     par_abs_min = 1.0
-    par_abs_max = 200
-    par_abs_n  = 75
+    par_abs_max = 500
+    par_abs_n  = 10
     par_abs_vec = np.linspace(par_abs_min,par_abs_max,num=par_abs_n)
 
     # Boundary Conductance ranges [umol/m2/s]
     gb_min =  500000.0            # Lower limit imposed by CLM/ELM
-    gb_max = 3500000.0            # 50% larger than  Roughly largestthe largest values seen at BCI (which are 2.5mol/m2/s)
-    gb_n  = 7
+    gb_max = 2500000.0            # 50% larger than  Roughly largestthe largest values seen at BCI (which are 2.5mol/m2/s)
+    gb_n  = 5
     gb_vec = np.linspace(gb_min,gb_max,num=gb_n)
 
     # btran ranges
 
-    btran_n   = 10
-    btran_min = 0.001
-    btran_max = 1.0
-    btran_vec = np.linspace(btran_min,btran_max,num=btran_n)
+    btran_n   = 50
+    btran_min = -1
+    btran_max = 0
+    btran_vec = np.logspace(btran_min,btran_max,num=btran_n)
     
     # These variables are mostly dependent on leaf temperature,
     # and weakly dependent on atmospheric pressure
@@ -677,7 +677,7 @@ def main(argv):
 
     # Set convergence tolerance
     #ci_tol = 2.*can_press_1atm
-    ci_tol = 1.0
+    ci_tol = 0.1
     
     # Initialize fortran return values
     # these are all temps and doubles
@@ -752,16 +752,14 @@ def main(argv):
         jmax  = np.zeros([leaf_tempc_n])
         kp    = np.zeros([leaf_tempc_n])
         lmr    = np.zeros([leaf_tempc_n])
-        agross = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
-        gstoma = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
+        agross = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n,btran_n])
+        gstoma = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n,btran_n])
+        co2_interc = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n,btran_n])
         anet   = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
         ac     = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
         aj     = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
         ap     = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
-        co2_interc = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
-        minag = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
         iters  = np.zeros([leaf_tempc_n,rh_n,par_abs_n,gb_n])
-
         
         # When calling component limitations exclusively
         # using an approximation of interstitial co2 as
@@ -824,50 +822,54 @@ def main(argv):
                     vpress = rh * veg_esat_vec[it]
 
                     for ig, gb in enumerate(gb_vec):
+
+                        for ib, btran in enumerate(btran_vec):
+
+                            iret = f90_biophysrate_sub(ci(pft+1), c8(fates_leaf_vcmax25top[pft]), \
+                                                       c8(jmax25_top), c8(kp25_top), \
+                                                       c8(nscaler), c8(leaf_tempk), c8(dayl_factor_full), \
+                                                       c8(t_growth_kum),c8(t_home_kum),c8(btran), \
+                                                       byref(vcmax_f), byref(jmax_f), byref(kp_f), byref(gs0_f), byref(gs1_f))
                         
-                        iret = f90_leaflayerphoto_sub(c8(par_abs), \
-                                                      c8(par_abs),  \
-                                                      c8(1.0),     \
-                                                      ci(pft+1),   \
-                                                      c8(vcmax[it]),   \
-                                                      c8(jmax[it]),    \
-                                                      c8(kp[it]),      \
-                                                      c8(gs0_f.value), \
-                                                      c8(gs1_f.value), \
-                                                      c8(leaf_tempk), \
-                                                      c8(can_press_1atm), \
-                                                      c8(co2_ppress_400ppm), \
-                                                      c8(o2_ppress_209kppm), \
-                                                      c8(gb), \
-                                                      c8(vpress), \
-                                                      c8(mm_kco2_vec[it]), \
-                                                      c8(mm_ko2_vec[it]), \
-                                                      c8(co2_cpoint_vec[it]), \
-                                                      c8(lmr[it]), \
-                                                      c8(ci_tol), \
-                                                      byref(agross_f), \
-                                                      byref(gstoma_f), \
-                                                      byref(anet_f), \
-                                                      byref(c13_f), \
-                                                      byref(ac_f), \
-                                                      byref(aj_f), \
-                                                      byref(ap_f), \
-                                                      byref(co2_interc_f), \
-                                                      byref(solve_iter_f) )
+                            iret = f90_leaflayerphoto_sub(c8(par_abs), \
+                                                          c8(par_abs),  \
+                                                          c8(1.0),     \
+                                                          ci(pft+1),   \
+                                                          c8(vcmax_f.value),   \
+                                                          c8(jmax_f.value),    \
+                                                          c8(kp_f.value),      \
+                                                          c8(gs0_f.value), \
+                                                          c8(gs1_f.value), \
+                                                          c8(leaf_tempk), \
+                                                          c8(can_press_1atm), \
+                                                          c8(co2_ppress_400ppm), \
+                                                          c8(o2_ppress_209kppm), \
+                                                          c8(gb), \
+                                                          c8(vpress), \
+                                                          c8(mm_kco2_vec[it]), \
+                                                          c8(mm_ko2_vec[it]), \
+                                                          c8(co2_cpoint_vec[it]), \
+                                                          c8(lmr[it]), \
+                                                          c8(ci_tol), \
+                                                          byref(agross_f), \
+                                                          byref(gstoma_f), \
+                                                          byref(anet_f), \
+                                                          byref(c13_f), \
+                                                          byref(ac_f), \
+                                                          byref(aj_f), \
+                                                          byref(ap_f), \
+                                                          byref(co2_interc_f), \
+                                                          byref(solve_iter_f) )
                         
 
-                        agross[it,ir,ip,ig] = agross_f.value
-                        gstoma[it,ir,ip,ig] = gstoma_f.value
-                        anet[it,ir,ip,ig] = anet_f.value
-                        ac[it,ir,ip,ig] = ac_f.value
-                        aj[it,ir,ip,ig] = aj_f.value
-                        ap[it,ir,ip,ig] = ap_f.value
-                        if(leaf_c3psn == 0):
-                            minag[it,ir,ip,ig] = float(np.argmin([ac_f.value,aj_f.value,ap_f.value]))+1
-                        else:
-                            minag[it,ir,ip,ig] = float(np.argmin([ac_f.value,aj_f.value]))+1
-                        co2_interc[it,ir,ip,ig] = co2_interc_f.value
-                        iters[it,ir,ip,ig] = solve_iter_f.value
+                            agross[it,ir,ip,ig,ib] = agross_f.value
+                            gstoma[it,ir,ip,ig,ib] = gstoma_f.value
+                            anet[it,ir,ip,ig] = anet_f.value
+                            ac[it,ir,ip,ig] = ac_f.value
+                            aj[it,ir,ip,ig] = aj_f.value
+                            ap[it,ir,ip,ig] = ap_f.value
+                            co2_interc[it,ir,ip,ig] = co2_interc_f.value
+                            iters[it,ir,ip,ig] = solve_iter_f.value
 
         # Plot out component gross assimilation rates
         # by temperature with constant Ci, and by Ci with
@@ -897,71 +899,28 @@ def main(argv):
             
             
         # Lets plot metrics by temperature, using the
-        # 10th, 50th and 90th percentiles of both RH and PAR
+        # 10th, and 90th percentiles of both RH and PAR
         # Agross, Anet, Gstoma, Ac, Aj, Ap
         
-        fig3, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(8.,7.))
-        gb_id = 0
-        LinePlotY3dM1(ax1,leaf_tempc_vec,rh_vec,par_abs_vec, \
-                      agross[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',True)
-        ax1.set_ylabel('Agross \n [umol/m2/s]')
-        ax1.set_xticklabels([])
-        LinePlotY3dM1(ax2,leaf_tempc_vec,rh_vec,par_abs_vec,\
-                      gstoma[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n])*1.e-6,'RH','APAR',False)
-        ax2.set_ylabel('Gs \n [mol/m2/s]')
-        ax2.yaxis.set_label_position("right")
-        ax2.yaxis.tick_right()
-
-        LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
-                      co2_interc[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
-        ax3.set_ylabel('Ci [Pa]')
-        ax3.axhline(y=co2_ppress_400ppm,color=[0.3,0.3,0.3])
-        
-        #LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
-        #              minag[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
-        #ax3.set_ylabel('Minimizing \n Assimilation (MA)')
-        ax3.set_xlabel('Leaf Temperature [C]')
-        ax1.set_xlabel('Leaf Temperature [C]')
-
-
-        ax4.text(0.25,0.6,'PFT: %2i \ng_b = %4.2f [mol/m2/s]'%(pft+1,gb_vec[gb_id]*1.e-6))
-        ax4.axis('off')
-        
-        plt.tight_layout()
-        plt.subplots_adjust(wspace=0.02, hspace=0.03)
-        fig3.legend(loc='lower right', bbox_to_anchor=(0.87, 0.06),labelspacing = 0.2, fontsize=12, ncol=1) #, fancybox=True, shadow=True)
-        if(pdf):
-            pdf.savefig(fig3)
-            plt.close(fig3)
-        else:
-            plt.savefig('images/AgGsCI_temp_v1_pft%2.2i.png'%(pft))
-
-
-            
         fig5, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(8.,7.))
         gb_id = 4
+        bt_id = -1
         LinePlotY3dM1(ax1,leaf_tempc_vec,rh_vec,par_abs_vec, \
-                      agross[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',True)
+                      agross[:,:,:,gb_id,bt_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',True)
         ax1.set_ylabel('Agross \n [umol/m2/s]')
         ax1.set_xticklabels([])
         LinePlotY3dM1(ax2,leaf_tempc_vec,rh_vec,par_abs_vec,\
-                      gstoma[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n])*1.e-6,'RH','APAR',False)
+                      gstoma[:,:,:,gb_id,bt_id].reshape([leaf_tempc_n,rh_n,par_abs_n])*1.e-6,'RH','APAR',False)
         ax2.set_ylabel('Gs \n [mol/m2/s]')
         ax2.yaxis.set_label_position("right")
         ax2.yaxis.tick_right()
 
         LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
-                      co2_interc[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
+                      co2_interc[:,:,:,gb_id,bt_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
         ax3.set_ylabel('Ci [Pa]')
-        #LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
-        #              minag[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
-        #ax3.set_ylabel('Minag [id]')
         ax3.axhline(y=co2_ppress_400ppm,color=[0.3,0.3,0.3])
         ax3.plot(leaf_tempc_vec,co2_cpoint_vec)
         
-        #LinePlotY3dM1(ax3,leaf_tempc_vec,rh_vec,par_abs_vec,\
-        #              minag[:,:,:,gb_id].reshape([leaf_tempc_n,rh_n,par_abs_n]),'RH','APAR',False)
-        #ax3.set_ylabel('Minimizing \n Assimilation (MA)')
         ax3.set_xlabel('Leaf Temperature [C]')
         ax1.set_xlabel('Leaf Temperature [C]')
 
@@ -984,20 +943,21 @@ def main(argv):
         
         # Metrics across the humidity Gradient  (fixed conductance)
         fig4, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(8.,7.))
-        gb_id = 1
+        gb_id = 3
+        bt_id = -1
         LinePlotY3dM1(ax1,rh_vec,leaf_tempc_vec,par_abs_vec, \
-                      np.transpose(agross,(1,0,2,3 ))[:,:,:,gb_id].reshape([rh_n,leaf_tempc_n,par_abs_n]),'Tveg','APAR',True)
+                      np.transpose(agross,(1,0,2,3,4 ))[:,:,:,gb_id,bt_id].reshape([rh_n,leaf_tempc_n,par_abs_n]),'Tveg','APAR',True)
         
         ax1.set_ylabel('Agross \n [umol/m2/s]')
         ax1.set_xticklabels([])
         LinePlotY3dM1(ax2,rh_vec,leaf_tempc_vec,par_abs_vec,\
-                      np.transpose(gstoma,(1,0,2,3 ))[:,:,:,gb_id].reshape([rh_n,leaf_tempc_n,par_abs_n])*1.e-6,'Tveg','APAR',False)
+                      np.transpose(gstoma,(1,0,2,3,4 ))[:,:,:,gb_id,bt_id].reshape([rh_n,leaf_tempc_n,par_abs_n])*1.e-6,'Tveg','APAR',False)
         ax2.set_ylabel('Gs \n [mol/m2/s]')
         ax2.yaxis.set_label_position("right")
         ax2.yaxis.tick_right()
 
         LinePlotY3dM1(ax3,rh_vec,leaf_tempc_vec,par_abs_vec,\
-                      np.transpose(co2_interc,(1,0,2,3 ))[:,:,:,gb_id].reshape([rh_n,leaf_tempc_n,par_abs_n]),'Tveg','APAR',False)
+                      np.transpose(co2_interc,(1,0,2,3,4 ))[:,:,:,gb_id,bt_id].reshape([rh_n,leaf_tempc_n,par_abs_n]),'Tveg','APAR',False)
         ax3.set_ylabel('Ci [Pa]')
         ax3.axhline(y=co2_ppress_400ppm,color=[0.3,0.3,0.3])
 
@@ -1018,21 +978,36 @@ def main(argv):
             plt.savefig('images/AgGsCI_temp_v3_pft%2.2i.png'%(pft))
 
 
-        # Look at the iteration diagnostics
-        fig7, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(8.,7.))
 
-        maxiters = np.max(iters.reshape(-1))
-        #code.interact(local=dict(globals(), **locals()))
-        bins = np.linspace(0.5,maxiters+0.5,int(maxiters+1))
-        #bins = [0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5,18.5,19.5]
-        
-        ax1.hist( iters.reshape(-1),log=True, bins=bins)
-        ax1.set_xlabel('Iterations')
-        ax1.set_ylabel('Histogram Counts')
-        #ax1.set_xticks(bins[0:-1]+0.5)
+        # Look at the btran gradient
+
+        fig44, ((ax1,ax2)) = plt.subplots(1,2,figsize=(8.,5.))
+        gb_id = 3
+        rh_id = np.argmin(np.abs(rh_vec-1.0))  # ID at 100% humidity
+        par200_id = np.argmin(np.abs(par_abs_vec-200.))
+        tv30_id = np.argmin(np.abs(leaf_tempc_vec-30.))
+        par50_id = np.argmin(np.abs(par_abs_vec-50.))
+        tv5_id = np.argmin(np.abs(leaf_tempc_vec-5.))
+
+        ax1.plot(btran_vec,agross[tv30_id,rh_id,par200_id,gb_id,:],label='PAR=%5.1f W Tv=%3.1f C'%(par_abs_vec[par200_id],leaf_tempc_vec[tv30_id]),color = 'r',linestyle = '-')
+        ax1.plot(btran_vec,agross[tv30_id,rh_id,par50_id,gb_id,:],label='PAR=%5.1f W Tv=%3.1f C'%(par_abs_vec[par50_id],leaf_tempc_vec[tv30_id]),color = 'r',linestyle = '--')
+        ax1.plot(btran_vec,agross[tv5_id,rh_id,par200_id,gb_id,:],label='PAR=%5.1f W Tv=%3.1f C'%(par_abs_vec[par200_id],leaf_tempc_vec[tv5_id]),color = 'b',linestyle = '-')
+        ax1.plot(btran_vec,agross[tv5_id,rh_id,par50_id,gb_id,:],label='PAR=%5.1f W Tv=%3.1f C'%(par_abs_vec[par50_id],leaf_tempc_vec[tv5_id]),color = 'b',linestyle = '--')
+        ax1.set_title('Ag [umol/m2/s]')
+        ax1.set_xlabel('BTRAN')
         ax1.grid('on')
+
+        ax2.plot(btran_vec,gstoma[tv30_id,rh_id,par200_id,gb_id,:]*1.e-6,color = 'r',linestyle = '-')
+        ax2.plot(btran_vec,gstoma[tv30_id,rh_id,par50_id,gb_id,:]*1.e-6,color = 'r',linestyle = '--')
+        ax2.plot(btran_vec,gstoma[tv5_id,rh_id,par200_id,gb_id,:]*1.e-6,color = 'b',linestyle = '-')
+        ax2.plot(btran_vec,gstoma[tv5_id,rh_id,par50_id,gb_id,:]*1.e-6,color = 'b',linestyle = '--')
+        ax2.set_title('gs [mol/m2/s]')
+        ax2.set_xlabel('BTRAN')
+        ax2.grid('on')
+        fig44.legend(loc='lower right', bbox_to_anchor=(0.87, 0.56),labelspacing = 0.2, fontsize=12, ncol=1)
+
+
             
-        # Metrics across the PAR Gradient
 
 
         # Show for each pft
