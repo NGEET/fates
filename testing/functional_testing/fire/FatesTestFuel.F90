@@ -9,34 +9,34 @@ program FatesTestFuel
   use SFFireWeatherMod,            only : fire_weather
   use SFNesterovMod,               only : nesterov_index
   use FatesFuelMod,                only : fuel_type
-  use FatesFuelClassesMod,         only : nfsc
+  use FatesFuelClassesMod,         only : num_fuel_classes
   use SFParamsMod,                 only : SF_val_SAV, SF_val_drying_ratio
   use SFParamsMod,                 only : SF_val_FBD
   
   implicit none
   
   ! LOCALS:
-  type(fates_unit_test_param_reader)             :: param_reader       ! param reader instance
-  type(fuel_models_array_class)                  :: fuel_models_array  ! array of fuel models
-  class(fire_weather),               pointer     :: fireWeather        ! fire weather object
-  type(fuel_type),                   allocatable :: fuel(:)            ! fuel objects                          
-  character(len=:),                  allocatable :: param_file         ! input parameter file
-  character(len=:),                  allocatable :: datm_file          ! input DATM driver file
-  real(r8),                          allocatable :: temp_degC(:)       ! daily air temperature [degC]
-  real(r8),                          allocatable :: precip(:)          ! daily precipitation [mm]
-  real(r8),                          allocatable :: rh(:)              ! daily relative humidity [%]
-  real(r8),                          allocatable :: wind(:)            ! daily wind speed [m/s]
-  real(r8),                          allocatable :: NI(:)              ! Nesterov index
-  real(r8),                          allocatable :: fuel_loading(:,:)  ! fuel loading [kgC/m2]
-  real(r8),                          allocatable :: total_loading(:)   ! total fuel loading [kgC/m2]
-  real(r8),                          allocatable :: frac_loading(:,:)  ! fractional fuel loading [0-1]
-  real(r8),                          allocatable :: fuel_BD(:)         ! bulk density of fuel [kg/m3]
-  real(r8),                          allocatable :: fuel_SAV(:)        ! fuel surface area to volume ratio [/cm]
-  real(r8),                          allocatable :: fuel_moisture(:,:) ! fuel moisture [m3/m3]
-  character(len=100),                allocatable :: fuel_names(:)      ! names of fuel models
-  character(len=2),                  allocatable :: carriers(:)        ! carriers of fuel models
-  integer                                        :: i, f               ! looping indices
-  integer                                        :: num_fuel_models    ! number of fuel models to test
+  type(fates_unit_test_param_reader)             :: param_reader         ! param reader instance
+  type(fuel_models_array_class)                  :: fuel_models_array    ! array of fuel models
+  class(fire_weather),               pointer     :: fireWeather          ! fire weather object
+  type(fuel_type),                   allocatable :: fuel(:)              ! fuel objects                          
+  character(len=:),                  allocatable :: param_file           ! input parameter file
+  character(len=:),                  allocatable :: datm_file            ! input DATM driver file
+  real(r8),                          allocatable :: temp_degC(:)         ! daily air temperature [degC]
+  real(r8),                          allocatable :: precip(:)            ! daily precipitation [mm]
+  real(r8),                          allocatable :: rh(:)                ! daily relative humidity [%]
+  real(r8),                          allocatable :: wind(:)              ! daily wind speed [m/s]
+  real(r8),                          allocatable :: NI(:)                ! Nesterov index
+  real(r8),                          allocatable :: fuel_loading(:,:)    ! fuel loading [kgC/m2]
+  real(r8),                          allocatable :: non_trunk_loading(:) ! non-trunk fuel loading [kgC/m2]
+  real(r8),                          allocatable :: frac_loading(:,:)    ! fractional fuel loading [0-1]
+  real(r8),                          allocatable :: fuel_BD(:)           ! bulk density of fuel [kg/m3]
+  real(r8),                          allocatable :: fuel_SAV(:)          ! fuel surface area to volume ratio [/cm]
+  real(r8),                          allocatable :: fuel_moisture(:,:)   ! fuel moisture [m3/m3]
+  character(len=100),                allocatable :: fuel_names(:)        ! names of fuel models
+  character(len=2),                  allocatable :: carriers(:)          ! carriers of fuel models
+  integer                                        :: i, f                 ! looping indices
+  integer                                        :: num_fuel_models      ! number of fuel models to test
   
   ! CONSTANTS:
   integer,          parameter :: n_days = 365             ! number of days to run simulation
@@ -55,11 +55,11 @@ program FatesTestFuel
   allocate(wind(n_days))
   allocate(NI(n_days))
   allocate(fuel_moisture(n_days, num_fuel_models))
-  allocate(fuel_loading(nfsc, num_fuel_models))
-  allocate(frac_loading(nfsc, num_fuel_models))
+  allocate(fuel_loading(num_fuel_classes, num_fuel_models))
+  allocate(frac_loading(num_fuel_classes, num_fuel_models))
   allocate(fuel_BD(num_fuel_models))
   allocate(fuel_SAV(num_fuel_models))
-  allocate(total_loading(num_fuel_models))
+  allocate(non_trunk_loading(num_fuel_models))
   allocate(fuel_names(num_fuel_models))
   allocate(carriers(num_fuel_models))
   
@@ -91,15 +91,15 @@ program FatesTestFuel
     call fuel(f)%CalculateFractionalLoading()
     
     ! calculate geometric properties
-    call fuel(f)%AverageBulkDensity(SF_val_FBD)
-    call fuel(f)%AverageSAV(SF_val_SAV)
+    call fuel(f)%AverageBulkDensity_NoTrunks(SF_val_FBD)
+    call fuel(f)%AverageSAV_NoTrunks(SF_val_SAV)
     
     ! save values
     fuel_loading(:,f) = fuel(f)%loading(:)
-    total_loading(f) = fuel(f)%total_loading
+    non_trunk_loading(f) = fuel(f)%non_trunk_loading
     frac_loading(:,f) = fuel(f)%frac_loading(:)
-    fuel_BD(f) = fuel(f)%bulk_density
-    fuel_SAV(f) = fuel(f)%SAV
+    fuel_BD(f) = fuel(f)%bulk_density_notrunks
+    fuel_SAV(f) = fuel(f)%SAV_notrunks
         
   end do
   
@@ -111,13 +111,13 @@ program FatesTestFuel
     ! calculate fuel moisture [m3/m3]
     do f = 1, num_fuel_models
       call fuel(f)%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio, fireWeather)
-      fuel_moisture(i, f) = fuel(f)%average_moisture
+      fuel_moisture(i, f) = fuel(f)%average_moisture_notrunks
     end do
   end do 
   
   ! write out data
   call WriteFireData(out_file, n_days, num_fuel_models, temp_degC, precip, rh, NI,       &
-    fuel_loading, frac_loading, fuel_BD, fuel_SAV, total_loading, fuel_moisture,         &
+    fuel_loading, frac_loading, fuel_BD, fuel_SAV, non_trunk_loading, fuel_moisture,         &
     fuel_models, carriers)
   
 end program FatesTestFuel

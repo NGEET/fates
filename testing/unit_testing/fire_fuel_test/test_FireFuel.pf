@@ -5,7 +5,7 @@ module test_FireFuel
   !
   use FatesConstantsMod,   only : r8 => fates_r8
   use FatesFuelMod,        only : fuel_type
-  use FatesFuelClassesMod, only : fuel_classes, nfsc
+  use FatesFuelClassesMod, only : fuel_classes, num_fuel_classes
   use funit
 
   implicit none
@@ -27,7 +27,7 @@ module test_FireFuel
     end subroutine setUp
 
     @Test 
-    subroutine CalculateLoading_CorrectInputOrder(this)
+    subroutine UpdateLoading_CorrectInputOrder(this)
       ! test that the calculate loading subroutine correctly sets the fuel values
       class(TestFireFuel), intent(inout) :: this                   ! fuel test object
       real(r8)                           :: leaf_litter  = 5.0_r8  ! leaf litter [kgC/m2]
@@ -37,7 +37,7 @@ module test_FireFuel
       real(r8)                           :: trunk_litter = 25.0_r8 ! trunk branch litter [kgC/m2]
       real(r8)                           :: live_grass   = 30.0_r8 ! live grass [kgC/m2]
 
-      call this%fuel%CalculateLoading(leaf_litter, twig_litter, sm_br_litter,            &
+      call this%fuel%UpdateLoading(leaf_litter, twig_litter, sm_br_litter,            &
         lg_br_litter, trunk_litter, live_grass)
 
       @assertEqual(this%fuel%loading(fuel_classes%dead_leaves()), leaf_litter, tolerance=tol)
@@ -47,7 +47,7 @@ module test_FireFuel
       @assertEqual(this%fuel%loading(fuel_classes%trunks()), trunk_litter, tolerance=tol)
       @assertEqual(this%fuel%loading(fuel_classes%live_grass()), live_grass, tolerance=tol)
 
-    end subroutine CalculateLoading_CorrectInputOrder
+    end subroutine UpdateLoading_CorrectInputOrder
 
     @Test
     subroutine SumLoading_CorrectValues(this)
@@ -55,16 +55,16 @@ module test_FireFuel
       class(TestFireFuel), intent(inout) :: this                    ! fuel test object
       real(r8)                           :: dummy_litter = 5.0_r8   ! dummy litter value [kgC/m2]
       real(r8)                           :: trunk_litter = 100.0_r8 ! trunk branch litter [kgC/m2]
-      real(r8)                           :: total_loading           ! what total loading should be [kgC/m2]
+      real(r8)                           :: non_trunk_loading       ! what non-trunk loading should be [kgC/m2]
       
-      total_loading = dummy_litter*5.0_r8
+      non_trunk_loading = dummy_litter*5.0_r8
 
-      call this%fuel%CalculateLoading(dummy_litter, dummy_litter, dummy_litter,          &
+      call this%fuel%UpdateLoading(dummy_litter, dummy_litter, dummy_litter,          &
         dummy_litter, trunk_litter, dummy_litter)
       
       call this%fuel%SumLoading()
 
-      @assertEqual(this%fuel%total_loading, total_loading, tolerance=tol)
+      @assertEqual(this%fuel%non_trunk_loading, non_trunk_loading, tolerance=tol)
 
     end subroutine SumLoading_CorrectValues
 
@@ -74,20 +74,20 @@ module test_FireFuel
       class(TestFireFuel), intent(inout) :: this                    ! fuel test object
       real(r8)                           :: dummy_litter = 5.0_r8   ! dummy litter value [kgC/m2]
       real(r8)                           :: trunk_litter = 100.0_r8 ! trunk branch litter [kgC/m2]
-      real(r8)                           :: total_loading           ! what total loading should be [kgC/m2]
+      real(r8)                           :: non_trunk_loading       ! what non-trunk loading should be [kgC/m2]
       real(r8)                           :: frac_loading            ! what the fractional loading should be [0-1]
       integer                            :: i                       ! looping index
       
-      total_loading = dummy_litter*float(nfsc - 1)
-      frac_loading = dummy_litter/total_loading
+      non_trunk_loading = dummy_litter*float(num_fuel_classes - 1)
+      frac_loading = dummy_litter/non_trunk_loading
 
-      call this%fuel%CalculateLoading(dummy_litter, dummy_litter, dummy_litter,          &
+      call this%fuel%UpdateLoading(dummy_litter, dummy_litter, dummy_litter,          &
         dummy_litter, trunk_litter, dummy_litter)
       
       call this%fuel%SumLoading()
       call this%fuel%CalculateFractionalLoading()
 
-      do i = 1, nfsc 
+      do i = 1, num_fuel_classes 
         if (i /= fuel_classes%trunks()) then 
           @assertEqual(this%fuel%frac_loading(i), frac_loading, tolerance=tol)
         else 

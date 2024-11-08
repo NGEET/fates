@@ -5,7 +5,7 @@ module FatesFuelClassesMod
   implicit none
   private
 
-  integer, parameter, public :: nfsc = 6 ! number of total fuel classes  
+  integer, parameter, public :: num_fuel_classes = 6 ! number of total fuel classes  
     
   type :: fuel_classes_type
     ! There are six fuel classes:

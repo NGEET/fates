@@ -5,6 +5,8 @@ module SyntheticFuelModels
   implicit none
   private
   
+  ! Fuel model numbers come from Scott and Burgen (2005) RMRS-GTR-153
+
   integer, parameter, public, dimension(52) :: all_fuel_models = (/1, 2, 101, 102, 104,  &
                                                       107, 121, 122, 3, 103, 105, 106,   &
                                                       108, 109, 123, 124, 4, 5, 6, 141,  &
@@ -17,6 +19,7 @@ module SyntheticFuelModels
   integer,  parameter :: chunk_size = 10
   real(r8), parameter :: ustons_to_kg = 907.185_r8
   real(r8), parameter :: acres_to_m2 = 4046.86_r8
+  real(r8), parameter :: ustons_acre_to_kgC_m2 = ustons_to_kg/acres_to_m2*0.45_r8
   real(r8), parameter :: ft_to_m = 0.3048_r8
   
   ! holds data for fake fuel models that can be used for functional
@@ -78,22 +81,22 @@ module SyntheticFuelModels
     character(len=2),            intent(in)    :: carrier            ! main carrier
     character(len=*),            intent(in)    :: fuel_model_name    ! fuel model long name
     real(r8),                    intent(in)    :: wind_adj_factor    ! wind adjustment factor
-    real(r8),                    intent(in)    :: hr1_loading        ! loading for 1-hr fuels [tons/acre]
-    real(r8),                    intent(in)    :: hr10_loading       ! loading for 10-hr fuels [tons/acre]
-    real(r8),                    intent(in)    :: hr100_loading      ! loading for 100-hr fuels [tons/acre]
-    real(r8),                    intent(in)    :: live_herb_loading  ! loading for live herbacious fuels [tons/acre]
-    real(r8),                    intent(in)    :: live_woody_loading ! loading for live woody fuels [tons/acre]
+    real(r8),                    intent(in)    :: hr1_loading        ! loading for 1-hr fuels [US tons/acre]
+    real(r8),                    intent(in)    :: hr10_loading       ! loading for 10-hr fuels [US tons/acre]
+    real(r8),                    intent(in)    :: hr100_loading      ! loading for 100-hr fuels [US tons/acre]
+    real(r8),                    intent(in)    :: live_herb_loading  ! loading for live herbacious fuels [US tons/acre]
+    real(r8),                    intent(in)    :: live_woody_loading ! loading for live woody fuels [US tons/acre]
     real(r8),                    intent(in)    :: fuel_depth         ! fuel bed depth [ft]
-    
+        
     this%fuel_model_index = fuel_model_index
     this%carrier = carrier 
     this%fuel_model_name = fuel_model_name
     this%wind_adj_factor = wind_adj_factor
-    this%hr1_loading = hr1_loading*ustons_to_kg/acres_to_m2*0.45_r8 ! convert to kgC/m2
-    this%hr10_loading = hr10_loading*ustons_to_kg/acres_to_m2*0.45_r8  ! convert to kgC/m2
-    this%hr100_loading = hr100_loading*ustons_to_kg/acres_to_m2*0.45_r8  ! convert to kgC/m2
-    this%live_herb_loading = live_herb_loading*ustons_to_kg/acres_to_m2*0.45_r8  ! convert to kgC/m2
-    this%live_woody_loading = live_woody_loading*ustons_to_kg/acres_to_m2*0.45_r8  ! convert to kgC/m2
+    this%hr1_loading = hr1_loading*ustons_acre_to_kgC_m2 ! convert to kgC/m2
+    this%hr10_loading = hr10_loading*ustons_acre_to_kgC_m2  ! convert to kgC/m2
+    this%hr100_loading = hr100_loading*ustons_acre_to_kgC_m2  ! convert to kgC/m2
+    this%live_herb_loading = live_herb_loading*ustons_acre_to_kgC_m2  ! convert to kgC/m2
+    this%live_woody_loading = live_woody_loading*ustons_acre_to_kgC_m2  ! convert to kgC/m2
     this%fuel_depth = fuel_depth*ft_to_m ! convert to m
       
   end subroutine InitFuelModel
@@ -116,11 +119,11 @@ module SyntheticFuelModels
     character(len=2),               intent(in)    :: carrier            ! main carrier
     character(len=*),               intent(in)    :: fuel_model_name    ! fuel model long name
     real(r8),                       intent(in)    :: wind_adj_factor    ! wind adjustment factor
-    real(r8),                       intent(in)    :: hr1_loading        ! loading for 1-hr fuels [tons/acre]
-    real(r8),                       intent(in)    :: hr10_loading       ! loading for 10-hr fuels [tons/acre]
-    real(r8),                       intent(in)    :: hr100_loading      ! loading for 100-hr fuels [tons/acre]
-    real(r8),                       intent(in)    :: live_herb_loading  ! loading for live herbacious fuels [tons/acre]
-    real(r8),                       intent(in)    :: live_woody_loading ! loading for live woody fuels [tons/acre]
+    real(r8),                       intent(in)    :: hr1_loading        ! loading for 1-hr fuels [US tons/acre]
+    real(r8),                       intent(in)    :: hr10_loading       ! loading for 10-hr fuels [US tons/acre]
+    real(r8),                       intent(in)    :: hr100_loading      ! loading for 100-hr fuels [US tons/acre]
+    real(r8),                       intent(in)    :: live_herb_loading  ! loading for live herbacious fuels [US tons/acre]
+    real(r8),                       intent(in)    :: live_woody_loading ! loading for live woody fuels [US tons/acre]
     real(r8),                       intent(in)    :: fuel_depth         ! fuel bed depth [ft]
     
     ! LOCALS:
