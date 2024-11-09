@@ -7,13 +7,13 @@
   <f90_params> <!-- parameters that are in the f90 structure -->
     <scalar_dim>
       <param name='fates_daylength_factor_switch'>1</param>
-      <param name='fates_leaf_stomatal_model'>1</param>
+      <param name='fates_leaf_stomatal_model'>2</param>
       <param name='fates_leaf_stomatal_assim_model'>1</param>
       <param name='fates_leaf_photo_tempsens_model'>1</param>
     </scalar_dim>
     <pft_dim>
       <param name='fates_leaf_stomatal_btran_model'> 2,2,2,2,2,2,2,2,2,2,2,2 </param>
-      <param name='fates_leaf_agross_btran_model'> 0,0,0,0,0,0,0,0,0,0,0,0 </param>
+      <param name='fates_leaf_agross_btran_model'> 2,0,0,0,0,0,0,0,0,0,0,0 </param>
       <param name='fates_leaf_c3psn'> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 </param>
       <param name='fates_leaf_stomatal_slope_ballberry'> 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 </param>
       <param name='fates_leaf_stomatal_slope_medlyn'> 4.1, 2.3, 2.3, 4.1, 4.4, 4.4, 4.7, 4.7, 4.7, 2.2, 5.3, 1.6 </param>
