@@ -134,8 +134,10 @@ module LeafBiophysicsMod
 
 
   ! curvature parameter for quadratic smoothing of C4 gross assimilation
-  real(r8),parameter :: theta_ip = 0.999_r8
-  real(r8),parameter :: theta_cj_c4 = 0.999_r8
+  !real(r8),parameter :: theta_ip = 0.999_r8
+  !real(r8),parameter :: theta_cj_c4 = 0.999_r8
+  real(r8),parameter :: theta_ip_c4 = 0.95_r8  !0.95 is from Collatz 91, 0.999 was api 36
+  real(r8),parameter :: theta_cj_c4 = 0.98_r8  !0.98 from Collatz 91,  0.099 was api 36
 
   
   ! Set this to true to match results with main
@@ -151,22 +153,15 @@ module LeafBiophysicsMod
   ! a precedent of using this into 2024, but discussions here: https://github.com/NGEET/fates/issues/719
   ! suggest this is incorrect and or double/counting
 
-  integer, parameter :: btran_on_gs_none = 0     ! do not apply btran to conductance terms
-  integer, parameter :: btran_on_gs_gs0 = 1      ! apply btran to stomatal intercept (API 36.1)
-  integer, parameter :: btran_on_gs_gs1 = 2      ! apply btran to stomatal slope
-  integer, parameter :: btran_on_gs_gs01 = 3     ! apply btran to both stomatal slope and intercept
+  integer, parameter,public :: btran_on_gs_none = 0     ! do not apply btran to conductance terms
+  integer, parameter,public :: btran_on_gs_gs0 = 1      ! apply btran to stomatal intercept (API 36.1)
+  integer, parameter,public :: btran_on_gs_gs1 = 2      ! apply btran to stomatal slope
+  integer, parameter,public :: btran_on_gs_gs01 = 3     ! apply btran to both stomatal slope and intercept
   
-  integer, parameter :: btran_on_ag_none  = 0       ! do not apply btran to vcmax or jmax
-  integer, parameter :: btran_on_ag_vcmax = 1       ! apply btran to vcmax (API 36.1)
-  integer, parameter :: btran_on_ag_vcmax_jmax = 2  ! apply btran to vcmax and jmax
+  integer, parameter,public :: btran_on_ag_none  = 0       ! do not apply btran to vcmax or jmax
+  integer, parameter,public :: btran_on_ag_vcmax = 1       ! apply btran to vcmax (API 36.1)
+  integer, parameter,public :: btran_on_ag_vcmax_jmax = 2  ! apply btran to vcmax and jmax
   
-  ! Jmax has not been scaled by btran as of 11/24, but discussions here suggest that
-  ! it may be worth testing or using this, see: https://github.com/NGEET/fates/issues/719
-
-  integer, parameter :: no_btran_scale_jmax_method = 0
-  integer, parameter :: yes_btran_scale_jmax_method = 1
-  integer, parameter :: scale_jmax_method = no_btran_scale_jmax_method
-
   ! REVERT THIS TO GLOBAL AFTER EVALUTION OF TOLERANCE SENSITIVITY
   ! When iteratively solving for intracellular co2 concentration, this
   ! is the maximum tolerable change to accept convergence [Pa]
@@ -739,7 +734,7 @@ contains
        call QuadraticRoots(aquad, bquad, cquad, r1, r2)
        ai = min(r1,r2)
        
-       aquad = theta_ip
+       aquad = theta_ip_c4
        bquad = -(ai + ap)
        cquad = ai * ap
        call QuadraticRoots(aquad, bquad, cquad, r1, r2)

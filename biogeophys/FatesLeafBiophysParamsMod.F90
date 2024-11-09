@@ -208,7 +208,7 @@ contains
     !deallocate(tmpreal)
     
      ! BTRAN does not affect vcmax or jmax
-    lb_params%stomatal_btran_model(:) = btran_on_ag_none
+    lb_params%agross_btran_model(:) = btran_on_ag_none
     
     name = 'fates_leaf_stomatal_slope_medlyn'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -298,7 +298,7 @@ contains
     if(debug_report .and. is_master) then
        write(fates_log(),fmt_iout) 'fates_leaf_c3psn = ',lb_params%c3psn
        write(fates_log(),fmt_iout) 'fates_leaf_stomatal_btran_model = ',lb_params%stomatal_btran_model
-       write(fates_log(),fmt_iout) 'fates_leaf_agross_btran_model = ',lb_params%stomatal_agross_model
+       write(fates_log(),fmt_iout) 'fates_leaf_agross_btran_model = ',lb_params%agross_btran_model
        write(fates_log(),fmt_rout) 'fates_leaf_vcmaxha = ',lb_params%vcmaxha
        write(fates_log(),fmt_rout) 'fates_leaf_jmaxha = ',lb_params%jmaxha
        write(fates_log(),fmt_rout) 'fates_leaf_vcmaxhd = ',lb_params%vcmaxhd
