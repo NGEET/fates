@@ -201,7 +201,7 @@ contains
    
   end function FindIndex
 
-  subroutine QuadraticRootsNSWC(a,b,c,root1,root2)
+  subroutine QuadraticRootsNSWC(a,b,c,root1,root2,err)
 
     ! This code is based off of routines from the NSWC Mathematics Subroutine Library
     ! From the NSWC README (https://github.com/jacobwilliams/nswc)
@@ -217,9 +217,10 @@ contains
     real(r8),intent(in) :: a , b , c !! coefficients
     real(r8),intent(out) :: root1 ! sr !! real part of first root
     real(r8),intent(out) :: root2 ! lr !! real part of second root
-    
+    logical,intent(out)  :: err
     real(r8) :: b1, d, e
 
+    err = .false.
     if ( abs(a)<nearzero ) then
         root2 = 0.0_r8
         if ( b/=0.0_r8 ) root2 = -c/b
@@ -238,8 +239,9 @@ contains
         endif
         if ( e<0.0_r8 ) then
            ! complex conjugate zeros
-            write (fates_log(),*)'error, imaginary roots detected in quadratic solve'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
+           write (fates_log(),*)'error, imaginary roots detected in quadratic solve'
+           err = .true.
+           !call endrun(msg=errMsg(sourcefile, __LINE__))
         else
             ! real zeros
             if ( b1>=0.0_r8 ) d = -d
@@ -254,15 +256,17 @@ contains
 
   end subroutine QuadraticRootsNSWC
   
-  subroutine QuadraticRootsSridharachary(a,b,c,root1,root2)
+  subroutine QuadraticRootsSridharachary(a,b,c,root1,root2,err)
 
 
     real(r8),intent(in) :: a , b , c !! coefficients
     real(r8),intent(out) :: root1 ! sr !! real part of first root
     real(r8),intent(out) :: root2 ! lr !! real part of second root
+    logical,intent(out)  :: err
     real(r8) :: d    ! discriminant
     real(r8) :: das  ! sqrt(abs(d))
 
+    err = .false.
     ! If a is 0, then equation is not quadratic, but linear
     if (abs(a) < nearzero ) then
        root2 = 0.0_r8
@@ -286,7 +290,8 @@ contains
     else 
 
        write (fates_log(),*)'error, imaginary roots detected in quadratic solve'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
+       err = .true.
+       !call endrun(msg=errMsg(sourcefile, __LINE__))
        
     end if
     

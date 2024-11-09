@@ -273,13 +273,14 @@ contains
     real(r8) :: aquad,bquad,cquad                    ! quadradic solve terms
     real(r8) :: r1,r2                                ! quadradic solve roots
     real(r8),parameter :: min_vpd_pa = 50._r8        ! Minimum allowable vpd [Pa]
+    real(r8),parameter :: anet_min = 0.001_r8
     !real(r8),parameter :: pa_per_kpa = 1000._r8
     !real(r8) :: r3,r4,term2                          ! quadradic solve roots
-
+    logical :: err
     
     ! Evaluate trival solution, if there is no positive net assimiolation
     ! the stomatal conductance is the intercept conductance
-    if (anet <= nearzero) then
+    if (anet <= anet_min) then
        gs = gs0
        return
     end if
@@ -296,8 +297,13 @@ contains
     bquad = -(2.0 * (gs0 + term) + (gs1 * term)**2 / (gb * vpd ))
     cquad = gs0*gs0 +  (2.0*gs0 + term * &
             (1.0 - gs1*gs1 / vpd)) * term
-    call QuadraticRoots(aquad, bquad, cquad, r1, r2)
+    call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
     gs = max(r1,r2)
+
+    if(err)then
+       write(fates_log(),*) "medquadfail:",anet,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
     
     ! RGK: re-derived solution to check units.
     ! For 50*10*10*5*50 operations in unit tests the original method is
@@ -342,7 +348,8 @@ contains
     real(r8) :: ceair                                ! constrained vapor pressure (Pa)
     real(r8) :: aquad,bquad,cquad                    ! quadradic solve terms
     real(r8) :: r1,r2                                ! quadradic solve roots
-
+    logical :: err
+    
     if (a_gs <= nearzero) then
        gs = gs0
        return
@@ -367,7 +374,13 @@ contains
        cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_net* can_press * ceair/ veg_esat )
     end if
     
-    call QuadraticRoots(aquad, bquad, cquad, r1, r2)
+    call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+    if(err)then
+       write(fates_log(),*) "bbquadfail:",a_net,a_gs,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
+    
     gs = max(r1,r2)
     
     return
@@ -404,6 +417,7 @@ contains
     real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
     real(r8) :: r1,r2             ! roots of quadratic equation
     real(r8) :: par_abs_umol      ! Absorbed PAR that gets to the photocenters,
+    logical :: err
     
     par_abs_umol = par_abs_wm2*photon_to_e*(1.0_r8 - fnps)
     
@@ -412,7 +426,12 @@ contains
     aquad = theta_psii
     bquad = -(par_abs_umol + jmax)
     cquad = par_abs_umol * jmax
-    call QuadraticRoots(aquad, bquad, cquad, r1, r2)
+    call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+    if(err)then
+       write(fates_log(),*) "jequadfail:",par_abs_wm2,jmax
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
     je = min(r1,r2)
     
   end function GetJe
@@ -434,6 +453,7 @@ contains
     real(r8) :: je                ! actual electron transport rate (umol electrons/m**2/s)
     real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
     real(r8) :: r1,r2             ! roots of quadratic equation
+    logical :: err
     
     ! Electron transport rate for C3 plants.
     ! Convert absorbed photon density [umol/m2 leaf /s] to
@@ -447,7 +467,12 @@ contains
     aquad = theta_psii
     bquad = -(jpar + jmax)
     cquad = jpar * jmax
-    call QuadraticRoots(aquad, bquad, cquad, r1, r2)
+    call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+    if(err)then
+       write(fates_log(),*) "rupb3quadfail:",par_abs_umol,jmax,ci,co2_cpoint
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
     je = min(r1,r2)
 
     aj = je * max(ci-co2_cpoint, 0._r8) / &
@@ -731,7 +756,7 @@ contains
     real(r8) :: ai                ! For C4, smoothed co-limited assimilation of Rubisco/RuBP
     real(r8) :: aquad,bquad,cquad ! a,b,c terms in the quadratic equation
     real(r8) :: r1,r2             ! The roots from the quadratic
-    
+    logical  :: err
     !------------------------------------------------------------------------------
 
     ! Photosynthesis limitation rate calculations
@@ -760,13 +785,21 @@ contains
        aquad = theta_cj_c4
        bquad = -(ac + aj)
        cquad = ac * aj
-       call QuadraticRoots(aquad, bquad, cquad, r1, r2)
+       call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       if(err)then
+          write(fates_log(),*) "c41quadfail:",par_abs,ci,kp,can_press,vcmax
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
        ai = min(r1,r2)
        
        aquad = theta_ip_c4
        bquad = -(ai + ap)
        cquad = ai * ap
-       call QuadraticRoots(aquad, bquad, cquad, r1, r2)
+       call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       if(err)then
+          write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
        agross = min(r1,r2)
 
        
