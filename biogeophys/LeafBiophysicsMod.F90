@@ -271,15 +271,16 @@ contains
 
     ! Output
     real(r8),intent(out) :: gs                       ! leaf stomatal conductance (umol H2O/m**2/s)
-    
 
     ! locals
     real(r8) :: vpd                                  ! water vapor deficit in Medlyn stomatal model [KPa]
     real(r8) :: term                                 ! intermediate term used to simplify equations
     real(r8) :: aquad,bquad,cquad                    ! quadradic solve terms
     real(r8) :: r1,r2                                ! quadradic solve roots
-
     real(r8),parameter :: min_vpd_pa = 50._r8        ! Minimum allowable vpd [Pa]
+    !real(r8),parameter :: pa_per_kpa = 1000._r8
+    !real(r8) :: r3,r4,term2                          ! quadradic solve roots
+
     
     ! Evaluate trival solution, if there is no positive net assimiolation
     ! the stomatal conductance is the intercept conductance
@@ -288,16 +289,38 @@ contains
        return
     end if
 
-    vpd =  max((veg_esat - can_vpress), min_vpd_pa) * kpa_per_pa
+    ! Trivial case (gs1 near 0)
+    if(gs1<0.01_r8)then
+       gs = gs0 + h2o_co2_stoma_diffuse_ratio * anet/(leaf_co2_ppress/can_press)
+       return
+    end if
     
+    vpd =  max((veg_esat - can_vpress), min_vpd_pa) * kpa_per_pa
     term = h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press)
     aquad = 1.0_r8
     bquad = -(2.0 * (gs0 + term) + (gs1 * term)**2 / (gb * vpd ))
     cquad = gs0*gs0 +  (2.0*gs0 + term * &
             (1.0 - gs1*gs1 / vpd)) * term
-
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
     gs = max(r1,r2)
+    
+    ! RGK: re-derived solution to check units.
+    ! For 50*10*10*5*50 operations in unit tests the original method is
+    ! about 2% faster. Alternative derivation below.
+    
+    ! vpd =  max((veg_esat - can_vpress), min_vpd_pa)
+    ! term = h2o_co2_stoma_diffuse_ratio * anet * can_press / leaf_co2_ppress
+    ! term2 = pa_per_kpa*(gs1*term)**2._r8
+    ! aquad = gb*vpd
+    ! bquad = -2*gb*vpd*(gs0 + term) - term2
+    ! cquad = gb*vpd*(gs0 + term)**2._r8 - gb*term2
+
+    ! call QuadraticRoots(aquad, bquad, cquad, r3, r4)
+
+    ! if( abs(max(r1,r2)-max(r3,r4))>1.e-5 ) then
+    !    print*,"Math check failed",r1,r2,r3,r4,anet,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press,gb
+    !    stop
+    ! end if
        
     return
   end subroutine StomatalCondMedlyn
@@ -329,6 +352,12 @@ contains
        gs = gs0
        return
     end if
+
+    ! Trivial case (gs1 near 0)
+    if(gs1<0.01_r8)then
+       gs = gs0
+       return
+    end if
     
     ! Apply a constraint to the vapor pressure
     ceair = GetConstrainedVPress(can_vpress,veg_esat)
@@ -345,7 +374,7 @@ contains
     
     call QuadraticRoots(aquad, bquad, cquad, r1, r2)
     gs = max(r1,r2)
-
+    
     return
   end subroutine StomatalCondBallBerry
 

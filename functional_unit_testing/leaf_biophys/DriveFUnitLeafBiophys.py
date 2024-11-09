@@ -621,6 +621,8 @@ def main(argv):
     rh_min = 0.01
     rh_n   = 10
     rh_vec = np.linspace(rh_min,rh_max,num=rh_n)
+
+    
     
     # Absorbed PAR ranges [W/m2]
     par_abs_min = 1.0
@@ -735,7 +737,8 @@ def main(argv):
 
     print('\n')
     print('Experiment 1: Evaluating Photosynthesis Equations by pft/Tl/RH/PR')
-    
+
+    elapsed_time = 0.0
     for pft in [0]: #range(numpft):
 
         if(do_evalvjkbytemp):
@@ -860,8 +863,14 @@ def main(argv):
                                                           byref(ap_f), \
                                                           byref(co2_interc_f), \
                                                           byref(solve_iter_f) )
-                        
 
+                            # Call the medlyn solve to get timing info
+                            iret = f90_qsat_sub(c8(leaf_tempk),c8(can_press_1atm), \
+                                                byref(veg_qs_f),byref(veg_es_f), \
+                                                byref(qsdt_dummy_f),byref(esdt_dummy_f))
+                            
+                           
+                            
                             agross[it,ir,ip,ig,ib] = agross_f.value
                             gstoma[it,ir,ip,ig,ib] = gstoma_f.value
                             anet[it,ir,ip,ig] = anet_f.value
@@ -870,7 +879,14 @@ def main(argv):
                             ap[it,ir,ip,ig] = ap_f.value
                             co2_interc[it,ir,ip,ig] = co2_interc_f.value
                             iters[it,ir,ip,ig] = solve_iter_f.value
+                            time0 = time.process_time()
+                            
+                            iret = f90_gs_medlyn(c8(anet_f.value),c8(veg_es_f.value),c8(vpress),c8(gs0_f.value),c8(gs1_f.value),c8(co2_ppress_400ppm),c8(can_press_1atm),c8(gb),byref(gstoma_f))
+                            elapsed_time = elapsed_time + (time.process_time() - time0)
 
+
+        print("\nElapsed Time for Conductance: {}\n".format(elapsed_time))
+        
         # Plot out component gross assimilation rates
         # by temperature with constant Ci, and by Ci with
         # constant temperature
