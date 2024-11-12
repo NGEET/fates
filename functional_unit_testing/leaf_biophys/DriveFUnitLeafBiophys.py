@@ -742,7 +742,7 @@ def main(argv):
     print('Experiment 1: Evaluating Photosynthesis Equations by pft/Tl/RH/PR')
 
     elapsed_time = 0.0
-    for pft in [0]: #range(numpft):
+    for pft in range(numpft):
 
         if(do_evalvjkbytemp):
             print('\n')

@@ -550,6 +550,7 @@ contains
     real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8)             , intent(in)    :: gs0      ! stomatal intercept
 
+    real(r8) :: rmin,rmax    ! Maximum and minimum resistance
     real(r8),dimension(3) :: ci  ! Ci for Rubisco,RuBP and PEP respectively
     real(r8),dimension(3) :: ag  ! Agross for Rubisco, Rubp and PEP
     
@@ -558,30 +559,36 @@ contains
 
     ! Intermediate terms
     real(r8) :: a,b,c,d,e,f,g,Je
-    real(r8),parameter :: gs0_undershoot = 0.9_r8 ! We have to make sure that the
+    real(r8),parameter :: g_undershoot = 0.9_r8 ! We have to make sure that the
                                                   ! we find a Ci that accomodates the lowest
                                                   ! possible conductance, so we undershoot 
                                                   ! the lowest value gs0 by this margin
+
+    ! Minimum possible resistance (with a little buffer)
+    rmin = 0.75_r8*h2o_co2_bl_diffuse_ratio/gb
+    ! Maximum possible resistance (with a littel buffer)
+    rmax = 1.25_r8*(h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/gs0)
     
     if (lb_params%c3psn(ft) == c4_path_index)then
 
-       ! Maximum conductance
+       ! Maximum conductance (minimum resistance)
+       
        ag(1) = vcmax
        ag(2) = AgrossRuBPC4(par_abs)
-       ci(1) = can_co2_ppress - (ag(1)-lmr)*can_press*(h2o_co2_bl_diffuse_ratio/gb)
-       ci(2) = can_co2_ppress - (ag(2)-lmr)*(h2o_co2_bl_diffuse_ratio/gb)
-       ci(3) = can_co2_ppress / (1._r8 + kp*(h2o_co2_bl_diffuse_ratio/gb))
+       ci(1) = can_co2_ppress - (ag(1)-lmr)*can_press*rmin
+       ci(2) = can_co2_ppress - (ag(2)-lmr)*can_press*rmin
+       ci(3) = (can_co2_ppress + lmr*can_press*rmin)/(1._r8 + kp*rmin) 
        ag(3) = AgrossPEPC4(ci(3),kp,can_press)
        
        ci_max = ci(minloc(ag,DIM=1))
 
-       ! Minimum conductance
-       ag(1) = vcmax
-       ag(2) = AgrossRuBPC4(par_abs)
-       ci(1) = can_co2_ppress - (ag(1)-lmr)*can_press*(h2o_co2_bl_diffuse_ratio/gb + &
-                                                       h2o_co2_stoma_diffuse_ratio/(gs0_undershoot*gs0))
-       ci(2) = can_co2_ppress - (ag(2)-lmr)*(h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/(gs0_undershoot*gs0))
-       ci(3) = can_co2_ppress / (1._r8 + kp*(h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/(gs0_undershoot*gs0)))
+       ! Minimum conductance (maximum resistance)
+       
+       !ag(1) = vcmax                  ! no need to recompute
+       !ag(2) = AgrossRuBPC4(par_abs)  ! no need to recompute
+       ci(1) = can_co2_ppress - (ag(1)-lmr)*can_press*rmax
+       ci(2) = can_co2_ppress - (ag(2)-lmr)*can_press*rmax 
+       ci(3) = (can_co2_ppress + lmr*can_press*rmax  )/(1._r8 + kp*rmax)
        ag(3) = AgrossPEPC4(ci(3),kp,can_press)
        
        ci_min = ci(minloc(ag,DIM=1))
@@ -595,7 +602,7 @@ contains
     ! Find ci at maximum conductance (1/inf = 0)
     
     a = can_co2_ppress
-    b = can_press*(h2o_co2_bl_diffuse_ratio/gb)
+    b = can_press*rmin
     c = vcmax
     d = vcmax*co2_cpoint
     e = 1._r8
@@ -632,10 +639,10 @@ contains
     ! Take the Ci that matches the minimizing gross assimilation
     ci_max = ci(minloc(ag(1:2),DIM=1))
     
-    ! Find ci at minimum conductance (1/g0)
+    ! Find ci at minimum conductance (1/g0) (max conductance)
 
     a = can_co2_ppress
-    b = can_press*(h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/(gs0_undershoot*gs0))
+    b = can_press*rmax
     c = vcmax
     d = vcmax*co2_cpoint
     e = 1._r8
@@ -1000,7 +1007,8 @@ contains
             anet,agross,gs,fval_b)
 
        if(abs(fval_b)<ci_tol) then
-          loop_continue = .false.
+          !loop_continue = .false.
+          exit bi_iter_loop
        end if
        
        if( solve_iter == max_iters) then
@@ -1136,7 +1144,8 @@ contains
     real(r8),parameter :: init_a2l_co2_c3 = 0.7_r8
     real(r8),parameter :: init_a2l_co2_c4 = 0.4_r8
 
-    
+    ! For testing, it is useful to force the bisection method
+    logical, parameter :: force_bisection = .false.
 
     ! Maximum number of iterations on intracelluar co2 solver until is quits
     integer, parameter :: max_iters = 10
@@ -1222,35 +1231,37 @@ contains
        ! We encapsulate this process in the CiFunc() because
        ! this is the objective funtion that we want the root of
        ! in various search methods such as NR, Secant and bisection
-       
-       call CiFunc(ci0, &
-            ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-            can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-            gs0,gs1,gs2, &
-            anet,agross,gs,fval)
-
-       ! fval = ci_input - ci_predicted
-       ! ci_predicted = ci_input - fval
-       ci = ci0 - fval
-
-       
-       ! In main, ci_tol = 2*can_press
-       ! Special convergence requirement to satisfy B4B with main
-       if(base_compare_revert) then
-          if ((abs(fval)/can_press*1.e06_r8 <=  2.e-06_r8) .or. solve_iter == 5) then
-             loop_continue = .false.
-             exit iter_loop
-          end if
-       else
-          if (abs(fval) <= ci_tol ) then
-             loop_continue = .false.
-             exit iter_loop
+       if(.not.force_bisection)then
+          call CiFunc(ci0, &
+               ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+               can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+               gs0,gs1,gs2, &
+               anet,agross,gs,fval)
+          
+          ! fval = ci_input - ci_predicted
+          ! ci_predicted = ci_input - fval
+          ci = ci0 - fval
+          
+          
+          ! In main, ci_tol = 2*can_press
+          ! Special convergence requirement to satisfy B4B with main
+          
+          if(base_compare_revert) then
+             if ((abs(fval)/can_press*1.e06_r8 <=  2.e-06_r8) .or. solve_iter == 5) then
+                loop_continue = .false.
+                exit iter_loop
+             end if
+          else
+             if (abs(fval) <= ci_tol ) then
+                loop_continue = .false.
+                exit iter_loop
+             end if
           end if
        end if
-          
+       
        ci0 = ci
        
-       if( solve_iter == max_iters) then
+       if( solve_iter == max_iters .or. force_bisection) then
           call CiBisection( &
                ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
                can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
