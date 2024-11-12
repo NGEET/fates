@@ -573,7 +573,7 @@ contains
        ci(3) = can_co2_ppress / (1._r8 + kp*(h2o_co2_bl_diffuse_ratio/gb))
        ag(3) = AgrossPEPC4(ci(3),kp,can_press)
        
-       ci_max = ci(minloc(ag),dim=1)
+       ci_max = ci(minloc(ag,DIM=1))
 
        ! Minimum conductance
        ag(1) = vcmax
@@ -584,7 +584,7 @@ contains
        ci(3) = can_co2_ppress / (1._r8 + kp*(h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/(gs0_undershoot*gs0)))
        ag(3) = AgrossPEPC4(ci(3),kp,can_press)
        
-       ci_min = ci(minloc(ag))
+       ci_min = ci(minloc(ag,DIM=1))
 
        return
     end if
@@ -630,7 +630,7 @@ contains
     end if
 
     ! Take the Ci that matches the minimizing gross assimilation
-    ci_max = ci(minloc(ag(1:2)))
+    ci_max = ci(minloc(ag(1:2),DIM=1))
     
     ! Find ci at minimum conductance (1/g0)
 
@@ -667,7 +667,7 @@ contains
        end if
     end if
 
-    ci_min = ci(minloc(ag(1:2)))
+    ci_min = ci(minloc(ag(1:2),DIM=1))
     
     return
   end subroutine CiMinMax

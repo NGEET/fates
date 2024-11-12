@@ -642,7 +642,7 @@ def main(argv):
     # btran ranges
 
     btran_n   = 50
-    btran_min = -1
+    btran_min = -2
     btran_max = 0
     btran_vec = np.logspace(btran_min,btran_max,num=btran_n)
     
