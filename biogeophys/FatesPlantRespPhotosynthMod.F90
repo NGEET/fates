@@ -278,6 +278,9 @@ contains
     real(r8)               :: hydr_k_lwp   ! inner leaf humidity scaling coefficient [-]
     real(r8)               :: gs0          ! stomatal intercept, possibly scaled by btran depending on hypothesis
     real(r8)               :: gs1          ! stomatal slope, possibly scaled by btran depending on hypothesis
+    real(r8)               :: gs2          ! optional btran scaling factor for Medlyn conductance only, instead
+                                           ! of applying to gs1, this would scale the whole non-intercept
+                                           ! portion of the conductance equation
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -720,7 +723,8 @@ contains
                                          jmax_z,                              &  ! out
                                          kp_z,                                &  ! out
                                          gs0,                                 &  ! out
-                                         gs1 )                                   ! out
+                                         gs1,                                 &  ! out
+                                         gs2 )                                   ! out
 
                                     ! Part IX: This call calculates the actual photosynthesis for the
                                     ! leaf layer, as well as the stomatal resistance and the net assimilated carbon.
@@ -750,6 +754,7 @@ contains
                                          kp_z,                               &  ! in
                                          gs0,                                &  ! in
                                          gs1,                                &  ! in
+                                         gs2,                                &  ! in
                                          bc_in(s)%t_veg_pa(ifp),             &  ! in
                                          bc_in(s)%forc_pbot,                 &  ! in
                                          bc_in(s)%cair_pa(ifp),              &  ! in
