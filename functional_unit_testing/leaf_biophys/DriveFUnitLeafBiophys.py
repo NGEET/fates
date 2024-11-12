@@ -149,6 +149,7 @@ def EvalVJKByTemp(pft,fates_leaf_vcmax25top,leaf_c3psn,pdf):
     kp_f    = c_double(-9)
     gs0_f   = c_double(-9)
     gs1_f   = c_double(-9)
+    gs2_f   = c_double(-9)
     
     jmax25_top,kp25_top =  GetJmaxKp25Top(fates_leaf_vcmax25top)
     vcmax = np.zeros([leaf_tempc_n])
@@ -163,7 +164,7 @@ def EvalVJKByTemp(pft,fates_leaf_vcmax25top,leaf_c3psn,pdf):
                                    c8(jmax25_top), c8(kp25_top), \
                                    c8(nscaler_top), c8(leaf_tempk), c8(dayl_factor_full), \
                                    c8(t_growth_kum),c8(t_home_kum),c8(btran_nolimit), \
-                                   byref(vcmax_f), byref(jmax_f), byref(kp_f),byref(gs0_f),byref(gs1_f))
+                                   byref(vcmax_f), byref(jmax_f), byref(kp_f),byref(gs0_f),byref(gs1_f),byref(gs2_f))
 
         vcmax[it] = vcmax_f.value
         jmax[it]  = jmax_f.value
@@ -287,7 +288,8 @@ def TestCiTol(fates_leaf_vcmax25top,leaf_c3psn,fates_stoich_nitr,fates_leaf_slat
     solve_iter_f = c_int(-9)
     gs0_f        = c_double(-9.0)
     gs1_f        = c_double(-9.0)
-
+    gs2_f        = c_double(-9.0)
+    
     pft_n = len(fates_leaf_vcmax25top)
     
     gb_min = 0.5e6
@@ -348,7 +350,7 @@ def TestCiTol(fates_leaf_vcmax25top,leaf_c3psn,fates_stoich_nitr,fates_leaf_slat
                                        c8(jmax25_top), c8(kp25_top), \
                                        c8(nscaler_top), c8(leaf_tempk), c8(dayl_factor_full), \
                                        c8(t_growth_kum),c8(t_home_kum),c8(btran_nolimit), \
-                                       byref(vcmax_f), byref(jmax_f), byref(kp_f),byref(gs0_f),byref(gs1_f))
+                                       byref(vcmax_f), byref(jmax_f), byref(kp_f),byref(gs0_f),byref(gs1_f),byref(gs2_f))
         
             # Leaf Maintenance Respiration (temp and pft dependent)
             if(fates_maintresp_leaf_model==1):
@@ -378,6 +380,7 @@ def TestCiTol(fates_leaf_vcmax25top,leaf_c3psn,fates_stoich_nitr,fates_leaf_slat
                                                           c8(kp_f.value),      \
                                                           c8(gs0_f.value),      \
                                                           c8(gs1_f.value),      \
+                                                          c8(gs2_f.value),      \
                                                           c8(leaf_tempk), \
                                                           c8(can_press_1atm), \
                                                           c8(co2_ppress_400ppm), \
@@ -705,7 +708,7 @@ def main(argv):
     solve_iter_f = c_int(-9)
     gs0_f        = c_double(-9.0)
     gs1_f        = c_double(-9.0)
-    
+    gs2_f        = c_double(-9.0)
     
     print('Prepping Canopy Gas Parameters')
     
@@ -783,7 +786,7 @@ def main(argv):
                                        c8(jmax25_top), c8(kp25_top), \
                                        c8(nscaler), c8(leaf_tempk), c8(dayl_factor_full), \
                                        c8(t_growth_kum),c8(t_home_kum),c8(btran_nolimit), \
-                                       byref(vcmax_f), byref(jmax_f), byref(kp_f), byref(gs0_f), byref(gs1_f))
+                                       byref(vcmax_f), byref(jmax_f), byref(kp_f), byref(gs0_f), byref(gs1_f), byref(gs2_f))
             
             vcmax[it] = vcmax_f.value
             jmax[it]  = jmax_f.value
@@ -832,7 +835,7 @@ def main(argv):
                                                        c8(jmax25_top), c8(kp25_top), \
                                                        c8(nscaler), c8(leaf_tempk), c8(dayl_factor_full), \
                                                        c8(t_growth_kum),c8(t_home_kum),c8(btran), \
-                                                       byref(vcmax_f), byref(jmax_f), byref(kp_f), byref(gs0_f), byref(gs1_f))
+                                                       byref(vcmax_f), byref(jmax_f), byref(kp_f), byref(gs0_f), byref(gs1_f), byref(gs2_f))
                         
                             iret = f90_leaflayerphoto_sub(c8(par_abs), \
                                                           c8(par_abs),  \
@@ -843,6 +846,7 @@ def main(argv):
                                                           c8(kp_f.value),      \
                                                           c8(gs0_f.value), \
                                                           c8(gs1_f.value), \
+                                                          c8(gs2_f.value), \
                                                           c8(leaf_tempk), \
                                                           c8(can_press_1atm), \
                                                           c8(co2_ppress_400ppm), \
@@ -881,7 +885,8 @@ def main(argv):
                             iters[it,ir,ip,ig] = solve_iter_f.value
                             time0 = time.process_time()
                             
-                            iret = f90_gs_medlyn(c8(anet_f.value),c8(veg_es_f.value),c8(vpress),c8(gs0_f.value),c8(gs1_f.value),c8(co2_ppress_400ppm),c8(can_press_1atm),c8(gb),byref(gstoma_f))
+                            iret = f90_gs_medlyn(c8(anet_f.value),c8(veg_es_f.value),c8(vpress),c8(gs0_f.value),c8(gs1_f.value), \
+                                                 c8(gs2_f.value),c8(co2_ppress_400ppm),c8(can_press_1atm),c8(gb),byref(gstoma_f))
                             elapsed_time = elapsed_time + (time.process_time() - time0)
 
 

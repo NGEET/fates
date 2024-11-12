@@ -157,6 +157,9 @@ module LeafBiophysicsMod
   integer, parameter,public :: btran_on_gs_gs0 = 1      ! apply btran to stomatal intercept (API 36.1)
   integer, parameter,public :: btran_on_gs_gs1 = 2      ! apply btran to stomatal slope
   integer, parameter,public :: btran_on_gs_gs01 = 3     ! apply btran to both stomatal slope and intercept
+  integer, parameter,public :: btran_on_gs_gs2  = 4     ! apply btran to the whole non-intercept portion
+                                                        ! of the Medlyn condcutance equation
+  integer, parameter,public :: btran_on_gs_gs02 = 5     ! same as btran_on_gs_gs2, but also apply to the intercept
   
   integer, parameter,public :: btran_on_ag_none  = 0       ! do not apply btran to vcmax or jmax
   integer, parameter,public :: btran_on_ag_vcmax = 1       ! apply btran to vcmax (API 36.1)
@@ -241,7 +244,7 @@ module LeafBiophysicsMod
 
 contains
   
-  subroutine StomatalCondMedlyn(anet,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press,gb,gs)
+  subroutine StomatalCondMedlyn(anet,veg_esat,can_vpress,gs0,gs1,gs2,leaf_co2_ppress,can_press,gb,gs)
 
     ! -----------------------------------------------------------------------------------
     ! Calculate stomatal conductance (gs [umol/m2/s]) via the Medlyn approach, described in:
@@ -253,16 +256,20 @@ contains
     ! -----------------------------------------------------------------------------------
 
     
-    ! Input
-    real(r8), intent(in) :: anet                     ! net leaf photosynthesis (umol CO2/m**2/s)
-    real(r8), intent(in) :: veg_esat                 ! saturation vapor pressure at veg_tempk (Pa)
-    real(r8), intent(in) :: can_press                ! Air pressure NEAR the surface of the leaf (Pa)
-    real(r8), intent(in) :: gb                       ! leaf boundary layer conductance (umol /m**2/s)
-    real(r8), intent(in) :: can_vpress               ! vapor pressure of canopy air (Pa)
-    real(r8), intent(in) :: gs0,gs1                  ! stomatal intercept and slope
-                                                     ! is either 1.0 or btran depending on hypothesis
-    real(r8), intent(in) :: leaf_co2_ppress          ! CO2 partial pressure at the leaf surface (Pa)
-                                                     ! at the boundary layer interface with the leaf
+                                            ! Input
+    real(r8), intent(in) :: anet            ! net leaf photosynthesis (umol CO2/m**2/s)
+    real(r8), intent(in) :: veg_esat        ! saturation vapor pressure at veg_tempk (Pa)
+    real(r8), intent(in) :: can_press       ! Air pressure NEAR the surface of the leaf (Pa)
+    real(r8), intent(in) :: gb              ! leaf boundary layer conductance (umol /m**2/s)
+    real(r8), intent(in) :: can_vpress      ! vapor pressure of canopy air (Pa)
+    real(r8), intent(in) :: gs0,gs1,gs2     ! stomatal intercept, and two different
+                                            ! mutually exclusive slopes
+                                            ! gs1 is a slope that is possibly multiplied by btran
+                                            ! gs2 is an alternate location for btran scaling
+                                            ! that applies to the non-intercept portion of
+                                            ! the equation
+    real(r8), intent(in) :: leaf_co2_ppress ! CO2 partial pressure at the leaf surface (Pa)
+                                            ! at the boundary layer interface with the leaf
 
     ! Output
     real(r8),intent(out) :: gs                       ! leaf stomatal conductance (umol H2O/m**2/s)
@@ -285,6 +292,11 @@ contains
        return
     end if
 
+    ! Trivial case (gsb near 0)
+    if(gs2<0.01_r8) then
+       gs = gs0
+    end if
+    
     ! Trivial case (gs1 near 0)
     if(gs1<0.01_r8)then
        gs = gs0 + h2o_co2_stoma_diffuse_ratio * anet/(leaf_co2_ppress/can_press)
@@ -292,11 +304,12 @@ contains
     end if
     
     vpd =  max((veg_esat - can_vpress), min_vpd_pa) * kpa_per_pa
-    term = h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press)
+    term = gs2 * h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press)
     aquad = 1.0_r8
     bquad = -(2.0 * (gs0 + term) + (gs1 * term)**2 / (gb * vpd ))
     cquad = gs0*gs0 +  (2.0*gs0 + term * &
-            (1.0 - gs1*gs1 / vpd)) * term
+         (1.0 - gs1*gs1 / vpd)) * term
+    
     call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
     gs = max(r1,r2)
 
@@ -512,7 +525,7 @@ contains
   ! =======================================================================================
 
 
-  subroutine CiMinMax(ft,vcmax,jmax,co2_cpoint,mm_kco2,mm_ko2, &
+  subroutine CiMinMax(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,lmr,par_abs, &
        gb,gs0,ci_min,ci_max)
 
@@ -525,6 +538,7 @@ contains
     integer              , intent(in)    :: ft       ! plant functional type index
     real(r8)             , intent(in)    :: vcmax
     real(r8)             , intent(in)    :: jmax
+    real(r8)             , intent(in)    :: kp 
     real(r8)             , intent(in)    :: co2_cpoint
     real(r8)             , intent(in)    :: mm_kco2
     real(r8)             , intent(in)    :: mm_ko2
@@ -532,12 +546,12 @@ contains
     real(r8)             , intent(in)    :: can_o2_ppress
     real(r8)             , intent(in)    :: can_press
     real(r8)             , intent(in)    :: lmr      ! leaf maintenance respiration rate (umol CO2/m**2/s)
-    real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai (w/m**2)
+    real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai [umol photons/m2leaf/s ]
     real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8)             , intent(in)    :: gs0      ! stomatal intercept
 
-    real(r8) :: ci_c,ci_j  ! Ci for Rubisco and RuBP respectively
-    real(r8) :: ac,aj      ! Agross for Rubisco and RuBP respectively
+    real(r8),dimension(3) :: ci  ! Ci for Rubisco,RuBP and PEP respectively
+    real(r8),dimension(3) :: ag  ! Agross for Rubisco, Rubp and PEP
     
     real(r8), intent(out) :: ci_max  ! Ci at maximum conductance
     real(r8), intent(out) :: ci_min  ! Ci at minimum conductance
@@ -550,9 +564,29 @@ contains
                                                   ! the lowest value gs0 by this margin
     
     if (lb_params%c3psn(ft) == c4_path_index)then
-       write(fates_log(),*) 'bisection should not be needed for c4 photosynthesis solves'
-       write(fates_log(),*) 'but somehow, here we are.'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       ! Maximum conductance
+       ag(1) = vcmax
+       ag(2) = AgrossRuBPC4(par_abs)
+       ci(1) = can_co2_ppress - (ag(1)-lmr)*can_press*(h2o_co2_bl_diffuse_ratio/gb)
+       ci(2) = can_co2_ppress - (ag(2)-lmr)*(h2o_co2_bl_diffuse_ratio/gb)
+       ci(3) = can_co2_ppress / (1._r8 + kp*(h2o_co2_bl_diffuse_ratio/gb))
+       ag(3) = AgrossPEPC4(ci(3),kp,can_press)
+       
+       ci_max = ci(minloc(ag),dim=1)
+
+       ! Minimum conductance
+       ag(1) = vcmax
+       ag(2) = AgrossRuBPC4(par_abs)
+       ci(1) = can_co2_ppress - (ag(1)-lmr)*can_press*(h2o_co2_bl_diffuse_ratio/gb + &
+                                                       h2o_co2_stoma_diffuse_ratio/(gs0_undershoot*gs0))
+       ci(2) = can_co2_ppress - (ag(2)-lmr)*(h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/(gs0_undershoot*gs0))
+       ci(3) = can_co2_ppress / (1._r8 + kp*(h2o_co2_bl_diffuse_ratio/gb + h2o_co2_stoma_diffuse_ratio/(gs0_undershoot*gs0)))
+       ag(3) = AgrossPEPC4(ci(3),kp,can_press)
+       
+       ci_min = ci(minloc(ag))
+
+       return
     end if
        
        
@@ -567,13 +601,15 @@ contains
     e = 1._r8
     f = mm_kco2*(1._r8+can_o2_ppress / mm_ko2 )
     g = lmr
-    ci_c = CiFromAnetDiffGrad(a,b,c,d,e,f,g) 
-    ac = AgrossRubiscoC3(vcmax,ci_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
+    ci(1) = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
+
+    ag(1) = AgrossRubiscoC3(vcmax,ci(1),can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
+    
     
     ! check the math
     if(debug)then
-       if ( abs((can_co2_ppress-ci_c)/b - (ac-lmr)  ) > 1.e-3_r8 ) then
-          write(fates_log(),*) 'incorrect ci_c, max cond:',ci_c,(can_co2_ppress-ci_c)/b,ac-lmr
+       if ( abs((can_co2_ppress-ci(1))/b - (ag(1)-lmr)  ) > 1.e-3_r8 ) then
+          write(fates_log(),*) 'incorrect ci, max cond:',ci(1),(can_co2_ppress-ci(1))/b,ag(1)-lmr
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
@@ -583,23 +619,19 @@ contains
     e = 4._r8
     f = 8._r8*co2_cpoint
     g = lmr
-    ci_j = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
-    aj = AgrossRuBPC3(par_abs,jmax,ci_j,co2_cpoint)
+    ci(2) = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
+    ag(2) = AgrossRuBPC3(par_abs,jmax,ci(2),co2_cpoint)
     
     if(debug)then
-       if ( abs((can_co2_ppress-ci_j)/b - (aj-lmr))  > 1.e-3_r8 ) then
-          write(fates_log(),*)'incorrect ci_j, max cond:',ci_j,(can_co2_ppress-ci_j)/b,aj-lmr
+       if ( abs((can_co2_ppress-ci(2))/b - (ag(2)-lmr))  > 1.e-3_r8 ) then
+          write(fates_log(),*)'incorrect ci, max cond:',ci(2),(can_co2_ppress-ci(2))/b,ag(2)-lmr
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
 
     ! Take the Ci that matches the minimizing gross assimilation
-    if(aj>ac)then
-       ci_max = ci_c
-    else
-       ci_max = ci_j
-    end if
-
+    ci_max = ci(minloc(ag(1:2)))
+    
     ! Find ci at minimum conductance (1/g0)
 
     a = can_co2_ppress
@@ -609,39 +641,35 @@ contains
     e = 1._r8
     f = mm_kco2*(1._r8+can_o2_ppress / mm_ko2 )
     g = lmr
-    ci_c = CiFromAnetDiffGrad(a,b,c,d,e,f,g) 
-    ac = AgrossRubiscoC3(vcmax,ci_c,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
+    ci(1) = CiFromAnetDiffGrad(a,b,c,d,e,f,g) 
+    ag(1) = AgrossRubiscoC3(vcmax,ci(1),can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
     
     ! check the math
     if(debug)then
-       if ( abs((can_co2_ppress-ci_c)/b - (ac-lmr)  ) > 1.e-3_r8 ) then
-          write(fates_log(),*)'incorrect ci_c, min cond:',ci_c,(can_co2_ppress-ci_c)/b,ac-lmr
+       if ( abs((can_co2_ppress-ci(1))/b - (ag(1)-lmr)  ) > 1.e-3_r8 ) then
+          write(fates_log(),*)'incorrect ci, min cond:',ci(1),(can_co2_ppress-ci(1))/b,ag(1)-lmr
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
-    
     
     c = Je
     d = Je*co2_cpoint
     e = 4._r8
     f = 8._r8*co2_cpoint
     g = lmr
-    ci_j = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
-    aj = AgrossRuBPC3(par_abs,jmax,ci_j,co2_cpoint)
+    ci(2) = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
+    ag(2) = AgrossRuBPC3(par_abs,jmax,ci(2),co2_cpoint)
     
     if(debug)then
-       if ( abs((can_co2_ppress-ci_j)/b -(aj-lmr))  > 1.e-3_r8 ) then
-          write(fates_log(),*)'incorrect ci_j, min cond:',ci_j,(can_co2_ppress-ci_j)/b,aj-lmr
+       if ( abs((can_co2_ppress-ci(2))/b -(ag(2)-lmr))  > 1.e-3_r8 ) then
+          write(fates_log(),*)'incorrect ci, min cond:',ci(2),(can_co2_ppress-ci(2))/b,ag(2)-lmr
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
+
+    ci_min = ci(minloc(ag(1:2)))
     
-    if(aj>ac)then
-       ci_min = ci_c
-    else
-       ci_min = ci_j
-    end if
-    
+    return
   end subroutine CiMinMax
 
   ! =====================================================================================
@@ -697,7 +725,7 @@ contains
   subroutine CiFunc(ci, &
        ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-       gs0, gs1, &
+       gs0, gs1, gs2, &
        anet,agross,gs,fval)
 
     ! -----------------------------------------------------------------------------------
@@ -733,11 +761,12 @@ contains
     real(r8)             , intent(in)    :: can_press
     real(r8)             , intent(in)    :: can_vpress
     real(r8)             , intent(in)    :: lmr      ! leaf maintenance respiration rate (umol CO2/m**2/s)
-    real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai (w/m**2)
+    real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai [umol photons/m2leaf/s ]
     real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8)             , intent(in)    :: veg_tempk
     real(r8)             , intent(in)    :: gs0      ! conductance intercept (umol H20/m2/s)
-    real(r8)             , intent(in)    :: gs1      ! conductance intercept (umol H20/m2/s)
+    real(r8)             , intent(in)    :: gs1      ! conductance slope (could be multiplied by btran)
+    real(r8)             , intent(in)    :: gs2      ! for Medlyn only: either 1 or btran
     real(r8)             , intent(out)   :: anet
     real(r8)             , intent(out)   :: agross
     real(r8)             , intent(out)   :: gs
@@ -849,7 +878,7 @@ contains
     call QSat(veg_tempk, can_press, veg_qs, veg_esat)
     
     if ( lb_params%stomatal_model == medlyn_model ) then
-       call StomatalCondMedlyn(anet,veg_esat,can_vpress,gs0,gs1, &
+       call StomatalCondMedlyn(anet,veg_esat,can_vpress,gs0,gs1,gs2, &
             leaf_co2_ppress,can_press,gb,gs)
     else
        call StomatalCondBallBerry(a_gs,anet,veg_esat,can_vpress,gs0,gs1, &
@@ -876,7 +905,7 @@ contains
   
   subroutine CiBisection(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
        can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-       gs0,gs1,ci_tol, &       
+       gs0,gs1,gs2,ci_tol, &       
        anet,agross,gs,ci,solve_iter)
 
     ! -----------------------------------------------------------------------------------
@@ -898,10 +927,10 @@ contains
     real(r8)             , intent(in)    :: can_press
     real(r8)             , intent(in)    :: can_vpress
     real(r8)             , intent(in)    :: lmr      ! leaf maintenance respiration rate (umol CO2/m**2/s)
-    real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai (w/m**2)
+    real(r8)             , intent(in)    :: par_abs  ! par absorbed per unit lai [umol photons/m2leaf/s ]
     real(r8)             , intent(in)    :: gb       ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8)             , intent(in)    :: veg_tempk
-    real(r8)             , intent(in)    :: gs0,gs1        ! stomatal intercept and slope
+    real(r8)             , intent(in)    :: gs0,gs1,gs2       ! stomatal intercept and slope and alternative btran
     real(r8)             , intent(in)    :: ci_tol            ! Convergence tolerance for solutions for intracellular CO2 (Pa)
     real(r8)             , intent(out)   :: anet
     real(r8)             , intent(out)   :: agross
@@ -929,20 +958,20 @@ contains
     ! Find the starting points (end-points) for bisection
     ! We dont need stomatal slope because we just want the two extremes
     ! which is the intercept and infinite conductance
-    call CiMinMax(ft,vcmax,jmax,co2_cpoint,mm_kco2,mm_ko2, &
+    call CiMinMax(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
          can_co2_ppress,can_o2_ppress,can_press,lmr,par_abs, &
          gb,gs0,ci_l,ci_h)
     
     call CiFunc(ci_h, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
          can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-         gs0,gs1, & 
+         gs0,gs1,gs2, & 
          anet,agross,gs,fval_h)
     
     call CiFunc(ci_l, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
          can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-         gs0,gs1, &
+         gs0,gs1,gs2, &
          anet,agross,gs,fval_l)
 
          
@@ -967,7 +996,7 @@ contains
        call CiFunc(ci_b, &
             ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
             can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-            gs0,gs1, &
+            gs0,gs1,gs2, &
             anet,agross,gs,fval_b)
 
        if(abs(fval_b)<ci_tol) then
@@ -1012,6 +1041,7 @@ contains
        kp,                &  ! in
        gs0,               &  ! in
        gs1,               &  ! in
+       gs2,               &  ! in
        veg_tempk,         &  ! in
        can_press,         &  ! in
        can_co2_ppress,    &  ! in
@@ -1053,7 +1083,9 @@ contains
     real(r8), intent(in) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
     real(r8), intent(in) :: kp                ! initial slope of CO2 response curve (C4 plants)
     real(r8), intent(in) :: gs0               ! effective stomatal conductance intercept
-    real(r8), intent(in) :: gs1               ! effective stomatal conductance slope
+    real(r8), intent(in) :: gs1               ! effective stomatal conductance slope, applies to 
+    real(r8), intent(in) :: gs2               ! for Medlyn conductance only, alternative btran
+                                              ! term that applies to non-intercept side of equation
     real(r8), intent(in) :: veg_tempk         ! vegetation temperature
     real(r8), intent(in) :: can_press         ! Air pressure near the surface of the leaf (Pa)
     real(r8), intent(in) :: can_co2_ppress    ! Partial pressure of CO2 near the leaf surface (Pa)
@@ -1194,7 +1226,7 @@ contains
        call CiFunc(ci0, &
             ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
             can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-            gs0,gs1, &
+            gs0,gs1,gs2, &
             anet,agross,gs,fval)
 
        ! fval = ci_input - ci_predicted
@@ -1222,7 +1254,7 @@ contains
           call CiBisection( &
                ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
                can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-               gs0,gs1,ci_tol, &
+               gs0,gs1,gs2,ci_tol, &
                anet,agross,gs,ci,solve_iter)
           loop_continue = .false.
           exit iter_loop
@@ -1667,7 +1699,8 @@ contains
        jmax, &
        kp, &
        gs0, &
-       gs1)
+       gs1, &
+       gs2)
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine calculates the localized rates of several key photosynthesis
@@ -1705,7 +1738,8 @@ contains
     real(r8), intent(out) :: kp                       ! initial slope of CO2 response curve (C4 plants)
     real(r8), intent(out) :: gs0                      ! effective stomatal intercept
     real(r8), intent(out) :: gs1                      ! effective stomatal slope
-
+    real(r8), intent(out) :: gs2                      ! alternative btran term applied to Medlyn
+                                                      ! conductance on whole non-intercept side of equation
     
     ! Locals
     ! -------------------------------------------------------------------------------
@@ -1812,15 +1846,16 @@ contains
 
     ! Apply water limitations to stomatal intercept (hypothesis dependent)
 
-    if(lb_params%stomatal_btran_model(ft)==btran_on_gs_gs0 .or. &
-       lb_params%stomatal_btran_model(ft)==btran_on_gs_gs01 )then
+    if(lb_params%stomatal_btran_model(ft)==btran_on_gs_gs0  .or. &
+       lb_params%stomatal_btran_model(ft)==btran_on_gs_gs01 .or. &
+       lb_params%stomatal_btran_model(ft)==btran_on_gs_gs02 )then
        gs0 = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft)*btran)
     else
        gs0 = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft))
     end if
 
     ! Apply water limitations to stomatal slope (hypothesis dependent)
-
+    gs2 = 1._r8 
     if(lb_params%stomatal_btran_model(ft)==btran_on_gs_gs1 .or. &
        lb_params%stomatal_btran_model(ft)==btran_on_gs_gs01)then
        if(lb_params%stomatal_model.eq.medlyn_model ) then
@@ -1828,6 +1863,11 @@ contains
        else
           gs1 = lb_params%bb_slope(ft)*btran
        end if
+    elseif(lb_params%stomatal_btran_model(ft)==btran_on_gs_gs2 .or. &
+           lb_params%stomatal_btran_model(ft)==btran_on_gs_gs02)then
+       ! Only Medlyn conductance is allowed in this scenario
+       gs2 = btran
+       gs1 = lb_params%medlyn_slope(ft)
     else
        if(lb_params%stomatal_model.eq.medlyn_model ) then
           gs1 = lb_params%medlyn_slope(ft)
@@ -1835,6 +1875,9 @@ contains
           gs1 = lb_params%bb_slope(ft)
        end if
     end if
+
+    
+
     
     return
 
