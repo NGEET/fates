@@ -790,8 +790,8 @@ module FatesPatchMod
     class(fates_patch_type), intent(inout) :: this ! patch
     
     ! LOCALS:
-    real(r8)                          :: live_grass    ! live grass [kgC/m2]
-    class(fates_cohort_type), pointer :: currentCohort ! cohort type
+    real(r8)                         :: live_grass    ! live grass [kgC/m2]
+    type(fates_cohort_type), pointer :: currentCohort ! cohort type
 
     live_grass = 0.0_r8
     currentCohort => this%tallest
