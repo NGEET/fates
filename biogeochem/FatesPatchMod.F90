@@ -755,7 +755,7 @@ module FatesPatchMod
       class(fates_patch_type), intent(inout) :: this ! patch object 
 
       ! LOCALS:
-      type(fates_cohort_Type), pointer :: currentCohort ! cohort object
+      type(fates_cohort_type), pointer :: currentCohort ! cohort object
       real(r8)                         :: tree_area     ! treed area of patch [m2]
       real(r8)                         :: grass_area    ! grass area of patch [m2]
 
