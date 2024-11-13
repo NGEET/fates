@@ -270,8 +270,7 @@ contains
                 bc_in%hlm_harvest_units, &
                 currentPatch%land_use_label, &
                 currentPatch%age_since_anthro_disturbance, &
-                current_fates_landuse_state_vector(primaryland), &
-                current_fates_landuse_state_vector(secondaryland), &
+                current_fates_landuse_state_vector, &
                 harvestable_forest_c, &
                 harvest_tag)
          
@@ -400,8 +399,7 @@ contains
                      harvest_rate, harvest_tag)
              else
                 call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                     bc_in%hlm_harvest_rates, current_fates_landuse_state_vector(primaryland), &
-                     current_fates_landuse_state_vector(secondaryland), secondary_young_fraction, &
+                     bc_in%hlm_harvest_rates, current_fates_landuse_state_vector, secondary_young_fraction, &
                      currentPatch%age_since_anthro_disturbance, harvest_rate)
              end if
 
@@ -429,11 +427,12 @@ contains
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
        endif
 
-       ! For nocomp mode, we need to prevent producing too small patches, which may produce small patches
-       if ((hlm_use_nocomp .eq. itrue) .and. &
-           (currentPatch%disturbance_rates(dtype_ilog)*currentPatch%area .lt. min_patch_area_forced)) then
-          currentPatch%disturbance_rates(dtype_ilog) = 0._r8
-       end if
+       ! cdk. Oct. 24, 2024. I don't think we need this anymore. commenting out.
+       ! ! For nocomp mode, we need to prevent producing too small patches, which may produce small patches
+       ! if ((hlm_use_nocomp .eq. itrue) .and. &
+       !     (currentPatch%disturbance_rates(dtype_ilog)*currentPatch%area .lt. min_patch_area_forced)) then
+       !    currentPatch%disturbance_rates(dtype_ilog) = 0._r8
+       ! end if
 
        ! fraction of the logging disturbance rate that is non-harvested
        if (currentPatch%disturbance_rates(dtype_ilog) .gt. nearzero) then
