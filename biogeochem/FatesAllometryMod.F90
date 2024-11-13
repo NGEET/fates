@@ -1046,7 +1046,7 @@ contains
             ! dead woody biomass. So bsap = bagw. Might remove the bsap and bdead for grass
             ! in the future as there is no need to distinguish the two for grass above- and belowground biomass
 
-       call sapwood_area_grass(d,sapw_area) 
+       call SapwoodAreaGrass(d,sapw_area)
        call bagw_allom(d,ipft,crowndamage,elongf_stem,bagw,dbagwdd)
        call bbgw_allom(d,ipft, elongf_stem,bbgw,dbbgwdd)
        
@@ -1420,7 +1420,7 @@ contains
   ! Area of sap wood cross-section specifically for grass PFT
   ! ============================================================================
 
-  subroutine sapwood_area_grass(d,sapw_area)
+  subroutine SapwoodAreaGrass(d,sapw_area)
   !---------------------------------------------------------------------------
   ! This function calculates sapwood cross-sectional area specifically for grass
   ! PFT using basal diameter (cm) of the entire plant as size reference, 
@@ -1450,7 +1450,7 @@ contains
 
   return
 
-  end subroutine sapwood_area_grass
+  end subroutine SapwoodAreaGrass
 
   
 
