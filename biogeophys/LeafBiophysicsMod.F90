@@ -545,8 +545,7 @@ contains
     real(r8) :: a,b,c,d,e,f,g
     real(r8) :: Je                ! Electron tranport rate (umol e/m2/s)
     real(r8) :: rmin ,rmax        ! Maximum and minimum resistance [s/umol h2o/m2]
-
-
+    
     
     ! Minimum possible resistance (with a little buffer)
     rmin = 0.75_r8*h2o_co2_bl_diffuse_ratio/gb
@@ -593,7 +592,6 @@ contains
     f = mm_kco2*(1._r8+can_o2_ppress / mm_ko2 )
     g = lmr
     ci(1) = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
-
     ag(1) = AgrossRubiscoC3(vcmax,ci(1),can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
     
     
@@ -679,30 +677,18 @@ contains
     
     real(r8) :: a,b,c,d,e,f,g     ! compound terms to solve the coupled Anet
                                   ! and diffusive flux gradient equations
-    real(r8) :: ci1,ci2           ! The two roots
-    real(r8) :: ci_term1,ci_term2 ! two parts of the equation
     real(r8) :: ci                ! intracellular co2 [Pa]
-    
-    ci_term1 = (a*e - b*c + b*e*g - f)/(2._r8*e)
-    ci_term2 = sqrt((a*e - b*c + b*e*g - f)**2._r8 + 4._r8 *e* (a*f + b*d + b*f*g)) /(2._r8*e)
+    real(r8) :: r1,r2             ! roots for quadratic
+    real(r8) :: aquad,bquad,cquad
+    logical  :: err
 
-    ci1 = ci_term1 + ci_term2
+    aquad = -(e/b)
+    bquad = (e*a-f)/b + e*g - c
+    cquad = (f*a)/b + f*g + d
+    call QuadraticRoots(aquad, bquad, cquad, r1, r2, err)
 
-    ci2 = ci_term1 - ci_term2
+    ci = max(r1,r2)
 
-    ! One root should be negative, but...
-
-    if (debug) then
-       if (nint(ci1/abs(ci1)) .eq. nint(ci2/abs(ci2)) ) then
-       ! If both roots are the same, not sure what to do!
-          write (fates_log(),*) 'while finding ci roots for min/max conductance'
-          write (fates_log(),*) 'both roots were the same sign:',ci1,ci2
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-    end if
-    
-    ci = max(ci1,ci2)
-    
   end function CiFromAnetDiffGrad
   
   ! =======================================================================================
@@ -1124,7 +1110,7 @@ contains
     real(r8),parameter :: init_a2l_co2_c4 = 0.4_r8
 
     ! For testing, it is useful to force the bisection method
-    logical, parameter :: force_bisection = .false.
+    logical, parameter :: force_bisection = .true.
 
     ! Maximum number of iterations on intracelluar co2 solver until is quits
     integer, parameter :: max_iters = 10
