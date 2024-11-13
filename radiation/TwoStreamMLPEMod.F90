@@ -977,6 +977,13 @@ contains
                ! Assume there is a singularity so that we test for it
                is_sing = .true.
                iter_sing = 0
+
+               ! Compute the singularity for all bands
+               Kb_sing(:) = this%band(:)%scelb(ican,icol)%a
+               if (scelg%lai>nearzero) then
+                  Kb_sing(:) = (Kb_sing(:) * (scelg%lai+scelg%sai) - scelg%sai*Kb_stem)/scelg%lai
+               end if
+
                do_test_sing: do while(is_sing)
                   ! Now that we have commited to testing it, assume the solution works
                   is_sing = .false.
@@ -986,29 +993,11 @@ contains
                      call endrun(msg=errMsg(sourcefile, __LINE__))
                   end if
                   ! Test to see if there is a singularity and make corrections if needed
-                  do ib = 1,this%n_bands
-                     if(scelg%lai>nearzero) then
-                        Kb_sing(ib) = (this%band(ib)%scelb(ican,icol)%a*(scelg%lai+scelg%sai) - scelg%sai*Kb_stem)/scelg%lai
-                     else
-                        Kb_sing(ib) = this%band(ib)%scelb(ican,icol)%a
-                     end if
-                     if(abs(Kb_eff - Kb_sing(ib))<sing_tol)then
-                        Kb_eff = Kb_eff + sing_tol
-                        do ib2 = 1,ib-1
-                           ! Make sure that the new Kb_leaf does not
-                           ! match any singularities for other bands!
-                           if(abs(Kb_eff - Kb_sing(ib2))<sing_tol)then
-                              ! If this is true, we have to adjust and start over again.
-                              ! If we always add the adjustment, eventually we will avoid
-                              ! singularity on all bands.
-                              ! NOTE: WE HAVE JUST TWO BANDS, THIS SHOULD NOT BE A DIFFICULT
-                              ! SOLVE, THIS IS MORE FOR FUTURE PROOFING IF WE HAVE MORE BANDS (RGK)
-                              Kb_eff = Kb_eff + sing_tol
-                              is_sing = .true.
-                           end if
-                        end do
-                     end if
-                  end do
+                  Kb_sing_check(:) = (abs(Kb_sing(:) - Kb_eff)) < sing_tol
+                  if any(Kb_sing_check(:)) then
+                     Kb_eff = Kb_eff + sing_tol
+                     is_sing = .true.
+                  end if
                end do do_test_sing
                
                if(scelg%lai>nearzero) then
