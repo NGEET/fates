@@ -38,8 +38,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : ican_upper
   use PRTGenericMod        , only : num_elements
   use PRTGenericMod        , only : element_list
-  use FatesLitterMod       , only : lg_sf
-  use FatesLitterMod       , only : dl_sf
+  use FatesFuelClassesMod  , only : fuel_classes
   use FatesConstantsMod    , only : N_DIST_TYPES
   use EDTypesMod           , only : AREA_INV
   use EDTypesMod           , only : dump_site
@@ -765,11 +764,11 @@ contains
 
                             ! Transfer the litter existing already in the donor patch to the new patch
                             ! This call will only transfer non-burned litter to new patch
-                            ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
+                            ! and burned litter to atmosphere. Thus it is important to zero fuel%frac_burnt when
                             ! fire is not the current disturbance regime.
 
                             if(i_disturbance_type .ne. dtype_ifire) then
-                               currentPatch%burnt_frac_litter(:) = 0._r8
+                               currentPatch%fuel%frac_burnt(:) = 0._r8
                             end if
 
                             call CopyPatchMeansTimers(currentPatch, newPatch)
@@ -1053,7 +1052,7 @@ contains
 
                                      ! Grasses determine their fraction of leaves burned here
 
-                                     leaf_burn_frac = currentPatch%burnt_frac_litter(lg_sf)
+                                     leaf_burn_frac = currentPatch%fuel%frac_burnt(fuel_classes%live_grass())
                                   endif
 
                                   ! Perform a check to make sure that spitfire gave
@@ -1727,7 +1726,7 @@ contains
 
     call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area)
 
-    currentPatch%burnt_frac_litter(:) = 0._r8
+    currentPatch%fuel%frac_burnt(:) = 0._r8
 
     ! Next, we loop through the cohorts in the donor patch, copy them with
     ! area modified number density into the new-patch, and apply survivorship.
@@ -2082,10 +2081,10 @@ contains
              
           ! Transfer above ground CWD
           donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               (1._r8 - currentPatch%burnt_frac_litter(c))
+                               (1._r8 - currentPatch%fuel%frac_burnt(c))
 
           burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               currentPatch%burnt_frac_litter(c)
+                               currentPatch%fuel%frac_burnt(c)
  
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
@@ -2106,10 +2105,10 @@ contains
 
            ! Transfer leaf fines
            donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
+                                      (1._r8 - currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves()))
 
            burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      currentPatch%burnt_frac_litter(dl_sf)
+                                      currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
 
            new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
@@ -3266,6 +3265,8 @@ contains
     do el = 1,num_elements
        call rp%litter(el)%FuseLitter(rp%area,dp%area,dp%litter(el))
     end do
+    
+    call rp%fuel%Fuse(rp%area, dp%area, dp%fuel)
 
     if ( rp%land_use_label .ne. dp%land_use_label) then
        write(fates_log(),*) 'trying to fuse patches with different land_use_label values'
@@ -3296,22 +3297,15 @@ contains
     
     call rp%tveg_longterm%FuseRMean(dp%tveg_longterm,rp%area*inv_sum_area)
 
-    rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
-    rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
-    rp%sum_fuel             = (dp%sum_fuel*dp%area + rp%sum_fuel*rp%area) * inv_sum_area
-    rp%fuel_bulkd           = (dp%fuel_bulkd*dp%area + rp%fuel_bulkd*rp%area) * inv_sum_area
-    rp%fuel_sav             = (dp%fuel_sav*dp%area + rp%fuel_sav*rp%area) * inv_sum_area
-    rp%fuel_mef             = (dp%fuel_mef*dp%area + rp%fuel_mef*rp%area) * inv_sum_area
-    rp%ros_front            = (dp%ros_front*dp%area + rp%ros_front*rp%area) * inv_sum_area
-    rp%tau_l                = (dp%tau_l*dp%area + rp%tau_l*rp%area) * inv_sum_area
-    rp%fuel_frac(:)         = (dp%fuel_frac(:)*dp%area + rp%fuel_frac(:)*rp%area) * inv_sum_area
+    rp%livegrass               = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
+    rp%ros_front               = (dp%ros_front*dp%area + rp%ros_front*rp%area) * inv_sum_area
+    rp%tau_l                   = (dp%tau_l*dp%area + rp%tau_l*rp%area) * inv_sum_area
     rp%tfc_ros              = (dp%tfc_ros*dp%area + rp%tfc_ros*rp%area) * inv_sum_area
     rp%fi                   = (dp%fi*dp%area + rp%fi*rp%area) * inv_sum_area
     rp%fd                   = (dp%fd*dp%area + rp%fd*rp%area) * inv_sum_area
     rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area) * inv_sum_area
     rp%scorch_ht(:)         = (dp%scorch_ht(:)*dp%area + rp%scorch_ht(:)*rp%area) * inv_sum_area
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
-    rp%burnt_frac_litter(:) = (dp%burnt_frac_litter(:)*dp%area + rp%burnt_frac_litter(:)*rp%area) * inv_sum_area
     rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area) * inv_sum_area
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
@@ -3405,7 +3399,6 @@ contains
           csite%youngest_patch => olderp
           olderp%younger       => null()
        end if
-
 
        if(associated(olderp))then
           ! Update the older patch's new younger patch (becuase it isn't dp anymore)
