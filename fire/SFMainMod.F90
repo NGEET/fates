@@ -54,7 +54,7 @@ module SFMainMod
 
 contains
 
-  subroutine fire_model(currentSite, bc_in)
+  subroutine DailyFireModel(currentSite, bc_in)
     !
     !  DESCRIPTION:
     !  Runs the daily fire model
@@ -86,7 +86,7 @@ contains
       call post_fire_mortality(currentSite)
     end if
 
-  end subroutine fire_model
+  end subroutine DailyFireModel
 
   !---------------------------------------------------------------------------------------
   
@@ -240,10 +240,11 @@ contains
 
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
-      if (currentPatch%nocomp_pft_label /= nocomp_bareground .and. currentPatch%fuel%non_trunk_loading > nearzero) then
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground .and.                       &
+        currentPatch%fuel%non_trunk_loading > nearzero) then
 
-        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
-        currentPatch%fuel%non_trunk_loading = currentPatch%fuel%non_trunk_loading*(1.0_r8 - SF_val_miner_total) !net of minerals
+        ! remove mineral content from fuel load per Thonicke 2010 
+        currentPatch%fuel%non_trunk_loading = currentPatch%fuel%non_trunk_loading*(1.0_r8 - SF_val_miner_total) 
         
         ! beta = packing ratio (unitless)
         ! fraction of fuel array volume occupied by fuel or compactness of fuel bed
