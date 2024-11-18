@@ -127,7 +127,7 @@ def main():
     for i in range(len(varnames_list_sorted)):
         v_name = varnames_list_sorted[i]
         varin = dsin.variables.get(v_name)
-        outVar = dsout.createVariable(v_name, varin.datatype, varin.dimensions)
+        outVar = dsout.createVariable(v_name, varin.typecode, varin.dimensions)
         
         n_dimensions = len(varin.dimensions)
         if args.debug:
