@@ -126,7 +126,7 @@ def main():
     # as well as all metadata to the new file.
     for i in range(len(varnames_list_sorted)):
         v_name = varnames_list_sorted[i]
-        varin = dsin.variables.get[v_name]
+        varin = dsin.variables.get(v_name)
         outVar = dsout.createVariable(v_name, varin.datatype, varin.dimensions)
         
         n_dimensions = len(varin.dimensions)
