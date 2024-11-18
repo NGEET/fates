@@ -33,7 +33,7 @@ def main():
     args = parser.parse_args()
     #
     # open the input dataset
-    dsin = nc.Dataset(args.fnamein, 'r')
+    dsin = nc.netcdf_file(args.fnamein, 'r')
     #
     # make empty lists to hold the variable names in. the first of these is a list of sub-lists,
     # one for each type of variable (based on dimensionality).
@@ -106,7 +106,7 @@ def main():
         else:
             raise ValueError('Output file already exists and overwrite flag not specified for filename: '+args.fnameout)
     #
-    dsout = nc.Dataset(args.fnameout,  "w")
+    dsout = nc.netcdf_file(args.fnameout,  "w")
     #
     #Copy dimensions
     for dname, the_dim in dsin.dimensions.items():
@@ -126,14 +126,20 @@ def main():
     # as well as all metadata to the new file.
     for i in range(len(varnames_list_sorted)):
         v_name = varnames_list_sorted[i]
-        varin = dsin.variables[v_name]
+        varin = dsin.variables.get[v_name]
         outVar = dsout.createVariable(v_name, varin.datatype, varin.dimensions)
+        
+        n_dimensions = len(varin.dimensions)
         if args.debug:
             if (verbose): print(v_name)
         #
         outVar.setncatts({k: varin.getncattr(k) for k in varin.ncattrs()})
-        outVar[:] = varin[:]
+        if ( n_dimensions == 0):
+           outVar[()] = varin[()]
+        else:
+           outVar[:] = varin[:]
         #
+
         # copy global attributes
         dsout.setncatts({k: dsin.getncattr(k) for k in dsin.ncattrs()})#
     #
