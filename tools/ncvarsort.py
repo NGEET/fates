@@ -112,7 +112,7 @@ def main():
     for dname, the_dim in dsin.dimensions.items():
         if args.debug:
             if (verbose): print(dname, the_dim.size)
-        dsout.createDimension(dname, the_dim.size )
+        dsout.createDimension(dname, int(the_dim.size) )
     #
     if (verbose): print()
     #
