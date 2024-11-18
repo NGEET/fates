@@ -126,15 +126,18 @@ def main():
     # as well as all metadata to the new file.
     for i in range(len(varnames_list_sorted)):
         v_name = varnames_list_sorted[i]
-        varin = dsin.variables.get(v_name)
-        outVar = dsout.createVariable(v_name, varin.typecode, varin.dimensions)
+        v_type = dsin.variables[v_name].type
+        v_dims = dsin.variables[v_name].dimensions
+        varin  = dsin.variables.get(v_name)
         
-        n_dimensions = len(varin.dimensions)
+        outVar = dsout.createVariable(v_name, v_type, v_dims)
+        
+        n_dims = len(v_dims)
         if args.debug:
             if (verbose): print(v_name)
         #
         outVar.setncatts({k: varin.getncattr(k) for k in varin.ncattrs()})
-        if ( n_dimensions == 0):
+        if ( n_dims == 0):
            outVar[()] = varin[()]
         else:
            outVar[:] = varin[:]
