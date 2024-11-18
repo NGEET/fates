@@ -4,10 +4,18 @@
 # --input or --fin: input filename.
 # --output or --fout: output filename.  If missing, will assume its directly modifying the input file, and will prompt unless -O is specified
 
-import netCDF4 as nc
+#import netCDF4 as nc
 import sys
 import os
 import argparse
+
+# Newer versions of scipy have dropped the netcdf module and
+# netcdf functions are part of the io parent module
+try:
+    from scipy import io as nc
+
+except ImportError:
+    from scipy.io import netcdf as nc
 
 # program sorts the variables based on the provided list, and pulls them one at a time
 # from an existing file and adds them to a new file in the sorted order.
