@@ -147,6 +147,15 @@ module LeafBiophysicsMod
   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
 
 
+  ! There seems little evidence that jmax and vcmax ever truly reach zero
+  ! Due to leaf nitrogen concentration gradients, and water stress,
+  ! model estimated values of vcmax and jmax could reach zero.  Until
+  ! a better, perhaps asymtotic method of preventing zero values is generated
+  ! 
+  real(r8),parameter :: min_vcmax_frac = 0.10_r8
+  real(r8),parameter :: min_jmax_frac  = 0.10_r8
+  
+
   ! The stomatal slope can either be scaled by btran or not. FATES had
   ! a precedent of using this into 2024, but discussions here: https://github.com/NGEET/fates/issues/719
   ! suggest we should try other hypotheses
@@ -1811,7 +1820,6 @@ contains
 
     jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
  
-
     ! Adjust various rates for water limitations
     ! -----------------------------------------------------------------------------------
 
@@ -1825,6 +1833,15 @@ contains
        jmax = jmax * btran
     end if
 
+    ! Make sure that vcmax and jmax do not drop below a lower
+    ! threshold, see where the constants are defined for an explanation.
+    ! -----------------------------------------------------------------------------------
+    
+    vcmax = max(min_vcmax_frac*vcmax25top_ft,vcmax)
+
+    jmax = max(min_jmax_frac*jmax25top_ft,jmax)
+
+    
     ! Apply water limitations to stomatal intercept (hypothesis dependent)
 
     if(lb_params%stomatal_btran_model(ft)==btran_on_gs_gs0  .or. &
@@ -1857,6 +1874,9 @@ contains
        end if
     end if
 
+    
+
+    
     return
   end subroutine LeafLayerBiophysicalRates
 
