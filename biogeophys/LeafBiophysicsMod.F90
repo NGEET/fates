@@ -957,7 +957,12 @@ contains
        write(fates_log(),*) 'the two starting values for Ci were on the same'
        write(fates_log(),*) 'side of the root. Try increasing and decreasing'
        write(fates_log(),*) 'init_ci_high and init_ci_low respectively'
-       write(fates_log(),*) ci_h,fval_h,ci_l,fval_l
+       write(fates_log(),*) "ci_h=",ci_h,"fval_h=",fval_h,"ci_l=",ci_l,"fval_l=",fval_l
+       write(fates_log(),*) "ft= ",ft,"vcmax=",vcmax,"jmax=",jmax,"kp=",kp
+       write(fates_log(),*) "co2_cpoint=",co2_cpoint,"mm_kco2=",mm_kco2,"mm_ko2=",mm_ko2
+       write(fates_log(),*) "can_co2_ppress=",can_co2_ppress,"can_o2_ppress=",can_o2_ppress,"can_press=",can_press
+       write(fates_log(),*) "can_vpress=",can_vpress,"lmr=",lmr,"par_abs=",par_abs,"gb=",gb
+       write(fates_log(),*) "veg_tempk=",veg_tempk,"gs0=",gs0,"gs1=",gs1,"gs2=",gs2,"ci_tol=",ci_tol
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
