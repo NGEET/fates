@@ -2541,7 +2541,7 @@ contains
         ! repro_w * (1 - repro_c_frac) = total_w*repro_c_frac
         ! repro_w = total_w * repro_c_frac/(1-repro_c_frac)
 
-        if(repro_c_frac - 1._r8 < nearzero) then
+        if(1._r8 - repro_c_frac < nearzero) then
            repro_w = repro_c_frac 
         else
            repro_w = total_w * repro_c_frac/(1._r8 - repro_c_frac)
