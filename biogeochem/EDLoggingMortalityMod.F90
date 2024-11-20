@@ -291,7 +291,7 @@ contains
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
          ! l_degrad accounts for the affected area between logged crowns
          if(prt_params%woody(pft_i) == itrue)then ! only set logging rates for trees
-            if (cur_harvest_tag == 0) then
+            if (cur_harvest_tag == 0 .or. cur_harvest_tag == 2) then
                ! direct logging rates, based on dbh min and max criteria
                if (dbh >= logging_dbhmin .and. .not. &
                   ((logging_dbhmax < fates_check_param_set) .and. (dbh >= logging_dbhmax )) ) then
