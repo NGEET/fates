@@ -979,10 +979,12 @@ contains
                iter_sing = 0
 
                ! Compute the singularity for all bands
-               Kb_sing(:) = this%band(:)%scelb(ican,icol)%a
-               if (scelg%lai>nearzero) then
-                  Kb_sing(:) = (Kb_sing(:) * (scelg%lai+scelg%sai) - scelg%sai*Kb_stem)/scelg%lai
-               end if
+               do ib = 1,this%n_bands
+                  Kb_sing(ib) = this%band(ib)%scelb(ican,icol)%a
+                  if (scelg%lai>nearzero) then
+                     Kb_sing(ib) = (Kb_sing(ib) * (scelg%lai+scelg%sai) - scelg%sai*Kb_stem)/scelg%lai
+                  end if
+               end do
 
                do_test_sing: do while(is_sing)
                   ! Now that we have commited to testing it, assume the solution works
