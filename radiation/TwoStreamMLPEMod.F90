@@ -993,7 +993,7 @@ contains
                      call endrun(msg=errMsg(sourcefile, __LINE__))
                   end if
                   ! Test to see if there is a singularity and make corrections if needed
-                  if any((abs(Kb_sing(:) - Kb_eff)) < sing_tol) then
+                  if (any((abs(Kb_sing(:) - Kb_eff)) < sing_tol)) then
                      Kb_eff = Kb_eff + sing_tol
                      is_sing = .true.
                   end if
