@@ -298,9 +298,10 @@ contains
        return
     end if
 
-    ! Trivial case (gsb near 0)
+    ! Trivial case (gs2 near 0)
     if(gs2<0.01_r8) then
        gs = gs0
+       return
     end if
     
     ! Trivial case (gs1 near 0)
@@ -320,7 +321,7 @@ contains
     gs = max(r1,r2)
 
     if(err)then
-       write(fates_log(),*) "medquadfail:",anet,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press
+       write(fates_log(),*) "medquadfail:",anet,veg_esat,can_vpress,gs0,gs1,gs2,leaf_co2_ppress,can_press
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
     
@@ -552,9 +553,11 @@ contains
     ! These are compound terms used to solve the equation that balances
     ! net assimilation with the gradient flux equation
     real(r8) :: a,b,c,d,e,f,g
+    real(r8) :: ap,ac,aj,ai
     real(r8) :: Je                ! Electron tranport rate (umol e/m2/s)
     real(r8) :: rmin ,rmax        ! Maximum and minimum resistance [s/umol h2o/m2]
-    
+    real(r8) :: aquad,bquad,cquad,r1,r2
+    logical :: err
     
     ! Minimum possible resistance (with a little buffer)
     rmin = 0.75_r8*h2o_co2_bl_diffuse_ratio/gb
@@ -567,21 +570,119 @@ contains
        
        ag(1) = vcmax
        ag(2) = AgrossRuBPC4(par_abs)
+
+       ! C4: Rubisco-limited photosynthesis
+       ac = vcmax
+       
+       ! C4: RuBP-limited photosynthesis
+       aj = AgrossRuBPC4(par_abs)
+       
+       !! C4: PEP carboxylase-limited (CO2-limited)
+       !ap = AgrossPEPC4(ci,kp,can_press)
+       
+       aquad = theta_cj_c4
+       bquad = -(ac + aj)
+       cquad = ac * aj
+       call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       if(err)then
+          write(fates_log(),*) "c41quadfail_minmax1:",par_abs,can_press,vcmax
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       ai = min(r1,r2)
+
+       a = rmin*can_press
+       
+       aquad = theta_ip_c4/a**2.0_r8 + kp/(can_press*a)
+       bquad = - theta_ip_c4*2.0_r8*can_co2_ppress/(a*a) &
+               - theta_ip_c4*2._r8*lmr/a &
+               - kp*lmr/can_press &
+               + ai/a &
+               - kp*can_co2_ppress/(can_press*a) &
+               + ai*kp/can_press
+       cquad = theta_ip_c4*can_co2_ppress*can_co2_ppress/(a*a) &
+             + 2._r8*lmr*can_co2_ppress*theta_ip_c4/a  &
+             + theta_ip_c4*lmr*lmr &
+             - ai*can_co2_ppress/a &
+             - ai*lmr
+
+       call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       if(err)then
+          write(fates_log(),*) "c41quadfail_minmax2:",par_abs,can_press,vcmax
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+
+       ci(3) = max(r1,r2)
+
+       ap = kp*ci(3)/can_press
+
+       aquad = theta_ip_c4
+       bquad = -(ai + ap)
+       cquad = ai * ap
+       call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       if(err)then
+          write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       ag(:) = min(r1,r2)
+
+       if(debug) then
+          if( abs(ci(3)-(can_co2_ppress - (ag(3)-lmr)*can_press*rmin))>0.001_r8) then
+             write(fates_log(),*) "c4 ci conv check fail"
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+       end if
+       
+       
        ci(1) = can_co2_ppress - (ag(1)-lmr)*can_press*rmin
-       ci(2) = can_co2_ppress - (ag(2)-lmr)*can_press*rmin
-       ci(3) = (can_co2_ppress + lmr*can_press*rmin)/(1._r8 + kp*rmin) 
-       ag(3) = AgrossPEPC4(ci(3),kp,can_press)
+       ci(2) = can_co2_ppress - (ag(1)-lmr)*can_press*rmin
        
        ci_max = ci(minloc(ag,DIM=1))
 
        ! Minimum conductance (maximum resistance)
+
+       a = rmax*can_press
        
-       !ag(1) = vcmax                  ! no need to recompute
-       !ag(2) = AgrossRuBPC4(par_abs)  ! no need to recompute
+       aquad = theta_ip_c4/a**2.0_r8 + kp/(can_press*a)
+       bquad = - theta_ip_c4*2.0_r8*can_co2_ppress/(a*a) &
+               - theta_ip_c4*2._r8*lmr/a &
+               - kp*lmr/can_press &
+               + ai/a &
+               - kp*can_co2_ppress/(can_press*a) &
+               + ai*kp/can_press
+       cquad = theta_ip_c4*can_co2_ppress*can_co2_ppress/(a*a) &
+             + 2._r8*lmr*can_co2_ppress*theta_ip_c4/a  &
+             + theta_ip_c4*lmr*lmr &
+             - ai*can_co2_ppress/a &
+             - ai*lmr
+
+       call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       if(err)then
+          write(fates_log(),*) "c41quadfail_minmax2:",par_abs,can_press,vcmax
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       ci(3) = max(r1,r2)
+
+       ap = kp*ci(3)/can_press
+
+       aquad = theta_ip_c4
+       bquad = -(ai + ap)
+       cquad = ai * ap
+       call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       if(err)then
+          write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+       ag(:) = min(r1,r2)
+       
        ci(1) = can_co2_ppress - (ag(1)-lmr)*can_press*rmax
-       ci(2) = can_co2_ppress - (ag(2)-lmr)*can_press*rmax 
-       ci(3) = (can_co2_ppress + lmr*can_press*rmax  )/(1._r8 + kp*rmax)
-       ag(3) = AgrossPEPC4(ci(3),kp,can_press)
+       ci(2) = can_co2_ppress - (ag(1)-lmr)*can_press*rmax
+
+       if(debug) then
+          if( abs(ci(3)-(can_co2_ppress - (ag(3)-lmr)*can_press*rmax))>0.001_r8) then
+             write(fates_log(),*) "c4 ci conv check fail"
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+       end if
        
        ci_min = ci(minloc(ag,DIM=1))
 
@@ -957,9 +1058,7 @@ contains
          gs0,gs1,gs2, &
          anet,agross,gs,fval_l)
 
-         
     ! It is necessary that our starting points are on opposite sides of the root
-    
     if( nint(fval_h/abs(fval_h)) .eq. nint(fval_l/abs(fval_l)) ) then
        print*,ci_h,fval_h,ci_l,fval_l
        write(fates_log(),*) 'While attempting bisection for Ci calculations,'
@@ -1124,7 +1223,7 @@ contains
     real(r8),parameter :: init_a2l_co2_c4 = 0.4_r8
 
     ! For testing, it is useful to force the bisection method
-    logical, parameter :: force_bisection = .true.
+    logical, parameter :: force_bisection = .false.
 
     ! Maximum number of iterations on intracelluar co2 solver until is quits
     integer, parameter :: max_iters = 10
