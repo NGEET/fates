@@ -4,8 +4,9 @@
 
 FC='gfortran'
 
-F_OPTS="-shared -fPIC -g -O0 -ffpe-trap=zero,overflow,underflow -fbacktrace -fbounds-check -Wall"
+F_OPTS="-shared -fPIC -O3"
 
+#F_OPTS="-shared -fPIC -O0 -g -ffpe-trap=zero,overflow,underflow -fbacktrace -fbounds-check -Wall"
 
 MOD_FLAG="-J"
 

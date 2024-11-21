@@ -76,6 +76,7 @@ module LeafBiophysicsMod
   ! maximum stomatal resistance [s/m] (used across several procedures)
   real(r8),public, parameter :: rsmax0 =  2.e8_r8
 
+  ! for non cuticular (ie through branches)
   ! minimum allowable stomatal conductance for numerics purposes [m/s]
   real(r8),parameter :: gsmin0 = 1._r8/rsmax0
 
@@ -137,6 +138,11 @@ module LeafBiophysicsMod
   real(r8),parameter :: theta_ip_c4 = 0.95_r8  !0.95 is from Collatz 91, 0.999 was api 36
   real(r8),parameter :: theta_cj_c4 = 0.98_r8  !0.98 from Collatz 91,  0.099 was api 36
 
+
+  ! There is a minimum stomatal conductance, below which we just don't
+  ! allow, this is well below reasonable ranges of cuticular conductance
+  real(r8),parameter :: gs0_min = 100._r8
+  
   
   ! Set this to true to match results with main
   logical, parameter :: base_compare_revert = .false.
@@ -1061,16 +1067,27 @@ contains
     ! It is necessary that our starting points are on opposite sides of the root
     if( nint(fval_h/abs(fval_h)) .eq. nint(fval_l/abs(fval_l)) ) then
        print*,ci_h,fval_h,ci_l,fval_l
-       write(fates_log(),*) 'While attempting bisection for Ci calculations,'
-       write(fates_log(),*) 'the two starting values for Ci were on the same'
-       write(fates_log(),*) 'side of the root. Try increasing and decreasing'
-       write(fates_log(),*) 'init_ci_high and init_ci_low respectively'
-       write(fates_log(),*) "ci_h=",ci_h,"fval_h=",fval_h,"ci_l=",ci_l,"fval_l=",fval_l
-       write(fates_log(),*) "ft= ",ft,"vcmax=",vcmax,"jmax=",jmax,"kp=",kp
-       write(fates_log(),*) "co2_cpoint=",co2_cpoint,"mm_kco2=",mm_kco2,"mm_ko2=",mm_ko2
-       write(fates_log(),*) "can_co2_ppress=",can_co2_ppress,"can_o2_ppress=",can_o2_ppress,"can_press=",can_press
-       write(fates_log(),*) "can_vpress=",can_vpress,"lmr=",lmr,"par_abs=",par_abs,"gb=",gb
-       write(fates_log(),*) "veg_tempk=",veg_tempk,"gs0=",gs0,"gs1=",gs1,"gs2=",gs2,"ci_tol=",ci_tol
+       !write(fates_log(),*)
+       print*,'While attempting bisection for Ci calculations,'
+       !write(fates_log(),*)
+       print*,'the two starting values for Ci were on the same'
+       !write(fates_log(),*)
+       print*,'side of the root. Try increasing and decreasing'
+       !write(fates_log(),*)
+       print*,'init_ci_high and init_ci_low respectively'
+       !write(fates_log(),*)
+       print*,"ci_h=",ci_h,"fval_h=",fval_h,"ci_l=",ci_l,"fval_l=",fval_l
+       !write(fates_log(),*)
+       print*,"ft= ",ft,"is c3psn:",lb_params%c3psn(ft) == c3_path_index
+       print*,"vcmax=",vcmax,"jmax=",jmax,"kp=",kp
+       !write(fates_log(),*)
+       print*,"co2_cpoint=",co2_cpoint,"mm_kco2=",mm_kco2,"mm_ko2=",mm_ko2
+       !write(fates_log(),*)
+       print*,"can_co2_ppress=",can_co2_ppress,"can_o2_ppress=",can_o2_ppress,"can_press=",can_press
+       !write(fates_log(),*)
+       print*,"can_vpress=",can_vpress,"lmr=",lmr,"par_abs=",par_abs,"gb=",gb
+       !write(fates_log(),*)
+       print*,"veg_tempk=",veg_tempk,"gs0=",gs0,"gs1=",gs1,"gs2=",gs2,"ci_tol=",ci_tol
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
@@ -1946,9 +1963,9 @@ contains
     if(lb_params%stomatal_btran_model(ft)==btran_on_gs_gs0  .or. &
        lb_params%stomatal_btran_model(ft)==btran_on_gs_gs01 .or. &
        lb_params%stomatal_btran_model(ft)==btran_on_gs_gs02 )then
-       gs0 = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft)*btran)
+       gs0 = max(gs0_min,lb_params%stomatal_intercept(ft)*btran)
     else
-       gs0 = max(gsmin0_20C1A_mol,lb_params%stomatal_intercept(ft))
+       gs0 = max(gs0_min,lb_params%stomatal_intercept(ft))
     end if
 
     ! Apply water limitations to stomatal slope (hypothesis dependent)
