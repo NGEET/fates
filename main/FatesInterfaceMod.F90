@@ -792,7 +792,7 @@ contains
 
             maxpatches_by_landuse(primaryland)   = fates_numpft
             maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
-            maxpatch_total     = fates_numpft
+            maxpatch_total     = fates_numpft + 1
             
             ! If this is an SP run, we actually need enough patches on the
             ! CLM/ELM side of the code to hold the LAI data.  This
@@ -2113,8 +2113,7 @@ contains
         ifp=0
         site_npp = 0._r8
         cpatch => sites(s)%oldest_patch
-        do while(associated(cpatch))
-           if (cpatch%patchno .ne. 0) then
+        do_patch: do while(associated(cpatch))
            ifp=ifp+1
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
@@ -2128,14 +2127,14 @@ contains
               ! levels are the light on the exposed ground at the surface
               ! and the low levels are the intensity under the bottom-most
               ! vegetation.
-              
+
               call SeedlingParPatch(cpatch, &
                    bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar), &
                    seedling_par_high, par_high_frac, seedling_par_low,&
                    & par_low_frac)
-              
+
               new_seedling_layer_par = seedling_par_high*par_high_frac + seedling_par_low*par_low_frac
-              
+
               call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
               call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)
               call cpatch%sdlng2sap_par%UpdateRMean(new_seedling_layer_par)
@@ -2162,7 +2161,7 @@ contains
                  call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd)
 
               enddo !end pft loop
-              
+
            end if
 
            ccohort => cpatch%tallest
@@ -2176,10 +2175,9 @@ contains
               ccohort => ccohort%shorter
            end do
 
-        end if
 
         cpatch => cpatch%younger
-     enddo
+     enddo do_patch
 
      ! Smoothed [gc/m2/yr]
      if(sites(s)%ema_npp<-9000._r8)then
