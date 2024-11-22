@@ -3085,6 +3085,8 @@ contains
     real(r8) :: storep_understory_scpf(numpft*nlevsclass)
     real(r8) :: storec_canopy_scpf(numpft*nlevsclass)
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
+    real(r8) :: a_sapw ! sapwood area [m^2]
+    real(r8) :: c_sapw ! sapwood biomass [kgC]
 
     integer  :: i_dist, j_dist
 
