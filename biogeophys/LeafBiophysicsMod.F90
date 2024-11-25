@@ -141,7 +141,7 @@ module LeafBiophysicsMod
 
   ! There is a minimum stomatal conductance, below which we just don't
   ! allow, this is well below reasonable ranges of cuticular conductance
-  real(r8),parameter :: gs0_min = 100._r8
+  real(r8),parameter :: gs0_min = 100.0_r8
   
   
   ! Set this to true to match results with main
@@ -1066,29 +1066,38 @@ contains
 
     ! It is necessary that our starting points are on opposite sides of the root
     if( nint(fval_h/abs(fval_h)) .eq. nint(fval_l/abs(fval_l)) ) then
-       print*,ci_h,fval_h,ci_l,fval_l
-       !write(fates_log(),*)
-       print*,'While attempting bisection for Ci calculations,'
-       !write(fates_log(),*)
-       print*,'the two starting values for Ci were on the same'
-       !write(fates_log(),*)
-       print*,'side of the root. Try increasing and decreasing'
-       !write(fates_log(),*)
-       print*,'init_ci_high and init_ci_low respectively'
-       !write(fates_log(),*)
-       print*,"ci_h=",ci_h,"fval_h=",fval_h,"ci_l=",ci_l,"fval_l=",fval_l
-       !write(fates_log(),*)
-       print*,"ft= ",ft,"is c3psn:",lb_params%c3psn(ft) == c3_path_index
-       print*,"vcmax=",vcmax,"jmax=",jmax,"kp=",kp
-       !write(fates_log(),*)
-       print*,"co2_cpoint=",co2_cpoint,"mm_kco2=",mm_kco2,"mm_ko2=",mm_ko2
-       !write(fates_log(),*)
-       print*,"can_co2_ppress=",can_co2_ppress,"can_o2_ppress=",can_o2_ppress,"can_press=",can_press
-       !write(fates_log(),*)
-       print*,"can_vpress=",can_vpress,"lmr=",lmr,"par_abs=",par_abs,"gb=",gb
-       !write(fates_log(),*)
-       print*,"veg_tempk=",veg_tempk,"gs0=",gs0,"gs1=",gs1,"gs2=",gs2,"ci_tol=",ci_tol
-       call endrun(msg=errMsg(sourcefile, __LINE__))
+       
+       ! Try an exteremly large bisection range, if this doesn't work, then
+       ! fail the run
+       ci_h = 0.1_r8
+       call CiFunc(ci_h, &
+            ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+            can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+            gs0,gs1,gs2, & 
+            anet,agross,gs,fval_h)
+
+       ci_l = 2000._r8
+       call CiFunc(ci_l, &
+         ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
+         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+         gs0,gs1,gs2, &
+         anet,agross,gs,fval_l)
+       
+       ! It is necessary that our starting points are on opposite sides of the root
+       if( nint(fval_h/abs(fval_h)) .eq. nint(fval_l/abs(fval_l)) ) then
+          write(fates_log(),*)'While attempting bisection for Ci calculations,'
+          write(fates_log(),*)'the two starting values for Ci were on the same'
+          write(fates_log(),*)'side of the root. Try increasing and decreasing'
+          write(fates_log(),*)'init_ci_high and init_ci_low respectively'
+          write(fates_log(),*) "ci_h=",ci_h,"fval_h=",fval_h,"ci_l=",ci_l,"fval_l=",fval_l
+          write(fates_log(),*) "ft= ",ft,"is c3psn:",lb_params%c3psn(ft) == c3_path_index
+          write(fates_log(),*) "vcmax=",vcmax,"jmax=",jmax,"kp=",kp
+          write(fates_log(),*) "co2_cpoint=",co2_cpoint,"mm_kco2=",mm_kco2,"mm_ko2=",mm_ko2
+          write(fates_log(),*) "can_co2_ppress=",can_co2_ppress,"can_o2_ppress=",can_o2_ppress,"can_press=",can_press
+          write(fates_log(),*) "can_vpress=",can_vpress,"lmr=",lmr,"par_abs=",par_abs,"gb=",gb
+          write(fates_log(),*) "veg_tempk=",veg_tempk,"gs0=",gs0,"gs1=",gs1,"gs2=",gs2,"ci_tol=",ci_tol
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
     end if
 
     loop_continue = .true.
