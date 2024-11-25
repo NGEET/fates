@@ -5756,6 +5756,15 @@ contains
             hio_rootwgt_soilvwcsat_si(io_si) = mean_soil_vwcsat/areaweight
             hio_rootwgt_soilmatpot_si(io_si) = mean_soil_matpot/areaweight  * pa_per_mpa
 
+            ! calculate site sapflow
+            do ipft = 1, numpft
+               do iscls = 1,nlevsclass
+                  hio_sapflow_si(io_si) = hio_sapflow_si(io_si) + &
+                       site_hydr%sapflow_scpf(iscls, ipft) * ha_per_m2
+               end do
+            end do
+            
+            
          end do
        end associate
     end if if_hifrq0
