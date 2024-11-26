@@ -9,8 +9,6 @@ module test_PRTAllometricCNP
   use FatesConstantsMod,   only : mm_per_cm
   use FatesConstantsMod,   only : min_max_dbh_for_trees
   use PRTParametersMod,    only : prt_params
-  use PRTGenericMod,       only : RegisterBCInOut
-  use PRTGenericMod,       only : RegisterBCIn
   use PRTGenericMod,       only  : store_organ
   use PRTAllometricCNPMod, only : cnp_allom_prt_vartypes
   use PRTAllometricCNPMod, only : stoich_growth_min
