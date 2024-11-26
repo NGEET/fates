@@ -1,0 +1,98 @@
+module test_PRTAllometricCNP
+  !
+  ! DESCRIPTION:
+  !		Test the FATES PRTAllometricCNPMod subroutines
+  !
+  use funit
+  use FatesConstantsMod,   only : r8 => fates_r8
+  use FatesConstantsMod,   only : default_regeneration
+  use FatesConstantsMod,   only : mm_per_cm
+  use FatesConstantsMod,   only : min_max_dbh_for_trees
+  use PRTParametersMod,    only : prt_params
+  use PRTGenericMod,       only : RegisterBCInOut
+  use PRTGenericMod,       only : RegisterBCIn
+  use PRTGenericMod,       only  : store_organ
+  use PRTAllometricCNPMod, only : cnp_allom_prt_vartypes
+  use PRTAllometricCNPMod, only : stoich_growth_min
+  use PRTAllometricCNPMod, only : repro_id
+  use PRTAllometricCNPMod, only : acnp_bc_inout_id_dbh
+  use PRTAllometricCNPMod, only : acnp_bc_in_id_pft
+  use PRTAllometricCNPMod, only : acnp_bc_in_id_nc_repro
+  use PRTAllometricCNPMod, only : acnp_bc_in_id_pc_repro
+
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: TestPRTAllomCNP
+    type(cnp_allom_prt_vartypes) :: cnp_allom_prt
+    contains
+      procedure :: setUp
+  end type TestPRTAllomCNP
+
+  ! assertEqual tolerance
+  real(r8), parameter :: tol = 1.e-13_r8
+
+  ! Globals and parameters
+  regeneration_model = default_regeneration
+
+  contains 
+
+    !subroutine setUp(this)
+    !  class(TestPRTAllomCNP), intent(inout) :: this
+    !end subroutine setUp
+
+    @Test
+    subroutine EstimateGrowthNC_ReproBoundsCheck(this)
+
+      ! Test that CN growth estimate passes if the C reproductive fraction is exactly one
+
+      class(TestPRTAllomCNP), intent(inout) :: this   ! test object
+
+      !! Globals
+      ! Initialize the prt_param type and values
+      allocate(prt_params%allom_dbh_maxheight(acnp_bc_in_id_pft))
+      allocate(prt_params%dbh_repro_threshold(acnp_bc_in_id_pft))
+      allocate(prt_params%seed_alloc(acnp_bc_in_id_pft))
+      prt_params%allom_dbh_maxheight(acnp_bc_in_id_pft) = 1000._r8   ! current default param
+      prt_params%dbh_repro_threshold(acnp_bc_in_id_pft) = 90._r8     ! current default param
+      prt_params%seed_alloc(acnp_bc_in_id_pft) = 1._r8               ! assigned to repro_c_frac
+
+      ! Unused for repro check
+      allocate(prt_params%seed_alloc_mature(acnp_bc_in_id_pft))
+      allocate(prt_params%repro_alloc_b(acnp_bc_in_id_pft))
+      allocate(prt_params%repro_alloc_a(acnp_bc_in_id_pft))
+      allocate(prt_params%organ_param_id(1))
+      allocate(prt_params%nitr_stoich_p1(1,1))
+      allocate(prt_params%phos_stoich_p1(1,1))
+
+      ! Manually initialize minimum necessary PRT vartype subtypes
+      allocate(this%cnp_allom_prt%bc_inout(acnp_bc_inout_id_dbh))
+      allocate(this%cnp_allom_prt%bc_in(acnp_bc_in_id_pc_repro))
+      this%cnp_allom_prt%RegisterBCInOut(acnp_bc_inout_id_dbh, bc_rval=1._r8)   ! acnp_bc_inout_id_dbh = 1
+      this%cnp_allom_prt%RegisterBCIn(acnp_bc_in_id_pft, bc_ival=1)             ! acnp_bc_in_id_pft = 1
+      this%cnp_allom_prt%RegisterBCIn(acnp_bc_in_id_nc_repro, bc_ival=0._r8)    ! acnp_bc_in_id_nc_repro = 5
+      this%cnp_allom_prt%RegisterBCIn(acnp_bc_in_id_pc_repro, bc_ival=0._r8)    ! acnp_bc_in_id_pc_repro = 6
+
+      !! Arguments
+      ! Dummy arguments, not used for repro_id case
+      real(r8) :: dummy_target_c(1) = 0._r8
+      real(r8) :: dummy_target_dcdd(1) = 0._r8
+
+      ! Necessary arguments
+      logical  :: state_mask(repro_id) = .false.   ! state mask, intent(in)
+      real(r8) :: avg_nc                           ! Average N:C ratio, intent(out)
+      real(r8) :: avg_pc                           ! Average P:C ratio, intent(out)
+
+      ! only test the repro_id case
+      state_mask(repro_id) = .true.
+
+      call EstimateGrowthNC(this%cnp_allom_prt,dummy_target_c,dumm_target_dcdd, &
+                            state_mask,avg_nc,avg_pc)
+
+      @assertEqual(avg_nc, 1._r8, tolerance=tol)
+      @assertEqual(avg_pc, 1._r8, tolerance=tol)
+
+    end subroutine EstimateGrowthNC_BoundsCheck
+
+
+end module test_PRTAllometricCNP
