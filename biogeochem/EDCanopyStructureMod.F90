@@ -1877,7 +1877,7 @@ contains
     use EDTypesMod        , only : ed_site_type, AREA
     use FatesPatchMod,      only : fates_patch_type
     use FatesInterfaceTypesMod , only : bc_out_type
-
+     use FatesInterfaceTypesMod    , only : hlm_day_of_year
     !
     ! !ARGUMENTS
     integer,            intent(in)            :: nsites
@@ -1981,12 +1981,45 @@ contains
                 bc_out(s)%nocomp_MEGAN_pft_label_pa(ifp) = 1
              endif
 
+             ! Set patch properties for the HLM dry depositioin model
+             ! This wants to know the PFT according to the 'wesley' classification scheme
+             ! and the season according to the same scheme. 
              bc_out(s)%wesley_pft_label_pa(ifp) = EDPftvarcon_inst%wesley_pft_index_fordrydep(currentPatch%nocomp_pft_label)
-
-             ! THIS IS A PLACEHOLDER                                                          
-             currentPatch%drydep_season = 1
-             bc_out(s)%drydep_season_pa(ifp) = 4
              
+            !wesely seasonal "index_season"                                
+            ! 1 - midsummer with lush vegetation                           
+            ! 2 - Autumn with unharvested cropland                         
+            ! 3 - Late autumn after frost, no snow                         
+            ! 4 - Winter, snow on ground and subfreezing                   
+            ! 5 - Transitional spring with partially green short annuals
+             if(bc_out(s)%tlai_pa(ifp) .gt. 2.0_r8)then
+                bc_out(s)%drydep_season_pa(ifp) = 1 ! Summer, or something like it.
+             else ! NOT SUMMER
+                if(sites(s)%lat>0)then ! Northern HS
+                   if(hlm_day_of_year .lt. 180)then ! DOY
+                      bc_out(s)%drydep_season_pa(ifp) = 5 ! NH spring
+                   else ! autumn
+      	      	      if(bc_out(s)%tlai_pa(ifp) .gt. 1.0_r8)then
+                         bc_out(s)%drydep_season_pa(ifp) = 2 ! NH early autumn
+                      else
+                         bc_out(s)%drydep_season_pa(ifp) = 3 ! NH late autumn
+                      endif
+                   endif ! DOY
+                 else !Southern HS 
+                    if(hlm_day_of_year .gt. 180)then ! spring
+                       bc_out(s)%drydep_season_pa(ifp) = 5 ! SH spring
+                    else ! SH autumn
+                       if(bc_out(s)%tlai_pa(ifp) .gt. 1.0_r8)then
+                          bc_out(s)%drydep_season_pa(ifp) = 2 ! SH early autumn
+                       else 
+                          bc_out(s)%drydep_season_pa(ifp) = 3 ! SH late autumn
+                       endif ! autumn
+                    endif ! DOY
+                 endif ! Hemisphere
+              endif ! summer?
+                 
+
+              
              ! -----------------------------------------------------------------------------
 
              ! We are assuming here that grass is all located underneath tree canopies.
