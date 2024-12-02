@@ -824,7 +824,7 @@ contains
                maxpatch_total = maxpatches_by_landuse(1)
             end if
 
-            ! maxpatch_total does not include the bare ground (so add 1)
+            ! maxpatch_total does not include HLM-side bare ground (so add 1)
             fates_maxPatchesPerSite = maxpatch_total+1
             
          end if
