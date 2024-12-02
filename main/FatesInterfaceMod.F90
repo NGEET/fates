@@ -654,20 +654,17 @@ contains
 
       ! Include the bare-ground patch for these patch-level boundary conditions
       ! (it will always be zero for all of these)
-      !if(hlm_use_ch4.eq.itrue) then
-         allocate(bc_out%annavg_agnpp_pa(0:maxpatch_total));bc_out%annavg_agnpp_pa(:)=nan
-         allocate(bc_out%annavg_bgnpp_pa(0:maxpatch_total));bc_out%annavg_bgnpp_pa(:)=nan
-         allocate(bc_out%annsum_npp_pa(0:maxpatch_total));bc_out%annsum_npp_pa(:)=nan
-         allocate(bc_out%frootc_pa(0:maxpatch_total));bc_out%frootc_pa(:)=nan
-         allocate(bc_out%root_resp(nlevsoil_in));bc_out%root_resp(:)=nan
-         allocate(bc_out%woody_frac_aere_pa(0:maxpatch_total));bc_out%woody_frac_aere_pa(:)=nan
-         allocate(bc_out%rootfr_pa(0:maxpatch_total,nlevsoil_in))
-         bc_out%rootfr_pa(:,:)=nan
-
-         ! Give the bare-ground root fractions a nominal fraction of unity over depth
-         bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
-      !end if
-
+      allocate(bc_out%annavg_agnpp_pa(0:maxpatch_total));bc_out%annavg_agnpp_pa(:)=0._r8
+      allocate(bc_out%annavg_bgnpp_pa(0:maxpatch_total));bc_out%annavg_bgnpp_pa(:)=0._r8
+      allocate(bc_out%annsum_npp_pa(0:maxpatch_total));bc_out%annsum_npp_pa(:)=0._r8
+      allocate(bc_out%frootc_pa(0:maxpatch_total));bc_out%frootc_pa(:)=0._r8
+      allocate(bc_out%root_resp(nlevsoil_in));bc_out%root_resp(:)=0._r8
+      allocate(bc_out%woody_frac_aere_pa(0:maxpatch_total));bc_out%woody_frac_aere_pa(:)=0._r8
+      allocate(bc_out%rootfr_pa(0:maxpatch_total,nlevsoil_in))
+      bc_out%rootfr_pa(:,:)=0._r8
+      
+      ! Give the bare-ground root fractions a nominal fraction of unity over depth
+      bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       bc_out%ema_npp = nan
       
       ! Fates -> BGC fragmentation mass fluxes
