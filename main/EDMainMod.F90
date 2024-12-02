@@ -166,12 +166,6 @@ contains
        call currentSite%flux_diags(el)%ZeroFluxDiags()
     end do
 
-    ! zero dynamics (upfreq_in = 1) output history variables
-    call fates_hist%zero_site_hvars(currentSite,upfreq_in=1)
-
-    ! zero nutrient fluxes (upfreq_in=5) output hist variables
-    call fates_hist%zero_site_hvars(currentSite,upfreq_in=5)
-
     ! Call a routine that simply identifies if logging should occur
     ! This is limited to a global event until more structured event handling is enabled
     call IsItLoggingTime(hlm_masterproc,currentSite)

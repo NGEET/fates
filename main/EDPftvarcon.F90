@@ -2237,8 +2237,11 @@ contains
 
 
      ! if nocomp is enabled, check to make sure the max number of nocomp PFTs per land use is
-     ! less than or equal to the max number of patches per land use.
-     if ( hlm_use_nocomp .eq. itrue ) then
+     ! less than or equal to the max number of patches per land use. (unless this is an
+     ! SP run, then all PFTS are tracked on the primary LU and the others are allocated
+     ! zero patch space
+
+     if ( hlm_use_nocomp .eq. itrue .and. hlm_use_sp.eq.ifalse) then
         do i_lu = 1, n_landuse_cats
            if (max_nocomp_pfts_by_landuse(i_lu) .gt. maxpatches_by_landuse(i_lu)) then
               write(fates_log(),*) 'The max number of nocomp PFTs must all be less than or equal to the number of patches, for a given land use type'

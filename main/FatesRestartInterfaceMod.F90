@@ -1157,12 +1157,12 @@ contains
 
     end if
     
-    call this%RegisterCohortVector(symbol_base='fates_woodproduct_harvest', vtype=cohort_r8, &
+   call this%RegisterCohortVector(symbol_base='fates_woodprod_harv', vtype=cohort_r8, &
          long_name_base='Current wood product flux from harvest', &
          units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_harvest_mbal)
 
-    call this%RegisterCohortVector(symbol_base='fates_woodproduct_landusechange', vtype=cohort_r8, &
+   call this%RegisterCohortVector(symbol_base='fates_woodprod_luc', vtype=cohort_r8, &
          long_name_base='Current wood product flux from land use change', &
          units='kg/m2/day', veclength=num_elements, flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_woodprod_landusechange_mbal)
@@ -3049,7 +3049,6 @@ contains
      integer  :: i_landuse,i_pflu ! loop counter for land use class
      integer  :: i_lu_donor, i_lu_receiver, i_dist ! loop counters for land use and disturbance    
      integer  :: i_term_type      ! loop counter for termination type
-     integer  :: i_lu_donor, i_lu_receiver, i_dist ! loop counters for land use and disturbance
 
      associate( rio_npatch_si         => this%rvars(ir_npatch_si)%int1d, &
           rio_cd_status_si            => this%rvars(ir_cd_status_si)%int1d, &

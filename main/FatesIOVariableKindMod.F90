@@ -51,16 +51,36 @@ module FatesIOVariableKindMod
   character(*), parameter, public :: site_elcwd_r8 = 'SI_ELEMCWD_R8'
   character(*), parameter, public :: site_elage_r8 = 'SI_ELEMAGE_R8'
 
-
+  ! ------------------------------------------------------------------
+  !
+  ! History Variable Groups
+  !
   ! These are group indices for output variables. We use
   ! these groups to do things like zero-ing and initializing
-
+  !
+  ! These groups are updated at the dynamics (daily) step
+  ! so they are turned on and off with dimlevel(2)
+  !
+  ! active when dimlevel(2)>0
   integer, parameter, public :: group_dyna_simple = 1
+  integer, parameter, public :: group_nflx_simple = 7
+  
+  ! active when dimlevel(2)>1
   integer, parameter, public :: group_dyna_complx = 2
+  integer, parameter, public :: group_nflx_complx = 8
+
+  ! These groups are updated at the fast step
+  ! so they are turned on and off with dimlevel(1)
+  !
+  ! active when dimlevel(1)>0
   integer, parameter, public :: group_hifr_simple = 3
-  integer, parameter, public :: group_hifr_complx = 4
   integer, parameter, public :: group_hydr_simple = 5
+
+  ! active when dimlevel(1)>1
+  integer, parameter, public :: group_hifr_complx = 4
   integer, parameter, public :: group_hydr_complx = 6
+
+  ! -------------------------------------------------------------------
   
   ! NOTE(RGK, 2016) %active is not used yet. Was intended as a check on the HLM->FATES
   ! control parameter passing to ensure all active dimension types received all

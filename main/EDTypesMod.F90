@@ -7,6 +7,7 @@ module EDTypesMod
   use FatesConstantsMod,     only : nocomp_bareground_land
   use FatesConstantsMod,     only : secondaryland
   use FatesConstantsMod,     only : secondary_age_threshold
+  use FatesConstantsMod,     only : nearzero
   use FatesGlobals,          only : fates_log
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
@@ -153,8 +154,13 @@ module EDTypesMod
   type, public :: site_fluxdiags_type
 
      ! ----------------------------------------------------------------------------------
-     ! Diagnostics for fluxes into the litter pool from plants
-     ! these fluxes are the total from 
+     ! Diagnostics of fluxes
+     ! These act as an intermediary to write fluxes to the history
+     ! file after number densities of plants have changed. They also
+     ! allow the history flux diagnostics to be rebuilt during restart
+     !
+     !
+     ! Litter fluxes are the total from 
      ! (1) turnover from living plants
      ! (2) mass transfer from non-disturbance inducing mortality events
      ! (3) mass transfer from disturbance inducing mortality events
@@ -165,6 +171,13 @@ module EDTypesMod
      real(r8) :: cwd_bg_input(1:ncwd)               
      real(r8),allocatable :: leaf_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
+
+     ! This variable is slated as to-do, but the fluxdiags type needs
+     ! to be refactored first. Currently this type is allocated
+     ! by chemical species (ie C, N or P). GPP is C, but not N or P (RGK 0524)
+     ! Previous day GPP [kgC/m2/year], partitioned by size x pft
+     !real(r8),allocatable :: gpp_prev_scpf(:)
+     
      
    contains
 
@@ -462,6 +475,7 @@ module EDTypesMod
      contains
 
        procedure, public :: get_current_landuse_statevector
+       procedure, public :: get_secondary_young_fraction
 
   end type ed_site_type
 
@@ -480,6 +494,11 @@ module EDTypesMod
       this%cwd_bg_input(:)      = 0._r8
       this%leaf_litter_input(:) = 0._r8
       this%root_litter_input(:) = 0._r8
+
+      ! We don't zero gpp_prev_scpf because this is not
+      ! incremented like others, it is assigned at the end
+      ! of the daily history write process
+      
       
       return
     end subroutine ZeroFluxDiags
@@ -603,7 +622,7 @@ module EDTypesMod
         currentPatch => currentPatch%younger
      end do
 
-     if ( (secondary_young_area + secondary_old_area) .gt. fates_tiny) then
+     if ( (secondary_young_area + secondary_old_area) .gt. nearzero ) then
         secondary_young_fraction = secondary_young_area / (secondary_young_area + secondary_old_area)
      else
         secondary_young_fraction = -1._r8
