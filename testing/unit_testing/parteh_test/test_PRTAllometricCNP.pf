@@ -91,7 +91,7 @@ module test_PRTAllometricCNP
       ! only test the repro_id case
       state_mask(repro_id) = .true.
 
-      call EstimateGrowthNC(this%cnp_allom_prt,dummy_target_c,dumm_target_dcdd, &
+      call this%cnp_allom_prt%EstimateGrowthNC(dummy_target_c,dummy_target_dcdd, &
                             state_mask,avg_nc,avg_pc)
 
       @assertEqual(avg_nc, 1._r8, tolerance=tol)
