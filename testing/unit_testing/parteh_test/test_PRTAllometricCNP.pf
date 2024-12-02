@@ -45,12 +45,12 @@ module test_PRTAllometricCNP
 
       !! Globals
       ! targets for associations
-      integer, parameter :: repro_id = 5 				     ! non-public parameter from PRTAllometricCNPMod
-      integer          :: regeneration_model = default_regeneration
-      integer, target  :: ipft = 1
-      real(r8), target :: dbh = 1._r8
-      real(r8), target :: nc_repro = 0._r8
-      real(r8), target :: pc_repro = 0._r8
+      integer, parameter :: repro_id = 5         ! non-public parameter from PRTAllometricCNPMod
+      integer, parameter :: num_intgr_vars = 7
+      integer, target    :: ipft = 1
+      real(r8), target   :: dbh = 1._r8
+      real(r8), target   :: nc_repro = 0._r8
+      real(r8), target   :: pc_repro = 0._r8
 
       !! subroutine arguments
       ! Dummy arguments, not used for repro_id case
@@ -58,9 +58,9 @@ module test_PRTAllometricCNP
       real(r8) :: dummy_target_dcdd(1) = 0._r8
 
       ! Necessary arguments
-      logical  :: state_mask(repro_id) = .false.   ! state mask, intent(in)
-      real(r8) :: avg_nc                           ! Average N:C ratio, intent(out)
-      real(r8) :: avg_pc                           ! Average P:C ratio, intent(out)
+      logical  :: state_mask(num_intgr_vars) = .false.   ! state mask, intent(in)
+      real(r8) :: avg_nc                           	 ! Average N:C ratio, intent(out)
+      real(r8) :: avg_pc                           	 ! Average P:C ratio, intent(out)
 
       ! Initialize the prt_param type and values
       allocate(prt_params%allom_dbh_maxheight(acnp_bc_in_id_pft))
