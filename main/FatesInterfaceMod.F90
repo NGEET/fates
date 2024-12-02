@@ -783,6 +783,14 @@ contains
          call FatesReadParameters(param_reader)
 
          fates_numpft = size(prt_params%wood_density,dim=1)
+
+         ! maxpatch_total: the number of patches that FATES needs to allocate space for
+         !
+         ! fates_maxPatchesPerSite: the number of patches that the HLM needs to allocate
+         !                          space for. Why the fates_ prefix then? Because
+         !                          it is for readability on the host side so it is clear
+         !                          in the code that fates is dictating the allocation need
+         
          
          if(hlm_use_sp==itrue)then
 
@@ -812,12 +820,11 @@ contains
             if(hlm_use_nocomp==itrue) then
 
                maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
-               maxpatch_total = sum(maxpatches_by_landuse(:))
+               maxpatch_total = sum(maxpatches_by_landuse(:)+1)
 
-               !if(maxpatch_primary<fates_numpft)then
-               !   write(fates_log(),*) 'warning: lower number of patches than pfts'
-               !   write(fates_log(),*) 'this may become a problem in nocomp mode'
-               !end if
+            else
+               ! Check-in with team on this... (RGK)
+               maxpatch_total = maxpatches_by_landuse(1)
             end if
 
             ! maxpatch_total does not include the bare ground (so add 1)
