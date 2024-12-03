@@ -12,6 +12,7 @@ module EDPftvarcon
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : itrue, ifalse
+  use FatesConstantsMod, only : primaryland
   use PRTParametersMod, only : prt_params
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
@@ -1830,7 +1831,7 @@ contains
     use EDParamsMod        , only : radiation_model, dayl_switch
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
-    use FatesInterfaceTypesMod, only : hlm_use_nocomp
+    use FatesInterfaceTypesMod, only : hlm_use_nocomp,hlm_use_luh
     use EDParamsMod        , only : max_nocomp_pfts_by_landuse, maxpatches_by_landuse
     use FatesConstantsMod  , only : n_landuse_cats
 
@@ -2256,13 +2257,15 @@ contains
 
      if ( hlm_use_nocomp .eq. itrue .and. hlm_use_sp.eq.ifalse) then
         do i_lu = 1, n_landuse_cats
-           if (max_nocomp_pfts_by_landuse(i_lu) .gt. maxpatches_by_landuse(i_lu)) then
-              write(fates_log(),*) 'The max number of nocomp PFTs must all be less than or equal to the number of patches, for a given land use type'
-              write(fates_log(),*) 'land use index:',i_lu
-              write(fates_log(),*) 'max_nocomp_pfts_by_landuse(i_lu):', max_nocomp_pfts_by_landuse(i_lu)
-              write(fates_log(),*) 'maxpatches_by_landuse(i_lu):', maxpatches_by_landuse(i_lu)
-              write(fates_log(),*) 'Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+           if(i_lu.eq.primaryland .or. hlm_use_luh.eq.itrue)then
+              if (max_nocomp_pfts_by_landuse(i_lu) .gt. maxpatches_by_landuse(i_lu)) then
+                 write(fates_log(),*) 'The max number of nocomp PFTs must all be less than or equal to the number of patches, for a given land use type'
+                 write(fates_log(),*) 'land use index:',i_lu
+                 write(fates_log(),*) 'max_nocomp_pfts_by_landuse(i_lu):', max_nocomp_pfts_by_landuse(i_lu)
+                 write(fates_log(),*) 'maxpatches_by_landuse(i_lu):', maxpatches_by_landuse(i_lu)
+                 write(fates_log(),*) 'Aborting'
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
            end if
         end do
      endif
