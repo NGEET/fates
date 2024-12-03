@@ -180,7 +180,7 @@ contains
 
         ! update fuel loading [kgC/m2]
         litter => currentPatch%litter(element_pos(carbon12_element))
-        call currentPatch%fuel%UpdateLoading(sum(litter%leaf_fines(:)),               &
+        call currentPatch%fuel%UpdateLoading(sum(litter%leaf_fines(:)),                  &
           litter%ag_cwd(1), litter%ag_cwd(2), litter%ag_cwd(3), litter%ag_cwd(4),        &
           currentPatch%livegrass)
             
@@ -211,29 +211,23 @@ contains
     !  each patch of a site
     !
 
-    use SFParamsMod,       only : SF_val_miner_total, SF_val_part_dens, SF_val_miner_damp
-    use SFParamsMod,       only : SF_val_fuel_energy
-    use FatesConstantsMod, only : nearzero
+    use SFParamsMod,    only : SF_val_miner_total, SF_val_part_dens
+    use SFEquationsMod, only : OptimumPackingRatio, ReactionIntensity
 
     ! ARGUMENTS:
     type(ed_site_type), intent(in), target :: currentSite ! site object
 
     ! LOCALS:
-    type(fates_patch_type), pointer :: currentPatch   ! patch object 
-    real(r8)                        :: beta           ! packing ratio [unitless]
-    real(r8)                        :: beta_op        ! optimum packing ratio [unitless]
-    real(r8)                        :: ir             ! reaction intensity [kJ/m2/min]
-    real(r8)                        :: xi             ! propagating flux ratio [unitless]
-    real(r8)                        :: eps            ! effective heating number [unitless]
-    real(r8)                        :: phi_wind       ! wind factor [unitless]
-    real(r8)                        :: q_ig           ! heat of pre-ignition [kJ/kg]
-    real(r8)                        :: reaction_v_opt ! optimum reaction velocity [/min]
-    real(r8)                        :: reaction_v_max ! maximum reaction velocity [/min]
-    real(r8)                        :: moist_damp     ! moisture dampening coefficient [unitless]
-    real(r8)                        :: mw_weight      ! ratio of fuel moisture to extinction moisture [unitless]
-    real(r8)                        :: beta_ratio     ! relative packing ratio [unitless]
-    real(r8)                        :: a_beta         ! dummy variable
-    real(r8)                        :: a,b,c,e        ! dummy variables
+    type(fates_patch_type), pointer :: currentPatch ! patch object 
+    real(r8)                        :: beta         ! packing ratio [unitless]
+    real(r8)                        :: beta_op      ! optimum packing ratio [unitless]
+    real(r8)                        :: beta_ratio   ! relative packing ratio [unitless]
+    real(r8)                        :: i_r          ! reaction intensity [kJ/m2/min]
+    real(r8)                        :: xi           ! propagating flux ratio [unitless]
+    real(r8)                        :: eps          ! effective heating number [unitless]
+    real(r8)                        :: phi_wind     ! wind factor [unitless]
+    real(r8)                        :: q_ig         ! heat of pre-ignition [kJ/kg]
+    real(r8)                        :: b,c,e        ! dummy variables
 
     ! CONSTANTS:
     real(r8), parameter :: q_dry = 581.0_r8 ! heat of pre-ignition of dry fuels [kJ/kg]
@@ -242,27 +236,28 @@ contains
     do while(associated(currentPatch))
       if (currentPatch%nocomp_pft_label /= nocomp_bareground .and.                       &
         currentPatch%fuel%non_trunk_loading > nearzero) then
-
-        ! remove mineral content from fuel load per Thonicke 2010 
-        currentPatch%fuel%non_trunk_loading = currentPatch%fuel%non_trunk_loading*(1.0_r8 - SF_val_miner_total) 
         
-        ! beta = packing ratio (unitless)
-        ! fraction of fuel array volume occupied by fuel or compactness of fuel bed
+        ! fraction of fuel array volume occupied by fuel, i.e. compactness of fuel bed 
         beta = currentPatch%fuel%bulk_density_notrunks/SF_val_part_dens
-
-        ! Equation A6 in Thonicke et al. 2010
-        ! packing ratio (unitless)
-        if (currentPatch%fuel%SAV_notrunks < nearzero) then
-          beta_op = 0.0_r8 
-        else  
-          beta_op = 0.200395_r8*(currentPatch%fuel%SAV_notrunks**(-0.8189_r8))
-        end if
+        
+        ! optimum packing ratio [unitless]
+        beta_op = OptimumPackingRatio(currentPatch%fuel%SAV_notrunks)
+        
+        ! relative packing ratio
         if (beta_op < nearzero) then 
           beta_ratio = 0.0_r8
         else
           beta_ratio = beta/beta_op 
         end if
-
+        
+        ! remove mineral content from fuel load per Thonicke 2010 
+        currentPatch%fuel%non_trunk_loading = currentPatch%fuel%non_trunk_loading*(1.0_r8 - SF_val_miner_total) 
+        
+        ! reaction intensity [kJ/m2/min]
+        i_r = ReactionIntensity(currentPatch%fuel%non_trunk_loading/0.45_r8,             &
+          currentPatch%fuel%SAV_notrunks, beta_ratio,                                    &
+          currentPatch%fuel%average_moisture_notrunks, currentPatch%fuel%MEF_notrunks)
+        
         ! ---heat of pre-ignition---
         !  Equation A4 in Thonicke et al. 2010
         !  Rothermel EQ12= 250 Btu/lb + 1116 Btu/lb * average_moisture
@@ -291,31 +286,6 @@ contains
         xi = (exp((0.792_r8 + 3.7597_r8*(currentPatch%fuel%SAV_notrunks**0.5_r8))*(beta+0.1_r8)))/  &
           (192_r8+7.9095_r8*currentPatch%fuel%SAV_notrunks)      
 
-        ! ---reaction intensity----
-        ! Equation in table A1 Thonicke et al. 2010. 
-        a = 8.9033_r8*(currentPatch%fuel%SAV_notrunks**(-0.7913_r8))
-        a_beta = exp(a*(1.0_r8-beta_ratio)) ! dummy variable for reaction_v_opt equation
-
-        ! Equation in table A1 Thonicke et al. 2010.
-        ! reaction_v_max and reaction_v_opt = reaction velocity in units of per min
-        ! reaction_v_max = Equation 36 in Rothermel 1972 and Fig 12 
-        reaction_v_max = 1.0_r8/(0.0591_r8 + 2.926_r8*(currentPatch%fuel%SAV_notrunks**(-1.5_r8)))
-        ! reaction_v_opt =  Equation 38 in Rothermel 1972 and Fig 11
-        reaction_v_opt = reaction_v_max*(beta_ratio**a)*a_beta
-
-        ! mw_weight = relative fuel moisture/fuel moisture of extinction
-        ! average values for litter pools (dead leaves, twigs, small and large branches) plus grass
-        mw_weight = currentPatch%fuel%average_moisture_notrunks/currentPatch%fuel%MEF_notrunks
-
-        ! Equation in table A1 Thonicke et al. 2010. 
-        ! moist_damp is unitless
-        moist_damp = max(0.0_r8, (1.0_r8 - (2.59_r8*mw_weight) + (5.11_r8*(mw_weight**2.0_r8)) - &
-          (3.52_r8*(mw_weight**3.0_r8))))
-
-        ! ir = reaction intenisty in kJ/m2/min
-        ! currentPatch%fuel%non_trunk_loading converted from kgC/m2 to kgBiomass/m2 for ir calculation
-        ir = reaction_v_opt*(currentPatch%fuel%non_trunk_loading/0.45_r8)*SF_val_fuel_energy*moist_damp*SF_val_miner_damp 
-
         if (((currentPatch%fuel%bulk_density_notrunks) <= 0.0_r8) .or. (eps <= 0.0_r8) .or. (q_ig <= 0.0_r8)) then
           currentPatch%ROS_front = 0.0_r8
         else ! Equation 9. Thonicke et al. 2010. 
@@ -329,10 +299,11 @@ contains
 
       end if 
       currentPatch => currentPatch%younger
-
     end do
 
   end subroutine CalculateSurfaceRateOfSpread
+  
+  !---------------------------------------------------------------------------------------
 
   !*****************************************************************
   subroutine  ground_fuel_consumption ( currentSite ) 
