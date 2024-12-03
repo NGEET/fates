@@ -2290,7 +2290,7 @@ contains
     real(r8) :: c_area
     real(r8) :: arealayer
 
-    z = 0
+    z = 1
     currentCohort => currentPatch%tallest
     do while (associated(currentCohort))
        z = max(z,currentCohort%canopy_layer)
