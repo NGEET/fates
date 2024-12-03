@@ -13,22 +13,59 @@ module PRTParametersMod
 
      ! The following three PFT classes 
      ! are mutually exclusive
-     integer, allocatable :: stress_decid(:)        ! Is the plant stress deciduous? (1=yes, 0=no)
+     ! MLO: perhaps we should replace these three parameters with a single
+     !      parameter (phenology(:)) that is assigned different indices?
+     integer, allocatable :: stress_decid(:)        ! Is the plant stress deciduous?
+                                                    ! 0 - No
+                                                    ! 1 - Drought "hard" deciduous (i.e., PFT
+                                                    !     sheds leaves all at once when stressed)
+                                                    ! 2 - Drought semi-deciduous (i.e., PFT
+                                                    !     sheds leaves gradually as drought
+                                                    !     conditions deteriorate)
      integer, allocatable :: season_decid(:)        ! Is the plant seasonally deciduous (1=yes, 0=no)
      integer, allocatable :: evergreen(:)           ! Is the plant an evergreen (1=yes, 0=no)
 
-     
+     ! Drop fraction for tissues other than leaves (PFT-dependent)
+     real(r8), allocatable :: phen_fnrt_drop_fraction(:) ! Abscission fraction of fine roots
+     real(r8), allocatable :: phen_stem_drop_fraction(:) ! Abscission fraction of stems
+     real(r8), allocatable :: phen_drought_threshold(:)   ! For obligate (hard) drought deciduous, this is the threshold
+                                                          !    below which plants will abscise leaves, and 
+                                                          !    above which plants will flush leaves. For semi-deciduous
+                                                          !    plants, this is the threshold below which abscission will
+                                                          !    be complete. This depends on the sign. If positive, these
+                                                          !    are soil volumetric water content [m3/m3]. If
+                                                          !    negative, the values are soil matric potential [mm].
+                                                          !    Ignored for non-deciduous plants.
+     real(r8), allocatable :: phen_moist_threshold(:)     ! For semi-deciduous, this is the threshold above which flushing 
+                                                          !    will be complete.  This depends on the sign. If positive, these
+                                                          !    are soil volumetric water content [m3/m3]. If
+                                                          !    negative, the values are soil matric potential [mm].
+                                                          !    Ignored for non-deciduous plants.
+     real(r8), allocatable :: phen_doff_time(:)           ! Minimum number of days that plants must remain leafless before
+                                                          !   flushing leaves again.
+
+
      ! Growth and Turnover Parameters
      real(r8), allocatable :: senleaf_long_fdrought(:)   ! Multiplication factor for leaf longevity of senescent 
                                                          ! leaves during drought( 1.0 indicates no change)
      real(r8), allocatable :: leaf_long(:,:)             ! Leaf turnover time (longevity) (pft x age-class)
                                                          ! If there is >1 class, it is the longevity from
                                                          ! one class to the next [yr]
+                                                         !   For drought-deciduous PFTs, the sum of leaf
+                                                         !   longevity across all leaf age classes is also
+                                                         !   the maximum length of the growing (i.e., leaves on)
+                                                         !   season.
+     real(r8), allocatable :: leaf_long_ustory(:,:)      ! As above but for understory trees
      real(r8), allocatable :: root_long(:)               ! root turnover time (longevity) (pft)             [yr]
      real(r8), allocatable :: branch_long(:)             ! Turnover time for branchfall on live trees (pft) [yr]
      real(r8), allocatable :: turnover_nitr_retrans(:,:) ! nitrogen re-translocation fraction (pft x organ)
      real(r8), allocatable :: turnover_phos_retrans(:,:) ! phosphorus re-translocation fraction (pft x organ)
                                                          ! Parameters dimensioned by PFT and leaf age
+
+     ! These vertical n profile scalers affect crown allometry and sla, thus they
+     ! are here in the PRT module
+     real(r8), allocatable :: leafn_vert_scaler_coeff1(:)  ! Coefficient one for decrease of leaf N through the canopy
+     real(r8), allocatable :: leafn_vert_scaler_coeff2(:)  ! Coefficient two for decrease of leaf N through the canopy 
      
      real(r8), allocatable :: grperc(:)                  ! Growth respiration per unit Carbon gained
                                                          ! One value for whole plant
@@ -65,7 +102,8 @@ module PRTParametersMod
      real(r8), allocatable :: seed_alloc_mature(:)       ! fraction of carbon balance allocated to 
                                                          ! clonal reproduction.
      real(r8), allocatable :: seed_alloc(:)              ! fraction of carbon balance allocated to seeds.
-
+     real(r8), allocatable :: repro_alloc_a(:)           ! ahb added this; sigmoidal shape param relating dbh to seed allocation fraction
+     real(r8), allocatable :: repro_alloc_b(:)           ! ahb added this; intercept param relating dbh to seed allocation fraction
 
      ! Derived parameters
 
@@ -85,20 +123,24 @@ module PRTParametersMod
 
      real(r8), allocatable :: c2b(:)                        ! Carbon to biomass multiplier [kg/kgC]
      real(r8), allocatable :: wood_density(:)               ! wood density  g cm^-3  ...
-     real(r8), allocatable :: crown_depth_frac(:)           ! fraction of the height of the plant
      integer , allocatable :: woody(:)                      ! Does the plant have wood?      (1=yes, 0=no)
                                                             ! that is occupied by crown
      real(r8), allocatable :: slamax(:)                     ! Maximum specific leaf area of plant (at bottom) [m2/gC]
      real(r8), allocatable :: slatop(:)                     ! Specific leaf area at canopy top [m2/gC]
      real(r8), allocatable :: allom_sai_scaler(:)           ! 
      real(r8), allocatable :: allom_dbh_maxheight(:)        ! dbh at which height growth ceases
-     real(r8), allocatable :: allom_hmode(:)                ! height allometry function type
-     real(r8), allocatable :: allom_lmode(:)                ! maximum leaf allometry function type
-     real(r8), allocatable :: allom_fmode(:)                ! maximum root allometry function type
-     real(r8), allocatable :: allom_amode(:)                ! AGB allometry function type
-     real(r8), allocatable :: allom_cmode(:)                ! Coarse root allometry function type
-     real(r8), allocatable :: allom_smode(:)                ! sapwood allometry function type
-     real(r8), allocatable :: allom_stmode(:)               ! storage allometry functional type 
+     integer , allocatable :: allom_hmode(:)                ! height allometry function type
+     integer , allocatable :: allom_lmode(:)                ! maximum leaf allometry function type
+     integer , allocatable :: allom_fmode(:)                ! maximum root allometry function type
+     integer , allocatable :: allom_amode(:)                ! AGB allometry function type
+     integer , allocatable :: allom_cmode(:)                ! Coarse root allometry function type
+     integer , allocatable :: allom_smode(:)                ! sapwood allometry function type
+     integer , allocatable :: allom_stmode(:)               ! storage allometry functional type 
+                                                            !   0 - storage is proportional to maximum leaf biomass 
+                                                            !       (considering trimmed)
+                                                            !   1 - storage is proportional to maximum leaf biomass 
+                                                            !       (untrimmed)
+     integer , allocatable :: allom_dmode(:)                ! crown depth allometry function type
                                                             ! (HARD-CODED FOR TIME BEING, RGK 11-2017)
      real(r8), allocatable :: allom_la_per_sa_int(:)        ! Leaf area to sap area conversion, intercept 
                                                             ! (sapwood area / leaf area) [cm2/m2]
@@ -124,6 +166,12 @@ module PRTParametersMod
      real(r8), allocatable :: allom_agb2(:)                 ! Parameter 2 for agb allometry
      real(r8), allocatable :: allom_agb3(:)                 ! Parameter 3 for agb allometry
      real(r8), allocatable :: allom_agb4(:)                 ! Parameter 3 for agb allometry
+
+     real(r8), allocatable :: allom_h2cd1(:)                ! Parameter 1 for crown depth allometry. When allom_dmode=1
+                                                            !    this is fraction of the height of the plant that is
+                                                            !    considered crown (former parameter crown_depth_frac).
+     real(r8), allocatable :: allom_h2cd2(:)                ! Exponent for crown depth allometry. Used only when
+                                                            !    allom_dmode /= 1.
 
      real(r8), allocatable :: allom_zroot_max_dbh(:)        ! dbh at which maximum rooting depth saturates (largest possible) [cm]
      real(r8), allocatable :: allom_zroot_max_z(:)          ! the maximum rooting depth defined at dbh = fates_allom_zroot_max_dbh [m]

@@ -4,7 +4,7 @@ module FatesParametersInterface
   ! depend on any host modules.
 
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesGlobals, only : fates_log
+  use FatesGlobals, only : fates_log, fates_endrun
   
   implicit none
   private ! Modules are private by default
@@ -38,6 +38,7 @@ module FatesParametersInterface
   character(len=*), parameter, public :: dimension_name_hlm_pftno = 'fates_hlm_pftno'
   character(len=*), parameter, public :: dimension_name_history_damage_bins = 'fates_history_damage_bins'
   character(len=*), parameter, public :: dimension_name_damage = 'fates_damage_class'
+  character(len=*), parameter, public :: dimension_name_landuse = 'fates_landuseclass'
   
   ! Dimensions in the host namespace:
   character(len=*), parameter, public :: dimension_name_host_allpfts = 'allpfts'
@@ -83,6 +84,35 @@ module FatesParametersInterface
      
   end type fates_parameters_type
 
+  ! Abstract class (to be implemented by host land models) to read in
+  ! parameter values.
+  type, abstract, public :: fates_param_reader_type
+   contains
+     ! Public functions
+     procedure(Read_interface), public, deferred :: Read
+
+  end type fates_param_reader_type
+
+  abstract interface
+   subroutine Read_interface(this, fates_params )
+    !
+    ! !DESCRIPTION:
+    ! Read 'fates_params' parameters from (HLM-provided) storage. Note this ignores
+    ! the legacy parameter_type.sync_with_host setting.
+    !
+    ! USES
+    import :: fates_param_reader_type
+    import :: fates_parameters_type
+    ! !ARGUMENTS:
+    class(fates_param_reader_type) :: this
+    class(fates_parameters_type), intent(inout) :: fates_params
+    !-----------------------------------------------------------------------
+
+    end subroutine Read_interface
+
+  !-----------------------------------------------------------------------
+  end interface
+
 contains
 
   !-----------------------------------------------------------------------
@@ -105,7 +135,7 @@ contains
 
     integer :: n
     do n = 1, this%num_parameters
-       deallocate(this%parameters(n)%data)
+      deallocate(this%parameters(n)%data)
     end do
 
   end subroutine Destroy
@@ -172,8 +202,6 @@ contains
   !-----------------------------------------------------------------------
   subroutine RetrieveParameter1D(this, name, data)
 
-    use abortutils, only : endrun
-
     implicit none
 
     class(fates_parameters_type), intent(inout) :: this
@@ -192,7 +220,7 @@ contains
        do d = 1, max_dimensions
           write(fates_log(), *) this%parameters(i)%dimension_names(d), ', ', this%parameters(i)%dimension_sizes(d)
        end do
-       call endrun(msg='size error retreiving 1d parameter.')
+       call fates_endrun(msg='size error retreiving 1d parameter.')
     end if
     data = this%parameters(i)%data(:, 1)
 
@@ -200,8 +228,6 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine RetrieveParameter2D(this, name, data)
-
-    use abortutils, only : endrun
 
     implicit none
 
@@ -225,7 +251,7 @@ contains
        do d = 1, max_dimensions
           write(fates_log(), *) this%parameters(i)%dimension_names(d), ', ', this%parameters(i)%dimension_sizes(d)
        end do
-       call endrun(msg='size error retreiving 2d parameter.')
+       call fates_endrun(msg='size error retreiving 2d parameter.')
     end if
     data = this%parameters(i)%data
 
@@ -233,8 +259,6 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine RetrieveParameter1DAllocate(this, name, data)
-
-    use abortutils, only : endrun
 
     implicit none
 
@@ -254,8 +278,6 @@ contains
 
   !-----------------------------------------------------------------------
   subroutine RetrieveParameter2DAllocate(this, name, data)
-
-    use abortutils, only : endrun
 
     implicit none
 
@@ -439,9 +461,7 @@ contains
   
   !-----------------------------------------------------------------------
   subroutine SetData1D(this, index, data)
-
-    use abortutils, only : endrun
-    
+  
     implicit none
     
     class(fates_parameters_type), intent(inout) :: this
@@ -460,7 +480,7 @@ contains
        do d = 1, max_dimensions
           write(fates_log(), *) this%parameters(index)%dimension_names(d), ', ', this%parameters(index)%dimension_sizes(d)
        end do
-       call endrun(msg='size error setting 1d parameter.')
+       call fates_endrun(msg='size error setting 1d parameter.')
     end if
 
     allocate(this%parameters(index)%data(size_dim_1, 1))

@@ -69,7 +69,7 @@ module FatesCohortWrapMod
 
   use FatesConstantsMod   , only : nearzero
 
-  use EDTypesMod            , only : nclmax
+  use EDParamsMod         , only : nclmax
 
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesGlobals          , only : fates_log
@@ -78,7 +78,7 @@ module FatesCohortWrapMod
   implicit none
   private ! Modules are private by default
 
-  type, public :: ed_cohort_type
+  type, public :: fates_cohort_type
      
      integer  :: pft             ! pft number
      real(r8) :: dbh             ! dbh: cm
@@ -106,11 +106,11 @@ module FatesCohortWrapMod
      ! Multi-species, multi-pool Reactive Transport 
      class(prt_vartypes), pointer :: prt
      
-  end type ed_cohort_type
+  end type fates_cohort_type
   
   ! Global Instances
   
-  type(ed_cohort_type), pointer, public       :: cohort_array(:)
+  type(fates_cohort_type), pointer, public       :: cohort_array(:)
   integer, public :: numcohort
 
   character(len=*), parameter, private :: sourcefile = __FILE__
@@ -132,7 +132,7 @@ contains
     
     ! Locals
     integer(i4)                   :: ico
-    type(ed_cohort_type), pointer :: ccohort
+    type(fates_cohort_type), pointer :: ccohort
     
 
     allocate(cohort_array(numcohorts))
@@ -189,7 +189,7 @@ contains
  
     ! Locals
 
-    type(ed_cohort_type), pointer :: ccohort   ! Current cohort
+    type(fates_cohort_type), pointer :: ccohort   ! Current cohort
     real(r8) :: leaf_c
     real(r8) :: fnrt_c
     real(r8) :: sapw_c
@@ -376,7 +376,7 @@ contains
     real(r8), intent(in), optional :: daily_phosphorus_gain
     real(r8), intent(in), optional :: daily_r_maint_demand
 
-    type(ed_cohort_type), pointer :: ccohort
+    type(fates_cohort_type), pointer :: ccohort
     logical, parameter :: is_drought = .false.
 
     ccohort               => cohort_array(ipft)
@@ -443,7 +443,7 @@ contains
     real(r8),intent(out)    :: target_leaf_c
 
     real(r8) :: leaf_c
-    type(ed_cohort_type), pointer :: ccohort
+    type(fates_cohort_type), pointer :: ccohort
     
     real(r8),parameter :: nplant = 1.0_r8
     real(r8),parameter :: site_spread = 1.0_r8
@@ -540,7 +540,7 @@ contains
     real(r8),intent(out)   :: growth_resp
     
     real(r8),intent(out)   :: crown_area
-    type(ed_cohort_type), pointer :: ccohort
+    type(fates_cohort_type), pointer :: ccohort
     real(r8),parameter :: nplant = 1.0_r8
     real(r8),parameter :: site_spread = 1.0_r8
 

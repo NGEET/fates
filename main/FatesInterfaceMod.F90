@@ -10,32 +10,39 @@ module FatesInterfaceMod
    ! ------------------------------------------------------------------------------------
 
    use EDTypesMod                , only : ed_site_type
-   use EDTypesMod                , only : dinc_vai
-   use EDTypesMod                , only : dlower_vai
+   use EDParamsMod                , only : dinc_vai
+   use EDParamsMod                , only : dlower_vai
    use EDParamsMod               , only : ED_val_vai_top_bin_width
    use EDParamsMod               , only : ED_val_vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
    use EDParamsMod               , only : maxpatch_total
-   use EDParamsMod               , only : maxpatch_primary
-   use EDParamsMod               , only : maxpatch_secondary
+   use EDParamsMod               , only : maxpatches_by_landuse
    use EDParamsMod               , only : max_cohort_per_patch
-   use EDTypesMod                , only : maxSWb
-   use EDTypesMod                , only : ivis
-   use EDTypesMod                , only : inir
-   use EDTypesMod                , only : nclmax
-   use EDTypesMod                , only : nlevleaf
-   use EDTypesMod                , only : maxpft
+   use FatesRadiationMemMod      , only : num_swb,ivis,inir
+   use EDParamsMod               , only : regeneration_model
+   use EDParamsMod               , only : nclmax
+   use EDParamsMod               , only : nlevleaf
+   use EDParamsMod               , only : maxpft
    use EDTypesMod                , only : do_fates_salinity
    use EDTypesMod                , only : numWaterMem
    use EDTypesMod                , only : numlevsoil_max
    use EDTypesMod                , only : ed_site_type
-   use EDTypesMod                , only : ed_patch_type
-   use EDTypesMod                , only : ed_cohort_type
+   use FatesPatchMod             , only : fates_patch_type
+   use FatesCohortMod            , only : fates_cohort_type
    use EDTypesMod                , only : area_inv
+   use EDTypesMod                , only : num_vegtemp_mem
    use FatesConstantsMod         , only : r8 => fates_r8
    use FatesConstantsMod         , only : itrue,ifalse
    use FatesConstantsMod         , only : nearzero
    use FatesConstantsMod         , only : sec_per_day
+   use FatesConstantsMod         , only : days_per_year
+   use FatesConstantsMod         , only : TRS_regeneration
+   use FatesConstantsMod         , only : g_per_kg
+   use FatesConstantsMod         , only : n_landuse_cats
+   use FatesConstantsMod         , only : primaryland
+   use FatesConstantsMod         , only : secondaryland
+   use FatesConstantsMod         , only : n_crop_lu_types
+   use FatesConstantsMod         , only : n_term_mort_types
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -50,13 +57,23 @@ module FatesInterfaceMod
    use EDParamsMod               , only : bgc_soil_salinity
    use FatesPlantHydraulicsMod   , only : InitHydroGlobals
    use EDParamsMod               , only : photo_temp_acclim_timescale
+   use EDParamsMod               , only : photo_temp_acclim_thome_time
+   use EDParamsMod               , only : sdlng_emerg_h2o_timescale
+   use EDParamsMod               , only : sdlng_mort_par_timescale
+   use EDParamsMod               , only : sdlng2sap_par_timescale
+   use EDParamsMod               , only : sdlng_mdd_timescale
    use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
-   use CLMFatesParamInterfaceMod , only : FatesReadParameters
-   use EDTypesMod                , only : p_uptake_mode
-   use EDTypesMod                , only : n_uptake_mode
+   use FatesParametersInterface  , only : fates_param_reader_type
+   use FatesParametersInterface  , only : fates_parameters_type
+   use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
+   use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
+   use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
+   use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
+   use EDParamsMod               , only : p_uptake_mode
+   use EDParamsMod               , only : n_uptake_mode
    use EDTypesMod                , only : ed_site_type
    use FatesConstantsMod         , only : prescribed_p_uptake
    use FatesConstantsMod         , only : prescribed_n_uptake
@@ -82,16 +99,23 @@ module FatesInterfaceMod
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
    use FatesRunningMeanMod       , only : ema_24hr
+   use FatesRunningMeanMod       , only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
+   use FatesRunningMeanMod       , only : ema_sdlng_mdd, ema_sdlng2sap_par
    use FatesRunningMeanMod       , only : fixed_24hr
    use FatesRunningMeanMod       , only : ema_lpa
+   use FatesRunningMeanMod       , only : ema_longterm
    use FatesRunningMeanMod       , only : ema_60day
    use FatesRunningMeanMod       , only : moving_ema_window
    use FatesRunningMeanMod       , only : fixed_window
    use FatesHistoryInterfaceMod  , only : fates_hist
+   use FatesHydraulicsMemMod     , only : nshell
+   use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
+   use FatesTwoStreamUtilsMod, only : TransferRadParams
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
+   use shr_kind_mod              , only : SHR_KIND_CL
 
    ! Just use everything from FatesInterfaceTypesMod, this is
    ! its sister code
@@ -137,8 +161,6 @@ module FatesInterfaceMod
 
    end type fates_interface_type
    
-   
-
    character(len=*), parameter :: sourcefile = &
         __FILE__
 
@@ -157,6 +179,11 @@ module FatesInterfaceMod
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
+
+   private :: FatesReadParameters
+   public :: DetermineGridCellNeighbors
+
+   logical :: debug = .false.  ! for debugging this module
    
 contains
 
@@ -313,6 +340,12 @@ contains
        fates%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
+       ! Yes, zero out N flux arrays for c-only runs.
+       ! This is because we want these on (and zero)
+       ! with CLM. 
+       fates%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
+       fates%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
     case(prt_cnp_flex_allom_hyp) 
        
        fates%bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
@@ -373,13 +406,19 @@ contains
     fates%bc_out(s)%ar_site = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
-    
+
+    if (hlm_use_luh .eq. itrue) then
+       fates%bc_in(s)%hlm_luh_states(:) = 0.0_r8
+       fates%bc_in(s)%hlm_luh_transitions(:) = 0.0_r8
+    end if
+
     return
   end subroutine zero_bcs
 
   ! ===========================================================================
 
-   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats,natpft_lb,natpft_ub)
+  subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats, num_luh2_states, &
+       num_luh2_transitions, surfpft_lb,surfpft_ub)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -390,7 +429,9 @@ contains
       integer,intent(in)              :: nlevsoil_in
       integer,intent(in)              :: nlevdecomp_in
       integer,intent(in)              :: num_lu_harvest_cats
-      integer,intent(in)              :: natpft_lb,natpft_ub ! dimension bounds of the array holding surface file pft data
+      integer,intent(in)              :: num_luh2_states
+      integer,intent(in)              :: num_luh2_transitions
+      integer,intent(in)              :: surfpft_lb,surfpft_ub ! dimension bounds of the array holding surface file pft data
       
       ! Allocate input boundaries
 
@@ -404,23 +445,7 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      if( (nlevsoil_in*ndcmpy) > fates_maxElementsPerPatch .or. &
-          (nlevsoil_in*ncwd) > fates_maxElementsPerPatch) then
-          write(fates_log(), *) 'The restart files require that space is allocated'
-          write(fates_log(), *) 'to accomodate the multi-dimensional patch arrays'
-          write(fates_log(), *) 'that are nlevsoil*numpft and nlevsoil*ncwd'
-          write(fates_log(), *) 'fates_maxElementsPerPatch = ',fates_maxElementsPerPatch
-          write(fates_log(), *) 'nlevsoil = ',nlevsoil_in
-          write(fates_log(), *) 'dcmpy = ',ndcmpy
-          write(fates_log(), *) 'ncwd  = ',ncwd
-          write(fates_log(), *) 'numpft*nlevsoil = ',nlevsoil_in*numpft
-          write(fates_log(), *) 'ncwd*nlevsoil = ',ncwd * nlevsoil_in
-          write(fates_log(), *) 'To increase max_elements, change numlevsoil_max'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-      end if
-
       bc_in%nlevdecomp = nlevdecomp_in
-
 
       if (hlm_use_vertsoilc == itrue) then
          if(bc_in%nlevdecomp .ne. bc_in%nlevsoil) then
@@ -459,7 +484,6 @@ contains
          allocate(bc_in%plant_p_uptake_flux(1,1))
       end if
 
-
       allocate(bc_in%zi_sisl(0:nlevsoil_in))
       allocate(bc_in%dz_sisl(nlevsoil_in))
       allocate(bc_in%z_sisl(nlevsoil_in))
@@ -477,8 +501,8 @@ contains
       allocate(bc_in%precip24_pa(maxpatch_total))
       
       ! Radiation
-      allocate(bc_in%solad_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_in%solai_parb(maxpatch_total,hlm_numSWb))
+      allocate(bc_in%solad_parb(maxpatch_total,num_swb))
+      allocate(bc_in%solai_parb(maxpatch_total,num_swb))
       
       ! Hydrology
       allocate(bc_in%smp_sl(nlevsoil_in))
@@ -510,8 +534,8 @@ contains
       allocate(bc_in%filter_vegzen_pa(maxpatch_total))
       allocate(bc_in%coszen_pa(maxpatch_total))
       allocate(bc_in%fcansno_pa(maxpatch_total))
-      allocate(bc_in%albgr_dir_rb(hlm_numSWb))
-      allocate(bc_in%albgr_dif_rb(hlm_numSWb))
+      allocate(bc_in%albgr_dir_rb(num_swb))
+      allocate(bc_in%albgr_dif_rb(num_swb))
 
       ! Plant-Hydro BC's
       if (hlm_use_planthydro.eq.itrue) then
@@ -540,14 +564,29 @@ contains
          allocate(bc_in%hlm_harvest_catnames(0))
       end if
 
-      allocate(bc_in%pft_areafrac(natpft_lb:natpft_ub))
+      if ( hlm_use_fixed_biogeog .eq. itrue) then
+         if (hlm_use_luh .eq. itrue ) then
+            allocate(bc_in%pft_areafrac_lu(size( EDPftvarcon_inst%hlm_pft_map,2),n_landuse_cats-n_crop_lu_types))
+         else
+            allocate(bc_in%pft_areafrac(surfpft_lb:surfpft_ub))
+         endif
+      endif
+
+      ! LUH2 state and transition data
+      if (hlm_use_luh .eq. itrue) then
+        allocate(bc_in%hlm_luh_states(num_luh2_states))
+        allocate(bc_in%hlm_luh_state_names(num_luh2_states))
+        allocate(bc_in%hlm_luh_transitions(num_luh2_transitions))
+        allocate(bc_in%hlm_luh_transition_names(num_luh2_transitions))
+      end if
 
       ! Variables for SP mode. 
       if(hlm_use_sp.eq.itrue) then
-        allocate(bc_in%hlm_sp_tlai(natpft_lb:natpft_ub))
-        allocate(bc_in%hlm_sp_tsai(natpft_lb:natpft_ub))     
-        allocate(bc_in%hlm_sp_htop(natpft_lb:natpft_ub))
-      end if 
+        allocate(bc_in%hlm_sp_tlai(surfpft_lb:surfpft_ub))
+        allocate(bc_in%hlm_sp_tsai(surfpft_lb:surfpft_ub))
+        allocate(bc_in%hlm_sp_htop(surfpft_lb:surfpft_ub))
+     end if
+
       return
    end subroutine allocate_bcin
 
@@ -580,14 +619,13 @@ contains
       allocate(bc_out%rssha_pa(maxpatch_total))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%albi_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%fabd_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%fabi_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%ftdd_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%ftid_parb(maxpatch_total,hlm_numSWb))
-      allocate(bc_out%ftii_parb(maxpatch_total,hlm_numSWb))
-
+      allocate(bc_out%albd_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%albi_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%fabd_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%fabi_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%ftdd_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%ftid_parb(fates_maxPatchesPerSite,num_swb))
+      allocate(bc_out%ftii_parb(fates_maxPatchesPerSite,num_swb))
 
       ! We allocate the boundary conditions to the BGC
       ! model, regardless of what scheme we use. The BGC
@@ -616,7 +654,7 @@ contains
 
       ! Include the bare-ground patch for these patch-level boundary conditions
       ! (it will always be zero for all of these)
-      if(hlm_use_ch4.eq.itrue) then
+      !if(hlm_use_ch4.eq.itrue) then
          allocate(bc_out%annavg_agnpp_pa(0:maxpatch_total));bc_out%annavg_agnpp_pa(:)=nan
          allocate(bc_out%annavg_bgnpp_pa(0:maxpatch_total));bc_out%annavg_bgnpp_pa(:)=nan
          allocate(bc_out%annsum_npp_pa(0:maxpatch_total));bc_out%annsum_npp_pa(:)=nan
@@ -628,10 +666,9 @@ contains
 
          ! Give the bare-ground root fractions a nominal fraction of unity over depth
          bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
-      end if
+      !end if
 
       bc_out%ema_npp = nan
-      
       
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
@@ -639,9 +676,13 @@ contains
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
+         ! Yes, allocate N flux arrays for c-only runs.
+         ! This is because we want these on (and zero)
+         ! with CLM. 
+         allocate(bc_out%litt_flux_cel_n_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lig_n_si(nlevdecomp_in))
+         allocate(bc_out%litt_flux_lab_n_si(nlevdecomp_in))
       case(prt_cnp_flex_allom_hyp) 
-
-         
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
@@ -651,10 +692,8 @@ contains
          allocate(bc_out%litt_flux_cel_p_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_p_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_p_si(nlevdecomp_in))
-
          allocate(bc_out%source_nh4(nlevdecomp_in))
          allocate(bc_out%source_p(nlevdecomp_in))
-
       case default
          write(fates_log(), *) 'An unknown parteh hypothesis was passed'
          write(fates_log(), *) 'to the site level output boundary conditions'
@@ -720,7 +759,7 @@ contains
 
     ! ===================================================================================
     
-    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft)
+    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft,param_reader)
 
        ! --------------------------------------------------------------------------------
        !
@@ -728,20 +767,20 @@ contains
        !
        ! spmode,biogeog and nocomp mode flags have been passed prior to this call
        ! --------------------------------------------------------------------------------
-
-
+      
       implicit none
       
-      logical,intent(in) :: use_fates    ! Is fates turned on?
-      integer,intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
-      integer,intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
-
+      logical,                    intent(in) :: use_fates    ! Is fates turned on?
+      integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
+      integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
+      class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
+  
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
       
       if (use_fates) then
          
          ! Self explanatory, read the fates parameter file
-         call FatesReadParameters()
+         call FatesReadParameters(param_reader)
 
          fates_numpft = size(prt_params%wood_density,dim=1)
          
@@ -751,8 +790,8 @@ contains
             ! to hold all PFTs.  So create the same number of
             ! patches as the number of PFTs
 
-            maxpatch_primary   = fates_numpft
-            maxpatch_secondary = 0
+            maxpatches_by_landuse(primaryland)   = fates_numpft
+            maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
             maxpatch_total     = fates_numpft
             
             ! If this is an SP run, we actually need enough patches on the
@@ -767,13 +806,14 @@ contains
          else
 
             ! If we are using fixed biogeography or no-comp then we
-            ! can also apply those constraints to maxpatch_primary and secondary
+            ! can also apply those constraints to maxpatch_primaryland and secondary
             ! and that value will match fates_maxPatchesPerSite
             
             if(hlm_use_nocomp==itrue) then
 
-               maxpatch_primary = max(maxpatch_primary,fates_numpft)
-               maxpatch_total = maxpatch_primary + maxpatch_secondary
+               maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
+               maxpatch_total = sum(maxpatches_by_landuse(:))
+
                !if(maxpatch_primary<fates_numpft)then
                !   write(fates_log(),*) 'warning: lower number of patches than pfts'
                !   write(fates_log(),*) 'this may become a problem in nocomp mode'
@@ -798,6 +838,8 @@ contains
       ! This is the second FATES routine that is called.
       !
       ! --------------------------------------------------------------------------------
+
+      use FatesConstantsMod,      only : fates_check_param_set
 
       logical,intent(in) :: use_fates    ! Is fates turned on?
       integer :: i
@@ -832,22 +874,24 @@ contains
             nleafage = size(prt_params%leaf_long,dim=2)
          end if
 
+         nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
          
          ! These values are used to define the restart file allocations and general structure
          ! of memory for the cohort arrays
-         
-         fates_maxElementsPerPatch = max(max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
-         
-         if (fates_maxPatchesPerSite * fates_maxElementsPerPatch <  numWaterMem) then
-            write(fates_log(), *) 'By using such a tiny number of maximum patches and maximum cohorts'
-            write(fates_log(), *) ' this could create problems for indexing in restart files'
-            write(fates_log(), *) ' The multiple of the two has to be greater than numWaterMem'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
+         if(hlm_use_sp.eq.itrue) then
+            fates_maxElementsPerPatch = num_swb
+         else
+            fates_maxElementsPerPatch = max(num_swb,max_cohort_per_patch, ndcmpy*hlm_maxlevsoil ,ncwd*hlm_maxlevsoil)
          end if
          
-         fates_maxElementsPerSite = fates_maxPatchesPerSite * fates_maxElementsPerPatch
+         fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
+              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft*n_term_mort_types)
 
-
+         if(hlm_use_planthydro==itrue)then
+            fates_maxElementsPerSite = max(fates_maxElementsPerSite, nshell*nlevsoi_hyd_max )
+         end if
+         
+         
          ! Set the maximum number of nutrient aquisition competitors per site
          ! This is used to set array sizes for the boundary conditions.
          ! Note: since BGC code may be active even when no nutrients
@@ -894,7 +938,6 @@ contains
 
          ! Identify number of size and age class bins for history output
          ! assume these arrays are 1-indexed
-         nlevsclass = size(ED_val_history_sizeclass_bin_edges,dim=1)
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
@@ -938,8 +981,18 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
-
-         ! Initialize Hydro globals 
+         
+         ! Set the fates dispersal kernel mode if there are any seed dispersal parameters set.
+         ! The validation of the parameter values is check in FatesCheckParams prior to this check.
+         ! This is currently hard coded, but could be added as a fates parameter file option,
+         ! particularly one that is pft dependent.
+         if(any(EDPftvarcon_inst%seed_dispersal_pdf_scale .lt. fates_check_param_set)) then
+            fates_dispersal_kernel_mode = fates_dispersal_kernel_exponential
+            ! fates_dispersal_kernel_mode = fates_dispersal_kernel_exppower
+            ! fates_dispersal_kernel_mode = fates_dispersal_kernel_logsech
+         end if
+         
+         ! Initialize Hydro globals
          ! (like water retention functions)
          ! this needs to know the number of PFTs, which is
          ! determined in that call
@@ -957,6 +1010,9 @@ contains
          ! Set Various Mapping Arrays used in history output as well
          ! These will not be used if use_ed or use_fates is false
          call fates_history_maps()
+
+         
+
 
        
 
@@ -986,8 +1042,23 @@ contains
       call ema_24hr%define(sec_per_day, hlm_stepsize, moving_ema_window)
       allocate(fixed_24hr)
       call fixed_24hr%define(sec_per_day, hlm_stepsize, fixed_window)
-      allocate(ema_lpa)
+      allocate(ema_lpa)  ! note that this parameter has units of days
       call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_sdlng_emerg_h2o)
+      call ema_sdlng_emerg_h2o%define(sdlng_emerg_h2o_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_sdlng_mort_par)
+      call ema_sdlng_mort_par%define(sdlng_mort_par_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_sdlng2sap_par)
+      call ema_sdlng2sap_par%define(sdlng2sap_par_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_sdlng_mdd)
+      call ema_sdlng_mdd%define(sdlng_mdd_timescale*sec_per_day, &
+           hlm_stepsize,moving_ema_window)
+      allocate(ema_longterm)  ! note that this parameter has units of years
+      call ema_longterm%define(photo_temp_acclim_thome_time*days_per_year*sec_per_day, & 
            hlm_stepsize,moving_ema_window)
       
       !allocate(ema_60day)
@@ -1051,9 +1122,9 @@ contains
     
     subroutine fates_history_maps
        
-       use EDTypesMod, only : NFSC
-       use EDTypesMod, only : nclmax
-       use EDTypesMod, only : nlevleaf
+       use FatesFuelClassesMod, only : num_fuel_classes
+       use EDParamsMod, only : nclmax
+       use EDParamsMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges
@@ -1079,12 +1150,14 @@ contains
        integer :: iheight
        integer :: icoage
        integer :: iel
+       integer :: ilu
 
        allocate( fates_hdim_levsclass(1:nlevsclass   ))
        allocate( fates_hdim_pfmap_levscpf(1:nlevsclass*numpft))
        allocate( fates_hdim_scmap_levscpf(1:nlevsclass*numpft))
        allocate( fates_hdim_levpft(1:numpft   ))
-       allocate( fates_hdim_levfuel(1:NFSC   ))
+       allocate( fates_hdim_levlanduse(1:n_landuse_cats))
+       allocate( fates_hdim_levfuel(1:num_fuel_classes   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
        allocate( fates_hdim_levheight(1:nlevheight   ))
@@ -1107,8 +1180,8 @@ contains
        allocate( fates_hdim_pftmap_levscagpft(nlevsclass * nlevage * numpft))
        allocate( fates_hdim_agmap_levagepft(nlevage * numpft))
        allocate( fates_hdim_pftmap_levagepft(nlevage * numpft))
-       allocate( fates_hdim_agmap_levagefuel(nlevage * nfsc))
-       allocate( fates_hdim_fscmap_levagefuel(nlevage * nfsc))
+       allocate( fates_hdim_agmap_levagefuel(nlevage * num_fuel_classes))
+       allocate( fates_hdim_fscmap_levagefuel(nlevage * num_fuel_classes))
 
        allocate( fates_hdim_elmap_levelpft(num_elements*numpft))
        allocate( fates_hdim_elmap_levelcwd(num_elements*ncwd))
@@ -1138,7 +1211,7 @@ contains
        end do
 
        ! make fuel array
-       do ifuel=1,NFSC
+       do ifuel=1,num_fuel_classes
           fates_hdim_levfuel(ifuel) = ifuel
        end do
 
@@ -1150,6 +1223,11 @@ contains
        ! make canopy array
        do ican = 1,nclmax
           fates_hdim_levcan(ican) = ican
+       end do
+
+       ! make land use label array
+       do ilu = 1, n_landuse_cats
+          fates_hdim_levlanduse(ilu) = ilu
        end do
 
        ! Make an element array, each index is the PARTEH global identifier index
@@ -1278,7 +1356,7 @@ contains
 
        i=0
        do iage=1,nlevage
-          do ifuel=1,NFSC
+          do ifuel=1,num_fuel_classes
              i=i+1
              fates_hdim_agmap_levagefuel(i) = iage
              fates_hdim_fscmap_levagefuel(i) = ifuel
@@ -1385,6 +1463,7 @@ contains
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
          hlm_spitfire_mode = unset_int
+         hlm_seeddisp_cadence = unset_int
          hlm_sf_nofire_def = unset_int
          hlm_sf_scalar_lightning_def = unset_int
          hlm_sf_successful_ignitions_def = unset_int
@@ -1392,6 +1471,8 @@ contains
          hlm_use_planthydro = unset_int
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
+         hlm_num_luh2_states       = unset_int
+         hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
@@ -1401,7 +1482,10 @@ contains
          hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
+         hlm_hist_level_dynam = unset_int
+         hlm_hist_level_hifrq = unset_int
 
+         
       case('check_allset')
          
          if(hlm_numSWb .eq. unset_int) then
@@ -1414,14 +1498,13 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_numSWb > maxSWb) then
-            write(fates_log(), *) 'FATES sets a maximum number of shortwave bands'
-            write(fates_log(), *) 'for some scratch-space, maxSWb'
-            write(fates_log(), *) 'it defaults to 2, but can be increased as needed'
-            write(fates_log(), *) 'your driver or host model is intending to drive'
-            write(fates_log(), *) 'FATES with:',hlm_numSWb,' bands.'
-            write(fates_log(), *) 'please increase maxSWb in EDTypes to match'
-            write(fates_log(), *) 'or exceed this value'
+         if(hlm_numSWb .ne. num_swb) then
+            write(fates_log(), *) 'FATES performs radiation scattering in the'
+            write(fates_log(), *) 'visible and near-infrared broad-bands for shortwave radiation.'
+            write(fates_log(), *) 'The host model has signaled to FATES that it is not tracking two'
+            write(fates_log(), *) 'bands.'
+            write(fates_log(), *) 'hlm_numSWb (HLM side):',hlm_numSWb
+            write(fates_log(), *) 'num_swb (FATES side): ',num_swb
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
@@ -1448,6 +1531,16 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if ( (hlm_num_luh2_states .lt. 0) ) then
+            write(fates_log(), *) 'The FATES number of hlm luh state cats must be >= 0, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if ( (hlm_num_luh2_transitions .lt. 0) ) then
+            write(fates_log(), *) 'The FATES number of hlm luh state transition cats must be >= 0, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if ( .not.((hlm_use_logging .eq.1).or.(hlm_use_logging.eq.0))    ) then
             write(fates_log(), *) 'The FATES namelist use_logging flag must be 0 or 1, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1458,7 +1551,7 @@ contains
            (hlm_use_cohort_age_tracking .eq.0 ) ) then
            write(fates_log(),*) 'Age dependent mortality cannot be on if'
            write(fates_log(),*) 'cohort age tracking is off.'
-           write(fates_log(),*) 'Set hlm_use_cohort_age_tracking = .true.'
+           write(fates_log(),*) 'Set use_fates_cohort_age_tracking = .true.'
            write(fates_log(),*) 'in FATES namelist options'
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1482,7 +1575,7 @@ contains
 
          if ( hlm_use_inventory_init.eq.1  .and. hlm_use_cohort_age_tracking .eq.1) then
             write(fates_log(), *) 'Fates inventory init cannot be used with age dependent mortality'
-            write(fates_log(), *) 'Set hlm_use_cohort_age_tracking to 0 or turn off inventory init'
+            write(fates_log(), *) 'Set use_fates_cohort_age_tracking to 0 or turn off inventory init'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
@@ -1587,6 +1680,21 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_seeddisp_cadence .eq. unset_int) then
+            write(fates_log(), *) 'switch defining seed dispersal cadence is unset, hlm_seeddisp_cadence, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_hist_level_dynam .eq. unset_int) then
+            write(fates_log(), *) 'switch defining dynamics history level is unset, hlm_hist_level_dynam, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+          if(hlm_hist_level_hifrq .eq. unset_int) then
+            write(fates_log(), *) 'switch defining high-frequency history level is unset, hlm_hist_level_hifrq, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+
          if(hlm_use_ch4 .eq. unset_int) then
             write(fates_log(), *) 'switch for the HLMs CH4 module unset: hlm_use_ch4, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1630,7 +1738,7 @@ contains
          
         if(hlm_use_fixed_biogeog.eq.unset_int) then
            if(fates_global_verbose()) then
-             write(fates_log(), *) 'switch for fixed biogeog unset: him_use_fixed_biogeog, exiting'
+             write(fates_log(), *) 'switch for fixed biogeog unset: hlm_use_fixed_biogeog, exiting'
            end if
            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -1747,6 +1855,15 @@ contains
                   write(fates_log(),*) 'Transfering hlm_parteh_mode= ',ival,' to FATES'
                end if
 
+            case('seeddisp_cadence')
+               hlm_seeddisp_cadence = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_seeddisp_cadence= ',ival,' to FATES'
+               end if
+
+           
+               
+               
             case('spitfire_mode')
                hlm_spitfire_mode = ival
                if (fates_global_verbose()) then
@@ -1814,6 +1931,30 @@ contains
                   write(fates_log(),*) 'Transfering hlm_num_lu_harvest_cats= ',ival,' to FATES'
                end if
 
+            case('use_luh2')
+               hlm_use_luh = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_luh = ',ival,' to FATES'
+               end if
+
+            case('use_fates_potentialveg')
+               hlm_use_potentialveg = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_potentialveg = ',ival,' to FATES'
+               end if
+
+            case('num_luh2_states')
+               hlm_num_luh2_states = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_num_luh2_states= ',ival,' to FATES'
+               end if
+
+            case('num_luh2_transitions')
+               hlm_num_luh2_transitions = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_num_luh2_transitions= ',ival,' to FATES'
+               end if
+
             case('use_cohort_age_tracking')
                hlm_use_cohort_age_tracking = ival
                if (fates_global_verbose()) then
@@ -1844,6 +1985,19 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_inventory_init= ',ival,' to FATES'
                end if
 
+            case('hist_hifrq_dimlevel')
+               hlm_hist_level_hifrq = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_level_hifrq= ',ival,' to FATES'
+               end if
+               
+            case('hist_dynam_dimlevel')
+               hlm_hist_level_dynam = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_level_dynam= ',ival,' to FATES'
+               end if
+
+               
             case default
                write(fates_log(), *) 'fates NL tag not recognized:',trim(tag)
                !! call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1866,6 +2020,8 @@ contains
 
          if(present(cval))then
             select case (trim(tag))
+
+          
                
             case('hlm_name')
                hlm_name = trim(cval)
@@ -1915,11 +2071,11 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
-      call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTDerivedParams()              ! Update PARTEH derived constants
+      call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
-      
+      call TransferRadParams()
 
       
       return
@@ -1927,7 +2083,7 @@ contains
 
    ! =====================================================================================
 
-   subroutine UpdateFatesRMeansTStep(sites,bc_in)
+   subroutine UpdateFatesRMeansTStep(sites,bc_in, bc_out)
 
      ! In this routine, we update any FATES buffers where
      ! we calculate running means. It is assumed that this buffer is updated
@@ -1935,34 +2091,437 @@ contains
 
      type(ed_site_type), intent(inout) :: sites(:)
      type(bc_in_type), intent(in)      :: bc_in(:)
+     type(bc_out_type), intent(inout)  :: bc_out(:)
      
-     type(ed_patch_type),  pointer :: cpatch
-     type(ed_cohort_type), pointer :: ccohort
-     integer :: s, ifp, io_si
+     type(fates_patch_type),  pointer :: cpatch
+     type(fates_cohort_type), pointer :: ccohort
+     integer :: s, ifp, io_si, pft 
+     real(r8) :: site_npp               ! Site level NPP gC/m2/year
+     real(r8) :: new_seedling_layer_par ! seedling layer par in the current timestep
+     real(r8) :: new_seedling_layer_smp ! seedling layer smp in the current timestep
+     real(r8) :: new_seedling_mdd       ! seedling layer moisture deficit days in the current timestep
+     integer  :: ilayer_seedling_root   ! the soil layer at seedling rooting depth
+     real(r8) :: seedling_par_high      ! higher intensity par for seedlings (par at exposed ground) [W/m2]
+     real(r8) :: par_high_frac          ! fraction of ground where PAR is high
+     real(r8) :: seedling_par_low       ! lower intensity par for seedlings (par under the undergrowth) [W/m2]
+     real(r8) :: par_low_frac           ! fraction of ground where PAR is low
+     integer,parameter :: ipar = 1      ! solar radiation in the shortwave band (i.e. par)
+     real(r8), parameter :: ema_npp_tscale = 480._r8  ! 10 day (10*48 steps)
 
      do s = 1,size(sites,dim=1)
 
         ifp=0
+        site_npp = 0._r8
         cpatch => sites(s)%oldest_patch
         do while(associated(cpatch))
            if (cpatch%patchno .ne. 0) then
            ifp=ifp+1
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
-           
-           !ccohort => cpatch%tallest
-           !do while (associated(ccohort))
-           !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-           !   ccohort => ccohort%shorter
-           !end do
+           ! Update the seedling layer par running means
+           if ( regeneration_model == TRS_regeneration ) then
+
+              ! Return the par intensity at the ground. This routine
+              ! breaks it up into high and low light levels. The high
+              ! levels are the light on the exposed ground at the surface
+              ! and the low levels are the intensity under the bottom-most
+              ! vegetation.
+              
+              call SeedlingParPatch(cpatch, &
+                   bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar), &
+                   seedling_par_high, par_high_frac, seedling_par_low,&
+                   & par_low_frac)
+              
+              new_seedling_layer_par = seedling_par_high*par_high_frac + seedling_par_low*par_low_frac
+              
+              call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
+              call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)
+              call cpatch%sdlng2sap_par%UpdateRMean(new_seedling_layer_par)
+
+              do pft = 1,numpft
+
+                 ! Calculate the soil moisture at the seedling rooting depth for each pft
+
+                 ilayer_seedling_root = minloc(abs(bc_in(s)%z_sisl(:)-EDPftvarcon_inst%seedling_root_depth(pft)),dim=1)
+                 new_seedling_layer_smp = bc_in(s)%smp_sl(ilayer_seedling_root)
+
+                 ! Calculate the new moisture deficit day (mdd) value for each pft
+                 new_seedling_mdd = (abs(EDPftvarcon_inst%seedling_psi_crit(pft)) - abs(new_seedling_layer_smp)) &
+                      * (-1.0_r8) * sdlng_mdd_timescale
+
+                 ! If mdds are negative then it means that soil is wetter than smp_crit and the moisture
+                 ! deficit is 0  
+                 if (new_seedling_mdd < 0.0_r8) then
+                    new_seedling_mdd = 0.0_r8
+                 endif
+
+                 ! Update the seedling layer smp and mdd running means
+                 call cpatch%sdlng_emerg_smp(pft)%p%UpdateRMean(new_seedling_layer_smp)
+                 call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd)
+
+              enddo !end pft loop
+              
            end if
-           
-           cpatch => cpatch%younger
-        enddo
+
+           ccohort => cpatch%tallest
+           do while (associated(ccohort))
+              !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+              if(.not.ccohort%isnew)then
+                 ! [kgC/plant/yr] -> [gC/m2/s]
+                 site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
+                      g_per_kg * hlm_days_per_year / sec_per_day
+              end if
+              ccohort => ccohort%shorter
+           end do
+
+        end if
+
+        cpatch => cpatch%younger
+     enddo
+
+     ! Smoothed [gc/m2/yr]
+     if(sites(s)%ema_npp<-9000._r8)then
+        sites(s)%ema_npp = site_npp
+     else
+        sites(s)%ema_npp = (1._r8-1._r8/ema_npp_tscale)*sites(s)%ema_npp + (1._r8/ema_npp_tscale)*site_npp
+     end if
+
+     bc_out(s)%ema_npp = sites(s)%ema_npp
+     
+  end do
+
+  return
+end subroutine UpdateFatesRMeansTStep
+
+! ========================================================================================
+
+subroutine SeedlingParPatch(cpatch, & 
+     atm_par, & 
+     seedling_par_high, par_high_frac, &
+     seedling_par_low, par_low_frac)
+
+  ! Calculate the intensity of PAR for seedlings in the current patch.
+  ! To do this, we need to get a weighted average of light penetrating
+  ! though (parprof) the lowest leaf layers. We will need to identify
+  ! how closed (area) the lowest canopy layer is, because we will use
+  ! an area weighted average of the light coming from the canopy above
+  ! and an area weighted average of the light penetrating through the
+  ! existing portino of the lowest layer.
+  !
+  ! This routine will generate two intensities, light levels on the exposed
+  ! ground in the lowest layer, and light levels under the existing
+  ! vegetation in the lowest layer, along with the area fraction
+  ! of those two (which should sum to unity).
+
+  ! Arguments
+  type(fates_patch_type)   :: cpatch             ! the current patch
+  real(r8), intent(in)  :: atm_par            ! direct+diffuse PAR at canopy top [W/m2]
+  real(r8), intent(out) :: seedling_par_high  ! High intensity PAR for seedlings [W/m2]
+  real(r8), intent(out) :: par_high_frac      ! Area fraction with high intensity
+  real(r8), intent(out) :: seedling_par_low   ! Low intensity PAR for seedlings [W/m2]
+  real(r8), intent(out) :: par_low_frac       ! Area fraction with low intensity
+
+  ! Locals
+  real(r8) :: cl_par     ! The PAR intensity coming from the canopy layer [w/m2]
+  real(r8) :: cl_area    ! The area fraction of the given canopy layer
+  integer  :: cl         ! current canopy layer
+  integer  :: ipft       ! current PFT index
+  integer  :: iv         ! lower-most leaf layer index for the cl & pft combo
+
+  ! Start with the assumption that there is a single canopy layer
+  seedling_par_high = atm_par
+  par_high_frac     = 1._r8-cpatch%total_canopy_area
+  par_low_frac      = cpatch%total_canopy_area
+
+  ! Work up through the canopy layers from the bottom layer
+  do cl = cpatch%NCL_p,max(1,cpatch%NCL_p-1),-1
+     cl_par = 0._r8
+     cl_area = 0._r8
+     do ipft = 1,numpft
+        iv = cpatch%nleaf(cl,ipft)
+        ! Avoid calculating when there are no leaf layers for the given pft in the current canopy layer
+        if (iv .ne. 0) then
+           cl_par = cl_par + cpatch%canopy_area_profile(cl,ipft,1)* &
+                (cpatch%parprof_pft_dir_z(cl,ipft,iv)+cpatch%parprof_pft_dif_z(cl,ipft,iv))
+           cl_area = cl_area + cpatch%canopy_area_profile(cl,ipft,1)
+        end if
      end do
 
-     return
-   end subroutine UpdateFatesRMeansTStep
+     ! Set the cl_par to zero if the area is near zero.  Otherwise scale the par by the area
+     if(cl_area>nearzero)then
+        cl_par = cl_par/cl_area
+     else
+        cl_par = 0._r8
+     end if
+
+     ! If we do have more than one layer, then we need to figure out
+     ! the average of light on the exposed ground under the veg
+     ! Since we are working up through the canopy layers from the ground,
+     ! set the par_high to the previous par_low value and update
+     ! the par_low to the new cl_par value
+     if(cl .lt. cpatch%NCL_p) then
+        seedling_par_high = seedling_par_low
+        par_high_frac     = (1._r8-cl_area)
+        seedling_par_low  = cl_par
+        par_low_frac      = cl_area
+     ! If we only have one layer, only set the seedling_par_low
+     else
+        seedling_par_low  = cl_par
+     end if
+
+  end do
+
+  return
+
+end subroutine SeedlingParPatch
+
+! ======================================================================================
       
- end module FatesInterfaceMod
+subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
+   
+   ! This subroutine utilizes information from the decomposition and domain types to determine
+   ! the set of grid cell neighbors within some maximum distance.  It records the distance for each
+   ! neighbor for later use.  This should be called after decompInit_lnd and surf_get_grid
+   ! as it relies on ldecomp and ldomain information.
+
+   use decompMod             , only : procinfo
+   use domainMod             , only : ldomain
+   use spmdMod               , only : MPI_REAL8, MPI_INTEGER, mpicom, npes, masterproc, iam
+   use perf_mod              , only : t_startf, t_stopf
+   use FatesDispersalMod     , only : neighborhood_type, neighbor_type, ProbabilityDensity, dispersal_type
+   use FatesUtilsMod         , only : GetNeighborDistance
+   use FatesConstantsMod     , only : fates_unset_int
+   use EDPftvarcon           , only : EDPftvarcon_inst
+
+   ! Arguments
+   type(neighborhood_type), intent(inout), pointer :: neighbors(:)  ! land gridcell neighbor data structure
+   type(dispersal_type),    intent(inout)          :: seeds         ! land gridcell neighbor data structure
+   integer                , intent(in)             :: numg          ! number of land gridcells
+
+   ! Local variables
+   type (neighbor_type), pointer :: current_neighbor
+   type (neighbor_type), pointer :: another_neighbor
+
+   integer :: i, gi, gj, ni ! indices
+   integer :: ier, mpierr   ! error status
+   integer :: ipft          ! pft index
+
+   integer,  allocatable :: ncells_array(:), begg_array(:) ! number of cells and starting global grid cell index per process 
+   real(r8), allocatable :: gclat(:), gclon(:)             ! local array holding gridcell lat and lon
+
+   real(r8) :: g2g_dist ! grid cell distance (m)
+   real(r8) :: pdf      ! probability density function output
+
+   if(debug .and. hlm_is_restart .eq. itrue) write(fates_log(),*) 'gridcell initialization during restart'
+
+   if(debug) write(fates_log(),*)'DGCN: npes, numg: ', npes, numg
+
+   ! Allocate and initialize array neighbor type
+   allocate(neighbors(numg), stat=ier)
+   neighbors(:)%neighbor_count = 0
+
+   ! Allocate and initialize local lat and lon arrays
+   allocate(gclat(numg), stat=ier)
+   if(debug) write(fates_log(),*)'DGCN: gclat alloc: ', ier
+
+   allocate(gclon(numg), stat=ier)
+   if(debug) write(fates_log(),*)'DGCN: gclon alloc: ', ier
+
+   gclon(:) = nan
+   gclat(:) = nan
+
+   ! Allocate and initialize MPI count and displacement values
+   allocate(ncells_array(0:npes-1), stat=ier)
+   if(debug) write(fates_log(),*)'DGCN: ncells alloc: ', ier
+
+   allocate(begg_array(0:npes-1), stat=ier)
+   if(debug) write(fates_log(),*)'DGCN: begg alloc: ', ier
+
+   ncells_array(:) = fates_unset_int
+   begg_array(:) = fates_unset_int
+
+   call t_startf('fates-seed-init-allgather')
+
+   if(debug) write(fates_log(),*)'DGCN: procinfo%begg: ', procinfo%begg
+   if(debug) write(fates_log(),*)'DGCN: procinfo%ncells: ', procinfo%ncells
+
+   ! Gather the sizes of the ldomain that each mpi rank is passing
+   call MPI_Allgather(procinfo%ncells,1,MPI_INTEGER,ncells_array,1,MPI_INTEGER,mpicom,mpierr)
+   if(debug) write(fates_log(),*)'DGCN: ncells mpierr: ', mpierr
+
+   ! Gather the starting gridcell index for each ldomain 
+   call MPI_Allgather(procinfo%begg,1,MPI_INTEGER,begg_array,1,MPI_INTEGER,mpicom,mpierr)
+   if(debug) write(fates_log(),*)'DGCN: begg mpierr: ', mpierr
+
+   ! reduce the begg_array displacements by one as MPI collectives expect zero indexed arrays
+   begg_array = begg_array - 1
+
+   if(debug) write(fates_log(),*)'DGCN: ncells_array: ' , ncells_array
+   if(debug) write(fates_log(),*)'DGCN: begg_array: '   , begg_array
+
+   ! Gather the domain information together into the neighbor type
+   ! Note that MPI_Allgatherv is only gathering a subset of ldomain
+   if(debug) write(fates_log(),*)'DGCN: gathering latc'
+   call MPI_Allgatherv(ldomain%latc,procinfo%ncells,MPI_REAL8,gclat,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
+
+   if(debug) write(fates_log(),*)'DGCN: gathering lonc'
+   call MPI_Allgatherv(ldomain%lonc,procinfo%ncells,MPI_REAL8,gclon,ncells_array,begg_array,MPI_REAL8,mpicom,mpierr)
+
+   if (debug .and. iam .eq. 0) then
+      write(fates_log(),*)'DGCN: sum(gclat):, sum(gclon): ', sum(gclat), sum(gclon)
+   end if
+
+   ! Save number of cells and begging index arrays to dispersal type
+   if(debug) write(fates_log(),*)'DGCN: save to seeds type'
+   if(debug) write(fates_log(),*)'DGCN: seeds ncells alloc: ', allocated(seeds%ncells_array)
+   if(debug) write(fates_log(),*)'DGCN: seeds begg alloc: ', allocated(seeds%begg_array)
+   seeds%ncells_array = ncells_array
+   seeds%begg_array = begg_array
+
+   if (debug .and. iam .eq. 0) then
+      write(fates_log(),*)'DGCN: seeds%ncells_array: ', seeds%ncells_array
+      write(fates_log(),*)'DGCN: seeds%begg_array: ', seeds%begg_array
+   end if
+
+   call t_stopf('fates-seed-init-allgather')
+
+   call t_startf('fates-seed-init-decomp')
+
+   if(debug) write(fates_log(), *) 'DGCN: maxdist: ', EDPftvarcon_inst%seed_dispersal_max_dist
+
+   ! Iterate through the grid cell indices and determine if any neighboring cells are in range
+   gc_loop: do gi = 1,numg-1
+
+      ! Seach forward through all indices for neighbors to current grid cell index
+      neighbor_search: do gj = gi+1,numg
+
+         ! Determine distance to old grid cells to the current one
+         g2g_dist = GetNeighborDistance(gi,gj,gclat,gclon)
+
+         if(debug) write(fates_log(), *) 'DGCN: gi,gj,g2g_dist: ', gi,gj,g2g_dist
+
+         ! 
+         dist_check: if (any(EDPftvarcon_inst%seed_dispersal_max_dist .gt. g2g_dist)) then
+
+            ! Add neighbor index to current grid cell index list
+            allocate(current_neighbor)
+            current_neighbor%next_neighbor => null()
+
+            current_neighbor%gindex = gj
+
+            current_neighbor%gc_dist = g2g_dist
+
+            allocate(current_neighbor%density_prob(numpft))
+
+            do ipft = 1, numpft
+               call ProbabilityDensity(pdf, ipft, g2g_dist)
+               current_neighbor%density_prob(ipft) = pdf
+            end do
+
+            if (associated(neighbors(gi)%first_neighbor)) then
+              neighbors(gi)%last_neighbor%next_neighbor => current_neighbor
+              neighbors(gi)%last_neighbor => current_neighbor
+            else
+              neighbors(gi)%first_neighbor => current_neighbor
+              neighbors(gi)%last_neighbor => current_neighbor
+            end if
+
+            neighbors(gi)%neighbor_count = neighbors(gi)%neighbor_count + 1
+
+            ! Add current grid cell index to the neighbor's list as well
+            allocate(another_neighbor)
+            another_neighbor%next_neighbor => null()
+
+            another_neighbor%gindex = gi
+
+            another_neighbor%gc_dist = current_neighbor%gc_dist
+            allocate(another_neighbor%density_prob(numpft))
+            do ipft = 1, numpft
+               another_neighbor%density_prob(ipft) = current_neighbor%density_prob(ipft)
+            end do
+
+            if (associated(neighbors(gj)%first_neighbor)) then
+              neighbors(gj)%last_neighbor%next_neighbor => another_neighbor
+              neighbors(gj)%last_neighbor => another_neighbor
+            else
+              neighbors(gj)%first_neighbor => another_neighbor
+              neighbors(gj)%last_neighbor => another_neighbor
+            end if
+
+            neighbors(gj)%neighbor_count = neighbors(gj)%neighbor_count + 1
+
+         end if dist_check
+      end do neighbor_search
+   end do gc_loop
+
+   ! Loop through the list and populate the grid cell index array for each gridcell
+   do gi = 1,numg
+
+      ! Start at the first neighbor of each neighborhood list
+      current_neighbor => neighbors(gi)%first_neighbor
+
+      ! Allocate an array to hold the gridcell indices in each neighborhood
+      allocate(neighbors(gi)%neighbor_indices(neighbors(gi)%neighbor_count))
+
+      ! Walk through the neighborhood linked list and populate the array
+      ni = 1
+      do while (associated(current_neighbor))
+         neighbors(gi)%neighbor_indices(ni) = current_neighbor%gindex
+         ni = ni + 1
+         current_neighbor => current_neighbor%next_neighbor
+      end do
+
+      if (debug .and. iam .eq. 0) then
+         write(fates_log(), *) 'DGCN: g, lat, lon: ', gi, gclat(gi), gclon(gi)
+         write(fates_log(), *) 'DGCN: g, ncount: ', gi, neighbors(gi)%neighbor_count
+         do i = 1,neighbors(gi)%neighbor_count
+            write(fates_log(), *) 'DGCN: g, gilist: ', gi, neighbors(gi)%neighbor_indices(i)
+         end do
+      end if
+
+   end do
+
+
+   call t_stopf('fates-seed-init-decomp')
+
+end subroutine DetermineGridCellNeighbors
+
+! ======================================================================================
+     
+!-----------------------------------------------------------------------
+! TODO(jpalex): this belongs in FatesParametersInterface.F90, but would require
+! untangling the dependencies of the *RegisterParams methods below.
+subroutine FatesReadParameters(param_reader)
+  implicit none
+  
+  class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
+
+  character(len=32)  :: subname = 'FatesReadParameters'
+  class(fates_parameters_type), allocatable :: fates_params
+
+  if ( hlm_masterproc == itrue ) then
+    write(fates_log(), *) 'FatesParametersInterface.F90::'//trim(subname)//' :: CLM reading ED/FATES '//' parameters '
+  end if
+
+  allocate(fates_params)
+  call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
+  call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
+  call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
+  call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
+  call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
+
+  call param_reader%Read(fates_params)
+
+  call FatesReceiveParams(fates_params)
+  call SpitFireReceiveParams(fates_params)
+  call PRTReceiveParams(fates_params)
+  call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
+
+  call fates_params%Destroy()
+  deallocate(fates_params)
+
+ end subroutine FatesReadParameters
+
+end module FatesInterfaceMod

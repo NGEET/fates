@@ -106,15 +106,22 @@ contains
      real(r8)            :: sp_demand              ! nutrient demand for element
 
 
-     ! We currently only allow the flushing and drop of leaves.
-     ! If other organs should be desired (like seasonality of fine-roots)
-     ! those parameters and clauses need to be added
+     ! We currently  allow the flushing and drop of leaves and fine roots (always) and
+     ! sapwood and heartwood (non-woody PFTs only).
+     ! If other organs should be desired, those parameters and clauses need to be added
 
-     !if(organ_id .ne. leaf_organ) then
-     if(organ_id .ne. leaf_organ .AND. prt_params%woody(ipft) == itrue) then
-        write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
+     if( (.not. any(organ_id == [leaf_organ,fnrt_organ])) .and. &
+         prt_params%woody(ipft) == itrue ) then
+        write(fates_log(),*) '    When PFT is woody, deciduous drop and re-flushing are'
+        write(fates_log(),*) ' only allowed in leaves and fine roots:'
+        write(fates_log(),*) ''
+        write(fates_log(),*) ' PFT: ',ipft
+        write(fates_log(),*) ' Woody PFT: ',prt_params%woody(ipft) == itrue
+        write(fates_log(),*) ''
+        write(fates_log(),*) ''
         write(fates_log(),*) ' leaf_organ: ',leaf_organ
-        write(fates_log(),*) ' organ: ',organ_id
+        write(fates_log(),*) ' fnrt_organ: ',fnrt_organ
+        write(fates_log(),*) ' Attempted organ: ',organ_id
         write(fates_log(),*) 'Exiting'
         call endrun(msg=errMsg(__FILE__, __LINE__))
      end if
@@ -464,15 +471,22 @@ contains
      real(r8),intent(in) :: mass_fraction ! The fraction of mass in this organ that should
                                           ! leave the indicated organ.
      
-     ! We currently only allow the flushing and drop of leaves.
-     ! If other organs should be desired (like seasonality of fine-roots)
-     ! those parameters and clauses need to be added
-     
-     !if(organ_id .ne. leaf_organ) then
-     if(organ_id .ne. leaf_organ .AND. prt_params%woody(ipft) == itrue) then
-        write(fates_log(),*) 'Deciduous drop and re-flushing only allowed in leaves'
+     ! We currently  allow the flushing and drop of leaves and fine roots (always) and
+     ! sapwood and heartwood (non-woody PFTs only).
+     ! If other organs should be desired, those parameters and clauses need to be added
+
+     if( (.not. any(organ_id == [leaf_organ,fnrt_organ])) .and. &
+         prt_params%woody(ipft) == itrue ) then
+        write(fates_log(),*) '    When PFT is woody, deciduous drop and re-flushing are'
+        write(fates_log(),*) ' only allowed in leaves and fine roots:'
+        write(fates_log(),*) ''
+        write(fates_log(),*) ' PFT: ',ipft
+        write(fates_log(),*) ' Woody PFT: ',prt_params%woody(ipft) == itrue
+        write(fates_log(),*) ''
+        write(fates_log(),*) ''
         write(fates_log(),*) ' leaf_organ: ',leaf_organ
-        write(fates_log(),*) ' organ: ',organ_id
+        write(fates_log(),*) ' fnrt_organ: ',fnrt_organ
+        write(fates_log(),*) ' Attempted organ: ',organ_id
         write(fates_log(),*) 'Exiting'
         call endrun(msg=errMsg(__FILE__, __LINE__))
      end if
@@ -613,7 +627,7 @@ contains
 
    ! ====================================================================================
    
-   subroutine PRTMaintTurnover(prt,ipft,is_drought)
+   subroutine PRTMaintTurnover(prt,ipft,icanlayer,is_drought)
       
       ! ---------------------------------------------------------------------------------
       ! Generic subroutine (wrapper) calling specialized routines handling
@@ -621,10 +635,11 @@ contains
       ! ---------------------------------------------------------------------------------
       class(prt_vartypes) :: prt
       integer,intent(in)  :: ipft
+      integer,intent(in)  :: icanlayer
       logical,intent(in)  :: is_drought  ! Is this plant/cohort operating in a drought
                                          ! stress context?
       
-      call MaintTurnoverSimpleRetranslocation(prt,ipft,is_drought)
+      call MaintTurnoverSimpleRetranslocation(prt,ipft,icanlayer,is_drought)
       
       
       return
@@ -632,7 +647,7 @@ contains
 
    ! ===================================================================================
    
-   subroutine MaintTurnoverSimpleRetranslocation(prt,ipft,is_drought)
+   subroutine MaintTurnoverSimpleRetranslocation(prt,ipft,icanlayer,is_drought)
 
       ! ---------------------------------------------------------------------------------
       ! This subroutine removes biomass from all applicable pools due to 
@@ -653,6 +668,7 @@ contains
       
       class(prt_vartypes)  :: prt
       integer, intent(in)  :: ipft
+      integer, intent(in)  :: icanlayer
       logical, intent(in)  :: is_drought   ! Is this plant/cohort operating in a drought
                                            ! stress context?
       
@@ -673,7 +689,8 @@ contains
                                    ! pool [kg]
       real(r8) :: retrans_frac     ! A temp for the retranslocated fraction
       real(r8) :: retrans_mass     ! The mass re-translocated [kg]
-
+      real(r8) :: leaf_long        ! Leaf lifespan [years], either canopy or understory
+      
       ! A temp for the actual turnover removed from pool
       real(r8), dimension(num_organ_types) :: base_turnover   
 
@@ -723,29 +740,34 @@ contains
          base_turnover(fnrt_organ) = 0.0_r8
       end if
 
+      if (icanlayer .eq. 1) then
 
-      ! The last index of the leaf longevity array contains the turnover
-      ! timescale for the senescent pool.
-      aclass_sen_id = size(prt_params%leaf_long(ipft,:))
-      
+         ! The last index of the leaf longevity array contains the turnover
+         ! timescale for the senescent pool.
+         aclass_sen_id = size(prt_params%leaf_long(ipft,:))
+         leaf_long = prt_params%leaf_long(ipft,aclass_sen_id)
+      else
+         
+         aclass_sen_id = size(prt_params%leaf_long_ustory(ipft,:))
+         leaf_long = prt_params%leaf_long_ustory(ipft,aclass_sen_id)
+      end if
+         
       ! Only evergreens have maintenance turnover (must also change trimming logic
       ! if we want to change this)
       ! -------------------------------------------------------------------------------------
-      if ( (prt_params%leaf_long(ipft,aclass_sen_id) > nearzero ) .and. &
-           int(prt_params%evergreen(ipft))==itrue ) then
-
+      if ( leaf_long > nearzero .and. prt_params%evergreen(ipft)==itrue ) then
+         
          if(is_drought) then
             base_turnover(leaf_organ) = years_per_day / &
-                  (prt_params%leaf_long(ipft,aclass_sen_id) * &
-                  prt_params%senleaf_long_fdrought(ipft) ) 
+                 (leaf_long * prt_params%senleaf_long_fdrought(ipft) ) 
          else
-            base_turnover(leaf_organ) = years_per_day / &
-                  prt_params%leaf_long(ipft,aclass_sen_id)
+            base_turnover(leaf_organ) = years_per_day / leaf_long
          end if
+         
       else
          base_turnover(leaf_organ) = 0.0_r8
       endif
-
+      
       base_turnover(repro_organ)  = 0.0_r8
 
       do i_var = 1, prt_global%num_vars

@@ -11,12 +11,15 @@ module FatesInventoryInitMod
    !   site, or a small collection of sparse/irregularly spaced group of sites
    !
    ! Created: Ryan Knox June 2017
-   ! This code borrows heavily in concept from what is done in ED2.  We will also do our best to
-   ! maintain compatibility with the PSS/CSS file formats that were used in ED2.
-   ! See: https://github.com/EDmodel/ED2/blob/master/ED/src/io/ed_read_ed10_20_history.f90
+   ! This code borrows heavily in concept from what is done in ED2.  
    ! At the time of writing this ED2 is unlicensed, and only concepts were borrowed with no direct
    ! code copied.
-   !-----------------------------------------------------------------------------------------------
+   !
+   !
+   ! Update: Jessica Needham October 2023
+   ! As discussed in FATES issue #1062 we decided to remove columns not used in FATES from the
+   ! PSS and CSS files. 
+  !-----------------------------------------------------------------------------------------------
 
    ! CIME GLOBALS
 
@@ -26,18 +29,24 @@ module FatesInventoryInitMod
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : pi_const
    use FatesConstantsMod, only : itrue
+   use FatesConstantsMod, only : nearzero
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
+   use EDParamsMod      , only : regeneration_model
    use FatesInterfaceTypesMod, only : bc_in_type
    use FatesInterfaceTypesMod, only : hlm_inventory_ctrl_file
    use FatesInterfaceTypesMod, only : nleafage
+   use FatesInterfaceTypesMod, only : hlm_current_tod
+   use FatesInterfaceTypesMod, only : numpft
    use FatesLitterMod   , only : litter_type
    use EDTypesMod       , only : ed_site_type
-   use EDTypesMod       , only : ed_patch_type
-   use EDTypesMod       , only : ed_cohort_type
+   use FatesPatchMod    , only : fates_patch_type
+   use FatesCohortMod   , only : fates_cohort_type
    use EDTypesMod       , only : area
-   use EDTypesMod       , only : leaves_on
-   use EDTypesMod       , only : leaves_off
+   use FatesConstantsMod, only : leaves_on
+   use FatesConstantsMod, only : leaves_off
+   use FatesConstantsMod, only : ihard_stress_decid
+   use FatesConstantsMod, only : isemi_stress_decid
    use PRTGenericMod    , only : num_elements
    use PRTGenericMod    , only : element_list
    use EDTypesMod       , only : phen_cstat_nevercold
@@ -61,11 +70,12 @@ module FatesInventoryInitMod
    use PRTGenericMod,       only : nitrogen_element
    use PRTGenericMod,       only : phosphorus_element
    use PRTGenericMod,       only : SetState
-   use FatesConstantsMod,   only : primaryforest
+   use FatesConstantsMod,   only : primaryland
    use FatesRunningMeanMod, only : ema_lpa
    use PRTGenericMod,       only : StorageNutrientTarget
    use FatesConstantsMod,   only : fates_unset_int
-
+   use EDCanopyStructureMod, only : canopy_summarization, canopy_structure
+   use FatesRadiationMemMod, only : num_swb
    implicit none
    private
 
@@ -75,7 +85,7 @@ module FatesInventoryInitMod
    ! with a patch.  BY having a vector of patch pointers that lines up with the string
    ! identifier array, this can be done quickly.
    type pp_array
-      type(ed_patch_type), pointer :: cpatch
+      type(fates_patch_type), pointer :: cpatch
    end type pp_array
 
    character(len=*), parameter, private :: sourcefile =  __FILE__
@@ -109,7 +119,6 @@ contains
       use shr_file_mod, only        : shr_file_getUnit
       use shr_file_mod, only        : shr_file_freeUnit
       use FatesConstantsMod, only   : nearzero
-      use EDPatchDynamicsMod, only  : create_patch
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
       use EDCohortDynamicsMod, only : sort_cohorts
@@ -123,12 +132,12 @@ contains
 
       ! Locals
       type(ed_site_type), pointer                  :: currentSite
-      type(ed_patch_type), pointer                 :: currentpatch
-      type(ed_cohort_type), pointer                :: currentcohort
-      type(ed_patch_type), pointer                 :: newpatch
-      type(ed_patch_type), pointer                 :: olderpatch
-      type(ed_patch_type), pointer                 :: head_of_unsorted_patch_list
-      type(ed_patch_type), pointer                 :: next_in_unsorted_patch_list
+      type(fates_patch_type), pointer                 :: currentpatch
+      type(fates_cohort_type), pointer                :: currentcohort
+      type(fates_patch_type), pointer                 :: newpatch
+      type(fates_patch_type), pointer                 :: olderpatch
+      type(fates_patch_type), pointer                 :: head_of_unsorted_patch_list
+      type(fates_patch_type), pointer                 :: next_in_unsorted_patch_list
       integer                                      :: sitelist_file_unit   ! fortran file unit for site list
       integer                                      :: pss_file_unit        ! fortran file unit for the pss file
       integer                                      :: css_file_unit        ! fortran file unit for the css file
@@ -141,6 +150,7 @@ contains
       real(r8)                                     :: area_init            ! dummy value for creating a patch
       integer                                      :: s                    ! site index
       integer                                      :: ipa                  ! patch index
+      integer                                      :: iv, ft, ic
       integer                                      :: total_cohorts        ! cohort counter for error checking
       integer,                         allocatable :: inv_format_list(:)   ! list of format specs
       character(len=path_strlen),      allocatable :: inv_css_list(:)      ! list of css file names
@@ -157,7 +167,7 @@ contains
       character(len=patchname_strlen), allocatable :: patch_name_vec(:)    ! vector of patch ID strings
       real(r8)                                     :: basal_area_postf     ! basal area before fusion (m2/ha)
       real(r8)                                     :: basal_area_pref      ! basal area after fusion (m2/ha)
-
+    
       ! I. Load the inventory list file, do some file handle checks
       ! ------------------------------------------------------------------------------------------
 
@@ -265,12 +275,6 @@ contains
 
          do ipa=1,npatches
 
-            allocate(newpatch)
-
-            newpatch%patchno = ipa
-            newpatch%younger => null()
-            newpatch%older   => null()
-
             ! This call doesn't do much asside from initializing the patch with
             ! nominal values, NaNs, zero's and allocating some vectors. We should
             ! be able to get the following values from the patch files. But on
@@ -278,12 +282,17 @@ contains
 
             age_init            = 0.0_r8
             area_init           = 0.0_r8
+            allocate(newpatch)
+            call newpatch%Create(age_init, area_init, primaryland,           &
+               fates_unset_int, num_swb, numpft, sites(s)%nlevsoil,         &
+               hlm_current_tod, regeneration_model)
 
-            call create_patch(sites(s), newpatch, age_init, area_init, primaryforest, fates_unset_int )
-
+            newpatch%patchno = ipa
+            newpatch%younger => null()
+            newpatch%older   => null()
 
             if( inv_format_list(invsite) == 1 ) then
-               call set_inventory_edpatch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
+               call set_inventory_patch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
             end if
 
             ! Add it to the site's patch list
@@ -356,6 +365,7 @@ contains
             enddo
          end if
 
+         
          ! OPEN THE CSS FILE
          ! ---------------------------------------------------------------------------------------
          css_file_unit = shr_file_getUnit()
@@ -372,7 +382,7 @@ contains
 
          invcohortloop: do
             if ( inv_format_list(invsite) == 1 ) then
-               call set_inventory_edcohort_type1(sites(s),bc_in(s),css_file_unit, &
+               call set_inventory_cohort_type1(sites(s),bc_in(s),css_file_unit, &
                      npatches, patch_pointer_vec,patch_name_vec, ios)
             end if
             if ( ios/=0 ) exit
@@ -388,84 +398,6 @@ contains
 
          deallocate(patch_pointer_vec,patch_name_vec)
 
-         ! now that we've read in the patch and cohort info, check to see if there is any real age info
-         if ( abs(sites(s)%youngest_patch%age - sites(s)%oldest_patch%age) <= nearzero .and. &
-              associated(sites(s)%youngest_patch%older) ) then
-
-            ! so there are at least two patches and the oldest and youngest are the same age.
-            ! this means that sorting by age wasn't very useful.  try sorting by total biomass instead
-
-            ! first calculate the biomass in each patch.  simplest way is to use the patch fusion criteria
-            currentpatch => sites(s)%youngest_patch
-            do while(associated(currentpatch))
-               call patch_pft_size_profile(currentPatch)
-               currentPatch => currentpatch%older
-            enddo
-
-            ! now we need to sort them.
-            ! first generate a new head of the linked list.
-            head_of_unsorted_patch_list => sites(s)%youngest_patch%older
-
-            ! reset the site-level patch linked list, keeping only the youngest patch.
-            sites(s)%youngest_patch%older => null()
-            sites(s)%youngest_patch%younger => null()
-            sites(s)%oldest_patch   => sites(s)%youngest_patch
-
-            ! loop through each patch in the unsorted LL, peel it off,
-            ! and insert it into the new, sorted LL
-            do while(associated(head_of_unsorted_patch_list))
-
-               ! first keep track of the next patch in the old (unsorted) linked list
-               next_in_unsorted_patch_list => head_of_unsorted_patch_list%older
-
-               ! check the two end-cases
-
-               ! Youngest Patch
-               if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) <= &
-                    sum(sites(s)%youngest_patch%pft_agb_profile(:,:)))then
-                  head_of_unsorted_patch_list%older                  => sites(s)%youngest_patch
-                  head_of_unsorted_patch_list%younger                => null()
-                  sites(s)%youngest_patch%younger => head_of_unsorted_patch_list
-                  sites(s)%youngest_patch         => head_of_unsorted_patch_list
-
-                  ! Oldest Patch
-               else if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) > &
-                    sum(sites(s)%oldest_patch%pft_agb_profile(:,:)))then
-                  head_of_unsorted_patch_list%older              => null()
-                  head_of_unsorted_patch_list%younger            => sites(s)%oldest_patch
-                  sites(s)%oldest_patch%older => head_of_unsorted_patch_list
-                  sites(s)%oldest_patch       => head_of_unsorted_patch_list
-
-                  ! Somewhere in the middle
-               else
-                  currentpatch => sites(s)%youngest_patch
-                  do while(associated(currentpatch))
-                     olderpatch => currentpatch%older
-                     if(associated(currentpatch%older)) then
-                        if(sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) >= &
-                             sum(currentpatch%pft_agb_profile(:,:)) .and. &
-                             sum(head_of_unsorted_patch_list%pft_agb_profile(:,:)) < &
-                             sum(olderpatch%pft_agb_profile(:,:))) then
-                           ! Set the new patches pointers
-                           head_of_unsorted_patch_list%older   => currentpatch%older
-                           head_of_unsorted_patch_list%younger => currentpatch
-                           ! Fix the patch's older pointer
-                           currentpatch%older => head_of_unsorted_patch_list
-                           ! Fix the older patch's younger pointer
-                           olderpatch%younger => head_of_unsorted_patch_list
-                           ! Exit the loop once head sorted to avoid later re-sort
-                           exit
-                        end if
-                     end if
-                     currentPatch => olderpatch
-                  enddo
-               end if
-
-               ! now work through to the next element in the unsorted linked list
-               head_of_unsorted_patch_list => next_in_unsorted_patch_list
-            end do
-         endif
-
          ! Report Basal Area (as a check on if things were read in)
          ! ------------------------------------------------------------------------------
          basal_area_pref = 0.0_r8
@@ -474,7 +406,7 @@ contains
             currentcohort => currentpatch%tallest
             do while(associated(currentcohort))
                basal_area_pref = basal_area_pref + &
-                     currentcohort%n*0.25*((currentcohort%dbh/100.0_r8)**2.0_r8)*pi_const
+                    currentcohort%n*0.25*((currentcohort%dbh/100.0_r8)**2.0_r8)*pi_const
                currentcohort => currentcohort%shorter
             end do
             currentPatch => currentpatch%older
@@ -490,6 +422,7 @@ contains
          ! ----------------------------------------------------------------------------------------
          ipa=1
          total_cohorts = 0
+
          currentpatch => sites(s)%youngest_patch
          do while(associated(currentpatch))
             currentpatch%patchno = ipa
@@ -518,6 +451,7 @@ contains
 
          ! Report Basal Area (as a check on if things were read in)
          ! ----------------------------------------------------------------------------------------
+         !call canopy_structure(sites(s),bc_in(s))
          basal_area_postf = 0.0_r8
          currentpatch => sites(s)%youngest_patch
          do while(associated(currentpatch))
@@ -527,8 +461,11 @@ contains
                      currentcohort%n*0.25*((currentcohort%dbh/100.0_r8)**2.0_r8)*pi_const
                currentcohort => currentcohort%shorter
             end do
+            
             currentPatch => currentpatch%older
          enddo
+
+
 
          write(fates_log(),*) '-------------------------------------------------------'
          write(fates_log(),*) 'Basal Area from inventory, AFTER fusion'
@@ -538,11 +475,13 @@ contains
 
          ! If this is flagged as true, the post-fusion inventory will be written to file
          ! in the run directory.
+         
          if(do_inventory_out)then
              call write_inventory_type1(sites(s))
          end if
 
       end do
+      
       deallocate(inv_format_list, inv_pss_list, inv_css_list, inv_lat_list, inv_lon_list)
 
       return
@@ -603,8 +542,8 @@ contains
       !
       ! type            integer          We will accomodate different file format with different
       !                                  field values as the need arises. format 1 will read in
-      !                                  datasets via "set_inventory_edpatch_type1()",
-      !                                  "set_inventory_edcohort_type1()"
+      !                                  datasets via "set_inventory_patch_type1()",
+      !                                  "set_inventory_cohort_type1()"
       !
       ! latitude        float            The geographic latitude coordinate of the site
       ! longitude       float            The geogarphic longitude coordinate of the site
@@ -716,7 +655,7 @@ contains
 
    ! ==============================================================================================
 
-   subroutine set_inventory_edpatch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
+   subroutine set_inventory_patch_type1(newpatch,pss_file_unit,ipa,ios,patch_name)
 
       ! --------------------------------------------------------------------------------------------
       ! This subroutine reads in a line of an inventory patch file (pss)
@@ -731,22 +670,13 @@ contains
       ! trk	(integer)  LU type index (0 non-forest, 1 secondary, 2 primary
       ! age	(years)    Time since this patch was disturbed (created)
       ! area	(fraction) Fraction of the site occupied by this patch
-      ! water	(NA)       Water content of soil (NOT USED)
-      ! fsc	(kg/m2)    Fast Soil Carbon
-      ! stsc	(kg/m2)    Structural Soil Carbon
-      ! stsl	(kg/m2)    Structural Soil Lignin
-      ! ssc	(kg/m2)    Slow Soil Carbon
-      ! psc	(NA)       Passive Soil Carbon (NOT USED)
-      ! msn	(kg/m2)    Mineralized Soil Nitrogen
-      ! fsn     (kg/m2)    Fast Soil Nitrogen
       ! --------------------------------------------------------------------------------------------
 
       use FatesSizeAgeTypeIndicesMod, only: get_age_class_index
       use EDtypesMod, only: AREA
-      use SFParamsMod , only : SF_val_CWD_frac
 
       ! Arguments
-      type(ed_patch_type),intent(inout), target   :: newpatch      ! Patch structure
+      type(fates_patch_type),intent(inout), target   :: newpatch      ! Patch structure
       integer,intent(in)                          :: pss_file_unit ! Self explanatory
       integer,intent(in)                          :: ipa           ! Patch index (line number)
       integer,intent(out)                         :: ios           ! Return flag
@@ -756,39 +686,30 @@ contains
       type(litter_type),pointer                   :: litt
       integer                                     :: el         ! index for elements
       real(r8)                                    :: p_time     ! Time patch was recorded
-      real(r8)                                    :: p_trk      ! Land Use index (see above descriptions)
+      integer                                     :: p_trk      ! Land Use index (see above descriptions)
       character(len=patchname_strlen)             :: p_name     ! unique string identifier of patch
       real(r8)                                    :: p_age      ! Patch age [years]
       real(r8)                                    :: p_area     ! Patch area [fraction]
-      real(r8)                                    :: p_water    ! Patch water (unused)
-      real(r8)                                    :: p_fsc      ! Patch fast soil carbon
-      real(r8)                                    :: p_stsc     ! Patch structural soil carbon
-      real(r8)                                    :: p_stsl     ! Patch structural soil lignins
-      real(r8)                                    :: p_ssc      ! Patch slow soil carbon
-      real(r8)                                    :: p_psc      ! Patch P soil carbon
-      real(r8)                                    :: p_msn      ! Patch mean soil nitrogen
-      real(r8)                                    :: p_fsn      ! Patch fast soil nitrogen
       integer                                     :: icwd       ! index for counting CWD pools
       integer                                     :: ipft       ! index for counting PFTs
       real(r8)                                    :: pftfrac    ! the inverse of the total number of PFTs
 
-      character(len=128),parameter    :: wr_fmt = &
-            '(F5.2,2X,A4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
+      character(len=30),parameter    :: hd_fmt = &
+            '(A5,2X,A20,2X,A4,2X,A5,2X,A17)'
+      character(len=47),parameter    :: wr_fmt = &
+            '(F5.2,2X,A20,2X,I4,2X,F5.2,2X,F17.14)'
 
-
-      read(pss_file_unit,fmt=*,iostat=ios) p_time, p_name, p_trk, p_age, p_area, &
-            p_water,p_fsc, p_stsc, p_stsl, p_ssc, &
-            p_psc, p_msn, p_fsn
+      read(pss_file_unit,fmt=*,iostat=ios) p_time, p_name, p_trk, p_age, p_area
 
       if (ios/=0) return
 
       patch_name = trim(p_name)
 
       if( debug_inv) then
+         write(*,fmt=hd_fmt) &
+               ' time','               patch',' trk','  age','             area'
          write(*,fmt=wr_fmt) &
-               p_time, p_name, p_trk, p_age, p_area, &
-               p_water,p_fsc, p_stsc, p_stsl, p_ssc, &
-               p_psc, p_msn, p_fsn
+               p_time, p_name, p_trk, p_age, p_area
       end if
 
       ! Fill in the patch's memory structures
@@ -826,12 +747,12 @@ contains
       end do
 
       return
-   end subroutine set_inventory_edpatch_type1
+   end subroutine set_inventory_patch_type1
 
 
    ! ==============================================================================================
 
-   subroutine set_inventory_edcohort_type1(csite,bc_in,css_file_unit,npatches, &
+   subroutine set_inventory_cohort_type1(csite,bc_in,css_file_unit,npatches, &
                                            patch_pointer_vec,patch_name_vec,ios)
 
       ! --------------------------------------------------------------------------------------------
@@ -845,14 +766,10 @@ contains
       ! FILE FORMAT:
       ! time	(year)     year of measurement
       ! patch	(string)   patch id string associated with this cohort
-      ! index	(integer)  cohort index
-      ! dbh	(cm)       diameter at breast height
-      ! height   (m)        height of the tree
-      ! pft      (integer)  the plant functional type index (must be consistent with param file)
+      ! dbh	(cm)       diameter at breast height. Optional, set height to negative if used
+      ! height  (m)        height of vegetation in m. Optional, set dbh to negative if used
+      ! pft     (integer)  the plant functional type index (must be consistent with param file)
       ! n 	(/m2)      The plant number density
-      ! bdead    (kgC/plant)The dead biomass per indiv of this cohort (NOT USED)
-      ! balive   (kgC/plant)The live biomass per indiv of this cohort (NOT USED)
-      ! avgRG    (cm/yr?)   Average Radial Growth (NOT USED)
       ! --------------------------------------------------------------------------------------------
 
       use FatesAllometryMod         , only : h_allom
@@ -881,21 +798,17 @@ contains
       class(prt_vartypes), pointer                :: prt_obj
       real(r8)                                    :: c_time        ! Time patch was recorded
       character(len=patchname_strlen)             :: p_name        ! The patch associated with this cohort
-      character(len=cohortname_strlen)            :: c_name        ! cohort index
+      character(len=patchname_strlen)             :: c_name        ! Cohort name
       real(r8)                                    :: c_dbh         ! diameter at breast height (cm)
       real(r8)                                    :: c_height      ! tree height (m)
       integer                                     :: c_pft         ! plant functional type index
       real(r8)                                    :: c_nplant      ! plant density (/m2)
-      real(r8)                                    :: c_bdead       ! dead biomass (kg)
-      real(r8)                                    :: c_balive      ! live biomass (kg)
-      real(r8)                                    :: c_avgRG       ! avg radial growth (NOT USED)
       real(r8)                                    :: site_spread   ! initial guess of site spread
                                                                    ! should be quickly re-calculated
-      integer                                     :: cstatus       ! cohort status
       integer,parameter                           :: rstatus = 0   ! recruit status
 
-      type(ed_patch_type), pointer                :: cpatch        ! current patch pointer
-      type(ed_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
+      type(fates_patch_type), pointer                :: cpatch        ! current patch pointer
+      type(fates_cohort_type), pointer               :: temp_cohort   ! temporary patch (needed for allom funcs)
       integer                                     :: ipa           ! patch idex
       integer                                     :: iage
       integer                                     :: el
@@ -915,24 +828,33 @@ contains
       real(r8) :: m_sapw   ! Generic mass for sapwood [kg]
       real(r8) :: m_store  ! Generic mass for storage [kg]
       real(r8) :: m_repro  ! Generic mass for reproductive tissues [kg]
-      real(r8) :: stem_drop_fraction
+      real(r8) :: fnrt_drop_fraction ! Fine-root abscission fraction
+      real(r8) :: stem_drop_fraction ! Stem abscission fraction
       integer  :: i_pft, ncohorts_to_create
      
-      character(len=128),parameter    :: wr_fmt = &
-           '(F7.1,2X,A20,2X,A20,2X,F5.2,2X,F5.2,2X,I4,2X,F5.2,2X,F5.2,2X,F5.2,2X,F5.2)'
+      character(len=35),parameter    :: hd_fmt = &
+           '(A7,2X,A20,2X,A5,2X,A6,2X,A4,2X,A9)'
+      character(len=43),parameter    :: wr_fmt = &
+           '(F7.1,2X,A20,2X,F5.2,2X,F6.2,2X,I4,2X,F9.6)'
 
       real(r8), parameter :: abnormal_large_nplant = 1000.0_r8  ! Used to catch bad values
       real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
+      real(r8), parameter :: abnormal_large_height = 500.0_r8   ! I've never heard of a tree > 500m tall
       integer,  parameter :: recruitstatus = 0
+      logical, parameter :: old_type1_override = .false.
 
-     
-      read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, c_height, &
-            c_pft, c_nplant, c_bdead, c_balive, c_avgRG
-
+      if(old_type1_override) then
+         ! time patch cohort dbh hite pft nplant bdead alive Avgrg 
+         read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, &
+              c_height, c_pft, c_nplant
+      else
+         read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_dbh, &
+              c_height, c_pft, c_nplant
+      end if
+         
       if( debug_inv) then
          write(*,fmt=wr_fmt) &
-              c_time, p_name, c_name, c_dbh, c_height, &
-              c_pft, c_nplant, c_bdead, c_balive, c_avgRG
+              c_time, p_name, c_dbh, c_height, c_pft, c_nplant
       end if
 
       if (ios/=0) return
@@ -948,9 +870,10 @@ contains
 
       if(.not.matched_patch)then
          write(fates_log(), *) 'could not match a cohort with a patch'
+         write(fates_log(),fmt=hd_fmt) &
+            '   time','               patch','  dbh','height',' pft','   nplant'
          write(fates_log(),fmt=wr_fmt) &
-               c_time, p_name, c_name, c_dbh, c_height, &
-               c_pft, c_nplant, c_bdead, c_balive, c_avgRG
+               c_time, p_name, c_dbh, c_height, c_pft, c_nplant
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
@@ -971,15 +894,29 @@ contains
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
-      if (c_dbh <=0 ) then
+      if (c_dbh < nearzero .and. c_height < nearzero) then
          write(fates_log(), *) 'inventory dbh: ', c_dbh
-         write(fates_log(), *) 'The inventory produced a cohort with <= 0 dbh'
+         write(fates_log(), *) 'and inventory height: ',c_height
+         write(fates_log(), *) 'are both zero or negative. One must be positive.'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
+      if (c_dbh > nearzero .and. c_height > nearzero) then
+         write(fates_log(), *) 'inventory dbh: ', c_dbh
+         write(fates_log(), *) 'and inventory height: ',c_height
+         write(fates_log(), *) 'are both positive. One must be zero or negative.'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+      
       if (c_dbh > abnormal_large_dbh ) then
          write(fates_log(), *) 'inventory dbh: ', c_nplant
          write(fates_log(), *) 'The inventory produced a cohort with very large diameter [cm]'
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+
+      if (c_height > abnormal_large_height ) then
+         write(fates_log(), *) 'inventory height: ', c_height
+         write(fates_log(), *) 'The inventory produced a cohort with very large height [m]'
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
 
@@ -1018,52 +955,86 @@ contains
          endif
 
          temp_cohort%n           = c_nplant * cpatch%area / real(ncohorts_to_create,r8)
-         temp_cohort%dbh         = c_dbh
+         
          temp_cohort%crowndamage = 1  ! assume undamaged 
 
-         call h_allom(c_dbh,temp_cohort%pft,temp_cohort%hite)
+         if( c_dbh> 0._r8)then
+            temp_cohort%dbh         = c_dbh
+            call h_allom(c_dbh,temp_cohort%pft,temp_cohort%height)
+         else
+            temp_cohort%height  = c_height
+            call h2d_allom(c_height,temp_cohort%pft,temp_cohort%dbh)
+         end if
+
          temp_cohort%canopy_trim = 1.0_r8
 
+         ! Determine the phenology status and the elongation factors.
+         fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(temp_cohort%pft)
+         stem_drop_fraction = prt_params%phen_stem_drop_fraction(temp_cohort%pft)
+
+         if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
+              any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
+            ! Cold deciduous and season is for leaves off. Set leaf status and 
+            ! elongation factors accordingly
+            temp_cohort%efleaf_coh = 0.0_r8
+            temp_cohort%effnrt_coh = 1._r8 - fnrt_drop_fraction
+            temp_cohort%efstem_coh = 1._r8 - stem_drop_fraction
+
+            temp_cohort%status_coh = leaves_off
+
+         elseif ( any(prt_params%stress_decid(temp_cohort%pft) == [ihard_stress_decid,isemi_stress_decid])) then
+            ! Drought deciduous.  For the default approach, elongation factor is either
+            ! zero (full abscission) or one (fully flushed), but this can also be a
+            ! fraction in other approaches. Here we assume that leaves are "on" (i.e.
+            ! either fully flushed or growing) if elongation factor is not 0 for the 
+            ! initial conditions.
+            ! 
+            ! For tissues other than leaves, the actual drop fraction is a combination
+            ! of the elongation factor (e) and the drop fraction (x), which will ensure
+            ! that the remaining tissue biomass will be exactly e when x=1, and exactly
+            ! the original biomass when x = 0.
+            temp_cohort%efleaf_coh = csite%elong_factor(temp_cohort%pft)
+            temp_cohort%effnrt_coh = 1.0_r8 - (1.0_r8 - temp_cohort%efleaf_coh ) * fnrt_drop_fraction
+            temp_cohort%efstem_coh = 1.0_r8 - (1.0_r8 - temp_cohort%efleaf_coh ) * stem_drop_fraction
+
+            if (temp_cohort%efleaf_coh > 0.0_r8) then
+               ! Assume leaves are growing even if they are not fully flushed.
+               temp_cohort%status_coh = leaves_on
+            else
+               ! Leaves are off (abscissing).
+               temp_cohort%status_coh = leaves_off
+            end if
+         else
+            ! Evergreen, or deciduous PFT during the growing season. Assume tissues are fully flushed.
+            temp_cohort%efleaf_coh = 1.0_r8
+            temp_cohort%effnrt_coh = 1.0_r8
+            temp_cohort%efstem_coh = 1.0_r8
+
+            temp_cohort%status_coh = leaves_on
+         end if
+
          call bagw_allom(temp_cohort%dbh,temp_cohort%pft, &
-              temp_cohort%crowndamage, c_agw)
+              temp_cohort%crowndamage, temp_cohort%efstem_coh, c_agw)
          ! Calculate coarse root biomass from allometry
-         call bbgw_allom(temp_cohort%dbh,temp_cohort%pft,c_bgw)
+         call bbgw_allom(temp_cohort%dbh,temp_cohort%pft, temp_cohort%efstem_coh, c_bgw)
 
          ! Calculate the leaf biomass (calculates a maximum first, then applies canopy trim
          ! and sla scaling factors)
          call bleaf(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage,&
-              temp_cohort%canopy_trim,c_leaf)
+              temp_cohort%canopy_trim, temp_cohort%efleaf_coh, c_leaf)
          
          ! Calculate fine root biomass
 
          temp_cohort%l2fr = prt_params%allom_l2fr(temp_cohort%pft)
-         call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,temp_cohort%l2fr,c_fnrt)
+         call bfineroot(temp_cohort%dbh,temp_cohort%pft,temp_cohort%canopy_trim,temp_cohort%l2fr, &
+              temp_cohort%effnrt_coh, c_fnrt)
 
          ! Calculate sapwood biomass
          call bsap_allom(temp_cohort%dbh,temp_cohort%pft,temp_cohort%crowndamage, &
-              temp_cohort%canopy_trim, a_sapw, c_sapw)
+              temp_cohort%canopy_trim, temp_cohort%efstem_coh, a_sapw, c_sapw)
          
          call bdead_allom( c_agw, c_bgw, c_sapw, temp_cohort%pft, c_struct )
          call bstore_allom(temp_cohort%dbh, temp_cohort%pft, temp_cohort%crowndamage,temp_cohort%canopy_trim, c_store)
-
-         cstatus = leaves_on
-         stem_drop_fraction = EDPftvarcon_inst%phen_stem_drop_fraction(temp_cohort%pft)
-
-         if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
-              any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-            c_leaf  = 0._r8
-            c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
-            c_struct  = (1._r8 - stem_drop_fraction) * c_struct
-            cstatus = leaves_off
-         endif
-
-         if ( prt_params%stress_decid(temp_cohort%pft) == itrue .and. &
-              any(csite%dstatus == [phen_dstat_timeoff,phen_dstat_moistoff])) then
-            c_leaf  = 0._r8
-            c_sapw = (1._r8 - stem_drop_fraction) * c_sapw
-            c_struct  = (1._r8 - stem_drop_fraction) * c_struct
-            cstatus = leaves_off
-         endif
 
          prt_obj => null()
          call InitPRTObject(prt_obj)
@@ -1151,9 +1122,11 @@ contains
 
          call prt_obj%CheckInitialConditions()
 
-         call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%hite, &
+         call create_cohort(csite, cpatch, temp_cohort%pft, temp_cohort%n, temp_cohort%height, &
               temp_cohort%coage, temp_cohort%dbh, &
-              prt_obj, cstatus, rstatus, temp_cohort%canopy_trim,temp_cohort%c_area, &
+              prt_obj, temp_cohort%efleaf_coh, temp_cohort%effnrt_coh, &
+              temp_cohort%efstem_coh, temp_cohort%status_coh, rstatus, &
+              temp_cohort%canopy_trim,temp_cohort%c_area, &
               1, temp_cohort%crowndamage, csite%spread, bc_in)
 
          deallocate(temp_cohort) ! get rid of temporary cohort
@@ -1161,7 +1134,7 @@ contains
       end do
 
       return
-    end subroutine set_inventory_edcohort_type1
+    end subroutine set_inventory_cohort_type1
 
    ! ====================================================================================
 
@@ -1169,11 +1142,10 @@ contains
 
        ! --------------------------------------------------------------------------------
        ! This subroutine writes the cohort/patch inventory type files in the "type 1"
-       ! format.  Note that for compatibility with ED2, we chose an old type that has
-       ! both extra unused fields and is missing fields from FATES. THis is not
-       ! a recommended file type for restarting a run.
+       ! format.
        ! The files will have a lat/long tag added to their name, and will be
        ! generated in the run folder.
+       ! JFN Oct 2023 - updated to get rid of unused ED columns      
        ! --------------------------------------------------------------------------------
 
        use shr_file_mod, only        : shr_file_getUnit
@@ -1183,8 +1155,8 @@ contains
        type(ed_site_type), target :: currentSite
 
        ! Locals
-       type(ed_patch_type), pointer          :: currentpatch
-       type(ed_cohort_type), pointer         :: currentcohort
+       type(fates_patch_type), pointer          :: currentpatch
+       type(fates_cohort_type), pointer         :: currentcohort
 
        character(len=128)                    :: pss_name_out         ! output file string
        character(len=128)                    :: css_name_out         ! output file string
@@ -1214,7 +1186,7 @@ contains
        else
            ilon_sign = 'W'
        end if
-
+ 
        write(pss_name_out,'(A8,I2.2,A1,I5.5,A1,A1,I3.3,A1,I5.5,A1,A4)') &
              'pss_out_',ilat_int,'.',ilat_dec,ilat_sign,'_',ilon_int,'.',ilon_dec,ilon_sign,'.txt'
        write(css_name_out,'(A8,I2.2,A1,I5.5,A1,A1,I3.3,A1,I5.5,A1,A4)') &
@@ -1226,8 +1198,8 @@ contains
        open(unit=pss_file_out,file=trim(pss_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
        open(unit=css_file_out,file=trim(css_name_out), status='UNKNOWN',action='WRITE',form='FORMATTED')
 
-       write(pss_file_out,*) 'time patch trk age area water fsc stsc stsl ssc psc msn fsn'
-       write(css_file_out,*) 'time patch cohort dbh hite pft nplant bdead alive Avgrg'
+       write(pss_file_out,*) 'time patch trk age area'
+       write(css_file_out,*) 'time patch dbh height pft nplant'
 
        ipatch=0
        currentpatch => currentSite%youngest_patch
@@ -1236,16 +1208,14 @@ contains
 
            write(patch_str,'(A7,i4.4,A)') '<patch_',ipatch,'>'
 
-           write(pss_file_out,*) '0000 ',trim(patch_str),' 2 ',currentPatch%age,currentPatch%area/AREA, &
-                 '0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000    0.0000'
+           write(pss_file_out,*) '0000 ',trim(patch_str),' 2 ',currentPatch%age,currentPatch%area/AREA
 
            icohort=0
            currentcohort => currentpatch%tallest
            do while(associated(currentcohort))
                icohort=icohort+1
-               write(cohort_str,'(A7,i4.4,A)') '<coh_',icohort,'>'
-               write(css_file_out,*) '0000 ',trim(patch_str),' ',trim(cohort_str), &
-                     currentCohort%dbh,0.0,currentCohort%pft,currentCohort%n/currentPatch%area,0.0,0.0,0.0
+               write(css_file_out,*) '0000 ',trim(patch_str), &
+                     currentCohort%dbh,-3.0_r8,currentCohort%pft,currentCohort%n/currentPatch%area
 
                currentcohort => currentcohort%shorter
            end do

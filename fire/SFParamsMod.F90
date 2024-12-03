@@ -2,25 +2,22 @@ module SFParamsMod
    !
    ! module that deals with reading the SF parameter file
    !
-   use FatesConstantsMod , only: r8 => fates_r8
-   use FatesConstantsMod , only: fates_check_param_set
-   use EDtypesMod        , only: NFSC
-   use FatesLitterMod    , only: ncwd
+   use FatesConstantsMod,        only : r8 => fates_r8
+   use FatesConstantsMod,        only : fates_check_param_set
+   use FatesFuelClassesMod,      only : num_fuel_classes
+   use FatesLitterMod,           only : ncwd
    use FatesParametersInterface, only : param_string_length
-   use FatesGlobals,   only : fates_log
-   use FatesGlobals,   only : endrun => fates_endrun
-   use shr_log_mod      , only : errMsg => shr_log_errMsg
+   use FatesGlobals,             only : fates_log
+   use FatesGlobals,             only : endrun => fates_endrun
+   use shr_log_mod,              only : errMsg => shr_log_errMsg
 
    implicit none
-   private ! Modules are private by default
+   private 
    save
 
    !
    ! this is what the user can use for the actual values
    !
-
-   real(r8),protected, public :: SF_val_fdi_a
-   real(r8),protected, public :: SF_val_fdi_b
    real(r8),protected, public :: SF_val_fdi_alpha
    real(r8),protected, public :: SF_val_miner_total
    real(r8),protected, public :: SF_val_fuel_energy
@@ -31,18 +28,16 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_drying_ratio
    real(r8),protected, public :: SF_val_fire_threshold    ! threshold for fires that spread or go out. kW/m (Pyne 1996)
    real(r8),protected, public :: SF_val_CWD_frac(ncwd)
-   real(r8),protected, public :: SF_val_max_decomp(NFSC)
-   real(r8),protected, public :: SF_val_SAV(NFSC)
-   real(r8),protected, public :: SF_val_FBD(NFSC)
-   real(r8),protected, public :: SF_val_min_moisture(NFSC)
-   real(r8),protected, public :: SF_val_mid_moisture(NFSC)
-   real(r8),protected, public :: SF_val_low_moisture_Coeff(NFSC)
-   real(r8),protected, public :: SF_val_low_moisture_Slope(NFSC)
-   real(r8),protected, public :: SF_val_mid_moisture_Coeff(NFSC)
-   real(r8),protected, public :: SF_val_mid_moisture_Slope(NFSC)
+   real(r8),protected, public :: SF_val_max_decomp(num_fuel_classes)
+   real(r8),protected, public :: SF_val_SAV(num_fuel_classes)
+   real(r8),protected, public :: SF_val_FBD(num_fuel_classes)
+   real(r8),protected, public :: SF_val_min_moisture(num_fuel_classes)
+   real(r8),protected, public :: SF_val_mid_moisture(num_fuel_classes)
+   real(r8),protected, public :: SF_val_low_moisture_Coeff(num_fuel_classes)
+   real(r8),protected, public :: SF_val_low_moisture_Slope(num_fuel_classes)
+   real(r8),protected, public :: SF_val_mid_moisture_Coeff(num_fuel_classes)
+   real(r8),protected, public :: SF_val_mid_moisture_Slope(num_fuel_classes)
 
-   character(len=param_string_length),parameter :: SF_name_fdi_a = "fates_fire_fdi_a"
-   character(len=param_string_length),parameter :: SF_name_fdi_b = "fates_fire_fdi_b"
    character(len=param_string_length),parameter :: SF_name_fdi_alpha = "fates_fire_fdi_alpha"
    character(len=param_string_length),parameter :: SF_name_miner_total = "fates_fire_miner_total"
    character(len=param_string_length),parameter :: SF_name_fuel_energy = "fates_fire_fuel_energy"
@@ -63,17 +58,12 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_mid_moisture_Coeff = "fates_fire_mid_moisture_Coeff"
    character(len=param_string_length),parameter :: SF_name_mid_moisture_Slope = "fates_fire_mid_moisture_Slope"
 
-   character(len=*), parameter, private :: sourcefile = &
-         __FILE__
-
-
-   real(r8), parameter,private :: min_fire_threshold = 0.0001_r8  ! The minimum reasonable fire intensity threshold [kW/m]
-
+   character(len=*), parameter, private :: sourcefile =  __FILE__
+   real(r8),         parameter, private :: min_fire_threshold = 0.0001_r8  ! The minimum reasonable fire intensity threshold [kW/m]
 
    public :: SpitFireRegisterParams
    public :: SpitFireReceiveParams
    public :: SpitFireCheckParams
-
 
 contains
 
@@ -102,7 +92,7 @@ contains
      if(.not.is_master) return
      
      ! Move these checks to initialization
-     do c = 1,nfsc
+     do c = 1,num_fuel_classes
         if ( SF_val_max_decomp(c) < 0._r8) then
            write(fates_log(),*) 'Decomposition rates should be >0'
            write(fates_log(),*) 'c = ',c,' SF_val_max_decomp(c) = ',SF_val_max_decomp(c)
@@ -148,8 +138,6 @@ contains
 
     implicit none
 
-    SF_val_fdi_a = nan
-    SF_val_fdi_b = nan
     SF_val_fdi_alpha = nan
     SF_val_miner_total = nan
     SF_val_fuel_energy = nan
@@ -214,12 +202,6 @@ contains
 
     character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
     
-    call fates_params%RegisterParameter(name=SF_name_fdi_a, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_fdi_b, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=SF_name_fdi_alpha, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -258,13 +240,6 @@ contains
 
     class(fates_parameters_type), intent(inout) :: fates_params
     real(r8) :: tmp_real
-    
-
-    call fates_params%RetrieveParameter(name=SF_name_fdi_a, &
-         data=SF_val_fdi_a)
-
-    call fates_params%RetrieveParameter(name=SF_name_fdi_b, &
-         data=SF_val_fdi_b)
 
     call fates_params%RetrieveParameter(name=SF_name_fdi_alpha, &
          data=SF_val_fdi_alpha)

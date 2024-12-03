@@ -2,10 +2,13 @@ module FatesHydraulicsMemMod
 
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : fates_unset_r8
+   use FatesGlobals,       only : fates_log
+   use FatesGlobals, only      : endrun => fates_endrun
    use shr_infnan_mod,    only : nan => shr_infnan_nan, assignment(=)
    use FatesConstantsMod, only : itrue,ifalse
    use FatesHydroWTFMod,  only : wrf_arr_type
    use FatesHydroWTFMod,  only : wkf_arr_type
+   use shr_log_mod , only      : errMsg => shr_log_errMsg
    
    implicit none
    private
@@ -33,7 +36,7 @@ module FatesHydraulicsMemMod
    integer, parameter, public                  :: n_hypool_stem  = 1
    integer, parameter, public                  :: n_hypool_troot = 1 ! CANNOT BE CHANGED
    integer, parameter, public                  :: n_hypool_aroot = 1 ! THIS IS "PER-SOIL-LAYER"
-   integer, parameter, public                  :: nshell         = 5
+   integer, parameter, public                  :: nshell         = 1
 
 
    ! number of aboveground plant water storage nodes
@@ -167,19 +170,19 @@ module FatesHydraulicsMemMod
      
      real(r8), allocatable :: residual(:)
      real(r8), allocatable :: ajac(:,:)       ! Jacobian (N terms, N equations)
-     real(r8), allocatable :: th_node_init(:)
+     real(r8), allocatable :: th_node_init(:)  
      real(r8), allocatable :: th_node_prev(:)
-     real(r8), allocatable :: th_node(:)
-     real(r8), allocatable :: dth_node(:)
-     real(r8), allocatable :: h_node(:)
-     real(r8), allocatable :: v_node(:)
-     real(r8), allocatable :: z_node(:)
-     real(r8), allocatable :: psi_node(:)
-     real(r8), allocatable :: q_flux(:)
-     real(r8), allocatable :: dftc_dpsi_node(:)
-     real(r8), allocatable :: ftc_node(:)
-     real(r8), allocatable :: kmax_up(:)
-     real(r8), allocatable :: kmax_dn(:)
+     real(r8), allocatable :: th_node(:)       ! Relative water content (theta) of node [m3/m3]
+     real(r8), allocatable :: dth_node(:)      ! Change (time derivative) in water content of node 
+     real(r8), allocatable :: h_node(:)        !
+     real(r8), allocatable :: v_node(:)        ! Volume of the node [m3]
+     real(r8), allocatable :: z_node(:)        ! Eleveation potential of the node (datum 0 is surface)
+     real(r8), allocatable :: psi_node(:)      ! Suction of the node [MPa]
+     real(r8), allocatable :: q_flux(:)        ! Mass flux of pathways between nodes []
+     real(r8), allocatable :: dftc_dpsi_node(:) ! Differential of fraction total conductivity with suction
+     real(r8), allocatable :: ftc_node(:)       ! fraction of total conductivity [-]
+     real(r8), allocatable :: kmax_up(:)        ! Maximum conductivity for upstream side of compartment
+     real(r8), allocatable :: kmax_dn(:)        ! Maximum conductivity for downstream side of compartment
 
      ! Scratch arrays 
      real(r8) :: cohort_recruit_water_layer(nlevsoi_hyd_max)   ! the recruit water requirement for a cohort
@@ -314,11 +317,77 @@ module FatesHydraulicsMemMod
      
      procedure :: AllocateHydrCohortArrays
      procedure :: DeallocateHydrCohortArrays
+     procedure :: CopyCohortHydraulics
+     procedure :: Dump
      
   end type ed_cohort_hydr_type
-   
+
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+
+  
  contains
-    
+
+    subroutine CopyCohortHydraulics(ncohort_hydr, ocohort_hydr)
+
+      ! Arguments
+      class(ed_cohort_hydr_type), intent(inout) :: ncohort_hydr
+      class(ed_cohort_hydr_type), intent(inout) :: ocohort_hydr
+
+      ! Node heights
+      ncohort_hydr%z_node_ag             = ocohort_hydr%z_node_ag
+      ncohort_hydr%z_upper_ag            = ocohort_hydr%z_upper_ag
+      ncohort_hydr%z_lower_ag            = ocohort_hydr%z_lower_ag
+      ncohort_hydr%z_node_troot          = ocohort_hydr%z_node_troot
+
+      ! Compartment kmax's
+      ncohort_hydr%kmax_petiole_to_leaf  = ocohort_hydr%kmax_petiole_to_leaf
+      ncohort_hydr%kmax_stem_lower       = ocohort_hydr%kmax_stem_lower
+      ncohort_hydr%kmax_stem_upper       = ocohort_hydr%kmax_stem_upper
+      ncohort_hydr%kmax_troot_upper      = ocohort_hydr%kmax_troot_upper
+      ncohort_hydr%kmax_troot_lower      = ocohort_hydr%kmax_troot_lower
+      ncohort_hydr%kmax_aroot_upper      = ocohort_hydr%kmax_aroot_upper
+      ncohort_hydr%kmax_aroot_lower      = ocohort_hydr%kmax_aroot_lower
+      ncohort_hydr%kmax_aroot_radial_in  = ocohort_hydr%kmax_aroot_radial_in
+      ncohort_hydr%kmax_aroot_radial_out = ocohort_hydr%kmax_aroot_radial_out
+
+      ! Compartment volumes
+      ncohort_hydr%v_ag_init             = ocohort_hydr%v_ag_init
+      ncohort_hydr%v_ag                  = ocohort_hydr%v_ag
+      ncohort_hydr%v_troot_init          = ocohort_hydr%v_troot_init
+      ncohort_hydr%v_troot               = ocohort_hydr%v_troot
+      ncohort_hydr%v_aroot_layer_init    = ocohort_hydr%v_aroot_layer_init
+      ncohort_hydr%v_aroot_layer         = ocohort_hydr%v_aroot_layer
+      ncohort_hydr%l_aroot_layer         = ocohort_hydr%l_aroot_layer
+
+      ! State Variables
+      ncohort_hydr%th_ag                 = ocohort_hydr%th_ag
+      ncohort_hydr%th_troot              = ocohort_hydr%th_troot
+      ncohort_hydr%th_aroot              = ocohort_hydr%th_aroot
+      ncohort_hydr%psi_ag                = ocohort_hydr%psi_ag
+      ncohort_hydr%psi_troot             = ocohort_hydr%psi_troot
+      ncohort_hydr%psi_aroot             = ocohort_hydr%psi_aroot
+      ncohort_hydr%ftc_ag                = ocohort_hydr%ftc_ag
+      ncohort_hydr%ftc_troot             = ocohort_hydr%ftc_troot
+      ncohort_hydr%ftc_aroot             = ocohort_hydr%ftc_aroot
+
+      ! Other
+      ncohort_hydr%btran                 = ocohort_hydr%btran
+      ncohort_hydr%supsub_flag           = ocohort_hydr%supsub_flag
+      ncohort_hydr%iterh1                = ocohort_hydr%iterh1
+      ncohort_hydr%iterh2                = ocohort_hydr%iterh2
+      ncohort_hydr%iterlayer             = ocohort_hydr%iterlayer
+      ncohort_hydr%errh2o                = ocohort_hydr%errh2o
+      
+      ! BC PLANT HYDRAULICS - flux terms
+      ncohort_hydr%qtop                  = ocohort_hydr%qtop
+
+      ncohort_hydr%is_newly_recruited    = ocohort_hydr%is_newly_recruited
+
+    end subroutine CopyCohortHydraulics
+
+    ! ==========================================================================
+
     subroutine AllocateHydrCohortArrays(this,nlevrhiz)
        
        ! Arguments
@@ -361,7 +430,24 @@ module FatesHydraulicsMemMod
        return
     end subroutine DeallocateHydrCohortArrays
 
-    ! ===================================================================================
+    ! ==========================================================================
+
+    subroutine Dump(this)
+
+      class(ed_cohort_hydr_type), intent(in) :: this
+      
+      write(fates_log(),*) '--------------------------------------------'
+      write(fates_log(),*) ' Dumping Cohort Plant Hydraulic Information '
+      write(fates_log(),*) 'ccohort_hydr%th_aroot(:) = ', this%th_aroot(:)
+      write(fates_log(),*) 'ccohort_hydr%v_aroot_layer_init(:) = ', this%v_aroot_layer_init(:)
+      write(fates_log(),*) 'ccohort_hydr%v_aroot_layer(:) = ', this%v_aroot_layer(:)
+      write(fates_log(),*) '--------------------------------------------'
+      
+      return
+
+   end subroutine Dump
+
+   ! ==========================================================================
 
     subroutine InitHydrSite(this,numpft,numlevsclass,hydr_solver_type,nlevsoil)
        

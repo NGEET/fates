@@ -873,33 +873,41 @@ contains
     ! ---------------------------------------------------------------------------------
 
     class(prt_vartypes) :: this
-    integer             :: i_var
+    integer             :: i_var, istat
+    character(len=255)  :: smsg
     
     ! Check to see if there is any value in these pools?
     ! SHould not deallocate if there is any carbon left
 
     if(allocated(this%variables)) then
        do i_var = 1, prt_global%num_vars
-          deallocate(this%variables(i_var)%val)
-          deallocate(this%variables(i_var)%val0)
-          deallocate(this%variables(i_var)%net_alloc)
-          deallocate(this%variables(i_var)%turnover)
-          deallocate(this%variables(i_var)%burned)
+          deallocate( &
+               this%variables(i_var)%val, &
+               this%variables(i_var)%val0, &
+               this%variables(i_var)%net_alloc, &
+               this%variables(i_var)%turnover, &
+               this%variables(i_var)%burned, &
+               stat=istat, errmsg=smsg )
+          if (istat/=0) call endrun(msg='DeallocatePRTVartypes 1 stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
        end do
-
-       deallocate(this%variables)
+   
+       deallocate(this%variables, stat=istat, errmsg=smsg)
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes 2 stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
     end if
 
     if(allocated(this%bc_in))then
-       deallocate(this%bc_in)
+       deallocate(this%bc_in, stat=istat, errmsg=smsg)
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes bc_in stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
     end if
     
     if(allocated(this%bc_out))then
-       deallocate(this%bc_out)
+       deallocate(this%bc_out, stat=istat, errmsg=smsg)
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes bc_out stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
     end if
 
     if(allocated(this%bc_inout))then
-       deallocate(this%bc_inout)
+       deallocate(this%bc_inout, stat=istat, errmsg=smsg)
+       if (istat/=0) call endrun(msg='DeallocatePRTVartypes bc_inout stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
     end if
 
     return
@@ -1261,7 +1269,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine AgeLeaves(this,ipft,period_sec)
+   subroutine AgeLeaves(this,ipft,icanlayer,period_sec)
 
      ! -----------------------------------------------------------------------------------
      ! If we have more than one leaf age classification, allow
@@ -1274,6 +1282,7 @@ contains
 
      class(prt_vartypes)              :: this
      integer,intent(in)               :: ipft
+     integer,intent(in)               :: icanlayer
      real(r8),intent(in)              :: period_sec  ! Time period over which this routine
                                                      ! is called [seconds] daily=86400
      integer                          :: nleafage
@@ -1283,7 +1292,7 @@ contains
      integer                          :: element_id
      real(r8)                         :: leaf_age_flux_frac
      real(r8),dimension(max_nleafage) :: leaf_m0
-
+     real(r8)                         :: leaf_long
 
      do el = 1, num_elements
 
@@ -1303,9 +1312,15 @@ contains
              do i_age = 1,nleafage-1
                 if (prt_params%leaf_long(ipft,i_age)>nearzero) then
 
+                   if (icanlayer  .eq.  1)  then
+                      leaf_long = prt_params%leaf_long(ipft,i_age)
+                   else
+                      leaf_long = prt_params%leaf_long_ustory(ipft,i_age)
+                   end if
+
                    ! Units: [-] = [sec] * [day/sec] * [years/day] * [1/years]
-                   leaf_age_flux_frac = period_sec * days_per_sec * years_per_day / prt_params%leaf_long(ipft,i_age)
-                   
+                   leaf_age_flux_frac = period_sec * days_per_sec * years_per_day / leaf_long
+                                   
                    leaf_m(i_age)    = leaf_m(i_age)   - leaf_m0(i_age) * leaf_age_flux_frac
                    leaf_m(i_age+1)  = leaf_m(i_age+1) + leaf_m0(i_age) * leaf_age_flux_frac
                    
@@ -1399,12 +1414,12 @@ contains
 
         elseif(store_prop==cstore_store_prop) then
 
-           !call bsap_allom(dbh,ipft,canopy_trim,sapw_area,target_sapw_c)
-           !call bagw_allom(dbh,ipft,agw_c_target)
-           !call bbgw_allom(dbh,ipft,bgw_c_target)
+           !call bsap_allom(dbh,ipft,canopy_trim,elongf_stem,sapw_area,target_sapw_c)
+           !call bagw_allom(dbh,ipft,elongf_stem,agw_c_target)
+           !call bbgw_allom(dbh,ipft,elongf_stem,bgw_c_target)
            !call bdead_allom(agw_c_target,bgw_c_target,target_sapw_c,ipft,target_struct_c)
-           !call bleaf(dbh,ipft,canopy_trim, target_leaf_c)
-           !call bfineroot(dbh,ipft,canopy_trim, l2fr, target_fnrt_c)
+           !call bleaf(dbh,ipft,canopy_trim, elongf_leaf, target_leaf_c)
+           !call bfineroot(dbh,ipft,canopy_trim, l2fr, elongf_fnrt, target_fnrt_c)
            !call bstore_allom(dbh,ipft,canopy_trim, target_store_c)
 
            ! Strategy, store as much nutrient as needed to match carbon's growth potential
