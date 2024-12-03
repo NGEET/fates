@@ -3,7 +3,7 @@ module EDAccumulateFluxesMod
   !------------------------------------------------------------------------------
   ! !DESCRIPTION:
   ! This routine accumulates NPP, GPP and respiration of each cohort over the course of each 24 hour period. 
-  ! The fluxes are stored per cohort, and the npp_tstep (etc) fluxes are calcualted in EDPhotosynthesis
+  ! The fluxes are stored per cohort, and the gpp_tstep (etc) fluxes are calculated in EDPhotosynthesis
   ! This routine cannot be in EDPhotosynthesis because EDPhotosynthesis is a loop and therefore would
   ! erroneously add these things up multiple times. 
   ! Rosie Fisher. March 2014. 
@@ -13,6 +13,7 @@ module EDAccumulateFluxesMod
   use FatesGlobals, only      : fates_log
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   use FatesConstantsMod , only : r8 => fates_r8
+
 
   implicit none
   private
@@ -68,30 +69,20 @@ contains
        
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))                 
-
           ifp = ifp+1
 
           if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
              ccohort => cpatch%shortest
              do while(associated(ccohort))
-                
+
                 ! Accumulate fluxes from hourly to daily values. 
                 ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
-                
-                if ( debug ) then
-                   
-                   write(fates_log(),*) 'EDAccumFlux 64 ',ccohort%npp_tstep
-                   write(fates_log(),*) 'EDAccumFlux 66 ',ccohort%gpp_tstep
-                   write(fates_log(),*) 'EDAccumFlux 67 ',ccohort%resp_tstep
-                   
-                endif
-                
-                ccohort%npp_acc  = ccohort%npp_acc  + ccohort%npp_tstep 
+
                 ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
-                ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
-                
+                ccohort%resp_m_acc = ccohort%resp_m_acc + ccohort%resp_m_tstep
+
                 ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
-                
+
                 ! weighted mean of D13C by gpp
                 if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
                    ccohort%c13disc_acc = 0.0_r8
@@ -100,14 +91,14 @@ contains
                         (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
                         (ccohort%gpp_acc + ccohort%gpp_tstep)
                 endif
-                
+
                 do iv=1,ccohort%nv
                    if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 
                       ccohort%year_net_uptake(iv) = 0._r8
                    end if
                    ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + ccohort%ts_net_uptake(iv)
                 enddo
-                
+
                 ccohort => ccohort%taller
              enddo ! while(associated(ccohort))
           end if

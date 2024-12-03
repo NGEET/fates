@@ -1,0 +1,172 @@
+<?xml version="1.0"?>
+<all>
+	<!-- This parameter patch file updates the parameter file with the changes -->
+	<!-- Introduces two new arctic shrub PFTs, first by duplicating the default -->
+	<!-- #7  broadleaf_avergreen_extratrop_shrub, and the -->
+	<!-- #9  broadleaf_colddecid_extratrop_shrub, then updating the parameters -->
+	<!-- based on Yanlan Liu's 2024 publication in Earth's Future. -->
+
+        <!-- ORGINIAL PFT KEY -->
+    <!-- 1  broadleaf_evergreen_tropical_tree     -->
+    <!-- 2  needleleaf_evergreen_extratrop_tree   -->
+    <!-- 3  needleleaf_colddecid_extratrop_tree   -->
+    <!-- 4  broadleaf_evergreen_extratrop_tree    -->
+    <!-- 5  broadleaf_hydrodecid_tropical_tree    -->
+    <!-- 6  broadleaf_colddecid_extratrop_tree    -->
+    <!-- 7  broadleaf_evergreen_extratrop_shrub   -->
+    <!-- 8  broadleaf_hydrodecid_extratrop_shrub  -->
+    <!-- 9  broadleaf_colddecid_extratrop_shrub   -->
+    <!-- 10 arctic_c3_grass                       -->
+    <!-- 11 cool_c3_grass                         -->
+    <!-- 12 c4_grass                              -->
+
+
+	<!-- NEW PFT KEY -->
+    <!-- 1  broadleaf_evergreen_tropical_tree     -->
+    <!-- 2  needleleaf_evergreen_extratrop_tree   -->
+    <!-- 3  needleleaf_colddecid_extratrop_tree   -->
+    <!-- 4  broadleaf_evergreen_extratrop_tree    -->
+    <!-- 5  broadleaf_hydrodecid_tropical_tree    -->
+    <!-- 6  broadleaf_colddecid_extratrop_tree    -->
+    <!-- 7  broadleaf_evergreen_extratrop_shrub   -->
+    <!-- 8  broadleaf_hydrodecid_extratrop_shrub  -->
+    <!-- 9  broadleaf_colddecid_extratrop_shrub   -->
+    <!-- 10 broadleaf_evergreen_arctic_shrub      -->
+    <!-- 11 broadleaf_colddecid_arctic_shrub      -->
+    <!-- 12 arctic_c3_grass                       -->
+    <!-- 13 cool_c3_grass                         -->
+    <!-- 14 c4_grass                              -->
+
+
+  <!-- This is the second of two patch files necessary to update from API 36 to API 36.1.  The two files
+       require different patch update tools which requires that they be run sequentially.  If you have not
+       done so already, make sure to review the instructions in api36.1.0_100224_patch_params-1.xml before
+       proceeding. -->
+
+  <!-- To use this patch file run the following command: -->
+  <!--   Run `python ../tools/BatchPatchParams.py -/-f archive/api36.1.0_100224_patch_params-2.xml` -->
+
+  <base_file>fates_params_default.cdl</base_file>
+  <new_file>fates_params_default.cdl</new_file>
+  <pft_trim_list>1,2,3,4,5,6,7,8,9,7,9,10,11,12</pft_trim_list>
+  <parameters>
+
+    <!-- Naming conventions: date stamp and the last tag it was valid through  -->
+    <!-- api36.0.0_051724 -->
+
+    <!-- Override values for the new evergreen arctic PFT, this is now PFT 10 -->
+    <!-- which duplicated the orginial 7th PFT -->
+    <pft_group ids="10">
+      <fates_pftname> broadleaf_evergreen_arctic_shrub </fates_pftname>
+      <fates_allom_d2bl1> 0.0481934 </fates_allom_d2bl1>
+      <fates_allom_d2bl2> 1.0600586 </fates_allom_d2bl2>
+      <fates_allom_agb2> 0.5289883 </fates_allom_agb2>
+      <fates_allom_agb3> 2.1010352 </fates_allom_agb3>
+      <fates_allom_d2h1> 0.8165625 </fates_allom_d2h1>
+      <fates_allom_d2h2> 0.2316113 </fates_allom_d2h2>
+      <fates_recruit_height_min> 0.8 </fates_recruit_height_min>
+      <fates_allom_dbh_maxheight> 2.4 </fates_allom_dbh_maxheight>
+      <fates_recruit_seed_dbh_repro_threshold> 2.4 </fates_recruit_seed_dbh_repro_threshold>
+      <fates_allom_d2ca_coefficient_min> 0.4363427 </fates_allom_d2ca_coefficient_min>
+      <fates_allom_d2ca_coefficient_max> 0.4363427 </fates_allom_d2ca_coefficient_max>
+      <fates_alloc_store_priority_frac> 0.7 </fates_alloc_store_priority_frac>
+      <fates_alloc_storage_cushion> 1.5 </fates_alloc_storage_cushion>
+      <fates_leaf_slatop> 0.010 </fates_leaf_slatop>
+      <fates_leaf_vcmax25top> 38 </fates_leaf_vcmax25top>
+      <fates_grperc> 0.12 </fates_grperc>
+      <fates_mort_bmort> 0.016 </fates_mort_bmort>
+      <fates_mort_freezetol> -71 </fates_mort_freezetol>
+      <fates_frag_seed_decay_rate> 0.74 </fates_frag_seed_decay_rate>
+      <fates_recruit_seed_alloc> 0.07 </fates_recruit_seed_alloc>
+      <fates_recruit_seed_germination_rate> 0.40 </fates_recruit_seed_germination_rate>
+      <fates_recruit_init_density> 0.16 </fates_recruit_init_density>
+    </pft_group>
+
+
+    <!-- Override values for the new colddecid arctic PFT, this is now PFT 11 -->
+    <!-- which duplicated the orginial 9th PFT -->
+    <pft_group ids="11">
+      <fates_pftname> broadleaf_colddecid_arctic_shrub </fates_pftname>
+      <fates_allom_d2bl1> 0.0481934 </fates_allom_d2bl1>
+      <fates_allom_d2bl2> 1.7176758 </fates_allom_d2bl2>
+      <fates_allom_agb2> 0.6853945 </fates_allom_agb2>
+      <fates_allom_agb3> 1.7628613 </fates_allom_agb3>
+      <fates_allom_d2h1> 0.7781250 </fates_allom_d2h1>
+      <fates_allom_d2h2> 0.4027002 </fates_allom_d2h2>
+      <fates_recruit_height_min> 0.8 </fates_recruit_height_min>
+      <fates_allom_dbh_maxheight> 1.9 </fates_allom_dbh_maxheight>
+      <fates_recruit_seed_dbh_repro_threshold> 1.9 </fates_recruit_seed_dbh_repro_threshold>
+      <fates_allom_d2ca_coefficient_min> 0.3166497 </fates_allom_d2ca_coefficient_min>
+      <fates_allom_d2ca_coefficient_max> 0.3166497 </fates_allom_d2ca_coefficient_max>
+      <fates_alloc_store_priority_frac> 0.6 </fates_alloc_store_priority_frac>
+      <fates_alloc_storage_cushion> 1.4 </fates_alloc_storage_cushion>
+      <fates_leaf_slatop> 0.032 </fates_leaf_slatop>
+      <fates_leaf_slamax> 0.032 </fates_leaf_slamax>
+      <fates_leaf_vcmax25top> 54 </fates_leaf_vcmax25top>
+      <fates_mort_scalar_hydrfailure> 0.8 </fates_mort_scalar_hydrfailure>
+      <fates_mort_scalar_cstarvation> 0.57 </fates_mort_scalar_cstarvation>
+      <fates_mort_scalar_coldstress> 3.5 </fates_mort_scalar_coldstress>
+      <fates_mort_bmort> 0.010 </fates_mort_bmort>
+      <fates_mort_freezetol> -95 </fates_mort_freezetol>
+      <fates_frag_seed_decay_rate> 0.46 </fates_frag_seed_decay_rate>
+      <fates_recruit_seed_germination_rate> 0.49 </fates_recruit_seed_germination_rate>
+    </pft_group>
+
+    <!-- Updating parameters for c3_arctic grass based on Yanlan's work. Now PFT 12 -->
+    <pft_group ids="12">
+      <fates_recruit_height_min> 0.11 </fates_recruit_height_min>
+      <fates_alloc_store_priority_frac> 0.6 </fates_alloc_store_priority_frac>
+      <fates_leaf_slatop> 0.027 </fates_leaf_slatop>
+      <fates_leaf_vcmax25top> 86 </fates_leaf_vcmax25top>
+      <fates_grperc> 0.16 </fates_grperc>
+      <fates_mort_scalar_coldstress> 2.3 </fates_mort_scalar_coldstress>
+      <fates_mort_freezetol> -89 </fates_mort_freezetol>
+      <fates_frag_seed_decay_rate> 0.35 </fates_frag_seed_decay_rate>
+      <fates_recruit_seed_germination_rate> 0.29 </fates_recruit_seed_germination_rate>
+    </pft_group>
+
+    <!-- Update the HLM-PFT map since PFTs 9, 10, 11 now share area -->
+    <!-- Splits the HLM deciduous boreal shrub (which must sum to 1.0)  -->
+    <!-- into 0.1 for the evergreen arctic, and 0.8 for cold-decid arctic -->
+    <!-- and leaves 0.1 in the orginial non-arctic extratrop cold-decid shrub -->
+    <pft_group ids="9" >
+      <fates_hlm_pft_map> 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 0.1, 0, 0, 0 </fates_hlm_pft_map>
+    </pft_group>
+
+    <pft_group ids="10">
+      <fates_hlm_pft_map> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.1, 0, 0, 0 </fates_hlm_pft_map>
+    </pft_group>
+
+    <pft_group ids="11">
+      <fates_hlm_pft_map> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.8, 0.0, 0, 0 </fates_hlm_pft_map>
+    </pft_group>
+    <non_pft_group></non_pft_group>
+
+
+    <!-- Creates a new 10th and 11th column, for the two new arctic shrub PFTs -->
+    <!-- then splits the HLM deciduous boreal shrub (which must sum to 1.0)  -->
+    <!-- into 0.1 for the evergreen arctic, and 0.8 for cold-decid arctic -->
+    <!-- and leaves 0.1 in the orginial non-arctic extratrop cold-decid shrub -->
+    <!--<mods>
+      <mod type="variable_change" name="fates_hlm_pft_map">
+        <di> fates_hlm_pftno, fates_pft </di>
+        <val>  0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0.1, 0.8, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ;
+        </val>
+      </mod>
+    </mods>   -->
+
+  </parameters>
+</all>

@@ -6,6 +6,7 @@ program FatesTestAllometry
   use FatesAllometryMod,           only : bfineroot, bstore_allom, bdead_allom
   use PRTParametersMod,            only : prt_params
   use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
+  use FatesArgumentUtils,          only : command_line_arg
 
   implicit none
 
@@ -13,10 +14,8 @@ program FatesTestAllometry
   type(fates_unit_test_param_reader) :: param_reader            ! param reader instance
   character(len=:), allocatable      :: param_file              ! input parameter file
   integer                            :: numpft                  ! number of pfts (from parameter file)
-  integer                            :: arglen                  ! length of command line argument
   integer                            :: i, j                    ! looping indices
   integer                            :: numdbh                  ! size of dbh array
-  integer                            :: nargs                   ! number of command line arguments
   real(r8), allocatable              :: dbh(:)                  ! diameter at breast height [cm]
   real(r8), allocatable              :: height(:, :)            ! height [m]
   real(r8), allocatable              :: bagw(:, :)              ! aboveground woody biomass [kgC]
@@ -76,17 +75,9 @@ program FatesTestAllometry
 
   end interface
 
-  ! get parameter file from command-line argument
-  nargs = command_argument_count()
-  if (nargs /= 1) then
-    write(*, '(a, i2, a)') "Incorrect number of arguments: ", nargs, ". Should be 1."
-    stop
-  else
-    call get_command_argument(1, length=arglen)
-    allocate(character(arglen) :: param_file)
-    call get_command_argument(1, value=param_file)
-  endif
-
+  ! read in parameter file name from command line
+  param_file = command_line_arg(1)
+  
   ! read in parameter file
   call param_reader%Init(param_file)
   call param_reader%RetrieveParameters()
