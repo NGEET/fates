@@ -848,7 +848,7 @@ contains
          data=tmp_vector_by_landuse2)
 
     maxpatches_by_landuse(:) = nint(tmp_vector_by_landuse2(:))
-    maxpatch_total = sum(maxpatches_by_landuse(:))
+    !maxpatch_total = sum(maxpatches_by_landuse(:))
     deallocate(tmp_vector_by_landuse2)
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_max_nocomp_pfts_by_landuse, &

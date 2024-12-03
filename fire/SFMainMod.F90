@@ -49,7 +49,7 @@ module SFMainMod
 
   integer :: write_SF = ifalse   ! for debugging
   logical :: debug = .false.     ! for debugging
-
+  
   ! ======================================================================================
 
 contains
@@ -173,33 +173,30 @@ contains
     currentPatch => currentSite%oldest_patch 
     do while(associated(currentPatch))  
 
-      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
-
-        ! calculate live grass [kgC/m2]
-        call currentPatch%UpdateLiveGrass()
-
-        ! update fuel loading [kgC/m2]
-        litter => currentPatch%litter(element_pos(carbon12_element))
-        call currentPatch%fuel%UpdateLoading(sum(litter%leaf_fines(:)),               &
-          litter%ag_cwd(1), litter%ag_cwd(2), litter%ag_cwd(3), litter%ag_cwd(4),        &
-          currentPatch%livegrass)
+       ! calculate live grass [kgC/m2]
+       call currentPatch%UpdateLiveGrass()
+       
+       ! update fuel loading [kgC/m2]
+       litter => currentPatch%litter(element_pos(carbon12_element))
+       call currentPatch%fuel%UpdateLoading(sum(litter%leaf_fines(:)),               &
+            litter%ag_cwd(1), litter%ag_cwd(2), litter%ag_cwd(3), litter%ag_cwd(4),        &
+            currentPatch%livegrass)
+       
+       ! sum up fuel classes and calculate fractional loading for each
+       call currentPatch%fuel%SumLoading()
+       call currentPatch%fuel%CalculateFractionalLoading()
+       
+       ! calculate fuel moisture [m3/m3]
+       call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,       &
+            currentSite%fireWeather)
+       
+       ! calculate geometric properties
+       call currentPatch%fuel%AverageBulkDensity_NoTrunks(SF_val_FBD)
+       call currentPatch%fuel%AverageSAV_NoTrunks(SF_val_SAV)
             
-        ! sum up fuel classes and calculate fractional loading for each
-        call currentPatch%fuel%SumLoading()
-        call currentPatch%fuel%CalculateFractionalLoading()
-          
-        ! calculate fuel moisture [m3/m3]
-        call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,       &
-          currentSite%fireWeather)
-        
-        ! calculate geometric properties
-        call currentPatch%fuel%AverageBulkDensity_NoTrunks(SF_val_FBD)
-        call currentPatch%fuel%AverageSAV_NoTrunks(SF_val_SAV)
-            
-      end if 
-      currentPatch => currentPatch%younger
-    end do 
-
+       currentPatch => currentPatch%younger
+    end do
+    
   end subroutine UpdateFuelCharacteristics
 
   !---------------------------------------------------------------------------------------
@@ -236,7 +233,7 @@ contains
 
     do while(associated(currentPatch))
 
-      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground .and. currentPatch%fuel%non_trunk_loading > nearzero) then
+       if_nontrunk_loading: if(currentPatch%fuel%non_trunk_loading > nearzero) then
                        
        ! remove mineral content from net fuel load per Thonicke 2010 for ir calculation
        currentPatch%fuel%non_trunk_loading = currentPatch%fuel%non_trunk_loading * (1.0_r8 - SF_val_miner_total) !net of minerals
@@ -346,9 +343,8 @@ contains
        ! backward ROS wind not changed by vegetation 
        currentPatch%ROS_back = currentPatch%ROS_front*exp(-0.012_r8*currentSite%wind) 
        
-       end if ! nocomp_pft_label check
+       end if if_nontrunk_loading
        currentPatch => currentPatch%younger
-
     enddo !end patch loop
 
   end subroutine  rate_of_spread
@@ -380,8 +376,6 @@ contains
 
     do while(associated(currentPatch))
 
-       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
-         
          currentPatch%fuel%frac_burnt(:) = 1.0_r8       
          ! Calculate fraction of litter is burnt for all classes. 
          ! Equation B1 in Thonicke et al. 2010---
@@ -442,8 +436,6 @@ contains
        !---calculate overall fuel consumed by spreading fire --- 
        ! ignore 1000hr fuels. Just interested in fuels affecting ROS   
        currentPatch%TFC_ROS = sum(FC_ground)-FC_ground(tr_sf)  
-
-       end if ! nocomp_pft_label check
 
        currentPatch=>currentPatch%younger;
     enddo !end patch loop
@@ -537,8 +529,6 @@ contains
 
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch))
-
-       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
        !  ---initialize patch parameters to zero---
        currentPatch%FI         = 0._r8
@@ -644,10 +634,8 @@ contains
          endif         
           
        endif ! NF ignitions check
-       endif ! nocomp_pft_label check
        
        currentPatch => currentPatch%younger
-
     enddo !end patch loop
 
   end subroutine area_burnt_intensity
@@ -677,8 +665,6 @@ contains
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch)) 
 
-       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
-       
        tree_ag_biomass = 0.0_r8
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
@@ -711,7 +697,6 @@ contains
           end do
 
        endif !fire
-       endif !nocomp_pft_label
 
        currentPatch => currentPatch%younger;  
     enddo !end patch loop
@@ -735,7 +720,6 @@ contains
 
     do while(associated(currentPatch)) 
 
-       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
        if (currentPatch%fire == 1) then
 
           currentCohort=>currentPatch%tallest
@@ -777,7 +761,6 @@ contains
 
           enddo !end cohort loop
        endif !fire?
-       endif !nocomp_pft_label check
 
        currentPatch => currentPatch%younger;
 
@@ -804,8 +787,6 @@ contains
 
     do while(associated(currentPatch)) 
 
-       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
-
        if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
@@ -830,7 +811,6 @@ contains
 
           enddo !end cohort loop
        endif !fire?
-       endif !nocomp_pft_label check
 
        currentPatch=>currentPatch%younger;
 
@@ -857,8 +837,6 @@ contains
 
     do while(associated(currentPatch)) 
 
-       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
-
        if (currentPatch%fire == 1) then 
           currentCohort => currentPatch%tallest
           do while(associated(currentCohort))  
@@ -878,8 +856,6 @@ contains
 
           enddo !end cohort loop
        endif !fire?
-       endif !nocomp_pft_label check
-
        currentPatch => currentPatch%younger
 
     enddo !end patch loop
