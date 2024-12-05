@@ -8,11 +8,13 @@ module SFEquationsMod
   ! ============================================================================
   
   use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : nearzero
   
   implicit none
   private
   
   public :: OptimumPackingRatio
+  public :: ReactionIntensity
   
   contains 
   
@@ -31,9 +33,9 @@ module SFEquationsMod
     real(r8), parameter :: b = -0.8189_r8
           
     if (SAV < nearzero) then
-      beta_op = 0.0_r8 
+      OptimumPackingRatio = 0.0_r8 
     else  
-      beta_op = a*(SAV**b)
+      OptimumPackingRatio = a*(SAV**b)
     end if
           
     end function OptimumPackingRatio
