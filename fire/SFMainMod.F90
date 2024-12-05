@@ -37,9 +37,9 @@ module SFMainMod
   implicit none
   private
 
-  public :: fire_model
+  public :: DailyFireModel
   public :: UpdateFuelCharacteristics
-  public :: rate_of_spread
+  public :: CalculateSurfaceRateOfSpread
   public :: ground_fuel_consumption
   public :: area_burnt_intensity
   public :: crown_scorching
@@ -290,7 +290,7 @@ contains
           currentPatch%ROS_front = 0.0_r8
         else ! Equation 9. Thonicke et al. 2010. 
           ! forward ROS in m/min
-          currentPatch%ROS_front = (ir*xi*(1.0_r8+phi_wind))/(currentPatch%fuel%bulk_density_notrunks*eps*q_ig)
+          currentPatch%ROS_front = (i_r*xi*(1.0_r8+phi_wind))/(currentPatch%fuel%bulk_density_notrunks*eps*q_ig)
         endif
         ! Equation 10 in Thonicke et al. 2010
         ! backward ROS from Can FBP System (1992) in m/min
