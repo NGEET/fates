@@ -44,6 +44,8 @@ module SFEquationsMod
       !
       !  DESCRIPTION:
       !  Calculates maximum reaction velocity in /min
+      !  Reaction velocity that would exist if fuel were free of moisture and 
+      !  contained mineral and alpha cellulose
       !  From Equation 36 in Rothermel 1972; Fig. 12
       !
       

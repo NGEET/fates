@@ -218,16 +218,17 @@ contains
     type(ed_site_type), intent(in), target :: currentSite ! site object
 
     ! LOCALS:
-    type(fates_patch_type), pointer :: currentPatch ! patch object 
-    real(r8)                        :: beta         ! packing ratio [unitless]
-    real(r8)                        :: beta_op      ! optimum packing ratio [unitless]
-    real(r8)                        :: beta_ratio   ! relative packing ratio [unitless]
-    real(r8)                        :: i_r          ! reaction intensity [kJ/m2/min]
-    real(r8)                        :: xi           ! propagating flux ratio [unitless]
-    real(r8)                        :: eps          ! effective heating number [unitless]
-    real(r8)                        :: phi_wind     ! wind factor [unitless]
-    real(r8)                        :: q_ig         ! heat of pre-ignition [kJ/kg]
-    real(r8)                        :: b,c,e        ! dummy variables
+    type(fates_patch_type), pointer :: currentPatch        ! patch object 
+    real(r8)                        :: beta                ! packing ratio [unitless]
+    real(r8)                        :: beta_op             ! optimum packing ratio [unitless]
+    real(r8)                        :: beta_ratio          ! relative packing ratio [unitless]
+    real(r8)                        :: i_r                 ! reaction intensity [kJ/m2/min]
+    real(r8)                        :: xi                  ! propagating flux ratio [unitless]
+    real(r8)                        :: eps                 ! effective heating number [unitless]
+    real(r8)                        :: phi_wind            ! wind factor [unitless]
+    real(r8)                        :: q_ig                ! heat of pre-ignition [kJ/kg]
+    real(r8)                        :: b,c,e               ! dummy variables
+    real(r8)                        :: non_mineral_loading ! non mineral loading [kgC/m2]
 
     ! CONSTANTS:
     real(r8), parameter :: q_dry = 581.0_r8 ! heat of pre-ignition of dry fuels [kJ/kg]
@@ -237,24 +238,19 @@ contains
       if (currentPatch%nocomp_pft_label /= nocomp_bareground .and.                       &
         currentPatch%fuel%non_trunk_loading > nearzero) then
         
-        ! fraction of fuel array volume occupied by fuel, i.e. compactness of fuel bed 
+        ! fraction of fuel array volume occupied by fuel, i.e. compactness of fuel bed [unitless]
+        ! Rothermel 1972 Eq. 31
         beta = currentPatch%fuel%bulk_density_notrunks/SF_val_part_dens
         
         ! optimum packing ratio [unitless]
+        ! Rothermel 1972 Eq. 37
         beta_op = OptimumPackingRatio(currentPatch%fuel%SAV_notrunks)
-        
-        ! relative packing ratio
-        if (beta_op < nearzero) then 
-          beta_ratio = 0.0_r8
-        else
-          beta_ratio = beta/beta_op 
-        end if
-        
+                
         ! remove mineral content from fuel load per Thonicke 2010 
-        currentPatch%fuel%non_trunk_loading = currentPatch%fuel%non_trunk_loading*(1.0_r8 - SF_val_miner_total) 
+        non_mineral_loading = currentPatch%fuel%non_trunk_loading*(1.0_r8 - SF_val_miner_total) 
         
         ! reaction intensity [kJ/m2/min]
-        i_r = ReactionIntensity(currentPatch%fuel%non_trunk_loading/0.45_r8,             &
+        i_r = ReactionIntensity(non_mineral_loading/0.45_r8,                             &
           currentPatch%fuel%SAV_notrunks, beta_ratio,                                    &
           currentPatch%fuel%average_moisture_notrunks, currentPatch%fuel%MEF_notrunks)
         
@@ -320,6 +316,7 @@ contains
     real(r8) :: moist           !effective fuel moisture
     real(r8) :: tau_b(num_fuel_classes)     !lethal heating rates for each fuel class (min) 
     real(r8) :: fc_ground(num_fuel_classes) !total amount of fuel consumed per area of burned ground (kg C / m2 of burned area)
+    real(r8) :: non_mineral_loading ! non-mineral loading [kgC/m2]
     integer :: tr_sf, tw_sf, dl_sf, lg_sf
     integer  :: c
     
@@ -374,8 +371,6 @@ contains
          FC_ground(dl_sf)       = currentPatch%fuel%frac_burnt(dl_sf)   * sum(litt_c%leaf_fines(:))
          FC_ground(lg_sf)       = currentPatch%fuel%frac_burnt(lg_sf)   * currentPatch%livegrass  
          
-         !call currentPatch%fuel%BurnFuel(fc_ground)
-
        ! Following used for determination of cambial kill follows from Peterson & Ryan (1986) scheme 
        ! less empirical cf current scheme used in SPITFIRE which attempts to mesh Rothermel 
        ! and P&R, and while solving potential inconsistencies, actually results in BIG values for 
@@ -383,8 +378,9 @@ contains
        ! taul is the duration of the lethal heating.  
        ! The /10 is to convert from kgC/m2 into gC/cm2, as in the Peterson and Ryan paper #Rosie,Jun 2013
         
+       non_mineral_loading = currentPatch%fuel%non_trunk_loading*(1.0_r8 - SF_val_miner_total) !net of minerals
        do c = 1,num_fuel_classes 
-          tau_b(c)   =  39.4_r8 *(currentPatch%fuel%frac_loading(c)*currentPatch%fuel%non_trunk_loading/0.45_r8/10._r8)* &
+          tau_b(c)   =  39.4_r8 *(currentPatch%fuel%frac_loading(c)*non_mineral_loading/0.45_r8/10._r8)* &
                (1.0_r8-((1.0_r8-currentPatch%fuel%frac_burnt(c))**0.5_r8))  
        enddo
        tau_b(tr_sf)   =  0.0_r8
