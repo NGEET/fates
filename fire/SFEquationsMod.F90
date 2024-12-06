@@ -196,7 +196,6 @@ module SFEquationsMod
         EffectiveHeatingNumber = exp(-4.528_r8/SAV)
       end if
         
-
     end function EffectiveHeatingNumber
 
     !-------------------------------------------------------------------------------------
