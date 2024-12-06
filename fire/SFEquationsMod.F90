@@ -243,7 +243,7 @@ module SFEquationsMod
     
     !-------------------------------------------------------------------------------------
     
-    real(r8) function ForwardRateOfSpread(bulk_density, eps, q_ig, i_r, xi, phi_wind, ros)
+    real(r8) function ForwardRateOfSpread(bulk_density, eps, q_ig, i_r, xi, phi_wind)
       !
       !  DESCRIPTION:
       !  Calculates forward rate of spread [m/min]
@@ -258,7 +258,7 @@ module SFEquationsMod
       real(r8), intent(in) :: xi           ! propagating flux [unitless]     
       real(r8), intent(in) :: phi_wind     ! wind factor [unitless]
     
-      if (((bulk_density) <= 0.0_r8) .or. (eps <= 0.0_r8) .or. (q_ig <= 0.0_r8)) then
+      if ((bulk_density <= nearzero) .or. (eps <= nearzero) .or. (q_ig <= nearzero)) then
         ForwardRateOfSpread = 0.0_r8
       else
         ForwardRateOfSpread = (i_r*xi*(1.0_r8 + phi_wind))/(bulk_density*eps*q_ig)
@@ -269,23 +269,22 @@ module SFEquationsMod
     !-------------------------------------------------------------------------------------
     
     real(r8) function BackwardRateOfSpread(ros_front, wind_speed)
-    !
-    !  DESCRIPTION:
-    !  Calculates backwards rate of spread [m/min]
-    !  Equation 10 in Thonicke et al. 2010
-    !  backward ROS from Can FBP System (1992)
-    !  backward ROS wind not changed by vegetation 
-    !
+      !
+      !  DESCRIPTION:
+      !  Calculates backwards rate of spread [m/min]
+      !  Equation 10 in Thonicke et al. 2010
+      !  backward ROS from Can FBP System (1992)
+      !  backward ROS wind not changed by vegetation 
+      !
 
-    ! ARGUMENTS:
-    real(r8), intent(in) :: ros_front  ! forward rate of spread [m/min]
-    real(r8), intent(in) :: wind_speed ! wind speed [m/min]
+      ! ARGUMENTS:
+      real(r8), intent(in) :: ros_front  ! forward rate of spread [m/min]
+      real(r8), intent(in) :: wind_speed ! wind speed [m/min]
 
-    BackwardRateOfSpread = ros_front*exp(-0.012_r8*wind_speed)
+      BackwardRateOfSpread = ros_front*exp(-0.012_r8*wind_speed)
  
-  end function BackwardRateOfSpread
+    end function BackwardRateOfSpread
 
-  !-------------------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
   
-    
 end module SFEquationsMod
