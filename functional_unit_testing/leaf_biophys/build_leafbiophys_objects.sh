@@ -20,7 +20,9 @@ ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/WrapShrMod.o f90_src/WrapShrMod.
 ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/FatesUtilsMod.o ../../main/FatesUtilsMod.F90
 ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/LeafBiophysicsMod.o ../../biogeophys/LeafBiophysicsMod.F90
 ${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/LeafBiophysSuppMod.o  f90_src/LeafBiophysSuppMod.F90
-
+${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/FatesRadiationMemMod.o ../../radiation/FatesRadiationMemMod.F90
+${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/TwoStreamMLPEMod.o  ../../radiation/TwoStreamMLPEMod.F90
+${FC} ${F_OPTS} -I bld/ ${MOD_FLAG} bld/ -o bld/RadiationWrapMod.o ../radiation/f90_src/RadiationWrapMod.F90
 
 
 
