@@ -19,7 +19,8 @@ module SFEquationsMod
   public :: EffectiveHeatingNumber
   public :: PhiWind
   public :: PropagatingFlux
-  public :: RateOfSpread
+  public :: ForwardRateOfSpread
+  public :: BackwardRateOfSpread
   
   contains 
   
@@ -28,6 +29,7 @@ module SFEquationsMod
     !  DESCRIPTION:
     !  Calculates optimum packing ratio [unitless]
     !  Equation A6 in Thonicke et al. 2010
+    !  Rothermel 1972 Eq. 37
     !
     
     ! ARGUMENTS:
@@ -241,22 +243,49 @@ module SFEquationsMod
     
     !-------------------------------------------------------------------------------------
     
-    real(r8) function RateOfSpread(beta, SAV)
+    real(r8) function ForwardRateOfSpread(bulk_density, eps, q_ig, i_r, xi, phi_wind, ros)
       !
       !  DESCRIPTION:
-      !  Calculates rate of spread 
-      !  Equation A2 in Thonicke et al. 2010 and Eq. 42 Rothermel 1972
+      !  Calculates forward rate of spread [m/min]
+      !  Equation 9. Thonicke et al. 2010
       !
 
       ! ARGUMENTS:
-      real(r8), intent(in) :: beta ! packing ratio [unitless]
-      real(r8), intent(in) :: SAV  ! fuel surface area to volume ratio [/cm]
+      real(r8), intent(in) :: bulk_density ! fulk bulk density [kg/m3]
+      real(r8), intent(in) :: eps          ! effective heating number [unitless]
+      real(r8), intent(in) :: q_ig         ! heat of preignition [kJ/kg] 
+      real(r8), intent(in) :: i_r          ! reaction intensity [kJ/m2/min]
+      real(r8), intent(in) :: xi           ! propagating flux [unitless]     
+      real(r8), intent(in) :: phi_wind     ! wind factor [unitless]
     
-      PropagatingFlux = (exp((0.792_r8 + 3.7597_r8*(SAV**0.5_r8))*(beta + 0.1_r8)))/     &
-        (192.0_r8 + 7.9095_r8*SAV)
+      if (((bulk_density) <= 0.0_r8) .or. (eps <= 0.0_r8) .or. (q_ig <= 0.0_r8)) then
+        ForwardRateOfSpread = 0.0_r8
+      else
+        ForwardRateOfSpread = (i_r*xi*(1.0_r8 + phi_wind))/(bulk_density*eps*q_ig)
+      endif
 
-    end function RateOfSpread
+    end function ForwardRateOfSpread
   
+    !-------------------------------------------------------------------------------------
+    
+    real(r8) function BackwardRateOfSpread(ros_front, wind_speed)
+    !
+    !  DESCRIPTION:
+    !  Calculates backwards rate of spread [m/min]
+    !  Equation 10 in Thonicke et al. 2010
+    !  backward ROS from Can FBP System (1992)
+    !  backward ROS wind not changed by vegetation 
+    !
+
+    ! ARGUMENTS:
+    real(r8), intent(in) :: ros_front  ! forward rate of spread [m/min]
+    real(r8), intent(in) :: wind_speed ! wind speed [m/min]
+
+    BackwardRateOfSpread = ros_front*exp(-0.012_r8*wind_speed)
+ 
+  end function BackwardRateOfSpread
+
   !-------------------------------------------------------------------------------------
+  
     
 end module SFEquationsMod

@@ -214,7 +214,8 @@ contains
     use SFParamsMod,    only : SF_val_miner_total, SF_val_part_dens
     use SFEquationsMod, only : OptimumPackingRatio, ReactionIntensity
     use SFEquationsMod, only : HeatofPreignition, EffectiveHeatingNumber
-    use SFEquationsMod, only : PhiWind, PropagatingFlux  
+    use SFEquationsMod, only : PhiWind, PropagatingFlux
+    use SFEquationsMod, only : ForwardRateOfSpread, BackwardRateOfSpread
 
     ! ARGUMENTS:
     type(ed_site_type), intent(in), target :: currentSite ! site object
@@ -240,7 +241,6 @@ contains
         beta = currentPatch%fuel%bulk_density_notrunks/SF_val_part_dens
         
         ! optimum packing ratio [unitless]
-        ! Rothermel 1972 Eq. 37
         beta_op = OptimumPackingRatio(currentPatch%fuel%SAV_notrunks)
         
         ! relative packing ratio [unitless]
@@ -269,18 +269,16 @@ contains
          currentPatch%fuel%SAV_notrunks)
 
         ! propagating flux [unitless]       
-        xi = PropagatingFlux(beta, currentPatch%fuel%SAV_notrunks)     
+        xi = PropagatingFlux(beta, currentPatch%fuel%SAV_notrunks)
+        
+        ! forward rate of spread [m/min]
+        currentPatch%ROS_front = ForwardRateOfSpread(currentPatch%fuel%bulk_density_notrunks, &
+         eps, q_ig, i_r, xi, phi_wind)
 
-        if (((currentPatch%fuel%bulk_density_notrunks) <= 0.0_r8) .or. (eps <= 0.0_r8) .or. (q_ig <= 0.0_r8)) then
-          currentPatch%ROS_front = 0.0_r8
-        else ! Equation 9. Thonicke et al. 2010. 
-          ! forward ROS in m/min
-          currentPatch%ROS_front = (i_r*xi*(1.0_r8+phi_wind))/(currentPatch%fuel%bulk_density_notrunks*eps*q_ig)
-        endif
-        ! Equation 10 in Thonicke et al. 2010
-        ! backward ROS from Can FBP System (1992) in m/min
-        ! backward ROS wind not changed by vegetation 
-        currentPatch%ROS_back = currentPatch%ROS_front*exp(-0.012_r8*currentSite%wind) 
+        ! backwards rate of spread [m/min]
+        !  backward ROS wind not changed by vegetation - so use wind, not effective_windspeed
+        currentPatch%ROS_back = BackwardRateOfSpread(currentPatch%ROS_front,             &
+         currentSite%wind)
 
       end if 
       currentPatch => currentPatch%younger
