@@ -153,7 +153,7 @@ contains
   end subroutine UpdateFireWeather
 
   !---------------------------------------------------------------------------------------
-
+  
   subroutine UpdateFuelCharacteristics(currentSite)
     !
     !  DESCRIPTION:
@@ -203,7 +203,36 @@ contains
   end subroutine UpdateFuelCharacteristics
 
   !---------------------------------------------------------------------------------------
+  
+  subroutine CalculateIgnitions(currentSite)
+    !
+    !  DESCRIPTION:
+    !  Calculates ignitions for a site
+    !
+    
+    use FatesInterfaceTypesMod, only : hlm_spitfire_mode
+    
 
+    ! ARGUMENTS:
+    type(ed_site_type), intent(in), target :: currentSite ! site object
+    
+    ! initialize ignitions to 0.0
+    currentSite%NF_successful = 0.0_r8
+    
+    ! determine which type of ignitions we are performing
+    if (hlm_spitfire_mode == hlm_sf_successful_ignitions_def) then
+      ! successful ignitions streams
+      ! "successful" ignition data - force an ignition on this time step
+      currentSite%FDI = 1.0
+      cloud_to_ground_strikes = 1.0_r8
+      
+    
+    
+    
+  end subroutine CalculateIgnitions
+  
+  !---------------------------------------------------------------------------------------
+  
   subroutine CalculateSurfaceRateOfSpread(currentSite) 
     !
     !  DESCRIPTION:
@@ -396,7 +425,6 @@ contains
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2 of burned area)
 
-    use FatesInterfaceTypesMod, only : hlm_spitfire_mode
     use EDParamsMod,       only : ED_val_nignitions
     use EDParamsMod,       only : cg_strikes    ! fraction of cloud-to-ground ligtning strikes
     use FatesConstantsMod, only : years_per_day
@@ -424,8 +452,7 @@ contains
     real(r8), parameter :: m_per_min__to__km_per_hour = 0.06_r8  ! convert wind speed from m/min to km/hr
     real(r8), parameter :: forest_grassland_lengthtobreadth_threshold = 0.55_r8 ! tree canopy cover below which to use grassland length-to-breadth eqn
 
-    !  ---initialize site parameters to zero--- 
-    currentSite%NF_successful = 0._r8
+
     
     ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
     ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
