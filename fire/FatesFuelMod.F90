@@ -323,7 +323,7 @@ module FatesFuelMod
 
       ! ARGUMENTS:
       class(fuel_type),   intent(inout) :: this                           ! fuel class
-      real(r8),           intent(in)    :: bulk_density(num_fuel_classes) ! bulk density of all fuel types [kg/m2]
+      real(r8),           intent(in)    :: bulk_density(num_fuel_classes) ! bulk density of all fuel types [kg/m3]
       
       ! LOCALS:
       integer :: i ! looping index

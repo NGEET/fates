@@ -39,12 +39,12 @@ module FatesTestFireMod
       character(len=2),              intent(out)   :: fuel_carrier     ! fuel carrier for fuel model
       
       ! LOCALS:
-      integer                         :: i                   ! position of fuel model in array
-      real(r8)                        :: leaf_litter         ! leaf litter [kg/m2] 
-      real(r8)                        :: twig_litter         ! twig litter [kg/m2]
-      real(r8)                        :: small_branch_litter ! small branch litter [kg/m2]
-      real(r8)                        :: large_branch_litter ! large branch litter [kg/m2]
-      real(r8)                        :: grass_litter        ! grass litter [kg/m2]
+      integer  :: i                   ! position of fuel model in array
+      real(r8) :: leaf_litter         ! leaf litter [kg/m2] 
+      real(r8) :: twig_litter         ! twig litter [kg/m2]
+      real(r8) :: small_branch_litter ! small branch litter [kg/m2]
+      real(r8) :: large_branch_litter ! large branch litter [kg/m2]
+      real(r8) :: grass_litter        ! grass litter [kg/m2]
       
 
       ! get fuel model position in array
