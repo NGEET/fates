@@ -15,6 +15,11 @@ module SFEquationsMod
   
   public :: OptimumPackingRatio
   public :: ReactionIntensity
+  public :: HeatofPreignition
+  public :: EffectiveHeatingNumber
+  public :: PhiWind
+  public :: PropagatingFlux
+  public :: RateOfSpread
   
   contains 
   
@@ -56,7 +61,7 @@ module SFEquationsMod
     
     end function MaximumReactionVelocity
    
-    !---------------------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
   
     real(r8) function OptimumReactionVelocity(max_reaction_vel, SAV, beta_ratio)
       !
@@ -81,7 +86,7 @@ module SFEquationsMod
       
     end function OptimumReactionVelocity
    
-    !---------------------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
   
     real(r8) function MoistureCoefficient(moisture, MEF)
       !
@@ -108,7 +113,7 @@ module SFEquationsMod
       
     end function MoistureCoefficient
    
-    !---------------------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
 
     real(r8) function ReactionIntensity(fuel_loading, SAV,  beta_ratio, moisture, MEF)
       !
@@ -140,9 +145,116 @@ module SFEquationsMod
       ! calculate moisture dampening coefficient [0-1]
       moist_coeff = MoistureCoefficient(moisture, MEF)
       
-    ReactionIntensity = opt_reaction_vel*fuel_loading*SF_val_fuel_energy*                &
-      moist_coeff*SF_val_miner_damp
+      ReactionIntensity = opt_reaction_vel*fuel_loading*SF_val_fuel_energy*              &
+        moist_coeff*SF_val_miner_damp
 
-  end function ReactionIntensity
+    end function ReactionIntensity
+  
+    !-------------------------------------------------------------------------------------
+    
+    real(r8) function HeatofPreignition(fuel_moisture)
+      !
+      !  DESCRIPTION:
+      !  Calculates heat of pre-ignition in kJ/kg
+      !
+      !  Equation A4 in Thonicke et al. 2010
+      !  Rothermel EQ12= 250 Btu/lb + 1116 Btu/lb * average_moisture
+      !  conversion of Rothermel (1972) EQ12 in BTU/lb to current kJ/kg 
+      !
+      
+      ! ARGUMENTS:
+      real(r8), intent(in) :: fuel_moisture ! fuel moisture [m3/m3]
+      
+      ! CONTANTS:
+      real(r8), parameter :: q_dry = 581.0_r8 ! heat of pre-ignition of dry fuels [kJ/kg]
+      
+      HeatofPreignition = q_dry + 2594.0_r8*fuel_moisture
+
+    end function HeatofPreignition
+
+    !-------------------------------------------------------------------------------------
    
+    real(r8) function EffectiveHeatingNumber(SAV)
+      !
+      !  DESCRIPTION:
+      !  Calculates effective heating number [unitless]
+      !
+      !  Equation A3 in Thonicke et al. 2010
+
+      ! ARGUMENTS:
+      real(r8), intent(in) :: SAV ! fuel surface area to volume ratio [/cm]
+      
+      EffectiveHeatingNumber = exp(-4.528_r8/SAV)
+
+    end function EffectiveHeatingNumber
+
+    !-------------------------------------------------------------------------------------
+    
+    real(r8) function PhiWind(wind_speed, beta_ratio, SAV)
+      !
+      !  DESCRIPTION:
+      !  Calculates wind factor [unitless]
+      !
+
+      ! ARGUMENTS:
+      real(r8), intent(in) :: wind_speed ! wind speed [m/min]
+      real(r8), intent(in) :: beta_ratio ! relative packing ratio [unitless]
+      real(r8), intent(in) :: SAV        ! fuel surface area to volume ratio [/cm]
+      
+      ! LOCALS:
+      real(r8) :: b, c, e ! temporary variables
+    
+      ! Equation A7 in Thonicke et al. 2010 per eqn 49 from Rothermel 1972
+      b = 0.15988_r8*(SAV**0.54_r8)
+      
+      ! Equation A8 in Thonicke et al. 2010 per eqn 48 from Rothermel 1972 
+      c = 7.47_r8*(exp(-0.8711_r8*(SAV**0.55_r8)))
+      
+      ! Equation A9 in Thonicke et al. 2010 (appears to have typo, using coefficient Eq. 50 Rothermel 1972)
+      e = 0.715_r8*(exp(-0.01094_r8*SAV))
+
+      ! Equation A5 in Thonicke et al. 2010
+      ! convert wind_speed (wind at elev relevant to fire) from m/min to ft/min for Rothermel ROS Eq.
+      PhiWind = c*((3.281_r8*wind_speed)**b)*(beta_ratio**(-e))
+
+    end function PhiWind
+    
+    !-------------------------------------------------------------------------------------
+    
+    real(r8) function PropagatingFlux(beta, SAV)
+      !
+      !  DESCRIPTION:
+      !  Calculates propagating flux [unitless]
+      !  Equation A2 in Thonicke et al. 2010 and Eq. 42 Rothermel 1972
+      !
+
+      ! ARGUMENTS:
+      real(r8), intent(in) :: beta ! packing ratio [unitless]
+      real(r8), intent(in) :: SAV  ! fuel surface area to volume ratio [/cm]
+    
+      PropagatingFlux = (exp((0.792_r8 + 3.7597_r8*(SAV**0.5_r8))*(beta + 0.1_r8)))/     &
+        (192.0_r8 + 7.9095_r8*SAV)
+
+    end function PropagatingFlux
+    
+    !-------------------------------------------------------------------------------------
+    
+    real(r8) function RateOfSpread(beta, SAV)
+      !
+      !  DESCRIPTION:
+      !  Calculates rate of spread 
+      !  Equation A2 in Thonicke et al. 2010 and Eq. 42 Rothermel 1972
+      !
+
+      ! ARGUMENTS:
+      real(r8), intent(in) :: beta ! packing ratio [unitless]
+      real(r8), intent(in) :: SAV  ! fuel surface area to volume ratio [/cm]
+    
+      PropagatingFlux = (exp((0.792_r8 + 3.7597_r8*(SAV**0.5_r8))*(beta + 0.1_r8)))/     &
+        (192.0_r8 + 7.9095_r8*SAV)
+
+    end function RateOfSpread
+  
+  !-------------------------------------------------------------------------------------
+    
 end module SFEquationsMod

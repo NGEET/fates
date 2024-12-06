@@ -213,6 +213,8 @@ contains
 
     use SFParamsMod,    only : SF_val_miner_total, SF_val_part_dens
     use SFEquationsMod, only : OptimumPackingRatio, ReactionIntensity
+    use SFEquationsMod, only : HeatofPreignition, EffectiveHeatingNumber
+    use SFEquationsMod, only : PhiWind, PropagatingFlux  
 
     ! ARGUMENTS:
     type(ed_site_type), intent(in), target :: currentSite ! site object
@@ -227,10 +229,6 @@ contains
     real(r8)                        :: eps          ! effective heating number [unitless]
     real(r8)                        :: phi_wind     ! wind factor [unitless]
     real(r8)                        :: q_ig         ! heat of pre-ignition [kJ/kg]
-    real(r8)                        :: b,c,e        ! dummy variables
-
-    ! CONSTANTS:
-    real(r8), parameter :: q_dry = 581.0_r8 ! heat of pre-ignition of dry fuels [kJ/kg]
 
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
@@ -243,7 +241,7 @@ contains
         ! optimum packing ratio [unitless]
         beta_op = OptimumPackingRatio(currentPatch%fuel%SAV_notrunks)
         
-        ! relative packing ratio
+        ! relative packing ratio [unitless]
         if (beta_op < nearzero) then 
           beta_ratio = 0.0_r8
         else
@@ -257,34 +255,19 @@ contains
         i_r = ReactionIntensity(currentPatch%fuel%non_trunk_loading/0.45_r8,             &
           currentPatch%fuel%SAV_notrunks, beta_ratio,                                    &
           currentPatch%fuel%average_moisture_notrunks, currentPatch%fuel%MEF_notrunks)
+   
+        ! heat of preignition [kJ/kg] 
+        q_ig = HeatofPreignition(currentPatch%fuel%average_moisture_notrunks)
+
+        ! effective heating number [unitless]
+        eps = EffectiveHeatingNumber(currentPatch%fuel%SAV_notrunks)
         
-        ! ---heat of pre-ignition---
-        !  Equation A4 in Thonicke et al. 2010
-        !  Rothermel EQ12= 250 Btu/lb + 1116 Btu/lb * average_moisture
-        !  conversion of Rothermel (1972) EQ12 in BTU/lb to current kJ/kg 
-        !  q_ig in kJ/kg 
-        q_ig = q_dry + 2594.0_r8*currentPatch%fuel%average_moisture_notrunks
+        ! wind factor [unitless]
+        phi_wind = PhiWind(currentSite%fireWeather%effective_windspeed, beta_ratio,      &
+         currentPatch%fuel%SAV_notrunks)
 
-        ! ---effective heating number---
-        ! Equation A3 in Thonicke et al. 2010.  
-        eps = exp(-4.528_r8/currentPatch%fuel%SAV_notrunks)     
-        ! Equation A7 in Thonicke et al. 2010 per eqn 49 from Rothermel 1972
-        b = 0.15988_r8*(currentPatch%fuel%SAV_notrunks**0.54_r8)
-        ! Equation A8 in Thonicke et al. 2010 per eqn 48 from Rothermel 1972 
-        c = 7.47_r8*(exp(-0.8711_r8*(currentPatch%fuel%SAV_notrunks**0.55_r8)))
-        ! Equation A9 in Thonicke et al. 2010. (appears to have typo, using coefficient eqn.50 Rothermel 1972)
-        e = 0.715_r8*(exp(-0.01094_r8*currentPatch%fuel%SAV_notrunks))
-
-        ! Equation A5 in Thonicke et al. 2010
-        ! phi_wind (unitless)
-        ! convert current_wspeed (wind at elev relevant to fire) from m/min to ft/min for Rothermel ROS eqn
-        phi_wind = c*((3.281_r8*currentSite%fireWeather%effective_windspeed)**b)*(beta_ratio**(-e))
-
-        ! ---propagating flux----
-        ! Equation A2 in Thonicke et al.2010 and Eq. 42 Rothermel 1972
-        ! xi (unitless)       
-        xi = (exp((0.792_r8 + 3.7597_r8*(currentPatch%fuel%SAV_notrunks**0.5_r8))*(beta+0.1_r8)))/  &
-          (192_r8+7.9095_r8*currentPatch%fuel%SAV_notrunks)      
+        ! propagating flux [unitless]       
+        xi = PropagatingFlux(beta, currentPatch%fuel%SAV_notrunks)     
 
         if (((currentPatch%fuel%bulk_density_notrunks) <= 0.0_r8) .or. (eps <= 0.0_r8) .or. (q_ig <= 0.0_r8)) then
           currentPatch%ROS_front = 0.0_r8
