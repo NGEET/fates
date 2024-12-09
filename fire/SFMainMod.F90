@@ -39,7 +39,6 @@ module SFMainMod
 
   public :: DailyFireModel
   public :: UpdateFuelCharacteristics
-  public :: CalculateSurfaceRateOfSpread
   public :: ground_fuel_consumption
   public :: area_burnt_intensity
   public :: crown_scorching
@@ -68,22 +67,34 @@ contains
 
     ! zero fire things
     currentPatch => currentSite%youngest_patch
-    do while(associated(currentPatch))
+    do while (associated(currentPatch))
       currentPatch%frac_burnt = 0.0_r8
       currentPatch%fire = 0
+      currentPatch%ROS_front = 0.0_r8
+      currentPatch%ROS_back = 0.0_r8
+      currentPatch%FI = 0.0_r8
+      currentPatch%FD = 0.0_r8
+      currentPatch%frac_burnt = 0.0_r8
       currentPatch => currentPatch%older
     end do
     
     if (hlm_spitfire_mode > hlm_sf_nofire_def) then
+      
+      ! calculate fire weather, fuel conditions, fire danger, ignitions
       call UpdateFireWeather(currentSite, bc_in)
       call UpdateFuelCharacteristics(currentSite)
-      call CalculateSurfaceRateOfSpread(currentSite)
-      call ground_fuel_consumption(currentSite)
-      call area_burnt_intensity(currentSite, bc_in)
-      call crown_scorching(currentSite)
-      call crown_damage(currentSite)
-      call cambial_damage_kill(currentSite)
-      call post_fire_mortality(currentSite)
+      call CalculateIgnitionsandFDI(currentSite, bc_in)
+      
+      ! if an ignition event has occured, calculate fire behavior
+      if (currentSite%NF > nearzero) then 
+        call CalculateSurfaceRateOfSpread(currentSite)
+        call ground_fuel_consumption(currentSite)
+        call area_burnt_intensity(currentSite, bc_in)
+        call crown_scorching(currentSite)
+        call crown_damage(currentSite)
+        call cambial_damage_kill(currentSite)
+        call post_fire_mortality(currentSite)
+      end if
     end if
 
   end subroutine DailyFireModel
@@ -204,32 +215,68 @@ contains
 
   !---------------------------------------------------------------------------------------
   
-  subroutine CalculateIgnitions(currentSite)
+  subroutine CalculateIgnitionsandFDI(currentSite, bc_in)
     !
     !  DESCRIPTION:
-    !  Calculates ignitions for a site
+    !  Calculates ignitions and fire danger index (FDI) for a site
     !
     
     use FatesInterfaceTypesMod, only : hlm_spitfire_mode
-    
+    use EDParamsMod,            only : cg_strikes
+    use EDParamsMod,            only : ED_val_nignitions
+    use SFParamsMod,            only : SF_val_fdi_alpha
+    use FatesConstantsMod,      only : years_per_day
 
     ! ARGUMENTS:
-    type(ed_site_type), intent(in), target :: currentSite ! site object
+    type(ed_site_type), intent(inout), target :: currentSite ! site object
+    type(bc_in_type),   intent(in)            :: bc_in       ! BC in object
     
+    ! LOCALS:
+    type(fates_patch_type), pointer :: currentPatch            ! patch object
+    real(r8)                        :: cloud_to_ground_strikes ! fraction of cloud-to-ground strikes [0-1]
+    real(r8)                        :: anthro_ignitions        ! anthropogenic ignitions [count/km2/day]
+    integer                         :: iofp                    ! patch index
+    
+    ! CONSTANTS:
+    real(r8), parameter :: pot_hmn_ign_counts_alpha = 0.0035_r8  ! potential human ignition counts (alpha in Li et al. 2012) [count/person/month]
+
     ! initialize ignitions to 0.0
     currentSite%NF_successful = 0.0_r8
     
-    ! determine which type of ignitions we are performing
+    ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
+    ! for the iofp index (i.e. the next younger patch)
+    currentPatch => currentSite%oldest_patch
+    if (currentPatch%nocomp_pft_label == nocomp_bareground) then
+      currentPatch => currentPatch%younger
+    endif
+    iofp = currentPatch%patchno
+    
+    ! calculate FDI and cloud-to-ground strikes
     if (hlm_spitfire_mode == hlm_sf_successful_ignitions_def) then
-      ! successful ignitions streams
-      ! "successful" ignition data - force an ignition on this time step
+      ! successful ignition data - force an ignition on this time step
       currentSite%FDI = 1.0
       cloud_to_ground_strikes = 1.0_r8
-      
+    else 
+      ! calculate using lightning data
+      currentSite%FDI  = 1.0_r8 - exp(-1.0*SF_val_fdi_alpha*currentSite%fireWeather%fire_weather_index)
+      cloud_to_ground_strikes = cg_strikes
+    end if
     
+    ! calculate NF
+    if (hlm_spitfire_mode == hlm_sf_scalar_lightning_def) then 
+      currentSite%NF = ED_val_nignitions*years_per_day*cloud_to_ground_strikes
+    else
+      currentSite%NF = bc_in%lightning24(iofp)*cloud_to_ground_strikes
+    end if
     
-    
-  end subroutine CalculateIgnitions
+    ! add anthropogenic ignitions according to Li et al. (2012)
+    if (hlm_spitfire_mode == hlm_sf_anthro_ignitions_def) then
+      ! anthropogenic ignitions [count/km2/day]
+      anthro_ignitions = pot_hmn_ign_counts_alpha*6.8_r8*bc_in%pop_density(iofp)**0.43_r8/30.0_r8
+      currentSite%NF = currentSite%NF + anthro_ignitions
+    end if
+  
+  end subroutine CalculateIgnitionsandFDI
   
   !---------------------------------------------------------------------------------------
   
@@ -412,7 +459,6 @@ contains
 
   end subroutine ground_fuel_consumption
 
-  
   !*****************************************************************
   subroutine  area_burnt_intensity ( currentSite, bc_in )
   !*****************************************************************
@@ -425,10 +471,7 @@ contains
     !currentPatch%ROS_front  forward ROS (m/min) 
     !currentPatch%TFC_ROS total fuel consumed by flaming front (kgC/m2 of burned area)
 
-    use EDParamsMod,       only : ED_val_nignitions
-    use EDParamsMod,       only : cg_strikes    ! fraction of cloud-to-ground ligtning strikes
-    use FatesConstantsMod, only : years_per_day
-    use SFParamsMod,       only : SF_val_fdi_alpha,SF_val_fuel_energy, &
+    use SFParamsMod,       only : SF_val_fuel_energy, &
          SF_val_max_durat, SF_val_durat_slope, SF_val_fire_threshold
     
     type(ed_site_type), intent(inout), target :: currentSite
@@ -444,68 +487,16 @@ contains
     real(r8) AB               !daily area burnt in m2 per km2
     
     real(r8) size_of_fire !in m2
-    real(r8) cloud_to_ground_strikes  ! [fraction] depends on hlm_spitfire_mode
-    real(r8) anthro_ign_count  ! anthropogenic ignition count/km2/day
-    integer :: iofp  ! index of oldest fates patch
-    real(r8), parameter :: pot_hmn_ign_counts_alpha = 0.0035_r8  ! Potential human ignition counts (alpha in Li et al. 2012) (#/person/month)
     real(r8), parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
     real(r8), parameter :: m_per_min__to__km_per_hour = 0.06_r8  ! convert wind speed from m/min to km/hr
     real(r8), parameter :: forest_grassland_lengthtobreadth_threshold = 0.55_r8 ! tree canopy cover below which to use grassland length-to-breadth eqn
 
-
     
-    ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
-    ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
-    if (hlm_spitfire_mode == hlm_sf_successful_ignitions_def) then
-       currentSite%FDI = 1.0_r8  ! READING "SUCCESSFUL IGNITION" DATA
-                                  ! force ignition potential to be extreme
-       cloud_to_ground_strikes = 1.0_r8   ! cloud_to_ground = 1 = use 100% incoming observed ignitions
-    else  ! USING LIGHTNING DATA
-       currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%fireWeather%fire_weather_index)
-       cloud_to_ground_strikes = cg_strikes
-    end if
-    
-    currentPatch => currentSite%oldest_patch
-
-    ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
-    ! for the iofp index (i.e. the next younger patch)
-    if(currentPatch%nocomp_pft_label .eq. nocomp_bareground)then
-      currentPatch => currentPatch%younger
-    endif
-    
-    !NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
-    iofp = currentPatch%patchno
-    if (hlm_spitfire_mode == hlm_sf_scalar_lightning_def ) then
-       currentSite%NF = ED_val_nignitions * years_per_day * cloud_to_ground_strikes
-    else    ! use external daily lightning ignition data
-       currentSite%NF = bc_in%lightning24(iofp) * cloud_to_ground_strikes
-    end if
-
-    ! If there are 15  lightning strikes per year, per km2. (approx from NASA product for S.A.) 
-    ! then there are 15 * 1/365 strikes/km2 each day 
- 
-    ! Calculate anthropogenic ignitions according to Li et al. (2012)
-    ! Add to ignitions by lightning
-    if (hlm_spitfire_mode == hlm_sf_anthro_ignitions_def) then
-      ! anthropogenic ignitions (count/km2/day)
-      !           =  ignitions/person/month * 6.8 * population_density **0.43 /approximate days per month
-      anthro_ign_count = pot_hmn_ign_counts_alpha * 6.8_r8 * bc_in%pop_density(iofp)**0.43_r8 / 30._r8
-                           
-       currentSite%NF = currentSite%NF + anthro_ign_count
-
-    end if
-
     currentPatch => currentSite%oldest_patch;  
     do while(associated(currentPatch))
 
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
-       !  ---initialize patch parameters to zero---
-       currentPatch%FI         = 0._r8
-       currentPatch%fire       = 0
-       currentPatch%FD         = 0.0_r8
-       currentPatch%frac_burnt = 0.0_r8
-       
        if (currentSite%NF > 0.0_r8) then
           
           ! Equation 14 in Thonicke et al. 2010
