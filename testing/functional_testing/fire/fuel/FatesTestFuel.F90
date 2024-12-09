@@ -33,6 +33,7 @@ program FatesTestFuel
   real(r8),                          allocatable :: fuel_BD(:)           ! bulk density of fuel [kg/m3]
   real(r8),                          allocatable :: fuel_SAV(:)          ! fuel surface area to volume ratio [/cm]
   real(r8),                          allocatable :: fuel_moisture(:,:)   ! fuel moisture [m3/m3]
+  real(r8),                          allocatable :: fuel_MEF(:,:)        ! fuel moisture of extinction [m3/m3
   character(len=100),                allocatable :: fuel_names(:)        ! names of fuel models
   character(len=2),                  allocatable :: carriers(:)          ! carriers of fuel models
   integer                                        :: i, f                 ! looping indices
@@ -43,7 +44,7 @@ program FatesTestFuel
   character(len=*), parameter :: out_file = 'fuel_out.nc' ! output file 
   
   ! fuel models to test
-  integer, parameter, dimension(3) :: fuel_models = (/102, 183, 164/)
+  integer, parameter, dimension(5) :: fuel_models = (/102, 183, 164, 104, 163/)
   
   ! number of fuel models to test
   num_fuel_models = size(fuel_models)
@@ -55,6 +56,7 @@ program FatesTestFuel
   allocate(wind(n_days))
   allocate(NI(n_days))
   allocate(fuel_moisture(n_days, num_fuel_models))
+  allocate(fuel_MEF(n_days, num_fuel_models))
   allocate(fuel_loading(num_fuel_classes, num_fuel_models))
   allocate(frac_loading(num_fuel_classes, num_fuel_models))
   allocate(fuel_BD(num_fuel_models))
@@ -112,12 +114,13 @@ program FatesTestFuel
     do f = 1, num_fuel_models
       call fuel(f)%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio, fireWeather)
       fuel_moisture(i, f) = fuel(f)%average_moisture_notrunks
+      fuel_MEF(i, f) = fuel(f)%MEF_notrunks
     end do
   end do 
   
   ! write out data
   call WriteFireData(out_file, n_days, num_fuel_models, temp_degC, precip, rh, NI,       &
     fuel_loading, frac_loading, fuel_BD, fuel_SAV, non_trunk_loading, fuel_moisture,         &
-    fuel_models, carriers)
+    fuel_MEF, fuel_models, carriers)
   
 end program FatesTestFuel
