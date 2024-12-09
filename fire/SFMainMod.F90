@@ -368,10 +368,7 @@ contains
     !  Calculates each patch's surface fireline intensity 
     !
     
-    use SFParamsMod, only : SF_val_mid_moisture, SF_val_mid_moisture_Coeff
-    use SFParamsMod, only : SF_val_mid_moisture_Slope
-    use SFParamsMod, only : SF_val_min_moisture, SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope
-    use SFParamsMod, only : SF_val_miner_total
+    use SFParamsMod, only : SF_val_fuel_energy
 
     ! ARGUMENTS:
     type(ed_site_type), target, intent(inout) :: currentSite ! site object
@@ -382,7 +379,7 @@ contains
     real(r8)                        :: tau_b(num_fuel_classes)         ! residence time of fire [min]
     integer                         :: i                               ! looping index
     
-    currentPatch => currentSite%oldest_patch;  
+    currentPatch => currentSite%oldest_patch  
     do while (associated(currentPatch))
 
       if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
@@ -451,7 +448,7 @@ contains
     ! CONSTANTS
     real(r8), parameter :: forest_grassland_lb_threshold = 0.55_r8 ! tree canopy cover below which to use grassland length-to-breadth eqn
 
-    currentPatch => currentSite%oldest_patch;  
+    currentPatch => currentSite%oldest_patch  
     do while (associated(currentPatch))
 
       if (currentPatch%nocomp_pft_label /= nocomp_bareground) then

@@ -411,7 +411,7 @@ module FatesFuelMod
           this%frac_burnt(i) = 1.0_r8 
         else if (rel_moisture > SF_val_min_moisture(i) .and. rel_moisture <= SF_val_mid_moisture(i)) then
           ! low to medium moisture
-          thisfrac_burnt(i) = max(0.0_r8, min(1.0_r8, SF_val_low_moisture_Coeff(i) - &
+          this%frac_burnt(i) = max(0.0_r8, min(1.0_r8, SF_val_low_moisture_Coeff(i) - &
             SF_val_low_moisture_Slope(i)*rel_moisture))
         else if (rel_moisture > SF_val_mid_moisture(i).and. rel_moisture <= 1.0_r8) then
           ! medium to high moisture
@@ -428,10 +428,10 @@ module FatesFuelMod
         end if
         
         ! reduce fraction burnt based on mineral content
-        thisfrac_burnt(i) = thisfrac_burnt(i)*(1.0_r8 - SF_val_miner_total)
+        this%frac_burnt(i) = this%frac_burnt(i)*(1.0_r8 - SF_val_miner_total)
         
         ! calculate fuel consumed
-        fuel_consumed(i) = thisfrac_burnt(i)*this%loading(i)
+        fuel_consumed(i) = this%frac_burnt(i)*this%loading(i)
       end do
 
     end subroutine CalculateFuelBurnt
