@@ -13,6 +13,8 @@ module SFEquationsMod
   implicit none
   private
   
+  public :: MaximumReactionVelocity
+  public :: OptimumReactionVelocity
   public :: OptimumPackingRatio
   public :: ReactionIntensity
   public :: HeatofPreignition
@@ -188,8 +190,12 @@ module SFEquationsMod
       ! ARGUMENTS:
       real(r8), intent(in) :: SAV ! fuel surface area to volume ratio [/cm]
       
-      EffectiveHeatingNumber = exp(-4.528_r8/SAV)
-
+      if (SAV < nearzero) then 
+        EffectiveHeatingNumber = 0.0_r8
+      else
+        EffectiveHeatingNumber = exp(-4.528_r8/SAV)
+      end if
+        
     end function EffectiveHeatingNumber
 
     !-------------------------------------------------------------------------------------

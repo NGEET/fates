@@ -7097,7 +7097,7 @@ contains
                index = ih_fire_intensity_si_age)
 
           call this%set_history_var(vname='FATES_FUEL_AMOUNT_AP', units='kg m-2',    &
-               long='spitfire ground fuel (kg carbon per m2) related to FATES_ROS (omits 1000hr fuels, includes mineral portion) within each patch age bin (divide by FATES_PATCHAREA_AP to get fuel per unit area of that-age patch)', &
+               long='spitfire ground fuel (kg carbon per m2) related to FATES_ROS (omits 1000hr fuels) within each patch age bin (divide by FATES_PATCHAREA_AP to get fuel per unit area of that-age patch)', &
                use_default='active', avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index = ih_fire_sum_fuel_si_age)
