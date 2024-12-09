@@ -34,6 +34,7 @@ module FatesFuelMod
       procedure :: UpdateFuelMoisture
       procedure :: AverageBulkDensity_NoTrunks
       procedure :: AverageSAV_NoTrunks
+      procedure :: CalculateFuelBurnt
 
   end type fuel_type
   
@@ -354,8 +355,8 @@ module FatesFuelMod
       !    Pyne et al., 1996 (Introduction to wildland fire)
 
       ! ARGUMENTS:
-      class(fuel_type),   intent(inout) :: this                       ! fuel class
-      real(r8),           intent(in)    :: sav_fuel(num_fuel_classes) ! surface area to volume ratio of all fuel types [/cm]
+      class(fuel_type), intent(inout) :: this                       ! fuel class
+      real(r8),         intent(in)    :: sav_fuel(num_fuel_classes) ! surface area to volume ratio of all fuel types [/cm]
       
       ! LOCALS:
       integer :: i ! looping index
@@ -375,5 +376,64 @@ module FatesFuelMod
     end subroutine AverageSAV_NoTrunks
     
   !---------------------------------------------------------------------------------------
+    
+    subroutine CalculateFuelBurnt(this, fuel_consumed)
+      ! DESCRIPTION:
+      !   Calculates the fraction and total amount of fuel burnt
+      !
+      
+      use SFParamsMod, only : SF_val_mid_moisture, SF_val_mid_moisture_Coeff
+      use SFParamsMod, only : SF_val_mid_moisture_Slope, SF_val_min_moisture
+      use SFParamsMod, only : SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope
+      use SFParamsMod, only : SF_val_miner_total
+
+      ! ARGUMENTS:
+      class(fuel_type), intent(inout) :: this                            ! fuel class
+      real(r8),         intent(out)   :: fuel_consumed(num_fuel_classes) ! fuel consumed [kgC/m2]
+      
+      ! LOCALS:
+      real(r8) :: rel_moisture  ! relative moisture of fuel (moist/moisture of extinction) [unitless]
+      integer  :: i             ! looping index
+      
+      ! CONSTANTS:
+      real(r8), parameter :: max_grass_frac = 0.8_r8 ! maximum fraction burnt for live grass fuels
+      
+      this%frac_burnt(:) = 1.0_r8
+        
+      ! Calculate fraction of litter is burnt for all classes. 
+      ! Equation B1 in Thonicke et al. 2010
+      do i = 1, num_fuel_classes        
+        
+        rel_moisture = this%effective_moisture(i)                  
+        
+        if (rel_moisture <= SF_val_min_moisture(i)) then
+          ! very dry litter
+          this%frac_burnt(i) = 1.0_r8 
+        else if (rel_moisture > SF_val_min_moisture(i) .and. rel_moisture <= SF_val_mid_moisture(i)) then
+          ! low to medium moisture
+          thisfrac_burnt(i) = max(0.0_r8, min(1.0_r8, SF_val_low_moisture_Coeff(i) - &
+            SF_val_low_moisture_Slope(i)*rel_moisture))
+        else if (rel_moisture > SF_val_mid_moisture(i).and. rel_moisture <= 1.0_r8) then
+          ! medium to high moisture
+          this%frac_burnt(i) = max(0.0_r8, min(1.0_r8, SF_val_mid_moisture_Coeff(i) - &
+            SF_val_mid_moisture_Slope(i)*rel_moisture))
+        else 
+          ! very wet litter
+          this%frac_burnt(i) = 0.0_r8  
+        endif
+        
+        ! we can't ever kill all of the grass
+        if (i == fuel_classes%live_grass()) then
+          this%frac_burnt(i) = min(max_grass_frac, this%frac_burnt(i))
+        end if
+        
+        ! reduce fraction burnt based on mineral content
+        thisfrac_burnt(i) = thisfrac_burnt(i)*(1.0_r8 - SF_val_miner_total)
+        
+        ! calculate fuel consumed
+        fuel_consumed(i) = thisfrac_burnt(i)*this%loading(i)
+      end do
+
+    end subroutine CalculateFuelBurnt
     
 end module FatesFuelMod

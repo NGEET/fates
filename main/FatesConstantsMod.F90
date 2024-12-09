@@ -238,6 +238,9 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
 
   ! Conversion factor: m2 per km2
   real(fates_r8), parameter, public :: m2_per_km2 = 1.0e6_fates_r8
+  
+  ! Conversion factor: m per km
+  real(fates_r8), parameter, public :: m_per_km = 1000.0_fates_r8
 
   ! Conversion factor: cm2 per m2
   real(fates_r8), parameter, public :: cm2_per_m2 = 10000.0_fates_r8
@@ -255,6 +258,9 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
 
   ! Conversion: seconds per minute
   real(fates_r8), parameter, public :: sec_per_min = 60.0_fates_r8
+  
+  ! Conversion: minutes per hour
+  real(fates_r8), parameter, public :: min_per_hr = 60.0_fates_r8
 
   ! Conversion: seconds per day
   real(fates_r8), parameter, public :: sec_per_day = 86400.0_fates_r8
