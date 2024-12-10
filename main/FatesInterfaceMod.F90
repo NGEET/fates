@@ -184,6 +184,8 @@ module FatesInterfaceMod
    public :: DetermineGridCellNeighbors
 
    logical :: debug = .false.  ! for debugging this module
+
+   logical, parameter :: preserve_b4b = .true.
    
 contains
 
@@ -810,31 +812,45 @@ contains
 
          else
 
-            ! If we are using fixed biogeography or no-comp then we
-            ! can also apply those constraints to maxpatch_primaryland and secondary
-            ! and that value will match fates_maxPatchesPerSite
-
-            if(hlm_use_luh==ifalse) then
-               maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
-            end if
-            
-            if(hlm_use_nocomp==itrue) then
-               maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
-               !! REVIEWERS: NEED THIS NEXT LINE?
-               !maxpatches_by_landuse(secondaryland) = max(maxpatches_by_landuse(secondaryland),fates_numpft)
-
-               ! We hold the bareground area in one of the patches
-               maxpatch_total = sum(maxpatches_by_landuse(:))+1
+            if_preserve_b4b: if(preserve_b4b)then
+               if(hlm_use_nocomp==itrue) then
+                  maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
+                  maxpatch_total = sum(maxpatches_by_landuse(:))+1
+               else
+                  maxpatch_total = sum(maxpatches_by_landuse(:))
+               end if
             else
-               maxpatch_total = sum(maxpatches_by_landuse(:))
-            end if
+               
+               ! If we are using fixed biogeography or no-comp then we
+               ! can also apply those constraints to maxpatch_primaryland and secondary
+               ! and that value will match fates_maxPatchesPerSite
+               
+               if(hlm_use_luh==ifalse) then
+                  maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
+               end if
+               
+               if(hlm_use_nocomp==itrue) then
+                  
+                  ! We do not modify maxpatches_by_landuse here, and/or ensure
+                  ! that it is large enough to accomodate all of our pfts, because
+                  ! we will compare it to the max_nocomp_pfts_by_landuse() array to
+                  ! make sure all indices are larger.
+                  
+                  ! We hold the bareground area in one of the patches
+                  maxpatch_total = sum(maxpatches_by_landuse(:))+1
+               else
+                  maxpatch_total = sum(maxpatches_by_landuse(:))
+               end if
+               
+               ! maxpatch_total does not include HLM-side bare ground (so add 1)
+               ! Note: Yes, there are two bare-ground patch indices needed for no-comp, where
+               ! index 1 on the fates side will donate all its area to index 0 on the host
+               ! side, and index 1 on the host side will have zero area.
 
-            ! maxpatch_total does not include HLM-side bare ground (so add 1)
-            ! Note: Yes, there are two bare-ground patch indices needed for no-comp, where
-            ! index 1 on the fates side will donate all its area to index 0 on the host
-            ! side, and index 1 on the host side will have zero area.
-            
+            end if if_preserve_b4b
+
             fates_maxPatchesPerSite = maxpatch_total+1
+            
             
          end if
              
