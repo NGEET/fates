@@ -31,7 +31,6 @@ module FATESPlantRespPhotosynthMod
   use FatesConstantsMod, only : rgas_J_K_mol
   use FatesConstantsMod, only : fates_unset_r8
   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-  use FatesConstantsMod, only : nocomp_bareground
   use FatesConstantsMod, only : photosynth_acclim_model_none
   use FatesConstantsMod, only : photosynth_acclim_model_kumarathunge_etal_2019
   use FatesInterfaceTypesMod, only : hlm_use_planthydro
@@ -347,7 +346,7 @@ contains
          ifp = 0
          currentpatch => sites(s)%oldest_patch
          do while (associated(currentpatch))
-            if_notbare: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
+
                ifp   = ifp+1
                NCL_p = currentPatch%NCL_p
 
@@ -1078,8 +1077,6 @@ contains
                   currentPatch%c_lblayer = cf / bc_in(s)%rb_pa(ifp)
 
                end if if_filter2
-
-            end if if_notbare
 
             currentPatch => currentPatch%younger
          end do

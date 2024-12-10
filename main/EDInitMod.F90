@@ -481,42 +481,42 @@ contains
              use_fates_luh_if: if (hlm_use_luh .eq. itrue) then
                 ! MAPPING OF FATES PFTs on to HLM_PFTs with land use
                 ! add up the area associated with each FATES PFT
-                ! where pft_areafrac_lu is the area of land in each HLM PFT and land use type (from surface dataset)
-                ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
+                ! where pft_areafrac_lu is the area of land in each HLM
+                ! PFT and land use type (from surface dataset)
+                ! hlm_pft_map is the area of that land in each FATES
+                ! PFT (from param file)
 
-                ! First check for NaNs in bc_in(s)%pft_areafrac_lu. If so, make everything bare ground.
-                if ( .not. (any( isnan( bc_in(s)%pft_areafrac_lu (:,:) )) .or. isnan( bc_in(s)%baregroundfrac))) then
+                ! First check for NaNs in bc_in(s)%pft_areafrac_lu.
+                ! If so, make everything bare ground.
+                if ( .not. (any( isnan( bc_in(s)%pft_areafrac_lu (:,:) )) .or. &
+                     isnan( bc_in(s)%baregroundfrac))) then
                    do i_landusetype = 1, n_landuse_cats
                       if (.not. is_crop(i_landusetype)) then
                          do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
                             do fates_pft = 1,numpft ! loop round all fates pfts for all hlm pfts
-                               sites(s)%area_pft(fates_pft,i_landusetype) = sites(s)%area_pft(fates_pft,i_landusetype) + &
-                                    EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * bc_in(s)%pft_areafrac_lu(hlm_pft,i_landusetype)
+                               sites(s)%area_pft(fates_pft,i_landusetype) = &
+                                    sites(s)%area_pft(fates_pft,i_landusetype) + &
+                                    EDPftvarcon_inst%hlm_pft_map(fates_pft,hlm_pft) * &
+                                    bc_in(s)%pft_areafrac_lu(hlm_pft,i_landusetype)
                             end do
                          end do !hlm_pft
                       else
-                         ! for crops, we need to use different logic because the bc_in(s)%pft_areafrac_lu() information only exists for natural PFTs
+                         ! for crops, we need to use different logic because
+                         ! the bc_in(s)%pft_areafrac_lu() information only exists for natural PFTs
                          sites(s)%area_pft(crop_lu_pft_vector(i_landusetype),i_landusetype) = 1._r8
                       endif
                    end do
 
                    sites(s)%area_bareground = bc_in(s)%baregroundfrac
                 else
-                   !if ( all( isnan( bc_in(s)%pft_areafrac_lu (:,:))) .and. isnan(bc_in(s)%baregroundfrac)) then
-                      ! if given all NaNs, then make everything bare ground
-                      sites(s)%area_bareground = 1._r8
-                      sites(s)%area_pft(:,:) = 0._r8
-                      write(fates_log(),*) 'Nan values for pftareafrac. dumping site info.'
-                      call dump_site(sites(s))
-                   !else
-                   !   ! if only some things are NaN but not all, then something terrible has probably happened. crash.
-                   !   write(fates_log(),*) 'some but, not all, of the data in the PFT by LU matrix at this site is NaN.'
-                   !   write(fates_log(),*) 'recommend checking the dataset to see what has happened.'
-                   !   call endrun(msg=errMsg(sourcefile, __LINE__))
-                   !endif
+
+                   sites(s)%area_bareground = 1._r8
+                   sites(s)%area_pft(:,:) = 0._r8
+
                 endif
 
-             else
+             else  ! use_fates_luh_if
+                
                 ! MAPPING OF FATES PFTs on to HLM_PFTs
                 ! add up the area associated with each FATES PFT
                 ! where pft_areafrac is the area of land in each HLM PFT and (from surface dataset)
@@ -539,7 +539,8 @@ contains
                    ! remove tiny patches to prevent numerical errors in terminate patches
                    if (sites(s)%area_pft(ft, i_landusetype) .lt. min_nocomp_pftfrac_perlanduse &
                         .and. sites(s)%area_pft(ft, i_landusetype) .gt. nearzero) then
-                      if(debug) write(fates_log(),*)  'removing small numbers in site%area_pft',s,ft,i_landusetype,sites(s)%area_pft(ft, i_landusetype)
+                      if(debug) write(fates_log(),*)  'removing small numbers in site%area_pft', &
+                           s,ft,i_landusetype,sites(s)%area_pft(ft, i_landusetype)
                       sites(s)%area_pft(ft, i_landusetype)=0.0_r8
                    endif
 
@@ -551,17 +552,24 @@ contains
                 end do
              end do
 
-             ! if in nocomp mode, and the number of nocomp PFTs of a given land use type is greater than the maximum number of patches
-             ! allowed to be allocated for that land use type, then only keep the number of PFTs correspondign to the number of patches
-             ! allowed on that land use type, starting with the PFTs with greatest area coverage and working down
+             ! if in nocomp mode, and the number of nocomp PFTs of a given
+             ! land use type is greater than the maximum number of patches
+             ! allowed to be allocated for that land use type, then only
+             ! keep the number of PFTs correspondign to the number of patches
+             ! allowed on that land use type, starting with the PFTs with
+             ! greatest area coverage and working down
              if (hlm_use_nocomp .eq. itrue) then
                 do i_landusetype = 1, n_landuse_cats
-                   ! count how many PFTs have areas greater than zero and compare to the number of patches allowed
-                   if (COUNT(sites(s)%area_pft(:, i_landusetype) .gt. 0._r8) > max_nocomp_pfts_by_landuse(i_landusetype)) then
+                   ! count how many PFTs have areas greater than zero and
+                   ! compare to the number of patches allowed
+                   if (COUNT(sites(s)%area_pft(:, i_landusetype) .gt. 0._r8) > &
+                        max_nocomp_pfts_by_landuse(i_landusetype)) then
                       ! write current vector to log file
-                      if(debug) write(fates_log(),*)  'too many PFTs for LU type ', i_landusetype, sites(s)%area_pft(:, i_landusetype)
+                      if(debug) write(fates_log(),*)  'too many PFTs for LU type ', &
+                           i_landusetype, sites(s)%area_pft(:, i_landusetype)
 
-                      ! start from largest area, put that PFT's area into a temp vector, and then work down to successively smaller-area PFTs,
+                      ! start from largest area, put that PFT's area into a temp vector,
+                      ! and then work down to successively smaller-area PFTs,
                       ! at the end replace the original vector with the temp vector
                       temp_vec(:) = 0._r8
                       do i_pftcount = 1, max_nocomp_pfts_by_landuse(i_landusetype)
@@ -572,7 +580,8 @@ contains
                       sites(s)%area_pft(:, i_landusetype) = temp_vec(:)
 
                       ! write adjusted vector to log file
-                      if(debug) write(fates_log(),*)  'new PFT vector for LU type', i_landusetype, sites(s)%area_pft(:, i_landusetype)
+                      if(debug) write(fates_log(),*)  'new PFT vector for LU type', &
+                           i_landusetype, sites(s)%area_pft(:, i_landusetype)
                    endif
                 end do
              end if
