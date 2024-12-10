@@ -126,8 +126,9 @@ contains
     currentPatch => currentSite%oldest_patch
 
     ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
-    ! for the iofp index (i.e. the next younger patch)
-    if (currentPatch%nocomp_pft_label == nocomp_bareground) then
+    ! for the iofp index (i.e. the next younger patch). But, its possible that there is
+    ! 100% bareground fraction and no other patches.
+    if (currentPatch%nocomp_pft_label == nocomp_bareground .and. associated(currentPatch%younger) ) then
       currentPatch => currentPatch%younger
     endif
 
@@ -501,7 +502,7 @@ contains
 
     ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
     ! for the iofp index (i.e. the next younger patch)
-    if(currentPatch%nocomp_pft_label .eq. nocomp_bareground)then
+    if(currentPatch%nocomp_pft_label .eq. nocomp_bareground .and. associated(currentPatch%younger))then
       currentPatch => currentPatch%younger
     endif
     
