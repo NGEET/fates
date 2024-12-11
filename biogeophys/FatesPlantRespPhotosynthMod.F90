@@ -63,7 +63,7 @@ module FATESPlantRespPhotosynthMod
   use EDParamsMod,       only : maintresp_nonleaf_baserate
   use EDParamsMod,       only : stomatal_model
   use EDParamsMod,       only : stomatal_assim_model
-  use EDParamsMod,       only : dayl_switch
+  use EDParamsMod,       only : hlm_daylength_factor_switch
   use EDParamsMod,       only : photo_tempsens_model
   use PRTParametersMod,  only : prt_params
   use EDPftvarcon      , only : EDPftvarcon_inst
@@ -2398,7 +2398,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     else                                     ! day time
 
        ! update the daylength factor local variable if the switch is on
-       if ( dayl_switch == itrue ) then
+       if ( hlm_daylength_factor_switch == itrue ) then
           dayl_factor_local = dayl_factor
        else
           dayl_factor_local = 1.0_r8
