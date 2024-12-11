@@ -35,6 +35,7 @@ module FatesFuelMod
       procedure :: AverageBulkDensity_NoTrunks
       procedure :: AverageSAV_NoTrunks
       procedure :: CalculateFuelBurnt
+      procedure :: CalculateResidenceTime
 
   end type fuel_type
   
@@ -413,7 +414,7 @@ module FatesFuelMod
           ! low to medium moisture
           this%frac_burnt(i) = max(0.0_r8, min(1.0_r8, SF_val_low_moisture_Coeff(i) - &
             SF_val_low_moisture_Slope(i)*rel_moisture))
-        else if (rel_moisture > SF_val_mid_moisture(i).and. rel_moisture <= 1.0_r8) then
+        else if (rel_moisture > SF_val_mid_moisture(i) .and. rel_moisture <= 1.0_r8) then
           ! medium to high moisture
           this%frac_burnt(i) = max(0.0_r8, min(1.0_r8, SF_val_mid_moisture_Coeff(i) - &
             SF_val_mid_moisture_Slope(i)*rel_moisture))
@@ -435,5 +436,38 @@ module FatesFuelMod
       end do
 
     end subroutine CalculateFuelBurnt
+    
+    !-------------------------------------------------------------------------------------
+    
+    subroutine CalculateResidenceTime(this, tau_l)
+      !
+      !  DESCRIPTION:
+      !  Calculates fire residence time, duration of lethal bole heating [min]
+      !  This is used for determining cambial kill of woody cohorts
+      !
+      !  From Peterson & Ryan (1986)
+      !
+      
+      ! ARGUMENTS:
+      class(fuel_type), intent(in)  :: this  ! fuel class
+      real(r8),         intent(out) :: tau_l ! duration of lethal bole heating [min]
+      
+      ! LOCALS:
+      integer :: i ! looping index
+      
+      tau_l = 0.0_r8 
+      do i = 1, num_fuel_classes
+        if (i /= fuel_classes%trunks()) then 
+          ! don't include 1000-hr fuels
+          ! convert loading from kgC/m2 to g/cm2
+          tau_l = tau_l + 39.4_r8*(this%frac_loading(i)*this%non_trunk_loading/0.45_r8/10.0_r8)*                     &
+            (1.0_r8 - ((1.0_r8 - this%frac_burnt(i))**0.5_r8))
+        end if 
+      end do
+      
+      ! cap the residence time to 8mins, as suggested by literature survey by P&R (1986)
+      tau_l = min(8.0_r8, tau_l) 
+
+    end subroutine CalculateResidenceTime
     
 end module FatesFuelMod

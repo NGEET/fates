@@ -442,7 +442,8 @@ contains
        endif
 
        ! Fire Disturbance Rate
-       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
+       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt 
+
 
        ! Fires can't burn the whole patch, as this causes /0 errors. 
        if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
@@ -1922,7 +1923,8 @@ contains
   subroutine TransLitterNewPatch(currentSite,        &
                                  currentPatch,       &
                                  newPatch,           &
-                                 patch_site_areadis)
+                                 patch_site_areadis, &
+                                 dtype)
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -1971,6 +1973,7 @@ contains
     type(fates_patch_type) , intent(inout) :: newPatch           ! New patch
     real(r8)            , intent(in)    :: patch_site_areadis ! Area being donated
                                                               ! by current patch
+    integer,              intent(in)    :: dtype ! disturbance
 
     
     ! locals
@@ -1993,6 +1996,8 @@ contains
     real(r8) :: litter_stock0,litter_stock1
     real(r8) :: burn_flux0,burn_flux1
     real(r8) :: error
+    real(r8) :: frac_burnt ! fraction burnt from fire
+    
 
     do el = 1,num_elements
 
@@ -2077,7 +2082,10 @@ contains
                           new_litt%GetTotalLitterMass()*newPatch%area
        end if
 
-       do c = 1,ncwd
+
+       do c = 1, ncwd
+         
+         !if 
              
           ! Transfer above ground CWD
           donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
