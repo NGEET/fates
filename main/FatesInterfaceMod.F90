@@ -1475,6 +1475,7 @@ contains
          hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
          hlm_daylength_factor_switch = unset_int
+         hlm_hydr_solver = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1764,6 +1765,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_hydr_solver .eq. unset_int) then
+            write(fates_log(), *) 'FATES hydro solver is unset: hlm_hydr_solver, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_sp.eq.itrue.and.hlm_use_nocomp.eq.ifalse)then
             write(fates_log(), *) 'SP cannot be on if nocomp mode is off. Exiting. '
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1971,6 +1977,12 @@ contains
                hlm_daylength_factor_switch = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_daylength_factor_switch= ',ival,' to FATES'
+               end if
+
+            case('hydr_solver')
+               hlm_hydr_solver = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hydr_solver= ',ival,' to FATES'
                end if
 
             case('use_logging')

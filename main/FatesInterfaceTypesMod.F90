@@ -161,6 +161,14 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_daylength_factor_switch ! This switch enables the use of the daylength factor from the HLM
                                                   ! 1 = TRUE, 0 = FALSE
 
+   integer, public :: hlm_hydr_solver             ! Switch that defines which hydraulic solver to use
+                                                  ! 1 = Taylor solution that solves plant fluxes with 1 layer
+                                                  !     sequentially placing solution on top of previous layer solves
+                                                  ! 2 = Picard solution that solves all fluxes in a plant and
+                                                  !     the soil simultaneously, 2D: soil x (root + shell)
+                                                  ! 3 = Newton-Raphson (Deprecated) solution that solves all fluxes in a plant and
+                                                  !     the soil simultaneously, 2D: soil x (root + shell)
+
    integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
                                                   ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                   ! Essentially, this gives us the ability

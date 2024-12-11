@@ -49,7 +49,6 @@ module FatesPlantHydraulicsMod
   use EDParamsMod       , only : hydr_psi0
   use EDParamsMod       , only : hydr_psicap
   use EDParamsMod       , only : hydr_htftype_node
-  use EDParamsMod       , only : hydr_solver
 
   use EDTypesMod        , only : ed_site_type
   use FatesPatchMod     , only : fates_patch_type
@@ -64,6 +63,7 @@ module FatesPlantHydraulicsMod
   use FatesInterfaceTypesMod  , only : hlm_ipedof
   use FatesInterfaceTypesMod  , only : numpft
   use FatesInterfaceTypesMod  , only : nlevsclass
+  use FatesInterfaceTypesMod  , only : hlm_hydr_solver
 
   use FatesAllometryMod, only    : bleaf
   use FatesAllometryMod, only    : bsap_allom
@@ -1419,7 +1419,7 @@ subroutine InitHydrSites(sites,bc_in)
      case(rhizlayer_aggmeth_none)
 
         csite_hydr%nlevrhiz = bc_in(s)%nlevsoil
-        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass,hydr_solver,bc_in(s)%nlevsoil)
+        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass,hlm_hydr_solver,bc_in(s)%nlevsoil)
 
         do j=1,csite_hydr%nlevrhiz
            csite_hydr%map_r2s(j,1) = j
@@ -1431,7 +1431,7 @@ subroutine InitHydrSites(sites,bc_in)
      case(rhizlayer_aggmeth_combine12)
 
         csite_hydr%nlevrhiz     = max(1,bc_in(s)%nlevsoil-1)
-        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass,hydr_solver,bc_in(s)%nlevsoil)
+        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass,hlm_hydr_solver,bc_in(s)%nlevsoil)
         
         csite_hydr%map_r2s(1,1) = 1
         j_bc                 = min(2,bc_in(s)%nlevsoil) ! this protects 1 soil layer
@@ -1449,7 +1449,7 @@ subroutine InitHydrSites(sites,bc_in)
      case(rhizlayer_aggmeth_balN)
 
         csite_hydr%nlevrhiz = min(aggN,bc_in(s)%nlevsoil)
-        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass,hydr_solver,bc_in(s)%nlevsoil)
+        call sites(s)%si_hydr%InitHydrSite(numpft,nlevsclass,hlm_hydr_solver,bc_in(s)%nlevsoil)
         
         ntoagg = int(ceiling(real(bc_in(s)%nlevsoil)/real(csite_hydr%nlevrhiz)-nearzero))
 
@@ -2583,21 +2583,21 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               ! from leaf to the current soil layer.  This does NOT
               ! update cohort%th_*
               
-              if(hydr_solver == hydr_solver_2DNewton) then
+              if(hlm_hydr_solver == hydr_solver_2DNewton) then
 
                  call MatSolve2D(csite_hydr,ccohort,ccohort_hydr, &
                       dtime,qflx_tran_veg_indiv, &
                       sapflow,rootuptake(1:nlevrhiz),wb_err_plant,dwat_plant, &
                       dth_layershell_col)
                  
-              elseif(hydr_solver == hydr_solver_2DPicard) then
+              elseif(hlm_hydr_solver == hydr_solver_2DPicard) then
 
                  call PicardSolve2D(csite_hydr,ccohort,ccohort_hydr, &
                       dtime,qflx_tran_veg_indiv, &
                       sapflow,rootuptake(1:nlevrhiz),wb_err_plant,dwat_plant, &
                       dth_layershell_col,csite_hydr%num_nodes)
                  
-              elseif(hydr_solver == hydr_solver_1DTaylor ) then
+              elseif(hlm_hydr_solver == hydr_solver_1DTaylor ) then
 
                  ! ---------------------------------------------------------------------------------
                  ! Approach: do nlevsoi_hyd sequential solutions to Richards' equation,
@@ -4938,7 +4938,7 @@ subroutine MatSolve2D(csite_hydr,cohort,cohort_hydr, &
 
 
    ! This NaN's the scratch arrays
-   call csite_hydr%FlushSiteScratch(hydr_solver)
+   call csite_hydr%FlushSiteScratch(hlm_hydr_solver)
 
    ! This is the maximum number of iterations needed for this cohort
    ! (each soil layer has a different number, this saves the max)
@@ -5714,7 +5714,7 @@ subroutine PicardSolve2D(csite_hydr,cohort,cohort_hydr, &
        ft           => cohort%pft)
 
     ! This NaN's the scratch arrays
-    call csite_hydr%FlushSiteScratch(hydr_solver)
+    call csite_hydr%FlushSiteScratch(hlm_hydr_solver)
 
     ! This is the maximum number of iterations needed for this cohort
     ! (each soil layer has a different number, this saves the max)

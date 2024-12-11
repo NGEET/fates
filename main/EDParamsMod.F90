@@ -203,18 +203,6 @@ module EDParamsMod
    real(r8),protected,public :: hydr_psicap        !  sapwood water potential at which capillary reserves exhausted (MPa)
    character(len=param_string_length),parameter,public :: hydr_name_psicap = "fates_hydro_psicap"
 
-   
-   ! Switch that defines which hydraulic solver to use
-   ! 1 = Taylor solution that solves plant fluxes with 1 layer
-   !     sequentially placing solution on top of previous layer solves
-   ! 2 = Picard solution that solves all fluxes in a plant and
-   !     the soil simultaneously, 2D: soil x (root + shell)
-   ! 3 = Newton-Raphson (Deprecated) solution that solves all fluxes in a plant and
-   !     the soil simultaneously, 2D: soil x (root + shell)
-   
-   integer,protected,public :: hydr_solver        !  switch designating hydraulics numerical solver
-   character(len=param_string_length),parameter,public :: hydr_name_solver = "fates_hydro_solver"
-   
    !Soil BGC parameters, mostly used for testing FATES when not coupled to the dynamics bgc hlm
    ! ----------------------------------------------------------------------------------------------
    real(r8),protected,public :: bgc_soil_salinity ! site-level soil salinity for FATES when not coupled to dynamic soil BGC of salinity
@@ -350,7 +338,6 @@ contains
     hydr_kmax_rsurf2                      = nan
     hydr_psi0                             = nan
     hydr_psicap                           = nan
-    hydr_solver                           = -9
     bgc_soil_salinity                     = nan
     logging_dbhmin                        = nan
     logging_dbhmax                        = nan
@@ -506,9 +493,6 @@ contains
     call fates_params%RegisterParameter(name=maxcohort_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
-    call fates_params%RegisterParameter(name=hydr_name_solver, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -745,10 +729,6 @@ contains
     call fates_params%RetrieveParameter(name=hydr_name_psicap, &
           data=hydr_psicap)
 
-    call fates_params%RetrieveParameter(name=hydr_name_solver, &
-         data=tmpreal)
-    hydr_solver = nint(tmpreal)
-    
     call fates_params%RetrieveParameter(name=bgc_name_soil_salinity, &
           data=bgc_soil_salinity)	  
 
@@ -905,7 +885,6 @@ contains
         write(fates_log(),fmt0) 'hydro_kmax_rsurf2 = ',hydr_kmax_rsurf2  
         write(fates_log(),fmt0) 'hydro_psi0 = ',hydr_psi0
         write(fates_log(),fmt0) 'hydro_psicap = ',hydr_psicap
-        write(fates_log(),fmt0) 'hydro_solver = ',hydr_solver
         write(fates_log(),fmt0) 'bgc_soil_salinity = ', bgc_soil_salinity
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin
         write(fates_log(),fmt0) 'logging_dbhmax = ',logging_dbhmax
