@@ -34,8 +34,6 @@ module EDParamsMod
    real(r8),protected, public :: photo_temp_acclim_thome_time ! Length of the window for the long-term exponential moving average (ema)
                                                               ! of vegetation temperature used in photosynthesis 
                                                               ! T_home term in Kumarathunge parameterization [years]
-   integer,protected, public :: maintresp_leaf_model  ! switch for choosing between leaf maintenance
-                                                      ! respiration model. 1=Ryan (1991), 2=Atkin et al (2017)
    real(r8),protected, public :: sdlng_emerg_h2o_timescale !Length of the window for the exponential moving
                                                                  !average of smp used to calculate seedling emergence
    real(r8),protected, public :: sdlng_mort_par_timescale !Length of the window for the exponential moving average 
@@ -138,7 +136,6 @@ module EDParamsMod
    integer, protected,allocatable,public :: hydr_htftype_node(:)
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_leaf_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_thome_time = "fates_leaf_photo_temp_acclim_thome_time"
-   character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_leaf_model"
    character(len=param_string_length),parameter,public :: name_radiation_model = "fates_rad_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydro_htftype_node"
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
@@ -295,7 +292,6 @@ contains
     sdlng_mdd_timescale                   = nan
     sdlng2sap_par_timescale               = nan
     photo_temp_acclim_thome_time          = nan
-    maintresp_leaf_model                  = -9
     radiation_model                       = -9
     fates_mortality_disturbance_fraction  = nan
     mort_cstarvation_model                = -9
@@ -390,9 +386,6 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=name_radiation_model,dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
-    call fates_params%RegisterParameter(name=name_maintresp_model,dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=name_theta_cj_c3, dimension_shape=dimension_shape_scalar, &
@@ -605,10 +598,6 @@ contains
     call fates_params%RetrieveParameter(name=name_radiation_model, &
          data=tmpreal)
     radiation_model = nint(tmpreal)
-    
-    call fates_params%RetrieveParameter(name=name_maintresp_model, &
-         data=tmpreal)
-    maintresp_leaf_model = nint(tmpreal)
     
     call fates_params%RetrieveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)

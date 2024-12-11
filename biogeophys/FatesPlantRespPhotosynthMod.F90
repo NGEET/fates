@@ -47,7 +47,6 @@ module FATESPlantRespPhotosynthMod
   use EDParamsMod,       only : q10_mr
   use FatesPatchMod,     only : fates_patch_type
   use FatesCohortMod,    only : fates_cohort_type
-  use EDParamsMod,       only : maintresp_leaf_model
   use FatesConstantsMod, only : lmrmodel_ryan_1991
   use FatesConstantsMod, only : lmrmodel_atkin_etal_2017
   use PRTGenericMod,     only : prt_carbon_allom_hyp
@@ -135,6 +134,7 @@ contains
     use EDParamsMod       , only : dlower_vai
     use FatesInterfaceTypesMod , only : bc_in_type
     use FatesInterfaceTypesMod , only : bc_out_type
+    use FatesInterfaceTypesMod , only : hlm_maintresp_leaf_model
     use EDCanopyStructureMod, only : calc_areaindex
     use FatesConstantsMod, only : umolC_to_kgC
     use FatesConstantsMod, only : umol_per_mmol
@@ -585,7 +585,7 @@ contains
 
                                  ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
 
-                                 select case (maintresp_leaf_model)
+                                 select case (hlm_maintresp_leaf_model)
 
                                  case (lmrmodel_ryan_1991)
 

@@ -179,6 +179,9 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_stomatal_model          ! switch for choosing between stomatal conductance models
                                                   ! 1 for Ball-Berry, 2 for Medlyn
 
+   integer, public :: hlm_maintresp_leaf_model    ! switch for choosing between leaf maintenance
+                                                  ! respiration model. 1=Ryan (1991), 2=Atkin et al (2017)
+
    integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
                                                   ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                   ! Essentially, this gives us the ability

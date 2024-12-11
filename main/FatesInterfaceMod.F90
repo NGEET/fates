@@ -1479,6 +1479,7 @@ contains
          hlm_stomatal_assim_model = unset_int
          hlm_stomatal_model = unset_int
          hlm_hydr_solver = unset_int
+         hlm_maintresp_leaf_model = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1788,6 +1789,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_maintresp_leaf_model .eq. unset_int) then
+            write(fates_log(), *) 'leaf maintenance respiration model is unset: hlm_maintresp_leaf_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_sp.eq.itrue.and.hlm_use_nocomp.eq.ifalse)then
             write(fates_log(), *) 'SP cannot be on if nocomp mode is off. Exiting. '
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -2019,6 +2025,12 @@ contains
                hlm_hydr_solver = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_hydr_solver= ',ival,' to FATES'
+               end if
+
+            case('maintresp_leaf_model')
+               hlm_maintresp_leaf_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_maintresp_leaf_model ',ival,' to FATES'
                end if
 
             case('use_logging')
