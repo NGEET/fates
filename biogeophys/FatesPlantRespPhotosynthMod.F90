@@ -61,7 +61,6 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : repro_organ
   use PRTGenericMod,     only : struct_organ
   use EDParamsMod,       only : maintresp_nonleaf_baserate
-  use EDParamsMod,       only : stomatal_model
   use PRTParametersMod,  only : prt_params
   use EDPftvarcon      , only : EDPftvarcon_inst
   use TemperatureType,   only : temperature_type
@@ -1191,6 +1190,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
   use EDParamsMod           , only : theta_cj_c3, theta_cj_c4
   use FatesInterfaceTypesMod, only : hlm_stomatal_assim_model
+  use FatesInterfaceTypesMod, only : hlm_stomatal_model
 
   ! Arguments
   ! ------------------------------------------------------------------------------------
@@ -1458,7 +1458,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               anet = agross  - lmr
 
               if ( hlm_stomatal_assim_model == gross_assim_model ) then
-                 if ( stomatal_model == medlyn_model ) then
+                 if ( hlm_stomatal_model == medlyn_model ) then
                     write (fates_log(),*) 'Gross Assimilation conductance is incompatible with the Medlyn model'
                     call endrun(msg=errMsg(sourcefile, __LINE__))
                  end if
@@ -1499,7 +1499,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               ! ------------------------------------------------------------------------------------
               
               
-              if ( stomatal_model == medlyn_model ) then
+              if ( hlm_stomatal_model == medlyn_model ) then
                  !stomatal conductance calculated from Medlyn et al. (2011), the numerical &
                  !implementation was adapted from the equations in CLM5.0
                  vpd =  max((veg_esat - ceair), 50._r8) * 0.001_r8          !addapted from CLM5. Put some constraint on VPD
@@ -1515,7 +1515,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                  call QuadraticRoots(aquad, bquad, cquad, r1, r2)
                  gs_mol = max(r1,r2)
 
-              else if ( stomatal_model == ballberry_model ) then         !stomatal conductance calculated from Ball et al. (1987)
+              else if ( hlm_stomatal_model == ballberry_model ) then         !stomatal conductance calculated from Ball et al. (1987)
                  aquad = leaf_co2_ppress
                  bquad = leaf_co2_ppress*(gb_mol - stomatal_intercept_btran) - bb_slope(ft) * a_gs * can_press
                  cquad = -gb_mol*(leaf_co2_ppress*stomatal_intercept_btran + &
@@ -1588,10 +1588,10 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
            end if
 
            ! Compare with Medlyn model: gs_mol = 1.6*(1+m/sqrt(vpd)) * an/leaf_co2_ppress*p + b
-           if ( stomatal_model == 2 ) then
+           if ( hlm_stomatal_model == 2 ) then
               gs_mol_err = h2o_co2_stoma_diffuse_ratio*(1 + medlyn_slope(ft)/sqrt(vpd))*max(anet,0._r8)/leaf_co2_ppress*can_press + stomatal_intercept_btran
               ! Compare with Ball-Berry model: gs_mol = m * an * hs/leaf_co2_ppress*p + b
-           else if ( stomatal_model == 1 ) then
+           else if ( hlm_stomatal_model == 1 ) then
               hs = (gb_mol*ceair + gs_mol* veg_esat ) / ((gb_mol+gs_mol)*veg_esat )
               gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
            end if

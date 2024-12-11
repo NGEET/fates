@@ -1477,6 +1477,7 @@ contains
          hlm_daylength_factor_switch = unset_int
          hlm_photo_tempsens_model = unset_int
          hlm_stomatal_assim_model = unset_int
+         hlm_stomatal_model = unset_int
          hlm_hydr_solver = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
@@ -1777,6 +1778,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_stomatal_model .eq. unset_int) then
+            write(fates_log(), *) 'stomatal model conductance is unset: hlm_stomatal_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_hydr_solver .eq. unset_int) then
             write(fates_log(), *) 'FATES hydro solver is unset: hlm_hydr_solver, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -2001,6 +2007,12 @@ contains
                hlm_stomatal_assim_model = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_stomatal_assim_model ',ival,' to FATES'
+               end if
+
+            case('stomatal_model')
+               hlm_stomatal_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_stomatal_model ',ival,' to FATES'
                end if
 
             case('hydr_solver')

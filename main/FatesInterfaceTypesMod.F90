@@ -176,6 +176,9 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_stomatal_assim_model    ! Switch designating whether to use net or gross assimilation in the stomata model
                                                   ! 1 for net, 2 for gross
 
+   integer, public :: hlm_stomatal_model          ! switch for choosing between stomatal conductance models
+                                                  ! 1 for Ball-Berry, 2 for Medlyn
+
    integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
                                                   ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                   ! Essentially, this gives us the ability
