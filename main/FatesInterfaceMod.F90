@@ -1474,6 +1474,7 @@ contains
          hlm_num_luh2_states       = unset_int
          hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
+         hlm_daylength_factor_switch = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1758,6 +1759,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_daylength_factor_switch .eq. unset_int) then
+            write(fates_log(), *) 'use daylength factor switch is unset: hlm_daylength_factor_switch, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_sp.eq.itrue.and.hlm_use_nocomp.eq.ifalse)then
             write(fates_log(), *) 'SP cannot be on if nocomp mode is off. Exiting. '
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1959,6 +1965,12 @@ contains
                hlm_use_cohort_age_tracking = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
+               end if
+
+            case('use_daylength_factor_switch')
+               hlm_daylength_factor_switch = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_daylength_factor_switch= ',ival,' to FATES'
                end if
 
             case('use_logging')
