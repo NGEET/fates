@@ -2077,7 +2077,7 @@ contains
 
        do c = 1,ncwd
          
-         if (dist_type == dtype_ifall .and. currentPatch%fire == 1) then
+         if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
             frac_burnt = currentPatch%fuel%frac_burnt(c)
          else 
             frac_burnt = 0.0_r8
@@ -2105,7 +2105,7 @@ contains
           
        enddo
        
-       if (dist_type == dtype_ifall .and. currentPatch%fire == 1) then
+       if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
          frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
       else 
          frac_burnt = 0.0_r8
