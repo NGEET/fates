@@ -186,6 +186,9 @@ module FatesInterfaceTypesMod
                                                   ! 1 -- Linear model
                                                   ! 2 -- Exponential model
 
+   integer, public :: hlm_radiation_model         ! Switch for radiation model
+                                                  ! Norman (1) and Two-stream (2)
+
    integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
                                                   ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                   ! Essentially, this gives us the ability

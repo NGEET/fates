@@ -39,6 +39,7 @@ module FatesRestartInterfaceMod
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesInterfaceTypesMod,  only : nlevsclass
   use FatesInterfaceTypesMod,  only : nlevdamage
+  use FatesInterfaceTypesMod,  only : hlm_radiation_model
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
   use FatesFuelClassesMod,     only : num_fuel_classes
@@ -52,7 +53,6 @@ module FatesRestartInterfaceMod
   use FatesRadiationMemMod,    only : num_swb,norman_solver,twostr_solver
   use TwoStreamMLPEMod,        only : normalized_upper_boundary
   use EDParamsMod,             only : regeneration_model
-  use EDParamsMod,             only : radiation_model
   use FatesConstantsMod,       only : n_term_mort_types
   use FatesConstantsMod,       only : n_landuse_cats
   use FatesConstantsMod,       only : N_DIST_TYPES
@@ -3868,7 +3868,7 @@ contains
                  enddo
               else
 
-                 select case(radiation_model)
+                 select case(hlm_radiation_model)
                  case(norman_solver)
                  
                     call PatchNormanRadiation (currentPatch, &

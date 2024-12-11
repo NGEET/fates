@@ -64,7 +64,6 @@ module FATESPlantRespPhotosynthMod
   use EDPftvarcon      , only : EDPftvarcon_inst
   use TemperatureType,   only : temperature_type
   use FatesRadiationMemMod, only : norman_solver,twostr_solver
-  use EDParamsMod,          only : radiation_model
   use FatesRadiationMemMod, only : ipar
   use FatesTwoStreamUtilsMod, only : FatesGetCohortAbsRad
   use FatesAllometryMod     , only : VegAreaLayer
@@ -149,6 +148,7 @@ contains
     use DamageMainMod, only : GetCrownReduction
 
     use FatesInterfaceTypesMod, only : hlm_use_tree_damage
+    use FatesInterfaceTypesMod, only : hlm_radiation_model
 
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
@@ -496,7 +496,7 @@ contains
 
                               rate_mask_if: if ( .not.rate_mask_z(iv,ft,cl) .or. &
                                    (hlm_use_planthydro.eq.itrue) .or. &
-                                   (radiation_model .eq. twostr_solver ) .or. &
+                                   (hlm_radiation_model .eq. twostr_solver ) .or. &
                                    (nleafage > 1) .or. &
                                    (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
 
@@ -621,7 +621,7 @@ contains
                                  !              as large as the layer above.
                                  ! ------------------------------------------------------------------
 
-                                 if_radsolver: if(radiation_model.eq.norman_solver) then
+                                 if_radsolver: if(hlm_radiation_model.eq.norman_solver) then
 
                                     laisun = currentPatch%ed_laisun_z(cl,ft,iv)
                                     laisha = currentPatch%ed_laisha_z(cl,ft,iv)
@@ -752,7 +752,7 @@ contains
                            nv = currentCohort%nv
 
                            ! Temporary bypass to preserve B4B behavior
-                           if(radiation_model.eq.norman_solver) then
+                           if(hlm_radiation_model.eq.norman_solver) then
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
                                    psn_z(1:nv,ft,cl),                     & !in
