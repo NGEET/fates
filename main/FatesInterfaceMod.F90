@@ -19,7 +19,6 @@ module FatesInterfaceMod
    use EDParamsMod               , only : maxpatches_by_landuse
    use EDParamsMod               , only : max_cohort_per_patch
    use FatesRadiationMemMod      , only : num_swb,ivis,inir
-   use EDParamsMod               , only : regeneration_model
    use EDParamsMod               , only : nclmax
    use EDParamsMod               , only : nlevleaf
    use EDParamsMod               , only : maxpft
@@ -1482,6 +1481,7 @@ contains
          hlm_maintresp_leaf_model = unset_int
          hlm_mort_cstarvation_model = unset_int
          hlm_radiation_model = unset_int
+         hlm_regeneration_model = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1806,6 +1806,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_regeneration_model .eq. unset_int) then
+            write(fates_log(), *) 'seed regeneration model is unset: hlm_regeneration_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_sp.eq.itrue.and.hlm_use_nocomp.eq.ifalse)then
             write(fates_log(), *) 'SP cannot be on if nocomp mode is off. Exiting. '
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -2057,6 +2062,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_radiation_model ',ival,' to FATES'
                end if
 
+            case('regeneration_model')
+               hlm_regeneration_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_regeneration_model ',ival,' to FATES'
+               end if
+
             case('use_logging')
                hlm_use_logging = ival
                if (fates_global_verbose()) then
@@ -2217,7 +2228,7 @@ contains
            call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
            ! Update the seedling layer par running means
-           if ( regeneration_model == TRS_regeneration ) then
+           if ( hlm_regeneration_model == TRS_regeneration ) then
 
               ! Return the par intensity at the ground. This routine
               ! breaks it up into high and low light levels. The high
