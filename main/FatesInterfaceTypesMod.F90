@@ -182,6 +182,10 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_maintresp_leaf_model    ! switch for choosing between leaf maintenance
                                                   ! respiration model. 1=Ryan (1991), 2=Atkin et al (2017)
 
+   integer, public :: hlm_mort_cstarvation_model  ! Switch for carbon starvation mortality:
+                                                  ! 1 -- Linear model
+                                                  ! 2 -- Exponential model
+
    integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
                                                   ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                   ! Essentially, this gives us the ability
