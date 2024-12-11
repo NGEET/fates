@@ -2074,13 +2074,11 @@ contains
           litter_stock0 = curr_litt%GetTotalLitterMass()*currentPatch%area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
        end if
-
+       
        do c = 1,ncwd
-         
+         frac_burnt = 0.0_r8
          if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
             frac_burnt = currentPatch%fuel%frac_burnt(c)
-         else 
-            frac_burnt = 0.0_r8
          end if 
              
           ! Transfer above ground CWD
@@ -2105,13 +2103,11 @@ contains
           
        enddo
        
+       frac_burnt = 0.0_r8
        if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
          frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
-      else 
-         frac_burnt = 0.0_r8
       end if 
-          
-          
+             
        do dcmpy=1,ndcmpy
 
            ! Transfer leaf fines
