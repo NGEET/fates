@@ -63,7 +63,6 @@ module FATESPlantRespPhotosynthMod
   use EDParamsMod,       only : maintresp_nonleaf_baserate
   use EDParamsMod,       only : stomatal_model
   use EDParamsMod,       only : stomatal_assim_model
-  use EDParamsMod,       only : photo_tempsens_model
   use PRTParametersMod,  only : prt_params
   use EDPftvarcon      , only : EDPftvarcon_inst
   use TemperatureType,   only : temperature_type
@@ -2316,6 +2315,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
     use EDPftvarcon           , only : EDPftvarcon_inst
     use FatesInterfaceTypesMod, only : hlm_daylength_factor_switch
+    use FatesInterfaceTypesMod, only : hlm_photo_tempsens_model
 
     ! Arguments
     ! ------------------------------------------------------------------------------
@@ -2365,7 +2365,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
     real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
 
-    select case(photo_tempsens_model)
+    select case(hlm_photo_tempsens_model)
     case (photosynth_acclim_model_none) !No temperature acclimation
        vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
        jmaxha  = EDPftvarcon_inst%jmaxha(FT)
@@ -2406,7 +2406,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
        ! Vcmax25top was already calculated to derive the nscaler function
        vcmax25 = vcmax25top_ft * nscaler * dayl_factor_local
-       select case(photo_tempsens_model)
+       select case(hlm_photo_tempsens_model)
        case (photosynth_acclim_model_none)
           jmax25  = jmax25top_ft * nscaler * dayl_factor_local
        case (photosynth_acclim_model_kumarathunge_etal_2019) 

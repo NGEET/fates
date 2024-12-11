@@ -169,6 +169,10 @@ module FatesInterfaceTypesMod
                                                   ! 3 = Newton-Raphson (Deprecated) solution that solves all fluxes in a plant and
                                                   !     the soil simultaneously, 2D: soil x (root + shell)
 
+   integer, public :: hlm_photo_tempsens_model    ! switch for choosing the model that defines the temperature
+                                                  ! sensitivity of photosynthetic parameters (vcmax, jmax).
+                                                  ! 0=non-acclimating, 1=Kumarathunge et al., 2019
+
    integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
                                                   ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                   ! Essentially, this gives us the ability

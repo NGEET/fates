@@ -46,10 +46,6 @@ module EDParamsMod
    real(r8),protected, public :: sdlng2sap_par_timescale !Length of the window for the exponential 
                                                                !moving average of par at the seedling layer used to 
                                                                !calculate seedling to sapling transition rates
-   integer,protected, public :: photo_tempsens_model  ! switch for choosing the model that defines the temperature
-                                                      ! sensitivity of photosynthetic parameters (vcmax, jmax).
-                                                      ! 1=non-acclimating, 2=Kumarathunge et al., 2019
-
    integer,protected, public :: radiation_model       ! Switch betrween Norman (1) and Two-stream (2) radiation models
 
    integer,protected, public :: mort_cstarvation_model ! Switch for carbon starvation mortality:
@@ -143,7 +139,6 @@ module EDParamsMod
    integer, protected,allocatable,public :: hydr_htftype_node(:)
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_leaf_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_thome_time = "fates_leaf_photo_temp_acclim_thome_time"
-   character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_leaf_photo_tempsens_model"
    character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_leaf_model"
    character(len=param_string_length),parameter,public :: name_radiation_model = "fates_rad_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydro_htftype_node"
@@ -306,7 +301,6 @@ contains
     sdlng_mdd_timescale                   = nan
     sdlng2sap_par_timescale               = nan
     photo_temp_acclim_thome_time          = nan
-    photo_tempsens_model                  = -9
     maintresp_leaf_model                  = -9
     radiation_model                       = -9
     fates_mortality_disturbance_fraction  = nan
@@ -401,9 +395,6 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_thome_time, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=name_photo_tempsens_model,dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=name_radiation_model,dimension_shape=dimension_shape_scalar, &
@@ -624,10 +615,6 @@ contains
     
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_thome_time, &
          data=photo_temp_acclim_thome_time)
-
-    call fates_params%RetrieveParameter(name=name_photo_tempsens_model, &
-         data=tmpreal)
-    photo_tempsens_model = nint(tmpreal)
 
     call fates_params%RetrieveParameter(name=name_radiation_model, &
          data=tmpreal)

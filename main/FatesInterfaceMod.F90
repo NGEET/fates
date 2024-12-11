@@ -1475,6 +1475,7 @@ contains
          hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
          hlm_daylength_factor_switch = unset_int
+         hlm_photo_tempsens_model = unset_int
          hlm_hydr_solver = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
@@ -1765,6 +1766,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_photo_tempsens_model .eq. unset_int) then
+            write(fates_log(), *) 'photosynthetic acclimation model is unset: hlm_photo_tempsens_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_hydr_solver .eq. unset_int) then
             write(fates_log(), *) 'FATES hydro solver is unset: hlm_hydr_solver, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1977,6 +1983,12 @@ contains
                hlm_daylength_factor_switch = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_daylength_factor_switch= ',ival,' to FATES'
+               end if
+
+            case('use_photosynth_acclimation')
+               hlm_photo_tempsens_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_photo_tempsens_model= ',ival,' to FATES'
                end if
 
             case('hydr_solver')
