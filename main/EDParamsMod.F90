@@ -203,10 +203,6 @@ module EDParamsMod
    real(r8),protected,public :: bgc_soil_salinity ! site-level soil salinity for FATES when not coupled to dynamic soil BGC of salinity
    character(len=param_string_length),parameter,public :: bgc_name_soil_salinity= "fates_soil_salinity"      
 
-   ! Switch designating whether to use net or gross assimilation in the stomata model
-   integer, protected, public :: stomatal_assim_model
-   character(len=param_string_length), parameter, public :: stomatal_assim_name = "fates_leaf_stomatal_assim_model"
-
    ! Integer code that options how damage events are structured
    integer, protected, public :: damage_event_code
    character(len=param_string_length), parameter, public :: damage_name_event_code = "fates_damage_event_code"
@@ -326,7 +322,6 @@ contains
     ED_val_canopy_closure_thresh          = nan
     stomatal_model                        = -9
     regeneration_model                    = -9
-    stomatal_assim_model                  = -9
     max_cohort_per_patch                  = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
@@ -478,9 +473,6 @@ contains
     call fates_params%RegisterParameter(name=ED_name_regeneration_model, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 	 
-    call fates_params%RegisterParameter(name=stomatal_assim_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=maxcohort_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
@@ -696,10 +688,6 @@ contains
          data=tmpreal)
     regeneration_model = nint(tmpreal)
     
-    call fates_params%RetrieveParameter(name=stomatal_assim_name, &
-         data=tmpreal)
-    stomatal_assim_model = nint(tmpreal)
-    
     call fates_params%RetrieveParameter(name=maxcohort_name, &
          data=tmpreal)
     max_cohort_per_patch = nint(tmpreal)
@@ -867,7 +855,6 @@ contains
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh
         write(fates_log(),fmt0) 'regeneration_model = ',regeneration_model
         write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model
-        write(fates_log(),fmt0) 'stomatal_assim_model = ',stomatal_assim_model            
         write(fates_log(),fmt0) 'hydro_kmax_rsurf1 = ',hydr_kmax_rsurf1
         write(fates_log(),fmt0) 'hydro_kmax_rsurf2 = ',hydr_kmax_rsurf2  
         write(fates_log(),fmt0) 'hydro_psi0 = ',hydr_psi0

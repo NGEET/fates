@@ -173,6 +173,9 @@ module FatesInterfaceTypesMod
                                                   ! sensitivity of photosynthetic parameters (vcmax, jmax).
                                                   ! 0=non-acclimating, 1=Kumarathunge et al., 2019
 
+   integer, public :: hlm_stomatal_assim_model    ! Switch designating whether to use net or gross assimilation in the stomata model
+                                                  ! 1 for net, 2 for gross
+
    integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
                                                   ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                   ! Essentially, this gives us the ability

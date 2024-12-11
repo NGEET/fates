@@ -62,7 +62,6 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : struct_organ
   use EDParamsMod,       only : maintresp_nonleaf_baserate
   use EDParamsMod,       only : stomatal_model
-  use EDParamsMod,       only : stomatal_assim_model
   use PRTParametersMod,  only : prt_params
   use EDPftvarcon      , only : EDPftvarcon_inst
   use TemperatureType,   only : temperature_type
@@ -1190,8 +1189,8 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! Other arguments or variables may be indicative of scales broader than the LSL.
   ! ------------------------------------------------------------------------------------
 
-  use EDParamsMod       , only : theta_cj_c3, theta_cj_c4
-
+  use EDParamsMod           , only : theta_cj_c3, theta_cj_c4
+  use FatesInterfaceTypesMod, only : hlm_stomatal_assim_model
 
   ! Arguments
   ! ------------------------------------------------------------------------------------
@@ -1458,7 +1457,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               ! using anet in calculating gs this is version B  
               anet = agross  - lmr
 
-              if ( stomatal_assim_model == gross_assim_model ) then
+              if ( hlm_stomatal_assim_model == gross_assim_model ) then
                  if ( stomatal_model == medlyn_model ) then
                     write (fates_log(),*) 'Gross Assimilation conductance is incompatible with the Medlyn model'
                     call endrun(msg=errMsg(sourcefile, __LINE__))
