@@ -44,6 +44,8 @@ from functional_testing.math_utils.math_utils_test import (
 )  # pylint: disable=unused-import
 from functional_testing.fire.fuel_test import FuelTest  # pylint: disable=unused-import
 
+from functional_testing.lai.lai_test import LaiTest  # pylint: disable=unused-import
+
 add_cime_lib_to_path()
 
 from CIME.utils import (
