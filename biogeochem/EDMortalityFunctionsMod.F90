@@ -12,7 +12,6 @@ module EDMortalityFunctionsMod
    use FatesCohortMod        , only : fates_cohort_type
    use EDTypesMod            , only : ed_site_type
    use EDParamsMod,            only : maxpft
-   use EDParamsMod           , only : mort_cstarvation_model
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesConstantsMod     , only : cstarvation_model_lin
    use FatesConstantsMod     , only : cstarvation_model_exp
@@ -68,6 +67,7 @@ contains
     use FatesConstantsMod,      only : fates_check_param_set
     use DamageMainMod,          only : GetDamageMortality
     use EDParamsmod,            only : soil_tfrz_thresh
+    use FatesInterfaceTypesMod, only : hlm_mort_cstarvation_model
     
     type (fates_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
@@ -204,7 +204,7 @@ contains
           call storage_fraction_of_target(target_leaf_c, store_c, frac)
 
           ! Select the carbon starvation mortality model (linear or exponential)s.
-          select case (mort_cstarvation_model)
+          select case (hlm_mort_cstarvation_model)
           case (cstarvation_model_lin)
              ! Linear model. Carbon starvation mortality will be zero when fraction of
              ! storage is greater than or equal to mort_upthresh_cstarvation, and will
@@ -223,7 +223,7 @@ contains
 
           case default
               write(fates_log(),*) &
-                 'Invalid carbon starvation model (',mort_cstarvation_model,').'
+                 'Invalid carbon starvation model (',hlm_mort_cstarvation_model,').'
               call endrun(msg=errMsg(sourcefile, __LINE__))
           end select
 

@@ -27,7 +27,6 @@ module EDCanopyStructureMod
   use FatesCohortMod,         only : fates_cohort_type
   use EDParamsMod            , only : nclmax
   use EDParamsMod            , only : nlevleaf
-  use EDParamsMod           , only : radiation_model
   use EDtypesMod            , only : AREA
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
@@ -1314,11 +1313,12 @@ contains
     ! ---------------------------------------------------------------------------------
 
     use FatesInterfaceTypesMod    , only : hlm_use_cohort_age_tracking
-    use EDPatchDynamicsMod   , only : set_patchno
+    use FatesInterfaceTypesMod    , only : hlm_radiation_model
+    use EDPatchDynamicsMod        , only : set_patchno
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
-    use EDtypesMod           , only : area
-    use FatesConstantsMod    , only : itrue
+    use EDtypesMod                , only : area
+    use FatesConstantsMod         , only : itrue
 
     ! !ARGUMENTS
     integer                 , intent(in)            :: nsites
@@ -1452,7 +1452,7 @@ contains
 
        call leaf_area_profile(sites(s))
        
-       if(radiation_model.eq.twostr_solver) then
+       if(hlm_radiation_model.eq.twostr_solver) then
           call FatesConstructRadElements(sites(s),bc_in(s)%fcansno_pa,bc_in(s)%coszen_pa)
        end if
        
