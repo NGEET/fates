@@ -532,7 +532,7 @@ contains
     use SFParamsMod,    only : SF_val_miner_total, SF_val_part_dens
     use SFEquationsMod, only : OptimumPackingRatio, ReactionIntensity
     use SFEquationsMod, only : HeatofPreignition, EffectiveHeatingNumber
-    use SFEquationsMod, only : PhiWind, PropagatingFlux
+    use SFEquationsMod, only : WindFactor, PropagatingFlux
     use SFEquationsMod, only : ForwardRateOfSpread, BackwardRateOfSpread
 
     ! ARGUMENTS:
@@ -583,7 +583,7 @@ contains
         eps = EffectiveHeatingNumber(currentPatch%fuel%SAV_notrunks)
         
         ! wind factor [unitless]
-        phi_wind = PhiWind(currentSite%fireWeather%effective_windspeed, beta_ratio,      &
+        phi_wind = WindFactor(currentSite%fireWeather%effective_windspeed, beta_ratio,      &
          currentPatch%fuel%SAV_notrunks)
 
         ! propagating flux [unitless]       
