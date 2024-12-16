@@ -36,5 +36,12 @@ class LaiTest(FunctionalTest):
             save_figs (bool): whether or not to save the figures
             plot_dir (str): plot directory to save the figures to
         """
-
+        
+        # read in allometry data
+        lai_dat = xr.open_dataset(os.path.join(run_dir, self.out_file))
+        
+        lai_dat.lai.plot(hue='pft')
+        lai_dat.leafc.plot(col='pft')
+        lai_dat.crown_area.plot(col='pft')
+        
         
