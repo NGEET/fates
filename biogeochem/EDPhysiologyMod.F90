@@ -720,6 +720,12 @@ contains
                currentPatch%canopy_layer_tlai, currentCohort%treelai, &
                currentCohort%vcmax25top,0 )  
 
+          ! cap leaf allometries that are larger than the allowable array space.
+          if( (currentCohort%treelai + currentCohort%treesai) > (sum(dinc_vai)) )then
+             currentCohort%treelai = sum(dinc_vai) * (1._r8 - prt_params%allom_sai_scaler(currentCohort%pft))
+             currentCohort%treesai = sum(dinc_vai) * prt_params%allom_sai_scaler(currentCohort%pft)
+          endif
+
           currentCohort%nv      = count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
 
           if (currentCohort%nv > nlevleaf)then

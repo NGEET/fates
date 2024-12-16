@@ -2245,7 +2245,7 @@ contains
    ! Update LAI and related variables for a given cohort
    
    ! Uses
-   use EDParamsMod, only : dlower_vai
+   use EDParamsMod, only : dlower_vai, dinc_vai
    
    ! Arguments
    type(fates_cohort_type),intent(inout), target   :: currentCohort
@@ -2271,6 +2271,12 @@ contains
                                        canopy_layer_tlai, currentCohort%treelai , &
                                        currentCohort%vcmax25top,4)
    end if
+
+   ! cap leaf allometries that are larger than the allowable array space.
+   if( (currentCohort%treelai + currentCohort%treesai) > (sum(dinc_vai)) )then
+      currentCohort%treelai = sum(dinc_vai) * (1._r8 - prt_params%allom_sai_scaler(currentCohort%pft))
+      currentCohort%treesai = sum(dinc_vai) * prt_params%allom_sai_scaler(currentCohort%pft)
+   endif
 
    ! Number of actual vegetation layers in this cohort's crown
    currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
