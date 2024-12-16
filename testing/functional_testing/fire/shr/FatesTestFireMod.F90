@@ -39,12 +39,12 @@ module FatesTestFireMod
       character(len=2),              intent(out)   :: fuel_carrier     ! fuel carrier for fuel model
       
       ! LOCALS:
-      integer                         :: i                   ! position of fuel model in array
-      real(r8)                        :: leaf_litter         ! leaf litter [kg/m2] 
-      real(r8)                        :: twig_litter         ! twig litter [kg/m2]
-      real(r8)                        :: small_branch_litter ! small branch litter [kg/m2]
-      real(r8)                        :: large_branch_litter ! large branch litter [kg/m2]
-      real(r8)                        :: grass_litter        ! grass litter [kg/m2]
+      integer  :: i                   ! position of fuel model in array
+      real(r8) :: leaf_litter         ! leaf litter [kg/m2] 
+      real(r8) :: twig_litter         ! twig litter [kg/m2]
+      real(r8) :: small_branch_litter ! small branch litter [kg/m2]
+      real(r8) :: large_branch_litter ! large branch litter [kg/m2]
+      real(r8) :: grass_litter        ! grass litter [kg/m2]
       
 
       ! get fuel model position in array
@@ -106,7 +106,7 @@ module FatesTestFireMod
 
     subroutine WriteFireData(out_file, nsteps, nfuelmods, temp_degC, precip, rh, NI,     &
       loading, frac_loading, fuel_BD, fuel_SAV, non_trunk_loading, fuel_moisture,            &
-      fuel_models, carriers)
+      fuel_MEF, fuel_models, carriers)
       !
       ! DESCRIPTION:
       ! writes out data from the unit test
@@ -124,6 +124,7 @@ module FatesTestFireMod
       real(r8),           intent(in) :: frac_loading(:,:)
       real(r8),           intent(in) :: non_trunk_loading(:)
       real(r8),           intent(in) :: fuel_moisture(:,:)
+      real(r8),           intent(in) :: fuel_MEF(:,:)
       real(r8),           intent(in) :: fuel_BD(:)
       real(r8),           intent(in) :: fuel_SAV(:)
       integer,            intent(in) :: fuel_models(:)
@@ -144,7 +145,7 @@ module FatesTestFireMod
       integer              :: tot_loadingID
       integer              :: BDID, SAVID
       integer              :: moistID
-      integer              :: cID
+      integer              :: cID, mefID
       
       ! create pft indices
       allocate(time_index(nsteps))
@@ -218,6 +219,13 @@ module FatesTestFireMod
         [character(len=150) :: 'time fuel_model', 'm3 m-3', 'average fuel moisture'],  &                                                  
         3, moistID)
         
+      ! register fuel MEF
+      call RegisterVar(ncid, 'fuel_MEF', (/dimIDs(1), dimIDs(3)/), type_double,   &
+        [character(len=20)  :: 'coordinates', 'units', 'long_name'],                   &
+        [character(len=150) :: 'time fuel_model', 'm3 m-3', 'average fuel moisture of extinction'],  &                                                  
+        3, mefID)
+        
+        
       ! register fuel loading
       call RegisterVar(ncid, 'fuel_loading', dimIDs(2:3), type_double,                 &
         [character(len=20)  :: 'coordinates', 'units', 'long_name'],                   &
@@ -266,6 +274,7 @@ module FatesTestFireMod
       call WriteVar(ncid, moistiD, fuel_moisture(:,:))
       call WriteVar(ncid, BDID, fuel_BD(:))
       call WriteVar(ncid, SAVID, fuel_SAV(:))
+      call WriteVar(ncid, mefID, fuel_MEF(:,:))
  
       call CloseNCFile(ncid)
 
