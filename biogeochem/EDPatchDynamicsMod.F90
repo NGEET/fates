@@ -1721,8 +1721,6 @@ contains
 
     call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, 0)
 
-    currentPatch%fuel%frac_burnt(:) = 0._r8
-
     ! Next, we loop through the cohorts in the donor patch, copy them with
     ! area modified number density into the new-patch, and apply survivorship.
     ! -------------------------------------------------------------------------
