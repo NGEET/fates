@@ -19,7 +19,7 @@ module SFEquationsMod
   public :: ReactionIntensity
   public :: HeatofPreignition
   public :: EffectiveHeatingNumber
-  public :: PhiWind
+  public :: WindFactor
   public :: PropagatingFlux
   public :: ForwardRateOfSpread
   public :: BackwardRateOfSpread
@@ -55,8 +55,7 @@ module SFEquationsMod
       !
       !  DESCRIPTION:
       !  Calculates maximum reaction velocity in /min
-      !  Reaction velocity that would exist if fuel were free of moisture and 
-      !  contained mineral and alpha cellulose
+      !
       !  From Equation 36 in Rothermel 1972; Fig. 12
       !
       
@@ -73,6 +72,11 @@ module SFEquationsMod
       !
       !  DESCRIPTION:
       !  Calculates optimum reaction velocity in /min
+      !
+      !  Reaction velocity (i.e. rate of fuel consumption) that would exist if the 
+      !  fuel were free of moisture and contained minerals at the same reaction 
+      !  concentration as alpha cellulose
+      !
       !  From Equation 38 in Rothermel 1972; Fig. 11
       !
       
@@ -111,10 +115,11 @@ module SFEquationsMod
       ! average values for litter pools (dead leaves, twigs, small and large branches), plus grass
       mw_weight = moisture/MEF
       
-      ! moist_damp is unitless
-      MoistureCoefficient = max(0.0_r8, (1.0_r8 - (2.59_r8*mw_weight) +                   &
-        (5.11_r8*(mw_weight**2.0_r8)) - (3.52_r8*(mw_weight**3.0_r8))))
-        
+      ! MoistureCoefficient is unitless
+      MoistureCoefficient = 1.0_r8 - (2.59_r8*mw_weight) + (5.11_r8*(mw_weight**2.0_r8)) - &
+        (3.52_r8*(mw_weight**3.0_r8))
+      
+      if (MoistureCoefficient < nearzero) MoistureCoefficient = 0.0_r8  
       if (MoistureCoefficient > 1.0_r8) MoistureCoefficient = 1.0_r8
       
     end function MoistureCoefficient
@@ -125,6 +130,8 @@ module SFEquationsMod
       !
       !  DESCRIPTION:
       !  Calculates reaction intensity in kJ/m2/min
+      ! 
+      !  Rate of energy release per unit area within the flaming front
       !
       
       ! USES
@@ -163,8 +170,11 @@ module SFEquationsMod
       !  DESCRIPTION:
       !  Calculates heat of pre-ignition in kJ/kg
       !
+      !  Heat of pre-ignition is the heat required to bring a unit weight of fuel to 
+      !  ignition
+      !
       !  Equation A4 in Thonicke et al. 2010
-      !  Rothermel EQ12= 250 Btu/lb + 1116 Btu/lb * average_moisture
+      !  Rothermel EQ12 = 250 Btu/lb + 1116 Btu/lb * average_moisture
       !  conversion of Rothermel (1972) EQ12 in BTU/lb to current kJ/kg 
       !
       
@@ -185,7 +195,11 @@ module SFEquationsMod
       !  DESCRIPTION:
       !  Calculates effective heating number [unitless]
       !
+      !  Proportion of a fuel particle that is heated to ignition temperature at the time
+      !  flaming combustion starts
+      !
       !  Equation A3 in Thonicke et al. 2010
+      !
 
       ! ARGUMENTS:
       real(r8), intent(in) :: SAV ! fuel surface area to volume ratio [/cm]
@@ -200,10 +214,12 @@ module SFEquationsMod
 
     !-------------------------------------------------------------------------------------
     
-    real(r8) function PhiWind(wind_speed, beta_ratio, SAV)
+    real(r8) function WindFactor(wind_speed, beta_ratio, SAV)
       !
       !  DESCRIPTION:
-      !  Calculates wind factor [unitless]
+      !  Calculates wind factor for the rate of spread equation [unitless]
+      ! 
+      !  Accounts for effect of wind speed increasing ROS
       !
 
       ! ARGUMENTS:
@@ -225,16 +241,19 @@ module SFEquationsMod
 
       ! Equation A5 in Thonicke et al. 2010
       ! convert wind_speed (wind at elev relevant to fire) from m/min to ft/min for Rothermel ROS Eq.
-      PhiWind = c*((3.281_r8*wind_speed)**b)*(beta_ratio**(-e))
+      WindFactor = c*((3.281_r8*wind_speed)**b)*(beta_ratio**(-e))
 
-    end function PhiWind
+    end function WindFactor
     
     !-------------------------------------------------------------------------------------
     
     real(r8) function PropagatingFlux(beta, SAV)
       !
       !  DESCRIPTION:
-      !  Calculates propagating flux [unitless]
+      !  Calculates propagating flux ratio [unitless]
+      ! 
+      !  Proportion of reaction intensity that heats adjacent fuel particles to ignition
+      ! 
       !  Equation A2 in Thonicke et al. 2010 and Eq. 42 Rothermel 1972
       !
 
@@ -253,6 +272,9 @@ module SFEquationsMod
       !
       !  DESCRIPTION:
       !  Calculates forward rate of spread [m/min]
+      !  
+      !  Flaming front of a surface fire
+      !
       !  Equation 9. Thonicke et al. 2010
       !
 
@@ -278,6 +300,7 @@ module SFEquationsMod
       !
       !  DESCRIPTION:
       !  Calculates backwards rate of spread [m/min]
+      !
       !  Equation 10 in Thonicke et al. 2010
       !  backward ROS from Can FBP System (1992)
       !  backward ROS wind not changed by vegetation 

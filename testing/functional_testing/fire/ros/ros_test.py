@@ -9,6 +9,10 @@ import matplotlib.pyplot as plt
 from functional_class import FunctionalTest
 from utils import blank_plot
 
+COLORS = ['#793922', '#6B8939', '#99291F','#CC9728', '#2C778A']
+CM_TO_FT = 30.48
+KJKG_TO_BTULB = 0.947817/2.20462
+
 
 class ROSTest(FunctionalTest):
     """ROS test class"""
@@ -61,7 +65,7 @@ class ROSTest(FunctionalTest):
             }
         )
         
-        data_frame['SAV_ft'] = data_frame.SAV*30.48
+        data_frame['SAV_ft'] = data_frame.SAV*CM_TO_FT # covert to ft to compare with original Rothermel equations
 
         max_SAV = data_frame["SAV_ft"].max()
         max_prop_flux = 0.14
@@ -84,7 +88,6 @@ class ROSTest(FunctionalTest):
         plt.grid(True)
 
         packing_ratio = np.unique(data_frame.packing_ratio.values)
-        colors = ['#6B8939', '#99291F','#CC9728', '#2C778A']
         
         for i, beta in enumerate(packing_ratio):
             dat = data_frame[data_frame.packing_ratio == beta]
@@ -92,7 +95,7 @@ class ROSTest(FunctionalTest):
                 dat.SAV_ft.values,
                 dat['prop_flux'].values,
                 lw=2,
-                color=colors[i],
+                color=COLORS[i],
                 label=beta,
             )
 
@@ -121,7 +124,7 @@ class ROSTest(FunctionalTest):
             }
         )
         
-        data_frame['SAV_ft'] = data_frame.SAV*30.48
+        data_frame['SAV_ft'] = data_frame.SAV*CM_TO_FT
 
         max_beta = data_frame["beta_ratio"].max()
         max_reaction_vel = 18
@@ -129,7 +132,7 @@ class ROSTest(FunctionalTest):
         blank_plot(max_beta, 0.0, max_reaction_vel, 0.0, draw_horizontal_lines=True)
 
         SAV_vals = np.unique(data_frame.SAV_ft.values)
-        colors = ['#793922', '#6B8939', '#99291F','#CC9728', '#2C778A']
+        colors = COLORS
         colors.reverse()
         
         for i, sav in enumerate(SAV_vals):
@@ -167,7 +170,7 @@ class ROSTest(FunctionalTest):
         )
         
         data_frame['fuel_moisture_perc'] = data_frame.fuel_moisture*100.0
-        data_frame['q_ig_btu'] = data_frame.q_ig*0.947817/2.20462
+        data_frame['q_ig_btu'] = data_frame.q_ig*KJKG_TO_BTULB # match rothermel graph units
 
         max_moist = 200.0
         max_qig = 2500.0
@@ -204,7 +207,7 @@ class ROSTest(FunctionalTest):
             }
         )
         
-        data_frame['SAV_ft'] = data_frame.SAV*30.48
+        data_frame['SAV_ft'] = data_frame.SAV*CM_TO_FT
 
         max_SAV = 3500.0
         max_eps = 1.0
