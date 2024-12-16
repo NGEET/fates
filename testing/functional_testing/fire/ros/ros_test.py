@@ -1,5 +1,5 @@
 """
-Concrete class for running the fuel functional test for FATES.
+Concrete class for running the ros functional test for FATES.
 """
 import os
 import numpy as np
@@ -9,9 +9,9 @@ import matplotlib.pyplot as plt
 from functional_class import FunctionalTest
 from utils import blank_plot
 
-COLORS = ['#793922', '#6B8939', '#99291F','#CC9728', '#2C778A']
+COLORS = ["#793922", "#6B8939", "#99291F", "#CC9728", "#2C778A"]
 CM_TO_FT = 30.48
-KJKG_TO_BTULB = 0.947817/2.20462
+KJKG_TO_BTULB = 0.947817 / 2.20462
 
 
 class ROSTest(FunctionalTest):
@@ -39,21 +39,21 @@ class ROSTest(FunctionalTest):
             save_figs (bool): whether or not to save the figures
             plot_dir (str): plot directory
         """
-        
+
         # read in ros data
         ros_dat = xr.open_dataset(os.path.join(run_dir, self.out_file))
-        
+
         self.plot_prop_flux(ros_dat, save_figs, plot_dir)
         self.plot_reaction_vel(ros_dat, save_figs, plot_dir)
         self.plot_qig(ros_dat, save_figs, plot_dir)
         self.plot_eps(ros_dat, save_figs, plot_dir)
-    
-    @staticmethod    
+
+    @staticmethod
     def plot_prop_flux(data: xr.Dataset, save_fig: bool, plot_dir: str = None):
         """Plot propagating flux
 
         Args:
-            data (xarray DataSet): the data set 
+            data (xarray DataSet): the data set
             save_fig (bool): whether or not to write out plot
             plot_dir (str): if saving figure, where to write to
         """
@@ -64,8 +64,10 @@ class ROSTest(FunctionalTest):
                 "prop_flux": data.prop_flux.values.flatten(),
             }
         )
-        
-        data_frame['SAV_ft'] = data_frame.SAV*CM_TO_FT # covert to ft to compare with original Rothermel equations
+
+        data_frame["SAV_ft"] = (
+            data_frame.SAV * CM_TO_FT
+        )  # covert to ft to compare with original Rothermel equations
 
         max_SAV = data_frame["SAV_ft"].max()
         max_prop_flux = 0.14
@@ -88,12 +90,12 @@ class ROSTest(FunctionalTest):
         plt.grid(True)
 
         packing_ratio = np.unique(data_frame.packing_ratio.values)
-        
+
         for i, beta in enumerate(packing_ratio):
             dat = data_frame[data_frame.packing_ratio == beta]
             plt.plot(
                 dat.SAV_ft.values,
-                dat['prop_flux'].values,
+                dat["prop_flux"].values,
                 lw=2,
                 color=COLORS[i],
                 label=beta,
@@ -106,13 +108,13 @@ class ROSTest(FunctionalTest):
         if save_fig:
             fig_name = os.path.join(plot_dir, "prop_flux_plot.png")
             plt.savefig(fig_name)
-            
-    @staticmethod    
+
+    @staticmethod
     def plot_reaction_vel(data: xr.Dataset, save_fig: bool, plot_dir: str = None):
         """Plot reaction velocity
 
         Args:
-            data (xarray DataSet): the data set 
+            data (xarray DataSet): the data set
             save_fig (bool): whether or not to write out plot
             plot_dir (str): if saving figure, where to write to
         """
@@ -123,23 +125,23 @@ class ROSTest(FunctionalTest):
                 "reaction_vel": data.reaction_velocity.values.flatten(),
             }
         )
-        
-        data_frame['SAV_ft'] = data_frame.SAV*CM_TO_FT
+
+        data_frame["SAV_ft"] = data_frame.SAV * CM_TO_FT
 
         max_beta = data_frame["beta_ratio"].max()
         max_reaction_vel = 18
-        
+
         blank_plot(max_beta, 0.0, max_reaction_vel, 0.0, draw_horizontal_lines=True)
 
         SAV_vals = np.unique(data_frame.SAV_ft.values)
         colors = COLORS
         colors.reverse()
-        
+
         for i, sav in enumerate(SAV_vals):
             dat = data_frame[data_frame.SAV_ft == sav]
             plt.plot(
                 dat.beta_ratio.values,
-                dat['reaction_vel'].values,
+                dat["reaction_vel"].values,
                 lw=2,
                 color=colors[i],
                 label=sav,
@@ -152,13 +154,13 @@ class ROSTest(FunctionalTest):
         if save_fig:
             fig_name = os.path.join(plot_dir, "reaction_vel_plot.png")
             plt.savefig(fig_name)
-    
-    @staticmethod    
+
+    @staticmethod
     def plot_qig(data: xr.Dataset, save_fig: bool, plot_dir: str = None):
         """Plot heat of preignition
 
         Args:
-            data (xarray DataSet): the data set 
+            data (xarray DataSet): the data set
             save_fig (bool): whether or not to write out plot
             plot_dir (str): if saving figure, where to write to
         """
@@ -168,20 +170,22 @@ class ROSTest(FunctionalTest):
                 "q_ig": data.q_ig.values.flatten(),
             }
         )
-        
-        data_frame['fuel_moisture_perc'] = data_frame.fuel_moisture*100.0
-        data_frame['q_ig_btu'] = data_frame.q_ig*KJKG_TO_BTULB # match rothermel graph units
+
+        data_frame["fuel_moisture_perc"] = data_frame.fuel_moisture * 100.0
+        data_frame["q_ig_btu"] = (
+            data_frame.q_ig * KJKG_TO_BTULB
+        )  # match Rothermel graph units
 
         max_moist = 200.0
         max_qig = 2500.0
-        
+
         blank_plot(max_moist, 0.0, max_qig, 0.0, draw_horizontal_lines=True)
 
         plt.plot(
             data_frame.fuel_moisture_perc.values,
-            data_frame['q_ig_btu'].values,
+            data_frame["q_ig_btu"].values,
             lw=2,
-            color='k',
+            color="k",
         )
 
         plt.xlabel("Fuel moisture (%)", fontsize=11)
@@ -190,13 +194,13 @@ class ROSTest(FunctionalTest):
         if save_fig:
             fig_name = os.path.join(plot_dir, "qig_plot.png")
             plt.savefig(fig_name)
-            
-    @staticmethod    
+
+    @staticmethod
     def plot_eps(data: xr.Dataset, save_fig: bool, plot_dir: str = None):
         """Plot effective heating number
 
         Args:
-            data (xarray DataSet): the data set 
+            data (xarray DataSet): the data set
             save_fig (bool): whether or not to write out plot
             plot_dir (str): if saving figure, where to write to
         """
@@ -206,19 +210,19 @@ class ROSTest(FunctionalTest):
                 "eps": data.eps.values.flatten(),
             }
         )
-        
-        data_frame['SAV_ft'] = data_frame.SAV*CM_TO_FT
+
+        data_frame["SAV_ft"] = data_frame.SAV * CM_TO_FT
 
         max_SAV = 3500.0
         max_eps = 1.0
-        
+
         blank_plot(max_SAV, 0.0, max_eps, 0.0, draw_horizontal_lines=True)
 
         plt.plot(
             data_frame.SAV_ft.values,
-            data_frame['eps'].values,
+            data_frame["eps"].values,
             lw=2,
-            color='k',
+            color="k",
         )
 
         plt.xlabel("Surface-area-to-volume ratio (ft$^{-1}$)", fontsize=11)
@@ -226,4 +230,4 @@ class ROSTest(FunctionalTest):
 
         if save_fig:
             fig_name = os.path.join(plot_dir, "eps_plot.png")
-            plt.savefig(fig_name)    
+            plt.savefig(fig_name)
