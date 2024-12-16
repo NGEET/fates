@@ -71,6 +71,7 @@ contains
     do while(associated(currentPatch))
       currentPatch%frac_burnt = 0.0_r8
       currentPatch%fire = 0
+      currentPatch%fuel%frac_burnt(:) = 0.0_r8
       currentPatch => currentPatch%older
     end do
     
