@@ -203,8 +203,9 @@ def main(argv):
         # Copy over the input data
         # Tedious, but I have to permute through all combinations of dimension position
         if( pft_dim_len == 0 ):
-            out_var = fp_out.createVariable(key,'d',(fp_in.variables.get(key).dimensions))
-            out_var.assignValue(float(fp_in.variables.get(key).data))
+            # Scalar: do not assume any dimensions.
+            out_var = fp_out.createVariable(key,'d',())
+            out_var[()] = in_var[()]
         elif( (pft_dim_found==-1) & (prt_dim_found==-1) & (litt_dim_found==-1) & (hydro_dim_found==-1) & (landuse_dim_found==-1)  ):
             out_var = fp_out.createVariable(key,'d',(fp_in.variables.get(key).dimensions))
             out_var[:] = in_var[:]
@@ -283,7 +284,7 @@ def main(argv):
     fp_in.close()
     fp_out.close()
 
-    print('Cloneing complete!')
+    print('Cloning complete!')
     exit(0)
 
 
