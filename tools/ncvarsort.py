@@ -129,7 +129,6 @@ def main():
         varin  = dsin.variables.get(v_name)
         v_type = dsin.variables[v_name].typecode()
         v_dims = varin.dimensions
-        print(" V_NAME = ",v_name,"; V_TYPE = ",v_type,"; V_DIMS = ",v_dims)
         outVar = dsout.createVariable(v_name, v_type, v_dims)
         
         n_dims = len(v_dims)
