@@ -966,6 +966,8 @@ contains
     integer  :: gddstart          ! beginning of counting period for growing degree days.
     integer  :: nlevroot          ! Number of rooting levels to consider
     real(r8) :: temp_in_C         ! daily averaged temperature in celsius
+    real(r8) :: temp_wgt          ! canopy area weighting factor for daily average
+                                  ! vegetation temperature calculation
     real(r8) :: elongf_prev       ! Elongation factor from previous time
     real(r8) :: elongf_1st        ! First guess for elongation factor
     integer  :: ndays_pft_leaf_lifespan ! PFT life span of drought deciduous [days].
@@ -1019,13 +1021,23 @@ contains
     !Parameters, default from from SDGVM model of senesence
 
     temp_in_C = 0._r8
+    temp_wgt = 0._r8
     cpatch => CurrentSite%oldest_patch
     do while(associated(cpatch))
-       temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%area
+       temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%total_canopy_area
+       temp_wgt = temp_wgt + cpatch%total_canopy_area
        cpatch => cpatch%younger
     end do
-    temp_in_C = temp_in_C * area_inv - tfrz
-
+    if(cpatch%total_canopy_area>nearzero)then
+       temp_in_C = temp_in_C/temp_wgt - tfrz
+    else
+       ! If there is no canopy area, we use the veg temperature
+       ! of the first patch, which is the forcing air temperature
+       ! as defined in CLM/ELM. The forcing air temperature
+       ! should be the same among all patches. (Although
+       ! it is unlikely there are more than 1 in this scenario)
+       temp_in_C = CurrentSite%oldest_patch%tveg24%GetMean() - tfrz
+    end if
 
     !-----------------Cold Phenology--------------------!
 
