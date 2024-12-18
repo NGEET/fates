@@ -1019,7 +1019,7 @@ contains
        temp_wgt = temp_wgt + cpatch%total_canopy_area
        cpatch => cpatch%younger
     end do
-    if(cpatch%total_canopy_area>nearzero)then
+    if(temp_wgt>nearzero)then
        temp_in_C = temp_in_C/temp_wgt - tfrz
     else
        ! If there is no canopy area, we use the veg temperature
