@@ -42,7 +42,6 @@ module FatesPlantHydraulicsMod
   use FatesConstantsMod, only : cm3_per_m3
   use FatesConstantsMod, only : kg_per_g
   use FatesConstantsMod, only : fates_unset_r8
-  use FatesConstantsMod, only : nocomp_bareground
 
   use EDParamsMod       , only : hydr_kmax_rsurf1
   use EDParamsMod       , only : hydr_kmax_rsurf2
@@ -2499,179 +2498,178 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
      ifp = 0
      cpatch => sites(s)%oldest_patch
      do while (associated(cpatch))
+        
+        ifp = ifp + 1
 
-        if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
-           ifp = ifp + 1
+        ! ----------------------------------------------------------------------------
+        ! Objective: Partition the transpiration flux
+        ! specfied by the land model to the cohorts. The weighting
+        ! factor we use to downscale is the cohort combo term: g_sb_laweight
+        ! This term is the stomatal conductance multiplied by total leaf
+        ! area.  gscan_patch is the sum over all cohorts, used to normalize.
+        ! ----------------------------------------------------------------------------
 
-           ! ----------------------------------------------------------------------------
-           ! Objective: Partition the transpiration flux
-           ! specfied by the land model to the cohorts. The weighting
-           ! factor we use to downscale is the cohort combo term: g_sb_laweight
-           ! This term is the stomatal conductance multiplied by total leaf
-           ! area.  gscan_patch is the sum over all cohorts, used to normalize.
-           ! ----------------------------------------------------------------------------
+        gscan_patch   = 0.0_r8
+        ccohort=>cpatch%tallest
+        do while(associated(ccohort))
+           ccohort_hydr => ccohort%co_hydr
+           ccohort_hydr%psi_ag(1) = wrf_plant(leaf_p_media,ccohort%pft)%p%psi_from_th(ccohort_hydr%th_ag(1))
+           gscan_patch            = gscan_patch + ccohort%g_sb_laweight
+           ccohort => ccohort%shorter
+        enddo !cohort
 
-           gscan_patch   = 0.0_r8
-           ccohort=>cpatch%tallest
-           do while(associated(ccohort))
-              ccohort_hydr => ccohort%co_hydr
-              ccohort_hydr%psi_ag(1) = wrf_plant(leaf_p_media,ccohort%pft)%p%psi_from_th(ccohort_hydr%th_ag(1))
-              gscan_patch            = gscan_patch + ccohort%g_sb_laweight
-              ccohort => ccohort%shorter
-           enddo !cohort
+        ! The HLM predicted transpiration flux even though no leaves are present?
+        if(bc_in(s)%qflx_transp_pa(ifp) > 1.e-10_r8 .and. gscan_patch<nearzero)then
+           write(fates_log(),*) 'ERROR in plant hydraulics.'
+           write(fates_log(),*) 'The HLM predicted a non-zero total transpiration flux'
+           write(fates_log(),*) 'for this patch, yet there is no leaf-area-weighted conductance?'
+           write(fates_log(),*) 'transp: ',bc_in(s)%qflx_transp_pa(ifp)
+           write(fates_log(),*) 'gscan_patch: ',gscan_patch
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
 
-           ! The HLM predicted transpiration flux even though no leaves are present?
-           if(bc_in(s)%qflx_transp_pa(ifp) > 1.e-10_r8 .and. gscan_patch<nearzero)then
-              write(fates_log(),*) 'ERROR in plant hydraulics.'
-              write(fates_log(),*) 'The HLM predicted a non-zero total transpiration flux'
-              write(fates_log(),*) 'for this patch, yet there is no leaf-area-weighted conductance?'
-              write(fates_log(),*) 'transp: ',bc_in(s)%qflx_transp_pa(ifp)
-              write(fates_log(),*) 'gscan_patch: ',gscan_patch
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+        ccohort=>cpatch%tallest
+        co_loop1: do while(associated(ccohort))
+
+           ccohort_hydr => ccohort%co_hydr
+           ft       = ccohort%pft
+
+           ! Relative transpiration of this cohort from the whole patch
+           ! Note that g_sb_laweight / gscan_patch is the weighting that gives cohort contribution per area
+           ! [mm H2O/plant/s]  = [mm H2O/ m2 / s] * [m2 / patch] * [cohort/plant] * [patch/cohort]
+
+           ! This can cause large transpiration due to small g_sb_laweight
+           if(ccohort%g_sb_laweight>nearzero) then
+              qflx_tran_veg_indiv     = bc_in(s)%qflx_transp_pa(ifp) * cpatch%total_canopy_area * &
+                   (ccohort%g_sb_laweight/gscan_patch)/ccohort%n
+           else
+              qflx_tran_veg_indiv     = 0._r8
            end if
 
-           ccohort=>cpatch%tallest
-           co_loop1: do while(associated(ccohort))
+           ! Save the transpiration flux for diagnostics (currently its a constant boundary condition)
+           ccohort_hydr%qtop = qflx_tran_veg_indiv*dtime
 
-              ccohort_hydr => ccohort%co_hydr
-              ft       = ccohort%pft
+           transp_flux = transp_flux + (qflx_tran_veg_indiv*dtime)*ccohort%n*AREA_INV
 
-              ! Relative transpiration of this cohort from the whole patch
-              ! Note that g_sb_laweight / gscan_patch is the weighting that gives cohort contribution per area
-              ! [mm H2O/plant/s]  = [mm H2O/ m2 / s] * [m2 / patch] * [cohort/plant] * [patch/cohort]
+           ! VERTICAL LAYER CONTRIBUTION TO TOTAL ROOT WATER UPTAKE OR LOSS
+           !    _____
+           !   |     |
+           !   |leaf |
+           !   |_____|
+           !      /
+           !      \
+           !      /
+           !    __\__
+           !   |     |
+           !   |stem |
+           !   |_____|
+           !------/----------------_____---------------------------------
+           !      \               |     |   |    |      |       |        |
+           !      /          _/\/\|aroot|   |    |shell | shell | shell  |               layer j-1
+           !      \        _/     |_____|   |    | k-1  |   k   |  k+1   |
+           !------/------_/--------_____--------------------------------------
+           !      \    _/         |     |    |     |       |        |         |
+           !    __/__ / _/\/\/\/\/|aroot|    |     | shell | shell  | shell   |          layer j
+           !   |     |_/          |_____|    |     |  k-1  |   k    |  k+1    |
+           !---|troot|-------------_____----------------------------------------------
+           !   |_____|\_          |     |      |      |        |          |           |
+           !            \/\/\/\/\/|aroot|      |      | shell  |  shell   |   shell   |  layer j+1
+           !                      |_____|      |      |  k-1   |    k     |    k+1    |
+           !---------------------------------------------------------------------------
 
-              ! This can cause large transpiration due to small g_sb_laweight
-              if(ccohort%g_sb_laweight>nearzero) then
-                 qflx_tran_veg_indiv     = bc_in(s)%qflx_transp_pa(ifp) * cpatch%total_canopy_area * &
-                      (ccohort%g_sb_laweight/gscan_patch)/ccohort%n
-              else
-                 qflx_tran_veg_indiv     = 0._r8
-              end if
+           ! This routine will update the theta values for 1 cohort's flow-path
+           ! from leaf to the current soil layer.  This does NOT
+           ! update cohort%th_*
 
-              ! Save the transpiration flux for diagnostics (currently its a constant boundary condition)
-              ccohort_hydr%qtop = qflx_tran_veg_indiv*dtime
+           if(hydr_solver == hydr_solver_2DNewton) then
 
-              transp_flux = transp_flux + (qflx_tran_veg_indiv*dtime)*ccohort%n*AREA_INV
+              call MatSolve2D(csite_hydr,ccohort,ccohort_hydr, &
+                   dtime,qflx_tran_veg_indiv, &
+                   sapflow,rootuptake(1:nlevrhiz),wb_err_plant,dwat_plant, &
+                   dth_layershell_col)
 
-              ! VERTICAL LAYER CONTRIBUTION TO TOTAL ROOT WATER UPTAKE OR LOSS
-              !    _____
-              !   |     |
-              !   |leaf |
-              !   |_____|
-              !      /
-              !      \
-              !      /
-              !    __\__
-              !   |     |
-              !   |stem |
-              !   |_____|
-              !------/----------------_____---------------------------------
-              !      \               |     |   |    |      |       |        |
-              !      /          _/\/\|aroot|   |    |shell | shell | shell  |               layer j-1
-              !      \        _/     |_____|   |    | k-1  |   k   |  k+1   |
-              !------/------_/--------_____--------------------------------------
-              !      \    _/         |     |    |     |       |        |         |
-              !    __/__ / _/\/\/\/\/|aroot|    |     | shell | shell  | shell   |          layer j
-              !   |     |_/          |_____|    |     |  k-1  |   k    |  k+1    |
-              !---|troot|-------------_____----------------------------------------------
-              !   |_____|\_          |     |      |      |        |          |           |
-              !            \/\/\/\/\/|aroot|      |      | shell  |  shell   |   shell   |  layer j+1
-              !                      |_____|      |      |  k-1   |    k     |    k+1    |
-              !---------------------------------------------------------------------------
+           elseif(hydr_solver == hydr_solver_2DPicard) then
 
-              ! This routine will update the theta values for 1 cohort's flow-path
-              ! from leaf to the current soil layer.  This does NOT
-              ! update cohort%th_*
-              
-              if(hydr_solver == hydr_solver_2DNewton) then
+              call PicardSolve2D(csite_hydr,ccohort,ccohort_hydr, &
+                   dtime,qflx_tran_veg_indiv, &
+                   sapflow,rootuptake(1:nlevrhiz),wb_err_plant,dwat_plant, &
+                   dth_layershell_col,csite_hydr%num_nodes)
 
-                 call MatSolve2D(csite_hydr,ccohort,ccohort_hydr, &
-                      dtime,qflx_tran_veg_indiv, &
-                      sapflow,rootuptake(1:nlevrhiz),wb_err_plant,dwat_plant, &
-                      dth_layershell_col)
-                 
-              elseif(hydr_solver == hydr_solver_2DPicard) then
+           elseif(hydr_solver == hydr_solver_1DTaylor ) then
 
-                 call PicardSolve2D(csite_hydr,ccohort,ccohort_hydr, &
-                      dtime,qflx_tran_veg_indiv, &
-                      sapflow,rootuptake(1:nlevrhiz),wb_err_plant,dwat_plant, &
-                      dth_layershell_col,csite_hydr%num_nodes)
-                 
-              elseif(hydr_solver == hydr_solver_1DTaylor ) then
+              ! ---------------------------------------------------------------------------------
+              ! Approach: do nlevsoi_hyd sequential solutions to Richards' equation,
+              !           each of which encompass all plant nodes and soil nodes for a given soil layer j,
+              !           with the timestep fraction for each layer-specific solution proportional to each
+              ! layer's contribution to the total root-soil conductance
+              ! Water potential in plant nodes is updated after each solution
+              ! As such, the order across soil layers in which the solution is conducted matters.
+              ! For now, the order proceeds across soil layers in order of decreasing root-soil conductance
+              ! NET EFFECT: total water removed from plant-soil system remains the same: it
+              !             sums up to total transpiration (qflx_tran_veg_indiv*dtime)
+              !             root water uptake in each layer is proportional to each layer's total
+              !             root length density and soil matric potential
+              !             root hydraulic redistribution emerges within this sequence when a
+              !             layers have transporting-to-absorbing root water potential gradients of opposite sign
+              ! -----------------------------------------------------------------------------------
 
-                 ! ---------------------------------------------------------------------------------
-                 ! Approach: do nlevsoi_hyd sequential solutions to Richards' equation,
-                 !           each of which encompass all plant nodes and soil nodes for a given soil layer j,
-                 !           with the timestep fraction for each layer-specific solution proportional to each
-                 ! layer's contribution to the total root-soil conductance
-                 ! Water potential in plant nodes is updated after each solution
-                 ! As such, the order across soil layers in which the solution is conducted matters.
-                 ! For now, the order proceeds across soil layers in order of decreasing root-soil conductance
-                 ! NET EFFECT: total water removed from plant-soil system remains the same: it
-                 !             sums up to total transpiration (qflx_tran_veg_indiv*dtime)
-                 !             root water uptake in each layer is proportional to each layer's total
-                 !             root length density and soil matric potential
-                 !             root hydraulic redistribution emerges within this sequence when a
-                 !             layers have transporting-to-absorbing root water potential gradients of opposite sign
-                 ! -----------------------------------------------------------------------------------
+              call OrderLayersForSolve1D(csite_hydr, ccohort, ccohort_hydr, ordered, kbg_layer)
 
-                 call OrderLayersForSolve1D(csite_hydr, ccohort, ccohort_hydr, ordered, kbg_layer)
+              call ImTaylorSolve1D(lat,lon,recruitflag,csite_hydr,ccohort,ccohort_hydr, &
+                   dtime,qflx_tran_veg_indiv,ordered, kbg_layer, &
+                   sapflow,rootuptake(1:nlevrhiz), &
+                   wb_err_plant,dwat_plant, &
+                   dth_layershell_col)
 
-                 call ImTaylorSolve1D(lat,lon,recruitflag,csite_hydr,ccohort,ccohort_hydr, &
-                      dtime,qflx_tran_veg_indiv,ordered, kbg_layer, &
-                      sapflow,rootuptake(1:nlevrhiz), &
-                      wb_err_plant,dwat_plant, &
-                      dth_layershell_col)
+           end if
 
-              end if
+           ! Remember the error for the cohort
+           ccohort_hydr%errh2o  = ccohort_hydr%errh2o + wb_err_plant
 
-              ! Remember the error for the cohort
-              ccohort_hydr%errh2o  = ccohort_hydr%errh2o + wb_err_plant
+           ! Update total error in [kg/m2 ground]
+           csite_hydr%errh2o_hyd = csite_hydr%errh2o_hyd + wb_err_plant*ccohort%n*AREA_INV
 
-              ! Update total error in [kg/m2 ground]
-              csite_hydr%errh2o_hyd = csite_hydr%errh2o_hyd + wb_err_plant*ccohort%n*AREA_INV
+           ! Accumulate site level diagnostic of plant water change [kg/m2]
+           ! (this is zerod)
+           csite_hydr%dwat_veg   = csite_hydr%dwat_veg + dwat_plant*ccohort%n*AREA_INV
 
-              ! Accumulate site level diagnostic of plant water change [kg/m2]
-              ! (this is zerod)
-              csite_hydr%dwat_veg   = csite_hydr%dwat_veg + dwat_plant*ccohort%n*AREA_INV
+           ! Update total site-level stored plant water [kg/m2]
+           ! (this is not zerod, but incremented)
+           csite_hydr%h2oveg     = csite_hydr%h2oveg + dwat_plant*ccohort%n*AREA_INV
 
-              ! Update total site-level stored plant water [kg/m2]
-              ! (this is not zerod, but incremented)
-              csite_hydr%h2oveg     = csite_hydr%h2oveg + dwat_plant*ccohort%n*AREA_INV
+           sc = ccohort%size_class
 
-              sc = ccohort%size_class
+           ! Sapflow diagnostic [kg/ha/s]
+           csite_hydr%sapflow_scpf(sc,ft) = csite_hydr%sapflow_scpf(sc,ft) + sapflow*ccohort%n/dtime
 
-              ! Sapflow diagnostic [kg/ha/s]
-              csite_hydr%sapflow_scpf(sc,ft) = csite_hydr%sapflow_scpf(sc,ft) + sapflow*ccohort%n/dtime
+           ! Root uptake per pft x size class, over set layer depths [kg/ha/m/s]
+           ! These are normalized by depth (in case the desired horizon extends
+           ! beyond the actual rhizosphere)
 
-              ! Root uptake per pft x size class, over set layer depths [kg/ha/m/s]
-              ! These are normalized by depth (in case the desired horizon extends
-              ! beyond the actual rhizosphere)
+           csite_hydr%rootuptake0_scpf(sc,ft) = csite_hydr%rootuptake0_scpf(sc,ft) + &
+                SumBetweenDepths(csite_hydr,0._r8,0.1_r8,rootuptake(1:nlevrhiz))*ccohort%n/dtime
 
-              csite_hydr%rootuptake0_scpf(sc,ft) = csite_hydr%rootuptake0_scpf(sc,ft) + &
-                   SumBetweenDepths(csite_hydr,0._r8,0.1_r8,rootuptake(1:nlevrhiz))*ccohort%n/dtime
+           csite_hydr%rootuptake10_scpf(sc,ft) = csite_hydr%rootuptake10_scpf(sc,ft) + &
+                SumBetweenDepths(csite_hydr,0.1_r8,0.5_r8,rootuptake(1:nlevrhiz))*ccohort%n/dtime
 
-              csite_hydr%rootuptake10_scpf(sc,ft) = csite_hydr%rootuptake10_scpf(sc,ft) + &
-                   SumBetweenDepths(csite_hydr,0.1_r8,0.5_r8,rootuptake(1:nlevrhiz))*ccohort%n/dtime
+           csite_hydr%rootuptake50_scpf(sc,ft) = csite_hydr%rootuptake50_scpf(sc,ft) + &
+                SumBetweenDepths(csite_hydr,0.5_r8,1.0_r8,rootuptake(1:nlevrhiz))*ccohort%n/dtime
 
-              csite_hydr%rootuptake50_scpf(sc,ft) = csite_hydr%rootuptake50_scpf(sc,ft) + &
-                   SumBetweenDepths(csite_hydr,0.5_r8,1.0_r8,rootuptake(1:nlevrhiz))*ccohort%n/dtime
+           csite_hydr%rootuptake100_scpf(sc,ft) = csite_hydr%rootuptake100_scpf(sc,ft) + &
+                SumBetweenDepths(csite_hydr,1.0_r8,1.e10_r8,rootuptake(1:nlevrhiz))*ccohort%n/dtime
 
-              csite_hydr%rootuptake100_scpf(sc,ft) = csite_hydr%rootuptake100_scpf(sc,ft) + &
-                   SumBetweenDepths(csite_hydr,1.0_r8,1.e10_r8,rootuptake(1:nlevrhiz))*ccohort%n/dtime
+           ! ---------------------------------------------------------
+           ! Update water potential and frac total conductivity
+           ! of plant compartments
+           ! ---------------------------------------------------------
 
-              ! ---------------------------------------------------------
-              ! Update water potential and frac total conductivity
-              ! of plant compartments
-              ! ---------------------------------------------------------
+           call UpdatePlantPsiFTCFromTheta(ccohort,csite_hydr)
 
-              call UpdatePlantPsiFTCFromTheta(ccohort,csite_hydr)
+           ccohort_hydr%btran = wkf_plant(stomata_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(1))
 
-              ccohort_hydr%btran = wkf_plant(stomata_p_media,ft)%p%ftc_from_psi(ccohort_hydr%psi_ag(1))
-
-              ccohort => ccohort%shorter
-           enddo co_loop1 !cohort
-        endif ! not bareground patch
+           ccohort => ccohort%shorter
+        enddo co_loop1 !cohort
+        
         cpatch => cpatch%younger
      enddo !patch
 

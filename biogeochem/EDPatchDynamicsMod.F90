@@ -1899,22 +1899,6 @@ contains
        currentPatch => currentPatch%younger
     enddo
 
-    if(hlm_use_fixed_biogeog.eq.itrue .and. hlm_use_nocomp.eq.itrue)then
-      patchno = 1
-      currentPatch => currentSite%oldest_patch
-      do while(associated(currentPatch))
-        if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
-         ! for bareground patch, we make the patch number 0
-         ! we also do not count this in the veg. patch numbering scheme.
-          currentPatch%patchno = 0
-        else
-         currentPatch%patchno = patchno
-         patchno = patchno + 1
-        endif
-        currentPatch => currentPatch%younger
-       enddo
-    endif
-
   end subroutine set_patchno
 
   ! ============================================================================

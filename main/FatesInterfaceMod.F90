@@ -184,6 +184,8 @@ module FatesInterfaceMod
    public :: DetermineGridCellNeighbors
 
    logical :: debug = .false.  ! for debugging this module
+
+   logical, parameter :: preserve_b4b = .true.
    
 contains
 
@@ -654,20 +656,17 @@ contains
 
       ! Include the bare-ground patch for these patch-level boundary conditions
       ! (it will always be zero for all of these)
-      !if(hlm_use_ch4.eq.itrue) then
-         allocate(bc_out%annavg_agnpp_pa(0:maxpatch_total));bc_out%annavg_agnpp_pa(:)=nan
-         allocate(bc_out%annavg_bgnpp_pa(0:maxpatch_total));bc_out%annavg_bgnpp_pa(:)=nan
-         allocate(bc_out%annsum_npp_pa(0:maxpatch_total));bc_out%annsum_npp_pa(:)=nan
-         allocate(bc_out%frootc_pa(0:maxpatch_total));bc_out%frootc_pa(:)=nan
-         allocate(bc_out%root_resp(nlevsoil_in));bc_out%root_resp(:)=nan
-         allocate(bc_out%woody_frac_aere_pa(0:maxpatch_total));bc_out%woody_frac_aere_pa(:)=nan
-         allocate(bc_out%rootfr_pa(0:maxpatch_total,nlevsoil_in))
-         bc_out%rootfr_pa(:,:)=nan
-
-         ! Give the bare-ground root fractions a nominal fraction of unity over depth
-         bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
-      !end if
-
+      allocate(bc_out%annavg_agnpp_pa(0:maxpatch_total));bc_out%annavg_agnpp_pa(:)=0._r8
+      allocate(bc_out%annavg_bgnpp_pa(0:maxpatch_total));bc_out%annavg_bgnpp_pa(:)=0._r8
+      allocate(bc_out%annsum_npp_pa(0:maxpatch_total));bc_out%annsum_npp_pa(:)=0._r8
+      allocate(bc_out%frootc_pa(0:maxpatch_total));bc_out%frootc_pa(:)=0._r8
+      allocate(bc_out%root_resp(nlevsoil_in));bc_out%root_resp(:)=0._r8
+      allocate(bc_out%woody_frac_aere_pa(0:maxpatch_total));bc_out%woody_frac_aere_pa(:)=0._r8
+      allocate(bc_out%rootfr_pa(0:maxpatch_total,nlevsoil_in))
+      bc_out%rootfr_pa(:,:)=0._r8
+      
+      ! Give the bare-ground root fractions a nominal fraction of unity over depth
+      bc_out%rootfr_pa(0,1:nlevsoil_in)=1._r8/real(nlevsoil_in,r8)
       bc_out%ema_npp = nan
       
       ! Fates -> BGC fragmentation mass fluxes
@@ -783,6 +782,14 @@ contains
          call FatesReadParameters(param_reader)
 
          fates_numpft = size(prt_params%wood_density,dim=1)
+
+         ! maxpatch_total: the number of patches that FATES needs to allocate space for
+         !
+         ! fates_maxPatchesPerSite: the number of patches that the HLM needs to allocate
+         !                          space for. Why the fates_ prefix then? Because
+         !                          it is for readability on the host side so it is clear
+         !                          in the code that fates is dictating the allocation need
+         
          
          if(hlm_use_sp==itrue)then
 
@@ -792,7 +799,7 @@ contains
 
             maxpatches_by_landuse(primaryland)   = fates_numpft
             maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
-            maxpatch_total     = fates_numpft
+            maxpatch_total     = fates_numpft + 1
             
             ! If this is an SP run, we actually need enough patches on the
             ! CLM/ELM side of the code to hold the LAI data.  This
@@ -805,23 +812,45 @@ contains
 
          else
 
-            ! If we are using fixed biogeography or no-comp then we
-            ! can also apply those constraints to maxpatch_primaryland and secondary
-            ! and that value will match fates_maxPatchesPerSite
-            
-            if(hlm_use_nocomp==itrue) then
+            if_preserve_b4b: if(preserve_b4b)then
+               if(hlm_use_nocomp==itrue) then
+                  maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
+                  maxpatch_total = sum(maxpatches_by_landuse(:))+1
+               else
+                  maxpatch_total = sum(maxpatches_by_landuse(:))
+               end if
+            else
+               
+               ! If we are using fixed biogeography or no-comp then we
+               ! can also apply those constraints to maxpatch_primaryland and secondary
+               ! and that value will match fates_maxPatchesPerSite
+               
+               if(hlm_use_luh==ifalse) then
+                  maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
+               end if
+               
+               if(hlm_use_nocomp==itrue) then
+                  
+                  ! We do not modify maxpatches_by_landuse here, and/or ensure
+                  ! that it is large enough to accomodate all of our pfts, because
+                  ! we will compare it to the max_nocomp_pfts_by_landuse() array to
+                  ! make sure all indices are larger.
+                  
+                  ! We hold the bareground area in one of the patches
+                  maxpatch_total = sum(maxpatches_by_landuse(:))+1
+               else
+                  maxpatch_total = sum(maxpatches_by_landuse(:))
+               end if
+               
+               ! maxpatch_total does not include HLM-side bare ground (so add 1)
+               ! Note: Yes, there are two bare-ground patch indices needed for no-comp, where
+               ! index 1 on the fates side will donate all its area to index 0 on the host
+               ! side, and index 1 on the host side will have zero area.
 
-               maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
-               maxpatch_total = sum(maxpatches_by_landuse(:))
+            end if if_preserve_b4b
 
-               !if(maxpatch_primary<fates_numpft)then
-               !   write(fates_log(),*) 'warning: lower number of patches than pfts'
-               !   write(fates_log(),*) 'this may become a problem in nocomp mode'
-               !end if
-            end if
-
-            ! maxpatch_total does not include the bare ground (so add 1)
             fates_maxPatchesPerSite = maxpatch_total+1
+            
             
          end if
              
@@ -2113,8 +2142,7 @@ contains
         ifp=0
         site_npp = 0._r8
         cpatch => sites(s)%oldest_patch
-        do while(associated(cpatch))
-           if (cpatch%patchno .ne. 0) then
+        do_patch: do while(associated(cpatch))
            ifp=ifp+1
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
@@ -2128,14 +2156,14 @@ contains
               ! levels are the light on the exposed ground at the surface
               ! and the low levels are the intensity under the bottom-most
               ! vegetation.
-              
+
               call SeedlingParPatch(cpatch, &
                    bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar), &
                    seedling_par_high, par_high_frac, seedling_par_low,&
                    & par_low_frac)
-              
+
               new_seedling_layer_par = seedling_par_high*par_high_frac + seedling_par_low*par_low_frac
-              
+
               call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
               call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)
               call cpatch%sdlng2sap_par%UpdateRMean(new_seedling_layer_par)
@@ -2162,7 +2190,7 @@ contains
                  call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd)
 
               enddo !end pft loop
-              
+
            end if
 
            ccohort => cpatch%tallest
@@ -2176,10 +2204,9 @@ contains
               ccohort => ccohort%shorter
            end do
 
-        end if
 
         cpatch => cpatch%younger
-     enddo
+     enddo do_patch
 
      ! Smoothed [gc/m2/yr]
      if(sites(s)%ema_npp<-9000._r8)then
