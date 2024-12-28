@@ -45,6 +45,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : rsnbl_math_prec
   use FatesConstantsMod    , only : fates_tiny
   use FatesConstantsMod    , only : nocomp_bareground
+  use FatesInterfaceTypesMod    , only : hlm_patchi
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : bc_in_type
   use FatesInterfaceTypesMod    , only : numpft
@@ -1891,7 +1892,12 @@ contains
     integer patchno
     !---------------------------------------------------------------------
 
-    patchno = 1
+    if(hlm_use_fixed_biogeog.eq.itrue .and. hlm_use_nocomp.eq.itrue)then
+       patchno = 0
+    else
+       patchno = 1
+    end if
+    
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
        currentPatch%patchno = patchno
@@ -1899,22 +1905,7 @@ contains
        currentPatch => currentPatch%younger
     enddo
 
-    if(hlm_use_fixed_biogeog.eq.itrue .and. hlm_use_nocomp.eq.itrue)then
-      patchno = 1
-      currentPatch => currentSite%oldest_patch
-      do while(associated(currentPatch))
-        if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
-         ! for bareground patch, we make the patch number 0
-         ! we also do not count this in the veg. patch numbering scheme.
-          currentPatch%patchno = 0
-        else
-         currentPatch%patchno = patchno
-         patchno = patchno + 1
-        endif
-        currentPatch => currentPatch%younger
-       enddo
-    endif
-
+    return
   end subroutine set_patchno
 
   ! ============================================================================

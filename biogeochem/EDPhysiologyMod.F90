@@ -639,8 +639,6 @@ contains
     real(r8) :: cumulative_lai_cohort ! cumulative LAI within the current cohort only
 
     ! Temporary diagnostic ouptut
-    integer :: ipatch
-    integer :: icohort
 
     ! LAPACK linear least squares fit variables
     ! The standard equation for a linear fit, y = mx + b, is converted to a linear system, AX=B and has
@@ -674,18 +672,13 @@ contains
     real(r8) :: leaf_long                 ! temporary leaf lifespan before accounting for deciduousness 
     !----------------------------------------------------------------------
 
-    ipatch = 1 ! Start counting patches
-
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
 
        ! Add debug diagnstic output to determine which patch
        if (debug) then
-          write(fates_log(),*) 'Current patch:', ipatch
           write(fates_log(),*) 'Current patch cohorts:', currentPatch%countcohorts
        endif
-
-       icohort = 1
 
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
@@ -696,7 +689,6 @@ contains
 
           ! Add debug diagnostic output to determine which cohort
           if (debug) then
-             write(fates_log(),*) 'Current cohort:', icohort
              write(fates_log(),*) 'Starting canopy trim:', initial_trim
           endif
 
@@ -916,10 +908,9 @@ contains
 
           ! currentCohort%canopy_trim = 1.0_r8 !FIX(RF,032414) this turns off ctrim for now.
           currentCohort => currentCohort%shorter
-          icohort = icohort + 1
        enddo
        currentPatch => currentPatch%older
-       ipatch = ipatch + 1
+
     enddo
 
   end subroutine trim_canopy

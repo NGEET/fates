@@ -31,6 +31,7 @@ module EDCanopyStructureMod
   use EDtypesMod            , only : AREA
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
+  use FatesInterfaceTypesMod     , only : hlm_patchi
   use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
@@ -1897,7 +1898,7 @@ contains
     
     do s = 1,nsites
 
-       ifp = 0
+       ifp = hlm_patchi
        total_patch_area = 0._r8
        total_canopy_area = 0._r8
        bc_out(s)%canopy_fraction_pa(:) = 0._r8
@@ -1909,9 +1910,7 @@ contains
        c = fcolumn(s)
        do while(associated(currentPatch))
 
-          if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
-
-             ifp = ifp+1
+          if_bare: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
 
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
                 if(debug)then
@@ -2029,7 +2028,10 @@ contains
 
              total_patch_area = total_patch_area + currentPatch%area/AREA
 
-          end if
+          end if if_bare
+
+          ifp = ifp + 1
+          
           currentPatch => currentPatch%younger
        end do
 
@@ -2049,13 +2051,12 @@ contains
           end if
 
           currentPatch => sites(s)%oldest_patch
-          ifp = 0
+          ifp = hlm_patchi
           do while(associated(currentPatch))
              if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then ! for vegetated patches only
-                ifp = ifp+1
                 bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
              endif ! veg patch
-
+             ifp = ifp + 1
              currentPatch => currentPatch%younger
           end do
 
