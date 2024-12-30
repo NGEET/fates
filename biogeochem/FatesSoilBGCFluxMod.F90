@@ -283,17 +283,17 @@ contains
 
     ! Process CH4 variables first
     !if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) )
-    
+
     cpatch => csite%oldest_patch
     do while (associated(cpatch))
-
+       
        ifp = cpatch%patchno
        
        if_notbare: if(cpatch%nocomp_pft_label .ne. nocomp_bareground)then
           ! Patch ordering when passing boundary conditions
           ! always goes from oldest to youngest, following
           ! the convention of EDPatchDynamics::set_patchno()
-          
+
           agnpp = 0._r8
           bgnpp = 0._r8
           woody_area = 0._r8

@@ -21,6 +21,7 @@ module EDCanopyStructureMod
   use FatesAllometryMod     , only : tree_lai
   use FatesAllometryMod     , only : tree_sai
   use EDTypesMod            , only : ed_site_type
+  use EDTypesMod            , only : set_patchno
   use FatesAllometryMod     , only : VegAreaLayer
   use FatesAllometryMod     , only : CrownDepth
   use FatesPatchMod,          only : fates_patch_type
@@ -1314,7 +1315,6 @@ contains
     ! ---------------------------------------------------------------------------------
 
     use FatesInterfaceTypesMod    , only : hlm_use_cohort_age_tracking
-    use EDPatchDynamicsMod   , only : set_patchno
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod           , only : area
@@ -1351,7 +1351,7 @@ contains
        ! driving model.  Loops through all patches and sets cpatch%patchno to the integer
        ! order of oldest to youngest where the oldest is 1.
        ! --------------------------------------------------------------------------------
-       call set_patchno( sites(s) )
+       call set_patchno( sites(s) , .false., 0)
 
        currentPatch => sites(s)%oldest_patch
 

@@ -44,6 +44,7 @@ module FatesRestartInterfaceMod
   use FatesFuelClassesMod,     only : num_fuel_classes
   use FatesLitterMod,          only : ndcmpy
   use EDTypesMod,              only : area
+  use EDTypesMod,              only : set_patchno
   use EDParamsMod,             only : nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
@@ -2902,8 +2903,9 @@ contains
                      init_seed_germ=fates_unset_r8)
              end do
 
-             ! give this patch a unique patch number
-             newp%patchno = idx_pa
+             ! Set the new patch number to nonsense, we will
+             ! call set_patchno()
+             newp%patchno = -9
 
 
              ! Iterate over the number of cohorts
@@ -3779,8 +3781,12 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
 
+
+          call set_patchno(sites(s),.false.,0)
+          
        end do
 
+       
        if ( debug ) then
           write(fates_log(),*) 'CVTL total cohorts ',totalCohorts
        end if
