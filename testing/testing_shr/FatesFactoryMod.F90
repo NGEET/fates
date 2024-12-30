@@ -52,7 +52,7 @@ module FatesFactoryMod
           m_fnrt   = c_fnrt
           m_sapw   = c_sapw
           m_store  = c_store
-          m_repro  = 0._r8
+          m_repro  = 0.0_r8
         case(nitrogen_element)
           m_struct = c_struct*prt_params%nitr_stoich_p1(pft, prt_params%organ_param_id(struct_organ))
           m_leaf   = c_leaf*prt_params%nitr_stoich_p1(pft, prt_params%organ_param_id(leaf_organ))
@@ -93,6 +93,7 @@ module FatesFactoryMod
   
   end subroutine PRTFactory
    
+  !---------------------------------------------------------------------------------------
   
   subroutine CohortFactory(cohort, pft)
     !
@@ -102,10 +103,10 @@ module FatesFactoryMod
 
     ! ARGUMENTS
     type(fates_cohort_type), pointer, intent(out)          :: cohort      ! cohort object
-    integer,                          intent(in)           :: pft         ! plant funcitonal type index
+    integer,                          intent(in)           :: pft         ! plant functional type index
     integer,                          intent(in), optional :: crowndamage ! crown damage class
     integer,                          intent(in), optional :: status      ! growth status [leaves on/off]
-    real(r8),                         intent(in), optional :: dbh         ! diameter at breat height [cm]
+    real(r8),                         intent(in), optional :: dbh         ! diameter at breast height [cm]
     real(r8),                         intent(in), optional :: num         ! number of individuals [/m2]
     real(r8),                         intent(in), optional :: height      ! height [m]
     real(r8),                         intent(in), optional :: age         ! age [yr]
@@ -116,10 +117,15 @@ module FatesFactoryMod
     real(r8),                         intent(in), optional :: elongf_stem ! stem "elongation factor" [fraction]
     
     ! LOCALS:
-    class(prt_vartypes), pointer :: prt      ! PARTEH object
-    real(r8)                     :: can_area ! canopy area [m2]
+    class(prt_vartypes), pointer :: prt       ! PARTEH object
+    real(r8)                     :: dbh_local ! dbh we set to
+    real(r8)                     :: can_area  ! canopy area [m2]
+    real(r8)                     :: c_struct  ! structural carbon [kgC]
+    real(r8)                     :: c_leaf    ! leaf carbon [kgC]
+    real(r8)                     :: c_fnrt    ! fine root carbon [kgC]
+    real(r8)                     :: c_sapw    ! sapwood carbon [kgC]
+    real(r8)                     :: c_store   ! storage carbon [kgC]
     
-      
     ! initialize the PRT object
     prt => null()
     call PRTFactory(prt, pft, c_struct, c_leaf, c_fnrt, c_sapw, c_store)
@@ -128,7 +134,6 @@ module FatesFactoryMod
     allocate(cohort)
     cohort%Create(prt, pft, num, height, age, dbh, status, ctrim, can_area, can_layer,   &
       crowndamage, spread, can_tlai, elongf_leaf, elongf_fnrt, elongf_stem)
-  
   
   end subroutine CohortFactory
   
