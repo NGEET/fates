@@ -64,6 +64,7 @@ module EDMainMod
   use FatesLitterMod           , only : litter_type
   use FatesLitterMod           , only : ncwd
   use EDtypesMod               , only : ed_site_type
+  use EDTypesMod               , only : set_patchno
   use FatesPatchMod            , only : fates_patch_type
   use FatesCohortMod           , only : fates_cohort_type
   use EDTypesMod               , only : AREA
@@ -317,8 +318,6 @@ contains
     ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
 
-   
-    
     
   end subroutine ed_ecosystem_dynamics
 
@@ -835,6 +834,9 @@ contains
     type (fates_patch_type) , pointer :: currentPatch
     !-----------------------------------------------------------------------
 
+    ! check patch order (set second argument to true)
+    ! call set_patchno(currentSite,.true.,1)
+    
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting))then
       call canopy_spread(currentSite)
     end if
