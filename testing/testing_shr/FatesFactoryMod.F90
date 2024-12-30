@@ -1,42 +1,51 @@
 module FatesFactoryMod
 
-  use FatesConstantsMod,   only : r8 => fates_r8
-  use FatesConstantsMod,   only : leaves_on, leaves_off
-  use FatesCohortMod,      only : fates_cohort_type
-  use EDTypesMod,          only : init_spread_inventory
-  use EDCohortDynamicsMod, only : InitPRTObject
-  use PRTParametersMod,    only : prt_params
-  use PRTGenericMod,       only : num_elements
-  use PRTGenericMod,       only : element_list
-  use PRTGenericMod,       only : SetState
-  use PRTGenericMod,       only : prt_vartypes
-  use PRTGenericMod,       only : leaf_organ
-  use PRTGenericMod,       only : fnrt_organ
-  use PRTGenericMod,       only : sapw_organ
-  use PRTGenericMod,       only : store_organ
-  use PRTGenericMod,       only : struct_organ
-  use PRTGenericMod,       only : repro_organ
-  use PRTGenericMod,       only : carbon12_element
-  use PRTGenericMod,       only : nitrogen_element
-  use PRTGenericMod,       only : phosphorus_element
-  use PRTGenericMod,       only : StorageNutrientTarget
-  use FatesAllometryMod,   only : h_allom
-  use FatesAllometryMod,   only : bagw_allom
-  use FatesAllometryMod,   only : bbgw_allom
-  use FatesAllometryMod,   only : bleaf
-  use FatesAllometryMod,   only : bfineroot
-  use FatesAllometryMod,   only : bsap_allom
-  use FatesAllometryMod,   only : bdead_allom
-  use FatesAllometryMod,   only : bstore_allom
-  use FatesAllometryMod,   only : carea_allom
+  use FatesConstantsMod,      only : r8 => fates_r8
+  use FatesConstantsMod,      only : leaves_on, leaves_off
+  use FatesConstantsMod,      only : itrue
+  use FatesConstantsMod,      only : ihard_stress_decid
+  use FatesConstantsMod,      only : isemi_stress_decid
+  use FatesGlobals,           only : fates_log
+  use FatesGlobals,           only : endrun => fates_endrun
+  use FatesCohortMod,         only : fates_cohort_type
+  use EDTypesMod,             only : init_spread_inventory
+  use EDCohortDynamicsMod,    only : InitPRTObject
+  use PRTParametersMod,       only : prt_params
+  use PRTGenericMod,          only : num_elements
+  use PRTGenericMod,          only : element_list
+  use PRTGenericMod,          only : SetState
+  use PRTGenericMod,          only : prt_vartypes
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : fnrt_organ
+  use PRTGenericMod,          only : sapw_organ
+  use PRTGenericMod,          only : store_organ
+  use PRTGenericMod,          only : struct_organ
+  use PRTGenericMod,          only : repro_organ
+  use PRTGenericMod,          only : carbon12_element
+  use PRTGenericMod,          only : nitrogen_element
+  use PRTGenericMod,          only : phosphorus_element
+  use PRTGenericMod,          only : prt_carbon_allom_hyp
+  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,          only : StorageNutrientTarget
+  use FatesAllometryMod,      only : h_allom
+  use FatesAllometryMod,      only : bagw_allom
+  use FatesAllometryMod,      only : bbgw_allom
+  use FatesAllometryMod,      only : bleaf
+  use FatesAllometryMod,      only : bfineroot
+  use FatesAllometryMod,      only : bsap_allom
+  use FatesAllometryMod,      only : bdead_allom
+  use FatesAllometryMod,      only : bstore_allom
+  use FatesAllometryMod,      only : carea_allom
+  use FatesInterfaceTypesMod, only : hlm_parteh_mode
+  use FatesInterfaceTypesMod, only : nleafage
+  use shr_log_mod,            only : errMsg => shr_log_errMsg
   
   implicit none
   
   public :: CohortFactory
-  public :: PRTFactory
   
   ! CONSTANTS
-  real(r8) :: patch_area_default = 100.0_r8 ! default patch area [m2]
+  real(r8), parameter :: patch_area_default = 100.0_r8 ! default patch area [m2]
   
   contains 
   
@@ -46,14 +55,29 @@ module FatesFactoryMod
     ! Create a mock-up of a prt object
     
     ! ARGUMENTS:
-    class(prt_vartypes), pointer, intent(inout) :: prt ! PARTEH object
+    class(prt_vartypes), pointer, intent(inout) :: prt      ! PARTEH object
+    integer,                      intent(in)    :: pft      ! plant functional type 
+    real(r8),                     intent(in)    :: c_struct ! structural carbon [kgC]
+    real(r8),                     intent(in)    :: c_leaf   ! leaf carbon [kgC]
+    real(r8),                     intent(in)    :: c_fnrt   ! fine root carbon [kgC]
+    real(r8),                     intent(in)    :: c_sapw   ! sapwood carbon [kgC]
+    real(r8),                     intent(in)    :: c_store  ! storage carbon [kgC]
     
     ! LOCALS:
-    integer :: el ! looping index
+    integer  :: el         ! looping index
+    integer  :: iage       ! looping index
+    integer  :: element_id ! element id
+    real(r8) :: m_struct   ! mass of structual biomass [kg]
+    real(r8) :: m_leaf     ! mass of leaf biomass [kg]
+    real(r8) :: m_fnrt     ! mass of fineroot biomass [kg]
+    real(r8) :: m_sapw     ! mass of sapwood biomass [kg]
+    real(r8) :: m_store    ! mass of storage biomass [kg]
+    real(r8) :: m_repro    ! mass of reproductive tissue biomass [kg]
     
     prt => null()
+
     call InitPRTObject(prt)
-    
+        
     do el = 1, num_elements
       
       element_id = element_list(el)
@@ -85,7 +109,7 @@ module FatesFactoryMod
       end select
 
       select case(hlm_parteh_mode)
-        case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp )
+        case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp)
           ! Put all of the leaf mass into the first bin
           call SetState(prt, leaf_organ, element_id, m_leaf, 1)
           do iage = 2, nleafage
@@ -111,7 +135,7 @@ module FatesFactoryMod
   !---------------------------------------------------------------------------------------
   
   subroutine CohortFactory(cohort, pft, dbh, crown_damage, status, age, canopy_trim,     &
-    spread)
+    canopy_layer, elong_factor, patch_area)
     !
     ! DESCRIPTION:
     ! Create a mock-up of a cohort
@@ -125,7 +149,7 @@ module FatesFactoryMod
     integer,                          intent(in), optional :: status       ! growth status [leaves on/off]
     real(r8),                         intent(in), optional :: age          ! age [yr]
     real(r8),                         intent(in), optional :: canopy_trim  ! fraction of the maximum leaf biomass
-    real(r8),                         intent(in), optional :: spread       ! how spread crowns are in horizontal space
+    integer,                          intent(in), optional :: canopy_layer ! canopy layer
     real(r8),                         intent(in), optional :: elong_factor ! site-level elongation factor
     real(r8),                         intent(in), optional :: patch_area   ! patch area [m2]
     
@@ -134,6 +158,7 @@ module FatesFactoryMod
     real(r8)                     :: dbh_local          ! local dbh [cm]
     integer                      :: crown_damage_local ! local crown damage
     integer                      :: status_local       ! local phenology status
+    integer                      :: canopy_layer_local ! local canopy layer
     real(r8)                     :: canopy_trim_local  ! local canopy trim
     real(r8)                     :: age_local          ! local age [yrs]
     real(r8)                     :: elong_fact_local   ! local elongation factor
@@ -149,17 +174,24 @@ module FatesFactoryMod
     real(r8)                     :: c_agw              ! aboveground biomass [kgC]
     real(r8)                     :: c_bgw              ! belowground biomass [kgC]
     real(r8)                     :: a_sapw             ! sapwood area [m2]
-    real(r8),                    :: elongf_leaf        ! leaf elongation factor [fraction]
-    real(r8),                    :: elongf_fnrt        ! fine-root "elongation factor" [fraction]
-    real(r8),                    :: elongf_stem        ! stem "elongation factor" [fraction]
+    real(r8)                     :: elongf_leaf        ! leaf elongation factor [fraction]
+    real(r8)                     :: elongf_fnrt        ! fine-root "elongation factor" [fraction]
+    real(r8)                     :: elongf_stem        ! stem "elongation factor" [fraction]
+    real(r8)                     :: can_lai(10)        ! canopy lai [m2/m2]
+    integer                      :: i                  ! looping index
     
     ! CONSTANTS:
-    real(r8) :: dbh_default = 10.0_r8         ! default dbh [cm]
-    real(r8) :: canopy_trim_default = 1.0_r8  ! default canopy trim 
-    integer  :: crown_damage_default = 1      ! default crown damage
-    integer  :: status_default = leaves_on    ! default status
-    real(r8) :: age_default = 25.0_r8         ! default age [yrs]
-    real(r8) :: elong_factor_default = 1.0_r8 ! default elongation factor
+    real(r8), parameter :: dbh_default = 10.0_r8         ! default dbh [cm]
+    real(r8), parameter :: canopy_trim_default = 1.0_r8  ! default canopy trim 
+    integer,  parameter :: crown_damage_default = 1      ! default crown damage
+    integer,  parameter :: status_default = leaves_on    ! default status
+    real(r8), parameter :: age_default = 25.0_r8         ! default age [yrs]
+    real(r8), parameter :: elong_factor_default = 1.0_r8 ! default elongation factor
+    integer,  parameter :: canopy_layer_default = 1      ! default canopy layer
+    
+    do i = 1, 10
+      can_lai(i) = 0.0_r8
+    end do 
     
     ! set local values
     if (present(dbh)) then
@@ -204,13 +236,19 @@ module FatesFactoryMod
       patch_area_local = patch_area_default 
     end if
     
+    if (present(canopy_layer)) then 
+      canopy_layer_local = canopy_layer 
+    else 
+      canopy_layer_local = canopy_layer_default 
+    end if
+    
     ! set leaf elongation factors
     if (prt_params%season_decid(pft) == itrue .and. status_local == leaves_off) then
       elongf_leaf = 0.0_r8
       elongf_fnrt = 1.0_r8 - prt_params%phen_fnrt_drop_fraction(pft) 
       elongf_stem = 1.0_r8 - prt_params%phen_stem_drop_fraction(pft)
     
-    else if (any(prt_params%stress_decid(pft) == [ihard_stress_decid, isemi_stress_decid]))
+    else if (any(prt_params%stress_decid(pft) == [ihard_stress_decid, isemi_stress_decid])) then
       elongf_leaf = elong_fact_local
       elongf_fnrt = 1.0_r8 - (1.0_r8 - elongf_leaf)*prt_params%phen_fnrt_drop_fraction(pft)
       elongf_stem = 1.0_r8 - (1.0_r8 - elongf_leaf)*prt_params%phen_stem_drop_fraction(pft)
@@ -237,7 +275,7 @@ module FatesFactoryMod
     number = patch_area_local/can_area
     
     ! calculate leaf biomass
-    call bleaf(dbh_local, pft, crown_damage_local, canopy_trim_local, efleaf_coh, c_leaf)
+    call bleaf(dbh_local, pft, crown_damage_local, canopy_trim_local, elongf_leaf, c_leaf)
     
     ! recalculate crown area
     call carea_allom(dbh_local, number, init_spread_inventory, pft, crown_damage_local,  &
@@ -265,15 +303,15 @@ module FatesFactoryMod
     
     ! storage biomass
     call bstore_allom(dbh_local, pft, crown_damage_local, canopy_trim_local, c_store)
-    
+        
     ! initialize the PRT object
     call PRTFactory(prt, pft, c_struct, c_leaf, c_fnrt, c_sapw, c_store)
     
     ! allocate the cohort
     allocate(cohort)
-    cohort%Create(prt, pft, number, height, age_local, dbh_local, status_local,          &
-      canopy_trim_local, can_area, can_layer, crown_damage_local, spread, can_tlai,      &
-      elongf_leaf, elongf_fnrt, elongf_stem)
+    call cohort%Create(prt, pft, number, height, age_local, dbh_local, status_local,     &
+      canopy_trim_local, can_area, canopy_layer_local, crown_damage_local,               &
+      init_spread_inventory, can_lai, elongf_leaf, elongf_fnrt, elongf_stem)
   
   end subroutine CohortFactory
   
