@@ -23,9 +23,9 @@ program FatesTestAllometry
   
   ! CONSTANTS:
   character(len=*), parameter :: out_file = 'lai_out.nc' ! output file
-  real(r8),         parameter :: min_dbh = 0.5_r8    ! minimum DBH to calculate [cm]
+  real(r8),         parameter :: min_dbh = 0.5_r8   ! minimum DBH to calculate [cm]
   real(r8),         parameter :: max_dbh = 40.0_r8  ! maximum DBH to calculate [cm]
-  real(r8),         parameter :: dbh_inc = 0.5_r8    ! DBH increment to use [cm]
+  real(r8),         parameter :: dbh_inc = 0.5_r8   ! DBH increment to use [cm]
 
   interface
 
