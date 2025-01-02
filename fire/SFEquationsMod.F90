@@ -120,7 +120,6 @@ module SFEquationsMod
         (3.52_r8*(mw_weight**3.0_r8))
       
       if (MoistureCoefficient < nearzero) MoistureCoefficient = 0.0_r8  
-      if (MoistureCoefficient > 1.0_r8) MoistureCoefficient = 1.0_r8
       
     end function MoistureCoefficient
    
