@@ -177,7 +177,7 @@ module FatesFactoryMod
     real(r8)                     :: elongf_leaf        ! leaf elongation factor [fraction]
     real(r8)                     :: elongf_fnrt        ! fine-root "elongation factor" [fraction]
     real(r8)                     :: elongf_stem        ! stem "elongation factor" [fraction]
-    real(r8)                     :: can_lai(10)        ! canopy lai [m2/m2]
+    real(r8)                     :: can_lai(31)        ! canopy lai [m2/m2]
     integer                      :: i                  ! looping index
     
     ! CONSTANTS:
@@ -189,7 +189,7 @@ module FatesFactoryMod
     real(r8), parameter :: elong_factor_default = 1.0_r8 ! default elongation factor
     integer,  parameter :: canopy_layer_default = 1      ! default canopy layer
     
-    do i = 1, 10
+    do i = 1, 31
       can_lai(i) = 0.0_r8
     end do 
     

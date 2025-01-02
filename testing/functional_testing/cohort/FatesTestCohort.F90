@@ -6,7 +6,6 @@ program FatesTestCohort
   use FatesCohortMod,              only : fates_cohort_type
   use PRTGenericMod,               only : prt_carbon_allom_hyp
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
-  use FatesInterfaceTypesMod,      only : nleafage
   use PRTParametersMod,            only : prt_params
   use FatesFactoryMod,             only : CohortFactory
   use PRTGenericMod,               only : element_list
@@ -37,9 +36,9 @@ program FatesTestCohort
   element_pos(carbon12_element) = 1
   call InitPRTGlobalAllometricCarbon()
   
-  nleafage = size(prt_params%leaf_long, dim=2)
-  
   call CohortFactory(cohort, 1)
+  
+  print *, cohort%dbh
 
 end program FatesTestCohort
 
