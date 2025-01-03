@@ -1,51 +1,52 @@
 module FatesFactoryMod
 
-  use FatesConstantsMod,      only : r8 => fates_r8
-  use FatesConstantsMod,      only : leaves_on, leaves_off
-  use FatesConstantsMod,      only : itrue
-  use FatesConstantsMod,      only : ihard_stress_decid
-  use FatesConstantsMod,      only : isemi_stress_decid
-  use FatesGlobals,           only : fates_log
-  use FatesGlobals,           only : endrun => fates_endrun
-  use FatesCohortMod,         only : fates_cohort_type
-  use EDTypesMod,             only : init_spread_inventory
-  use EDCohortDynamicsMod,    only : InitPRTObject
-  use PRTParametersMod,       only : prt_params
-  use PRTGenericMod,          only : num_elements
-  use PRTGenericMod,          only : element_list
-  use PRTGenericMod,          only : SetState
-  use PRTGenericMod,          only : prt_vartypes
-  use PRTGenericMod,          only : leaf_organ
-  use PRTGenericMod,          only : fnrt_organ
-  use PRTGenericMod,          only : sapw_organ
-  use PRTGenericMod,          only : store_organ
-  use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : repro_organ
-  use PRTGenericMod,          only : carbon12_element
-  use PRTGenericMod,          only : nitrogen_element
-  use PRTGenericMod,          only : phosphorus_element
-  use PRTGenericMod,          only : prt_carbon_allom_hyp
-  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
-  use PRTGenericMod,          only : StorageNutrientTarget
-  use FatesAllometryMod,      only : h_allom
-  use FatesAllometryMod,      only : bagw_allom
-  use FatesAllometryMod,      only : bbgw_allom
-  use FatesAllometryMod,      only : bleaf
-  use FatesAllometryMod,      only : bfineroot
-  use FatesAllometryMod,      only : bsap_allom
-  use FatesAllometryMod,      only : bdead_allom
-  use FatesAllometryMod,      only : bstore_allom
-  use FatesAllometryMod,      only : carea_allom
-  use FatesInterfaceTypesMod, only : hlm_parteh_mode
-  use FatesInterfaceTypesMod, only : nleafage
-  use shr_log_mod,            only : errMsg => shr_log_errMsg
+  use FatesConstantsMod,           only : r8 => fates_r8
+  use FatesConstantsMod,           only : leaves_on, leaves_off
+  use FatesConstantsMod,           only : itrue
+  use FatesConstantsMod,           only : ihard_stress_decid
+  use FatesConstantsMod,           only : isemi_stress_decid
+  use FatesConstantsMod,           only : primaryland
+  use FatesGlobals,                only : fates_log
+  use FatesGlobals,                only : endrun => fates_endrun
+  use FatesCohortMod,              only : fates_cohort_type
+  use FatesPatchMod,               only : fates_patch_type
+  use EDTypesMod,                  only : init_spread_inventory
+  use EDCohortDynamicsMod,         only : InitPRTObject
+  use PRTParametersMod,            only : prt_params
+  use PRTGenericMod,               only : num_elements
+  use PRTGenericMod,               only : element_list
+  use PRTGenericMod,               only : SetState
+  use PRTGenericMod,               only : prt_vartypes
+  use PRTGenericMod,               only : leaf_organ
+  use PRTGenericMod,               only : fnrt_organ
+  use PRTGenericMod,               only : sapw_organ
+  use PRTGenericMod,               only : store_organ
+  use PRTGenericMod,               only : struct_organ
+  use PRTGenericMod,               only : repro_organ
+  use PRTGenericMod,               only : carbon12_element
+  use PRTGenericMod,               only : nitrogen_element
+  use PRTGenericMod,               only : phosphorus_element
+  use PRTGenericMod,               only : prt_carbon_allom_hyp
+  use PRTGenericMod,               only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,               only : StorageNutrientTarget
+  use FatesAllometryMod,           only : h_allom
+  use FatesAllometryMod,           only : bagw_allom
+  use FatesAllometryMod,           only : bbgw_allom
+  use FatesAllometryMod,           only : bleaf
+  use FatesAllometryMod,           only : bfineroot
+  use FatesAllometryMod,           only : bsap_allom
+  use FatesAllometryMod,           only : bdead_allom
+  use FatesAllometryMod,           only : bstore_allom
+  use FatesAllometryMod,           only : carea_allom
+  use FatesInterfaceTypesMod,      only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,      only : nleafage
+  use FatesSizeAgeTypeIndicesMod,  only: get_age_class_index
+  use EDParamsMod,                 only : regeneration_model
+  use shr_log_mod,                 only : errMsg => shr_log_errMsg
   
   implicit none
   
   public :: CohortFactory
-  
-  ! CONSTANTS
-  real(r8), parameter :: patch_area_default = 100.0_r8 ! default patch area [m2]
   
   contains 
   
@@ -85,6 +86,7 @@ module FatesFactoryMod
       ! If this is carbon12, then the initialization is straight forward
       ! otherwise, we use stoichiometric ratios
       select case(element_id)
+        
         case(carbon12_element)
           m_struct = c_struct
           m_leaf   = c_leaf
@@ -106,9 +108,11 @@ module FatesFactoryMod
           m_sapw   = c_sapw*prt_params%phos_stoich_p1(pft, prt_params%organ_param_id(sapw_organ))
           m_repro  = 0.0_r8
           m_store  = StorageNutrientTarget(pft, element_id, m_leaf, m_fnrt, m_sapw, m_struct)
+      
       end select
 
       select case(hlm_parteh_mode)
+        
         case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp)
           ! Put all of the leaf mass into the first bin
           call SetState(prt, leaf_organ, element_id, m_leaf, 1)
@@ -134,8 +138,8 @@ module FatesFactoryMod
    
   !---------------------------------------------------------------------------------------
   
-  subroutine CohortFactory(cohort, pft, dbh, crown_damage, status, age, canopy_trim,     &
-    canopy_layer, elong_factor, patch_area)
+  subroutine CohortFactory(cohort, pft, can_lai, dbh, crown_damage, status, age,         &
+    canopy_trim, canopy_layer, elong_factor, patch_area)
     !
     ! DESCRIPTION:
     ! Create a mock-up of a cohort
@@ -144,6 +148,7 @@ module FatesFactoryMod
     ! ARGUMENTS
     type(fates_cohort_type), pointer, intent(out)          :: cohort       ! cohort object
     integer,                          intent(in)           :: pft          ! plant functional type index
+    real(r8),                         intent(in)           :: can_lai(:)   ! canopy lai of patch that cohort is on [m2/m2]
     real(r8),                         intent(in), optional :: dbh          ! diameter at breast height [cm]
     integer,                          intent(in), optional :: crown_damage ! crown damage class
     integer,                          intent(in), optional :: status       ! growth status [leaves on/off]
@@ -177,8 +182,6 @@ module FatesFactoryMod
     real(r8)                     :: elongf_leaf        ! leaf elongation factor [fraction]
     real(r8)                     :: elongf_fnrt        ! fine-root "elongation factor" [fraction]
     real(r8)                     :: elongf_stem        ! stem "elongation factor" [fraction]
-    real(r8)                     :: can_lai(31)        ! canopy lai [m2/m2]
-    integer                      :: i                  ! looping index
     
     ! CONSTANTS:
     real(r8), parameter :: dbh_default = 10.0_r8         ! default dbh [cm]
@@ -188,10 +191,7 @@ module FatesFactoryMod
     real(r8), parameter :: age_default = 25.0_r8         ! default age [yrs]
     real(r8), parameter :: elong_factor_default = 1.0_r8 ! default elongation factor
     integer,  parameter :: canopy_layer_default = 1      ! default canopy layer
-    
-    do i = 1, 31
-      can_lai(i) = 0.0_r8
-    end do 
+    real(r8), parameter :: patch_area_default = 100.0_r8 ! default patch area [m2]
     
     ! set local values
     if (present(dbh)) then
@@ -314,6 +314,66 @@ module FatesFactoryMod
       init_spread_inventory, can_lai, elongf_leaf, elongf_fnrt, elongf_stem)
   
   end subroutine CohortFactory
+  
+  !---------------------------------------------------------------------------------------
+  
+  subroutine PatchFactory(patch, age, area, , num_swb, num_pft, num_levsoil,             &
+    land_use_label, nocomp_fpt, current_tod)
+    !
+    ! DESCRIPTION:
+    ! Create a mock-up of a patch
+    !
+    
+    ! ARGUMENTS:
+    type(fates_patch_type), pointer, intent(out)           :: patch          ! patch object
+    real(r8),                        intent(in)            :: age            ! patch age [yrs]
+    real(r8),                        intent(in)            :: area           ! patch are [m2]
+    integer,                         intent(in)            :: num_swb        ! number of shortwave bands
+    integer,                         intent(in)            :: num_pft        ! number of pfts
+    integer,                         intent(in)            :: num_levsoil    ! number of soil layers
+    integer,                         intent(in), optional  :: land_use_label ! land use label
+    integer,                         intent(in), optional  :: nocomp_pft     ! nocomp_pft label
+    integer,                         intent(in), optional  :: current_tod    ! time of day [seconds past 0Z]
+    
+    ! LOCALS:
+    integer :: land_use_label_local ! local land use label
+    integer :: nocomp_pft_local     ! local nocomp pft label
+    integer :: tod_local            ! local tod value
+    
+    ! CONSTANTS:
+    integer :: land_use_label_default = primaryland ! default land use label
+    integer :: nocomp_pft_default = 1               ! default nocomp pft label
+    integer :: tod_default = 0                      ! default time of day
+    
+    ! set defaults if necessary
+    if (present(land_use_label)) then 
+      land_use_label_local = land_use_label
+    else 
+      land_use_label_local = land_use_label_default
+    end if
+    
+    if (present(nocomp_pft)) then 
+      nocomp_pft_local = nocomp_pft
+    else 
+      nocomp_pft_local = nocomp_pft_default
+    end if
+    
+    if (present(current_tod)) then 
+      tod_local = current_tod
+    else 
+      tod_local = tod_default
+    end if
+
+    allocate(patch)
+    call patch%Create(age, area, land_use_label_local, nocomp_pft_local, num_swb,        &
+      num_pft, num_levsoil, tod_local, regeneration_model)
+    
+    patch%patchno = 1
+    patch%younger => null()
+    patch%older => null()
+    patch%age_class = get_age_class_index(patch%age)
+
+  end subroutine PatchFactory
   
   !---------------------------------------------------------------------------------------
   
