@@ -47,6 +47,7 @@ module FatesFactoryMod
   implicit none
   
   public :: CohortFactory
+  public :: PatchFactory
   
   contains 
   
@@ -138,7 +139,7 @@ module FatesFactoryMod
    
   !---------------------------------------------------------------------------------------
   
-  subroutine CohortFactory(cohort, pft, can_lai, dbh, crown_damage, status, age,         &
+  subroutine CohortFactory(cohort, pft, can_lai, dbh, number, crown_damage, status, age,         &
     canopy_trim, canopy_layer, elong_factor, patch_area)
     !
     ! DESCRIPTION:
@@ -150,6 +151,7 @@ module FatesFactoryMod
     integer,                          intent(in)           :: pft          ! plant functional type index
     real(r8),                         intent(in)           :: can_lai(:)   ! canopy lai of patch that cohort is on [m2/m2]
     real(r8),                         intent(in), optional :: dbh          ! diameter at breast height [cm]
+    real(r8),                         intent(in), optional :: number       ! number density [/m2]
     integer,                          intent(in), optional :: crown_damage ! crown damage class
     integer,                          intent(in), optional :: status       ! growth status [leaves on/off]
     real(r8),                         intent(in), optional :: age          ! age [yr]
@@ -161,6 +163,7 @@ module FatesFactoryMod
     ! LOCALS:
     class(prt_vartypes), pointer :: prt                ! PARTEH object
     real(r8)                     :: dbh_local          ! local dbh [cm]
+    real(r8)                     :: number_local       ! local number density [/m2]
     integer                      :: crown_damage_local ! local crown damage
     integer                      :: status_local       ! local phenology status
     integer                      :: canopy_layer_local ! local canopy layer
@@ -169,7 +172,6 @@ module FatesFactoryMod
     real(r8)                     :: elong_fact_local   ! local elongation factor
     real(r8)                     :: patch_area_local   ! local patch area [m2]
     real(r8)                     :: height             ! height [m]
-    real(r8)                     :: number             ! number density [/m2]
     real(r8)                     :: can_area           ! canopy area [m2]
     real(r8)                     :: c_struct           ! structural carbon [kgC]
     real(r8)                     :: c_leaf             ! leaf carbon [kgC]
@@ -267,19 +269,27 @@ module FatesFactoryMod
     
     ! calculate allometric properties
     
-    ! calculate crown area of a single plant
-    call carea_allom(dbh_local, 1.0_r8, init_spread_inventory, pft, crown_damage_local,  &
-      can_area)
+    ! calculate or set number density
+    if (present(number)) then
+      
+      number_local = number
     
-    ! calculate initial density required to close the canopy
-    number = patch_area_local/can_area
+    else 
+      
+      call carea_allom(dbh_local, 1.0_r8, init_spread_inventory, pft, crown_damage_local,  &
+        can_area)
+    
+      ! calculate initial density required to close the canopy
+      number_local = patch_area_local/can_area
+      
+    end if
     
     ! calculate leaf biomass
     call bleaf(dbh_local, pft, crown_damage_local, canopy_trim_local, elongf_leaf, c_leaf)
     
     ! recalculate crown area
-    call carea_allom(dbh_local, number, init_spread_inventory, pft, crown_damage_local,  &
-      can_area)
+    call carea_allom(dbh_local, number_local, init_spread_inventory, pft,                &
+      crown_damage_local, can_area)
     
     ! calculate height  
     call h_allom(dbh_local, pft, height)
@@ -309,16 +319,16 @@ module FatesFactoryMod
     
     ! allocate the cohort
     allocate(cohort)
-    call cohort%Create(prt, pft, number, height, age_local, dbh_local, status_local,     &
-      canopy_trim_local, can_area, canopy_layer_local, crown_damage_local,               &
+    call cohort%Create(prt, pft, number_local, height, age_local, dbh_local,             &
+      status_local, canopy_trim_local, can_area, canopy_layer_local, crown_damage_local, &
       init_spread_inventory, can_lai, elongf_leaf, elongf_fnrt, elongf_stem)
   
   end subroutine CohortFactory
   
   !---------------------------------------------------------------------------------------
   
-  subroutine PatchFactory(patch, age, area, , num_swb, num_pft, num_levsoil,             &
-    land_use_label, nocomp_fpt, current_tod)
+  subroutine PatchFactory(patch, age, area, num_swb, num_pft, num_levsoil,               &
+    land_use_label, nocomp_pft, current_tod)
     !
     ! DESCRIPTION:
     ! Create a mock-up of a patch
@@ -358,12 +368,12 @@ module FatesFactoryMod
       nocomp_pft_local = nocomp_pft_default
     end if
     
-    if (present(current_tod)) then 
+    if (present(current_tod)) then
       tod_local = current_tod
     else 
       tod_local = tod_default
     end if
-
+    
     allocate(patch)
     call patch%Create(age, area, land_use_label_local, nocomp_pft_local, num_swb,        &
       num_pft, num_levsoil, tod_local, regeneration_model)
