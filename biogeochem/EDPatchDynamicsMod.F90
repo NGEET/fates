@@ -768,13 +768,9 @@ contains
                             ! and burned litter to atmosphere. Thus it is important to zero fuel%frac_burnt when
                             ! fire is not the current disturbance regime.
 
-                            if(i_disturbance_type .ne. dtype_ifire) then
-                               currentPatch%fuel%frac_burnt(:) = 0._r8
-                            end if
-
                             call CopyPatchMeansTimers(currentPatch, newPatch)
 
-                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis)
+                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis, i_disturbance_type)
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
                             select case(i_disturbance_type)
@@ -1046,7 +1042,6 @@ contains
                                   ! Some of of the leaf mass from living plants has been
                                   ! burned off.  Here, we remove that mass, and
                                   ! tally it in the flux we sent to the atmosphere
-
                                   if(prt_params%woody(currentCohort%pft) == itrue)then
                                      leaf_burn_frac = currentCohort%fraction_crown_burned
                                   else
@@ -1725,9 +1720,7 @@ contains
 
     call CopyPatchMeansTimers(currentPatch, new_patch)
 
-    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area)
-
-    currentPatch%fuel%frac_burnt(:) = 0._r8
+    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, 0)
 
     ! Next, we loop through the cohorts in the donor patch, copy them with
     ! area modified number density into the new-patch, and apply survivorship.
@@ -1923,8 +1916,15 @@ contains
   subroutine TransLitterNewPatch(currentSite,        &
                                  currentPatch,       &
                                  newPatch,           &
+<<<<<<< HEAD
                                  patch_site_areadis, &
                                  dtype)
+||||||| 56ecefdb
+                                 patch_site_areadis)
+=======
+                                 patch_site_areadis, &
+                                 dist_type)
+>>>>>>> main
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -1973,7 +1973,12 @@ contains
     type(fates_patch_type) , intent(inout) :: newPatch           ! New patch
     real(r8)            , intent(in)    :: patch_site_areadis ! Area being donated
                                                               ! by current patch
+<<<<<<< HEAD
     integer,              intent(in)    :: dtype ! disturbance
+||||||| 56ecefdb
+=======
+    integer,              intent(in)    :: dist_type          ! disturbance type
+>>>>>>> main
 
     
     ! locals
@@ -1996,8 +2001,13 @@ contains
     real(r8) :: litter_stock0,litter_stock1
     real(r8) :: burn_flux0,burn_flux1
     real(r8) :: error
+<<<<<<< HEAD
     real(r8) :: frac_burnt ! fraction burnt from fire
     
+||||||| 56ecefdb
+=======
+    real(r8) :: frac_burnt                 ! fraction burnt of current fuel type [0-1]
+>>>>>>> main
 
     do el = 1,num_elements
 
@@ -2081,18 +2091,30 @@ contains
           litter_stock0 = curr_litt%GetTotalLitterMass()*currentPatch%area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
        end if
+<<<<<<< HEAD
 
 
        do c = 1, ncwd
          
          !if 
+||||||| 56ecefdb
+
+       do c = 1,ncwd
+=======
+       
+       do c = 1,ncwd
+         frac_burnt = 0.0_r8
+         if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
+            frac_burnt = currentPatch%fuel%frac_burnt(c)
+         end if 
+>>>>>>> main
              
           ! Transfer above ground CWD
           donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               (1._r8 - currentPatch%fuel%frac_burnt(c))
+                               (1._r8 - frac_burnt)
 
           burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               currentPatch%fuel%frac_burnt(c)
+                               frac_burnt
  
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
@@ -2108,15 +2130,20 @@ contains
           end do
           
        enddo
-          
+       
+       frac_burnt = 0.0_r8
+       if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
+         frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
+      end if 
+             
        do dcmpy=1,ndcmpy
 
            ! Transfer leaf fines
            donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      (1._r8 - currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves()))
+                                      (1._r8 - frac_burnt)
 
            burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
+                                       frac_burnt
 
            new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
