@@ -8435,11 +8435,6 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, index = ih_gpp_si)
 
-       call this%set_history_var(vname='FATES_GPP_SECONDARY', units='kg m-2 s-1',           &
-            long='gross primary production in kg carbon per m2 per second, secondary patches',       &
-            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, index = ih_gpp_secondary_si)
-
        call this%set_history_var(vname='FATES_MAINT_RESP', units='kg m-2 s-1',    &
             long='maintenance respiration in kg carbon per m2 land area per second', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
