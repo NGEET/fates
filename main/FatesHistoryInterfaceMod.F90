@@ -5256,14 +5256,14 @@ contains
                          + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv
 
                     hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
-                         + npp * ccohort%n * dt_tstep_inv
+                         + ccohort%npp_acc_hold * ccohort%n * dt_tstep_inv
 
                     if (cpatch%land_use_label .gt. nocomp_bareground_land) then
                        hio_gpp_si_landuse(io_si,cpatch%land_use_label) = hio_gpp_si_landuse(io_si,cpatch%land_use_label) &
                             + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv
 
                        hio_npp_si_landuse(io_si,cpatch%land_use_label) = hio_npp_si_landuse(io_si,cpatch%land_use_label) &
-                            + npp * ccohort%n * dt_tstep_inv
+                            + ccohort%npp_acc_hold * ccohort%n * dt_tstep_inv
                     end if
 
                     ! accumulate fluxes on canopy- and understory- separated fluxes
