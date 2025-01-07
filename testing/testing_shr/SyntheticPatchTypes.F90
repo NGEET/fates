@@ -12,14 +12,15 @@ module SyntheticPatchTypes
   
   ! patch data type to hold data about the synthetic patches
   type, public :: synthetic_patch_type
-    integer               :: patch_id          ! patch id, used for reference
-    integer               :: num_cohorts       ! number of cohorts on patch
-    real(r8)              :: area              ! patch area [m2]
-    real(r8), allocatable :: ages(:)           ! cohort ages [yr]
-    real(r8), allocatable :: dbhs(:)           ! cohort dbhs [cm]
-    real(r8), allocatable :: densities(:)      ! cohort densities [#]
-    integer,  allocatable :: canopy_layers(:)  ! canopy layers
-    integer,  allocatable :: pft_ids(:)        ! pft ids
+    character(len=:), allocatable :: patch_name        ! patch name, used for reference
+    integer                       :: patch_id          ! patch id, used for reference
+    integer                       :: num_cohorts       ! number of cohorts on patch
+    real(r8)                      :: area              ! patch area [m2]
+    real(r8), allocatable         :: ages(:)           ! cohort ages [yr]
+    real(r8), allocatable         :: dbhs(:)           ! cohort dbhs [cm]
+    real(r8), allocatable         :: densities(:)      ! cohort densities [/m2]
+    integer,  allocatable         :: canopy_layers(:)  ! canopy layers
+    integer,  allocatable         :: pft_ids(:)        ! pft ids
     
     contains 
       
@@ -47,8 +48,8 @@ module SyntheticPatchTypes
   
   contains 
   
-  subroutine InitSyntheticPatchData(this, patch_id, area, ages, dbhs, densities,         &
-    pft_ids, canopy_layers)
+  subroutine InitSyntheticPatchData(this, patch_id, patch_name, area, ages, dbhs,        &
+    densities, pft_ids, canopy_layers)
     !
     ! DESCRIPTION:
     ! Initializes a synthetic patch with input characteristics
@@ -56,11 +57,12 @@ module SyntheticPatchTypes
     
     ! ARGUMENTS:
     class(synthetic_patch_type), intent(inout) :: this             ! patch data to create
-    integer,                     intent(in)    :: patch_id         ! patch id 
+    integer,                     intent(in)    :: patch_id         ! patch id
+    character(len=*),            intent(in)    :: patch_name       ! patch name 
     real(r8),                    intent(in)    :: area             ! patch area [m2]
     real(r8),                    intent(in)    :: ages(:)          ! cohort ages [yr]
     real(r8),                    intent(in)    :: dbhs(:)          ! cohort dbhs [cm]
-    real(r8),                    intent(in)    :: densities(:)     ! cohort densities [#]
+    real(r8),                    intent(in)    :: densities(:)     ! cohort densities [/m2]
     integer,                     intent(in)    :: pft_ids(:)       ! pft ids
     integer,                     intent(in)    :: canopy_layers(:) ! canopy layers of cohorts
     
@@ -78,6 +80,7 @@ module SyntheticPatchTypes
     allocate(this%canopy_layers(num_cohorts))
     
     ! set values
+    this%patch_name = patch_name
     this%num_cohorts = num_cohorts
     this%patch_id = patch_id
     this%area = area
@@ -94,7 +97,7 @@ module SyntheticPatchTypes
   
   ! --------------------------------------------------------------------------------------
   
-   subroutine AddPatch(this, patch_id, area, ages, dbhs, densities, pft_ids,             &
+   subroutine AddPatch(this, patch_id, patch_name, area, ages, dbhs, densities, pft_ids, &
     canopy_layers)
     !
     ! DESCRIPTION:
@@ -104,10 +107,11 @@ module SyntheticPatchTypes
     ! ARGUMENTS:
     class(synthetic_patch_array_type), intent(inout) :: this              ! array of synthetic patches
     integer,                           intent(in)    :: patch_id          ! patch id
+    character(len=*),                  intent(in)    :: patch_name        ! name of patch
     real(r8),                          intent(in)    :: area              ! patch area
     real(r8),                          intent(in)    :: ages(:)           ! cohort ages [yr]
     real(r8),                          intent(in)    :: dbhs(:)           ! cohort dbhs [cm]
-    real(r8),                          intent(in)    :: densities(:)      ! cohort densities [#]
+    real(r8),                          intent(in)    :: densities(:)      ! cohort densities [/m2]
     integer,                           intent(in)    :: pft_ids(:)        ! pft ids
     integer,                           intent(in)    :: canopy_layers(:)  ! canopy layers
     
@@ -133,8 +137,8 @@ module SyntheticPatchTypes
       this%num_patches = 1
     end if 
     
-    call patch_data%InitSyntheticPatchData(patch_id, area, ages, dbhs, densities,        &
-      pft_ids, canopy_layers)
+    call patch_data%InitSyntheticPatchData(patch_id, patch_name, area, ages, dbhs,       &
+      densities, pft_ids, canopy_layers)
     
     this%patches(this%num_patches) = patch_data
       
@@ -142,26 +146,37 @@ module SyntheticPatchTypes
   
   ! --------------------------------------------------------------------------------------
   
-  integer function PatchDataPosition(this, patch_data_id)
+  integer function PatchDataPosition(this, patch_id, patch_name)
     !
     ! DESCRIPTION:
     ! Returns the index of a desired synthetic patch data 
     !
     
     ! ARGUMENTS:
-    class(synthetic_patch_array_type), intent(in)  :: this          ! array of fuel models
-    integer,                           intent(in)  :: patch_data_id ! desired patch index
+    class(synthetic_patch_array_type), intent(in)            :: this       ! array of patch data
+    integer,                           intent(in), optional  :: patch_id   ! desired patch id
+    character(len=*),                  intent(in), optional  :: patch_name ! desired patch name
         
     ! LOCALS:
-    integer :: i ! looping index 
+    integer :: i ! looping index
     
     do i = 1, this%num_patches
-      if (this%patches(i)%patch_id == patch_data_id) then
-        PatchDataPosition = i
-        return
+      if (present(patch_id)) then 
+        if (this%patches(i)%patch_id == patch_id) then
+          PatchDataPosition = i
+          return
+        end if
+      else if (present(patch_name)) then 
+        if (this%patches(i)%patch_name == patch_name) then
+          PatchDataPosition = i
+          return
+        end if
+      else 
+        write(*, '(a, i2, a)') "Must supply either a patch_id or a patch_name."
+        stop
       end if
     end do
-    write(*, '(a, i2, a)') "Cannot find the patch id ", patch_data_id, "."
+    write(*, '(a, i2, a)') "Cannot find the patch."
     stop
   
   end function PatchDataPosition
@@ -178,11 +193,41 @@ module SyntheticPatchTypes
     ! ARGUMENTS:
     class(synthetic_patch_array_type), intent(inout) :: this ! array of synthetic patches
     
-    call this%AddPatch(patch_id=2, area=500.0_r8, ages=(/50.0_r8, 50.0_r8/),             &
-      dbhs=(/30.0_r8, 25.0_r8/), densities=(/7.5_r8, 7.5_r8/), pft_ids=(/2, 2/),         &
-      canopy_layers=(/1, 1/))
+    call this%AddPatch(patch_id=1, patch_name='tropical', area=500.0_r8,                 &
+      ages=(/100.0_r8, 80.0_r8, 40.0_r8, 20.0_r8/),                                      &
+      dbhs=(/60.0_r8, 50.0_r8, 25.0_r8, 10.0_r8/),                                       &
+      densities=(/0.005_r8, 0.008_r8, 0.02_r8, 0.017_r8/),                               &
+      pft_ids=(/1, 1, 1, 1/),                                                            &
+      canopy_layers=(/1, 1, 2, 2/))
     
-  
+    call this%AddPatch(patch_id=2, patch_name='evergreen', area=500.0_r8,                &
+      ages=(/50.0_r8, 50.0_r8/),                                                         &
+      dbhs=(/30.0_r8, 25.0_r8/),                                                         &
+      densities=(/0.015_r8, 0.015_r8/),                                                  &
+      pft_ids=(/2, 2/),                                                                  &
+      canopy_layers=(/1, 1/))
+      
+    call this%AddPatch(patch_id=3, patch_name='savannah', area=500.0_r8,                 &
+      ages=(/20.0_r8, 1.0_r8/),                                                          &
+      dbhs=(/15.0_r8, 1.0_r8/),                                                          &
+      densities=(/0.015_r8, 0.015_r8/),                                                  &
+      pft_ids=(/5, 14/),                                                                 &
+      canopy_layers=(/1, 2/))
+      
+    call this%AddPatch(patch_id=4, patch_name='grassland', area=500.0_r8,                &
+      ages=(/1.0_r8, 2.0_r8/),                                                           &
+      dbhs=(/1.0_r8, 1.0_r8/),                                                           &
+      densities=(/0.015_r8, 0.015_r8/),                                                  &
+      pft_ids=(/13, 13/),                                                                &
+      canopy_layers=(/1, 1/))
+      
+    call this%AddPatch(patch_id=5, patch_name='temperate', area=500.0_r8,                &
+      ages=(/80.0_r8, 50.0_r8, 20.0_r8, 5.0_r8/),                                        &
+      dbhs=(/50.0_r8, 30.0_r8, 15.0_r8, 3.0_r8/),                                        &
+      densities=(/0.005_r8, 0.01_r8, 0.015_r8, 0.005_r8/),                               &
+      pft_ids=(/6, 2, 2, 9/),                                                            &
+      canopy_layers=(/1, 1, 2, 2/))
+    
   end subroutine GetSyntheticPatchData
   
   ! --------------------------------------------------------------------------------------

@@ -16,6 +16,7 @@ program FatesTestPatch
   character(len=:),                  allocatable :: param_file   ! input parameter file
   type(fates_patch_type),            pointer     :: patch        ! patch
   type(fates_cohort_type),           pointer     :: cohort       ! cohort
+  integer                                        :: i            ! patch array location
 
   ! CONSTANTS:
   integer,  parameter :: num_levsoil = 10      ! number of soil layers
@@ -34,7 +35,9 @@ program FatesTestPatch
   ! get all the patch data
   call patch_data%GetSyntheticPatchData()
   
-  call GetSyntheticPatch(patch_data%patches(1), num_levsoil, patch)
+  i = patch_data%PatchDataPosition(patch_name='evergreen')
+  
+  call GetSyntheticPatch(patch_data%patches(i), num_levsoil, patch)
   
   ! print out list in ascending order
   cohort => patch%shortest
