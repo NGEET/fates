@@ -3227,6 +3227,7 @@ contains
            hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
            hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
            hio_npp_si_age                     => this%hvars(ih_npp_si_age)%r82d, &
+           hio_npp_si_landuse                 => this%hvars(ih_npp_si_landuse)%r82d, &
            hio_agesince_anthrodist_si_age     => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
            hio_secondarylands_area_si_age    => this%hvars(ih_secondarylands_area_si_age)%r82d, &
            hio_primarylands_area_si_age      => this%hvars(ih_primarylands_area_si_age)%r82d, &
@@ -3380,6 +3381,9 @@ contains
                    hio_burnedarea_si_landuse(io_si, cpatch%land_use_label) = &
                         hio_burnedarea_si_landuse(io_si, cpatch%land_use_label) + &
                         cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
+
+                   hio_npp_si_landuse(io_si,cpatch%land_use_label) = hio_npp_si_landuse(io_si,cpatch%land_use_label) &
+                        + ccohort%npp_acc_hold * ccohort%n * dt_tstep_inv
                 end if
                    
                 ! Increment some patch-age-resolved diagnostics
@@ -5137,7 +5141,6 @@ contains
          hio_resp_m_understory_si_scls       => this%hvars(ih_resp_m_understory_si_scls)%r82d, &
          hio_gpp_si_age                      => this%hvars(ih_gpp_si_age)%r82d, &
          hio_gpp_si_landuse                  => this%hvars(ih_gpp_si_landuse)%r82d, &
-         hio_npp_si_landuse                  => this%hvars(ih_npp_si_landuse)%r82d, &
          hio_c_stomata_si_age                => this%hvars(ih_c_stomata_si_age)%r82d, &
          hio_c_lblayer_si_age                => this%hvars(ih_c_lblayer_si_age)%r82d, &
          hio_parsun_z_si_cnlf                => this%hvars(ih_parsun_z_si_cnlf)%r82d, &
@@ -5257,9 +5260,6 @@ contains
                     if (cpatch%land_use_label .gt. nocomp_bareground_land) then
                        hio_gpp_si_landuse(io_si,cpatch%land_use_label) = hio_gpp_si_landuse(io_si,cpatch%land_use_label) &
                             + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv
-
-                       hio_npp_si_landuse(io_si,cpatch%land_use_label) = hio_npp_si_landuse(io_si,cpatch%land_use_label) &
-                            + ccohort%npp_acc_hold * ccohort%n * dt_tstep_inv
                     end if
 
                     ! accumulate fluxes on canopy- and understory- separated fluxes
@@ -6692,6 +6692,12 @@ contains
        
 
        if_dyn1: if(hlm_hist_level_dynam>1) then
+
+          call this%set_history_var(vname='FATES_NPP_LU', units='kg m-2 s-1',        &
+               long='net primary productivity by age bin in kg carbon per m2 per second', &
+               use_default='inactive', avgflag='A', vtype=site_landuse_r8,               &
+               hlms='CLM:ALM', upfreq=group_hifr_complx, ivar=ivar, initialize=initialize_variables, &
+               index = ih_npp_si_landuse)
 
           call this%set_history_var(vname='FATES_PATCHAREA_LU', units='m2 m-2',      &
                long='patch area by land use type', use_default='active',  &
@@ -8570,12 +8576,6 @@ contains
                use_default='inactive', avgflag='A', vtype=site_age_r8,               &
                hlms='CLM:ALM', upfreq=group_hifr_complx, ivar=ivar, initialize=initialize_variables, &
                index = ih_gpp_si_age)
-
-          call this%set_history_var(vname='FATES_NPP_LU', units='kg m-2 s-1',        &
-               long='net primary productivity by age bin in kg carbon per m2 per second', &
-               use_default='inactive', avgflag='A', vtype=site_landuse_r8,               &
-               hlms='CLM:ALM', upfreq=group_hifr_complx, ivar=ivar, initialize=initialize_variables, &
-               index = ih_npp_si_landuse)
 
           call this%set_history_var(vname='FATES_GPP_LU', units='kg m-2 s-1',        &
                long='gross primary productivity by age bin in kg carbon per m2 per second', &
