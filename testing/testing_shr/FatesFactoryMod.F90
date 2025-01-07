@@ -12,11 +12,13 @@ module FatesFactoryMod
   use FatesCohortMod,              only : fates_cohort_type
   use FatesPatchMod,               only : fates_patch_type
   use EDTypesMod,                  only : init_spread_inventory
+  use FatesRadiationMemMod,        only : num_swb
   use EDParamsMod,                 only : ED_val_vai_top_bin_width
   use EDParamsMod,                 only : ED_val_vai_width_increase_factor
   use EDParamsMod,                 only : nlevleaf
   use EDParamsMod,                 only : dinc_vai
   use EDParamsMod,                 only : dlower_vai
+  use EDParamsMod,                 only : nclmax
   use EDParamsMod,                 only : photo_temp_acclim_timescale
   use EDParamsMod,                 only : photo_temp_acclim_thome_time
   use FatesRunningMeanMod,         only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
@@ -54,12 +56,13 @@ module FatesFactoryMod
   use FatesInterfaceTypesMod,      only : nleafage
   use FatesSizeAgeTypeIndicesMod,  only : get_age_class_index
   use EDParamsMod,                 only : regeneration_model
+  use SyntheticPatchTypes,         only : synthetic_patch_type
   use shr_log_mod,                 only : errMsg => shr_log_errMsg
+  use EDCohortDynamicsMod,         only : insert_cohort_2
   
   implicit none
   
-  public :: CohortFactory
-  public :: PatchFactory
+  public :: GetSyntheticPatch
   public :: InitializeGlobals
   
   contains
@@ -112,7 +115,7 @@ module FatesFactoryMod
   subroutine PRTFactory(prt, pft, c_struct, c_leaf, c_fnrt, c_sapw, c_store)
     !
     ! DESCRIPTION:
-    ! Create a synethic prt object
+    ! Create a prt object
     
     ! ARGUMENTS:
     class(prt_vartypes), pointer, intent(inout) :: prt      ! PARTEH object
@@ -201,7 +204,7 @@ module FatesFactoryMod
     canopy_trim, canopy_layer, elong_factor, patch_area)
     !
     ! DESCRIPTION:
-    ! Create a synthetic cohort
+    ! Create a FATES cohort
     !
 
     ! ARGUMENTS
@@ -388,7 +391,7 @@ module FatesFactoryMod
     land_use_label, nocomp_pft, current_tod)
     !
     ! DESCRIPTION:
-    ! Create a mock-up of a patch
+    ! Create a fates patch
     !
     
     ! ARGUMENTS:
@@ -442,6 +445,43 @@ module FatesFactoryMod
 
   end subroutine PatchFactory
   
+  !---------------------------------------------------------------------------------------
+  
+  subroutine GetSyntheticPatch(patch_data, num_levsoil, patch)
+    !
+    ! DESCRIPTION:
+    ! Create a synthetic patch based on input data
+    !
+    
+    ! ARGUMETNS:
+    type(synthetic_patch_type),          intent(in)  :: patch_data  ! synthetic patch data
+    integer,                             intent(in)  :: num_levsoil ! number of soil layers
+    type(fates_patch_type),     pointer, intent(out) :: patch       ! patch
+    
+    ! LOCALS:
+    type(fates_cohort_type), pointer :: cohort          ! cohort object
+    integer                          :: numpft          ! total number of pfts
+    real(r8)                         :: can_lai(nclmax) ! canopy lai of plot
+    real(r8)                         :: patch_age       ! patch age
+    integer                          :: i               ! looping index     
+    
+    numpft = size(prt_params%wood_density, dim=1)
+    patch_age = maxval(patch_data%ages(:))
+    can_lai(:) = 0.0_r8
+    
+    ! create the patch 
+    call PatchFactory(patch, patch_age, patch_data%area, num_swb, numpft, num_levsoil)
+    
+    ! add cohorts
+    do i = 1, patch_data%num_cohorts 
+      allocate(cohort)
+      call CohortFactory(cohort, patch_data%pft_ids(i), can_lai, dbh=patch_data%dbhs(i), &
+        number=patch_data%densities(i), age=patch_data%ages(i),                          &
+        canopy_layer=patch_data%canopy_layers(i), patch_area=patch_data%area)
+      call insert_cohort_2(patch, cohort)
+    end do   
+  
+  end subroutine GetSyntheticPatch
   !---------------------------------------------------------------------------------------
   
 end module FatesFactoryMod

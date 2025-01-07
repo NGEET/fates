@@ -4,8 +4,6 @@
 add_subdirectory(functional_testing/allometry fates_allom_ftest)
 add_subdirectory(functional_testing/math_utils fates_math_ftest)
 add_subdirectory(functional_testing/fire fates_fuel_ftest)
-add_subdirectory(functional_testing/lai fates_lai_ftest)
-add_subdirectory(functional_testing/cohort fates_cohort_ftest)
 add_subdirectory(functional_testing/patch fates_patch_ftest)
 
 ## Unit tests

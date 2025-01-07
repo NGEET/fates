@@ -137,7 +137,7 @@ Module EDCohortDynamicsMod
   public :: terminate_cohorts
   public :: terminate_cohort
   public :: fuse_cohorts
-  public :: insert_cohort
+  public :: insert_cohort, insert_cohort_2
   public :: sort_cohorts
   public :: count_cohorts
   public :: InitPRTObject
@@ -1282,6 +1282,7 @@ end subroutine create_cohort
 
        call insert_cohort(current_patch, current_c, tallestc, shortestc,       &
          tnull, snull, storebigcohort, storesmallcohort)
+      ! call insert_cohort_2(current_patch, current_c)
 
        current_patch%tallest  => storebigcohort
        current_patch%shortest => storesmallcohort
@@ -1292,6 +1293,66 @@ end subroutine create_cohort
   end subroutine sort_cohorts
 
   !-------------------------------------------------------------------------------------!
+
+  subroutine insert_cohort_2(patch, cohort)
+  
+    ! ARGUMENTS:
+    type(fates_patch_type),  intent(inout), target  :: patch  ! patch 
+    type(fates_cohort_type), intent(inout), pointer :: cohort ! cohort to insert
+    
+    ! LOCALS:
+    type(fates_cohort_type), pointer :: temp_cohort1, temp_cohort2 ! temporary cohorts to store pointers
+    
+    ! pass in head/tail rather than patch
+    if (.not. associated(patch%shortest)) then
+      
+      ! nothing in list - add to head
+      patch%shortest => cohort
+      patch%tallest  => patch%shortest
+      nullify(cohort%taller)
+      nullify(cohort%shorter)
+      return 
+    end if 
+    
+    ! shortest - add to front of list
+    if (cohort%height < patch%shortest%height) then
+      temp_cohort1 => patch%shortest
+      cohort%taller => patch%shortest
+      patch%shortest => cohort
+      nullify(patch%shortest%shorter)
+      temp_cohort1%shorter => patch%shortest
+      return
+    end if 
+
+    ! tallest - add to end
+    if (cohort%height >= patch%tallest%height) then
+      patch%tallest%taller => cohort
+      temp_cohort1 => patch%tallest
+      patch%tallest => cohort
+      patch%tallest%shorter => temp_cohort1
+      nullify(patch%tallest%taller)
+      return
+    end if 
+
+    ! traverse list to find where to put cohort
+    temp_cohort1 => patch%shortest
+    temp_cohort2 => temp_cohort1%taller
+    do
+      if ((cohort%height >= temp_cohort1%height) .and. (cohort%height < temp_cohort2%height)) then 
+        cohort%taller => temp_cohort2
+        temp_cohort1%taller => cohort
+        cohort%shorter => temp_cohort1
+        temp_cohort2%shorter => cohort
+        exit
+      end if
+      temp_cohort1 => temp_cohort2
+      temp_cohort2 => temp_cohort2%taller
+    end do
+
+  end subroutine insert_cohort_2
+  
+  !--------------------------------------------------------------------------------------!
+  
   subroutine insert_cohort(currentPatch, pcc, ptall, pshort, tnull, snull, storebigcohort, storesmallcohort)
     !
     ! !DESCRIPTION:
@@ -1400,66 +1461,6 @@ end subroutine create_cohort
     icohort%shorter => shortptr
 
   end subroutine insert_cohort
-
-  !--------------------------------------------------------------------------------------!
-  
-  subroutine insert_cohort_2(patch, cohort)
-  
-    ! ARGUMENTS:
-    type(fates_patch_type),  intent(inout), target  :: patch  ! patch 
-    type(fates_cohort_type), intent(inout), pointer :: cohort ! cohort to insert
-    
-    ! LOCALS:
-    type(fates_cohort_type), pointer :: temp_cohort1, temp_cohort2 ! temporary cohorts to store pointers
-    
-    ! pass in head/tail rather than patch
-    if (.not. associated(patch%shortest)) then
-      
-      ! nothing in list - add to head
-      patch%shortest => cohort
-      patch%tallest  => patch%shortest
-      nullify(cohort%taller)
-      nullify(cohort%shorter)
-    ! return here
-    else
-      
-      ! shortest - add to front of list
-      if (cohort%height < patch%shortest%height) then
-        temp_cohort1 => patch%shortest
-        cohort%taller => patch%shortest
-        patch%shortest => cohort
-        nullify(patch%shortest%shorter)
-        temp_cohort1%shorter => patch%shortest
-
-      ! tallest - add to end
-      else if (cohort%height >= patch%tallest%height) then
-        patch%tallest%taller => cohort
-        temp_cohort1 => patch%tallest
-        patch%tallest => cohort
-        patch%tallest%shorter => temp_cohort1
-        nullify(patch%tallest%taller)
-
-      ! traverse list to find where to put cohort
-      else 
-        temp_cohort1 => patch%shortest
-        temp_cohort2 => temp_cohort1%taller
-        do
-          if ((cohort%height >= temp_cohort1%height) .and. (cohort%height < temp_cohort2%height)) then 
-            cohort%taller => temp_cohort2
-            temp_cohort1%taller => cohort
-            cohort%shorter => temp_cohort1
-            temp_cohort2%shorter => cohort
-            exit
-          end if
-          temp_cohort1 => temp_cohort2
-          temp_cohort2 => temp_cohort2%taller
-        end do 
-      end if
-    end if 
-    
-  end subroutine insert_cohort_2
-  
-  !--------------------------------------------------------------------------------------!
 
   subroutine count_cohorts( currentPatch )
     !
