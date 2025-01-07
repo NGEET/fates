@@ -36,7 +36,6 @@ program FatesTestPatch
   call patch_data%GetSyntheticPatchData()
   
   i = patch_data%PatchDataPosition(patch_name='evergreen')
-  
   call GetSyntheticPatch(patch_data%patches(i), num_levsoil, patch)
   
   ! print out list in ascending order
