@@ -5136,7 +5136,6 @@ contains
          hio_resp_g_understory_si_scls       => this%hvars(ih_resp_g_understory_si_scls)%r82d, &
          hio_resp_m_understory_si_scls       => this%hvars(ih_resp_m_understory_si_scls)%r82d, &
          hio_gpp_si_age                      => this%hvars(ih_gpp_si_age)%r82d, &
-         hio_npp_si_age                      => this%hvars(ih_npp_si_age)%r82d, &
          hio_gpp_si_landuse                  => this%hvars(ih_gpp_si_landuse)%r82d, &
          hio_npp_si_landuse                  => this%hvars(ih_npp_si_landuse)%r82d, &
          hio_c_stomata_si_age                => this%hvars(ih_c_stomata_si_age)%r82d, &
@@ -5254,9 +5253,6 @@ contains
                     ! accumulate fluxes per patch age bin
                     hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
                          + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv
-
-                    hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
-                         + ccohort%npp_acc_hold * ccohort%n * dt_tstep_inv
 
                     if (cpatch%land_use_label .gt. nocomp_bareground_land) then
                        hio_gpp_si_landuse(io_si,cpatch%land_use_label) = hio_gpp_si_landuse(io_si,cpatch%land_use_label) &
