@@ -211,7 +211,7 @@ integer                          :: nlevrhiz         ! number of rhizosphere lay
 
 ! create new cohort
 allocate(newCohort)
-call newCohort%Create(prt, pft, nn, height, coage, dbh, status, ctrim, carea,              &
+call newCohort%Create(prt, pft, nn, height, coage, dbh, status, ctrim, carea,            &
    clayer, crowndamage, spread, patchptr%canopy_layer_tlai, elongf_leaf, elongf_fnrt,    &
    elongf_stem)
 
@@ -234,56 +234,6 @@ else
    patchptr%shortest => newCohort
 endif
 
-! Allocate running mean functions
-
-!  (Keeping as an example)
-!! allocate(newCohort%tveg_lpa)
-!! call newCohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
-
-if (hlm_use_planthydro .eq. itrue) then
-
-   nlevrhiz = currentSite%si_hydr%nlevrhiz
-
-   ! This allocates array spaces
-   call InitHydrCohort(currentSite, newCohort)
-
-   ! zero out the water balance error
-   newCohort%co_hydr%errh2o = 0._r8
-
-   ! This calculates node heights
-   call UpdatePlantHydrNodes(newCohort, newCohort%pft, &
-    newCohort%height,currentSite%si_hydr)
-
-   ! This calculates volumes and lengths
-   call UpdatePlantHydrLenVol(newCohort,currentSite%si_hydr)
-
-   ! This updates the Kmax's of the plant's compartments
-   call UpdatePlantKmax(newCohort%co_hydr,newCohort,currentSite%si_hydr)
-
-   ! Since this is a newly initialized plant, we set the previous compartment-size
-   ! equal to the ones we just calculated.
-   call SavePreviousCompartmentVolumes(newCohort%co_hydr)
-
-   ! This comes up with starter suctions and then water contents
-   ! based on the soil values
-   call InitPlantHydStates(currentSite,newCohort)
-
-   if(recruitstatus==1)then
-
-    newCohort%co_hydr%is_newly_recruited = .true.
-
-      ! If plant hydraulics is active, we must constrain the
-      ! number density of the new recruits based on the moisture
-      ! available to be subsumed in the new plant tissues.
-      ! So we go through the process of pre-initializing the hydraulic
-      ! states in the temporary cohort, to calculate this new number density
-      rmean_temp = patchptr%tveg24%GetMean()
-      call ConstrainRecruitNumber(currentSite, newCohort, patchptr,           &
-         bc_in, rmean_temp)
-
-   endif
-
-endif
 
 call insert_cohort(patchptr, newCohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
      storebigcohort, storesmallcohort)
@@ -1451,7 +1401,65 @@ end subroutine create_cohort
 
   end subroutine insert_cohort
 
-  !-------------------------------------------------------------------------------------!
+  !--------------------------------------------------------------------------------------!
+  
+  subroutine insert_cohort_2(patch, cohort)
+  
+    ! ARGUMENTS:
+    type(fates_patch_type),  intent(inout), target  :: patch  ! patch 
+    type(fates_cohort_type), intent(inout), pointer :: cohort ! cohort to insert
+    
+    ! LOCALS:
+    type(fates_cohort_type), pointer :: temp_cohort1, temp_cohort2 ! temporary cohorts to store pointers
+    
+    ! pass in head/tail rather than patch
+    if (.not. associated(patch%shortest)) then
+      
+      ! nothing in list - add to head
+      patch%shortest => cohort
+      patch%tallest  => patch%shortest
+      nullify(cohort%taller)
+      nullify(cohort%shorter)
+    ! return here
+    else
+      
+      ! shortest - add to front of list
+      if (cohort%height < patch%shortest%height) then
+        temp_cohort1 => patch%shortest
+        cohort%taller => patch%shortest
+        patch%shortest => cohort
+        nullify(patch%shortest%shorter)
+        temp_cohort1%shorter => patch%shortest
+
+      ! tallest - add to end
+      else if (cohort%height >= patch%tallest%height) then
+        patch%tallest%taller => cohort
+        temp_cohort1 => patch%tallest
+        patch%tallest => cohort
+        patch%tallest%shorter => temp_cohort1
+        nullify(patch%tallest%taller)
+
+      ! traverse list to find where to put cohort
+      else 
+        temp_cohort1 => patch%shortest
+        temp_cohort2 => temp_cohort1%taller
+        do
+          if ((cohort%height >= temp_cohort1%height) .and. (cohort%height < temp_cohort2%height)) then 
+            cohort%taller => temp_cohort2
+            temp_cohort1%taller => cohort
+            cohort%shorter => temp_cohort1
+            temp_cohort2%shorter => cohort
+            exit
+          end if
+          temp_cohort1 => temp_cohort2
+          temp_cohort2 => temp_cohort2%taller
+        end do 
+      end if
+    end if 
+    
+  end subroutine insert_cohort_2
+  
+  !--------------------------------------------------------------------------------------!
 
   subroutine count_cohorts( currentPatch )
     !

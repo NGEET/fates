@@ -6,13 +6,24 @@ module FatesFactoryMod
   use FatesConstantsMod,           only : ihard_stress_decid
   use FatesConstantsMod,           only : isemi_stress_decid
   use FatesConstantsMod,           only : primaryland
+  use FatesConstantsMod,           only : sec_per_day, days_per_year
   use FatesGlobals,                only : fates_log
   use FatesGlobals,                only : endrun => fates_endrun
   use FatesCohortMod,              only : fates_cohort_type
   use FatesPatchMod,               only : fates_patch_type
   use EDTypesMod,                  only : init_spread_inventory
+  use EDParamsMod,                 only : ED_val_vai_top_bin_width
+  use EDParamsMod,                 only : ED_val_vai_width_increase_factor
+  use EDParamsMod,                 only : nlevleaf
+  use EDParamsMod,                 only : dinc_vai
+  use EDParamsMod,                 only : dlower_vai
+  use EDParamsMod,                 only : photo_temp_acclim_timescale
+  use EDParamsMod,                 only : photo_temp_acclim_thome_time
+  use FatesRunningMeanMod,         only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
+  use FatesRunningMeanMod,         only : moving_ema_window, fixed_window
   use EDCohortDynamicsMod,         only : InitPRTObject
   use PRTParametersMod,            only : prt_params
+  use PRTGenericMod,               only : element_pos
   use PRTGenericMod,               only : num_elements
   use PRTGenericMod,               only : element_list
   use PRTGenericMod,               only : SetState
@@ -29,6 +40,7 @@ module FatesFactoryMod
   use PRTGenericMod,               only : prt_carbon_allom_hyp
   use PRTGenericMod,               only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,               only : StorageNutrientTarget
+  use PRTAllometricCarbonMod,      only : InitPRTGlobalAllometricCarbon
   use FatesAllometryMod,           only : h_allom
   use FatesAllometryMod,           only : bagw_allom
   use FatesAllometryMod,           only : bbgw_allom
@@ -40,7 +52,7 @@ module FatesFactoryMod
   use FatesAllometryMod,           only : carea_allom
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use FatesInterfaceTypesMod,      only : nleafage
-  use FatesSizeAgeTypeIndicesMod,  only: get_age_class_index
+  use FatesSizeAgeTypeIndicesMod,  only : get_age_class_index
   use EDParamsMod,                 only : regeneration_model
   use shr_log_mod,                 only : errMsg => shr_log_errMsg
   
@@ -48,13 +60,59 @@ module FatesFactoryMod
   
   public :: CohortFactory
   public :: PatchFactory
+  public :: InitializeGlobals
   
-  contains 
+  contains
+  
+  !---------------------------------------------------------------------------------------
+  
+  subroutine InitializeGlobals(step_size)
+    !
+    ! DESCRIPTION:
+    ! Initialize globals needed for running factory
+    
+    ! ARGUMENTS:
+    real(r8), intent(in) :: step_size ! step size to use
+    
+    ! LOCALS:
+    integer :: i ! looping index
+    
+    ! initialize some values
+    hlm_parteh_mode = prt_carbon_allom_hyp
+    num_elements = 1
+    allocate(element_list(num_elements))
+    element_list(1) = carbon12_element
+    element_pos(:) = 0
+    element_pos(carbon12_element) = 1
+    call InitPRTGlobalAllometricCarbon()
+    
+    allocate(ema_24hr)
+    call ema_24hr%define(sec_per_day, step_size, moving_ema_window)
+    allocate(fixed_24hr)
+    call fixed_24hr%define(sec_per_day, step_size, fixed_window)
+    allocate(ema_lpa)  
+    call ema_lpa%define(photo_temp_acclim_timescale*sec_per_day, step_size,                &
+      moving_ema_window)
+    allocate(ema_longterm)  
+    call ema_longterm%define(photo_temp_acclim_thome_time*days_per_year*sec_per_day,       &
+      step_size, moving_ema_window)
+      
+    do i = 1, nlevleaf
+      dinc_vai(i) = ED_val_vai_top_bin_width*ED_val_vai_width_increase_factor**(i-1)
+    end do 
+  
+    do i = 1, nlevleaf
+      dlower_vai(i) = sum(dinc_vai(1:i))
+    end do
+        
+  end subroutine InitializeGlobals
+  
+  !---------------------------------------------------------------------------------------
   
   subroutine PRTFactory(prt, pft, c_struct, c_leaf, c_fnrt, c_sapw, c_store)
     !
     ! DESCRIPTION:
-    ! Create a mock-up of a prt object
+    ! Create a synethic prt object
     
     ! ARGUMENTS:
     class(prt_vartypes), pointer, intent(inout) :: prt      ! PARTEH object
@@ -143,11 +201,11 @@ module FatesFactoryMod
     canopy_trim, canopy_layer, elong_factor, patch_area)
     !
     ! DESCRIPTION:
-    ! Create a mock-up of a cohort
+    ! Create a synthetic cohort
     !
 
     ! ARGUMENTS
-    type(fates_cohort_type), pointer, intent(out)          :: cohort       ! cohort object
+    type(fates_cohort_type), target, intent(out)           :: cohort       ! cohort object
     integer,                          intent(in)           :: pft          ! plant functional type index
     real(r8),                         intent(in)           :: can_lai(:)   ! canopy lai of patch that cohort is on [m2/m2]
     real(r8),                         intent(in), optional :: dbh          ! diameter at breast height [cm]
@@ -317,8 +375,7 @@ module FatesFactoryMod
     ! initialize the PRT object
     call PRTFactory(prt, pft, c_struct, c_leaf, c_fnrt, c_sapw, c_store)
     
-    ! allocate the cohort
-    allocate(cohort)
+    ! create the cohort
     call cohort%Create(prt, pft, number_local, height, age_local, dbh_local,             &
       status_local, canopy_trim_local, can_area, canopy_layer_local, crown_damage_local, &
       init_spread_inventory, can_lai, elongf_leaf, elongf_fnrt, elongf_stem)
