@@ -172,11 +172,11 @@ module SyntheticPatchTypes
           return
         end if
       else 
-        write(*, '(a, i2, a)') "Must supply either a patch_id or a patch_name."
+        write(*, '(a,i2,a)') "Must supply either a patch_id or a patch_name."
         stop
       end if
     end do
-    write(*, '(a, i2, a)') "Cannot find the patch."
+    write(*, '(a,i2,a)') "Cannot find the patch."
     stop
   
   end function PatchDataPosition
