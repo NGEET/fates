@@ -5071,11 +5071,11 @@ contains
                     cpatch%c_lblayer * cpatch%total_canopy_area * mol_per_umol * site_area_veg_inv
 
                ! Only accumulate the instantaneous vegetation temperature for vegetated patches
-               if (cpatch%patchno .ne. 0) then
+               !if (cpatch%nocomp_pft_label.ne.nocomp_bareground)then
                   hio_tveg(io_si) = hio_tveg(io_si) + &
                        (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm) * &
                        cpatch%total_canopy_area * site_area_veg_inv
-               end if
+               !end if
 
                ccohort => cpatch%shortest
                do while(associated(ccohort))

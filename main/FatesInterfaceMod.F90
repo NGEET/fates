@@ -774,8 +774,9 @@ contains
       integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
       integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
       class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
-  
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
+
+      logical, parameter :: preserve_b4b = .true.
       
       if (use_fates) then
          
@@ -807,13 +808,24 @@ contains
             ! If we are using fixed biogeography or no-comp then we
             ! can also apply those constraints to maxpatch_primaryland and secondary
             ! and that value will match fates_maxPatchesPerSite
-            
-            if(hlm_use_nocomp==itrue) then
+            if_preserve_b4b: if(.not.preserve_b4b)then
 
-               maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
+               if(hlm_use_luh==ifalse) then
+                  maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
+               end if
+
                maxpatch_total = sum(maxpatches_by_landuse(:))
-            end if
-
+                  
+            else
+            
+               if(hlm_use_nocomp==itrue) then
+                  
+                  maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
+                  maxpatch_total = sum(maxpatches_by_landuse(:))
+               end if
+               
+            end if if_preserve_b4b
+               
             ! maxpatch_total does not include the bare ground (so add 1)
             fates_maxPatchesPerSite = maxpatch_total+1
             
@@ -2110,7 +2122,7 @@ contains
 
            ifp = cpatch%patchno
            
-           if (cpatch%patchno .ne. 0) then
+           nocomp_bare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
 
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
@@ -2172,7 +2184,7 @@ contains
               ccohort => ccohort%shorter
            end do
 
-        end if
+        end if nocomp_bare
 
         cpatch => cpatch%younger
      enddo

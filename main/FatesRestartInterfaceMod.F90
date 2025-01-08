@@ -3822,10 +3822,10 @@ contains
 
      do s = 1, nsites
 
-        ifp = 0
         currentpatch => sites(s)%oldest_patch
         do while (associated(currentpatch))
-           ifp = ifp+1
+
+           ifp = currentPatch%patchno
            
            currentPatch%f_sun      (:,:,:) = 0._r8
            currentPatch%fabd_sun_z (:,:,:) = 0._r8
@@ -3848,6 +3848,7 @@ contains
            ! currentPatch%solar_zenith_flag     (is there daylight?)
            ! currentPatch%solar_zenith_angle    (what is the value?)
            ! -----------------------------------------------------------
+           nocomp_bareground: if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
            if(currentPatch%solar_zenith_flag)then
 
@@ -3920,8 +3921,9 @@ contains
                  end select
                     
               endif ! is there vegetation?
-
+              
            end if    ! if the vegetation and zenith filter is active
+           end if nocomp_bareground
            currentPatch => currentPatch%younger
         end do       ! Loop linked-list patches
      enddo           ! Loop Sites

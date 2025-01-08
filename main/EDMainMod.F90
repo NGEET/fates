@@ -211,7 +211,7 @@ contains
        ! oldest patch per set_patchno, we check that the youngest patch isn't zero.
        ! If there are multiple patches on the site, the bareground patch is avoided
        ! at the level of the fire_model subroutines.
-       if (currentSite%youngest_patch%patchno .ne. 0) then 
+       if (currentSite%youngest_patch%nocomp_pft_label .ne. nocomp_bareground)then
           call fire_model(currentSite, bc_in)
        end if
 
