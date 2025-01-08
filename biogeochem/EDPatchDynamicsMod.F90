@@ -9,7 +9,7 @@ module EDPatchDynamicsMod
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDPftvarcon          , only : GetDecompyFrac
   use PRTParametersMod      , only : prt_params
-  use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
+  use EDCohortDynamicsMod  , only : fuse_cohorts
   use EDTypesMod           , only : area_site => area
   use ChecksBalancesMod    , only : PatchMassStock
   use FatesLitterMod       , only : ncwd
@@ -1262,30 +1262,7 @@ contains
                                ! if some plants in the new temporary cohort survived the transfer to the new patch,
                                ! then put the cohort into the linked list.
                                cohort_n_gt_zero: if (nc%n > 0.0_r8) then
-                                  storebigcohort   =>  newPatch%tallest
-                                  storesmallcohort =>  newPatch%shortest
-                                  if(associated(newPatch%tallest))then
-                                     tnull = 0
-                                  else
-                                     tnull = 1
-                                     newPatch%tallest => nc
-                                     nc%taller => null()
-                                  endif
-
-                                  if(associated(newPatch%shortest))then
-                                     snull = 0
-                                  else
-                                     snull = 1
-                                     newPatch%shortest => nc
-                                     nc%shorter => null()
-                                  endif
-
-                                  call insert_cohort(newPatch, nc, newPatch%tallest, newPatch%shortest, &
-                                       tnull, snull, storebigcohort, storesmallcohort)
-
-                                  newPatch%tallest  => storebigcohort
-                                  newPatch%shortest => storesmallcohort
-
+                                  call newPatch%insert_cohort(newPatch)
                                else
                                   ! sadly, no plants in the cohort survived. on the bright side, we can deallocate their memory.
                                   call nc%FreeMemory()
@@ -1761,29 +1738,7 @@ contains
        ! loss of individuals from source patch due to area shrinking
        currentCohort%n = currentCohort%n * fraction_to_keep
 
-       storebigcohort   =>  new_patch%tallest
-       storesmallcohort =>  new_patch%shortest
-       if(associated(new_patch%tallest))then
-          tnull = 0
-       else
-          tnull = 1
-          new_patch%tallest => nc
-          nc%taller => null()
-       endif
-
-       if(associated(new_patch%shortest))then
-          snull = 0
-       else
-          snull = 1
-          new_patch%shortest => nc
-          nc%shorter => null()
-       endif
-
-       call insert_cohort(new_patch, nc, new_patch%tallest, new_patch%shortest, &
-            tnull, snull, storebigcohort, storesmallcohort)
-
-       new_patch%tallest  => storebigcohort
-       new_patch%shortest => storesmallcohort
+       call new_patch%insert_cohort(nc)
 
        currentCohort => currentCohort%taller
     enddo ! currentCohort
@@ -3325,30 +3280,7 @@ contains
 
        do while(associated(dp%shortest))
 
-          storebigcohort   => rp%tallest
-          storesmallcohort => rp%shortest
-
-          if(associated(rp%tallest))then
-             tnull = 0
-          else
-             tnull = 1
-             rp%tallest => currentCohort
-          endif
-
-          if(associated(rp%shortest))then
-             snull = 0
-          else
-             snull = 1
-             rp%shortest => currentCohort
-          endif
-
-          call insert_cohort(rp, currentCohort, rp%tallest, rp%shortest,       &
-            tnull, snull, storebigcohort, storesmallcohort)
-
-          rp%tallest  => storebigcohort 
-          rp%shortest => storesmallcohort    
-
-          !currentCohort%patchptr => rp
+          call rp%insert_cohort(currentCohort)
 
           currentCohort => nextc
 

@@ -137,8 +137,6 @@ Module EDCohortDynamicsMod
   public :: terminate_cohorts
   public :: terminate_cohort
   public :: fuse_cohorts
-  public :: insert_cohort, insert_cohort_2
-  public :: sort_cohorts
   public :: count_cohorts
   public :: InitPRTObject
   public :: SendCohortToLitter
@@ -162,86 +160,113 @@ Module EDCohortDynamicsMod
 contains
 
   !-------------------------------------------------------------------------------------!
-subroutine create_cohort(currentSite, patchptr, pft, nn, height, coage, dbh,     &
-   prt, elongf_leaf, elongf_fnrt, elongf_stem, status, recruitstatus, ctrim,   &
-   carea, clayer, crowndamage, spread, bc_in)
+  subroutine create_cohort(currentSite, patchptr, pft, nn, height, coage, dbh,     &
+    prt, elongf_leaf, elongf_fnrt, elongf_stem, status, recruitstatus, ctrim,   &
+    carea, clayer, crowndamage, spread, bc_in)
 
-!
-! DESCRIPTION:
-! create new cohort
-! There are 4 places this is called
-! 1) Initializing new cohorts at the beginning of a cold-start simulation
-! 2) Initializing new recruits during dynamics
-! 3) Initializing new cohorts at the beginning of a inventory read
-! 4) Initializing new cohorts during restart
-!
-! It is assumed that in the first 3, this is called with a reasonable amount of starter information.
-!
+    !
+    ! DESCRIPTION:
+    ! create new cohort
+    ! There are 4 places this is called
+    ! 1) Initializing new cohorts at the beginning of a cold-start simulation
+    ! 2) Initializing new recruits during dynamics
+    ! 3) Initializing new cohorts at the beginning of a inventory read
+    ! 4) Initializing new cohorts during restart
+    !
+    ! It is assumed that in the first 3, this is called with a reasonable amount of starter information.
+    !
 
-! ARGUMENTS:
-type(ed_site_type),     intent(inout), target  :: currentSite   ! site object
-type(fates_patch_type), intent(inout), pointer :: patchptr      ! pointer to patch object
-integer,                intent(in)             :: pft           ! cohort Plant Functional Type
-integer,                intent(in)             :: crowndamage   ! cohort damage class
-integer,                intent(in)             :: clayer        ! canopy status of cohort [1=canopy; 2=understorey]
-integer,                intent(in)             :: status        ! growth status of plant [1=leaves off; 2=leaves on]
-integer,                intent(in)             :: recruitstatus ! recruit status of plant [1 = recruitment , 0 = other]                
-real(r8),               intent(in)             :: nn            ! number of individuals in cohort [/m2]
-real(r8),               intent(in)             :: height        ! cohort height [m]
-real(r8),               intent(in)             :: coage         ! cohort age [m]
-real(r8),               intent(in)             :: dbh           ! cohort diameter at breast height [cm]
-real(r8),               intent(in)             :: elongf_leaf   ! leaf elongation factor [fraction] - 0: fully abscissed; 1: fully flushed
-real(r8),               intent(in)             :: elongf_fnrt   ! fine-root "elongation factor" [fraction]
-real(r8),               intent(in)             :: elongf_stem   ! stem "elongation factor" [fraction]
-class(prt_vartypes),    intent(inout), pointer :: prt           ! allocated PARTEH object
-real(r8),               intent(in)             :: ctrim         ! fraction of the maximum leaf biomass we are targeting
-real(r8),               intent(in)             :: spread        ! how spread crowns are in horizontal space
-real(r8),               intent(in)             :: carea         ! area of cohort - ONLY USED IN SP MODE [m2]
-type(bc_in_type),       intent(in)             :: bc_in         ! external boundary conditions
+    ! ARGUMENTS:
+    type(ed_site_type),     intent(inout), target  :: currentSite   ! site object
+    type(fates_patch_type), intent(inout), pointer :: patchptr      ! pointer to patch object
+    integer,                intent(in)             :: pft           ! cohort Plant Functional Type
+    integer,                intent(in)             :: crowndamage   ! cohort damage class
+    integer,                intent(in)             :: clayer        ! canopy status of cohort [1=canopy; 2=understorey]
+    integer,                intent(in)             :: status        ! growth status of plant [1=leaves off; 2=leaves on]
+    integer,                intent(in)             :: recruitstatus ! recruit status of plant [1 = recruitment , 0 = other]                
+    real(r8),               intent(in)             :: nn            ! number of individuals in cohort [/m2]
+    real(r8),               intent(in)             :: height        ! cohort height [m]
+    real(r8),               intent(in)             :: coage         ! cohort age [m]
+    real(r8),               intent(in)             :: dbh           ! cohort diameter at breast height [cm]
+    real(r8),               intent(in)             :: elongf_leaf   ! leaf elongation factor [fraction] - 0: fully abscissed; 1: fully flushed
+    real(r8),               intent(in)             :: elongf_fnrt   ! fine-root "elongation factor" [fraction]
+    real(r8),               intent(in)             :: elongf_stem   ! stem "elongation factor" [fraction]
+    class(prt_vartypes),    intent(inout), pointer :: prt           ! allocated PARTEH object
+    real(r8),               intent(in)             :: ctrim         ! fraction of the maximum leaf biomass we are targeting
+    real(r8),               intent(in)             :: spread        ! how spread crowns are in horizontal space
+    real(r8),               intent(in)             :: carea         ! area of cohort - ONLY USED IN SP MODE [m2]
+    type(bc_in_type),       intent(in)             :: bc_in         ! external boundary conditions
 
-! LOCAL VARIABLES:
-type(fates_cohort_type), pointer :: newCohort        ! pointer to New Cohort structure.
-type(fates_cohort_type), pointer :: storesmallcohort 
-type(fates_cohort_type), pointer :: storebigcohort
-real(r8)                         :: rmean_temp       ! running mean temperature
-integer                          :: tnull, snull     ! are the tallest and shortest cohorts allocate
-integer                          :: nlevrhiz         ! number of rhizosphere layers
+    ! LOCAL VARIABLES:
+    type(fates_cohort_type), pointer :: newCohort        ! pointer to New Cohort structure.
+    type(fates_cohort_type), pointer :: storesmallcohort 
+    type(fates_cohort_type), pointer :: storebigcohort
+    real(r8)                         :: rmean_temp       ! running mean temperature
+    integer                          :: tnull, snull     ! are the tallest and shortest cohorts allocate
+    integer                          :: nlevrhiz         ! number of rhizosphere layers
 
-!----------------------------------------------------------------------
+    !----------------------------------------------------------------------
 
-! create new cohort
-allocate(newCohort)
-call newCohort%Create(prt, pft, nn, height, coage, dbh, status, ctrim, carea,            &
-   clayer, crowndamage, spread, patchptr%canopy_layer_tlai, elongf_leaf, elongf_fnrt,    &
-   elongf_stem)
+    ! create new cohort
+    allocate(newCohort)
+    call newCohort%Create(prt, pft, nn, height, coage, dbh, status, ctrim, carea,            &
+      clayer, crowndamage, spread, patchptr%canopy_layer_tlai, elongf_leaf, elongf_fnrt,    &
+      elongf_stem)
+      
+    ! Allocate running mean functions
 
+    !  (Keeping as an example)
+    !! allocate(newCohort%tveg_lpa)
+    !! call newCohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
-! Put cohort at the right place in the linked list
-storebigcohort   => patchptr%tallest
-storesmallcohort => patchptr%shortest
+    if (hlm_use_planthydro .eq. itrue) then
 
-if (associated(patchptr%tallest)) then
-   tnull = 0
-else
-   tnull = 1
-   patchptr%tallest => newCohort
-endif
+      nlevrhiz = currentSite%si_hydr%nlevrhiz
 
-if (associated(patchptr%shortest)) then
-   snull = 0
-else
-   snull = 1
-   patchptr%shortest => newCohort
-endif
+      ! This allocates array spaces
+      call InitHydrCohort(currentSite, newCohort)
 
+      ! zero out the water balance error
+      newCohort%co_hydr%errh2o = 0._r8
 
-call insert_cohort(patchptr, newCohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
-     storebigcohort, storesmallcohort)
+      ! This calculates node heights
+      call UpdatePlantHydrNodes(newCohort, newCohort%pft, &
+        newCohort%height,currentSite%si_hydr)
 
-patchptr%tallest  => storebigcohort
-patchptr%shortest => storesmallcohort
+      ! This calculates volumes and lengths
+      call UpdatePlantHydrLenVol(newCohort,currentSite%si_hydr)
 
-end subroutine create_cohort
+      ! This updates the Kmax's of the plant's compartments
+      call UpdatePlantKmax(newCohort%co_hydr,newCohort,currentSite%si_hydr)
+
+      ! Since this is a newly initialized plant, we set the previous compartment-size
+      ! equal to the ones we just calculated.
+      call SavePreviousCompartmentVolumes(newCohort%co_hydr)
+
+      ! This comes up with starter suctions and then water contents
+      ! based on the soil values
+      call InitPlantHydStates(currentSite,newCohort)
+
+      if(recruitstatus==1)then
+
+        newCohort%co_hydr%is_newly_recruited = .true.
+
+          ! If plant hydraulics is active, we must constrain the
+          ! number density of the new recruits based on the moisture
+          ! available to be subsumed in the new plant tissues.
+          ! So we go through the process of pre-initializing the hydraulic
+          ! states in the temporary cohort, to calculate this new number density
+          rmean_temp = patchptr%tveg24%GetMean()
+          call ConstrainRecruitNumber(currentSite, newCohort, patchptr,           &
+            bc_in, rmean_temp)
+
+      endif
+
+    endif
+
+    call patchprt%insert_cohort(newCohort)
+
+  end subroutine create_cohort
 
 ! ------------------------------------------------------------------------------------!
 
@@ -1240,227 +1265,6 @@ end subroutine create_cohort
   end subroutine fuse_cohorts
 
 !-------------------------------------------------------------------------------------!
-
-  subroutine sort_cohorts(patchptr)
-    ! ============================================================================
-    !                 sort cohorts into the correct order   DO NOT CHANGE THIS IT WILL BREAK
-    ! ============================================================================
-
-    type(fates_patch_type) , intent(inout), target :: patchptr
-
-    type(fates_patch_type) , pointer :: current_patch
-    type(fates_cohort_type), pointer :: current_c, next_c
-    type(fates_cohort_type), pointer :: shortestc, tallestc
-    type(fates_cohort_type), pointer :: storesmallcohort
-    type(fates_cohort_type), pointer :: storebigcohort
-    integer :: snull,tnull
-
-    current_patch => patchptr
-    tallestc  => NULL()
-    shortestc => NULL()
-    storebigcohort   => null()
-    storesmallcohort => null()
-    current_c => current_patch%tallest
-
-    do while (associated(current_c))
-       next_c => current_c%shorter
-       tallestc  => storebigcohort
-       shortestc => storesmallcohort
-       if (associated(tallestc)) then
-          tnull = 0
-       else
-          tnull = 1
-          tallestc => current_c
-       endif
-
-       if (associated(shortestc)) then
-          snull = 0
-       else
-          snull = 1
-          shortestc => current_c
-       endif
-
-       call insert_cohort(current_patch, current_c, tallestc, shortestc,       &
-         tnull, snull, storebigcohort, storesmallcohort)
-      ! call insert_cohort_2(current_patch, current_c)
-
-       current_patch%tallest  => storebigcohort
-       current_patch%shortest => storesmallcohort
-       current_c => next_c
-
-    enddo
-
-  end subroutine sort_cohorts
-
-  !-------------------------------------------------------------------------------------!
-
-  subroutine insert_cohort_2(patch, cohort)
-  
-    ! ARGUMENTS:
-    type(fates_patch_type),  intent(inout), target  :: patch  ! patch 
-    type(fates_cohort_type), intent(inout), pointer :: cohort ! cohort to insert
-    
-    ! LOCALS:
-    type(fates_cohort_type), pointer :: temp_cohort1, temp_cohort2 ! temporary cohorts to store pointers
-    
-    ! pass in head/tail rather than patch
-    if (.not. associated(patch%shortest)) then
-      
-      ! nothing in list - add to head
-      patch%shortest => cohort
-      patch%tallest  => patch%shortest
-      nullify(cohort%taller)
-      nullify(cohort%shorter)
-      return 
-    end if 
-    
-    ! shortest - add to front of list
-    if (cohort%height < patch%shortest%height) then
-      temp_cohort1 => patch%shortest
-      cohort%taller => patch%shortest
-      patch%shortest => cohort
-      nullify(patch%shortest%shorter)
-      temp_cohort1%shorter => patch%shortest
-      return
-    end if 
-
-    ! tallest - add to end
-    if (cohort%height >= patch%tallest%height) then
-      patch%tallest%taller => cohort
-      temp_cohort1 => patch%tallest
-      patch%tallest => cohort
-      patch%tallest%shorter => temp_cohort1
-      nullify(patch%tallest%taller)
-      return
-    end if 
-
-    ! traverse list to find where to put cohort
-    temp_cohort1 => patch%shortest
-    temp_cohort2 => temp_cohort1%taller
-    do
-      if ((cohort%height >= temp_cohort1%height) .and. (cohort%height < temp_cohort2%height)) then 
-        cohort%taller => temp_cohort2
-        temp_cohort1%taller => cohort
-        cohort%shorter => temp_cohort1
-        temp_cohort2%shorter => cohort
-        exit
-      end if
-      temp_cohort1 => temp_cohort2
-      temp_cohort2 => temp_cohort2%taller
-    end do
-
-  end subroutine insert_cohort_2
-  
-  !--------------------------------------------------------------------------------------!
-  
-  subroutine insert_cohort(currentPatch, pcc, ptall, pshort, tnull, snull, storebigcohort, storesmallcohort)
-    !
-    ! !DESCRIPTION:
-    ! Insert cohort into linked list
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS
-    type(fates_patch_type),  intent(inout),     target :: currentPatch
-    type(fates_cohort_type) , intent(inout), pointer :: pcc
-    type(fates_cohort_type) , intent(inout), pointer :: ptall
-    type(fates_cohort_type) , intent(inout), pointer :: pshort
-    integer              , intent(in)                     :: tnull
-    integer              , intent(in)                     :: snull
-    type(fates_cohort_type) , intent(inout),pointer,optional :: storesmallcohort ! storage of the smallest cohort for insertion routine
-    type(fates_cohort_type) , intent(inout),pointer,optional :: storebigcohort   ! storage of the largest cohort for insertion routine
-    !
-    ! !LOCAL VARIABLES:
-    !type(fates_patch_type),  pointer :: currentPatch
-    type(fates_cohort_type), pointer :: current
-    type(fates_cohort_type), pointer :: tallptr, shortptr, icohort
-    type(fates_cohort_type), pointer :: ptallest, pshortest
-    real(r8) :: tsp
-    integer :: tallptrnull,exitloop
-    !----------------------------------------------------------------------
-
-    ptallest => ptall
-    pshortest => pshort
-
-    if (tnull == 1) then
-       ptallest => null()
-    endif
-    if (snull == 1) then
-       pshortest => null()
-    endif
-
-    icohort => pcc ! assign address to icohort local name
-    !place in the correct place in the linked list of heights
-    !begin by finding cohort that is just taller than the new cohort
-    tsp = icohort%height
-
-    current => pshortest
-    exitloop = 0
-    !starting with shortest tree on the grid, find tree just
-    !taller than tree being considered and return its pointer
-    if (associated(current)) then
-       do while (associated(current).and.exitloop == 0)
-          if (current%height < tsp) then
-             current => current%taller
-          else
-             exitloop = 1
-          endif
-       enddo
-    endif
-
-    if (associated(current)) then
-       tallptr => current
-       tallptrnull = 0
-    else
-       tallptr => null()
-       tallptrnull = 1
-    endif
-
-    !new cohort is tallest
-    if (.not.associated(tallptr)) then
-       !new shorter cohort to the new cohort is the old tallest cohort
-       shortptr => ptallest
-
-       !new cohort is tallest cohort and next taller remains null
-       ptallest => icohort
-       if (present(storebigcohort)) then
-          storebigcohort => icohort
-       end if
-       currentPatch%tallest => icohort
-       !new cohort is not tallest
-    else
-       !next shorter cohort to new cohort is the next shorter cohort
-       !to the cohort just taller than the new cohort
-       shortptr => tallptr%shorter
-
-       !new cohort becomes the next shorter cohort to the cohort
-       !just taller than the new cohort
-       tallptr%shorter => icohort
-    endif
-
-    !new cohort is shortest
-    if (.not.associated(shortptr)) then
-       !next shorter reamins null
-       !cohort is placed at the bottom of the list
-       pshortest => icohort
-       if (present(storesmallcohort)) then
-          storesmallcohort => icohort
-       end if
-       currentPatch%shortest => icohort
-    else
-       !new cohort is not shortest and becomes next taller cohort
-       !to the cohort just below it as defined in the previous block
-       shortptr%taller => icohort
-    endif
-
-    ! assign taller and shorter links for the new cohort
-    icohort%taller => tallptr
-    if (tallptrnull == 1) then
-       icohort%taller=> null()
-    endif
-    icohort%shorter => shortptr
-
-  end subroutine insert_cohort
 
   subroutine count_cohorts( currentPatch )
     !

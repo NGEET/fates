@@ -35,7 +35,7 @@ program FatesTestPatch
   ! get all the patch data
   call patch_data%GetSyntheticPatchData()
   
-  i = patch_data%PatchDataPosition(patch_name='evergreen')
+  i = patch_data%PatchDataPosition(patch_name='tropical')
   call GetSyntheticPatch(patch_data%patches(i), num_levsoil, patch)
   
   ! print out list in ascending order

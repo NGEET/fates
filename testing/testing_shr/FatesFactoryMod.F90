@@ -58,8 +58,7 @@ module FatesFactoryMod
   use EDParamsMod,                 only : regeneration_model
   use SyntheticPatchTypes,         only : synthetic_patch_type
   use shr_log_mod,                 only : errMsg => shr_log_errMsg
-  use EDCohortDynamicsMod,         only : insert_cohort_2
-  
+
   implicit none
   
   public :: GetSyntheticPatch
@@ -478,7 +477,7 @@ module FatesFactoryMod
       call CohortFactory(cohort, patch_data%pft_ids(i), can_lai, dbh=patch_data%dbhs(i), &
         number=patch_data%densities(i)*patch_data%area, age=patch_data%ages(i),          &
         canopy_layer=patch_data%canopy_layers(i), patch_area=patch_data%area)
-      call insert_cohort_2(patch, cohort)
+      call patch%insert_cohort(cohort)
     end do   
   
   end subroutine GetSyntheticPatch

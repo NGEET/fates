@@ -234,6 +234,7 @@ module FatesPatchMod
       procedure :: InitRunningMeans
       procedure :: InitLitter
       procedure :: Create
+      procedure :: InsertCohort
       procedure :: UpdateTreeGrassArea
       procedure :: UpdateLiveGrass
       procedure :: FreeMemory
@@ -540,6 +541,8 @@ module FatesPatchMod
       
     end subroutine ZeroDynamics
     
+    !===========================================================================
+    
     subroutine ZeroValues(this)
       !
       ! DESCRIPTION:
@@ -782,32 +785,32 @@ module FatesPatchMod
     !===========================================================================
 
     subroutine UpdateLiveGrass(this)
-    !
-    ! DESCRIPTION:
-    ! Calculates the sum of live grass biomass [kgC/m2] on a patch
-  
-    ! ARGUMENTS:
-    class(fates_patch_type), intent(inout) :: this ! patch
+      !
+      ! DESCRIPTION:
+      ! Calculates the sum of live grass biomass [kgC/m2] on a patch
     
-    ! LOCALS:
-    real(r8)                         :: live_grass    ! live grass [kgC/m2]
-    type(fates_cohort_type), pointer :: currentCohort ! cohort type
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this ! patch
+      
+      ! LOCALS:
+      real(r8)                         :: live_grass    ! live grass [kgC/m2]
+      type(fates_cohort_type), pointer :: currentCohort ! cohort type
 
-    live_grass = 0.0_r8
-    currentCohort => this%tallest
-    do while(associated(currentCohort))
-        ! for grasses sum all aboveground tissues
-        if (prt_params%woody(currentCohort%pft) == ifalse) then 
-          live_grass = live_grass +                                      &
-            (currentCohort%prt%GetState(leaf_organ, carbon12_element) +  &
-            currentCohort%prt%GetState(sapw_organ, carbon12_element) +   &
-            currentCohort%prt%GetState(struct_organ, carbon12_element))* &
-            currentCohort%n/this%area
-       endif
-       currentCohort => currentCohort%shorter
-    enddo
-    
-    this%livegrass = live_grass
+      live_grass = 0.0_r8
+      currentCohort => this%tallest
+      do while(associated(currentCohort))
+          ! for grasses sum all aboveground tissues
+          if (prt_params%woody(currentCohort%pft) == ifalse) then 
+            live_grass = live_grass +                                      &
+              (currentCohort%prt%GetState(leaf_organ, carbon12_element) +  &
+              currentCohort%prt%GetState(sapw_organ, carbon12_element) +   &
+              currentCohort%prt%GetState(struct_organ, carbon12_element))* &
+              currentCohort%n/this%area
+        endif
+        currentCohort => currentCohort%shorter
+      enddo
+      
+      this%livegrass = live_grass
 
     end subroutine UpdateLiveGrass
 
@@ -943,6 +946,142 @@ module FatesPatchMod
       
     end subroutine FreeMemory
 
+    !===========================================================================
+    
+    subroutine insert_cohort(this, cohort)
+  
+      ! ARGUMENTS:
+      type(fates_patch_type),  intent(inout), target  :: this  ! patch 
+      type(fates_cohort_type), intent(inout), pointer :: cohort ! cohort to insert
+      
+      ! LOCALS:
+      type(fates_cohort_type), pointer :: temp_cohort1, temp_cohort2 ! temporary cohorts to store pointers
+      
+      ! nothing in the list - add to head
+      if (.not. associated(this%shortest)) then
+        this%shortest => cohort
+        this%tallest  => this%shortest
+        cohort%taller => null()
+        cohort%shorter => null()
+        return 
+      end if 
+      
+      ! shortest - add to front of list
+      if (cohort%height < this%shortest%height) then
+        temp_cohort1 => this%shortest         ! save current shortest in temporary pointer
+        cohort%taller => this%shortest        ! attach cohort to list
+        this%shortest => cohort               ! cohort is now the shortest 
+        this%shortest%shorter => null()       ! nullify new head's "shorter" pointer
+        temp_cohort1%shorter => this%shortest ! new head is previous head's 'shorter'
+        return
+      end if 
+
+      ! tallest - add to end
+      if (cohort%height >= this%tallest%height) then
+        this%tallest%taller => cohort        ! attach cohort to end of list
+        temp_cohort1 => this%tallest         ! store current tallest in temporary pointer
+        this%tallest => cohort               ! cohort is now the tallest
+        this%tallest%shorter => temp_cohort1 ! new tail is previous tails's 'taller'
+        this%tallest%taller => null()        ! nullify new tails's "taller" pointer
+        return
+      end if 
+
+      ! traverse list to find where to put cohort
+      temp_cohort1 => this%shortest
+      temp_cohort2 => temp_cohort1%taller
+      do while (associated(temp_cohort2))
+        if ((cohort%height >= temp_cohort1%height) .and. (cohort%height < temp_cohort2%height)) then 
+          ! add cohort here
+          cohort%taller => temp_cohort2
+          temp_cohort1%taller => cohort
+          cohort%shorter => temp_cohort1
+          temp_cohort2%shorter => cohort
+          exit
+        end if
+        temp_cohort1 => temp_cohort2
+        temp_cohort2 => temp_cohort2%taller
+      end do
+
+    end subroutine insert_cohort
+  
+    !===========================================================================
+  
+    subroutine sort_cohorts(this)
+      !
+      ! DESCRIPTION: sort cohorts in patch's linked list
+      ! uses insertion sort to build a new list
+      !
+    
+      ! ARGUMENTS:
+      type(fates_patch_type), intent(inout) :: this ! patch
+      
+      ! LOCALS:
+      type(fates_cohort_type), pointer :: currentCohort
+      type(fates_cohort_type), pointer :: nextCohort
+      type(fates_cohort_type), pointer :: sorted_head
+      type(fates_cohort_type), pointer :: currentSorted
+
+      ! initialize
+      sorted_head => null()
+      currentCohort => this%shortest
+      
+      do while (associated(currentCohort))
+          
+        ! store the next cohort to sort
+        nextCohort => currentCohort%taller
+        
+        ! disconnect from list
+        currentCohort%taller => null()
+        currentCohort%shorter => null()
+        
+        ! insert into the sorted part of list 
+        if (.not. associated(sorted_head)) then
+        
+          ! sorted is null, insert at head of list
+          sorted_head => currentCohort
+          
+        else if (sorted_head%height >= currentCohort%height) then
+        
+          ! insert at head of list
+          currentCohort%taller => sorted_head
+          sorted_head%shorter => currentCohort
+          sorted_head => currentCohort
+                
+        else
+          
+          ! traverse sorted list to find where to place
+          currentSorted => sorted_head
+          do while (associated(currentSorted%taller))
+            if (currentCohort%height < currentSorted%taller%height) exit
+            currentSorted => currentSorted%taller
+          end do
+          
+          ! insert cohort after currentSorted
+          currentCohort%taller => currentSorted%taller
+          
+          ! set shorter cohort if it is not inserted at the end
+          if (associated(currentSorted%taller)) then
+            currentSorted%taller%shorter => currentCohort
+          end if
+          
+          ! set taller to currentCohort
+          currentSorted%taller => currentCohort
+          currentCohort%shorter => currentSorted
+        end if
+        
+        currentCohort => nextCohort
+      end do
+
+      ! update patch pointers for shortest and tallest
+      this%shortest => sorted_head
+      currentCohort => sorted_head
+      do while (associated(currentCohort%taller))
+        currentCohort => currentCohort%taller
+      end do
+      this%tallest => currentCohort
+    
+    end subroutine sort_cohorts
+  
     !===========================================================================
 
     subroutine Dump(this)
