@@ -24,7 +24,7 @@ module EDInitMod
   use FatesInterfaceTypesMod    , only : hlm_current_tod
   use EDPftvarcon               , only : EDPftvarcon_inst
   use PRTParametersMod          , only : prt_params
-  use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
+  use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts
   use EDCohortDynamicsMod       , only : InitPRTObject
   use EDPatchDynamicsMod        , only : set_patchno
   use EDPhysiologyMod           , only : calculate_sp_properties
@@ -1331,7 +1331,7 @@ contains
 
       if (hlm_use_sp == ifalse) then
         call fuse_cohorts(site_in, patch_in,bc_in)
-        call sort_cohorts(patch_in)
+        call patch_in%SortCohorts()
       end if 
 
    end subroutine init_cohorts

@@ -43,7 +43,7 @@ module EDPhysiologyMod
   use EDPftvarcon      , only    : GetDecompyFrac
   use FatesInterfaceTypesMod, only    : bc_in_type
   use FatesInterfaceTypesMod, only    : bc_out_type
-  use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
+  use EDCohortDynamicsMod , only : create_cohort
   use EDCohortDynamicsMod , only : InitPRTObject
   use FatesAllometryMod   , only : tree_lai
   use FatesAllometryMod   , only : tree_sai

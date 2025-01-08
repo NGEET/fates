@@ -235,6 +235,7 @@ module FatesPatchMod
       procedure :: InitLitter
       procedure :: Create
       procedure :: InsertCohort
+      procedure :: SortCohorts
       procedure :: UpdateTreeGrassArea
       procedure :: UpdateLiveGrass
       procedure :: FreeMemory
@@ -948,10 +949,10 @@ module FatesPatchMod
 
     !===========================================================================
     
-    subroutine insert_cohort(this, cohort)
+    subroutine InsertCohort(this, cohort)
   
       ! ARGUMENTS:
-      type(fates_patch_type),  intent(inout), target  :: this  ! patch 
+      class(fates_patch_type),  intent(inout), target  :: this  ! patch 
       type(fates_cohort_type), intent(inout), pointer :: cohort ! cohort to insert
       
       ! LOCALS:
@@ -1002,18 +1003,18 @@ module FatesPatchMod
         temp_cohort2 => temp_cohort2%taller
       end do
 
-    end subroutine insert_cohort
+    end subroutine InsertCohort
   
     !===========================================================================
   
-    subroutine sort_cohorts(this)
+    subroutine SortCohorts(this)
       !
       ! DESCRIPTION: sort cohorts in patch's linked list
       ! uses insertion sort to build a new list
       !
     
       ! ARGUMENTS:
-      type(fates_patch_type), intent(inout) :: this ! patch
+      class(fates_patch_type), intent(inout) :: this ! patch
       
       ! LOCALS:
       type(fates_cohort_type), pointer :: currentCohort
@@ -1080,7 +1081,7 @@ module FatesPatchMod
       end do
       this%tallest => currentCohort
     
-    end subroutine sort_cohorts
+    end subroutine SortCohorts
   
     !===========================================================================
 

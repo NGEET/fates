@@ -33,7 +33,6 @@ module EDMainMod
   use PRTGenericMod            , only : phosphorus_element
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
-  use EDCohortDynamicsMod      , only : sort_cohorts
   use EDCohortDynamicsMod      , only : count_cohorts
   use EDCohortDynamicsMod      , only : EvaluateAndCorrectDBH
   use EDCohortDynamicsMod      , only : DamageRecovery
@@ -259,7 +258,7 @@ contains
        do while (associated(currentPatch))
 
           ! puts cohorts in right order
-          call sort_cohorts(currentPatch)
+          call currentPatch%SortCohorts()
 
           ! kills cohorts that are too few
           call terminate_cohorts(currentSite, currentPatch, 1, 10, bc_in  )

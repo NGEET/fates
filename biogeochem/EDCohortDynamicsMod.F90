@@ -264,7 +264,7 @@ contains
 
     endif
 
-    call patchprt%insert_cohort(newCohort)
+    call patchprt%InsertCohort(newCohort)
 
   end subroutine create_cohort
 
@@ -1259,7 +1259,7 @@ contains
      endif ! patch.
 
      if (fusion_took_place == 1) then  ! if fusion(s) occured sort cohorts
-        call sort_cohorts(currentPatch)
+        call currentPatch%SortCohorts()
      endif
 
   end subroutine fuse_cohorts

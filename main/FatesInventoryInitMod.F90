@@ -121,7 +121,6 @@ contains
       use FatesConstantsMod, only   : nearzero
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
-      use EDCohortDynamicsMod, only : sort_cohorts
       use EDcohortDynamicsMod, only : count_cohorts
       use EDPatchDynamicsMod, only  : patch_pft_size_profile
 
@@ -430,7 +429,7 @@ contains
 
             ! Perform Cohort Fusion
             call fuse_cohorts(sites(s), currentpatch,bc_in(s))
-            call sort_cohorts(currentpatch)
+            call currentpatch%SortCohorts()
 
             ! This calculates %countcohorts
             call count_cohorts(currentpatch)

@@ -1257,7 +1257,7 @@ contains
                                ! if some plants in the new temporary cohort survived the transfer to the new patch,
                                ! then put the cohort into the linked list.
                                cohort_n_gt_zero: if (nc%n > 0.0_r8) then
-                                  call newPatch%insert_cohort(newPatch)
+                                  call newPatch%InsertCohort(newPatch)
                                else
                                   ! sadly, no plants in the cohort survived. on the bright side, we can deallocate their memory.
                                   call nc%FreeMemory()
@@ -1271,7 +1271,7 @@ contains
                                currentCohort => currentCohort%taller
                             enddo cohortloop
 
-                            call sort_cohorts(currentPatch)
+                            call currentPatch%SortCohorts()
 
                             !update area of donor patch
                             oldarea = currentPatch%area
@@ -1302,7 +1302,7 @@ contains
                             call terminate_cohorts(currentSite, currentPatch, 1,16,bc_in)
                             call fuse_cohorts(currentSite,currentPatch, bc_in)
                             call terminate_cohorts(currentSite, currentPatch, 2,16,bc_in)
-                            call sort_cohorts(currentPatch)
+                            call currentPatch%SortCohorts()
 
                          end if areadis_gt_zero_if   ! if ( newPatch%area > nearzero ) then
 
@@ -1329,7 +1329,7 @@ contains
                    call terminate_cohorts(currentSite, newPatch, 1,17, bc_in)
                    call fuse_cohorts(currentSite,newPatch, bc_in)
                    call terminate_cohorts(currentSite, newPatch, 2,17, bc_in)
-                   call sort_cohorts(newPatch)
+                   call newPatch%SortCohorts()
                 endif
 
 
@@ -1731,12 +1731,12 @@ contains
        ! loss of individuals from source patch due to area shrinking
        currentCohort%n = currentCohort%n * fraction_to_keep
 
-       call new_patch%insert_cohort(nc)
+       call new_patch%InsertCohort(nc)
 
        currentCohort => currentCohort%taller
     enddo ! currentCohort
 
-    call sort_cohorts(currentPatch)
+    call currentPatch%SortCohorts()
 
     !update area of donor patch
     currentPatch%area = currentPatch%area - temp_area
@@ -3079,7 +3079,7 @@ contains
                             tmpptr => currentPatch%older       
                             call fuse_2_patches(csite, currentPatch, tpp)
                             call fuse_cohorts(csite,tpp, bc_in)
-                            call sort_cohorts(tpp)
+                            call tpp%SortCohorts()
                             currentPatch => tmpptr
 
                             !------------------------------------------------------------------------!
@@ -3285,7 +3285,7 @@ contains
 
        do while(associated(dp%shortest))
 
-          call rp%insert_cohort(currentCohort)
+          call rp%InsertCohort(currentCohort)
 
           currentCohort => nextc
 
