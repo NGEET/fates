@@ -792,7 +792,6 @@ contains
     return
   end function tree_lai
 
-
   ! ============================================================================
 
   real(r8) function tree_sai(pft, dbh, crowndamage, canopy_trim, elongf_stem, c_area, nplant, &
