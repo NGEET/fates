@@ -462,7 +462,14 @@ module FatesFactoryMod
     integer                          :: numpft          ! total number of pfts
     real(r8)                         :: can_lai(nclmax) ! canopy lai of plot
     real(r8)                         :: patch_age       ! patch age
-    integer                          :: i               ! looping index     
+    integer                          :: i               ! looping index
+    
+    type (fates_cohort_type), pointer :: nc
+    type (fates_cohort_type), pointer :: storesmallcohort
+    type (fates_cohort_type), pointer :: storebigcohort
+    type (fates_cohort_type), pointer :: currentCohort
+    integer  :: tnull                        ! is there a tallest cohort?
+    integer  :: snull                        ! is there a shortest cohort?
     
     numpft = size(prt_params%wood_density, dim=1)
     patch_age = maxval(patch_data%ages(:))
@@ -477,7 +484,29 @@ module FatesFactoryMod
       call CohortFactory(cohort, patch_data%pft_ids(i), can_lai, dbh=patch_data%dbhs(i), &
         number=patch_data%densities(i)*patch_data%area, age=patch_data%ages(i),          &
         canopy_layer=patch_data%canopy_layers(i), patch_area=patch_data%area)
-      call patch%InsertCohort(cohort)
+        
+        storebigcohort   =>  patch%tallest
+        storesmallcohort =>  patch%shortest
+      
+      if(associated(patch%tallest))then
+           tnull = 0
+        else
+           tnull = 1
+           patch%tallest => cohort
+           cohort%taller => null()
+        endif
+ 
+        if(associated(patch%shortest))then
+           snull = 0
+        else
+           snull = 1
+           patch%shortest => cohort
+           cohort%shorter => null()
+        endif  
+        
+        
+      call patch%InsertCohort(cohort, patch%tallest, patch%shortest, & 
+        tnull, snull, storebigcohort, storesmallcohort)
     end do   
   
   end subroutine GetSyntheticPatch

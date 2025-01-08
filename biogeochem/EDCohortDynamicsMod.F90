@@ -213,6 +213,24 @@ contains
       clayer, crowndamage, spread, patchptr%canopy_layer_tlai, elongf_leaf, elongf_fnrt,    &
       elongf_stem)
       
+   ! Put cohort at the right place in the linked list
+   storebigcohort   => patchptr%tallest
+   storesmallcohort => patchptr%shortest
+
+   if (associated(patchptr%tallest)) then
+      tnull = 0
+   else
+      tnull = 1
+      patchptr%tallest => newCohort
+   endif
+
+   if (associated(patchptr%shortest)) then
+      snull = 0
+   else
+      snull = 1
+      patchptr%shortest => newCohort
+   endif
+      
     ! Allocate running mean functions
 
     !  (Keeping as an example)
@@ -264,11 +282,15 @@ contains
 
     endif
 
-    call patchprt%InsertCohort(newCohort)
+   call patchptr%InsertCohort(newCohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
+      storebigcohort, storesmallcohort)
+      
+   patchptr%tallest  => storebigcohort
+   patchptr%shortest => storesmallcohort
 
   end subroutine create_cohort
 
-! ------------------------------------------------------------------------------------!
+   ! ------------------------------------------------------------------------------------!
 
   subroutine InitPRTObject(prt)
 

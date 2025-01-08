@@ -17,6 +17,8 @@ program FatesTestPatch
   type(fates_patch_type),            pointer     :: patch        ! patch
   type(fates_cohort_type),           pointer     :: cohort       ! cohort
   integer                                        :: i            ! patch array location
+  
+  real(r8) :: rand_heights(4) = (/20.0_r8, 10.0_r8, 1.0_r8, 10.0_r8/)
 
   ! CONSTANTS:
   integer,  parameter :: num_levsoil = 10      ! number of soil layers
@@ -42,9 +44,37 @@ program FatesTestPatch
   cohort => patch%shortest
   write(*,*) 'List cohorts in ascending order: '
   do while (associated(cohort))
-    write (*,'(F13.6)') cohort%height
+    write (*,*) cohort%height, cohort%dbh
     cohort => cohort%taller
-  end do 
+  end do
+  write(*,*) ' '
 
+  ! randomize the heights
+  i = 1
+  cohort => patch%shortest
+  do while (associated(cohort))
+    cohort%height = rand_heights(i)
+    cohort => cohort%taller
+    i = i + 1
+  end do 
+  cohort => patch%shortest
+  write(*,*) 'Now they should be out of order: '
+  do while (associated(cohort))
+    write (*,*) cohort%height, cohort%dbh
+    cohort => cohort%taller
+  end do
+  write(*,*) ' '
+  
+  call patch%SortCohorts2()
+  
+    ! print out list in ascending order
+  cohort => patch%shortest
+  write(*,*) 'Back in order?'
+  do while (associated(cohort))
+    write (*,*) cohort%height, cohort%dbh
+    cohort => cohort%taller
+  end do
+  write(*,*) ' '
+  
 end program FatesTestPatch
 
