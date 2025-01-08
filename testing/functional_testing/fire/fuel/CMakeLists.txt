@@ -1,7 +1,5 @@
-set(fire_test_sources 
-            FatesTestFuel.F90
-            FatesTestFireMod.F90
-            SyntheticFuelModels.F90)
+set(fuel_test_sources 
+            FatesTestFuel.F90)
 
 set(NETCDF_C_DIR ${NETCDF_C_PATH})
 set(NETCDF_FORTRAN_DIR ${NETCDF_F_PATH})
@@ -17,7 +15,7 @@ link_directories(${NETCDF_C_DIR}/lib
                 ${NETCDF_FORTRAN_DIR}/lib
                 ${PFUNIT_TOP_DIR}/lib)
                 
-add_executable(FATES_fuel_exe ${fire_test_sources})
+add_executable(FATES_fuel_exe ${fuel_test_sources})
 
 target_link_libraries(FATES_fuel_exe
                   netcdf

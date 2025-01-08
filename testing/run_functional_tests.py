@@ -42,7 +42,8 @@ from functional_testing.allometry.allometry_test import (
 from functional_testing.math_utils.math_utils_test import (
     QuadraticTest,
 )  # pylint: disable=unused-import
-from functional_testing.fire.fuel_test import FuelTest  # pylint: disable=unused-import
+from functional_testing.fire.fuel.fuel_test import FuelTest  # pylint: disable=unused-import
+from functional_testing.fire.ros.ros_test import ROSTest  # pylint: disable=unused-import
 from functional_testing.patch.patch_test import PatchTest
 
 add_cime_lib_to_path()
