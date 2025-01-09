@@ -58,7 +58,7 @@ module EDMainMod
   use FatesSoilBGCFluxMod      , only : EffluxIntoLitterPools
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs
   use FatesSoilBGCFluxMod      , only : PrepCH4BCs
-  use SFMainMod                , only : fire_model
+  use SFMainMod                , only : DailyFireModel
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
   use FatesLitterMod           , only : litter_type
@@ -211,8 +211,9 @@ contains
        ! oldest patch per set_patchno, we check that the youngest patch isn't zero.
        ! If there are multiple patches on the site, the bareground patch is avoided
        ! at the level of the fire_model subroutines.
+
        if (currentSite%youngest_patch%nocomp_pft_label .ne. nocomp_bareground)then
-          call fire_model(currentSite, bc_in)
+          call DailyFireModel(currentSite, bc_in)
        end if
 
        ! Calculate disturbance and mortality based on previous timestep vegetation.
