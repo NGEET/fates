@@ -463,8 +463,7 @@ module FatesFactoryMod
     real(r8)                         :: can_lai(nclmax) ! canopy lai of plot
     real(r8)                         :: patch_age       ! patch age
     integer                          :: i               ! looping index
-    
-    type (fates_cohort_type), pointer :: nc
+  
     type (fates_cohort_type), pointer :: storesmallcohort
     type (fates_cohort_type), pointer :: storebigcohort
     type (fates_cohort_type), pointer :: currentCohort
