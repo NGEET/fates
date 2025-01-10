@@ -236,7 +236,7 @@ module FatesPatchMod
       procedure :: Create
       procedure :: InsertCohort
       procedure :: SortCohorts
-      procedure :: SortCohorts2
+      !procedure :: SortCohorts_new
       procedure :: UpdateTreeGrassArea
       procedure :: UpdateLiveGrass
       procedure :: FreeMemory
@@ -1114,7 +1114,7 @@ module FatesPatchMod
   
     !===========================================================================
   
-    subroutine SortCohorts2(patchptr)
+    subroutine SortCohorts(patchptr)
     
     ! ============================================================================
     !                 sort cohorts into the correct order   DO NOT CHANGE THIS IT WILL BREAK
@@ -1163,89 +1163,85 @@ module FatesPatchMod
 
     enddo
     
-    end subroutine SortCohorts2
-    
-    subroutine SortCohorts(this)
-      !
-      ! DESCRIPTION: sort cohorts in patch's linked list
-      ! uses insertion sort to build a new list
-      !
-    
-      ! ARGUMENTS:
-      class(fates_patch_type), intent(inout), target :: this ! patch
-      
-      ! LOCALS:
-      type(fates_cohort_type), pointer :: currentCohort
-      type(fates_cohort_type), pointer :: nextCohort
-      type(fates_cohort_type), pointer :: sorted_head
-      type(fates_cohort_type), pointer :: currentSorted
-      
-      ! cohort list is empty - just return
-      if (.not. associated(this%shortest) .or. .not. associated(this%tallest)) then 
-        return 
-      end if
-
-      ! initialize
-      sorted_head => null()
-      currentCohort => this%shortest
-      
-      do while (associated(currentCohort))
-          
-        ! store the next cohort to sort
-        nextCohort => currentCohort%taller
-        
-        ! disconnect from list
-        currentCohort%taller => null()
-        currentCohort%shorter => null()
-        
-        ! insert into the sorted part of list 
-        if (.not. associated(sorted_head)) then
-        
-          ! sorted is null, insert at head of list
-          sorted_head => currentCohort
-          
-          
-        else if (sorted_head%height >= currentCohort%height) then
-        
-          ! insert at head of list
-          currentCohort%taller => sorted_head
-          sorted_head%shorter => currentCohort
-          sorted_head => currentCohort
-                
-        else
-          
-          ! traverse sorted list to find where to place
-          currentSorted => sorted_head
-          do while (associated(currentSorted%taller))
-            if (currentCohort%height < currentSorted%taller%height) exit
-            currentSorted => currentSorted%taller
-          end do
-          
-          ! insert cohort after currentSorted
-          currentCohort%taller => currentSorted%taller
-          
-          ! set shorter cohort if it is not inserted at the end
-          if (associated(currentSorted%taller)) then
-            currentSorted%taller%shorter => currentCohort
-          end if
-          
-          ! set taller to currentCohort
-          currentSorted%taller => currentCohort
-          currentCohort%shorter => currentSorted
-        end if
-        
-        currentCohort => nextCohort
-      end do
-
-      ! update patch pointers for shortest and tallest
-      this%shortest => sorted_head
-      currentCohort => sorted_head
-      do while (associated(currentCohort%taller))
-        currentCohort => currentCohort%taller
-      end do
-      this%tallest => currentCohort
-    
     end subroutine SortCohorts
+    
+    ! subroutine SortCohorts_new(this)
+    !   !
+    !   ! DESCRIPTION: sort cohorts in patch's linked list
+    !   ! uses insertion sort to build a new list
+    !   !
+    
+    !   ! ARGUMENTS:
+    !   class(fates_patch_type), intent(inout), target :: this ! patch
+      
+    !   ! LOCALS:
+    !   type(fates_cohort_type), pointer :: currentCohort => null()
+    !   type(fates_cohort_type), pointer :: nextCohort => null()
+    !   type(fates_cohort_type), pointer :: sorted_head => null()
+    !   type(fates_cohort_type), pointer :: currentSorted => null()
+      
+    !   ! initialize
+    !   nullify(sorted_head)
+    !   currentCohort => this%shortest
+      
+    !   do while (associated(currentCohort))
+          
+    !     ! store the next cohort to sort
+    !     nextCohort => currentCohort%taller
+        
+    !     ! disconnect from list
+    !     currentCohort%taller => null()
+    !     currentCohort%shorter => null()
+        
+    !     ! insert into the sorted part of list 
+    !     if (.not. associated(sorted_head)) then
+        
+    !       ! sorted is null, insert at head of list
+    !       sorted_head => currentCohort
+          
+    !     else if (sorted_head%height >= currentCohort%height) then
+        
+    !       ! insert at head of list
+    !       currentCohort%taller => sorted_head
+    !       sorted_head%shorter => currentCohort
+    !       sorted_head => currentCohort
+                
+    !     else
+          
+    !       ! traverse sorted list to find where to place
+    !       currentSorted => sorted_head
+    !       do while (associated(currentSorted%taller))
+    !         if (currentCohort%height <= currentSorted%taller%height) exit
+    !         currentSorted => currentSorted%taller
+    !       end do
+          
+    !       ! insert cohort after currentSorted
+    !       currentCohort%taller => currentSorted%taller
+          
+    !       ! set shorter cohort if it is not inserted at the end
+    !       if (associated(currentSorted%taller)) then
+    !         currentSorted%taller%shorter => currentCohort
+    !       end if
+          
+    !       ! set taller to currentCohort
+    !       currentSorted%taller => currentCohort
+    !       currentCohort%shorter => currentSorted
+    !     end if
+        
+    !     currentCohort => nextCohort
+    !   end do
+
+    !   ! update patch pointers for shortest and tallest
+    !   if (associated(sorted_head)) then
+    !     this%shortest => sorted_head
+    !     currentCohort => sorted_head
+    !     do while (associated(currentCohort%taller))
+    !       currentCohort => currentCohort%taller
+    !     end do
+    !     this%tallest => currentCohort
+    !   end if
+    
+    ! end subroutine SortCohorts_new
   
     !===========================================================================
 

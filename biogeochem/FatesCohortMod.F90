@@ -51,6 +51,9 @@ module FatesCohortMod
 
   implicit none
   private
+  
+  ! cohort index
+  integer :: coh_index
 
   ! PARAMETERS
   character(len=*), parameter, private :: sourcefile = __FILE__
@@ -78,6 +81,7 @@ module FatesCohortMod
 
     ! VEGETATION STRUCTURE
     
+    integer  :: cohort_id 
     integer  :: pft                     ! pft index
     real(r8) :: n                       ! number of individuals in cohort per 'area' (10000m2 default) [/m2]
     integer  :: cohort_id
@@ -349,6 +353,7 @@ module FatesCohortMod
       nullify(this%co_hydr)
    
       ! VEGETATION STRUCTURE
+      this%cohort_id = fates_unset_int
       this%l2fr                    = nan 
       this%pft                     = fates_unset_int  
       this%n                       = nan
@@ -548,6 +553,8 @@ module FatesCohortMod
       !
       ! DESCRIPTION:
       ! set up values for a newly created cohort
+      
+      use fates_cohort_utils, only : cohort_counter
 
       ! ARGUMENTS
       class(fates_cohort_type), intent(inout), target  :: this             ! cohort object
@@ -575,6 +582,9 @@ module FatesCohortMod
       ! initialize cohort
       call this%Init(prt)
       
+      cohort_counter = cohort_counter + 1
+      this%cohort_id = cohort_counter
+
       ! set values
       this%pft          = pft
       this%crowndamage  = crowndamage
