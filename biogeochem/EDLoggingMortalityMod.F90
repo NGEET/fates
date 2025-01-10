@@ -406,7 +406,7 @@ contains
             endif
          else if ( patch_land_use_label .ne. nocomp_bareground_land ) then
             write(fates_log(),*) 'trying to transition away from something that isnt either primary or bare ground,'
-            write(fates_log(),*) 'on what should be a first timestep away from potential vaegetatino. this shouldnt happen.'
+            write(fates_log(),*) 'on what should be a first timestep away from potential vegetation. This should not happen.'
             write(fates_log(),*) 'exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
