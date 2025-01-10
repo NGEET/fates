@@ -84,7 +84,6 @@ module FatesCohortMod
     integer  :: cohort_id 
     integer  :: pft                     ! pft index
     real(r8) :: n                       ! number of individuals in cohort per 'area' (10000m2 default) [/m2]
-    integer  :: cohort_id
     real(r8) :: dbh                     ! diameter at breast height [cm]
     real(r8) :: coage                   ! age [years]
     real(r8) :: height                  ! height [m]
