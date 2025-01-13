@@ -2258,20 +2258,7 @@ contains
    ! Obtain the leaf carbon
    leaf_c = currentCohort%prt%GetState(leaf_organ,carbon12_element)
 
-   
-   ! Note that tree_lai has an internal check on the canopy locatoin
-   !currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
-   !     currentCohort%n, currentCohort%canopy_layer,               &
-   !     canopy_layer_tlai,currentCohort%vcmax25top )
- 
-   !if (hlm_use_sp .eq. ifalse) then
-   !   currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%crowndamage, &
-   !                                    currentCohort%canopy_trim, currentCohort%efstem_coh, &
-   !                                    currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-   !                                    canopy_layer_tlai, currentCohort%treelai , &
-   !                                    currentCohort%vcmax25top,4)
-   !end if
-
+   ! Note that tree_lai has an internal check on the canopy location
    call  tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n,           &
           currentCohort%canopy_layer, canopy_layer_tlai, currentCohort%vcmax25top, currentCohort%dbh, currentCohort%crowndamage,          &
           currentCohort%canopy_trim, currentCohort%efstem_coh, 4, currentCohort%treelai, treesai )
@@ -2281,12 +2268,6 @@ contains
       currentCohort%treesai = treesai
    end if
    
-   ! cap leaf allometries that are larger than the allowable array space.
-   !if( (currentCohort%treelai + currentCohort%treesai) > (sum(dinc_vai)) )then
-   !   currentCohort%treelai = sum(dinc_vai) * (1._r8 - prt_params%allom_sai_scaler(currentCohort%pft))
-   !   currentCohort%treesai = sum(dinc_vai) * prt_params%allom_sai_scaler(currentCohort%pft)
-   !endif
-
    ! Number of actual vegetation layers in this cohort's crown
    currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
    

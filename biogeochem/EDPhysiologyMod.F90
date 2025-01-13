@@ -710,19 +710,6 @@ contains
                currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, currentCohort%vcmax25top,   &
                currentCohort%dbh, currentCohort%crowndamage, currentCohort%canopy_trim, &
                currentCohort%efstem_coh, 0, currentCohort%treelai, currentCohort%treesai )
-          
-          !currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
-          !     currentCohort%n, currentCohort%canopy_layer,               &
-          !     currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
-
-          ! We don't need to check on sp mode here since we don't trim_canopy with sp mode
-          !currentCohort%treesai = tree_sai(currentCohort%pft, &
-          !     currentCohort%dbh, currentCohort%crowndamage,  &
-          !     currentCohort%canopy_trim, &
-          !     currentCohort%efstem_coh, &
-          !     currentCohort%c_area, currentCohort%n,currentCohort%canopy_layer,& 
-          !     currentPatch%canopy_layer_tlai, currentCohort%treelai, &
-          !     currentCohort%vcmax25top,0 )  
 
           currentCohort%nv      = count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
 
@@ -1957,8 +1944,6 @@ contains
     
     ! check that the inverse calculation of leafc from treelai is the same as the
     ! standard calculation of treelai from leafc. Maybe can delete eventually?
-    !check_treelai = tree_lai(leaf_c, pft, c_area, cohort_n, canopy_layer,                &
-    !     canopylai, vcmax25top)
 
     call tree_lai_sai(leaf_c, pft, c_area, cohort_n, canopy_layer, canopylai, vcmax25top, &
                           dbh, crown_damage, 1.0_r8, 1.0_r8, 11, check_treelai, dummy_treesai)

@@ -570,7 +570,8 @@ module FatesCohortMod
       ! LOCAL VARIABLES:
       integer  :: iage        ! loop counter for leaf age classes
       real(r8) :: leaf_c      ! total leaf carbon [kgC]
-
+      real(r8) :: treesai     ! stem area index within crown [m2/m2]
+      
       ! initialize cohort
       call this%Init(prt)
 
@@ -640,19 +641,13 @@ module FatesCohortMod
       ! Query PARTEH for the leaf carbon [kg]
       leaf_c = this%prt%GetState(leaf_organ, carbon12_element)
 
-      ! calculate tree lai
-      !this%treelai = tree_lai(leaf_c, this%pft, this%c_area, this%n,           &
-      !  this%canopy_layer, can_tlai, this%vcmax25top)
+      call tree_lai_sai(leaf_c, this%pft, this%c_area, this%n,           &
+           this%canopy_layer, can_tlai, this%vcmax25top, this%dbh, this%crowndamage,          &
+           this%canopy_trim, this%efstem_coh, 2, this%treelai, treesai)
 
-      !if (hlm_use_sp .eq. ifalse) then
-      !   this%treesai = tree_sai(this%pft, this%dbh, this%crowndamage,          &
-      !        this%canopy_trim, this%efstem_coh, this%c_area, this%n,              &
-      !        this%canopy_layer, can_tlai, this%treelai,this%vcmax25top, 2)
-      !end if
-
-     call  tree_lai_sai(leaf_c, this%pft, this%c_area, this%n,           &
-          this%canopy_layer, can_tlai, this%vcmax25top, this%dbh, this%crowndamage,          &
-          this%canopy_trim, this%efstem_coh, 2, this%treelai, this%treesai )
+      if (hlm_use_sp .eq. ifalse) then
+         this%treesai = treesai
+      end if
      
 
       call this%InitPRTBoundaryConditions()
