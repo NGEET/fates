@@ -867,13 +867,11 @@ contains
     treesai = tree_sai( pft, dbh, crowndamage, canopy_trim, elongf_stem, c_area, nplant, &
                              cl, canopy_lai, treelai, vcmax25top, call_id )
 
-    ! UNCOMMENT FOR B4B
-    !if( (treelai + tree_sai) > (sum(dinc_vai)) )then
-
-    !treelai = sum(dinc_vai) * (1._r8 - prt_params%allom_sai_scaler(pft))
-    !   treesai = sum(dinc_vai) * prt_params%allom_sai_scaler(pft)
-       
-    !end if
+    ! Don't allow lai+sai to exceed the vertical discretization bounds
+    if( (treelai + tree_sai) > (sum(dinc_vai)) )then
+       treelai = sum(dinc_vai) * (1._r8 - prt_params%allom_sai_scaler(pft)) - nearzero
+       treesai = sum(dinc_vai) * prt_params%allom_sai_scaler(pft) - nearzero
+    end if
     
     
     return
