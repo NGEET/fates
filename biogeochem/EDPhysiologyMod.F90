@@ -707,8 +707,9 @@ contains
           leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
 
           call  tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n,           &
-               currentCohort%canopy_layer, can_tlai, currentCohort%vcmax25top, currentCohort%dbh, currentCohort%crowndamage,          &
-               currentCohort%canopy_trim, currentCohort%efstem_coh, 0, currentCohort%treelai, currentCohort%treesai )
+               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, currentCohort%vcmax25top,   &
+               currentCohort%dbh, currentCohort%crowndamage, currentCohort%canopy_trim, &
+               currentCohort%efstem_coh, 0, currentCohort%treelai, currentCohort%treesai )
           
           !currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
           !     currentCohort%n, currentCohort%canopy_layer,               &
@@ -1959,7 +1960,7 @@ contains
     !check_treelai = tree_lai(leaf_c, pft, c_area, cohort_n, canopy_layer,                &
     !     canopylai, vcmax25top)
 
-    call tree_lai_sai(leaf_c, pft, c_area, cohort_n, canopy_layer, canopy_lai, vcmax25top, &
+    call tree_lai_sai(leaf_c, pft, c_area, cohort_n, canopy_layer, canopylai, vcmax25top, &
                           dbh, crown_damage, 1.0_r8, 1.0_r8, 11, check_treelai, dummy_treesai)
     
     if (abs(tlai - check_treelai) > area_error_2) then !this is not as precise as nearzero
