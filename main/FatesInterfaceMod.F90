@@ -1122,7 +1122,7 @@ contains
     
     subroutine fates_history_maps
        
-       use FatesLitterMod, only : NFSC
+       use FatesFuelClassesMod, only : num_fuel_classes
        use EDParamsMod, only : nclmax
        use EDParamsMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
@@ -1157,7 +1157,7 @@ contains
        allocate( fates_hdim_scmap_levscpf(1:nlevsclass*numpft))
        allocate( fates_hdim_levpft(1:numpft   ))
        allocate( fates_hdim_levlanduse(1:n_landuse_cats))
-       allocate( fates_hdim_levfuel(1:NFSC   ))
+       allocate( fates_hdim_levfuel(1:num_fuel_classes   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
        allocate( fates_hdim_levheight(1:nlevheight   ))
@@ -1180,8 +1180,8 @@ contains
        allocate( fates_hdim_pftmap_levscagpft(nlevsclass * nlevage * numpft))
        allocate( fates_hdim_agmap_levagepft(nlevage * numpft))
        allocate( fates_hdim_pftmap_levagepft(nlevage * numpft))
-       allocate( fates_hdim_agmap_levagefuel(nlevage * nfsc))
-       allocate( fates_hdim_fscmap_levagefuel(nlevage * nfsc))
+       allocate( fates_hdim_agmap_levagefuel(nlevage * num_fuel_classes))
+       allocate( fates_hdim_fscmap_levagefuel(nlevage * num_fuel_classes))
 
        allocate( fates_hdim_elmap_levelpft(num_elements*numpft))
        allocate( fates_hdim_elmap_levelcwd(num_elements*ncwd))
@@ -1211,7 +1211,7 @@ contains
        end do
 
        ! make fuel array
-       do ifuel=1,NFSC
+       do ifuel=1,num_fuel_classes
           fates_hdim_levfuel(ifuel) = ifuel
        end do
 
@@ -1356,7 +1356,7 @@ contains
 
        i=0
        do iage=1,nlevage
-          do ifuel=1,NFSC
+          do ifuel=1,num_fuel_classes
              i=i+1
              fates_hdim_agmap_levagefuel(i) = iage
              fates_hdim_fscmap_levagefuel(i) = ifuel

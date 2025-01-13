@@ -36,12 +36,20 @@ from utils import copy_file, create_nc_from_cdl, config_to_dict, parse_test_list
 
 # add testing subclasses here
 from functional_class import FunctionalTest
-from functional_testing.allometry.allometry_test import AllometryTest # pylint: disable=unused-import
-from functional_testing.math_utils.math_utils_test import QuadraticTest # pylint: disable=unused-import
+from functional_testing.allometry.allometry_test import (
+    AllometryTest,
+)  # pylint: disable=unused-import
+from functional_testing.math_utils.math_utils_test import (
+    QuadraticTest,
+)  # pylint: disable=unused-import
+from functional_testing.fire.fuel.fuel_test import FuelTest  # pylint: disable=unused-import
+from functional_testing.fire.ros.ros_test import ROSTest  # pylint: disable=unused-import
 
 add_cime_lib_to_path()
 
-from CIME.utils import run_cmd_no_fail  # pylint: disable=wrong-import-position,import-error,wrong-import-order
+from CIME.utils import (
+    run_cmd_no_fail,
+)  # pylint: disable=wrong-import-position,import-error,wrong-import-order
 
 # constants for this script
 _DEFAULT_CONFIG_FILE = "functional_tests.cfg"

@@ -997,16 +997,9 @@ contains
        currentPatch => sites(s)%youngest_patch
        do while(associated(currentPatch))
 
-          currentPatch%litter_moisture(:)         = 0._r8
-          currentPatch%fuel_eff_moist             = 0._r8
           currentPatch%livegrass                  = 0._r8
-          currentPatch%sum_fuel                   = 0._r8
-          currentPatch%fuel_bulkd                 = 0._r8
-          currentPatch%fuel_sav                   = 0._r8
-          currentPatch%fuel_mef                   = 0._r8
           currentPatch%ros_front                  = 0._r8
           currentPatch%tau_l                      = 0._r8
-          currentPatch%fuel_frac(:)               = 0._r8
           currentPatch%tfc_ros                    = 0._r8
           currentPatch%fi                         = 0._r8
           currentPatch%fire                       = 0
@@ -1014,8 +1007,6 @@ contains
           currentPatch%ros_back                   = 0._r8
           currentPatch%scorch_ht(:)               = 0._r8
           currentPatch%frac_burnt                 = 0._r8
-          currentPatch%burnt_frac_litter(:)       = 0._r8
-
           currentPatch => currentPatch%older
        enddo
     enddo
