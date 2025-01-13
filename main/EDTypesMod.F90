@@ -22,7 +22,7 @@ module EDTypesMod
   use PRTGenericMod,         only : num_element_types
   use PRTGenericMod,         only : carbon12_element
   use FatesLitterMod,        only : litter_type
-  use FatesLitterMod,        only : ncwd, NFSC
+  use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : days_per_year
   use FatesRunningMeanMod,   only : rmean_type,rmean_arr_type
   use FatesConstantsMod,     only : fates_unset_r8

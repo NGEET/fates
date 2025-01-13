@@ -706,6 +706,12 @@ contains
           do el=1,num_elements
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                   biomass_stock,litter_stock,seed_stock)
+             ! Initialize the integrated flux balance diagnostics
+             ! No need to initialize the instantaneous states, those are re-calculated                                                  
+             sites(s)%iflux_balance(el)%iflux_liveveg = &
+                  (biomass_stock + seed_stock)*area_inv
+             sites(s)%iflux_balance(el)%iflux_litter  = litter_stock * area_inv
+
           end do
           call set_patchno(sites(s))
        enddo
@@ -972,7 +978,7 @@ contains
           do el=1,num_elements
              call SiteMassStock(sites(s),el,sites(s)%mass_balance(el)%old_stock, &
                   biomass_stock,litter_stock,seed_stock)
-
+             
              ! Initialize the integrated flux balance diagnostics
              ! No need to initialize the instantaneous states, those are re-calculated
              sites(s)%iflux_balance(el)%iflux_liveveg = &
@@ -983,7 +989,7 @@ contains
 
           call set_patchno(sites(s))
 
-       enddo sites_loop !s
+       enddo sites_loop 
     end if
 
     ! zero all the patch fire variables for the first timestep
@@ -991,16 +997,9 @@ contains
        currentPatch => sites(s)%youngest_patch
        do while(associated(currentPatch))
 
-          currentPatch%litter_moisture(:)         = 0._r8
-          currentPatch%fuel_eff_moist             = 0._r8
           currentPatch%livegrass                  = 0._r8
-          currentPatch%sum_fuel                   = 0._r8
-          currentPatch%fuel_bulkd                 = 0._r8
-          currentPatch%fuel_sav                   = 0._r8
-          currentPatch%fuel_mef                   = 0._r8
           currentPatch%ros_front                  = 0._r8
           currentPatch%tau_l                      = 0._r8
-          currentPatch%fuel_frac(:)               = 0._r8
           currentPatch%tfc_ros                    = 0._r8
           currentPatch%fi                         = 0._r8
           currentPatch%fire                       = 0
@@ -1008,8 +1007,6 @@ contains
           currentPatch%ros_back                   = 0._r8
           currentPatch%scorch_ht(:)               = 0._r8
           currentPatch%frac_burnt                 = 0._r8
-          currentPatch%burnt_frac_litter(:)       = 0._r8
-
           currentPatch => currentPatch%older
        enddo
     enddo

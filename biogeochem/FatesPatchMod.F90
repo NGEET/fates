@@ -6,17 +6,19 @@ module FatesPatchMod
   use FatesConstantsMod,   only : primaryland, secondaryland
   use FatesConstantsMod,   only : n_landuse_cats
   use FatesConstantsMod,   only : TRS_regeneration
-  use FatesConstantsMod,   only : itrue
+  use FatesConstantsMod,   only : itrue, ifalse
   use FatesGlobals,        only : fates_log
   use FatesGlobals,        only : endrun => fates_endrun
   use FatesUtilsMod,       only : check_hlm_list
   use FatesUtilsMod,       only : check_var_real
   use FatesCohortMod,      only : fates_cohort_type
   use FatesRunningMeanMod, only : rmean_type, rmean_arr_type
-  use FatesLitterMod,      only : nfsc
   use FatesLitterMod,      only : litter_type
+  use FatesFuelMod,        only : fuel_type
   use PRTGenericMod,       only : num_elements
   use PRTGenericMod,       only : element_list
+  use PRTGenericMod,       only : carbon12_element
+  use PRTGenericMod,       only : struct_organ, leaf_organ, sapw_organ
   use PRTParametersMod,    only : prt_params
   use FatesConstantsMod,   only : nocomp_bareground
   use EDParamsMod,         only : nlevleaf, nclmax, maxpft
@@ -195,24 +197,14 @@ module FatesPatchMod
 
     ! LITTER AND COARSE WOODY DEBRIS
     type(litter_type), pointer :: litter(:)               ! litter (leaf,fnrt,CWD and seeds) for different elements
+    type(fuel_type),   pointer :: fuel                    ! fuel class 
     real(r8), allocatable      :: fragmentation_scaler(:) ! scale rate of litter fragmentation based on soil layer [0-1]
 
     !---------------------------------------------------------------------------
 
     ! FUELS AND FIRE
     ! fuel characteristics
-    real(r8)              :: sum_fuel                ! total ground fuel related to ROS (omits 1000 hr fuels) [kgC/m2]
-    real(r8)              :: fuel_frac(nfsc)         ! fraction of each litter class in the ros_fuel [0-1]
     real(r8)              :: livegrass               ! total aboveground grass biomass in patch [kgC/m2]
-    real(r8)              :: fuel_bulkd              ! average fuel bulk density of the ground fuel. [kg/m3]
-                                                       ! (incl. live grasses, omits 1000hr fuels)
-    real(r8)              :: fuel_sav                ! average surface area to volume ratio of the ground fuel [cm-1]
-                                                       ! (incl. live grasses, omits 1000hr fuels)
-    real(r8)              :: fuel_mef                ! average moisture of extinction factor 
-                                                       ! of the ground fuel (incl. live grasses, omits 1000hr fuels)
-    real(r8)              :: fuel_eff_moist          ! effective avearage fuel moisture content of the ground fuel 
-                                                       ! (incl. live grasses. omits 1000hr fuels)
-    real(r8)              :: litter_moisture(nfsc)   ! moisture of litter [m3/m3]
 
     ! fire spread
     real(r8)              :: ros_front               ! rate of forward  spread of fire [m/min]
@@ -221,13 +213,11 @@ module FatesPatchMod
     real(r8)              :: fi                      ! average fire intensity of flaming front [kJ/m/s] or [kW/m]
     integer               :: fire                    ! is there a fire? [1=yes; 0=no]
     real(r8)              :: fd                      ! fire duration [min]
+    real(r8)              :: frac_burnt              ! fraction of patch burnt by fire
 
     ! fire effects      
     real(r8)              :: scorch_ht(maxpft)       ! scorch height [m] 
-    real(r8)              :: frac_burnt              ! fraction burnt [0-1/day]  
     real(r8)              :: tfc_ros                 ! total intensity-relevant fuel consumed - no trunks [kgC/m2 of burned ground/day]
-    real(r8)              :: burnt_frac_litter(nfsc) ! fraction of each litter pool burned, conditional on it being burned [0-1]
-
     !---------------------------------------------------------------------------
     
     ! PLANT HYDRAULICS (not currently used in hydraulics RGK 03-2018)  
@@ -245,6 +235,7 @@ module FatesPatchMod
       procedure :: InitLitter
       procedure :: Create
       procedure :: UpdateTreeGrassArea
+      procedure :: UpdateLiveGrass
       procedure :: FreeMemory
       procedure :: Dump
       procedure :: CheckVars
@@ -506,14 +497,7 @@ module FatesPatchMod
       this%fragmentation_scaler(:)      = nan 
   
       ! FUELS AND FIRE
-      this%sum_fuel                     = nan 
-      this%fuel_frac(:)                 = nan 
       this%livegrass                    = nan 
-      this%fuel_bulkd                   = nan 
-      this%fuel_sav                     = nan
-      this%fuel_mef                     = nan 
-      this%fuel_eff_moist               = nan 
-      this%litter_moisture(:)           = nan
       this%ros_front                    = nan
       this%ros_back                     = nan   
       this%tau_l                        = nan
@@ -521,10 +505,9 @@ module FatesPatchMod
       this%fire                         = fates_unset_int
       this%fd                           = nan 
       this%scorch_ht(:)                 = nan 
+      this%tfc_ros                      = nan
       this%frac_burnt                   = nan
-      this%tfc_ros                      = nan    
-      this%burnt_frac_litter(:)         = nan
-
+      
     end subroutine NanValues
 
     !===========================================================================
@@ -600,23 +583,15 @@ module FatesPatchMod
       this%fragmentation_scaler(:)           = 0.0_r8
 
       ! FIRE
-      this%sum_fuel                          = 0.0_r8
-      this%fuel_frac(:)                      = 0.0_r8
       this%livegrass                         = 0.0_r8
-      this%fuel_bulkd                        = 0.0_r8
-      this%fuel_sav                          = 0.0_r8
-      this%fuel_mef                          = 0.0_r8
-      this%fuel_eff_moist                    = 0.0_r8
-      this%litter_moisture(:)                = 0.0_r8
       this%ros_front                         = 0.0_r8
       this%ros_back                          = 0.0_r8
       this%tau_l                             = 0.0_r8
       this%fi                                = 0.0_r8
       this%fd                                = 0.0_r8
       this%scorch_ht(:)                      = 0.0_r8  
-      this%frac_burnt                        = 0.0_r8  
       this%tfc_ros                           = 0.0_r8
-      this%burnt_frac_litter(:)              = 0.0_r8
+      this%frac_burnt                        = 0.0_r8
 
     end subroutine ZeroValues
 
@@ -738,6 +713,10 @@ module FatesPatchMod
       ! initialize litter
       call this%InitLitter(num_pft, num_levsoil)
 
+      ! initialize fuel
+      allocate(this%fuel)
+      call this%fuel%Init()
+
       this%twostr%scelg => null()  ! The radiation module will check if this
                                    ! is associated, since it is not, it will then
                                    ! initialize and allocate
@@ -776,7 +755,7 @@ module FatesPatchMod
       class(fates_patch_type), intent(inout) :: this ! patch object 
 
       ! LOCALS:
-      type(fates_cohort_Type), pointer :: currentCohort ! cohort object
+      type(fates_cohort_type), pointer :: currentCohort ! cohort object
       real(r8)                         :: tree_area     ! treed area of patch [m2]
       real(r8)                         :: grass_area    ! grass area of patch [m2]
 
@@ -799,6 +778,38 @@ module FatesPatchMod
       end if 
 
     end subroutine UpdateTreeGrassArea
+
+    !===========================================================================
+
+    subroutine UpdateLiveGrass(this)
+    !
+    ! DESCRIPTION:
+    ! Calculates the sum of live grass biomass [kgC/m2] on a patch
+  
+    ! ARGUMENTS:
+    class(fates_patch_type), intent(inout) :: this ! patch
+    
+    ! LOCALS:
+    real(r8)                         :: live_grass    ! live grass [kgC/m2]
+    type(fates_cohort_type), pointer :: currentCohort ! cohort type
+
+    live_grass = 0.0_r8
+    currentCohort => this%tallest
+    do while(associated(currentCohort))
+        ! for grasses sum all aboveground tissues
+        if (prt_params%woody(currentCohort%pft) == ifalse) then 
+          live_grass = live_grass +                                      &
+            (currentCohort%prt%GetState(leaf_organ, carbon12_element) +  &
+            currentCohort%prt%GetState(sapw_organ, carbon12_element) +   &
+            currentCohort%prt%GetState(struct_organ, carbon12_element))* &
+            currentCohort%n/this%area
+       endif
+       currentCohort => currentCohort%shorter
+    enddo
+    
+    this%livegrass = live_grass
+
+    end subroutine UpdateLiveGrass
 
     !===========================================================================
 
@@ -849,7 +860,13 @@ module FatesPatchMod
         write(fates_log(),*) 'dealloc008: fail on deallocate(this%litter):'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
-      
+
+      deallocate(this%fuel, stat=istat, errmsg=smsg)
+      if (istat/=0) then
+        write(fates_log(),*) 'dealloc009: fail on deallocate patch fuel:'//trim(smsg)
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+      endif
+
       ! deallocate the allocatable arrays
       deallocate(this%tr_soil_dir,              & 
                  this%tr_soil_dif,              & 
@@ -889,24 +906,24 @@ module FatesPatchMod
       end if
       
       if (istat/=0) then
-        write(fates_log(),*) 'dealloc009: fail on deallocate patch vectors:'//trim(smsg)
+        write(fates_log(),*) 'dealloc010: fail on deallocate patch vectors:'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
       
       ! deallocate running means
       deallocate(this%tveg24, stat=istat, errmsg=smsg)
       if (istat/=0) then
-        write(fates_log(),*) 'dealloc010: fail on deallocate(this%tveg24):'//trim(smsg)
+        write(fates_log(),*) 'dealloc011: fail on deallocate(this%tveg24):'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
       deallocate(this%tveg_lpa, stat=istat, errmsg=smsg)
       if (istat/=0) then
-        write(fates_log(),*) 'dealloc011: fail on deallocate(this%tveg_lpa):'//trim(smsg)
+        write(fates_log(),*) 'dealloc012: fail on deallocate(this%tveg_lpa):'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
       deallocate(this%tveg_longterm, stat=istat, errmsg=smsg)
       if (istat/=0) then
-        write(fates_log(),*) 'dealloc012: fail on deallocate(this%tveg_longterm):'//trim(smsg)
+        write(fates_log(),*) 'dealloc013: fail on deallocate(this%tveg_longterm):'//trim(smsg)
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
 
