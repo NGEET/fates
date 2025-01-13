@@ -123,9 +123,7 @@ contains
     ! Locals
     integer                       :: nsites        ! number of sites
     integer                       :: s             ! site loop index
-    integer                       :: j             ! soil layer
     integer                       :: icomp         ! competitor index
-    integer                       :: id            ! decomp layer index
     integer                       :: pft           ! pft index
     type(fates_patch_type), pointer  :: cpatch        ! current patch pointer
     type(fates_cohort_type), pointer :: ccohort       ! current cohort pointer
@@ -219,13 +217,14 @@ contains
                 ccohort%daily_p_demand = fnrt_c * EDPftvarcon_inst%vmax_p(pft) * sec_per_day
                 ! P Uptake:  Convert g/m2/day -> kg/plant/day
                 ccohort%daily_p_gain = bc_in(s)%plant_p_uptake_flux(icomp,1)*kg_per_g*AREA/ccohort%n
+
                 ccohort => ccohort%shorter
              end do
              cpatch => cpatch%younger
           end do
           
        end if
-          
+
        ! These can now be zero'd
        bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
        bc_in(s)%plant_no3_uptake_flux(:,:) = 0._r8
@@ -349,9 +348,10 @@ contains
                    !      this is a best (bad) guess at fine root MR + total root GR
                    !      (kgC/indiv/yr) -> gC/m2/s
                    bc_out%root_resp(1:bc_in%nlevsoil) = bc_out%root_resp(1:bc_in%nlevsoil) + &
-                        ccohort%resp_acc_hold*years_per_day*g_per_kg*days_per_sec* &
+                        (ccohort%resp_m_acc_hold + ccohort%resp_g_acc_hold)*years_per_day*g_per_kg*days_per_sec* &
                         ccohort%n*area_inv*(1._r8-prt_params%allom_agb_frac(pft)) * csite%rootfrac_scr(1:bc_in%nlevsoil)
-                   
+
+                    
                 end if
                 
                 if( prt_params%woody(pft)==itrue ) then
@@ -645,7 +645,6 @@ contains
     integer  :: nlev_eff_decomp  ! number of effective decomp layers
     real(r8) :: area_frac        ! fraction of site's area of current patch
     real(r8) :: z_decomp         ! Used for calculating depth midpoints of decomp layers
-    integer  :: s                ! Site index
     integer  :: el               ! Element index (C,N,P,etc)
     integer  :: j                ! Soil layer index
     integer  :: id               ! Decomposition layer index

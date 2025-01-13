@@ -73,22 +73,29 @@ def main():
         outputval = np.fromstring(args.val, sep=',', dtype=np.float64)
 
     else:
-    
-        try:
-            outputval = float(args.val)
-            if args.changeshape:
-                raise Exception
-        except:
+
+        # First check to see if we are modifying the pftname
+        if args.varname == 'fates_pftname':
+            rename_pft = True
+        else:
             try:
-                #print('output variable not interpretable as real. trying array')
-                outputval = np.fromstring(args.val, sep=',', dtype=np.float32)
-                if len(outputval) == 0:
-                    raise RuntimeError('output variable needs to have size greater than zero')
+                outputval = np.float64(args.val)
+                if args.changeshape:
+                    raise Exception
             except:
-                if args.varname != 'fates_pftname':
-                    raise RuntimeError('output variable not interpretable as real or array')
-                else:
-                    rename_pft = True
+                try:
+                    print('output variable not interpretable as real. trying array')
+                    outputval = np.fromstring(args.val, sep=',', dtype=np.float64)
+                    # Note that fromstring does not yet raise a ValueError for fates_pftname
+                    # argument values.  As such, the exception below will not trigger.
+                    # Numpy warns that this will be a ValueError exception in a future update.
+                    if len(outputval) == 0:
+                        raise RuntimeError('output variable needs to have size greater than zero')
+                except:
+                    if args.varname != 'fates_pftname':
+                        raise RuntimeError('output variable not interpretable as real or array')
+                    else:
+                        rename_pft = True
     #
     #
     try:
@@ -126,7 +133,7 @@ def main():
                 for i in range(var.shape[0]):
                     var[i] = outputval[i]
             elif(ndim_file==0):
-                var.assignValue(outputval[0])
+                var[()] = outputval[()]
 
             else:
                 print("Unhandled dimension size in modify_fates_paramfile.py")
@@ -150,7 +157,7 @@ def main():
                                            'fates_history_damage_bins',
                                            'fates_NCWD','fates_litterclass','fates_leafage_class', \
                                            'fates_plant_organs','fates_hydr_organs','fates_hlm_pftno', \
-                                           'fates_leafage_class','fates_landuse_class']:
+                                           'fates_leafage_class','fates_landuseclass']:
                     otherdimpresent = True
                     otherdimname = var.dimensions[i]
                     otherdimlength = var.shape[i]
@@ -240,7 +247,7 @@ def main():
                                               ' New length is shorter than old, so its been truncated.')
                                         x[0:length_specified,:] = variable[0:length_specified,:]
                         else:
-                            x.assignValue(float(variable.data))
+                            x.assignValue(np.float64(variable.data))
                     #
                     var = ncfile.variables[args.varname]
                 else:

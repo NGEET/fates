@@ -1,7 +1,10 @@
 module SFNesterovMod
 
   use FatesConstantsMod, only : r8 => fates_r8
+  use FatesGlobals,      only : endrun => fates_endrun
+  use FatesGlobals,      only : fates_log
   use SFFireWeatherMod,  only : fire_weather
+  use shr_log_mod,       only : errMsg => shr_log_errMsg
   
   implicit none
   private
@@ -11,8 +14,8 @@ module SFNesterovMod
     contains 
 
       procedure, public :: Init => init_nesterov_fire_weather
-      procedure, public :: Update => update_nesterov_index
-      
+      procedure, public :: UpdateIndex => update_nesterov_index
+            
   end type nesterov_index
 
   real(r8), parameter :: min_precip_thresh = 3.0_r8 ! threshold for precipitation above which to zero NI [mm/day]
@@ -29,6 +32,7 @@ module SFNesterovMod
 
       ! initialize values to 0.0
       this%fire_weather_index   = 0.0_r8
+      this%effective_windspeed  = 0.0_r8
 
     end subroutine init_nesterov_fire_weather
 
@@ -100,5 +104,6 @@ module SFNesterovMod
       dewpoint = (dewpoint_b*yipsolon)/(dewpoint_a - yipsolon) 
     
     end function dewpoint
-
+    
+    !-------------------------------------------------------------------------------------
 end module SFNesterovMod

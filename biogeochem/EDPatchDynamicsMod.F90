@@ -26,9 +26,9 @@ module EDPatchDynamicsMod
   use FatesCohortMod       , only : fates_cohort_type
   use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : site_fluxdiags_type
+  use EDTypesMod           , only : elem_diag_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : min_patch_area_forced
-  use EDParamsMod          , only : nclmax
   use EDParamsMod          , only : regeneration_model
   use FatesInterfaceTypesMod, only : numpft
   use FatesConstantsMod     , only : dtype_ifall
@@ -38,8 +38,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : ican_upper
   use PRTGenericMod        , only : num_elements
   use PRTGenericMod        , only : element_list
-  use FatesLitterMod       , only : lg_sf
-  use FatesLitterMod       , only : dl_sf
+  use FatesFuelClassesMod  , only : fuel_classes
   use FatesConstantsMod    , only : N_DIST_TYPES
   use EDTypesMod           , only : AREA_INV
   use EDTypesMod           , only : dump_site
@@ -765,16 +764,12 @@ contains
 
                             ! Transfer the litter existing already in the donor patch to the new patch
                             ! This call will only transfer non-burned litter to new patch
-                            ! and burned litter to atmosphere. Thus it is important to zero burnt_frac_litter when
+                            ! and burned litter to atmosphere. Thus it is important to zero fuel%frac_burnt when
                             ! fire is not the current disturbance regime.
-
-                            if(i_disturbance_type .ne. dtype_ifire) then
-                               currentPatch%burnt_frac_litter(:) = 0._r8
-                            end if
 
                             call CopyPatchMeansTimers(currentPatch, newPatch)
 
-                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis)
+                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis, i_disturbance_type)
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
                             select case(i_disturbance_type)
@@ -1046,14 +1041,13 @@ contains
                                   ! Some of of the leaf mass from living plants has been
                                   ! burned off.  Here, we remove that mass, and
                                   ! tally it in the flux we sent to the atmosphere
-
                                   if(prt_params%woody(currentCohort%pft) == itrue)then
                                      leaf_burn_frac = currentCohort%fraction_crown_burned
                                   else
 
                                      ! Grasses determine their fraction of leaves burned here
 
-                                     leaf_burn_frac = currentPatch%burnt_frac_litter(lg_sf)
+                                     leaf_burn_frac = currentPatch%fuel%frac_burnt(fuel_classes%live_grass())
                                   endif
 
                                   ! Perform a check to make sure that spitfire gave
@@ -1089,6 +1083,12 @@ contains
                                      currentSite%mass_balance(el)%burn_flux_to_atm = &
                                           currentSite%mass_balance(el)%burn_flux_to_atm + &
                                           leaf_burn_frac * leaf_m * nc%n
+
+                                     ! This diagnostic only tracks
+                                     currentSite%flux_diags%elem(el)%burned_liveveg = &
+                                          currentSite%flux_diags%elem(el)%burned_liveveg + & 
+                                          leaf_burn_frac * leaf_m * nc%n * area_inv
+                                     
                                   end do
 
                                   ! Here the mass is removed from the plant
@@ -1719,9 +1719,7 @@ contains
 
     call CopyPatchMeansTimers(currentPatch, new_patch)
 
-    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area)
-
-    currentPatch%burnt_frac_litter(:) = 0._r8
+    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, 0)
 
     ! Next, we loop through the cohorts in the donor patch, copy them with
     ! area modified number density into the new-patch, and apply survivorship.
@@ -1917,7 +1915,8 @@ contains
   subroutine TransLitterNewPatch(currentSite,        &
                                  currentPatch,       &
                                  newPatch,           &
-                                 patch_site_areadis)
+                                 patch_site_areadis, &
+                                 dist_type)
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -1966,6 +1965,7 @@ contains
     type(fates_patch_type) , intent(inout) :: newPatch           ! New patch
     real(r8)            , intent(in)    :: patch_site_areadis ! Area being donated
                                                               ! by current patch
+    integer,              intent(in)    :: dist_type          ! disturbance type
 
     
     ! locals
@@ -1988,6 +1988,7 @@ contains
     real(r8) :: litter_stock0,litter_stock1
     real(r8) :: burn_flux0,burn_flux1
     real(r8) :: error
+    real(r8) :: frac_burnt                 ! fraction burnt of current fuel type [0-1]
 
     do el = 1,num_elements
 
@@ -2071,15 +2072,19 @@ contains
           litter_stock0 = curr_litt%GetTotalLitterMass()*currentPatch%area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
        end if
-
+       
        do c = 1,ncwd
+         frac_burnt = 0.0_r8
+         if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
+            frac_burnt = currentPatch%fuel%frac_burnt(c)
+         end if 
              
           ! Transfer above ground CWD
           donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               (1._r8 - currentPatch%burnt_frac_litter(c))
+                               (1._r8 - frac_burnt)
 
           burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               currentPatch%burnt_frac_litter(c)
+                               frac_burnt
  
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
@@ -2095,15 +2100,20 @@ contains
           end do
           
        enddo
-          
+       
+       frac_burnt = 0.0_r8
+       if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
+         frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
+      end if 
+             
        do dcmpy=1,ndcmpy
 
            ! Transfer leaf fines
            donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      (1._r8 - currentPatch%burnt_frac_litter(dl_sf))
+                                      (1._r8 - frac_burnt)
 
            burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      currentPatch%burnt_frac_litter(dl_sf)
+                                       frac_burnt
 
            new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
@@ -2187,7 +2197,7 @@ contains
     type(litter_type), pointer         :: new_litt
     type(litter_type), pointer         :: curr_litt
     type(site_massbal_type), pointer   :: site_mass
-    type(site_fluxdiags_type), pointer :: flux_diags
+    type(elem_diag_type), pointer      :: elflux_diags
 
     real(r8) :: donatable_mass       ! non-burned litter mass provided by the donor [kg]
                                      ! some may or may not be retained by the donor
@@ -2260,7 +2270,7 @@ contains
        
        element_id = element_list(el)
        site_mass  => currentSite%mass_balance(el)
-       flux_diags => currentSite%flux_diags(el)
+       elflux_diags => currentSite%flux_diags%elem(el)
        curr_litt  => currentPatch%litter(el)      ! Litter pool of "current" patch
        new_litt   => newPatch%litter(el)          ! Litter pool of "new" patch
        
@@ -2320,6 +2330,8 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
+             
+             
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -2336,12 +2348,12 @@ contains
              end do
 
              ! Track as diagnostic fluxes
-             flux_diags%leaf_litter_input(pft) = &
-                  flux_diags%leaf_litter_input(pft) + &
+             elflux_diags%surf_fine_litter_input(pft) = &
+                  elflux_diags%surf_fine_litter_input(pft) + &
                   num_dead_trees * (leaf_m+repro_m) * (1.0_r8-currentCohort%fraction_crown_burned)
 
-             flux_diags%root_litter_input(pft) = &
-                  flux_diags%root_litter_input(pft) + &
+             elflux_diags%root_litter_input(pft) = &
+                  elflux_diags%root_litter_input(pft) + &
                   (fnrt_m + store_m) * num_dead_trees
 
              ! coarse root biomass per tree
@@ -2363,9 +2375,9 @@ contains
                          donatable_mass * retain_m2
 
                    ! track diagnostics
-                   flux_diags%cwd_bg_input(c) = &
-                         flux_diags%cwd_bg_input(c) + &
-                         donatable_mass
+                   elflux_diags%cwd_bg_input(c) = &
+                        elflux_diags%cwd_bg_input(c) + &
+                        donatable_mass
                 enddo
              end do
 
@@ -2384,7 +2396,7 @@ contains
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
-                flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass
+                elflux_diags%cwd_ag_input(c) = elflux_diags%cwd_ag_input(c) + donatable_mass
              enddo
 
 
@@ -2427,7 +2439,7 @@ contains
     type(litter_type), pointer         :: new_litt
     type(litter_type), pointer         :: curr_litt
     type(site_massbal_type), pointer   :: site_mass
-    type(site_fluxdiags_type), pointer :: flux_diags
+    type(elem_diag_type), pointer      :: elflux_diags
 
     real(r8) :: remainder_area       ! amount of area remaining in patch after donation
     real(r8) :: num_dead
@@ -2474,7 +2486,7 @@ contains
        
        element_id = element_list(el)
        site_mass  => currentSite%mass_balance(el)
-       flux_diags => currentSite%flux_diags(el)
+       elflux_diags => currentSite%flux_diags%elem(el)
        curr_litt  => currentPatch%litter(el)   ! Litter pool of "current" patch
        new_litt   => newPatch%litter(el)       ! Litter pool of "new" patch
 
@@ -2604,17 +2616,17 @@ contains
           
           ! track diagnostic fluxes
           do c=1,ncwd
-             flux_diags%cwd_ag_input(c) = & 
-                  flux_diags%cwd_ag_input(c) + SF_val_CWD_frac_adj(c) * ag_wood
+             elflux_diags%cwd_ag_input(c) = & 
+                  elflux_diags%cwd_ag_input(c) + SF_val_CWD_frac_adj(c) * ag_wood
              
-             flux_diags%cwd_bg_input(c) = &
-                  flux_diags%cwd_bg_input(c) + SF_val_CWD_frac_adj(c) * bg_wood
+             elflux_diags%cwd_bg_input(c) = &
+                  elflux_diags%cwd_bg_input(c) + SF_val_CWD_frac_adj(c) * bg_wood
           end do
 
-          flux_diags%leaf_litter_input(pft) = flux_diags%leaf_litter_input(pft) + &
+          elflux_diags%surf_fine_litter_input(pft) = elflux_diags%surf_fine_litter_input(pft) + &
                num_dead*(leaf_m + repro_m)
 
-          flux_diags%root_litter_input(pft) = flux_diags%root_litter_input(pft) + & 
+          elflux_diags%root_litter_input(pft) = elflux_diags%root_litter_input(pft) + & 
                num_dead * (fnrt_m + store_m*(1.0_r8-EDPftvarcon_inst%allom_frbstor_repro(pft)))
           
 
@@ -2657,7 +2669,7 @@ contains
     type(litter_type), pointer         :: new_litt
     type(litter_type), pointer         :: curr_litt
     type(site_massbal_type), pointer   :: site_mass
-    type(site_fluxdiags_type), pointer :: flux_diags
+    type(elem_diag_type), pointer      :: elflux_diags
 
     real(r8) :: donatable_mass       ! non-burned litter mass provided by the donor [kg]
                                      ! some may or may not be retained by the donor
@@ -2734,7 +2746,7 @@ contains
 
           element_id = element_list(el)
           site_mass  => currentSite%mass_balance(el)
-          flux_diags => currentSite%flux_diags(el)
+          elflux_diags => currentSite%flux_diags%elem(el)
           curr_litt  => currentPatch%litter(el)      ! Litter pool of "current" patch
           new_litt   => newPatch%litter(el)          ! Litter pool of "new" patch
 
@@ -2791,7 +2803,7 @@ contains
              end do
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
+             
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -2808,12 +2820,12 @@ contains
              end do
 
              ! Track as diagnostic fluxes
-             flux_diags%leaf_litter_input(pft) = &
-                  flux_diags%leaf_litter_input(pft) + &
+             elflux_diags%surf_fine_litter_input(pft) = &
+                  elflux_diags%surf_fine_litter_input(pft) + &
                   num_dead_trees * (leaf_m+repro_m) * (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
 
-             flux_diags%root_litter_input(pft) = &
-                  flux_diags%root_litter_input(pft) + &
+             elflux_diags%root_litter_input(pft) = &
+                  elflux_diags%root_litter_input(pft) + &
                   (fnrt_m + store_m) * num_dead_trees
 
              ! coarse root biomass per tree
@@ -2831,8 +2843,8 @@ contains
                         donatable_mass * retain_m2
 
                    ! track diagnostics
-                   flux_diags%cwd_bg_input(c) = &
-                        flux_diags%cwd_bg_input(c) + &
+                   elflux_diags%cwd_bg_input(c) = &
+                        elflux_diags%cwd_bg_input(c) + &
                         donatable_mass
                 enddo
              end do
@@ -2867,12 +2879,17 @@ contains
                    trunk_product_site = trunk_product_site + &
                         woodproduct_mass
 
+                   ! Amount of trunk mass exported off site [kg/m2]
+                   elflux_diags%exported_harvest = elflux_diags%exported_harvest + &
+                        woodproduct_mass * area_inv
+
                    site_mass%wood_product_landusechange(pft) = site_mass%wood_product_landusechange(pft) + &
                         woodproduct_mass
+                   
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
-                flux_diags%cwd_ag_input(c) = flux_diags%cwd_ag_input(c) + donatable_mass
+                elflux_diags%cwd_ag_input(c) = elflux_diags%cwd_ag_input(c) + donatable_mass
              enddo
 
              currentCohort => currentCohort%taller
@@ -3253,6 +3270,8 @@ contains
     do el = 1,num_elements
        call rp%litter(el)%FuseLitter(rp%area,dp%area,dp%litter(el))
     end do
+    
+    call rp%fuel%Fuse(rp%area, dp%area, dp%fuel)
 
     if ( rp%land_use_label .ne. dp%land_use_label) then
        write(fates_log(),*) 'trying to fuse patches with different land_use_label values'
@@ -3283,23 +3302,15 @@ contains
     
     call rp%tveg_longterm%FuseRMean(dp%tveg_longterm,rp%area*inv_sum_area)
 
-    rp%fuel_eff_moist       = (dp%fuel_eff_moist*dp%area + rp%fuel_eff_moist*rp%area) * inv_sum_area
-    rp%livegrass            = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
-    rp%sum_fuel             = (dp%sum_fuel*dp%area + rp%sum_fuel*rp%area) * inv_sum_area
-    rp%fuel_bulkd           = (dp%fuel_bulkd*dp%area + rp%fuel_bulkd*rp%area) * inv_sum_area
-    rp%fuel_sav             = (dp%fuel_sav*dp%area + rp%fuel_sav*rp%area) * inv_sum_area
-    rp%fuel_mef             = (dp%fuel_mef*dp%area + rp%fuel_mef*rp%area) * inv_sum_area
-    rp%ros_front            = (dp%ros_front*dp%area + rp%ros_front*rp%area) * inv_sum_area
-    rp%effect_wspeed        = (dp%effect_wspeed*dp%area + rp%effect_wspeed*rp%area) * inv_sum_area
-    rp%tau_l                = (dp%tau_l*dp%area + rp%tau_l*rp%area) * inv_sum_area
-    rp%fuel_frac(:)         = (dp%fuel_frac(:)*dp%area + rp%fuel_frac(:)*rp%area) * inv_sum_area
+    rp%livegrass               = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
+    rp%ros_front               = (dp%ros_front*dp%area + rp%ros_front*rp%area) * inv_sum_area
+    rp%tau_l                   = (dp%tau_l*dp%area + rp%tau_l*rp%area) * inv_sum_area
     rp%tfc_ros              = (dp%tfc_ros*dp%area + rp%tfc_ros*rp%area) * inv_sum_area
     rp%fi                   = (dp%fi*dp%area + rp%fi*rp%area) * inv_sum_area
     rp%fd                   = (dp%fd*dp%area + rp%fd*rp%area) * inv_sum_area
     rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area) * inv_sum_area
     rp%scorch_ht(:)         = (dp%scorch_ht(:)*dp%area + rp%scorch_ht(:)*rp%area) * inv_sum_area
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
-    rp%burnt_frac_litter(:) = (dp%burnt_frac_litter(:)*dp%area + rp%burnt_frac_litter(:)*rp%area) * inv_sum_area
     rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area) * inv_sum_area
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
@@ -3393,7 +3404,6 @@ contains
           csite%youngest_patch => olderp
           olderp%younger       => null()
        end if
-
 
        if(associated(olderp))then
           ! Update the older patch's new younger patch (becuase it isn't dp anymore)
@@ -3803,156 +3813,104 @@ contains
 
     ! !LOCAL VARIABLES:
     type (fates_patch_type), pointer :: currentPatch
-    integer                       :: insert_method   ! Temporary dev
-    logical                       :: found_landuselabel_match
-    integer, parameter            :: unordered_lul_groups= 1
-    integer, parameter            :: primaryland_oldest_group = 2
-    integer, parameter            :: numerical_order_lul_groups = 3
-    integer, parameter            :: age_order_only = 4
+    logical                       :: patch_inserted
 
-    ! Insert new patch case options:
-    ! Option 1: Group the landuse types together, but the group order doesn't matter
-    ! Option 2: Option 1, but primarylands are forced to be the oldest group
-    ! Option 3: Option 1, but groups are in numerical order according to land use label index integer
-    !           (i.e. primarylands=1, secondarylands=2, ..., croplands=5)
-    ! Option 4: Don't group the patches by land use label.  Simply add new patches to the youngest end.
+    ! The goal here is to have patches ordered in a specific way. That way is to have them
+    ! looped as the following, where LU refers to the land use label, PFT refers to the
+    ! nocomp PFT label, and Y and O refer to continuous patch ages.
+    !
+    !       LU1     ----     LU2       ----     LU3         --  etc
+    !    /       \         /       \        /        \
+    !  PFT1 --- PFT2  |  PFT1 --- PFT2  |  PFT1 --- PFT2    --  etc
+    !  / \      /  \     / \      /  \     / \      /  \  
+    ! O - Y    O -  Y   O - Y    O  - Y   O - Y    O -  Y   --  etc
 
-    ! Hardcode the default insertion method.  The options developed during FATES V1 land use are
-    ! currently being held for potential future usage.
-    insert_method = primaryland_oldest_group
+    ! I.e. to treat land use as the outermost loop element, then nocomp PFT as next loop element,
+    ! and then age as the innermost loop element.  Visualizing the above as a linked list patches:
 
-    ! Start from the youngest patch and work to oldest, regarless of insertion_method
-    currentPatch => currentSite%youngest_patch
+    ! LU1/PFT1/O <-> LU1/PFT1/Y <-> LU1/PFT2/O <- ... -> LU3/PFT2/O <-> LU3/PFT2/Y
 
-    ! For the three grouped cases, if the land use label of the youngest patch on the site
-    ! is a match to the new patch land use label, simply insert it as the new youngest.
-    ! This is applicable to the non-grouped option 4 method as well.
-    if (currentPatch%land_use_label .eq. newPatch%land_use_label ) then
-       newPatch%older    => currentPatch
-       newPatch%younger  => null()
-       currentPatch%younger       => newPatch
+    ! Mapping this setup onto the existing "older/younger" scheme means that lower number
+    ! land use and pft labels are considered "older".  Note that this matches the current
+    ! initialization scheme in which patches are created and linked in increasing pft
+    ! numerical order starting from 1.  This also aligns with the current set_patchno scheme
+    ! in which patches are given an indexable number for the API iteration loops.
+    
+    ! The way to accomplsh this most simply is to define a pseudo-age that includes all of the
+    ! above info and sort the patches based on the pseudo-age. i.e. take some number larger
+    ! than any patch will ever reach in actual age. Then take the LU, multiply it by the big
+    ! number squared, add it to the pft number multiplied by the big number, and add to the age.
+    ! And lastly to sort using that instead of the actual age.
+
+    ! If land use is turned off or nocomp is turned off, then this should devolve to the prior
+    ! behavior of just age sorting.
+
+    patch_inserted = .false.
+    
+    if (GetPseudoPatchAge(newPatch) .le. GetPseudoPatchAge(currentSite%youngest_patch)) then
+
+       ! insert new patch at the head of the linked list
+       newPatch%older   => currentSite%youngest_patch
+       newPatch%younger => null()
+       currentSite%youngest_patch%younger => newPatch
        currentSite%youngest_patch => newPatch
+
+       patch_inserted = .true.
+    else if (GetPseudoPatchAge(newPatch) .ge. GetPseudoPatchAge(currentSite%oldest_patch)) then
+
+       ! insert new patch at the end of the linked list
+       newPatch%younger   => currentSite%oldest_patch
+       newPatch%older     => null()
+       currentSite%oldest_patch%older => newPatch
+       currentSite%oldest_patch => newPatch
+
+       patch_inserted = .true.
     else
-
-       ! If the current site youngest patch land use label doesn't match the new patch
-       ! land use label then work through the list until you find the matching type.
-       ! Since we've just checked the youngest patch, move to the next patch and
-       ! initialize the match flag to false.
-       found_landuselabel_match = .false.
-       currentPatch => currentPatch%older
-       select case(insert_method)
-
-       ! Option 1 - order of land use label groups does not matter
-       case (unordered_lul_groups)
-
-          do while(associated(currentPatch) .and. .not. found_landuselabel_match)
-            if (currentPatch%land_use_label .eq. newPatch%land_use_label) then
-               found_landuselabel_match = .true.
-            else
-               currentPatch => currentPatch%older
-            end if
-          end do
-
-          ! In the case where we've found a land use label matching the new patch label,
-          ! insert the newPatch will as the youngest patch for that land use type.
-          if (associated(currentPatch)) then
-             newPatch%older             => currentPatch
-             newPatch%younger           => currentPatch%younger
+       ! new patch has a pseudo-age somewhere within the linked list. find the first patch which
+       ! has a pseudo age older than it, and put it ahead of that patch
+       currentPatch => currentSite%youngest_patch
+       do while (associated(currentPatch) .and. ( .not. patch_inserted) )   
+          if (GetPseudoPatchAge(newPatch) .lt. GetPseudoPatchAge(currentPatch)) then
+             newPatch%older => currentPatch
+             newPatch%younger => currentPatch%younger
              currentPatch%younger%older => newPatch
-             currentPatch%younger       => newPatch
-          else
-             ! In the case in which we get to the end of the list and haven't found
-             ! a landuse label match simply add the new patch to the youngest end.
-             newPatch%older                     => currentSite%youngest_patch
-             newPatch%younger                   => null()
-             currentSite%youngest_patch%younger => newPatch
-             currentSite%youngest_patch         => newPatch
+             currentPatch%younger => newPatch
+
+             patch_inserted = .true.
           endif
-
-       ! Option 2 - primaryland group must be on the oldest end
-       case (primaryland_oldest_group)
-
-          do while(associated(currentPatch) .and. .not. found_landuselabel_match)
-             if (currentPatch%land_use_label .eq. newPatch%land_use_label) then
-                found_landuselabel_match = .true.
-             else
-                currentPatch => currentPatch%older
-             end if
-          end do
-
-          ! In the case where we've found a land use label matching the new patch label,
-          ! insert the newPatch will as the youngest patch for that land use type.
-          if (associated(currentPatch)) then
-             newPatch%older             => currentPatch
-             newPatch%younger           => currentPatch%younger
-             currentPatch%younger%older => newPatch
-             currentPatch%younger       => newPatch
-          else
-             ! In the case in which we get to the end of the list and haven't found
-             ! a landuse label match.
-
-             ! If the new patch is primaryland add it to the oldest end of the list
-             if (newPatch%land_use_label .eq. primaryland) then
-                newPatch%older                 => null()
-                newPatch%younger               => currentSite%oldest_patch
-                currentSite%oldest_patch%older => newPatch
-                currentSite%oldest_patch       => newPatch
-             else
-                ! If the new patch land use type is not primaryland and we are at the
-                ! oldest end of the list, add it to the youngest end
-                newPatch%older                     => currentSite%youngest_patch
-                newPatch%younger                   => null()
-                currentSite%youngest_patch%younger => newPatch
-                currentSite%youngest_patch         => newPatch
-             endif
-          endif
-
-       ! Option 3 - groups are numerically ordered with primaryland group starting at oldest end.
-       case (numerical_order_lul_groups)
-
-          ! If the youngest patch landuse label number is greater than the new
-          ! patch land use label number, the new patch must be inserted somewhere
-          ! in between oldest and youngest
-          do while(associated(currentPatch) .and. .not. found_landuselabel_match)
-             if (currentPatch%land_use_label .eq. newPatch%land_use_label .or. &
-                 currentPatch%land_use_label .lt. newPatch%land_use_label) then
-                found_landuselabel_match = .true.
-             else
-                currentPatch => currentPatch%older
-             endif
-          end do
-
-          ! In the case where we've found a landuse label matching the new patch label
-          ! insert the newPatch will as the youngest patch for that land use type.
-          if (associated(currentPatch)) then
-
-             newPatch%older    => currentPatch
-             newPatch%younger  => currentPatch%younger
-             currentPatch%younger%older => newPatch
-             currentPatch%younger       => newPatch
-
-          else
-
-             ! In the case were we get to the end, the new patch
-             ! must be numerically the smallest, so put it at the oldest position
-             newPatch%older    => null()
-             newPatch%younger  => currentSite%oldest_patch
-             currentSite%oldest_patch%older   => newPatch
-             currentSite%oldest_patch   => newPatch
-
-          endif
-
-       ! Option 4 - always add the new patch as the youngest regardless of land use label
-       case (age_order_only)
-          ! Set the current patch to the youngest patch
-          newPatch%older                     => currentSite%youngest_patch
-          newPatch%younger                   => null()
-          currentSite%youngest_patch%younger => newPatch
-          currentSite%youngest_patch         => newPatch
-       end select
+          currentPatch => currentPatch%older
+       end do
     end if
 
- end subroutine InsertPatch
+    if ( .not. patch_inserted) then
+       ! something has gone wrong. abort.
+       write(fates_log(),*) 'something has gone wrong in the patch insertion, because no place to put the new patch was found' 
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
+  end subroutine InsertPatch
+
+  ! =====================================================================================
+
+  function GetPseudoPatchAge(CurrentPatch) result(pseudo_age)
+    
+    ! Purpose: we want to sort the patches in a way that takes into account both their
+    ! continuous and categorical variables. Calculate a pseudo age that does this, by taking
+    ! the integer labels, multiplying these by large numbers, and adding to the continuous age.
+    ! Note to ensure that lower integer land use label and pft label numbers are considered
+    ! "younger" (i.e higher index patchno) in the linked list, they are summed and multiplied by
+    ! negative one.  The patch age is still added normally to this negative pseudoage calculation
+    ! as a higher age will result in a less negative number correlating with an "older" patch.
+
+    type (fates_patch_type), intent(in), pointer :: CurrentPatch
+    real(r8)            :: pseudo_age    
+    real(r8), parameter :: max_actual_age = 1.e4  ! hard to imagine a patch older than 10,000 years
+    real(r8), parameter :: max_actual_age_squared = 1.e8
+
+    pseudo_age = -1.0_r8 * (real(CurrentPatch%land_use_label,r8) * max_actual_age_squared + &
+         real(CurrentPatch%nocomp_pft_label,r8) * max_actual_age) + CurrentPatch%age
+    
+  end function GetPseudoPatchAge
 
   ! =====================================================================================
 

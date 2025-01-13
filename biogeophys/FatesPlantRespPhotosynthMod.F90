@@ -186,13 +186,16 @@ contains
 
     ! leaf maintenance (dark) respiration [umol CO2/m**2/s]
     real(r8) :: lmr_z(nlevleaf,maxpft,nclmax)
-
+    
     ! stomatal resistance [s/m]
     real(r8) :: rs_z(nlevleaf,maxpft,nclmax)
 
     ! net leaf photosynthesis averaged over sun and shade leaves. [umol CO2/m**2/s]
     real(r8) :: anet_av_z(nlevleaf,maxpft,nclmax)
 
+    ! Photosynthesis [umol /m2 /s]
+    real(r8) :: psn_z(nlevleaf,maxpft,nclmax)
+    
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
     logical :: rate_mask_z(nlevleaf,maxpft,nclmax)
@@ -353,6 +356,8 @@ contains
                bc_out(s)%rssun_pa(ifp)     = 0._r8
                bc_out(s)%rssha_pa(ifp)     = 0._r8
 
+               psn_z(:,:,:) = 0._r8
+               
                g_sb_leaves = 0._r8
                patch_la    = 0._r8
 
@@ -369,7 +374,7 @@ contains
                   ! Part III. Calculate the number of sublayers for each pft and layer.
                   ! And then identify which layer/pft combinations have things in them.
                   ! Output:
-                  ! currentPatch%ncan(:,:)
+                  ! currentPatch%nleaf(:,:)
                   ! currentPatch%canopy_mask(:,:)
                   call UpdateCanopyNCanNRadPresent(currentPatch)
 
@@ -723,7 +728,7 @@ contains
                                       lmr_z(iv,ft,cl),                    &  ! in
                                       leaf_psi,                           &  ! in
                                       bc_in(s)%rb_pa(ifp),                &  ! in  
-                                      currentPatch%psn_z(cl,ft,iv),       &  ! out
+                                      psn_z(iv,ft,cl),                    &  ! out
                                       rs_z(iv,ft,cl),                     &  ! out
                                       anet_av_z(iv,ft,cl),                &  ! out
                                       c13disc_z(cl,ft,iv))                   ! out
@@ -734,11 +739,10 @@ contains
                            end do leaf_layer_loop
 
                            ! Zero cohort flux accumulators.
-                           currentCohort%npp_tstep  = 0.0_r8
-                           currentCohort%resp_tstep = 0.0_r8
+                           
+                           currentCohort%resp_m_tstep = 0.0_r8
                            currentCohort%gpp_tstep  = 0.0_r8
                            currentCohort%rdark      = 0.0_r8
-                           currentCohort%resp_m     = 0.0_r8
                            currentCohort%ts_net_uptake = 0.0_r8
                            currentCohort%c13disc_clm = 0.0_r8
 
@@ -755,7 +759,7 @@ contains
                            if(radiation_model.eq.norman_solver) then
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   currentPatch%psn_z(cl,ft,1:nv),        & !in
+                                   psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    currentPatch%elai_profile(cl,ft,1:nv), & !in
@@ -773,7 +777,7 @@ contains
                            else
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   currentPatch%psn_z(cl,ft,1:nv),        & !in
+                                   psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    cohort_layer_elai(1:nv),               & !in
@@ -963,47 +967,24 @@ contains
                         ! calcualate some fluxes that are sums and nets of the base fluxes
                         ! ------------------------------------------------------------------
 
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 904 ', currentCohort%resp_m
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 905 ', currentCohort%rdark
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 906 ', currentCohort%livestem_mr
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 907 ', currentCohort%livecroot_mr
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 908 ', currentCohort%froot_mr
-
-
-
                         ! add on whole plant respiration values in kgC/indiv/s-1
-                        currentCohort%resp_m = currentCohort%livestem_mr + &
+                        currentCohort%resp_m_tstep = currentCohort%livestem_mr + &
                              currentCohort%livecroot_mr + &
-                             currentCohort%froot_mr
-
+                             currentCohort%froot_mr + &
+                             currentCohort%rdark
+                        
                         ! no drought response right now.. something like:
-                        ! resp_m = resp_m * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft) * &
+                        ! resp_m_tstep = resp_m_tstep * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft) * &
                         !                    EDPftvarcon_inst%resp_drought_response(ft))
 
-                        currentCohort%resp_m = currentCohort%resp_m + currentCohort%rdark
-
-                        ! save as a diagnostic the un-throttled maintenance respiration to be able to know how strong this is
-                        currentCohort%resp_m_unreduced = currentCohort%resp_m / maintresp_reduction_factor
-
                         ! convert from kgC/indiv/s to kgC/indiv/timestep
-                        currentCohort%resp_m        = currentCohort%resp_m  * dtime
+                        currentCohort%resp_m_tstep  = currentCohort%resp_m_tstep  * dtime
                         currentCohort%gpp_tstep     = currentCohort%gpp_tstep * dtime
                         currentCohort%ts_net_uptake = currentCohort%ts_net_uptake * dtime
-
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 911 ', currentCohort%gpp_tstep
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
-
-
-                        currentCohort%resp_g_tstep     = prt_params%grperc(ft) * &
-                             (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
-
-
-                        currentCohort%resp_tstep = currentCohort%resp_m + &
-                             currentCohort%resp_g_tstep ! kgC/indiv/ts
-                        currentCohort%npp_tstep  = currentCohort%gpp_tstep - &
-                             currentCohort%resp_tstep  ! kgC/indiv/ts
-
+                        
+                        ! save as a diagnostic the un-throttled maintenance respiration to be able to know how strong this is
+                        currentCohort%resp_m_unreduced = currentCohort%resp_m_tstep / maintresp_reduction_factor
+                        
                         ! Accumulate the combined conductance (stomatal+leaf boundary layer)
                         ! Note that currentCohort%g_sb_laweight is weighted by the leaf area
                         ! of each cohort and has units of [m/s] * [m2 leaf]
@@ -1975,16 +1956,16 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine calculates two patch level quanities:
-    ! currentPatch%ncan   and
+    ! currentPatch%nleaf   and
     ! currentPatch%canopy_mask
     !
-    ! currentPatch%ncan(:,:) is a two dimensional array that indicates
+    ! currentPatch%nleaf(:,:) is a two dimensional array that indicates
     ! the total number of leaf layers (including those that are not exposed to light)
     ! in each canopy layer and for each functional type.
     !
     ! currentPatch%nrad(:,:) is a two dimensional array that indicates
     ! the total number of EXPOSED leaf layers, but for all intents and purposes
-    ! in the photosynthesis routine, this appears to be the same as %ncan...
+    ! in the photosynthesis routine, this appears to be the same as %nleaf...
     !
     ! currentPatch%canopy_mask(:,:) has the same dimensions, is binary, and
     ! indicates whether or not leaf layers are present (by evaluating the canopy area
@@ -2005,14 +1986,14 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     ! of the layer/pft index it is in
     ! ---------------------------------------------------------------------------------
 
-    currentPatch%ncan(:,:) = 0
+    currentPatch%nleaf(:,:) = 0
     ! redo the canopy structure algorithm to get round a
     ! bug that is happening for site 125, FT13.
     currentCohort => currentPatch%tallest
     do while(associated(currentCohort))
 
-       currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft) = &
-            max(currentPatch%ncan(currentCohort%canopy_layer,currentCohort%pft), &
+       currentPatch%nleaf(currentCohort%canopy_layer,currentCohort%pft) = &
+            max(currentPatch%nleaf(currentCohort%canopy_layer,currentCohort%pft), &
             currentCohort%NV)
 
        currentCohort => currentCohort%shorter
@@ -2020,10 +2001,10 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     enddo !cohort
 
     ! NRAD = NCAN ...
-    currentPatch%nrad = currentPatch%ncan
+    currentPatch%nrad = currentPatch%nleaf
 
     ! Now loop through and identify which layer and pft combo has scattering elements
-    do cl = 1,nclmax
+    do cl = 1,currentPatch%ncl_p
        do ft = 1,numpft
           currentPatch%canopy_mask(cl,ft) = 0
           do iv = 1, currentPatch%nrad(cl,ft);
