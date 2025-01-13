@@ -25,7 +25,7 @@ module FatesCohortMod
   use EDPftvarcon,                only : EDPftvarcon_inst
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
-  use FatesAllometryMod,          only : carea_allom, tree_lai, tree_sai
+  use FatesAllometryMod,          only : carea_allom, tree_lai_sai
   use PRTAllometricCarbonMod,     only : ac_bc_inout_id_dbh, ac_bc_inout_id_netdc
   use PRTAllometricCarbonMod,     only : ac_bc_in_id_cdamage, ac_bc_in_id_pft
   use PRTAllometricCarbonMod,     only : ac_bc_in_id_ctrim, ac_bc_in_id_lstat
@@ -638,14 +638,19 @@ module FatesCohortMod
       leaf_c = this%prt%GetState(leaf_organ, carbon12_element)
 
       ! calculate tree lai
-      this%treelai = tree_lai(leaf_c, this%pft, this%c_area, this%n,           &
-        this%canopy_layer, can_tlai, this%vcmax25top)
+      !this%treelai = tree_lai(leaf_c, this%pft, this%c_area, this%n,           &
+      !  this%canopy_layer, can_tlai, this%vcmax25top)
 
-      if (hlm_use_sp .eq. ifalse) then
-        this%treesai = tree_sai(this%pft, this%dbh, this%crowndamage,          &
-          this%canopy_trim, this%efstem_coh, this%c_area, this%n,              &
-          this%canopy_layer, can_tlai, this%treelai,this%vcmax25top, 2)
-      end if
+      !if (hlm_use_sp .eq. ifalse) then
+      !   this%treesai = tree_sai(this%pft, this%dbh, this%crowndamage,          &
+      !        this%canopy_trim, this%efstem_coh, this%c_area, this%n,              &
+      !        this%canopy_layer, can_tlai, this%treelai,this%vcmax25top, 2)
+      !end if
+
+     call  tree_lai_sai(leaf_c, this%pft, this%c_area, this%n,           &
+          this%canopy_layer, can_tlai, this%vcmax25top, this%dbh, this%crowndamage,          &
+          this%canopy_trim, this%efstem_coh, 2, this%treelai, this%treesai )
+     
 
       call this%InitPRTBoundaryConditions()
 
