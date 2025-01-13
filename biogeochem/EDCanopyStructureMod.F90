@@ -2253,7 +2253,8 @@ contains
    
    ! Local variables
    real(r8) :: leaf_c                              ! leaf carbon [kg]
-      
+   real(r8) :: treesai                             ! stem area index within crown m2/m2
+   
    ! Obtain the leaf carbon
    leaf_c = currentCohort%prt%GetState(leaf_organ,carbon12_element)
 
@@ -2273,7 +2274,12 @@ contains
 
    call  tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n,           &
           currentCohort%canopy_layer, canopy_layer_tlai, currentCohort%vcmax25top, currentCohort%dbh, currentCohort%crowndamage,          &
-          currentCohort%canopy_trim, currentCohort%efstem_coh, 4, currentCohort%treelai, currentCohort%treesai )
+          currentCohort%canopy_trim, currentCohort%efstem_coh, 4, currentCohort%treelai, treesai )
+
+   ! Do not update stem area index of SP vegetation
+   if (hlm_use_sp .eq. ifalse) then
+      currentCohort%treesai = treesai
+   end if
    
    ! cap leaf allometries that are larger than the allowable array space.
    !if( (currentCohort%treelai + currentCohort%treesai) > (sum(dinc_vai)) )then
