@@ -7623,12 +7623,12 @@ contains
                initialize=initialize_variables, index = ih_ddbh_understory_si_scpf)
 
           call this%set_history_var(vname='FATES_BASALAREA_SZPF', units = 'm2 m-2',  &
-               long='basal area by pft/size', use_default='active',               &
+               long='basal area by pft/size', use_default='inactive',               &
                avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,       &
                ivar=ivar, initialize=initialize_variables, index = ih_ba_si_scpf)
 
           call this%set_history_var(vname='FATES_SAPWOOD_AREA_SZPF', units = 'm2 m-2',  &
-               long='sapwood area by pft/size', use_default='active',               &
+               long='sapwood area by pft/size', use_default='inactive',               &
                avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,       &
                ivar=ivar, initialize=initialize_variables, index = ih_sapwood_area_scpf)
 
