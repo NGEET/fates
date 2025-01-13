@@ -78,7 +78,6 @@ Module EDCohortDynamicsMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : bstore_allom
   use FatesAllometryMod  , only : ForceDBH
-  use FatesAllometryMod  , only : tree_lai, tree_sai
   use FatesAllometryMod    , only : set_root_fraction
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
@@ -1067,11 +1066,14 @@ end subroutine create_cohort
                                            nextc%n*nextc%gpp_acc)/newn
                                       currentCohort%npp_acc        = (currentCohort%n*currentCohort%npp_acc     + &
                                            nextc%n*nextc%npp_acc)/newn
-                                      currentCohort%resp_acc       = (currentCohort%n*currentCohort%resp_acc    + &
-                                           nextc%n*nextc%resp_acc)/newn
-                                      currentCohort%resp_acc_hold  = &
-                                           (currentCohort%n*currentCohort%resp_acc_hold + &
-                                           nextc%n*nextc%resp_acc_hold)/newn
+                                      currentCohort%resp_m_acc       = (currentCohort%n*currentCohort%resp_m_acc    + &
+                                           nextc%n*nextc%resp_m_acc)/newn
+                                      currentCohort%resp_m_acc_hold  = &
+                                           (currentCohort%n*currentCohort%resp_m_acc_hold + &
+                                           nextc%n*nextc%resp_m_acc_hold)/newn
+                                      currentCohort%resp_g_acc_hold  = &
+                                           (currentCohort%n*currentCohort%resp_g_acc_hold + &
+                                           nextc%n*nextc%resp_g_acc_hold)/newn
                                       currentCohort%npp_acc_hold   = &
                                            (currentCohort%n*currentCohort%npp_acc_hold + &
                                            nextc%n*nextc%npp_acc_hold)/newn
@@ -1079,8 +1081,9 @@ end subroutine create_cohort
                                            (currentCohort%n*currentCohort%gpp_acc_hold + &
                                            nextc%n*nextc%gpp_acc_hold)/newn
 
-                                      currentCohort%resp_excess = (currentCohort%n*currentCohort%resp_excess + &
-                                           nextc%n*nextc%resp_excess)/newn
+                                      currentCohort%resp_excess_hold = &
+                                           (currentCohort%n*currentCohort%resp_excess_hold + &
+                                           nextc%n*nextc%resp_excess_hold)/newn
 
                                       currentCohort%dmort          = (currentCohort%n*currentCohort%dmort       + &
                                            nextc%n*nextc%dmort)/newn
