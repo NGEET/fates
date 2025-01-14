@@ -39,7 +39,7 @@ module FatesConstantsMod
   (/0._fates_r8, 5._fates_r8, 20._fates_r8, 50._fates_r8, 100._fates_r8, 150._fates_r8/) ! array of bin lower edges for comparing patches
 
   
-  real(fates_r8), parameter, public :: min_vai_bin_sum = 5.0_r8   ! The sum of vai increments used to discretize the canopy vertically                                                                                                                           ! must be larger than this number. 
+  real(fates_r8), parameter, public :: min_vai_bin_sum = 5.0_fates_r8   ! The sum of vai increments used to discretize the canopy vertically                                                                                                                           ! must be larger than this number. 
   
   integer , parameter, public :: N_DIST_TYPES = 4          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging, 4) land-use change
   integer , parameter, public :: dtype_ifall  = 1          ! index for naturally occuring tree-fall generated event
