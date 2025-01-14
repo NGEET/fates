@@ -5,6 +5,7 @@ list(APPEND fates_sources
   FatesAllometryMod.F90
   DamageMainMod.F90
   EDCohortDynamicsMod.F90
-  FatesPatchMod.F90)
+  FatesPatchMod.F90
+  CohortUtils.F90)
 
 sourcelist_to_parent(fates_sources)

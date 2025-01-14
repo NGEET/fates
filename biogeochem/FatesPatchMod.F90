@@ -235,6 +235,7 @@ module FatesPatchMod
       procedure :: InitLitter
       procedure :: Create
       procedure :: InsertCohort
+      procedure :: InsertCohort_old
       procedure :: SortCohorts
       procedure :: SortCohorts_new
       procedure :: UpdateTreeGrassArea
@@ -950,220 +951,226 @@ module FatesPatchMod
 
     !===========================================================================
     
-    subroutine InsertCohort(currentPatch, pcc, ptall, pshort, tnull, snull, storebigcohort, storesmallcohort)
-      
+    subroutine InsertCohort_old(currentPatch, pcc, ptall, pshort, tnull, snull, storebigcohort, storesmallcohort)
+        
       !
-    ! !DESCRIPTION:
-    ! Insert cohort into linked list
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS
-    class(fates_patch_type),  intent(inout),     target :: currentPatch
-    type(fates_cohort_type) , intent(inout), pointer :: pcc
-    type(fates_cohort_type) , intent(inout), pointer :: ptall
-    type(fates_cohort_type) , intent(inout), pointer :: pshort
-    integer              , intent(in)                     :: tnull
-    integer              , intent(in)                     :: snull
-    type(fates_cohort_type) , intent(inout),pointer,optional :: storesmallcohort ! storage of the smallest cohort for insertion routine
-    type(fates_cohort_type) , intent(inout),pointer,optional :: storebigcohort   ! storage of the largest cohort for insertion routine
-    !
-    ! !LOCAL VARIABLES:
-    !type(fates_patch_type),  pointer :: currentPatch
-    type(fates_cohort_type), pointer :: current
-    type(fates_cohort_type), pointer :: tallptr, shortptr, icohort
-    type(fates_cohort_type), pointer :: ptallest, pshortest
-    real(r8) :: tsp
-    integer :: tallptrnull,exitloop
-    !----------------------------------------------------------------------
+      ! !DESCRIPTION:
+      ! Insert cohort into linked list
+      !
+      ! !USES:
+      !
+      ! !ARGUMENTS
+      class(fates_patch_type),  intent(inout),     target :: currentPatch
+      type(fates_cohort_type) , intent(inout), pointer :: pcc
+      type(fates_cohort_type) , intent(inout), pointer :: ptall
+      type(fates_cohort_type) , intent(inout), pointer :: pshort
+      integer              , intent(in)                     :: tnull
+      integer              , intent(in)                     :: snull
+      type(fates_cohort_type) , intent(inout),pointer,optional :: storesmallcohort ! storage of the smallest cohort for insertion routine
+      type(fates_cohort_type) , intent(inout),pointer,optional :: storebigcohort   ! storage of the largest cohort for insertion routine
+      !
+      ! !LOCAL VARIABLES:
+      !type(fates_patch_type),  pointer :: currentPatch
+      type(fates_cohort_type), pointer :: current
+      type(fates_cohort_type), pointer :: tallptr, shortptr, icohort
+      type(fates_cohort_type), pointer :: ptallest, pshortest
+      real(r8) :: tsp
+      integer :: tallptrnull,exitloop
+      !----------------------------------------------------------------------
 
-    ptallest => ptall
-    pshortest => pshort
+      ptallest => ptall
+      pshortest => pshort
 
-    if (tnull == 1) then
-       ptallest => null()
-    endif
-    if (snull == 1) then
-       pshortest => null()
-    endif
+      if (tnull == 1) then
+        ptallest => null()
+      endif
+      if (snull == 1) then
+        pshortest => null()
+      endif
 
-    icohort => pcc ! assign address to icohort local name
-    !place in the correct place in the linked list of heights
-    !begin by finding cohort that is just taller than the new cohort
-    tsp = icohort%height
+      icohort => pcc ! assign address to icohort local name
+      !place in the correct place in the linked list of heights
+      !begin by finding cohort that is just taller than the new cohort
+      tsp = icohort%height
 
-    current => pshortest
-    exitloop = 0
-    !starting with shortest tree on the grid, find tree just
-    !taller than tree being considered and return its pointer
-    if (associated(current)) then
-       do while (associated(current).and.exitloop == 0)
-          if (current%height < tsp) then
-             current => current%taller
-          else
-             exitloop = 1
-          endif
-       enddo
-    endif
+      current => pshortest
+      exitloop = 0
+      !starting with shortest tree on the grid, find tree just
+      !taller than tree being considered and return its pointer
+      if (associated(current)) then
+        do while (associated(current).and.exitloop == 0)
+            if (current%height <= tsp) then
+              current => current%taller
+            else
+              exitloop = 1
+            endif
+        enddo
+      endif
 
-    if (associated(current)) then
-       tallptr => current
-       tallptrnull = 0
-    else
-       tallptr => null()
-       tallptrnull = 1
-    endif
+      if (associated(current)) then
+        tallptr => current
+        tallptrnull = 0
+      else
+        tallptr => null()
+        tallptrnull = 1
+      endif
 
-    !new cohort is tallest
-    if (.not.associated(tallptr)) then
-       !new shorter cohort to the new cohort is the old tallest cohort
-       shortptr => ptallest
+      !new cohort is tallest
+      if (.not.associated(tallptr)) then
+        !new shorter cohort to the new cohort is the old tallest cohort
+        shortptr => ptallest
 
-       !new cohort is tallest cohort and next taller remains null
-       ptallest => icohort
-       if (present(storebigcohort)) then
-          storebigcohort => icohort
-       end if
-       currentPatch%tallest => icohort
-       !new cohort is not tallest
-    else
-       !next shorter cohort to new cohort is the next shorter cohort
-       !to the cohort just taller than the new cohort
-       shortptr => tallptr%shorter
+        !new cohort is tallest cohort and next taller remains null
+        ptallest => icohort
+        if (present(storebigcohort)) then
+            storebigcohort => icohort
+        end if
+        currentPatch%tallest => icohort
+        !new cohort is not tallest
+      else
+        !next shorter cohort to new cohort is the next shorter cohort
+        !to the cohort just taller than the new cohort
+        shortptr => tallptr%shorter
 
-       !new cohort becomes the next shorter cohort to the cohort
-       !just taller than the new cohort
-       tallptr%shorter => icohort
-    endif
+        !new cohort becomes the next shorter cohort to the cohort
+        !just taller than the new cohort
+        tallptr%shorter => icohort
+      endif
 
-    !new cohort is shortest
-    if (.not.associated(shortptr)) then
-       !next shorter reamins null
-       !cohort is placed at the bottom of the list
-       pshortest => icohort
-       if (present(storesmallcohort)) then
-          storesmallcohort => icohort
-       end if
-       currentPatch%shortest => icohort
-    else
-       !new cohort is not shortest and becomes next taller cohort
-       !to the cohort just below it as defined in the previous block
-       shortptr%taller => icohort
-    endif
+      !new cohort is shortest
+      if (.not.associated(shortptr)) then
+        !next shorter reamins null
+        !cohort is placed at the bottom of the list
+        pshortest => icohort
+        if (present(storesmallcohort)) then
+            storesmallcohort => icohort
+        end if
+        currentPatch%shortest => icohort
+      else
+        !new cohort is not shortest and becomes next taller cohort
+        !to the cohort just below it as defined in the previous block
+        shortptr%taller => icohort
+      endif
 
-    ! assign taller and shorter links for the new cohort
-    icohort%taller => tallptr
-    if (tallptrnull == 1) then
-       icohort%taller=> null()
-    endif
-    icohort%shorter => shortptr
+      ! assign taller and shorter links for the new cohort
+      icohort%taller => tallptr
+      if (tallptrnull == 1) then
+        icohort%taller=> null()
+      endif
+      icohort%shorter => shortptr
   
-    !   ! ARGUMENTS:
-    !   class(fates_patch_type),  intent(inout), target  :: this  ! patch 
-    !   type(fates_cohort_type), intent(inout), pointer :: cohort ! cohort to insert
+    end subroutine InsertCohort_old
+  
+    subroutine InsertCohort(this, cohort)
+    
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout), target  :: this   ! patch 
+      type(fates_cohort_type), intent(inout), pointer :: cohort ! cohort to insert
       
-    !   ! LOCALS:
-    !   type(fates_cohort_type), pointer :: temp_cohort1, temp_cohort2 ! temporary cohorts to store pointers
+      ! LOCALS:
+      type(fates_cohort_type), pointer :: temp_cohort1, temp_cohort2 ! temporary cohorts to store pointers
       
-    !   ! nothing in the list - add to head
-    !   if (.not. associated(this%shortest)) then
-    !     this%shortest => cohort
-    !     this%tallest  => this%shortest
-    !     cohort%taller => null()
-    !     cohort%shorter => null()
-    !     return 
-    !   end if 
-      
-    !   ! shortest - add to front of list
-    !   if (cohort%height < this%shortest%height) then
-    !     temp_cohort1 => this%shortest         ! save current shortest in temporary pointer
-    !     cohort%taller => this%shortest        ! attach cohort to list
-    !     this%shortest => cohort               ! cohort is now the shortest 
-    !     this%shortest%shorter => null()       ! nullify new head's "shorter" pointer
-    !     temp_cohort1%shorter => this%shortest ! new head is previous head's 'shorter'
-    !     return
-    !   end if 
+      ! nothing in the list - add to head
+      if (.not. associated(this%shortest)) then
+        this%shortest => cohort
+        this%tallest  => this%shortest
+        cohort%taller => null()
+        cohort%shorter => null()
+        return 
+      end if 
+        
+      ! shortest - add to front of list
+      if (cohort%height < this%shortest%height) then
+        temp_cohort1 => this%shortest         ! save current shortest in temporary pointer
+        cohort%taller => this%shortest        ! attach cohort to list
+        this%shortest => cohort               ! cohort is now the shortest 
+        this%shortest%shorter => null()       ! nullify new head's "shorter" pointer
+        temp_cohort1%shorter => this%shortest ! new head is previous head's 'shorter'
+        return
+      end if 
 
-    !   ! tallest - add to end
-    !   if (cohort%height >= this%tallest%height) then
-    !     this%tallest%taller => cohort        ! attach cohort to end of list
-    !     temp_cohort1 => this%tallest         ! store current tallest in temporary pointer
-    !     this%tallest => cohort               ! cohort is now the tallest
-    !     this%tallest%shorter => temp_cohort1 ! new tail is previous tails's 'taller'
-    !     this%tallest%taller => null()        ! nullify new tails's "taller" pointer
-    !     return
-    !   end if 
+      ! tallest - add to end
+      if (cohort%height >= this%tallest%height) then
+        this%tallest%taller => cohort        ! attach cohort to end of list
+        temp_cohort1 => this%tallest         ! store current tallest in temporary pointer
+        this%tallest => cohort               ! cohort is now the tallest
+        this%tallest%shorter => temp_cohort1 ! new tail is previous tails's 'taller'
+        this%tallest%taller => null()        ! nullify new tails's "taller" pointer
+        return
+      end if 
 
-    !   ! traverse list to find where to put cohort
-    !   temp_cohort1 => this%shortest
-    !   temp_cohort2 => temp_cohort1%taller
-    !   do while (associated(temp_cohort2))
-    !     if ((cohort%height >= temp_cohort1%height) .and. (cohort%height < temp_cohort2%height)) then 
-    !       ! add cohort here
-    !       cohort%taller => temp_cohort2
-    !       temp_cohort1%taller => cohort
-    !       cohort%shorter => temp_cohort1
-    !       temp_cohort2%shorter => cohort
-    !       exit
-    !     end if
-    !     temp_cohort1 => temp_cohort2
-    !     temp_cohort2 => temp_cohort2%taller
-    !   end do
+      ! traverse list to find where to put cohort
+      temp_cohort1 => this%shortest
+      temp_cohort2 => temp_cohort1%taller
+      do while (associated(temp_cohort2))
+        if ((cohort%height >= temp_cohort1%height) .and. (cohort%height < temp_cohort2%height)) then 
+          ! add cohort here
+          cohort%taller => temp_cohort2
+          temp_cohort1%taller => cohort
+          cohort%shorter => temp_cohort1
+          temp_cohort2%shorter => cohort
+          exit
+        end if
+        temp_cohort1 => temp_cohort2
+        temp_cohort2 => temp_cohort2%taller
+      end do
 
     end subroutine InsertCohort
   
     !===========================================================================
   
     subroutine SortCohorts(patchptr)
-    
-    ! ============================================================================
-    !                 sort cohorts into the correct order   DO NOT CHANGE THIS IT WILL BREAK
-    ! ============================================================================
+      
+      ! ============================================================================
+      !                 sort cohorts into the correct order   DO NOT CHANGE THIS IT WILL BREAK
+      ! ============================================================================
 
-    class(fates_patch_type) , intent(inout), target :: patchptr
+      class(fates_patch_type) , intent(inout), target :: patchptr
 
-    type(fates_patch_type) , pointer :: current_patch
-    type(fates_cohort_type), pointer :: current_c, next_c
-    type(fates_cohort_type), pointer :: shortestc, tallestc
-    type(fates_cohort_type), pointer :: storesmallcohort
-    type(fates_cohort_type), pointer :: storebigcohort
-    integer :: snull,tnull
+      type(fates_patch_type) , pointer :: current_patch
+      type(fates_cohort_type), pointer :: current_c, next_c
+      type(fates_cohort_type), pointer :: shortestc, tallestc
+      type(fates_cohort_type), pointer :: storesmallcohort
+      type(fates_cohort_type), pointer :: storebigcohort
+      integer :: snull,tnull
 
-    current_patch => patchptr
-    tallestc  => NULL()
-    shortestc => NULL()
-    storebigcohort   => null()
-    storesmallcohort => null()
-    current_c => current_patch%tallest
+      current_patch => patchptr
+      tallestc  => NULL()
+      shortestc => NULL()
+      storebigcohort   => null()
+      storesmallcohort => null()
+      current_c => current_patch%tallest
 
-    do while (associated(current_c))
-       next_c => current_c%shorter
-       tallestc  => storebigcohort
-       shortestc => storesmallcohort
-       if (associated(tallestc)) then
-          tnull = 0
-       else
-          tnull = 1
-          tallestc => current_c
-       endif
+      do while (associated(current_c))
+        next_c => current_c%shorter
+        tallestc  => storebigcohort
+        shortestc => storesmallcohort
+        if (associated(tallestc)) then
+            tnull = 0
+        else
+            tnull = 1
+            tallestc => current_c
+        endif
 
-       if (associated(shortestc)) then
-          snull = 0
-       else
-          snull = 1
-          shortestc => current_c
-       endif
+        if (associated(shortestc)) then
+            snull = 0
+        else
+            snull = 1
+            shortestc => current_c
+        endif
 
-       call current_patch%InsertCohort(current_c, tallestc, shortestc,       &
-         tnull, snull, storebigcohort, storesmallcohort)
+        call current_patch%InsertCohort_old(current_c, tallestc, shortestc,       &
+          tnull, snull, storebigcohort, storesmallcohort)
 
-       current_patch%tallest  => storebigcohort
-       current_patch%shortest => storesmallcohort
-       current_c => next_c
+        current_patch%tallest  => storebigcohort
+        current_patch%shortest => storesmallcohort
+        current_c => next_c
 
-    enddo
-    
+      enddo
+      
     end subroutine SortCohorts
+    
+    !===========================================================================
     
     subroutine SortCohorts_new(this)
       !
@@ -1199,7 +1206,7 @@ module FatesPatchMod
           ! sorted is null, insert at head of list
           sorted_head => currentCohort
           
-        else if (sorted_head%height >= currentCohort%height) then
+        else if (sorted_head%height > currentCohort%height) then
         
           ! insert at head of list
           currentCohort%taller => sorted_head
@@ -1211,7 +1218,7 @@ module FatesPatchMod
           ! traverse sorted list to find where to place
           currentSorted => sorted_head
           do while (associated(currentSorted%taller))
-            if (currentCohort%height <= currentSorted%taller%height) exit
+            if (currentCohort%height < currentSorted%taller%height) exit
             currentSorted => currentSorted%taller
           end do
           
