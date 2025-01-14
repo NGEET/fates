@@ -1423,7 +1423,7 @@ contains
         case (2)
            ! Log-linear allometry. Multiplier factor cannot be negative or zero.
            ! -------------------------------------------------------------------------------
-           if ( prt_params%allom_h2cd1 (ipft) <= nearzero ) then
+           if ( prt_params%allom_h2cd1 (ipft) < nearzero ) then
               !   Calculations for the generic case require allom_h2cd1 to be positive. If
               ! not, issue an error.
               ! ----------------------------------------------------------------------------
@@ -1472,8 +1472,8 @@ contains
               ! ----------------------------------------------------------------------------
               call h_allom(prt_params%allom_dbh_maxheight(ipft),ipft,height_max)
 
-              if ( ( prt_params%allom_h2cd2 (ipft)  <  1.0_r8      ) .and. &
-                   ( EDPftvarcon_inst%hgt_min(ipft) <= height_crit ) ) then
+              if ( ( prt_params%allom_h2cd2 (ipft)  <  1.0_r8     ) .and. &
+                   ( EDPftvarcon_inst%hgt_min(ipft) < height_crit ) ) then
                  !   These parameters will cause the code to cap crown depth to height for
                  ! small plants. We print a warning message, but we do not stop the run.
                  ! -------------------------------------------------------------------------
