@@ -297,7 +297,7 @@ contains
     integer  :: ico
     
     ! Parameters
-    ! Convergence tolerance on solving intracellular CO2 concentration
+    ! Absolute convergence tolerance on solving intracellular CO2 concentration [Pa]
 
     real(r8), parameter :: ci_tol = 0.5_r8
     
