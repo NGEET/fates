@@ -2020,7 +2020,7 @@ contains
                   write(fates_log(),*) 'Transfering hlm_daylength_factor_switch= ',ival,' to FATES'
                end if
 
-            case('use_photosynth_acclimation')
+            case('photosynth_acclimation')
                hlm_photo_tempsens_model = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_photo_tempsens_model= ',ival,' to FATES'
