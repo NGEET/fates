@@ -50,14 +50,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    !name = 'fates_leaf_theta_cj_c3'
-    !call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
-    !     dimension_names=dim_names_scalar)
-
-    !name = 'fates_leaf_theta_cj_c4'
-    !call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
-    !     dimension_names=dim_names_scalar)
-
     name = 'fates_leaf_stomatal_model'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
@@ -152,15 +144,6 @@ contains
     real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
     real(r8)              :: tmpscalar
     character(len=param_string_length) :: name
-
-    
-    !name = 'fates_leaf_theta_cj_c3'
-    !call fates_params%RetrieveParameter(name=name, &
-    !     data=lb_params%theta_cj_c3)
-
-    !name = 'fates_leaf_theta_cj_c4'
-    !call fates_params%RetrieveParameter(name=name, &
-    !     data=lb_params%theta_cj_c4)
 
     name = 'fates_daylength_factor_switch'
     call fates_params%RetrieveParameter(name=name, &
