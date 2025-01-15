@@ -234,6 +234,8 @@ module FatesPatchMod
       procedure :: InitRunningMeans
       procedure :: InitLitter
       procedure :: Create
+      procedure :: Count_Cohorts
+      procedure :: ValidateCohorts
       procedure :: InsertCohort
       procedure :: InsertCohort_old
       procedure :: SortCohorts
@@ -1060,9 +1062,15 @@ module FatesPatchMod
       icohort%shorter => shortptr
   
     end subroutine InsertCohort_old
+    
+    !===========================================================================
   
     subroutine InsertCohort(this, cohort)
-    
+      !
+      ! DESCRIPTION:
+      ! Inserts a cohort into a patch's linked list structure
+      !
+      
       ! ARGUMENTS:
       class(fates_patch_type), intent(inout), target  :: this   ! patch 
       type(fates_cohort_type), intent(inout), pointer :: cohort ! cohort to insert
@@ -1070,13 +1078,29 @@ module FatesPatchMod
       ! LOCALS:
       type(fates_cohort_type), pointer :: temp_cohort1, temp_cohort2 ! temporary cohorts to store pointers
       
+      ! validate the cohort before insertion
+      if (.not. associated(cohort)) then
+        write(fates_log(),*) 'error: cohort is not allocated!'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+    
+      if (associated(cohort%taller) .or. associated(cohort%shorter)) then
+        write(fates_log(),*) 'error: cohort already part of a list!'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+      
       ! nothing in the list - add to head
       if (.not. associated(this%shortest)) then
-        this%shortest => cohort
-        this%tallest  => this%shortest
-        cohort%taller => null()
-        cohort%shorter => null()
-        return 
+        if (.not. associated(this%tallest)) then 
+          this%shortest => cohort
+          this%tallest  => this%shortest
+          cohort%taller => null()
+          cohort%shorter => null()
+          return 
+        else 
+          write(fates_log(),*) 'error: inconsistent list state!'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
       end if 
         
       ! shortest - add to front of list
@@ -1103,6 +1127,13 @@ module FatesPatchMod
       temp_cohort1 => this%shortest
       temp_cohort2 => temp_cohort1%taller
       do while (associated(temp_cohort2))
+        
+        ! validate list structure before insertion
+        if (associated(temp_cohort1%taller) .and. associated(temp_cohort1%taller%shorter, temp_cohort1)) then 
+          write(fates_log(),*) 'error: corrupted list structure!'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if 
+        
         if ((cohort%height >= temp_cohort1%height) .and. (cohort%height < temp_cohort2%height)) then 
           ! add cohort here
           cohort%taller => temp_cohort2
@@ -1117,6 +1148,102 @@ module FatesPatchMod
 
     end subroutine InsertCohort
   
+    !===========================================================================
+    
+    subroutine ValidateCohorts(this)
+      !
+      ! DESCRIPTION:
+      ! Validates a patch's cohort linked list
+      !
+      
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout), target :: this ! patch 
+      
+      ! LOCALS:
+      type(fates_cohort_type), pointer :: currentCohort ! cohort object
+
+      ! check initial conditions
+      if (.not. associated(this%shortest) .and. .not. associated(this%tallest)) then
+          ! validation passed - empty list
+          return
+      else if (.not. associated(this%shortest) .or. .not. associated(this%tallest)) then
+          write(fates_log(),*) "patch cohort list validation failed: one of shortest or tallest is null."
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+      
+      ! count cohorts, which also validates
+      call this%Count_Cohorts()
+        
+    end subroutine ValidateCohorts
+    
+    !===========================================================================
+    
+    subroutine Count_Cohorts(this)
+      !
+      ! DESCRIPTION:
+      ! Counts the number of a cohorts in a patch's linked list
+      !
+      
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout), target :: this ! patch 
+      
+      ! LOCALS:
+      type(fates_cohort_type), pointer :: currentCohort                 ! cohort object
+      integer                          :: forward_count, backward_count ! forwards and backwards counts of cohorts
+      
+      ! initialize counts
+      forward_count = 0
+      backward_count = 0
+      
+      ! traverse taller chain
+      currentCohort => this%shortest
+      do while (associated(currentCohort))
+        forward_count = forward_count + 1
+
+        ! validate cohort
+        if (associated(currentCohort%taller)) then
+          if (associated(currentCohort%taller%shorter, currentCohort)) then
+              write(fates_log(),*) "error: mismatch in patch's taller chain!"
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+        else
+          if (.not. associated(currentCohort, this%tallest)) then
+              write(fates_log(),*) "error: cohort list does not end at tallest!"
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+        end if
+          currentCohort => currentCohort%taller
+      end do
+      
+      ! traverse shorter chain
+      currentCohort => this%tallest
+      do while (associated(currentCohort))
+        backward_count = backward_count + 1
+
+        if (associated(currentCohort%shorter)) then
+          if (associated(currentCohort%shorter%taller, currentCohort)) then
+              write(fates_log(),*) "error: mismatch in patch's shorter chain!"
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+        else
+          if (.not. associated(currentCohort, this%shortest)) then
+              write(fates_log(),*) "error: cohort list does not end at shortest!"
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+        end if
+        currentCohort => currentCohort%shorter
+      end do
+      
+      ! check consistency between forward and backward counts
+      if (forward_count /= backward_count) then
+        write(fates_log(),*) "error: forward and backward traversal counts do not match!"
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+      
+      this%countcohorts = forward_count
+          
+    end subroutine Count_Cohorts
+    
     !===========================================================================
   
     subroutine SortCohorts(patchptr)

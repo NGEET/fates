@@ -1280,31 +1280,10 @@ contains
 
      endif ! patch.
      
-   !   write(fates_log(), *) '--------'
-   !   write(fates_log(), *) 'ADRIANNA BEFORE SORTING'
-   !    currentCohort => currentPatch%shortest
-   !    do while (associated(currentCohort))
-   !       write(fates_log(), *) 'adrianna patch', currentPatch%patchno
-   !       write(fates_log(), *) 'adrianna id', currentCohort%cohort_id
-   !       write(fates_log(), *) 'adrianna height', currentCohort%height
-   !       currentCohort => currentCohort%taller
-   !    end do
-   !    write(fates_log(), *) ' '
-
      if (fusion_took_place == 1) then  ! if fusion(s) occured sort cohorts
         call currentPatch%SortCohorts()
      endif
-     
-   !   write(fates_log(), *) 'ADRIANNA AFTER SORTING'
-   !    currentCohort => currentPatch%shortest
-   !     do while (associated(currentCohort))
-   !        write(fates_log(), *) 'adrianna patch', currentPatch%patchno
-   !        write(fates_log(), *) 'adrianna id', currentCohort%cohort_id
-   !        write(fates_log(), *) 'adrianna height', currentCohort%height
-   !        currentCohort => currentCohort%taller
-   !     end do
-   !   write(fates_log(), *) ' '
-
+   
   end subroutine fuse_cohorts
 
 !-------------------------------------------------------------------------------------!
