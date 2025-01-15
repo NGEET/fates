@@ -235,8 +235,8 @@ module FatesPatchMod
       procedure :: InitLitter
       procedure :: Create
       procedure :: InsertCohort
+      procedure :: SortCohorts_old
       procedure :: SortCohorts
-      procedure :: SortCohorts_new
       procedure :: UpdateTreeGrassArea
       procedure :: UpdateLiveGrass
       procedure :: FreeMemory
@@ -1114,7 +1114,7 @@ module FatesPatchMod
   
     !===========================================================================
   
-    subroutine SortCohorts(patchptr)
+    subroutine SortCohorts_old(patchptr)
     
     ! ============================================================================
     !                 sort cohorts into the correct order   DO NOT CHANGE THIS IT WILL BREAK
@@ -1163,9 +1163,9 @@ module FatesPatchMod
 
     enddo
     
-    end subroutine SortCohorts
+    end subroutine SortCohorts_old
     
-    subroutine SortCohorts_new(this)
+    subroutine SortCohorts(this)
       !
       ! DESCRIPTION: sort cohorts in patch's linked list
       ! uses insertion sort to build a new list
@@ -1199,7 +1199,7 @@ module FatesPatchMod
           ! sorted is null, insert at head of list
           sorted_head => currentCohort
           
-        else if (sorted_head%height >= currentCohort%height) then
+        else if (sorted_head%height > currentCohort%height) then
         
           ! insert at head of list
           currentCohort%taller => sorted_head
@@ -1211,7 +1211,7 @@ module FatesPatchMod
           ! traverse sorted list to find where to place
           currentSorted => sorted_head
           do while (associated(currentSorted%taller))
-            if (currentCohort%height <= currentSorted%taller%height) exit
+            if (currentCohort%height < currentSorted%taller%height) exit
             currentSorted => currentSorted%taller
           end do
           
@@ -1241,7 +1241,7 @@ module FatesPatchMod
         this%tallest => currentCohort
       end if
     
-    end subroutine SortCohorts_new
+    end subroutine SortCohorts
   
     !===========================================================================
 

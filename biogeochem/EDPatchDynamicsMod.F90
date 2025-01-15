@@ -1291,7 +1291,7 @@ contains
                                currentCohort => currentCohort%taller
                             enddo cohortloop
 
-                            call currentPatch%SortCohorts_new()
+                            call currentPatch%SortCohorts()
 
                             !update area of donor patch
                             oldarea = currentPatch%area
