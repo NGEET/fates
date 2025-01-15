@@ -583,8 +583,7 @@ contains
        ! C4: RuBP-limited photosynthesis
        aj = AgrossRuBPC4(par_abs)
        
-       !! C4: PEP carboxylase-limited (CO2-limited)
-       !ap = AgrossPEPC4(ci,kp,can_press)
+       
        
        aquad = theta_cj_c4
        bquad = -(ac + aj)
@@ -618,8 +617,9 @@ contains
        end if
 
        ci(3) = max(r1,r2)
-
-       ap = kp*ci(3)/can_press
+       
+       !! C4: PEP carboxylase-limited (CO2-limited)
+       ap = AgrossPEPC4(ci(3),kp,can_press)
 
        aquad = theta_ip_c4
        bquad = -(ai + ap)
@@ -668,7 +668,7 @@ contains
        end if
        ci(3) = max(r1,r2)
 
-       ap = kp*ci(3)/can_press
+       ap = AgrossPEPC4(ci(3),kp,can_press)
 
        aquad = theta_ip_c4
        bquad = -(ai + ap)
