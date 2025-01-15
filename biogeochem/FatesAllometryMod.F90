@@ -110,8 +110,6 @@ module FatesAllometryMod
   public :: blmax_allom   ! Generic maximum leaf biomass wrapper
   public :: bleaf         ! Generic actual leaf biomass wrapper
   public :: storage_fraction_of_target ! storage as fraction of leaf biomass
-  public :: tree_lai      ! Calculate tree-level LAI from actual leaf biomass
-  public :: tree_sai      ! Calculate tree-level SAI from tree-level LAI
   public :: bsap_allom    ! Generic sapwood wrapper
   public :: bbgw_allom    ! Generic coarse root wrapper
   public :: bfineroot     ! Generic actual fine root biomass wrapper
@@ -127,7 +125,10 @@ module FatesAllometryMod
                                ! root profiles
   public :: leafc_from_treelai ! Calculate target leaf carbon for a given treelai for SP mode
   public :: VegAreaLayer
-  
+
+  public :: tree_lai_sai       ! LAI and SAI calculations must work together, thus they
+                               ! should never be called separately
+
   logical         , parameter :: verbose_logging = .false.
   character(len=*), parameter :: sourcefile = __FILE__
 
@@ -828,39 +829,58 @@ contains
 
     tree_sai   =  elongf_stem * prt_params%allom_sai_scaler(pft) * target_lai
 
-    if( (treelai + tree_sai) > (sum(dinc_vai)) )then
-
-       call h_allom(dbh,pft,h)
-
-       write(fates_log(),*) 'The leaf and stem are predicted for a cohort, maxed out the array size'
-       write(fates_log(),*) 'lai: ',treelai
-       write(fates_log(),*) 'sai: ',tree_sai
-       write(fates_log(),*) 'lai+sai: ',treelai+tree_sai
-       write(fates_log(),*) 'target_bleaf: ', target_bleaf
-       write(fates_log(),*) 'area: ', c_area
-       write(fates_log(),*) 'target_lai: ',target_lai
-       write(fates_log(),*) 'dinc_vai:',dinc_vai
-       write(fates_log(),*) 'nlevleaf,sum(dinc_vai):',nlevleaf,sum(dinc_vai)
-       write(fates_log(),*) 'pft: ',pft
-       write(fates_log(),*) 'call id: ',call_id
-       write(fates_log(),*) 'n: ',nplant
-       write(fates_log(),*) 'dbh: ',dbh,' dbh_max: ',prt_params%allom_dbh_maxheight(pft)
-       write(fates_log(),*) 'h: ',h
-       write(fates_log(),*) 'canopy_trim: ',canopy_trim
-       write(fates_log(),*) 'canopy layer: ',cl
-       write(fates_log(),*) 'canopy_tlai: ',canopy_lai(:)
-       write(fates_log(),*) 'vcmax25top: ',vcmax25top
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
-    
-
-
     return
   end function tree_sai
+
+  ! ============================================================================
+  
+  subroutine tree_lai_sai(leaf_c, pft, c_area, nplant, cl, canopy_lai, vcmax25top, &
+                          dbh, crowndamage, canopy_trim, elongf_stem, call_id, & 
+                          treelai, treesai)
+
+    ! This is the public wrapper for calling plant lai and sai
+    ! The purpose of this wrapper is to ensure that they are called together,
+    ! and in the correct order, and that the capping is applied after
+    ! the base calculations are performed.
+    
+    real(r8), intent(in) :: leaf_c                    ! plant leaf carbon [kg]
+    integer, intent(in)  :: pft                       ! Plant Functional Type index
+    real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
+    real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
+    integer, intent(in)  :: cl                        ! canopy layer index
+    real(r8), intent(in) :: canopy_lai(:)             ! total leaf area index of 
+                                                      ! each canopy layer
+    real(r8), intent(in) :: vcmax25top                ! maximum carboxylation rate at canopy
+    real(r8), intent(in) :: dbh
+    integer, intent(in)  :: crowndamage
+    real(r8), intent(in) :: canopy_trim        ! trimming function (0-1)
+    real(r8), intent(in) :: elongf_stem        ! Elongation factor for stems.
+    integer,intent(in)   :: call_id            ! flag specifying where this is called from
+    ! from
+    
+    real(r8), intent(out) :: treelai         ! plant LAI [m2 leaf area/m2 crown area]
+    real(r8), intent(out) :: treesai         ! plant SAI [m2 stem area/m2 crown area]
+   
+    
+    treelai = tree_lai( leaf_c, pft, c_area, nplant, cl, canopy_lai, vcmax25top)
+    
+    treesai = tree_sai( pft, dbh, crowndamage, canopy_trim, elongf_stem, c_area, nplant, &
+                             cl, canopy_lai, treelai, vcmax25top, call_id )
+
+    ! Don't allow lai+sai to exceed the vertical discretization bounds
+    if( (treelai + treesai) > (sum(dinc_vai)) )then
+       treelai = sum(dinc_vai) * (1._r8 - prt_params%allom_sai_scaler(pft)) - nearzero
+       treesai = sum(dinc_vai) * prt_params%allom_sai_scaler(pft) - nearzero
+    end if
+    
+    
+    return
+  end subroutine tree_lai_sai
+
   
 ! =====================================================================================
  
-  real(r8) function leafc_from_treelai( treelai, pft, c_area, nplant, cl, vcmax25top)
+  real(r8) function leafc_from_treelai( treelai, treesai, pft, c_area, nplant, cl, vcmax25top)
  
     ! -----------------------------------------------------------------------------------
     ! Calculates the amount of leaf carbon which is needed to generate a given treelai. 
@@ -869,6 +889,7 @@ contains
  
     ! !ARGUMENTS
     real(r8), intent(in) :: treelai                    ! desired tree lai m2/m2
+    real(r8), intent(in) :: treesai                    ! desired tree lai m2/m2
     integer, intent(in)  :: pft                       ! Plant Functional Type index
     real(r8), intent(in) :: c_area                    ! areal extent of canopy (m2)
     real(r8), intent(in) :: nplant                    ! number of individuals in cohort per ha
@@ -909,6 +930,11 @@ contains
       call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
+    if( (treelai + treesai) > (sum(dinc_vai)) )then
+       write(fates_log(),*) 'SP tree lai cannot exceed sum of dinc_vai',treelai,treesai,sum(dinc_vai)
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+    
     ! convert PFT-level canopy top and maximum SLA values and convert from m2/gC to m2/kgC
     slat = g_per_kg * prt_params%slatop(pft)
     sla_max = g_per_kg * prt_params%slamax(pft)

@@ -839,7 +839,7 @@ contains
       !
       ! --------------------------------------------------------------------------------
 
-      use FatesConstantsMod,      only : fates_check_param_set
+      use FatesConstantsMod,      only : fates_check_param_set, min_vai_bin_sum
 
       logical,intent(in) :: use_fates    ! Is fates turned on?
       integer :: i
@@ -931,6 +931,20 @@ contains
             dinc_vai(i) = ED_val_vai_top_bin_width * ED_val_vai_width_increase_factor ** (i-1)
          end do
 
+         if (sum(dinc_vai) < min_vai_bin_sum ) then
+            write(fates_log(), *) 'You specified LAI+SAI bins that add up to a number'
+            write(fates_log(), *) 'that is not reasonably large enough to encapsulate in-canopy'
+            write(fates_log(), *) 'total area indices for large mature trees'
+            write(fates_log(), *) 'sum of vai increments sum(dinc_vai) = ',sum(dinc_vai)
+            write(fates_log(), *) 'minimum allowable user set vai, min_vai_bin_sum = ',min_vai_bin_sum
+            write(fates_log(), *) 'Increase either the top bin width fates_vai_top_bin_width'
+            write(fates_log(), *) 'or the increase factor fates_vai_width_increase_factor'
+            write(fates_log(), *) 'as found in the parameter file.'
+            write(fates_log(), *) 'Or, you can decrease the minimum if you believe its too large'
+            write(fates_log(), *) 'but that is not recommended in most cases.'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
          ! lower edges of VAI bins       
          do i = 1,nlevleaf
             dlower_vai(i) = sum(dinc_vai(1:i))
