@@ -45,16 +45,15 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : bc_out_type
   use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
   use EDCohortDynamicsMod , only : InitPRTObject
-  use FatesAllometryMod   , only : tree_lai
-  use FatesAllometryMod   , only : tree_sai
+  use FatesAllometryMod   , only : tree_lai_sai
   use FatesAllometryMod   , only : leafc_from_treelai
   use LeafBiophysicsMod   , only : DecayCoeffVcmax
   use FatesLitterMod      , only : litter_type
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
+  use FatesFuelClassesMod , only : fuel_classes
   use EDTypesMod          , only : elem_diag_type
-  use FatesLitterMod      , only : dl_sf
   use EDParamsMod         , only : dinc_vai, dlower_vai
   use EDTypesMod          , only : area_inv
   use EDTypesMod          , only : AREA
@@ -707,18 +706,10 @@ contains
 
           leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
 
-          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
-               currentCohort%n, currentCohort%canopy_layer,               &
-               currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
-
-          ! We don't need to check on sp mode here since we don't trim_canopy with sp mode
-          currentCohort%treesai = tree_sai(currentCohort%pft, &
-               currentCohort%dbh, currentCohort%crowndamage,  &
-               currentCohort%canopy_trim, &
-               currentCohort%efstem_coh, &
-               currentCohort%c_area, currentCohort%n,currentCohort%canopy_layer,& 
-               currentPatch%canopy_layer_tlai, currentCohort%treelai, &
-               currentCohort%vcmax25top,0 )  
+          call  tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n,           &
+               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, currentCohort%vcmax25top,   &
+               currentCohort%dbh, currentCohort%crowndamage, currentCohort%canopy_trim, &
+               currentCohort%efstem_coh, 0, currentCohort%treelai, currentCohort%treesai )
 
           currentCohort%nv      = count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
 
@@ -1931,6 +1922,7 @@ contains
 
     ! LOCAL VARIABLES:
     real(r8) :: check_treelai       ! check tree LAI against input tlai [m2/m2]
+    real(r8) :: dummy_treesai       ! dummy
     real(r8) :: canopylai(1:nclmax) ! canopy LAI [m2/m2]
     real(r8) :: oldcarea            ! save value of crown area [m2]
 
@@ -1948,17 +1940,17 @@ contains
 
     ! calculate leaf carbon from target treelai
     canopylai(:) = 0._r8
-    leaf_c = leafc_from_treelai(tlai, pft, c_area, cohort_n, canopy_layer, vcmax25top)
-
+    leaf_c = leafc_from_treelai(tlai, tsai, pft, c_area, cohort_n, canopy_layer, vcmax25top)
+    
     ! check that the inverse calculation of leafc from treelai is the same as the
     ! standard calculation of treelai from leafc. Maybe can delete eventually?
-    check_treelai = tree_lai(leaf_c, pft, c_area, cohort_n, canopy_layer,                &
-         canopylai, vcmax25top)
 
+    call tree_lai_sai(leaf_c, pft, c_area, cohort_n, canopy_layer, canopylai, vcmax25top, &
+                          dbh, crown_damage, 1.0_r8, 1.0_r8, 11, check_treelai, dummy_treesai)
+    
     if (abs(tlai - check_treelai) > area_error_2) then !this is not as precise as nearzero
       write(fates_log(),*) 'error in validate treelai', tlai, check_treelai, tlai - check_treelai
-      write(fates_log(),*) 'tree_lai inputs: ', pft, c_area, cohort_n,                   &
-        canopy_layer, vcmax25top
+      write(fates_log(),*) 'tree_lai inputs: ', pft, c_area, cohort_n, canopy_layer, vcmax25top
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
@@ -3269,11 +3261,11 @@ contains
     do dcmpy = 1,ndcmpy
 
        litt%leaf_fines_frag(dcmpy) = litt%leaf_fines(dcmpy) * &
-             years_per_day * SF_val_max_decomp(dl_sf) * fragmentation_scaler(soil_layer_index)
+             years_per_day * SF_val_max_decomp(fuel_classes%dead_leaves()) * fragmentation_scaler(soil_layer_index)
 
        do ilyr = 1,nlev_eff_decomp
            litt%root_fines_frag(dcmpy,ilyr) = litt%root_fines(dcmpy,ilyr) * &
-                 years_per_day *  SF_val_max_decomp(dl_sf) * fragmentation_scaler(ilyr)
+                 years_per_day *  SF_val_max_decomp(fuel_classes%dead_leaves()) * fragmentation_scaler(ilyr)
        end do
     enddo
 

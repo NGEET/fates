@@ -840,7 +840,7 @@ contains
       !
       ! --------------------------------------------------------------------------------
 
-      use FatesConstantsMod,      only : fates_check_param_set
+      use FatesConstantsMod,      only : fates_check_param_set, min_vai_bin_sum
 
       logical,intent(in) :: use_fates    ! Is fates turned on?
       integer :: i
@@ -932,6 +932,20 @@ contains
             dinc_vai(i) = ED_val_vai_top_bin_width * ED_val_vai_width_increase_factor ** (i-1)
          end do
 
+         if (sum(dinc_vai) < min_vai_bin_sum ) then
+            write(fates_log(), *) 'You specified LAI+SAI bins that add up to a number'
+            write(fates_log(), *) 'that is not reasonably large enough to encapsulate in-canopy'
+            write(fates_log(), *) 'total area indices for large mature trees'
+            write(fates_log(), *) 'sum of vai increments sum(dinc_vai) = ',sum(dinc_vai)
+            write(fates_log(), *) 'minimum allowable user set vai, min_vai_bin_sum = ',min_vai_bin_sum
+            write(fates_log(), *) 'Increase either the top bin width fates_vai_top_bin_width'
+            write(fates_log(), *) 'or the increase factor fates_vai_width_increase_factor'
+            write(fates_log(), *) 'as found in the parameter file.'
+            write(fates_log(), *) 'Or, you can decrease the minimum if you believe its too large'
+            write(fates_log(), *) 'but that is not recommended in most cases.'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
          ! lower edges of VAI bins       
          do i = 1,nlevleaf
             dlower_vai(i) = sum(dinc_vai(1:i))
@@ -1123,7 +1137,7 @@ contains
     
     subroutine fates_history_maps
        
-       use FatesLitterMod, only : NFSC
+       use FatesFuelClassesMod, only : num_fuel_classes
        use EDParamsMod, only : nclmax
        use EDParamsMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
@@ -1158,7 +1172,7 @@ contains
        allocate( fates_hdim_scmap_levscpf(1:nlevsclass*numpft))
        allocate( fates_hdim_levpft(1:numpft   ))
        allocate( fates_hdim_levlanduse(1:n_landuse_cats))
-       allocate( fates_hdim_levfuel(1:NFSC   ))
+       allocate( fates_hdim_levfuel(1:num_fuel_classes   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
        allocate( fates_hdim_levheight(1:nlevheight   ))
@@ -1181,8 +1195,8 @@ contains
        allocate( fates_hdim_pftmap_levscagpft(nlevsclass * nlevage * numpft))
        allocate( fates_hdim_agmap_levagepft(nlevage * numpft))
        allocate( fates_hdim_pftmap_levagepft(nlevage * numpft))
-       allocate( fates_hdim_agmap_levagefuel(nlevage * nfsc))
-       allocate( fates_hdim_fscmap_levagefuel(nlevage * nfsc))
+       allocate( fates_hdim_agmap_levagefuel(nlevage * num_fuel_classes))
+       allocate( fates_hdim_fscmap_levagefuel(nlevage * num_fuel_classes))
 
        allocate( fates_hdim_elmap_levelpft(num_elements*numpft))
        allocate( fates_hdim_elmap_levelcwd(num_elements*ncwd))
@@ -1212,7 +1226,7 @@ contains
        end do
 
        ! make fuel array
-       do ifuel=1,NFSC
+       do ifuel=1,num_fuel_classes
           fates_hdim_levfuel(ifuel) = ifuel
        end do
 
@@ -1357,7 +1371,7 @@ contains
 
        i=0
        do iage=1,nlevage
-          do ifuel=1,NFSC
+          do ifuel=1,num_fuel_classes
              i=i+1
              fates_hdim_agmap_levagefuel(i) = iage
              fates_hdim_fscmap_levagefuel(i) = ifuel
