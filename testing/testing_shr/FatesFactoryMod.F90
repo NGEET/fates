@@ -502,10 +502,11 @@ module FatesFactoryMod
            patch%shortest => cohort
            cohort%shorter => null()
         endif  
-        
-        
-      call patch%InsertCohort(cohort, patch%tallest, patch%shortest, & 
+      
+      call patch%InsertCohort_old(cohort, patch%tallest, patch%shortest, & 
         tnull, snull, storebigcohort, storesmallcohort)
+      
+      
     end do   
   
   end subroutine GetSyntheticPatch
