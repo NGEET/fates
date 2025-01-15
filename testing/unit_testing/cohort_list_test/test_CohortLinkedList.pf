@@ -99,13 +99,13 @@ module test_CohortLinkedList
             cohort%shorter => null()
           endif 
           
-          !call this%large_patch%InsertCohort(cohort, this%large_patch%tallest,           &
-          !  this%large_patch%shortest, tnull, snull, storebigcohort, storesmallcohort)
+          call this%large_patch%InsertCohort(cohort, this%large_patch%tallest,           &
+            this%large_patch%shortest, tnull, snull, storebigcohort, storesmallcohort)
             
-          call this%large_patch%InsertCohort(cohort)
+          !call this%large_patch%InsertCohort(cohort)
           
-          !this%large_patch%tallest  => storebigcohort
-          !this%large_patch%shortest => storesmallcohort
+          this%large_patch%tallest  => storebigcohort
+          this%large_patch%shortest => storesmallcohort
           
       end do
 
@@ -143,13 +143,13 @@ module test_CohortLinkedList
           cohort%shorter => null()
         endif  
         
-        ! call this%patch%InsertCohort(cohort, this%patch%tallest, this%patch%shortest, tnull, snull, &
-        !   storebigcohort, storesmallcohort)
+        call this%patch%InsertCohort(cohort, this%patch%tallest, this%patch%shortest, tnull, snull, &
+           storebigcohort, storesmallcohort)
         
-        ! this%patch%tallest  => storebigcohort
-        ! this%patch%shortest => storesmallcohort
+         this%patch%tallest  => storebigcohort
+         this%patch%shortest => storesmallcohort
         
-        call this%patch%InsertCohort(cohort)
+        !call this%patch%InsertCohort(cohort)
         
       ! check backwards and forwards
       cohort => this%patch%shortest
@@ -206,9 +206,9 @@ module test_CohortLinkedList
           cohort%shorter => null()
         endif  
       
-      ! call patch%InsertCohort(cohort, patch%tallest, patch%shortest, tnull, snull, &
-      ! storebigcohort, storesmallcohort)
-        call patch%InsertCohort(cohort)
+       call patch%InsertCohort(cohort, patch%tallest, patch%shortest, tnull, snull, &
+       storebigcohort, storesmallcohort)
+      !call patch%InsertCohort(cohort)
       
       ! assert this cohort is both the shortest and tallest
       @assertEqual(patch%shortest%height, cohort_height, tolerance=tol)

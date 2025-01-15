@@ -55,12 +55,12 @@ program FatesTestPatch
         cohort%shorter => null()
       endif 
       
-      call patch%InsertCohort(cohort)
-      !call patch%InsertCohort(cohort, patch%tallest,           &
-      !  patch%shortest, tnull, snull, storebigcohort, storesmallcohort)
+      !call patch%InsertCohort(cohort)
+      call patch%InsertCohort(cohort, patch%tallest,           &
+        patch%shortest, tnull, snull, storebigcohort, storesmallcohort)
       
-      !patch%tallest  => storebigcohort
-      !patch%shortest => storesmallcohort
+      patch%tallest  => storebigcohort
+      patch%shortest => storesmallcohort
   end do
   
   cohort => patch%shortest

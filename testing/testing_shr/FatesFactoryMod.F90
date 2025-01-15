@@ -503,7 +503,7 @@ module FatesFactoryMod
            cohort%shorter => null()
         endif  
       
-      call patch%InsertCohort_old(cohort, patch%tallest, patch%shortest, & 
+      call patch%InsertCohort(cohort, patch%tallest, patch%shortest, & 
         tnull, snull, storebigcohort, storesmallcohort)
       
       

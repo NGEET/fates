@@ -236,8 +236,8 @@ module FatesPatchMod
       procedure :: Create
       procedure :: Count_Cohorts
       procedure :: ValidateCohorts
+      procedure :: InsertCohort_new
       procedure :: InsertCohort
-      procedure :: InsertCohort_old
       procedure :: SortCohorts_old
       procedure :: SortCohorts
       procedure :: UpdateTreeGrassArea
@@ -953,7 +953,7 @@ module FatesPatchMod
 
     !===========================================================================
     
-    subroutine InsertCohort_old(currentPatch, pcc, ptall, pshort, tnull, snull, storebigcohort, storesmallcohort)
+    subroutine InsertCohort(currentPatch, pcc, ptall, pshort, tnull, snull, storebigcohort, storesmallcohort)
         
       !
       ! !DESCRIPTION:
@@ -1001,7 +1001,7 @@ module FatesPatchMod
       !taller than tree being considered and return its pointer
       if (associated(current)) then
         do while (associated(current).and.exitloop == 0)
-            if (current%height <= tsp) then
+            if (current%height < tsp) then
               current => current%taller
             else
               exitloop = 1
@@ -1061,11 +1061,11 @@ module FatesPatchMod
       endif
       icohort%shorter => shortptr
   
-    end subroutine InsertCohort_old
+    end subroutine InsertCohort
     
     !===========================================================================
   
-    subroutine InsertCohort(this, cohort)
+    subroutine InsertCohort_new(this, cohort)
       !
       ! DESCRIPTION:
       ! Inserts a cohort into a patch's linked list structure
@@ -1146,7 +1146,7 @@ module FatesPatchMod
         temp_cohort2 => temp_cohort2%taller
       end do
 
-    end subroutine InsertCohort
+    end subroutine InsertCohort_new
   
     !===========================================================================
     
@@ -1286,7 +1286,7 @@ module FatesPatchMod
             shortestc => current_c
         endif
 
-        call current_patch%InsertCohort_old(current_c, tallestc, shortestc,       &
+        call current_patch%InsertCohort(current_c, tallestc, shortestc,       &
           tnull, snull, storebigcohort, storesmallcohort)
 
         current_patch%tallest  => storebigcohort
@@ -1307,13 +1307,23 @@ module FatesPatchMod
       class(fates_patch_type), intent(inout), target :: this ! patch
       
       ! LOCALS:
-      type(fates_cohort_type), pointer :: currentCohort => null()
-      type(fates_cohort_type), pointer :: nextCohort => null()
-      type(fates_cohort_type), pointer :: sorted_head => null()
-      type(fates_cohort_type), pointer :: currentSorted => null()
+      type(fates_cohort_type), pointer :: currentCohort
+      type(fates_cohort_type), pointer :: nextCohort
+      type(fates_cohort_type), pointer :: sorted_head
+      type(fates_cohort_type), pointer :: currentSorted
+      
+      if (.not. associated(this%shortest)) then 
+        if (.not. associated(this%tallest)) then 
+          ! empty list
+          return
+        else
+          write(fates_log(),*) "error: one of shortest or tallest is null."
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if 
+      end if 
       
       ! initialize
-      nullify(sorted_head)
+      sorted_head => null()
       currentCohort => this%shortest
       
       do while (associated(currentCohort))

@@ -282,7 +282,7 @@ contains
 
     endif
 
-   call patchptr%InsertCohort_old(newCohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
+   call patchptr%InsertCohort(newCohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
       storebigcohort, storesmallcohort)
       
    patchptr%tallest  => storebigcohort
