@@ -238,7 +238,6 @@ module FatesPatchMod
       procedure :: ValidateCohorts
       procedure :: InsertCohort
       procedure :: InsertCohort_old
-      procedure :: SortCohorts_old
       procedure :: SortCohorts
       procedure :: UpdateTreeGrassArea
       procedure :: UpdateLiveGrass
@@ -1001,7 +1000,7 @@ module FatesPatchMod
       !taller than tree being considered and return its pointer
       if (associated(current)) then
         do while (associated(current).and.exitloop == 0)
-            if (current%height <= tsp) then
+            if (current%height < tsp) then
               current => current%taller
             else
               exitloop = 1
@@ -1142,9 +1141,8 @@ module FatesPatchMod
           temp_cohort2%shorter => cohort
           exit
         end if
-        temp_cohort1 => temp_cohort2
-        temp_cohort2 => temp_cohort2%taller
       end do
+      
 
     end subroutine InsertCohort
   
@@ -1245,57 +1243,6 @@ module FatesPatchMod
     end subroutine Count_Cohorts
     
     !===========================================================================
-  
-    subroutine SortCohorts_old(patchptr)
-    
-    ! ============================================================================
-    !                 sort cohorts into the correct order   DO NOT CHANGE THIS IT WILL BREAK
-    ! ============================================================================
-
-      class(fates_patch_type) , intent(inout), target :: patchptr
-
-      type(fates_patch_type) , pointer :: current_patch
-      type(fates_cohort_type), pointer :: current_c, next_c
-      type(fates_cohort_type), pointer :: shortestc, tallestc
-      type(fates_cohort_type), pointer :: storesmallcohort
-      type(fates_cohort_type), pointer :: storebigcohort
-      integer :: snull,tnull
-
-      current_patch => patchptr
-      tallestc  => NULL()
-      shortestc => NULL()
-      storebigcohort   => null()
-      storesmallcohort => null()
-      current_c => current_patch%tallest
-
-      do while (associated(current_c))
-        next_c => current_c%shorter
-        tallestc  => storebigcohort
-        shortestc => storesmallcohort
-        if (associated(tallestc)) then
-            tnull = 0
-        else
-            tnull = 1
-            tallestc => current_c
-        endif
-
-        if (associated(shortestc)) then
-            snull = 0
-        else
-            snull = 1
-            shortestc => current_c
-        endif
-
-        call current_patch%InsertCohort_old(current_c, tallestc, shortestc,       &
-          tnull, snull, storebigcohort, storesmallcohort)
-
-        current_patch%tallest  => storebigcohort
-        current_patch%shortest => storesmallcohort
-        current_c => next_c
-
-    enddo
-    
-    end subroutine SortCohorts_old
     
     subroutine SortCohorts(this)
       !
