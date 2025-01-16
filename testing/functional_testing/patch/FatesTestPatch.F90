@@ -36,31 +36,8 @@ program FatesTestPatch
     cohort%height = height
     cohort%dbh = i
     
-    storebigcohort => patch%tallest
-    storesmallcohort => patch%shortest
-  
-    if(associated(patch%tallest)) then
-        tnull = 0
-      else
-        tnull = 1
-        patch%tallest => cohort
-        cohort%taller => null()
-      endif
+    call patch%InsertCohort(cohort)
 
-      if(associated(patch%shortest))then
-        snull = 0
-      else
-        snull = 1
-        patch%shortest => cohort
-        cohort%shorter => null()
-      endif 
-      
-      call patch%InsertCohort(cohort)
-      ! call patch%InsertCohort_old(cohort, patch%tallest,           &
-      !  patch%shortest, tnull, snull, storebigcohort, storesmallcohort)
-      
-      ! patch%tallest  => storebigcohort
-      ! patch%shortest => storesmallcohort
   end do
   
   cohort => patch%shortest

@@ -483,29 +483,8 @@ module FatesFactoryMod
       call CohortFactory(cohort, patch_data%pft_ids(i), can_lai, dbh=patch_data%dbhs(i), &
         number=patch_data%densities(i)*patch_data%area, age=patch_data%ages(i),          &
         canopy_layer=patch_data%canopy_layers(i), patch_area=patch_data%area)
-        
-        storebigcohort   =>  patch%tallest
-        storesmallcohort =>  patch%shortest
       
-      if(associated(patch%tallest))then
-           tnull = 0
-        else
-           tnull = 1
-           patch%tallest => cohort
-           cohort%taller => null()
-        endif
- 
-        if(associated(patch%shortest))then
-           snull = 0
-        else
-           snull = 1
-           patch%shortest => cohort
-           cohort%shorter => null()
-        endif  
-      
-      call patch%InsertCohort(cohort, patch%tallest, patch%shortest, & 
-        tnull, snull, storebigcohort, storesmallcohort)
-      
+      call patch%InsertCohort(cohort)
       
     end do   
   

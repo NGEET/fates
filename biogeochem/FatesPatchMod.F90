@@ -236,7 +236,6 @@ module FatesPatchMod
       procedure :: Create
       procedure :: Count_Cohorts
       procedure :: ValidateCohorts
-      procedure :: InsertCohort_new
       procedure :: InsertCohort
       procedure :: InsertCohort_old
       procedure :: SortCohorts
@@ -953,7 +952,7 @@ module FatesPatchMod
 
     !===========================================================================
     
-    subroutine InsertCohort(currentPatch, pcc, ptall, pshort, tnull, snull, storebigcohort, storesmallcohort)
+    subroutine InsertCohort_old(currentPatch, pcc, ptall, pshort, tnull, snull, storebigcohort, storesmallcohort)
         
       !
       ! !DESCRIPTION:
@@ -1061,11 +1060,11 @@ module FatesPatchMod
       endif
       icohort%shorter => shortptr
   
-    end subroutine InsertCohort
+    end subroutine InsertCohort_old
     
     !===========================================================================
   
-    subroutine InsertCohort_new(this, cohort)
+    subroutine InsertCohort(this, cohort)
       !
       ! DESCRIPTION:
       ! Inserts a cohort into a patch's linked list structure
@@ -1129,7 +1128,7 @@ module FatesPatchMod
       do while (associated(temp_cohort2))
         
         ! validate list structure before insertion
-        if (associated(temp_cohort1%taller) .and. associated(temp_cohort1%taller%shorter, temp_cohort1)) then 
+        if (associated(temp_cohort1%taller) .and. .not. associated(temp_cohort1%taller%shorter, temp_cohort1)) then 
           write(fates_log(),*) 'error: corrupted list structure!'
           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if 
@@ -1145,7 +1144,7 @@ module FatesPatchMod
       end do
       
 
-    end subroutine InsertCohort_new
+    end subroutine InsertCohort
   
     !===========================================================================
     
