@@ -18,7 +18,7 @@
   
   <base_file>archive/api37.0.0_121024_params_default.cdl</base_file>
   <new_file>fates_params_default.cdl</new_file>
-  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
+  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12,13,14 </pft_list>
   <mods>
     <mod type="variable_del">
       <na> fates_daylength_factor_switch </na>
@@ -46,6 +46,68 @@
     </mod>
     <mod type="variable_del">
       <na> fates_regeneration_model </na>
+    </mod>
+    <mod type="variable_add">
+       <na> fates_leaf_stomatal_btran_model </na>
+       <di> fates_pft </di>
+       <un> index </un>
+       <ln> model switch for how btran reduces conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_ </ln>
+       <val> 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 </val>
+    </mod>
+    <mod type="variable_add">
+       <na> fates_leaf_agross_btran_model </na>
+       <di> fates_pft </di>
+       <un> index </un>
+       <ln> model switch for how btran reduces gross assimilation. See LeafBiophysicsMod.F90, integer constants: btran_on_ </ln>
+       <val> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 </val>
+    </mod>
+    <mod type="variable_change" name="fates_leaf_theta_cj_c3">
+      <ln> SOON TO BE DEPRECATED, DO NOT USE </ln>
+    </mod>
+    <mod type="variable_change" name="fates_leaf_theta_cj_c4">
+      <ln> SOON TO BE DEPRECATED, DO NOT USE </ln>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_landuse_grazing_palatability </na>
+      <di> fates_pft </di>
+      <un> unitless 0-1 </un>
+      <ln> Relative intensity of leaf grazing/browsing per PFT </ln>
+      <val> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_landuse_grazing_rate </na>
+      <di> fates_landuseclass </di>
+      <un> 1/day </un>
+      <ln> fraction of leaf biomass consumed by grazers per day </ln>
+      <val> 0.0, 0.0, 0.0, 0.0, 0.0 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_landuse_grazing_carbon_use_eff </na>
+      <di>scalar</di>
+      <un> unitless </un>
+      <ln> carbon use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed) </ln>
+      <val> 0.0 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_landuse_grazing_maxheight </na>
+      <di>scalar</di>
+      <un> m </un>
+      <ln> maximum height that grazers (browsers, actually) can reach </ln>
+      <val> 1 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_landuse_grazing_nitrogen_use_eff </na>
+      <di>scalar</di>
+      <un> unitless </un>
+      <ln> nitrogen use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed) </ln>
+      <val> 0.25 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_landuse_grazing_phosphorus_use_eff </na>
+      <di>scalar</di>
+      <un> unitless </un>
+      <ln> phosphorus use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed) </ln>
+      <val> 0.5 </val>
     </mod>
   </mods>
 </all>
