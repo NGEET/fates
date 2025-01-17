@@ -44,6 +44,7 @@ module FatesRestartInterfaceMod
   use FatesFuelClassesMod,     only : num_fuel_classes
   use FatesLitterMod,          only : ndcmpy
   use EDTypesMod,              only : area
+  use EDTypesMod,              only : set_patchno
   use EDParamsMod,             only : nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
@@ -2902,8 +2903,9 @@ contains
                      init_seed_germ=fates_unset_r8)
              end do
 
-             ! give this patch a unique patch number
-             newp%patchno = idx_pa
+             ! Set the new patch number to nonsense, we will
+             ! call set_patchno()
+             newp%patchno = -9
 
 
              ! Iterate over the number of cohorts
@@ -3779,8 +3781,12 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
 
+
+          call set_patchno(sites(s),.false.,0)
+          
        end do
 
+       
        if ( debug ) then
           write(fates_log(),*) 'CVTL total cohorts ',totalCohorts
        end if
@@ -3816,10 +3822,10 @@ contains
 
      do s = 1, nsites
 
-        ifp = 0
         currentpatch => sites(s)%oldest_patch
         do while (associated(currentpatch))
-           ifp = ifp+1
+
+           ifp = currentPatch%patchno
            
            currentPatch%f_sun      (:,:,:) = 0._r8
            currentPatch%fabd_sun_z (:,:,:) = 0._r8
@@ -3842,6 +3848,7 @@ contains
            ! currentPatch%solar_zenith_flag     (is there daylight?)
            ! currentPatch%solar_zenith_angle    (what is the value?)
            ! -----------------------------------------------------------
+           nocomp_bareground: if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
            if(currentPatch%solar_zenith_flag)then
 
@@ -3914,8 +3921,9 @@ contains
                  end select
                     
               endif ! is there vegetation?
-
+              
            end if    ! if the vegetation and zenith filter is active
+           end if nocomp_bareground
            currentPatch => currentPatch%younger
         end do       ! Loop linked-list patches
      enddo           ! Loop Sites

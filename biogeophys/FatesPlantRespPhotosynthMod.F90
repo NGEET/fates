@@ -344,11 +344,13 @@ contains
          end do
 
 
-         ifp = 0
          currentpatch => sites(s)%oldest_patch
          do while (associated(currentpatch))
+
+            ifp = currentPatch%patchno
+            
             if_notbare: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
-               ifp   = ifp+1
+
                NCL_p = currentPatch%NCL_p
 
                ! Part I. Zero output boundary conditions

@@ -15,7 +15,6 @@ module EDAccumulateFluxesMod
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : nocomp_bareground
 
-
   implicit none
   private
   !
@@ -62,16 +61,16 @@ contains
 
     do s = 1, nsites
 
-       ifp = 0
-       
        ! Note: Do not attempt to accumulate or log any
        ! heterotrophic respiration fluxes from the HLM here
        ! It is likely this has not been calculated yet (ELM/CLM)
        
        cpatch => sites(s)%oldest_patch
-       do while (associated(cpatch))                 
+       do while (associated(cpatch))
+
+          ifp = cpatch%patchno
+          
           if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
-             ifp = ifp+1
 
              if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
                 ccohort => cpatch%shortest
@@ -105,6 +104,7 @@ contains
                 enddo ! while(associated(ccohort))
              end if
           end if ! not bare ground
+
           cpatch => cpatch%younger
        end do  ! while(associated(cpatch))
     end do
