@@ -348,6 +348,9 @@ variables:
 	double fates_hydro_vg_n_node(fates_hydr_organs, fates_pft) ;
 		fates_hydro_vg_n_node:units = "unitless" ;
 		fates_hydro_vg_n_node:long_name = "(used if hydr_htftype_node = 2),n in van Genuchten 1980 model, pore size distribution parameter" ;
+	double fates_landuse_grazing_palatability(fates_pft) ;
+		fates_landuse_grazing_palatability:units = "unitless 0-1" ;
+		fates_landuse_grazing_palatability:long_name = "Relative intensity of leaf grazing/browsing per PFT" ;
 	double fates_landuse_harvest_pprod10(fates_pft) ;
 		fates_landuse_harvest_pprod10:units = "fraction" ;
 		fates_landuse_harvest_pprod10:long_name = "fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
@@ -714,6 +717,9 @@ variables:
 	double fates_landuse_crop_lu_pft_vector(fates_landuseclass) ;
 		fates_landuse_crop_lu_pft_vector:units = "NA" ;
 		fates_landuse_crop_lu_pft_vector:long_name = "the FATES PFT index to use on a given crop land-use type (dummy value of -999 for non-crop types)" ;
+	double fates_landuse_grazing_rate(fates_landuseclass) ;
+		fates_landuse_grazing_rate:units = "1/day" ;
+		fates_landuse_grazing_rate:long_name = "fraction of leaf biomass consumed by grazers per day" ;
 	double fates_max_nocomp_pfts_by_landuse(fates_landuseclass) ;
 		fates_max_nocomp_pfts_by_landuse:units = "count" ;
 		fates_max_nocomp_pfts_by_landuse:long_name = "maximum number of nocomp PFTs on each land use type (only used in nocomp mode)" ;
@@ -798,6 +804,18 @@ variables:
 	double fates_hydro_psicap ;
 		fates_hydro_psicap:units = "MPa" ;
 		fates_hydro_psicap:long_name = "sapwood water potential at which capillary reserves exhausted" ;
+	double fates_landuse_grazing_carbon_use_eff ;
+		fates_landuse_grazing_carbon_use_eff:units = "unitless" ;
+		fates_landuse_grazing_carbon_use_eff:long_name = "carbon use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
+	double fates_landuse_grazing_maxheight ;
+		fates_landuse_grazing_maxheight:units = "m" ;
+		fates_landuse_grazing_maxheight:long_name = "maximum height that grazers (browsers, actually) can reach" ;
+	double fates_landuse_grazing_nitrogen_use_eff ;
+		fates_landuse_grazing_nitrogen_use_eff:units = "unitless" ;
+		fates_landuse_grazing_nitrogen_use_eff:long_name = "nitrogen use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
+	double fates_landuse_grazing_phosphorus_use_eff ;
+		fates_landuse_grazing_phosphorus_use_eff:units = "unitless" ;
+		fates_landuse_grazing_phosphorus_use_eff:long_name = "phosphorus use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
 	double fates_landuse_logging_coll_under_frac ;
 		fates_landuse_logging_coll_under_frac:units = "fraction" ;
 		fates_landuse_logging_coll_under_frac:long_name = "Fraction of stems killed in the understory when logging generates disturbance" ;
@@ -1315,6 +1333,8 @@ data:
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
+ fates_landuse_grazing_palatability = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 ;
+
  fates_landuse_harvest_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 
     1, 1, 1 ;
 
@@ -1692,6 +1712,8 @@ data:
 
  fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
 
+ fates_landuse_grazing_rate = 0, 0, 0, 0, 0 ;
+
  fates_max_nocomp_pfts_by_landuse = 4, 4, 1, 1, 1 ;
 
  fates_maxpatches_by_landuse = 9, 4, 1, 1, 1 ;
@@ -1747,6 +1769,14 @@ data:
  fates_hydro_psi0 = 0 ;
 
  fates_hydro_psicap = -0.6 ;
+
+ fates_landuse_grazing_carbon_use_eff = 0 ;
+
+ fates_landuse_grazing_maxheight = 1 ;
+
+ fates_landuse_grazing_nitrogen_use_eff = 0.25 ;
+
+ fates_landuse_grazing_phosphorus_use_eff = 0.5 ;
 
  fates_landuse_logging_coll_under_frac = 0.55983 ;
 
