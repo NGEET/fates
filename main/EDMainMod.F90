@@ -480,8 +480,8 @@ contains
              call Mortality_Derivative(currentSite, currentCohort, bc_in,      &
                currentPatch%btran_ft, mean_temp,                               &
                currentPatch%land_use_label,                                    &
-               currentPatch%age_since_anthro_disturbance, current_fates_landuse_state_vector(primaryland),   &
-               current_fates_landuse_state_vector(secondaryland), harvestable_forest_c, harvest_tag)
+               currentPatch%age_since_anthro_disturbance, current_fates_landuse_state_vector,   &
+               harvestable_forest_c, harvest_tag)
 
 
              ! -----------------------------------------------------------------------------
