@@ -6694,7 +6694,7 @@ contains
        if_dyn1: if(hlm_hist_level_dynam>1) then
 
           call this%set_history_var(vname='FATES_NPP_LU', units='kg m-2 s-1',        &
-               long='net primary productivity by age bin in kg carbon per m2 per second', &
+               long='net primary productivity by land use type in kg carbon per m2 per second', &
                use_default='inactive', avgflag='A', vtype=site_landuse_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index = ih_npp_si_landuse)
@@ -8578,7 +8578,7 @@ contains
                index = ih_gpp_si_age)
 
           call this%set_history_var(vname='FATES_GPP_LU', units='kg m-2 s-1',        &
-               long='gross primary productivity by age bin in kg carbon per m2 per second', &
+               long='gross primary productivity by land use type in kg carbon per m2 per second', &
                use_default='inactive', avgflag='A', vtype=site_landuse_r8,               &
                hlms='CLM:ALM', upfreq=group_hifr_complx, ivar=ivar, initialize=initialize_variables, &
                index = ih_gpp_si_landuse)
