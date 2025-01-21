@@ -451,7 +451,7 @@ contains
     grazing_rate = landuse_grazing_rate(land_use_label) * EDPftvarcon_inst%landuse_grazing_palatability(ft)
     
     if ( grazing_rate .gt. 0._r8) then
-       if (prt_params%woody(ft)) then
+       if (prt_params%woody(ft) == itrue) then
 
           call CrownDepth(height,ft,crown_depth)
           
