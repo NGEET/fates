@@ -1082,11 +1082,6 @@ module FatesPatchMod
         write(fates_log(),*) 'error: cohort is not allocated!'
         call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
-    
-      if (associated(cohort%taller) .or. associated(cohort%shorter)) then
-        write(fates_log(),*) 'error: cohort already part of a list!'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-      end if
       
       ! nothing in the list - add to head
       if (.not. associated(this%shortest)) then
@@ -1141,9 +1136,10 @@ module FatesPatchMod
           temp_cohort2%shorter => cohort
           exit
         end if
+        temp_cohort1 => temp_cohort2
+        temp_cohort2 => temp_cohort2%taller
       end do
-      
-
+    
     end subroutine InsertCohort
   
     !===========================================================================
