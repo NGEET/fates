@@ -2960,8 +2960,8 @@ contains
 
        ! send the part of the herbivory flux that doesn't go to litter to the atmosphere
 
-       currentSite%mass_balance(element_id)%herbivory_flux_out = &
-            currentSite%mass_balance(element_id)%herbivory_flux_out + &
+       site_mass%herbivory_flux_out = &
+            site_mass%herbivory_flux_out + &
             leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n
 
        ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
