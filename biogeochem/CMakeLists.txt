@@ -6,6 +6,11 @@ list(APPEND fates_sources
   DamageMainMod.F90
   EDCohortDynamicsMod.F90
   FatesPatchMod.F90
+  EDCanopyStructureMod.F90
+  EDLoggingMortalityMod.F90
+  FatesLandUseChangeMod.F90
+  EDPatchDynamicsMod.F90
+  EDMortalityFunctionsMod.F90
   CohortUtils.F90)
 
 sourcelist_to_parent(fates_sources)

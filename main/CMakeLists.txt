@@ -11,13 +11,6 @@ list(APPEND clm_sources
   FatesUtilsMod.F90
   )
   
-list(APPEND fates_sources
-  FatesConstantsMod.F90
-  FatesGlobals.F90
-  FatesParametersInterface.F90
-  )
-
-sourcelist_to_parent(fates_sources)
 sourcelist_to_parent(clm_sources)
 
 list(APPEND fates_sources
@@ -34,6 +27,7 @@ list(APPEND fates_sources
   FatesSizeAgeTypeIndicesMod.F90
   FatesIntegratorsMod.F90
   FatesUtilsMod.F90
+  ChecksBalancesMod.F90
   FatesSynchronizedParamsMod.F90)
 
 sourcelist_to_parent(fates_sources)
