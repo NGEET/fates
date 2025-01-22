@@ -3,6 +3,7 @@ list(APPEND fates_sources
   FatesUnitTestIOMod.F90
   FatesArgumentUtils.F90
   FatesFactoryMod.F90
+  FatesUnitTestUtils.F90
   SyntheticPatchTypes.F90
   )
 
