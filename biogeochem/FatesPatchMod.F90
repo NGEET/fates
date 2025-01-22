@@ -1084,18 +1084,20 @@ module FatesPatchMod
         call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
       
+      ! check for inconsistent list state
+      if ((.not. associated(this%shortest) .and. associated(this%tallest)) .or.          &
+        (associated(this%shortest) .and. .not. associated(this%tallest))) then
+        write(fates_log(),*) 'ERROR: inconsistent list state!'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+      end if
+    
       ! nothing in the list - add to head
       if (.not. associated(this%shortest)) then
-        if (.not. associated(this%tallest)) then 
-          this%shortest => cohort
-          this%tallest  => this%shortest
-          cohort%taller => null()
-          cohort%shorter => null()
-          return 
-        else 
-          write(fates_log(),*) 'ERROR: inconsistent list state!'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
+        this%shortest => cohort
+        this%tallest  => this%shortest
+        cohort%taller => null()
+        cohort%shorter => null()
+        return
       end if 
         
       ! shortest - add to front of list
