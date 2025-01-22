@@ -166,17 +166,20 @@ module LeafBiophysicsMod
   ! a precedent of using this into 2024, but discussions here: https://github.com/NGEET/fates/issues/719
   ! suggest we should try other hypotheses
 
-  integer, parameter,public :: btran_on_gs_none = 0     ! do not apply btran to conductance terms
-  integer, parameter,public :: btran_on_gs_gs0 = 1      ! apply btran to stomatal intercept (API 36.1)
-  integer, parameter,public :: btran_on_gs_gs1 = 2      ! apply btran to stomatal slope
-  integer, parameter,public :: btran_on_gs_gs01 = 3     ! apply btran to both stomatal slope and intercept
-  integer, parameter,public :: btran_on_gs_gs2  = 4     ! apply btran to the whole non-intercept portion
-                                                        ! of conductance equation. 
-  integer, parameter,public :: btran_on_gs_gs02 = 5     ! same as btran_on_gs_gs2, but also apply to the intercept
+  integer, parameter,public :: btran_on_gs_none = 0       ! do not apply btran to conductance terms
+  integer, parameter,public :: btran_on_gs_gs0 = 1        ! apply btran to stomatal intercept (API 36.1)
+  integer, parameter,public :: btran_on_gs_gs1 = 2        ! apply btran to stomatal slope
+  integer, parameter,public :: btran_on_gs_gs01 = 3       ! apply btran to both stomatal slope and intercept
+  integer, parameter,public :: btran_on_gs_gs2  = 4       ! apply btran to the whole non-intercept portion
+                                                          ! of conductance equation. (NOTE! for Medlyn,
+                                                          ! this is different than btran_on_gs_gs1,
+                                                          ! for Ball-Berry, this is the SAME as
+                                                          ! btran_on_gs_gs1
+  integer, parameter,public :: btran_on_gs_gs02 = 5       ! same as btran_on_gs_gs2, but also apply to the intercept
   
-  integer, parameter,public :: btran_on_ag_none  = 0       ! do not apply btran to vcmax or jmax
-  integer, parameter,public :: btran_on_ag_vcmax = 1       ! apply btran to vcmax (API 36.1)
-  integer, parameter,public :: btran_on_ag_vcmax_jmax = 2  ! apply btran to vcmax and jmax
+  integer, parameter,public :: btran_on_ag_none  = 0      ! do not apply btran to vcmax or jmax
+  integer, parameter,public :: btran_on_ag_vcmax = 1      ! apply btran to vcmax (API 36.1)
+  integer, parameter,public :: btran_on_ag_vcmax_jmax = 2 ! apply btran to vcmax and jmax
   
   ! These are parameter constants read in externally
   ! some are differentiated by PFT, others are not
