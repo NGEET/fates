@@ -3799,13 +3799,13 @@ contains
 
      do_sites: do s = 1, nsites
 
-        bc_out(s)%albd_parb(:,:) = 0._r8  ! output HLM
-        bc_out(s)%albi_parb(:,:) = 0._r8  ! output HLM
-        bc_out(s)%fabi_parb(:,:) = 0._r8  ! output HLM
-        bc_out(s)%fabd_parb(:,:) = 0._r8  ! output HLM
-        bc_out(s)%ftdd_parb(:,:) = 1._r8  ! output HLM
-        bc_out(s)%ftid_parb(:,:) = 1._r8  ! output HLM
-        bc_out(s)%ftii_parb(:,:) = 1._r8  ! output HLM
+        bc_out(s)%albd_parb(:,:) = 0._r8  ! output HLM  Assume soil absorbs 100%
+        bc_out(s)%albi_parb(:,:) = 0._r8  ! output HLM  Assume soil absorbs 100%
+        bc_out(s)%fabi_parb(:,:) = 0._r8  ! output HLM  Assume canopy absorbs 0%
+        bc_out(s)%fabd_parb(:,:) = 0._r8  ! output HLM  Assume canopy absorbs 0%
+        bc_out(s)%ftdd_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
+        bc_out(s)%ftid_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
+        bc_out(s)%ftii_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
 
         currentpatch => sites(s)%oldest_patch
         while_patch: do while (associated(currentpatch))
@@ -3821,77 +3821,58 @@ contains
            ! zero diagnostic radiation profiles
            currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
            currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
-
            currentPatch%rad_error(:) = 0._r8
 
            ifp = currentPatch%patchno
            
            if_notbareground: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then
 
-              if (.false.) then !maxval(currentPatch%nrad(1,:))==0)then
-                 !there are no leaf layers in this patch. it is effectively bare ground.
-                 ! no radiation is absorbed
-                 bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
-                 bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
-                 do ib = 1,num_swb
-
-                    bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dir(ib)
-                    bc_out(s)%albi_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
-                    bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
-                    bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
-                    bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
-                 enddo
-              else
-
-                 select case(radiation_model)
-                 case(norman_solver)
-
-                    call PatchNormanRadiation (currentPatch, &
-                         sites(s)%coszen, &
-                         bc_out(s)%albd_parb(ifp,:), &
-                         bc_out(s)%albi_parb(ifp,:), &
-                         bc_out(s)%fabd_parb(ifp,:), &
-                         bc_out(s)%fabi_parb(ifp,:), &
-                         bc_out(s)%ftdd_parb(ifp,:), &
-                         bc_out(s)%ftid_parb(ifp,:), &
-                         bc_out(s)%ftii_parb(ifp,:))
-
-
-                 case(twostr_solver)
-                    associate( twostr => currentPatch%twostr)
-
-                      call twostr%CanopyPrep(currentPatch%fcansno)
-                      call twostr%ZenithPrep(sites(s)%coszen)
-
-                      !RGK-2SBF write(fates_log(),*)'rest-p:',s,currentPatch%patchno, &
-                      ! currentPatch%gnd_alb_dif(1),currentPatch%gnd_alb_dir(1),currentPatch%fcansno
-
-                      do ib = 1,num_swb
-
-                         twostr%band(ib)%albedo_grnd_diff = currentPatch%gnd_alb_dif(ib)
-                         twostr%band(ib)%albedo_grnd_beam = currentPatch%gnd_alb_dir(ib)
-
-                         call twostr%Solve(ib,             &  ! in
-                              normalized_upper_boundary,   &  ! in
-                              1.0_r8,1.0_r8,               &  ! in
-                              sites(s)%taulambda_2str,     &  ! inout (scratch)
-                              sites(s)%omega_2str,         &  ! inout (scratch)
-                              sites(s)%ipiv_2str,          &  ! inout (scratch)
-                              bc_out(s)%albd_parb(ifp,ib), &  ! out
-                              bc_out(s)%albi_parb(ifp,ib), &  ! out
-                              currentPatch%rad_error(ib),  &  ! out
-                              bc_out(s)%fabd_parb(ifp,ib), &  ! out
-                              bc_out(s)%fabi_parb(ifp,ib), &  ! out
-                              bc_out(s)%ftdd_parb(ifp,ib), &  ! out
-                              bc_out(s)%ftid_parb(ifp,ib), &  ! out
-                              bc_out(s)%ftii_parb(ifp,ib))
-
-                      end do
-                    end associate
-                 end select
-
-              endif ! is there vegetation?
-
+              select case(radiation_model)
+              case(norman_solver)
+                 
+                 call PatchNormanRadiation (currentPatch, &
+                      sites(s)%coszen, &
+                      bc_out(s)%albd_parb(ifp,:), &
+                      bc_out(s)%albi_parb(ifp,:), &
+                      bc_out(s)%fabd_parb(ifp,:), &
+                      bc_out(s)%fabi_parb(ifp,:), &
+                      bc_out(s)%ftdd_parb(ifp,:), &
+                      bc_out(s)%ftid_parb(ifp,:), &
+                      bc_out(s)%ftii_parb(ifp,:))
+                 
+              case(twostr_solver)
+                 associate( twostr => currentPatch%twostr)
+                   
+                   call twostr%CanopyPrep(currentPatch%fcansno)
+                   call twostr%ZenithPrep(sites(s)%coszen)
+                   
+                   !RGK-2SBF write(fates_log(),*)'rest-p:',s,currentPatch%patchno, &
+                   ! currentPatch%gnd_alb_dif(1),currentPatch%gnd_alb_dir(1),currentPatch%fcansno
+                   
+                   do ib = 1,num_swb
+                      
+                      twostr%band(ib)%albedo_grnd_diff = currentPatch%gnd_alb_dif(ib)
+                      twostr%band(ib)%albedo_grnd_beam = currentPatch%gnd_alb_dir(ib)
+                      
+                      call twostr%Solve(ib,             &  ! in
+                           normalized_upper_boundary,   &  ! in
+                           1.0_r8,1.0_r8,               &  ! in
+                           sites(s)%taulambda_2str,     &  ! inout (scratch)
+                           sites(s)%omega_2str,         &  ! inout (scratch)
+                           sites(s)%ipiv_2str,          &  ! inout (scratch)
+                           bc_out(s)%albd_parb(ifp,ib), &  ! out
+                           bc_out(s)%albi_parb(ifp,ib), &  ! out
+                           currentPatch%rad_error(ib),  &  ! out
+                           bc_out(s)%fabd_parb(ifp,ib), &  ! out
+                           bc_out(s)%fabi_parb(ifp,ib), &  ! out
+                           bc_out(s)%ftdd_parb(ifp,ib), &  ! out
+                           bc_out(s)%ftid_parb(ifp,ib), &  ! out
+                           bc_out(s)%ftii_parb(ifp,ib))
+                      
+                   end do
+                 end associate
+              end select
+              
            end if if_notbareground    ! if the vegetation and zenith filter is active
            currentPatch => currentPatch%younger
         end do while_patch

@@ -1256,6 +1256,18 @@ contains
     ! upper canopy.
     ! --------------------------------------------------------------------------
 
+    ! Trivial Solution (no vegetation)
+    if(this%n_lyr==0)then
+       albedo_beam = this%band(ib)%albedo_grnd_beam
+       albedo_diff = this%band(ib)%albedo_grnd_diff
+       frac_abs_can_beam = 0._r8
+       frac_abs_can_diff = 0._r8
+       frac_beam_grnd_beam = 1._r8
+       frac_diff_grnd_beam = 1._r8
+       frac_diff_grnd_diff = 1._r8
+       return
+    end if
+       
     if((Rbeam_atm+Rdiff_atm)<nearzero)then
        write(log_unit,*)"No radiation"
        write(log_unit,*)"Two stream should not had been called"

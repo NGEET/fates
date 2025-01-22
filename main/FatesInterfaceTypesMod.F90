@@ -629,6 +629,9 @@ module FatesInterfaceTypesMod
 
       ! Canopy Radiation Boundaries
       ! ---------------------------------------------------------------------------------
+
+      ! Note: We initialize and default the radiatioon balance to assume that the
+      ! canopy is invisible, and the soil absorbs all radiation.
       
       ! Surface albedo (direct) (HLMs use this for atm coupling and balance checks)
       real(r8), allocatable :: albd_parb(:,:)
