@@ -260,7 +260,7 @@ contains
        do while (associated(currentPatch))
 
           ! puts cohorts in right order
-          call currentPatch%SortCohorts()
+          call currentPatch%SortCohorts_new()
 
           ! kills cohorts that are too few
           call terminate_cohorts(currentSite, currentPatch, 1, 10, bc_in  )

@@ -213,22 +213,22 @@ contains
       elongf_stem)
       
       ! Put cohort at the right place in the linked list
-      storebigcohort   => patchptr%tallest
-      storesmallcohort => patchptr%shortest
+      ! storebigcohort   => patchptr%tallest
+      ! storesmallcohort => patchptr%shortest
 
-      if (associated(patchptr%tallest)) then
-         tnull = 0
-      else
-         tnull = 1
-         patchptr%tallest => newCohort
-      endif
+      ! if (associated(patchptr%tallest)) then
+      !    tnull = 0
+      ! else
+      !    tnull = 1
+      !    patchptr%tallest => newCohort
+      ! endif
 
-      if (associated(patchptr%shortest)) then
-         snull = 0
-      else
-         snull = 1
-         patchptr%shortest => newCohort
-      endif
+      ! if (associated(patchptr%shortest)) then
+      !    snull = 0
+      ! else
+      !    snull = 1
+      !    patchptr%shortest => newCohort
+      ! endif
       
     ! Allocate running mean functions
 
@@ -281,12 +281,12 @@ contains
 
     endif
 
-   !call patchptr%InsertCohort(newCohort)
-    call patchptr%InsertCohort_old(newCohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
-      storebigcohort, storesmallcohort)
+    call patchptr%InsertCohort_new(newCohort)
+   !  call patchptr%InsertCohort_old(newCohort, patchptr%tallest, patchptr%shortest, tnull, snull, &
+   !    storebigcohort, storesmallcohort)
 
-   patchptr%tallest  => storebigcohort
-   patchptr%shortest => storesmallcohort
+   ! patchptr%tallest  => storebigcohort
+   ! patchptr%shortest => storesmallcohort
 
   end subroutine create_cohort
 
@@ -1281,7 +1281,7 @@ contains
      endif ! patch.
      
      if (fusion_took_place == 1) then  ! if fusion(s) occured sort cohorts
-        call currentPatch%SortCohorts_old()
+        call currentPatch%SortCohorts_new()
      endif
    
   end subroutine fuse_cohorts

@@ -1331,7 +1331,7 @@ contains
 
       if (hlm_use_sp == ifalse) then
         call fuse_cohorts(site_in, patch_in,bc_in)
-        call patch_in%SortCohorts()
+        call patch_in%SortCohorts_new()
       end if 
 
    end subroutine init_cohorts
