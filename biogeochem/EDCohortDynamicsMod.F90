@@ -78,7 +78,6 @@ Module EDCohortDynamicsMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : bstore_allom
   use FatesAllometryMod  , only : ForceDBH
-  use FatesAllometryMod  , only : tree_lai, tree_sai
   use FatesAllometryMod    , only : set_root_fraction
   use PRTGenericMod,          only : prt_carbon_allom_hyp
   use PRTGenericMod,          only : prt_cnp_flex_allom_hyp

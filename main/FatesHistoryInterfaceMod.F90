@@ -82,7 +82,7 @@ module FatesHistoryInterfaceMod
   use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8, site_lupft_r8
   use FatesConstantsMod   , only : n_landuse_cats
   use FatesAllometryMod             , only : CrownDepth
-  use FatesAllometryMod             , only : bstore_allom
+  use FatesAllometryMod             , only : bstore_allom, bsap_allom
   use FatesAllometryMod             , only : set_root_fraction
 
   use EDPftvarcon              , only : EDPftvarcon_inst
@@ -680,6 +680,7 @@ module FatesHistoryInterfaceMod
 
   !  integer :: ih_h2osoi_si_scagpft  ! hijacking the scagpft dimension instead of creating a new shsl dimension
   integer :: ih_sapflow_scpf
+  integer :: ih_sapwood_area_scpf
   integer :: ih_sapflow_si
   integer :: ih_iterh1_scpf
   integer :: ih_iterh2_scpf
@@ -2782,7 +2783,8 @@ contains
                           this%hvars(ih_totvegc_si)%r81d(io_si)+ ccohort%n *        &
                           total_m / m2_per_ha
 
-                     call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%crowndamage,ccohort%canopy_trim, store_max)
+                     call bstore_allom(ccohort%dbh,ccohort%pft,ccohort%crowndamage,ccohort%canopy_trim, &
+                          store_max)
 
                      this%hvars(ih_storectfrac_si)%r81d(io_si)  = &
                           this%hvars(ih_storectfrac_si)%r81d(io_si) + ccohort%n * store_max/m2_per_ha
@@ -2994,7 +2996,7 @@ contains
          if ( site_ba .gt. nearzero ) then
             hio_ba_weighted_height_si(io_si) = hio_ba_weighted_height_si(io_si)/site_ba
          endif
-
+         
          elloop2: do el = 1, num_elements
             if( element_list(el).eq.carbon12_element )then
                if( this%hvars(ih_storectfrac_si)%r81d(io_si)>nearzero ) then
@@ -3104,6 +3106,8 @@ contains
     real(r8) :: storep_understory_scpf(numpft*nlevsclass)
     real(r8) :: storec_canopy_scpf(numpft*nlevsclass)
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
+    real(r8) :: a_sapw ! sapwood area [m^2]
+    real(r8) :: c_sapw ! sapwood biomass [kgC]
 
     integer  :: i_dist, j_dist
 
@@ -3326,7 +3330,8 @@ contains
              hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
              hio_disturbance_rate_si_lulu         => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
              hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d, &
-             hio_transition_matrix_si_lulu      => this%hvars(ih_transition_matrix_si_lulu)%r82d)
+             hio_transition_matrix_si_lulu      => this%hvars(ih_transition_matrix_si_lulu)%r82d, &
+             hio_sapwood_area_scpf              => this%hvars(ih_sapwood_area_scpf)%r82d)
 
           model_day_int = nint(hlm_model_day)
 
@@ -3778,6 +3783,13 @@ contains
                            ! growth increment
                            hio_ddbh_si_scpf(io_si,scpf) = hio_ddbh_si_scpf(io_si,scpf) + &
                                 ccohort%ddbhdt*ccohort%n / m2_per_ha * m_per_cm
+
+                           call bsap_allom(ccohort%dbh,ccohort%pft,ccohort%crowndamage,&
+                                ccohort%canopy_trim, ccohort%efstem_coh, a_sapw, c_sapw)
+
+                           ! sapwood area [m2/m2]
+                           hio_sapwood_area_scpf(io_si,scpf)  = hio_sapwood_area_scpf(io_si,scpf)+ &
+                                a_sapw*ccohort%n / m2_per_ha
 
                         end if
 
@@ -5735,6 +5747,15 @@ contains
             hio_rootwgt_soilvwcsat_si(io_si) = mean_soil_vwcsat/areaweight
             hio_rootwgt_soilmatpot_si(io_si) = mean_soil_matpot/areaweight  * pa_per_mpa
 
+            ! calculate site sapflow
+            do ipft = 1, numpft
+               do iscls = 1,nlevsclass
+                  hio_sapflow_si(io_si) = hio_sapflow_si(io_si) + &
+                       site_hydr%sapflow_scpf(iscls, ipft) * ha_per_m2
+               end do
+            end do
+            
+            
          end do
        end associate
     end if if_hifrq0
@@ -7623,6 +7644,11 @@ contains
                avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,       &
                ivar=ivar, initialize=initialize_variables, index = ih_ba_si_scpf)
 
+          call this%set_history_var(vname='FATES_SAPWOOD_AREA_SZPF', units = 'm2 m-2',  &
+               long='sapwood area by pft/size', use_default='inactive',               &
+               avgflag='A', vtype=site_size_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,       &
+               ivar=ivar, initialize=initialize_variables, index = ih_sapwood_area_scpf)
+
           call this%set_history_var(vname='FATES_VEGC_ABOVEGROUND_SZPF',             &
                units = 'kg m-2',                                                     &
                long='aboveground biomass by pft/size in kg carbon per m2',           &
@@ -8690,10 +8716,11 @@ contains
 
        hydro_active_if0: if(hlm_use_planthydro.eq.itrue) then
           call this%set_history_var(vname='FATES_SAPFLOW', units='kg m-2 s-1',    &
-               long='areal sap flow rate in kg per m2 per second',               &
+               long='areal sap flow rate in kg per m2 ground area per second',               &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM', &
                upfreq=group_hydr_simple, ivar=ivar, initialize=initialize_variables,             &
                index = ih_sapflow_si)
+          
           call this%set_history_var(vname='FATES_ROOTWGT_SOILVWC', units='m3 m-3', &
                long='soil volumetric water content, weighted by root area',       &
                use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',  &
@@ -9028,7 +9055,7 @@ contains
                   initialize=initialize_variables, index = ih_tran_scpf)
 
              call this%set_history_var(vname='FATES_SAPFLOW_SZPF', units='kg m-2 s-1', &
-                  long='areal sap flow rate dimensioned by size x pft in kg per m2 per second', &
+                  long='areal sap flow rate dimensioned by size x pft in kg per m2 ground area per second', &
                   use_default='inactive', avgflag='A', vtype=site_size_pft_r8,      &
                   hlms='CLM:ALM', upfreq=group_hydr_complx, ivar=ivar,                              &
                   initialize=initialize_variables, index = ih_sapflow_scpf)
