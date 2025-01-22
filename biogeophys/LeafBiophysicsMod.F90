@@ -171,7 +171,7 @@ module LeafBiophysicsMod
   integer, parameter,public :: btran_on_gs_gs1 = 2      ! apply btran to stomatal slope
   integer, parameter,public :: btran_on_gs_gs01 = 3     ! apply btran to both stomatal slope and intercept
   integer, parameter,public :: btran_on_gs_gs2  = 4     ! apply btran to the whole non-intercept portion
-                                                        ! of the Medlyn condcutance equation
+                                                        ! of conductance equation. 
   integer, parameter,public :: btran_on_gs_gs02 = 5     ! same as btran_on_gs_gs2, but also apply to the intercept
   
   integer, parameter,public :: btran_on_ag_none  = 0       ! do not apply btran to vcmax or jmax
@@ -1988,9 +1988,12 @@ contains
        end if
     elseif(lb_params%stomatal_btran_model(ft)==btran_on_gs_gs2 .or. &
            lb_params%stomatal_btran_model(ft)==btran_on_gs_gs02)then
-       ! Only Medlyn conductance is allowed in this scenario
-       gs2 = btran
-       gs1 = lb_params%medlyn_slope(ft)
+       if(lb_params%stomatal_model.eq.medlyn_model ) then
+          gs2 = btran
+          gs1 = lb_params%medlyn_slope(ft)
+       else
+          gs1 = lb_params%bb_slope(ft)
+       end if
     else
        if(lb_params%stomatal_model.eq.medlyn_model ) then
           gs1 = lb_params%medlyn_slope(ft)

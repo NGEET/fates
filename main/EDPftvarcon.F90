@@ -14,6 +14,8 @@ module EDPftvarcon
   use FatesConstantsMod, only : itrue, ifalse
   use PRTParametersMod, only : prt_params
   use LeafBiophysicsMod, only : lb_params
+  use LeafBiophysicsMod, only : btran_on_gs_gs02,btran_on_ag_vcmax_jmax
+  use LeafBiophysicsMod, only : lmr_r_1, lmr_r_2
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
   use FatesLitterMod, only : ilabile,icellulose,ilignin
@@ -1698,9 +1700,7 @@ contains
     use FatesConstantsMod  , only : fates_check_param_set
     use FatesConstantsMod  , only : itrue, ifalse
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-    use LeafBiophysicsMod, only : lmr_r_1
-    use LeafBiophysicsMod, only : lmr_r_2
-    use LeafBiophysicsMod, only : lb_params
+    
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
     use EDParamsMod        , only : radiation_model
@@ -2092,13 +2092,11 @@ contains
 
         ! Check if photosynthetic pathway is neither C3/C4
         ! ----------------------------------------------------------------------------------
-
-        if ( ( lb_params%c3psn(ipft) < 0.0_r8 ) .or. &
-             ( lb_params%c3psn(ipft) > 1.0_r8 ) ) then
+        if(.not.any(lb_params%c3psn(ipft) == [c3_path_index,c4_path_index])) then
 
            write(fates_log(),*) ' Two photosynthetic pathways are currently supported'
-           write(fates_log(),*) ' C4 plants have c3psn = 0'
-           write(fates_log(),*) ' C3 plants have c3psn = 1'
+           write(fates_log(),*) ' C4 plants have c3psn = ',c3_path_index
+           write(fates_log(),*) ' C3 plants have c3psn = ',c4_path_index
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) ' c3psn(pft): ',lb_params%c3psn(ipft)
            write(fates_log(),*) ' Aborting'
@@ -2167,6 +2165,30 @@ contains
         write(fates_log(),*)  'FatesPlantRespPhotosynthMod'  
      
      end do ! ipft
+
+     ! Check to make sure the btran limitation models are within expected ranges
+
+     do ipft = 1,npft
+        
+        if( lb_params%stomatal_btran_model(ipft) < 0 .or. &
+            lb_params%stomatal_btran_model(ipft) > btran_on_gs_gs02 ) then
+
+           write(fates_log(),*)  'PFT  ',  ipft
+           write(fates_log(),*)  'Undefined fates_leaf_stomatal_btran_model = ',lb_params%stomatal_btran_model
+           write(fates_log(),*)  'See biogeophys/LeafbiophysicsMod.F90 btran_on_gs_* for model types'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        if( lb_params%agross_btran_model(ipft) < 0 .or. &
+            lb_params%agross_btran_model(ipft) > btran_on_ag_vcmax_jmax ) then
+           write(fates_log(),*)  'PFT  ',  ipft
+           write(fates_log(),*)  'Undefined fates_leaf_agross_btran_model = ',lb_params%agross_btran_model
+           write(fates_log(),*)  'See biogeophys/LeafbiophysicsMod.F90 btran_on_ag_* for model types'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+     end do
+     
      
      
 
