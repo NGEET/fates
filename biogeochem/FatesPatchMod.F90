@@ -239,6 +239,7 @@ module FatesPatchMod
       procedure :: InsertCohort
       procedure :: InsertCohort_old
       procedure :: SortCohorts
+      procedure :: SortCohorts_new
       procedure :: UpdateTreeGrassArea
       procedure :: UpdateLiveGrass
       procedure :: FreeMemory
@@ -1079,7 +1080,7 @@ module FatesPatchMod
       
       ! validate the cohort before insertion
       if (.not. associated(cohort)) then
-        write(fates_log(),*) 'error: cohort is not allocated!'
+        write(fates_log(),*) 'ERROR: cohort is not allocated!'
         call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
       
@@ -1092,7 +1093,7 @@ module FatesPatchMod
           cohort%shorter => null()
           return 
         else 
-          write(fates_log(),*) 'error: inconsistent list state!'
+          write(fates_log(),*) 'ERROR: inconsistent list state!'
           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
       end if 
@@ -1124,7 +1125,7 @@ module FatesPatchMod
         
         ! validate list structure before insertion
         if (associated(temp_cohort1%taller) .and. .not. associated(temp_cohort1%taller%shorter, temp_cohort1)) then 
-          write(fates_log(),*) 'error: corrupted list structure!'
+          write(fates_log(),*) 'ERROR: corrupted list structure!'
           call endrun(msg=errMsg(sourcefile, __LINE__))
         end if 
         
@@ -1240,7 +1241,7 @@ module FatesPatchMod
     
     !===========================================================================
     
-    subroutine SortCohorts(this)
+    subroutine SortCohorts_new(this)
       !
       ! DESCRIPTION: sort cohorts in patch's linked list
       ! uses insertion sort to build a new list
@@ -1326,9 +1327,59 @@ module FatesPatchMod
         this%tallest => currentCohort
       end if
     
-    end subroutine SortCohorts
+    end subroutine SortCohorts_new
   
     !===========================================================================
+    
+    subroutine SortCohorts(patchptr)
+         ! ============================================================================
+    !                 sort cohorts into the correct order   DO NOT CHANGE THIS IT WILL BREAK
+    ! ============================================================================
+
+    class(fates_patch_type), intent(inout), target :: patchptr ! patch
+
+    type(fates_patch_type) , pointer :: current_patch
+    type(fates_cohort_type), pointer :: current_c, next_c
+    type(fates_cohort_type), pointer :: shortestc, tallestc
+    type(fates_cohort_type), pointer :: storesmallcohort
+    type(fates_cohort_type), pointer :: storebigcohort
+    integer :: snull,tnull
+
+    current_patch => patchptr
+    tallestc  => NULL()
+    shortestc => NULL()
+    storebigcohort   => null()
+    storesmallcohort => null()
+    current_c => current_patch%tallest
+
+    do while (associated(current_c))
+       next_c => current_c%shorter
+       tallestc  => storebigcohort
+       shortestc => storesmallcohort
+       if (associated(tallestc)) then
+          tnull = 0
+       else
+          tnull = 1
+          tallestc => current_c
+       endif
+
+       if (associated(shortestc)) then
+          snull = 0
+       else
+          snull = 1
+          shortestc => current_c
+       endif
+
+       call current_patch%InsertCohort_old(current_c, tallestc, shortestc,       &
+         tnull, snull, storebigcohort, storesmallcohort)
+
+       current_patch%tallest  => storebigcohort
+       current_patch%shortest => storesmallcohort
+       current_c => next_c
+
+    enddo
+      
+    end subroutine SortCohorts
 
     subroutine Dump(this)
       !
