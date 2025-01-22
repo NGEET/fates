@@ -932,19 +932,20 @@ contains
     integer :: iter_sing ! iterator check to ensure we don't try to fix a singularity indefinitely
     real(r8) :: Kb_eff   ! When testing for singularity, this is either the stem or stem and leaf optical depth
     
-    if( (cosz_in-1.0) > nearzero ) then
+    if( (cosz_in-1.0_r8) > nearzero ) then
        write(log_unit,*)"The cosine of the zenith angle cannot exceed 1"
        write(log_unit,*)"cosz: ",cosz_in
        write(log_unit,*)"TwoStreamMLPEMod.F90:ZenithPrep"
        call endrun(msg=errMsg(sourcefile, __LINE__))
-    elseif(cosz_in<0._r8)then
-       write(log_unit,*)"The cosine of the zenith angle should not be less than zero"
-       write(log_unit,*)"It can be exactly zero, but not less than"
-       write(log_unit,*)"cosz: ",cosz_in
-       write(log_unit,*)"TwoStreamMLPEMod.F90:ZenithPrep"
-       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
-       
+
+
+    ! Force zenith to be non-zero positive. In the future
+    ! we may allow the scheme to be called in twilight hours where
+    ! the sun is below the horizon and diffuse radiation is the only
+    ! radiation.  We don't currently filter for that scenario,
+    ! but the following code is compatible with that idea.
+    
     cosz = max(0.001_r8,cosz_in)
 
     this%cosz = cosz

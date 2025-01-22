@@ -3807,14 +3807,6 @@ contains
         bc_out(s)%ftid_parb(:,:) = 1._r8  ! output HLM
         bc_out(s)%ftii_parb(:,:) = 1._r8  ! output HLM
 
-        ! If this is a hybrid or branch style
-        ! restart, the zenith angle may have changed
-        ! in the host model. Ensure that
-        ! the cosine of the zenit is at least a nominal
-        ! amount above zero, so that calculations
-        ! can be performed on the solver 
-        ! sites(s)%coszen = max(0.001_r8,sites(s)%coszen)
-        
         currentpatch => sites(s)%oldest_patch
         while_patch: do while (associated(currentpatch))
 
@@ -3869,7 +3861,7 @@ contains
                     associate( twostr => currentPatch%twostr)
 
                       call twostr%CanopyPrep(currentPatch%fcansno)
-                      call twostr%ZenithPrep(max(0.001_r8,sites(s)%coszen))
+                      call twostr%ZenithPrep(sites(s)%coszen)
 
                       !RGK-2SBF write(fates_log(),*)'rest-p:',s,currentPatch%patchno, &
                       ! currentPatch%gnd_alb_dif(1),currentPatch%gnd_alb_dir(1),currentPatch%fcansno

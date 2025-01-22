@@ -284,7 +284,7 @@ contains
          
          ! that are dependent on geometry need to be updated
          call twostr%CanopyPrep(fcansno_pa(ifp))
-         call twostr%ZenithPrep(max(0.001,site%coszen))
+         call twostr%ZenithPrep(site%coszen)
          
        end associate
 

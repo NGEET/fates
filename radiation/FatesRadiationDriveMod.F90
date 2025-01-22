@@ -193,7 +193,7 @@ contains
                         associate( twostr => currentPatch%twostr)
 
                         call twostr%CanopyPrep(bc_in%fcansno_pa(ifp)) 
-                        call twostr%ZenithPrep(max(0.001,site%coszen))
+                        call twostr%ZenithPrep(site%coszen)
 
                         !RGK-2SBF write(fates_log(),*)'solve-patch:',currentPatch%patchno,bc_in%fcansno_pa(ifp)
                         
