@@ -484,7 +484,7 @@ module FatesFactoryMod
         number=patch_data%densities(i)*patch_data%area, age=patch_data%ages(i),          &
         canopy_layer=patch_data%canopy_layers(i), patch_area=patch_data%area)
       
-      call patch%InsertCohort(cohort)
+      call patch%InsertCohort_new(cohort)
       
     end do   
   

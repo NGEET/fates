@@ -236,9 +236,9 @@ module FatesPatchMod
       procedure :: Create
       procedure :: Count_Cohorts
       procedure :: ValidateCohorts
-      procedure :: InsertCohort
+      procedure :: InsertCohort_new
       procedure :: InsertCohort_old
-      procedure :: SortCohorts
+      procedure :: SortCohorts_old
       procedure :: SortCohorts_new
       procedure :: UpdateTreeGrassArea
       procedure :: UpdateLiveGrass
@@ -1001,7 +1001,7 @@ module FatesPatchMod
       !taller than tree being considered and return its pointer
       if (associated(current)) then
         do while (associated(current).and.exitloop == 0)
-            if (current%height < tsp) then
+            if (current%height <= tsp) then
               current => current%taller
             else
               exitloop = 1
@@ -1065,7 +1065,7 @@ module FatesPatchMod
     
     !===========================================================================
   
-    subroutine InsertCohort(this, cohort)
+    subroutine InsertCohort_new(this, cohort)
       !
       ! DESCRIPTION:
       ! Inserts a cohort into a patch's linked list structure
@@ -1143,7 +1143,7 @@ module FatesPatchMod
         temp_cohort2 => temp_cohort2%taller
       end do
     
-    end subroutine InsertCohort
+    end subroutine InsertCohort_new
   
     !===========================================================================
     
@@ -1333,8 +1333,8 @@ module FatesPatchMod
   
     !===========================================================================
     
-    subroutine SortCohorts(patchptr)
-         ! ============================================================================
+    subroutine SortCohorts_old(patchptr)
+    ! ============================================================================
     !                 sort cohorts into the correct order   DO NOT CHANGE THIS IT WILL BREAK
     ! ============================================================================
 
@@ -1352,10 +1352,10 @@ module FatesPatchMod
     shortestc => NULL()
     storebigcohort   => null()
     storesmallcohort => null()
-    current_c => current_patch%tallest
+    current_c => current_patch%shortest
 
     do while (associated(current_c))
-       next_c => current_c%shorter
+       next_c => current_c%taller
        tallestc  => storebigcohort
        shortestc => storesmallcohort
        if (associated(tallestc)) then
@@ -1381,7 +1381,7 @@ module FatesPatchMod
 
     enddo
       
-    end subroutine SortCohorts
+    end subroutine SortCohorts_old
 
     subroutine Dump(this)
       !

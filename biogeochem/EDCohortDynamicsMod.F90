@@ -1282,7 +1282,7 @@ contains
      endif ! patch.
      
      if (fusion_took_place == 1) then  ! if fusion(s) occured sort cohorts
-        call currentPatch%SortCohorts()
+        call currentPatch%SortCohorts_old()
      endif
    
   end subroutine fuse_cohorts
