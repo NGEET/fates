@@ -524,8 +524,6 @@ contains
     type (fates_patch_type) , pointer :: currentPatch
     type (fates_cohort_type), pointer :: currentCohort
     type (fates_cohort_type), pointer :: nc
-    type (fates_cohort_type), pointer :: storesmallcohort
-    type (fates_cohort_type), pointer :: storebigcohort
     real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
     real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
@@ -533,8 +531,6 @@ contains
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
     integer  :: pft                          ! pft loop index
-    integer  :: tnull                        ! is there a tallest cohort?
-    integer  :: snull                        ! is there a shortest cohort?
     integer  :: levcan                       ! canopy level
     real(r8) :: leaf_c                       ! leaf carbon [kg]
     real(r8) :: fnrt_c                       ! fineroot carbon [kg]
@@ -1257,29 +1253,7 @@ contains
                                ! if some plants in the new temporary cohort survived the transfer to the new patch,
                                ! then put the cohort into the linked list.
                                cohort_n_gt_zero: if (nc%n > 0.0_r8) then
-                                 ! storebigcohort   =>  newPatch%tallest
-                                 ! storesmallcohort =>  newPatch%shortest
-                                 ! if(associated(newPatch%tallest))then
-                                 !    tnull = 0
-                                 ! else
-                                 !    tnull = 1
-                                 !    newPatch%tallest => nc
-                                 !    nc%taller => null()
-                                 ! endif
-
-                                 ! if(associated(newPatch%shortest))then
-                                 !    snull = 0
-                                 ! else
-                                 !    snull = 1
-                                 !    newPatch%shortest => nc
-                                 !    nc%shorter => null()
-                                 ! endif
-                                 call newPatch%InsertCohort_new(nc)
-                                 !call newPatch%InsertCohort_old(nc, newPatch%tallest, newPatch%shortest, &
-                                 !tnull, snull, storebigcohort, storesmallcohort)
-
-                                 !newPatch%tallest  => storebigcohort
-                                 !newPatch%shortest => storesmallcohort
+                                 call newPatch%InsertCohort(nc)
                                else
                                   ! sadly, no plants in the cohort survived. on the bright side, we can deallocate their memory.
                                   call nc%FreeMemory()
@@ -1293,7 +1267,7 @@ contains
                                currentCohort => currentCohort%taller
                             enddo cohortloop
 
-                            call currentPatch%SortCohorts_new()
+                            call currentPatch%SortCohorts()
 
                             !update area of donor patch
                             oldarea = currentPatch%area
@@ -1324,7 +1298,7 @@ contains
                             call terminate_cohorts(currentSite, currentPatch, 1,16,bc_in)
                             call fuse_cohorts(currentSite,currentPatch, bc_in)
                             call terminate_cohorts(currentSite, currentPatch, 2,16,bc_in)
-                            call currentPatch%SortCohorts_new()
+                            call currentPatch%SortCohorts()
 
                          end if areadis_gt_zero_if   ! if ( newPatch%area > nearzero ) then
 
@@ -1351,7 +1325,7 @@ contains
                    call terminate_cohorts(currentSite, newPatch, 1,17, bc_in)
                    call fuse_cohorts(currentSite,newPatch, bc_in)
                    call terminate_cohorts(currentSite, newPatch, 2,17, bc_in)
-                   call newPatch%SortCohorts_new()
+                   call newPatch%SortCohorts()
                 endif
 
 
@@ -1682,11 +1656,7 @@ contains
     ! !LOCAL VARIABLES:
     integer  :: el                           ! element loop index
     type (fates_cohort_type), pointer :: nc
-    type (fates_cohort_type), pointer :: storesmallcohort
-    type (fates_cohort_type), pointer :: storebigcohort
     type (fates_cohort_type), pointer :: currentCohort
-    integer  :: tnull                        ! is there a tallest cohort?
-    integer  :: snull                        ! is there a shortest cohort?
     integer  :: pft
     real(r8) :: temp_area
 
@@ -1753,35 +1723,12 @@ contains
        ! loss of individuals from source patch due to area shrinking
        currentCohort%n = currentCohort%n * fraction_to_keep
 
-       call new_patch%InsertCohort_new(nc)
-       !storebigcohort   =>  new_patch%tallest
-       !storesmallcohort =>  new_patch%shortest
-      !  if(associated(new_patch%tallest))then
-      !     tnull = 0
-      !  else
-      !     tnull = 1
-      !     new_patch%tallest => nc
-      !     nc%taller => null()
-      !  endif
-
-      !  if(associated(new_patch%shortest))then
-      !     snull = 0
-      !  else
-      !     snull = 1
-      !     new_patch%shortest => nc
-      !     nc%shorter => null()
-      !  endif
-
-      !  call new_patch%InsertCohort_old(nc, new_patch%tallest, new_patch%shortest, &
-      !       tnull, snull, storebigcohort, storesmallcohort)
-
-      !  new_patch%tallest  => storebigcohort
-      !  new_patch%shortest => storesmallcohort
+       call new_patch%InsertCohort(nc)
 
        currentCohort => currentCohort%taller
     enddo ! currentCohort
 
-    call currentPatch%SortCohorts_new()
+    call currentPatch%SortCohorts()
 
     !update area of donor patch
     currentPatch%area = currentPatch%area - temp_area
@@ -3124,7 +3071,7 @@ contains
                             tmpptr => currentPatch%older       
                             call fuse_2_patches(csite, currentPatch, tpp)
                             call fuse_cohorts(csite,tpp, bc_in)
-                            call tpp%SortCohorts_new()
+                            call tpp%SortCohorts()
                             currentPatch => tmpptr
 
                             !------------------------------------------------------------------------!
@@ -3246,10 +3193,7 @@ contains
     ! !LOCAL VARIABLES:
     type (fates_cohort_type), pointer :: currentCohort ! Current Cohort
     type (fates_cohort_type), pointer :: nextc         ! Remembers next cohort in list 
-    type (fates_cohort_type), pointer :: storesmallcohort
-    type (fates_cohort_type), pointer :: storebigcohort  
     integer                        :: c,p          !counters for pft and litter size class. 
-    integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
     integer                        :: el           ! loop counting index for elements
     integer                        :: pft          ! loop counter for pfts
     type(fates_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
@@ -3329,29 +3273,8 @@ contains
        endif
 
        do while(associated(dp%shortest))
-         ! storebigcohort   => rp%tallest
-         ! storesmallcohort => rp%shortest
-
-         ! if(associated(rp%tallest))then
-         !    tnull = 0
-         ! else
-         !    tnull = 1
-         !    rp%tallest => currentCohort
-         ! endif
-
-         ! if(associated(rp%shortest))then
-         !    snull = 0
-         ! else
-         !    snull = 1
-         !    rp%shortest => currentCohort
-         ! endif
-         ! call rp%InsertCohort_old(currentCohort, rp%tallest, rp%shortest,       &
-         !    tnull, snull, storebigcohort, storesmallcohort)
-
-         !  rp%tallest  => storebigcohort 
-         !  rp%shortest => storesmallcohort  
-
-         call rp%InsertCohort_new(currentCohort)
+       
+         call rp%InsertCohort(currentCohort)
 
           currentCohort => nextc
 

@@ -464,12 +464,6 @@ module FatesFactoryMod
     real(r8)                         :: patch_age       ! patch age
     integer                          :: i               ! looping index
   
-    type (fates_cohort_type), pointer :: storesmallcohort
-    type (fates_cohort_type), pointer :: storebigcohort
-    type (fates_cohort_type), pointer :: currentCohort
-    integer  :: tnull                        ! is there a tallest cohort?
-    integer  :: snull                        ! is there a shortest cohort?
-    
     numpft = size(prt_params%wood_density, dim=1)
     patch_age = maxval(patch_data%ages(:))
     can_lai(:) = 0.0_r8
@@ -484,7 +478,7 @@ module FatesFactoryMod
         number=patch_data%densities(i)*patch_data%area, age=patch_data%ages(i),          &
         canopy_layer=patch_data%canopy_layers(i), patch_area=patch_data%area)
       
-      call patch%InsertCohort_new(cohort)
+      call patch%InsertCohort(cohort)
       
     end do   
   

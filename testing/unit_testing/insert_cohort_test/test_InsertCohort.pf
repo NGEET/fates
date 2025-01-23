@@ -1,4 +1,4 @@
-module test_InsertCohortNew
+module test_InsertCohort
   !
   ! DESCRIPTION:
   !		Tests the patch's InsertCohort method
@@ -28,6 +28,8 @@ module test_InsertCohortNew
     subroutine setUp(this)
       class(TestInsertCohort), intent(inout) :: this           ! test object
       type(fates_cohort_type), pointer       :: new_node, head ! cohort objects
+      
+      ! heights for cohors
       real(r8), parameter :: heights(8) = (/2.0_r8, 5.0_r8, 10.0_r8, 12.0_r8, 12.5_r8,   &
          15.0_r8, 20.0_r8, 25.0_r8/)
 
@@ -107,7 +109,7 @@ module test_InsertCohortNew
       
       ! insert a new cohort
       allocate(cohort)
-      call patch%InsertCohort_new(cohort)
+      call patch%InsertCohort(cohort)
       
       ! verify cohort is shortest and tallest in list
       @assertTrue(associated(cohort, patch%tallest))
@@ -133,7 +135,7 @@ module test_InsertCohortNew
       ! insert cohort
       allocate(cohort)
       cohort%height = height
-      call this%patch%InsertCohort_new(cohort)
+      call this%patch%InsertCohort(cohort)
     
       ! verify that new cohort is now the shortest
       @assertTrue(associated(cohort, this%patch%shortest))
@@ -149,7 +151,7 @@ module test_InsertCohortNew
       class(TestInsertCohort), intent(inout) :: this              ! test object
       type(fates_cohort_type), pointer       :: cohort            ! cohort object
       type(fates_cohort_type), pointer       :: previous_tallest  ! previous tallest cohort
-      real(r8), parameter :: height = 100.0_r8
+      real(r8),                parameter     :: height = 100.0_r8 ! cohort height
       
       ! save previous shorter
       previous_tallest => this%patch%tallest
@@ -157,7 +159,7 @@ module test_InsertCohortNew
       ! insert cohort
       allocate(cohort)
       cohort%height = height
-      call this%patch%InsertCohort_new(cohort)
+      call this%patch%InsertCohort(cohort)
     
       ! verify that new cohort is now the tallest
       @assertTrue(associated(cohort, this%patch%tallest))
@@ -169,15 +171,15 @@ module test_InsertCohortNew
     
     @Test
     subroutine InsertCohort_CorrectOrder(this)
-      ! test that a cohort is inserted correctly
-      class(TestInsertCohort), intent(inout) :: this   ! test object
-      type(fates_cohort_type), pointer       :: cohort ! cohort object
-      real(r8), parameter :: height = 16.0_r8
+      ! test that a cohort is inserted correctly into the middle of a list
+      class(TestInsertCohort), intent(inout) :: this             ! test object
+      type(fates_cohort_type), pointer       :: cohort           ! cohort object
+      real(r8),                parameter     :: height = 16.0_r8 ! cohort height
       
       ! insert cohort
       allocate(cohort)
       cohort%height = height
-      call this%patch%InsertCohort_new(cohort)
+      call this%patch%InsertCohort(cohort)
       
       ! traverse the list to ensure correct order
       cohort => this%patch%shortest 
@@ -217,9 +219,9 @@ module test_InsertCohortNew
       cohort3%height = 10.0_r8
       
       ! insert cohorts
-      call patch%InsertCohort_new(cohort1)
-      call patch%InsertCohort_new(cohort2)
-      call patch%InsertCohort_new(cohort3)
+      call patch%InsertCohort(cohort1)
+      call patch%InsertCohort(cohort2)
+      call patch%InsertCohort(cohort3)
       
       ! validate state of linked list - cohort3 should be after cohort1
       ! cohort1 is still shortest
@@ -245,6 +247,8 @@ module test_InsertCohortNew
       type(fates_patch_type),  pointer       :: patch   ! patch object
       type(fates_cohort_type), pointer       :: cohort  ! cohort object
       integer                                :: i       ! looping index
+      
+      ! heights for cohorts
       real(r8), parameter :: heights(10) = (/12.0_r8, 5.0_r8, 20.0_r8, 7.0_r8, 15.0_r8,  &
         3.0_r8, 25.0_r8, 10.0_r8, 8.0_r8, 30.0_r8/)
       real(r8), parameter :: heights_sorted(10) = (/3.0_r8, 5.0_r8, 7.0_r8, 8.0_r8,      &
@@ -257,7 +261,7 @@ module test_InsertCohortNew
       do i = 1, size(heights)
           allocate(cohort)
           cohort%height = heights(i)
-          call patch%InsertCohort_new(cohort)        
+          call patch%InsertCohort(cohort)        
       end do 
       
       ! validate final list structure
@@ -308,7 +312,7 @@ module test_InsertCohortNew
         allocate(cohort)
         cohort%height = height
         cohort%dbh = i
-        call patch%InsertCohort_new(cohort)
+        call patch%InsertCohort(cohort)
       end do
       
       ! validate final list structure
@@ -325,6 +329,6 @@ module test_InsertCohortNew
       
     end subroutine InsertCohort_LargeList_IdenticalHeights
     
-end module test_InsertCohortNew
+end module test_InsertCohort
 
 

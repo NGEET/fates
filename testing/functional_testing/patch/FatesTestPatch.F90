@@ -19,9 +19,6 @@ program FatesTestPatch
   type(fates_patch_type),            pointer     :: patch        ! patch
   type(fates_cohort_type),           pointer     :: cohort       ! cohort
   integer                                        :: i            ! patch array location
-  type(fates_cohort_type), pointer               :: storebigcohort
-  type(fates_cohort_type), pointer               :: storesmallcohort
-  integer                                        :: tnull, snull
 
   ! CONSTANTS:
   integer,  parameter :: num_levsoil = 10      ! number of soil layers
