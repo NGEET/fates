@@ -52,9 +52,6 @@ module FatesCohortMod
   implicit none
   private
   
-  ! cohort index
-  integer :: coh_index
-
   ! PARAMETERS
   character(len=*), parameter, private :: sourcefile = __FILE__
 
