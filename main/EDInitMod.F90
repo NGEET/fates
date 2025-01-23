@@ -1332,7 +1332,9 @@ contains
       if (hlm_use_sp == ifalse) then
         call fuse_cohorts(site_in, patch_in,bc_in)
         call patch_in%SortCohorts()
-      end if 
+      end if
+      
+      call patch_in%ValidateCohorts()
 
    end subroutine init_cohorts
 

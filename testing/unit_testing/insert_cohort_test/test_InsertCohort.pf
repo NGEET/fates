@@ -3,12 +3,9 @@ module test_InsertCohort
   ! DESCRIPTION:
   !		Tests the patch's InsertCohort method
   !
-  use FatesConstantsMod,    only : r8 => fates_r8
-  use EDParamsMod,          only : nclmax
-  use FatesRadiationMemMod, only : num_swb
-  use FatesCohortMod,       only : fates_cohort_type
-  use FatesPatchMod,        only : fates_patch_type
-  use FatesUnitTestUtils,   only : endrun_msg
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesCohortMod,    only : fates_cohort_type
+  use FatesPatchMod,     only : fates_patch_type
   use funit
 
   implicit none

@@ -1,0 +1,145 @@
+module test_ValidateCohorts
+  !
+  ! DESCRIPTION:
+  !		Tests the patch's ValidateCohorts method
+  !
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesCohortMod,    only : fates_cohort_type
+  use FatesPatchMod,     only : fates_patch_type
+  use funit
+
+  implicit none
+  
+  @TestCase
+  type, extends(TestCase) :: TestValidateCohorts
+  end type TestValidateCohorts
+
+  real(r8), parameter :: tol = 1.e-13_r8
+
+  contains 
+  
+    @Test 
+    subroutine EmptyList_ValidateCohorts_Returns(this)
+      ! tests that for a patch where shortest and tallest are null, subroutine returns without error
+      class(TestValidateCohorts), intent(inout) :: this  ! test object
+      type(fates_patch_type),     pointer       :: patch ! patch object
+      
+      ! create an empty patch
+      allocate(patch)
+      patch%shortest => null()
+      patch%tallest => null()
+      
+      ! should pass
+      call patch%ValidateCohorts()
+    
+    end subroutine EmptyList_ValidateCohorts_Returns
+    
+    @Test 
+    subroutine SingleCohort_ValidateCohorts_Returns(this)
+      ! tests that for a single-cohort list, subroutine returns without error
+      class(TestValidateCohorts), intent(inout) :: this             ! test object
+      type(fates_patch_type),     pointer       :: patch            ! patch object
+      type(fates_cohort_type),    pointer       :: cohort           ! cohort object
+      real(r8),                   parameter     :: height = 10.0_r8 ! cohort height
+      
+      ! create hard-coded patch
+      allocate(patch)
+      allocate(cohort)
+      cohort%height = height
+      patch%shortest => cohort
+      patch%tallest => cohort
+      
+      ! should pass
+      call patch%ValidateCohorts()
+    
+    end subroutine SingleCohort_ValidateCohorts_Returns
+    
+    @Test
+    subroutine MultipleCohorts_ValidateCohorts_Returns(this)
+      ! tests that for a patch with multiple cohorts correctly linked, subroutine returns without error
+      class(TestValidateCohorts), intent(inout) :: this           ! test object
+      type(fates_patch_type),     pointer       :: patch          ! patch object
+      type(fates_cohort_type),    pointer       :: new_node, head ! cohort objects
+      
+      ! heights for cohors
+      real(r8), parameter :: heights(8) = (/2.0_r8, 5.0_r8, 10.0_r8, 12.0_r8, 12.5_r8,   &
+         15.0_r8, 20.0_r8, 25.0_r8/)
+
+      ! hard-code a linked list
+      allocate(patch)
+      
+      allocate(head)
+      patch%shortest => head
+      head%height = heights(1)
+      
+      allocate(new_node)
+      new_node%height = heights(2)
+      head%taller => new_node
+      new_node%shorter => head
+      
+      allocate(new_node)
+      new_node%height = heights(3)
+      head%taller%taller => new_node
+      new_node%shorter => head%taller
+      
+      allocate(new_node)
+      new_node%height = heights(4)
+      head%taller%taller%taller => new_node
+      new_node%shorter => head%taller%taller
+      
+      allocate(new_node)
+      new_node%height = heights(5)
+      head%taller%taller%taller%taller => new_node
+      new_node%shorter => head%taller%taller%taller
+      
+      allocate(new_node)
+      new_node%height = heights(6)
+      head%taller%taller%taller%taller%taller => new_node
+      new_node%shorter => head%taller%taller%taller%taller
+      
+      allocate(new_node)
+      new_node%height = heights(7)
+      head%taller%taller%taller%taller%taller%taller => new_node
+      new_node%shorter => head%taller%taller%taller%taller%taller
+      
+      allocate(new_node)
+      new_node%height = heights(8)
+      head%taller%taller%taller%taller%taller%taller%taller => new_node
+      new_node%shorter => head%taller%taller%taller%taller%taller%taller
+      patch%tallest => new_node
+      
+      ! should pass
+      call patch%ValidateCohorts()
+      
+    end subroutine MultipleCohorts_ValidateCohorts_Returns
+    
+    @Test 
+    subroutine BrokenList_ValidateCohorts_Errors(this)
+      ! tests that for a patch with a broken chain the subroutine errors correctly
+      class(TestValidateCohorts), intent(inout) :: this                      ! test object
+      type(fates_patch_type),     pointer       :: patch                     ! patch object
+      type(fates_cohort_type),    pointer       :: cohort1, cohort2, cohort3 ! cohorts
+      
+      ! create a new patch
+      allocate(patch)
+
+      ! allocate and link cohorts
+      allocate(cohort1)
+      allocate(cohort2)
+      allocate(cohort3)
+      
+      ! set up a broken forward link
+      patch%shortest => cohort1
+      patch%tallest => cohort3
+      
+      cohort1%taller => cohort2
+      cohort2%shorter => cohort1
+      cohort2%taller => cohort3
+      cohort3%shorter => null()  ! break the forward link
+      
+      ! should fail
+      call patch%ValidateCohorts()
+    
+    end subroutine BrokenList_ValidateCohorts_Errors
+  
+end module test_ValidateCohorts

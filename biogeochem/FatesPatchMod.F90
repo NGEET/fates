@@ -66,7 +66,7 @@ module FatesPatchMod
     real(r8) :: age                          ! average patch age [years]                  
     integer  :: age_class                    ! age class of the patch for history binning purposes
     real(r8) :: area                         ! patch area [m2]
-    integer  :: countcohorts                 ! number of cohorts in patch
+    integer  :: num_cohorts                  ! number of cohorts in patch
     integer  :: ncl_p                        ! number of occupied canopy layers
     integer  :: land_use_label               ! patch label for land use classification (primaryland, secondaryland, etc)
     real(r8) :: age_since_anthro_disturbance ! average age for secondary forest since last anthropogenic disturbance [years]
@@ -234,7 +234,7 @@ module FatesPatchMod
       procedure :: InitRunningMeans
       procedure :: InitLitter
       procedure :: Create
-      procedure :: Count_Cohorts
+      procedure :: CountCohorts
       procedure :: ValidateCohorts
       procedure :: InsertCohort
       procedure :: SortCohorts
@@ -441,7 +441,7 @@ module FatesPatchMod
       this%age                          = nan                          
       this%age_class                    = fates_unset_int
       this%area                         = nan    
-      this%countcohorts                 = fates_unset_int 
+      this%num_cohorts                  = fates_unset_int 
       this%ncl_p                        = fates_unset_int
       this%land_use_label               = fates_unset_int
       this%age_since_anthro_disturbance = nan
@@ -1040,39 +1040,20 @@ module FatesPatchMod
       !
       
       ! ARGUMENTS:
-      class(fates_patch_type), intent(inout), target :: this ! patch 
-      
+      class(fates_patch_type), intent(in), target :: this ! patch
+           
       ! LOCALS:
-      type(fates_cohort_type), pointer :: currentCohort ! cohort object
+      type(fates_cohort_type), pointer :: currentCohort                 ! cohort object
+      integer                          :: forward_count, backward_count ! forwards and backwards counts of cohorts
 
       ! check initial conditions
       if (.not. associated(this%shortest) .and. .not. associated(this%tallest)) then
           ! validation passed - empty list
           return
       else if (.not. associated(this%shortest) .or. .not. associated(this%tallest)) then
-          write(fates_log(),*) "patch cohort list validation failed: one of shortest or tallest is null."
+          write(fates_log(),*) "ERROR: patch cohort list validation failed: one of shortest or tallest is null."
           call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
-      
-      ! count cohorts, which also validates
-      call this%Count_Cohorts()
-        
-    end subroutine ValidateCohorts
-    
-    !===========================================================================
-    
-    subroutine Count_Cohorts(this)
-      !
-      ! DESCRIPTION:
-      ! Counts the number of a cohorts in a patch's linked list
-      !
-      
-      ! ARGUMENTS:
-      class(fates_patch_type), intent(inout), target :: this ! patch 
-      
-      ! LOCALS:
-      type(fates_cohort_type), pointer :: currentCohort                 ! cohort object
-      integer                          :: forward_count, backward_count ! forwards and backwards counts of cohorts
       
       ! initialize counts
       forward_count = 0
@@ -1085,13 +1066,13 @@ module FatesPatchMod
 
         ! validate cohort
         if (associated(currentCohort%taller)) then
-          if (associated(currentCohort%taller%shorter, currentCohort)) then
-              write(fates_log(),*) "error: mismatch in patch's taller chain!"
+          if (.not. associated(currentCohort%taller%shorter, currentCohort)) then
+              write(fates_log(),*) "ERROR: mismatch in patch's taller chain!"
               call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
         else
           if (.not. associated(currentCohort, this%tallest)) then
-              write(fates_log(),*) "error: cohort list does not end at tallest!"
+              write(fates_log(),*) "ERROR: cohort list does not end at tallest!"
               call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
         end if
@@ -1104,13 +1085,13 @@ module FatesPatchMod
         backward_count = backward_count + 1
 
         if (associated(currentCohort%shorter)) then
-          if (associated(currentCohort%shorter%taller, currentCohort)) then
-              write(fates_log(),*) "error: mismatch in patch's shorter chain!"
+          if (.not. associated(currentCohort%shorter%taller, currentCohort)) then
+              write(fates_log(),*) "ERROR: mismatch in patch's shorter chain!"
               call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
         else
           if (.not. associated(currentCohort, this%shortest)) then
-              write(fates_log(),*) "error: cohort list does not end at shortest!"
+              write(fates_log(),*) "ERROR: cohort list does not end at shortest!"
               call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
         end if
@@ -1119,13 +1100,37 @@ module FatesPatchMod
       
       ! check consistency between forward and backward counts
       if (forward_count /= backward_count) then
-        write(fates_log(),*) "error: forward and backward traversal counts do not match!"
+        write(fates_log(),*) "ERROR: forward and backward traversal counts do not match!"
         call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
+        
+    end subroutine ValidateCohorts
+    
+    !===========================================================================
+    
+    subroutine CountCohorts(this)
+      !
+      ! DESCRIPTION:
+      ! Counts the number of a cohorts in a patch's linked list
+      !
       
-      this%countcohorts = forward_count
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout), target :: this ! patch 
+      
+      ! LOCALS:
+      type(fates_cohort_type), pointer :: currentCohort ! cohort object
+      integer                          :: cohort_count  ! count of cohorts 
+      
+      cohort_count = 0
+      currentCohort => this%shortest
+      do while (associated(currentCohort))
+        cohort_count = cohort_count + 1
+        currentCohort => currentCohort%taller
+      end do
+      
+      this%num_cohorts = cohort_count
           
-    end subroutine Count_Cohorts
+    end subroutine CountCohorts
     
     !===========================================================================
     
@@ -1239,7 +1244,7 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%age                = ',this%age
       write(fates_log(),*) 'pa%age_class          = ',this%age_class
       write(fates_log(),*) 'pa%area               = ',this%area
-      write(fates_log(),*) 'pa%countcohorts       = ',this%countcohorts
+      write(fates_log(),*) 'pa%num_cohorts        = ',this%num_cohorts
       write(fates_log(),*) 'pa%ncl_p              = ',this%ncl_p
       write(fates_log(),*) 'pa%total_canopy_area  = ',this%total_canopy_area
       write(fates_log(),*) 'pa%total_tree_area    = ',this%total_tree_area

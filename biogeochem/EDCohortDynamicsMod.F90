@@ -7,26 +7,19 @@ Module EDCohortDynamicsMod
   ! USES:
   use FatesGlobals          , only : endrun => fates_endrun
   use FatesGlobals          , only : fates_log
-  use FatesInterfaceTypesMod     , only : hlm_freq_day
   use FatesInterfaceTypesMod     , only : bc_in_type
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
-  use FatesInterfaceTypesMod     , only : hlm_use_sp
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
-  use FatesInterfaceTypesMod     , only : hlm_use_tree_damage
-  use FatesInterfaceTypesMod     , only : hlm_is_restart
   use FatesConstantsMod     , only : r8 => fates_r8
-  use FatesConstantsMod     , only : fates_unset_int
   use FatesConstantsMod     , only : itrue,ifalse
   use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod     , only : nearzero
   use FatesConstantsMod     , only : calloc_abs_error
-  use FatesInterfaceTypesMod     , only : hlm_days_per_year
   use FatesInterfaceTypesMod     , only : nleafage
   use SFParamsMod           , only : SF_val_CWD_frac
   use EDPftvarcon           , only : EDPftvarcon_inst
   use EDPftvarcon           , only : GetDecompyFrac
   use PRTParametersMod      , only : prt_params
-  use FatesParameterDerivedMod, only : param_derived
   use EDTypesMod            , only : ed_site_type
   use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod       , only : fates_cohort_type
@@ -38,16 +31,12 @@ Module EDCohortDynamicsMod
   use FatesLitterMod        , only : litter_type
   use FatesLitterMod        , only : adjust_SF_CWD_frac
   use EDParamsMod           , only : max_cohort_per_patch
-  use EDTypesMod            , only : AREA
   use EDTypesMod            , only : min_npm2, min_nppatch
   use EDTypesMod            , only : min_n_safemath
   use EDParamsMod            , only : nlevleaf
-  use PRTGenericMod         , only : max_nleafage
   use FatesConstantsMod     , only : ican_upper
-  use EDTypesMod            , only : site_fluxdiags_type
   use EDTypesMod            , only : elem_diag_type
   use PRTGenericMod         , only : num_elements
-  use FatesConstantsMod     , only : leaves_on
   use FatesConstantsMod     , only : leaves_off
   use FatesConstantsMod     , only : leaves_shedding
   use FatesConstantsMod     , only : ihard_stress_decid
@@ -59,7 +48,6 @@ Module EDCohortDynamicsMod
   use FatesPlantHydraulicsMod, only : UpdateSizeDepPlantHydProps
   use FatesPlantHydraulicsMod, only : InitPlantHydStates
   use FatesPlantHydraulicsMod, only : InitHydrCohort
-  use FatesPlantHydraulicsMod, only : DeallocateHydrCohort
   use FatesPlantHydraulicsMod, only : AccumulateMortalityWaterStorage
   use FatesPlantHydraulicsMod, only : UpdatePlantHydrNodes
   use FatesPlantHydraulicsMod, only : UpdatePlantHydrLenVol
@@ -91,36 +79,9 @@ Module EDCohortDynamicsMod
   use PRTGenericMod,          only : store_organ
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
-  use PRTGenericMod,          only : SetState
   use PRTAllometricCarbonMod, only : callom_prt_vartypes
-  use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_pft
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_ctrim
-  use PRTAllometricCarbonMod, only : ac_bc_inout_id_dbh
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_lstat
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_cdamage
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_efleaf
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_effnrt
-  use PRTAllometricCarbonMod, only : ac_bc_in_id_efstem
   use PRTAllometricCNPMod,    only : cnp_allom_prt_vartypes
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_pft, acnp_bc_in_id_ctrim
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_lstat, acnp_bc_inout_id_dbh
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_efleaf
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_effnrt
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_efstem
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_l2fr
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_cx_int
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_cx0
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_emadcxdt
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_nc_repro
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_pc_repro
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_resp_excess, acnp_bc_in_id_netdc
-  use PRTAllometricCNPMod,    only : acnp_bc_inout_id_netdn, acnp_bc_inout_id_netdp
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_cefflux, acnp_bc_out_id_nefflux
-  use PRTAllometricCNPMod,    only : acnp_bc_out_id_pefflux, acnp_bc_out_id_limiter
-  use PRTAllometricCNPMod,    only : acnp_bc_in_id_cdamage
   use DamageMainMod,          only : undamaged_class
-  use FatesConstantsMod,      only : n_term_mort_types
   use FatesConstantsMod,      only : i_term_mort_type_cstarv
   use FatesConstantsMod,      only : i_term_mort_type_canlev
   use FatesConstantsMod,      only : i_term_mort_type_numdens
@@ -136,7 +97,6 @@ Module EDCohortDynamicsMod
   public :: terminate_cohorts
   public :: terminate_cohort
   public :: fuse_cohorts
-  public :: count_cohorts
   public :: InitPRTObject
   public :: SendCohortToLitter
   public :: EvaluateAndCorrectDBH
@@ -316,7 +276,6 @@ contains
 
     return
   end subroutine InitPRTObject
-
 
   !-------------------------------------------------------------------------------------!
 
@@ -678,8 +637,6 @@ contains
   end subroutine SendCohortToLitter
 
   !--------------------------------------------------------------------------------------
-
-
 
   subroutine fuse_cohorts(currentSite, currentPatch, bc_in)
 
@@ -1256,52 +1213,12 @@ contains
      
      if (fusion_took_place == 1) then  ! if fusion(s) occured sort cohorts
         call currentPatch%SortCohorts()
+        call currentPatch%ValidateCohorts()
      endif
    
   end subroutine fuse_cohorts
 
 !-------------------------------------------------------------------------------------!
-
-  subroutine count_cohorts( currentPatch )
-    !
-    ! !DESCRIPTION:
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS
-    type(fates_patch_type), intent(inout), target :: currentPatch      !new site
-    !
-    ! !LOCAL VARIABLES:
-    type(fates_cohort_type), pointer :: currentCohort   !new patch
-    integer                       :: backcount
-    !----------------------------------------------------------------------
-
-    currentCohort => currentPatch%shortest
-
-    currentPatch%countcohorts = 0
-    do while (associated(currentCohort))
-       currentPatch%countcohorts = currentPatch%countcohorts + 1
-       currentCohort => currentCohort%taller
-    enddo
-
-    backcount = 0
-    currentCohort => currentPatch%tallest
-    do while (associated(currentCohort))
-       backcount = backcount + 1
-       currentCohort => currentCohort%shorter
-    enddo
-
-    if(debug) then
-       if (backcount /= currentPatch%countcohorts) then
-          write(fates_log(),*) 'problem with linked list, not symmetrical'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       endif
-    end if
-       
-  end subroutine count_cohorts
-
-  ! ===================================================================================
-
 
   subroutine EvaluateAndCorrectDBH(currentCohort,delta_dbh,delta_height)
 
