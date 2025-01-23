@@ -10,7 +10,6 @@ list(APPEND fates_sources
   EDLoggingMortalityMod.F90
   FatesLandUseChangeMod.F90
   EDPatchDynamicsMod.F90
-  EDMortalityFunctionsMod.F90
-  CohortUtils.F90)
+  EDMortalityFunctionsMod.F90)
 
 sourcelist_to_parent(fates_sources)
