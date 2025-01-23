@@ -566,9 +566,6 @@ contains
     logical  :: buffer_patch_used
     !---------------------------------------------------------------------
 
-    storesmallcohort => null() ! storage of the smallest cohort for insertion routine
-    storebigcohort   => null() ! storage of the largest cohort for insertion routine 
-
     if (hlm_use_nocomp .eq. itrue) then
        min_nocomp_pft = 0
        max_nocomp_pft = numpft
