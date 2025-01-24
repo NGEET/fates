@@ -33,7 +33,7 @@ module FatesLandUseChangeMod
   public :: GetLUHStatedata
   public :: GetInitLanduseTransitionRates
   public :: GetInitLanduseHarvestRate
-  public :: fates_grazing
+  public :: FatesGrazing
 
   ! module data
   integer, parameter :: max_luh2_types_per_fates_lu_type = 5
@@ -427,7 +427,7 @@ contains
     
   !----------------------------------------------------------------------------------------------------
 
-  subroutine fates_grazing(prt, ft, land_use_label, height)
+  subroutine FatesGrazing(prt, ft, land_use_label, height)
 
     use PRTGenericMod,    only : leaf_organ
     use PRTGenericMod,    only : prt_vartypes
@@ -463,6 +463,6 @@ contains
        call PRTHerbivoryLosses(prt, leaf_organ, grazing_rate)
     end if
 
-  end subroutine fates_grazing
+  end subroutine FatesGrazing
 
 end module FatesLandUseChangeMod

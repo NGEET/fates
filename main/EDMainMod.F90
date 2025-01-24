@@ -105,7 +105,7 @@ module EDMainMod
   use PRTParametersMod      , only : prt_params
   use EDPftvarcon,            only : EDPftvarcon_inst
   use FatesHistoryInterfaceMod, only : fates_hist
-  use FatesLandUseChangeMod,  only: fates_grazing
+  use FatesLandUseChangeMod,  only: FatesGrazing
 
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -548,7 +548,7 @@ contains
              
 
              ! allow herbivores to graze
-             call fates_grazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height)
+             call FatesGrazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height)
 
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
