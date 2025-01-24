@@ -59,7 +59,7 @@ module FatesRadiationDriveMod
   
 contains
 
-  subroutine FatesNormalizedCanopyRadiation(sites, coszen_in, bc_in, bc_out )
+  subroutine FatesNormalizedCanopyRadiation(sites, bc_in, bc_out )
 
     ! Perform normalized (ie per unit downwelling radiative forcing) radiation
     ! scattering of the vegetation canopy.

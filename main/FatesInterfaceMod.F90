@@ -529,6 +529,7 @@ contains
       allocate(bc_in%t_soisno_sl(nlevsoil_in))
 
       ! Canopy Radiation
+      bc_in%coszen = nan
       allocate(bc_in%fcansno_pa(maxpatch_total))
       allocate(bc_in%albgr_dir_rb(num_swb))
       allocate(bc_in%albgr_dif_rb(num_swb))
@@ -616,7 +617,7 @@ contains
       
       ! Canopy Radiation
 
-      bc_out%coszen = nan
+     
       allocate(bc_out%albd_parb(maxpatch_total,num_swb))
       allocate(bc_out%albi_parb(maxpatch_total,num_swb))
       allocate(bc_out%fabd_parb(maxpatch_total,num_swb))
