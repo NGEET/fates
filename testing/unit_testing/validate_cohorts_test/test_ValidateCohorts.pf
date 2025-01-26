@@ -3,9 +3,10 @@ module test_ValidateCohorts
   ! DESCRIPTION:
   !		Tests the patch's ValidateCohorts method
   !
-  use FatesConstantsMod, only : r8 => fates_r8
-  use FatesCohortMod,    only : fates_cohort_type
-  use FatesPatchMod,     only : fates_patch_type
+  use FatesConstantsMod,  only : r8 => fates_r8
+  use FatesCohortMod,     only : fates_cohort_type
+  use FatesPatchMod,      only : fates_patch_type
+  use FatesUnitTestUtils, only : endrun_msg
   use funit
 
   implicit none
@@ -114,11 +115,38 @@ module test_ValidateCohorts
     end subroutine MultipleCohorts_ValidateCohorts_Returns
     
     @Test 
-    subroutine BrokenList_ValidateCohorts_Errors(this)
-      ! tests that for a patch with a broken chain the subroutine errors correctly
+    subroutine ShortestNull_ValidateCohorts_Errors(this)
+      
+      ! tests that for a patch where only shortest is null, the subroutine errors correctly
+      class(TestValidateCohorts), intent(inout) :: this         ! test object
+      type(fates_patch_type),     pointer       :: patch        ! patch object
+      type(fates_cohort_type),    pointer       :: cohort       ! cohort object
+      character(len=:),           allocatable   :: expected_msg ! expected error message for failure
+      
+      expected_msg = endrun_msg("one of shortest or tallest is null")
+      
+      ! create a new patch
+      allocate(patch)
+      
+      ! allocate and link one cohort incorrectly
+      allocate(cohort)
+      patch%shortest => cohort
+      
+      ! should fail
+      call patch%ValidateCohorts() 
+      @assertExceptionRaised(expected_msg)
+      
+    end subroutine ShortestNull_ValidateCohorts_Errors
+    
+    @Test 
+    subroutine BrokenLink_ValidateCohorts_Errors(this)
+      ! tests that for a patch with a broken link the subroutine errors correctly
       class(TestValidateCohorts), intent(inout) :: this                      ! test object
       type(fates_patch_type),     pointer       :: patch                     ! patch object
       type(fates_cohort_type),    pointer       :: cohort1, cohort2, cohort3 ! cohorts
+      character(len=:),           allocatable   :: expected_msg              ! expected error message for failure
+      
+      expected_msg = endrun_msg("mismatch in patch's taller chain")
       
       ! create a new patch
       allocate(patch)
@@ -128,18 +156,145 @@ module test_ValidateCohorts
       allocate(cohort2)
       allocate(cohort3)
       
-      ! set up a broken forward link
+      ! set up a list
       patch%shortest => cohort1
       patch%tallest => cohort3
       
       cohort1%taller => cohort2
       cohort2%shorter => cohort1
       cohort2%taller => cohort3
-      cohort3%shorter => null()  ! break the forward link
+      cohort3%shorter => cohort2
+      
+      ! break shorter chain 
+      cohort2%shorter => cohort3 ! breaks backwards link
       
       ! should fail
-      call patch%ValidateCohorts()
+      call patch%ValidateCohorts() 
+      @assertExceptionRaised(expected_msg)
     
-    end subroutine BrokenList_ValidateCohorts_Errors
-  
+    end subroutine BrokenLink_ValidateCohorts_Errors
+    
+    @Test 
+    subroutine BrokenTallest_ValidateCohorts_Errors(this)
+      ! tests that for a patch that does not end with tallest the subroutine errors correctly
+      class(TestValidateCohorts), intent(inout) :: this                      ! test object
+      type(fates_patch_type),     pointer       :: patch                     ! patch object
+      type(fates_cohort_type),    pointer       :: cohort1, cohort2, cohort3 ! cohorts
+      character(len=:),           allocatable   :: expected_msg              ! expected error message for failure
+      
+      expected_msg = endrun_msg("cohort list does not end at tallest")
+      
+      ! create a new patch
+      allocate(patch)
+
+      ! allocate and link cohorts
+      allocate(cohort1)
+      allocate(cohort2)
+      allocate(cohort3)
+      
+      ! set up a list
+      patch%shortest => cohort1
+      patch%tallest => cohort3
+      
+      cohort1%taller => cohort2
+      cohort2%shorter => cohort1
+      cohort2%taller => cohort3
+      cohort3%shorter => cohort2
+      
+      ! break the list
+      cohort2%taller => null() 
+      
+      ! should fail
+      call patch%ValidateCohorts() 
+      @assertExceptionRaised(expected_msg)
+    
+    end subroutine BrokenTallest_ValidateCohorts_Errors
+    
+    @Test 
+    subroutine BrokenShortest_ValidateCohorts_Errors(this)
+      ! tests that for a patch that does not start with shortest the subroutine errors correctly
+      class(TestValidateCohorts), intent(inout) :: this                      ! test object
+      type(fates_patch_type),     pointer       :: patch                     ! patch object
+      type(fates_cohort_type),    pointer       :: cohort1, cohort2, cohort3 ! cohorts
+      character(len=:),           allocatable   :: expected_msg              ! expected error message for failure
+      
+      expected_msg = endrun_msg("cohort list does not start at shortest")
+      
+      ! create a new patch
+      allocate(patch)
+
+      ! allocate and link cohorts
+      allocate(cohort1)
+      allocate(cohort2)
+      allocate(cohort3)
+      
+      ! set up a list
+      patch%shortest => cohort1
+      patch%tallest => cohort3
+      
+      cohort1%taller => cohort2
+      cohort2%shorter => cohort1
+      cohort2%taller => cohort3
+      cohort3%shorter => cohort2
+      
+      ! break the list
+      patch%shortest => cohort2
+      
+      ! should fail
+      call patch%ValidateCohorts() 
+      @assertExceptionRaised(expected_msg)
+    
+    end subroutine BrokenShortest_ValidateCohorts_Errors
+    
+    @Test
+    subroutine TestLargeLinkedList_ValidateCohorts(this)
+      ! test the ValidateCohorts subroutine with a large linked list of cohorts.
+      class(TestValidateCohorts), intent(inout) :: this               ! test object
+      type(fates_patch_type),     pointer       :: patch              ! patch object
+      type(fates_cohort_type),    pointer       :: cohort             ! cohort object
+      type(fates_cohort_type),    pointer       :: next_cohort        ! next cohort object
+      integer                                   :: forward_count      ! forward count of cohorts
+      integer                                   :: backward_count     ! backwards counts of cohorts
+      integer                                   :: i                  ! looping index
+      integer,                    parameter     :: num_cohorts = 1000 ! number of cohorts to create
+      
+      ! create the patch and list
+      allocate(patch)
+      allocate(cohort)
+      patch%shortest => cohort
+      do i = 2, num_cohorts
+        allocate(next_cohort)
+        cohort%taller => next_cohort
+        next_cohort%shorter => cohort
+        cohort => next_cohort
+      end do
+      patch%tallest => cohort
+
+      ! should pass
+      call patch%ValidateCohorts()
+
+      ! Count forward and backward links for confirmation
+      forward_count = 0
+      backward_count = 0
+
+      ! Traverse the taller chain
+      cohort => patch%shortest
+      do while (associated(cohort))
+        forward_count = forward_count + 1
+        cohort => cohort%taller
+      end do
+
+      ! Traverse the shorter chain
+      cohort => patch%tallest
+      do while (associated(cohort))
+        backward_count = backward_count + 1
+        cohort => cohort%shorter
+      end do
+
+      ! assert that forward and backward counts match and are correct
+      @assertEqual(forward_count, num_cohorts)
+      @assertEqual(backward_count, num_cohorts)
+      
+    end subroutine TestLargeLinkedList_ValidateCohorts
+    
 end module test_ValidateCohorts

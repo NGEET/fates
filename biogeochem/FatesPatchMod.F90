@@ -1,39 +1,39 @@
 module FatesPatchMod
 
-  use FatesConstantsMod,   only : r8 => fates_r8
-  use FatesConstantsMod,   only : fates_unset_r8
-  use FatesConstantsMod,   only : fates_unset_int
-  use FatesConstantsMod,   only : primaryland, secondaryland
-  use FatesConstantsMod,   only : n_landuse_cats
-  use FatesConstantsMod,   only : TRS_regeneration
-  use FatesConstantsMod,   only : itrue, ifalse
-  use FatesGlobals,        only : fates_log
-  use FatesGlobals,        only : endrun => fates_endrun
-  use FatesUtilsMod,       only : check_hlm_list
-  use FatesUtilsMod,       only : check_var_real
-  use FatesCohortMod,      only : fates_cohort_type
-  use FatesRunningMeanMod, only : rmean_type, rmean_arr_type
-  use FatesLitterMod,      only : litter_type
-  use FatesFuelMod,        only : fuel_type
-  use PRTGenericMod,       only : num_elements
-  use PRTGenericMod,       only : element_list
-  use PRTGenericMod,       only : carbon12_element
-  use PRTGenericMod,       only : struct_organ, leaf_organ, sapw_organ
-  use PRTParametersMod,    only : prt_params
-  use FatesConstantsMod,   only : nocomp_bareground
-  use EDParamsMod,         only : nlevleaf, nclmax, maxpft
-  use FatesConstantsMod,   only : n_dbh_bins, n_dist_types
-  use FatesConstantsMod,   only : t_water_freeze_k_1atm
-  use FatesRunningMeanMod, only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
-  use FatesRunningMeanMod, only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
-  use FatesRunningMeanMod, only : ema_sdlng2sap_par, ema_sdlng_mdd
-  use TwoStreamMLPEMod,    only : twostream_type
-  use FatesRadiationMemMod,only : num_swb
-  use FatesRadiationMemMod,only : num_rad_stream_types
-  use FatesInterfaceTypesMod,only : hlm_hio_ignore_val
+  use FatesConstantsMod,      only : r8 => fates_r8
+  use FatesConstantsMod,      only : fates_unset_r8
+  use FatesConstantsMod,      only : fates_unset_int
+  use FatesConstantsMod,      only : primaryland, secondaryland
+  use FatesConstantsMod,      only : n_landuse_cats
+  use FatesConstantsMod,      only : TRS_regeneration
+  use FatesConstantsMod,      only : itrue, ifalse
+  use FatesGlobals,           only : fates_log
+  use FatesGlobals,           only : endrun => fates_endrun
+  use FatesUtilsMod,          only : check_hlm_list
+  use FatesUtilsMod,          only : check_var_real
+  use FatesCohortMod,         only : fates_cohort_type
+  use FatesRunningMeanMod,    only : rmean_type, rmean_arr_type
+  use FatesLitterMod,         only : litter_type
+  use FatesFuelMod,           only : fuel_type
+  use PRTGenericMod,          only : num_elements
+  use PRTGenericMod,          only : element_list
+  use PRTGenericMod,          only : carbon12_element
+  use PRTGenericMod,          only : struct_organ, leaf_organ, sapw_organ
+  use PRTParametersMod,       only : prt_params
+  use FatesConstantsMod,      only : nocomp_bareground
+  use EDParamsMod,            only : nlevleaf, nclmax, maxpft
+  use FatesConstantsMod,      only : n_dbh_bins, n_dist_types
+  use FatesConstantsMod,      only : t_water_freeze_k_1atm
+  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
+  use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
+  use FatesRunningMeanMod,    only : ema_sdlng2sap_par, ema_sdlng_mdd
+  use TwoStreamMLPEMod,       only : twostream_type
+  use FatesRadiationMemMod,   only : num_swb
+  use FatesRadiationMemMod,   only : num_rad_stream_types
+  use FatesInterfaceTypesMod, only : hlm_hio_ignore_val
   use FatesInterfaceTypesMod, only : numpft
-  use shr_infnan_mod,      only : nan => shr_infnan_nan, assignment(=)
-  use shr_log_mod,         only : errMsg => shr_log_errMsg
+  use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)
+  use shr_log_mod,            only : errMsg => shr_log_errMsg
 
   implicit none
   private
@@ -966,15 +966,15 @@ module FatesPatchMod
       
       ! validate the cohort before insertion
       if (.not. associated(cohort)) then
-        write(fates_log(),*) 'ERROR: cohort is not allocated!'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+        call endrun(msg="cohort is not allocated",                                       &
+          additional_msg=errMsg(sourcefile, __LINE__))
       end if
       
       ! check for inconsistent list state
       if ((.not. associated(this%shortest) .and. associated(this%tallest)) .or.          &
         (associated(this%shortest) .and. .not. associated(this%tallest))) then
-        write(fates_log(),*) 'ERROR: inconsistent list state!'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+        call endrun(msg="inconsistent list state",                                       &
+        additional_msg=errMsg(sourcefile, __LINE__))
       end if
     
       ! nothing in the list - add to head
@@ -1013,8 +1013,8 @@ module FatesPatchMod
         
         ! validate list structure before insertion
         if (associated(temp_cohort1%taller) .and. .not. associated(temp_cohort1%taller%shorter, temp_cohort1)) then 
-          write(fates_log(),*) 'ERROR: corrupted list structure!'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+          call endrun(msg="corrupted list structure",                                    &
+            additional_msg=errMsg(sourcefile, __LINE__))
         end if 
         
         if ((cohort%height >= temp_cohort1%height) .and. (cohort%height < temp_cohort2%height)) then 
@@ -1051,8 +1051,9 @@ module FatesPatchMod
           ! validation passed - empty list
           return
       else if (.not. associated(this%shortest) .or. .not. associated(this%tallest)) then
-          write(fates_log(),*) "ERROR: patch cohort list validation failed: one of shortest or tallest is null."
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+          call endrun(msg="one of shortest or tallest is null",                          &
+            additional_msg=errMsg(sourcefile, __LINE__))
+            return
       end if
       
       ! initialize counts
@@ -1067,13 +1068,15 @@ module FatesPatchMod
         ! validate cohort
         if (associated(currentCohort%taller)) then
           if (.not. associated(currentCohort%taller%shorter, currentCohort)) then
-              write(fates_log(),*) "ERROR: mismatch in patch's taller chain!"
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              call endrun(msg="mismatch in patch's taller chain",                        &
+                additional_msg=errMsg(sourcefile, __LINE__))
+                return
           end if
         else
           if (.not. associated(currentCohort, this%tallest)) then
-              write(fates_log(),*) "ERROR: cohort list does not end at tallest!"
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+            call endrun(msg="cohort list does not end at tallest",                       &
+              additional_msg=errMsg(sourcefile, __LINE__))
+              return
           end if
         end if
           currentCohort => currentCohort%taller
@@ -1086,13 +1089,15 @@ module FatesPatchMod
 
         if (associated(currentCohort%shorter)) then
           if (.not. associated(currentCohort%shorter%taller, currentCohort)) then
-              write(fates_log(),*) "ERROR: mismatch in patch's shorter chain!"
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+            call endrun(msg="mismatch in patch's shorter chain",                         &
+              additional_msg=errMsg(sourcefile, __LINE__))
+              return
           end if
         else
           if (.not. associated(currentCohort, this%shortest)) then
-              write(fates_log(),*) "ERROR: cohort list does not end at shortest!"
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+            call endrun(msg="cohort list does not start at shortest",                    &
+              additional_msg=errMsg(sourcefile, __LINE__))
+              return
           end if
         end if
         currentCohort => currentCohort%shorter
@@ -1100,8 +1105,9 @@ module FatesPatchMod
       
       ! check consistency between forward and backward counts
       if (forward_count /= backward_count) then
-        write(fates_log(),*) "ERROR: forward and backward traversal counts do not match!"
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+        call endrun(msg="forward and backward traversal counts do not match",            &
+          additional_msg=errMsg(sourcefile, __LINE__))
+          return
       end if
         
     end subroutine ValidateCohorts
