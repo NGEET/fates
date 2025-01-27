@@ -893,11 +893,12 @@ contains
 
     ! ----------------------------------------------------------------------------------
     ! This subroutine assumes that there is no re-translocation associated
-    ! with herbivory. There is only one destiny for eaten mass within
-    ! the organ, and that is outside the plant.  
-    ! It is also assumed that non PARTEH parts of the code (ie the grazing-model)
-    ! will decide what to do with the consumed mass (i.e. sent it to the litter
-    ! pool or send to atmosphere)
+    ! with herbivory. There are two pathways for grazed matter. Some fraction 
+    ! is lost from the land system (i.e. to the atmosphere via respiration or gas-phase 
+    ! nutrient loss pathways), and some fraction is passed to litter decomposition 
+    ! (i.e. via manure or grazer mortality). These pathways of consumed biomass 
+    ! are handled outside PARTEH (e.g., the litter flux is handled in EDPhysiologyMod, 
+    ! and controlled by element-specific "use efficiency" parameters).
     ! ----------------------------------------------------------------------------------
 
     class(prt_vartypes) :: prt

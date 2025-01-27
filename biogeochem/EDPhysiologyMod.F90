@@ -2851,8 +2851,8 @@ contains
     integer  :: numlevsoil        ! Actual number of soil layers
 
     real(r8) :: SF_val_CWD_frac_adj(4) !SF_val_CWD_frac adjusted based on cohort dbh
-    real(r8) :: leaf_herbivory
-    real(r8) :: herbivory_element_use_efficiency
+    real(r8) :: leaf_herbivory  ! leaf that is eaten by grazers [kg]
+    real(r8) :: herbivory_element_use_efficiency   ! fraction of grazed biomass that is returned to litter pool versus atmosphere
     !----------------------------------------------------------------------
 
     ! -----------------------------------------------------------------------------------
