@@ -3827,6 +3827,8 @@ contains
            
            if_notbareground: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then
 
+           if_zenith_flag: if( sites(s)%coszen>0._r8 )then
+              
               select case(radiation_model)
               case(norman_solver)
                  
@@ -3872,7 +3874,8 @@ contains
                    end do
                  end associate
               end select
-              
+
+           end if if_zenith_flag
            end if if_notbareground    ! if the vegetation and zenith filter is active
            currentPatch => currentPatch%younger
         end do while_patch
