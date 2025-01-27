@@ -93,6 +93,45 @@ module test_CountCohorts
       
     end subroutine tearDown
     
+    @Test 
+    subroutine EmptyList_CountCohorts_GivesZero(this)
+      ! tests that for a patch with an empty list num_cohorts is 0
+      class(TestCountCohorts), intent(inout) :: this                 ! test object
+      type(fates_patch_type),  pointer       :: patch                ! patch object
+      integer,                 parameter     :: expected_cohorts = 0 ! expected number of cohorts
+      
+      ! create an empty patch
+      allocate(patch)
+      patch%shortest => null()
+      patch%tallest => null()
+      
+      ! count cohorts
+      call patch%CountCohorts()
+      
+      @assertEqual(patch%num_cohorts, expected_cohorts)
+    
+    end subroutine EmptyList_CountCohorts_GivesZero
+    
+    @Test 
+    subroutine SingleCohort_CountCohorts_GivesOne(this)
+      ! tests that for a patch with one cohort, num_cohorts is 1
+      class(TestCountCohorts), intent(inout) :: this                 ! test object
+      type(fates_patch_type),  pointer       :: patch                ! patch object
+      type(fates_cohort_type), pointer       :: cohort               ! cohort object
+      integer,                 parameter     :: expected_cohorts = 1 ! expected number of cohorts
+      
+      ! create hard-coded patch
+      allocate(patch)
+      allocate(cohort)
+      patch%shortest => cohort
+      patch%tallest => cohort
+      
+      ! count cohorts
+      call patch%CountCohorts()
+      @assertEqual(patch%num_cohorts, expected_cohorts)
+    
+    end subroutine SingleCohort_CountCohorts_GivesOne
+    
 end module test_CountCohorts
 
 
