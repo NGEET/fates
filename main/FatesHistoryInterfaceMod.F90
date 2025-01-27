@@ -4710,17 +4710,15 @@ contains
           + cpatch%area * AREA_INV
 
           do ft = 1,numpft
+             iagepft = get_agepft_class_index(cpatch%age,ft)
              hio_scorch_height_si_pft(io_si,ft) = hio_scorch_height_si_pft(io_si,ft) + &
+                  cpatch%Scorch_ht(ft) * patch_area_div_site_area
+             hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
                   cpatch%Scorch_ht(ft) * patch_area_div_site_area
           end do
 
           hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
                + cpatch%ncl_p * patch_area_div_site_area
-          do ft = 1,numpft
-             iagepft = get_agepft_class_index(cpatch%age,ft)
-             hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
-                  cpatch%Scorch_ht(ft) * patch_area_div_site_area
-          end do
 
           hio_fracarea_burnt_si_age(io_si,cpatch%age_class) = hio_fracarea_burnt_si_age(io_si,cpatch%age_class) + &
                cpatch%frac_burnt / sec_per_day &  ! [frac/day] -> [frac/sec]
