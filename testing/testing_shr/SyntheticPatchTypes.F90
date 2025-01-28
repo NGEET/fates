@@ -160,6 +160,12 @@ module SyntheticPatchTypes
     ! LOCALS:
     integer :: i ! looping index
     
+    ! can't supply both
+    if (present(patch_id) .and. present(patch_name)) then 
+      write(*, '(a,i2,a)') "Can only supply either a patch_id or a patch_name - not both"
+      stop
+    end if 
+    
     do i = 1, this%num_patches
       if (present(patch_id)) then 
         if (this%patches(i)%patch_id == patch_id) then
@@ -176,7 +182,7 @@ module SyntheticPatchTypes
         stop
       end if
     end do
-    write(*, '(a,i2,a)') "Cannot find the patch."
+    write(*, '(a,i2,a)') "Cannot find the synthetic patch type supplied"
     stop
   
   end function PatchDataPosition

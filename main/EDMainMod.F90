@@ -149,8 +149,6 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(fates_patch_type), pointer :: currentPatch
-    type(fates_cohort_type), pointer :: cohort
-    integer :: i
     integer :: el                ! Loop counter for variables 
     integer :: do_patch_dynamics ! for some modes, we turn off patch dynamics
 

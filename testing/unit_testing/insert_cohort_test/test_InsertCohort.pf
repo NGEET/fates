@@ -140,6 +140,10 @@ module test_InsertCohort
       ! verify that new new shortest cohort's taller pointer is the previous shortest
       @assertTrue(associated(cohort%taller, previous_shortest))
       
+      ! verify that the previous shortest%shorter now points to cohort
+      @assertTrue(associated(previous_shortest%shorter, cohort))
+      
+      
     end subroutine InsertCohort_ShortestCohort
     
     @Test
@@ -163,6 +167,9 @@ module test_InsertCohort
       
       ! verify that new new tallest cohort's shorter pointer is the previous tallest
       @assertTrue(associated(cohort%shorter, previous_tallest))
+      
+      ! verify that that the previous tallest%taller now points to cohort
+      @assertTrue(associated(previous_tallest%taller, cohort))
       
     end subroutine InsertCohort_TallestCohort
     
