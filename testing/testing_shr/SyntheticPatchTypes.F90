@@ -162,7 +162,7 @@ module SyntheticPatchTypes
     
     ! can't supply both
     if (present(patch_id) .and. present(patch_name)) then 
-      write(*, '(a,i2,a)') "Can only supply either a patch_id or a patch_name - not both"
+      write(*, '(a)') "Can only supply either a patch_id or a patch_name - not both"
       stop
     end if 
     
@@ -178,11 +178,11 @@ module SyntheticPatchTypes
           return
         end if
       else 
-        write(*, '(a,i2,a)') "Must supply either a patch_id or a patch_name."
+        write(*, '(a)') "Must supply either a patch_id or a patch_name."
         stop
       end if
     end do
-    write(*, '(a,i2,a)') "Cannot find the synthetic patch type supplied"
+    write(*, '(a)') "Cannot find the synthetic patch type supplied"
     stop
   
   end function PatchDataPosition

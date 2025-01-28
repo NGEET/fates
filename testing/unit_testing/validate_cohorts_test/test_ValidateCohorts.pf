@@ -7,6 +7,7 @@ module test_ValidateCohorts
   use FatesCohortMod,     only : fates_cohort_type
   use FatesPatchMod,      only : fates_patch_type
   use FatesUnitTestUtils, only : endrun_msg
+  use FatesFactoryMod,    only : CreateTestPatchList
   use funit
 
   implicit none
@@ -23,10 +24,9 @@ module test_ValidateCohorts
     subroutine EmptyList_ValidateCohorts_Returns(this)
       ! tests that for a patch where shortest and tallest are null, subroutine returns without error
       class(TestValidateCohorts), intent(inout) :: this  ! test object
-      type(fates_patch_type),     pointer       :: patch ! patch object
+      type(fates_patch_type)                    :: patch ! patch object
       
       ! create an empty patch
-      allocate(patch)
       patch%shortest => null()
       patch%tallest => null()
       
@@ -39,12 +39,11 @@ module test_ValidateCohorts
     subroutine SingleCohort_ValidateCohorts_Returns(this)
       ! tests that for a single-cohort list, subroutine returns without error
       class(TestValidateCohorts), intent(inout) :: this             ! test object
-      type(fates_patch_type),     pointer       :: patch            ! patch object
+      type(fates_patch_type)                    :: patch            ! patch object
       type(fates_cohort_type),    pointer       :: cohort           ! cohort object
       real(r8),                   parameter     :: height = 10.0_r8 ! cohort height
       
       ! create hard-coded patch
-      allocate(patch)
       allocate(cohort)
       cohort%height = height
       patch%shortest => cohort
@@ -59,55 +58,15 @@ module test_ValidateCohorts
     subroutine MultipleCohorts_ValidateCohorts_Returns(this)
       ! tests that for a patch with multiple cohorts correctly linked, subroutine returns without error
       class(TestValidateCohorts), intent(inout) :: this           ! test object
-      type(fates_patch_type),     pointer       :: patch          ! patch object
+      type(fates_patch_type)                    :: patch          ! patch object
       type(fates_cohort_type),    pointer       :: new_node, head ! cohort objects
       
       ! heights for cohors
       real(r8), parameter :: heights(8) = (/2.0_r8, 5.0_r8, 10.0_r8, 12.0_r8, 12.5_r8,   &
          15.0_r8, 20.0_r8, 25.0_r8/)
 
-      ! hard-code a linked list
-      allocate(patch)
-      
-      allocate(head)
-      patch%shortest => head
-      head%height = heights(1)
-      
-      allocate(new_node)
-      new_node%height = heights(2)
-      head%taller => new_node
-      new_node%shorter => head
-      
-      allocate(new_node)
-      new_node%height = heights(3)
-      head%taller%taller => new_node
-      new_node%shorter => head%taller
-      
-      allocate(new_node)
-      new_node%height = heights(4)
-      head%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(5)
-      head%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(6)
-      head%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(7)
-      head%taller%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(8)
-      head%taller%taller%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller%taller%taller
-      patch%tallest => new_node
+      ! create a hard-coded test patch
+      call CreateTestPatchList(patch, heights)
       
       ! should pass
       call patch%ValidateCohorts()
@@ -119,14 +78,11 @@ module test_ValidateCohorts
       
       ! tests that for a patch where only shortest is null, the subroutine errors correctly
       class(TestValidateCohorts), intent(inout) :: this         ! test object
-      type(fates_patch_type),     pointer       :: patch        ! patch object
+      type(fates_patch_type)                    :: patch        ! patch object
       type(fates_cohort_type),    pointer       :: cohort       ! cohort object
       character(len=:),           allocatable   :: expected_msg ! expected error message for failure
       
       expected_msg = endrun_msg("one of shortest or tallest is null")
-      
-      ! create a new patch
-      allocate(patch)
       
       ! allocate and link one cohort incorrectly
       allocate(cohort)
@@ -142,15 +98,12 @@ module test_ValidateCohorts
     subroutine BrokenLink_ValidateCohorts_Errors(this)
       ! tests that for a patch with a broken link the subroutine errors correctly
       class(TestValidateCohorts), intent(inout) :: this                      ! test object
-      type(fates_patch_type),     pointer       :: patch                     ! patch object
+      type(fates_patch_type)                    :: patch                     ! patch object
       type(fates_cohort_type),    pointer       :: cohort1, cohort2, cohort3 ! cohorts
       character(len=:),           allocatable   :: expected_msg              ! expected error message for failure
       
       expected_msg = endrun_msg("mismatch in patch's taller chain")
-      
-      ! create a new patch
-      allocate(patch)
-
+    
       ! allocate and link cohorts
       allocate(cohort1)
       allocate(cohort2)
@@ -178,15 +131,12 @@ module test_ValidateCohorts
     subroutine BrokenTallest_ValidateCohorts_Errors(this)
       ! tests that for a patch that does not end with tallest the subroutine errors correctly
       class(TestValidateCohorts), intent(inout) :: this                      ! test object
-      type(fates_patch_type),     pointer       :: patch                     ! patch object
+      type(fates_patch_type)                    :: patch                     ! patch object
       type(fates_cohort_type),    pointer       :: cohort1, cohort2, cohort3 ! cohorts
       character(len=:),           allocatable   :: expected_msg              ! expected error message for failure
       
       expected_msg = endrun_msg("cohort list does not end at tallest")
-      
-      ! create a new patch
-      allocate(patch)
-
+    
       ! allocate and link cohorts
       allocate(cohort1)
       allocate(cohort2)
@@ -214,15 +164,12 @@ module test_ValidateCohorts
     subroutine BrokenShortest_ValidateCohorts_Errors(this)
       ! tests that for a patch that does not start with shortest the subroutine errors correctly
       class(TestValidateCohorts), intent(inout) :: this                      ! test object
-      type(fates_patch_type),     pointer       :: patch                     ! patch object
+      type(fates_patch_type)                    :: patch                     ! patch object
       type(fates_cohort_type),    pointer       :: cohort1, cohort2, cohort3 ! cohorts
       character(len=:),           allocatable   :: expected_msg              ! expected error message for failure
       
       expected_msg = endrun_msg("cohort list does not start at shortest")
       
-      ! create a new patch
-      allocate(patch)
-
       ! allocate and link cohorts
       allocate(cohort1)
       allocate(cohort2)
@@ -250,7 +197,7 @@ module test_ValidateCohorts
     subroutine TestLargeLinkedList_ValidateCohorts(this)
       ! test the ValidateCohorts subroutine with a large linked list of cohorts.
       class(TestValidateCohorts), intent(inout) :: this               ! test object
-      type(fates_patch_type),     pointer       :: patch              ! patch object
+      type(fates_patch_type)                    :: patch              ! patch object
       type(fates_cohort_type),    pointer       :: cohort             ! cohort object
       type(fates_cohort_type),    pointer       :: next_cohort        ! next cohort object
       integer                                   :: forward_count      ! forward count of cohorts
@@ -259,7 +206,6 @@ module test_ValidateCohorts
       integer,                    parameter     :: num_cohorts = 1000 ! number of cohorts to create
       
       ! create the patch and list
-      allocate(patch)
       allocate(cohort)
       patch%shortest => cohort
       do i = 2, num_cohorts

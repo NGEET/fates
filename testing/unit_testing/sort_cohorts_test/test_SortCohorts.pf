@@ -6,6 +6,7 @@ module test_SortCohorts
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesCohortMod,    only : fates_cohort_type
   use FatesPatchMod,     only : fates_patch_type
+  use FatesFactoryMod,   only : CreateTestPatchList
   use funit
 
   implicit none
@@ -14,32 +15,19 @@ module test_SortCohorts
   type, extends(TestCase) :: TestSortCohorts
   end type TestSortCohorts
 
-  real(r8), parameter :: tol = 1.e-13_r8
-
   contains 
   
     @Test 
     subroutine TwoCohorts_AscendingOrder_Unchanged(this)
       ! test that for a hard-coded list in ascending order is sorted, the order remains unchanged
       class(TestSortCohorts),  intent(inout) :: this                            ! test object
-      type(fates_patch_type),  pointer       :: patch                           ! patch objects
+      type(fates_patch_type)                 :: patch                           ! patch objects
       type(fates_cohort_type), pointer       :: head, cohort                    ! cohort objects
       real(r8)                               :: heights(2) = (/2.0_r8, 5.0_r8/) ! hard-coded cohort heights
       integer                                :: i                               ! looping index
       
-      ! create a hardcoded doubly linked list: 2 <-> 5 
-      allocate(patch)
-      
-      allocate(head)
-      patch%shortest => head
-      head%height = heights(1)
-      
-      allocate(cohort)
-      cohort%height = heights(2)
-      head%taller => cohort
-      cohort%shorter => head
-            
-      patch%tallest => cohort
+      ! create a hardcoded doubly linked list
+      call CreateTestPatchList(patch, heights)
       
       ! sort cohorts
       call patch%SortCohorts()
@@ -48,7 +36,7 @@ module test_SortCohorts
       i = 1
       cohort => patch%shortest
       do while (associated(cohort))
-        @assertEqual(heights(i), cohort%height, tolerance=tol)
+        @assertEqual(heights(i), cohort%height)
         cohort => cohort%taller
         i = i + 1
       end do
@@ -59,24 +47,13 @@ module test_SortCohorts
     subroutine TwoCohorts_DescendingOrder_Reversed(this)
       ! test that for a hard-coded list in descending order is sorted, the order is reversed
       class(TestSortCohorts),  intent(inout) :: this                            ! patch test object
-      type(fates_patch_type),  pointer       :: patch                           ! patch object
+      type(fates_patch_type)                 :: patch                           ! patch object
       type(fates_cohort_type), pointer       :: head, cohort                    ! cohort objects
       real(r8)                               :: heights(2) = (/5.0_r8, 2.0_r8/) ! hard-coded cohort heights
       integer                                :: i                               ! looping index
       
       ! create a hardcoded doubly linked list
-      allocate(patch)
-      
-      allocate(head)
-      patch%shortest => head
-      head%height = heights(1)
-      
-      allocate(cohort)
-      cohort%height = heights(2)
-      head%taller => cohort
-      cohort%shorter => head
-      
-      patch%tallest => cohort
+      call CreateTestPatchList(patch, heights)
       
       ! sort cohorts
       call patch%SortCohorts()
@@ -85,7 +62,7 @@ module test_SortCohorts
       i = size(heights)
       cohort => patch%shortest
       do while (associated(cohort))
-        @assertEqual(cohort%height, heights(i), tolerance=tol)
+        @assertEqual(cohort%height, heights(i))
         cohort => cohort%taller
         i = i - 1
       end do
@@ -96,56 +73,16 @@ module test_SortCohorts
     subroutine SmallList_AscendingOrder_Unchanged(this)
       ! test that for a hard-coded list in ascending order is sorted, the order remains unchanged
       class(TestSortCohorts),  intent(inout) :: this ! patch test object
-      type(fates_patch_type),  pointer :: patch
-      type(fates_cohort_type), pointer :: head, new_node
-      real(r8)                         :: heights(8) = (/2.0_r8, 5.0_r8, 10.0_r8,   &
+      type(fates_patch_type)                 :: patch
+      type(fates_cohort_type), pointer       :: head, new_node
+      integer                                :: i
+      ! hard-coded heights
+      real(r8)                               :: heights(8) = (/2.0_r8, 5.0_r8, 10.0_r8,  &
         12.0_r8, 12.5_r8, 12.5001_r8, 20.0_r8, 25.0_r8/)
-      integer                          :: i
       
       ! create a hardcoded doubly linked list
-      allocate(patch)
-      
-      allocate(head)
-      patch%shortest => head
-      head%height = heights(1)
-      
-      allocate(new_node)
-      new_node%height = heights(2)
-      head%taller => new_node
-      new_node%shorter => head
-      
-      allocate(new_node)
-      new_node%height = heights(3)
-      head%taller%taller => new_node
-      new_node%shorter => head%taller
-      
-      allocate(new_node)
-      new_node%height = heights(4)
-      head%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(5)
-      head%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(6)
-      head%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(7)
-      head%taller%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(8)
-      head%taller%taller%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller%taller%taller
-    
-      patch%tallest => new_node
-      
+      call CreateTestPatchList(patch, heights)
+        
       ! sort cohorts
       call patch%SortCohorts()
       
@@ -153,7 +90,7 @@ module test_SortCohorts
       i = 1
       new_node => patch%shortest
       do while (associated(new_node))
-        @assertEqual(new_node%height, heights(i), tolerance=tol)
+        @assertEqual(new_node%height, heights(i))
         new_node => new_node%taller
         i = i + 1
       end do
@@ -164,55 +101,14 @@ module test_SortCohorts
     subroutine SmallList_DescendingOrder_Reversed(this)
       ! test that for a hard-coded list in descending order is sorted, the order remains unchanged
       class(TestSortCohorts),  intent(inout) :: this ! patch test object
-      type(fates_patch_type),  pointer :: patch
-      type(fates_cohort_type), pointer :: head, new_node
-      real(r8)                         :: heights(8) = (/25.0_r8, 20.0_r8, 12.5001_r8,   &
+      type(fates_patch_type)                 :: patch
+      type(fates_cohort_type), pointer       :: head, new_node
+      integer                                :: i
+      real(r8)                               :: heights(8) = (/25.0_r8, 20.0_r8, 12.5001_r8,   &
         12.5_r8, 12.0_r8, 10.0_r8, 5.0_r8, 2.0_r8/)
-      integer                          :: i
-      
+
       ! create a hardcoded doubly linked list
-      allocate(patch)
-      
-      allocate(head)
-      patch%shortest => head
-      head%height = heights(1)
-      
-      allocate(new_node)
-      new_node%height = heights(2)
-      head%taller => new_node
-      new_node%shorter => head
-      
-      allocate(new_node)
-      new_node%height = heights(3)
-      head%taller%taller => new_node
-      new_node%shorter => head%taller
-      
-      allocate(new_node)
-      new_node%height = heights(4)
-      head%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(5)
-      head%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(6)
-      head%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(7)
-      head%taller%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(8)
-      head%taller%taller%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller%taller%taller
-    
-      patch%tallest => new_node
+      call CreateTestPatchList(patch, heights)
       
       ! sort cohorts
       call patch%SortCohorts()
@@ -221,7 +117,7 @@ module test_SortCohorts
       i = size(heights)
       new_node => patch%shortest
       do while (associated(new_node))
-        @assertEqual(new_node%height, heights(i), tolerance=tol)
+        @assertEqual(new_node%height, heights(i))
         new_node => new_node%taller
         i = i - 1
       end do
@@ -229,59 +125,17 @@ module test_SortCohorts
     end subroutine SmallList_DescendingOrder_Reversed
     
     @Test 
-    subroutine SmallList_RandomOrder_SortedCorrectly(this)
-      ! test that a small list in "random" order is sorted correctly
+    subroutine SmallList_UnsortedOrder_SortedCorrectly(this)
+      ! test that a small list in unsorted order is sorted correctly
       class(TestSortCohorts),  intent(inout) :: this ! patch test object
-      type(fates_patch_type),  pointer :: patch
-      type(fates_cohort_type), pointer :: head, new_node
-      real(r8)                         :: heights(8) = (/10.0_r8, 100.0_r8, 15.0_r8,   &
+      type(fates_patch_type)                 :: patch
+      type(fates_cohort_type), pointer       :: head, new_node
+      integer                                :: i
+      real(r8)                               :: heights(8) = (/10.0_r8, 100.0_r8, 15.0_r8,   &
         2.0_r8, 1.0_r8, 12.5001_r8, 20.0_r8, 0.5_r8/)
-      integer                          :: i
       
       ! create a hardcoded doubly linked list
-      allocate(patch)
-      
-      allocate(head)
-    
-      head%height = heights(1)
-      patch%shortest => head
-    
-      allocate(new_node)
-      new_node%height = heights(2)
-      head%taller => new_node
-      new_node%shorter => head
-      
-      allocate(new_node)
-      new_node%height = heights(3)
-      head%taller%taller => new_node
-      new_node%shorter => head%taller
-      
-      allocate(new_node)
-      new_node%height = heights(4)
-      head%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(5)
-      head%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(6)
-      head%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(7)
-      head%taller%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(8)
-      head%taller%taller%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller%taller%taller
-    
-      patch%tallest => new_node
+      call CreateTestPatchList(patch, heights)
       
       ! sort cohorts
       call patch%SortCohorts()
@@ -290,7 +144,7 @@ module test_SortCohorts
       new_node => patch%shortest
       do while (associated(new_node))
         if (associated(new_node%taller)) then
-          @assertGreaterThanOrEqual(new_node%taller%height, new_node%height, tolerance=tol)
+          @assertGreaterThanOrEqual(new_node%taller%height, new_node%height)
         end if
         new_node => new_node%taller
       end do
@@ -298,37 +152,25 @@ module test_SortCohorts
       new_node => patch%tallest
       do while (associated(new_node))
         if (associated(new_node%shorter)) then 
-         @assertGreaterThanOrEqual(new_node%height, new_node%shorter%height, tolerance=tol)
+         @assertGreaterThanOrEqual(new_node%height, new_node%shorter%height)
         end if
         new_node => new_node%shorter
       end do
             
-    end subroutine SmallList_RandomOrder_SortedCorrectly
+    end subroutine SmallList_UnsortedOrder_SortedCorrectly
     
     @Test 
     subroutine TwoCohorts_IdenticalHeights_CorrectOrder(this)
       ! test that when a list of two cohorts of identical heights is sorted the order remains unchanged
       class(TestSortCohorts),  intent(inout) :: this ! patch test object
-      type(fates_patch_type),  pointer :: patch
-      type(fates_cohort_type), pointer :: head, cohort
-      real(r8), parameter              :: dbhs(2) = (/1.0_r8, 2.0_r8/)
-      real(r8), parameter              :: cohort_height = 5.0_r8
-      integer                          :: i
+      type(fates_patch_type)                 :: patch
+      type(fates_cohort_type), pointer       :: head, cohort
+      real(r8), parameter                    :: dbhs(2) = (/1.0_r8, 2.0_r8/)
+      real(r8), parameter                    :: heights(2) = (/5.0_r8, 5.0_r8/)
+      integer                                :: i
       
-      ! create a hardcoded doubly linked list: 5 <-> 5 
-      allocate(patch)
-      
-      allocate(head)
-      patch%shortest => head
-      head%height = cohort_height
-      head%dbh = dbhs(1)
-      
-      allocate(cohort)
-      cohort%height = cohort_height
-      cohort%dbh = dbhs(2)
-      head%taller => cohort
-      cohort%shorter => head 
-      patch%tallest => cohort
+      ! create a hardcoded doubly linked list
+      call CreateTestPatchList(patch, heights, dbhs=dbhs)
       
       ! sort cohorts
       call patch%SortCohorts()
@@ -337,7 +179,7 @@ module test_SortCohorts
       i = 1
       cohort => patch%shortest
       do while (associated(cohort))
-        @assertEqual(cohort%dbh, dbhs(i), tolerance=tol)
+        @assertEqual(cohort%dbh, dbhs(i))
         cohort => cohort%taller
         i = i + 1
       end do
@@ -348,65 +190,25 @@ module test_SortCohorts
     subroutine SmallList_IdenticalHeights_CorrectOrder(this)
       ! test that when a small list of cohorts of identical heights is sorted the order remains unchanged
       class(TestSortCohorts),  intent(inout) :: this ! patch test object
-      type(fates_patch_type),  pointer       :: patch
+      type(fates_patch_type)                 :: patch
       type(fates_cohort_type), pointer       :: head, cohort
+      real(r8),                allocatable   :: heights(:), dbhs(:)
       real(r8)                               :: dbh
-      real(r8),                parameter     :: height = 10.0_r8 
       integer                                :: i
+      real(r8),                parameter     :: height = 10.0_r8 
+      integer,                 parameter     :: num_cohorts = 8     
       
-      ! create a hardcoded doubly linked list
-      allocate(patch)
+      ! create dbh and height arrays
+      allocate(dbhs(num_cohorts))
+      allocate(heights(num_cohorts))
+      do i = 1, num_cohorts 
+        dbhs(i) = i
+        heights(i) = height
+      end do 
       
-      allocate(head)
+      ! create a hardcoded doubly linked list     
+      call CreateTestPatchList(patch, heights, dbhs=dbhs)
     
-      head%height = height
-      head%dbh = 1.0_r8
-      patch%shortest => head
-    
-      allocate(cohort)
-      cohort%height = height
-      cohort%dbh = 2.0_r8
-      head%taller => cohort
-      cohort%shorter => head
-      
-      allocate(cohort)
-      cohort%height = height
-      cohort%dbh = 3.0_r8
-      head%taller%taller => cohort
-      cohort%shorter => head%taller
-      
-      allocate(cohort)
-      cohort%height = height
-      cohort%dbh = 4.0_r8
-      head%taller%taller%taller => cohort
-      cohort%shorter => head%taller%taller
-      
-      allocate(cohort)
-      cohort%height = height
-      cohort%dbh = 5.0_r8
-      head%taller%taller%taller%taller => cohort
-      cohort%shorter => head%taller%taller%taller
-      
-      allocate(cohort)
-      cohort%height = height
-      cohort%dbh = 6.0_r8
-      head%taller%taller%taller%taller%taller => cohort
-      cohort%shorter => head%taller%taller%taller%taller
-      
-      allocate(cohort)
-      cohort%height = height
-      cohort%dbh = 7.0_r8
-      head%taller%taller%taller%taller%taller%taller => cohort
-      cohort%shorter => head%taller%taller%taller%taller%taller
-      
-      allocate(cohort)
-      cohort%height = height
-      cohort%dbh = 8.0_r8
-      head%taller%taller%taller%taller%taller%taller%taller => cohort
-      cohort%shorter => head%taller%taller%taller%taller%taller%taller
-    
-      patch%tallest => cohort
-      
       ! sort cohorts
       call patch%SortCohorts()
       
@@ -415,7 +217,7 @@ module test_SortCohorts
       cohort => patch%shortest
       do while (associated(cohort))
         dbh = float(i)
-        @assertEqual(cohort%dbh, dbh, tolerance=tol)
+        @assertEqual(cohort%dbh, dbh)
         cohort => cohort%taller
         i = i + 1
       end do

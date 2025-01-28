@@ -12,96 +12,18 @@ module test_CountCohorts
   
   @TestCase
   type, extends(TestCase) :: TestCountCohorts
-    type(fates_patch_type), pointer :: patch
-    contains
-      procedure :: setUp
-      procedure :: tearDown
   end type TestCountCohorts
-
-  real(r8), parameter :: tol = 1.e-13_r8
 
   contains 
   
-    subroutine setUp(this)
-      class(TestCountCohorts), intent(inout) :: this           ! test object
-      type(fates_cohort_type), pointer       :: new_node, head ! cohort objects
-      
-      ! heights for cohors
-      real(r8), parameter :: heights(8) = (/2.0_r8, 5.0_r8, 10.0_r8, 12.0_r8, 12.5_r8,   &
-         15.0_r8, 20.0_r8, 25.0_r8/)
-
-      ! hard-code a linked list
-      allocate(this%patch)
-      
-      allocate(head)
-      this%patch%shortest => head
-      head%height = heights(1)
-      
-      allocate(new_node)
-      new_node%height = heights(2)
-      head%taller => new_node
-      new_node%shorter => head
-      
-      allocate(new_node)
-      new_node%height = heights(3)
-      head%taller%taller => new_node
-      new_node%shorter => head%taller
-      
-      allocate(new_node)
-      new_node%height = heights(4)
-      head%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(5)
-      head%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(6)
-      head%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(7)
-      head%taller%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(8)
-      head%taller%taller%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller%taller%taller
-      this%patch%tallest => new_node
-      
-    end subroutine setUp
-    
-    subroutine tearDown(this)
-      class(TestCountCohorts), intent(inout) :: this        ! test object
-      type(fates_cohort_type), pointer       :: cohort      ! cohort object
-      type(fates_cohort_type), pointer       :: next_cohort ! next cohort object
-      
-      ! deallocate cohorts
-      cohort => this%patch%shortest
-      do while(associated(cohort))
-        next_cohort => cohort%taller
-        deallocate(cohort)
-        cohort => next_cohort
-      end do
-      
-      ! deallocate patch
-      deallocate(this%patch)
-      
-    end subroutine tearDown
-    
     @Test 
     subroutine EmptyList_CountCohorts_GivesZero(this)
       ! tests that for a patch with an empty list num_cohorts is 0
       class(TestCountCohorts), intent(inout) :: this                 ! test object
-      type(fates_patch_type),  pointer       :: patch                ! patch object
+      type(fates_patch_type)                 :: patch                ! patch object
       integer,                 parameter     :: expected_cohorts = 0 ! expected number of cohorts
       
       ! create an empty patch
-      allocate(patch)
       patch%shortest => null()
       patch%tallest => null()
       
@@ -116,12 +38,11 @@ module test_CountCohorts
     subroutine SingleCohort_CountCohorts_GivesOne(this)
       ! tests that for a patch with one cohort, num_cohorts is 1
       class(TestCountCohorts), intent(inout) :: this                 ! test object
-      type(fates_patch_type),  pointer       :: patch                ! patch object
+      type(fates_patch_type)                 :: patch                ! patch object
       type(fates_cohort_type), pointer       :: cohort               ! cohort object
       integer,                 parameter     :: expected_cohorts = 1 ! expected number of cohorts
       
       ! create hard-coded patch
-      allocate(patch)
       allocate(cohort)
       patch%shortest => cohort
       patch%tallest => cohort

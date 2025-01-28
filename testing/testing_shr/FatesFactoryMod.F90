@@ -483,6 +483,54 @@ module FatesFactoryMod
     end do   
   
   end subroutine GetSyntheticPatch
+  
   !---------------------------------------------------------------------------------------
+  
+  subroutine CreateTestPatchList(patch, heights, dbhs)
+    !
+    ! DESCRIPTION:
+    ! Create a patch with a hard-coded cohort linked list
+    ! Heights are supplied, optional dbhs
+    ! Used for unit testing
+    !
+    
+    ! ARGUMENTS:
+    type(fates_patch_type), intent(out)          :: patch      ! patch object
+    real(r8),               intent(in)           :: heights(:) ! hard-coded heights
+    real(r8),               intent(in), optional :: dbhs(:)    ! optional hard-coded dbhs
+    
+    ! LOCALS:
+    type(fates_cohort_type), pointer :: cohort, next_cohort ! cohort objects
+    integer                          :: num_cohorts         ! number of cohorts to add to list 
+    integer                          :: i                   ! looping index
+    
+    ! size of heights array must match sie of dbhs, if supplied
+    if (present(dbhs)) then 
+      if (size(heights) /= size(dbhs)) then 
+        write(*, '(a)') "Size of heights array must match size of dbh array."
+        stop
+      end if 
+    end if 
+    
+    num_cohorts = size(heights)
+    
+    ! initialize first cohort
+    allocate(cohort)
+    cohort%height = heights(1)
+    if (present(dbhs)) cohort%dbh = dbhs(1)
+    patch%shortest => cohort
+    
+    ! initialize the rest of the cohorts
+    do i = 2, num_cohorts
+      allocate(next_cohort)
+      next_cohort%height = heights(i)
+      if (present(dbhs)) next_cohort%dbh = dbhs(i)
+      cohort%taller => next_cohort
+      next_cohort%shorter => cohort
+      cohort => next_cohort
+    end do
+    patch%tallest => cohort
+  
+  end subroutine CreateTestPatchList
   
 end module FatesFactoryMod

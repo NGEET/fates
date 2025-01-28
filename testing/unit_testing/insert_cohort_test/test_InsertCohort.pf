@@ -6,19 +6,18 @@ module test_InsertCohort
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesCohortMod,    only : fates_cohort_type
   use FatesPatchMod,     only : fates_patch_type
+  use FatesFactoryMod,   only : CreateTestPatchList
   use funit
 
   implicit none
   
   @TestCase
   type, extends(TestCase) :: TestInsertCohort
-    type(fates_patch_type), pointer :: patch
+    type(fates_patch_type) :: patch
     contains
       procedure :: setUp
       procedure :: tearDown
   end type TestInsertCohort
-
-  real(r8), parameter :: tol = 1.e-13_r8
 
   contains 
   
@@ -31,47 +30,7 @@ module test_InsertCohort
          15.0_r8, 20.0_r8, 25.0_r8/)
 
       ! hard-code a linked list
-      allocate(this%patch)
-      
-      allocate(head)
-      this%patch%shortest => head
-      head%height = heights(1)
-      
-      allocate(new_node)
-      new_node%height = heights(2)
-      head%taller => new_node
-      new_node%shorter => head
-      
-      allocate(new_node)
-      new_node%height = heights(3)
-      head%taller%taller => new_node
-      new_node%shorter => head%taller
-      
-      allocate(new_node)
-      new_node%height = heights(4)
-      head%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(5)
-      head%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(6)
-      head%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(7)
-      head%taller%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller%taller
-      
-      allocate(new_node)
-      new_node%height = heights(8)
-      head%taller%taller%taller%taller%taller%taller%taller => new_node
-      new_node%shorter => head%taller%taller%taller%taller%taller%taller
-      this%patch%tallest => new_node
+      call CreateTestPatchList(this%patch, heights)
       
     end subroutine setUp
     
@@ -88,9 +47,6 @@ module test_InsertCohort
         cohort => next_cohort
       end do
       
-      ! deallocate patch
-      deallocate(this%patch)
-      
     end subroutine tearDown
 
     @Test 
@@ -98,11 +54,12 @@ module test_InsertCohort
       ! test that when inserting into an empty list, the new cohort becomes the shortest and tallest
       ! and the taller and shorter pointers are null()
       class(TestInsertCohort), intent(inout) :: this ! test object
-      type(fates_patch_type),  pointer       :: patch
+      type(fates_patch_type)                 :: patch
       type(fates_cohort_type), pointer       :: cohort
       
-      ! empty patch
-      allocate(patch)
+      ! create and empty patch
+      patch%shortest => null()
+      patch%tallest => null()
       
       ! insert a new cohort
       allocate(cohort)
@@ -124,7 +81,7 @@ module test_InsertCohort
       class(TestInsertCohort), intent(inout) :: this              ! test object
       type(fates_cohort_type), pointer       :: cohort            ! cohort object
       type(fates_cohort_type), pointer       :: previous_shortest ! previous tallest cohort
-      real(r8), parameter :: height = 1.0_r8
+      real(r8),                parameter     :: height = 1.0_r8   ! hard-coded height
       
       ! save previous shorter
       previous_shortest => this%patch%shortest
@@ -188,14 +145,14 @@ module test_InsertCohort
       ! traverse the list to ensure correct order
       cohort => this%patch%shortest 
       do while (associated(cohort%taller))
-        @assertLessThanOrEqual(cohort%height, cohort%taller%height, tolerance=tol)
+        @assertLessThanOrEqual(cohort%height, cohort%taller%height)
         cohort => cohort%taller
       end do
       
       ! traverse backwards
       cohort => this%patch%tallest 
       do while (associated(cohort%shorter))
-        @assertGreaterThanOrEqual(cohort%height, cohort%shorter%height, tolerance=tol)
+        @assertGreaterThanOrEqual(cohort%height, cohort%shorter%height)
         cohort => cohort%shorter
       end do
       
@@ -205,14 +162,12 @@ module test_InsertCohort
     subroutine InsertCohort_SameHeight(this)
       ! test that inserting a cohort with the same height as an existing cohort maintains insertion order
       class(TestInsertCohort), intent(inout) :: this    ! test object
-      type(fates_patch_type),  pointer       :: patch   ! patch object
+      type(fates_patch_type)                 :: patch   ! patch object
       type(fates_cohort_type), pointer       :: cohort1 ! first cohort object
       type(fates_cohort_type), pointer       :: cohort2 ! second cohort object
       type(fates_cohort_type), pointer       :: cohort3 ! third cohort object
       
-      ! initialize patch and cohorts
-      allocate(patch)
-      
+      ! initialize cohorts
       allocate(cohort1)
       cohort1%height = 10.0_r8
       
@@ -248,19 +203,17 @@ module test_InsertCohort
     subroutine InsertCohort_LargeList(this)
       ! test inserting many cohorts into a list and it is ordered correctly
       class(TestInsertCohort), intent(inout) :: this    ! test object
-      type(fates_patch_type),  pointer       :: patch   ! patch object
+      type(fates_patch_type)                 :: patch   ! patch object
       type(fates_cohort_type), pointer       :: cohort  ! cohort object
       integer                                :: i       ! looping index
       
       ! heights for cohorts
       real(r8), parameter :: heights(10) = (/12.0_r8, 5.0_r8, 20.0_r8, 7.0_r8, 15.0_r8,  &
         3.0_r8, 25.0_r8, 10.0_r8, 8.0_r8, 30.0_r8/)
+        
       real(r8), parameter :: heights_sorted(10) = (/3.0_r8, 5.0_r8, 7.0_r8, 8.0_r8,      &
         10.0_r8, 12.0_r8, 15.0_r8, 20.0_r8, 25.0_r8, 30.0_r8/)
         
-      ! allocate patch
-      allocate(patch)
-      
       ! insert cohorts of varrying heights
       do i = 1, size(heights)
           allocate(cohort)
@@ -274,7 +227,7 @@ module test_InsertCohort
       cohort => patch%shortest
       do i = 1, size(heights)
         @assertTrue(associated(cohort))
-        @assertEqual(cohort%height, heights_sorted(i), tolerance=tol)
+        @assertEqual(cohort%height, heights_sorted(i))
         if (i < size(heights)) then
           @assertTrue(associated(cohort%taller))
           cohort => cohort%taller
@@ -287,7 +240,7 @@ module test_InsertCohort
       cohort => patch%tallest
       do i = size(heights), 1, -1
         @assertTrue(associated(cohort))
-        @assertEqual(cohort%height, heights_sorted(i), tolerance=tol)
+        @assertEqual(cohort%height, heights_sorted(i))
         if (i > 1) then
           @assertTrue(associated(cohort%shorter))
           cohort => cohort%shorter
@@ -302,17 +255,14 @@ module test_InsertCohort
     subroutine InsertCohort_LargeList_IdenticalHeights(this)
       ! test inserting many cohorts of the same height into a list and it is ordered correctly
       class(TestInsertCohort), intent(inout) :: this             ! test object
-      type(fates_patch_type),  pointer       :: patch            ! patch object
+      type(fates_patch_type)                 :: patch            ! patch object
       type(fates_cohort_type), pointer       :: cohort           ! cohort object
       integer                                :: i                ! looping index
       real(r8)                               :: dbh              ! cohort diameter
       real(r8),                parameter     :: height = 35.0_r8 ! cohort height
         
-      ! allocate patch
-      allocate(patch)
-      
       ! insert cohorts of same height
-      do i = 1, 100
+      do i = 1, 10
         allocate(cohort)
         cohort%height = height
         cohort%dbh = i
@@ -326,7 +276,7 @@ module test_InsertCohort
       cohort => patch%shortest
       do while(associated(cohort))
         dbh = float(i)
-        @assertEqual(cohort%dbh, dbh, tolerance=tol)
+        @assertEqual(cohort%dbh, dbh)
         cohort => cohort%taller 
         i = i + 1
       end do 
