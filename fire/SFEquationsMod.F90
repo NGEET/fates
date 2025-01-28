@@ -23,6 +23,8 @@ module SFEquationsMod
   public :: PropagatingFlux
   public :: ForwardRateOfSpread
   public :: BackwardRateOfSpread
+  public :: FireDuration
+  public :: LengthToBreadth
   
   contains 
   
@@ -314,5 +316,60 @@ module SFEquationsMod
     end function BackwardRateOfSpread
 
     !-------------------------------------------------------------------------------------
+    
+    real(r8) function FireDuration(FDI)
+    !
+    !  DESCRIPTION:
+    !  Calculates fire duration [min]
+    !
+    !  Equation 14 in Thonicke et al. 2010
+    !
+    use SFParamsMod, only : SF_val_max_durat, SF_val_durat_slope
+
+    ! ARGUMENTS:
+    real(r8), intent(in) :: FDI  ! fire danger index [0-1]
+
+    FireDuration = (SF_val_max_durat + 1.0_r8)/(1.0_r8 + SF_val_max_durat*               &
+      exp(SF_val_durat_slope*FDI))
+
+  end function FireDuration
+
+  !---------------------------------------------------------------------------------------
+ 
+  real(r8) function LengthToBreadth(effective_windspeed, tree_fraction)
+  !
+  !  DESCRIPTION:
+  !  Calculates length to breadth ratio, used for calculating area burnt [unitless]
+  !
+  !     Canadian Forest Fire Behavior Prediction System Ont.Int.Rep. ST-X-3, 1992
+  !     Information Report GLC-X-10, Wotten et al. 2009
+  !
+  use FatesConstantsMod, only : m_per_km, min_per_hr
+
+  ! ARGUMENTS:
+  real(r8), intent(in) :: effective_windspeed ! effective windspeed [m/min]
+  real(r8), intent(in) :: tree_fraction       ! tree fraction [0-1]
+  
+  ! LOCALS:
+  real(r8) :: windspeed_km_hr ! effective windspeed, converted to correct units [km/hr]
+  
+  ! CONSTANTS:
+  real(r8), parameter :: lb_threshold = 0.55_r8 ! tree canopy cover below which to use grassland length-to-breadth eqn
+  
+  windspeed_km_hr = effective_windspeed/m_per_km*min_per_hr
+  
+  if (windspeed_km_hr < 1.0_r8) then
+    LengthToBreadth = 1.0_r8
+  else
+    if (tree_fraction > lb_threshold) then
+      LengthToBreadth = 1.0_r8 + (8.729_r8*(1.0_r8 -1.0_r8*exp(-0.03_r8*windspeed_km_hr)**2.155_r8))
+    else 
+      LengthToBreadth = 1.1_r8*(windspeed_km_hr**0.464_r8)
+    end if
+  end if
+
+  end function LengthToBreadth
+
+  !-------------------------------------------------------------------------------------
   
 end module SFEquationsMod
