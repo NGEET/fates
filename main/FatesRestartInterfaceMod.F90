@@ -1829,6 +1829,23 @@ contains
                  hlms='CLM:ALM', initialize=initialize_variables, &
                  ivar=ivar, index = dummy_out )
 
+
+
+           ! Register the herbivory (i.e., grazing) flux variable
+           ! ----------------------------------------------------------------------------
+           ! The symbol that is written to file
+           symbol    = trim(symbol_base)//'_herbivory_'//trim(pos_symbol)
+
+           ! The expanded long name of the variable
+           long_name = trim(name_base)//', herbivory mass:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=symbol, &
+                 vtype=cohort_r8, &
+                 long_name=trim(long_name), &
+                 units='kg', flushval = flushzero, &
+                 hlms='CLM:ALM', initialize=initialize_variables, &
+                 ivar=ivar, index = dummy_out )
+
         end do
      end do
 
@@ -2422,6 +2439,10 @@ contains
                       ir_prt_var = ir_prt_var + 1
                       this%rvars(ir_prt_var)%r81d(io_idx_co) = &
                             ccohort%prt%variables(i_var)%burned(i_pos)
+
+                      ir_prt_var = ir_prt_var + 1
+                      this%rvars(ir_prt_var)%r81d(io_idx_co) = &
+                            ccohort%prt%variables(i_var)%herbivory(i_pos)
 
                    end do
                 end do
@@ -3404,6 +3425,10 @@ contains
 
                       ir_prt_var = ir_prt_var + 1
                       ccohort%prt%variables(i_var)%burned(i_pos) = &
+                            this%rvars(ir_prt_var)%r81d(io_idx_co)
+
+                      ir_prt_var = ir_prt_var + 1
+                      ccohort%prt%variables(i_var)%herbivory(i_pos) = &
                             this%rvars(ir_prt_var)%r81d(io_idx_co)
                    end do
                 end do
