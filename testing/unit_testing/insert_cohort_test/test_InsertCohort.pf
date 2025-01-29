@@ -3,10 +3,11 @@ module test_InsertCohort
   ! DESCRIPTION:
   !		Tests the patch's InsertCohort method
   !
-  use FatesConstantsMod, only : r8 => fates_r8
-  use FatesCohortMod,    only : fates_cohort_type
-  use FatesPatchMod,     only : fates_patch_type
-  use FatesFactoryMod,   only : CreateTestPatchList
+  use FatesConstantsMod,  only : r8 => fates_r8
+  use FatesCohortMod,     only : fates_cohort_type
+  use FatesPatchMod,      only : fates_patch_type
+  use FatesUnitTestUtils, only : endrun_msg
+  use FatesFactoryMod,    only : CreateTestPatchList
   use funit
 
   implicit none
@@ -22,9 +23,7 @@ module test_InsertCohort
   contains 
   
     subroutine setUp(this)
-      class(TestInsertCohort), intent(inout) :: this           ! test object
-      type(fates_cohort_type), pointer       :: new_node, head ! cohort objects
-      
+      class(TestInsertCohort), intent(inout) :: this ! test object      
       ! heights for cohors
       real(r8), parameter :: heights(8) = (/2.0_r8, 5.0_r8, 10.0_r8, 12.0_r8, 12.5_r8,   &
          15.0_r8, 20.0_r8, 25.0_r8/)
@@ -200,7 +199,7 @@ module test_InsertCohort
     end subroutine InsertCohort_SameHeight
     
     @Test
-    subroutine InsertCohort_LargeList(this)
+    subroutine InsertCohort_SmallList(this)
       ! test inserting many cohorts into a list and it is ordered correctly
       class(TestInsertCohort), intent(inout) :: this    ! test object
       type(fates_patch_type)                 :: patch   ! patch object
@@ -249,10 +248,10 @@ module test_InsertCohort
         end if
       end do 
     
-    end subroutine InsertCohort_LargeList
+    end subroutine InsertCohort_SmallList
     
     @Test
-    subroutine InsertCohort_LargeList_IdenticalHeights(this)
+    subroutine InsertCohort_SmallList_IdenticalHeights(this)
       ! test inserting many cohorts of the same height into a list and it is ordered correctly
       class(TestInsertCohort), intent(inout) :: this             ! test object
       type(fates_patch_type)                 :: patch            ! patch object
@@ -281,7 +280,99 @@ module test_InsertCohort
         i = i + 1
       end do 
       
-    end subroutine InsertCohort_LargeList_IdenticalHeights
+    end subroutine InsertCohort_SmallList_IdenticalHeights
+    
+    @Test
+    subroutine InsertCohort_Unassociated_Errors(this)
+      ! test inserting an unassociated cohort errors
+      class(TestInsertCohort), intent(inout) :: this         ! test object
+      type(fates_patch_type)                 :: patch        ! patch object 
+      type(fates_cohort_type), pointer       :: cohort       ! cohort object
+      character(len=:),        allocatable   :: expected_msg ! expected error message for failure
+      
+      expected_msg = endrun_msg("cohort is not allocated")
+      
+      ! make sure cohort is null
+      cohort => null()
+      
+      ! try to insert, should fail
+      call patch%InsertCohort(cohort)
+      @assertExceptionRaised(expected_msg)
+    
+    end subroutine InsertCohort_Unassociated_Errors
+    
+    @Test
+    subroutine InsertCohort_InconsistentListState_Errors(this)
+      ! test inserting a cohort into an inconsistent list state errors
+      class(TestInsertCohort), intent(inout) :: this               ! test object
+      type(fates_patch_type)                 :: patch              ! patch object 
+      type(fates_cohort_type), pointer       :: cohort, new_cohort ! cohort objects
+      character(len=:),        allocatable   :: expected_msg       ! expected error message for failure
+      
+      expected_msg = endrun_msg("inconsistent list state")
+      
+      ! allocate and link one cohort incorrectly
+      allocate(cohort)
+      cohort%height = 5.0_r8
+      patch%shortest => cohort
+      
+      ! allocate a new cohort and try to insert
+      allocate(new_cohort)
+      new_cohort%height = 10.0_r8
+      
+      ! should fail
+      call patch%InsertCohort(new_cohort) 
+      @assertExceptionRaised(expected_msg)
+      
+      ! try the opposite
+      patch%shortest => null()
+      patch%tallest => cohort 
+      
+      call patch%InsertCohort(new_cohort) 
+      @assertExceptionRaised(expected_msg)
+    
+    end subroutine InsertCohort_InconsistentListState_Errors
+    
+    @Test
+    subroutine InsertCohort_CorruptedListStructure_Errors(this)
+      ! tests that inserting a cohort into a currupted list structure errors
+      class(TestInsertCohort), intent(inout) :: this                      ! test object
+      type(fates_patch_type)                 :: patch                     ! patch object
+      type(fates_cohort_type),  pointer      :: cohort1, cohort2, cohort3 ! cohorts
+      type(fates_cohort_type),  pointer      :: new_cohort                ! cohort to insert
+      character(len=:),         allocatable  :: expected_msg              ! expected error message for failure
+      
+      expected_msg = endrun_msg("corrupted list structure")
+    
+      ! allocate and link cohorts
+      allocate(cohort1)
+      allocate(cohort2)
+      allocate(cohort3)
+      cohort1%height = 1.0_r8
+      cohort2%height = 2.0_r8
+      cohort3%height = 4.0_r8
+      
+      ! set up a list
+      patch%shortest => cohort1
+      patch%tallest => cohort3
+      
+      cohort1%taller => cohort2
+      cohort2%shorter => cohort1
+      cohort2%taller => cohort3
+      cohort3%shorter => cohort2
+      
+      ! break shorter chain 
+      nullify(cohort2%shorter)! breaks backwards link
+      
+      ! allocate a new cohort to insert
+      allocate(new_cohort)
+      new_cohort%height = 3.0_r8
+      
+      ! should fail
+      call patch%InsertCohort(new_cohort) 
+      @assertExceptionRaised(expected_msg)
+      
+    end subroutine InsertCohort_CorruptedListStructure_Errors
     
 end module test_InsertCohort
 

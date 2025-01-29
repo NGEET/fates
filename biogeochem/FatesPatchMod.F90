@@ -968,13 +968,15 @@ module FatesPatchMod
       if (.not. associated(cohort)) then
         call endrun(msg="cohort is not allocated",                                       &
           additional_msg=errMsg(sourcefile, __LINE__))
+          return
       end if
       
       ! check for inconsistent list state
       if ((.not. associated(this%shortest) .and. associated(this%tallest)) .or.          &
         (associated(this%shortest) .and. .not. associated(this%tallest))) then
         call endrun(msg="inconsistent list state",                                       &
-        additional_msg=errMsg(sourcefile, __LINE__))
+          additional_msg=errMsg(sourcefile, __LINE__))
+          return
       end if
     
       ! nothing in the list - add to head
@@ -1012,9 +1014,12 @@ module FatesPatchMod
       do while (associated(temp_cohort2))
         
         ! validate list structure before insertion
-        if (associated(temp_cohort1%taller) .and. .not. associated(temp_cohort1%taller%shorter, temp_cohort1)) then 
+        
+        if (associated(temp_cohort1%taller) .and.                                        &
+          .not. associated(temp_cohort1%taller%shorter, temp_cohort1)) then 
           call endrun(msg="corrupted list structure",                                    &
             additional_msg=errMsg(sourcefile, __LINE__))
+            return
         end if 
         
         if ((cohort%height >= temp_cohort1%height) .and. (cohort%height < temp_cohort2%height)) then 
@@ -1159,7 +1164,7 @@ module FatesPatchMod
           ! empty list
           return
       else if (.not. associated(this%shortest) .or. .not. associated(this%tallest)) then
-          call endrun(msg="one of shortest or tallest is null",                          &
+          call endrun(msg="inconsistent list state",                                     &
             additional_msg=errMsg(sourcefile, __LINE__))
           return
       end if

@@ -17,6 +17,8 @@ program FatesTestPatch
   character(len=:),                  allocatable :: param_file   ! input parameter file
   type(fates_patch_type),            pointer     :: patch        ! patch
   type(fates_cohort_type),           pointer     :: cohort       ! cohort
+  type(fates_cohort_type),  pointer      :: cohort1, cohort2, cohort3 ! cohorts
+  type(fates_cohort_type),  pointer      :: new_cohort                ! cohort to insert
   integer                                        :: i            ! patch array location
 
   ! CONSTANTS:
@@ -39,7 +41,7 @@ program FatesTestPatch
   i = patch_data%PatchDataPosition(patch_name='tropical')
   call GetSyntheticPatch(patch_data%patches(i), num_levsoil, patch)
 
-    ! print out list in ascending order
+  ! print out list in ascending order
   cohort => patch%shortest
   write(*,*) 'Patch structure:'
   do while (associated(cohort))
