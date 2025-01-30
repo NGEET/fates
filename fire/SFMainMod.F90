@@ -58,24 +58,14 @@ contains
 
     ! LOCALS:  
     type (fates_patch_type), pointer :: currentPatch ! patch object
-
-    ! zero fire things
-    currentPatch => currentSite%youngest_patch
-    do while (associated(currentPatch))
-      currentPatch%frac_burnt = 0.0_r8
-      currentPatch%fire = 0
-      currentPatch%fuel%frac_burnt(:) = 0.0_r8
-      currentPatch => currentPatch%older
-    end do
-    
+        
     if (hlm_spitfire_mode > hlm_sf_nofire_def) then
-      
-      ! calculate fire weather, fuel conditions, fire danger, ignitions
       call UpdateFireWeather(currentSite, bc_in)
       call UpdateFuelCharacteristics(currentSite)
       call CalculateIgnitionsandFDI(currentSite, bc_in)
       call CalculateSurfaceRateOfSpread(currentSite)
-      call CalculateSurfaceFireIntensity(currentSite, bc_in)
+      call CalculateSurfaceFireIntensity(currentSite)
+      call CalculateAreaBurnt(currentSite)
       call crown_scorching(currentSite)
       call crown_damage(currentSite)
       call cambial_damage_kill(currentSite)
@@ -355,38 +345,32 @@ contains
   
   !---------------------------------------------------------------------------------------
   
-  subroutine CalculateSurfaceFireIntensity(currentSite, bc_in)
+  subroutine CalculateSurfaceFireIntensity(currentSite)
     !
     !  DESCRIPTION:
     !  Calculates surface fireline intensity for each patch of a site
+    !  Right now also calculates the area burnt...
     !
-    use SFParamsMod,    only : SF_val_fuel_energy, SF_val_fire_threshold
-    use SFEquationsMod, only : FireDuration, LengthToBreadth
+    use FatesConstantsMod, only : m2_per_km2
+    use SFEquationsMod,    only : FireDuration, LengthToBreadth
+    use SFEquationsMod,    only : AreaBurnt, FireSize, FireIntensity
+    use SFParamsMod,       only : SF_val_fire_threshold
 
     ! ARGUMENTS:
-    type(ed_site_type), intent(inout), target :: currentSite ! site object
-    type(bc_in_type),   intent(in)            :: bc_in       ! bc-in object
+    type(ed_site_type), intent(inout), target :: currentSite
     
     ! LOCALS:
     type(fates_patch_type), pointer :: currentPatch                    ! patch object
     real(r8)                        :: fuel_consumed(num_fuel_classes) ! fuel consumed [kgC/m2]
-    real(r8)                        :: tree_fraction_patch             ! treed fraction [0-1]
+    real(r8)                        :: tree_fraction_patch             ! treed fraction on patch [0-1]
+    real(r8)                        :: length_to_breadth               ! length to breadth ratio of fire ellipse (unitless)
+    real(r8)                        :: fire_size                       ! size of fire [m2]
+    real(r8)                        :: area_burnt                      ! area burnt [m2/km2]
     
-    real(r8) ROS !m/s
-    real(r8) W   !kgBiomass/m2
-    
-    real(r8) lb               !length to breadth ratio of fire ellipse (unitless)
-    real(r8) df               !distance fire has travelled forward in m
-    real(r8) db               !distance fire has travelled backward in m
-    real(r8) AB               !daily area burnt in m2 per km2
-
-    real(r8) size_of_fire !in m2
-    
-    integer :: iofp  ! index of oldest fates patch
-    real(r8), parameter :: km2_to_m2 = 1000000.0_r8 !area conversion for square km to square m
-
-    currentPatch => currentSite%oldest_patch  
+    currentPatch => currentSite%oldest_patch 
     do while (associated(currentPatch))
+      
+      currentPatch%fuel%frac_burnt(:) = 0.0_r8
 
       if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
 
@@ -398,79 +382,85 @@ contains
         currentPatch%TFC_ROS = sum(fuel_consumed) - fuel_consumed(fuel_classes%trunks())  
 
         ! initialize patch parameters to zero
-        currentPatch%FI = 0.0_r8
+        currentPatch%FI = 0.0_r8 
         currentPatch%fire = 0
+        
+        if (currentSite%NF > 0.0_r8) then
+          
+          ! fire intensity [kW/m]
+          currentPatch%FI = FireIntensity(currentPatch%TFC_ROS/0.45_r8, currentPatch%ROS_front/60.0_r8)
+
+          ! track fires greater than kW/m energy threshold
+          if (currentPatch%FI > SF_val_fire_threshold) then 
+            currentPatch%fire = 1 
+            currentSite%NF_successful = currentSite%NF_successful + &
+              currentSite%NF*currentSite%FDI*currentPatch%area/area
+          end if
+          
+        end if
+      end if
+      currentPatch => currentPatch%younger
+    end do    
+
+  end subroutine CalculateSurfaceFireIntensity
+   
+  !---------------------------------------------------------------------------------------
+  
+  subroutine CalculateAreaBurnt(currentSite)
+    !
+    !  DESCRIPTION:
+    !  Calculates area burnt for each patch of a site
+    !
+    use FatesConstantsMod, only : m2_per_km2
+    use SFEquationsMod,    only : FireDuration, LengthToBreadth
+    use SFEquationsMod,    only : AreaBurnt, FireSize
+    use SFParamsMod,       only : SF_val_fire_threshold
+
+    ! ARGUMENTS:
+    type(ed_site_type), intent(inout), target :: currentSite
+    
+    ! LOCALS:
+    type(fates_patch_type), pointer :: currentPatch                    ! patch object
+    real(r8)                        :: tree_fraction_patch             ! treed fraction on patch [0-1]
+    real(r8)                        :: length_to_breadth               ! length to breadth ratio of fire ellipse (unitless)
+    real(r8)                        :: fire_size                       ! size of fire [m2]
+    real(r8)                        :: area_burnt                      ! area burnt [m2/km2]
+    
+    currentPatch => currentSite%oldest_patch 
+    do while (associated(currentPatch))
+
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
+
+        ! initialize patch parameters to zero
         currentPatch%FD = 0.0_r8
         currentPatch%frac_burnt = 0.0_r8
 
-        if (currentSite%NF > 0.0_r8) then
-          
+        if (currentSite%NF > 0.0_r8 .and. currentPatch%FI > SF_val_fire_threshold) then
+
           ! fire duration [min]
           currentPatch%FD = FireDuration(currentSite%FDI)
           
-          ! length-to-breadth ratio
-          tree_fraction_patch = currentPatch%total_tree_area/currentPatch%area
-          lb = LengthToBreadth(currentSite%fireWeather%effective_windspeed, tree_fraction_patch)
-    
-          !     if (lb > 8.0_r8)then
-          !       lb = 8.0_r8  !Constraint Canadian Fire Behaviour System
-          !     endif
-          ! ---- calculate length of major axis---
-          db = currentPatch%ROS_back  * currentPatch%FD !m
-          df = currentPatch%ROS_front * currentPatch%FD !m
+          ! length-to-breadth ratio of fire ellipse [unitless]
+          tree_fraction_patch  = currentPatch%total_tree_area/currentPatch%area
+          length_to_breadth = LengthToBreadth(currentSite%fireWeather%effective_windspeed, tree_fraction_patch)
 
-          ! --- calculate area burnt---
-          if(lb > 0.0_r8) then
+          ! fire size [m2]
+          fire_size = FireSize(length_to_breadth, currentPatch%ROS_back,              &
+              currentPatch%ROS_front, currentPatch%FD)
 
-                ! Equation 1 in Thonicke et al. 2010
-            ! To Do: Connect here with the Li & Levis GDP fire suppression algorithm. 
-            ! Equation 16 in arora and boer model JGR 2005
-            ! AB = AB *3.0_r8
-
-            !size of fire = equation 14 Arora and Boer JGR 2005 (area of an ellipse)
-            size_of_fire = ((pi_const/(4.0_r8*lb))*((df+db)**2.0_r8))
-
-            ! AB = daily area burnt = size fires in m2 * num ignitions per day per km2 * prob ignition starts fire
-            ! AB = m2 per km2 per day
-            ! the denominator in the units of currentSite%NF is total gridcell area, but since we assume that ignitions 
-            ! are equally probable across patches, currentSite%NF is equivalently per area of a given patch
-            ! thus AB has units of m2 burned area per km2 patch area per day
-            AB = size_of_fire * currentSite%NF * currentSite%FDI
-
-            ! frac_burnt 
-            ! just a unit conversion from AB, to become area burned per area patch per day, 
-            ! or just the fraction of the patch burned on that day
-            currentPatch%frac_burnt = (min(0.99_r8, AB / km2_to_m2))
-
-          else
-            currentPatch%frac_burnt = 0._r8
-          end if 
-
-          ROS   = currentPatch%ROS_front / 60.0_r8 !m/min to m/sec 
-          W     = currentPatch%TFC_ROS / 0.45_r8 !kgC/m2 of burned area to kgbiomass/m2 of burned area
-
-          ! EQ 15 Thonicke et al 2010
-          !units of fire intensity = (kJ/kg)*(kgBiomass/m2)*(m/min)
-          currentPatch%FI = SF_val_fuel_energy * W * ROS !kj/m/s, or kW/m
-
-          !'decide_fire' subroutine 
-          if (currentPatch%FI > SF_val_fire_threshold) then !track fires greater than kW/m energy threshold
-            currentPatch%fire = 1 ! Fire...    :D
-            !
-            currentSite%NF_successful = currentSite%NF_successful + &
-            currentSite%NF * currentSite%FDI * currentPatch%area / area
-            !
-          else     
-            currentPatch%fire       = 0 ! No fire... :-/
-            currentPatch%FD         = 0.0_r8
-            currentPatch%frac_burnt = 0.0_r8
-          end if
-        end if 
-      end if 
+          ! area burnt [m2/km2]
+          area_burnt = AreaBurnt(fire_size, currentSite%NF, currentSite%FDI)
+          
+          ! convert to area burned per area patch per day
+          ! i.e., fraction of the patch burned on that day
+          currentPatch%frac_burnt = min(0.99_r8, area_burnt/m2_per_km2)
+          
+        end if
+      end if
       currentPatch => currentPatch%younger
-    end do 
+    end do    
 
-  end subroutine CalculateSurfaceFireIntensity
+  end subroutine CalculateAreaBurnt
    
   !---------------------------------------------------------------------------------------
   
