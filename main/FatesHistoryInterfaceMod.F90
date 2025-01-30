@@ -3386,9 +3386,6 @@ contains
                    hio_burnedarea_si_landuse(io_si, cpatch%land_use_label) = &
                         hio_burnedarea_si_landuse(io_si, cpatch%land_use_label) + &
                         cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
-
-                   hio_npp_si_landuse(io_si,cpatch%land_use_label) = hio_npp_si_landuse(io_si,cpatch%land_use_label) &
-                        + ccohort%npp_acc_hold * ccohort%n * dt_tstep_inv
                 end if
                    
                 ! Increment some patch-age-resolved diagnostics
@@ -3659,6 +3656,11 @@ contains
 
                       hio_npp_si_pft(io_si, ft) = hio_npp_si_pft(io_si, ft) + &
                            ccohort%npp_acc_hold * n_perm2 / (days_per_year*sec_per_day)
+
+                      if (cpatch%land_use_label .gt. nocomp_bareground_land) then
+                         hio_npp_si_landuse(io_si,cpatch%land_use_label) = hio_npp_si_landuse(io_si,cpatch%land_use_label) &
+                              + ccohort%npp_acc_hold * n_perm2 / (days_per_year*sec_per_day)
+                      end if
 
                       ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
                       sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, carbon12_element) * days_per_year
