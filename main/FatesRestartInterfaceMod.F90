@@ -3828,6 +3828,7 @@ contains
         !bc_out(s)%ftid_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
         !bc_out(s)%ftii_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
 
+        ifp = 0
         currentpatch => sites(s)%oldest_patch
         while_patch: do while (associated(currentpatch))
 
@@ -3844,10 +3845,12 @@ contains
            currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
            currentPatch%rad_error(:) = 0._r8
 
-           ifp = currentPatch%patchno
+           !ifp = currentPatch%patchno
 
            if_notbareground: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then
 
+              ifp = ifp+1
+              
            if_zenith_flag: if( sites(s)%coszen>0._r8 )then
               
               select case(radiation_model)

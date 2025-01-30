@@ -46,11 +46,11 @@ Module FatesTwoStreamUtilsMod
 contains
 
 
-  subroutine FatesConstructRadElements(site,fcansno_pa)
+  subroutine FatesConstructRadElements(site) !,fcansno_pa)
 
     type(ed_site_type)  :: site
     type(fates_patch_type),pointer :: patch
-    real(r8)                    :: fcansno_pa(:)
+    !real(r8)                    :: fcansno_pa(:)
     
     type(fates_cohort_type), pointer :: cohort
     integer :: n_col(nclmax) ! Number of parallel column elements per layer
@@ -101,12 +101,15 @@ contains
 
     max_elements = -1
 
+    ifp = 0
     patch => site%oldest_patch
     do while (associated(patch))
 
        if_notbareground: if(patch%nocomp_pft_label.ne.nocomp_bareground)then
+
+       ifp = ifp + 1
           
-       ifp = patch%patchno
+       !ifp = patch%patchno
        associate(twostr => patch%twostr)
 
          

@@ -99,6 +99,7 @@ contains
        ! Currently holding a copy of this at the site level for restarts
        sites(s)%coszen = bc_in(s)%coszen
 
+       ifp = 0
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
 
@@ -106,10 +107,12 @@ contains
           ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
           ! ifp=1 is the first vegetated patch.
 
-          ifp = currentPatch%patchno
+          !ifp = currentPatch%patchno
 
           if_notbareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
 
+             ifp = ifp + 1
+             
              ! Initialize output boundary conditions with trivial assumption
              ! of a black body soil and fully transmitting canopy
              bc_out(s)%albd_parb(ifp,:)            = 0._r8
@@ -245,13 +248,16 @@ contains
     
     do s = 1,nsites
 
+       ifp = 0
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))
 
-          ifp = cpatch%patchno
+          !ifp = cpatch%patchno
           
           if_notbareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
 
+             ifp = ifp + 1
+             
              ! do not do albedo calculations for bare ground patch in SP mode
              ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
              ! ifp=1 is the first vegetated patch.
