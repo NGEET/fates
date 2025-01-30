@@ -555,7 +555,6 @@ module FatesPatchMod
       this%c_stomata                         = 0.0_r8 
       this%c_lblayer                         = 0.0_r8
 
-      
       ! RADIATION
       this%rad_error(:)                      = 0.0_r8
       this%tr_soil_dir_dif(:)                = 0.0_r8
@@ -564,7 +563,10 @@ module FatesPatchMod
       this%fabd(:)                           = 0.0_r8
       this%sabs_dir(:)                       = 0.0_r8
       this%sabs_dif(:)                       = 0.0_r8
-
+      this%fcansno                           = 0.0_r8
+      this%gnd_alb_dif(:)                    = 0.0_r8
+      this%gnd_alb_dir(:)                    = 0.0_r8
+      
       ! ROOTS
       this%btran_ft(:)                       = 0.0_r8
 

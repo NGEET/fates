@@ -3783,7 +3783,8 @@ contains
      use FatesNormanRadMod, only : PatchNormanRadiation
      use EDTypesMod,             only : ed_site_type
      use FatesPatchMod,          only : fates_patch_type
-
+     use EDParamsMod               , only : maxpatch_total
+     
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
      integer                     , intent(in)            :: nsites
@@ -3792,20 +3793,40 @@ contains
 
      ! locals
      ! ----------------------------------------------------------------------------------
+
      type(fates_patch_type),pointer  :: currentPatch  ! current patch
      integer                      :: s             ! site counter
      integer                      :: ib            ! radiation band counter
      integer                      :: ifp           ! patch counter
 
+     ! We need dummy variables for the solver, we don't want to update
+     ! the output boundary conditions since the HLM remembers it
+     real(r8) ,pointer :: albd_parb(:,:)
+     real(r8) ,pointer :: albi_parb(:,:)
+     real(r8) ,pointer :: fabd_parb(:,:)
+     real(r8) ,pointer :: fabi_parb(:,:)
+     real(r8) ,pointer :: ftdd_parb(:,:)
+     real(r8) ,pointer :: ftid_parb(:,:)
+     real(r8) ,pointer :: ftii_parb(:,:)
+
+     allocate(albd_parb(maxpatch_total,2))
+     allocate(albi_parb(maxpatch_total,2))
+     allocate(fabd_parb(maxpatch_total,2))
+     allocate(fabi_parb(maxpatch_total,2))
+     allocate(ftdd_parb(maxpatch_total,2))
+     allocate(ftid_parb(maxpatch_total,2))
+     allocate(ftii_parb(maxpatch_total,2))
+     
      do_sites: do s = 1, nsites
 
-        bc_out(s)%albd_parb(:,:) = 0._r8  ! output HLM  Assume soil absorbs 100%
-        bc_out(s)%albi_parb(:,:) = 0._r8  ! output HLM  Assume soil absorbs 100%
-        bc_out(s)%fabi_parb(:,:) = 0._r8  ! output HLM  Assume canopy absorbs 0%
-        bc_out(s)%fabd_parb(:,:) = 0._r8  ! output HLM  Assume canopy absorbs 0%
-        bc_out(s)%ftdd_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
-        bc_out(s)%ftid_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
-        bc_out(s)%ftii_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
+        ! The HLM should remember the albedos, do not try to mess with them
+        !bc_out(s)%albd_parb(:,:) = 0._r8  ! output HLM  Assume soil absorbs 100%
+        !bc_out(s)%albi_parb(:,:) = 0._r8  ! output HLM  Assume soil absorbs 100%
+        !bc_out(s)%fabi_parb(:,:) = 0._r8  ! output HLM  Assume canopy absorbs 0%
+        !bc_out(s)%fabd_parb(:,:) = 0._r8  ! output HLM  Assume canopy absorbs 0%
+        !bc_out(s)%ftdd_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
+        !bc_out(s)%ftid_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
+        !bc_out(s)%ftii_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
 
         currentpatch => sites(s)%oldest_patch
         while_patch: do while (associated(currentpatch))
@@ -3824,7 +3845,7 @@ contains
            currentPatch%rad_error(:) = 0._r8
 
            ifp = currentPatch%patchno
-           
+
            if_notbareground: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then
 
            if_zenith_flag: if( sites(s)%coszen>0._r8 )then
@@ -3834,22 +3855,24 @@ contains
                  
                  call PatchNormanRadiation (currentPatch, &
                       sites(s)%coszen, &
-                      bc_out(s)%albd_parb(ifp,:), &
-                      bc_out(s)%albi_parb(ifp,:), &
-                      bc_out(s)%fabd_parb(ifp,:), &
-                      bc_out(s)%fabi_parb(ifp,:), &
-                      bc_out(s)%ftdd_parb(ifp,:), &
-                      bc_out(s)%ftid_parb(ifp,:), &
-                      bc_out(s)%ftii_parb(ifp,:))
+                      albd_parb(ifp,:), &
+                      albi_parb(ifp,:), &
+                      fabd_parb(ifp,:), &
+                      fabi_parb(ifp,:), &
+                      ftdd_parb(ifp,:), &
+                      ftid_parb(ifp,:), &
+                      ftii_parb(ifp,:))
                  
               case(twostr_solver)
                  associate( twostr => currentPatch%twostr)
-                   
+
+                   if(currentPatch%fcansno>10000._r8 .or. currentPatch%fcansno < -100000._r8)then
+                      write(fates_log(),*) 'restart snow problem:',currentPatch%fcansno
+                      call endrun(msg=errMsg(sourcefile, __LINE__))
+                   end if
+                      
                    call twostr%CanopyPrep(currentPatch%fcansno)
                    call twostr%ZenithPrep(sites(s)%coszen)
-                   
-                   !RGK-2SBF write(fates_log(),*)'rest-p:',s,currentPatch%patchno, &
-                   ! currentPatch%gnd_alb_dif(1),currentPatch%gnd_alb_dir(1),currentPatch%fcansno
                    
                    do ib = 1,num_swb
                       
@@ -3862,14 +3885,14 @@ contains
                            sites(s)%taulambda_2str,     &  ! inout (scratch)
                            sites(s)%omega_2str,         &  ! inout (scratch)
                            sites(s)%ipiv_2str,          &  ! inout (scratch)
-                           bc_out(s)%albd_parb(ifp,ib), &  ! out
-                           bc_out(s)%albi_parb(ifp,ib), &  ! out
-                           currentPatch%rad_error(ib),  &  ! out
-                           bc_out(s)%fabd_parb(ifp,ib), &  ! out
-                           bc_out(s)%fabi_parb(ifp,ib), &  ! out
-                           bc_out(s)%ftdd_parb(ifp,ib), &  ! out
-                           bc_out(s)%ftid_parb(ifp,ib), &  ! out
-                           bc_out(s)%ftii_parb(ifp,ib))
+                           albd_parb(ifp,ib), &
+                           albi_parb(ifp,ib), &
+                           currentPatch%rad_error(ib),  &
+                           fabd_parb(ifp,ib), &
+                           fabi_parb(ifp,ib), &
+                           ftdd_parb(ifp,ib), &
+                           ftid_parb(ifp,ib), &
+                           ftii_parb(ifp,ib))
                       
                    end do
                  end associate
@@ -3880,7 +3903,11 @@ contains
            currentPatch => currentPatch%younger
         end do while_patch
      enddo do_sites
-
+     
+     deallocate(albd_parb, albi_parb)
+     deallocate(fabd_parb, fabi_parb)
+     deallocate(ftdd_parb, ftid_parb, ftii_parb)
+     
      return
    end subroutine update_3dpatch_radiation
 

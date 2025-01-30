@@ -17,6 +17,7 @@ Module FatesTwoStreamUtilsMod
   use FatesRadiationMemMod  , only : num_swb
   use FatesRadiationMemMod  , only : ivis, inir
   use FatesRadiationMemMod  , only : rho_snow,tau_snow
+  use TwoStreamMLPEMod      , only : normalized_upper_boundary
   use TwoStreamMLPEMod      , only : air_ft, AllocateRadParams, rad_params
   use FatesCohortMod        , only : fates_cohort_type
   use FatesPatchMod         , only : fates_patch_type
@@ -28,6 +29,7 @@ Module FatesTwoStreamUtilsMod
   use TwoStreamMLPEMod      , only : rel_err_thresh,area_err_thresh
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesAllometryMod     , only : VegAreaLayer
+  use EDParamsMod           , only : maxpatch_total
   
   implicit none
 
@@ -64,6 +66,7 @@ contains
     integer :: maxcol
     real(r8) :: canopy_frac(5)
     integer  :: ifp
+    integer  :: ib
     ! Area indices for the cohort [m2 media / m2 crown footprint]
     real(r8) :: elai_cohort,tlai_cohort,esai_cohort,tsai_cohort
     real(r8) :: vai_top,vai_bot  ! veg area index at top and bottom of cohort (dummy vars)
@@ -77,6 +80,16 @@ contains
     integer :: max_elements     ! Maximum number of scattering elements on the site
     integer :: n_scr            ! The size of the scratch arrays
     logical :: allocate_scratch ! Whether to re-allocate the scratch arrays
+
+    ! We need dummy variables for the solver, we don't want to update                                                                                                    
+    ! the output boundary conditions since the HLM remembers it                                                                                                          
+    real(r8) ,pointer :: albd_parb(:,:)
+    real(r8) ,pointer :: albi_parb(:,:)
+    real(r8) ,pointer :: fabd_parb(:,:)
+    real(r8) ,pointer :: fabi_parb(:,:)
+    real(r8) ,pointer :: ftdd_parb(:,:)
+    real(r8) ,pointer :: ftid_parb(:,:)
+    real(r8) ,pointer :: ftii_parb(:,:)
     
     ! These parameters are not used yet
     !real(r8) :: max_vai_diff_per_elem ! The maximum vai difference in any element
@@ -87,13 +100,13 @@ contains
     !type(fates_cohort_type), pointer :: elem_co_ptrs(ncl*max_el_per_layer,100)
 
     max_elements = -1
-    ifp=0
+
     patch => site%oldest_patch
     do while (associated(patch))
 
        if_notbareground: if(patch%nocomp_pft_label.ne.nocomp_bareground)then
-       
-       ifp=ifp+1
+          
+       ifp = patch%patchno
        associate(twostr => patch%twostr)
 
          
@@ -280,15 +293,14 @@ contains
          
          twostr%force_prep = .true.   ! This signals that two-stream scattering coefficients
 
-         !RGK-2SBFwrite(fates_log(),*)'creating patch: ',fcansno_pa(ifp),patch%fcansno
          
          ! that are dependent on geometry need to be updated
-         call twostr%CanopyPrep(fcansno_pa(ifp))
-         call twostr%ZenithPrep(site%coszen)
+         !call twostr%CanopyPrep(patch%fcansno)
+         !call twostr%ZenithPrep(site%coszen)
          
        end associate
 
-    end if if_notbareground
+       end if if_notbareground
        
        patch => patch%younger
     end do
@@ -319,7 +331,79 @@ contains
        allocate(site%omega_2str(n_scr,n_scr))
        allocate(site%ipiv_2str(n_scr))
     end if
-       
+
+    ! Update the solution for restart capabilities
+    ! When we restart, we will be able to re-construct
+    ! the scattering elements, but it will require
+    ! significant efforts to reconstruct the normalized scatter
+    ! environment that was generated before dynamics. So
+    ! we update the scattering environment now, so that it
+    ! is easier to reproduce on restarting. This is also required
+    ! so that we can get the actual sun-shade fractions
+    ! correct on the next step.
+
+    !return
+    
+    allocate(albd_parb(maxpatch_total,2))
+    allocate(albi_parb(maxpatch_total,2))
+    allocate(fabd_parb(maxpatch_total,2))
+    allocate(fabi_parb(maxpatch_total,2))
+    allocate(ftdd_parb(maxpatch_total,2))
+    allocate(ftid_parb(maxpatch_total,2))
+    allocate(ftii_parb(maxpatch_total,2))
+
+    patch => site%oldest_patch
+    do while (associated(patch))
+
+       if_notbareground2: if(patch%nocomp_pft_label.ne.nocomp_bareground)then
+          if_zenith: if (site%coszen>0._r8)then
+
+             ifp = patch%patchno
+             associate(twostr => patch%twostr)
+               
+               do ib = 1,num_swb
+                  
+                  twostr%band(ib)%albedo_grnd_diff = patch%gnd_alb_dif(ib)
+                  twostr%band(ib)%albedo_grnd_beam = patch%gnd_alb_dir(ib)
+                  
+                  call twostr%Solve(ib,             &  ! in                                                        
+                       normalized_upper_boundary,   &  ! in                                                        
+                       1.0_r8,1.0_r8,               &  ! in                                                        
+                       site%taulambda_2str,         &  ! inout (scratch)                                       
+                       site%omega_2str,             &  ! inout (scratch)                                       
+                       site%ipiv_2str,              &  ! inout (scratch)                                       
+                       albd_parb(ifp,ib), &
+                       albi_parb(ifp,ib), &
+                       patch%rad_error(ib),  &
+                       fabd_parb(ifp,ib), &
+                       fabi_parb(ifp,ib), &
+                       ftdd_parb(ifp,ib), &
+                       ftid_parb(ifp,ib), &
+                       ftii_parb(ifp,ib))
+                  
+               !bc_out(s)%albd_parb(ifp,ib), &  ! out                                                       
+               !     bc_out(s)%albi_parb(ifp,ib), &  ! out                                                       
+               !     currentPatch%rad_error(ib),  &  ! out                                                       
+               !     bc_out(s)%fabd_parb(ifp,ib), &  ! out                                                       
+               !     bc_out(s)%fabi_parb(ifp,ib), &  ! out                                                       
+               !     bc_out(s)%ftdd_parb(ifp,ib), &  ! out                                                       
+               !     bc_out(s)%ftid_parb(ifp,ib), &  ! out                                                       
+               !     bc_out(s)%ftii_parb(ifp,ib))
+
+               end do
+               
+
+             end associate
+          end if if_zenith
+       end if if_notbareground2
+
+       patch => patch%younger
+    end do
+
+    deallocate(albd_parb, albi_parb)
+    deallocate(fabd_parb, fabi_parb)
+    deallocate(ftdd_parb, ftid_parb, ftii_parb)
+    
     return
   end subroutine FatesConstructRadElements
 
@@ -347,7 +431,6 @@ contains
     laisha = 0._r8
 
     associate(twostr => patch%twostr)
-              
     
       do ican = 1,twostr%n_lyr
          do icol = 1,twostr%n_col(ican)
@@ -367,7 +450,6 @@ contains
                  call twostr%Dump(ivis,lat=site%lat,lon=site%lon)
                  call endrun(msg=errMsg(sourcefile, __LINE__))
               end if
-              
               
               laisun = laisun + scelg%area*scelg%lai*leaf_sun_frac
               laisha = laisha + scelg%area*scelg%lai*(1._r8-leaf_sun_frac)

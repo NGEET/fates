@@ -54,8 +54,6 @@ module FatesRadiationDriveMod
   logical :: debug = .false.  ! for debugging this module
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
-
-  logical :: preserve_b4b = .true.
   
 contains
 
@@ -133,6 +131,8 @@ contains
              currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
              currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
              currentPatch%rad_error(:)           = hlm_hio_ignore_val
+
+
              currentPatch%gnd_alb_dif(1:num_swb) = bc_in(s)%albgr_dif_rb(1:num_swb)
              currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
              currentPatch%fcansno                = bc_in(s)%fcansno_pa(ifp)
@@ -156,15 +156,13 @@ contains
 
                    associate( twostr => currentPatch%twostr)
 
-                     call twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp)) 
-                     call twostr%ZenithPrep(bc_in(s)%coszen)
-
-                     !RGK-2SBF write(fates_log(),*)'solve-patch:',currentPatch%patchno,bc_in(s)%fcansno_pa(ifp)
+                     call twostr%CanopyPrep(currentPatch%fcansno) 
+                     call twostr%ZenithPrep(sites(s)%coszen)
 
                      do ib = 1,num_swb
 
-                        twostr%band(ib)%albedo_grnd_diff = bc_in(s)%albgr_dif_rb(ib)
-                        twostr%band(ib)%albedo_grnd_beam = bc_in(s)%albgr_dir_rb(ib)
+                        twostr%band(ib)%albedo_grnd_diff = currentPatch%gnd_alb_dif(ib)
+                        twostr%band(ib)%albedo_grnd_beam = currentPatch%gnd_alb_dir(ib)
 
                         call twostr%Solve(ib,             &  ! in
                              normalized_upper_boundary,   &  ! in
@@ -247,21 +245,17 @@ contains
     
     do s = 1,nsites
 
-       !RGK-2SBF  write(fates_log(),*)'sunshade-cosz:',sites(s)%coszen,sites(s)%lat,sites(s)%lon
-       
-       ifp = 0
        cpatch => sites(s)%oldest_patch
-
        do while (associated(cpatch))
 
+          ifp = cpatch%patchno
+          
           if_notbareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
+
              ! do not do albedo calculations for bare ground patch in SP mode
              ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
              ! ifp=1 is the first vegetated patch.
-             ifp=ifp+1
 
-             !write(fates_log(),*)'patch info:',s,cpatch%nocomp_pft_label,cpatch%land_use_label
-             
              ! Initialize diagnostics
              cpatch%ed_parsun_z(:,:,:) = 0._r8
              cpatch%ed_parsha_z(:,:,:) = 0._r8
@@ -270,57 +264,32 @@ contains
              cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
              cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
 
-             bc_out(s)%fsun_pa(ifp) = 0._r8
 
-             ! preserve_b4b will be removed soon. This is kept here to prevent
-             ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
-             if(.not.preserve_b4b)then
-                bc_out(s)%laisun_pa(ifp) = 0._r8
-                bc_out(s)%laisha_pa(ifp) = calc_areaindex(cpatch,'elai')
-             end if
-
-             sunlai  = 0._r8
-             shalai  = 0._r8
              if_norm_twostr: if (radiation_model.eq.norman_solver) then
+
+                sunlai = 0._r8
+                shalai = 0._r8
                 
                 ! Loop over patches to calculate laisun_z and laisha_z for each layer.
                 ! Derive canopy laisun, laisha, and fsun from layer sums.
                 ! If sun/shade big leaf code, nrad=1 and fsun_z(p,1) and tlai_z(p,1) from
                 ! SurfaceAlbedo is canopy integrated so that layer value equals canopy value.
-                
                 ! cpatch%f_sun is calculated in the surface_albedo routine...
                 
                 do cl = 1, cpatch%ncl_p
                    do ft = 1,numpft
-                      ! preserve_b4b will be removed soon. This is kept here to prevent
-                      ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
-                      if(.not.preserve_b4b) then
-                         sunlai = sunlai + sum(cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
-                              cpatch%f_sun(cl,ft,1:cpatch%nrad(cl,ft)))
-                         shalai = shalai + sum(cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
-                      else
-                         do iv = 1,cpatch%nrad(cl,ft)
-                            cpatch%ed_laisun_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
-                                 cpatch%f_sun(CL,ft,iv)
-
-                            cpatch%ed_laisha_z(CL,ft,iv) = cpatch%elai_profile(CL,ft,iv) * &
-                                 (1._r8 - cpatch%f_sun(CL,ft,iv))
-                            
-                         end do
-
-                         !needed for the VOC emissions, etc.
-                         sunlai = sunlai + sum(cpatch%ed_laisun_z(CL,ft,1:cpatch%nrad(CL,ft)))
-                         shalai = shalai + sum(cpatch%ed_laisha_z(CL,ft,1:cpatch%nrad(CL,ft)))
-                         
-                      end if
+                      do iv = 1,cpatch%nrad(cl,ft)
+                         cpatch%ed_laisun_z(cl,ft,iv) = cpatch%elai_profile(cl,ft,iv) * &
+                              cpatch%f_sun(cl,ft,iv)
+                         cpatch%ed_laisha_z(cl,ft,iv) = cpatch%elai_profile(cl,ft,iv) * &
+                              (1._r8 - cpatch%f_sun(cl,ft,iv))
+                      end do
+                      !needed for the VOC emissions, etc.
+                      sunlai = sunlai + sum(cpatch%ed_laisun_z(cl,ft,1:cpatch%nrad(cl,ft)))
+                      shalai = shalai + sum(cpatch%ed_laisha_z(cl,ft,1:cpatch%nrad(cl,ft)))
                    end do
                 end do
-                ! preserve_b4b will be removed soon. This is kept here to prevent
-                ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
-                if(.not.preserve_b4b)then
-                   shalai = shalai-sunlai
-                end if
-                
+
                 if(sunlai+shalai > 0._r8)then
                    bc_out(s)%fsun_pa(ifp) = sunlai / (sunlai+shalai)
                 else
@@ -383,19 +352,23 @@ contains
                    end do    ! ft
                 end do       ! cl
                 
-             else
+             else  ! if_norm_twostr
 
                 ! If there is no sun out, we have a trivial solution
-                !RGK-2SBF  write(fates_log(),*)'sunshade-patch:',s,cpatch%patchno,cpatch%fcansno
-                
-                if_zenithflag: if( sites(s)%coszen>0._r8 ) then
+                if_zenithflag: if( .not. sites(s)%coszen>0._r8 ) then
+
+                   ! Initialize sun/shade fractions for times when zenith is not positive
+                   bc_out(s)%laisun_pa(ifp) = 0._r8
+                   bc_out(s)%laisha_pa(ifp) = calc_areaindex(cpatch,'elai')
+                   bc_out(s)%fsun_pa(ifp)   = 0._r8
+                   
+                else
 
                    ! Two-stream 
                    ! -----------------------------------------------------------
                    do ib = 1,num_swb
                       cpatch%twostr%band(ib)%Rbeam_atm = bc_in(s)%solad_parb(ifp,ib)
                       cpatch%twostr%band(ib)%Rdiff_atm = bc_in(s)%solai_parb(ifp,ib)
-
                    end do
                    
                    area_vlpfcl(:,:,:) = 0._r8

@@ -860,6 +860,12 @@ contains
                  a2 = scelg%Kd*scelg%Kd*(1._r8-scelb%om)*(1._r8-scelb%om+2._r8*scelb%om*scelb%betad)
                  if(a2<0._r8) then
                     write(log_unit,*)'a^2 is less than zero'
+                    write(log_unit,*) scelg%Kd
+                    write(log_unit,*) scelb%om
+                    write(log_unit,*) scelb%betad
+                    write(log_unit,*) this%frac_snow,this%frac_snow_old
+                    write(log_unit,*) ib,ican,icol,ft
+                    write(log_unit,*) om_snow(ib),vai,om_veg,this%force_prep
                     call endrun(msg=errMsg(sourcefile, __LINE__))
                  end if
                  
