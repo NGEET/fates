@@ -16,6 +16,7 @@ module SFEquationsMod
   public :: MaximumReactionVelocity
   public :: OptimumReactionVelocity
   public :: OptimumPackingRatio
+  public :: MoistureCoefficient
   public :: ReactionIntensity
   public :: HeatofPreignition
   public :: EffectiveHeatingNumber
@@ -67,7 +68,11 @@ module SFEquationsMod
       ! ARGUMENTS:
       real(r8), intent(in) :: SAV ! fuel surface area to volume ratio [/cm]
       
-      MaximumReactionVelocity = 1.0_r8/(0.0591_r8 + 2.926_r8*(SAV**(-1.5_r8)))
+      if (SAV < nearzero) then 
+        MaximumReactionVelocity = 0.0_r8
+      else 
+        MaximumReactionVelocity = 1.0_r8/(0.0591_r8 + 2.926_r8*(SAV**(-1.5_r8)))
+      end if
     
     end function MaximumReactionVelocity
    
@@ -116,6 +121,13 @@ module SFEquationsMod
       
       ! LOCALS:
       real(r8) :: mw_weight ! relative fuel moisture/fuel moisture of extinction
+      
+      if (MEF < nearzero) then 
+        ! this really should never happen - essentially fuel can never burn
+        ! but we are putting this here to avoid divide by zeros 
+        MoistureCoefficient = 0.0_r8
+        return
+      end if 
       
       ! average values for litter pools (dead leaves, twigs, small and large branches), plus grass
       mw_weight = moisture/MEF
