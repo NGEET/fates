@@ -99,19 +99,13 @@ contains
        ! Currently holding a copy of this at the site level for restarts
        sites(s)%coszen = bc_in(s)%coszen
 
-       ifp = 0
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
 
+          ifp = currentpatch%patchno
+          
           ! do not do albedo calculations for bare ground patch in SP mode
-          ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
-          ! ifp=1 is the first vegetated patch.
-
-          !ifp = currentPatch%patchno
-
-          if_notbareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
-
-             ifp = ifp + 1
+          nocomp_bareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              
              ! Initialize output boundary conditions with trivial assumption
              ! of a black body soil and fully transmitting canopy
@@ -134,17 +128,15 @@ contains
              currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
              currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
              currentPatch%rad_error(:)           = hlm_hio_ignore_val
-
-
              currentPatch%gnd_alb_dif(1:num_swb) = bc_in(s)%albgr_dif_rb(1:num_swb)
              currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
              currentPatch%fcansno                = bc_in(s)%fcansno_pa(ifp)
 
              if_zenith_flag: if( bc_in(s)%coszen>0._r8 )then
-
+                
                 select case(radiation_model)
                 case(norman_solver)
-
+                   
                    call PatchNormanRadiation (currentPatch, &
                         bc_in(s)%coszen, &
                         bc_out(s)%albd_parb(ifp,:), &   ! Surface Albedo direct
@@ -200,12 +192,10 @@ contains
 
                      end do
                    end associate
-
                 end select
-
              endif if_zenith_flag
-          end if if_notbareground
-
+          end if nocomp_bareground
+          
           currentPatch => currentPatch%younger
        end do
     end do
@@ -248,20 +238,15 @@ contains
     
     do s = 1,nsites
 
-       ifp = 0
        cpatch => sites(s)%oldest_patch
        do while (associated(cpatch))
 
-          !ifp = cpatch%patchno
+          ifp = cpatch%patchno
           
-          if_notbareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
+          nocomp_bareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
 
-             ifp = ifp + 1
-             
              ! do not do albedo calculations for bare ground patch in SP mode
-             ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
-             ! ifp=1 is the first vegetated patch.
-
+             
              ! Initialize diagnostics
              cpatch%ed_parsun_z(:,:,:) = 0._r8
              cpatch%ed_parsha_z(:,:,:) = 0._r8
@@ -269,7 +254,6 @@ contains
              cpatch%ed_laisha_z(:,:,:) = 0._r8
              cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
              cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
-
 
              if_norm_twostr: if (radiation_model.eq.norman_solver) then
 

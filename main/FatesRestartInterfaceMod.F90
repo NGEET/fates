@@ -45,6 +45,7 @@ module FatesRestartInterfaceMod
   use FatesFuelClassesMod,     only : num_fuel_classes
   use FatesLitterMod,          only : ndcmpy
   use EDTypesMod,              only : area
+  use EDTypesMod,              only : set_patchno
   use EDParamsMod,             only : nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
@@ -2888,8 +2889,9 @@ contains
                      init_seed_germ=fates_unset_r8)
              end do
 
-             ! give this patch a unique patch number
-             newp%patchno = idx_pa
+             ! Set the new patch number to nonsense, we will
+             ! call set_patchno()
+             newp%patchno = -9
 
 
              ! Iterate over the number of cohorts
@@ -3762,8 +3764,12 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
 
+
+          call set_patchno(sites(s),.false.,0)
+          
        end do
 
+       
        if ( debug ) then
           write(fates_log(),*) 'CVTL total cohorts ',totalCohorts
        end if
@@ -3828,10 +3834,14 @@ contains
         !bc_out(s)%ftid_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
         !bc_out(s)%ftii_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
 
-        ifp = 0
+        
+        
         currentpatch => sites(s)%oldest_patch
         while_patch: do while (associated(currentpatch))
+        do while (associated(currentpatch))
 
+           ifp = currentPatch%patchno
+           
            currentPatch%f_sun      (:,:,:) = 0._r8
            currentPatch%fabd_sun_z (:,:,:) = 0._r8
            currentPatch%fabd_sha_z (:,:,:) = 0._r8
@@ -3845,13 +3855,9 @@ contains
            currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
            currentPatch%rad_error(:) = 0._r8
 
-           !ifp = currentPatch%patchno
+           if_notbareground: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground) then
 
-           if_notbareground: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then
-
-              ifp = ifp+1
-              
-           if_zenith_flag: if( sites(s)%coszen>0._r8 )then
+           if_zenith_flag: if (sites(s)%coszen>0._r8) then
               
               select case(radiation_model)
               case(norman_solver)
@@ -3903,6 +3909,7 @@ contains
 
            end if if_zenith_flag
            end if if_notbareground    ! if the vegetation and zenith filter is active
+
            currentPatch => currentPatch%younger
         end do while_patch
      enddo do_sites

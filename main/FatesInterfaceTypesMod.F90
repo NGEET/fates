@@ -90,7 +90,7 @@ module FatesInterfaceTypesMod
                                                  ! between the pedotransfer functions of the HLM
                                                  ! and how it moves and stores water in its
                                                  ! rhizosphere shells
-   
+
    integer, public :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
                                                    ! Transport (exensible) Hypothesis (PARTEH) to use
 
