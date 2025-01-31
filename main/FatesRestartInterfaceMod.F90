@@ -3838,7 +3838,6 @@ contains
         
         currentpatch => sites(s)%oldest_patch
         while_patch: do while (associated(currentpatch))
-        do while (associated(currentpatch))
 
            ifp = currentPatch%patchno
            
@@ -3909,7 +3908,7 @@ contains
 
            end if if_zenith_flag
            end if if_notbareground    ! if the vegetation and zenith filter is active
-
+           
            currentPatch => currentPatch%younger
         end do while_patch
      enddo do_sites

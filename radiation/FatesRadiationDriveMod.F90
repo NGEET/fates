@@ -436,7 +436,7 @@ contains
                 end if if_zenithflag
              endif if_norm_twostr
              
-          end if if_notbareground
+          end if nocomp_bareground
           
           cpatch => cpatch%younger
        enddo
