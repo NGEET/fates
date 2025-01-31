@@ -46,9 +46,10 @@ Module FatesTwoStreamUtilsMod
 contains
 
 
-  subroutine FatesConstructRadElements(site) !,fcansno_pa)
+  subroutine FatesConstructRadElements(site)
 
     type(ed_site_type)  :: site
+
     type(fates_patch_type),pointer :: patch
     !real(r8)                    :: fcansno_pa(:)
     

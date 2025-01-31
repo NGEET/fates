@@ -1452,7 +1452,7 @@ contains
        call leaf_area_profile(sites(s))
        
        if(radiation_model.eq.twostr_solver) then
-          call FatesConstructRadElements(sites(s),bc_in(s)%fcansno_pa)
+          call FatesConstructRadElements(sites(s))
        end if
        
     end do ! site loop
