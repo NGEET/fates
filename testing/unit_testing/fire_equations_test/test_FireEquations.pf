@@ -87,8 +87,8 @@ module test_FireEquations
     end subroutine MaximumReactionVelocity_ZeroInput_ReturnsZero
     
     @Test 
-    subroutine MaximumReactionVelocity_DecreasesAsSAVIncreases(this)
-      ! test that MaximumReactionVelocity output decreases as SAV input increases
+    subroutine MaximumReactionVelocity_IncreasesAsSAVIncreases(this)
+      ! test that MaximumReactionVelocity output increases as SAV input increases
       class(TestFireEquations), intent(inout) :: this    ! test object
       real(r8)                                :: vels(5) ! maximum reaction velocity returned
       integer                                 :: i       ! looping index
@@ -99,12 +99,12 @@ module test_FireEquations
         vels(i) = MaximumReactionVelocity(sav_vals(i))
       end do
       
-      ! check that function outputs decrease as SAV increases
+      ! check that function outputs increase as SAV increases
       do i = 1, size(sav_vals) - 1
         @assertLessThan(vels(i), vels(i+1), tolerance=tol)
       end do
     
-    end subroutine MaximumReactionVelocity_DecreasesAsSAVIncreases
+    end subroutine MaximumReactionVelocity_IncreasesAsSAVIncreases
     
     @Test 
     subroutine MaximumReactionVelocity_VerySmall_ReturnsNonZero(this)
@@ -126,8 +126,8 @@ module test_FireEquations
       ! test that when beta ratio is zero, the function returns zero
       class(TestFireEquations), intent(inout) :: this                       ! test object
       real(r8)                                :: vel                        ! optimum reaction velocity returned
-      real(r8), parameter                     :: max_reaction_vel = 10.0_r8 ! default for maximum reaction velocity
-      real(r8), parameter                     :: sav = 50.0_r8              ! default for SAV
+      real(r8), parameter                     :: max_reaction_vel = 10.0_r8 ! value for maximum reaction velocity
+      real(r8), parameter                     :: sav = 50.0_r8              ! value for SAV
     
       vel = OptimumReactionVelocity(max_reaction_vel, sav, 0.0_r8)
       @assertEqual(vel, 0.0_r8)
@@ -139,8 +139,8 @@ module test_FireEquations
       ! test that when beta ratio is 1.0, the function returns maximum reaction velocity
       class(TestFireEquations), intent(inout) :: this                       ! test object
       real(r8)                                :: vel                        ! optimum reaction velocity returned
-      real(r8), parameter                     :: max_reaction_vel = 10.0_r8 ! default for maximum reaction velocity
-      real(r8), parameter                     :: sav = 50.0_r8              ! default for SAV
+      real(r8), parameter                     :: max_reaction_vel = 10.0_r8 ! value for maximum reaction velocity
+      real(r8), parameter                     :: sav = 50.0_r8              ! value for SAV
     
       vel = OptimumReactionVelocity(max_reaction_vel, sav, 1.0_r8)
       @assertEqual(vel, max_reaction_vel)
@@ -153,7 +153,7 @@ module test_FireEquations
       class(TestFireEquations), intent(inout) :: this                       ! test object
       real(r8)                                :: vel                        ! optimum reaction velocity returned
       integer                                 :: i, j                       ! looping indices
-      real(r8), parameter                     :: max_reaction_vel = 10.0_r8 ! default for maximum reaction velocity
+      real(r8), parameter                     :: max_reaction_vel = 10.0_r8 ! value for maximum reaction velocity
       ! hard-coded sav and beta values
       real(r8), parameter :: sav_vals(3) = [10.0_r8, 50.0_r8, 100.0_r8]
       real(r8), parameter :: beta_vals(3) = [0.25_r8, 0.5_r8, 0.75_r8]
@@ -168,13 +168,13 @@ module test_FireEquations
     end subroutine OptimumReactionVelocity_ReasonableInputs_ReturnsNonZero
     
     @Test 
-    subroutine OptimumReactionVelocity_DecreasesAsSAVIncreases(this)
-      ! test that OptimumReactionVelocity output decreases as SAV input increases
+    subroutine OptimumReactionVelocity_IncreasesAsSAVIncreases(this)
+      ! test that OptimumReactionVelocity output increases as SAV input increases
       class(TestFireEquations), intent(inout) :: this                       ! test object
       real(r8)                                :: vels(7)                    ! maximum reaction velocity returned
       integer                                 :: i                          ! looping index
-      real(r8), parameter                     :: max_reaction_vel = 10.0_r8 ! default for maximum reaction velocity
-      real(r8), parameter                     :: beta = 0.5_r8              ! default for beta
+      real(r8), parameter                     :: max_reaction_vel = 10.0_r8 ! value for maximum reaction velocity
+      real(r8), parameter                     :: beta = 0.5_r8              ! value for beta
       ! hard-coded sav values
       real(r8), parameter :: sav_vals(7) = [0.1_r8, 1.0_r8, 10.0_r8, 50.0_r8, 100.0_r8, 500.0_r8, 1000.0_r8]
     
@@ -182,12 +182,12 @@ module test_FireEquations
         vels(i) = OptimumReactionVelocity(max_reaction_vel, sav_vals(i), beta)
       end do
       
-      ! check that function outputs decrease as SAV increases
+      ! check that function increases decrease as SAV increases
       do i = 1, size(sav_vals) - 1
         @assertLessThan(vels(i), vels(i+1), tolerance=tol)
       end do
     
-    end subroutine OptimumReactionVelocity_DecreasesAsSAVIncreases
+    end subroutine OptimumReactionVelocity_IncreasesAsSAVIncreases
     
     @Test 
     subroutine OptimumReactionVelocity_ScalesWithMaxReactionVel(this)
@@ -196,10 +196,10 @@ module test_FireEquations
       real(r8)                                :: vel1                        ! result for max reaction vel 1
       real(r8)                                :: vel2                        ! result for max reaction vel 2
       real(r8)                                :: ratio                       ! ratio between vel2 and vel1
-      real(r8), parameter                     :: max_reaction_vel1 = 5.0_r8  ! default 1 for maximum reaction velocity
-      real(r8), parameter                     :: max_reaction_vel2 = 10.0_r8 ! default 2 for maximum reaction velocity
-      real(r8), parameter                     :: sav = 50.0_r8               ! default for SAV
-      real(r8), parameter                     :: beta = 0.6_r8               ! default for beta
+      real(r8), parameter                     :: max_reaction_vel1 = 5.0_r8  ! value 1 for maximum reaction velocity
+      real(r8), parameter                     :: max_reaction_vel2 = 10.0_r8 ! value 2 for maximum reaction velocity
+      real(r8), parameter                     :: sav = 50.0_r8               ! value for SAV
+      real(r8), parameter                     :: beta = 0.6_r8               ! value for beta
 
       vel1 = OptimumReactionVelocity(max_reaction_vel1, sav, beta)
       vel2 = OptimumReactionVelocity(max_reaction_vel2, sav, beta)
@@ -214,7 +214,7 @@ module test_FireEquations
       ! test that when moisture is zero, the function returns one
       class(TestFireEquations), intent(inout) :: this         ! test object
       real(r8)                                :: coeff        ! result 
-      real(r8),                 parameter     :: MEF = 0.3_r8 ! default value for MEF
+      real(r8),                 parameter     :: MEF = 0.3_r8 ! value for MEF
 
       coeff = MoistureCoefficient(0.0_r8, MEF)
       @assertEqual(coeff, 1.0_r8)
@@ -226,7 +226,7 @@ module test_FireEquations
       ! test that when moisture exceeds MEF, the function resturns zero
       class(TestFireEquations), intent(inout) :: this         ! test object
       real(r8)                                :: coeff        ! result 
-      real(r8),                 parameter     :: MEF = 0.3_r8 ! default value for MEF
+      real(r8),                 parameter     :: MEF = 0.3_r8 ! value for MEF
 
       coeff = MoistureCoefficient(0.4_r8, MEF)
       @assertEqual(coeff, 0.0_r8)
@@ -239,7 +239,7 @@ module test_FireEquations
       class(TestFireEquations), intent(inout) :: this         ! test object
       real(r8)                                :: coeffs(6)    ! result 
       integer                                 :: i            ! looping index
-      real(r8),                 parameter     :: MEF = 0.6_r8 ! default value for MEF
+      real(r8),                 parameter     :: MEF = 0.6_r8 ! value for MEF
       ! hard-coded moisture values
       real(r8), parameter :: moist(6) = [0.1_r8, 0.2_r8, 0.3_r8, 0.4_r8, 0.5_r8, 0.55_r8]
      
@@ -250,11 +250,11 @@ module test_FireEquations
       do i = 1, size(moist) - 1
         
         ! check that function outputs decrease as moisture increases
-        @assertLessThan(moist(i), moist(i+1), tolerance=tol)
+        @assertGreaterThan(coeffs(i), coeffs(i+1), tolerance=tol)
         
         ! also make sure value is between 0.0 and 1.0
-        @assertLessThan(moist(i), 1.0_r8, tolerance=tol)
-        @assertGreaterThan(moist(i), 0.0_r8, tolerance=tol)
+        @assertLessThan(coeffs(i), 1.0_r8, tolerance=tol)
+        @assertGreaterThan(coeffs(i), 0.0_r8, tolerance=tol)
       end do
     
     end subroutine MoistureCoefficient_DecreasesWithIncreasingMoisture
@@ -264,11 +264,98 @@ module test_FireEquations
       ! test that when MEF == zero, function returns zero - this is an edge case
       class(TestFireEquations), intent(inout) :: this           ! test object
       real(r8)                                :: coeff          ! result 
-      real(r8),                 parameter     :: moist = 0.3_r8 ! default value for moisture
+      real(r8),                 parameter     :: moist = 0.3_r8 ! value for moisture
 
       coeff = MoistureCoefficient(moist, 0.0_r8)
       @assertEqual(coeff, 0.0_r8)
       
     end subroutine MoistureCoefficient_MEFZero_ReturnsZero
+    
+    @Test 
+    subroutine ReactionIntensity_HighMoisture_ReactionIntensityZero(this)
+      ! test that when moisture exceeds MEF, reaction intensity is zero
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: I_r                 ! result 
+      real(r8),                 parameter     :: fuel = 1.0_r8       ! value for fuel loading
+      real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      real(r8),                 parameter     :: MEF = 0.3_r8        ! value for beta MEF
+
+      I_r = ReactionIntensity(fuel, SAV,  beta_ratio, 0.5_r8, MEF)
+      @assertEqual(I_r, 0.0_r8)
+      
+    end subroutine ReactionIntensity_HighMoisture_ReactionIntensityZero
+    
+    @Test 
+    subroutine ReactionIntensity_DecreasesWithIncreasingMoisture(this)
+      ! test that reaction intensity decreases with increasing moisture
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: I_r(4)              ! result
+      integer                                 :: i                   ! looping index
+      real(r8),                 parameter     :: fuel = 1.0_r8       ! value for fuel loading
+      real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      real(r8),                 parameter     :: MEF = 0.5_r8        ! value for beta MEF
+      ! hard-coded moisture values
+      real(r8), parameter :: moist(4) = [0.1_r8, 0.2_r8, 0.3_r8, 0.4_r8]
+     
+      do i = 1, size(moist)
+        I_r(i) = ReactionIntensity(fuel, SAV,  beta_ratio, moist(i), MEF)
+      end do
+    
+      do i = 1, size(moist) - 1
+        ! check that function outputs decrease as moisture increases
+        @assertGreaterThan(I_r(i), I_r(i+1), tolerance=tol)
+      end do
+            
+    end subroutine ReactionIntensity_DecreasesWithIncreasingMoisture
+    
+    @Test 
+    subroutine ReactionIntensity_IncreasesWithIncreasingFuel(this)
+      ! test that reaction intensity increases with increasing fuel loading
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: I_r(5)              ! result
+      integer                                 :: i                   ! looping index
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moiture
+      real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      real(r8),                 parameter     :: MEF = 0.5_r8        ! value for beta MEF
+      ! hard-coded moisture values
+      real(r8), parameter :: fuel(5) = [0.01_r8, 1.0_r8, 5.0_r8, 10.0_r8, 100.0_r8]
+     
+      do i = 1, size(fuel)
+        I_r(i) = ReactionIntensity(fuel(i), SAV,  beta_ratio, moist, MEF)
+      end do
+    
+      do i = 1, size(fuel) - 1
+        ! check that function outputs increase as fuel increases
+        @assertLessThan(I_r(i), I_r(i+1), tolerance=tol)
+      end do
+            
+    end subroutine ReactionIntensity_IncreasesWithIncreasingFuel
+    
+    @Test 
+    subroutine ReactionIntensity_IncreasesWithIncreasingSAV(this)
+      ! test that reaction intensity increases with increasing SAV
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: I_r(5)              ! result
+      integer                                 :: i                   ! looping index
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moiture
+      real(r8),                 parameter     :: fuel = 10.0_r8      ! value for fuel
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      real(r8),                 parameter     :: MEF = 0.5_r8        ! value for beta MEF
+      ! hard-coded moisture values
+      real(r8), parameter :: SAV(5) = [0.1_r8, 1.0_r8, 5.0_r8, 10.0_r8, 100.0_r8]
+     
+      do i = 1, size(fuel)
+        I_r(i) = ReactionIntensity(fuel(i), SAV,  beta_ratio, moist, MEF)
+      end do
+    
+      do i = 1, size(fuel) - 1
+        ! check that function outputs increase as fuel increases
+        @assertLessThan(I_r(i), I_r(i+1), tolerance=tol)
+      end do
+            
+    end subroutine ReactionIntensity_IncreasesWithIncreasingSAV
     
 end module test_FireEquations

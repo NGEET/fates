@@ -123,7 +123,7 @@ module SFEquationsMod
       real(r8) :: mw_weight ! relative fuel moisture/fuel moisture of extinction
       
       if (MEF < nearzero) then 
-        ! this really should never happen - essentially fuel can never burn
+        ! this really should never happen - essentially this means fuel can never burn
         ! but we are putting this here to avoid divide by zeros 
         MoistureCoefficient = 0.0_r8
         return
