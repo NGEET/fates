@@ -417,7 +417,6 @@ module SFEquationsMod
       FireSize = 0.0_r8
       return
     end if
-    
     FireSize = (pi_const/(4.0_r8*length_to_breadth))*((dist_forward + dist_back)**2.0_r8)
   
   end function FireSize
