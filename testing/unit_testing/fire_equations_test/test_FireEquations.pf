@@ -14,7 +14,8 @@ module test_FireEquations
   type, extends(TestCase) :: TestFireEquations
   end type TestFireEquations
 
-  real(r8), parameter :: tol = 1.e-7_r8
+  real(r8), parameter :: low_tol = 1.e-7_r8
+  real(r8), parameter :: high_tol = 1.e-13_r8
 
   contains 
 
@@ -42,16 +43,16 @@ module test_FireEquations
     
       ! test 1.0, 10.0, 100.0, 1000.0
       beta = OptimumPackingRatio(1.0_r8)
-      @assertEqual(beta, 0.200395_r8, tolerance=tol)
+      @assertEqual(beta, 0.200395_r8, tolerance=low_tol)
       
       beta = OptimumPackingRatio(10.0_r8)
-      @assertEqual(beta, 0.03040793_r8, tolerance=tol)
+      @assertEqual(beta, 0.03040793_r8, tolerance=low_tol)
       
       beta = OptimumPackingRatio(100.0_r8)
-      @assertEqual(beta, 0.004614099_r8, tolerance=tol)
+      @assertEqual(beta, 0.004614099_r8, tolerance=low_tol)
       
       beta = OptimumPackingRatio(1000.0_r8)
-      @assertEqual(beta, 0.0007001432_r8, tolerance=tol)
+      @assertEqual(beta, 0.0007001432_r8, tolerance=low_tol)
       
     end subroutine OptimumPackingRatio_ReturnsReasonableValues
     
@@ -101,7 +102,7 @@ module test_FireEquations
       
       ! check that function outputs increase as SAV increases
       do i = 1, size(sav_vals) - 1
-        @assertLessThan(vels(i), vels(i+1), tolerance=tol)
+        @assertLessThan(vels(i), vels(i+1))
       end do
     
     end subroutine MaximumReactionVelocity_IncreasesAsSAVIncreases
@@ -161,7 +162,7 @@ module test_FireEquations
       do i = 1, size(sav_vals)
         do j = 1, size(beta_vals)
           vel = OptimumReactionVelocity(max_reaction_vel, sav_vals(i), beta_vals(j))
-          @assertGreaterThan(vel, 0.0_r8, tolerance=tol)
+          @assertGreaterThan(vel, 0.0_r8)
         end do
       end do
       
@@ -184,7 +185,7 @@ module test_FireEquations
       
       ! check that function increases decrease as SAV increases
       do i = 1, size(sav_vals) - 1
-        @assertLessThan(vels(i), vels(i+1), tolerance=tol)
+        @assertLessThan(vels(i), vels(i+1))
       end do
     
     end subroutine OptimumReactionVelocity_IncreasesAsSAVIncreases
@@ -205,7 +206,7 @@ module test_FireEquations
       vel2 = OptimumReactionVelocity(max_reaction_vel2, sav, beta)
       ratio = vel2/vel1
       
-      @assertEqual(ratio, 2.0_r8 , tolerance=tol)
+      @assertEqual(ratio, 2.0_r8)
       
     end subroutine OptimumReactionVelocity_ScalesWithMaxReactionVel
     
@@ -250,11 +251,11 @@ module test_FireEquations
       do i = 1, size(moist) - 1
         
         ! check that function outputs decrease as moisture increases
-        @assertGreaterThan(coeffs(i), coeffs(i+1), tolerance=tol)
+        @assertGreaterThan(coeffs(i), coeffs(i+1))
         
         ! also make sure value is between 0.0 and 1.0
-        @assertLessThan(coeffs(i), 1.0_r8, tolerance=tol)
-        @assertGreaterThan(coeffs(i), 0.0_r8, tolerance=tol)
+        @assertLessThan(coeffs(i), 1.0_r8)
+        @assertGreaterThan(coeffs(i), 0.0_r8)
       end do
     
     end subroutine MoistureCoefficient_DecreasesWithIncreasingMoisture
@@ -305,7 +306,7 @@ module test_FireEquations
     
       do i = 1, size(moist) - 1
         ! check that function outputs decrease as moisture increases
-        @assertGreaterThan(I_r(i), I_r(i+1), tolerance=tol)
+        @assertGreaterThan(I_r(i), I_r(i+1), tolerance=high_tol)
       end do
             
     end subroutine ReactionIntensity_DecreasesWithIncreasingMoisture
@@ -329,7 +330,7 @@ module test_FireEquations
     
       do i = 1, size(fuel) - 1
         ! check that function outputs increase as fuel increases
-        @assertLessThan(I_r(i), I_r(i+1), tolerance=tol)
+        @assertLessThan(I_r(i), I_r(i+1), tolerance=high_tol)
       end do
             
     end subroutine ReactionIntensity_IncreasesWithIncreasingFuel
@@ -353,7 +354,7 @@ module test_FireEquations
     
       do i = 1, size(SAV) - 1
         ! check that function outputs increase as SAV increases
-        @assertLessThan(I_r(i), I_r(i+1), tolerance=tol)
+        @assertLessThan(I_r(i), I_r(i+1), tolerance=high_tol)
       end do
             
     end subroutine ReactionIntensity_IncreasesWithIncreasingSAV
@@ -377,7 +378,7 @@ module test_FireEquations
     
       do i = 1, size(beta_ratio) - 1
         ! check that function outputs increase as beta_ratio increases
-        @assertLessThan(I_r(i), I_r(i+1), tolerance=tol)
+        @assertLessThan(I_r(i), I_r(i+1), tolerance=high_tol)
       end do
             
     end subroutine ReactionIntensity_IncreasesWithIncreasingBeta
@@ -402,7 +403,7 @@ module test_FireEquations
     
       do i = 1, size(MEF) - 1
         ! check that function outputs increase as beta_ratio increases
-        @assertLessThan(I_r(i), I_r(i+1), tolerance=tol)
+        @assertLessThan(I_r(i), I_r(i+1), tolerance=high_tol)
       end do
             
     end subroutine ReactionIntensity_IncreasesWithIncreasingMEF
@@ -419,8 +420,7 @@ module test_FireEquations
       real(r8),                 parameter     :: MEF = 0.5_r8        ! value for beta MEF
      
       I_r = ReactionIntensity(0.0_r8, SAV,  beta_ratio, moist, MEF)
-
-      @assertEqual(I_r, 0.0_r8, tolerance=tol)
+      @assertEqual(I_r, 0.0_r8)
             
     end subroutine ReactionIntensity_ZeroFuel_ZeroIntensity
     
@@ -451,7 +451,7 @@ module test_FireEquations
     
       do i = 1, size(moist) - 1
         ! check that function outputs increase as moisture increases
-        @assertLessThan(Q_ig(i), Q_ig(i+1), tolerance=tol)
+        @assertLessThan(Q_ig(i), Q_ig(i+1))
       end do
             
     end subroutine HeatofPreignition_IncreasesWithIncreasingMoisture
@@ -487,7 +487,7 @@ module test_FireEquations
     
       do i = 1, size(SAV) - 1
         ! check that function outputs increase as SAV increases
-        @assertLessThan(eps(i), eps(i+1), tolerance=tol)
+        @assertLessThan(eps(i), eps(i+1))
       end do
             
     end subroutine EffectiveHeatingNumber_IncreasesWithIncreasingSAV
@@ -522,7 +522,7 @@ module test_FireEquations
     
       do i = 1, size(wind) - 1
         ! check that function outputs increase as wind speed increases
-        @assertLessThan(phi(i), phi(i+1), tolerance=tol)
+        @assertLessThan(phi(i), phi(i+1))
       end do
      
     end subroutine WindFactor_IncreasesWithIncreasingWindSpeed
@@ -544,7 +544,7 @@ module test_FireEquations
     
       do i = 1, size(SAV) - 1
         ! check that function outputs decreases as SAV increases
-        @assertGreaterThan(phi(i), phi(i+1), tolerance=tol)
+        @assertGreaterThan(phi(i), phi(i+1))
       end do
      
     end subroutine WindFactor_DecreasesWithIncreasingSAV
@@ -566,7 +566,7 @@ module test_FireEquations
     
       do i = 1, size(beta_ratio) - 1
         ! check that function outputs decreases as SAV increases
-        @assertGreaterThan(phi(i), phi(i+1), tolerance=tol)
+        @assertGreaterThan(phi(i), phi(i+1))
       end do
      
     end subroutine WindFactor_DecreasesWithIncreasingBeta
@@ -587,7 +587,7 @@ module test_FireEquations
     
       do i = 1, size(SAV) - 1
         ! check that function outputs increases as SAV increases
-        @assertLessThan(prop_flux(i), prop_flux(i+1), tolerance=tol)
+        @assertLessThan(prop_flux(i), prop_flux(i+1))
       end do
      
     end subroutine PropagatingFlux_IncreasesWithIncreasingSAV
@@ -608,7 +608,7 @@ module test_FireEquations
     
       do i = 1, size(beta) - 1
         ! check that function outputs increases as beta increases
-        @assertLessThan(prop_flux(i), prop_flux(i+1), tolerance=tol)
+        @assertLessThan(prop_flux(i), prop_flux(i+1))
       end do
      
     end subroutine PropagatingFlux_IncreasesWithIncreasingBeta
@@ -731,5 +731,150 @@ module test_FireEquations
       @assertEqual(ros_back, 0.0_r8)
       
     end subroutine BackwardsRateofSpread_ZeroROS_ReturnsZero
-  
+    
+    @Test 
+    subroutine FireDuration_ZeroFDI_ReturnsOne(this)
+      ! test that if FDI is zero, FireDuration returns 1.0
+      class(TestFireEquations), intent(inout) :: this ! test object
+      real(r8)                                :: fd   ! result
+ 
+      fd = FireDuration(0.0_r8)
+      @assertEqual(fd, 1.0_r8)
+      
+    end subroutine FireDuration_ZeroFDI_ReturnsOne
+    
+    @Test 
+    subroutine FireDuration_IncreasesWithIncreasingFDI(this)
+      ! test that fire duration increases with increasing FDI
+      class(TestFireEquations), intent(inout) :: this  ! test object
+      real(r8)                                :: fd(4) ! result
+      integer                                 :: i     ! looping index
+      ! hard-coded FDI values
+      real(r8), parameter :: FDI(4) = [0.1_r8, 0.25_r8, 0.75_r8, 1.0_r8]
+      
+      do i = 1, size(FDI)
+        fd(i) = FireDuration(FDI(i))
+      end do
+    
+      do i = 1, size(FDI) - 1
+        ! check that function outputs increases as FDI increases
+        @assertLessThan(fd(i), fd(i+1), tolerance=high_tol)
+      end do
+     
+    end subroutine FireDuration_IncreasesWithIncreasingFDI
+    
+    @Test 
+    subroutine LengthToBreadth_ZeroWind_ReturnsOne(this)
+      ! test that if effective windspeed is zero, the function returns one
+      class(TestFireEquations), intent(inout) :: this                    ! test object
+      real(r8)                                :: ltb                     ! result
+      real(r8),                 parameter     :: tree_fraction = 0.75_r8 ! value for tree fraction
+ 
+      ltb = LengthToBreadth(0.0_r8, tree_fraction)
+      @assertEqual(ltb, 1.0_r8)
+      
+    end subroutine LengthToBreadth_ZeroWind_ReturnsOne
+    
+    @Test 
+    subroutine LengthToBreadth_IncreasesWithIncreasingWind_Forest(this)
+      ! test that the length to breadth ratio increases with increasing wind speed in forested patches
+      class(TestFireEquations), intent(inout) :: this                    ! test object
+      real(r8)                                :: ltb(4)                  ! result
+      integer                                 :: i                       ! looping index
+      real(r8),                 parameter     :: tree_fraction = 0.75_r8 ! value for tree fraction
+      ! hard-coded wind values
+      real(r8), parameter :: wind(4) = [1.1_r8, 10.0_r8, 100.0_r8, 500.0_r8]
+      
+      do i = 1, size(wind)
+        ltb(i) = LengthToBreadth(wind(i), tree_fraction)
+        ! make sure greater than 1.0
+        @assertGreaterThan(ltb(i), 1.0_r8, tolerance=high_tol)
+      end do
+    
+      do i = 1, size(wind) - 1
+        ! check that function outputs increases as wind speed increases
+        @assertLessThan(ltb(i), ltb(i+1), tolerance=high_tol)
+      end do
+     
+    end subroutine LengthToBreadth_IncreasesWithIncreasingWind_Forest
+    
+    @Test 
+    subroutine LengthToBreadth_IncreasesWithIncreasingWind_Grassland(this)
+      ! test that the length to breadth ratio increases with increasing wind speed in grassland patches
+      class(TestFireEquations), intent(inout) :: this                   ! test object
+      real(r8)                                :: ltb(4)                 ! result
+      integer                                 :: i                      ! looping index
+      real(r8),                 parameter     :: tree_fraction = 0.0_r8 ! value for tree fraction
+      ! hard-coded wind values
+      real(r8), parameter :: wind(4) = [1.1_r8, 10.0_r8, 100.0_r8, 500.0_r8]
+      
+      do i = 1, size(wind)
+        ltb(i) = LengthToBreadth(wind(i), tree_fraction)
+        ! make sure greater than 1.0
+        @assertGreaterThan(ltb(i), 1.0_r8, tolerance=high_tol)
+      end do
+    
+      do i = 1, size(wind) - 1
+        ! check that function outputs increases as wind speed increases
+        @assertLessThan(ltb(i), ltb(i+1), tolerance=high_tol)
+      end do
+     
+    end subroutine LengthToBreadth_IncreasesWithIncreasingWind_Grassland
+    
+    @Test 
+    subroutine LengthToBreadth_UsesCorrectTreeVsGrassEquations(this)
+      ! test that the function uses the correct equation depending on the tree_fraction
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: ltb                          ! result
+      real(r8),                 parameter     :: wind = 200.0_r8              ! value for wind speed
+      real(r8),                 parameter     :: expected_grass_ltb = 3.4844  ! expected value for grassland patches
+      real(r8),                 parameter     :: expected_forest_ltb = 1.6628 ! expected value for forested patches
+      
+      ! test low tree fraction
+      ltb = LengthToBreadth(wind, 0.0_r8)
+      @assertEqual(ltb, expected_grass_ltb, tolerance=1e-4)
+      
+      ! test high tree fraction
+      ltb = LengthToBreadth(wind, 0.99_r8)
+      @assertEqual(ltb, expected_forest_ltb, tolerance=1e-4)
+      
+      ! test tree fraction exactly at threshold
+      ! should be grassland
+      ltb = LengthToBreadth(wind, 0.55_r8)
+      @assertEqual(ltb, expected_grass_ltb, tolerance=1e-4)
+      
+    end subroutine LengthToBreadth_UsesCorrectTreeVsGrassEquations
+    
+    @Test 
+    subroutine FireSize_ZeroLtB_ReturnsZero(this)
+      ! test that when the length_to_breadth ratio is zero or near zero, the function returns zero
+      class(TestFireEquations), intent(inout) :: this                   ! test object
+      real(r8)                                :: fire_size              ! result
+      real(r8),                 parameter     :: ros_back = 5.0_r8      ! value backwards ros
+      real(r8),                 parameter     :: ros_forward = 10.0_r8  ! value for forward ros
+      real(r8),                 parameter     :: fire_duration = 8.0_r8 ! value for fire duration
+      
+      ! first test 0.0
+      fire_size = FireSize(0.0_r8, ros_back, ros_forward, fire_duration)
+      @assertEqual(fire_size, 0.0_r8)
+      
+      ! now test close to zero
+      fire_size = FireSize(1.0e-31_r8, ros_back, ros_forward, fire_duration)
+      @assertEqual(fire_size, 0.0_r8)
+      
+    end subroutine FireSize_ZeroLtB_ReturnsZero
+    
+    @Test 
+    subroutine FireSize_ZeroROS_ReturnsZero(this)
+      ! test that when the rates of spread are zero, the function returns zero
+      class(TestFireEquations), intent(inout) :: this                       ! test object
+      real(r8)                                :: fire_size                  ! result
+      real(r8),                 parameter     :: fire_duration = 8.0_r8     ! value for fire duration
+      real(r8),                 parameter     :: length_to_breadth = 2.0_r8 ! value for fire duration
+      
+      fire_size = FireSize(length_to_breadth, 0.0_r8, 0.0_r8, fire_duration)
+      @assertEqual(fire_size, 0.0_r8)
+
+    end subroutine FireSize_ZeroROS_ReturnsZero
+    
 end module test_FireEquations
