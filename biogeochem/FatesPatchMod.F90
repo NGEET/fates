@@ -563,9 +563,6 @@ module FatesPatchMod
       this%fabd(:)                           = 0.0_r8
       this%sabs_dir(:)                       = 0.0_r8
       this%sabs_dif(:)                       = 0.0_r8
-      this%fcansno                           = 0.0_r8
-      this%gnd_alb_dif(:)                    = 0.0_r8
-      this%gnd_alb_dir(:)                    = 0.0_r8
       
       ! ROOTS
       this%btran_ft(:)                       = 0.0_r8

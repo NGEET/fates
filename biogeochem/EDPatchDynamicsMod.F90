@@ -762,11 +762,6 @@ contains
                                   
                             endif
 
-                            ! Transfer over radiation variables
-                            newPatch%fcansno = currentPatch%fcansno
-                            newPatch%gnd_alb_dif(:) = currentPatch%gnd_alb_dif(:)
-                            newPatch%gnd_alb_dir(:) = currentPatch%gnd_alb_dir(:)
-                            
                             ! Transfer the litter existing already in the donor patch to the new patch
                             ! This call will only transfer non-burned litter to new patch
                             ! and burned litter to atmosphere. Thus it is important to zero fuel%frac_burnt when
@@ -1424,12 +1419,6 @@ contains
                 buffer_patch%tallest  => null()
                 buffer_patch%shortest => null()
 
-
-                ! Transfer over radiation variables
-                buffer_patch%fcansno = copyPatch%fcansno
-                buffer_patch%gnd_alb_dif(:) = copyPatch%gnd_alb_dif(:)
-                buffer_patch%gnd_alb_dir(:) = copyPatch%gnd_alb_dir(:)
-                
                 call CopyPatchMeansTimers(copyPatch, buffer_patch)
 
                 ! make a note that this buffer patch has not been put into the linked list
@@ -1728,11 +1717,6 @@ contains
     new_patch%tallest  => null()
     new_patch%shortest => null()
 
-    ! Transfer over radiation variables
-    new_patch%fcansno = currentPatch%fcansno
-    new_patch%gnd_alb_dif(:) = currentPatch%gnd_alb_dif(:)
-    new_patch%gnd_alb_dir(:) = currentPatch%gnd_alb_dir(:)
-    
     call CopyPatchMeansTimers(currentPatch, new_patch)
 
     call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, 0)
@@ -3293,12 +3277,6 @@ contains
     ! Radiation
     rp%rad_error(1)         = (dp%rad_error(1)*dp%area + rp%rad_error(1)*rp%area) * inv_sum_area
     rp%rad_error(2)         = (dp%rad_error(2)*dp%area + rp%rad_error(2)*rp%area) * inv_sum_area
-    rp%gnd_alb_dif(1)       = (dp%gnd_alb_dif(1)*dp%area + rp%gnd_alb_dif(1)*rp%area) * inv_sum_area
-    rp%gnd_alb_dif(2) 	    = (dp%gnd_alb_dif(2)*dp%area + rp%gnd_alb_dif(2)*rp%area) * inv_sum_area
-    rp%gnd_alb_dir(1) 	    = (dp%gnd_alb_dir(1)*dp%area + rp%gnd_alb_dir(1)*rp%area) * inv_sum_area
-    rp%gnd_alb_dir(2)       = (dp%gnd_alb_dir(2)*dp%area + rp%gnd_alb_dir(2)*rp%area) * inv_sum_area
-    rp%fcansno              = (dp%fcansno*dp%area + rp%fcansno*rp%area) * inv_sum_area
-    
     
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
