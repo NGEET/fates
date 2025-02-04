@@ -152,7 +152,8 @@ contains
          else
             canopy_frac(:) = 0._r8
          end if
-         
+
+         ! Add the air element if the canopy area is not filled
          do ican = 1,patch%ncl_p
             if( (1._r8-canopy_frac(ican))>area_err_thresh ) then
                n_col(ican) = n_col(ican) + 1
@@ -250,6 +251,19 @@ contains
                twostr%scelg(ican,n_col(ican))%sai  = 0._r8
             end if
 
+            ! Check to see if any of these layers are extremely over-full and stop the
+            ! model if so. This should not happen and would most likely be an issue
+            ! with the canopy ppa promotion/demotion logic
+            ! This is more of a sanity check, so we use a 1% threshold
+            if_very_overfull: if( (canopy_frac(ican)-1._r8)>0.01_r8 ) then
+               write(fates_log(),*) 'One of the fates canopy layers takes up'
+               write(fates_log(),*) 'more than 100% of the area footprint, exceeding a'
+               write(fates_log(),*) 'precision threshold of 0.01'
+               write(fates_log(),*) 'Aborting'
+               write(fates_log(),*) 'canopy layer: ',ican',canopy_frac:',canopy_frac(ican)
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if if_very_overfull
+               
             ! If the layer is overfull, remove some from area from
             ! the element with the largest footprint
 
