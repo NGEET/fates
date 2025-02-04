@@ -78,7 +78,7 @@ contains
     integer :: max_elements     ! Maximum number of scattering elements on the site
     integer :: n_scr            ! The size of the scratch arrays
     logical :: allocate_scratch ! Whether to re-allocate the scratch arrays
-    integer  :: icolmax         ! Column index for each layer with largest are footprint
+    integer  :: icolmax         ! Column index for each layer with largest area footprint
     real(r8) :: areamax         ! The area footprint of the largest column
     
     ! its possible that there is more horizontal area taken up by the cohorts
