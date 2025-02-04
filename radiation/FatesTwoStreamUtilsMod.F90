@@ -255,15 +255,16 @@ contains
             ! model if so. This should not happen and would most likely be an issue
             ! with the canopy ppa promotion/demotion logic
             ! This is more of a sanity check, so we use a 1% threshold
-            if_very_overfull: if( (canopy_frac(ican)-1._r8)>0.01_r8 ) then
-               write(fates_log(),*) 'One of the fates canopy layers takes up'
-               write(fates_log(),*) 'more than 100% of the area footprint, exceeding a'
-               write(fates_log(),*) 'precision threshold of 0.01'
-               write(fates_log(),*) 'Aborting'
-               write(fates_log(),*) 'canopy layer: ',ican',canopy_frac:',canopy_frac(ican)
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if if_very_overfull
-               
+            if(debug)then
+               if_very_overfull: if( (canopy_frac(ican)-1._r8)>0.01_r8 ) then
+                  write(fates_log(),*) 'One of the fates canopy layers takes up'
+                  write(fates_log(),*) 'more than 100% of the area footprint, exceeding a'
+                  write(fates_log(),*) 'precision threshold of 0.01'
+                  write(fates_log(),*) 'Aborting'
+                  write(fates_log(),*) 'canopy layer: ',ican',canopy_frac:',canopy_frac(ican)
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if if_very_overfull
+            end if
             ! If the layer is overfull, remove some from area from
             ! the element with the largest footprint
 
@@ -281,6 +282,18 @@ contains
                
                ! Test out a simpler way to correct area errors
                if(do_simple_area_correct) then
+                  if(debug) then
+                     if((canopy_frac(ican)-1._r8)>0.5_r8*twostr%scelg(ican,icolmax)%area)then
+                        write(fates_log(),*) 'An area correction is being applied where '
+                        write(fates_log(),*) 'the correction is greater than 50% of the area of the largest donor.'
+                        write(fates_log(),*) 'This will have to large of an impact on the donor and is not representative'
+                        write(fates_log(),*) 'of the actual composition of the canopy'
+                        write(fates_log(),*) 'Aborting'
+                        write(fates_log(),*) 'canopy layer: ',ican',canopy_frac:',canopy_frac(ican)
+                        write(fates_log(),*) 'existing donor area',twostr%scelg(ican,icolmax)%area
+                        call endrun(msg=errMsg(sourcefile, __LINE__))
+                     end if
+                  end if
                   twostr%scelg(ican,icolmax)%area = twostr%scelg(ican,icolmax)%area - (canopy_frac(ican)-1._r8)
                else
                   area_ratio = (twostr%scelg(ican,icolmax)%area + (1._r8-canopy_frac(ican)))/twostr%scelg(ican,icolmax)%area
