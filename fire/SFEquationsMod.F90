@@ -29,6 +29,7 @@ module SFEquationsMod
   public :: FireSize
   public :: AreaBurnt
   public :: FireIntensity
+  public :: ScorchHeight
   
   contains 
   
@@ -455,6 +456,7 @@ module SFEquationsMod
     !  DESCRIPTION:
     !  Calculates fire intensity [kW/m]
     !  Eq 15 Thonicke et al 2010
+    !
 
     use SFParamsMod, only : SF_val_fuel_energy
 
@@ -465,5 +467,152 @@ module SFEquationsMod
     FireIntensity = SF_val_fuel_energy*fuel_consumed*ros
 
   end function FireIntensity
+  
+  !---------------------------------------------------------------------------------------
+  
+  real(r8) function ScorchHeight(alpha_SH, FI)
+    !
+    !  DESCRIPTION:
+    !  Calculates scortch height [m]
+    ! 
+    !  Equation 16 in Thonicke et al. 2010 
+    !  Van Wagner 1973 Eq. 8; Byram (1959)
+    !
+
+    ! ARGUMENTS:
+    real(r8), intent(in) :: alpha_SH ! alpha parameter for scorch height equation
+    real(r8), intent(in) :: FI       ! fire intensity [kW/m]
+    
+    ScorchHeight = alpha_SH*(FI**0.667_r8)
+
+  end function ScorchHeight
+  
+  !---------------------------------------------------------------------------------------
+  
+  real(r8) function CrownFractionBurnt(SH, height, crown_depth)
+    !
+    !  DESCRIPTION:
+    !  Calculates fraction of the crown burnt of woody plants
+    !  Equation 17 in Thonicke et al. 2010
+    !
+
+    ! ARGUMENTS:
+    real(r8), intent(in) :: SH          ! scorch height [m]
+    real(r8), intent(in) :: height      ! plant height [m]
+    real(r8), intent(in) :: crown_depth ! crown depth [m]
+    
+    CrownFractionBurnt = (SH - height + crown_depth)/crown_depth
+    CrownFractionBurnt = min(1.0_r8, max(0.0_r8, CrownFractionBurnt))
+
+  end function CrownFractionBurnt
+  
+  !---------------------------------------------------------------------------------------
+  
+  real(r8) function CrownFractionBurnt(SH, height, crown_depth)
+    !
+    !  DESCRIPTION:
+    !  Calculates fraction of the crown burnt of woody plants [0-1]
+    !  Equation 17 in Thonicke et al. 2010
+    !
+
+    ! ARGUMENTS:
+    real(r8), intent(in) :: SH          ! scorch height [m]
+    real(r8), intent(in) :: height      ! plant height [m]
+    real(r8), intent(in) :: crown_depth ! crown depth [m]
+    
+    CrownFractionBurnt = (SH - height + crown_depth)/crown_depth
+    CrownFractionBurnt = min(1.0_r8, max(0.0_r8, CrownFractionBurnt))
+
+  end function CrownFractionBurnt
+  
+  !---------------------------------------------------------------------------------------
+  
+  real(r8) function BarkThickness(bark_scalar, dbh)
+    !
+    !  DESCRIPTION:
+    !  Calculates bark thickness [cm]
+    !  Equation 21 in Thonicke et al 2010
+    !
+
+    ! ARGUMENTS:
+    real(r8), intent(in) :: bark_scalar ! bark per dbh [cm/cm]
+    real(r8), intent(in) :: dbh         ! diameter at breast height [cm]
+    
+    BarkThickness = bark_scalar*dbh
+
+  end function BarkThickness
+  
+  !---------------------------------------------------------------------------------------
+    
+  real(r8) function CambialMortality(bark_scalar, dbh, tau_l)
+    !
+    !  DESCRIPTION:
+    !  Calculates rate of cambial damage mortality [0-1]
+    !  Equation 19 in Thonicke et al. 2010
+    !
+
+    ! ARGUMENTS:
+    real(r8), intent(in) :: bark_scalar ! cm bark per cm dbh [cm/cm]
+    real(r8), intent(in) :: dbh         ! diameter at breast height [cm]
+    real(r8), intent(in) :: tau_l       ! residence time of fire [min]
+    
+    ! LOCALS:
+    real(r8) :: bark_thickness ! bark thickness [cm]
+    real(r8) :: tau_c          ! critical fire residence time for cambial damage [min]
+    real(r8) :: tau_r          ! tau_l/tau_c
+    
+    bark_thickness = BarkThickness(bark_scalar*dbh)
+    
+    ! calculate critical residence time
+    tau_c = 2.9_r8*bark_thickness**2.0_r8
+    tau_r = tau_l/tau_c
+  
+    if (tau_r >= 2.0_r8) then
+      CambialMortality = 1.0_r8 
+    else if (tau_r < 2.0_r8 & tau_r > 0.22_r8)
+      CambialMortality = (0.563_r8*tau_r) - 0.125_r8
+    else 
+      CambialMortality = 0.0_r8
+    end if
+    
+  end function CambialMortality
+  
+  !---------------------------------------------------------------------------------------
+  
+  real(r8) function CrownFireMortality(crown_kill, fraction_crown_burned)
+    !
+    !  DESCRIPTION:
+    !  Calculates rate of mortality from crown scorching [0-1]
+    !  Equation 19 in Thonicke et al. 2010
+    !
+
+    ! ARGUMENTS:
+    real(r8), intent(in) :: crown_kill            ! cm bark per cm dbh [cm/cm]
+    real(r8), intent(in) :: fraction_crown_burned ! fraction of the crown burned [0-1]
+    
+    CrownFireMortality = crown_kill*fraction_crown_burned**3.0_r8
+    
+  end function CrownFireMortality
+  
+  !---------------------------------------------------------------------------------------
+
+  real(r8) function TotalFireMortality(crownfire_mort, cambial_damage_mort)
+    !
+    !  DESCRIPTION:
+    !  Calculates rate of mortality from wildfire [0-1]
+    !  Equation 18 in Thonicke et al. 2010
+    !
+
+    ! ARGUMENTS:
+    real(r8), intent(in) :: crownfire_mort      ! mortality rate from crown scorching [0-1]
+    real(r8), intent(in) :: cambial_damage_mort ! mortality rate from cambial damage [0-1]
+    
+    TotalFireMortality = crownfire_mort + cambial_damage_mort - (crownfire_mort*cambial_damage_mort)
+    if (TotalFireMortality > 1.0_r8) TotalFireMortality = 1.0_r8
+    if (TotalFireMortality < nearzero) TotalFireMortality = 0.0_r8
+    
+  end function TotalFireMortality
+  
+  !---------------------------------------------------------------------------------------
   
 end module SFEquationsMod

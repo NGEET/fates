@@ -40,9 +40,6 @@ module SFMainMod
   public :: DailyFireModel
   public :: UpdateFuelCharacteristics
 
-  integer :: write_SF = ifalse   ! for debugging
-  logical :: debug = .false.     ! for debugging
-
   ! ======================================================================================
 
 contains
@@ -66,6 +63,7 @@ contains
       call CalculateSurfaceRateOfSpread(currentSite)
       call CalculateSurfaceFireIntensity(currentSite)
       call CalculateAreaBurnt(currentSite)
+      
       call crown_scorching(currentSite)
       call crown_damage(currentSite)
       call cambial_damage_kill(currentSite)
@@ -464,6 +462,88 @@ contains
    
   !---------------------------------------------------------------------------------------
   
+  subroutine CalculatePostFireMortality(currentSite)
+    !
+    !  DESCRIPTION:
+    !  Calculates mortality (for woody PFTs) due to fire from crown scorching and cambial damage
+    !
+    use SFEquationsMod, only : ScorchHeight, CrownFireMortality, CrownFractionBurnt
+    use SFEquationsMod, only : CambialMortality, TotalFireMortality
+    
+    ! ARGUMENTS:
+    type(ed_site_type), intent(in), target :: currentSite ! site object
+    
+    ! LOCALS:
+    type(fates_patch_type),  pointer :: currentPatch    ! patch object
+    type(fates_cohort_type), pointer :: currentCohort   ! cohort object
+    real(r8)                         :: tree_ag_biomass ! total amount of above-ground tree biomass in patch [kgC/m2]
+    
+    currentPatch => currentSite%oldest_patch
+    do while (associated(currentPatch))
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground .and. currentPatch%fire == 1) then
+        
+        ! sum up woody agoveground biomass on patch
+        tree_ag_biomass = 0.0_r8
+        currentCohort => currentPatch%tallest
+        do while (associated(currentCohort))
+          if (prt_params%woody(currentCohort%pft) == itrue) then
+            leaf_c = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+            sapw_c = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+            struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
+            tree_ag_biomass = tree_ag_biomass + currentCohort%n*(leaf_c + prt_params%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
+          end if 
+          currentCohort => currentCohort%shorter
+        end do
+        
+        ! calculate scorch height [m]
+        currentPatch%Scorch_ht(:) = 0.0_r8
+        if (tree_ag_biomass > 0.0_r8) then 
+          do i_pft = 1, numpft
+            if (prt_params%woody(i_pft) == itrue) then 
+              currentPatch%Scorch_ht(i_pft) = ScorchHeight(EDPftvarcon_inst%fire_alpha_SH(i_pft), currentPatch%FI)
+            end if
+          end do
+        end if 
+        
+        ! now calculate actual mortality
+        do while (associated(currentCohort))  
+          
+          currentCohort%fraction_crown_burned = 0.0_r8
+          currentCohort%fire_mort = 0.0_r8
+          currentCohort%crownfire_mort = 0.0_r8
+          currentCohort%cambial_damage_kill = 0.0_r8
+          
+          if (prt_params%woody(currentCohort%pft) == itrue) then 
+            
+            call CrownDepth(currentCohort%height, currentCohort%pft, crown_depth)
+            
+            ! calculate crown fraction burned
+            currentCohort%fraction_crown_burned = CrownFractionBurnt(currentPatch%Scorch_ht(currentCohort%pft),  &
+              currentCohort%height, crown_depth)
+              
+            ! calculate cambial mortality            
+            currentCohort%cambial_damage_kill = CambialMortality(EDPftvarcon_inst%bark_scaler(currentCohort%pft), & 
+              currentCohort%dbh, currentPatch%tau_l)
+            
+            ! calculate crown fire mortality
+            currentCohort%crownfire_mort = CrownFireMortality(EDPftvarcon_inst%crown_kill(currentCohort%pft), &
+              currentCohort%fraction_crown_burned)
+              
+            ! total fire mortality
+            currentCohort%fire_mort = TotalFireMortality(currentCohort%crownfire_mort,   &
+              currentCohort%cambial_mort)
+              
+          end if
+          currentCohort => currentCohort%shorter
+        end do 
+      end if
+      currentPatch => currentPatch%younger
+    end do 
+  
+  end subroutine CalculatePostFireMortality
+  
+  !---------------------------------------------------------------------------------------
+  
   subroutine crown_scorching(currentSite) 
 
   type(ed_site_type), intent(in), target :: currentSite
@@ -488,11 +568,9 @@ contains
         currentCohort => currentPatch%tallest
         do while (associated(currentCohort))  
           if (prt_params%woody(currentCohort%pft) == itrue) then
-
             leaf_c = currentCohort%prt%GetState(leaf_organ, carbon12_element)
             sapw_c = currentCohort%prt%GetState(sapw_organ, carbon12_element)
             struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
-
             tree_ag_biomass = tree_ag_biomass + currentCohort%n*(leaf_c + prt_params%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
           end if 
           currentCohort => currentCohort%shorter
