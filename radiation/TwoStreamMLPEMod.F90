@@ -372,8 +372,11 @@ contains
 
       if(debug)then
          ! if(isnan(r_diff_dn))then  !RGK: NVHPC HAS A BUG IN THIS INTRINSIC (01-2024)
+         ! if(shr_infnan_isnan(r_diff_dn)) then !RGK: this statement simply didn't work
+
+         ! Dont trigger an endrun, we flag an error with r_diff_dn,
+         ! which will be caught downstream and reported with more information
          if(r_diff_dn /= r_diff_dn) then
-            !if(shr_infnan_isnan(r_diff_dn)) then
             r_diff_dn = -1.e6_r8
             write(log_unit,*)"GETRDN"
             write(log_unit,*)scelg%Kb
@@ -568,6 +571,7 @@ contains
       r_dn_bot = this%GetRdDn(ican,icol,ib,vai_bot)
 
       if(r_dn_top<-1.e5 .or. r_dn_bot<-1.e5) then
+         write(log_unit,*) 'error in diffuse calculations, negative values'
          call_fail = .true.
          return
       end if

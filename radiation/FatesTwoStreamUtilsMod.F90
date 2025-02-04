@@ -223,21 +223,23 @@ contains
             ! Cohort needs to know which column its in
             cohort%twostr_col = n_col(ican)
 
-            if ( twostr%scelg(ican,n_col(ican))%area .gt. 1.1_r8) then
-               ! cdk error here.
-               write(fates_log(),*) 'error in calc of twostr%scelg(ican,n_col(ican))%area. should be less than 1'
-               write(fates_log(),*) twostr%scelg(ican,n_col(ican))%area
-               write(fates_log(),*) cohort%c_area, patch%total_canopy_area
-               call patch%Dump()
-               cohort => patch%tallest
-               do while (associated(cohort))
-                  write(fates_log(),*) ' ------- dumping cohort ------'
-                  call cohort%Dump()
-                  write(fates_log(),*) ''
-                  cohort => cohort%shorter
-               enddo
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            endif
+            if (debug) then
+               if ( twostr%scelg(ican,n_col(ican))%area .gt. 1.1_r8) then
+                  write(fates_log(),*) 'error in calc of twostr%scelg(ican,n_col(ican))%area.'
+                  write(fates_log(),*) 'should be less than 1'
+                  write(fates_log(),*) twostr%scelg(ican,n_col(ican))%area
+                  write(fates_log(),*) cohort%c_area, patch%total_canopy_area
+                  call patch%Dump()
+                  cohort => patch%tallest
+                  do while (associated(cohort))
+                     write(fates_log(),*) ' ------- dumping cohort ------'
+                     call cohort%Dump()
+                     write(fates_log(),*) ''
+                     cohort => cohort%shorter
+                  enddo
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               endif
+            end if
 
             cohort => cohort%shorter
          enddo
@@ -285,11 +287,6 @@ contains
          max_elements = max(max_elements,twostr%n_scel)
          
          twostr%force_prep = .true.   ! This signals that two-stream scattering coefficients
-
-         
-         ! that are dependent on geometry need to be updated
-         !call twostr%CanopyPrep(patch%fcansno)
-         !call twostr%ZenithPrep(site%coszen)
          
        end associate
 
@@ -302,7 +299,7 @@ contains
     ! The scratch space needs to be 2x the number of computational elements
     ! for the patch with the most elements.
     
-    if(allocated(site%taulambda_2str)) then ! .and. max_elements>0 )then
+    if(allocated(site%taulambda_2str)) then
        n_scr = ubound(site%taulambda_2str,dim=1)
        allocate_scratch = .false.
        if(2*max_elements > n_scr) then
@@ -359,7 +356,8 @@ contains
             associate(scelg => patch%twostr%scelg(ican,icol))
             
               call twostr%GetAbsRad(ican,icol,ivis,0._r8,scelg%lai+scelg%sai, &
-                   Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac,call_fail)
+                   Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem, &
+                   R_abs_snow,leaf_sun_frac,call_fail)
               
               if(call_fail) then
                  write(fates_log(),*) 'patch failure:',patch%patchno,' of:'
@@ -456,6 +454,8 @@ contains
       if( abs(check_fab-in_fab) > in_fab*10._r8*rel_err_thresh ) then
          write(fates_log(),*)'Absorbed radiation didnt balance after cohort sum'
          write(fates_log(),*) ib,in_fab,check_fab,snow_depth
+         ! Remove the comment below for more information about the failure
+         ! We keep it commented for now because the output is significant
          !call twostr%Dump(ib,patch%site%coszen)
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
