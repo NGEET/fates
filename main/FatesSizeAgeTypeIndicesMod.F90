@@ -271,7 +271,7 @@ contains
 
    integer             :: landusepft_class
 
-   landusepft_class = landuse_label + (n_landuse_cats-1) * pft
+   landusepft_class = landuse_label + n_landuse_cats * (pft-1)
 
   end function get_landusepft_class_index
 
