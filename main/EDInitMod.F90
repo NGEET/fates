@@ -26,7 +26,7 @@ module EDInitMod
   use PRTParametersMod          , only : prt_params
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
   use EDCohortDynamicsMod       , only : InitPRTObject
-  use EDPatchDynamicsMod        , only : set_patchno
+  use EDTypesMod                , only : set_patchno
   use EDPhysiologyMod           , only : calculate_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
   use FatesInterfaceTypesMod    , only : hlm_day_of_year
@@ -282,6 +282,7 @@ contains
     site_in%smp_memory(:,:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
 
+    site_in%coszen = 0._r8
     site_in%phen_model_date  = fates_unset_int
 
     ! Disturbance rates tracking
@@ -713,7 +714,7 @@ contains
              sites(s)%iflux_balance(el)%iflux_litter  = litter_stock * area_inv
 
           end do
-          call set_patchno(sites(s))
+          call set_patchno(sites(s),.false.,0)
        enddo
        
     else
@@ -987,7 +988,7 @@ contains
              
           end do
 
-          call set_patchno(sites(s))
+          call set_patchno(sites(s),.false.,0)
 
        enddo sites_loop 
     end if

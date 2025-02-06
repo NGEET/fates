@@ -60,6 +60,7 @@ module FatesNormanRadMod
 contains
 
   subroutine PatchNormanRadiation (currentPatch, &
+       coszen, &
        albd_parb_out, &   ! (ifp,ib)
        albi_parb_out, &   ! (ifp,ib)
        fabd_parb_out, &   ! (ifp,ib)
@@ -79,6 +80,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     type(fates_patch_type), intent(inout), target :: currentPatch
+    real(r8), intent(in)    :: coszen
     real(r8), intent(inout) :: albd_parb_out(num_swb)
     real(r8), intent(inout) :: albi_parb_out(num_swb)
     real(r8), intent(inout) :: fabd_parb_out(num_swb)
@@ -234,7 +236,7 @@ contains
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
     ! Direct beam extinction coefficient, k_dir. PFT specific.
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
-    cosz = max(0.001_r8, currentPatch%solar_zenith_angle ) !copied from previous radiation code...
+    cosz = max(0.001_r8, coszen ) !copied from previous radiation code...
     do ft = 1,numpft
        sb = (90._r8 - (acos(cosz)*180._r8/pi_const)) * (pi_const / 180._r8)
        phi1b(ft) = 0.5_r8 - 0.633_r8*xl(ft) - 0.330_r8*xl(ft)*xl(ft)
