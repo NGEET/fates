@@ -836,7 +836,9 @@ contains
     !-----------------------------------------------------------------------
 
     ! check patch order (set second argument to true)
-    ! call set_patchno(currentSite,.true.,1)
+    if (debug) then
+       call set_patchno(currentSite,.true.,1)
+    end if
     
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting))then
       call canopy_spread(currentSite)
