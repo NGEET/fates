@@ -43,7 +43,7 @@ module EDPhysiologyMod
   use EDPftvarcon      , only    : GetDecompyFrac
   use FatesInterfaceTypesMod, only    : bc_in_type
   use FatesInterfaceTypesMod, only    : bc_out_type
-  use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
+  use EDCohortDynamicsMod , only : create_cohort
   use EDCohortDynamicsMod , only : InitPRTObject
   use FatesAllometryMod   , only : tree_lai_sai
   use FatesAllometryMod   , only : leafc_from_treelai
@@ -676,7 +676,8 @@ contains
 
        ! Add debug diagnstic output to determine which patch
        if (debug) then
-          write(fates_log(),*) 'Current patch cohorts:', currentPatch%countcohorts
+          write(fates_log(),*) 'Current patch:', ipatch
+          write(fates_log(),*) 'Current patch cohorts:', currentPatch%num_cohorts
        endif
 
        currentCohort => currentPatch%tallest
@@ -2782,6 +2783,7 @@ contains
             endif any_recruits
          endif use_this_pft_if
       enddo  !pft loop
+      call currentPatch%ValidateCohorts()
    end subroutine recruitment
 
    ! ======================================================================================
