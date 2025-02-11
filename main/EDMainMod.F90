@@ -86,7 +86,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : InitPlantHydStates
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
-  use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
+  use FatesAllometryMod        , only : h_allom
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use EDLoggingMortalityMod    , only : get_harvestable_carbon
   use DamageMainMod            , only : IsItDamageTime
@@ -480,8 +480,8 @@ contains
              call Mortality_Derivative(currentSite, currentCohort, bc_in,      &
                currentPatch%btran_ft, mean_temp,                               &
                currentPatch%land_use_label,                                    &
-               currentPatch%age_since_anthro_disturbance, current_fates_landuse_state_vector(primaryland),   &
-               current_fates_landuse_state_vector(secondaryland), harvestable_forest_c, harvest_tag)
+               currentPatch%age_since_anthro_disturbance, current_fates_landuse_state_vector,   &
+               harvestable_forest_c, harvest_tag)
 
 
              ! -----------------------------------------------------------------------------

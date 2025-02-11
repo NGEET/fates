@@ -93,7 +93,6 @@ contains
     ! local variables
     integer  :: ft                 ! pft index
     integer  :: iage               ! leaf age class index
-    integer  :: c                  ! cwd index
 
     associate( vcmax25top => EDPftvarcon_inst%vcmax25top ) 
     
