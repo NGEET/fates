@@ -247,18 +247,6 @@ contains
   end subroutine LeafBiophysReceiveParams
 
   ! ====================================================================================
-  
-  ! subroutine LeafBiophysCheckParams()
-     !write (fates_log(),*)'error, incorrect stomatal slope scaling method (stomatal_intercept_method) applied'
-     !write (fates_log(),*)'valid options are:'
-     !write (fates_log(),*)'btran_on_gs = 0, 
-     !write (fates_log(),*)'btran_on_gs  = 1, apply btran to the stomatal conductance intercept'
-     !write (fates_log(),*)'btran_on_gs_gs1
-     !write (fates_log(),*)'you specified stomatal_intercept_method = ',stomatal_intercept_method
-     !call endrun(msg=errMsg(sourcefile, __LINE__))
-  ! end if
-   
-  ! =====================================================================================
 
   subroutine LeafBiophysReportParams(is_master)
 

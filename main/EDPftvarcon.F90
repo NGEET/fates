@@ -59,10 +59,6 @@ module EDPftvarcon
      real(r8), allocatable :: initd(:)               ! initial seedling density
 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
-     real(r8), allocatable :: bb_slope(:)            ! ball berry slope parameter
-     real(r8), allocatable :: medlyn_slope(:)        ! Medlyn slope parameter KPa^0.5
-     real(r8), allocatable :: stomatal_intercept(:)  ! intercept of stomatal conductance model
-
 
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
      real(r8), allocatable :: lf_fcel(:)             ! Leaf litter cellulose fraction [-]
@@ -383,18 +379,6 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_recruit_seed_supplement'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_stomatal_slope_ballberry'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_stomatal_slope_medlyn'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_stomatal_intercept'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -802,18 +786,6 @@ contains
     name = 'fates_recruit_seed_supplement'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seed_suppl)
-
-    name = 'fates_leaf_stomatal_slope_ballberry'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%bb_slope)
-
-    name = 'fates_leaf_stomatal_slope_medlyn'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%medlyn_slope)
-
-    name = 'fates_leaf_stomatal_intercept'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%stomatal_intercept)
 
     name = 'fates_frag_leaf_flab'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1598,9 +1570,6 @@ contains
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
-        write(fates_log(),fmt0) 'bb_slope = ',EDPftvarcon_inst%bb_slope
-        write(fates_log(),fmt0) 'medlyn_slope = ',EDPftvarcon_inst%medlyn_slope
-        write(fates_log(),fmt0) 'stomatal_intercept = ',EDPftvarcon_inst%stomatal_intercept
         write(fates_log(),fmt0) 'lf_flab = ',EDPftvarcon_inst%lf_flab
         write(fates_log(),fmt0) 'lf_fcel = ',EDPftvarcon_inst%lf_fcel
         write(fates_log(),fmt0) 'lf_flig = ',EDPftvarcon_inst%lf_flig
