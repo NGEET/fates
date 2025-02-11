@@ -579,6 +579,13 @@ contains
   ! ============================================================================
 
   subroutine set_patchno( currentSite, check , call_id)
+
+    !
+    ! !DESCRIPTION:
+    ! Give patches an order number from the oldest to youngest. 
+    ! Oldest patches start with an index of 1.
+    ! Special case: For no-comp runs, we treat the bare-ground
+    ! patch as index 0.
     
     type(ed_site_type),intent(in) :: currentSite
     logical,intent(in) :: check     ! If true, we are checking order, not setting
