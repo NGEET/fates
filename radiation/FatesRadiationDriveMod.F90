@@ -104,7 +104,7 @@ contains
 
           ifp = currentpatch%patchno
           
-          nocomp_bareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
+          if_bareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              
              ! Zero diagnostics
              currentPatch%f_sun      (:,:,:) = 0._r8
@@ -237,7 +237,7 @@ contains
                 end if if_nrad
 
              endif if_zenith_flag
-          end if nocomp_bareground
+          end if if_bareground
 
           currentPatch => currentPatch%younger
        end do       ! Loop linked-list patches
