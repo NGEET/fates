@@ -95,8 +95,8 @@ module LeafBiophysicsMod
   real(r8),parameter :: h2o_co2_bl_diffuse_ratio = 1.4_r8
 
   ! Constants used to define C3 versus C4 photosynth pathways
-  integer, parameter :: c3_path_index = 1
-  integer, parameter :: c4_path_index = 0
+  integer, public, parameter :: c3_path_index = 1
+  integer, public, parameter :: c4_path_index = 0
 
 
   ! Constants used to define conductance models
