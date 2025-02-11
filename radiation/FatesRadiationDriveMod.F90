@@ -284,7 +284,7 @@ contains
 
           ifp = cpatch%patchno
           
-          nocomp_bareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
+          if_bareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
 
              ! do not do albedo calculations for bare ground patch in SP mode
              
@@ -485,7 +485,7 @@ contains
                 end if if_zenithflag
              endif if_norm_twostr
              
-          end if if_notbareground
+          end if if_bareground
           
           cpatch => cpatch%younger
        enddo
