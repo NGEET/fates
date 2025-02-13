@@ -676,7 +676,7 @@ contains
 
        ! Add debug diagnstic output to determine which patch
        if (debug) then
-          write(fates_log(),*) 'Current patch:', ipatch
+          write(fates_log(),*) 'Current patch:', currentPatch%patchno
           write(fates_log(),*) 'Current patch cohorts:', currentPatch%num_cohorts
        endif
 
