@@ -3806,6 +3806,8 @@ contains
      use FatesNormanRadMod, only : PatchNormanRadiation
      use EDTypesMod,             only : ed_site_type
      use FatesPatchMod,          only : fates_patch_type
+     use FatesConstantsMod,      only : nocomp_bareground
+
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -3848,7 +3850,7 @@ contains
            ! currentPatch%solar_zenith_flag     (is there daylight?)
            ! currentPatch%solar_zenith_angle    (what is the value?)
            ! -----------------------------------------------------------
-           nocomp_bareground: if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
+           if_bareground: if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
            if(currentPatch%solar_zenith_flag)then
 
@@ -3923,7 +3925,7 @@ contains
               endif ! is there vegetation?
               
            end if    ! if the vegetation and zenith filter is active
-           end if nocomp_bareground
+           end if if_bareground
            currentPatch => currentPatch%younger
         end do       ! Loop linked-list patches
      enddo           ! Loop Sites
