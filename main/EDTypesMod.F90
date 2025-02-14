@@ -5,6 +5,7 @@ module EDTypesMod
   use FatesConstantsMod,     only : ifalse
   use FatesConstantsMod,     only : itrue
   use FatesConstantsMod,     only : nocomp_bareground_land
+  use FatesConstantsMod,     only : nocomp_bareground
   use FatesConstantsMod,     only : secondaryland
   use FatesConstantsMod,     only : secondary_age_threshold
   use FatesConstantsMod,     only : nearzero
@@ -22,7 +23,7 @@ module EDTypesMod
   use PRTGenericMod,         only : num_element_types
   use PRTGenericMod,         only : carbon12_element
   use FatesLitterMod,        only : litter_type
-  use FatesLitterMod,        only : ncwd, NFSC
+  use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : days_per_year
   use FatesRunningMeanMod,   only : rmean_type,rmean_arr_type
   use FatesConstantsMod,     only : fates_unset_r8
@@ -151,7 +152,7 @@ module EDTypesMod
 
   ! =====================================================================================
 
-  type, public :: site_fluxdiags_type
+  type, public :: elem_diag_type
 
      ! ----------------------------------------------------------------------------------
      ! Diagnostics of fluxes
@@ -159,29 +160,106 @@ module EDTypesMod
      ! file after number densities of plants have changed. They also
      ! allow the history flux diagnostics to be rebuilt during restart
      !
-     !
      ! Litter fluxes are the total from 
      ! (1) turnover from living plants
      ! (2) mass transfer from non-disturbance inducing mortality events
      ! (3) mass transfer from disturbance inducing mortality events
      ! [kg / ha / day]
      ! ---------------------------------------------------------------------------------
-
+     
      real(r8) :: cwd_ag_input(1:ncwd)               
      real(r8) :: cwd_bg_input(1:ncwd)               
-     real(r8),allocatable :: leaf_litter_input(:)
+     real(r8),allocatable :: surf_fine_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
+
+     real(r8) :: tot_seed_turnover ! decay of living seed bank to
+                                   ! fragmented litter [kg/m2/day]
+     real(r8) :: exported_harvest  ! mass of harvested vegetation exported and not sent to litter [kg/m2/day]
+     real(r8) :: burned_liveveg    ! Amount of mass burned from living plants [kg/m2/day]
+
+     ! Integrated Error Terms ( Int. Flux - State ) 
+     
+     real(r8) :: err_liveveg       ! Error from comparing [state-integrated flux]
+                                   ! in live vegetation [kg/m2]
+     real(r8) :: err_litter        ! Net change in litter [kg/m2]
+     
+     
+  end type elem_diag_type
+
+  ! -------------------------------------------------------------------------
+
+  type, public :: site_ifluxbal_type
+
+     ! The combination of living vegetation and litter accounts
+     ! for all of the mass that is tracked by FATES. We use these
+     ! data structures to ensure that an instantaneous assessment
+     ! of the mass of live vegetation and litter, is the same
+     ! as the initial condition plus the integrated fluxes in and
+     ! out of those pools over the duration of the simulation.
+     
+     ! Mass in living vegetation, this includes:
+     ! All organs on living plants, including non respiring tissues
+     ! and heartwood.
+     ! The live seed pool
+     
+     real(r8) :: state_liveveg   ! Assessed instanteously [kg/m2]
+     real(r8) :: iflux_liveveg   ! Integrated daily       [kg/m2]
+
+     ! Mass in all litter tracked by FATES
+     ! This includes only the unfragmented litter, litter that
+     ! has fragmented is tracked by the host models
+     
+     real(r8) :: state_litter    ! Assessed instantaneously [kg/m2]
+     real(r8) :: iflux_litter    ! Integrated daily         [kg/m2]
+
+  end type site_ifluxbal_type
+
+  ! -------------------------------------------------------------------------
+  
+  type, public :: site_fluxdiags_type
+
+
+     ! This is for all diagnostics that are uniform over all elements (C,N,P)
+     
+     type(elem_diag_type), pointer :: elem(:)
 
      ! This variable is slated as to-do, but the fluxdiags type needs
      ! to be refactored first. Currently this type is allocated
      ! by chemical species (ie C, N or P). GPP is C, but not N or P (RGK 0524)
      ! Previous day GPP [kgC/m2/year], partitioned by size x pft
      !real(r8),allocatable :: gpp_prev_scpf(:)
+
+     real(r8) :: npp          ! kg m-2 day-1
      
+     ! Nutrient Flux Diagnostics
+     
+     real(r8) :: resp_excess  ! plant carbon respired due to carbon overflow
+                              ! this happens when nutrients are limiting construction
+                              ! of new tissues kg m-2 s-1
+     real(r8) :: nh4_uptake   ! plant nh4 uptake, kg m-2 s-1
+     real(r8) :: no3_uptake   ! plant no3 uptake, kg m-2 s-1
+     real(r8) :: sym_nfix     ! plant N uptake via symbiotic fixation kg m-2 s-1
+     real(r8) :: n_efflux     ! efflux of unusable N from plant to soil labile pool kg m-2 s-1
+     real(r8) :: p_uptake     ! po4 uptake, kg m-2 s-1
+     real(r8) :: p_efflux     ! efflux of unusable P from plant to soil labile pool kg m-2 s-1
+
+     ! Size by PFT delineated nutrient flux diagnostics (same units as above)
+     ! These are only allocated if both complex history diagnostics, and the
+     ! species of interest (N or P) is requested
+     
+     real(r8),allocatable :: nh4_uptake_scpf(:)
+     real(r8),allocatable :: no3_uptake_scpf(:)
+     real(r8),allocatable :: sym_nfix_scpf(:)
+     real(r8),allocatable :: n_efflux_scpf(:)
+     real(r8),allocatable :: p_uptake_scpf(:)
+     real(r8),allocatable :: p_efflux_scpf(:)
+
+
      
    contains
 
      procedure :: ZeroFluxDiags
+
      
   end type site_fluxdiags_type
 
@@ -310,13 +388,25 @@ module EDTypesMod
      real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
      real(r8), allocatable :: sp_htop(:)                      ! target HTOP per FATES pft
      
-     ! Mass Balance (allocation for each element)
+     ! Instantaneous Mass Balance (allocation for each element)
 
      type(site_massbal_type), pointer :: mass_balance(:)
 
-     ! Flux diagnostics (allocation for each element)
+     ! Integrated Mass Balance checks, i.e. do the integrated
+     ! fluxes match the state?  One is for live vegetation,
+     ! one if for litter
 
-     type(site_fluxdiags_type), pointer :: flux_diags(:)
+     type(site_ifluxbal_type), pointer :: iflux_balance(:)
+     
+     
+     ! Flux diagnostics
+     ! These are used to write history output based on fluxes
+     ! that are calculated before mortality and cohort/patch restructuring
+     ! but are written after patch structure. This structure also allows for
+     ! accurate restarting of the history      
+
+     type(site_fluxdiags_type) :: flux_diags
+     
 
      ! PHENOLOGY 
      real(r8) ::  grow_deg_days                                ! Phenology growing degree days
@@ -478,31 +568,100 @@ module EDTypesMod
        procedure, public :: get_secondary_young_fraction
 
   end type ed_site_type
-
+  
   ! Make public necessary subroutines and functions
   public :: dump_site
   public :: CalculateTreeGrassAreaSite
+  public :: set_patchno
+  
+contains
 
-  contains
-      
-    ! =====================================================================================
+  ! ============================================================================
+
+  subroutine set_patchno( currentSite, check , call_id)
+
+    !
+    ! !DESCRIPTION:
+    ! Give patches an order number from the oldest to youngest. 
+    ! Oldest patches start with an index of 1.
+    ! Special case: For no-comp runs, we treat the bare-ground
+    ! patch as index 0.
+    
+    type(ed_site_type),intent(in) :: currentSite
+    logical,intent(in) :: check     ! If true, we are checking order, not setting
+    integer,intent(in) :: call_id   ! An index used for testing
+    type(fates_patch_type), pointer :: currentPatch
+    integer patchno
+
+    !---------------------------------------------------------------------
+    
+    patchno = 1
+    currentPatch => currentSite%oldest_patch
+    do while(associated(currentPatch))
+       if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
+          ! for bareground patch, we make the patch number 0
+          if(check .and. currentPatch%patchno.ne.0)then
+             write(fates_log(),*)'nocomp patch numbering is not correct:',currentPatch%patchno,'call_id:',call_id
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          currentPatch%patchno = 0
+       else
+          if(check .and. currentPatch%patchno.ne.patchno) then
+             write(fates_log(),*)'patch numbering is not correct:',currentPatch%patchno,patchno,'call_id:',call_id
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          currentPatch%patchno = patchno
+          patchno = patchno + 1
+       endif
+       currentPatch => currentPatch%younger
+    enddo
+    
+    return
+  end subroutine set_patchno
+    
+  ! =====================================================================================
 
     subroutine ZeroFluxDiags(this)
       
       class(site_fluxdiags_type) :: this
+      integer :: el
       
-      this%cwd_ag_input(:)      = 0._r8
-      this%cwd_bg_input(:)      = 0._r8
-      this%leaf_litter_input(:) = 0._r8
-      this%root_litter_input(:) = 0._r8
+      do el = 1,num_elements
+         this%elem(el)%cwd_ag_input(:)      = 0._r8
+         this%elem(el)%cwd_bg_input(:)      = 0._r8
+         this%elem(el)%surf_fine_litter_input(:) = 0._r8
+         this%elem(el)%root_litter_input(:) = 0._r8
+         this%elem(el)%burned_liveveg       = 0._r8
+         this%elem(el)%tot_seed_turnover   = 0._r8
+         this%elem(el)%exported_harvest   = 0._r8
+         this%elem(el)%err_liveveg   = 0._r8
+         this%elem(el)%err_litter   = 0._r8
 
-      ! We don't zero gpp_prev_scpf because this is not
-      ! incremented like others, it is assigned at the end
-      ! of the daily history write process
+      end do
+
+     this%npp = 0._r8
+     this%resp_excess = 0._r8
+     this%nh4_uptake  = 0._r8
+     this%no3_uptake  = 0._r8
+     this%sym_nfix = 0._r8
+     this%n_efflux = 0._r8
+     this%p_uptake = 0._r8
+     this%p_efflux = 0._r8
+     
+     this%nh4_uptake_scpf(:) = 0._r8
+     this%no3_uptake_scpf(:) = 0._r8
+     this%sym_nfix_scpf(:) = 0._r8
+     this%n_efflux_scpf(:) = 0._r8
+     this%p_uptake_scpf(:) = 0._r8
+     this%p_efflux_scpf(:) = 0._r8
       
-      
-      return
-    end subroutine ZeroFluxDiags
+     ! We don't zero gpp_prev_scpf because this is not
+     ! incremented like others, it is assigned at the end
+     ! of the daily history write process
+     
+     
+     return
+   end subroutine ZeroFluxDiags
 
     ! =====================================================================================
     
@@ -542,8 +701,6 @@ module EDTypesMod
     !
     !  DESCRIPTION:
     !  Calculates total grass, tree, and bare fractions for a site
-
-    use FatesConstantsMod, only : nocomp_bareground
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout) :: csite          ! site object

@@ -10,7 +10,8 @@ module FatesUnitTestIOMod
   ! LOCALS
   integer, public, parameter :: type_double = 1 ! type
   integer, public, parameter :: type_int = 2    ! type
-
+  integer, public, parameter :: type_char = 3   ! type
+  
   interface GetVar
     module procedure GetVarScalarReal
     module procedure GetVar1DReal
@@ -26,6 +27,8 @@ module FatesUnitTestIOMod
     module procedure WriteVar2DReal
     module procedure WriteVar1DInt
     module procedure WriteVar2DInt
+    module procedure WriteVar1DChar
+    module procedure WriteVar2DChar
   end interface
 
   public :: OpenNCFile
@@ -473,6 +476,8 @@ module FatesUnitTestIOMod
       nc_type = NF90_DOUBLE
     else if (type == type_int) then
       nc_type = NF90_INT
+    else if (type == type_char) then
+      nc_type = NF90_CHAR
     else
       write(*, *) "Must pick correct type"
       stop
@@ -568,6 +573,40 @@ module FatesUnitTestIOMod
     call Check(nf90_put_var(ncid, varID, data(:,:)))
 
   end subroutine WriteVar2DInt
+
+  !  =====================================================================================
+  
+  subroutine WriteVar1DChar(ncid, varID, data)
+    !
+    ! DESCRIPTION:
+    ! Write 1D character data
+    !
+
+    ! ARGUMENTS:
+    integer,          intent(in) :: ncid    ! netcdf file id
+    integer,          intent(in) :: varID   ! variable ID
+    character(len=*), intent(in) :: data(:) ! data to write
+
+    call Check(nf90_put_var(ncid, varID, data(:)))
+
+  end subroutine WriteVar1DChar
+
+  !  =====================================================================================
+
+  subroutine WriteVar2DChar(ncid, varID, data)
+    !
+    ! DESCRIPTION:
+    ! Write 2D character data
+    !
+
+    ! ARGUMENTS:
+    integer,          intent(in) :: ncid      ! netcdf file id
+    integer,          intent(in) :: varID     ! variable ID
+    character(len=*), intent(in) :: data(:,:) ! data to write
+
+    call Check(nf90_put_var(ncid, varID, data(:,:)))
+
+  end subroutine WriteVar2DChar
 
   !  =====================================================================================
 

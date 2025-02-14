@@ -18,9 +18,9 @@ module EDCanopyStructureMod
   use FatesAllometryMod     , only : carea_allom
   use EDCohortDynamicsMod   , only : terminate_cohorts, terminate_cohort, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
-  use FatesAllometryMod     , only : tree_lai
-  use FatesAllometryMod     , only : tree_sai
+  use FatesAllometryMod     , only : tree_lai_sai
   use EDTypesMod            , only : ed_site_type
+  use EDTypesMod            , only : set_patchno
   use FatesAllometryMod     , only : VegAreaLayer
   use FatesAllometryMod     , only : CrownDepth
   use FatesPatchMod,          only : fates_patch_type
@@ -1314,7 +1314,6 @@ contains
     ! ---------------------------------------------------------------------------------
 
     use FatesInterfaceTypesMod    , only : hlm_use_cohort_age_tracking
-    use EDPatchDynamicsMod   , only : set_patchno
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod           , only : area
@@ -1351,7 +1350,7 @@ contains
        ! driving model.  Loops through all patches and sets cpatch%patchno to the integer
        ! order of oldest to youngest where the oldest is 1.
        ! --------------------------------------------------------------------------------
-       call set_patchno( sites(s) )
+       call set_patchno( sites(s) , .false., 0)
 
        currentPatch => sites(s)%oldest_patch
 
@@ -1897,7 +1896,6 @@ contains
     
     do s = 1,nsites
 
-       ifp = 0
        total_patch_area = 0._r8
        total_canopy_area = 0._r8
        bc_out(s)%canopy_fraction_pa(:) = 0._r8
@@ -1909,9 +1907,8 @@ contains
        c = fcolumn(s)
        do while(associated(currentPatch))
 
-          if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
-
-             ifp = ifp+1
+          ifp = currentPatch%patchno
+          if_bare: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
 
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
                 if(debug)then
@@ -2029,7 +2026,7 @@ contains
 
              total_patch_area = total_patch_area + currentPatch%area/AREA
 
-          end if
+          end if if_bare
           currentPatch => currentPatch%younger
        end do
 
@@ -2049,13 +2046,11 @@ contains
           end if
 
           currentPatch => sites(s)%oldest_patch
-          ifp = 0
           do while(associated(currentPatch))
+             ifp = currentPatch%patchno
              if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then ! for vegetated patches only
-                ifp = ifp+1
                 bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
              endif ! veg patch
-
              currentPatch => currentPatch%younger
           end do
 
@@ -2245,7 +2240,7 @@ contains
    ! Update LAI and related variables for a given cohort
    
    ! Uses
-   use EDParamsMod, only : dlower_vai
+   use EDParamsMod, only : dlower_vai, dinc_vai
    
    ! Arguments
    type(fates_cohort_type),intent(inout), target   :: currentCohort
@@ -2254,24 +2249,21 @@ contains
    
    ! Local variables
    real(r8) :: leaf_c                              ! leaf carbon [kg]
-      
+   real(r8) :: treesai                             ! stem area index within crown m2/m2
+   
    ! Obtain the leaf carbon
    leaf_c = currentCohort%prt%GetState(leaf_organ,carbon12_element)
 
-   
-   ! Note that tree_lai has an internal check on the canopy locatoin
-   currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
-        currentCohort%n, currentCohort%canopy_layer,               &
-        canopy_layer_tlai,currentCohort%vcmax25top )
- 
-   if (hlm_use_sp .eq. ifalse) then
-      currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%crowndamage, &
-                                       currentCohort%canopy_trim, currentCohort%efstem_coh, &
-                                       currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                                       canopy_layer_tlai, currentCohort%treelai , &
-                                       currentCohort%vcmax25top,4)
-   end if
+   ! Note that tree_lai has an internal check on the canopy location
+   call  tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n,           &
+          currentCohort%canopy_layer, canopy_layer_tlai, currentCohort%vcmax25top, currentCohort%dbh, currentCohort%crowndamage,          &
+          currentCohort%canopy_trim, currentCohort%efstem_coh, 4, currentCohort%treelai, treesai )
 
+   ! Do not update stem area index of SP vegetation
+   if (hlm_use_sp .eq. ifalse) then
+      currentCohort%treesai = treesai
+   end if
+   
    ! Number of actual vegetation layers in this cohort's crown
    currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
    

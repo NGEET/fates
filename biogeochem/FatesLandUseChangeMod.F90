@@ -386,6 +386,8 @@ contains
     if ( state_vector(secondaryland) .gt. min_allowed_landuse_fraction) then
        harvest_rate = state_vector(secondaryland)
        landuse_vector_gt_min(secondaryland) = .true.
+    else
+       harvest_rate = 0._r8
     endif
 
   end subroutine GetInitLanduseHarvestRate
