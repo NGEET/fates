@@ -16,6 +16,7 @@ module EDPftvarcon
   use LeafBiophysicsMod, only : lb_params
   use LeafBiophysicsMod, only : btran_on_gs_gs02,btran_on_ag_vcmax_jmax
   use LeafBiophysicsMod, only : lmr_r_1, lmr_r_2
+  use LeafBiophysicsMod, only : c3_path_index, c4_path_index
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
   use FatesLitterMod, only : ilabile,icellulose,ilignin
