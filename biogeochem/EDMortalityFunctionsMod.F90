@@ -29,7 +29,7 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_use_tree_damage
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
-
+   use FatesConstantsMod     , only : n_landuse_cats
    use PRTGenericMod,          only : carbon12_element
    use PRTGenericMod,          only : store_organ
    use PRTParametersMod      , only : prt_params
@@ -281,7 +281,7 @@ contains
 
  subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, btran_ft, &
       mean_temp, land_use_label, age_since_anthro_disturbance,       &
-      frac_site_primary, frac_site_secondary, harvestable_forest_c, harvest_tag)
+      current_fates_landuse_state_vector, harvestable_forest_c, harvest_tag)
 
     !
     ! !DESCRIPTION:
@@ -300,9 +300,8 @@ contains
     real(r8),         intent(in)               :: mean_temp
     integer,          intent(in)               :: land_use_label
     real(r8),         intent(in)               :: age_since_anthro_disturbance
-    real(r8),         intent(in)               :: frac_site_primary
-    real(r8),         intent(in)               :: frac_site_secondary
-
+    real(r8),         intent(in)               :: current_fates_landuse_state_vector(n_landuse_cats)
+    
     real(r8), intent(in) :: harvestable_forest_c(:)   ! total carbon available for logging, kgC site-1
     integer, intent(out) :: harvest_tag(:)    ! tag to record the harvest status
                                               ! for the calculation of harvest debt in C-based
@@ -340,7 +339,7 @@ contains
                                bc_in%hlm_harvest_units, &
                                land_use_label, &
                                age_since_anthro_disturbance, &
-                               frac_site_primary, frac_site_secondary, harvestable_forest_c, harvest_tag)
+                               current_fates_landuse_state_vector, harvestable_forest_c, harvest_tag)
 
     if (currentCohort%canopy_layer > 1)then 
        ! Include understory logging mortality rates not associated with disturbance

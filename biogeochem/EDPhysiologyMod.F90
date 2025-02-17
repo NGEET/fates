@@ -43,7 +43,7 @@ module EDPhysiologyMod
   use EDPftvarcon      , only    : GetDecompyFrac
   use FatesInterfaceTypesMod, only    : bc_in_type
   use FatesInterfaceTypesMod, only    : bc_out_type
-  use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
+  use EDCohortDynamicsMod , only : create_cohort
   use EDCohortDynamicsMod , only : InitPRTObject
   use FatesAllometryMod   , only : tree_lai_sai
   use FatesAllometryMod   , only : leafc_from_treelai
@@ -638,8 +638,6 @@ contains
     real(r8) :: cumulative_lai_cohort ! cumulative LAI within the current cohort only
 
     ! Temporary diagnostic ouptut
-    integer :: ipatch
-    integer :: icohort
 
     ! LAPACK linear least squares fit variables
     ! The standard equation for a linear fit, y = mx + b, is converted to a linear system, AX=B and has
@@ -673,18 +671,14 @@ contains
     real(r8) :: leaf_long                 ! temporary leaf lifespan before accounting for deciduousness 
     !----------------------------------------------------------------------
 
-    ipatch = 1 ! Start counting patches
-
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
 
        ! Add debug diagnstic output to determine which patch
        if (debug) then
-          write(fates_log(),*) 'Current patch:', ipatch
-          write(fates_log(),*) 'Current patch cohorts:', currentPatch%countcohorts
+          write(fates_log(),*) 'Current patch:', currentPatch%patchno
+          write(fates_log(),*) 'Current patch cohorts:', currentPatch%num_cohorts
        endif
-
-       icohort = 1
 
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
@@ -695,7 +689,6 @@ contains
 
           ! Add debug diagnostic output to determine which cohort
           if (debug) then
-             write(fates_log(),*) 'Current cohort:', icohort
              write(fates_log(),*) 'Starting canopy trim:', initial_trim
           endif
 
@@ -907,10 +900,9 @@ contains
 
           ! currentCohort%canopy_trim = 1.0_r8 !FIX(RF,032414) this turns off ctrim for now.
           currentCohort => currentCohort%shorter
-          icohort = icohort + 1
        enddo
        currentPatch => currentPatch%older
-       ipatch = ipatch + 1
+
     enddo
 
   end subroutine trim_canopy
@@ -957,6 +949,8 @@ contains
     integer  :: gddstart          ! beginning of counting period for growing degree days.
     integer  :: nlevroot          ! Number of rooting levels to consider
     real(r8) :: temp_in_C         ! daily averaged temperature in celsius
+    real(r8) :: temp_wgt          ! canopy area weighting factor for daily average
+                                  ! vegetation temperature calculation
     real(r8) :: elongf_prev       ! Elongation factor from previous time
     real(r8) :: elongf_1st        ! First guess for elongation factor
     integer  :: ndays_pft_leaf_lifespan ! PFT life span of drought deciduous [days].
@@ -1010,13 +1004,23 @@ contains
     !Parameters, default from from SDGVM model of senesence
 
     temp_in_C = 0._r8
+    temp_wgt = 0._r8
     cpatch => CurrentSite%oldest_patch
     do while(associated(cpatch))
-       temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%area
+       temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%total_canopy_area
+       temp_wgt = temp_wgt + cpatch%total_canopy_area
        cpatch => cpatch%younger
     end do
-    temp_in_C = temp_in_C * area_inv - tfrz
-
+    if(temp_wgt>nearzero)then
+       temp_in_C = temp_in_C/temp_wgt - tfrz
+    else
+       ! If there is no canopy area, we use the veg temperature
+       ! of the first patch, which is the forcing air temperature
+       ! as defined in CLM/ELM. The forcing air temperature
+       ! should be the same among all patches. (Although
+       ! it is unlikely there are more than 1 in this scenario)
+       temp_in_C = CurrentSite%oldest_patch%tveg24%GetMean() - tfrz
+    end if
 
     !-----------------Cold Phenology--------------------!
 
@@ -2779,6 +2783,7 @@ contains
             endif any_recruits
          endif use_this_pft_if
       enddo  !pft loop
+      call currentPatch%ValidateCohorts()
    end subroutine recruitment
 
    ! ======================================================================================
