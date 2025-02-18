@@ -1,4 +1,4 @@
-netcdf fates_params_default {
+netcdf tmp {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
@@ -1354,9 +1354,9 @@ data:
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
- fates_landuse_grazing_palatability =  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 ;
+ fates_landuse_grazing_palatability = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 ;
 
- fates_landuse_harvest_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1,
+ fates_landuse_harvest_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 
     1, 1, 1 ;
 
  fates_landuse_luc_frac_burned = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
@@ -1729,7 +1729,7 @@ data:
 
  fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
 
- fates_landuse_grazing_rate = 0.0, 0.0, 0.0, 0.0, 0.0 ;
+ fates_landuse_grazing_rate = 0, 0, 0, 0, 0 ;
 
  fates_max_nocomp_pfts_by_landuse = 4, 4, 1, 1, 1 ;
 
@@ -1791,9 +1791,9 @@ data:
 
  fates_hydro_solver = 2 ;
 
- fates_landuse_grazing_carbon_use_eff = 0. ;
+ fates_landuse_grazing_carbon_use_eff = 0 ;
 
- fates_landuse_grazing_maxheight =  1 ;
+ fates_landuse_grazing_maxheight = 1 ;
 
  fates_landuse_grazing_nitrogen_use_eff = 0.25 ;
 
