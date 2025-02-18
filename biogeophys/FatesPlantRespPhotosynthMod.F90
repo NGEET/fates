@@ -26,12 +26,8 @@ module FATESPlantRespPhotosynthMod
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : itrue
   use FatesConstantsMod, only : nearzero
-  use FatesConstantsMod, only : molar_mass_ratio_vapdry
-  use FatesConstantsMod, only : molar_mass_water
-  use FatesConstantsMod, only : rgas => rgas_J_K_kmol
   use FatesConstantsMod, only : fates_unset_r8
   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-  use FatesConstantsMod, only : umol_per_kmol
   use FatesConstantsMod, only : wm2_to_umolm2s
   use FatesConstantsMod, only : nocomp_bareground
   use FatesInterfaceTypesMod, only : hlm_use_planthydro
@@ -42,7 +38,6 @@ module FATESPlantRespPhotosynthMod
   use EDParamsMod,           only : maxpft
   use EDParamsMod,       only : nlevleaf
   use EDParamsMod,       only : nclmax
-  use PRTGenericMod,     only : max_nleafage
   use EDTypesMod,        only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
   use FatesPatchMod,     only : fates_patch_type
@@ -179,108 +174,111 @@ contains
     ! used already
     logical :: rate_mask_z(nlevleaf,maxpft,nclmax)
 
-    real(r8) :: vcmax_z            ! leaf layer maximum rate of carboxylation
-                                   ! (umol co2/m**2/s)
-    real(r8) :: jmax_z             ! leaf layer maximum electron transport rate
-                                   ! (umol electrons/m**2/s)
-    real(r8) :: kp_z               ! leaf layer initial slope of CO2 response
-                                   ! curve (C4 plants)
-    real(r8) :: mm_kco2            ! Michaelis-Menten constant for CO2 (Pa)
-    real(r8) :: mm_ko2             ! Michaelis-Menten constant for O2 (Pa)
-    real(r8) :: co2_cpoint         ! CO2 compensation point (Pa)
-    real(r8) :: btran_eff          ! effective transpiration wetness factor (0 to 1)
-    real(r8) :: kn                 ! leaf nitrogen decay coefficient
-    !real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
-    real(r8) :: gb_mol             ! leaf boundary layer conductance (molar form: [umol /m**2/s])
-    real(r8) :: nscaler            ! leaf nitrogen scaling coefficient
-    real(r8) :: rdark_scaler       ! scaling coefficient for Atkin dark respiration
-    real(r8) :: leaf_frac          ! ratio of to leaf biomass to total alive biomass
-    real(r8) :: tcsoi              ! Temperature response function for root respiration.
-    real(r8) :: tcwood             ! Temperature response function for wood
-    real(r8) :: patch_la           ! exposed leaf area (patch scale)
-    real(r8) :: live_stem_n        ! Live stem (above-ground sapwood)
-                                   ! nitrogen content (kgN/plant)
-    real(r8) :: live_croot_n       ! Live coarse root (below-ground sapwood)
-                                   ! nitrogen content (kgN/plant)
-    real(r8) :: sapw_c             ! Sapwood carbon (kgC/plant)
-    real(r8) :: store_c_target     ! Target storage carbon (kgC/plant)
-    real(r8) :: fnrt_c             ! Fine root carbon (kgC/plant)
-    real(r8) :: fnrt_n             ! Fine root nitrogen content (kgN/plant)
-    real(r8) :: leaf_c             ! Leaf carbon (kgC/plant)
-    real(r8) :: leaf_n             ! leaf nitrogen content (kgN/plant)
-    real(r8) :: g_sb_leaves        ! Mean combined (stomata+boundary layer) leaf conductance [m/s]
-    ! over all of the patch's leaves.  The "sb" refers to the combined
-    ! "s"tomatal and "b"oundary layer.
-    ! This quantity is relevant on leaf surfaces. It does not
-    ! have units of /m2 leaf per say, but is implicitly on leaf surfaces
-    real(r8) :: r_sb_leaves        ! Mean leaf resistance over all the patch's leaves [s/m]
-    ! This is the direct reciprocal of g_sb_leaves
-    real(r8) :: r_stomata          ! Mean stomatal resistance across all leaves in the patch [s/m]
-
-
-    real(r8) :: maintresp_reduction_factor  ! factor by which to reduce maintenance
-    ! respiration when storage pools are low
-    real(r8) :: b_leaf             ! leaf biomass kgC
-    real(r8) :: frac               ! storage pool as a fraction of target leaf biomass
-    ! over each cohort x layer.
-    real(r8) :: cohort_eleaf_area  ! This is the effective leaf area [m2] reported by each cohort
-    real(r8) :: lnc_top            ! Leaf nitrogen content per unit area at canopy top [gN/m2]
-    real(r8) :: lmr25top           ! canopy top leaf maint resp rate at 25C 
-    ! for this plant or pft (umol CO2/m**2/s)
-    real(r8) :: leaf_inc           ! LAI-only portion of the vegetation increment of dinc_vai
-    real(r8) :: lai_canopy_above   ! the LAI in the canopy layers above the layer of interest
-    real(r8) :: lai_layers_above   ! the LAI in the leaf layers, within the current canopy,
-    ! above the leaf layer of interest
-    real(r8) :: lai_current        ! the LAI in the current leaf layer
-    real(r8) :: cumulative_lai     ! the cumulative LAI, top down, to the leaf layer of interest
-    real(r8) :: leaf_psi           ! leaf xylem matric potential [MPa] (only meaningful/used w/ hydro)
-    real(r8) :: fnrt_mr_layer      ! fine root maintenance respiation per layer [kgC/plant/s]
-    integer  :: isunsha             ! Index for differentiating sun and shade
-    real(r8) :: fnrt_mr_nfix_layer ! fineroot maintenance respiration specifically for symbiotic fixation [kgC/plant/layer/s]
-    real(r8) :: nfix_layer         ! Nitrogen fixed in each layer this timestep [kgN/plant/layer/timestep]
-    real(r8), allocatable :: rootfr_ft(:,:)  ! Root fractions per depth and PFT
-
-    real(r8) :: agb_frac              ! fraction of biomass aboveground
-    real(r8) :: branch_frac           ! fraction of aboveground woody biomass in branches
-    real(r8) :: crown_reduction       ! reduction in crown biomass from damage
-    real(r8) :: sapw_c_bgw            ! belowground sapwood
-    real(r8) :: sapw_c_agw            ! aboveground sapwood
-    real(r8) :: sapw_c_undamaged      ! the target sapwood of an undamaged tree
-    real(r8) :: sapw_n                ! sapwood nitrogen
-    real(r8) :: sapw_n_bgw            ! nitrogen in belowground portion of sapwood
-    real(r8) :: sapw_n_agw            ! nitrogen in aboveground portion of sapwood
-    real(r8) :: sapw_n_undamaged      ! nitrogen in sapwood of undamaged tree
-    real(r8) :: rd_abs_leaf, rb_abs_leaf, r_abs_stem, r_abs_snow, rb_abs, rd_abs
-    real(r8) :: fsun
-    real(r8) :: par_per_sunla, par_per_shala ! PAR per sunlit and shaded leaf area [W/m2 leaf]
-    real(r8) :: ac_utest, aj_utest, ap_utest, co2_inter_c_utest
-    real(r8),dimension(75) :: cohort_vaitop
-    real(r8),dimension(75) :: cohort_vaibot
-    real(r8),dimension(75) :: cohort_layer_elai
-    real(r8),dimension(75) :: cohort_layer_esai
-    real(r8),dimension(75) :: cohort_layer_tlai
-    real(r8),dimension(75) :: cohort_layer_tsai
-    real(r8)               :: cohort_elai
-    real(r8)               :: cohort_esai
-    real(r8)               :: laisun,laisha
-    real(r8)               :: leaf_area    ! m2 leaf per m2 footprint, for either sunlit or shaded leaf
-    real(r8)               :: par_abs      ! absorbed PAR [umol photons/m2leaf/s]
-    real(r8)               :: par_sun, par_sha
-    real(r8)               :: canopy_area
-    real(r8)               :: elai
-    real(r8)               :: test_out
-    real(r8)               :: area_frac    ! this is either f_sun , or 1-f_sun, its for area weighting
-    real(r8)               :: psn_ll       ! Leaf level photosyntheis
-    real(r8)               :: gstoma_ll    ! leaf level stomatal conductance (separate for sun shade) [m/s]
-    real(r8)               :: gstoma       ! stomatal conductance at leaf bin (sun/shade combined) [m/s]
-    real(r8)               :: anet_ll      ! leaf level net assimilation   [umol CO2/m**2/s]
-    real(r8)               :: c13disc_ll   ! leaf level c13 assimilation
-    real(r8)               :: hydr_k_lwp   ! inner leaf humidity scaling coefficient [-]
-    real(r8)               :: gs0          ! stomatal intercept, possibly scaled by btran depending on hypothesis
-    real(r8)               :: gs1          ! stomatal slope, possibly scaled by btran depending on hypothesis
-    real(r8)               :: gs2          ! optional btran scaling factor for Medlyn conductance only, instead
-                                           ! of applying to gs1, this would scale the whole non-intercept
-                                           ! portion of the conductance equation
+    real(r8) :: vcmax_z                          ! leaf layer maximum rate of carboxylation
+                                                 ! (umol co2/m**2/s)
+    real(r8) :: jmax_z                           ! leaf layer maximum electron transport rate
+                                                 ! (umol electrons/m**2/s)
+    real(r8) :: kp_z                             ! leaf layer initial slope of CO2 response
+                                                 ! curve (C4 plants)
+    real(r8) :: mm_kco2                          ! Michaelis-Menten constant for CO2 (Pa)
+    real(r8) :: mm_ko2                           ! Michaelis-Menten constant for O2 (Pa)
+    real(r8) :: co2_cpoint                       ! CO2 compensation point (Pa)
+    real(r8) :: btran_eff                        ! effective transpiration wetness factor (0 to 1)
+    real(r8) :: kn                               ! leaf nitrogen decay coefficient
+    real(r8) :: gb_mol                           ! leaf boundary layer conductance (molar form: [umol /m**2/s])
+    real(r8) :: nscaler                          ! leaf nitrogen scaling coefficient
+    real(r8) :: rdark_scaler                     ! scaling coefficient for Atkin dark respiration
+    real(r8) :: leaf_frac                        ! ratio of to leaf biomass to total alive biomass
+    real(r8) :: tcsoi                            ! Temperature response function for root respiration.
+    real(r8) :: tcwood                           ! Temperature response function for wood
+    real(r8) :: patch_la                         ! exposed leaf area (patch scale)
+    real(r8) :: live_stem_n                      ! Live stem (above-ground sapwood)
+                                                 ! nitrogen content (kgN/plant)
+    real(r8) :: live_croot_n                     ! Live coarse root (below-ground sapwood)
+                                                 ! nitrogen content (kgN/plant)
+    real(r8) :: sapw_c                           ! Sapwood carbon (kgC/plant)
+    real(r8) :: store_c_target                   ! Target storage carbon (kgC/plant)
+    real(r8) :: fnrt_c                           ! Fine root carbon (kgC/plant)
+    real(r8) :: fnrt_n                           ! Fine root nitrogen content (kgN/plant)
+    real(r8) :: leaf_c                           ! Leaf carbon (kgC/plant)
+    real(r8) :: leaf_n                           ! leaf nitrogen content (kgN/plant)
+    real(r8) :: g_sb_leaves                      ! Mean combined (stomata+boundary layer) leaf conductance [m/s]
+                                                 ! over all of the patch's leaves.  The "sb" refers to the combined
+                                                 ! "s"tomatal and "b"oundary layer.
+                                                 ! This quantity is relevant on leaf surfaces. It does not
+                                                 ! have units of /m2 leaf per say, but is implicitly on leaf surfaces
+    real(r8) :: r_sb_leaves                      ! Mean leaf resistance over all the patch's leaves [s/m]
+                                                 ! This is the direct reciprocal of g_sb_leaves
+    real(r8) :: r_stomata                        ! Mean stomatal resistance across all leaves in the patch [s/m]
+    real(r8) :: maintresp_reduction_factor       ! factor by which to reduce maintenance
+                                                 ! respiration when storage pools are low
+    real(r8) :: b_leaf                           ! leaf biomass kgC
+    real(r8) :: frac                             ! storage pool as a fraction of target leaf biomass
+                                                 ! over each cohort x layer.
+    real(r8) :: cohort_eleaf_area                ! This is the effective leaf area [m2] reported by each cohort
+    real(r8) :: lnc_top                          ! Leaf nitrogen content per unit area at canopy top [gN/m2]
+    real(r8) :: lmr25top                         ! canopy top leaf maint resp rate at 25C 
+                                                 ! for this plant or pft (umol CO2/m**2/s)
+    real(r8) :: leaf_inc                         ! LAI-only portion of the vegetation increment of dinc_vai
+    real(r8) :: lai_canopy_above                 ! the LAI in the canopy layers above the layer of interest
+    real(r8) :: lai_layers_above                 ! the LAI in the leaf layers, within the current canopy,
+                                                 ! above the leaf layer of interest
+    real(r8) :: lai_current                      ! the LAI in the current leaf layer
+    real(r8) :: cumulative_lai                   ! the cumulative LAI, top down, to the leaf layer of interest
+    real(r8) :: leaf_psi                         ! leaf xylem matric potential [MPa] (only meaningful/used w/ hydro)
+    real(r8) :: fnrt_mr_layer                    ! fine root maintenance respiation per layer [kgC/plant/s]
+    integer  :: isunsha                          ! Index for differentiating sun and shade
+    real(r8) :: fnrt_mr_nfix_layer               ! fineroot maintenance respiration
+                                                 ! specifically for symbiotic fixation [kgC/plant/layer/s]
+    real(r8) :: nfix_layer                       ! Nitrogen fixed in each layer this timestep [kgN/plant/layer/timestep]
+    real(r8), allocatable :: rootfr_ft(:,:)      ! Root fractions per depth and PFT
+    real(r8) :: agb_frac                         ! fraction of biomass aboveground
+    real(r8) :: branch_frac                      ! fraction of aboveground woody biomass in branches
+    real(r8) :: crown_reduction                  ! reduction in crown biomass from damage
+    real(r8) :: sapw_c_bgw                       ! belowground sapwood
+    real(r8) :: sapw_c_agw                       ! aboveground sapwood
+    real(r8) :: sapw_c_undamaged                 ! the target sapwood of an undamaged tree
+    real(r8) :: sapw_n                           ! sapwood nitrogen
+    real(r8) :: sapw_n_bgw                       ! nitrogen in belowground portion of sapwood
+    real(r8) :: sapw_n_agw                       ! nitrogen in aboveground portion of sapwood
+    real(r8) :: sapw_n_undamaged                 ! nitrogen in sapwood of undamaged tree
+    real(r8) :: rd_abs_leaf, rb_abs_leaf         ! Watts of diffuse and beam light absorbed by leaves over this
+                                                 ! depth interval and ground footprint (m2)
+    real(r8) :: r_abs_stem, r_abs_snow           ! Watts of light absorbed by stems and snow over this depth interval and
+                                                 ! ground footprint 
+    real(r8) :: rb_abs, rd_abs                   ! Total beam and diffuse radiation absorbed over this depth interval
+                                                 ! and ground footprint
+    real(r8) :: fsun                             ! sun-shade fraction
+    real(r8) :: par_per_sunla, par_per_shala     ! PAR per sunlit and shaded leaf area [W/m2 leaf]
+    real(r8) :: ac_utest, aj_utest               ! Gross rubisco and rubp limited assimilation (for unit tests)
+    real(r8) :: ap_utest, co2_inter_c_utest      ! PEP limited assimilation, and intracellular co2 (for unit tests)
+    real(r8),dimension(150) :: cohort_vaitop     ! The top-down integrated vegetation area index
+                                                 ! (leaf+stem) at the top of the layer
+    real(r8),dimension(150) :: cohort_vaibot     ! The top-down integrated vegetation area index
+                                                 ! (leaf+stem) at the bottom of the layer
+    real(r8),dimension(150) :: cohort_layer_elai ! exposed leaf area index of the layer
+    real(r8),dimension(150) :: cohort_layer_esai ! exposed stem area index of the layer
+    real(r8)               :: cohort_elai        ! exposed leaf area index of the cohort 
+    real(r8)               :: cohort_esai        ! exposed stem area index of the cohort
+    real(r8)               :: laisun,laisha      ! m2 of exposed or shaded leaves per m2 of crown
+    real(r8)               :: leaf_area          ! m2 leaf per m2 footprint, for either sunlit or shaded leaf
+    real(r8)               :: par_abs            ! absorbed PAR [umol photons/m2leaf/s]
+    real(r8)               :: canopy_area        ! For Norman radiation, the fraction of crown area per
+                                                 ! canopy area in each layer
+                                                 ! they will sum to 1.0 in the fully closed canopy layers
+    real(r8)               :: elai               ! effective leaf area index
+    real(r8)               :: area_frac          ! this is either f_sun , or 1-f_sun, its for area weighting
+    real(r8)               :: psn_ll             ! Leaf level photosyntheis
+    real(r8)               :: gstoma_ll          ! leaf level stomatal conductance (separate for sun shade) [m/s]
+    real(r8)               :: gstoma             ! stomatal conductance at leaf bin (sun/shade combined) [m/s]
+    real(r8)               :: anet_ll            ! leaf level net assimilation   [umol CO2/m**2/s]
+    real(r8)               :: c13disc_ll         ! leaf level c13 assimilation
+    real(r8)               :: hydr_k_lwp         ! inner leaf humidity scaling coefficient [-]
+    real(r8)               :: gs0                ! stomatal intercept, possibly scaled by btran depending on hypothesis
+    real(r8)               :: gs1                ! stomatal slope, possibly scaled by btran depending on hypothesis
+    real(r8)               :: gs2                ! optional btran scaling factor for Medlyn conductance only, instead
+                                                 ! of applying to gs1, this would scale the whole non-intercept
+                                                 ! portion of the conductance equation
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -293,8 +291,7 @@ contains
     integer  :: nv                  ! number of leaf layers
     integer  :: NCL_p               ! number of canopy layers in patch
     integer  :: iage                ! loop counter for leaf age classes
-    integer  :: solve_iter
-    integer  :: ico
+    integer  :: solve_iter          ! number of iterations required for photosynthesis solve
     
     ! Parameters
     ! Absolute convergence tolerance on solving intracellular CO2 concentration [Pa]
@@ -415,17 +412,15 @@ contains
                   rs_z(:,:,:)      = 0._r8
                   lmr_z(:,:,:)     = 0._r8
                                     
-                  if_any_cohorts: if(currentPatch%num_cohorts > 0.0)then
+                  if_any_cohorts: if(currentPatch%num_cohorts > 0)then
 
                      currentCohort => currentPatch%tallest
-                     ico = 0
                      do_cohort_drive: do while (associated(currentCohort)) ! Cohort loop
 
                         ! Identify the canopy layer (cl), functional type (ft)
                         ! and the leaf layer (IV) for this cohort
                         ft = currentCohort%pft
                         cl = currentCohort%canopy_layer
-                        ico = ico + 1
                         
                         ! Calculate the cohort specific elai profile
                         ! And the top and bottom edges of the veg area index
@@ -808,12 +803,8 @@ contains
                               end if rate_mask_if
                            end do leaf_layer_loop
 
-                           !if(maxval(psn_z(:,ft,cl))>nearzero .and. ico==2) then
-                           !   print*,psn_z(1:8,ft,cl)
-                           !end if
                            
                            ! Zero cohort flux accumulators.
-                           
                            currentCohort%resp_m_tstep = 0.0_r8
                            currentCohort%gpp_tstep  = 0.0_r8
                            currentCohort%rdark      = 0.0_r8
