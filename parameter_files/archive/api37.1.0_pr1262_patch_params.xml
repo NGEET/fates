@@ -29,14 +29,14 @@
        <di> fates_pft </di>
        <un> index </un>
        <ln> model switch for how btran affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_ </ln>
-       <val> 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 </val>
+       <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </val>
     </mod>
     <mod type="variable_add">
        <na> fates_leaf_agross_btran_model </na>
        <di> fates_pft </di>
        <un> index </un>
        <ln> model switch for how gross assimilation affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_ </ln>
-       <val> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 </val>
+       <val> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </val>
     </mod>
   </mods>
 </all>
