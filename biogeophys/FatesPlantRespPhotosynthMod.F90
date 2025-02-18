@@ -415,7 +415,7 @@ contains
                   rs_z(:,:,:)      = 0._r8
                   lmr_z(:,:,:)     = 0._r8
                                     
-                  if_any_cohorts: if(currentPatch%countcohorts > 0.0)then
+                  if_any_cohorts: if(currentPatch%num_cohorts > 0.0)then
 
                      currentCohort => currentPatch%tallest
                      ico = 0
