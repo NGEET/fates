@@ -1,9 +1,12 @@
 <?xml version="1.0"?>
 <all>
-  <!-- This parameter patch file updates the parameter file with the changes -->
+  <!-- This parameter patch file updates the parameter file with the changes
+  associated with pull request 1319 which updates the z0 turbulance parameters-->
+
+  <!-- NOTE: api37.1.0_pr1140_patch_params.xml should be run PRIOR to this patch -->
 
   <!-- To use this patch file run the following command: -->
-  <!--   Run `python ../tools/UpdateParamAPI.py -/-f archive/api37.1.0_012725_patch_params.xml` -->
+  <!--   Run `python ../tools/UpdateParamAPI.py -/-f archive/api37.1.0_pr1319_patch_params.xml` -->
 
   <!-- General xml file usage notes: -->
   <!-- Special mod types "variable_add": creates a new variable

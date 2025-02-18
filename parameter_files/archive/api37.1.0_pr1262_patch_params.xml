@@ -4,6 +4,8 @@
   pull request 1262.  It does not include the deletions of the theta parameter that
   are no longer necessary to use once that pull request is merged to main.-->
 
+  <!-- NOTE: api37.1.0_pr1140_patch_params.xml should be run PRIOR to this patch -->
+
   <!-- To use this patch file run the following command: -->
   <!--   Run `python ../tools/UpdateParamAPI.py -/-f archive/api37.1.0_pr1262_patch_params.xml` -->
 
