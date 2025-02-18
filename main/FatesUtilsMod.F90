@@ -241,7 +241,7 @@ contains
            ! complex conjugate zeros
            write (fates_log(),*)'error, imaginary roots detected in quadratic solve'
            err = .true.
-           !call endrun(msg=errMsg(sourcefile, __LINE__))
+           call endrun(msg=errMsg(sourcefile, __LINE__))
         else
             ! real zeros
             if ( b1>=0.0_r8 ) d = -d
@@ -291,7 +291,9 @@ contains
 
        write (fates_log(),*)'error, imaginary roots detected in quadratic solve'
        err = .true.
-       !call endrun(msg=errMsg(sourcefile, __LINE__))
+       ! Disable this endrun and use the return err to track down
+       ! error provenance 
+       call endrun(msg=errMsg(sourcefile, __LINE__))
        
     end if
     
