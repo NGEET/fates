@@ -31,7 +31,7 @@ Module FatesTwoStreamUtilsMod
   
   implicit none
 
-  logical, parameter :: debug  = .true. ! local debug flag
+  logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
