@@ -6065,19 +6065,19 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_SEED_BANK_PF', units='kg m-2',         &
          long='total seed mass per PFT in kg carbon per m2 land area',     &
-         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
+         use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_seed_bank_si_pft)
    
     call this%set_history_var(vname='FATES_UNGERM_SEED_BANK_PF', units='kg m-2',         &
          long='ungerminated seed mass per PFT in kg carbon per m2 land area',     &
-         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
+         use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_ungerm_seed_bank_si_pft)
 
     call this%set_history_var(vname='FATES_SEEDLING_POOL_PF', units='kg m-2',         &
          long='total seedling (ie germinated seeds) mass per PFT in kg carbon per m2 land area',     &
-         use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
+         use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_seedling_pool_si_pft)
 
@@ -7090,20 +7090,20 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_NPLANT_SZAPPF',units = 'm-2',       &
           long='number of plants per m2 in each size x age x pft class',       &
-          use_default='active', avgflag='A', vtype=site_scagpft_r8,          &
+          use_default='inactive', avgflag='A', vtype=site_scagpft_r8,          &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_nplant_si_scagpft)
 
     ! age x pft dimensioned
     call this%set_history_var(vname='FATES_NPP_APPF',units = 'kg m-2 s-1',     &
           long='NPP per PFT in each age bin in kg carbon per m2 per second',   &
-          use_default='active', avgflag='A', vtype=site_agepft_r8,           &
+          use_default='inactive', avgflag='A', vtype=site_agepft_r8,           &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_npp_si_agepft)
 
     call this%set_history_var(vname='FATES_VEGC_APPF',units = 'kg m-2',        &
           long='biomass per PFT in each age bin in kg carbon per m2',          &
-          use_default='active', avgflag='A', vtype=site_agepft_r8,           &
+          use_default='inactive', avgflag='A', vtype=site_agepft_r8,           &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_biomass_si_agepft)
 
