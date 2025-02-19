@@ -348,6 +348,9 @@ variables:
 	double fates_hydro_vg_n_node(fates_hydr_organs, fates_pft) ;
 		fates_hydro_vg_n_node:units = "unitless" ;
 		fates_hydro_vg_n_node:long_name = "(used if hydr_htftype_node = 2),n in van Genuchten 1980 model, pore size distribution parameter" ;
+	double fates_landuse_grazing_palatability(fates_pft) ;
+		fates_landuse_grazing_palatability:units = "unitless 0-1" ;
+		fates_landuse_grazing_palatability:long_name = "Relative intensity of leaf grazing/browsing per PFT" ;
 	double fates_landuse_harvest_pprod10(fates_pft) ;
 		fates_landuse_harvest_pprod10:units = "fraction" ;
 		fates_landuse_harvest_pprod10:long_name = "fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
@@ -360,6 +363,9 @@ variables:
 	double fates_landuse_luc_pprod10(fates_pft) ;
 		fates_landuse_luc_pprod10:units = "fraction" ;
 		fates_landuse_luc_pprod10:long_name = "fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
+	double fates_leaf_agross_btran_model(fates_pft) ;
+		fates_leaf_agross_btran_model:units = "index" ;
+		fates_leaf_agross_btran_model:long_name = "model switch for how gross assimilation affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
@@ -378,6 +384,9 @@ variables:
 	double fates_leaf_slatop(fates_pft) ;
 		fates_leaf_slatop:units = "m^2/gC" ;
 		fates_leaf_slatop:long_name = "Specific Leaf Area (SLA) at top of canopy, projected area basis" ;
+	double fates_leaf_stomatal_btran_model(fates_pft) ;
+		fates_leaf_stomatal_btran_model:units = "index" ;
+		fates_leaf_stomatal_btran_model:long_name = "model switch for how btran affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
 	double fates_leaf_stomatal_intercept(fates_pft) ;
 		fates_leaf_stomatal_intercept:units = "umol H2O/m**2/s" ;
 		fates_leaf_stomatal_intercept:long_name = "Minimum unstressed stomatal conductance for Ball-Berry model and Medlyn model" ;
@@ -708,6 +717,9 @@ variables:
 	double fates_landuse_crop_lu_pft_vector(fates_landuseclass) ;
 		fates_landuse_crop_lu_pft_vector:units = "NA" ;
 		fates_landuse_crop_lu_pft_vector:long_name = "the FATES PFT index to use on a given crop land-use type (dummy value of -999 for non-crop types)" ;
+	double fates_landuse_grazing_rate(fates_landuseclass) ;
+		fates_landuse_grazing_rate:units = "1/day" ;
+		fates_landuse_grazing_rate:long_name = "fraction of leaf biomass consumed by grazers per day" ;
 	double fates_max_nocomp_pfts_by_landuse(fates_landuseclass) ;
 		fates_max_nocomp_pfts_by_landuse:units = "count" ;
 		fates_max_nocomp_pfts_by_landuse:long_name = "maximum number of nocomp PFTs on each land use type (only used in nocomp mode)" ;
@@ -798,6 +810,18 @@ variables:
 	double fates_hydro_solver ;
 		fates_hydro_solver:units = "unitless" ;
 		fates_hydro_solver:long_name = "switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard, 3 = 2D Newton (deprecated)" ;
+	double fates_landuse_grazing_carbon_use_eff ;
+		fates_landuse_grazing_carbon_use_eff:units = "unitless" ;
+		fates_landuse_grazing_carbon_use_eff:long_name = "carbon use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
+	double fates_landuse_grazing_maxheight ;
+		fates_landuse_grazing_maxheight:units = "m" ;
+		fates_landuse_grazing_maxheight:long_name = "maximum height that grazers (browsers, actually) can reach" ;
+	double fates_landuse_grazing_nitrogen_use_eff ;
+		fates_landuse_grazing_nitrogen_use_eff:units = "unitless" ;
+		fates_landuse_grazing_nitrogen_use_eff:long_name = "nitrogen use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
+	double fates_landuse_grazing_phosphorus_use_eff ;
+		fates_landuse_grazing_phosphorus_use_eff:units = "unitless" ;
+		fates_landuse_grazing_phosphorus_use_eff:long_name = "phosphorus use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
 	double fates_landuse_logging_coll_under_frac ;
 		fates_landuse_logging_coll_under_frac:units = "fraction" ;
 		fates_landuse_logging_coll_under_frac:long_name = "Fraction of stems killed in the understory when logging generates disturbance" ;
@@ -1315,14 +1339,14 @@ data:
     0.75, 0.75 ;
 
  fates_hydro_vg_alpha_node =
-  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
-    0.005, 0.005, 0.005, 0.005,
-  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
-    0.005, 0.005, 0.005, 0.005,
-  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
-    0.005, 0.005, 0.005, 0.005,
-  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
-    0.005, 0.005, 0.005, 0.005 ;
+  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
+    0.12, 0.12,
+  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
+    0.12, 0.12,
+  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
+    0.12, 0.12,
+  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
+    0.12, 0.12 ;
 
  fates_hydro_vg_m_node =
   0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
@@ -1336,6 +1360,8 @@ data:
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
+ fates_landuse_grazing_palatability = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 ;
+
  fates_landuse_harvest_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 
     1, 1, 1 ;
 
@@ -1347,6 +1373,8 @@ data:
 
  fates_landuse_luc_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 1, 
     1, 1 ;
+
+ fates_leaf_agross_btran_model = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 
@@ -1364,6 +1392,8 @@ data:
 
  fates_leaf_slatop = 0.012, 0.005, 0.024, 0.009, 0.03, 0.03, 0.012, 0.03, 
     0.03, 0.01, 0.032, 0.027, 0.05, 0.05 ;
+
+ fates_leaf_stomatal_btran_model = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_leaf_stomatal_intercept = 10000, 10000, 10000, 10000, 10000, 10000, 
     10000, 10000, 10000, 10000, 10000, 10000, 10000, 40000 ;
@@ -1650,8 +1680,8 @@ data:
  fates_turb_leaf_diameter = 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 
     0.04, 0.04, 0.04, 0.04, 0.04, 0.04 ;
 
- fates_turb_z0mr = 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 
-    0.055, 0.055, 0.055, 0.055, 0.055, 0.055 ;
+ fates_turb_z0mr = 0.075, 0.055, 0.055, 0.075, 0.055, 0.055, 0.12, 0.12, 
+    0.12, 0.12, 0.12, 0.12, 0.12, 0.12 ;
 
  fates_turnover_branch = 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 
     150, 0, 0, 0 ;
@@ -1708,6 +1738,8 @@ data:
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
 
  fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
+
+ fates_landuse_grazing_rate = 0, 0, 0, 0, 0 ;
 
  fates_max_nocomp_pfts_by_landuse = 4, 4, 1, 1, 1 ;
 
@@ -1767,7 +1799,15 @@ data:
 
  fates_hydro_psicap = -0.6 ;
 
- fates_hydro_solver = 1 ;
+ fates_hydro_solver = 2 ;
+
+ fates_landuse_grazing_carbon_use_eff = 0 ;
+
+ fates_landuse_grazing_maxheight = 1 ;
+
+ fates_landuse_grazing_nitrogen_use_eff = 0.25 ;
+
+ fates_landuse_grazing_phosphorus_use_eff = 0.5 ;
 
  fates_landuse_logging_coll_under_frac = 0.55983 ;
 

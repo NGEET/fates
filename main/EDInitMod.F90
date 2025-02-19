@@ -24,9 +24,9 @@ module EDInitMod
   use FatesInterfaceTypesMod    , only : hlm_current_tod
   use EDPftvarcon               , only : EDPftvarcon_inst
   use PRTParametersMod          , only : prt_params
-  use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
+  use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts
   use EDCohortDynamicsMod       , only : InitPRTObject
-  use EDPatchDynamicsMod        , only : set_patchno
+  use EDTypesMod                , only : set_patchno
   use EDPhysiologyMod           , only : calculate_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
   use FatesInterfaceTypesMod    , only : hlm_day_of_year
@@ -713,7 +713,7 @@ contains
              sites(s)%iflux_balance(el)%iflux_litter  = litter_stock * area_inv
 
           end do
-          call set_patchno(sites(s))
+          call set_patchno(sites(s),.false.,0)
        enddo
        
     else
@@ -987,7 +987,7 @@ contains
              
           end do
 
-          call set_patchno(sites(s))
+          call set_patchno(sites(s),.false.,0)
 
        enddo sites_loop 
     end if
@@ -997,16 +997,9 @@ contains
        currentPatch => sites(s)%youngest_patch
        do while(associated(currentPatch))
 
-          currentPatch%litter_moisture(:)         = 0._r8
-          currentPatch%fuel_eff_moist             = 0._r8
           currentPatch%livegrass                  = 0._r8
-          currentPatch%sum_fuel                   = 0._r8
-          currentPatch%fuel_bulkd                 = 0._r8
-          currentPatch%fuel_sav                   = 0._r8
-          currentPatch%fuel_mef                   = 0._r8
           currentPatch%ros_front                  = 0._r8
           currentPatch%tau_l                      = 0._r8
-          currentPatch%fuel_frac(:)               = 0._r8
           currentPatch%tfc_ros                    = 0._r8
           currentPatch%fi                         = 0._r8
           currentPatch%fire                       = 0
@@ -1014,8 +1007,6 @@ contains
           currentPatch%ros_back                   = 0._r8
           currentPatch%scorch_ht(:)               = 0._r8
           currentPatch%frac_burnt                 = 0._r8
-          currentPatch%burnt_frac_litter(:)       = 0._r8
-
           currentPatch => currentPatch%older
        enddo
     enddo
@@ -1340,8 +1331,10 @@ contains
 
       if (hlm_use_sp == ifalse) then
         call fuse_cohorts(site_in, patch_in,bc_in)
-        call sort_cohorts(patch_in)
-      end if 
+        call patch_in%SortCohorts()
+      end if
+      
+      call patch_in%ValidateCohorts()
 
    end subroutine init_cohorts
 

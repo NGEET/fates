@@ -344,11 +344,13 @@ contains
          end do
 
 
-         ifp = 0
          currentpatch => sites(s)%oldest_patch
          do while (associated(currentpatch))
+
+            ifp = currentPatch%patchno
+            
             if_notbare: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
-               ifp   = ifp+1
+
                NCL_p = currentPatch%NCL_p
 
                ! Part I. Zero output boundary conditions
@@ -422,7 +424,7 @@ contains
                   ! ------------------------------------------------------------------------
                   rate_mask_z(:,1:numpft,:) = .false.
 
-                  if_any_cohorts: if(currentPatch%countcohorts > 0.0)then
+                  if_any_cohorts: if(currentPatch%num_cohorts > 0.0)then
                      currentCohort => currentPatch%tallest
                      do_cohort_drive: do while (associated(currentCohort)) ! Cohort loop
 
@@ -739,11 +741,10 @@ contains
                            end do leaf_layer_loop
 
                            ! Zero cohort flux accumulators.
-                           currentCohort%npp_tstep  = 0.0_r8
-                           currentCohort%resp_tstep = 0.0_r8
+                           
+                           currentCohort%resp_m_tstep = 0.0_r8
                            currentCohort%gpp_tstep  = 0.0_r8
                            currentCohort%rdark      = 0.0_r8
-                           currentCohort%resp_m     = 0.0_r8
                            currentCohort%ts_net_uptake = 0.0_r8
                            currentCohort%c13disc_clm = 0.0_r8
 
@@ -968,47 +969,24 @@ contains
                         ! calcualate some fluxes that are sums and nets of the base fluxes
                         ! ------------------------------------------------------------------
 
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 904 ', currentCohort%resp_m
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 905 ', currentCohort%rdark
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 906 ', currentCohort%livestem_mr
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 907 ', currentCohort%livecroot_mr
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 908 ', currentCohort%froot_mr
-
-
-
                         ! add on whole plant respiration values in kgC/indiv/s-1
-                        currentCohort%resp_m = currentCohort%livestem_mr + &
+                        currentCohort%resp_m_tstep = currentCohort%livestem_mr + &
                              currentCohort%livecroot_mr + &
-                             currentCohort%froot_mr
-
+                             currentCohort%froot_mr + &
+                             currentCohort%rdark
+                        
                         ! no drought response right now.. something like:
-                        ! resp_m = resp_m * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft) * &
+                        ! resp_m_tstep = resp_m_tstep * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft) * &
                         !                    EDPftvarcon_inst%resp_drought_response(ft))
 
-                        currentCohort%resp_m = currentCohort%resp_m + currentCohort%rdark
-
-                        ! save as a diagnostic the un-throttled maintenance respiration to be able to know how strong this is
-                        currentCohort%resp_m_unreduced = currentCohort%resp_m / maintresp_reduction_factor
-
                         ! convert from kgC/indiv/s to kgC/indiv/timestep
-                        currentCohort%resp_m        = currentCohort%resp_m  * dtime
+                        currentCohort%resp_m_tstep  = currentCohort%resp_m_tstep  * dtime
                         currentCohort%gpp_tstep     = currentCohort%gpp_tstep * dtime
                         currentCohort%ts_net_uptake = currentCohort%ts_net_uptake * dtime
-
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 911 ', currentCohort%gpp_tstep
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
-
-
-                        currentCohort%resp_g_tstep     = prt_params%grperc(ft) * &
-                             (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
-
-
-                        currentCohort%resp_tstep = currentCohort%resp_m + &
-                             currentCohort%resp_g_tstep ! kgC/indiv/ts
-                        currentCohort%npp_tstep  = currentCohort%gpp_tstep - &
-                             currentCohort%resp_tstep  ! kgC/indiv/ts
-
+                        
+                        ! save as a diagnostic the un-throttled maintenance respiration to be able to know how strong this is
+                        currentCohort%resp_m_unreduced = currentCohort%resp_m_tstep / maintresp_reduction_factor
+                        
                         ! Accumulate the combined conductance (stomatal+leaf boundary layer)
                         ! Note that currentCohort%g_sb_laweight is weighted by the leaf area
                         ! of each cohort and has units of [m/s] * [m2 leaf]
