@@ -31,7 +31,7 @@ Module FatesTwoStreamUtilsMod
   
   implicit none
 
-  logical, parameter :: debug  = .false. ! local debug flag
+  logical, parameter :: debug  = .true. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
@@ -261,7 +261,7 @@ contains
                   write(fates_log(),*) 'more than 100% of the area footprint, exceeding a'
                   write(fates_log(),*) 'precision threshold of 0.01'
                   write(fates_log(),*) 'Aborting'
-                  write(fates_log(),*) 'canopy layer: ',ican',canopy_frac:',canopy_frac(ican)
+                  write(fates_log(),*) 'canopy layer: ',ican,' canopy_frac:',canopy_frac(ican)
                   call endrun(msg=errMsg(sourcefile, __LINE__))
                end if if_very_overfull
             end if
@@ -289,7 +289,7 @@ contains
                         write(fates_log(),*) 'This will have to large of an impact on the donor and is not representative'
                         write(fates_log(),*) 'of the actual composition of the canopy'
                         write(fates_log(),*) 'Aborting'
-                        write(fates_log(),*) 'canopy layer: ',ican',canopy_frac:',canopy_frac(ican)
+                        write(fates_log(),*) 'canopy layer: ',ican,' canopy_frac:',canopy_frac(ican)
                         write(fates_log(),*) 'existing donor area',twostr%scelg(ican,icolmax)%area
                         call endrun(msg=errMsg(sourcefile, __LINE__))
                      end if
