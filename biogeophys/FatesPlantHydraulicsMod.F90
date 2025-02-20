@@ -2152,10 +2152,10 @@ subroutine BTranForHLMDiagnosticsFromCohortHydr(nsites,sites,bc_out)
 
   do s = 1,nsites
 
-     ifp = 0
      cpatch => sites(s)%oldest_patch
      do while (associated(cpatch))
-        ifp=ifp+1
+
+        ifp = cpatch%patchno
 
         balive_patch = 0._r8
         ccohort=>cpatch%tallest
@@ -2496,12 +2496,12 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
      !err_soil = delta_soil_storage - root_flux
      !err_plot = delta_plant_storage - (root_flux - transp_flux)
 
-     ifp = 0
      cpatch => sites(s)%oldest_patch
      do while (associated(cpatch))
 
+        ifp = cpatch%patchno
+        
         if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
-           ifp = ifp + 1
 
            ! ----------------------------------------------------------------------------
            ! Objective: Partition the transpiration flux

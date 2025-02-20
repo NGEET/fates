@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.4)
 
 list(APPEND CMAKE_MODULE_PATH ${CIME_CMAKE_MODULE_DIRECTORY})
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../share/cmake")
 
 FIND_PATH(NETCDFC_FOUND libnetcdf.a ${NETCDF_C_DIR}/lib)
 FIND_PATH(NETCDFF_FOUND libnetcdff.a ${NETCDF_FORTRAN_DIR}/lib)
@@ -29,7 +30,10 @@ add_subdirectory(${HLM_ROOT}/src/fates/biogeophys fates_biogeophys)
 add_subdirectory(${HLM_ROOT}/src/fates/parteh fates_parteh)
 add_subdirectory(${HLM_ROOT}/src/fates/fire fates_fire)
 add_subdirectory(${HLM_ROOT}/src/fates/radiation fates_radiation)
+
+# Testing directories
 add_subdirectory(${HLM_ROOT}/src/fates/testing/testing_shr test_share)
+add_subdirectory(${HLM_ROOT}/src/fates/testing/functional_testing/fire/shr fire_share)
 
 # Remove shr_mpi_mod from share_sources.
 # This is needed because we want to use the mock shr_mpi_mod in place of the real one
@@ -45,18 +49,16 @@ foreach (sourcefile ${share_sources})
 endforeach()
 
 # Remove shr_cal_mod from share_sources.
-#
-# shr_cal_mod depends on ESMF (or the lightweight esmf wrf timemgr, at
-# least). Since CTSM doesn't currently use shr_cal_mod, we're avoiding
-# the extra overhead of including esmf_wrf_timemgr sources in this
-# build.
-#
-# TODO: like above, this should be moved into a general-purpose function
-# in Sourcelist_utils.  Then this block of code could be replaced with a
-# single call, like: remove_source_file(${share_sources}
-# "shr_cal_mod.F90")
 foreach (sourcefile ${share_sources})
   string(REGEX MATCH "shr_cal_mod.F90" match_found ${sourcefile})
+  if(match_found)
+    list(REMOVE_ITEM share_sources ${sourcefile})
+  endif()
+endforeach()
+
+# Remove shr_pio_mod from share_sources.
+foreach (sourcefile ${share_sources})
+  string(REGEX MATCH "shr_pio_mod.F90" match_found ${sourcefile})
   if(match_found)
     list(REMOVE_ITEM share_sources ${sourcefile})
   endif()
@@ -81,10 +83,13 @@ include_directories(${NETCDF_C_DIR}/include
                     ${NETCDF_FORTRAN_DIR}/include)
 link_directories(${NETCDF_C_DIR}/lib
                 ${NETCDF_FORTRAN_DIR}/lib)
+                
 
 # Tell cmake to look for libraries & mod files here, because this is where we built libraries
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-link_directories(${CMAKE_CURRENT_BINARY_DIR})
 
+# Directories and libraries to include in the link step
+link_directories(${CMAKE_CURRENT_BINARY_DIR})
+              
 # Add the main test directory
 add_subdirectory(${HLM_ROOT}/src/fates/testing)

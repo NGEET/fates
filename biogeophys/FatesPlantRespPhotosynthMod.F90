@@ -340,11 +340,13 @@ contains
          end do
 
 
-         ifp = 0
          currentpatch => sites(s)%oldest_patch
          do while (associated(currentpatch))
+
+            ifp = currentPatch%patchno
+            
             if_notbare: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
-               ifp   = ifp+1
+
                NCL_p = currentPatch%NCL_p
 
                ! Part I. Zero output boundary conditions
@@ -418,7 +420,7 @@ contains
                   ! ------------------------------------------------------------------------
                   rate_mask_z(:,1:numpft,:) = .false.
 
-                  if_any_cohorts: if(currentPatch%countcohorts > 0.0)then
+                  if_any_cohorts: if(currentPatch%num_cohorts > 0.0)then
                      currentCohort => currentPatch%tallest
                      do_cohort_drive: do while (associated(currentCohort)) ! Cohort loop
 

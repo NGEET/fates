@@ -25,7 +25,7 @@ module FatesCohortMod
   use EDPftvarcon,                only : EDPftvarcon_inst
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
-  use FatesAllometryMod,          only : carea_allom, tree_lai, tree_sai
+  use FatesAllometryMod,          only : carea_allom, tree_lai_sai
   use PRTAllometricCarbonMod,     only : ac_bc_inout_id_dbh, ac_bc_inout_id_netdc
   use PRTAllometricCarbonMod,     only : ac_bc_in_id_cdamage, ac_bc_in_id_pft
   use PRTAllometricCarbonMod,     only : ac_bc_in_id_ctrim, ac_bc_in_id_lstat
@@ -51,7 +51,7 @@ module FatesCohortMod
 
   implicit none
   private
-
+  
   ! PARAMETERS
   character(len=*), parameter, private :: sourcefile = __FILE__
 
@@ -77,7 +77,6 @@ module FatesCohortMod
     !---------------------------------------------------------------------------
 
     ! VEGETATION STRUCTURE
-    
     integer  :: pft                     ! pft index
     real(r8) :: n                       ! number of individuals in cohort per 'area' (10000m2 default) [/m2]
     real(r8) :: dbh                     ! diameter at breast height [cm]
@@ -450,7 +449,7 @@ module FatesCohortMod
       this%cambial_mort            = nan 
       this%crownfire_mort          = nan 
       this%fire_mort               = nan 
-   
+      
     end subroutine NanValues
    
     !===========================================================================
@@ -547,7 +546,7 @@ module FatesCohortMod
       !
       ! DESCRIPTION:
       ! set up values for a newly created cohort
-
+      
       ! ARGUMENTS
       class(fates_cohort_type), intent(inout), target  :: this             ! cohort object
       class(prt_vartypes),      intent(inout), pointer :: prt              ! The allocated PARTEH object
@@ -570,10 +569,11 @@ module FatesCohortMod
       ! LOCAL VARIABLES:
       integer  :: iage        ! loop counter for leaf age classes
       real(r8) :: leaf_c      ! total leaf carbon [kgC]
-
+      real(r8) :: treesai     ! stem area index within crown [m2/m2]
+      
       ! initialize cohort
       call this%Init(prt)
-
+      
       ! set values
       this%pft          = pft
       this%crowndamage  = crowndamage
@@ -640,15 +640,14 @@ module FatesCohortMod
       ! Query PARTEH for the leaf carbon [kg]
       leaf_c = this%prt%GetState(leaf_organ, carbon12_element)
 
-      ! calculate tree lai
-      this%treelai = tree_lai(leaf_c, this%pft, this%c_area, this%n,           &
-        this%canopy_layer, can_tlai, this%vcmax25top)
+      call tree_lai_sai(leaf_c, this%pft, this%c_area, this%n,           &
+           this%canopy_layer, can_tlai, this%vcmax25top, this%dbh, this%crowndamage,          &
+           this%canopy_trim, this%efstem_coh, 2, this%treelai, treesai)
 
       if (hlm_use_sp .eq. ifalse) then
-        this%treesai = tree_sai(this%pft, this%dbh, this%crowndamage,          &
-          this%canopy_trim, this%efstem_coh, this%c_area, this%n,              &
-          this%canopy_layer, can_tlai, this%treelai,this%vcmax25top, 2)
+         this%treesai = treesai
       end if
+     
 
       call this%InitPRTBoundaryConditions()
 

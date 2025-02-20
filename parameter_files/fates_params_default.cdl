@@ -365,7 +365,7 @@ variables:
 		fates_landuse_luc_pprod10:long_name = "fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
 	double fates_leaf_agross_btran_model(fates_pft) ;
 		fates_leaf_agross_btran_model:units = "index" ;
-		fates_leaf_agross_btran_model:long_name = "model switch for how btran reduces gross assimilation. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
+		fates_leaf_agross_btran_model:long_name = "model switch for how gross assimilation affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
@@ -386,7 +386,7 @@ variables:
 		fates_leaf_slatop:long_name = "Specific Leaf Area (SLA) at top of canopy, projected area basis" ;
 	double fates_leaf_stomatal_btran_model(fates_pft) ;
 		fates_leaf_stomatal_btran_model:units = "index" ;
-		fates_leaf_stomatal_btran_model:long_name = "model switch for how btran reduces conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
+		fates_leaf_stomatal_btran_model:long_name = "model switch for how btran affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
 	double fates_leaf_stomatal_intercept(fates_pft) ;
 		fates_leaf_stomatal_intercept:units = "umol H2O/m**2/s" ;
 		fates_leaf_stomatal_intercept:long_name = "Minimum unstressed stomatal conductance for Ball-Berry model and Medlyn model" ;
@@ -1312,14 +1312,14 @@ data:
     0.75, 0.75 ;
 
  fates_hydro_vg_alpha_node =
-  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
-    0.005, 0.005, 0.005, 0.005,
-  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
-    0.005, 0.005, 0.005, 0.005,
-  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
-    0.005, 0.005, 0.005, 0.005,
-  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
-    0.005, 0.005, 0.005, 0.005 ;
+  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
+    0.12, 0.12,
+  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
+    0.12, 0.12,
+  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
+    0.12, 0.12,
+  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
+    0.12, 0.12 ;
 
  fates_hydro_vg_m_node =
   0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
@@ -1347,7 +1347,7 @@ data:
  fates_landuse_luc_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 1, 
     1, 1 ;
 
- fates_leaf_agross_btran_model = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+ fates_leaf_agross_btran_model = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 
@@ -1366,7 +1366,7 @@ data:
  fates_leaf_slatop = 0.012, 0.005, 0.024, 0.009, 0.03, 0.03, 0.012, 0.03, 
     0.03, 0.01, 0.032, 0.027, 0.05, 0.05 ;
 
- fates_leaf_stomatal_btran_model = 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 ;
+ fates_leaf_stomatal_btran_model = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_leaf_stomatal_intercept = 10000, 10000, 10000, 10000, 10000, 10000, 
     10000, 10000, 10000, 10000, 10000, 10000, 10000, 40000 ;
@@ -1653,8 +1653,8 @@ data:
  fates_turb_leaf_diameter = 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 
     0.04, 0.04, 0.04, 0.04, 0.04, 0.04 ;
 
- fates_turb_z0mr = 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 
-    0.055, 0.055, 0.055, 0.055, 0.055, 0.055 ;
+ fates_turb_z0mr = 0.075, 0.055, 0.055, 0.075, 0.055, 0.055, 0.12, 0.12, 
+    0.12, 0.12, 0.12, 0.12, 0.12, 0.12 ;
 
  fates_turnover_branch = 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 
     150, 0, 0, 0 ;

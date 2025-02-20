@@ -43,10 +43,9 @@ module EDPhysiologyMod
   use EDPftvarcon      , only    : GetDecompyFrac
   use FatesInterfaceTypesMod, only    : bc_in_type
   use FatesInterfaceTypesMod, only    : bc_out_type
-  use EDCohortDynamicsMod , only : create_cohort, sort_cohorts
+  use EDCohortDynamicsMod , only : create_cohort
   use EDCohortDynamicsMod , only : InitPRTObject
-  use FatesAllometryMod   , only : tree_lai
-  use FatesAllometryMod   , only : tree_sai
+  use FatesAllometryMod   , only : tree_lai_sai
   use FatesAllometryMod   , only : leafc_from_treelai
   use FatesAllometryMod   , only : decay_coeff_vcmax
   use FatesLitterMod      , only : litter_type
@@ -639,8 +638,6 @@ contains
     real(r8) :: cumulative_lai_cohort ! cumulative LAI within the current cohort only
 
     ! Temporary diagnostic ouptut
-    integer :: ipatch
-    integer :: icohort
 
     ! LAPACK linear least squares fit variables
     ! The standard equation for a linear fit, y = mx + b, is converted to a linear system, AX=B and has
@@ -674,18 +671,14 @@ contains
     real(r8) :: leaf_long                 ! temporary leaf lifespan before accounting for deciduousness 
     !----------------------------------------------------------------------
 
-    ipatch = 1 ! Start counting patches
-
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
 
        ! Add debug diagnstic output to determine which patch
        if (debug) then
-          write(fates_log(),*) 'Current patch:', ipatch
-          write(fates_log(),*) 'Current patch cohorts:', currentPatch%countcohorts
+          write(fates_log(),*) 'Current patch:', currentPatch%patchno
+          write(fates_log(),*) 'Current patch cohorts:', currentPatch%num_cohorts
        endif
-
-       icohort = 1
 
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
@@ -696,7 +689,6 @@ contains
 
           ! Add debug diagnostic output to determine which cohort
           if (debug) then
-             write(fates_log(),*) 'Current cohort:', icohort
              write(fates_log(),*) 'Starting canopy trim:', initial_trim
           endif
 
@@ -707,18 +699,10 @@ contains
 
           leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
 
-          currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
-               currentCohort%n, currentCohort%canopy_layer,               &
-               currentPatch%canopy_layer_tlai,currentCohort%vcmax25top )
-
-          ! We don't need to check on sp mode here since we don't trim_canopy with sp mode
-          currentCohort%treesai = tree_sai(currentCohort%pft, &
-               currentCohort%dbh, currentCohort%crowndamage,  &
-               currentCohort%canopy_trim, &
-               currentCohort%efstem_coh, &
-               currentCohort%c_area, currentCohort%n,currentCohort%canopy_layer,& 
-               currentPatch%canopy_layer_tlai, currentCohort%treelai, &
-               currentCohort%vcmax25top,0 )  
+          call  tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n,           &
+               currentCohort%canopy_layer, currentPatch%canopy_layer_tlai, currentCohort%vcmax25top,   &
+               currentCohort%dbh, currentCohort%crowndamage, currentCohort%canopy_trim, &
+               currentCohort%efstem_coh, 0, currentCohort%treelai, currentCohort%treesai )
 
           currentCohort%nv      = count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
 
@@ -916,10 +900,9 @@ contains
 
           ! currentCohort%canopy_trim = 1.0_r8 !FIX(RF,032414) this turns off ctrim for now.
           currentCohort => currentCohort%shorter
-          icohort = icohort + 1
        enddo
        currentPatch => currentPatch%older
-       ipatch = ipatch + 1
+
     enddo
 
   end subroutine trim_canopy
@@ -966,6 +949,8 @@ contains
     integer  :: gddstart          ! beginning of counting period for growing degree days.
     integer  :: nlevroot          ! Number of rooting levels to consider
     real(r8) :: temp_in_C         ! daily averaged temperature in celsius
+    real(r8) :: temp_wgt          ! canopy area weighting factor for daily average
+                                  ! vegetation temperature calculation
     real(r8) :: elongf_prev       ! Elongation factor from previous time
     real(r8) :: elongf_1st        ! First guess for elongation factor
     integer  :: ndays_pft_leaf_lifespan ! PFT life span of drought deciduous [days].
@@ -1019,13 +1004,23 @@ contains
     !Parameters, default from from SDGVM model of senesence
 
     temp_in_C = 0._r8
+    temp_wgt = 0._r8
     cpatch => CurrentSite%oldest_patch
     do while(associated(cpatch))
-       temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%area
+       temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%total_canopy_area
+       temp_wgt = temp_wgt + cpatch%total_canopy_area
        cpatch => cpatch%younger
     end do
-    temp_in_C = temp_in_C * area_inv - tfrz
-
+    if(temp_wgt>nearzero)then
+       temp_in_C = temp_in_C/temp_wgt - tfrz
+    else
+       ! If there is no canopy area, we use the veg temperature
+       ! of the first patch, which is the forcing air temperature
+       ! as defined in CLM/ELM. The forcing air temperature
+       ! should be the same among all patches. (Although
+       ! it is unlikely there are more than 1 in this scenario)
+       temp_in_C = CurrentSite%oldest_patch%tveg24%GetMean() - tfrz
+    end if
 
     !-----------------Cold Phenology--------------------!
 
@@ -1931,6 +1926,7 @@ contains
 
     ! LOCAL VARIABLES:
     real(r8) :: check_treelai       ! check tree LAI against input tlai [m2/m2]
+    real(r8) :: dummy_treesai       ! dummy
     real(r8) :: canopylai(1:nclmax) ! canopy LAI [m2/m2]
     real(r8) :: oldcarea            ! save value of crown area [m2]
 
@@ -1948,17 +1944,17 @@ contains
 
     ! calculate leaf carbon from target treelai
     canopylai(:) = 0._r8
-    leaf_c = leafc_from_treelai(tlai, pft, c_area, cohort_n, canopy_layer, vcmax25top)
-
+    leaf_c = leafc_from_treelai(tlai, tsai, pft, c_area, cohort_n, canopy_layer, vcmax25top)
+    
     ! check that the inverse calculation of leafc from treelai is the same as the
     ! standard calculation of treelai from leafc. Maybe can delete eventually?
-    check_treelai = tree_lai(leaf_c, pft, c_area, cohort_n, canopy_layer,                &
-         canopylai, vcmax25top)
 
+    call tree_lai_sai(leaf_c, pft, c_area, cohort_n, canopy_layer, canopylai, vcmax25top, &
+                          dbh, crown_damage, 1.0_r8, 1.0_r8, 11, check_treelai, dummy_treesai)
+    
     if (abs(tlai - check_treelai) > area_error_2) then !this is not as precise as nearzero
       write(fates_log(),*) 'error in validate treelai', tlai, check_treelai, tlai - check_treelai
-      write(fates_log(),*) 'tree_lai inputs: ', pft, c_area, cohort_n,                   &
-        canopy_layer, vcmax25top
+      write(fates_log(),*) 'tree_lai inputs: ', pft, c_area, cohort_n, canopy_layer, vcmax25top
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
@@ -2787,6 +2783,7 @@ contains
             endif any_recruits
          endif use_this_pft_if
       enddo  !pft loop
+      call currentPatch%ValidateCohorts()
    end subroutine recruitment
 
    ! ======================================================================================
@@ -2802,7 +2799,9 @@ contains
     ! and turnover in dying trees.
     !
     ! !USES:
-
+    use EDParamsMod           , only : landuse_grazing_carbon_use_eff
+    use EDParamsMod           , only : landuse_grazing_nitrogen_use_eff
+    use EDParamsMod           , only : landuse_grazing_phosphorus_use_eff
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target :: currentSite
@@ -2849,6 +2848,8 @@ contains
     integer  :: numlevsoil        ! Actual number of soil layers
 
     real(r8) :: SF_val_CWD_frac_adj(4) !SF_val_CWD_frac adjusted based on cohort dbh
+    real(r8) :: leaf_herbivory  ! leaf that is eaten by grazers [kg]
+    real(r8) :: herbivory_element_use_efficiency   ! fraction of grazed biomass that is returned to litter pool versus atmosphere
     !----------------------------------------------------------------------
 
     ! -----------------------------------------------------------------------------------
@@ -2858,6 +2859,15 @@ contains
     numlevsoil = currentSite%nlevsoil
 
     element_id = litt%element_id
+
+    select case(element_id)
+       case (carbon12_element)
+          herbivory_element_use_efficiency = landuse_grazing_carbon_use_eff
+       case (nitrogen_element)
+          herbivory_element_use_efficiency = landuse_grazing_nitrogen_use_eff
+       case (phosphorus_element)
+          herbivory_element_use_efficiency = landuse_grazing_phosphorus_use_eff
+    end select
 
     ! Object tracking flux diagnostics for each element
     elflux_diags => currentSite%flux_diags%elem(element_pos(element_id))
@@ -2883,6 +2893,8 @@ contains
        store_m         = currentCohort%prt%GetState(store_organ,element_id)
        fnrt_m          = currentCohort%prt%GetState(fnrt_organ,element_id)
        repro_m         = currentCohort%prt%GetState(repro_organ,element_id)
+
+       leaf_herbivory  = currentCohort%prt%GetHerbivory(leaf_organ, element_id)
 
        if (prt_params%woody(currentCohort%pft) == itrue) then
           ! Assumption: for woody plants fluxes from deadwood and sapwood go together in CWD pool
@@ -2928,7 +2940,9 @@ contains
        do dcmpy=1,ndcmpy
           dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
           litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
-               (leaf_m_turnover+repro_m_turnover) * plant_dens * dcmpy_frac
+               (leaf_m_turnover+repro_m_turnover + &
+               leaf_herbivory * herbivory_element_use_efficiency) * &
+               plant_dens * dcmpy_frac
 
           dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
           do ilyr = 1, numlevsoil
@@ -2941,6 +2955,11 @@ contains
             elflux_diags%root_litter_input(pft) +  &
             (fnrt_m_turnover + store_m_turnover ) * currentCohort%n
 
+       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere
+
+       site_mass%herbivory_flux_out = &
+            site_mass%herbivory_flux_out + &
+            leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n
 
        ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
 

@@ -9,7 +9,7 @@ module EDPatchDynamicsMod
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDPftvarcon          , only : GetDecompyFrac
   use PRTParametersMod      , only : prt_params
-  use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
+  use EDCohortDynamicsMod  , only : fuse_cohorts
   use EDTypesMod           , only : area_site => area
   use ChecksBalancesMod    , only : PatchMassStock
   use FatesLitterMod       , only : ncwd
@@ -22,7 +22,8 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
   use EDTypesMod           , only : ed_site_type
-  use FatesPatchMod,         only : fates_patch_type
+  use FatesPatchMod        , only : fates_patch_type
+  use EDTypesMod           , only : set_patchno 
   use FatesCohortMod       , only : fates_cohort_type
   use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : site_fluxdiags_type
@@ -124,7 +125,6 @@ module EDPatchDynamicsMod
   public :: patch_pft_size_profile
   public :: disturbance_rates
   public :: check_patch_area
-  public :: set_patchno
   private:: fuse_2_patches
 
   character(len=*), parameter, private :: sourcefile = &
@@ -270,8 +270,7 @@ contains
                 bc_in%hlm_harvest_units, &
                 currentPatch%land_use_label, &
                 currentPatch%age_since_anthro_disturbance, &
-                current_fates_landuse_state_vector(primaryland), &
-                current_fates_landuse_state_vector(secondaryland), &
+                current_fates_landuse_state_vector, &
                 harvestable_forest_c, &
                 harvest_tag)
          
@@ -400,8 +399,7 @@ contains
                      harvest_rate, harvest_tag)
              else
                 call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                     bc_in%hlm_harvest_rates, current_fates_landuse_state_vector(primaryland), &
-                     current_fates_landuse_state_vector(secondaryland), secondary_young_fraction, &
+                     bc_in%hlm_harvest_rates, current_fates_landuse_state_vector, secondary_young_fraction, &
                      currentPatch%age_since_anthro_disturbance, harvest_rate)
              end if
 
@@ -428,12 +426,6 @@ contains
           dist_rate_ldist_notharvested = dist_rate_ldist_notharvested + &
                (currentPatch%area - currentPatch%total_canopy_area) * harvest_rate / currentPatch%area
        endif
-
-       ! For nocomp mode, we need to prevent producing too small patches, which may produce small patches
-       if ((hlm_use_nocomp .eq. itrue) .and. &
-           (currentPatch%disturbance_rates(dtype_ilog)*currentPatch%area .lt. min_patch_area_forced)) then
-          currentPatch%disturbance_rates(dtype_ilog) = 0._r8
-       end if
 
        ! fraction of the logging disturbance rate that is non-harvested
        if (currentPatch%disturbance_rates(dtype_ilog) .gt. nearzero) then
@@ -524,8 +516,6 @@ contains
     type (fates_patch_type) , pointer :: currentPatch
     type (fates_cohort_type), pointer :: currentCohort
     type (fates_cohort_type), pointer :: nc
-    type (fates_cohort_type), pointer :: storesmallcohort
-    type (fates_cohort_type), pointer :: storebigcohort
     real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
     real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
@@ -533,8 +523,6 @@ contains
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
     integer  :: pft                          ! pft loop index
-    integer  :: tnull                        ! is there a tallest cohort?
-    integer  :: snull                        ! is there a shortest cohort?
     integer  :: levcan                       ! canopy level
     real(r8) :: leaf_c                       ! leaf carbon [kg]
     real(r8) :: fnrt_c                       ! fineroot carbon [kg]
@@ -569,9 +557,6 @@ contains
     integer  :: which_pft_allowed
     logical  :: buffer_patch_used
     !---------------------------------------------------------------------
-
-    storesmallcohort => null() ! storage of the smallest cohort for insertion routine
-    storebigcohort   => null() ! storage of the largest cohort for insertion routine 
 
     if (hlm_use_nocomp .eq. itrue) then
        min_nocomp_pft = 0
@@ -767,13 +752,9 @@ contains
                             ! and burned litter to atmosphere. Thus it is important to zero fuel%frac_burnt when
                             ! fire is not the current disturbance regime.
 
-                            if(i_disturbance_type .ne. dtype_ifire) then
-                               currentPatch%fuel%frac_burnt(:) = 0._r8
-                            end if
-
                             call CopyPatchMeansTimers(currentPatch, newPatch)
 
-                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis)
+                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis, i_disturbance_type)
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
                             select case(i_disturbance_type)
@@ -1045,7 +1026,6 @@ contains
                                   ! Some of of the leaf mass from living plants has been
                                   ! burned off.  Here, we remove that mass, and
                                   ! tally it in the flux we sent to the atmosphere
-
                                   if(prt_params%woody(currentCohort%pft) == itrue)then
                                      leaf_burn_frac = currentCohort%fraction_crown_burned
                                   else
@@ -1262,30 +1242,7 @@ contains
                                ! if some plants in the new temporary cohort survived the transfer to the new patch,
                                ! then put the cohort into the linked list.
                                cohort_n_gt_zero: if (nc%n > 0.0_r8) then
-                                  storebigcohort   =>  newPatch%tallest
-                                  storesmallcohort =>  newPatch%shortest
-                                  if(associated(newPatch%tallest))then
-                                     tnull = 0
-                                  else
-                                     tnull = 1
-                                     newPatch%tallest => nc
-                                     nc%taller => null()
-                                  endif
-
-                                  if(associated(newPatch%shortest))then
-                                     snull = 0
-                                  else
-                                     snull = 1
-                                     newPatch%shortest => nc
-                                     nc%shorter => null()
-                                  endif
-
-                                  call insert_cohort(newPatch, nc, newPatch%tallest, newPatch%shortest, &
-                                       tnull, snull, storebigcohort, storesmallcohort)
-
-                                  newPatch%tallest  => storebigcohort
-                                  newPatch%shortest => storesmallcohort
-
+                                 call newPatch%InsertCohort(nc)
                                else
                                   ! sadly, no plants in the cohort survived. on the bright side, we can deallocate their memory.
                                   call nc%FreeMemory()
@@ -1298,8 +1255,10 @@ contains
 
                                currentCohort => currentCohort%taller
                             enddo cohortloop
+                            call newPatch%ValidateCohorts()
 
-                            call sort_cohorts(currentPatch)
+                            call currentPatch%SortCohorts()
+                            call currentPatch%ValidateCohorts()
 
                             !update area of donor patch
                             oldarea = currentPatch%area
@@ -1330,7 +1289,8 @@ contains
                             call terminate_cohorts(currentSite, currentPatch, 1,16,bc_in)
                             call fuse_cohorts(currentSite,currentPatch, bc_in)
                             call terminate_cohorts(currentSite, currentPatch, 2,16,bc_in)
-                            call sort_cohorts(currentPatch)
+                            call currentPatch%SortCohorts()
+                            call currentPatch%ValidateCohorts()
 
                          end if areadis_gt_zero_if   ! if ( newPatch%area > nearzero ) then
 
@@ -1357,12 +1317,13 @@ contains
                    call terminate_cohorts(currentSite, newPatch, 1,17, bc_in)
                    call fuse_cohorts(currentSite,newPatch, bc_in)
                    call terminate_cohorts(currentSite, newPatch, 2,17, bc_in)
-                   call sort_cohorts(newPatch)
+                   call newPatch%SortCohorts()
+                   call newPatch%ValidateCohorts()
                 endif
 
 
                 call check_patch_area(currentSite)
-                call set_patchno(currentSite)
+                call set_patchno(currentSite,.false.,0)
 
              end do landusechange_receiverpatchlabel_loop
           end do landuse_donortype_loop
@@ -1688,11 +1649,7 @@ contains
     ! !LOCAL VARIABLES:
     integer  :: el                           ! element loop index
     type (fates_cohort_type), pointer :: nc
-    type (fates_cohort_type), pointer :: storesmallcohort
-    type (fates_cohort_type), pointer :: storebigcohort
     type (fates_cohort_type), pointer :: currentCohort
-    integer  :: tnull                        ! is there a tallest cohort?
-    integer  :: snull                        ! is there a shortest cohort?
     integer  :: pft
     real(r8) :: temp_area
 
@@ -1724,9 +1681,7 @@ contains
 
     call CopyPatchMeansTimers(currentPatch, new_patch)
 
-    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area)
-
-    currentPatch%fuel%frac_burnt(:) = 0._r8
+    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, 0)
 
     ! Next, we loop through the cohorts in the donor patch, copy them with
     ! area modified number density into the new-patch, and apply survivorship.
@@ -1761,34 +1716,14 @@ contains
        ! loss of individuals from source patch due to area shrinking
        currentCohort%n = currentCohort%n * fraction_to_keep
 
-       storebigcohort   =>  new_patch%tallest
-       storesmallcohort =>  new_patch%shortest
-       if(associated(new_patch%tallest))then
-          tnull = 0
-       else
-          tnull = 1
-          new_patch%tallest => nc
-          nc%taller => null()
-       endif
-
-       if(associated(new_patch%shortest))then
-          snull = 0
-       else
-          snull = 1
-          new_patch%shortest => nc
-          nc%shorter => null()
-       endif
-
-       call insert_cohort(new_patch, nc, new_patch%tallest, new_patch%shortest, &
-            tnull, snull, storebigcohort, storesmallcohort)
-
-       new_patch%tallest  => storebigcohort
-       new_patch%shortest => storesmallcohort
+       call new_patch%InsertCohort(nc)
 
        currentCohort => currentCohort%taller
     enddo ! currentCohort
+    call new_patch%ValidateCohorts()
 
-    call sort_cohorts(currentPatch)
+    call currentPatch%SortCohorts()
+    call currentPatch%ValidateCohorts()
 
     !update area of donor patch
     currentPatch%area = currentPatch%area - temp_area
@@ -1876,53 +1811,12 @@ contains
   end subroutine check_patch_area
 
   ! ============================================================================
-  subroutine set_patchno( currentSite )
-    !
-    ! !DESCRIPTION:
-    !  Give patches an order number from the oldest to youngest. 
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS:
-    type(ed_site_type),intent(in) :: currentSite 
-    !
-    ! !LOCAL VARIABLES:
-    type(fates_patch_type), pointer :: currentPatch 
-    integer patchno
-    !---------------------------------------------------------------------
-
-    patchno = 1
-    currentPatch => currentSite%oldest_patch
-    do while(associated(currentPatch))
-       currentPatch%patchno = patchno
-       patchno = patchno + 1
-       currentPatch => currentPatch%younger
-    enddo
-
-    if(hlm_use_fixed_biogeog.eq.itrue .and. hlm_use_nocomp.eq.itrue)then
-      patchno = 1
-      currentPatch => currentSite%oldest_patch
-      do while(associated(currentPatch))
-        if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
-         ! for bareground patch, we make the patch number 0
-         ! we also do not count this in the veg. patch numbering scheme.
-          currentPatch%patchno = 0
-        else
-         currentPatch%patchno = patchno
-         patchno = patchno + 1
-        endif
-        currentPatch => currentPatch%younger
-       enddo
-    endif
-
-  end subroutine set_patchno
-
-  ! ============================================================================
 
   subroutine TransLitterNewPatch(currentSite,        &
                                  currentPatch,       &
                                  newPatch,           &
-                                 patch_site_areadis)
+                                 patch_site_areadis, &
+                                 dist_type)
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -1971,6 +1865,7 @@ contains
     type(fates_patch_type) , intent(inout) :: newPatch           ! New patch
     real(r8)            , intent(in)    :: patch_site_areadis ! Area being donated
                                                               ! by current patch
+    integer,              intent(in)    :: dist_type          ! disturbance type
 
     
     ! locals
@@ -1993,6 +1888,7 @@ contains
     real(r8) :: litter_stock0,litter_stock1
     real(r8) :: burn_flux0,burn_flux1
     real(r8) :: error
+    real(r8) :: frac_burnt                 ! fraction burnt of current fuel type [0-1]
 
     do el = 1,num_elements
 
@@ -2076,15 +1972,19 @@ contains
           litter_stock0 = curr_litt%GetTotalLitterMass()*currentPatch%area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
        end if
-
+       
        do c = 1,ncwd
+         frac_burnt = 0.0_r8
+         if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
+            frac_burnt = currentPatch%fuel%frac_burnt(c)
+         end if 
              
           ! Transfer above ground CWD
           donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               (1._r8 - currentPatch%fuel%frac_burnt(c))
+                               (1._r8 - frac_burnt)
 
           burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               currentPatch%fuel%frac_burnt(c)
+                               frac_burnt
  
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
@@ -2100,15 +2000,20 @@ contains
           end do
           
        enddo
-          
+       
+       frac_burnt = 0.0_r8
+       if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
+         frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
+      end if 
+             
        do dcmpy=1,ndcmpy
 
            ! Transfer leaf fines
            donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      (1._r8 - currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves()))
+                                      (1._r8 - frac_burnt)
 
            burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                      currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
+                                       frac_burnt
 
            new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
@@ -3119,7 +3024,8 @@ contains
                             tmpptr => currentPatch%older       
                             call fuse_2_patches(csite, currentPatch, tpp)
                             call fuse_cohorts(csite,tpp, bc_in)
-                            call sort_cohorts(tpp)
+                            call tpp%SortCohorts()
+                            call tpp%ValidateCohorts()
                             currentPatch => tmpptr
 
                             !------------------------------------------------------------------------!
@@ -3241,10 +3147,7 @@ contains
     ! !LOCAL VARIABLES:
     type (fates_cohort_type), pointer :: currentCohort ! Current Cohort
     type (fates_cohort_type), pointer :: nextc         ! Remembers next cohort in list 
-    type (fates_cohort_type), pointer :: storesmallcohort
-    type (fates_cohort_type), pointer :: storebigcohort  
     integer                        :: c,p          !counters for pft and litter size class. 
-    integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
     integer                        :: el           ! loop counting index for elements
     integer                        :: pft          ! loop counter for pfts
     type(fates_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
@@ -3324,31 +3227,8 @@ contains
        endif
 
        do while(associated(dp%shortest))
-
-          storebigcohort   => rp%tallest
-          storesmallcohort => rp%shortest
-
-          if(associated(rp%tallest))then
-             tnull = 0
-          else
-             tnull = 1
-             rp%tallest => currentCohort
-          endif
-
-          if(associated(rp%shortest))then
-             snull = 0
-          else
-             snull = 1
-             rp%shortest => currentCohort
-          endif
-
-          call insert_cohort(rp, currentCohort, rp%tallest, rp%shortest,       &
-            tnull, snull, storebigcohort, storesmallcohort)
-
-          rp%tallest  => storebigcohort 
-          rp%shortest => storesmallcohort    
-
-          !currentCohort%patchptr => rp
+       
+         call rp%InsertCohort(currentCohort)
 
           currentCohort => nextc
 
@@ -3359,6 +3239,7 @@ contains
           endif
 
        enddo !cohort
+       call rp%ValidateCohorts()
     endif !are there any cohorts?
 
     call patch_pft_size_profile(rp) ! Recalculate the patch size profile for the resulting patch
@@ -3672,6 +3553,8 @@ contains
     !check area is not exceeded
     call check_patch_area( currentSite )
 
+    call set_patchno( currentSite, .false., 0)
+    
     return
   end subroutine terminate_patches
 

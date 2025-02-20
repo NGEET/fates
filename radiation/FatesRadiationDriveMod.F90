@@ -97,17 +97,14 @@ contains
 
     do s = 1, nsites
 
-       ifp = 0
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
 
           ! do not do albedo calculations for bare ground patch in SP mode
-          ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
-          ! ifp=1 is the first vegetated patch.
-          
-          if_notbareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
 
-             ifp = ifp+1
+          ifp = currentpatch%patchno
+          
+          if_bareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              
              ! Zero diagnostics
              currentPatch%f_sun      (:,:,:) = 0._r8
@@ -240,7 +237,7 @@ contains
                 end if if_nrad
 
              endif if_zenith_flag
-          end if if_notbareground
+          end if if_bareground
 
           currentPatch => currentPatch%younger
        end do       ! Loop linked-list patches
@@ -282,17 +279,15 @@ contains
 
     do s = 1,nsites
 
-       ifp = 0
        cpatch => sites(s)%oldest_patch
-
        do while (associated(cpatch))
 
-          if_notbareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
-             ! do not do albedo calculations for bare ground patch in SP mode
-             ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
-             ! ifp=1 is the first vegetated patch.
-             ifp=ifp+1
+          ifp = cpatch%patchno
+          
+          if_bareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
 
+             ! do not do albedo calculations for bare ground patch in SP mode
+             
              ! Initialize diagnostics
              cpatch%ed_parsun_z(:,:,:) = 0._r8
              cpatch%ed_parsha_z(:,:,:) = 0._r8
@@ -490,7 +485,7 @@ contains
                 end if if_zenithflag
              endif if_norm_twostr
              
-          end if if_notbareground
+          end if if_bareground
           
           cpatch => cpatch%younger
        enddo

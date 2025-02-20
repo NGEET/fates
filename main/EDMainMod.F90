@@ -33,8 +33,6 @@ module EDMainMod
   use PRTGenericMod            , only : phosphorus_element
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
-  use EDCohortDynamicsMod      , only : sort_cohorts
-  use EDCohortDynamicsMod      , only : count_cohorts
   use EDCohortDynamicsMod      , only : EvaluateAndCorrectDBH
   use EDCohortDynamicsMod      , only : DamageRecovery
   use EDPatchDynamicsMod       , only : disturbance_rates
@@ -58,12 +56,13 @@ module EDMainMod
   use FatesSoilBGCFluxMod      , only : EffluxIntoLitterPools
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs
   use FatesSoilBGCFluxMod      , only : PrepCH4BCs
-  use SFMainMod                , only : fire_model
+  use SFMainMod                , only : DailyFireModel
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
   use FatesLitterMod           , only : litter_type
   use FatesLitterMod           , only : ncwd
   use EDtypesMod               , only : ed_site_type
+  use EDTypesMod               , only : set_patchno
   use FatesPatchMod            , only : fates_patch_type
   use FatesCohortMod           , only : fates_cohort_type
   use EDTypesMod               , only : AREA
@@ -79,13 +78,14 @@ module EDMainMod
   use FatesConstantsMod        , only : nearzero
   use FatesConstantsMod        , only : m2_per_ha
   use FatesConstantsMod        , only : sec_per_day
+  use FatesConstantsMod        , only : nocomp_bareground
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydProps
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydStates
   use FatesPlantHydraulicsMod  , only : InitPlantHydStates
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
-  use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
+  use FatesAllometryMod        , only : h_allom
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use EDLoggingMortalityMod    , only : get_harvestable_carbon
   use DamageMainMod            , only : IsItDamageTime
@@ -105,6 +105,7 @@ module EDMainMod
   use PRTParametersMod      , only : prt_params
   use EDPftvarcon,            only : EDPftvarcon_inst
   use FatesHistoryInterfaceMod, only : fates_hist
+  use FatesLandUseChangeMod,  only: FatesGrazing
 
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -210,8 +211,9 @@ contains
        ! oldest patch per set_patchno, we check that the youngest patch isn't zero.
        ! If there are multiple patches on the site, the bareground patch is avoided
        ! at the level of the fire_model subroutines.
-       if (currentSite%youngest_patch%patchno .ne. 0) then 
-          call fire_model(currentSite, bc_in)
+
+       if (currentSite%youngest_patch%nocomp_pft_label .ne. nocomp_bareground)then
+          call DailyFireModel(currentSite, bc_in)
        end if
 
        ! Calculate disturbance and mortality based on previous timestep vegetation.
@@ -259,7 +261,7 @@ contains
        do while (associated(currentPatch))
 
           ! puts cohorts in right order
-          call sort_cohorts(currentPatch)
+          call currentPatch%SortCohorts()
 
           ! kills cohorts that are too few
           call terminate_cohorts(currentSite, currentPatch, 1, 10, bc_in  )
@@ -273,6 +275,7 @@ contains
 
           currentPatch => currentPatch%younger
        enddo
+         
     end if
 
     call TotalBalanceCheck(currentSite,2)
@@ -317,8 +320,6 @@ contains
     ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
 
-   
-    
     
   end subroutine ed_ecosystem_dynamics
 
@@ -480,8 +481,8 @@ contains
              call Mortality_Derivative(currentSite, currentCohort, bc_in,      &
                currentPatch%btran_ft, mean_temp,                               &
                currentPatch%land_use_label,                                    &
-               currentPatch%age_since_anthro_disturbance, current_fates_landuse_state_vector(primaryland),   &
-               current_fates_landuse_state_vector(secondaryland), harvestable_forest_c, harvest_tag)
+               currentPatch%age_since_anthro_disturbance, current_fates_landuse_state_vector,   &
+               harvestable_forest_c, harvest_tag)
 
 
              ! -----------------------------------------------------------------------------
@@ -545,6 +546,9 @@ contains
              currentCohort%npp_acc_hold  = currentCohort%gpp_acc_hold - &
                   (currentCohort%resp_m_acc_hold + currentCohort%resp_g_acc_hold)
              
+
+             ! allow herbivores to graze
+             call FatesGrazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height)
 
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
@@ -835,6 +839,11 @@ contains
     type (fates_patch_type) , pointer :: currentPatch
     !-----------------------------------------------------------------------
 
+    ! check patch order (set second argument to true)
+    if (debug) then
+       call set_patchno(currentSite,.true.,1)
+    end if
+    
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting))then
       call canopy_spread(currentSite)
     end if
@@ -861,7 +870,7 @@ contains
        end if
 
        ! This cohort count is used in the photosynthesis loop
-       call count_cohorts(currentPatch)
+       call currentPatch%CountCohorts()
        
        ! Update the total area of by patch age class array 
        currentSite%area_by_age(currentPatch%age_class) = &
@@ -972,7 +981,8 @@ contains
                   site_mass%seed_out + &
                   site_mass%flux_generic_out + &
                   site_mass%frag_out + &
-                  site_mass%aresp_acc
+                  site_mass%aresp_acc + &
+                  site_mass%herbivory_flux_out
 
        net_flux        = flux_in - flux_out
        error           = abs(net_flux - change_in_stock)
@@ -1005,6 +1015,7 @@ contains
           write(fates_log(),*) 'flux_generic_out: ',site_mass%flux_generic_out
           write(fates_log(),*) 'frag_out: ',site_mass%frag_out
           write(fates_log(),*) 'aresp_acc: ',site_mass%aresp_acc
+          write(fates_log(),*) 'herbivory_flux_out: ',site_mass%herbivory_flux_out
           write(fates_log(),*) 'error=net_flux-dstock:', error
           write(fates_log(),*) 'biomass', biomass_stock
           write(fates_log(),*) 'litter',litter_stock

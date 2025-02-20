@@ -46,6 +46,7 @@ module FatesRestartInterfaceMod
   use FatesFuelClassesMod,     only : num_fuel_classes
   use FatesLitterMod,          only : ndcmpy
   use EDTypesMod,              only : area
+  use EDTypesMod,              only : set_patchno
   use EDParamsMod,             only : nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
@@ -1829,6 +1830,23 @@ contains
                  hlms='CLM:ALM', initialize=initialize_variables, &
                  ivar=ivar, index = dummy_out )
 
+
+
+           ! Register the herbivory (i.e., grazing) flux variable
+           ! ----------------------------------------------------------------------------
+           ! The symbol that is written to file
+           symbol    = trim(symbol_base)//'_herbivory_'//trim(pos_symbol)
+
+           ! The expanded long name of the variable
+           long_name = trim(name_base)//', herbivory mass:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=symbol, &
+                 vtype=cohort_r8, &
+                 long_name=trim(long_name), &
+                 units='kg', flushval = flushzero, &
+                 hlms='CLM:ALM', initialize=initialize_variables, &
+                 ivar=ivar, index = dummy_out )
+
         end do
      end do
 
@@ -2423,6 +2441,10 @@ contains
                       this%rvars(ir_prt_var)%r81d(io_idx_co) = &
                             ccohort%prt%variables(i_var)%burned(i_pos)
 
+                      ir_prt_var = ir_prt_var + 1
+                      this%rvars(ir_prt_var)%r81d(io_idx_co) = &
+                            ccohort%prt%variables(i_var)%herbivory(i_pos)
+
                    end do
                 end do
 
@@ -2902,8 +2924,9 @@ contains
                      init_seed_germ=fates_unset_r8)
              end do
 
-             ! give this patch a unique patch number
-             newp%patchno = idx_pa
+             ! Set the new patch number to nonsense, we will
+             ! call set_patchno()
+             newp%patchno = -9
 
 
              ! Iterate over the number of cohorts
@@ -3405,6 +3428,10 @@ contains
                       ir_prt_var = ir_prt_var + 1
                       ccohort%prt%variables(i_var)%burned(i_pos) = &
                             this%rvars(ir_prt_var)%r81d(io_idx_co)
+
+                      ir_prt_var = ir_prt_var + 1
+                      ccohort%prt%variables(i_var)%herbivory(i_pos) = &
+                            this%rvars(ir_prt_var)%r81d(io_idx_co)
                    end do
                 end do
 
@@ -3779,8 +3806,12 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
 
+
+          call set_patchno(sites(s),.false.,0)
+          
        end do
 
+       
        if ( debug ) then
           write(fates_log(),*) 'CVTL total cohorts ',totalCohorts
        end if
@@ -3800,6 +3831,8 @@ contains
      use FatesNormanRadMod, only : PatchNormanRadiation
      use EDTypesMod,             only : ed_site_type
      use FatesPatchMod,          only : fates_patch_type
+     use FatesConstantsMod,      only : nocomp_bareground
+
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -3816,10 +3849,10 @@ contains
 
      do s = 1, nsites
 
-        ifp = 0
         currentpatch => sites(s)%oldest_patch
         do while (associated(currentpatch))
-           ifp = ifp+1
+
+           ifp = currentPatch%patchno
            
            currentPatch%f_sun      (:,:,:) = 0._r8
            currentPatch%fabd_sun_z (:,:,:) = 0._r8
@@ -3842,6 +3875,7 @@ contains
            ! currentPatch%solar_zenith_flag     (is there daylight?)
            ! currentPatch%solar_zenith_angle    (what is the value?)
            ! -----------------------------------------------------------
+           if_bareground: if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
            if(currentPatch%solar_zenith_flag)then
 
@@ -3914,8 +3948,9 @@ contains
                  end select
                     
               endif ! is there vegetation?
-
+              
            end if    ! if the vegetation and zenith filter is active
+           end if if_bareground
            currentPatch => currentPatch%younger
         end do       ! Loop linked-list patches
      enddo           ! Loop Sites
