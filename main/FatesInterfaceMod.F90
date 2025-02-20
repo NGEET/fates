@@ -72,6 +72,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
    use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
    use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
+   use FatesLeafBiophysParamsMod , only : LeafBiophysRegisterParams, LeafBiophysReceiveParams,LeafBiophysReportParams
    use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
    use EDParamsMod               , only : p_uptake_mode
    use EDParamsMod               , only : n_uptake_mode
@@ -2092,6 +2093,7 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
+      call LeafBiophysReportParams(masterproc)
       call PRTDerivedParams()              ! Update PARTEH derived constants
       call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
@@ -2533,6 +2535,7 @@ subroutine FatesReadParameters(param_reader)
   call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
   call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
   call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
+  call LeafBiophysRegisterParams(fates_params)
   call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
 
   call param_reader%Read(fates_params)
@@ -2540,6 +2543,7 @@ subroutine FatesReadParameters(param_reader)
   call FatesReceiveParams(fates_params)
   call SpitFireReceiveParams(fates_params)
   call PRTReceiveParams(fates_params)
+  call LeafBiophysReceiveParams(fates_params)
   call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
 
   call fates_params%Destroy()
