@@ -1313,6 +1313,7 @@ contains
     ! ---------------------------------------------------------------------------------
 
     use FatesInterfaceTypesMod    , only : hlm_use_cohort_age_tracking
+    use FatesInterfaceTypesMod    , only : hlm_radiation_model
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod                , only : area
