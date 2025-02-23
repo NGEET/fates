@@ -411,8 +411,6 @@ contains
              else if (currentPatch%land_use_label .eq. primaryland .and. .not. &
                   site_in%landuse_vector_gt_min(secondaryland)) then
                 harvest_rate = state_vector(secondaryland) / sum(state_vector(:))
-             else
-                harvest_rate = 0._r8
              end if
           else
              call GetInitLanduseHarvestRate(bc_in, site_in%min_allowed_landuse_fraction, &
