@@ -122,9 +122,6 @@ module LeafBiophysicsMod
   ! These two are public for error checking during parameter read-in
   real(r8), parameter, public :: lmr_r_1 = 0.2061_r8     ! (umol CO2/m**2/s / (gN/(m2 leaf))) 
   real(r8), parameter, public :: lmr_r_2 = -0.0402_r8    ! (umol CO2/m**2/s/degree C)
-
-  ! Fraction of light absorbed by non-photosynthetic pigments
-  real(r8),parameter :: fnps = 0.15_r8
   
   ! term accounting that two photons are needed to fully transport a single 
   ! electron in photosystem 2
@@ -453,7 +450,7 @@ contains
     ! Convert absorbed photon density [umol/m2 leaf /s] to
     ! that absorbed only by the photocenters (fnps) and also
     ! convert from photon energy into electron transport rate (photon_to_e)
-    jpar = par_abs*photon_to_e*(1.0_r8 - fnps)
+    jpar = par_abs*photon_to_e*(1.0_r8 - lb_params%fnps)
     
     ! convert the absorbed par into absorbed par per m2 of leaf,
     ! so it is consistant with the vcmax and lmr numbers.
@@ -506,7 +503,7 @@ contains
     ! quantum efficiency, used only for C4 (mol CO2 / mol photons)
     real(r8),parameter :: c4_quant_eff = 0.05_r8
     
-    aj = c4_quant_eff*par_abs*photon_to_e*(1.0_r8 - fnps)
+    aj = c4_quant_eff*par_abs*photon_to_e*(1.0_r8 - lb_params%fnps)
     
   end function AgrossRuBPC4
 

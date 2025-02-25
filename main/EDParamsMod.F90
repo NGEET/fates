@@ -34,6 +34,7 @@ module EDParamsMod
    real(r8),protected, public :: photo_temp_acclim_thome_time ! Length of the window for the long-term exponential moving average (ema)
                                                               ! of vegetation temperature used in photosynthesis 
                                                               ! T_home term in Kumarathunge parameterization [years]
+   real(r8),protected, public :: frac_light_nonphoto_pigment  ! Fraction of light absorbed by non-photosynthetic pigments
    integer,protected, public :: maintresp_leaf_model  ! switch for choosing between leaf maintenance
                                                       ! respiration model. 1=Ryan (1991), 2=Atkin et al (2017)
    real(r8),protected, public :: sdlng_emerg_h2o_timescale !Length of the window for the exponential moving
@@ -136,6 +137,7 @@ module EDParamsMod
    integer, protected,allocatable,public :: hydr_htftype_node(:)
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_leaf_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_thome_time = "fates_leaf_photo_temp_acclim_thome_time"
+   character(len=param_string_length),parameter,public :: ED_name_frac_light_nonphoto_pigment = "fates_leaf_frac_light_nonphoto_pigment"
    character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_leaf_model"
    character(len=param_string_length),parameter,public :: name_radiation_model = "fates_rad_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydro_htftype_node"
@@ -296,6 +298,7 @@ contains
     vai_top_bin_width                     = nan
     vai_width_increase_factor             = nan
     photo_temp_acclim_timescale           = nan
+    frac_light_nonphoto_pigment           = nan
     sdlng_emerg_h2o_timescale             = nan
     sdlng_mort_par_timescale              = nan
     sdlng_mdd_timescale                   = nan
@@ -377,6 +380,9 @@ contains
     call FatesParamsInit()
 
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_timescale, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=ED_name_frac_light_nonphoto_pigment, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_sdlng_emerg_h2o_timescale, dimension_shape=dimension_shape_scalar, &
@@ -588,6 +594,9 @@ contains
 
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
+
+    call fates_params%RetrieveParameter(name=ED_name_frac_light_nonphoto_pigment, &
+         data=frac_light_nonphoto_pigment)
 
     call fates_params%RetrieveParameter(name=ED_name_sdlng_emerg_h2o_timescale, &
          data=sdlng_emerg_h2o_timescale)
@@ -822,6 +831,7 @@ contains
         write(fates_log(),fmt0) 'sdlng2sap_par_timescale = ', sdlng2sap_par_timescale
         write(fates_log(),fmt0) 'photo_temp_acclim_timescale (days) = ',photo_temp_acclim_timescale
         write(fates_log(),fmt0) 'photo_temp_acclim_thome_time (years) = ',photo_temp_acclim_thome_time
+        write(fates_log(),fmt0) 'frac_light_nonphoto_pigment =  ', frac_light_nonphoto_pigment
         write(fates_log(),fmti) 'hydr_htftype_node = ',hydr_htftype_node
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
         write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln

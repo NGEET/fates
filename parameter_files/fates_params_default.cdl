@@ -387,6 +387,12 @@ variables:
 	double fates_leaf_stomatal_slope_medlyn(fates_pft) ;
 		fates_leaf_stomatal_slope_medlyn:units = "KPa**0.5" ;
 		fates_leaf_stomatal_slope_medlyn:long_name = "stomatal slope parameter, as per Medlyn" ;
+	double fates_leaf_stomatal_btran_model(fates_pft) ;
+		fates_leaf_stomatal_btran_model:units = "" ;
+		fates_leaf_stomatal_btran_model:long_name = "model switch for how btran affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
+	double fates_leaf_agross_btran_model(fates_pft) ;
+		fates_leaf_agross_btran_model:units = "index" ;
+		fates_leaf_agross_btran_model:long_name = "model switch for how gross assimilation affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
 	double fates_leaf_vcmax25top(fates_leafage_class, fates_pft) ;
 		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
@@ -840,12 +846,9 @@ variables:
 	double fates_leaf_stomatal_model ;
 		fates_leaf_stomatal_model:units = "unitless" ;
 		fates_leaf_stomatal_model:long_name = "switch for choosing between Ball-Berry (1) stomatal conductance model and Medlyn (2) model" ;
-	double fates_leaf_theta_cj_c3 ;
-		fates_leaf_theta_cj_c3:units = "unitless" ;
-		fates_leaf_theta_cj_c3:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants" ;
-	double fates_leaf_theta_cj_c4 ;
-		fates_leaf_theta_cj_c4:units = "unitless" ;
-		fates_leaf_theta_cj_c4:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants" ;
+	double fates_leaf_frac_light_nonphoto_pigment ;
+		fates_leaf_frac_light_nonphoto_pigment:units = "fraction" ;
+		fates_leaf_frac_light_nonphoto_pigment:long_name = "Fraction of light absorbed by non-photosynthetic pigments" ;
 	double fates_maintresp_leaf_model ;
 		fates_maintresp_leaf_model:units = "unitless" ;
 		fates_maintresp_leaf_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991), 2=Atkin et al., (2017)" ;
@@ -1797,9 +1800,7 @@ data:
 
  fates_leaf_stomatal_model = 1 ;
 
- fates_leaf_theta_cj_c3 = 0.999 ;
-
- fates_leaf_theta_cj_c4 = 0.999 ;
+ fates_leaf_frac_light_nonphoto_pigment = 0.15 ;
 
  fates_maintresp_leaf_model = 1 ;
 
