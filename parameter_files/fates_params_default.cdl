@@ -846,9 +846,9 @@ variables:
 	double fates_leaf_stomatal_model ;
 		fates_leaf_stomatal_model:units = "unitless" ;
 		fates_leaf_stomatal_model:long_name = "switch for choosing between Ball-Berry (1) stomatal conductance model and Medlyn (2) model" ;
-	double fates_leaf_frac_light_nonphoto_pigment ;
-		fates_leaf_frac_light_nonphoto_pigment:units = "fraction" ;
-		fates_leaf_frac_light_nonphoto_pigment:long_name = "Fraction of light absorbed by non-photosynthetic pigments" ;
+	double fates_leaf_fnps ;
+		fates_leaf_fnps:units = "fraction" ;
+		fates_leaf_fnps:long_name = "Fraction of light absorbed by non-photosynthetic pigments" ;
 	double fates_maintresp_leaf_model ;
 		fates_maintresp_leaf_model:units = "unitless" ;
 		fates_maintresp_leaf_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991), 2=Atkin et al., (2017)" ;
@@ -1800,7 +1800,7 @@ data:
 
  fates_leaf_stomatal_model = 1 ;
 
- fates_leaf_frac_light_nonphoto_pigment = 0.15 ;
+ fates_leaf_fnps = 0.15 ;
 
  fates_maintresp_leaf_model = 1 ;
 

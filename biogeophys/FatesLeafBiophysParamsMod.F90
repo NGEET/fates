@@ -62,7 +62,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    name = 'fates_leaf_frac_light_nonphoto_pigment'
+    name = 'fates_leaf_fnps'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
@@ -169,7 +169,7 @@ contains
          data=tmpscalar)
     lb_params%photo_tempsens_model = nint(tmpscalar)
 
-    name = 'fates_leaf_frac_light_nonphoto_pigment'
+    name = 'fates_leaf_fnps'
     call fates_params%RetrieveParameter(name=name, &
          data=tmpscalar)
     lb_params%fnps = nint(tmpscalar)
@@ -282,7 +282,7 @@ contains
        write(fates_log(),fmt_iout) 'fates_leaf_stomatal_model = ',lb_params%stomatal_model
        write(fates_log(),fmt_iout) 'fates_leaf_stomatal_assim_model = ',lb_params%stomatal_assim_model
        write(fates_log(),fmt_iout) 'fates_leaf_photo_tempsens_model = ',lb_params%photo_tempsens_model
-       write(fates_log(),fmt_iout) 'fates_leaf_frac_light_nonphoto_pigment = ',lb_params%fnps
+       write(fates_log(),fmt_rout) 'fates_leaf_fnps = ',lb_params%fnps
        write(fates_log(),fmt_rout) 'fates_leaf_stomatal_slope_medlyn = ',lb_params%medlyn_slope
        write(fates_log(),fmt_rout) 'fates_leaf_stomatal_slope_ballberry = ',lb_params%bb_slope
        write(fates_log(),fmt_rout) 'fates_leaf_stomatal_intercept = ',lb_params%stomatal_intercept

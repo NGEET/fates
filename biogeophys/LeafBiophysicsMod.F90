@@ -220,7 +220,7 @@ module LeafBiophysicsMod
                                                                   ! 0: btran does not scale vcmax or jmax
                                                                   ! 1: btran scales only vcmax
                                                                   ! 2: btran scales both vcmax and jmax
-     
+     real(r8)            :: fnps                                  ! Fraction of light absorbed by non-photosynthetic pigments
      ! -------------------------------------------------------------------------------------
      ! Note the omission of several parameter constants:
      !
