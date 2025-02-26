@@ -24,10 +24,10 @@
   <mods>
     <mod type="variable_add">
       <na> fates_leaf_fnps </na>
-      <di> scalar </di>
+      <di> fates_pft </di>
       <un> fraction </un>
       <ln> fraction of light absorbed by non-photosynthetic pigments </ln>
-      <val> 0.15 </val>
+      <val> 0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15 </val>
     </mod>
     </mods>
 </all>

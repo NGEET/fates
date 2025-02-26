@@ -414,6 +414,9 @@ variables:
 	double fates_leafn_vert_scaler_coeff2(fates_pft) ;
 		fates_leafn_vert_scaler_coeff2:units = "unitless" ;
 		fates_leafn_vert_scaler_coeff2:long_name = "Coefficient two for decrease in leaf nitrogen through the canopy, from Lloyd et al. 2010." ;
+	double fates_leaf_fnps(fates_pft) ;
+		fates_leaf_fnps:units = "fraction" ;
+		fates_leaf_fnps:long_name = "Fraction of light absorbed by non-photosynthetic pigments" ;
 	double fates_maintresp_leaf_atkin2017_baserate(fates_pft) ;
 		fates_maintresp_leaf_atkin2017_baserate:units = "umol CO2/m^2/s" ;
 		fates_maintresp_leaf_atkin2017_baserate:long_name = "Leaf maintenance respiration base rate parameter (r0) per Atkin et al 2017" ;
@@ -849,9 +852,6 @@ variables:
 	double fates_leaf_photo_temp_acclim_timescale ;
 		fates_leaf_photo_temp_acclim_timescale:units = "days" ;
 		fates_leaf_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_maintresp_leaf_model=2 or fates_leaf_photo_tempsens_model = 2)" ;
-	double fates_leaf_fnps ;
-		fates_leaf_fnps:units = "fraction" ;
-		fates_leaf_fnps:long_name = "Fraction of light absorbed by non-photosynthetic pigments" ;
 	double fates_leaf_theta_cj_c3 ;
 		fates_leaf_theta_cj_c3:units = "unitless" ;
 		fates_leaf_theta_cj_c3:long_name = "SOON TO BE DEPRECATED, DO NOT USE" ;
@@ -1398,6 +1398,9 @@ data:
  fates_leafn_vert_scaler_coeff2 = 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 
     2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43 ;
 
+ fates_leaf_fnps = 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15,
+    0.15, 0.15, 0.15, 0.15, 0.15  ; 
+
  fates_maintresp_leaf_atkin2017_baserate = 1.756, 1.4995, 1.4995, 1.756, 
     1.756, 1.756, 2.0749, 2.0749, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956, 
     2.1956 ;
@@ -1802,8 +1805,6 @@ data:
  fates_leaf_photo_temp_acclim_thome_time = 30 ;
 
  fates_leaf_photo_temp_acclim_timescale = 30 ;
-
- fates_leaf_fnps = 0.15 ; 
 
  fates_leaf_theta_cj_c3 = 0.999 ;
 
