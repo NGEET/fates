@@ -109,6 +109,10 @@ module LeafBiophysicsMod
   integer, parameter :: net_assim_model = 1
   integer, parameter :: gross_assim_model = 2
 
+  ! Constants defining the electron transport model to use
+  integer, parameter :: FvCB_model = 1
+  integer, parameter :: JB_model = 2
+
   ! Constants defining the photosynthesis temperature acclimation model
   integer, parameter :: photosynth_acclim_model_none = 1
   integer, parameter :: photosynth_acclim_model_kumarathunge_etal_2019 = 2
@@ -434,7 +438,7 @@ contains
   
   ! =====================================================================================
 
-  function GetJe(par_abs,jmax) result(je)
+  function GetJe_FvCB(par_abs,jmax) result(je)
 
     ! Input
     real(r8) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
@@ -465,8 +469,45 @@ contains
 
     je = min(r1,r2)
     
-  end function GetJe
+  end function GetJe_FvCB
 
+  ! =====================================================================================
+
+  !!! JFN - this will get changed to new JB model !!! 
+  function GetJe_JB(par_abs,jmax) result(je)
+
+    ! Input
+    real(r8) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
+    real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
+    real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
+    real(r8) :: r1,r2             ! roots of quadratic equation
+    real(r8) :: jpar              ! absorbed photons in photocenters as an electron
+                                  ! rate (umol electrons/m**2/s)
+    logical :: err
+
+    ! Electron transport rate for C3 plants.
+    ! Convert absorbed photon density [umol/m2 leaf /s] to
+    ! that absorbed only by the photocenters (fnps) and also
+    ! convert from photon energy into electron transport rate (photon_to_e)
+    jpar = par_abs*photon_to_e*(1.0_r8 - lb_params%fnps)
+    
+    ! convert the absorbed par into absorbed par per m2 of leaf,
+    ! so it is consistant with the vcmax and lmr numbers.
+    aquad = theta_psii
+    bquad = -(jpar + jmax)
+    cquad = jpar * jmax
+    call QuadraticRoots(aquad, bquad, cquad, r1, r2, err)
+    if(err)then
+       write(fates_log(),*) "jequadfail:",par_abs,jpar,jmax
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
+
+    
+    je = min(r1,r2)
+
+  end  function  GetJe_Jb
+  
   ! =====================================================================================
   
   function AgrossRuBPC3(par_abs,jmax,ci,co2_cpoint) result(aj)
@@ -482,9 +523,18 @@ contains
 
     ! locals
     real(r8) :: je         ! actual electron transport rate (umol electrons/m**2/s)
-    
-    ! Get the smoothed (quadratic between J and Jmax) electron transport rate
-    je = GetJe(par_abs,jmax)
+
+   ! Get the smoothed (quadratic between J and Jmax) electron transport rate
+    select case(electron_transport_model)
+    case (FvCB_model)   
+       je = GetJe_FvCB(par_abs,jmax)
+    case (JB_model)
+       je = GetJe_JB(par_abs,jmax)
+    case default
+       write (fates_log(),*)'error, incorrect leaf electron transport model specified'
+       write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
 
     
     aj = je * max(ci-co2_cpoint, 0._r8) / &
@@ -696,7 +746,18 @@ contains
     end if
        
     ! Get the maximum e tranport rate for when we solve for RuBP (twice)
-    Je = GetJe(par_abs,jmax)
+    select case(electron_transport_model)
+    case (FvCB_model)   
+       je = GetJe_FvCB(par_abs,jmax)
+    case (JB_model)
+       je = GetJe_JB(par_abs,jmax)
+    case default
+       write (fates_log(),*)'error, incorrect leaf electron transport model specified'
+       write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
+
+
     
     ! Find ci at maximum conductance (1/inf = 0)
     

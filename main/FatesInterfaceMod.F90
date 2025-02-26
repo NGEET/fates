@@ -1496,6 +1496,7 @@ contains
          hlm_num_luh2_states       = unset_int
          hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
+         hlm_electron_transport_model = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1578,6 +1579,11 @@ contains
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
+
+        if(hlm_electron_transport_model .eq. unset_int) then
+            write(fates_log(), *) 'electron transport model is unset: hlm_electron_transport_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
 
          if (  .not.((hlm_use_ed_st3.eq.1).or.(hlm_use_ed_st3.eq.0))    ) then
             write(fates_log(), *) 'The FATES namelist stand structure flag must be 0 or 1, exiting'
@@ -1981,6 +1987,12 @@ contains
                hlm_use_cohort_age_tracking = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
+               end if
+
+            case('electron_transport_model')
+               hlm_electron_transport_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
                end if
 
             case('use_logging')

@@ -157,6 +157,10 @@ module FatesInterfaceTypesMod
 
    integer, public :: hlm_use_tree_damage         ! This flag signals whether or not to turn on the
                                                   ! tree damage module
+
+   integer, public :: hlm_electron_transport_model ! This switch signals which electron transport model to use
+                                                   !  1. Farquhar  von Caemmerer and Berry
+                                                   !  2. Johnson and Berry (2021)
    
    integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
                                                   ! (ST)atic (ST)and (ST)ructure mode (ST3)
