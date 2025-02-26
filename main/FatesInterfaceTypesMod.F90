@@ -189,6 +189,11 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_radiation_model         ! Switch for radiation model
                                                   ! Norman (1) and Two-stream (2)
 
+   integer, public :: hlm_electron_transport_model ! Switch for electron transport model
+                                                   ! (1) for Farquhar von Caemmerer & Berry  (FvCB)
+                                                   ! (2) for Johnson & Berry (2021) (JB) 
+   
+   
    integer, public :: hlm_regeneration_model      ! Switch for choosing between regeneration models:
                                                   ! (1) for Fates default
                                                   ! (2) for the Tree Recruitment Scheme (Hanbury-Brown et al., 2022)

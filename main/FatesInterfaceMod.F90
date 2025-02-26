@@ -1502,6 +1502,7 @@ contains
          hlm_maintresp_leaf_model = unset_int
          hlm_mort_cstarvation_model = unset_int
          hlm_radiation_model = unset_int
+         hlm_electron_transport_model = unset_int
          hlm_regeneration_model = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
@@ -1827,6 +1828,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_electron_transport_model .eq. unset_int) then
+            write(fates_log(), *) 'electron transport model is unset: hlm_electron_transport_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
          if(hlm_regeneration_model .eq. unset_int) then
             write(fates_log(), *) 'seed regeneration model is unset: hlm_regeneration_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -2081,6 +2087,12 @@ contains
                hlm_radiation_model = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_radiation_model ',ival,' to FATES'
+               end if
+
+            case('electron_transport_model')
+               hlm_electron_transport_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
                end if
 
             case('regeneration_model')
