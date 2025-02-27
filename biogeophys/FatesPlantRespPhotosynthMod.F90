@@ -1087,7 +1087,7 @@ contains
                      bc_out(s)%rssun_pa(ifp) = r_stomata
                      bc_out(s)%rssha_pa(ifp) = r_stomata
 
-                     if(hlm_use_nocomp)then
+                     if(hlm_use_nocomp .eq. itrue)then
                         bc_out(s)%ci_pa(ifp) = internal_co2_z(1,currentpatch%nocomp_pft_label,1)
                      else
                         bc_out(s)%ci_pa(ifp) = -999
