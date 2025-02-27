@@ -224,7 +224,7 @@ module LeafBiophysicsMod
                                                                   ! 0: btran does not scale vcmax or jmax
                                                                   ! 1: btran scales only vcmax
                                                                   ! 2: btran scales both vcmax and jmax
-     real(r8)            :: fnps                                  ! Fraction of light absorbed by non-photosynthetic pigments
+     real(r8),allocatable :: fnps(:)                              ! fraction of light absorbed by non-photosynthetic pigments
      ! -------------------------------------------------------------------------------------
      ! Note the omission of several parameter constants:
      !
@@ -438,11 +438,12 @@ contains
   
   ! =====================================================================================
 
-  function GetJe_FvCB(par_abs,jmax) result(je)
+  function GetJe_FvCB(par_abs,jmax,fnps) result(je)
 
     ! Input
     real(r8) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
     real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
     real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
     real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
     real(r8) :: r1,r2             ! roots of quadratic equation
@@ -454,7 +455,7 @@ contains
     ! Convert absorbed photon density [umol/m2 leaf /s] to
     ! that absorbed only by the photocenters (fnps) and also
     ! convert from photon energy into electron transport rate (photon_to_e)
-    jpar = par_abs*photon_to_e*(1.0_r8 - lb_params%fnps)
+    jpar = par_abs*photon_to_e*(1.0_r8 - fnps)
     
     ! convert the absorbed par into absorbed par per m2 of leaf,
     ! so it is consistant with the vcmax and lmr numbers.
@@ -474,11 +475,12 @@ contains
   ! =====================================================================================
 
   !!! JFN - this will get changed to new JB model !!! 
-  function GetJe_JB(par_abs,jmax) result(je)
+  function GetJe_JB(par_abs,jmax,fnps) result(je)
 
     ! Input
     real(r8) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
     real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
     real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
     real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
     real(r8) :: r1,r2             ! roots of quadratic equation
@@ -490,7 +492,7 @@ contains
     ! Convert absorbed photon density [umol/m2 leaf /s] to
     ! that absorbed only by the photocenters (fnps) and also
     ! convert from photon energy into electron transport rate (photon_to_e)
-    jpar = par_abs*photon_to_e*(1.0_r8 - lb_params%fnps)
+    jpar = par_abs*photon_to_e*(1.0_r8 - fnps)
     
     ! convert the absorbed par into absorbed par per m2 of leaf,
     ! so it is consistant with the vcmax and lmr numbers.
@@ -510,11 +512,12 @@ contains
   
   ! =====================================================================================
   
-  function AgrossRuBPC3(par_abs,jmax,ci,co2_cpoint) result(aj)
+  function AgrossRuBPC3(par_abs,jmax,fnps,ci,co2_cpoint) result(aj)
 
     ! Input
     real(r8) :: par_abs    ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
     real(r8) :: jmax       ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8) :: fnps       ! Fraction of light absorbed by non-photosynthetic pigments
     real(r8) :: ci         ! intracellular leaf CO2 (Pa)
     real(r8) :: co2_cpoint ! CO2 compensation point (Pa)
 
@@ -525,16 +528,16 @@ contains
     real(r8) :: je         ! actual electron transport rate (umol electrons/m**2/s)
 
    ! Get the smoothed (quadratic between J and Jmax) electron transport rate
-    select case(electron_transport_model)
-    case (FvCB_model)   
-       je = GetJe_FvCB(par_abs,jmax)
-    case (JB_model)
-       je = GetJe_JB(par_abs,jmax)
-    case default
-       write (fates_log(),*)'error, incorrect leaf electron transport model specified'
-       write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end select
+  !  select case(electron_transport_model)
+   ! case (FvCB_model)   
+       je = GetJe_FvCB(par_abs,jmax,fnps)
+   ! case (JB_model)
+    !   je = GetJe_JB(par_abs,jmax,fnps)
+    !case default
+     !  write (fates_log(),*)'error, incorrect leaf electron transport model specified'
+      ! write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
+       !call endrun(msg=errMsg(sourcefile, __LINE__))
+    !end select
 
     
     aj = je * max(ci-co2_cpoint, 0._r8) / &
@@ -545,15 +548,16 @@ contains
   
   ! =======================================================================================
 
-  function AgrossRuBPC4(par_abs) result(aj)
+  function AgrossRuBPC4(par_abs, fnps) result(aj)
 
     real(r8) :: par_abs ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
+    real(r8) :: fnps    ! Fraction of light absorbed by non-photosynthetic pigments
     real(r8) :: aj      ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
 
     ! quantum efficiency, used only for C4 (mol CO2 / mol photons)
     real(r8),parameter :: c4_quant_eff = 0.05_r8
     
-    aj = c4_quant_eff*par_abs*photon_to_e*(1.0_r8 - lb_params%fnps)
+    aj = c4_quant_eff*par_abs*photon_to_e*(1.0_r8 - fnps)
     
   end function AgrossRuBPC4
 
@@ -625,13 +629,13 @@ contains
        ! Maximum conductance (minimum resistance)
        
        ag(1) = vcmax
-       ag(2) = AgrossRuBPC4(par_abs)
+       ag(2) = AgrossRuBPC4(par_abs, lb_params%fnps(ft))
 
        ! C4: Rubisco-limited photosynthesis
        ac = vcmax
        
        ! C4: RuBP-limited photosynthesis
-       aj = AgrossRuBPC4(par_abs)
+       aj = AgrossRuBPC4(par_abs, lb_params%fnps(ft))
        
        
        
@@ -746,16 +750,16 @@ contains
     end if
        
     ! Get the maximum e tranport rate for when we solve for RuBP (twice)
-    select case(electron_transport_model)
-    case (FvCB_model)   
-       je = GetJe_FvCB(par_abs,jmax)
-    case (JB_model)
-       je = GetJe_JB(par_abs,jmax)
-    case default
-       write (fates_log(),*)'error, incorrect leaf electron transport model specified'
-       write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end select
+    !select case(electron_transport_model)
+    !case (FvCB_model)   
+       je = GetJe_FvCB(par_abs,jmax,lb_params%fnps(ft))
+    !case (JB_model)
+     !  je = GetJe_JB(par_abs,jmax,lb_params%fnps(ft))
+    !case default
+     !  write (fates_log(),*)'error, incorrect leaf electron transport model specified'
+     !  write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
+     !  call endrun(msg=errMsg(sourcefile, __LINE__))
+    !end select
 
 
     
@@ -786,7 +790,7 @@ contains
     f = 8._r8*co2_cpoint
     g = lmr
     ci(2) = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
-    ag(2) = AgrossRuBPC3(par_abs,jmax,ci(2),co2_cpoint)
+    ag(2) = AgrossRuBPC3(par_abs,jmax,lb_params%fnps(ft),ci(2),co2_cpoint)
     
     if(debug)then
        if ( abs((can_co2_ppress-ci(2))/b - (ag(2)-lmr))  > 1.e-3_r8 ) then
@@ -824,7 +828,7 @@ contains
     f = 8._r8*co2_cpoint
     g = lmr
     ci(2) = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
-    ag(2) = AgrossRuBPC3(par_abs,jmax,ci(2),co2_cpoint)
+    ag(2) = AgrossRuBPC3(par_abs,jmax,lb_params%fnps(ft),ci(2),co2_cpoint)
     
     if(debug)then
        if ( abs((can_co2_ppress-ci(2))/b -(ag(2)-lmr))  > 1.e-3_r8 ) then
@@ -942,7 +946,7 @@ contains
        ac = AgrossRubiscoC3(vcmax,ci,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
        
        ! C3: RuBP-limited photosynthesis
-       aj = AgrossRuBPC3(par_abs,jmax,ci,co2_cpoint )
+       aj = AgrossRuBPC3(par_abs,jmax,lb_params%fnps(ft),ci,co2_cpoint )
 
        if(base_compare_revert) then
           ! Gross photosynthesis smoothing calculations. Co-limit ac and aj.
@@ -962,7 +966,7 @@ contains
        ac = vcmax
        
        ! C4: RuBP-limited photosynthesis
-       aj = AgrossRuBPC4(par_abs)
+       aj = AgrossRuBPC4(par_abs, lb_params%fnps(ft))
        
        ! C4: PEP carboxylase-limited (CO2-limited)
        ap = AgrossPEPC4(ci,kp,can_press)

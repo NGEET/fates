@@ -411,6 +411,9 @@ variables:
 	double fates_leafn_vert_scaler_coeff2(fates_pft) ;
 		fates_leafn_vert_scaler_coeff2:units = "unitless" ;
 		fates_leafn_vert_scaler_coeff2:long_name = "Coefficient two for decrease in leaf nitrogen through the canopy, from Lloyd et al. 2010." ;
+	double fates_leaf_fnps(fates_pft) ;
+		fates_leaf_fnps:units = "fraction" ;
+		fates_leaf_fnps:long_name = "Fraction of light absorbed by non-photosynthetic pigments" ;
 	double fates_maintresp_leaf_atkin2017_baserate(fates_pft) ;
 		fates_maintresp_leaf_atkin2017_baserate:units = "umol CO2/m^2/s" ;
 		fates_maintresp_leaf_atkin2017_baserate:long_name = "Leaf maintenance respiration base rate parameter (r0) per Atkin et al 2017" ;
@@ -846,9 +849,6 @@ variables:
 	double fates_leaf_stomatal_model ;
 		fates_leaf_stomatal_model:units = "unitless" ;
 		fates_leaf_stomatal_model:long_name = "switch for choosing between Ball-Berry (1) stomatal conductance model and Medlyn (2) model" ;
-	double fates_leaf_fnps ;
-		fates_leaf_fnps:units = "fraction" ;
-		fates_leaf_fnps:long_name = "Fraction of light absorbed by non-photosynthetic pigments" ;
 	double fates_maintresp_leaf_model ;
 		fates_maintresp_leaf_model:units = "unitless" ;
 		fates_maintresp_leaf_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991), 2=Atkin et al., (2017)" ;
@@ -1395,6 +1395,10 @@ data:
  fates_leafn_vert_scaler_coeff2 = 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 
     2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43 ;
 
+
+ fates_leaf_fnps = 0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,
+    0.15,0.15,0.15,0.15 ;
+
  fates_maintresp_leaf_atkin2017_baserate = 1.756, 1.4995, 1.4995, 1.756, 
     1.756, 1.756, 2.0749, 2.0749, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956, 
     2.1956 ;
@@ -1799,8 +1803,6 @@ data:
  fates_leaf_stomatal_assim_model = 1 ;
 
  fates_leaf_stomatal_model = 1 ;
-
- fates_leaf_fnps = 0.15 ;
 
  fates_maintresp_leaf_model = 1 ;
 
