@@ -2087,12 +2087,7 @@ contains
 
     if(organ_id == store_organ) then
 
-      ! by Bharat Sharma and Anthony Walker (ORNL)
-      ! ==========================================
-      ! During the leaf-off period in deciduous plant functional types (PFTs),
-      ! the target leaf biomass was being reset to zero, which inadvertently
-      ! led to a decline in carbon fluxes.
-      ! To avoid this issue
+      ! bug fix: https://github.com/NGEET/fates/pull/1348
 
       call bleaf(dbh,ipft,crown_damage,canopy_trim, 1.0_r8, leaf_c_target)
       call bfineroot(dbh,ipft,canopy_trim,l2fr, 1.0_r8, fnrt_c_target)
