@@ -2087,7 +2087,9 @@ contains
 
     if(organ_id == store_organ) then
 
-      ! bug fix: https://github.com/NGEET/fates/pull/1348
+      ! bug fix: Preventing decline in Carbon Flux During Leaf-Off Period in Deciduous PFTs
+      ! This call to organs' target biomass is independent of phenological stage 
+      ! more details: https://github.com/NGEET/fates/pull/1348
 
       call bleaf(dbh,ipft,crown_damage,canopy_trim, 1.0_r8, leaf_c_target)
       call bfineroot(dbh,ipft,canopy_trim,l2fr, 1.0_r8, fnrt_c_target)
