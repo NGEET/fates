@@ -1,5 +1,5 @@
-<xml>
-  <history>27/02/25 : First instantation, copied from: ../parameter_files/fates_params_default.cdl.</history>
+<xml version="1.0" encoding="us-ascii" >
+  <history>03/03/25 : First instantation, copied from: ../parameter_files/fates_params_default.cdl.</history>
   <dimensions>
     <dim name="fates_NCWD"> 4 </dim>
     <dim name="fates_history_age_bins"> 7 </dim>

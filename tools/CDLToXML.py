@@ -132,7 +132,7 @@ def main(argv):
     params,dims = CDLParse(args.cdlfile,args.verbose)
 
     with open(args.xmlfile,"w") as file:
-        file.write('<xml>\n') #<?xml version="1.0"?>\n')
+        file.write('<xml version="1.0" encoding="us-ascii" >\n')
         file.write('  <history>{} : {}</history>\n'.format(\
             date.today().strftime("%d/%m/%y"), \
             'First instantation, copied from: {}.'.format(args.cdlfile)))
