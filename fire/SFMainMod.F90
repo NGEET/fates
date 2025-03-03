@@ -37,6 +37,7 @@ module SFMainMod
   implicit none
   private
 
+
   public :: DailyFireModel
   public :: UpdateFuelCharacteristics
 
@@ -415,6 +416,8 @@ contains
 
           ! Decide if prescribed fire or wildfire happen 
           ! prescribed fire and wildfire cannot happen on the same patch
+
+          ! store some contion check here to simplify decision tree
           
           rx_man = (currentPatch%FI > SF_val_rxfire_minthreshold .and. &
           currentPatch%FI < SF_val_rxfire_maxthreshold .and. &
@@ -465,6 +468,7 @@ contains
           
         end if
       end if
+
       currentPatch => currentPatch%younger
     end do    
 
@@ -529,6 +533,57 @@ contains
   end subroutine CalculateAreaBurnt
    
   !---------------------------------------------------------------------------------------
+
+  !*****************************************************************
+  subroutine CalculateRxfireAreaBurnt ( currentSite )
+  !*****************************************************************
+
+    !returns burned fraction for prescribed fire per patch by first checking
+    !if total burnable fraction at site level is greater than user defined fraction of site area 
+    !if yes, calculate burned fraction as (user defined frac / total burnable frac)
+
+    use SFParamsMod,       only : SF_val_rxfire_AB !user defined prescribed fire area in fraction per day to reflect burning capacity
+
+    ! ARGUMENTS
+    type(ed_site_type), intent(inout), target :: currentSite
+
+    !LOCALS
+    type(fates_patch_type), pointer :: currentPatch  
+
+    real(r8) :: total_burnable_frac        ! total fractional land area that can apply prescribed fire after condition checks at site level
+
+    ! Testing parameters 
+    real(r8), parameter :: min_frac_site = 0.1_r8 
+
+    ! initialize site variables
+    currentSite%rxfire_area_final = 0.0_r8 
+    total_burnable_frac = 0.0_r8
+
+    ! update total burnable fraction
+    total_burnable_frac = currentSite%rxfire_area_fi / AREA
+   
+    currentPatch => currentSite%oldest_patch;
+
+    do while(associated(currentPatch))
+
+      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
+        currentPatch%rxfire_frac_burnt = 0.0_r8
+        if (currentPatch%rxfire .eq. itrue .and. & 
+        total_burnable_frac .ge. min_frac_site ) then
+          currentSite%rxfire_area_final = currentSite%rxfire_area_final + currentPatch%area ! the final burned total land area 
+          currentPatch%rxfire_frac_burnt = min(0.99_r8, (SF_val_rxfire_AB / total_burnable_frac))
+        else
+          currentPatch%rxfire = 0 ! update rxfire occurence at patch 
+          currentPatch%rxfire_FI = 0.0_r8
+        end if
+      end if
+
+      currentPatch => currentPatch%younger;  
+    end do ! end patch loop
+
+  
+!---------------------------------------------------------------------------------------
+
   
   !*****************************************************************
   subroutine  crown_scorching ( currentSite ) 
@@ -556,7 +611,7 @@ contains
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
        
        tree_ag_biomass = 0.0_r8
-       if (currentPatch%fire == 1) then
+       if (currentPatch%fire == 1 .or. currentPatch%rxfire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
              if ( prt_params%woody(currentCohort%pft) == itrue) then !trees only
@@ -612,7 +667,7 @@ contains
     do while(associated(currentPatch)) 
 
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
-       if (currentPatch%fire == 1) then
+       if (currentPatch%fire == 1 .or. currentPatch%rxfire == 1) then
 
           currentCohort=>currentPatch%tallest
 
@@ -682,7 +737,7 @@ contains
 
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
-       if (currentPatch%fire == 1) then
+       if (currentPatch%fire == 1 .or. currentPatch%rxfire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
              if ( prt_params%woody(currentCohort%pft) == itrue) then !trees only
@@ -735,11 +790,14 @@ contains
 
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
-       if (currentPatch%fire == 1) then 
+       if (currentPatch%fire == 1 .or. currentPatch%rxfire == 1) then 
           currentCohort => currentPatch%tallest
           do while(associated(currentCohort))  
              currentCohort%fire_mort = 0.0_r8
              currentCohort%crownfire_mort = 0.0_r8
+             currentCohort%rxfire_mort = 0.0_r8
+             currentCohort%rxcrownire_mort = 0.0_r8
+             currentCohort%rxcambial_mort = 0.0_r8
              if ( prt_params%woody(currentCohort%pft) == itrue) then
                 ! Equation 22 in Thonicke et al. 2010. 
                 currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%fraction_crown_burned**3.0_r8
@@ -750,6 +808,16 @@ contains
                 currentCohort%fire_mort = 0.0_r8 !Set to zero. Grass mode of death is removal of leaves.
              endif !trees
 
+             ! now decide which type of post-fire mortality, prescribed fire or wildfire?
+             if (currentPatch%rxfire == itrue .and. currentPatch%fire == ifalse) then
+              currentCohort%rxfire_mort = currentCohort%fire_mort
+              currentCohort%rxcrownire_mort = currentCohort%crownfire_mort
+              currentCohort%rxcambial_mort = currentCohort%cambial_mort
+              currentCohort%fire_mort = 0.0_r8
+              currentCohort%crownfire_mort = 0.0_r8
+              currentCohort%cambial_mort = 0.0_r8
+             end if
+             
              currentCohort => currentCohort%shorter
 
           enddo !end cohort loop
