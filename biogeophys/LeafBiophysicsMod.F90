@@ -40,6 +40,7 @@ module LeafBiophysicsMod
   use FatesConstantsMod, only : rgas_J_K_mol
   use FatesConstantsMod, only : g_per_kg
   use FatesConstantsMod, only : umolC_to_kgC
+  use FatesInterfaceTypesMod, only : hlm_electron_transport_model
   
   implicit none
   private
@@ -110,8 +111,8 @@ module LeafBiophysicsMod
   integer, parameter :: gross_assim_model = 2
 
   ! Constants defining the electron transport model to use
-  integer, parameter :: FvCB_model = 1
-  integer, parameter :: JB_model = 2
+  integer, parameter :: FvCB1980 = 1
+  integer, parameter :: JohnsonBerry2021 = 2
 
   ! Constants defining the photosynthesis temperature acclimation model
   integer, parameter :: photosynth_acclim_model_none = 1
@@ -474,7 +475,6 @@ contains
 
   ! =====================================================================================
 
-  !!! JFN - this will get changed to new JB model !!! 
   function GetJe_JB(par_abs,jmax,fnps) result(je)
 
     ! Input
@@ -494,6 +494,15 @@ contains
     ! convert from photon energy into electron transport rate (photon_to_e)
     jpar = par_abs*photon_to_e*(1.0_r8 - fnps)
     
+    ! Equation to convert PFT specific Jmax to Vqmax
+!    vqmax = (Qsat * JQsat) / &
+ !        (Qsat * eta**-1 - (JQsat / (par_abs * jpar * phi1pmax) )  ) 
+
+    ! Simplified RH JB formulation
+  !  je = QVqmax / &
+   !      ( ( Vqmax / (par_abs * alpha1 * phi1pmax) ) + Q )
+
+
     ! convert the absorbed par into absorbed par per m2 of leaf,
     ! so it is consistant with the vcmax and lmr numbers.
     aquad = theta_psii
@@ -505,11 +514,10 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
-    
     je = min(r1,r2)
+    
+  end function GetJe_JB
 
-  end  function  GetJe_Jb
-  
   ! =====================================================================================
   
   function AgrossRuBPC3(par_abs,jmax,fnps,ci,co2_cpoint) result(aj)
@@ -527,22 +535,24 @@ contains
     ! locals
     real(r8) :: je         ! actual electron transport rate (umol electrons/m**2/s)
 
-   ! Get the smoothed (quadratic between J and Jmax) electron transport rate
-  !  select case(electron_transport_model)
-   ! case (FvCB_model)   
-       je = GetJe_FvCB(par_abs,jmax,fnps)
-   ! case (JB_model)
-    !   je = GetJe_JB(par_abs,jmax,fnps)
-    !case default
-     !  write (fates_log(),*)'error, incorrect leaf electron transport model specified'
-      ! write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
-       !call endrun(msg=errMsg(sourcefile, __LINE__))
-    !end select
+    
+    select case(hlm_electron_transport_model)
+    case (FvCB1980)   
 
-    
+       ! Get the smoothed (quadratic between J and Jmax) electron transport rate
+       je = GetJe_FvCB(par_abs,jmax,fnps)
+
+    case (JohnsonBerry2021)
+       je = GetJe_JB(par_abs,jmax,fnps)
+
+    case default
+       write (fates_log(),*)'error, incorrect leaf electron transport model specified'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
+
     aj = je * max(ci-co2_cpoint, 0._r8) / &
-                 (4._r8*ci+8._r8*co2_cpoint)
-    
+         (4._r8*ci+8._r8*co2_cpoint)
+       
     
   end function AgrossRuBPC3
   
@@ -750,19 +760,22 @@ contains
     end if
        
     ! Get the maximum e tranport rate for when we solve for RuBP (twice)
-    !select case(electron_transport_model)
-    !case (FvCB_model)   
-       je = GetJe_FvCB(par_abs,jmax,lb_params%fnps(ft))
-    !case (JB_model)
-     !  je = GetJe_JB(par_abs,jmax,lb_params%fnps(ft))
-    !case default
-     !  write (fates_log(),*)'error, incorrect leaf electron transport model specified'
-     !  write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
-     !  call endrun(msg=errMsg(sourcefile, __LINE__))
-    !end select
-
-
     
+    select case(hlm_electron_transport_model)
+    case (FvCB1980)   
+       ! Get the smoothed (quadratic between J and Jmax) electron transport rate
+       je = GetJe_FvCB(par_abs,jmax,lb_params%fnps(ft))
+
+    case (JohnsonBerry2021)
+       je = GetJe_JB(par_abs,jmax,lb_params%fnps(ft))
+
+    case default
+       write (fates_log(),*)'error, incorrect leaf electron transport model specified'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
+
+
+     
     ! Find ci at maximum conductance (1/inf = 0)
     
     a = can_co2_ppress
@@ -923,6 +936,8 @@ contains
     real(r8), intent(out) :: agross         ! gross leaf photosynthesis (umol CO2/m**2/s)
     real(r8), intent(out) :: gs             ! stomatal conductance (umol h2o/m2/s)
     real(r8), intent(out) :: fval           ! ci_input - ci_updated  (Pa)
+    !real(r8), intent(out) :: limiting_c3    ! tracks whether ac or aj is limiting c3 photosynthesis
+    !real(r8), intent(out) :: limiting_c4    ! tracks whether ac or aj is limiting c4 photosynthesis
     
     real(r8) :: veg_esat          ! Saturation vapor pressure at leaf-surface [Pa]
     real(r8) :: veg_qs            ! DUMMY, specific humidity at leaf-surface [kg/kg]
@@ -958,8 +973,13 @@ contains
        else
           ! Take the minimum, no smoothing
           agross = min(ac,aj)
+          ! if(min(ac,aj) == ac)then
+          !    limiting_c3 = 0.0_r8
+          ! else
+          !    limiting_c3 = 1.0_r8
+          ! end if
        end if
-       
+
     else
        
        ! C4: Rubisco-limited photosynthesis

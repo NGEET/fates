@@ -1580,10 +1580,10 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
-        if(hlm_electron_transport_model .eq. unset_int) then
-            write(fates_log(), *) 'electron transport model is unset: hlm_electron_transport_model exiting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
+         if(hlm_electron_transport_model .eq. unset_int) then
+             write(fates_log(), *) 'electron transport model is unset: hlm_electron_transport_model exiting'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
 
          if (  .not.((hlm_use_ed_st3.eq.1).or.(hlm_use_ed_st3.eq.0))    ) then
             write(fates_log(), *) 'The FATES namelist stand structure flag must be 0 or 1, exiting'
@@ -1989,11 +1989,11 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
                end if
 
-            case('electron_transport_model')
-               hlm_electron_transport_model = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
-               end if
+             case('electron_transport_model')
+                hlm_electron_transport_model = ival
+                if (fates_global_verbose()) then
+                   write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
+                end if
 
             case('use_logging')
                hlm_use_logging = ival
