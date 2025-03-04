@@ -112,6 +112,7 @@ module FatesInterfaceMod
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
    use FatesTwoStreamUtilsMod, only : TransferRadParams
+   use LeafBiophysicsMod         , only : lb_params
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -2044,24 +2045,28 @@ contains
 
             case('use_daylength_factor_switch')
                hlm_daylength_factor_switch = ival
+               lb_params%dayl_switch    = hlm_daylength_factor_switch
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_daylength_factor_switch= ',ival,' to FATES'
                end if
 
             case('photosynth_acclimation')
                hlm_photo_tempsens_model = ival
+               lb_params%photo_tempsens_model = hlm_photo_tempsens_model
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_photo_tempsens_model= ',ival,' to FATES'
                end if
 
             case('stomatal_assim_model')
                hlm_stomatal_assim_model = ival
+               lb_params%stomatal_assim_model = hlm_stomatal_assim_model
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_stomatal_assim_model ',ival,' to FATES'
                end if
 
             case('stomatal_model')
                hlm_stomatal_model = ival
+               lb_params%stomatal_model = hlm_stomatal_model
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_stomatal_model ',ival,' to FATES'
                end if
