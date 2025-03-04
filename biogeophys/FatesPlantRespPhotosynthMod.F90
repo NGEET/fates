@@ -1064,15 +1064,6 @@ contains
                         currentCohort => currentCohort%shorter
                      enddo do_cohort_drive
 
-                     !if(maxval(psn_z(:,1,1))>nearzero)then
-                     !   currentCohort => currentPatch%tallest
-                     !   do while (associated(currentCohort)) ! Cohort loop
-                     !      print*,currentCohort%gpp_tstep,currentCohort%pft,currentCohort%canopy_layer
-                     !      currentCohort => currentCohort%shorter
-                     !   enddo
-                     !   stop
-                     !end if
-                     
                   end if if_any_cohorts
 
                   ! Normalize canopy total conductance by the effective LAI
