@@ -27,7 +27,6 @@ module EDCanopyStructureMod
   use FatesCohortMod,         only : fates_cohort_type
   use EDParamsMod            , only : nclmax
   use EDParamsMod            , only : nlevleaf
-  use EDParamsMod           , only : radiation_model
   use EDtypesMod            , only : AREA
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
@@ -1314,10 +1313,11 @@ contains
     ! ---------------------------------------------------------------------------------
 
     use FatesInterfaceTypesMod    , only : hlm_use_cohort_age_tracking
+    use FatesInterfaceTypesMod    , only : hlm_radiation_model
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
-    use EDtypesMod           , only : area
-    use FatesConstantsMod    , only : itrue
+    use EDtypesMod                , only : area
+    use FatesConstantsMod         , only : itrue
 
     ! !ARGUMENTS
     integer                 , intent(in)            :: nsites
@@ -1451,7 +1451,7 @@ contains
 
        call leaf_area_profile(sites(s))
        
-       if(radiation_model.eq.twostr_solver) then
+       if(hlm_radiation_model.eq.twostr_solver) then
           call FatesConstructRadElements(sites(s),bc_in(s)%fcansno_pa,bc_in(s)%coszen_pa)
        end if
        
@@ -2266,6 +2266,13 @@ contains
    
    ! Number of actual vegetation layers in this cohort's crown
    currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
+
+   if( currentCohort%nv .ne. minloc(dlower_vai, DIM=1, MASK=(dlower_vai>(currentCohort%treelai+currentCohort%treesai))) ) then
+      write(fates_log(),*) 'We use two methods of finding maximum leaf layers, and they are not equivalent'
+      write(fates_log(),*) 'count method:',currentCohort%nv
+      write(fates_log(),*) 'minloc method:',minloc(dlower_vai, DIM=1, MASK=(dlower_vai>(currentCohort%treelai+currentCohort%treesai)))
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+   end if
    
   end subroutine UpdateCohortLAI
   

@@ -68,7 +68,7 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : prescribed_p_uptake
   use FatesConstantsMod   , only : prescribed_n_uptake
   use EDPftvarcon, only : EDPftvarcon_inst
-  use EDParamsMod       , only : regeneration_model
+  use FatesInterfaceTypesMod, only : hlm_regeneration_model
 
 
   
@@ -1491,7 +1491,7 @@ contains
     ! We designate a plant a shrub or grass if its dbh at maximum height
     ! is less than 15 cm
 
-    if ( regeneration_model == default_regeneration .or. &
+    if ( hlm_regeneration_model == default_regeneration .or. &
          prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then
 
        if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
@@ -1503,7 +1503,7 @@ contains
     ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
     ! a pft-specific function of dbh. This allows for the representation of different
     ! reproductive schedules (Wenk and Falster, 2015)
-    else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+    else if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
                   prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
 
        repro_c_frac = prt_params%seed_alloc(ipft) * &
@@ -1513,7 +1513,7 @@ contains
     else
        
        write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
-       write(fates_log(),*) 'regeneration_model: ',regeneration_model
+       write(fates_log(),*) 'hlm_regeneration_model: ',hlm_regeneration_model
        call endrun(msg=errMsg(sourcefile, __LINE__))
        
     end if ! regeneration switch 
@@ -2332,7 +2332,7 @@ contains
         if (mask_repro) then
 
            ! If the TRS is switched off then we use FATES's default reproductive allocation.
-           if ( regeneration_model == default_regeneration .or. &
+           if ( hlm_regeneration_model == default_regeneration .or. &
                 prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then ! The Tree Recruitment Scheme 
                                                                              ! is only for trees
               if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
@@ -2344,7 +2344,7 @@ contains
            ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
            ! a pft-specific function of dbh. This allows for the representation of different
            ! reproductive schedules (Wenk and Falster, 2015)
-           else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+           else if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
                      prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
 
               repro_fraction = prt_params%seed_alloc(ipft) * &
@@ -2352,7 +2352,7 @@ contains
               (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
            else
               write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
-              write(fates_log(),*) 'regeneration_model: ',regeneration_model
+              write(fates_log(),*) 'hlm_regeneration_model: ',hlm_regeneration_model
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if ! regeneration switch 
           
@@ -2468,7 +2468,7 @@ contains
      if(state_mask(repro_id)) then
         
         ! If the TRS is switched off then we use FATES's default reproductive allocation.
-        if ( regeneration_model == default_regeneration .or. &
+        if ( hlm_regeneration_model == default_regeneration .or. &
              prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then ! The Tree Recruitment Scheme 
                                                                                  ! is only for trees
            if (dbh <= prt_params%dbh_repro_threshold(ipft)) then
@@ -2480,7 +2480,7 @@ contains
         ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
         ! a pft-specific function of dbh. This allows for the representation of different
         ! reproductive schedules (Wenk and Falster, 2015)
-        else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+        else if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
                   prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
 
            repro_c_frac = prt_params%seed_alloc(ipft) * &
@@ -2488,7 +2488,7 @@ contains
            (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
         else
            write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
-           write(fates_log(),*) 'regeneration_model: ',regeneration_model
+           write(fates_log(),*) 'hlm_regeneration_model: ',hlm_regeneration_model
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if ! regeneration switch 
 

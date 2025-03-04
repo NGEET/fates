@@ -42,7 +42,6 @@ module FATESPlantRespPhotosynthMod
   use EDParamsMod,       only : q10_mr
   use FatesPatchMod,     only : fates_patch_type
   use FatesCohortMod,    only : fates_cohort_type
-  use EDParamsMod,       only : maintresp_leaf_model
   use FatesConstantsMod, only : lmrmodel_ryan_1991
   use FatesConstantsMod, only : lmrmodel_atkin_etal_2017
   use PRTGenericMod,     only : prt_carbon_allom_hyp
@@ -59,11 +58,11 @@ module FATESPlantRespPhotosynthMod
   use PRTParametersMod,  only : prt_params
   use EDPftvarcon      , only : EDPftvarcon_inst
   use FatesRadiationMemMod, only : norman_solver,twostr_solver
-  use EDParamsMod,          only : radiation_model
   use FatesRadiationMemMod, only : ipar
   use FatesTwoStreamUtilsMod, only : FatesGetCohortAbsRad
   use FatesAllometryMod     , only : VegAreaLayer
-
+  use FatesInterfaceTypesMod, only : hlm_radiation_model
+  use FatesInterfaceTypesMod, only : hlm_maintresp_leaf_model
   use LeafBiophysicsMod, only : LeafLayerPhotosynthesis
   use LeafBiophysicsMod, only : LeafHumidityStomaResis
   use LeafBiophysicsMod, only : GetCanopyGasParameters
@@ -491,7 +490,7 @@ contains
 
                               rate_mask_if: if ( .not.rate_mask_z(iv,ft,cl) .or. &
                                    (hlm_use_planthydro.eq.itrue) .or. &
-                                   (radiation_model .eq. twostr_solver ) .or. &
+                                   (hlm_radiation_model .eq. twostr_solver ) .or. &
                                    (nleafage > 1) .or. &
                                    (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
 
@@ -585,7 +584,7 @@ contains
                                  
                                  ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
 
-                                 select case (maintresp_leaf_model)
+                                 select case (hlm_maintresp_leaf_model)
 
                                  case (lmrmodel_ryan_1991)
 
@@ -634,7 +633,7 @@ contains
                                  !              as large as the layer above.
                                  ! ------------------------------------------------------------------
 
-                                 if_radsolver: if(radiation_model.eq.norman_solver) then
+                                 if_radsolver: if(hlm_radiation_model.eq.norman_solver) then
 
                                     laisun = currentPatch%ed_laisun_z(cl,ft,iv)
                                     laisha = currentPatch%ed_laisha_z(cl,ft,iv)
@@ -821,7 +820,7 @@ contains
                            nv = currentCohort%nv
 
                            ! Temporary bypass to preserve B4B behavior
-                           if(radiation_model.eq.norman_solver) then
+                           if(hlm_radiation_model.eq.norman_solver) then
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
                                    psn_z(1:nv,ft,cl),        & !in

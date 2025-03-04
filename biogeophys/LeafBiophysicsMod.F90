@@ -110,8 +110,8 @@ module LeafBiophysicsMod
   integer, parameter :: gross_assim_model = 2
 
   ! Constants defining the photosynthesis temperature acclimation model
-  integer, parameter :: photosynth_acclim_model_none = 1
-  integer, parameter :: photosynth_acclim_model_kumarathunge_etal_2019 = 2
+  integer, parameter :: photosynth_acclim_model_none = 0
+  integer, parameter :: photosynth_acclim_model_kumarathunge_etal_2019 = 1
 
   ! Rdark constants from Atkin et al., 2017 https://doi.org/10.1007/978-3-319-68703-2_6
   ! and Heskel et al., 2016 https://doi.org/10.1073/pnas.1520282113
@@ -209,7 +209,7 @@ module LeafBiophysicsMod
                                                                   ! scaling for photosynthetic parameters
      integer              :: photo_tempsens_model                 ! switch for choosing the model that defines the temperature
                                                                   ! sensitivity of photosynthetic parameters (vcmax, jmax).
-                                                                  ! 1=non-acclimating, 2=Kumarathunge et al., 2019
+                                                                  ! 0=non-acclimating, 1=Kumarathunge et al., 2019
      integer              :: stomatal_assim_model                 ! Switch designating whether to use net or
                                                                   ! gross assimilation in the stomata model
      integer              :: stomatal_model                       ! switch for choosing between stomatal conductance models,
