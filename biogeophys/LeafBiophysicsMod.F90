@@ -482,39 +482,30 @@ contains
     real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
     real(r8) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
     real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
-    real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
-    real(r8) :: r1,r2             ! roots of quadratic equation
-    real(r8) :: jpar              ! absorbed photons in photocenters as an electron
-                                  ! rate (umol electrons/m**2/s)
-    logical :: err
+    real(r8) :: phi               ! maximum quantum yield (mol electron mol-1 photon)
+    real(r8) :: cb6fmax           ! maximum activity of the cytochrome b6f complex
+                                  ! (micromol electrons m-2 s-1)
+                                  ! referred to as vqmax in Lamour et al.
+    real(r8) :: eta               ! quantifies the ratio of PSI to PSII electron transport rate
+                                  ! From Lamour et al. can be assumed to be 1
+    real(r8) :: Qsat              ! Saturating irradiance - assumed to be a constant (micromol m-2 s-1)
+                                  ! Here we asssume abosorbed irradiance
 
-    ! Electron transport rate for C3 plants.
-    ! Convert absorbed photon density [umol/m2 leaf /s] to
-    ! that absorbed only by the photocenters (fnps) and also
-    ! convert from photon energy into electron transport rate (photon_to_e)
-    jpar = par_abs*photon_to_e*(1.0_r8 - fnps)
+    eta = 1.0_r8
+    Qsat = 1275.0_r8
     
-    ! Equation to convert PFT specific Jmax to Vqmax
-!    vqmax = (Qsat * JQsat) / &
- !        (Qsat * eta**-1 - (JQsat / (par_abs * jpar * phi1pmax) )  ) 
+    phi = (1.0_r8 - fnps) * photon_to_e
+   
+    ! Electron transport rate for C3 plants.
+ 
+    ! Equation to convert PFT specific Jmax to cb6fmax
+    ! jfn - could be moved out of here to where jmax is defined?
+    cb6fmax = (Qsat * jmax) / &
+         (Qsat * eta**-1.0_r8 - (jmax / phi) ) 
 
     ! Simplified RH JB formulation
-  !  je = QVqmax / &
-   !      ( ( Vqmax / (par_abs * alpha1 * phi1pmax) ) + Q )
-
-
-    ! convert the absorbed par into absorbed par per m2 of leaf,
-    ! so it is consistant with the vcmax and lmr numbers.
-    aquad = theta_psii
-    bquad = -(jpar + jmax)
-    cquad = jpar * jmax
-    call QuadraticRoots(aquad, bquad, cquad, r1, r2, err)
-    if(err)then
-       write(fates_log(),*) "jequadfail:",par_abs,jpar,jmax
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
-
-    je = min(r1,r2)
+    je = par_abs * cb6fmax / &
+         ( (cb6fmax / phi) + par_abs )  
     
   end function GetJe_JB
 
@@ -936,8 +927,6 @@ contains
     real(r8), intent(out) :: agross         ! gross leaf photosynthesis (umol CO2/m**2/s)
     real(r8), intent(out) :: gs             ! stomatal conductance (umol h2o/m2/s)
     real(r8), intent(out) :: fval           ! ci_input - ci_updated  (Pa)
-    !real(r8), intent(out) :: limiting_c3    ! tracks whether ac or aj is limiting c3 photosynthesis
-    !real(r8), intent(out) :: limiting_c4    ! tracks whether ac or aj is limiting c4 photosynthesis
     
     real(r8) :: veg_esat          ! Saturation vapor pressure at leaf-surface [Pa]
     real(r8) :: veg_qs            ! DUMMY, specific humidity at leaf-surface [kg/kg]
@@ -973,11 +962,6 @@ contains
        else
           ! Take the minimum, no smoothing
           agross = min(ac,aj)
-          ! if(min(ac,aj) == ac)then
-          !    limiting_c3 = 0.0_r8
-          ! else
-          !    limiting_c3 = 1.0_r8
-          ! end if
        end if
 
     else
