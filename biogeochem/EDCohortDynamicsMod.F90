@@ -1090,6 +1090,9 @@ end subroutine create_cohort
 
                                       currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
                                            nextc%n*nextc%fire_mort)/newn
+                                      
+                                      currentCohort%rxfire_mort    = (currentCohort%n*currentCohort%rxfire_mort + &
+                                           nextc%n*nextc%rxfire_mort)/newn
 
                                       ! mortality diagnostics
                                       currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
