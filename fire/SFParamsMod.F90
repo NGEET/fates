@@ -37,6 +37,18 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_low_moisture_Slope(num_fuel_classes)
    real(r8),protected, public :: SF_val_mid_moisture_Coeff(num_fuel_classes)
    real(r8),protected, public :: SF_val_mid_moisture_Slope(num_fuel_classes)
+    ! Prescribed fire relevant parameters
+   real(r8),protected, public :: SF_val_rxfire_tpup   ! temprature upper threshold for conducting RX fire
+   real(r8),protected, public :: SF_val_rxfire_tplw   ! temprature lower threshold
+   real(r8),protected, public :: SF_val_rxfire_rhup   ! relative humidity upper threshold
+   real(r8),protected, public :: SF_val_rxfire_rhlw   ! relative humidity lower threshold
+   real(r8),protected, public :: SF_val_rxfire_wdup   ! wind speed upper threshold
+   real(r8),protected, public :: SF_val_rxfire_wdlw   ! wind speed lower threshold
+   real(r8),protected, public :: SF_val_rxfire_AB     ! prescribed fire burned fraction per day
+   real(r8),protected, public :: SF_val_rxfire_minthreshold ! minimum fire energy of rx fire, for management outcomes really
+   real(r8),protected, public :: SF_val_rxfire_maxthreshold ! maximum fire energy
+   real(r8),protected, public :: SF_val_rxfire_fuel_min     ! minimum fuel load at the patch for the need of rx fire management
+   real(r8),protected, public :: SF_val_rxfire_fuel_max     ! maximum fuel load, above which might be risky for conducting rx fire
 
    character(len=param_string_length),parameter :: SF_name_fdi_alpha = "fates_fire_fdi_alpha"
    character(len=param_string_length),parameter :: SF_name_miner_total = "fates_fire_miner_total"
@@ -57,6 +69,18 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_low_moisture_Slope = "fates_fire_low_moisture_Slope"
    character(len=param_string_length),parameter :: SF_name_mid_moisture_Coeff = "fates_fire_mid_moisture_Coeff"
    character(len=param_string_length),parameter :: SF_name_mid_moisture_Slope = "fates_fire_mid_moisture_Slope"
+   character(len=param_string_length),parameter :: SF_name_rxfire_tpup = "fates_rxfire_temp_upthreshold"
+   character(len=param_string_length),parameter :: SF_name_rxfire_tplw = "fates_rxfire_temp_lwthreshold"
+   character(len=param_string_length),parameter :: SF_name_rxfire_rhup = "fates_rxfire_rh_upthreshold"
+   character(len=param_string_length),parameter :: SF_name_rxfire_rhlw = "fates_rxfire_rh_lwthreshold"
+   character(len=param_string_length),parameter :: SF_name_rxfire_wdup = "fates_rxfire_wind_upthreshold"
+   character(len=param_string_length),parameter :: SF_name_rxfire_wdlw = "fates_rxfire_wind_lwthreshold"
+   character(len=param_string_length),parameter :: SF_name_rxfire_AB   = "fates_rxfire_AB"
+   character(len=param_string_length),parameter :: SF_name_rxfire_min_threshold = "fates_rxfire_min_threshold"
+   character(len=param_string_length),parameter :: SF_name_rxfire_max_threshold = "fates_rxfire_max_threshold"
+   character(len=param_string_length),parameter :: SF_name_rxfire_fuel_min = "fates_rxfire_fuel_min"
+   character(len=param_string_length),parameter :: SF_name_rxfire_fuel_max = "fates_rxfire_fuel_max"
+  
 
    character(len=*), parameter, private :: sourcefile =  __FILE__
    real(r8),         parameter, private :: min_fire_threshold = 0.0001_r8  ! The minimum reasonable fire intensity threshold [kW/m]
@@ -157,6 +181,17 @@ contains
     SF_val_low_moisture_Slope(:) = nan
     SF_val_mid_moisture_Coeff(:) = nan
     SF_val_mid_moisture_Slope(:) = nan
+    SF_val_rxfire_tpup = nan
+    SF_val_rxfire_tplw = nan
+    SF_val_rxfire_rhup = nan
+    SF_val_rxfire_rhlw = nan
+    SF_val_rxfire_wdup = nan
+    SF_val_rxfire_wdlw = nan
+    SF_val_rxfire_AB   = nan
+    SF_val_rxfire_minthreshold = nan
+    SF_val_rxfire_maxthreshold = nan
+    SF_val_rxfire_fuel_min = nan
+    SF_val_rxfire_fuel_max = nan
 
   end subroutine SpitFireParamsInit
 
@@ -228,6 +263,40 @@ contains
 
     call fates_params%RegisterParameter(name=SF_name_fire_threshold, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
+     
+    call fates_params%RegisterParameter(name=SF_name_rxfire_tpup, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=SF_name_rxfire_tplw, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=SF_name_rxfire_rhup, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=SF_name_rxfire_rhlw, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=SF_name_rxfire_wdup, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=SF_name_rxfire_wdlw, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=SF_name_rxfire_AB, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=SF_name_rxfire_min_threshold, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=SF_name_rxfire_max_threshold, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=SF_name_rxfire_fuel_min, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=SF_name_rxfire_fuel_max, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
 
   end subroutine SpitFireRegisterScalars
 
@@ -267,6 +336,39 @@ contains
 
     call fates_params%RetrieveParameter(name=SF_name_fire_threshold, &
          data=SF_val_fire_threshold)
+     
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_tpup, &
+         data=SF_val_rxfire_tpup)
+
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_tplw, &
+	 data=SF_val_rxfire_tplw)
+
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_rhup, &
+	 data=SF_val_rxfire_rhup)
+
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_rhlw, &
+	 data=SF_val_rxfire_rhlw)
+
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_wdup, &
+	 data=SF_val_rxfire_wdup)
+
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_wdlw, &
+	 data=SF_val_rxfire_wdlw)
+
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_AB, &
+         data=SF_val_rxfire_AB)
+
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_min_threshold, &
+         data=SF_val_rxfire_minthreshold)
+
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_max_threshold, &
+         data=SF_val_rxfire_maxthreshold)
+
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_fuel_min, &
+         data=SF_val_rxfire_fuel_min)
+
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_fuel_max, &
+         data=SF_val_rxfire_fuel_max)
 
 
 
