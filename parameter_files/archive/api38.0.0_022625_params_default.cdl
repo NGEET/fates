@@ -369,9 +369,6 @@ variables:
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
-	double fates_leaf_fnps(fates_pft) ;
-		fates_leaf_fnps:units = "fraction" ;
-		fates_leaf_fnps:long_name = "fraction of light absorbed by non-photosynthetic pigments" ;
 	double fates_leaf_jmaxha(fates_pft) ;
 		fates_leaf_jmaxha:units = "J/mol" ;
 		fates_leaf_jmaxha:long_name = "activation energy for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
@@ -399,12 +396,6 @@ variables:
 	double fates_leaf_stomatal_slope_medlyn(fates_pft) ;
 		fates_leaf_stomatal_slope_medlyn:units = "KPa**0.5" ;
 		fates_leaf_stomatal_slope_medlyn:long_name = "stomatal slope parameter, as per Medlyn" ;
-	double fates_leaf_stomatal_btran_model(fates_pft) ;
-		fates_leaf_stomatal_btran_model:units = "" ;
-		fates_leaf_stomatal_btran_model:long_name = "model switch for how btran affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
-	double fates_leaf_agross_btran_model(fates_pft) ;
-		fates_leaf_agross_btran_model:units = "index" ;
-		fates_leaf_agross_btran_model:long_name = "model switch for how gross assimilation affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
 	double fates_leaf_vcmax25top(fates_leafage_class, fates_pft) ;
 		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
@@ -423,9 +414,6 @@ variables:
 	double fates_leafn_vert_scaler_coeff2(fates_pft) ;
 		fates_leafn_vert_scaler_coeff2:units = "unitless" ;
 		fates_leafn_vert_scaler_coeff2:long_name = "Coefficient two for decrease in leaf nitrogen through the canopy, from Lloyd et al. 2010." ;
-	double fates_leaf_fnps(fates_pft) ;
-		fates_leaf_fnps:units = "fraction" ;
-		fates_leaf_fnps:long_name = "Fraction of light absorbed by non-photosynthetic pigments" ;
 	double fates_maintresp_leaf_atkin2017_baserate(fates_pft) ;
 		fates_maintresp_leaf_atkin2017_baserate:units = "umol CO2/m^2/s" ;
 		fates_maintresp_leaf_atkin2017_baserate:long_name = "Leaf maintenance respiration base rate parameter (r0) per Atkin et al 2017" ;
@@ -1363,9 +1351,6 @@ data:
 
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 
- fates_leaf_fnps = 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 
-    0.15, 0.15, 0.15, 0.15, 0.15 ;
-
  fates_leaf_jmaxha = 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540, 
     43540, 43540, 43540, 43540, 43540, 43540 ;
 
@@ -1409,10 +1394,6 @@ data:
 
  fates_leafn_vert_scaler_coeff2 = 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 
     2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43 ;
-
-
- fates_leaf_fnps = 0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,
-    0.15,0.15,0.15,0.15 ;
 
  fates_maintresp_leaf_atkin2017_baserate = 1.756, 1.4995, 1.4995, 1.756, 
     1.756, 1.756, 2.0749, 2.0749, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956, 

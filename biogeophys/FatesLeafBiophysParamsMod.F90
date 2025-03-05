@@ -44,24 +44,6 @@ contains
     character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
 
 
-    ! Register scalars
-
-    name = 'fates_daylength_factor_switch'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    name = 'fates_leaf_stomatal_model'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    name = 'fates_leaf_stomatal_assim_model'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    name = 'fates_leaf_photo_tempsens_model'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     ! Register PFT dimensioned
     
     name = 'fates_leaf_c3psn'
@@ -144,31 +126,20 @@ contains
 
   subroutine LeafBiophysReceiveParams(fates_params)
 
-
+    !use FatesInterfaceTypesMod, only : hlm_daylength_factor_switch
+    !use FatesInterfaceTypesMod, only : hlm_stomatal_model
+    !use FatesInterfaceTypesMod, only : hlm_stomatal_assim_model
+    !use FatesInterfaceTypesMod, only : hlm_photo_tempsens_model
+    
     class(fates_parameters_type), intent(inout) :: fates_params
     real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
     real(r8)              :: tmpscalar
     character(len=param_string_length) :: name
 
-    name = 'fates_daylength_factor_switch'
-    call fates_params%RetrieveParameter(name=name, &
-         data=tmpscalar)
-    lb_params%dayl_switch = nint(tmpscalar)
-
-    name = 'fates_leaf_stomatal_model'
-    call fates_params%RetrieveParameter(name=name, &
-         data=tmpscalar)
-    lb_params%stomatal_model = nint(tmpscalar)
-
-    name = 'fates_leaf_stomatal_assim_model'
-    call fates_params%RetrieveParameter(name=name, &
-         data=tmpscalar)
-    lb_params%stomatal_assim_model = nint(tmpscalar)
-
-    name = 'fates_leaf_photo_tempsens_model'
-    call fates_params%RetrieveParameter(name=name, &
-         data=tmpscalar)
-    lb_params%photo_tempsens_model = nint(tmpscalar)
+    !lb_params%dayl_switch    = hlm_daylength_factor_switch
+    !lb_params%stomatal_model = hlm_stomatal_model
+    !lb_params%stomatal_assim_model = hlm_stomatal_assim_model
+    !lb_params%photo_tempsens_model = hlm_photo_tempsens_model
 
     name = 'fates_leaf_c3psn'
     call fates_params%RetrieveParameterAllocate(name=name, &

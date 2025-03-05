@@ -105,6 +105,7 @@ module EDMainMod
   use PRTParametersMod      , only : prt_params
   use EDPftvarcon,            only : EDPftvarcon_inst
   use FatesHistoryInterfaceMod, only : fates_hist
+  use FatesLandUseChangeMod,  only: FatesGrazing
 
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -546,6 +547,9 @@ contains
                   (currentCohort%resp_m_acc_hold + currentCohort%resp_g_acc_hold)
              
 
+             ! allow herbivores to graze
+             call FatesGrazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height)
+
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
              if(any(currentSite%dstatus(ft) == [phen_dstat_moiston,phen_dstat_timeon])) then
@@ -977,7 +981,8 @@ contains
                   site_mass%seed_out + &
                   site_mass%flux_generic_out + &
                   site_mass%frag_out + &
-                  site_mass%aresp_acc
+                  site_mass%aresp_acc + &
+                  site_mass%herbivory_flux_out
 
        net_flux        = flux_in - flux_out
        error           = abs(net_flux - change_in_stock)
@@ -1010,6 +1015,7 @@ contains
           write(fates_log(),*) 'flux_generic_out: ',site_mass%flux_generic_out
           write(fates_log(),*) 'frag_out: ',site_mass%frag_out
           write(fates_log(),*) 'aresp_acc: ',site_mass%aresp_acc
+          write(fates_log(),*) 'herbivory_flux_out: ',site_mass%herbivory_flux_out
           write(fates_log(),*) 'error=net_flux-dstock:', error
           write(fates_log(),*) 'biomass', biomass_stock
           write(fates_log(),*) 'litter',litter_stock

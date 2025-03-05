@@ -369,9 +369,6 @@ variables:
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
-	double fates_leaf_fnps(fates_pft) ;
-		fates_leaf_fnps:units = "fraction" ;
-		fates_leaf_fnps:long_name = "fraction of light absorbed by non-photosynthetic pigments" ;
 	double fates_leaf_jmaxha(fates_pft) ;
 		fates_leaf_jmaxha:units = "J/mol" ;
 		fates_leaf_jmaxha:long_name = "activation energy for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
@@ -399,12 +396,6 @@ variables:
 	double fates_leaf_stomatal_slope_medlyn(fates_pft) ;
 		fates_leaf_stomatal_slope_medlyn:units = "KPa**0.5" ;
 		fates_leaf_stomatal_slope_medlyn:long_name = "stomatal slope parameter, as per Medlyn" ;
-	double fates_leaf_stomatal_btran_model(fates_pft) ;
-		fates_leaf_stomatal_btran_model:units = "" ;
-		fates_leaf_stomatal_btran_model:long_name = "model switch for how btran affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
-	double fates_leaf_agross_btran_model(fates_pft) ;
-		fates_leaf_agross_btran_model:units = "index" ;
-		fates_leaf_agross_btran_model:long_name = "model switch for how gross assimilation affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
 	double fates_leaf_vcmax25top(fates_leafage_class, fates_pft) ;
 		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
 		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
@@ -423,9 +414,6 @@ variables:
 	double fates_leafn_vert_scaler_coeff2(fates_pft) ;
 		fates_leafn_vert_scaler_coeff2:units = "unitless" ;
 		fates_leafn_vert_scaler_coeff2:long_name = "Coefficient two for decrease in leaf nitrogen through the canopy, from Lloyd et al. 2010." ;
-	double fates_leaf_fnps(fates_pft) ;
-		fates_leaf_fnps:units = "fraction" ;
-		fates_leaf_fnps:long_name = "Fraction of light absorbed by non-photosynthetic pigments" ;
 	double fates_maintresp_leaf_atkin2017_baserate(fates_pft) ;
 		fates_maintresp_leaf_atkin2017_baserate:units = "umol CO2/m^2/s" ;
 		fates_maintresp_leaf_atkin2017_baserate:long_name = "Leaf maintenance respiration base rate parameter (r0) per Atkin et al 2017" ;
@@ -759,6 +747,9 @@ variables:
 	double fates_damage_event_code ;
 		fates_damage_event_code:units = "unitless" ;
 		fates_damage_event_code:long_name = "Integer code that options how damage events are structured" ;
+	double fates_daylength_factor_switch ;
+		fates_daylength_factor_switch:units = "unitless" ;
+		fates_daylength_factor_switch:long_name = "user switch for turning on (1) or off (0) the day length factor scaling for photosynthetic parameters (ie scale vcmax and jmax)" ;
 	double fates_dev_arbitrary ;
 		fates_dev_arbitrary:units = "unknown" ;
 		fates_dev_arbitrary:long_name = "Unassociated free parameter that developers can use for testing arbitrary new hypotheses" ;
@@ -816,6 +807,9 @@ variables:
 	double fates_hydro_psicap ;
 		fates_hydro_psicap:units = "MPa" ;
 		fates_hydro_psicap:long_name = "sapwood water potential at which capillary reserves exhausted" ;
+	double fates_hydro_solver ;
+		fates_hydro_solver:units = "unitless" ;
+		fates_hydro_solver:long_name = "switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard, 3 = 2D Newton (deprecated)" ;
 	double fates_landuse_grazing_carbon_use_eff ;
 		fates_landuse_grazing_carbon_use_eff:units = "unitless" ;
 		fates_landuse_grazing_carbon_use_eff:long_name = "carbon use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
@@ -861,18 +855,33 @@ variables:
 	double fates_leaf_photo_temp_acclim_timescale ;
 		fates_leaf_photo_temp_acclim_timescale:units = "days" ;
 		fates_leaf_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_maintresp_leaf_model=2 or fates_leaf_photo_tempsens_model = 2)" ;
+	double fates_leaf_photo_tempsens_model ;
+		fates_leaf_photo_tempsens_model:units = "unitless" ;
+		fates_leaf_photo_tempsens_model:long_name = "switch for choosing the model that defines the temperature sensitivity of photosynthetic parameters (vcmax, jmax). 1=non-acclimating; 2=Kumarathunge et al 2019" ;
+	double fates_leaf_stomatal_assim_model ;
+		fates_leaf_stomatal_assim_model:units = "unitless" ;
+		fates_leaf_stomatal_assim_model:long_name = "a switch designating whether to use net (1) or gross (2) assimilation in the stomatal model" ;
+	double fates_leaf_stomatal_model ;
+		fates_leaf_stomatal_model:units = "unitless" ;
+		fates_leaf_stomatal_model:long_name = "switch for choosing between Ball-Berry (1) stomatal conductance model and Medlyn (2) model" ;
 	double fates_leaf_theta_cj_c3 ;
 		fates_leaf_theta_cj_c3:units = "unitless" ;
-		fates_leaf_theta_cj_c3:long_name = "SOON TO BE DEPRECATED, DO NOT USE" ;
+		fates_leaf_theta_cj_c3:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants" ;
 	double fates_leaf_theta_cj_c4 ;
 		fates_leaf_theta_cj_c4:units = "unitless" ;
-		fates_leaf_theta_cj_c4:long_name = "SOON TO BE DEPRECATED, DO NOT USE" ;
+		fates_leaf_theta_cj_c4:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants" ;
+	double fates_maintresp_leaf_model ;
+		fates_maintresp_leaf_model:units = "unitless" ;
+		fates_maintresp_leaf_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991), 2=Atkin et al., (2017)" ;
 	double fates_maintresp_nonleaf_baserate ;
 		fates_maintresp_nonleaf_baserate:units = "gC/gN/s" ;
 		fates_maintresp_nonleaf_baserate:long_name = "Base maintenance respiration rate for plant tissues, using Ryan 1991" ;
 	double fates_maxcohort ;
 		fates_maxcohort:units = "count" ;
 		fates_maxcohort:long_name = "maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances" ;
+	double fates_mort_cstarvation_model ;
+		fates_mort_cstarvation_model:units = "unitless" ;
+		fates_mort_cstarvation_model:long_name = "switch defining the carbon starvation model ( 1) Linear or 2) Exponential) in the mortality_rates function." ;
 	double fates_mort_disturb_frac ;
 		fates_mort_disturb_frac:units = "fraction" ;
 		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)" ;
@@ -909,6 +918,12 @@ variables:
 	double fates_q10_mr ;
 		fates_q10_mr:units = "unitless" ;
 		fates_q10_mr:long_name = "Q10 for maintenance respiration" ;
+	double fates_rad_model ;
+		fates_rad_model:units = "unitless" ;
+		fates_rad_model:long_name = "switch designating the model for canopy radiation, 1 = Norman, 2 = Two-stream (experimental)" ;
+	double fates_regeneration_model ;
+		fates_regeneration_model:units = "-" ;
+		fates_regeneration_model:long_name = "switch for choosing between FATES\'s: 1) default regeneration scheme , 2) the Tree Recruitment Scheme (Hanbury-Brown et al., 2022), or (3) the Tree Recruitment Scheme without seedling dynamics" ;
 	double fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
@@ -1363,9 +1378,6 @@ data:
 
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 
- fates_leaf_fnps = 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 
-    0.15, 0.15, 0.15, 0.15, 0.15 ;
-
  fates_leaf_jmaxha = 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540, 
     43540, 43540, 43540, 43540, 43540, 43540 ;
 
@@ -1409,10 +1421,6 @@ data:
 
  fates_leafn_vert_scaler_coeff2 = 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 
     2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43 ;
-
-
- fates_leaf_fnps = 0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,0.15,
-    0.15,0.15,0.15,0.15 ;
 
  fates_maintresp_leaf_atkin2017_baserate = 1.756, 1.4995, 1.4995, 1.756, 
     1.756, 1.756, 2.0749, 2.0749, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956, 
@@ -1751,6 +1759,8 @@ data:
 
  fates_damage_event_code = 1 ;
 
+ fates_daylength_factor_switch = 1 ;
+
  fates_dev_arbitrary = _ ;
 
  fates_fire_active_crown_fire = 0 ;
@@ -1789,6 +1799,8 @@ data:
 
  fates_hydro_psicap = -0.6 ;
 
+ fates_hydro_solver = 2 ;
+
  fates_landuse_grazing_carbon_use_eff = 0 ;
 
  fates_landuse_grazing_maxheight = 1 ;
@@ -1819,13 +1831,23 @@ data:
 
  fates_leaf_photo_temp_acclim_timescale = 30 ;
 
+ fates_leaf_photo_tempsens_model = 1 ;
+
+ fates_leaf_stomatal_assim_model = 1 ;
+
+ fates_leaf_stomatal_model = 1 ;
+
  fates_leaf_theta_cj_c3 = 0.999 ;
 
  fates_leaf_theta_cj_c4 = 0.999 ;
 
+ fates_maintresp_leaf_model = 1 ;
+
  fates_maintresp_nonleaf_baserate = 2.525e-06 ;
 
  fates_maxcohort = 100 ;
+
+ fates_mort_cstarvation_model = 1 ;
 
  fates_mort_disturb_frac = 1 ;
 
@@ -1850,6 +1872,10 @@ data:
  fates_q10_froz = 1.5 ;
 
  fates_q10_mr = 1.5 ;
+
+ fates_rad_model = 1 ;
+
+ fates_regeneration_model = 1 ;
 
  fates_soil_salinity = 0.4 ;
 
