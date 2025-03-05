@@ -51,7 +51,6 @@ module EDParamsMod
                                                       ! 1=non-acclimating, 2=Kumarathunge et al., 2019
 
    integer,protected, public :: radiation_model       ! Switch betrween Norman (1) and Two-stream (2) radiation models
-
    integer,protected, public :: mort_cstarvation_model ! Switch for carbon starvation mortality:
                                                        ! 1 -- Linear model
                                                        ! 2 -- Exponential model
@@ -83,6 +82,7 @@ module EDParamsMod
                                                                       ! (2) for the Tree Recruitment Scheme (Hanbury-Brown et al., 2022)
                                                                       ! (3) for the Tree Recruitment Scheme without seedling dynamics
    
+   logical,protected, public :: rxfire_switch         ! switch between 1=use management fire and 0=no management fire
    
    logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
@@ -172,6 +172,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "fates_leaf_stomatal_model"
    character(len=param_string_length),parameter,public :: ED_name_dayl_switch= "fates_daylength_factor_switch"
    character(len=param_string_length),parameter,public :: ED_name_regeneration_model= "fates_regeneration_model"
+   character(len=param_string_length),parameter,public :: fates_name_rxfire_switch= "fates_rxfire_switch"
 
    character(len=param_string_length),parameter,public :: name_theta_cj_c3 = "fates_leaf_theta_cj_c3"
    character(len=param_string_length),parameter,public :: name_theta_cj_c4 = "fates_leaf_theta_cj_c4"
@@ -505,6 +506,9 @@ contains
 
     call fates_params%RegisterParameter(name=ED_name_regeneration_model, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
+     
+    call fates_params%RegisterParameter(name=fates_name_rxfire_switch, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 	 
     call fates_params%RegisterParameter(name=stomatal_assim_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
@@ -734,6 +738,10 @@ contains
     call fates_params%RetrieveParameter(name=ED_name_regeneration_model, &
          data=tmpreal)
     regeneration_model = nint(tmpreal)
+
+    call fates_params%RetrieveParameter(name=fates_name_rxfire_switch, & 
+          data=tmpreal)
+    rxfire_switch = (abs(tmpreal-1.0_r8)<nearzero)
     
     call fates_params%RetrieveParameter(name=stomatal_assim_name, &
          data=tmpreal)
@@ -909,6 +917,7 @@ contains
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh
         write(fates_log(),fmt0) 'regeneration_model = ',regeneration_model
+        write(fates_log(),'(a,L2)') 'rxfire_switch = ',rxfire_switch
         write(fates_log(),fmt0) 'dayl_switch = ',dayl_switch      
         write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model
         write(fates_log(),fmt0) 'stomatal_assim_model = ',stomatal_assim_model            
