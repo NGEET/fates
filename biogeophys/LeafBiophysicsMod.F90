@@ -145,7 +145,7 @@ module LeafBiophysicsMod
   
   
   ! Set this to true to match results with main
-  logical, parameter :: base_compare_revert = .false.
+  logical, parameter :: base_compare_revert = .true.
 
   
   ! For plants with no leaves, a miniscule amount of conductance
@@ -378,16 +378,18 @@ contains
     real(r8) :: aquad,bquad,cquad                    ! quadradic solve terms
     real(r8) :: r1,r2                                ! quadradic solve roots
     logical :: err
-    
-    if (a_gs <= nearzero) then
-       gs = gs0
-       return
-    end if
 
-    ! Trivial case (gs1 near 0)
-    if(gs1<0.01_r8)then
-       gs = gs0
-       return
+    if(.not.base_compare_revert ) then
+       if (a_gs <= nearzero) then
+          gs = gs0
+          return
+       end if
+       
+       ! Trivial case (gs1 near 0)
+       if(gs1<0.01_r8)then
+          gs = gs0
+          return
+       end if
     end if
     
     ! Apply a constraint to the vapor pressure
@@ -1174,9 +1176,6 @@ contains
        gs,                &  ! out
        anet,              &  ! out
        c13disc,           &  ! out
-       ac,                &  ! out
-       aj,                &  ! out
-       ap,                &  ! out
        ci,                &  ! out
        solve_iter)           ! out
 
@@ -1218,10 +1217,6 @@ contains
     real(r8), intent(out) :: gs               ! leaf stomatal conductance (umol H2O/m**2/s)
     real(r8), intent(out) :: anet             ! net leaf photosynthesis (umol CO2/m**2/s)
     real(r8), intent(out) :: c13disc          ! carbon 13 in newly assimilated carbon
-    real(r8), intent(out) :: ac               ! Rubisco-limited gross photosynthesis (umol CO2/m**2/s)
-    real(r8), intent(out) :: aj               ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
-    real(r8), intent(out) :: ap               ! product-limited (C3) or CO2-limited
-                                              ! (C4) gross photosynthesis (umol CO2/m**2/s)
     real(r8), intent(out) :: ci               ! intracellular leaf CO2 (Pa)
     integer,  intent(out) :: solve_iter       ! Number of iterations required for the solve
     
@@ -1257,11 +1252,6 @@ contains
     ! Maximum number of iterations on intracelluar co2 solver until is quits
     integer, parameter :: max_iters = 10
 
-    ! Set diagnostics as un-initialized
-    ac         = -999._r8
-    aj         = -999._r8
-    ap         = -999._r8
-
     ! Assume a trival solve until we encounter both leaf and light
     solve_iter = 0
 
@@ -1286,7 +1276,7 @@ contains
              
              agross  = 0._r8
              anet    = 0._r8
-             gs      = gs0
+             gs      = max(gsmin0 *VeloToMolarCF(can_press,veg_tempk), stem_cuticle_loss_frac*gs0)
              c13disc = 0.0_r8
 
              return
@@ -1298,7 +1288,7 @@ contains
      
        if(  leaf_area < nearzero ) then
           agross  = 0._r8
-          gs      = max(gsmin0_20C1A_mol,stem_cuticle_loss_frac*gs0)
+          gs      = max(gsmin0*VeloToMolarCF(can_press,veg_tempk),stem_cuticle_loss_frac*gs0)
           anet    = 0._r8
           c13disc = 0._r8
           return
@@ -1975,7 +1965,12 @@ contains
     if(lb_params%stomatal_btran_model(ft)==btran_on_gs_gs0  .or. &
        lb_params%stomatal_btran_model(ft)==btran_on_gs_gs01 .or. &
        lb_params%stomatal_btran_model(ft)==btran_on_gs_gs02 )then
-       gs0 = max(gs0_min,lb_params%stomatal_intercept(ft)*btran)
+
+       if(base_compare_revert)then
+          gs0 = max(gsmin0*VeloToMolarCF(101325.0_r8,veg_tempk), lb_params%stomatal_intercept(ft)*btran)
+       else
+          gs0 = max(gs0_min,lb_params%stomatal_intercept(ft)*btran)
+       end if
     else
        gs0 = max(gs0_min,lb_params%stomatal_intercept(ft))
     end if
@@ -2113,9 +2108,12 @@ contains
     real(r8) :: veg_esat                ! saturated vapor pressure [Pa]
     real(r8) :: min_frac_esat = 0.01_r8 ! We don't allow vapor pressures
                                         ! below this fraction amount of saturation vapor pressure
-    
-    ceair = min( max(air_vpress, min_frac_esat*veg_esat ),veg_esat )
-    
+
+    if(base_compare_revert) then
+       ceair = min( max(air_vpress, 0.05*veg_esat ),veg_esat )
+    else
+       ceair = min( max(air_vpress, min_frac_esat*veg_esat ),veg_esat )
+    end if
   end function GetConstrainedVPress
 
   ! =====================================================================================

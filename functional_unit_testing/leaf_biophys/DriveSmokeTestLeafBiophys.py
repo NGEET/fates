@@ -404,9 +404,6 @@ def main(argv):
                                                                               byref(gstoma_f), \
                                                                               byref(anet_f), \
                                                                               byref(c13_f), \
-                                                                              byref(ac_f), \
-                                                                              byref(aj_f), \
-                                                                              byref(ap_f), \
                                                                               byref(co2_interc_f), \
                                                                               byref(solve_iter_f) )
                                             except:

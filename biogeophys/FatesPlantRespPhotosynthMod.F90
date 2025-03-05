@@ -766,9 +766,6 @@ contains
                                          gstoma_ll,                          &  ! out
                                          anet_ll,                            &  ! out
                                          c13disc_ll,                         &  ! out
-                                         ac_utest,                           &  ! out (unit tests)
-                                         aj_utest,                           &  ! out (unit tests)
-                                         ap_utest,                           &  ! out (unit tests)
                                          co2_inter_c_utest,                  &  ! out (unit tests)
                                          solve_iter)                            ! out performance tracking
 
@@ -792,9 +789,13 @@ contains
                                          bc_in(s)%cair_pa(ifp),bc_in(s)%forc_pbot, bc_in(s)%rb_pa(ifp), gstoma, ft)
                                     
                                  else
-                                    ! if gstoma is truly zero, this will be weighted by zero
-                                    rs_z(iv,ft,cl)= 1._r8/max(gstoma,1._r8/rsmax0)
-
+                                    ! This should not need to be protected by rsmax0, it is already applied
+                                    ! in leaf biophysics
+                                    if(preserve_b4b) then
+                                       rs_z(iv,ft,cl)= 1._r8/max(gstoma,1._r8/rsmax0)
+                                    else
+                                       rs_z(iv,ft,cl)= 1._r8/gstoma
+                                    end if
                                  end if
                                  
                                  rate_mask_z(iv,ft,cl) = .true.
