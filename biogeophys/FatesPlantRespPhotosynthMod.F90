@@ -168,9 +168,6 @@ contains
 
     ! carbon 13 in newly assimilated carbon at leaf level
     real(r8) :: c13disc_z(nlevleaf,maxpft,nclmax)
-
-    ! tracks whether photosynthesis is limited by rubisco or electron transport
-    real(r8) :: rl_psn_z(nlevleaf,maxpft,nclmax)
     
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
@@ -413,7 +410,6 @@ contains
                   c13disc_z(:,:,:) = 0._r8
                   rs_z(:,:,:)      = 0._r8
                   lmr_z(:,:,:)     = 0._r8
-                  rl_psn_z(:,:,:)  = 0._r8
                   
                   if_any_cohorts: if(currentPatch%num_cohorts > 0)then
 
@@ -505,7 +501,6 @@ contains
                                  psn_z(iv,ft,cl) = 0._r8
                                  anet_av_z(iv,ft,cl) = 0._r8
                                  c13disc_z(iv,ft,cl) = 0._r8
-                                 rl_psn_z(iv,ft,cl) = 0._r8
                                  
                                  if (hlm_use_planthydro.eq.itrue ) then
 
@@ -785,8 +780,6 @@ contains
                                     anet_av_z(iv,ft,cl) = anet_av_z(iv,ft,cl) + area_frac * anet_ll
                                     c13disc_z(iv,ft,cl) = c13disc_z(iv,ft,cl) + area_frac * c13disc_ll
 
-                                    
-!                                    rl_psn_z(iv,ft,cl) = rl_psn_z(iv,ft,cl) + area_frac * 
                                     
                                  end do do_sunsha
 

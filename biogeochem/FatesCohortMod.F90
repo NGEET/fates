@@ -154,11 +154,6 @@ module FatesCohortMod
     real(r8) :: c13disc_clm               ! carbon 13 discrimination in new synthesized carbon at each indiv/timestep [ppm]
     real(r8) :: c13disc_acc               ! carbon 13 discrimination in new synthesized carbon at each indiv/day
                                           !   at the end of a day [ppm]
-
-    real(r8) :: c3_limit_tstep            ! track whether ac or aj is limiting c3 photosynthesis
-    real(r8) :: c3_limit_acc
-    real(r8) :: c3_limit_acc_hold    
-
     
     ! The following four biophysical rates are assumed to be at the canopy top, at reference temp 25degC, 
     ! and based on the leaf age weighted average of the PFT parameterized values. 
@@ -394,9 +389,6 @@ module FatesCohortMod
       this%resp_g_acc_hold         = nan
       this%c13disc_clm             = nan
       this%c13disc_acc             = nan
-      this%c3_limit_tstep          = nan
-      this%c3_limit_acc            = nan
-      this%c3_limit_acc_hold       = nan
       this%vcmax25top              = nan
       this%jmax25top               = nan
       this%tpu25top                = nan
@@ -505,9 +497,6 @@ module FatesCohortMod
       this%c13disc_clm             = 0._r8
       this%c13disc_acc             = 0._r8
 
-      this%c3_limit_tstep          = 0._r8
-      this%c3_limit_acc            = 0._r8
-      
       this%ts_net_uptake(:)        = 0._r8
       this%year_net_uptake(:)      = 999._r8 ! this needs to be 999, or trimming of new cohorts will break.
    
@@ -727,9 +716,6 @@ module FatesCohortMod
       copyCohort%resp_g_acc_hold         = this%resp_g_acc_hold
       copyCohort%c13disc_clm             = this%c13disc_clm
       copyCohort%c13disc_acc             = this%c13disc_acc
-      copyCohort%c3_limit_tstep          = this%c3_limit_tstep
-      copyCohort%c3_limit_acc            = this%c3_limit_acc
-      copyCohort%c3_limit_acc_hold       = this%c3_limit_acc_hold
       copyCohort%vcmax25top              = this%vcmax25top
       copyCohort%jmax25top               = this%jmax25top
       copyCohort%tpu25top                = this%tpu25top
@@ -1060,9 +1046,6 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%gpp_acc_hold           = ', this%gpp_acc_hold
       write(fates_log(),*) 'cohort%gpp_acc                = ', this%gpp_acc
       write(fates_log(),*) 'cohort%gpp_tstep              = ', this%gpp_tstep
-      write(fates_log(),*) 'cohort%c3_limit_acc_hold      = ', this%c3_limit_acc_hold
-      write(fates_log(),*) 'cohort%c3_limit_acc           = ', this%c3_limit_acc
-      write(fates_log(),*) 'cohort%c3_limit_tstep         = ', this%c3_limit_tstep
       write(fates_log(),*) 'cohort%npp_acc_hold           = ', this%npp_acc_hold
       write(fates_log(),*) 'cohort%npp_acc                = ', this%npp_acc
       write(fates_log(),*) 'cohort%resp_m_tstep           = ', this%resp_m_tstep
