@@ -2104,7 +2104,8 @@ contains
        
        do c = 1,ncwd
          frac_burnt = 0.0_r8
-         if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
+         if (dist_type == dtype_ifire .and. (currentPatch%fire == 1 .or. & 
+         currentPatch%rxfire == 1)) then
             frac_burnt = currentPatch%fuel%frac_burnt(c)
          end if 
              
@@ -2131,7 +2132,8 @@ contains
        enddo
        
        frac_burnt = 0.0_r8
-       if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
+       if (dist_type == dtype_ifire .and. (currentPatch%fire == 1 .or. &
+       currentPatch%rxfire == 1)) then
          frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
       end if 
              
@@ -3340,6 +3342,7 @@ contains
     rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area) * inv_sum_area
     rp%scorch_ht(:)         = (dp%scorch_ht(:)*dp%area + rp%scorch_ht(:)*rp%area) * inv_sum_area
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
+    rp%rxfire_frac_burnt    = (dp%rxfire_frac_burnt*dp%area + rp%rxfire_frac_burnt*rp%area) * inv_sum_area
     rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area) * inv_sum_area
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
