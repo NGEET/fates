@@ -40,7 +40,6 @@ module LeafBiophysicsMod
   use FatesConstantsMod, only : rgas_J_K_mol
   use FatesConstantsMod, only : g_per_kg
   use FatesConstantsMod, only : umolC_to_kgC
-  use FatesInterfaceTypesMod, only : hlm_electron_transport_model
   
   implicit none
   private
@@ -216,6 +215,9 @@ module LeafBiophysicsMod
                                                                   ! gross assimilation in the stomata model
      integer              :: stomatal_model                       ! switch for choosing between stomatal conductance models,
                                                                   ! for Ball-Berry, 2 for Medlyn
+     integer              :: electron_transport_model             ! index for electron transport model
+                                                                  ! 1: Farquhar von Caemmerer and Berry (FvCB 1980)
+                                                                  ! 2: Johnson and Berry (2021)
      integer,allocatable :: stomatal_btran_model(:)               ! index for how btran effects conductance
                                                                   ! 0: btran does not scale the stomatal slope or intercept
                                                                   ! 1: btran scales the stomatal intercept only
@@ -482,13 +484,13 @@ contains
     real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
     real(r8) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
     real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
-    real(r8) :: phi               ! maximum quantum yield (mol electron mol-1 photon)
+    real(r8) :: phi               ! maximum quantum yield (mol electrons/mol photons)
     real(r8) :: cb6fmax           ! maximum activity of the cytochrome b6f complex
-                                  ! (micromol electrons m-2 s-1)
+                                  ! (umol electrons/m**2/s)
                                   ! referred to as vqmax in Lamour et al.
     real(r8) :: eta               ! quantifies the ratio of PSI to PSII electron transport rate
                                   ! From Lamour et al. can be assumed to be 1
-    real(r8) :: Qsat              ! Saturating irradiance - assumed to be a constant (micromol m-2 s-1)
+    real(r8) :: Qsat              ! Saturating irradiance - assumed to be a constant (umol/m**2/s)
                                   ! Here we asssume abosorbed irradiance
 
     eta = 1.0_r8
@@ -527,7 +529,7 @@ contains
     real(r8) :: je         ! actual electron transport rate (umol electrons/m**2/s)
 
     
-    select case(hlm_electron_transport_model)
+    select case(lb_params%electron_transport_model)
     case (FvCB1980)   
 
        ! Get the smoothed (quadratic between J and Jmax) electron transport rate

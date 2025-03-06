@@ -1496,7 +1496,6 @@ contains
          hlm_num_luh2_states       = unset_int
          hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
-         hlm_electron_transport_model = unset_int
          hlm_daylength_factor_switch = unset_int
          hlm_photo_tempsens_model = unset_int
          hlm_stomatal_assim_model = unset_int
@@ -1589,11 +1588,6 @@ contains
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-
-         if(hlm_electron_transport_model .eq. unset_int) then
-             write(fates_log(), *) 'electron transport model is unset: hlm_electron_transport_model exiting'
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
 
          if (  .not.((hlm_use_ed_st3.eq.1).or.(hlm_use_ed_st3.eq.0))    ) then
             write(fates_log(), *) 'The FATES namelist stand structure flag must be 0 or 1, exiting'
@@ -2049,12 +2043,6 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
                end if
 
-             case('electron_transport_model')
-                hlm_electron_transport_model = ival
-                if (fates_global_verbose()) then
-                   write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
-                end if
-
              case('use_daylength_factor_switch')
                hlm_daylength_factor_switch = ival
                lb_params%dayl_switch    = hlm_daylength_factor_switch
@@ -2083,6 +2071,13 @@ contains
                   write(fates_log(),*) 'Transfering hlm_stomatal_model ',ival,' to FATES'
                end if
 
+            case('electron_transport_model')
+               hlm_electron_transport_model = ival
+               lb_params%electron_transport_model = hlm_electron_transport_model
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
+               end if
+
             case('hydr_solver')
                hlm_hydr_solver = ival
                if (fates_global_verbose()) then
@@ -2106,13 +2101,7 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_radiation_model ',ival,' to FATES'
                end if
-
-            case('electron_transport_model')
-               hlm_electron_transport_model = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
-               end if
-
+               
             case('regeneration_model')
                hlm_regeneration_model = ival
                if (fates_global_verbose()) then
