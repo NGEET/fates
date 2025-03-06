@@ -5,6 +5,7 @@ module EDTypesMod
   use FatesConstantsMod,     only : ifalse
   use FatesConstantsMod,     only : itrue
   use FatesConstantsMod,     only : nocomp_bareground_land
+  use FatesConstantsMod,     only : nocomp_bareground
   use FatesConstantsMod,     only : secondaryland
   use FatesConstantsMod,     only : secondary_age_threshold
   use FatesConstantsMod,     only : nearzero
@@ -258,6 +259,7 @@ module EDTypesMod
    contains
 
      procedure :: ZeroFluxDiags
+
      
   end type site_fluxdiags_type
 
@@ -311,6 +313,8 @@ module EDTypesMod
                                        ! due to re-sizing patches when area math starts to lose
                                        ! precision
 
+     real(r8) :: herbivory_flux_out    ! loss of element due to grazing (and/or browsing) by herbivores
+     
    contains
 
      procedure :: ZeroMassBalState
@@ -566,14 +570,58 @@ module EDTypesMod
        procedure, public :: get_secondary_young_fraction
 
   end type ed_site_type
-
+  
   ! Make public necessary subroutines and functions
   public :: dump_site
   public :: CalculateTreeGrassAreaSite
+  public :: set_patchno
+  
+contains
 
-  contains
-      
-    ! =====================================================================================
+  ! ============================================================================
+
+  subroutine set_patchno( currentSite, check , call_id)
+
+    !
+    ! !DESCRIPTION:
+    ! Give patches an order number from the oldest to youngest. 
+    ! Oldest patches start with an index of 1.
+    ! Special case: For no-comp runs, we treat the bare-ground
+    ! patch as index 0.
+    
+    type(ed_site_type),intent(in) :: currentSite
+    logical,intent(in) :: check     ! If true, we are checking order, not setting
+    integer,intent(in) :: call_id   ! An index used for testing
+    type(fates_patch_type), pointer :: currentPatch
+    integer patchno
+
+    !---------------------------------------------------------------------
+    
+    patchno = 1
+    currentPatch => currentSite%oldest_patch
+    do while(associated(currentPatch))
+       if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
+          ! for bareground patch, we make the patch number 0
+          if(check .and. currentPatch%patchno.ne.0)then
+             write(fates_log(),*)'nocomp patch numbering is not correct:',currentPatch%patchno,'call_id:',call_id
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          currentPatch%patchno = 0
+       else
+          if(check .and. currentPatch%patchno.ne.patchno) then
+             write(fates_log(),*)'patch numbering is not correct:',currentPatch%patchno,patchno,'call_id:',call_id
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          currentPatch%patchno = patchno
+          patchno = patchno + 1
+       endif
+       currentPatch => currentPatch%younger
+    enddo
+    
+    return
+  end subroutine set_patchno
+    
+  ! =====================================================================================
 
     subroutine ZeroFluxDiags(this)
       
@@ -645,6 +693,7 @@ module EDTypesMod
       this%flux_generic_in   = 0._r8
       this%flux_generic_out  = 0._r8
       this%patch_resize_err  = 0._r8
+      this%herbivory_flux_out= 0._r8
 
       return
   end subroutine ZeroMassBalFlux
@@ -655,8 +704,6 @@ module EDTypesMod
     !
     !  DESCRIPTION:
     !  Calculates total grass, tree, and bare fractions for a site
-
-    use FatesConstantsMod, only : nocomp_bareground
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout) :: csite          ! site object

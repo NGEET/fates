@@ -32,7 +32,7 @@ module FatesInventoryInitMod
    use FatesConstantsMod, only : nearzero
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
-   use EDParamsMod      , only : regeneration_model
+   use FatesInterfaceTypesMod, only : hlm_regeneration_model
    use FatesInterfaceTypesMod, only : bc_in_type
    use FatesInterfaceTypesMod, only : hlm_inventory_ctrl_file
    use FatesInterfaceTypesMod, only : nleafage
@@ -121,8 +121,6 @@ contains
       use FatesConstantsMod, only   : nearzero
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
-      use EDCohortDynamicsMod, only : sort_cohorts
-      use EDcohortDynamicsMod, only : count_cohorts
       use EDPatchDynamicsMod, only  : patch_pft_size_profile
 
       ! Arguments
@@ -285,7 +283,7 @@ contains
             allocate(newpatch)
             call newpatch%Create(age_init, area_init, primaryland,           &
                fates_unset_int, num_swb, numpft, sites(s)%nlevsoil,         &
-               hlm_current_tod, regeneration_model)
+               hlm_current_tod, hlm_regeneration_model)
 
             newpatch%patchno = ipa
             newpatch%younger => null()
@@ -430,11 +428,11 @@ contains
 
             ! Perform Cohort Fusion
             call fuse_cohorts(sites(s), currentpatch,bc_in(s))
-            call sort_cohorts(currentpatch)
+            call currentpatch%SortCohorts()
 
-            ! This calculates %countcohorts
-            call count_cohorts(currentpatch)
-            total_cohorts = total_cohorts + currentPatch%countcohorts
+            ! This calculates %num_cohorts
+            call currentPatch%CountCohorts()
+            total_cohorts = total_cohorts + currentPatch%num_cohorts
 
             currentPatch => currentpatch%older
          enddo
@@ -1132,6 +1130,7 @@ contains
          deallocate(temp_cohort) ! get rid of temporary cohort
 
       end do
+      call cpatch%ValidateCohorts()
 
       return
     end subroutine set_inventory_cohort_type1
