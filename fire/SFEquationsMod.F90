@@ -372,16 +372,16 @@ module SFEquationsMod
       real(r8), parameter :: lb_threshold = 0.55_r8                ! tree canopy fraction below which to use grassland length-to-breadth eqn
       real(r8), parameter :: m_per_min__to__km_per_hour = 0.06_r8  ! convert wind speed from m/min to km/hr
 
-      windspeed_km_hr = effective_windspeed/m_per_km*min_per_hr
+      windspeed_km_hr = effective_windspeed*m_per_min__to__km_per_hour
 
       if (windspeed_km_hr < 1.0_r8) then 
         LengthToBreadth = 1.0_r8
       else
         if (tree_fraction > lb_threshold) then 
-          LengthToBreadth = (1.0_r8 + (8.729_r8* &
-            ((1.0_r8 -(exp(-0.03_r8*m_per_min__to__km_per_hour*effective_windspeed)))**2.155_r8)))
+          LengthToBreadth = 1.0_r8 + (8.729_r8* &
+            ((1.0_r8 -1.0_r8*exp(-0.03_r8*windspeed_km_hr))**2.155_r8))
         else  
-          LengthToBreadth = (1.1_r8*((m_per_min__to__km_per_hour*effective_windspeed)**0.464_r8))
+          LengthToBreadth = 1.1_r8*(windspeed_km_hr**0.464_r8)
         endif
       endif
 
@@ -415,10 +415,10 @@ module SFEquationsMod
       ! Eq 14 Arora and Boer JGR 2005 (area of an ellipse)
       if (length_to_breadth < nearzero) then 
         FireSize = 0.0_r8
-        return
+      else 
+        FireSize = (pi_const/(4.0_r8*length_to_breadth))*((dist_forward + dist_back)**2.0_r8)
       end if
-      FireSize = (pi_const/(4.0_r8*length_to_breadth))*((dist_forward + dist_back)**2.0_r8)
-    
+      
     end function FireSize
     
     !---------------------------------------------------------------------------------------

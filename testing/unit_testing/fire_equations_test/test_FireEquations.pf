@@ -37,7 +37,7 @@ module test_FireEquations
     
     @Test 
     subroutine OptimumPackingRatio_ReturnsReasonableValues(this)
-      ! test that when SAV is some reasonable value, OptimumPackingRatio is correclty output
+      ! test that when SAV is some reasonable value, OptimumPackingRatio is correctly output
       class(TestFireEquations), intent(inout) :: this ! test object
       real(r8)                                :: beta ! optimum packing ratio returned
     
@@ -383,7 +383,6 @@ module test_FireEquations
             
     end subroutine ReactionIntensity_IncreasesWithIncreasingBeta
     
-    
     @Test 
     subroutine ReactionIntensity_IncreasesWithIncreasingMEF(this)
       ! test that reaction intensity increases with increasing MEF
@@ -621,7 +620,7 @@ module test_FireEquations
       real(r8),                 parameter     :: eps = 0.35_r8     ! value for effective heating number
       real(r8),                 parameter     :: q_ig = 1200.0_r8  ! value for heat of preignition
       real(r8),                 parameter     :: i_r = 5000.0_r8   ! value for reaction intensity
-      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propogating flux
+      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propagating flux
       real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
       
       ! first test 0.0
@@ -642,7 +641,7 @@ module test_FireEquations
       real(r8),                 parameter     :: bd = 0.5_r8       ! value for bulk density
       real(r8),                 parameter     :: q_ig = 1200.0_r8  ! value for heat of preignition
       real(r8),                 parameter     :: i_r = 5000.0_r8   ! value for reaction intensity
-      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propogating flux
+      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propagating flux
       real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
       
       ! first test 0.0
@@ -663,7 +662,7 @@ module test_FireEquations
       real(r8),                 parameter     :: bd = 0.5_r8       ! value for bulk density
       real(r8),                 parameter     :: eps = 0.35_r8     ! value for effective heating number
       real(r8),                 parameter     :: i_r = 5000.0_r8   ! value for reaction intensity
-      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propogating flux
+      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propagating flux
       real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
       
       ! first test 0.0
@@ -684,7 +683,7 @@ module test_FireEquations
       real(r8),                 parameter     :: bd = 0.5_r8       ! value for bulk density
       real(r8),                 parameter     :: eps = 0.35_r8     ! value for effective heating number
       real(r8),                 parameter     :: q_ig = 1200.0_r8  ! value for heat of preignition
-      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propogating flux
+      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propagating flux
       real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
 
       ros = ForwardRateOfSpread(bd, eps, q_ig, 0.0_r8, xi, phi_wind)
@@ -694,7 +693,7 @@ module test_FireEquations
     
     @Test 
     subroutine ForwardRateOfSpread_ZeroPropFlux_ReturnsZero(this)
-      ! test that if the propogating flux is zero, the function returns zero
+      ! test that if the propagating flux is zero, the function returns zero
       class(TestFireEquations), intent(inout) :: this              ! test object
       real(r8)                                :: ros               ! result
       real(r8),                 parameter     :: bd = 0.5_r8       ! value for bulk density

@@ -360,10 +360,6 @@ contains
     ! LOCALS:
     type(fates_patch_type), pointer :: currentPatch                    ! patch object
     real(r8)                        :: fuel_consumed(num_fuel_classes) ! fuel consumed [kgC/m2]
-    real(r8)                        :: tree_fraction_patch             ! treed fraction on patch [0-1]
-    real(r8)                        :: length_to_breadth               ! length to breadth ratio of fire ellipse (unitless)
-    real(r8)                        :: fire_size                       ! size of fire [m2]
-    real(r8)                        :: area_burnt                      ! area burnt [m2/km2]
     
     currentPatch => currentSite%oldest_patch 
     do while (associated(currentPatch))
@@ -392,7 +388,7 @@ contains
           if (currentPatch%FI > SF_val_fire_threshold) then 
             currentPatch%fire = 1 
             currentSite%NF_successful = currentSite%NF_successful + &
-              currentSite%NF*currentSite%FDI*currentPatch%area/area
+              currentSite%NF * currentSite%FDI*currentPatch%area / area
           end if
           
         end if
