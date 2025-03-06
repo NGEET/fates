@@ -378,8 +378,7 @@ module SFEquationsMod
         LengthToBreadth = 1.0_r8
       else
         if (tree_fraction > lb_threshold) then 
-          LengthToBreadth = 1.0_r8 + (8.729_r8* &
-            ((1.0_r8 -1.0_r8*exp(-0.03_r8*windspeed_km_hr))**2.155_r8))
+          LengthToBreadth = 1.0_r8 + 8.729_r8*((1.0_r8 - exp(-0.03_r8*windspeed_km_hr))**2.155_r8)
         else  
           LengthToBreadth = 1.1_r8*(windspeed_km_hr**0.464_r8)
         endif
