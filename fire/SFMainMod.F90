@@ -581,6 +581,8 @@ contains
       currentPatch => currentPatch%younger;  
     end do ! end patch loop
 
+  end subroutine CalculateRxfireAreaBurnt
+
   
 !---------------------------------------------------------------------------------------
 
