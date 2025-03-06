@@ -317,7 +317,7 @@ module test_FireEquations
       class(TestFireEquations), intent(inout) :: this                ! test object
       real(r8)                                :: I_r(5)              ! result
       integer                                 :: i                   ! looping index
-      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moiture
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
       real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
       real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
       real(r8),                 parameter     :: MEF = 0.5_r8        ! value for MEF
@@ -341,7 +341,7 @@ module test_FireEquations
       class(TestFireEquations), intent(inout) :: this                ! test object
       real(r8)                                :: I_r(5)              ! result
       integer                                 :: i                   ! looping index
-      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moiture
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
       real(r8),                 parameter     :: fuel = 10.0_r8      ! value for fuel
       real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
       real(r8),                 parameter     :: MEF = 0.5_r8        ! value for MEF
@@ -365,11 +365,11 @@ module test_FireEquations
       class(TestFireEquations), intent(inout) :: this                ! test object
       real(r8)                                :: I_r(5)              ! result
       integer                                 :: i                   ! looping index
-      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moiture
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
       real(r8),                 parameter     :: fuel = 10.0_r8      ! value for fuel
       real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
       real(r8),                 parameter     :: MEF = 0.5_r8        ! value for MEF
-      ! hard-coded beta ratio values
+      ! hard-coded beta ratio (relative packing ratio [unitless]) values
       real(r8), parameter :: beta_ratio(5) = [0.0_r8, 0.25_r8, 0.5_r8, 0.75_r8, 1.0_r8]
      
       do i = 1, size(beta_ratio)
@@ -390,7 +390,7 @@ module test_FireEquations
       class(TestFireEquations), intent(inout) :: this                ! test object
       real(r8)                                :: I_r(4)              ! result
       integer                                 :: i                   ! looping index
-      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moiture
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
       real(r8),                 parameter     :: fuel = 10.0_r8      ! value for fuel
       real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
       real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
@@ -414,7 +414,7 @@ module test_FireEquations
       class(TestFireEquations), intent(inout) :: this                ! test object
       real(r8)                                :: I_r                 ! result
       integer                                 :: i                   ! looping index
-      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moiture
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
       real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
       real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
       real(r8),                 parameter     :: MEF = 0.5_r8        ! value for beta MEF
