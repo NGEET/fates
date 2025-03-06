@@ -2389,7 +2389,7 @@ contains
                 rio_abg_imort_flux_siscpf(io_idx_si_scpf) = sites(s)%imort_abg_flux(i_scls, i_pft)
                 rio_abg_fmort_flux_siscpf(io_idx_si_scpf) = sites(s)%fmort_abg_flux(i_scls, i_pft)
                 rio_abg_rxfmort_flux_siscpf(io_idx_si_scpf) = sites(s)%rxfmort_abg_flux(i_scls, i_pft)
-                rio_idx_si_scpf = io_idx_si_scpf + 1
+                io_idx_si_scpf = io_idx_si_scpf + 1
                 do i_term_type = 1, n_term_mort_types
                    rio_termnindiv_cano_siscpf(io_idx_si_scpf_term) = sites(s)%term_nindivs_canopy(i_term_type,i_scls,i_pft)
                    rio_termnindiv_usto_siscpf(io_idx_si_scpf_term) = sites(s)%term_nindivs_ustory(i_term_type,i_scls,i_pft)
