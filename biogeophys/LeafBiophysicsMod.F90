@@ -756,7 +756,7 @@ contains
        
     ! Get the maximum e tranport rate for when we solve for RuBP (twice)
     
-    select case(hlm_electron_transport_model)
+    select case(lb_params%electron_transport_model)
     case (FvCB1980)   
        ! Get the smoothed (quadratic between J and Jmax) electron transport rate
        je = GetJe_FvCB(par_abs,jmax,lb_params%fnps(ft))
