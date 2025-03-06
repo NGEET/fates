@@ -51,7 +51,7 @@ module FatesCohortMod
 
   implicit none
   private
-
+  
   ! PARAMETERS
   character(len=*), parameter, private :: sourcefile = __FILE__
 
@@ -77,7 +77,6 @@ module FatesCohortMod
     !---------------------------------------------------------------------------
 
     ! VEGETATION STRUCTURE
-    
     integer  :: pft                     ! pft index
     real(r8) :: n                       ! number of individuals in cohort per 'area' (10000m2 default) [/m2]
     real(r8) :: dbh                     ! diameter at breast height [cm]
@@ -450,7 +449,7 @@ module FatesCohortMod
       this%cambial_mort            = nan 
       this%crownfire_mort          = nan 
       this%fire_mort               = nan 
-   
+      
     end subroutine NanValues
    
     !===========================================================================
@@ -547,7 +546,7 @@ module FatesCohortMod
       !
       ! DESCRIPTION:
       ! set up values for a newly created cohort
-
+      
       ! ARGUMENTS
       class(fates_cohort_type), intent(inout), target  :: this             ! cohort object
       class(prt_vartypes),      intent(inout), pointer :: prt              ! The allocated PARTEH object
@@ -574,7 +573,7 @@ module FatesCohortMod
       
       ! initialize cohort
       call this%Init(prt)
-
+      
       ! set values
       this%pft          = pft
       this%crowndamage  = crowndamage

@@ -18,15 +18,15 @@ module EDInitMod
   use FatesConstantsMod         , only : nearzero, area_error_4, area_error_3
   use FatesGlobals              , only : endrun => fates_endrun
   use EDParamsMod               , only : nclmax
-  use EDParamsMod               , only : regeneration_model
   use FatesGlobals              , only : fates_log
   use FatesInterfaceTypesMod    , only : hlm_is_restart
   use FatesInterfaceTypesMod    , only : hlm_current_tod
+  use FatesInterfaceTypesMod    , only : hlm_regeneration_model
   use EDPftvarcon               , only : EDPftvarcon_inst
   use PRTParametersMod          , only : prt_params
-  use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts, sort_cohorts
+  use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts
   use EDCohortDynamicsMod       , only : InitPRTObject
-  use EDPatchDynamicsMod        , only : set_patchno
+  use EDTypesMod                , only : set_patchno
   use EDPhysiologyMod           , only : calculate_sp_properties
   use ChecksBalancesMod         , only : SiteMassStock
   use FatesInterfaceTypesMod    , only : hlm_day_of_year
@@ -713,7 +713,7 @@ contains
              sites(s)%iflux_balance(el)%iflux_litter  = litter_stock * area_inv
 
           end do
-          call set_patchno(sites(s))
+          call set_patchno(sites(s),.false.,0)
        enddo
        
     else
@@ -782,7 +782,7 @@ contains
 
                 call newp%Create(age, newparea, nocomp_bareground_land, nocomp_bareground,     &
                      num_swb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
-                     regeneration_model)
+                     hlm_regeneration_model)
 
                 ! set pointers for first patch (or only patch, if nocomp is false)
                 newp%patchno = 1
@@ -861,7 +861,7 @@ contains
 
                          call newp%Create(age, newparea, i_lu_state, nocomp_pft, &
                               num_swb, numpft, sites(s)%nlevsoil, hlm_current_tod, &
-                              regeneration_model)
+                              hlm_regeneration_model)
 
                          if (is_first_patch) then !is this the first patch?
                             ! set pointers for first patch (or only patch, if nocomp is false)
@@ -987,7 +987,7 @@ contains
              
           end do
 
-          call set_patchno(sites(s))
+          call set_patchno(sites(s),.false.,0)
 
        enddo sites_loop 
     end if
@@ -1331,8 +1331,10 @@ contains
 
       if (hlm_use_sp == ifalse) then
         call fuse_cohorts(site_in, patch_in,bc_in)
-        call sort_cohorts(patch_in)
-      end if 
+        call patch_in%SortCohorts()
+      end if
+      
+      call patch_in%ValidateCohorts()
 
    end subroutine init_cohorts
 

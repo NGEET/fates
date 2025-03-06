@@ -9,7 +9,7 @@ module EDPatchDynamicsMod
   use EDPftvarcon          , only : EDPftvarcon_inst
   use EDPftvarcon          , only : GetDecompyFrac
   use PRTParametersMod      , only : prt_params
-  use EDCohortDynamicsMod  , only : fuse_cohorts, sort_cohorts, insert_cohort
+  use EDCohortDynamicsMod  , only : fuse_cohorts
   use EDTypesMod           , only : area_site => area
   use ChecksBalancesMod    , only : PatchMassStock
   use FatesLitterMod       , only : ncwd
@@ -22,14 +22,15 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
   use EDTypesMod           , only : ed_site_type
-  use FatesPatchMod,         only : fates_patch_type
+  use FatesPatchMod        , only : fates_patch_type
+  use EDTypesMod           , only : set_patchno 
   use FatesCohortMod       , only : fates_cohort_type
   use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : site_fluxdiags_type
   use EDTypesMod           , only : elem_diag_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : min_patch_area_forced
-  use EDParamsMod          , only : regeneration_model
+  use FatesInterfaceTypesMod, only : hlm_regeneration_model
   use FatesInterfaceTypesMod, only : numpft
   use FatesConstantsMod     , only : dtype_ifall
   use FatesConstantsMod     , only : dtype_ilog
@@ -124,7 +125,6 @@ module EDPatchDynamicsMod
   public :: patch_pft_size_profile
   public :: disturbance_rates
   public :: check_patch_area
-  public :: set_patchno
   private:: fuse_2_patches
 
   character(len=*), parameter, private :: sourcefile = &
@@ -517,8 +517,6 @@ contains
     type (fates_patch_type) , pointer :: currentPatch
     type (fates_cohort_type), pointer :: currentCohort
     type (fates_cohort_type), pointer :: nc
-    type (fates_cohort_type), pointer :: storesmallcohort
-    type (fates_cohort_type), pointer :: storebigcohort
     real(r8) :: site_areadis_primary         ! total area disturbed (to primary forest) in m2 per site per day
     real(r8) :: site_areadis_secondary       ! total area disturbed (to secondary forest) in m2 per site per day
     real(r8) :: patch_site_areadis           ! total area disturbed in m2 per patch per day
@@ -526,8 +524,6 @@ contains
     real(r8) :: age                          ! notional age of this patch in years
     integer  :: el                           ! element loop index
     integer  :: pft                          ! pft loop index
-    integer  :: tnull                        ! is there a tallest cohort?
-    integer  :: snull                        ! is there a shortest cohort?
     integer  :: levcan                       ! canopy level
     real(r8) :: leaf_c                       ! leaf carbon [kg]
     real(r8) :: fnrt_c                       ! fineroot carbon [kg]
@@ -562,9 +558,6 @@ contains
     integer  :: which_pft_allowed
     logical  :: buffer_patch_used
     !---------------------------------------------------------------------
-
-    storesmallcohort => null() ! storage of the smallest cohort for insertion routine
-    storebigcohort   => null() ! storage of the largest cohort for insertion routine 
 
     if (hlm_use_nocomp .eq. itrue) then
        min_nocomp_pft = 0
@@ -690,7 +683,7 @@ contains
 
                    call newPatch%Create(age, site_areadis, i_landusechange_receiverpatchlabel, i_nocomp_pft, &
                                          num_swb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
-                                         regeneration_model)
+                                         hlm_regeneration_model)
 
                    ! Initialize the litter pools to zero, these
                    ! pools will be populated by looping over the existing patches
@@ -1250,30 +1243,7 @@ contains
                                ! if some plants in the new temporary cohort survived the transfer to the new patch,
                                ! then put the cohort into the linked list.
                                cohort_n_gt_zero: if (nc%n > 0.0_r8) then
-                                  storebigcohort   =>  newPatch%tallest
-                                  storesmallcohort =>  newPatch%shortest
-                                  if(associated(newPatch%tallest))then
-                                     tnull = 0
-                                  else
-                                     tnull = 1
-                                     newPatch%tallest => nc
-                                     nc%taller => null()
-                                  endif
-
-                                  if(associated(newPatch%shortest))then
-                                     snull = 0
-                                  else
-                                     snull = 1
-                                     newPatch%shortest => nc
-                                     nc%shorter => null()
-                                  endif
-
-                                  call insert_cohort(newPatch, nc, newPatch%tallest, newPatch%shortest, &
-                                       tnull, snull, storebigcohort, storesmallcohort)
-
-                                  newPatch%tallest  => storebigcohort
-                                  newPatch%shortest => storesmallcohort
-
+                                 call newPatch%InsertCohort(nc)
                                else
                                   ! sadly, no plants in the cohort survived. on the bright side, we can deallocate their memory.
                                   call nc%FreeMemory()
@@ -1286,8 +1256,10 @@ contains
 
                                currentCohort => currentCohort%taller
                             enddo cohortloop
+                            call newPatch%ValidateCohorts()
 
-                            call sort_cohorts(currentPatch)
+                            call currentPatch%SortCohorts()
+                            call currentPatch%ValidateCohorts()
 
                             !update area of donor patch
                             oldarea = currentPatch%area
@@ -1318,7 +1290,8 @@ contains
                             call terminate_cohorts(currentSite, currentPatch, 1,16,bc_in)
                             call fuse_cohorts(currentSite,currentPatch, bc_in)
                             call terminate_cohorts(currentSite, currentPatch, 2,16,bc_in)
-                            call sort_cohorts(currentPatch)
+                            call currentPatch%SortCohorts()
+                            call currentPatch%ValidateCohorts()
 
                          end if areadis_gt_zero_if   ! if ( newPatch%area > nearzero ) then
 
@@ -1345,12 +1318,13 @@ contains
                    call terminate_cohorts(currentSite, newPatch, 1,17, bc_in)
                    call fuse_cohorts(currentSite,newPatch, bc_in)
                    call terminate_cohorts(currentSite, newPatch, 2,17, bc_in)
-                   call sort_cohorts(newPatch)
+                   call newPatch%SortCohorts()
+                   call newPatch%ValidateCohorts()
                 endif
 
 
                 call check_patch_area(currentSite)
-                call set_patchno(currentSite)
+                call set_patchno(currentSite,.false.,0)
 
              end do landusechange_receiverpatchlabel_loop
           end do landuse_donortype_loop
@@ -1398,7 +1372,7 @@ contains
 
                 call buffer_patch%Create(0._r8, 0._r8, i_land_use_label, 0, &
                      num_swb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
-                     regeneration_model)
+                     hlm_regeneration_model)
 
                 ! Initialize the litter pools to zero
                 do el=1,num_elements
@@ -1586,7 +1560,7 @@ contains
                    if ( .not. buffer_patch_in_linked_list) then
                       if (buffer_patch%area .lt. rsnbl_math_prec) then
                          ! here we need to deallocate the buffer patch so that we don't get a memory leak.
-                         call buffer_patch%FreeMemory(regeneration_model, numpft)
+                         call buffer_patch%FreeMemory(hlm_regeneration_model, numpft)
                          deallocate(buffer_patch, stat=istat, errmsg=smsg)
                          if (istat/=0) then
                             write(fates_log(),*) 'dealloc: fail on deallocate(dp):'//trim(smsg)
@@ -1603,7 +1577,7 @@ contains
                    end if
                 else
                    ! buffer patch was never even used. deallocate.
-                   call buffer_patch%FreeMemory(regeneration_model, numpft)
+                   call buffer_patch%FreeMemory(hlm_regeneration_model, numpft)
                    deallocate(buffer_patch, stat=istat, errmsg=smsg)
                    if (istat/=0) then
                       write(fates_log(),*) 'dealloc: fail on deallocate(dp):'//trim(smsg)
@@ -1676,11 +1650,7 @@ contains
     ! !LOCAL VARIABLES:
     integer  :: el                           ! element loop index
     type (fates_cohort_type), pointer :: nc
-    type (fates_cohort_type), pointer :: storesmallcohort
-    type (fates_cohort_type), pointer :: storebigcohort
     type (fates_cohort_type), pointer :: currentCohort
-    integer  :: tnull                        ! is there a tallest cohort?
-    integer  :: snull                        ! is there a shortest cohort?
     integer  :: pft
     real(r8) :: temp_area
 
@@ -1695,7 +1665,7 @@ contains
     call new_patch%Create(0._r8, temp_area, &
          currentPatch%land_use_label, currentPatch%nocomp_pft_label, &
          num_swb, numpft, currentSite%nlevsoil, hlm_current_tod, &
-         regeneration_model)
+         hlm_regeneration_model)
 
     ! Initialize the litter pools to zero, these
     ! pools will be populated shortly
@@ -1747,34 +1717,14 @@ contains
        ! loss of individuals from source patch due to area shrinking
        currentCohort%n = currentCohort%n * fraction_to_keep
 
-       storebigcohort   =>  new_patch%tallest
-       storesmallcohort =>  new_patch%shortest
-       if(associated(new_patch%tallest))then
-          tnull = 0
-       else
-          tnull = 1
-          new_patch%tallest => nc
-          nc%taller => null()
-       endif
-
-       if(associated(new_patch%shortest))then
-          snull = 0
-       else
-          snull = 1
-          new_patch%shortest => nc
-          nc%shorter => null()
-       endif
-
-       call insert_cohort(new_patch, nc, new_patch%tallest, new_patch%shortest, &
-            tnull, snull, storebigcohort, storesmallcohort)
-
-       new_patch%tallest  => storebigcohort
-       new_patch%shortest => storesmallcohort
+       call new_patch%InsertCohort(nc)
 
        currentCohort => currentCohort%taller
     enddo ! currentCohort
+    call new_patch%ValidateCohorts()
 
-    call sort_cohorts(currentPatch)
+    call currentPatch%SortCohorts()
+    call currentPatch%ValidateCohorts()
 
     !update area of donor patch
     currentPatch%area = currentPatch%area - temp_area
@@ -1860,48 +1810,6 @@ contains
 
     return
   end subroutine check_patch_area
-
-  ! ============================================================================
-  subroutine set_patchno( currentSite )
-    !
-    ! !DESCRIPTION:
-    !  Give patches an order number from the oldest to youngest. 
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS:
-    type(ed_site_type),intent(in) :: currentSite 
-    !
-    ! !LOCAL VARIABLES:
-    type(fates_patch_type), pointer :: currentPatch 
-    integer patchno
-    !---------------------------------------------------------------------
-
-    patchno = 1
-    currentPatch => currentSite%oldest_patch
-    do while(associated(currentPatch))
-       currentPatch%patchno = patchno
-       patchno = patchno + 1
-       currentPatch => currentPatch%younger
-    enddo
-
-    if(hlm_use_fixed_biogeog.eq.itrue .and. hlm_use_nocomp.eq.itrue)then
-      patchno = 1
-      currentPatch => currentSite%oldest_patch
-      do while(associated(currentPatch))
-        if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
-         ! for bareground patch, we make the patch number 0
-         ! we also do not count this in the veg. patch numbering scheme.
-          currentPatch%patchno = 0
-        else
-         currentPatch%patchno = patchno
-         patchno = patchno + 1
-        endif
-        currentPatch => currentPatch%younger
-       enddo
-    endif
-
-  end subroutine set_patchno
 
   ! ============================================================================
 
@@ -3117,7 +3025,8 @@ contains
                             tmpptr => currentPatch%older       
                             call fuse_2_patches(csite, currentPatch, tpp)
                             call fuse_cohorts(csite,tpp, bc_in)
-                            call sort_cohorts(tpp)
+                            call tpp%SortCohorts()
+                            call tpp%ValidateCohorts()
                             currentPatch => tmpptr
 
                             !------------------------------------------------------------------------!
@@ -3239,10 +3148,7 @@ contains
     ! !LOCAL VARIABLES:
     type (fates_cohort_type), pointer :: currentCohort ! Current Cohort
     type (fates_cohort_type), pointer :: nextc         ! Remembers next cohort in list 
-    type (fates_cohort_type), pointer :: storesmallcohort
-    type (fates_cohort_type), pointer :: storebigcohort  
     integer                        :: c,p          !counters for pft and litter size class. 
-    integer                        :: tnull,snull  ! are the tallest and shortest cohorts associated?
     integer                        :: el           ! loop counting index for elements
     integer                        :: pft          ! loop counter for pfts
     type(fates_patch_type), pointer   :: youngerp     ! pointer to the patch younger than donor
@@ -3283,7 +3189,7 @@ contains
     call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
     call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
 
-    if ( regeneration_model == TRS_regeneration ) then
+    if ( hlm_regeneration_model == TRS_regeneration ) then
        call rp%seedling_layer_par24%FuseRMean(dp%seedling_layer_par24,rp%area*inv_sum_area)
        call rp%sdlng_mort_par%FuseRMean(dp%sdlng_mort_par,rp%area*inv_sum_area)
        call rp%sdlng2sap_par%FuseRMean(dp%sdlng2sap_par,rp%area*inv_sum_area)
@@ -3322,31 +3228,8 @@ contains
        endif
 
        do while(associated(dp%shortest))
-
-          storebigcohort   => rp%tallest
-          storesmallcohort => rp%shortest
-
-          if(associated(rp%tallest))then
-             tnull = 0
-          else
-             tnull = 1
-             rp%tallest => currentCohort
-          endif
-
-          if(associated(rp%shortest))then
-             snull = 0
-          else
-             snull = 1
-             rp%shortest => currentCohort
-          endif
-
-          call insert_cohort(rp, currentCohort, rp%tallest, rp%shortest,       &
-            tnull, snull, storebigcohort, storesmallcohort)
-
-          rp%tallest  => storebigcohort 
-          rp%shortest => storesmallcohort    
-
-          !currentCohort%patchptr => rp
+       
+         call rp%InsertCohort(currentCohort)
 
           currentCohort => nextc
 
@@ -3357,6 +3240,7 @@ contains
           endif
 
        enddo !cohort
+       call rp%ValidateCohorts()
     endif !are there any cohorts?
 
     call patch_pft_size_profile(rp) ! Recalculate the patch size profile for the resulting patch
@@ -3376,7 +3260,7 @@ contains
     end if
 
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
-    call dp%FreeMemory(regeneration_model, numpft)
+    call dp%FreeMemory(hlm_regeneration_model, numpft)
     deallocate(dp, stat=istat, errmsg=smsg)
     if (istat/=0) then
        write(fates_log(),*) 'dealloc006: fail on deallocate(dp):'//trim(smsg)
@@ -3670,6 +3554,8 @@ contains
     !check area is not exceeded
     call check_patch_area( currentSite )
 
+    call set_patchno( currentSite, .false., 0)
+    
     return
   end subroutine terminate_patches
 
@@ -3925,7 +3811,7 @@ contains
     call rp%tveg_lpa%CopyFromDonor(dp%tveg_lpa)
     call rp%tveg_longterm%CopyFromDonor(dp%tveg_longterm)
 
-    if ( regeneration_model == TRS_regeneration ) then
+    if ( hlm_regeneration_model == TRS_regeneration ) then
        call rp%seedling_layer_par24%CopyFromDonor(dp%seedling_layer_par24)
        call rp%sdlng_mort_par%CopyFromDonor(dp%sdlng_mort_par)
        call rp%sdlng2sap_par%CopyFromDonor(dp%sdlng2sap_par)
