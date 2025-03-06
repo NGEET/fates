@@ -47,7 +47,7 @@ module EDPhysiologyMod
   use EDCohortDynamicsMod , only : InitPRTObject
   use FatesAllometryMod   , only : tree_lai_sai
   use FatesAllometryMod   , only : leafc_from_treelai
-  use FatesAllometryMod   , only : decay_coeff_vcmax
+  use LeafBiophysicsMod   , only : DecayCoeffVcmax
   use FatesLitterMod      , only : litter_type
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
@@ -765,7 +765,7 @@ contains
 
                 ! Calculate sla_levleaf following the sla profile with overlying leaf area
                 ! Scale for leaf nitrogen profile
-                kn = decay_coeff_vcmax(currentCohort%vcmax25top, &
+                kn = DecayCoeffVcmax(currentCohort%vcmax25top, &
                      prt_params%leafn_vert_scaler_coeff1(ipft), &
                      prt_params%leafn_vert_scaler_coeff2(ipft))
                 
