@@ -798,7 +798,7 @@ contains
              currentCohort%fire_mort = 0.0_r8
              currentCohort%crownfire_mort = 0.0_r8
              currentCohort%rxfire_mort = 0.0_r8
-             currentCohort%rxcrownire_mort = 0.0_r8
+             currentCohort%rxcrownfire_mort = 0.0_r8
              currentCohort%rxcambial_mort = 0.0_r8
              if ( prt_params%woody(currentCohort%pft) == itrue) then
                 ! Equation 22 in Thonicke et al. 2010. 
@@ -813,7 +813,7 @@ contains
              ! now decide which type of post-fire mortality, prescribed fire or wildfire?
              if (currentPatch%rxfire == itrue .and. currentPatch%fire == ifalse) then
               currentCohort%rxfire_mort = currentCohort%fire_mort
-              currentCohort%rxcrownire_mort = currentCohort%crownfire_mort
+              currentCohort%rxcrownfire_mort = currentCohort%crownfire_mort
               currentCohort%rxcambial_mort = currentCohort%cambial_mort
               currentCohort%fire_mort = 0.0_r8
               currentCohort%crownfire_mort = 0.0_r8
