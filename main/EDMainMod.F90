@@ -294,7 +294,7 @@ contains
     ! make new patches from disturbed land
     if (do_patch_dynamics.eq.itrue ) then
 
-       call spawn_patches(currentSite, bc_in)
+       call spawn_patches(currentSite, bc_in, bc_out)
 
        call TotalBalanceCheck(currentSite,3)
 
@@ -784,7 +784,7 @@ contains
        
        call GenerateDamageAndLitterFluxes( currentSite, currentPatch, bc_in)
 
-       call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
+       call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in, bc_out)
 
        call PreDisturbanceIntegrateLitter(currentPatch )
 
