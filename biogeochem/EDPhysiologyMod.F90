@@ -454,7 +454,7 @@ contains
     type(ed_site_type), intent(inout)  :: currentSite
     type(fates_patch_type), intent(inout) :: currentPatch
     type(bc_in_type), intent(in)       :: bc_in
-    type(bc_out_type), intent(in)      :: bc_out
+    type(bc_out_type), intent(inout)   :: bc_out
 
     !
     ! !LOCAL VARIABLES:
@@ -2805,7 +2805,7 @@ contains
     type(fates_patch_type),intent(inout), target :: currentPatch
     type(litter_type),intent(inout),target    :: litt
     type(bc_in_type),intent(in)               :: bc_in
-    type(bc_out_type),intent(in)              :: bc_out
+    type(bc_out_type),intent(inout)           :: bc_out
 
     !
     ! !LOCAL VARIABLES:
@@ -2960,7 +2960,8 @@ contains
             leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n
 
        bc_out%grazing_closs_to_atm_si = bc_out%grazing_closs_to_atm_si + &
-            leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n
+            leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n * &
+            ha_per_m2 * days_per_sec
 
        ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
 

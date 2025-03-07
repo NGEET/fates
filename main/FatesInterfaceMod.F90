@@ -373,8 +373,8 @@ contains
     end select
 
     ! carbon loss to atmosphere pathways
-    fates%bc_out(s)%grazing_closs_to_atm_si(:) = 0.0_r8
-    fates%bc_out(s)%fire_closs_to_atm_si(:)    = 0.0_r8
+    fates%bc_out(s)%grazing_closs_to_atm_si = 0.0_r8
+    fates%bc_out(s)%fire_closs_to_atm_si    = 0.0_r8
 
     fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
     fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
