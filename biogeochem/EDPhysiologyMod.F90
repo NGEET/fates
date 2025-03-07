@@ -429,7 +429,7 @@ contains
 
   ! ============================================================================
 
-  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in )
+  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in, bc_out )
 
     ! -----------------------------------------------------------------------------------
     !
@@ -437,8 +437,7 @@ contains
     ! associated with seed turnover, seed influx, litterfall from live and
     ! dead plants, germination, and fragmentation.
     !
-    ! At this time we do not have explicit herbivory, and burning losses to litter
-    ! are handled elsewhere.
+    ! Herbivory is handled here. burning losses to litter are handled elsewhere.
     !
     ! Note: The processes conducted here DO NOT handle litter fluxes associated
     !       with disturbance.  Those fluxes are handled elsewhere (EDPatchDynamcisMod)
@@ -452,6 +451,7 @@ contains
     type(ed_site_type), intent(inout)  :: currentSite
     type(fates_patch_type), intent(inout) :: currentPatch
     type(bc_in_type), intent(in)       :: bc_in
+    type(bc_out_type), intent(in)      :: bc_out
 
     !
     ! !LOCAL VARIABLES:
@@ -481,7 +481,7 @@ contains
          ! Send fluxes from newly created litter into the litter pools
          ! This litter flux is from non-disturbance inducing mortality, as well
          ! as litter fluxes from live trees
-         call CWDInput(currentSite, currentPatch, litt,bc_in)
+         call CWDInput(currentSite, currentPatch, litt,bc_in, bc_out)
          
          ! Only calculate fragmentation flux over layers that are active
          ! (RGK-Mar2019) SHOULD WE MAX THIS AT 1? DONT HAVE TO
@@ -2788,7 +2788,7 @@ contains
 
    ! ======================================================================================
 
-  subroutine CWDInput( currentSite, currentPatch, litt, bc_in)
+  subroutine CWDInput( currentSite, currentPatch, litt, bc_in, bc_out)
 
     !
     ! !DESCRIPTION:
@@ -2808,6 +2808,7 @@ contains
     type(fates_patch_type),intent(inout), target :: currentPatch
     type(litter_type),intent(inout),target    :: litt
     type(bc_in_type),intent(in)               :: bc_in
+    type(bc_out_type),intent(in)              :: bc_out
 
     !
     ! !LOCAL VARIABLES:
@@ -2955,10 +2956,13 @@ contains
             elflux_diags%root_litter_input(pft) +  &
             (fnrt_m_turnover + store_m_turnover ) * currentCohort%n
 
-       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere
+       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere (and also for tracking)
 
        site_mass%herbivory_flux_out = &
             site_mass%herbivory_flux_out + &
+            leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n
+
+       bc_out%grazing_closs_to_atm_si = bc_out%grazing_closs_to_atm_si + &
             leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n
 
        ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
