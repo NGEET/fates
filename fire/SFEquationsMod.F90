@@ -367,7 +367,7 @@ module SFEquationsMod
       
       ! LOCALS:
       real(r8) :: windspeed_km_hr ! effective windspeed, converted to correct units [km/hr]
-      
+            
       ! CONSTANTS:
       real(r8), parameter :: lb_threshold = 0.55_r8 ! tree canopy fraction below which to use grassland length-to-breadth eqn
 
