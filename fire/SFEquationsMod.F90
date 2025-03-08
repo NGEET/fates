@@ -368,12 +368,11 @@ module SFEquationsMod
       
       ! LOCALS:
       real(r8) :: windspeed_km_hr ! effective windspeed, converted to correct units [km/hr]
-      
+            
       ! CONSTANTS:
-      real(r8), parameter :: lb_threshold = 0.55_r8                ! tree canopy fraction below which to use grassland length-to-breadth eqn
-      real(r8), parameter :: m_per_min__to__km_per_hour = 0.06_r8  ! convert wind speed from m/min to km/hr
+      real(r8), parameter :: lb_threshold = 0.55_r8 ! tree canopy fraction below which to use grassland length-to-breadth eqn
 
-      windspeed_km_hr = effective_windspeed*m_per_min__to__km_per_hour
+      windspeed_km_hr = effective_windspeed/m_per_km*min_per_hr
 
       if (windspeed_km_hr < 1.0_r8) then 
         LengthToBreadth = 1.0_r8
@@ -387,7 +386,7 @@ module SFEquationsMod
 
     end function LengthToBreadth
 
-    !---------------------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
     
     real(r8) function FireSize(length_to_breadth, ros_back, ros_forward, fire_duration)
       !
@@ -421,7 +420,7 @@ module SFEquationsMod
       
     end function FireSize
     
-    !---------------------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
     
     real(r8) function AreaBurnt(fire_size, num_ignitions, FDI)
       !
@@ -448,7 +447,7 @@ module SFEquationsMod
 
     end function AreaBurnt
     
-    !---------------------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------------
     
     real(r8) function FireIntensity(fuel_consumed, ros)
       !
