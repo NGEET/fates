@@ -139,6 +139,10 @@ module LeafBiophysicsMod
   ! Set this to true to match results with main
   logical, parameter :: base_compare_revert = .true.
 
+
+  ! This bypasses a potential fix to assimilation in BB
+  logical, parameter :: bb_agsfix_bypass = .true.
+  
   
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
@@ -390,10 +394,10 @@ contains
     aquad = leaf_co2_ppress
     bquad = leaf_co2_ppress*(gb - gs0) - gs1 * a_gs * can_press
     
-    if(.not.base_compare_revert) then
-       cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_gs * can_press * ceair/ veg_esat )
+    if(bb_agsfix_bypass) then
+       cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_net * can_press * ceair/ veg_esat )
     else
-       cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_net* can_press * ceair/ veg_esat )
+       cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_gs* can_press * ceair/ veg_esat )
     end if
     
     call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
