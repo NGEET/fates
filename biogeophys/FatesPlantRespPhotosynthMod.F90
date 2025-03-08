@@ -48,7 +48,6 @@ module FATESPlantRespPhotosynthMod
   use EDParamsMod,       only : q10_mr
   use FatesPatchMod,     only : fates_patch_type
   use FatesCohortMod,    only : fates_cohort_type
-  use EDParamsMod,       only : maintresp_leaf_model
   use FatesConstantsMod, only : lmrmodel_ryan_1991
   use FatesConstantsMod, only : lmrmodel_atkin_etal_2017
   use PRTGenericMod,     only : prt_carbon_allom_hyp
@@ -62,15 +61,10 @@ module FATESPlantRespPhotosynthMod
   use PRTGenericMod,     only : repro_organ
   use PRTGenericMod,     only : struct_organ
   use EDParamsMod,       only : maintresp_nonleaf_baserate
-  use EDParamsMod,       only : stomatal_model
-  use EDParamsMod,       only : stomatal_assim_model
-  use EDParamsMod,       only : dayl_switch
-  use EDParamsMod,       only : photo_tempsens_model
   use PRTParametersMod,  only : prt_params
   use EDPftvarcon      , only : EDPftvarcon_inst
   use TemperatureType,   only : temperature_type
   use FatesRadiationMemMod, only : norman_solver,twostr_solver
-  use EDParamsMod,          only : radiation_model
   use FatesRadiationMemMod, only : ipar
   use FatesTwoStreamUtilsMod, only : FatesGetCohortAbsRad
   use FatesAllometryMod     , only : VegAreaLayer
@@ -140,6 +134,7 @@ contains
     use EDParamsMod       , only : dlower_vai
     use FatesInterfaceTypesMod , only : bc_in_type
     use FatesInterfaceTypesMod , only : bc_out_type
+    use FatesInterfaceTypesMod , only : hlm_maintresp_leaf_model
     use EDCanopyStructureMod, only : calc_areaindex
     use FatesConstantsMod, only : umolC_to_kgC
     use FatesConstantsMod, only : umol_per_mmol
@@ -154,6 +149,7 @@ contains
     use DamageMainMod, only : GetCrownReduction
 
     use FatesInterfaceTypesMod, only : hlm_use_tree_damage
+    use FatesInterfaceTypesMod, only : hlm_radiation_model
 
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
@@ -348,11 +344,13 @@ contains
          end do
 
 
-         ifp = 0
          currentpatch => sites(s)%oldest_patch
          do while (associated(currentpatch))
+
+            ifp = currentPatch%patchno
+            
             if_notbare: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
-               ifp   = ifp+1
+
                NCL_p = currentPatch%NCL_p
 
                ! Part I. Zero output boundary conditions
@@ -427,7 +425,7 @@ contains
                   ! ------------------------------------------------------------------------
                   rate_mask_z(:,1:numpft,:) = .false.
 
-                  if_any_cohorts: if(currentPatch%countcohorts > 0.0)then
+                  if_any_cohorts: if(currentPatch%num_cohorts > 0.0)then
                      currentCohort => currentPatch%tallest
                      do_cohort_drive: do while (associated(currentCohort)) ! Cohort loop
 
@@ -505,7 +503,7 @@ contains
 
                               rate_mask_if: if ( .not.rate_mask_z(iv,ft,cl) .or. &
                                    (hlm_use_planthydro.eq.itrue) .or. &
-                                   (radiation_model .eq. twostr_solver ) .or. &
+                                   (hlm_radiation_model .eq. twostr_solver ) .or. &
                                    (nleafage > 1) .or. &
                                    (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
 
@@ -594,7 +592,7 @@ contains
 
                                  ! Part VII: Calculate dark respiration (leaf maintenance) for this layer
 
-                                 select case (maintresp_leaf_model)
+                                 select case (hlm_maintresp_leaf_model)
 
                                  case (lmrmodel_ryan_1991)
 
@@ -630,7 +628,7 @@ contains
                                  !              as large as the layer above.
                                  ! ------------------------------------------------------------------
 
-                                 if_radsolver: if(radiation_model.eq.norman_solver) then
+                                 if_radsolver: if(hlm_radiation_model.eq.norman_solver) then
 
                                     laisun = currentPatch%ed_laisun_z(cl,ft,iv)
                                     laisha = currentPatch%ed_laisha_z(cl,ft,iv)
@@ -745,11 +743,10 @@ contains
                            end do leaf_layer_loop
 
                            ! Zero cohort flux accumulators.
-                           currentCohort%npp_tstep  = 0.0_r8
-                           currentCohort%resp_tstep = 0.0_r8
+                           
+                           currentCohort%resp_m_tstep = 0.0_r8
                            currentCohort%gpp_tstep  = 0.0_r8
                            currentCohort%rdark      = 0.0_r8
-                           currentCohort%resp_m     = 0.0_r8
                            currentCohort%ts_net_uptake = 0.0_r8
                            currentCohort%c13disc_clm = 0.0_r8
 
@@ -763,7 +760,7 @@ contains
                            nv = currentCohort%nv
 
                            ! Temporary bypass to preserve B4B behavior
-                           if(radiation_model.eq.norman_solver) then
+                           if(hlm_radiation_model.eq.norman_solver) then
 
                               call ScaleLeafLayerFluxToCohort(nv,                                    & !in
                                    psn_z(1:nv,ft,cl),                     & !in
@@ -974,47 +971,24 @@ contains
                         ! calcualate some fluxes that are sums and nets of the base fluxes
                         ! ------------------------------------------------------------------
 
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 904 ', currentCohort%resp_m
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 905 ', currentCohort%rdark
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 906 ', currentCohort%livestem_mr
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 907 ', currentCohort%livecroot_mr
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 908 ', currentCohort%froot_mr
-
-
-
                         ! add on whole plant respiration values in kgC/indiv/s-1
-                        currentCohort%resp_m = currentCohort%livestem_mr + &
+                        currentCohort%resp_m_tstep = currentCohort%livestem_mr + &
                              currentCohort%livecroot_mr + &
-                             currentCohort%froot_mr
-
+                             currentCohort%froot_mr + &
+                             currentCohort%rdark
+                        
                         ! no drought response right now.. something like:
-                        ! resp_m = resp_m * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft) * &
+                        ! resp_m_tstep = resp_m_tstep * (1.0_r8 - currentPatch%btran_ft(currentCohort%pft) * &
                         !                    EDPftvarcon_inst%resp_drought_response(ft))
 
-                        currentCohort%resp_m = currentCohort%resp_m + currentCohort%rdark
-
-                        ! save as a diagnostic the un-throttled maintenance respiration to be able to know how strong this is
-                        currentCohort%resp_m_unreduced = currentCohort%resp_m / maintresp_reduction_factor
-
                         ! convert from kgC/indiv/s to kgC/indiv/timestep
-                        currentCohort%resp_m        = currentCohort%resp_m  * dtime
+                        currentCohort%resp_m_tstep  = currentCohort%resp_m_tstep  * dtime
                         currentCohort%gpp_tstep     = currentCohort%gpp_tstep * dtime
                         currentCohort%ts_net_uptake = currentCohort%ts_net_uptake * dtime
-
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 911 ', currentCohort%gpp_tstep
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 912 ', currentCohort%resp_tstep
-                        if ( debug ) write(fates_log(),*) 'EDPhoto 913 ', currentCohort%resp_m
-
-
-                        currentCohort%resp_g_tstep     = prt_params%grperc(ft) * &
-                             (max(0._r8,currentCohort%gpp_tstep - currentCohort%resp_m))
-
-
-                        currentCohort%resp_tstep = currentCohort%resp_m + &
-                             currentCohort%resp_g_tstep ! kgC/indiv/ts
-                        currentCohort%npp_tstep  = currentCohort%gpp_tstep - &
-                             currentCohort%resp_tstep  ! kgC/indiv/ts
-
+                        
+                        ! save as a diagnostic the un-throttled maintenance respiration to be able to know how strong this is
+                        currentCohort%resp_m_unreduced = currentCohort%resp_m_tstep / maintresp_reduction_factor
+                        
                         ! Accumulate the combined conductance (stomatal+leaf boundary layer)
                         ! Note that currentCohort%g_sb_laweight is weighted by the leaf area
                         ! of each cohort and has units of [m/s] * [m2 leaf]
@@ -1229,8 +1203,9 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
   ! Other arguments or variables may be indicative of scales broader than the LSL.
   ! ------------------------------------------------------------------------------------
 
-  use EDParamsMod       , only : theta_cj_c3, theta_cj_c4
-
+  use EDParamsMod           , only : theta_cj_c3, theta_cj_c4
+  use FatesInterfaceTypesMod, only : hlm_stomatal_assim_model
+  use FatesInterfaceTypesMod, only : hlm_stomatal_model
 
   ! Arguments
   ! ------------------------------------------------------------------------------------
@@ -1500,8 +1475,8 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               ! using anet in calculating gs this is version B  
               anet = agross  - lmr
 
-              if ( stomatal_assim_model == gross_assim_model ) then
-                 if ( stomatal_model == medlyn_model ) then
+              if ( hlm_stomatal_assim_model == gross_assim_model ) then
+                 if ( hlm_stomatal_model == medlyn_model ) then
                     write (fates_log(),*) 'Gross Assimilation conductance is incompatible with the Medlyn model'
                     call endrun(msg=errMsg(sourcefile, __LINE__))
                  end if
@@ -1542,7 +1517,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
               ! ------------------------------------------------------------------------------------
               
               
-              if ( stomatal_model == medlyn_model ) then
+              if ( hlm_stomatal_model == medlyn_model ) then
                  !stomatal conductance calculated from Medlyn et al. (2011), the numerical &
                  !implementation was adapted from the equations in CLM5.0
                  vpd =  max((veg_esat - ceair), 50._r8) * 0.001_r8          !addapted from CLM5. Put some constraint on VPD
@@ -1558,7 +1533,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
                  call QuadraticRoots(aquad, bquad, cquad, r1, r2)
                  gs_mol = max(r1,r2)
 
-              else if ( stomatal_model == ballberry_model ) then         !stomatal conductance calculated from Ball et al. (1987)
+              else if ( hlm_stomatal_model == ballberry_model ) then         !stomatal conductance calculated from Ball et al. (1987)
                  aquad = leaf_co2_ppress
                  bquad = leaf_co2_ppress*(gb_mol - stomatal_intercept_btran) - bb_slope(ft) * a_gs * can_press
                  cquad = -gb_mol*(leaf_co2_ppress*stomatal_intercept_btran + &
@@ -1633,10 +1608,10 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
            end if
 
            ! Compare with Medlyn model: gs_mol = 1.6*(1+m/sqrt(vpd)) * an/leaf_co2_ppress*p + b
-           if ( stomatal_model == 2 ) then
+           if ( hlm_stomatal_model == 2 ) then
               gs_mol_err = h2o_co2_stoma_diffuse_ratio*(1 + medlyn_slope(ft)/sqrt(vpd))*max(anet,0._r8)/leaf_co2_ppress*can_press + stomatal_intercept_btran
               ! Compare with Ball-Berry model: gs_mol = m * an * hs/leaf_co2_ppress*p + b
-           else if ( stomatal_model == 1 ) then
+           else if ( hlm_stomatal_model == 1 ) then
               hs = (gb_mol*ceair + gs_mol* veg_esat ) / ((gb_mol+gs_mol)*veg_esat )
               gs_mol_err = bb_slope(ft)*max(anet, 0._r8)*hs/leaf_co2_ppress*can_press + stomatal_intercept_btran
            end if
@@ -2357,7 +2332,9 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     ! co2_rcurve_islope: initial slope of CO2 response curve (C4 plants)
     ! ---------------------------------------------------------------------------------
 
-    use EDPftvarcon         , only : EDPftvarcon_inst
+    use EDPftvarcon           , only : EDPftvarcon_inst
+    use FatesInterfaceTypesMod, only : hlm_daylength_factor_switch
+    use FatesInterfaceTypesMod, only : hlm_photo_tempsens_model
 
     ! Arguments
     ! ------------------------------------------------------------------------------
@@ -2407,7 +2384,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     real(r8) :: vcmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
     real(r8) :: jmaxc          ! scaling factor for high temperature inhibition (25 C = 1.0)
 
-    select case(photo_tempsens_model)
+    select case(hlm_photo_tempsens_model)
     case (photosynth_acclim_model_none) !No temperature acclimation
        vcmaxha = EDPftvarcon_inst%vcmaxha(FT)
        jmaxha  = EDPftvarcon_inst%jmaxha(FT)
@@ -2440,7 +2417,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
     else                                     ! day time
 
        ! update the daylength factor local variable if the switch is on
-       if ( dayl_switch == itrue ) then
+       if ( hlm_daylength_factor_switch == itrue ) then
           dayl_factor_local = dayl_factor
        else
           dayl_factor_local = 1.0_r8
@@ -2448,7 +2425,7 @@ subroutine LeafLayerPhotosynthesis(f_sun_lsl,         &  ! in
 
        ! Vcmax25top was already calculated to derive the nscaler function
        vcmax25 = vcmax25top_ft * nscaler * dayl_factor_local
-       select case(photo_tempsens_model)
+       select case(hlm_photo_tempsens_model)
        case (photosynth_acclim_model_none)
           jmax25  = jmax25top_ft * nscaler * dayl_factor_local
        case (photosynth_acclim_model_kumarathunge_etal_2019) 

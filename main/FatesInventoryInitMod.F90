@@ -32,7 +32,7 @@ module FatesInventoryInitMod
    use FatesConstantsMod, only : nearzero
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
-   use EDParamsMod      , only : regeneration_model
+   use FatesInterfaceTypesMod, only : hlm_regeneration_model
    use FatesInterfaceTypesMod, only : bc_in_type
    use FatesInterfaceTypesMod, only : hlm_inventory_ctrl_file
    use FatesInterfaceTypesMod, only : nleafage
@@ -121,8 +121,6 @@ contains
       use FatesConstantsMod, only   : nearzero
       use EDPatchDynamicsMod, only  : fuse_patches
       use EDCohortDynamicsMod, only : fuse_cohorts
-      use EDCohortDynamicsMod, only : sort_cohorts
-      use EDcohortDynamicsMod, only : count_cohorts
       use EDPatchDynamicsMod, only  : patch_pft_size_profile
 
       ! Arguments
@@ -285,7 +283,7 @@ contains
             allocate(newpatch)
             call newpatch%Create(age_init, area_init, primaryland,           &
                fates_unset_int, num_swb, numpft, sites(s)%nlevsoil,         &
-               hlm_current_tod, regeneration_model)
+               hlm_current_tod, hlm_regeneration_model)
 
             newpatch%patchno = ipa
             newpatch%younger => null()
@@ -430,11 +428,11 @@ contains
 
             ! Perform Cohort Fusion
             call fuse_cohorts(sites(s), currentpatch,bc_in(s))
-            call sort_cohorts(currentpatch)
+            call currentpatch%SortCohorts()
 
-            ! This calculates %countcohorts
-            call count_cohorts(currentpatch)
-            total_cohorts = total_cohorts + currentPatch%countcohorts
+            ! This calculates %num_cohorts
+            call currentPatch%CountCohorts()
+            total_cohorts = total_cohorts + currentPatch%num_cohorts
 
             currentPatch => currentpatch%older
          enddo
@@ -798,6 +796,7 @@ contains
       class(prt_vartypes), pointer                :: prt_obj
       real(r8)                                    :: c_time        ! Time patch was recorded
       character(len=patchname_strlen)             :: p_name        ! The patch associated with this cohort
+      character(len=patchname_strlen)             :: c_name        ! Cohort name
       real(r8)                                    :: c_dbh         ! diameter at breast height (cm)
       real(r8)                                    :: c_height      ! tree height (m)
       integer                                     :: c_pft         ! plant functional type index
@@ -840,11 +839,17 @@ contains
       real(r8), parameter :: abnormal_large_dbh    = 500.0_r8   ! I've never heard of a tree > 3m
       real(r8), parameter :: abnormal_large_height = 500.0_r8   ! I've never heard of a tree > 500m tall
       integer,  parameter :: recruitstatus = 0
+      logical, parameter :: old_type1_override = .false.
 
-     
-      read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_dbh, &
-            c_height, c_pft, c_nplant
-
+      if(old_type1_override) then
+         ! time patch cohort dbh hite pft nplant bdead alive Avgrg 
+         read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_name, c_dbh, &
+              c_height, c_pft, c_nplant
+      else
+         read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_dbh, &
+              c_height, c_pft, c_nplant
+      end if
+         
       if( debug_inv) then
          write(*,fmt=wr_fmt) &
               c_time, p_name, c_dbh, c_height, c_pft, c_nplant
@@ -1125,6 +1130,7 @@ contains
          deallocate(temp_cohort) ! get rid of temporary cohort
 
       end do
+      call cpatch%ValidateCohorts()
 
       return
     end subroutine set_inventory_cohort_type1
@@ -1179,10 +1185,10 @@ contains
        else
            ilon_sign = 'W'
        end if
-
-       write(pss_name_out,'(A8, I2.2, A1, I5.5, A1)') &
+ 
+       write(pss_name_out,'(A8,I2.2,A1,I5.5,A1,A1,I3.3,A1,I5.5,A1,A4)') &
              'pss_out_',ilat_int,'.',ilat_dec,ilat_sign,'_',ilon_int,'.',ilon_dec,ilon_sign,'.txt'
-       write(css_name_out,'(A8, I2.2,  A1, A1, I3.3, A1)') &
+       write(css_name_out,'(A8,I2.2,A1,I5.5,A1,A1,I3.3,A1,I5.5,A1,A4)') &
              'css_out_',ilat_int,'.',ilat_dec,ilat_sign,'_',ilon_int,'.',ilon_dec,ilon_sign,'.txt'
 
        pss_file_out       = shr_file_getUnit()
@@ -1208,7 +1214,7 @@ contains
            do while(associated(currentcohort))
                icohort=icohort+1
                write(css_file_out,*) '0000 ',trim(patch_str), &
-                     currentCohort%dbh,currentCohort%height,currentCohort%pft,currentCohort%n/currentPatch%area
+                     currentCohort%dbh,-3.0_r8,currentCohort%pft,currentCohort%n/currentPatch%area
 
                currentcohort => currentcohort%shorter
            end do

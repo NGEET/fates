@@ -29,7 +29,6 @@ module EDPftvarcon
   use FatesConstantsMod   , only : default_regeneration
   use FatesConstantsMod   , only : TRS_regeneration
   use FatesConstantsMod   , only : TRS_no_seedling_dyn
-  use EDParamsMod         , only : regeneration_model
 
    ! CIME Globals
   use shr_log_mod ,   only : errMsg => shr_log_errMsg
@@ -286,6 +285,9 @@ module EDPftvarcon
      real(r8), allocatable :: landusechange_frac_burned(:)    ! fraction of land use change-generated and not-exported material that is burned (the remainder goes to litter)
      real(r8), allocatable :: landusechange_frac_exported(:)  ! fraction of land use change-generated wood material that is exported to wood product (the remainder is either burned or goes to litter)
      real(r8), allocatable :: landusechange_pprod10(:)        ! fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)
+
+     ! Grazing
+     real(r8), allocatable :: landuse_grazing_palatability(:) ! Relative intensity of leaf grazing/browsing per PFT (unitless 0-1)
 
    contains
      procedure, public :: Init => EDpftconInit
@@ -823,7 +825,11 @@ contains
     name = 'fates_landuse_luc_pprod10'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
+
+    name = 'fates_landuse_grazing_palatability'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_dev_arbitrary_pft'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -1311,6 +1317,10 @@ contains
     name = 'fates_landuse_luc_pprod10'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%landusechange_pprod10)
+
+    name = 'fates_landuse_grazing_palatability'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landuse_grazing_palatability)
 
   end subroutine Receive_PFT
 
@@ -1837,7 +1847,6 @@ contains
     use FatesConstantsMod, only : lmr_r_2
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
-    use EDParamsMod        , only : radiation_model, dayl_switch
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
     use FatesInterfaceTypesMod, only : hlm_use_nocomp
@@ -1867,33 +1876,6 @@ contains
      npft = size(EDPftvarcon_inst%freezetol,1)
 
      if(.not.is_master) return
-
-     if(.not.any(radiation_model == [norman_solver,twostr_solver])) then
-        write(fates_log(),*) 'The only available canopy radiation models'
-        write(fates_log(),*) 'are the Norman and Two-stream schemes, '
-        write(fates_log(),*) 'fates_rad_model = 1 or 2 ...'
-        write(fates_log(),*) 'You specified fates_rad_model = ',radiation_model
-        write(fates_log(),*) 'Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
-
-     if(.not.any(regeneration_model == [default_regeneration, &
-                                        TRS_regeneration, &
-                                        TRS_no_seedling_dyn] )) then
-        write(fates_log(),*) 'The regeneration model must be set to a known model type'
-        write(fates_log(),*) 'the default is 1, and the Hanbury-Brown models are 2 and 3'
-        write(fates_log(),*) 'You specified fates_regeneration_model = ',regeneration_model
-        write(fates_log(),*) 'Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
-
-     if(.not.any(dayl_switch == [itrue,ifalse])) then
-        write(fates_log(),*) 'The only valid switch options for '
-        write(fates_log(),*) 'fates_daylength_factor_switch is 0 or 1 ...'
-        write(fates_log(),*) 'You specified fates_daylength_factor_switch = ',dayl_switch
-        write(fates_log(),*) 'Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
 
      select case (hlm_parteh_mode)
      case (prt_cnp_flex_allom_hyp)
