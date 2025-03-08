@@ -320,9 +320,11 @@ contains
     call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
     gs = max(r1,r2)
 
-    if(err)then
-       write(fates_log(),*) "medquadfail:",anet,veg_esat,can_vpress,gs0,gs1,gs2,leaf_co2_ppress,can_press
-       call endrun(msg=errMsg(sourcefile, __LINE__))
+    if(debug)then
+       if(err)then
+          write(fates_log(),*) "medquadfail:",anet,veg_esat,can_vpress,gs0,gs1,gs2,leaf_co2_ppress,can_press
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
     end if
     
     ! RGK: re-derived solution to check units.
@@ -395,11 +397,13 @@ contains
     end if
     
     call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-    if(err)then
-       write(fates_log(),*) "bbquadfail:",a_net,a_gs,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
 
+    if(debug)then
+       if(err)then
+          write(fates_log(),*) "bbquadfail:",a_net,a_gs,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
     
     gs = max(r1,r2)
     
@@ -452,11 +456,14 @@ contains
     bquad = -(jpar + jmax)
     cquad = jpar * jmax
     call QuadraticRoots(aquad, bquad, cquad, r1, r2, err)
-    if(err)then
-       write(fates_log(),*) "jequadfail:",par_abs,jpar,jmax
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
 
+    if(debug)then
+       if(err)then
+          write(fates_log(),*) "jequadfail:",par_abs,jpar,jmax
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
+    
     je = min(r1,r2)
     
   end function GetJe
@@ -577,16 +584,18 @@ contains
        ! C4: RuBP-limited photosynthesis
        aj = AgrossRuBPC4(par_abs)
        
-       
-       
        aquad = theta_cj_c4
        bquad = -(ac + aj)
        cquad = ac * aj
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c41quadfail_minmax1:",par_abs,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c41quadfail_minmax1:",par_abs,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
        end if
+       
        ai = min(r1,r2)
 
        a = rmin*can_press
@@ -605,11 +614,14 @@ contains
              - ai*lmr
 
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c41quadfail_minmax2:",par_abs,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
 
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c41quadfail_minmax2:",par_abs,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+       end if
+       
        ci(3) = max(r1,r2)
        
        !! C4: PEP carboxylase-limited (CO2-limited)
@@ -619,10 +631,14 @@ contains
        bquad = -(ai + ap)
        cquad = ai * ap
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
        end if
+       
        ag(:) = min(r1,r2)
 
        if(debug) then
@@ -656,10 +672,14 @@ contains
              - ai*lmr
 
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c41quadfail_minmax2:",par_abs,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c41quadfail_minmax2:",par_abs,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
        end if
+       
        ci(3) = max(r1,r2)
 
        ap = AgrossPEPC4(ci(3),kp,can_press)
@@ -668,10 +688,14 @@ contains
        bquad = -(ai + ap)
        cquad = ai * ap
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
        end if
+       
        ag(:) = min(r1,r2)
        
        ci(1) = can_co2_ppress - (ag(1)-lmr)*can_press*rmax
@@ -896,22 +920,29 @@ contains
        bquad = -(ac + aj)
        cquad = ac * aj
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c41quadfail:",par_abs,ci,kp,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c41quadfail:",par_abs,ci,kp,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
        end if
+
        ai = min(r1,r2)
 
        aquad = theta_ip_c4
        bquad = -(ai + ap)
        cquad = ai * ap
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-       agross = min(r1,r2)
 
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+       end if
+       
+       agross = min(r1,r2)
        
     end if
 
@@ -1323,7 +1354,7 @@ contains
   ! =======================================================================================
 
   function LeafHumidityStomaResis(leaf_psi, k_lwp, veg_tempk, can_vpress, can_press, &
-       rb, gstoma, ft) result(rstoma_out)
+       rb, gstoma, ft, veg_esat) result(rstoma_out)
 
     ! -------------------------------------------------------------------------------------
     ! This calculates inner leaf humidity as a function of mesophyll water potential 
@@ -1366,12 +1397,12 @@ contains
     real(r8) :: gstoma     ! Stomatal Conductance of this leaf layer [m/s]
     integer  :: ft         ! Plant Functional Type
     real(r8) :: rstoma_out ! Total Stomatal resistance (stoma and BL) [s/m]
+    real(r8) :: veg_esat   ! Saturation vapor pressure at veg surface [Pa]
     
     ! Locals
     real(r8) :: ceair      ! vapor pressure of air, constrained [Pa]
                            ! water potential to mesophyll water potential
     real(r8) :: qs         ! Specific humidity [g/kg]
-    real(r8) :: veg_esat   ! Saturated vapor pressure at veg surf [Pa]
     real(r8) :: qsat_alt   ! Saturation specific humidity  [g/kg]
     real(r8) :: qsat_loc   ! Saturation specific humidity  [g/kg]
     real(r8) :: qsat_adj   ! Adjusted saturation specific humidity  [g/kg]
@@ -1388,7 +1419,7 @@ contains
        lwp_star = 1._r8
     end if
     
-    call QSat(veg_tempk, can_press, qsat_alt, veg_esat)
+    ! call QSat(veg_tempk, can_press, qsat_alt, veg_esat)
 
     qsat_alt = qsat_alt * g_per_kg
     
@@ -1403,11 +1434,13 @@ contains
     qsat_loc = molar_mass_ratio_vapdry * veg_esat / (can_press - (1._r8-molar_mass_ratio_vapdry) * veg_esat)
     qsat_adj = qsat_loc*lwp_star
 
-    if(debug .and. (abs(qsat_loc-qsat_alt) > 1.e-2)) then
-       write (fates_log(),*) 'qsat from QSat():', qsat_alt
-       write (fates_log(),*) 'qsat localy :', qsat_loc
-       write (fates_log(),*) 'values of qsat are too different'
-       call endrun(msg=errMsg(sourcefile, __LINE__))  
+    if(debug)then
+       if (abs(qsat_loc-qsat_alt) > 1.e-2) then
+          write (fates_log(),*) 'qsat from QSat():', qsat_alt
+          write (fates_log(),*) 'qsat localy :', qsat_loc
+          write (fates_log(),*) 'values of qsat are too different'
+          call endrun(msg=errMsg(sourcefile, __LINE__))  
+       end if
     end if
     
     ! Adjusting gs (compute a virtual gs) that will be passed to host model
