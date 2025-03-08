@@ -375,19 +375,18 @@ contains
     real(r8) :: r1,r2                                ! quadradic solve roots
     logical :: err
 
-    if(.not.base_compare_revert ) then
-       if (a_gs <= nearzero) then
-          gs = gs0
-          return
-       end if
-       
-       ! Trivial case (gs1 near 0)
-       if(gs1<0.01_r8)then
-          gs = gs0
-          return
-       end if
+
+    if (a_gs <= nearzero) then
+       gs = gs0
+       return
     end if
-    
+       
+    ! Trivial case (gs1 near 0)
+    if(gs1<0.01_r8)then
+       gs = gs0
+       return
+    end if
+        
     ! Apply a constraint to the vapor pressure
     ceair = GetConstrainedVPress(can_vpress,veg_esat)
     
@@ -1264,58 +1263,25 @@ contains
     ! Assume a trival solve until we encounter both leaf and light
     solve_iter = 0
 
-    !base_compare_trivial: if(base_compare_revert) then
-    !
-    !   if ( par_sun <= 0._r8 ) then  ! night time
-    !      
-    !      anet    = -lmr
-    !      agross  = 0._r8
-    !      gs      = gs0
-    !      c13disc = 0.0_r8 
-    !      return
-    !      
-    !   else
-    !      
-    !      if ( leaf_area <= 0._r8 ) then
-    !      
-    !         ! No leaf area. This layer is present only because of stems.
-    !         ! Net assimilation is zero, not negative because there are
-    !         ! no leaves to even respire
-    !         ! (leaves are off, or have reduced to 0)
-    !         
-    !         agross  = 0._r8
-    !         anet    = 0._r8
-    !         gs      = max(gsmin0, stem_cuticle_loss_frac*gs0)
-    !         c13disc = 0.0_r8
-    !
-    !         return
-    !      end if
-    !      
-    !   end if
-          
-    ! else
-     
-       if(  leaf_area < nearzero ) then
-          agross  = 0._r8
-          gs      = max(gsmin0,stem_cuticle_loss_frac*gs0)
-          anet    = 0._r8
-          c13disc = 0._r8
-          return
-       end if
+    if(  leaf_area < nearzero ) then
+       agross  = 0._r8
+       gs      = max(gsmin0,stem_cuticle_loss_frac*gs0)
+       anet    = 0._r8
+       c13disc = 0._r8
+       return
+    end if
+    
 
-
-       ! Less, but still trivial solution - biomass, but no light, no photosynthesis
-       ! Stomatal conductance is the intercept of the conductance functions
-       ! ---------------------------------------------------------------------------------------------
-       if (par_abs < nearzero ) then
-          anet    = -lmr
-          agross  = 0._r8
-          gs      = gs0
-          c13disc = 0.0_r8
-          return
-       end if
-       
-    !end if base_compare_trivial
+    ! Less, but still trivial solution - biomass, but no light, no photosynthesis
+    ! Stomatal conductance is the intercept of the conductance functions
+    ! ---------------------------------------------------------------------------------------------
+    if (par_abs < nearzero ) then
+       anet    = -lmr
+       agross  = 0._r8
+       gs      = gs0
+       c13disc = 0.0_r8
+       return
+    end if
     
     ! Not trivial solution, some biomass and some light
     ! Initialize first guess of intracellular co2 conc [Pa]
@@ -1977,11 +1943,8 @@ contains
        lb_params%stomatal_btran_model(ft)==btran_on_gs_gs01 .or. &
        lb_params%stomatal_btran_model(ft)==btran_on_gs_gs02 )then
 
-       if(base_compare_revert)then
-          gs0 = max(gsmin0, lb_params%stomatal_intercept(ft)*btran)
-       else
-          gs0 = max(gsmin0,lb_params%stomatal_intercept(ft)*btran)
-       end if
+       gs0 = max(gsmin0,lb_params%stomatal_intercept(ft)*btran)
+       
     else
        gs0 = max(gsmin0,lb_params%stomatal_intercept(ft))
     end if
