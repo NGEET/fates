@@ -1160,7 +1160,6 @@ contains
   
   subroutine LeafLayerPhotosynthesis(par_sun, & ! in
        par_abs,           &  ! in
-       leaf_area,         &  ! in
        ft,                &  ! in
        vcmax,             &  ! in
        jmax,              &  ! in
@@ -1201,7 +1200,6 @@ contains
     ! ------------------------------------------------------------------------------------
     real(r8), intent(in) :: par_sun           ! Used only for comparing with base (temporary)
     real(r8), intent(in) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m2 leaf/s]
-    real(r8), intent(in) :: leaf_area         ! leaf area per ground area [m2/m2] 
     integer,  intent(in) :: ft                ! (plant) Functional Type Index
     real(r8), intent(in) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
     real(r8), intent(in) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
@@ -1263,15 +1261,6 @@ contains
 
     ! Assume a trival solve until we encounter both leaf and light
     solve_iter = 0
-
-    if(  leaf_area < nearzero ) then
-       agross  = 0._r8
-       gs      = max(gsmin0,stem_cuticle_loss_frac*gs0)
-       anet    = 0._r8
-       c13disc = 0._r8
-       return
-    end if
-    
 
     ! Less, but still trivial solution - biomass, but no light, no photosynthesis
     ! Stomatal conductance is the intercept of the conductance functions

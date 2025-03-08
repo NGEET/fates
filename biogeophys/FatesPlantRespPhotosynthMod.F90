@@ -698,6 +698,29 @@ contains
                                  gstoma = 0._r8
                                  do_sunsha: do isunsha = 1,2
 
+                                    ! Determine absorbed PAR per square meter of leaf
+                                    ! If there is no leaf area perform a trivial solution
+
+                                    if(isunsha == idirect) then
+                                       leaf_area = laisun*canopy_area
+                                       par_abs   = ConvertPar(leaf_area, par_per_sunla)
+                                       area_frac = fsun
+                                    else
+                                       leaf_area = laisha*canopy_area
+                                       par_abs   = ConvertPar(leaf_area, par_per_shala)
+                                       area_frac = 1._r8 - fsun
+                                    end if
+                                    
+                                    if( leaf_area < nearzero ) then
+
+                                       ! Note: With no leaf area do not increment
+                                       ! any fluxes. Assume a nominal conductance
+                                       ! of maximum resistance
+                                       gstoma = gstoma + area_frac/rsmax0
+                                       
+                                       cycle do_sunsha
+                                    end if
+                                    
                                     ! Part VII: Calculate (1) maximum rate of carboxylation (vcmax),
                                     ! (2) maximum electron transport rate, (3) triose phosphate
                                     ! utilization rate and (4) the initial slope of CO2 response curve
@@ -707,7 +730,7 @@ contains
                                     ! These rates are the specific rates used in the actual photosynthesis
                                     ! calculations that take localized environmental effects (temperature)
                                     ! into consideration.
-
+                                    
                                     call LeafLayerBiophysicalRates(ft,        &  ! in
                                          currentCohort%vcmax25top,            &  ! in
                                          currentCohort%jmax25top,             &  ! in
@@ -725,18 +748,6 @@ contains
                                          gs1,                                 &  ! out
                                          gs2 )                                   ! out
 
-                                    ! Part IX: This call calculates the actual photosynthesis for the
-                                    ! leaf layer, as well as the stomatal resistance and the net assimilated carbon.
-
-                                    if(isunsha == idirect) then
-                                       leaf_area = laisun*canopy_area
-                                       par_abs   = ConvertPar(leaf_area, par_per_sunla)
-                                       area_frac = fsun
-                                    else
-                                       leaf_area = laisha*canopy_area
-                                       par_abs   = ConvertPar(leaf_area, par_per_shala)
-                                       area_frac = 1._r8 - fsun
-                                    end if
 
                                     if ( (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
                                        hydr_k_lwp = EDPftvarcon_inst%hydr_k_lwp(ft)
@@ -746,7 +757,6 @@ contains
 
                                     call LeafLayerPhotosynthesis(par_per_sunla, & !
                                          par_abs,                            &  ! in
-                                         leaf_area,                          &  ! in
                                          ft,                                 &  ! in
                                          vcmax_z,                            &  ! in
                                          jmax_z,                             &  ! in
