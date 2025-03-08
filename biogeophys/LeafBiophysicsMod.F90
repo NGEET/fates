@@ -394,7 +394,6 @@ contains
     
     ! Apply a constraint to the vapor pressure
     ceair = GetConstrainedVPress(can_vpress,veg_esat)
-    !ceair = can_vpress
     
     aquad = leaf_co2_ppress
     bquad = leaf_co2_ppress*(gb - gs0) - gs1 * a_gs * can_press
@@ -508,7 +507,7 @@ contains
     ! quantum efficiency, used only for C4 (mol CO2 / mol photons)
     real(r8),parameter :: c4_quant_eff = 0.05_r8
     
-    aj = c4_quant_eff*par_abs*photon_to_e*(1.0_r8 - fnps)
+    aj = c4_quant_eff*par_abs
     
   end function AgrossRuBPC4
 
@@ -816,7 +815,7 @@ contains
 
   subroutine CiFunc(ci, &
        ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
        gs0, gs1, gs2, &
        anet,agross,gs,fval)
 
@@ -856,6 +855,7 @@ contains
     real(r8), intent(in)  :: par_abs        ! par absorbed per unit lai [umol photons/m2leaf/s ]
     real(r8), intent(in)  :: gb             ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8), intent(in)  :: veg_tempk      ! vegetation temperature
+    real(r8), intent(in)  :: veg_esat       !
     real(r8), intent(in)  :: gs0            ! conductance intercept (umol H20/m2/s)
     real(r8), intent(in)  :: gs1            ! conductance slope (could be multiplied by btran)
     real(r8), intent(in)  :: gs2            ! for Medlyn only: either 1 or btran
@@ -864,7 +864,7 @@ contains
     real(r8), intent(out) :: gs             ! stomatal conductance (umol h2o/m2/s)
     real(r8), intent(out) :: fval           ! ci_input - ci_updated  (Pa)
     
-    real(r8) :: veg_esat          ! Saturation vapor pressure at leaf-surface [Pa]
+    !real(r8) :: veg_esat          ! Saturation vapor pressure at leaf-surface [Pa]
     real(r8) :: veg_qs            ! DUMMY, specific humidity at leaf-surface [kg/kg]
     real(r8) :: a_gs              ! The assimilation (a) for calculating conductance (gs)
                                   ! is either = to anet or agross
@@ -904,14 +904,19 @@ contains
        
        ! C4: Rubisco-limited photosynthesis
        ac = vcmax
-       
+
        ! C4: RuBP-limited photosynthesis
        aj = AgrossRuBPC4(par_abs)
-       
+                 
        ! C4: PEP carboxylase-limited (CO2-limited)
        ap = AgrossPEPC4(ci,kp,can_press)
+
+       if(base_compare_revert) then
+          aquad = 0.999_r8
+       else
+          aquad = theta_cj_c4
+       end if
        
-       aquad = theta_cj_c4
        bquad = -(ac + aj)
        cquad = ac * aj
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
@@ -920,8 +925,13 @@ contains
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
        ai = min(r1,r2)
+
+       if(base_compare_revert) then
+          aquad = 0.999_r8
+       else
+          aquad = theta_ip_c4
+       end if
        
-       aquad = theta_ip_c4
        bquad = -(ai + ap)
        cquad = ai * ap
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
@@ -975,7 +985,7 @@ contains
     leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
     
     ! Determine saturation vapor pressure at the leaf surface, from temp and atm-pressure
-    call QSat(veg_tempk, can_press, veg_qs, veg_esat)
+    !call QSat(veg_tempk, can_press, veg_qs, veg_esat)
     
     if ( lb_params%stomatal_model == medlyn_model ) then
        call StomatalCondMedlyn(anet,veg_esat,can_vpress,gs0,gs1,gs2, &
@@ -1004,8 +1014,8 @@ contains
   ! ====================================================================================
   
   subroutine CiBisection(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-       gs0,gs1,gs2,ci_tol, &       
+       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
+       gs0,gs1,gs2,ci_tol, &
        anet,agross,gs,ci,solve_iter)
 
     ! -----------------------------------------------------------------------------------
@@ -1030,6 +1040,7 @@ contains
     real(r8), intent(in)   :: par_abs        ! par absorbed per unit lai [umol photons/m2leaf/s ]
     real(r8), intent(in)   :: gb             ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8), intent(in)   :: veg_tempk      ! vegetation temperature [Kelvin]
+    real(r8), intent(in)   :: veg_esat
     real(r8), intent(in)   :: gs0,gs1,gs2    ! stomatal intercept and slope and alternative btran
     real(r8), intent(in)   :: ci_tol         ! Convergence tolerance for solutions for intracellular CO2 (Pa)
     real(r8), intent(out)  :: anet           ! net leaf photosynthesis (umol CO2/m**2/s)
@@ -1059,13 +1070,13 @@ contains
     
     call CiFunc(ci_h, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-         gs0,gs1,gs2, & 
+         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
+         gs0,gs1,gs2, &
          anet,agross,gs,fval_h)
     
     call CiFunc(ci_l, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
          gs0,gs1,gs2, &
          anet,agross,gs,fval_l)
 
@@ -1077,14 +1088,14 @@ contains
        ci_h = 0.1_r8
        call CiFunc(ci_h, &
             ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-            can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-            gs0,gs1,gs2, & 
+            can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
+            gs0,gs1,gs2, &
             anet,agross,gs,fval_h)
 
        ci_l = 2000._r8
        call CiFunc(ci_l, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, veg_esat, &
          gs0,gs1,gs2, &
          anet,agross,gs,fval_l)
        
@@ -1113,7 +1124,7 @@ contains
 
        call CiFunc(ci_b, &
             ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-            can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+            can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
             gs0,gs1,gs2, &
             anet,agross,gs,fval_b)
 
@@ -1165,8 +1176,10 @@ contains
        can_press,         &  ! in
        can_co2_ppress,    &  ! in
        can_o2_ppress,     &  ! in
+       veg_esat,          &  ! in
        gb,                &  ! in
        can_vpress,        &  ! in
+       vmol_cf,           &  ! in
        mm_kco2,           &  ! in
        mm_ko2,            &  ! in
        co2_cpoint,        &  ! in
@@ -1206,8 +1219,10 @@ contains
     real(r8), intent(in) :: can_press         ! Air pressure near the surface of the leaf (Pa)
     real(r8), intent(in) :: can_co2_ppress    ! Partial pressure of CO2 near the leaf surface (Pa)
     real(r8), intent(in) :: can_o2_ppress     ! Partial pressure of O2 near the leaf surface (Pa)
+    real(r8), intent(in) :: veg_esat          ! saturation vapor pressure at vegetation
     real(r8), intent(in) :: gb                ! leaf boundary layer conductance (umol /m**2/s)
     real(r8), intent(in) :: can_vpress        ! vapor pressure of the canopy air (Pa)
+    real(r8), intent(in) :: vmol_cf           ! velocity to molar conversion
     real(r8), intent(in) :: mm_kco2           ! Michaelis-Menten constant for CO2 (Pa)
     real(r8), intent(in) :: mm_ko2            ! Michaelis-Menten constant for O2 (Pa)
     real(r8), intent(in) :: co2_cpoint        ! CO2 compensation point (Pa)
@@ -1276,7 +1291,7 @@ contains
              
              agross  = 0._r8
              anet    = 0._r8
-             gs      = max(gsmin0 *VeloToMolarCF(can_press,veg_tempk), stem_cuticle_loss_frac*gs0)
+             gs      = max(gsmin0*vmol_cf, stem_cuticle_loss_frac*gs0)
              c13disc = 0.0_r8
 
              return
@@ -1288,7 +1303,7 @@ contains
      
        if(  leaf_area < nearzero ) then
           agross  = 0._r8
-          gs      = max(gsmin0*VeloToMolarCF(can_press,veg_tempk),stem_cuticle_loss_frac*gs0)
+          gs      = max(gsmin0*vmol_cf,stem_cuticle_loss_frac*gs0)
           anet    = 0._r8
           c13disc = 0._r8
           return
@@ -1305,7 +1320,7 @@ contains
           c13disc = 0.0_r8
           return
        end if
-
+       
     end if base_compare_trivial
     
     ! Not trivial solution, some biomass and some light
@@ -1331,7 +1346,7 @@ contains
        if(.not.force_bisection)then
           call CiFunc(ci0, &
                ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-               can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+               can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
                gs0,gs1,gs2, &
                anet,agross,gs,fval)
           
@@ -1360,7 +1375,7 @@ contains
        if( solve_iter == max_iters .or. force_bisection) then
           call CiBisection( &
                ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-               can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+               can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
                gs0,gs1,gs2,ci_tol, &
                anet,agross,gs,ci,solve_iter)
           loop_continue = .false.
@@ -1597,6 +1612,8 @@ contains
   subroutine GetCanopyGasParameters(can_press, &
        can_o2_partialpress, &
        veg_tempk, &
+       air_tempk, &
+       vmol_cf,   &
        mm_kco2,   &
        mm_ko2,    &
        co2_cpoint)
@@ -1614,7 +1631,9 @@ contains
     real(r8), intent(in) :: can_press           ! Air pressure within the canopy (Pa)
     real(r8), intent(in) :: can_o2_partialpress ! Partial press of o2 in the canopy (Pa)
     real(r8), intent(in) :: veg_tempk           ! The temperature of the vegetation (K)
+    real(r8), intent(in) :: air_tempk           ! Air temperature in the canopy (K)
 
+    real(r8), intent(out) :: vmol_cf       ! velocity to molar conversion factor (m/s) -> (umol/m2/s)
     real(r8), intent(out) :: mm_kco2       ! Michaelis-Menten constant for CO2 (Pa)
     real(r8), intent(out) :: mm_ko2        !  Michaelis-Menten constant for O2 (Pa)
     real(r8), intent(out) :: co2_cpoint    !  CO2 compensation point (Pa)
@@ -1667,6 +1686,8 @@ contains
        co2_cpoint = 1.0_r8
     end if
 
+    vmol_cf = VeloToMolarCF(can_press,air_tempk)
+    
     return
   end subroutine GetCanopyGasParameters
 
@@ -1802,6 +1823,7 @@ contains
        t_growth,   &
        t_home,     &
        btran, &
+       vmol_cf, &
        vcmax, &
        jmax, &
        kp, &
@@ -1839,6 +1861,7 @@ contains
     real(r8), intent(in) :: t_growth                  ! T_growth (short-term running mean temperature) (K)
     real(r8), intent(in) :: t_home                    ! T_home (long-term running mean temperature) (K)
     real(r8), intent(in) :: btran                     ! transpiration wetness factor (0 to 1)
+    real(r8), intent(in) :: vmol_cf                   ! velocity to molar conversion factor (m/s) -> (umol/m2/s)
     
     real(r8), intent(out) :: vcmax                    ! maximum rate of carboxylation (umol co2/m**2/s)
     real(r8), intent(out) :: jmax                     ! maximum electron transport rate
@@ -1954,10 +1977,13 @@ contains
     ! Make sure that vcmax and jmax do not drop below a lower
     ! threshold, see where the constants are defined for an explanation.
     ! -----------------------------------------------------------------------------------
-    
-    vcmax = max(min_vcmax_frac*vcmax25top_ft,vcmax)
+    if(.not.base_compare_revert)then
+       
+       vcmax = max(min_vcmax_frac*vcmax25top_ft,vcmax)
 
-    jmax = max(min_jmax_frac*jmax25top_ft,jmax)
+       jmax = max(min_jmax_frac*jmax25top_ft,jmax)
+       
+    end if
 
     
     ! Apply water limitations to stomatal intercept (hypothesis dependent)
@@ -1967,7 +1993,7 @@ contains
        lb_params%stomatal_btran_model(ft)==btran_on_gs_gs02 )then
 
        if(base_compare_revert)then
-          gs0 = max(gsmin0*VeloToMolarCF(101325.0_r8,veg_tempk), lb_params%stomatal_intercept(ft)*btran)
+          gs0 = max(gsmin0*vmol_cf, lb_params%stomatal_intercept(ft)*btran)
        else
           gs0 = max(gs0_min,lb_params%stomatal_intercept(ft)*btran)
        end if
@@ -2110,7 +2136,7 @@ contains
                                         ! below this fraction amount of saturation vapor pressure
 
     if(base_compare_revert) then
-       ceair = min( max(air_vpress, 0.05*veg_esat ),veg_esat )
+       ceair = min( max(air_vpress, 0.05_r8*veg_esat ),veg_esat )
     else
        ceair = min( max(air_vpress, min_frac_esat*veg_esat ),veg_esat )
     end if

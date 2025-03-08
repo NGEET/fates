@@ -278,6 +278,8 @@ contains
     real(r8)               :: gs2                ! optional btran scaling factor for Medlyn conductance only, instead
                                                  ! of applying to gs1, this would scale the whole non-intercept
                                                  ! portion of the conductance equation
+
+    real(r8)               :: vmol_cf            ! velocity to molar conductance conversion (m/s) -> (umol/m2/s)
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -381,6 +383,8 @@ contains
                   call GetCanopyGasParameters(bc_in(s)%forc_pbot,       & ! in
                        bc_in(s)%oair_pa(ifp),    & ! in
                        bc_in(s)%t_veg_pa(ifp),   & ! in
+                       bc_in(s)%tgcm_pa(ifp),    & ! in
+                       vmol_cf,                  & ! out
                        mm_kco2,                  & ! out
                        mm_ko2,                   & ! out
                        co2_cpoint)
@@ -682,15 +686,16 @@ contains
 
                                  end if if_radsolver
 
-
+                                 ! FORCE DARK FOR TESTING
+                                 !par_per_sunla = 0._r8
+                                 !par_per_shala = 0._r8
                            
                                  
                                  ! Perform photosynthesis calculations on sunlit and shaded leaves
                                  ! ---------------------------------------------------------------
 
                                  ! Calculate leaf boundary layer conductance in molar form [umol/m2/s]
-                                 gb_mol = (1._r8/bc_in(s)%rb_pa(ifp)) * &
-                                      VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp))
+                                 gb_mol = (1._r8/bc_in(s)%rb_pa(ifp)) * vmol_cf
                                  
                                  gstoma = 0._r8
                                  do_sunsha: do isunsha = 1,2
@@ -715,6 +720,7 @@ contains
                                          currentPatch%tveg_lpa%GetMean(),     &  ! in
                                          currentPatch%tveg_longterm%GetMean(),&  ! in
                                          btran_eff,                           &  ! in
+                                         vmol_cf,                             &  ! in
                                          vcmax_z,                             &  ! out
                                          jmax_z,                              &  ! out
                                          kp_z,                                &  ! out
@@ -727,11 +733,11 @@ contains
 
                                     if(isunsha == idirect) then
                                        leaf_area = laisun*canopy_area
-                                       par_abs   = ConvertPar(leaf_area, par_per_sunla)
+                                       par_abs   = ConvertPar(leaf_area, par_per_sunla,1)
                                        area_frac = fsun
                                     else
                                        leaf_area = laisha*canopy_area
-                                       par_abs   = ConvertPar(leaf_area, par_per_shala)
+                                       par_abs   = ConvertPar(leaf_area, par_per_shala,2)
                                        area_frac = 1._r8 - fsun
                                     end if
 
@@ -755,8 +761,10 @@ contains
                                          bc_in(s)%forc_pbot,                 &  ! in
                                          bc_in(s)%cair_pa(ifp),              &  ! in
                                          bc_in(s)%oair_pa(ifp),              &  ! in
+                                         bc_in(s)%esat_tv_pa(ifp),           &  ! in
                                          gb_mol,                             &  ! in
-                                         bc_in(s)%eair_pa(ifp),              &  ! in 
+                                         bc_in(s)%eair_pa(ifp),              &  ! in
+                                         vmol_cf,                            &  ! in
                                          mm_kco2,                            &  ! in
                                          mm_ko2,                             &  ! in
                                          co2_cpoint,                         &  ! in
@@ -771,7 +779,11 @@ contains
 
                                     ! Average output quantities across sunlit and shaded leaves
                                     ! Convert from molar to velocity (umol /m**2/s) to (m/s)
-                                    gstoma = gstoma + area_frac* (gstoma_ll / VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp)))
+                                    if(preserve_b4b) then
+                                       gstoma = gstoma + area_frac*(1._r8/(min(1._r8/(gstoma_ll/vmol_cf) , rsmax0)))
+                                    else
+                                       gstoma = gstoma + area_frac*(gstoma_ll / vmol_cf) 
+                                    end if
                                     
                                     psn_z(iv,ft,cl) = psn_z(iv,ft,cl) + area_frac * psn_ll
                                     anet_av_z(iv,ft,cl) = anet_av_z(iv,ft,cl) + area_frac * anet_ll
@@ -823,8 +835,8 @@ contains
                            ! Temporary bypass to preserve B4B behavior
                            if(hlm_radiation_model.eq.norman_solver) then
 
-                              call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   psn_z(1:nv,ft,cl),        & !in
+                              call ScaleLeafLayerFluxToCohort(nv,         & !in
+                                   psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    currentPatch%elai_profile(cl,ft,1:nv), & !in
@@ -843,8 +855,8 @@ contains
 
                               
                               
-                              call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   psn_z(1:nv,ft,cl),        & !in
+                              call ScaleLeafLayerFluxToCohort(nv,         & !in
+                                   psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    cohort_layer_elai(1:nv),               & !in
@@ -1129,7 +1141,7 @@ contains
                      ! cf = s/ umol/m2 -> s/m
                      !real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
 
-                     currentPatch%c_stomata  = VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp))   / r_stomata
+                     currentPatch%c_stomata  = vmol_cf / r_stomata
                      
                   else !if_any_lai
                      
@@ -1139,16 +1151,16 @@ contains
                      
                      ! This value is used for diagnostics, the molar form of conductance
                      ! is what is used in the field usually, so we track that form
-                     currentPatch%c_stomata  = VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp)) / rsmax0
+                     currentPatch%c_stomata  = vmol_cf / rsmax0
                      
                   end if if_any_lai
 
                   ! This value is used for diagnostics, the molar form of conductance
                   ! is what is used in the field usually, so we track that form
-                  currentPatch%c_lblayer = VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp)) / bc_in(s)%rb_pa(ifp)
-
+                  currentPatch%c_lblayer = vmol_cf / bc_in(s)%rb_pa(ifp)
+                  
                end if if_filter2
-
+               
             end if if_notbare
 
             currentPatch => currentPatch%younger
@@ -1422,7 +1434,7 @@ contains
   
 
 
-  real(r8) function ConvertPar(leaf_area, par_wm2) result(par_umolm2s)
+  real(r8) function ConvertPar(leaf_area, par_wm2,sunsha) result(par_umolm2s)
     !
     ! DESCRIPTION:
     ! Convert par from W/m2 to umol photons/m2leaf/s
@@ -1431,18 +1443,39 @@ contains
     ! ARGUMENTS:
     real(r8), intent(in) :: leaf_area ! leaf area index [m2 leaf / m2 ground]
     real(r8), intent(in) :: par_wm2   ! absorbed PAR [W/m2 ground]
-
+    integer,intent(in)   :: sunsha
+    
     ! minimum Leaf area to solve, too little has shown instability
     real(r8), parameter :: min_la_to_solve = 0.0000000001_r8
-    
-    if (par_wm2 > nearzero .and. leaf_area > min_la_to_solve) then
-       par_umolm2s = par_wm2/leaf_area*wm2_to_umolm2s
-    else                 
-       ! The radiative transfer schemes are imperfect
-       ! they can sometimes generate negative values here if par or leaf area is 0.0
-       par_umolm2s = 0.0_r8
-    end if
 
+    logical, parameter :: revert_base = .true.
+    
+    if(revert_base)then
+
+       if(sunsha == 1)then !sunlit
+          if( leaf_area > min_la_to_solve)then
+
+             par_umolm2s = par_wm2/leaf_area*wm2_to_umolm2s
+          else
+             par_umolm2s = 0._r8
+          end if
+       else
+          if( (par_wm2>nearzero) .and. (leaf_area > min_la_to_solve)  ) then
+             par_umolm2s = par_wm2/leaf_area*wm2_to_umolm2s
+          else                 
+             par_umolm2s = 0._r8
+          end if
+       end if
+    else
+       if (par_wm2 > nearzero .and. leaf_area > min_la_to_solve) then
+          par_umolm2s = par_wm2/leaf_area*wm2_to_umolm2s
+       else                 
+          ! The radiative transfer schemes are imperfect
+          ! they can sometimes generate negative values here if par or leaf area is 0.0
+          par_umolm2s = 0.0_r8
+       end if
+    end if
+    
   end function ConvertPar
 
 end module FATESPlantRespPhotosynthMod
