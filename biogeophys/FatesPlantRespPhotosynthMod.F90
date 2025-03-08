@@ -775,11 +775,8 @@ contains
 
                                     ! Average output quantities across sunlit and shaded leaves
                                     ! Convert from molar to velocity (umol /m**2/s) to (m/s)
-                                    !if(preserve_b4b) then
-                                    !   gstoma = gstoma + area_frac*(1._r8/(min(1._r8/(gstoma_ll/vmol_cf) , rsmax0)))
-                                    !else
                                     gstoma = gstoma + area_frac*(gstoma_ll / vmol_cf) 
-                                    !end if
+
                                     
                                     psn_z(iv,ft,cl) = psn_z(iv,ft,cl) + area_frac * psn_ll
                                     anet_av_z(iv,ft,cl) = anet_av_z(iv,ft,cl) + area_frac * anet_ll
@@ -792,18 +789,12 @@ contains
                                  ! Stomatal resistance of the leaf-layer
                                  if ( (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
 
-                                    gstoma = max(gstoma,1._r8/rsmax0)
-                                    rs_z(iv,ft,cl) = LeafHumidityStomaResis(leaf_psi, EDPftvarcon_inst%hydr_k_lwp(ft), bc_in(s)%t_veg_pa(ifp), &
-                                         bc_in(s)%cair_pa(ifp),bc_in(s)%forc_pbot, bc_in(s)%rb_pa(ifp), gstoma, ft)
+                                    rs_z(iv,ft,cl) = LeafHumidityStomaResis(leaf_psi, EDPftvarcon_inst%hydr_k_lwp(ft), &
+                                         bc_in(s)%t_veg_pa(ifp),bc_in(s)%cair_pa(ifp),bc_in(s)%forc_pbot, &
+                                         bc_in(s)%rb_pa(ifp), gstoma, ft)
                                     
                                  else
-                                    ! This should not need to be protected by rsmax0, it is already applied
-                                    ! in leaf biophysics
-                                    if(preserve_b4b) then
-                                       rs_z(iv,ft,cl)= 1._r8/max(gstoma,1._r8/rsmax0)
-                                    else
-                                       rs_z(iv,ft,cl)= 1._r8/gstoma
-                                    end if
+                                    rs_z(iv,ft,cl)= 1._r8/gstoma
                                  end if
                                  
                                  rate_mask_z(iv,ft,cl) = .true.
