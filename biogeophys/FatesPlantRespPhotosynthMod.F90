@@ -383,12 +383,15 @@ contains
                   call GetCanopyGasParameters(bc_in(s)%forc_pbot,       & ! in
                        bc_in(s)%oair_pa(ifp),    & ! in
                        bc_in(s)%t_veg_pa(ifp),   & ! in
-                       bc_in(s)%tgcm_pa(ifp),    & ! in
-                       vmol_cf,                  & ! out
                        mm_kco2,                  & ! out
                        mm_ko2,                   & ! out
                        co2_cpoint)
 
+                  ! The host models use velocity based conductances and resistance
+                  ! this is the factor that converts a conductance from
+                  ! [m/s] to [umol/m2/s]
+                  vmol_cf = VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%tgcm_pa(ifp))
+                  
                   ! ------------------------------------------------------------------------
                   ! Part VI: Loop over all leaf layers.
                   ! The concept of leaf layers is a result of the radiative transfer scheme.
@@ -720,7 +723,6 @@ contains
                                          currentPatch%tveg_lpa%GetMean(),     &  ! in
                                          currentPatch%tveg_longterm%GetMean(),&  ! in
                                          btran_eff,                           &  ! in
-                                         vmol_cf,                             &  ! in
                                          vcmax_z,                             &  ! out
                                          jmax_z,                              &  ! out
                                          kp_z,                                &  ! out
@@ -764,7 +766,6 @@ contains
                                          bc_in(s)%esat_tv_pa(ifp),           &  ! in
                                          gb_mol,                             &  ! in
                                          bc_in(s)%eair_pa(ifp),              &  ! in
-                                         vmol_cf,                            &  ! in
                                          mm_kco2,                            &  ! in
                                          mm_ko2,                             &  ! in
                                          co2_cpoint,                         &  ! in
@@ -779,11 +780,11 @@ contains
 
                                     ! Average output quantities across sunlit and shaded leaves
                                     ! Convert from molar to velocity (umol /m**2/s) to (m/s)
-                                    if(preserve_b4b) then
-                                       gstoma = gstoma + area_frac*(1._r8/(min(1._r8/(gstoma_ll/vmol_cf) , rsmax0)))
-                                    else
-                                       gstoma = gstoma + area_frac*(gstoma_ll / vmol_cf) 
-                                    end if
+                                    !if(preserve_b4b) then
+                                    !   gstoma = gstoma + area_frac*(1._r8/(min(1._r8/(gstoma_ll/vmol_cf) , rsmax0)))
+                                    !else
+                                    gstoma = gstoma + area_frac*(gstoma_ll / vmol_cf) 
+                                    !end if
                                     
                                     psn_z(iv,ft,cl) = psn_z(iv,ft,cl) + area_frac * psn_ll
                                     anet_av_z(iv,ft,cl) = anet_av_z(iv,ft,cl) + area_frac * anet_ll

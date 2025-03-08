@@ -73,17 +73,15 @@ module LeafBiophysicsMod
 
   !-------------------------------------------------------------------------------------
 
-  ! maximum stomatal resistance [s/m] (used across several procedures)
+  ! maximum stomatal resistance [s/m]
   real(r8),public, parameter :: rsmax0 =  2.e8_r8
-
-  ! for non cuticular (ie through branches)
-  ! minimum allowable stomatal conductance for numerics purposes [m/s]
-  real(r8),parameter :: gsmin0 = 1._r8/rsmax0
-
+  
   ! minimum allowable conductance for numerics purposes at 20C (293.15K)
   ! and 1 standard atmosphere (101325 Pa) [umol/m2/s]
+  ! rgas_J_K_kmol 8314.4598
   ! this follows the same math as  FatesPlantRespPhotosynthMod:FetMolarVeloCF()
-  real(r8),parameter :: gsmin0_20C1A_mol = gsmin0 * 101325.0_r8/(rgas_J_K_kmol * 293.15 )*umol_per_kmol
+  ! 101325.0_r8/(8314.4598 * 293.15 )*1.e9/2.e8  ~ 0.2 [umol/m2/s]
+  real(r8),parameter :: gsmin0 = 101325.0_r8/(rgas_J_K_kmol * 293.15 )*umol_per_kmol/rsmax0
 
   ! Set this to true to perform debugging
   logical,parameter   ::  debug = .false.
@@ -138,12 +136,6 @@ module LeafBiophysicsMod
   real(r8),parameter :: theta_ip_c4 = 0.95_r8  !0.95 is from Collatz 91, 0.999 was api 36
   real(r8),parameter :: theta_cj_c4 = 0.98_r8  !0.98 from Collatz 91,  0.099 was api 36
 
-
-  ! There is a minimum stomatal conductance, below which we just don't
-  ! allow, this is well below reasonable ranges of cuticular conductance
-  real(r8),parameter :: gs0_min = 100.0_r8
-  
-  
   ! Set this to true to match results with main
   logical, parameter :: base_compare_revert = .true.
 
@@ -1179,7 +1171,6 @@ contains
        veg_esat,          &  ! in
        gb,                &  ! in
        can_vpress,        &  ! in
-       vmol_cf,           &  ! in
        mm_kco2,           &  ! in
        mm_ko2,            &  ! in
        co2_cpoint,        &  ! in
@@ -1222,7 +1213,6 @@ contains
     real(r8), intent(in) :: veg_esat          ! saturation vapor pressure at vegetation
     real(r8), intent(in) :: gb                ! leaf boundary layer conductance (umol /m**2/s)
     real(r8), intent(in) :: can_vpress        ! vapor pressure of the canopy air (Pa)
-    real(r8), intent(in) :: vmol_cf           ! velocity to molar conversion
     real(r8), intent(in) :: mm_kco2           ! Michaelis-Menten constant for CO2 (Pa)
     real(r8), intent(in) :: mm_ko2            ! Michaelis-Menten constant for O2 (Pa)
     real(r8), intent(in) :: co2_cpoint        ! CO2 compensation point (Pa)
@@ -1270,40 +1260,40 @@ contains
     ! Assume a trival solve until we encounter both leaf and light
     solve_iter = 0
 
-    base_compare_trivial: if(base_compare_revert) then
-
-       if ( par_sun <= 0._r8 ) then  ! night time
+    !base_compare_trivial: if(base_compare_revert) then
+    !
+    !   if ( par_sun <= 0._r8 ) then  ! night time
+    !      
+    !      anet    = -lmr
+    !      agross  = 0._r8
+    !      gs      = gs0
+    !      c13disc = 0.0_r8 
+    !      return
+    !      
+    !   else
+    !      
+    !      if ( leaf_area <= 0._r8 ) then
+    !      
+    !         ! No leaf area. This layer is present only because of stems.
+    !         ! Net assimilation is zero, not negative because there are
+    !         ! no leaves to even respire
+    !         ! (leaves are off, or have reduced to 0)
+    !         
+    !         agross  = 0._r8
+    !         anet    = 0._r8
+    !         gs      = max(gsmin0, stem_cuticle_loss_frac*gs0)
+    !         c13disc = 0.0_r8
+    !
+    !         return
+    !      end if
+    !      
+    !   end if
           
-          anet    = -lmr
-          agross  = 0._r8
-          gs      = gs0
-          c13disc = 0.0_r8 
-          return
-          
-       else
-          
-          if ( leaf_area <= 0._r8 ) then
-          
-             ! No leaf area. This layer is present only because of stems.
-             ! Net assimilation is zero, not negative because there are
-             ! no leaves to even respire
-             ! (leaves are off, or have reduced to 0)
-             
-             agross  = 0._r8
-             anet    = 0._r8
-             gs      = max(gsmin0*vmol_cf, stem_cuticle_loss_frac*gs0)
-             c13disc = 0.0_r8
-
-             return
-          end if
-          
-       end if
-          
-    else
+    ! else
      
        if(  leaf_area < nearzero ) then
           agross  = 0._r8
-          gs      = max(gsmin0*vmol_cf,stem_cuticle_loss_frac*gs0)
+          gs      = max(gsmin0,stem_cuticle_loss_frac*gs0)
           anet    = 0._r8
           c13disc = 0._r8
           return
@@ -1321,7 +1311,7 @@ contains
           return
        end if
        
-    end if base_compare_trivial
+    !end if base_compare_trivial
     
     ! Not trivial solution, some biomass and some light
     ! Initialize first guess of intracellular co2 conc [Pa]
@@ -1612,8 +1602,6 @@ contains
   subroutine GetCanopyGasParameters(can_press, &
        can_o2_partialpress, &
        veg_tempk, &
-       air_tempk, &
-       vmol_cf,   &
        mm_kco2,   &
        mm_ko2,    &
        co2_cpoint)
@@ -1631,9 +1619,7 @@ contains
     real(r8), intent(in) :: can_press           ! Air pressure within the canopy (Pa)
     real(r8), intent(in) :: can_o2_partialpress ! Partial press of o2 in the canopy (Pa)
     real(r8), intent(in) :: veg_tempk           ! The temperature of the vegetation (K)
-    real(r8), intent(in) :: air_tempk           ! Air temperature in the canopy (K)
 
-    real(r8), intent(out) :: vmol_cf       ! velocity to molar conversion factor (m/s) -> (umol/m2/s)
     real(r8), intent(out) :: mm_kco2       ! Michaelis-Menten constant for CO2 (Pa)
     real(r8), intent(out) :: mm_ko2        !  Michaelis-Menten constant for O2 (Pa)
     real(r8), intent(out) :: co2_cpoint    !  CO2 compensation point (Pa)
@@ -1686,8 +1672,6 @@ contains
        co2_cpoint = 1.0_r8
     end if
 
-    vmol_cf = VeloToMolarCF(can_press,air_tempk)
-    
     return
   end subroutine GetCanopyGasParameters
 
@@ -1823,7 +1807,6 @@ contains
        t_growth,   &
        t_home,     &
        btran, &
-       vmol_cf, &
        vcmax, &
        jmax, &
        kp, &
@@ -1861,8 +1844,6 @@ contains
     real(r8), intent(in) :: t_growth                  ! T_growth (short-term running mean temperature) (K)
     real(r8), intent(in) :: t_home                    ! T_home (long-term running mean temperature) (K)
     real(r8), intent(in) :: btran                     ! transpiration wetness factor (0 to 1)
-    real(r8), intent(in) :: vmol_cf                   ! velocity to molar conversion factor (m/s) -> (umol/m2/s)
-    
     real(r8), intent(out) :: vcmax                    ! maximum rate of carboxylation (umol co2/m**2/s)
     real(r8), intent(out) :: jmax                     ! maximum electron transport rate
                                                       ! (umol electrons/m**2/s)
@@ -1993,12 +1974,12 @@ contains
        lb_params%stomatal_btran_model(ft)==btran_on_gs_gs02 )then
 
        if(base_compare_revert)then
-          gs0 = max(gsmin0*vmol_cf, lb_params%stomatal_intercept(ft)*btran)
+          gs0 = max(gsmin0, lb_params%stomatal_intercept(ft)*btran)
        else
-          gs0 = max(gs0_min,lb_params%stomatal_intercept(ft)*btran)
+          gs0 = max(gsmin0,lb_params%stomatal_intercept(ft)*btran)
        end if
     else
-       gs0 = max(gs0_min,lb_params%stomatal_intercept(ft))
+       gs0 = max(gsmin0,lb_params%stomatal_intercept(ft))
     end if
 
     ! Apply water limitations to stomatal slope (hypothesis dependent)
