@@ -689,11 +689,6 @@ contains
 
                                  end if if_radsolver
 
-                                 ! FORCE DARK FOR TESTING
-                                 !par_per_sunla = 0._r8
-                                 !par_per_shala = 0._r8
-                           
-                                 
                                  ! Perform photosynthesis calculations on sunlit and shaded leaves
                                  ! ---------------------------------------------------------------
 
@@ -735,11 +730,11 @@ contains
 
                                     if(isunsha == idirect) then
                                        leaf_area = laisun*canopy_area
-                                       par_abs   = ConvertPar(leaf_area, par_per_sunla,1)
+                                       par_abs   = ConvertPar(leaf_area, par_per_sunla)
                                        area_frac = fsun
                                     else
                                        leaf_area = laisha*canopy_area
-                                       par_abs   = ConvertPar(leaf_area, par_per_shala,2)
+                                       par_abs   = ConvertPar(leaf_area, par_per_shala)
                                        area_frac = 1._r8 - fsun
                                     end if
 
@@ -1435,7 +1430,7 @@ contains
   
 
 
-  real(r8) function ConvertPar(leaf_area, par_wm2,sunsha) result(par_umolm2s)
+  real(r8) function ConvertPar(leaf_area, par_wm2) result(par_umolm2s)
     !
     ! DESCRIPTION:
     ! Convert par from W/m2 to umol photons/m2leaf/s
@@ -1444,39 +1439,18 @@ contains
     ! ARGUMENTS:
     real(r8), intent(in) :: leaf_area ! leaf area index [m2 leaf / m2 ground]
     real(r8), intent(in) :: par_wm2   ! absorbed PAR [W/m2 ground]
-    integer,intent(in)   :: sunsha
     
     ! minimum Leaf area to solve, too little has shown instability
     real(r8), parameter :: min_la_to_solve = 0.0000000001_r8
 
-    logical, parameter :: revert_base = .true.
-    
-    if(revert_base)then
-
-       if(sunsha == 1)then !sunlit
-          if( leaf_area > min_la_to_solve)then
-
-             par_umolm2s = par_wm2/leaf_area*wm2_to_umolm2s
-          else
-             par_umolm2s = 0._r8
-          end if
-       else
-          if( (par_wm2>nearzero) .and. (leaf_area > min_la_to_solve)  ) then
-             par_umolm2s = par_wm2/leaf_area*wm2_to_umolm2s
-          else                 
-             par_umolm2s = 0._r8
-          end if
-       end if
-    else
-       if (par_wm2 > nearzero .and. leaf_area > min_la_to_solve) then
-          par_umolm2s = par_wm2/leaf_area*wm2_to_umolm2s
-       else                 
-          ! The radiative transfer schemes are imperfect
-          ! they can sometimes generate negative values here if par or leaf area is 0.0
-          par_umolm2s = 0.0_r8
-       end if
+    if (par_wm2 > nearzero .and. leaf_area > min_la_to_solve) then
+       par_umolm2s = par_wm2/leaf_area*wm2_to_umolm2s
+    else                 
+       ! The radiative transfer schemes are imperfect
+       ! they can sometimes generate negative values here if par or leaf area is 0.0
+       par_umolm2s = 0.0_r8
     end if
-    
+     
   end function ConvertPar
 
 end module FATESPlantRespPhotosynthMod
