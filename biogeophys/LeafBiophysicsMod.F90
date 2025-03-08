@@ -136,27 +136,22 @@ module LeafBiophysicsMod
   real(r8),parameter :: theta_ip_c4 = 0.95_r8  !0.95 is from Collatz 91, 0.999 was api 36
   real(r8),parameter :: theta_cj_c4 = 0.98_r8  !0.98 from Collatz 91,  0.099 was api 36
 
-  ! Set this to true to match results with main
-  logical, parameter :: base_compare_revert = .true.
-
-
   ! This bypasses a potential fix to assimilation in BB
   logical, parameter :: bb_agsfix_bypass = .true.
-  
+
+  ! Some observations have indicated that vcmax and jmax
+  ! never really drop down to 0, or close to it. Setting
+  ! this to true will cap vcmax and jmax to a fraction
+  ! of its value at 25C. 
+  logical, parameter :: do_mincap_vcjmax = .false.
+  real(r8),parameter :: min_vcmax_frac = 0.10_r8
+  real(r8),parameter :: min_jmax_frac  = 0.10_r8
+
   
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
 
-
-  ! There seems little evidence that jmax and vcmax ever truly reach zero
-  ! Due to leaf nitrogen concentration gradients, and water stress,
-  ! model estimated values of vcmax and jmax could reach zero.  Until
-  ! a better, perhaps asymtotic method of preventing zero values is generated
-  ! 
-  real(r8),parameter :: min_vcmax_frac = 0.10_r8
-  real(r8),parameter :: min_jmax_frac  = 0.10_r8
-  
 
   ! The stomatal slope can either be scaled by btran or not. FATES had
   ! a precedent of using this into 2024, but discussions here: https://github.com/NGEET/fates/issues/719
@@ -883,17 +878,8 @@ contains
        ! C3: RuBP-limited photosynthesis
        aj = AgrossRuBPC3(par_abs,jmax,ci,co2_cpoint )
 
-       if(base_compare_revert) then
-          ! Gross photosynthesis smoothing calculations. Co-limit ac and aj.
-          aquad = 0.999_r8
-          bquad = -(ac + aj)
-          cquad = ac * aj
-          call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-          agross = min(r1,r2)
-       else
-          ! Take the minimum, no smoothing
-          agross = min(ac,aj)
-       end if
+       ! Take the minimum, no smoothing
+       agross = min(ac,aj)
        
     else
        
@@ -906,12 +892,7 @@ contains
        ! C4: PEP carboxylase-limited (CO2-limited)
        ap = AgrossPEPC4(ci,kp,can_press)
 
-       if(base_compare_revert) then
-          aquad = 0.999_r8
-       else
-          aquad = theta_cj_c4
-       end if
-       
+       aquad = theta_cj_c4
        bquad = -(ac + aj)
        cquad = ac * aj
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
@@ -921,12 +902,7 @@ contains
        end if
        ai = min(r1,r2)
 
-       if(base_compare_revert) then
-          aquad = 0.999_r8
-       else
-          aquad = theta_ip_c4
-       end if
-       
+       aquad = theta_ip_c4
        bquad = -(ai + ap)
        cquad = ai * ap
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
@@ -998,12 +974,6 @@ contains
     fval = ci - (can_co2_ppress - anet * can_press * &
          (h2o_co2_bl_diffuse_ratio*gs + h2o_co2_stoma_diffuse_ratio*gb)/(gb*gs))
 
-    if(base_compare_revert) then
-       if (anet < 0._r8) then
-          fval = 0
-       end if
-    end if
-    
   end subroutine CiFunc
 
   ! ====================================================================================
@@ -1317,17 +1287,11 @@ contains
           ! In main, ci_tol = 2*can_press
           ! Special convergence requirement to satisfy B4B with main
           
-          if(base_compare_revert) then
-             if ((abs(fval)/can_press*1.e06_r8 <=  2.e-06_r8) .or. solve_iter == 5) then
-                loop_continue = .false.
-                exit iter_loop
-             end if
-          else
-             if (abs(fval) <= ci_tol ) then
-                loop_continue = .false.
-                exit iter_loop
-             end if
+          if (abs(fval) <= ci_tol ) then
+             loop_continue = .false.
+             exit iter_loop
           end if
+
        end if
        
        ci0 = ci
@@ -1928,7 +1892,7 @@ contains
     ! Make sure that vcmax and jmax do not drop below a lower
     ! threshold, see where the constants are defined for an explanation.
     ! -----------------------------------------------------------------------------------
-    if(.not.base_compare_revert)then
+    if( do_mincap_vcjmax ) then
        
        vcmax = max(min_vcmax_frac*vcmax25top_ft,vcmax)
 
@@ -2080,14 +2044,11 @@ contains
     
     real(r8) :: air_vpress              ! vapor pressure of the air (unconstrained) [Pa]
     real(r8) :: veg_esat                ! saturated vapor pressure [Pa]
-    real(r8) :: min_frac_esat = 0.01_r8 ! We don't allow vapor pressures
+    real(r8) :: min_frac_esat = 0.05_r8 ! We don't allow vapor pressures
                                         ! below this fraction amount of saturation vapor pressure
 
-    if(base_compare_revert) then
-       ceair = min( max(air_vpress, 0.05_r8*veg_esat ),veg_esat )
-    else
-       ceair = min( max(air_vpress, min_frac_esat*veg_esat ),veg_esat )
-    end if
+    ceair = min( max(air_vpress, min_frac_esat*veg_esat ),veg_esat )
+    
   end function GetConstrainedVPress
 
   ! =====================================================================================
