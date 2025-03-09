@@ -29,6 +29,7 @@ module SFEquationsMod
   public :: FireSize
   public :: AreaBurnt
   public :: FireIntensity
+  public :: PassiveCrownFireIntensity
   
   contains 
   
@@ -465,5 +466,36 @@ module SFEquationsMod
     FireIntensity = SF_val_fuel_energy*fuel_consumed*ros
 
   end function FireIntensity
+
+!---------------------------------------------------------------------------------------
+  
+  real(r8) function PassiveCrownFireIntensity(canopy_base_height)
+  ! DESCRIPTION:
+  ! Calculate the energy threshold for igniting crown fuels [kW/m or kJ/m/s]
+  ! EQ. 11 in Scott & Reinhardt 2001
+
+  ! ARGUMENTS:
+  real(r8), intent(in) :: canopy_base_height   ! canopy base height at which biomass density > minimum density 0.011 kg/m3
+  
+
+  ! Locals:
+  real(r8)            :: crown_ignition_energy  ! surface fire intensity required to ignite crown fuels [kJ/kg]
+  real(r8), parameter :: canopy_water_content = 100.0_r8  ! canopy fuel water content in %, to be replaced by transient value later 
+
+  ! Note: crown_ignition_energy to be calculated based on PFT foliar moisture content from FATES-Hydro
+  ! or create foliar moisture % based on BTRAN
+  ! Use foliar_moisture(currentCohort%pft) and compute weighted PFT average with Eq 3 Van Wagner 1977
+  ! in place of canopy_water_content parameter
+
+  ! Eq 3 Van Wagner 1977, Eq 11 Scott & Reinhardt 2001
+  crown_ignition_energy = 460.0_r8 + 25.9_r8 * canopy_water_content
+
+  ! Crown fuel ignition potential (kW/m), Eq 4 Van Wagner 1977, Eq 11 Scott & Reinhardt 2001
+  ! FI = (Czh)**3/2 where z=canopy base height,h=heat of crown ignite energy, FI=fire intensity
+  ! 0.01 = C, empirical constant Van Wagner 1977 Eq 4 for 6m canopy base height, 100% FMC, FI 2500kW/m
+  ! passive_crown_FI = min fire intensity to ignite canopy fuel (kW/m or kJ/m/s)
+  PassiveCrownFireIntensity = (0.01_r8 * canopy_base_height * crown_ignition_energy)**1.5_r8
+end function PassiveCrownFireIntensity
+  
   
 end module SFEquationsMod
