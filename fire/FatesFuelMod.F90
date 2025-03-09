@@ -414,7 +414,7 @@ module FatesFuelMod
 
 
        fuel_1h_c = leaf_c + woody_c * SF_val_CWD_frac_adj(1)
-       this%canopy_fuel_load = fuel_1h_c / carbon_2_biomass 
+       this%canopy_fuel_load = this%canopy_fuel_load + (fuel_1h_c / carbon_2_biomass)
 
       
     end subroutine CalculateCanopyFuelLoad
