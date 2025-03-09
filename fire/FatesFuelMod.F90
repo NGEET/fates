@@ -23,6 +23,9 @@ module FatesFuelMod
     real(r8) :: bulk_density_notrunks                ! weighted average of bulk density across non-trunk fuel classes [kg/m3]
     real(r8) :: SAV_notrunks                         ! weighted average of surface area to volume ratio across non-trunk fuel classes [/cm]
     real(r8) :: MEF_notrunks                         ! weighted average of moisture of extinction across non-trunk fuel classes [m3/m3]
+    real(r8) :: canopy_fuel_load                     ! patch level total canopy fuel load [kg biomass]
+    real(r8) :: canopy_bulk_density                  ! patch level canopy fuel bulk density [kg biomass m-3]
+
 
     contains
       
@@ -34,6 +37,8 @@ module FatesFuelMod
       procedure :: UpdateFuelMoisture
       procedure :: AverageBulkDensity_NoTrunks
       procedure :: AverageSAV_NoTrunks
+      procedure :: CalculateCanopyFuelLoad
+      procedure :: CalculateCanopyBulkDensity
       procedure :: CalculateFuelBurnt
       procedure :: CalculateResidenceTime
 
@@ -58,6 +63,8 @@ module FatesFuelMod
       this%bulk_density_notrunks = 0.0_r8
       this%SAV_notrunks = 0.0_r8
       this%MEF_notrunks = 0.0_r8 
+      this%canopy_fuel_load = 0.0_r8
+      this%canopy_bulk_density = 0.0_r8
 
     end subroutine Init 
     
@@ -99,7 +106,11 @@ module FatesFuelMod
       this%bulk_density_notrunks = this%bulk_density_notrunks*self_weight +              &
         donor_fuel%bulk_density_notrunks*donor_weight      
       this%SAV_notrunks = this%SAV_notrunks*self_weight + donor_fuel%SAV_notrunks*donor_weight
-      this%MEF_notrunks = this%MEF_notrunks*self_weight + donor_fuel%MEF_notrunks*donor_weight    
+      this%MEF_notrunks = this%MEF_notrunks*self_weight + donor_fuel%MEF_notrunks*donor_weight  
+      this%canopy_fuel_load = this%canopy_fuel_load*self_weight +      &
+        donor_fuel%canopy_fuel_load*donor_weight
+      this%canopy_bulk_density = this%canopy_bulk_density*self_weight +    &
+        donor_fuel%canopy_bulk_density*donor_weight
       
     end subroutine Fuse
 
@@ -377,7 +388,81 @@ module FatesFuelMod
     end subroutine AverageSAV_NoTrunks
     
   !---------------------------------------------------------------------------------------
-    
+
+    subroutine CalculateCanopyFuelLoad(this, leaf_c, woody_c, SF_val_CWD_frac_adj)
+      ! DESCRIPTION:
+      ! Calculate canopy fuel load by summing up leaf biomass and 1 hour woody biomass
+      ! XLG: I did not change how Sam L. calculate canopy fuel load here except 
+      ! switch to the adjusted CWD instead of using the default parameter
+      ! Seems only including leaf biomass is recommend by Gruz et al. 2003:
+      ! https://www.sierraforestlegacy.org/Resources/Conservation/FireForestEcology/FireScienceResearch/FireEcology/FireEcology-Cruz03.pdf 
+
+      ! ARGUMENTS:
+      class(fuel_type), intent(inout) :: this                     ! fuel class
+      real(r8),         intent(in)    :: leaf_c                   ! leaf carbon of all cohorts on a patch [kgC]
+      real(r8),         intent(in)    :: woody_c                  ! sum of structural, sapwood, and twig carbon across cohorts on a patch [kgC]
+      real(r8),         intent(in)    :: SF_val_CWD_frac_adj(:)   ! adjusted fractional allocation of woody biomass to coarse wood debris pool
+
+      ! Locals:
+      real(r8)  :: fuel_1h_c               ! 1 hour fuel in carbon 
+      ! Params
+      real(r8), parameter :: carbon_2_biomass = 0.45_r8
+
+
+       fuel_1h_c = leaf_c + woody_c * SF_val_CWD_frac_adj(1)
+       this%canopy_fuel_load = fuel_1h_c / carbon_2_biomass 
+
+      
+    end subroutine CalculateCanopyFuelLoad
+
+
+  !---------------------------------------------------------------------------------------
+    subroutine CalculateCanopyBulkDensity(this, biom_matrix, max_height)
+      ! DESCRIPTION:
+      ! Calculate canopy fuel bulk density [kg biomass / m3] by searching for 
+      ! the canopy height (canopy base height CBH) at which canopy fuel bed density 
+      ! is > minimum canopy fuel density [0.011 kg biomass/m3] for propogating canopy fire; 
+      ! CBD is then calculated as canopy fuel load devided by 
+      ! crown depth ( CD= max. canopy height - CBH).
+      ! XLG: one modification I made compare to Sam L. version is that I recalculate
+      ! canopy fuel load after knowing CD by excluding fuels below CBH. As if including
+      ! fuels below CBH then we are artificially "condense" canopy fuel bed by deviding total
+      ! fuel load by an average, shallower CD. 
+
+      ! ARGUMENTS:
+      class(fuel_type), intent(inout) :: this                  ! fuel class
+      real(r8),         intent(in)    :: biom_matrix(:)        ! 1m biomass bin (kg/m3) in the vertical space to sort the canopy fule 
+                                                               ! across cohorts, used to search for CBH
+      real(r8),         intent(in)    :: max_height            ! the max. cohort height at current patch [m]
+
+      ! Locals:
+      real(r8) :: canopy_base_height            ! canopy base height at which biomass density is > minimum canopy fuel density [m]
+      integer  :: ih                            ! biomass bin counter
+
+      ! Params:
+      real(r8), parameter :: min_density_canopy_fuel = 0.011_r8   ! minimum canopy fuel density for propogating canopy fire
+                                                                  ! vertically through canopy.
+                                                                  ! Scott and Reinhardt 2001 RMRS-RP-29
+
+      ! loop from 1m to 70m to find CBH
+      do ih=0,69
+        if (biom_matrix(ih) > min_density_canopy_fuel) then
+          canopy_base_height = dble(ih) + 1.0_r8   ! the dimension index of biom_matrix is a ronded-down integer of cohort height
+                                                   ! add 1 to be conservative when searching for CBH
+
+          exit
+        end if
+      end do
+
+      this%canopy_bulk_density = sum(biom_matrix(int(canopy_base_height-1.0_r8):)) / &
+      (max_height - canopy_base_height)
+
+
+    end subroutine CalculateCanopyBulkDensity
+
+ !---------------------------------------------------------------------------------------
+
+   
     subroutine CalculateFuelBurnt(this, fuel_consumed)
       ! DESCRIPTION:
       !   Calculates the fraction and total amount of fuel burnt
