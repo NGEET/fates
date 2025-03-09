@@ -307,7 +307,7 @@ contains
         biom_matrix(:) = biom_matrix(:) / currentPatch%area ! kg biomass / m3
         ! update canopy fuel bulk density
         call currentPatch%fuel%CalculateCanopyBulkDensity(biom_matrix, max_height)
-        
+
       end if ! nocomp_bareground 
       currentPatch => currentPatch%younger;
     end do ! end patch loop
@@ -315,18 +315,7 @@ contains
   end subroutine UpdateCanopyFuelCharacteristics
 
      
-          
-          
-
-
-
-
-
-
-
-
-
-  end subroutine UpdateCanopyFuelCharacteristics
+      
 
   !---------------------------------------------------------------------------------------
   
