@@ -24,6 +24,7 @@ module FatesFuelMod
     real(r8) :: SAV_notrunks                         ! weighted average of surface area to volume ratio across non-trunk fuel classes [/cm]
     real(r8) :: MEF_notrunks                         ! weighted average of moisture of extinction across non-trunk fuel classes [m3/m3]
     real(r8) :: canopy_fuel_load                     ! patch level total canopy fuel load [kg biomass]
+    real(r8) :: canopy_base_height                   ! patch level canopy base height at which biomass density > minimum density required for canopy fire spread [m]
     real(r8) :: canopy_bulk_density                  ! patch level canopy fuel bulk density [kg biomass m-3]
 
 
@@ -64,6 +65,7 @@ module FatesFuelMod
       this%SAV_notrunks = 0.0_r8
       this%MEF_notrunks = 0.0_r8 
       this%canopy_fuel_load = 0.0_r8
+      this%canopy_base_height = 0.0_r8
       this%canopy_bulk_density = 0.0_r8
 
     end subroutine Init 
@@ -109,6 +111,8 @@ module FatesFuelMod
       this%MEF_notrunks = this%MEF_notrunks*self_weight + donor_fuel%MEF_notrunks*donor_weight  
       this%canopy_fuel_load = this%canopy_fuel_load*self_weight +      &
         donor_fuel%canopy_fuel_load*donor_weight
+      this%canopy_base_height = this%canopy_base_height*self_weight +   &
+        donor_fuel%canopy_base_height*donor_weight
       this%canopy_bulk_density = this%canopy_bulk_density*self_weight +    &
         donor_fuel%canopy_bulk_density*donor_weight
       
@@ -447,15 +451,15 @@ module FatesFuelMod
       ! loop from 1m to 70m to find CBH
       do ih=0,69
         if (biom_matrix(ih) > min_density_canopy_fuel) then
-          canopy_base_height = dble(ih) + 1.0_r8   ! the dimension index of biom_matrix is a ronded-down integer of cohort height
+          this%canopy_base_height = dble(ih) + 1.0_r8   ! the dimension index of biom_matrix is a ronded-down integer of cohort height
                                                    ! add 1 to be conservative when searching for CBH
 
           exit
         end if
       end do
 
-      this%canopy_bulk_density = sum(biom_matrix(int(canopy_base_height-1.0_r8):)) / &
-      (max_height - canopy_base_height)
+      this%canopy_bulk_density = sum(biom_matrix(int(this%canopy_base_height-1.0_r8):)) / &
+      (max_height - this%canopy_base_height)
 
 
     end subroutine CalculateCanopyBulkDensity
