@@ -63,6 +63,7 @@ contains
     if (hlm_spitfire_mode > hlm_sf_nofire_def) then
       call UpdateFireWeather(currentSite, bc_in)
       call UpdateFuelCharacteristics(currentSite)
+      call UpdateCanopyFuelCharacteristics(currentSite)
       call CalculateIgnitionsandFDI(currentSite, bc_in)
       call CalculateSurfaceRateOfSpread(currentSite)
       call CalculateSurfaceFireIntensity(currentSite)
@@ -158,7 +159,7 @@ contains
     !  Updates fuel characteristics on each patch of the site
     !
 
-    use SFParamsMod, only : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
+    use SFParamsMod,     only : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
 
     ! ARGUMENTS:
     type(ed_site_type), intent(in), target :: currentSite  ! site object
@@ -199,6 +200,133 @@ contains
     end do 
 
   end subroutine UpdateFuelCharacteristics
+
+  !---------------------------------------------------------------------------------------
+
+  subroutine UpdateCanopyFuelCharacteristics(currentSite)
+    !
+    ! DESCRIPTION:
+    ! Calculate canopy fuel load (sum of all 1 hour live fuels, in kg biomass),
+    ! canopy base height (minimum canopy height at which canopy fuel bed density > 0.011 kg/m3 for 
+    ! vertical fire spread through canopy), and canopy bulk desity (kg biomass/m3)
+    !
+    use FatesLitterMod,  only : ncwd
+    use SFParamsMod,     only : SF_val_CWD_frac
+    use FatesLitterMod,  only : adjust_SF_CWD_frac
+  
+
+    ! ARGUMENTS:
+    type(ed_site_type), intent(in), target :: currentSite  ! site object
+
+   
+    type(fates_patch_type), pointer  :: currentPatch   ! FATES patch
+    type(fates_cohort_type), pointer :: currentCohort  ! FATES cohort
+
+    ! Locals:
+    real(r8) ::  crown_depth          ! depth of crown [m]
+    real(r8) ::  cbh_co               ! canopy base height of cohort [m]
+    real(r8) ::  max_height           ! max cohort height on patch (m)
+    real(r8) ::  woody_c              ! above-ground tree struct and sapwood biomass in cohort (kgC)
+    real(r8) ::  leaf_c               ! leaf carbon (kgC)
+    real(r8) ::  sapw_c               ! sapwood carbon (kgC)
+    real(r8) ::  struct_c             ! structure carbon (kgC)
+    real(r8) ::  crown_fuel_per_m     ! crown fuel per 1m section in cohort
+    real(r8) ::  SF_val_CWD_frac_adj(ncwd)  ! adjusted fractional allocation of woody biomass to coarse wood debris pool
+
+    real(r8), dimension(:), allocatable :: biom_matrix   ! matrix to track biomass from bottom to top
+    integer :: h_idx                                     ! index 
+
+    real(r8), parameter :: carbon_2_biomass = 0.45_r8
+
+    currentPatch => currentSite%oldest_patch
+
+    do while(associated(currentPatch))
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
+        !zero Patch level variables
+        max_height                          = 0.0_r8
+      
+        ! find the max cohort height to set the upper bounds of biom_matrix
+        currentCohort=>currentPatch%tallest
+        do while(associated(currentCohort))
+          if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees
+            if (currentCohort%height > max_height) then
+              max_height = currentCohort%height
+            end if
+          end if ! trees only
+          currentCohort => currentCohort%shorter;
+        end do ! end cohort loop
+  
+        !allocate and initialize biom_matrix
+        allocate(biom_matrix(0:int(max_height)))
+        biom_matrix(:) = 0.0_r8
+  
+        !loop across cohorts to calculate canopy fuel load by 1m height bin
+        currentCohort=>currentCohort%tallest
+        
+        do while(associated(currentCohort))
+          !zero cohort level variables
+          woody_c            = 0.0_r8
+          leaf_c             = 0.0_r8
+          sapw_c             = 0.0_r8
+          struct_c           = 0.0_r8
+          crown_fuel_per_m   = 0.0_r8
+          crown_depth        = 0.0_r8
+          cbh_co             = 0.0_r8
+          SF_val_CWD_frac_adj(ncwd) = 0.0_r8
+  
+          ! Calculate crown 1hr fuel biomass (leaf, twig sapwood, twig structural biomass)
+          if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees
+            ! calculate canopy base height for cohort
+            call CrownDepth(currentCohort%height,currentCohort%pft,crown_depth)
+            cbh_co = currentCohort%height - crown_depth
+        
+            leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+            sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+            struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
+  
+            woody_c  = currentCohort%n * (prt_params%allom_agb_frac(currentCohort%pft)* &
+            (sapw_c + struct_c))
+            leaf_c   = currentCohort%n * leaf_c
+            
+            call adjust_SF_CWD_frac(currentCohort%dbh, ncwd, SF_val_CWD_frac, SF_val_CWD_frac_adj)
+            ! update canopy fuel load
+            call currentPatch%fuel%CalculateCanopyFuelLoad(leaf_c, woody_c, SF_val_CWD_frac_adj)
+            
+            ! 1m biomass bin
+            crown_fuel_per_m = (leaf_c + woody_c) / (carbon_2_biomass * crown_depth) !kg biomass / m
+            ! sort crown fuel into bins from bottom to top of crown
+            ! accumulate across cohorts to find density within canopy 1m sections
+                 do h_idx = int(cbh_co), int(currentCohort%height)
+                    biom_matrix(h_idx) = biom_matrix(h_idx) + crown_fuel_per_m
+                 end do
+
+          end if ! trees only
+          currentCohort => currentCohort%shorter;
+        end do ! end cohort loop
+
+        biom_matrix(:) = biom_matrix(:) / currentPatch%area ! kg biomass / m3
+        ! update canopy fuel bulk density
+        call currentPatch%fuel%CalculateCanopyBulkDensity(biom_matrix, max_height)
+        
+      end if ! nocomp_bareground 
+      currentPatch => currentPatch%younger;
+    end do ! end patch loop
+
+  end subroutine UpdateCanopyFuelCharacteristics
+
+     
+          
+          
+
+
+
+
+
+
+
+
+
+  end subroutine UpdateCanopyFuelCharacteristics
 
   !---------------------------------------------------------------------------------------
   
