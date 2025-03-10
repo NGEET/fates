@@ -1,0 +1,282 @@
+module test_SortCohorts
+  !
+  ! DESCRIPTION:
+  !		Tests the patche's SortCohorts method
+  !
+  use FatesConstantsMod,  only : r8 => fates_r8
+  use FatesCohortMod,     only : fates_cohort_type
+  use FatesPatchMod,      only : fates_patch_type
+  use FatesUnitTestUtils, only : endrun_msg
+  use FatesFactoryMod,    only : CreateTestPatchList
+  use funit
+
+  implicit none
+  
+  @TestCase
+  type, extends(TestCase) :: TestSortCohorts
+  end type TestSortCohorts
+
+  contains 
+  
+    @Test 
+    subroutine EmptyList_SortCohorts_Passes(this)
+      ! test that for an empty list - sortcohorts does not error
+      class(TestSortCohorts),  intent(inout) :: this  ! test object
+      type(fates_patch_type)                 :: patch ! patch object
+      
+      ! sort cohorts - should pass
+      call patch%SortCohorts()
+              
+    end subroutine EmptyList_SortCohorts_Passes
+  
+    @Test 
+    subroutine TwoCohorts_AscendingOrder_Unchanged(this)
+      ! test that for a hard-coded list in ascending order is sorted, the order remains unchanged
+      class(TestSortCohorts),  intent(inout) :: this                            ! test object
+      type(fates_patch_type)                 :: patch                           ! patch objects
+      type(fates_cohort_type), pointer       :: cohort                          ! cohort object
+      real(r8)                               :: heights(2) = (/2.0_r8, 5.0_r8/) ! hard-coded cohort heights
+      integer                                :: i                               ! looping index
+      
+      ! create a hardcoded doubly linked list
+      call CreateTestPatchList(patch, heights)
+      
+      ! sort cohorts
+      call patch%SortCohorts()
+      
+      ! test that the order is correct
+      i = 1
+      cohort => patch%shortest
+      do while (associated(cohort))
+        @assertEqual(heights(i), cohort%height)
+        cohort => cohort%taller
+        i = i + 1
+      end do
+           
+    end subroutine TwoCohorts_AscendingOrder_Unchanged
+    
+    @Test 
+    subroutine TwoCohorts_DescendingOrder_Reversed(this)
+      ! test that for a hard-coded list in descending order is sorted, the order is reversed
+      class(TestSortCohorts),  intent(inout) :: this                            ! patch test object
+      type(fates_patch_type)                 :: patch                           ! patch object
+      type(fates_cohort_type), pointer       :: cohort                          ! cohort object
+      real(r8)                               :: heights(2) = (/5.0_r8, 2.0_r8/) ! hard-coded cohort heights
+      integer                                :: i                               ! looping index
+      
+      ! create a hardcoded doubly linked list
+      call CreateTestPatchList(patch, heights)
+      
+      ! sort cohorts
+      call patch%SortCohorts()
+      
+      ! test that the order is correct
+      i = size(heights)
+      cohort => patch%shortest
+      do while (associated(cohort))
+        @assertEqual(cohort%height, heights(i))
+        cohort => cohort%taller
+        i = i - 1
+      end do
+           
+    end subroutine TwoCohorts_DescendingOrder_Reversed
+    
+    @Test 
+    subroutine SmallList_AscendingOrder_Unchanged(this)
+      ! test that for a hard-coded list in ascending order is sorted, the order remains unchanged
+      class(TestSortCohorts),  intent(inout) :: this   ! test object
+      type(fates_patch_type)                 :: patch  ! patch object
+      type(fates_cohort_type), pointer       :: cohort ! cohort object
+      integer                                :: i      ! looping index
+      
+      ! hard-coded heights
+      real(r8) :: heights(8) = (/2.0_r8, 5.0_r8, 10.0_r8, 12.0_r8, 12.5_r8, 12.5001_r8, 20.0_r8, 25.0_r8/)
+      
+      ! create a hardcoded doubly linked list
+      call CreateTestPatchList(patch, heights)
+        
+      ! sort cohorts
+      call patch%SortCohorts()
+      
+      ! test that the order is correct
+      i = 1
+      cohort => patch%shortest
+      do while (associated(cohort))
+        @assertEqual(cohort%height, heights(i))
+        cohort => cohort%taller
+        i = i + 1
+      end do
+           
+    end subroutine SmallList_AscendingOrder_Unchanged
+    
+    @Test 
+    subroutine SmallList_DescendingOrder_Reversed(this)
+      ! test that for a hard-coded list in descending order is sorted, the order remains unchanged
+      class(TestSortCohorts),  intent(inout) :: this   ! test object
+      type(fates_patch_type)                 :: patch  ! patch object
+      type(fates_cohort_type), pointer       :: cohort ! cohort object
+      integer                                :: i      ! looping index
+      ! hard-coded heights
+      real(r8) :: heights(8) = (/25.0_r8, 20.0_r8, 12.5001_r8, 12.5_r8, 12.0_r8, 10.0_r8, 5.0_r8, 2.0_r8/)
+
+      ! create a hardcoded doubly linked list
+      call CreateTestPatchList(patch, heights)
+      
+      ! sort cohorts
+      call patch%SortCohorts()
+      
+      ! test that the order is correct
+      i = size(heights)
+      cohort => patch%shortest
+      do while (associated(cohort))
+        @assertEqual(cohort%height, heights(i))
+        cohort => cohort%taller
+        i = i - 1
+      end do
+           
+    end subroutine SmallList_DescendingOrder_Reversed
+    
+    @Test 
+    subroutine SmallList_UnsortedOrder_SortedCorrectly(this)
+      ! test that a small list in unsorted order is sorted correctly
+      class(TestSortCohorts),  intent(inout) :: this   ! test object
+      type(fates_patch_type)                 :: patch  ! patch object
+      type(fates_cohort_type), pointer       :: cohort ! cohort object
+      integer                                :: i      ! looping index
+      
+      ! hard-coded heights
+      real(r8) :: heights(8) = (/10.0_r8, 100.0_r8, 15.0_r8, 2.0_r8, 1.0_r8, 12.5001_r8, 20.0_r8, 0.5_r8/)
+      
+      ! create a hardcoded doubly linked list
+      call CreateTestPatchList(patch, heights)
+      
+      ! sort cohorts
+      call patch%SortCohorts()
+      
+      ! check backwards and forwards
+      cohort => patch%shortest
+      do while (associated(cohort))
+        if (associated(cohort%taller)) then
+          @assertGreaterThanOrEqual(cohort%taller%height, cohort%height)
+        end if
+        cohort => cohort%taller
+      end do
+      
+      cohort => patch%tallest
+      do while (associated(cohort))
+        if (associated(cohort%shorter)) then 
+         @assertGreaterThanOrEqual(cohort%height, cohort%shorter%height)
+        end if
+        cohort => cohort%shorter
+      end do
+            
+    end subroutine SmallList_UnsortedOrder_SortedCorrectly
+    
+    @Test 
+    subroutine TwoCohorts_IdenticalHeights_CorrectOrder(this)
+      ! test that when a list of two cohorts of identical heights is sorted the order remains unchanged
+      class(TestSortCohorts),  intent(inout) :: this                            ! test object
+      type(fates_patch_type)                 :: patch                           ! patch object
+      type(fates_cohort_type), pointer       :: cohort                          ! cohort object
+      real(r8), parameter                    :: dbhs(2) = (/1.0_r8, 2.0_r8/)    ! hard-coded dbhs
+      real(r8), parameter                    :: heights(2) = (/5.0_r8, 5.0_r8/) ! hard-coded heights
+      integer                                :: i                               ! looping index
+      
+      ! create a hardcoded doubly linked list
+      call CreateTestPatchList(patch, heights, dbhs=dbhs)
+      
+      ! sort cohorts
+      call patch%SortCohorts()
+      
+      ! test that the order is correct
+      i = 1
+      cohort => patch%shortest
+      do while (associated(cohort))
+        @assertEqual(cohort%dbh, dbhs(i))
+        cohort => cohort%taller
+        i = i + 1
+      end do
+           
+    end subroutine TwoCohorts_IdenticalHeights_CorrectOrder
+    
+    @Test 
+    subroutine SmallList_IdenticalHeights_CorrectOrder(this)
+      ! test that when a small list of cohorts of identical heights is sorted the order remains unchanged
+      class(TestSortCohorts),  intent(inout) :: this                ! test object
+      type(fates_patch_type)                 :: patch               ! patch object
+      type(fates_cohort_type), pointer       :: cohort              ! cohort object
+      real(r8),                allocatable   :: heights(:), dbhs(:) ! hard-coded dbhs and heights
+      real(r8)                               :: dbh                 ! dbh to test against
+      integer                                :: i                   ! looping index
+      real(r8),                parameter     :: height = 10.0_r8    ! hard-coded height
+      integer,                 parameter     :: num_cohorts = 8     ! number of cohorts to put in list
+      
+      ! create dbh and height arrays
+      allocate(dbhs(num_cohorts))
+      allocate(heights(num_cohorts))
+      do i = 1, num_cohorts 
+        dbhs(i) = i
+        heights(i) = height
+      end do 
+      
+      ! create a hardcoded doubly linked list     
+      call CreateTestPatchList(patch, heights, dbhs=dbhs)
+    
+      ! sort cohorts
+      call patch%SortCohorts()
+      
+      ! test that the order is correct
+      i = 1
+      cohort => patch%shortest
+      do while (associated(cohort))
+        dbh = float(i)
+        @assertEqual(cohort%dbh, dbh)
+        cohort => cohort%taller
+        i = i + 1
+      end do
+           
+    end subroutine SmallList_IdenticalHeights_CorrectOrder
+    
+    @Test
+    subroutine SortCohorts_InconsistentListState_Errors(this)
+      ! test that sorting an inconsistent list state errors
+      class(TestSortCohorts),  intent(inout) :: this                      ! test object
+      type(fates_patch_type)                 :: patch                     ! patch object 
+      type(fates_cohort_type), pointer       :: cohort1, cohort2, cohort3 ! cohorts
+      character(len=:),        allocatable   :: expected_msg              ! expected error message for failure
+      
+      expected_msg = endrun_msg("inconsistent list state")
+      
+      ! Allocate cohorts
+      allocate(cohort1)
+      allocate(cohort2)
+      allocate(cohort3)
+      
+      ! initialize heights
+      cohort1%height = 2.0
+      cohort2%height = 1.5
+      cohort3%height = 3.0
+      
+      ! set up a corrupted list 
+      patch%shortest => cohort1
+      ! omit setting patch%tallest 
+      cohort1%taller => cohort2
+      cohort2%shorter => cohort1
+      cohort2%taller => cohort3
+      cohort3%shorter => cohort2
+    
+      ! should fail
+      call patch%SortCohorts()
+      @assertExceptionRaised(expected_msg)
+      
+      ! try the opposite
+      patch%shortest => null()
+      patch%tallest => cohort3 
+      
+      ! should also fail
+      call patch%SortCohorts()
+      @assertExceptionRaised(expected_msg)
+    
+    end subroutine SortCohorts_InconsistentListState_Errors
+
+end module test_SortCohorts

@@ -33,8 +33,6 @@ module EDMainMod
   use PRTGenericMod            , only : phosphorus_element
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
-  use EDCohortDynamicsMod      , only : sort_cohorts
-  use EDCohortDynamicsMod      , only : count_cohorts
   use EDCohortDynamicsMod      , only : EvaluateAndCorrectDBH
   use EDCohortDynamicsMod      , only : DamageRecovery
   use EDPatchDynamicsMod       , only : disturbance_rates
@@ -107,6 +105,7 @@ module EDMainMod
   use PRTParametersMod      , only : prt_params
   use EDPftvarcon,            only : EDPftvarcon_inst
   use FatesHistoryInterfaceMod, only : fates_hist
+  use FatesLandUseChangeMod,  only: FatesGrazing
 
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -262,7 +261,7 @@ contains
        do while (associated(currentPatch))
 
           ! puts cohorts in right order
-          call sort_cohorts(currentPatch)
+          call currentPatch%SortCohorts()
 
           ! kills cohorts that are too few
           call terminate_cohorts(currentSite, currentPatch, 1, 10, bc_in  )
@@ -276,6 +275,7 @@ contains
 
           currentPatch => currentPatch%younger
        enddo
+         
     end if
 
     call TotalBalanceCheck(currentSite,2)
@@ -481,8 +481,8 @@ contains
              call Mortality_Derivative(currentSite, currentCohort, bc_in,      &
                currentPatch%btran_ft, mean_temp,                               &
                currentPatch%land_use_label,                                    &
-               currentPatch%age_since_anthro_disturbance, current_fates_landuse_state_vector(primaryland),   &
-               current_fates_landuse_state_vector(secondaryland), harvestable_forest_c, harvest_tag)
+               currentPatch%age_since_anthro_disturbance, current_fates_landuse_state_vector,   &
+               harvestable_forest_c, harvest_tag)
 
 
              ! -----------------------------------------------------------------------------
@@ -546,6 +546,9 @@ contains
              currentCohort%npp_acc_hold  = currentCohort%gpp_acc_hold - &
                   (currentCohort%resp_m_acc_hold + currentCohort%resp_g_acc_hold)
              
+
+             ! allow herbivores to graze
+             call FatesGrazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height)
 
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
@@ -837,7 +840,9 @@ contains
     !-----------------------------------------------------------------------
 
     ! check patch order (set second argument to true)
-    ! call set_patchno(currentSite,.true.,1)
+    if (debug) then
+       call set_patchno(currentSite,.true.,1)
+    end if
     
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting))then
       call canopy_spread(currentSite)
@@ -865,7 +870,7 @@ contains
        end if
 
        ! This cohort count is used in the photosynthesis loop
-       call count_cohorts(currentPatch)
+       call currentPatch%CountCohorts()
        
        ! Update the total area of by patch age class array 
        currentSite%area_by_age(currentPatch%age_class) = &
@@ -976,7 +981,8 @@ contains
                   site_mass%seed_out + &
                   site_mass%flux_generic_out + &
                   site_mass%frag_out + &
-                  site_mass%aresp_acc
+                  site_mass%aresp_acc + &
+                  site_mass%herbivory_flux_out
 
        net_flux        = flux_in - flux_out
        error           = abs(net_flux - change_in_stock)
@@ -1009,6 +1015,7 @@ contains
           write(fates_log(),*) 'flux_generic_out: ',site_mass%flux_generic_out
           write(fates_log(),*) 'frag_out: ',site_mass%frag_out
           write(fates_log(),*) 'aresp_acc: ',site_mass%aresp_acc
+          write(fates_log(),*) 'herbivory_flux_out: ',site_mass%herbivory_flux_out
           write(fates_log(),*) 'error=net_flux-dstock:', error
           write(fates_log(),*) 'biomass', biomass_stock
           write(fates_log(),*) 'litter',litter_stock

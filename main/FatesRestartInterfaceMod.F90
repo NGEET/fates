@@ -40,6 +40,8 @@ module FatesRestartInterfaceMod
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesInterfaceTypesMod,  only : nlevsclass
   use FatesInterfaceTypesMod,  only : nlevdamage
+  use FatesInterfaceTypesMod,  only : hlm_radiation_model
+  use FatesInterfaceTypesMod,  only : hlm_regeneration_model
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
   use FatesFuelClassesMod,     only : num_fuel_classes
@@ -53,8 +55,6 @@ module FatesRestartInterfaceMod
   use FatesRunningMeanMod,     only : ema_lpa
   use FatesRadiationMemMod,    only : num_swb,norman_solver,twostr_solver
   use TwoStreamMLPEMod,        only : normalized_upper_boundary
-  use EDParamsMod,             only : regeneration_model
-  use EDParamsMod,             only : radiation_model
   use FatesConstantsMod,       only : n_term_mort_types
   use FatesConstantsMod,       only : n_landuse_cats
   use FatesConstantsMod,       only : N_DIST_TYPES
@@ -1572,7 +1572,7 @@ contains
         long_name='disturbance rates by donor land-use type, receiver land-use type, and disturbance type', &
         units='1/day', initialize=initialize_variables,ivar=ivar, index = ir_disturbance_rates_siluludi)
 
-   if ( regeneration_model == TRS_regeneration ) then
+   if ( hlm_regeneration_model == TRS_regeneration ) then
       
       call this%DefineRMeanRestartVar(vname='fates_seedling_layer_par24',vtype=cohort_r8, &
            long_name='24-hour seedling layer PAR', &
@@ -1818,6 +1818,23 @@ contains
 
            ! The expanded long name of the variable
            long_name = trim(name_base)//', burned mass:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=symbol, &
+                 vtype=cohort_r8, &
+                 long_name=trim(long_name), &
+                 units='kg', flushval = flushzero, &
+                 hlms='CLM:ALM', initialize=initialize_variables, &
+                 ivar=ivar, index = dummy_out )
+
+
+
+           ! Register the herbivory (i.e., grazing) flux variable
+           ! ----------------------------------------------------------------------------
+           ! The symbol that is written to file
+           symbol    = trim(symbol_base)//'_herbivory_'//trim(pos_symbol)
+
+           ! The expanded long name of the variable
+           long_name = trim(name_base)//', herbivory mass:'//trim(pos_symbol)
 
            call this%set_restart_var(vname=symbol, &
                  vtype=cohort_r8, &
@@ -2419,6 +2436,10 @@ contains
                       this%rvars(ir_prt_var)%r81d(io_idx_co) = &
                             ccohort%prt%variables(i_var)%burned(i_pos)
 
+                      ir_prt_var = ir_prt_var + 1
+                      this%rvars(ir_prt_var)%r81d(io_idx_co) = &
+                            ccohort%prt%variables(i_var)%herbivory(i_pos)
+
                    end do
                 end do
 
@@ -2535,7 +2556,7 @@ contains
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
 
-             if ( regeneration_model == TRS_regeneration ) then
+             if ( hlm_regeneration_model == TRS_regeneration ) then
                 call this%SetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
                 call this%SetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
                 call this%SetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
@@ -2801,7 +2822,7 @@ contains
      use EDTypesMod,             only : ed_site_type
      use FatesCohortMod,         only : fates_cohort_type
      use FatesPatchMod,          only : fates_patch_type
-     use EDParamsMod,            only : regeneration_model
+     use FatesInterfaceTypesMod, only : hlm_regeneration_model
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use FatesInterfaceTypesMod, only : hlm_current_tod, numpft
      use EDTypesMod,             only : area
@@ -2875,7 +2896,7 @@ contains
              ! make new patch
              call newp%Create(fates_unset_r8, fates_unset_r8, primaryland,   &
                nocomp_pft, num_swb, numpft, sites(s)%nlevsoil,              &
-               hlm_current_tod, regeneration_model)
+               hlm_current_tod, hlm_regeneration_model)
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches
@@ -3392,6 +3413,10 @@ contains
                       ir_prt_var = ir_prt_var + 1
                       ccohort%prt%variables(i_var)%burned(i_pos) = &
                             this%rvars(ir_prt_var)%r81d(io_idx_co)
+
+                      ir_prt_var = ir_prt_var + 1
+                      ccohort%prt%variables(i_var)%herbivory(i_pos) = &
+                            this%rvars(ir_prt_var)%r81d(io_idx_co)
                    end do
                 end do
 
@@ -3516,7 +3541,7 @@ contains
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
 
-             if ( regeneration_model == TRS_regeneration ) then
+             if ( hlm_regeneration_model == TRS_regeneration ) then
                 call this%GetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
                 call this%GetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
                 call this%GetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
@@ -3790,7 +3815,7 @@ contains
      use EDTypesMod,             only : ed_site_type
      use FatesPatchMod,          only : fates_patch_type
      use EDParamsMod               , only : maxpatch_total
-     
+
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
      integer                     , intent(in)            :: nsites

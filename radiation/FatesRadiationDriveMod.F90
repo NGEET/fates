@@ -22,13 +22,13 @@ module FatesRadiationDriveMod
   use FatesInterfaceTypesMod , only : bc_in_type
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : numpft
+  use FatesInterfaceTypesMod , only : hlm_radiation_model
   use FatesRadiationMemMod, only : num_rad_stream_types
   use FatesRadiationMemMod, only : idirect, idiffuse
   use FatesRadiationMemMod, only : num_swb, ivis, inir, ipar
   use FatesRadiationMemMod, only : alb_ice, rho_snow, tau_snow
   use FatesRadiationMemMod, only : norman_solver
   use FatesRadiationMemMod, only : twostr_solver
-  use EDParamsMod, only          : radiation_model
   use TwoStreamMLPEMod, only : normalized_upper_boundary
   use FatesTwoStreamUtilsMod, only : FatesPatchFSun
   use FatesTwoStreamUtilsMod, only : CheckPatchRadiationBalance
@@ -134,7 +134,7 @@ contains
 
              if_zenith_flag: if( bc_in(s)%coszen>0._r8 )then
                 
-                select case(radiation_model)
+                select case(hlm_radiation_model)
                 case(norman_solver)
                    
                    call PatchNormanRadiation (currentPatch, &
@@ -195,7 +195,6 @@ contains
                 end select
              endif if_zenith_flag
           end if if_bareground
-          
           currentPatch => currentPatch%younger
        end do
     end do
@@ -255,7 +254,7 @@ contains
              cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
              cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
 
-             if_norm_twostr: if (radiation_model.eq.norman_solver) then
+             if_norm_twostr: if (hlm_radiation_model.eq.norman_solver) then
 
                 sunlai = 0._r8
                 shalai = 0._r8
