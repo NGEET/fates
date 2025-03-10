@@ -498,9 +498,6 @@ variables:
 	double fates_phen_drought_threshold(fates_pft) ;
 		fates_phen_drought_threshold:units = "m3/m3 or mm" ;
 		fates_phen_drought_threshold:long_name = "threshold for drought phenology (or lower threshold for semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
-	double fates_phen_evergreen(fates_pft) ;
-		fates_phen_evergreen:units = "logical flag" ;
-		fates_phen_evergreen:long_name = "Binary flag for evergreen leaf habit" ;
 	double fates_phen_flush_fraction(fates_pft) ;
 		fates_phen_flush_fraction:units = "fraction" ;
 		fates_phen_flush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
