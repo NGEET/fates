@@ -71,6 +71,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
    use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
    use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
+   use FatesLeafBiophysParamsMod , only : LeafBiophysRegisterParams, LeafBiophysReceiveParams,LeafBiophysReportParams
    use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
    use EDParamsMod               , only : p_uptake_mode
    use EDParamsMod               , only : n_uptake_mode
@@ -111,6 +112,7 @@ module FatesInterfaceMod
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
    use FatesTwoStreamUtilsMod, only : TransferRadParams
+   use LeafBiophysicsMod         , only : lb_params
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -2041,28 +2043,39 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
                end if
 
-            case('use_daylength_factor_switch')
+             case('use_daylength_factor_switch')
                hlm_daylength_factor_switch = ival
+               lb_params%dayl_switch    = hlm_daylength_factor_switch
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_daylength_factor_switch= ',ival,' to FATES'
                end if
 
             case('photosynth_acclimation')
                hlm_photo_tempsens_model = ival
+               lb_params%photo_tempsens_model = hlm_photo_tempsens_model
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_photo_tempsens_model= ',ival,' to FATES'
                end if
 
             case('stomatal_assim_model')
                hlm_stomatal_assim_model = ival
+               lb_params%stomatal_assim_model = hlm_stomatal_assim_model
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_stomatal_assim_model ',ival,' to FATES'
                end if
 
             case('stomatal_model')
                hlm_stomatal_model = ival
+               lb_params%stomatal_model = hlm_stomatal_model
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_stomatal_model ',ival,' to FATES'
+               end if
+
+            case('electron_transport_model')
+               hlm_electron_transport_model = ival
+               lb_params%electron_transport_model = hlm_electron_transport_model
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
                end if
 
             case('hydr_solver')
@@ -2088,13 +2101,7 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_radiation_model ',ival,' to FATES'
                end if
-
-            case('electron_transport_model')
-               hlm_electron_transport_model = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
-               end if
-
+               
             case('regeneration_model')
                hlm_regeneration_model = ival
                if (fates_global_verbose()) then
@@ -2211,6 +2218,7 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
+      call LeafBiophysReportParams(masterproc)
       call PRTDerivedParams()              ! Update PARTEH derived constants
       call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
@@ -2652,6 +2660,7 @@ subroutine FatesReadParameters(param_reader)
   call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
   call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
   call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
+  call LeafBiophysRegisterParams(fates_params)
   call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
 
   call param_reader%Read(fates_params)
@@ -2659,6 +2668,7 @@ subroutine FatesReadParameters(param_reader)
   call FatesReceiveParams(fates_params)
   call SpitFireReceiveParams(fates_params)
   call PRTReceiveParams(fates_params)
+  call LeafBiophysReceiveParams(fates_params)
   call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
 
   call fates_params%Destroy()
