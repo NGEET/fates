@@ -63,11 +63,7 @@ contains
       call CalculateSurfaceRateOfSpread(currentSite)
       call CalculateSurfaceFireIntensity(currentSite)
       call CalculateAreaBurnt(currentSite)
-      
-      call crown_scorching(currentSite)
-      call crown_damage(currentSite)
-      call cambial_damage_kill(currentSite)
-      call post_fire_mortality(currentSite)
+      call CalculatePostFireMortality(currentSite)
     end if
 
   end subroutine DailyFireModel
@@ -473,257 +469,65 @@ contains
     ! LOCALS:
     type(fates_patch_type),  pointer :: currentPatch    ! patch object
     type(fates_cohort_type), pointer :: currentCohort   ! cohort object
-    real(r8)                         :: tree_ag_biomass ! total amount of above-ground tree biomass in patch [kgC/m2]
+    real(r8)                         :: crown_depth     ! crown depth [m]
+    integer                          :: i_pft           ! looping index
     
     currentPatch => currentSite%oldest_patch
-    do while (associated(currentPatch))
-      if (currentPatch%nocomp_pft_label /= nocomp_bareground .and. currentPatch%fire == 1) then
-        
-        ! sum up woody agoveground biomass on patch
-        tree_ag_biomass = 0.0_r8
-        currentCohort => currentPatch%tallest
-        do while (associated(currentCohort))
-          if (prt_params%woody(currentCohort%pft) == itrue) then
-            leaf_c = currentCohort%prt%GetState(leaf_organ, carbon12_element)
-            sapw_c = currentCohort%prt%GetState(sapw_organ, carbon12_element)
-            struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
-            tree_ag_biomass = tree_ag_biomass + currentCohort%n*(leaf_c + prt_params%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
-          end if 
-          currentCohort => currentCohort%shorter
-        end do
-        
-        ! calculate scorch height [m]
-        currentPatch%Scorch_ht(:) = 0.0_r8
-        if (tree_ag_biomass > 0.0_r8) then 
+    do while (associated(currentPatch)) 
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
+        if (currentPatch%fire == 1) then
+          
+          ! calculate scorch height [m]
           do i_pft = 1, numpft
             if (prt_params%woody(i_pft) == itrue) then 
-              currentPatch%Scorch_ht(i_pft) = ScorchHeight(EDPftvarcon_inst%fire_alpha_SH(i_pft), currentPatch%FI)
+              currentPatch%Scorch_ht(i_pft) = ScorchHeight(EDPftvarcon_inst%fire_alpha_SH(i_pft), &
+                currentPatch%FI)
+            else
+              currentPatch%Scorch_ht(i_pft) = 0.0_r8
             end if
           end do
+          
+          ! calculate fire-related mortality
+          currentCohort => currentPatch%tallest
+          do while (associated(currentCohort))
+            
+            currentCohort%fraction_crown_burned = 0.0_r8
+            currentCohort%fire_mort = 0.0_r8
+            currentCohort%crownfire_mort = 0.0_r8
+            currentCohort%cambial_mort = 0.0_r8
+            
+            if (prt_params%woody(currentCohort%pft) == itrue) then
+              
+              ! calculate crown fraction burned [0-1]
+              call CrownDepth(currentCohort%height, currentCohort%pft, crown_depth) 
+              currentCohort%fraction_crown_burned = CrownFractionBurnt(currentPatch%Scorch_ht(currentCohort%pft),  &
+                currentCohort%height, crown_depth)
+                      
+              ! shrink canopy to account for burnt section
+              ! currentCohort%canopy_trim = min(currentCohort%canopy_trim, 1.0_r8 - currentCohort%fraction_crown_burned)
+              
+              ! calculate cambial mortality rate [0-1] 
+              currentCohort%cambial_mort = CambialMortality(EDPftvarcon_inst%bark_scaler(currentCohort%pft), & 
+                currentCohort%dbh, currentPatch%tau_l)
+
+              ! calculate crown fire mortality [0-1]
+              currentCohort%crownfire_mort = CrownFireMortality(EDPftvarcon_inst%crown_kill(currentCohort%pft), &
+                currentCohort%fraction_crown_burned)
+              
+              ! total fire mortality [0-1]
+              currentCohort%fire_mort = TotalFireMortality(currentCohort%crownfire_mort, &
+                currentCohort%cambial_mort)
+              
+            end if 
+            currentCohort => currentCohort%shorter
+          end do 
         end if 
-        
-        ! now calculate actual mortality
-        do while (associated(currentCohort))  
-          
-          currentCohort%fraction_crown_burned = 0.0_r8
-          currentCohort%fire_mort = 0.0_r8
-          currentCohort%crownfire_mort = 0.0_r8
-          currentCohort%cambial_damage_kill = 0.0_r8
-          
-          if (prt_params%woody(currentCohort%pft) == itrue) then 
-            
-            call CrownDepth(currentCohort%height, currentCohort%pft, crown_depth)
-            
-            ! calculate crown fraction burned
-            currentCohort%fraction_crown_burned = CrownFractionBurnt(currentPatch%Scorch_ht(currentCohort%pft),  &
-              currentCohort%height, crown_depth)
-              
-            ! calculate cambial mortality            
-            currentCohort%cambial_damage_kill = CambialMortality(EDPftvarcon_inst%bark_scaler(currentCohort%pft), & 
-              currentCohort%dbh, currentPatch%tau_l)
-            
-            ! calculate crown fire mortality
-            currentCohort%crownfire_mort = CrownFireMortality(EDPftvarcon_inst%crown_kill(currentCohort%pft), &
-              currentCohort%fraction_crown_burned)
-              
-            ! total fire mortality
-            currentCohort%fire_mort = TotalFireMortality(currentCohort%crownfire_mort,   &
-              currentCohort%cambial_mort)
-              
-          end if
-          currentCohort => currentCohort%shorter
-        end do 
-      end if
+      end if 
       currentPatch => currentPatch%younger
     end do 
-  
+    
   end subroutine CalculatePostFireMortality
   
   !---------------------------------------------------------------------------------------
-  
-  subroutine crown_scorching(currentSite) 
-
-  type(ed_site_type), intent(in), target :: currentSite
-
-  type(fates_patch_type),  pointer :: currentPatch
-  type(fates_cohort_type), pointer :: currentCohort
-
-  real(r8) ::  tree_ag_biomass ! total amount of above-ground tree biomass in patch. kgC/m2
-  real(r8) ::  leaf_c          ! leaf carbon      [kg]
-  real(r8) ::  sapw_c          ! sapwood carbon   [kg]
-  real(r8) ::  struct_c        ! structure carbon [kg]
-  integer  ::  i_pft
-
-  currentPatch => currentSite%oldest_patch
-  do while (associated(currentPatch)) 
-
-    if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
-
-      tree_ag_biomass = 0.0_r8
-      if (currentPatch%fire == 1) then
-      
-        currentCohort => currentPatch%tallest
-        do while (associated(currentCohort))  
-          if (prt_params%woody(currentCohort%pft) == itrue) then
-            leaf_c = currentCohort%prt%GetState(leaf_organ, carbon12_element)
-            sapw_c = currentCohort%prt%GetState(sapw_organ, carbon12_element)
-            struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
-            tree_ag_biomass = tree_ag_biomass + currentCohort%n*(leaf_c + prt_params%allom_agb_frac(currentCohort%pft)*(sapw_c + struct_c))
-          end if 
-          currentCohort => currentCohort%shorter
-        end do 
-
-        do i_pft = 1, numpft
-          if (tree_ag_biomass > 0.0_r8 .and. prt_params%woody(i_pft) == itrue) then 
-            ! Equation 16 in Thonicke et al. 2010 !Van Wagner 1973 EQ8 !2/3 Byram (1959)
-            currentPatch%Scorch_ht(i_pft) = EDPftvarcon_inst%fire_alpha_SH(i_pft)*(currentPatch%FI**0.667_r8)
-          else
-            currentPatch%Scorch_ht(i_pft) = 0.0_r8
-          end if
-        end do
-      end if 
-    end if 
-    currentPatch => currentPatch%younger
-  end do
-
-  end subroutine crown_scorching
-  
-  !---------------------------------------------------------------------------------------
-  
-  subroutine crown_damage(currentSite)
-
-    type(ed_site_type), intent(in), target :: currentSite
-    type(fates_patch_type) , pointer :: currentPatch
-    type(fates_cohort_type), pointer :: currentCohort
-    real(r8)                         :: crown_depth    ! Depth of crown in meters
-
-    currentPatch => currentSite%oldest_patch
-    do while (associated(currentPatch)) 
-
-      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
-        if (currentPatch%fire == 1) then
-          currentCohort => currentPatch%tallest
-          do while (associated(currentCohort))  
-            currentCohort%fraction_crown_burned = 0.0_r8
-            if (prt_params%woody(currentCohort%pft) == itrue) then 
-              ! Flames lower than bottom of canopy. 
-              ! c%height is height of cohort
-              call CrownDepth(currentCohort%height, currentCohort%pft, crown_depth)
-
-              if (currentPatch%Scorch_ht(currentCohort%pft) < (currentCohort%height-crown_depth)) then 
-                currentCohort%fraction_crown_burned = 0.0_r8
-              else
-                ! Flames part of way up canopy. 
-                ! Equation 17 in Thonicke et al. 2010. 
-                ! flames over bottom of canopy but not over top.
-                if((currentCohort%height > 0.0_r8) .and. (currentPatch%Scorch_ht(currentCohort%pft) >=  &
-                  (currentCohort%height-crown_depth))) then 
-                  currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
-                    (currentCohort%height - crown_depth))/crown_depth
-                else 
-                  ! Flames over top of canopy. 
-                  currentCohort%fraction_crown_burned =  1.0_r8 
-                end if
-              endif
-              ! Check for strange values. 
-              currentCohort%fraction_crown_burned = min(1.0_r8, max(0.0_r8,currentCohort%fraction_crown_burned))              
-            end if !trees only
-            !shrink canopy to account for burnt section.     
-            !currentCohort%canopy_trim = min(currentCohort%canopy_trim,(1.0_r8-currentCohort%fraction_crown_burned))
-            currentCohort => currentCohort%shorter
-          end do 
-        end if 
-      end if
-      currentPatch => currentPatch%younger
-    end do
-
-  end subroutine crown_damage
-  
-  !---------------------------------------------------------------------------------------
-
-  subroutine cambial_damage_kill(currentSite)
-    ! routine description.
-    ! returns the probability that trees dies due to cambial char
-    ! currentPatch%tau_l = duration of lethal stem heating (min). Calculated at patch level.
-
-    type(ed_site_type), intent(in), target :: currentSite
-
-    type(fates_patch_type) , pointer :: currentPatch
-    type(fates_cohort_type), pointer :: currentCohort
-
-    real(r8) :: tau_c !critical time taken to kill cambium (minutes) 
-    real(r8) :: bt    !bark thickness in cm.
-
-    currentPatch => currentSite%oldest_patch
-    do while(associated(currentPatch))
-      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
-        if (currentPatch%fire == 1) then
-          currentCohort => currentPatch%tallest
-          do while(associated(currentCohort))  
-            if ( prt_params%woody(currentCohort%pft) == itrue) then 
-              
-              ! Equation 21 in Thonicke et al 2010
-              bt = EDPftvarcon_inst%bark_scaler(currentCohort%pft)*currentCohort%dbh 
-              ! Equation 20 in Thonicke et al. 2010. 
-              tau_c = 2.9_r8*bt**2.0_r8
-              ! Equation 19 in Thonicke et al. 2010
-              
-              if ((currentPatch%tau_l/tau_c) >= 2.0_r8) then
-                currentCohort%cambial_mort = 1.0_r8
-              else
-                if ((currentPatch%tau_l/tau_c) > 0.22_r8) then
-                  currentCohort%cambial_mort = (0.563_r8*(currentPatch%tau_l/tau_c)) - 0.125_r8
-                else
-                  currentCohort%cambial_mort = 0.0_r8
-                endif
-              end if
-            end if 
-            currentCohort => currentCohort%shorter
-          end do 
-        end if 
-      end if
-      currentPatch => currentPatch%younger
-    end do
-    
-  end subroutine cambial_damage_kill
-  
-  !---------------------------------------------------------------------------------------
-
-  subroutine post_fire_mortality(currentSite)
-
-    type(ed_site_type), intent(in), target :: currentSite
-    type(fates_patch_type),  pointer :: currentPatch
-    type(fates_cohort_type), pointer :: currentCohort
-
-    currentPatch => currentSite%oldest_patch
-    do while (associated(currentPatch)) 
-
-      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
-        if (currentPatch%fire == 1) then 
-          currentCohort => currentPatch%tallest
-          do while(associated(currentCohort))  
-            
-            currentCohort%fire_mort = 0.0_r8
-            currentCohort%crownfire_mort = 0.0_r8
-            
-            if (prt_params%woody(currentCohort%pft) == itrue) then
-              ! Equation 22 in Thonicke et al. 2010. 
-              currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%fraction_crown_burned**3.0_r8
-              ! Equation 18 in Thonicke et al. 2010. 
-              currentCohort%fire_mort = max(0._r8,min(1.0_r8,currentCohort%crownfire_mort+currentCohort%cambial_mort- &
-                (currentCohort%crownfire_mort*currentCohort%cambial_mort)))  !joint prob.   
-              else
-                currentCohort%fire_mort = 0.0_r8
-            end if 
-            currentCohort => currentCohort%shorter
-          end do
-        end if 
-      end if 
-      currentPatch => currentPatch%younger
-    end do
-
-  end subroutine post_fire_mortality
-
-  ! ======================================================================================
   
 end module SFMainMod

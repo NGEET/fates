@@ -876,4 +876,116 @@ module test_FireEquations
 
     end subroutine FireSize_ZeroROS_ReturnsZero
     
+    @Test 
+    subroutine ScorchHeight_BasicInputs_ReturnsReasonable(this)
+      ! test that the function correctly calculates scorch height for reasonable inputs
+      class(TestFireEquations), intent(inout) :: this              ! test object
+      real(r8)                                :: SH                ! sorch height [m]
+      real(r8),                 parameter     :: alpha_SH = 0.5_r8 ! input alpha_SH parameter
+      real(r8),                 parameter     :: FI = 1000.0_r8    ! input fire intensity [kW/m]
+      
+      SH = ScorchHeight(alpha_SH, FI)
+      @assertEqual(SH, 50.11526_r8, tolerance=low_tol)
+      
+    end subroutine ScorchHeight_BasicInputs_ReturnsReasonable
+    
+    @Test 
+    subroutine ScorchHeight_FIZero_ReturnsZero(this)
+      ! test that if fire intensity is zero, scorch height is zero
+      class(TestFireEquations), intent(inout) :: this              ! test object
+      real(r8)                                :: SH                ! sorch height [m]
+      real(r8),                 parameter     :: alpha_SH = 0.5_r8 ! input alpha_SH parameter
+      real(r8),                 parameter     :: FI = 0.0_r8       ! input fire intensity [kW/m]
+      
+      SH = ScorchHeight(alpha_SH, FI)
+      @assertEqual(SH, 0.0_r8)
+      
+    end subroutine ScorchHeight_FIZero_ReturnsZero
+    
+    @Test 
+    subroutine ScorchHeight_AlphaZero_ReturnsZero(this)
+      ! test that if the alpha parameter is zero, scorch height is zero
+      class(TestFireEquations), intent(inout) :: this              ! test object
+      real(r8)                                :: SH                ! sorch height [m]
+      real(r8),                 parameter     :: alpha_SH = 0.0_r8 ! input alpha_SH parameter
+      real(r8),                 parameter     :: FI = 1000.0_r8    ! input fire intensity [kW/m]
+      
+      SH = ScorchHeight(alpha_SH, FI)
+      @assertEqual(SH, 0.0_r8)
+      
+    end subroutine ScorchHeight_AlphaZero_ReturnsZero
+    
+    @Test 
+    subroutine ScorchHeight_NegativeSH_Errors(this)
+      ! test that if the scorch height is negative, the function errors
+      class(TestFireEquations), intent(inout) :: this              ! test object
+      real(r8)                                :: SH                ! sorch height [m]
+      real(r8),                 parameter     :: alpha_SH = 0.5_r8 ! input alpha_SH parameter
+      real(r8),                 parameter     :: FI = -1000.0_r8   ! input fire intensity [kW/m]
+      character(len=:),         allocatable   :: expected_msg      ! expected error message for failure
+      
+      expected_msg = endrun_msg("scorch height is negative")
+      
+      SH = ScorchHeight(alpha_SH, FI)
+      @assertExceptionRaised(expected_msg)
+      
+    end subroutine ScorchHeight_NegativeSH_Errors
+    
+    @Test 
+    subroutine CrownFractionBurnt_BasicInputs_CapsAtOne(this)
+      ! test that the function correctly caps crown fraction burnt at 1.0
+      class(TestFireEquations), intent(inout) :: this                 ! test object
+      real(r8)                                :: CF                   ! crown fraction burnt [0-1]
+      real(r8),                 parameter     :: SH = 10.0_r8         ! input scorch height [m]
+      real(r8),                 parameter     :: height = 4.0_r8      ! input tree height [m]
+      real(r8),                 parameter     :: crown_depth = 2.0_r8 ! input crown depth [m]
+      
+      CF = CrownFractionBurnt(SH, height, crown_depth)
+      @assertEqual(CF, 1.0_r8)
+      
+    end subroutine CrownFractionBurnt_BasicInputs_CapsAtOne
+    
+    @Test 
+    subroutine CrownFractionBurnt_CrownDepthZero_ReturnsZero(this)
+      ! test that the function sets crown fraction to zero if the crown depth is zero
+      class(TestFireEquations), intent(inout) :: this                 ! test object
+      real(r8)                                :: CF                   ! crown fraction burnt [0-1]
+      real(r8),                 parameter     :: SH = 10.0_r8         ! input scorch height [m]
+      real(r8),                 parameter     :: height = 4.0_r8      ! input tree height [m]
+      real(r8),                 parameter     :: crown_depth = 0.0_r8 ! input crown depth [m]
+      
+      CF = CrownFractionBurnt(SH, height, crown_depth)
+      @assertEqual(CF, 0.0_r8)
+      
+    end subroutine CrownFractionBurnt_CrownDepthZero_ReturnsZero
+    
+    @Test 
+    subroutine CrownFractionBurnt_ScorchHeightBelowCrownHeight_ReturnsZero(this)
+      ! test that the function sets crown fraction to zero if the scorch height is below crown height
+      class(TestFireEquations), intent(inout) :: this                 ! test object
+      real(r8)                                :: CF                   ! crown fraction burnt [0-1]
+      real(r8),                 parameter     :: SH = 2.0_r8          ! input scorch height [m]
+      real(r8),                 parameter     :: height = 4.0_r8      ! input tree height [m]
+      real(r8),                 parameter     :: crown_depth = 2.0_r8 ! input crown depth [m]
+      
+      CF = CrownFractionBurnt(SH, height, crown_depth)
+      @assertEqual(CF, 0.0_r8)
+      
+    end subroutine CrownFractionBurnt_ScorchHeightBelowCrownHeight_ReturnsZero
+    
+    @Test 
+    subroutine CrownFractionBurnt_ScorchHeightLow_ReturnsLessThanOne(this)
+      ! test that the function correctly calculates crownfraction burnt for SH below tree height but within the crown
+      class(TestFireEquations), intent(inout) :: this                 ! test object
+      real(r8)                                :: CF                   ! crown fraction burnt [0-1]
+      real(r8),                 parameter     :: SH = 3.0_r8          ! input scorch height [m]
+      real(r8),                 parameter     :: height = 4.0_r8      ! input tree height [m]
+      real(r8),                 parameter     :: crown_depth = 2.0_r8 ! input crown depth [m]
+      
+      CF = CrownFractionBurnt(SH, height, crown_depth)
+      @assertGreaterThanOrEqualTo(CF, 0.0_r8)
+      @assertLessThanOrEqualTo(CF, 1.0_r8)
+      
+    end subroutine CrownFractionBurnt_ScorchHeightLow_ReturnsLessThanOne
+    
 end module test_FireEquations

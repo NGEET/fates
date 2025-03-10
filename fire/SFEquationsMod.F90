@@ -9,6 +9,8 @@ module SFEquationsMod
   
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
+  use FatesGlobals,      only : endrun => fates_endrun
+  use shr_log_mod,       only : errMsg => shr_log_errMsg
   
   implicit none
   private
@@ -30,6 +32,13 @@ module SFEquationsMod
   public :: AreaBurnt
   public :: FireIntensity
   public :: ScorchHeight
+  public :: CrownFractionBurnt
+  public :: CambialMortality
+  public :: TotalFireMortality
+  public :: CrownFireMortality
+  
+  ! for error message writing
+  character(len=*), parameter :: sourcefile = __FILE__
   
   contains 
   
@@ -470,7 +479,7 @@ module SFEquationsMod
   real(r8) function ScorchHeight(alpha_SH, FI)
     !
     !  DESCRIPTION:
-    !  Calculates scortch height [m]
+    !  Calculates scorch height [m]
     ! 
     !  Equation 16 in Thonicke et al. 2010 
     !  Van Wagner 1973 Eq. 8; Byram (1959)
@@ -481,6 +490,11 @@ module SFEquationsMod
     real(r8), intent(in) :: FI       ! fire intensity [kW/m]
     
     ScorchHeight = alpha_SH*(FI**0.667_r8)
+    
+    if (ScorchHeight < nearzero) then 
+      call endrun(msg="scorch height is negative", &
+        additional_msg=errMsg(sourcefile, __LINE__))
+    end if 
 
   end function ScorchHeight
   
@@ -498,27 +512,12 @@ module SFEquationsMod
     real(r8), intent(in) :: height      ! plant height [m]
     real(r8), intent(in) :: crown_depth ! crown depth [m]
     
-    CrownFractionBurnt = (SH - height + crown_depth)/crown_depth
-    CrownFractionBurnt = min(1.0_r8, max(0.0_r8, CrownFractionBurnt))
-
-  end function CrownFractionBurnt
-  
-  !---------------------------------------------------------------------------------------
-  
-  real(r8) function CrownFractionBurnt(SH, height, crown_depth)
-    !
-    !  DESCRIPTION:
-    !  Calculates fraction of the crown burnt of woody plants [0-1]
-    !  Equation 17 in Thonicke et al. 2010
-    !
-
-    ! ARGUMENTS:
-    real(r8), intent(in) :: SH          ! scorch height [m]
-    real(r8), intent(in) :: height      ! plant height [m]
-    real(r8), intent(in) :: crown_depth ! crown depth [m]
-    
-    CrownFractionBurnt = (SH - height + crown_depth)/crown_depth
-    CrownFractionBurnt = min(1.0_r8, max(0.0_r8, CrownFractionBurnt))
+    if (crown_depth < nearzero) then
+      CrownFractionBurnt = 0.0_r8
+    else 
+      CrownFractionBurnt = (SH - height + crown_depth)/crown_depth
+      CrownFractionBurnt = min(1.0_r8, max(0.0_r8, CrownFractionBurnt))
+    end if 
 
   end function CrownFractionBurnt
   
@@ -536,7 +535,12 @@ module SFEquationsMod
     real(r8), intent(in) :: dbh         ! diameter at breast height [cm]
     
     BarkThickness = bark_scalar*dbh
-
+    
+    if (BarkThickness < nearzero) then 
+      call endrun(msg="bark thickness is negative", &
+        additional_msg=errMsg(sourcefile, __LINE__))
+    end if 
+    
   end function BarkThickness
   
   !---------------------------------------------------------------------------------------
@@ -558,7 +562,7 @@ module SFEquationsMod
     real(r8) :: tau_c          ! critical fire residence time for cambial damage [min]
     real(r8) :: tau_r          ! tau_l/tau_c
     
-    bark_thickness = BarkThickness(bark_scalar*dbh)
+    bark_thickness = BarkThickness(bark_scalar, dbh)
     
     ! calculate critical residence time
     tau_c = 2.9_r8*bark_thickness**2.0_r8
@@ -566,8 +570,8 @@ module SFEquationsMod
   
     if (tau_r >= 2.0_r8) then
       CambialMortality = 1.0_r8 
-    else if (tau_r < 2.0_r8 & tau_r > 0.22_r8)
-      CambialMortality = (0.563_r8*tau_r) - 0.125_r8
+    else if (tau_r < 2.0_r8 .and. tau_r > 0.22_r8) then
+      CambialMortality = 0.563_r8*tau_r - 0.125_r8
     else 
       CambialMortality = 0.0_r8
     end if
