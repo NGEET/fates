@@ -16,6 +16,7 @@ module EDMortalityFunctionsMod
    use FatesConstantsMod     , only : cstarvation_model_lin
    use FatesConstantsMod     , only : cstarvation_model_exp
    use FatesConstantsMod     , only : nearzero
+   use FatesConstantsMod     , only : ihard_season_decid
    use FatesConstantsMod     , only : ihard_stress_decid
    use FatesConstantsMod     , only : isemi_stress_decid
    use FatesConstantsMod     , only : leaves_off
