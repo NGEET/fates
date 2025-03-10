@@ -1599,7 +1599,7 @@ contains
              ! This PFT is not deciduous.
              is_flushing_time         = .false.
              is_shedding_time         = .false.
-          end if is_time_block
+          end select is_time_block
 
 
 
