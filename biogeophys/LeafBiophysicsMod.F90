@@ -73,18 +73,20 @@ module LeafBiophysicsMod
 
   !-------------------------------------------------------------------------------------
 
-  ! maximum stomatal resistance [s/m] (used across several procedures)
+  ! maximum stomatal resistance [s/m]
   real(r8),public, parameter :: rsmax0 =  2.e8_r8
-
-  ! for non cuticular (ie through branches)
-  ! minimum allowable stomatal conductance for numerics purposes [m/s]
-  real(r8),parameter :: gsmin0 = 1._r8/rsmax0
-
+  
   ! minimum allowable conductance for numerics purposes at 20C (293.15K)
   ! and 1 standard atmosphere (101325 Pa) [umol/m2/s]
+  ! rgas_J_K_kmol 8314.4598
   ! this follows the same math as  FatesPlantRespPhotosynthMod:FetMolarVeloCF()
-  real(r8),parameter :: gsmin0_20C1A_mol = gsmin0 * 101325.0_r8/(rgas_J_K_kmol * 293.15 )*umol_per_kmol
+  ! 101325.0_r8/(8314.4598 * 293.15 )*1.e9/2.e8  ~ 0.2 [umol/m2/s]
+  real(r8),parameter :: gsmin0 = 101325.0_r8/(rgas_J_K_kmol * 293.15 )*umol_per_kmol/rsmax0
 
+  ! minimum allowable conductance for getting reasonable
+  ! bounds on extreme equations [umol/m2/s]
+  ! real(r8),parameter :: gsmin0 = 50._r8
+  
   ! Set this to true to perform debugging
   logical,parameter   ::  debug = .false.
 
@@ -139,29 +141,22 @@ module LeafBiophysicsMod
   real(r8),parameter :: theta_ip_c4 = 0.95_r8  !0.95 is from Collatz 91, 0.999 was api 36
   real(r8),parameter :: theta_cj_c4 = 0.98_r8  !0.98 from Collatz 91,  0.099 was api 36
 
+  ! This bypasses a potential fix to assimilation in BB
+  logical, parameter :: bb_agsfix_bypass = .true.
 
-  ! There is a minimum stomatal conductance, below which we just don't
-  ! allow, this is well below reasonable ranges of cuticular conductance
-  real(r8),parameter :: gs0_min = 100.0_r8
-  
-  
-  ! Set this to true to match results with main
-  logical, parameter :: base_compare_revert = .true.
+  ! Some observations have indicated that vcmax and jmax
+  ! never really drop down to 0, or close to it. Setting
+  ! this to true will cap vcmax and jmax to a fraction
+  ! of its value at 25C. 
+  logical, parameter :: do_mincap_vcjmax = .false.
+  real(r8),parameter :: min_vcmax_frac = 0.10_r8
+  real(r8),parameter :: min_jmax_frac  = 0.10_r8
 
   
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
 
-
-  ! There seems little evidence that jmax and vcmax ever truly reach zero
-  ! Due to leaf nitrogen concentration gradients, and water stress,
-  ! model estimated values of vcmax and jmax could reach zero.  Until
-  ! a better, perhaps asymtotic method of preventing zero values is generated
-  ! 
-  real(r8),parameter :: min_vcmax_frac = 0.10_r8
-  real(r8),parameter :: min_jmax_frac  = 0.10_r8
-  
 
   ! The stomatal slope can either be scaled by btran or not. FATES had
   ! a precedent of using this into 2024, but discussions here: https://github.com/NGEET/fates/issues/719
@@ -333,9 +328,11 @@ contains
     call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
     gs = max(r1,r2)
 
-    if(err)then
-       write(fates_log(),*) "medquadfail:",anet,veg_esat,can_vpress,gs0,gs1,gs2,leaf_co2_ppress,can_press
-       call endrun(msg=errMsg(sourcefile, __LINE__))
+    if(debug)then
+       if(err)then
+          write(fates_log(),*) "medquadfail:",anet,veg_esat,can_vpress,gs0,gs1,gs2,leaf_co2_ppress,can_press
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
     end if
     
     ! RGK: re-derived solution to check units.
@@ -383,38 +380,38 @@ contains
     real(r8) :: r1,r2                                ! quadradic solve roots
     logical :: err
 
-    if(.not.base_compare_revert ) then
-       if (a_gs <= nearzero) then
-          gs = gs0
-          return
-       end if
-       
-       ! Trivial case (gs1 near 0)
-       if(gs1<0.01_r8)then
-          gs = gs0
-          return
-       end if
+
+    if (a_gs <= nearzero) then
+       gs = gs0
+       return
     end if
-    
+       
+    ! Trivial case (gs1 near 0)
+    if(gs1<0.01_r8)then
+       gs = gs0
+       return
+    end if
+        
     ! Apply a constraint to the vapor pressure
     ceair = GetConstrainedVPress(can_vpress,veg_esat)
-    !ceair = can_vpress
     
     aquad = leaf_co2_ppress
     bquad = leaf_co2_ppress*(gb - gs0) - gs1 * a_gs * can_press
     
-    if(.not.base_compare_revert) then
-       cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_gs * can_press * ceair/ veg_esat )
+    if(bb_agsfix_bypass) then
+       cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_net * can_press * ceair/ veg_esat )
     else
-       cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_net* can_press * ceair/ veg_esat )
+       cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_gs* can_press * ceair/ veg_esat )
     end if
     
     call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-    if(err)then
-       write(fates_log(),*) "bbquadfail:",a_net,a_gs,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
 
+    if(debug)then
+       if(err)then
+          write(fates_log(),*) "bbquadfail:",a_net,a_gs,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
     
     gs = max(r1,r2)
     
@@ -468,11 +465,14 @@ contains
     bquad = -(jpar + jmax)
     cquad = jpar * jmax
     call QuadraticRoots(aquad, bquad, cquad, r1, r2, err)
-    if(err)then
-       write(fates_log(),*) "jequadfail:",par_abs,jpar,jmax
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end if
 
+    if(debug)then
+       if(err)then
+          write(fates_log(),*) "jequadfail:",par_abs,jpar,jmax
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       end if
+    end if
+    
     je = min(r1,r2)
     
   end function GetJe_FvCB
@@ -562,7 +562,7 @@ contains
     ! quantum efficiency, used only for C4 (mol CO2 / mol photons)
     real(r8),parameter :: c4_quant_eff = 0.05_r8
     
-    aj = c4_quant_eff*par_abs*photon_to_e*(1.0_r8 - fnps)
+    aj = c4_quant_eff*par_abs
     
   end function AgrossRuBPC4
 
@@ -642,16 +642,18 @@ contains
        ! C4: RuBP-limited photosynthesis
        aj = AgrossRuBPC4(par_abs, lb_params%fnps(ft))
        
-       
-       
        aquad = theta_cj_c4
        bquad = -(ac + aj)
        cquad = ac * aj
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c41quadfail_minmax1:",par_abs,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c41quadfail_minmax1:",par_abs,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
        end if
+       
        ai = min(r1,r2)
 
        a = rmin*can_press
@@ -670,11 +672,14 @@ contains
              - ai*lmr
 
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c41quadfail_minmax2:",par_abs,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
 
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c41quadfail_minmax2:",par_abs,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+       end if
+       
        ci(3) = max(r1,r2)
        
        !! C4: PEP carboxylase-limited (CO2-limited)
@@ -684,10 +689,14 @@ contains
        bquad = -(ai + ap)
        cquad = ai * ap
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
        end if
+       
        ag(:) = min(r1,r2)
 
        if(debug) then
@@ -721,10 +730,14 @@ contains
              - ai*lmr
 
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c41quadfail_minmax2:",par_abs,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c41quadfail_minmax2:",par_abs,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
        end if
+       
        ci(3) = max(r1,r2)
 
        ap = AgrossPEPC4(ci(3),kp,can_press)
@@ -733,10 +746,14 @@ contains
        bquad = -(ai + ap)
        cquad = ai * ap
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
        end if
+       
        ag(:) = min(r1,r2)
        
        ci(1) = can_co2_ppress - (ag(1)-lmr)*can_press*rmax
@@ -884,7 +901,7 @@ contains
 
   subroutine CiFunc(ci, &
        ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
        gs0, gs1, gs2, &
        anet,agross,gs,fval)
 
@@ -924,6 +941,7 @@ contains
     real(r8), intent(in)  :: par_abs        ! par absorbed per unit lai [umol photons/m2leaf/s ]
     real(r8), intent(in)  :: gb             ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8), intent(in)  :: veg_tempk      ! vegetation temperature
+    real(r8), intent(in)  :: veg_esat       !
     real(r8), intent(in)  :: gs0            ! conductance intercept (umol H20/m2/s)
     real(r8), intent(in)  :: gs1            ! conductance slope (could be multiplied by btran)
     real(r8), intent(in)  :: gs2            ! for Medlyn only: either 1 or btran
@@ -932,7 +950,7 @@ contains
     real(r8), intent(out) :: gs             ! stomatal conductance (umol h2o/m2/s)
     real(r8), intent(out) :: fval           ! ci_input - ci_updated  (Pa)
     
-    real(r8) :: veg_esat          ! Saturation vapor pressure at leaf-surface [Pa]
+    !real(r8) :: veg_esat          ! Saturation vapor pressure at leaf-surface [Pa]
     real(r8) :: veg_qs            ! DUMMY, specific humidity at leaf-surface [kg/kg]
     real(r8) :: a_gs              ! The assimilation (a) for calculating conductance (gs)
                                   ! is either = to anet or agross
@@ -956,49 +974,47 @@ contains
        ! C3: RuBP-limited photosynthesis
        aj = AgrossRuBPC3(par_abs,jmax,lb_params%fnps(ft),ci,co2_cpoint )
 
-       if(base_compare_revert) then
-          ! Gross photosynthesis smoothing calculations. Co-limit ac and aj.
-          aquad = 0.999_r8
-          bquad = -(ac + aj)
-          cquad = ac * aj
-          call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-          agross = min(r1,r2)
-       else
-          ! Take the minimum, no smoothing
-          agross = min(ac,aj)
-       end if
-
+       ! Take the minimum, no smoothing
+       agross = min(ac,aj)
+       
     else
        
        ! C4: Rubisco-limited photosynthesis
        ac = vcmax
-       
+
        ! C4: RuBP-limited photosynthesis
-       aj = AgrossRuBPC4(par_abs, lb_params%fnps(ft))
-       
+       aj = AgrossRuBPC4(par_abs)
+                 
        ! C4: PEP carboxylase-limited (CO2-limited)
        ap = AgrossPEPC4(ci,kp,can_press)
-       
+
        aquad = theta_cj_c4
        bquad = -(ac + aj)
        cquad = ac * aj
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c41quadfail:",par_abs,ci,kp,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c41quadfail:",par_abs,ci,kp,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
        end if
+
        ai = min(r1,r2)
-       
+
        aquad = theta_ip_c4
        bquad = -(ai + ap)
        cquad = ai * ap
        call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-       if(err)then
-          write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-       agross = min(r1,r2)
 
+       if(debug)then
+          if(err)then
+             write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+       end if
+       
+       agross = min(r1,r2)
        
     end if
 
@@ -1043,7 +1059,7 @@ contains
     leaf_co2_ppress = max(leaf_co2_ppress,1.e-06_r8)
     
     ! Determine saturation vapor pressure at the leaf surface, from temp and atm-pressure
-    call QSat(veg_tempk, can_press, veg_qs, veg_esat)
+    !call QSat(veg_tempk, can_press, veg_qs, veg_esat)
     
     if ( lb_params%stomatal_model == medlyn_model ) then
        call StomatalCondMedlyn(anet,veg_esat,can_vpress,gs0,gs1,gs2, &
@@ -1061,19 +1077,13 @@ contains
     fval = ci - (can_co2_ppress - anet * can_press * &
          (h2o_co2_bl_diffuse_ratio*gs + h2o_co2_stoma_diffuse_ratio*gb)/(gb*gs))
 
-    if(base_compare_revert) then
-       if (anet < 0._r8) then
-          fval = 0
-       end if
-    end if
-    
   end subroutine CiFunc
 
   ! ====================================================================================
   
   subroutine CiBisection(ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-       gs0,gs1,gs2,ci_tol, &       
+       can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
+       gs0,gs1,gs2,ci_tol, &
        anet,agross,gs,ci,solve_iter)
 
     ! -----------------------------------------------------------------------------------
@@ -1098,6 +1108,7 @@ contains
     real(r8), intent(in)   :: par_abs        ! par absorbed per unit lai [umol photons/m2leaf/s ]
     real(r8), intent(in)   :: gb             ! leaf boundary layer conductance (umol H2O/m**2/s)
     real(r8), intent(in)   :: veg_tempk      ! vegetation temperature [Kelvin]
+    real(r8), intent(in)   :: veg_esat
     real(r8), intent(in)   :: gs0,gs1,gs2    ! stomatal intercept and slope and alternative btran
     real(r8), intent(in)   :: ci_tol         ! Convergence tolerance for solutions for intracellular CO2 (Pa)
     real(r8), intent(out)  :: anet           ! net leaf photosynthesis (umol CO2/m**2/s)
@@ -1127,13 +1138,13 @@ contains
     
     call CiFunc(ci_h, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-         gs0,gs1,gs2, & 
+         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
+         gs0,gs1,gs2, &
          anet,agross,gs,fval_h)
     
     call CiFunc(ci_l, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
          gs0,gs1,gs2, &
          anet,agross,gs,fval_l)
 
@@ -1142,17 +1153,17 @@ contains
        
        ! Try an exteremly large bisection range, if this doesn't work, then
        ! fail the run
-       ci_h = 0.1_r8
+       ci_h = 0.000001_r8
        call CiFunc(ci_h, &
             ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-            can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
-            gs0,gs1,gs2, & 
+            can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
+            gs0,gs1,gs2, &
             anet,agross,gs,fval_h)
 
        ci_l = 2000._r8
        call CiFunc(ci_l, &
          ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+         can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, veg_esat, &
          gs0,gs1,gs2, &
          anet,agross,gs,fval_l)
        
@@ -1181,7 +1192,7 @@ contains
 
        call CiFunc(ci_b, &
             ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-            can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+            can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
             gs0,gs1,gs2, &
             anet,agross,gs,fval_b)
 
@@ -1219,9 +1230,8 @@ contains
   
   ! =====================================================================================
   
-  subroutine LeafLayerPhotosynthesis(par_sun, & ! in
+  subroutine LeafLayerPhotosynthesis( &
        par_abs,           &  ! in
-       leaf_area,         &  ! in
        ft,                &  ! in
        vcmax,             &  ! in
        jmax,              &  ! in
@@ -1233,6 +1243,7 @@ contains
        can_press,         &  ! in
        can_co2_ppress,    &  ! in
        can_o2_ppress,     &  ! in
+       veg_esat,          &  ! in
        gb,                &  ! in
        can_vpress,        &  ! in
        mm_kco2,           &  ! in
@@ -1259,9 +1270,7 @@ contains
 
     ! Arguments
     ! ------------------------------------------------------------------------------------
-    real(r8), intent(in) :: par_sun           ! Used only for comparing with base (temporary)
     real(r8), intent(in) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m2 leaf/s]
-    real(r8), intent(in) :: leaf_area         ! leaf area per ground area [m2/m2] 
     integer,  intent(in) :: ft                ! (plant) Functional Type Index
     real(r8), intent(in) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
     real(r8), intent(in) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
@@ -1274,6 +1283,7 @@ contains
     real(r8), intent(in) :: can_press         ! Air pressure near the surface of the leaf (Pa)
     real(r8), intent(in) :: can_co2_ppress    ! Partial pressure of CO2 near the leaf surface (Pa)
     real(r8), intent(in) :: can_o2_ppress     ! Partial pressure of O2 near the leaf surface (Pa)
+    real(r8), intent(in) :: veg_esat          ! saturation vapor pressure at vegetation
     real(r8), intent(in) :: gb                ! leaf boundary layer conductance (umol /m**2/s)
     real(r8), intent(in) :: can_vpress        ! vapor pressure of the canopy air (Pa)
     real(r8), intent(in) :: mm_kco2           ! Michaelis-Menten constant for CO2 (Pa)
@@ -1323,58 +1333,16 @@ contains
     ! Assume a trival solve until we encounter both leaf and light
     solve_iter = 0
 
-    base_compare_trivial: if(base_compare_revert) then
-
-       if ( par_sun <= 0._r8 ) then  ! night time
-          
-          anet    = -lmr
-          agross  = 0._r8
-          gs      = gs0
-          c13disc = 0.0_r8 
-          return
-          
-       else
-          
-          if ( leaf_area <= 0._r8 ) then
-          
-             ! No leaf area. This layer is present only because of stems.
-             ! Net assimilation is zero, not negative because there are
-             ! no leaves to even respire
-             ! (leaves are off, or have reduced to 0)
-             
-             agross  = 0._r8
-             anet    = 0._r8
-             gs      = max(gsmin0 *VeloToMolarCF(can_press,veg_tempk), stem_cuticle_loss_frac*gs0)
-             c13disc = 0.0_r8
-
-             return
-          end if
-          
-       end if
-          
-    else
-     
-       if(  leaf_area < nearzero ) then
-          agross  = 0._r8
-          gs      = max(gsmin0*VeloToMolarCF(can_press,veg_tempk),stem_cuticle_loss_frac*gs0)
-          anet    = 0._r8
-          c13disc = 0._r8
-          return
-       end if
-
-
-       ! Less, but still trivial solution - biomass, but no light, no photosynthesis
-       ! Stomatal conductance is the intercept of the conductance functions
-       ! ---------------------------------------------------------------------------------------------
-       if (par_abs < nearzero ) then
-          anet    = -lmr
-          agross  = 0._r8
-          gs      = gs0
-          c13disc = 0.0_r8
-          return
-       end if
-
-    end if base_compare_trivial
+    ! Less, but still trivial solution - biomass, but no light, no photosynthesis
+    ! Stomatal conductance is the intercept of the conductance functions
+    ! ---------------------------------------------------------------------------------------------
+    if (par_abs < nearzero ) then
+       anet    = -lmr
+       agross  = 0._r8
+       gs      = gs0
+       c13disc = 0.0_r8
+       return
+    end if
     
     ! Not trivial solution, some biomass and some light
     ! Initialize first guess of intracellular co2 conc [Pa]
@@ -1399,7 +1367,7 @@ contains
        if(.not.force_bisection)then
           call CiFunc(ci0, &
                ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-               can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+               can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
                gs0,gs1,gs2, &
                anet,agross,gs,fval)
           
@@ -1410,17 +1378,11 @@ contains
           ! In main, ci_tol = 2*can_press
           ! Special convergence requirement to satisfy B4B with main
           
-          if(base_compare_revert) then
-             if ((abs(fval)/can_press*1.e06_r8 <=  2.e-06_r8) .or. solve_iter == 5) then
-                loop_continue = .false.
-                exit iter_loop
-             end if
-          else
-             if (abs(fval) <= ci_tol ) then
-                loop_continue = .false.
-                exit iter_loop
-             end if
+          if (abs(fval) <= ci_tol ) then
+             loop_continue = .false.
+             exit iter_loop
           end if
+
        end if
        
        ci0 = ci
@@ -1428,7 +1390,7 @@ contains
        if( solve_iter == max_iters .or. force_bisection) then
           call CiBisection( &
                ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
-               can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk, &
+               can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
                gs0,gs1,gs2,ci_tol, &
                anet,agross,gs,ci,solve_iter)
           loop_continue = .false.
@@ -1452,7 +1414,7 @@ contains
   ! =======================================================================================
 
   function LeafHumidityStomaResis(leaf_psi, k_lwp, veg_tempk, can_vpress, can_press, &
-       rb, gstoma, ft) result(rstoma_out)
+       rb, gstoma, ft, veg_esat) result(rstoma_out)
 
     ! -------------------------------------------------------------------------------------
     ! This calculates inner leaf humidity as a function of mesophyll water potential 
@@ -1495,12 +1457,12 @@ contains
     real(r8) :: gstoma     ! Stomatal Conductance of this leaf layer [m/s]
     integer  :: ft         ! Plant Functional Type
     real(r8) :: rstoma_out ! Total Stomatal resistance (stoma and BL) [s/m]
+    real(r8) :: veg_esat   ! Saturation vapor pressure at veg surface [Pa]
     
     ! Locals
     real(r8) :: ceair      ! vapor pressure of air, constrained [Pa]
                            ! water potential to mesophyll water potential
     real(r8) :: qs         ! Specific humidity [g/kg]
-    real(r8) :: veg_esat   ! Saturated vapor pressure at veg surf [Pa]
     real(r8) :: qsat_alt   ! Saturation specific humidity  [g/kg]
     real(r8) :: qsat_loc   ! Saturation specific humidity  [g/kg]
     real(r8) :: qsat_adj   ! Adjusted saturation specific humidity  [g/kg]
@@ -1517,7 +1479,7 @@ contains
        lwp_star = 1._r8
     end if
     
-    call QSat(veg_tempk, can_press, qsat_alt, veg_esat)
+    ! call QSat(veg_tempk, can_press, qsat_alt, veg_esat)
 
     qsat_alt = qsat_alt * g_per_kg
     
@@ -1532,11 +1494,13 @@ contains
     qsat_loc = molar_mass_ratio_vapdry * veg_esat / (can_press - (1._r8-molar_mass_ratio_vapdry) * veg_esat)
     qsat_adj = qsat_loc*lwp_star
 
-    if(debug .and. (abs(qsat_loc-qsat_alt) > 1.e-2)) then
-       write (fates_log(),*) 'qsat from QSat():', qsat_alt
-       write (fates_log(),*) 'qsat localy :', qsat_loc
-       write (fates_log(),*) 'values of qsat are too different'
-       call endrun(msg=errMsg(sourcefile, __LINE__))  
+    if(debug)then
+       if (abs(qsat_loc-qsat_alt) > 1.e-2) then
+          write (fates_log(),*) 'qsat from QSat():', qsat_alt
+          write (fates_log(),*) 'qsat localy :', qsat_loc
+          write (fates_log(),*) 'values of qsat are too different'
+          call endrun(msg=errMsg(sourcefile, __LINE__))  
+       end if
     end if
     
     ! Adjusting gs (compute a virtual gs) that will be passed to host model
@@ -1907,7 +1871,6 @@ contains
     real(r8), intent(in) :: t_growth                  ! T_growth (short-term running mean temperature) (K)
     real(r8), intent(in) :: t_home                    ! T_home (long-term running mean temperature) (K)
     real(r8), intent(in) :: btran                     ! transpiration wetness factor (0 to 1)
-    
     real(r8), intent(out) :: vcmax                    ! maximum rate of carboxylation (umol co2/m**2/s)
     real(r8), intent(out) :: jmax                     ! maximum electron transport rate
                                                       ! (umol electrons/m**2/s)
@@ -2001,7 +1964,7 @@ contains
        vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
        vcmax = vcmax / (1._r8 + exp( 0.2_r8*((tfrz+15._r8)-veg_tempk ) ))
        vcmax = vcmax / (1._r8 + exp( 0.3_r8*(veg_tempk-(tfrz+40._r8)) ))
-       kp = kp25_ft * nscaler * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
+       kp = kp25_ft * nscaler * 2._r8**((min(veg_tempk,310._r8)-(tfrz+25._r8))/10._r8)
     end if
 
     jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
@@ -2022,25 +1985,24 @@ contains
     ! Make sure that vcmax and jmax do not drop below a lower
     ! threshold, see where the constants are defined for an explanation.
     ! -----------------------------------------------------------------------------------
-    
-    vcmax = max(min_vcmax_frac*vcmax25top_ft,vcmax)
+    if( do_mincap_vcjmax ) then
+       
+       vcmax = max(min_vcmax_frac*vcmax25top_ft,vcmax)
 
-    jmax = max(min_jmax_frac*jmax25top_ft,jmax)
+       jmax = max(min_jmax_frac*jmax25top_ft,jmax)
+       
+    end if
 
-    
     ! Apply water limitations to stomatal intercept (hypothesis dependent)
 
     if(lb_params%stomatal_btran_model(ft)==btran_on_gs_gs0  .or. &
        lb_params%stomatal_btran_model(ft)==btran_on_gs_gs01 .or. &
        lb_params%stomatal_btran_model(ft)==btran_on_gs_gs02 )then
 
-       if(base_compare_revert)then
-          gs0 = max(gsmin0*VeloToMolarCF(101325.0_r8,veg_tempk), lb_params%stomatal_intercept(ft)*btran)
-       else
-          gs0 = max(gs0_min,lb_params%stomatal_intercept(ft)*btran)
-       end if
+       gs0 = max(gsmin0,lb_params%stomatal_intercept(ft)*btran)
+       
     else
-       gs0 = max(gs0_min,lb_params%stomatal_intercept(ft))
+       gs0 = max(gsmin0,lb_params%stomatal_intercept(ft))
     end if
 
     ! Apply water limitations to stomatal slope (hypothesis dependent)
@@ -2174,14 +2136,11 @@ contains
     
     real(r8) :: air_vpress              ! vapor pressure of the air (unconstrained) [Pa]
     real(r8) :: veg_esat                ! saturated vapor pressure [Pa]
-    real(r8) :: min_frac_esat = 0.01_r8 ! We don't allow vapor pressures
+    real(r8) :: min_frac_esat = 0.05_r8 ! We don't allow vapor pressures
                                         ! below this fraction amount of saturation vapor pressure
 
-    if(base_compare_revert) then
-       ceair = min( max(air_vpress, 0.05*veg_esat ),veg_esat )
-    else
-       ceair = min( max(air_vpress, min_frac_esat*veg_esat ),veg_esat )
-    end if
+    ceair = min( max(air_vpress, min_frac_esat*veg_esat ),veg_esat )
+    
   end function GetConstrainedVPress
 
   ! =====================================================================================

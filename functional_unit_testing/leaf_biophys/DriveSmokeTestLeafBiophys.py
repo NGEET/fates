@@ -379,9 +379,7 @@ def main(argv):
                                             vpress = rh * veg_es_f.value
                                             ptests = ptests + 1
                                             try:
-                                                iret = f90_leaflayerphoto_sub(c8(par_abs_umol), \
-                                                                              c8(par_abs_umol),  \
-                                                                              c8(1.0),     \
+                                                iret = f90_leaflayerphoto_sub(c8(par_abs_umol),  \
                                                                               ci(1),   \
                                                                               c8(vcmax_f.value),   \
                                                                               c8(jmax_f.value),    \
@@ -393,6 +391,7 @@ def main(argv):
                                                                               c8(can_press_1atm), \
                                                                               c8(co2_ppress_400ppm), \
                                                                               c8(o2_ppress_209kppm), \
+                                                                              c8(veg_es_f.value), \
                                                                               c8(gb), \
                                                                               c8(vpress), \
                                                                               c8(mm_kco2_f.value), \

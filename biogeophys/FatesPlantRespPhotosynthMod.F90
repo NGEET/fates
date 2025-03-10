@@ -92,8 +92,6 @@ module FATESPlantRespPhotosynthMod
   logical   ::  debug = .false.
   !-------------------------------------------------------------------------------------
 
-  logical, parameter :: preserve_b4b = .true.
-
 contains
 
   !--------------------------------------------------------------------------------------
@@ -278,6 +276,8 @@ contains
     real(r8)               :: gs2                ! optional btran scaling factor for Medlyn conductance only, instead
                                                  ! of applying to gs1, this would scale the whole non-intercept
                                                  ! portion of the conductance equation
+
+    real(r8)               :: vmol_cf            ! velocity to molar conductance conversion (m/s) -> (umol/m2/s)
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -385,6 +385,11 @@ contains
                        mm_ko2,                   & ! out
                        co2_cpoint)
 
+                  ! The host models use velocity based conductances and resistance
+                  ! this is the factor that converts a conductance from
+                  ! [m/s] to [umol/m2/s]
+                  vmol_cf = VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%tgcm_pa(ifp))
+                  
                   ! ------------------------------------------------------------------------
                   ! Part VI: Loop over all leaf layers.
                   ! The concept of leaf layers is a result of the radiative transfer scheme.
@@ -682,19 +687,38 @@ contains
 
                                  end if if_radsolver
 
-
-                           
-                                 
                                  ! Perform photosynthesis calculations on sunlit and shaded leaves
                                  ! ---------------------------------------------------------------
 
                                  ! Calculate leaf boundary layer conductance in molar form [umol/m2/s]
-                                 gb_mol = (1._r8/bc_in(s)%rb_pa(ifp)) * &
-                                      VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp))
+                                 gb_mol = (1._r8/bc_in(s)%rb_pa(ifp)) * vmol_cf
                                  
                                  gstoma = 0._r8
                                  do_sunsha: do isunsha = 1,2
 
+                                    ! Determine absorbed PAR per square meter of leaf
+                                    ! If there is no leaf area perform a trivial solution
+
+                                    if(isunsha == idirect) then
+                                       leaf_area = laisun*canopy_area
+                                       par_abs   = ConvertPar(leaf_area, par_per_sunla)
+                                       area_frac = fsun
+                                    else
+                                       leaf_area = laisha*canopy_area
+                                       par_abs   = ConvertPar(leaf_area, par_per_shala)
+                                       area_frac = 1._r8 - fsun
+                                    end if
+                                    
+                                    if( leaf_area < nearzero ) then
+
+                                       ! Note: With no leaf area do not increment
+                                       ! any fluxes. Assume a nominal conductance
+                                       ! of maximum resistance
+                                       gstoma = gstoma + area_frac/rsmax0
+                                       
+                                       cycle do_sunsha
+                                    end if
+                                    
                                     ! Part VII: Calculate (1) maximum rate of carboxylation (vcmax),
                                     ! (2) maximum electron transport rate, (3) triose phosphate
                                     ! utilization rate and (4) the initial slope of CO2 response curve
@@ -704,7 +728,7 @@ contains
                                     ! These rates are the specific rates used in the actual photosynthesis
                                     ! calculations that take localized environmental effects (temperature)
                                     ! into consideration.
-
+                                    
                                     call LeafLayerBiophysicalRates(ft,        &  ! in
                                          currentCohort%vcmax25top,            &  ! in
                                          currentCohort%jmax25top,             &  ! in
@@ -722,18 +746,6 @@ contains
                                          gs1,                                 &  ! out
                                          gs2 )                                   ! out
 
-                                    ! Part IX: This call calculates the actual photosynthesis for the
-                                    ! leaf layer, as well as the stomatal resistance and the net assimilated carbon.
-
-                                    if(isunsha == idirect) then
-                                       leaf_area = laisun*canopy_area
-                                       par_abs   = ConvertPar(leaf_area, par_per_sunla)
-                                       area_frac = fsun
-                                    else
-                                       leaf_area = laisha*canopy_area
-                                       par_abs   = ConvertPar(leaf_area, par_per_shala)
-                                       area_frac = 1._r8 - fsun
-                                    end if
 
                                     if ( (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
                                        hydr_k_lwp = EDPftvarcon_inst%hydr_k_lwp(ft)
@@ -741,9 +753,8 @@ contains
                                        hydr_k_lwp = 1._r8
                                     end if
 
-                                    call LeafLayerPhotosynthesis(par_per_sunla, & !
+                                    call LeafLayerPhotosynthesis(            & !
                                          par_abs,                            &  ! in
-                                         leaf_area,                          &  ! in
                                          ft,                                 &  ! in
                                          vcmax_z,                            &  ! in
                                          jmax_z,                             &  ! in
@@ -755,8 +766,9 @@ contains
                                          bc_in(s)%forc_pbot,                 &  ! in
                                          bc_in(s)%cair_pa(ifp),              &  ! in
                                          bc_in(s)%oair_pa(ifp),              &  ! in
+                                         bc_in(s)%esat_tv_pa(ifp),           &  ! in
                                          gb_mol,                             &  ! in
-                                         bc_in(s)%eair_pa(ifp),              &  ! in 
+                                         bc_in(s)%eair_pa(ifp),              &  ! in
                                          mm_kco2,                            &  ! in
                                          mm_ko2,                             &  ! in
                                          co2_cpoint,                         &  ! in
@@ -771,7 +783,8 @@ contains
 
                                     ! Average output quantities across sunlit and shaded leaves
                                     ! Convert from molar to velocity (umol /m**2/s) to (m/s)
-                                    gstoma = gstoma + area_frac* (gstoma_ll / VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp)))
+                                    gstoma = gstoma + area_frac*(gstoma_ll / vmol_cf) 
+
                                     
                                     psn_z(iv,ft,cl) = psn_z(iv,ft,cl) + area_frac * psn_ll
                                     anet_av_z(iv,ft,cl) = anet_av_z(iv,ft,cl) + area_frac * anet_ll
@@ -779,24 +792,16 @@ contains
 
                                     
                                  end do do_sunsha
-
-                                 
                                  
                                  ! Stomatal resistance of the leaf-layer
                                  if ( (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
 
-                                    gstoma = max(gstoma,1._r8/rsmax0)
-                                    rs_z(iv,ft,cl) = LeafHumidityStomaResis(leaf_psi, EDPftvarcon_inst%hydr_k_lwp(ft), bc_in(s)%t_veg_pa(ifp), &
-                                         bc_in(s)%cair_pa(ifp),bc_in(s)%forc_pbot, bc_in(s)%rb_pa(ifp), gstoma, ft)
+                                    rs_z(iv,ft,cl) = LeafHumidityStomaResis(leaf_psi, EDPftvarcon_inst%hydr_k_lwp(ft), &
+                                         bc_in(s)%t_veg_pa(ifp),bc_in(s)%cair_pa(ifp),bc_in(s)%forc_pbot, &
+                                         bc_in(s)%rb_pa(ifp), gstoma, ft, bc_in(s)%esat_tv_pa(ifp) )
                                     
                                  else
-                                    ! This should not need to be protected by rsmax0, it is already applied
-                                    ! in leaf biophysics
-                                    if(preserve_b4b) then
-                                       rs_z(iv,ft,cl)= 1._r8/max(gstoma,1._r8/rsmax0)
-                                    else
-                                       rs_z(iv,ft,cl)= 1._r8/gstoma
-                                    end if
+                                    rs_z(iv,ft,cl)= 1._r8/gstoma
                                  end if
                                  
                                  rate_mask_z(iv,ft,cl) = .true.
@@ -821,11 +826,10 @@ contains
                            ! ---------------------------------------------------------------
                            nv = currentCohort%nv
 
-                           ! Temporary bypass to preserve B4B behavior
                            if(hlm_radiation_model.eq.norman_solver) then
 
-                              call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   psn_z(1:nv,ft,cl),        & !in
+                              call ScaleLeafLayerFluxToCohort(nv,         & !in
+                                   psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    currentPatch%elai_profile(cl,ft,1:nv), & !in
@@ -844,8 +848,8 @@ contains
 
                               
                               
-                              call ScaleLeafLayerFluxToCohort(nv,                                    & !in
-                                   psn_z(1:nv,ft,cl),        & !in
+                              call ScaleLeafLayerFluxToCohort(nv,         & !in
+                                   psn_z(1:nv,ft,cl),                     & !in
                                    lmr_z(1:nv,ft,cl),                     & !in
                                    rs_z(1:nv,ft,cl),                      & !in
                                    cohort_layer_elai(1:nv),               & !in
@@ -864,9 +868,9 @@ contains
                               
                            ! Net Uptake does not need to be scaled, just transfer directly
                            currentCohort%ts_net_uptake(1:nv) = anet_av_z(1:nv,ft,cl) * umolC_to_kgC
-
+                           
                         else
-
+                           
                            ! In this case, the cohort had no leaves,
                            ! so no productivity,conductance, transpiration uptake
                            ! or dark respiration
@@ -1071,34 +1075,19 @@ contains
                   ! Normalize canopy total conductance by the effective LAI
                   ! The value here was integrated over each cohort x leaf layer
                   ! and was weighted by m2 of effective leaf area for each layer
-                  ! preserve_b4b will be removed soon. This is kept here to prevent
-                  ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23) 
-                  if(preserve_b4b) then
-                     patch_la = patch_la/ currentPatch%total_canopy_area
-                  end if
                   
-                  ! Normalize canopy total conductance by the effective LAI
-                  ! The value here was integrated over each cohort x leaf layer
-                  ! and was weighted by m2 of effective leaf area for each layer
-                  
-                  if_any_lai: if(patch_la>tiny(patch_la)) then
+                  if_any_lai: if(patch_la>nearzero) then
 
                      ! Normalize the leaf-area weighted canopy conductance
                      ! The denominator is the total effective leaf area in the canopy,
                      ! units of [m/s]*[m2] / [m2] = [m/s]
-                     ! preserve_b4b will be removed soon. This is kept here to prevent
-                     ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23) 
-                     if_preserve_b4b3: if(preserve_b4b) then
-                        elai     = calc_areaindex(currentPatch,'elai')
-                        g_sb_leaves = g_sb_leaves / (elai*currentPatch%total_canopy_area)
-                     else
-                        g_sb_leaves = g_sb_leaves / max(0.1_r8*currentPatch%total_canopy_area,patch_la)
-                     end if if_preserve_b4b3
                      
+                     g_sb_leaves = g_sb_leaves / patch_la
                      
                      if_above_mincond: if( g_sb_leaves > (1._r8/rsmax0) ) then
                         
-                        ! Combined mean leaf resistance is the inverse of mean leaf conductance
+                        ! Combined mean leaf resistance is
+                        ! the inverse of mean leaf conductance
                         r_sb_leaves  = 1.0_r8/g_sb_leaves
                         
                         if (r_sb_leaves<bc_in(s)%rb_pa(ifp)) then
@@ -1127,10 +1116,9 @@ contains
                      
                      ! This value is used for diagnostics, the molar form of conductance
                      ! is what is used in the field usually, so we track that form
-                     ! cf = s/ umol/m2 -> s/m
-                     !real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
+                     ! vmol_cf :  s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
 
-                     currentPatch%c_stomata  = VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp))   / r_stomata
+                     currentPatch%c_stomata  = vmol_cf / r_stomata
                      
                   else !if_any_lai
                      
@@ -1140,16 +1128,16 @@ contains
                      
                      ! This value is used for diagnostics, the molar form of conductance
                      ! is what is used in the field usually, so we track that form
-                     currentPatch%c_stomata  = VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp)) / rsmax0
+                     currentPatch%c_stomata  = vmol_cf / rsmax0
                      
                   end if if_any_lai
 
                   ! This value is used for diagnostics, the molar form of conductance
                   ! is what is used in the field usually, so we track that form
-                  currentPatch%c_lblayer = VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%t_veg_pa(ifp)) / bc_in(s)%rb_pa(ifp)
-
+                  currentPatch%c_lblayer = vmol_cf / bc_in(s)%rb_pa(ifp)
+                  
                end if if_filter2
-
+               
             end if if_notbare
 
             currentPatch => currentPatch%younger
@@ -1260,7 +1248,7 @@ contains
     real(r8), intent(in) :: rb               ! leaf boundary layer resistance (s/m)
     real(r8), intent(in) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration
     real(r8), intent(out) :: g_sb_laweight     ! Combined conductance (stomatal + boundary layer) for the cohort
-    ! weighted by leaf area [m/s]*[m2]
+                                               ! weighted by leaf area [m/s]*[m2]
     real(r8), intent(out) :: gpp               ! GPP (kgC/indiv/s)
     real(r8), intent(out) :: rdark             ! Dark Leaf Respiration (kgC/indiv/s)
     real(r8), intent(out) :: cohort_eleaf_area ! Effective leaf area of the cohort [m2]
@@ -1432,10 +1420,10 @@ contains
     ! ARGUMENTS:
     real(r8), intent(in) :: leaf_area ! leaf area index [m2 leaf / m2 ground]
     real(r8), intent(in) :: par_wm2   ! absorbed PAR [W/m2 ground]
-
+    
     ! minimum Leaf area to solve, too little has shown instability
     real(r8), parameter :: min_la_to_solve = 0.0000000001_r8
-    
+
     if (par_wm2 > nearzero .and. leaf_area > min_la_to_solve) then
        par_umolm2s = par_wm2/leaf_area*wm2_to_umolm2s
     else                 
@@ -1443,7 +1431,7 @@ contains
        ! they can sometimes generate negative values here if par or leaf area is 0.0
        par_umolm2s = 0.0_r8
     end if
-
+     
   end function ConvertPar
 
 end module FATESPlantRespPhotosynthMod
