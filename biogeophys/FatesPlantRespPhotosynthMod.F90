@@ -92,8 +92,6 @@ module FATESPlantRespPhotosynthMod
   logical   ::  debug = .false.
   !-------------------------------------------------------------------------------------
 
-  logical, parameter :: preserve_b4b = .true.
-
 contains
 
   !--------------------------------------------------------------------------------------
@@ -827,7 +825,6 @@ contains
                            ! ---------------------------------------------------------------
                            nv = currentCohort%nv
 
-                           ! Temporary bypass to preserve B4B behavior
                            if(hlm_radiation_model.eq.norman_solver) then
 
                               call ScaleLeafLayerFluxToCohort(nv,         & !in
@@ -870,9 +867,9 @@ contains
                               
                            ! Net Uptake does not need to be scaled, just transfer directly
                            currentCohort%ts_net_uptake(1:nv) = anet_av_z(1:nv,ft,cl) * umolC_to_kgC
-
+                           
                         else
-
+                           
                            ! In this case, the cohort had no leaves,
                            ! so no productivity,conductance, transpiration uptake
                            ! or dark respiration
@@ -1077,34 +1074,19 @@ contains
                   ! Normalize canopy total conductance by the effective LAI
                   ! The value here was integrated over each cohort x leaf layer
                   ! and was weighted by m2 of effective leaf area for each layer
-                  ! preserve_b4b will be removed soon. This is kept here to prevent
-                  ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23) 
-                  if(preserve_b4b) then
-                     patch_la = patch_la/ currentPatch%total_canopy_area
-                  end if
                   
-                  ! Normalize canopy total conductance by the effective LAI
-                  ! The value here was integrated over each cohort x leaf layer
-                  ! and was weighted by m2 of effective leaf area for each layer
-                  
-                  if_any_lai: if(patch_la>tiny(patch_la)) then
+                  if_any_lai: if(patch_la>nearzero) then
 
                      ! Normalize the leaf-area weighted canopy conductance
                      ! The denominator is the total effective leaf area in the canopy,
                      ! units of [m/s]*[m2] / [m2] = [m/s]
-                     ! preserve_b4b will be removed soon. This is kept here to prevent
-                     ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23) 
-                     if_preserve_b4b3: if(preserve_b4b) then
-                        elai     = calc_areaindex(currentPatch,'elai')
-                        g_sb_leaves = g_sb_leaves / (elai*currentPatch%total_canopy_area)
-                     else
-                        g_sb_leaves = g_sb_leaves / max(0.1_r8*currentPatch%total_canopy_area,patch_la)
-                     end if if_preserve_b4b3
                      
+                     g_sb_leaves = g_sb_leaves / patch_la
                      
                      if_above_mincond: if( g_sb_leaves > (1._r8/rsmax0) ) then
                         
-                        ! Combined mean leaf resistance is the inverse of mean leaf conductance
+                        ! Combined mean leaf resistance is
+                        ! the inverse of mean leaf conductance
                         r_sb_leaves  = 1.0_r8/g_sb_leaves
                         
                         if (r_sb_leaves<bc_in(s)%rb_pa(ifp)) then
@@ -1133,8 +1115,7 @@ contains
                      
                      ! This value is used for diagnostics, the molar form of conductance
                      ! is what is used in the field usually, so we track that form
-                     ! cf = s/ umol/m2 -> s/m
-                     !real(r8) :: cf                 ! s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
+                     ! vmol_cf :  s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
 
                      currentPatch%c_stomata  = vmol_cf / r_stomata
                      
@@ -1266,7 +1247,7 @@ contains
     real(r8), intent(in) :: rb               ! leaf boundary layer resistance (s/m)
     real(r8), intent(in) :: maintresp_reduction_factor  ! factor by which to reduce maintenance respiration
     real(r8), intent(out) :: g_sb_laweight     ! Combined conductance (stomatal + boundary layer) for the cohort
-    ! weighted by leaf area [m/s]*[m2]
+                                               ! weighted by leaf area [m/s]*[m2]
     real(r8), intent(out) :: gpp               ! GPP (kgC/indiv/s)
     real(r8), intent(out) :: rdark             ! Dark Leaf Respiration (kgC/indiv/s)
     real(r8), intent(out) :: cohort_eleaf_area ! Effective leaf area of the cohort [m2]
