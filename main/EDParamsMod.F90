@@ -70,11 +70,7 @@ module EDParamsMod
    real(r8), protected, public :: cg_strikes             ! fraction of cloud to ground lightning strikes (0-1)
    character(len=param_string_length),parameter :: fates_name_cg_strikes="fates_fire_cg_strikes"
 
-   ! empirical curvature parameters for ac, aj photosynthesis co-limitation, c3 and c4 plants respectively
-   real(r8),protected,public  :: theta_cj_c3    ! Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants
-   real(r8),protected,public  :: theta_cj_c4    ! Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants
-
-     ! Global identifier of how nutrients interact with the host land model
+   ! Global identifier of how nutrients interact with the host land model
   ! either they are fully coupled, or they generate uptake rates synthetically
   ! in prescribed mode. In the latter, there is both NO mass removed from the HLM's soil
   ! BGC N and P pools, and there is also none removed.
@@ -152,10 +148,6 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_cohort_age_fusion_tol = "fates_cohort_age_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
-
-   character(len=param_string_length),parameter,public :: name_theta_cj_c3 = "fates_leaf_theta_cj_c3"
-   character(len=param_string_length),parameter,public :: name_theta_cj_c4 = "fates_leaf_theta_cj_c4"
-   
    character(len=param_string_length),parameter :: fates_name_q10_mr="fates_q10_mr"
    character(len=param_string_length),parameter :: fates_name_q10_froz="fates_q10_froz"
 
@@ -329,8 +321,6 @@ contains
     eca_plant_escalar                     = nan
     q10_mr                                = nan
     q10_froz                              = nan
-    theta_cj_c3                           = nan
-    theta_cj_c4                           = nan
     dev_arbitrary                         = nan
     damage_event_code                     = -9
     damage_canopy_layer_code              = -9
@@ -388,12 +378,6 @@ contains
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_thome_time, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=name_theta_cj_c3, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
-    call fates_params%RegisterParameter(name=name_theta_cj_c4, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -712,12 +696,6 @@ contains
 
     call fates_params%RetrieveParameter(name=eca_name_plant_escalar, &
           data=eca_plant_escalar)
-
-    call fates_params%RetrieveParameter(name=name_theta_cj_c3, &
-          data=theta_cj_c3)
-
-     call fates_params%RetrieveParameter(name=name_theta_cj_c4, &
-          data=theta_cj_c4)
      
     call fates_params%RetrieveParameter(name=fates_name_q10_mr, &
           data=q10_mr)
