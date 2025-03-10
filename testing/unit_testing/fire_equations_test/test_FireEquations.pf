@@ -988,4 +988,178 @@ module test_FireEquations
       
     end subroutine CrownFractionBurnt_ScorchHeightLow_ReturnsLessThanOne
     
+    @Test 
+    subroutine BarkThickness_NegativeBT_Errors(this)
+      ! test that if the bark thickness is negative, the function errors
+      class(TestFireEquations), intent(inout) :: this                  ! test object
+      real(r8)                                :: BT                    ! bark thickness [cm]
+      real(r8),                 parameter     :: bark_scalar = 0.01_r8 ! input bark scalar parameter
+      real(r8),                 parameter     :: dbh = -10.0_r8        ! diameter at breast height [cm]
+      character(len=:),         allocatable   :: expected_msg          ! expected error message for failure
+      
+      expected_msg = endrun_msg("bark thickness is negative")
+      
+      BT = BarkThickness(bark_scalar, dbh)
+      @assertExceptionRaised(expected_msg)
+      
+    end subroutine BarkThickness_NegativeBT_Errors
+    
+    @Test 
+    subroutine CambialMortality_TauRGreaterThanTwo_ReturnsOne(this)
+      ! test that the function returns 1.0 if tau_r >= 2.0
+      class(TestFireEquations), intent(inout) :: this                  ! test object
+      real(r8)                                :: CM                    ! cambial mortality [0-1]
+      real(r8),                 parameter     :: bark_scalar = 0.01_r8 ! input bark scalar parameter
+      real(r8),                 parameter     :: dbh = 10.0_r8         ! input tree diameter at breast height [cm]
+      real(r8),                 parameter     :: tau_l = 5.0_r8        ! input fire residence time [min]
+      
+      CM = CambialMortality(bark_scalar, dbh, tau_l)
+      @assertEqual(CF, 1.0_r8)
+      
+    end subroutine CambialMortality_TauRGreaterThanTwo_ReturnsOne
+      
+    @Test 
+    subroutine CambialMortality_TaulZero_ReturnsZero(this)
+      ! test that the function returns 0.0 if tau_l is zero
+      class(TestFireEquations), intent(inout) :: this                  ! test object
+      real(r8)                                :: CM                    ! cambial mortality [0-1]
+      real(r8),                 parameter     :: bark_scalar = 0.1_r8  ! input bark scalar parameter
+      real(r8),                 parameter     :: dbh = 10.0_r8         ! input tree diameter at breast height [cm]
+      real(r8),                 parameter     :: tau_l = 0.0_r8        ! input fire residence time [min]
+      
+      CM = CambialMortality(bark_scalar, dbh, tau_l)
+      @assertEqual(CF, 0.0_r8)
+      
+    end subroutine CambialMortality_TaulZero_ReturnsZero
+    
+    @Test 
+    subroutine CrownFireMortality_ZeroFractionBurned_ReturnsZero(this)
+      ! test that the function returns 0.0 if fraction_crown_burned is 0.0
+      class(TestFireEquations), intent(inout) :: this                        ! test object
+      real(r8)                                :: CM                          ! crown fire mortality [0-1]
+      real(r8),                 parameter     :: crown_kill = 0.1_r8         ! input crown kill parameter
+      real(r8),                 parameter     :: fraction_crown_burned = 0.0 ! input fraction burned [0-1]
+      
+      CM = CrownFireMortality(crown_kill, fraction_crown_burned)
+      @assertEqual(CF, 0.0_r8)
+      
+    end subroutine CrownFireMortality_ZeroFractionBurned_ReturnsZero
+    
+    @Test 
+    subroutine CrownFireMortality_FractionBurnedOne_ReturnsCrownKill(this)
+      ! test that the function returns crown_kill if fraction_crown_burned is 1.0
+      class(TestFireEquations), intent(inout) :: this                        ! test object
+      real(r8)                                :: CM                          ! crown fire mortality [0-1]
+      real(r8),                 parameter     :: crown_kill = 0.1_r8         ! input crown kill parameter
+      real(r8),                 parameter     :: fraction_crown_burned = 1.0 ! input fraction burned [0-1]
+      
+      CM = CrownFireMortality(crown_kill, fraction_crown_burned)
+      @assertEqual(CF, crown_kill)
+      
+    end subroutine CrownFireMortality_FractionBurnedOne_ReturnsCrownKill
+    
+    @Test 
+    subroutine CrownFireMortality_HighCrownKill_ReturnsOne(this)
+      ! test that the function returns 1.0 even if crown_kill is higher than 1.0
+      class(TestFireEquations), intent(inout) :: this                           ! test object
+      real(r8)                                :: CM                             ! crown fire mortality [0-1]
+      real(r8),                 parameter     :: crown_kill = 1.5_r8            ! input crown kill parameter
+      real(r8),                 parameter     :: fraction_crown_burned = 0.5_r8 ! input fraction burned [0-1]
+      
+      CM = CrownFireMortality(crown_kill, fraction_crown_burned)
+      @assertEqual(CF, 1.0_r8)
+      
+    end subroutine CrownFireMortality_HighCrownKill_ReturnsOne
+    
+    @Test 
+    subroutine TotalFireMortality_ReasonableValues_ReturnsReasonable(this)
+      ! test that the function returns correct values given reasonable inputs
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: TM                           ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = 0.4_r8      ! input crown kill parameter
+      real(r8),                 parameter     :: cambial_damage_mort = 0.3_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(CF, 0.58_r8)
+      
+    end subroutine TotalFireMortality_ReasonableValues_ReturnsReasonable
+    
+    @Test 
+    subroutine TotalFireMortality_ZeroInputs_ReturnsZero(this)
+      ! test that the function returns zero if both input mortality rates are 0.0
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: TM                           ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = 0.0_r8      ! input crown kill parameter
+      real(r8),                 parameter     :: cambial_damage_mort = 0.0_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(CF, 0.0_r8)
+      
+    end subroutine TotalFireMortality_ZeroInputs_ReturnsZero
+    
+    @Test 
+    subroutine TotalFireMortality_OneInputs_ReturnsOne(this)
+      ! test that the function returns one if both input mortality rates are 1.0
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: TM                           ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = 1.0_r8      ! input crown kill parameter
+      real(r8),                 parameter     :: cambial_damage_mort = 1.0_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(CF, 1.0_r8)
+      
+    end subroutine TotalFireMortality_OneInputs_ReturnOne
+    
+    @Test 
+    subroutine TotalFireMortality_ZeroCrownFire_ReturnsCambial(this)
+      ! test that the function returns cambial_damage_mort if crownfire_mort = 0.0
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: TM                           ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = 0.0_r8      ! input crown kill parameter
+      real(r8),                 parameter     :: cambial_damage_mort = 0.3_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(CF, cambial_damage_mort)
+      
+    end subroutine TotalFireMortality_ZeroCrownFire_ReturnsCambial
+    
+    @Test 
+    subroutine TotalFireMortality_ZeroCambial_ReturnsCrownFire(this)
+      ! test that the function returns crownfire_mort if cambial_damage_mort = 0.0
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: TM                           ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = 0.4_r8      ! input crown kill parameter
+      real(r8),                 parameter     :: cambial_damage_mort = 0.0_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(CF, crownfire_mort)
+      
+    end subroutine TotalFireMortality_ZeroCambial_ReturnsCrownFire
+    
+    @Test 
+    subroutine TotalFireMortality_OverOneMort_ReturnsOne(this)
+      ! test that the function correctly caps mortality rate at 1.0
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: TM                           ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = 1.4_r8      ! input crown kill parameter
+      real(r8),                 parameter     :: cambial_damage_mort = 1.4_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(CF, 1.0_r8)
+      
+    end subroutine TotalFireMortality_OverOneMort_ReturnsOne
+    
+    @Test 
+    subroutine TotalFireMortality_NegativeMortality_ReturnsZero(this)
+      ! test that the function correctly gives zero if somehow mortality rates are negative
+      class(TestFireEquations), intent(inout) :: this                          ! test object
+      real(r8)                                :: TM                            ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = -1.4_r8      ! input crown kill parameter
+      real(r8),                 parameter     :: cambial_damage_mort = -1.4_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(CF, 0.0_r8)
+      
+    end subroutine TotalFireMortality_NegativeMortality_ReturnsZero
+    
 end module test_FireEquations

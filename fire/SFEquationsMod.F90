@@ -33,6 +33,7 @@ module SFEquationsMod
   public :: FireIntensity
   public :: ScorchHeight
   public :: CrownFractionBurnt
+  public :: BarkThickness
   public :: CambialMortality
   public :: TotalFireMortality
   public :: CrownFireMortality
@@ -544,6 +545,22 @@ module SFEquationsMod
   end function BarkThickness
   
   !---------------------------------------------------------------------------------------
+  
+  real(r8) function CriticalResidenceTime(bark_thickness)
+    !
+    !  DESCRIPTION:
+    !  Calculates critical fire residence time for cambial damage [min]
+    !  Equation 19 in Thonicke et al. 2010
+    !
+  
+    ! ARGUMENTS:
+    real(r8), intent(in) :: bark_thickness ! bark thickness [cm]
+    
+    CriticalResidenceTime = 2.9_r8*bark_thickness**2.0_r8
+  
+  end function CriticalResidenceTime
+  
+  !---------------------------------------------------------------------------------------
     
   real(r8) function CambialMortality(bark_scalar, dbh, tau_l)
     !
@@ -560,12 +577,15 @@ module SFEquationsMod
     ! LOCALS:
     real(r8) :: bark_thickness ! bark thickness [cm]
     real(r8) :: tau_c          ! critical fire residence time for cambial damage [min]
-    real(r8) :: tau_r          ! tau_l/tau_c
+    real(r8) :: tau_r          ! relative fire residence time (actual / critical)
     
+    ! calculate bark thickness based of bark scalar parameter and DBH
     bark_thickness = BarkThickness(bark_scalar, dbh)
     
-    ! calculate critical residence time
-    tau_c = 2.9_r8*bark_thickness**2.0_r8
+    ! calculate critical residence time for cambial damage [min]
+    tau_c = CriticalResidenceTime(bark_thickness)
+    
+    ! relative residence time
     tau_r = tau_l/tau_c
   
     if (tau_r >= 2.0_r8) then
@@ -588,10 +608,12 @@ module SFEquationsMod
     !
 
     ! ARGUMENTS:
-    real(r8), intent(in) :: crown_kill            ! cm bark per cm dbh [cm/cm]
+    real(r8), intent(in) :: crown_kill            ! parameter for crown kill cm bark per cm dbh [cm/cm]
     real(r8), intent(in) :: fraction_crown_burned ! fraction of the crown burned [0-1]
     
     CrownFireMortality = crown_kill*fraction_crown_burned**3.0_r8
+    if (CrownFireMortality > 1.0_r8) CrownFireMortality = 1.0_r8
+    if (CrownFireMortality < nearzero) CrownFireMortality = 0.0_r8
     
   end function CrownFireMortality
   

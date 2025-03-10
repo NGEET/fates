@@ -26,10 +26,7 @@ module SFMainMod
   use EDtypesMod,             only : AREA
   use FatesLitterMod,         only : litter_type
   use FatesFuelClassesMod,    only : num_fuel_classes
-  use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : carbon12_element
-  use PRTGenericMod,          only : sapw_organ
-  use PRTGenericMod,          only : struct_organ
   use FatesInterfaceTypesMod, only : numpft
   use FatesAllometryMod,      only : CrownDepth
   use FatesFuelClassesMod,    only : fuel_classes
