@@ -753,7 +753,7 @@ contains
                                        hydr_k_lwp = 1._r8
                                     end if
 
-                                    call LeafLayerPhotosynthesis(par_per_sunla, & !
+                                    call LeafLayerPhotosynthesis(            & !
                                          par_abs,                            &  ! in
                                          ft,                                 &  ! in
                                          vcmax_z,                            &  ! in

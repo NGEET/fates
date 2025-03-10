@@ -371,9 +371,7 @@ def TestCiTol(fates_leaf_vcmax25top,leaf_c3psn,fates_stoich_nitr,fates_leaf_slat
                     
                         for ic, ci_tol in enumerate(ci_tol_vec):
                         
-                            iret = f90_leaflayerphoto_sub(c8(par_abs), \
-                                                          c8(par_abs),  \
-                                                          c8(1.0),     \
+                            iret = f90_leaflayerphoto_sub(c8(par_abs),  \
                                                           ci(ipft+1),   \
                                                           c8(vcmax_f.value),   \
                                                           c8(jmax_f.value),    \
@@ -385,6 +383,7 @@ def TestCiTol(fates_leaf_vcmax25top,leaf_c3psn,fates_stoich_nitr,fates_leaf_slat
                                                           c8(can_press_1atm), \
                                                           c8(co2_ppress_400ppm), \
                                                           c8(o2_ppress_209kppm), \
+                                                          c8(veg_es_f.value), \
                                                           c8(gb_umol), \
                                                           c8(vpress), \
                                                           c8(mm_kco2_f.value), \
@@ -835,8 +834,6 @@ def main(argv):
                                                        byref(vcmax_f), byref(jmax_f), byref(kp_f), byref(gs0_f), byref(gs1_f), byref(gs2_f))
                         
                             iret = f90_leaflayerphoto_sub(c8(par_abs), \
-                                                          c8(par_abs),  \
-                                                          c8(1.0),     \
                                                           ci(pft+1),   \
                                                           c8(vcmax_f.value),   \
                                                           c8(jmax_f.value),    \
@@ -848,6 +845,7 @@ def main(argv):
                                                           c8(can_press_1atm), \
                                                           c8(co2_ppress_400ppm), \
                                                           c8(o2_ppress_209kppm), \
+                                                          c8(veg_esat_vec[it]), \
                                                           c8(gb), \
                                                           c8(vpress), \
                                                           c8(mm_kco2_vec[it]), \

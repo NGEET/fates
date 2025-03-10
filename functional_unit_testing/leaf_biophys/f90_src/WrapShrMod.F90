@@ -41,7 +41,7 @@ module FatesGlobals
 contains
   
   integer function fates_log()
-    fates_log = -1
+    fates_log = 6
   end function fates_log
   
   subroutine fates_endrun(msg)

@@ -83,6 +83,10 @@ module LeafBiophysicsMod
   ! 101325.0_r8/(8314.4598 * 293.15 )*1.e9/2.e8  ~ 0.2 [umol/m2/s]
   real(r8),parameter :: gsmin0 = 101325.0_r8/(rgas_J_K_kmol * 293.15 )*umol_per_kmol/rsmax0
 
+  ! minimum allowable conductance for getting reasonable
+  ! bounds on extreme equations [umol/m2/s]
+  ! real(r8),parameter :: gsmin0 = 50._r8
+  
   ! Set this to true to perform debugging
   logical,parameter   ::  debug = .false.
 
@@ -1081,7 +1085,7 @@ contains
        
        ! Try an exteremly large bisection range, if this doesn't work, then
        ! fail the run
-       ci_h = 0.1_r8
+       ci_h = 0.000001_r8
        call CiFunc(ci_h, &
             ft,vcmax,jmax,kp,co2_cpoint,mm_kco2,mm_ko2, &
             can_co2_ppress,can_o2_ppress,can_press,can_vpress,lmr,par_abs,gb,veg_tempk,veg_esat, &
@@ -1158,7 +1162,7 @@ contains
   
   ! =====================================================================================
   
-  subroutine LeafLayerPhotosynthesis(par_sun, & ! in
+  subroutine LeafLayerPhotosynthesis( &
        par_abs,           &  ! in
        ft,                &  ! in
        vcmax,             &  ! in
@@ -1198,7 +1202,6 @@ contains
 
     ! Arguments
     ! ------------------------------------------------------------------------------------
-    real(r8), intent(in) :: par_sun           ! Used only for comparing with base (temporary)
     real(r8), intent(in) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m2 leaf/s]
     integer,  intent(in) :: ft                ! (plant) Functional Type Index
     real(r8), intent(in) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
@@ -1893,7 +1896,7 @@ contains
        vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
        vcmax = vcmax / (1._r8 + exp( 0.2_r8*((tfrz+15._r8)-veg_tempk ) ))
        vcmax = vcmax / (1._r8 + exp( 0.3_r8*(veg_tempk-(tfrz+40._r8)) ))
-       kp = kp25_ft * nscaler * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
+       kp = kp25_ft * nscaler * 2._r8**((min(veg_tempk,310._r8)-(tfrz+25._r8))/10._r8)
     end if
 
     jmax  = jmax25 * ft1_f(veg_tempk, jmaxha) * fth_f(veg_tempk, jmaxhd, jmaxse, jmaxc)
@@ -1922,7 +1925,6 @@ contains
        
     end if
 
-    
     ! Apply water limitations to stomatal intercept (hypothesis dependent)
 
     if(lb_params%stomatal_btran_model(ft)==btran_on_gs_gs0  .or. &
