@@ -52,7 +52,7 @@ module PRTAllometricCNPMod
   use FatesIntegratorsMod , only : Euler
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : nearzero
-  use FatesConstantsMod   , only : itrue
+  use FatesConstantsMod   , only : ievergreen
   use FatesConstantsMod   , only : fates_unset_r8
   use FatesConstantsMod   , only : fates_unset_int
   use FatesConstantsMod   , only : sec_per_day
@@ -1039,7 +1039,7 @@ contains
        ! Also, dont allocate to replace turnover if this is not evergreen
        ! (this prevents accidental re-flushing on the day they drop)
        if( ( any(leaf_status == [leaves_off,leaves_shedding]) .or. &
-             (prt_params%evergreen(ipft) /= itrue) ) &
+             (prt_params%phen_leaf_habit(ipft) /= ievergreen) ) &
             .and. (i_org == leaf_organ)) cycle
 
        ! The priority code associated with this organ
