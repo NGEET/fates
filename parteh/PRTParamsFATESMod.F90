@@ -4,7 +4,7 @@ module PRTInitParamsFatesMod
   ! the CLM/ELM module system.
 
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesConstantsMod, only : itrue,ifalse
+  use FatesConstantsMod, only : itrue
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : years_per_day
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
@@ -1109,7 +1109,7 @@ contains
 
 
 
-     npft = size(prt_params%evergreen,1)
+     npft = size(prt_params%phen_leaf_habit,1)
 
      ! Prior to performing checks copy grperc to the 
      ! organ dimensioned version
@@ -1204,7 +1204,7 @@ contains
               write(fates_log(),*) '    the dry threshold.  Positive = soil water content [m3/m3],'
               write(fates_log(),*) '    Negative = soil matric potential [mm].'
               write(fates_log(),*) ' PFT                          = ',ipft
-              write(fates_log(),*) ' Stress_decid                 = ',prt_params%stress_decid(ipft)
+              write(fates_log(),*) ' phen_leaf_habit              = ',prt_params%phen_leaf_habit(ipft)
               write(fates_log(),*) ' fates_phen_drought_threshold = ',prt_params%phen_drought_threshold(ipft)
               write(fates_log(),*) ' fates_phen_moist_threshold   = ',prt_params%phen_moist_threshold  (ipft)
               write(fates_log(),*) '---~---'
@@ -1219,7 +1219,7 @@ contains
               write(fates_log(),*) '   By greater we mean more positive or less negative, and'
               write(fates_log(),*) '   they cannot be the identical.'
               write(fates_log(),*) ' PFT                          = ',ipft
-              write(fates_log(),*) ' Stress_decid                 = ',prt_params%stress_decid(ipft)
+              write(fates_log(),*) ' phen_leaf_habit              = ',prt_params%phen_leaf_habit(ipft)
               write(fates_log(),*) ' fates_phen_drought_threshold = ',prt_params%phen_drought_threshold(ipft)
               write(fates_log(),*) ' fates_phen_moist_threshold   = ',prt_params%phen_moist_threshold  (ipft)
               write(fates_log(),*) '---~---'
@@ -1239,7 +1239,7 @@ contains
               write(fates_log(),*) ' Abscission rate for fine roots must be between 0 and 1 for '
               write(fates_log(),*) ' deciduous PFTs.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (should be 0):',prt_params%evergreen(ipft)
+              write(fates_log(),*) ' phen_leaf_habit: ',prt_params%phen_leaf_habit(ipft)
               write(fates_log(),*) ' phen_fnrt_drop_fraction: ', prt_params%phen_fnrt_drop_fraction(ipft)
               write(fates_log(),*) '---~---'
               write(fates_log(),*) ''
@@ -1270,7 +1270,7 @@ contains
               write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
               write(fates_log(),*) ' during the deciduous period.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (should be 0):',prt_params%evergreen(ipft)
+              write(fates_log(),*) ' phen_leaf_habit: ',prt_params%phen_leaf_habit(ipft)
               write(fates_log(),*) ' phen_stem_drop_fraction: ', prt_params%phen_stem_drop_fraction(ipft)
               write(fates_log(),*) '---~---'
               write(fates_log(),*) ''
@@ -1737,20 +1737,19 @@ contains
                  nerror = nerror + 1
               end if
 
-           else
-              if (prt_params%evergreen(ipft) .eq. itrue) then
-                 write(fates_log(),*) "---~---"
-                 write(fates_log(),*) 'You specified zero leaf turnover: '
-                 write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
-                 write(fates_log(),*) 'leaf_long(ipft,iage): ',prt_params%leaf_long(ipft,iage)
-                 write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
-                 write(fates_log(),*) 'that an evergreen would have leaf maintenance turnover'
-                 write(fates_log(),*) 'disable this error if you are ok with this'
-                 write(fates_log(),*) "---~---"
-                 write(fates_log(),*) ''
-                 write(fates_log(),*) ''
-                 nerror = nerror + 1
-              end if
+           elseif (prt_params%phen_leaf_habit(ipft) == ievergreen) then
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) 'You specified zero leaf turnover: '
+              write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
+              write(fates_log(),*) 'phen_leaf_habit: ',prt_params%phen_leaf_habit(ipft)
+              write(fates_log(),*) 'leaf_long(ipft,iage): ',prt_params%leaf_long(ipft,iage)
+              write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
+              write(fates_log(),*) 'that an evergreen would have leaf maintenance turnover'
+              write(fates_log(),*) 'disable this error if you are ok with this'
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
 
         end do
@@ -1802,21 +1801,19 @@ contains
               write(fates_log(),*) ''
               nerror = nerror + 1
            end if
-           
-        else
-           if (prt_params%evergreen(ipft) .eq. itrue) then
-              write(fates_log(),*) "---~---"
-              write(fates_log(),*) 'You specified zero root turnover: '
-              write(fates_log(),*) 'ipft: ',ipft
-              write(fates_log(),*) 'root_long(ipft): ',prt_params%root_long(ipft)
-              write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
-              write(fates_log(),*) 'that an evergreen would have root maintenance turnover'
-              write(fates_log(),*) 'disable this error if you are ok with this'
-              write(fates_log(),*) "---~---"
-              write(fates_log(),*) ''
-              write(fates_log(),*) ''
-              nerror = nerror + 1
-           end if
+        elseif (prt_params%phen_leaf_habit(ipft) == ievergreen) then
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) 'You specified zero root turnover: '
+           write(fates_log(),*) 'ipft: ',ipft
+           write(fates_log(),*) 'phen_leaf_habit: ',prt_params%phen_leaf_habit(ipft)
+           write(fates_log(),*) 'root_long(ipft): ',prt_params%root_long(ipft)
+           write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
+           write(fates_log(),*) 'that an evergreen would have root maintenance turnover'
+           write(fates_log(),*) 'disable this error if you are ok with this'
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
         end if
         
         ! Check Branch turnover doesn't exceed one day
