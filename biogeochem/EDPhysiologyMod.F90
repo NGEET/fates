@@ -67,6 +67,8 @@ module EDPhysiologyMod
   use EDParamsMod         , only : nclmax
   use EDTypesMod          , only : AREA,AREA_INV
   use FatesConstantsMod   , only : leaves_shedding
+  use FatesConstantsMod   , only : ievergreen
+  use FatesConstantsMod   , only : ihard_season_decid
   use FatesConstantsMod   , only : ihard_stress_decid
   use FatesConstantsMod   , only : isemi_stress_decid
   use EDParamsMod         , only : nlevleaf
@@ -760,18 +762,19 @@ contains
                 sla_levleaf = min(sla_max,prt_params%slatop(ipft)/nscaler_levleaf)
 
                 ! Find the realised leaf lifespan, depending on the leaf phenology.
-                if (prt_params%season_decid(ipft) ==  itrue) then
+                select case (prt_params%phen_leaf_habit(ipft))
+                case (ihard_season_decid)
                    ! Cold-deciduous costs. Assume time-span to be 1 year to be consistent
                    ! with FATES default
                    pft_leaf_lifespan = decid_leaf_long_max
 
-                elseif (any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid]) )then
+                case (ihard_stress_decid,isemi_stress_decid)
                    ! Drought-decidous costs. Assume time-span to be the least between
                    !    1 year and the life span provided by the parameter file.
                    pft_leaf_lifespan = &
                       min(decid_leaf_long_max,leaf_long)
 
-                else !evergreen costs
+                case (ievergreen) !evergreen costs
                    pft_leaf_lifespan = leaf_long
                 end if
 
@@ -1249,7 +1252,7 @@ contains
        !    the leaf biomass will be capped at 40% of the biomass the cohort would have if
        !    it were in well-watered conditions.
        !---~---
-       case_drought_phen: select case (prt_params%stress_decid(ipft))
+       case_drought_phen: select case (prt_params%phen_leaf_habit(ipft))
        case (ihard_stress_decid)
           !---~---
           !    Default ("hard") drought deciduous phenology. The decision on whether to 
@@ -1468,11 +1471,11 @@ contains
 
           ! Assign elongation factors for non-drought deciduous PFTs, which will be used
           ! to define the cohort status.
-          case_cold_phen: select case(prt_params%season_decid(ipft))
-          case (ifalse)
+          case_cold_phen: select case(prt_params%phen_leaf_habit(ipft))
+          case (ievergreen)
              ! Evergreen, ensure that elongation factor is always one.
              currentSite%elong_factor(ipft) = 1.0_r8
-          case (itrue)
+          case (ihard_season_decid)
              ! Cold-deciduous. Define elongation factor based on cold status
              select case (currentSite%phen_status(ipft))
              case (phen_cstat_nevercold,phen_cstat_iscold)
@@ -1571,7 +1574,8 @@ contains
           ! MLO. To avoid duplicating code for drought and cold deciduous PFTs, we first
           !      check whether or not it's time to flush or time to shed leaves, then
           !      use a common code for flushing or shedding leaves.
-          is_time_block: if (prt_params%season_decid(ipft) == itrue) then ! Cold deciduous
+          is_time_block: select case (prt_params%phen_leaf_habit(ipft))
+          case (ihard_season_decid) ! Cold deciduous
 
              ! A. Is this the time for COLD LEAVES to switch to ON?
              is_flushing_time = ( currentSite%phen_status(ipft) == phen_cstat_notcold .and. & ! We just moved to leaves being on
@@ -1582,7 +1586,7 @@ contains
                                 ( currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) .or. & ! Grasses are big enough or...
                                   prt_params%woody(ipft) == itrue                                     )      ! this is a woody PFT.
 
-          elseif (any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid]) ) then ! Drought deciduous
+          case (ihard_stress_decid,isemi_stress_decid) ! Drought deciduous
 
              ! A. Is this the time for DROUGHT LEAVES to switch to ON?
              is_flushing_time = any( currentSite%phen_status(ipft) == [phen_dstat_moiston,phen_dstat_timeon] ) .and.  & ! Leaf flushing time (moisture or time)
@@ -1591,7 +1595,7 @@ contains
              !    This will be true when leaves are abscissing (partially or fully) due to moisture or time
              is_shedding_time = any( currentSite%phen_status(ipft) == [phen_dstat_moistoff,phen_dstat_timeoff,phen_dstat_pshed] ) .and. &
                                 any( currentCohort%status_coh  == [leaves_on,leaves_shedding] )
-          else
+          case (ievergreen)
              ! This PFT is not deciduous.
              is_flushing_time         = .false.
              is_shedding_time         = .false.
@@ -2380,19 +2384,17 @@ contains
           litt%seed_germ_in(pft) = litt%seed(pft) * seedling_emerg_rate
 
        end if if_tfs_or_def
-    
-      !set the germination only under the growing season...c.xu
 
-      if ((prt_params%season_decid(pft) == itrue ) .and. &
-            (any(phen_stat(pft) == [phen_cstat_nevercold,phen_cstat_iscold]))) then
-          ! no germination for all PFTs when cold
-          litt%seed_germ_in(pft) = 0.0_r8
-       endif
-
-       ! Drought deciduous, halt germination when status is shedding, even leaves are not
-       ! completely abscissed. MLO
-       select case (prt_params%stress_decid(pft))
+       select case (prt_params%phen_leaf_habit(pft))
+       case (ihard_season_decid)
+          !set the germination only under the growing season...c.xu
+          if (any(phen_stat(pft) == [phen_cstat_nevercold,phen_cstat_iscold])) then
+             ! no germination for all PFTs when cold
+             litt%seed_germ_in(pft) = 0.0_r8
+          end if
        case (ihard_stress_decid,isemi_stress_decid)
+          ! Drought deciduous, halt germination when status is shedding, even leaves are not
+          ! completely abscissed. MLO
           if (any(phen_stat(pft) == [phen_dstat_timeoff,phen_dstat_moistoff,phen_dstat_pshed])) then
              litt%seed_germ_in(pft) = 0.0_r8
           end if
@@ -2503,7 +2505,7 @@ contains
 
             ! but if the plant is seasonally (cold) deciduous, and the site status is flagged
             ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
-            if ((prt_params%season_decid(ft) == itrue) .and.                   &
+            if ((prt_params%phen_leaf_habit(ft) == ihard_season_decid) .and.                   &
                (any(currentSite%phen_status(ft) == [phen_cstat_nevercold, phen_cstat_iscold]))) then
                efleaf_coh  = 0.0_r8
                effnrt_coh  = 1.0_r8 - fnrt_drop_fraction
@@ -2516,7 +2518,7 @@ contains
             ! For tissues other than leaves, the actual drop fraction is a combination of the
             ! elongation factor (e) and the drop fraction (x), which will ensure that the remaining
             ! tissue biomass will be exactly e when x=1, and exactly the original biomass when x = 0.
-            select case (prt_params%stress_decid(ft))
+            select case (prt_params%phen_leaf_habit(ft))
             case (ihard_stress_decid, isemi_stress_decid)
                efleaf_coh = currentSite%elong_factor(ft)
                effnrt_coh = 1.0_r8 - (1.0_r8 - efleaf_coh)*fnrt_drop_fraction

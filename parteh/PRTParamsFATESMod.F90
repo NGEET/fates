@@ -32,7 +32,8 @@ module PRTInitParamsFatesMod
   use FatesAllometryMod, only : set_root_fraction
   use PRTGenericMod, only : StorageNutrientTarget
   use EDTypesMod,          only : init_recruit_trim
-  use FatesConstantsMod,   only : ihard_stress_decid, isemi_stress_decid
+  use FatesConstantsMod,   only : ievergreen
+  use FatesConstantsMod,   only : isemi_stress_decid
   
   !
   ! !PUBLIC TYPES:
@@ -153,15 +154,7 @@ contains
     character(len=param_string_length) :: name
 
 
-    name = 'fates_phen_stress_decid'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_phen_season_decid'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_phen_evergreen'
+    name = 'fates_phen_leaf_habit'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -484,25 +477,11 @@ contains
     real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
                                          ! that are converted to ints
 
-    name = 'fates_phen_stress_decid'
+    name = 'fates_phen_leaf_habit'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=tmpreal)
-    allocate(prt_params%stress_decid(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%stress_decid)
-    deallocate(tmpreal)
-    
-    name = 'fates_phen_season_decid'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%season_decid(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%season_decid)
-    deallocate(tmpreal)
-    
-    name = 'fates_phen_evergreen'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%evergreen(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%evergreen)
+    allocate(prt_params%phen_leaf_habit(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%phen_leaf_habit)
     deallocate(tmpreal)
 
     name = 'fates_phen_stem_drop_fraction'
@@ -1054,9 +1033,7 @@ contains
         end if
 
         write(fates_log(),*) '-----------  FATES PARTEH Parameters -----------------'
-        write(fates_log(),fmti) 'stress_decid = ',prt_params%stress_decid
-        write(fates_log(),fmti) 'season_decid = ',prt_params%season_decid
-        write(fates_log(),fmti) 'evergreen = ',prt_params%evergreen
+        write(fates_log(),fmti) 'phen_leaf_habit = ',prt_params%phen_leaf_habit
         write(fates_log(),fmt0) 'phen_fnrt_drop_fraction = ',prt_params%phen_fnrt_drop_fraction
         write(fates_log(),fmt0) 'phen_stem_drop_fraction = ',prt_params%phen_stem_drop_fraction
         write(fates_log(),fmt0) 'phen_gddthresh_a = ',prt_params%phen_gddthresh_a
@@ -1155,7 +1132,7 @@ contains
     integer :: i, io    ! generic loop index and organ loop index
     
     norgans = size(prt_params%organ_id,1)
-    npft    = size(prt_params%evergreen,1)
+    npft    = size(prt_params%phen_leaf_habit,1)
     
     ! Set the reverse lookup map for organs to the parameter file index
     allocate(prt_params%organ_param_id(num_organ_types))
@@ -1179,9 +1156,8 @@ contains
      ! This subroutine performs logical checks on user supplied parameters.  It cross
      ! compares various parameters and will fail if they don't make sense.  
      ! Examples:
-     ! A tree can not be defined as both evergreen and deciduous.  A woody plant
-     ! cannot have a structural biomass allometry intercept of 0, and a non-woody
-     ! plant (grass) can't have a non-zero intercept...
+     ! A woody plant cannot have a structural biomass allometry intercept of 0, and a 
+     ! non-woody plant (grass) can't have a non-zero intercept...
      ! -----------------------------------------------------------------------------------
 
 
@@ -1196,10 +1172,6 @@ contains
      integer :: iage            ! leaf age class index
      integer :: norgans         ! size of the plant organ dimension
      integer :: i, io           ! generic loop index and organ loop index
-     logical :: is_evergreen    ! Is the PFT evergreen
-     logical :: is_season_decid ! Is the PFT cold-deciduous?
-     logical :: is_stress_decid ! Is the PFT drought-deciduous?
-     logical :: is_semi_decid   ! Is the PFT drought semi-deciduous?
      logical :: is_hmode_fine   ! Did the height allometry pass the check?
      integer :: nerror          ! Count number of errors. If this is not
                                 !    zero by theend of the subroutine, stop 
@@ -1290,38 +1262,10 @@ contains
      
      pftloop: do ipft = 1,npft
 
-        ! Check to see if evergreen, deciduous flags are mutually exclusive
-        !      By the way, if these are mutually exclusive, shouldn't we define a
-        !      single prt_params%leaf_phenology and a list of codes for the different
-        !      types (i.e., ievergreen, iseason_decid, istress_hard, istress_semi, etc.)?
-        ! ----------------------------------------------------------------------------------
-        is_evergreen    = prt_params%evergreen(ipft)    == itrue
-        is_season_decid = prt_params%season_decid(ipft) == itrue
-        is_stress_decid = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid])
-        is_semi_decid   = prt_params%stress_decid(ipft) == isemi_stress_decid
-
-        if ( ( is_evergreen    .and. is_season_decid ) .or. &
-             ( is_evergreen    .and. is_stress_decid ) .or. &
-             ( is_season_decid .and. is_stress_decid ) ) then
-
-           write(fates_log(),*) '---~---'
-           write(fates_log(),*) 'PFT # ',ipft,' must be defined as having one of three'
-           write(fates_log(),*) 'phenology habits, ie, only one of the flags below should'
-           write(fates_log(),*) 'be different than ',ifalse
-           write(fates_log(),*) 'stress_decid: ',prt_params%stress_decid(ipft)
-           write(fates_log(),*) 'season_decid: ',prt_params%season_decid(ipft)
-           write(fates_log(),*) 'evergreen: ',prt_params%evergreen(ipft)
-           write(fates_log(),*) '---~---'
-           write(fates_log(),*) ''
-           write(fates_log(),*) ''
-           nerror = nerror + 1
-        end if
-
-
         ! When using the the drought semi-deciduous phenology, we must ensure that the lower
         ! and upper thresholds are consistent (i.e., that both are based on either soil
         ! water content or soil matric potential).
-        if (is_semi_decid) then
+        if (prt_params%phen_leaf_habit(ipft) == isemi_stress_decid) then
            if ( prt_params%phen_drought_threshold(ipft)*prt_params%phen_moist_threshold(ipft) < 0._r8 ) then
               ! In case the product of the lower and upper thresholds is negative, the
               !    thresholds are inconsistent as both should be defined using the same 
@@ -1358,7 +1302,7 @@ contains
         end if
 
         ! For all deciduous PFTs, check that abscission fractions are all bounded.
-        if (prt_params%evergreen(ipft) == ifalse) then
+        if (prt_params%phen_leaf_habit(ipft) /= ievergreen) then
            ! Check if the fraction of fine roots to be actively abscised relative to leaf abscission
            ! is bounded between 0 and 1 (exactly 0 and 1 are acceptable).
            if ( ( prt_params%phen_fnrt_drop_fraction(ipft) < 0.0_r8 ) .or. &

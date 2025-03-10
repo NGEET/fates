@@ -11,24 +11,19 @@ module PRTParametersMod
 
   type,public ::  prt_param_type
 
-     ! The following three PFT classes 
-     ! are mutually exclusive
-     ! MLO: perhaps we should replace these three parameters with a single
-     !      parameter (phenology(:)) that is assigned different indices?
-     integer, allocatable :: stress_decid(:)        ! Is the plant stress deciduous?
-                                                    ! 0 - No
-                                                    ! 1 - Drought "hard" deciduous (i.e., PFT
-                                                    !     sheds leaves all at once when stressed)
-                                                    ! 2 - Drought semi-deciduous (i.e., PFT
-                                                    !     sheds leaves gradually as drought
-                                                    !     conditions deteriorate)
-     integer, allocatable :: season_decid(:)        ! Is the plant seasonally deciduous (1=yes, 0=no)
-     integer, allocatable :: evergreen(:)           ! Is the plant an evergreen (1=yes, 0=no)
-
+     integer, allocatable :: phen_leaf_habit(:)           ! Leaf phenological habit? Current options include the following:
+                                                          !    (actual values defined in FatesConstantsMod.F90)
+                                                          !    - ievergreen - evergreen
+                                                          !    - ihard_season_decid - obligate cold deciduous (i.e., 
+                                                          !      leaves will abscise and flush every winter)
+                                                          !    - ihard_stress_decid - obligate drought deciduous (i.e.,
+                                                          !      leaves will abscie and flush at least once a year)
+                                                          !    - isemi_stress_decid - drought semi-deciduous (i.e., 
+                                                          !      partial abscission and flushing are allowed).
      ! Drop fraction for tissues other than leaves (PFT-dependent)
 
-     real(r8), allocatable :: phen_fnrt_drop_fraction(:) ! Abscission fraction of fine roots
-     real(r8), allocatable :: phen_stem_drop_fraction(:) ! Abscission fraction of stems
+     real(r8), allocatable :: phen_fnrt_drop_fraction(:)  ! Abscission fraction of fine roots
+     real(r8), allocatable :: phen_stem_drop_fraction(:)  ! Abscission fraction of stems
 
                                                           ! The three parameters below are for the growing degree days
                                                           !    threshold function, which is modulated by the number of
