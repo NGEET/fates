@@ -791,7 +791,7 @@ contains
 
                 case (ievergreen) !evergreen costs
                    pft_leaf_lifespan = leaf_long
-                end if
+                end select
 
                 ! Leaf cost at leaf level z (kgC m-2 year-1) accounting for sla profile
                 ! (Convert from SLA in m2g-1 to m2kg-1)
