@@ -37,6 +37,8 @@ module SFEquationsMod
   public :: CambialMortality
   public :: TotalFireMortality
   public :: CrownFireMortality
+  public :: CriticalResidenceTime
+  public :: cambial_mort
   
   ! for error message writing
   character(len=*), parameter :: sourcefile = __FILE__
@@ -490,13 +492,12 @@ module SFEquationsMod
     real(r8), intent(in) :: alpha_SH ! alpha parameter for scorch height equation
     real(r8), intent(in) :: FI       ! fire intensity [kW/m]
     
-    ScorchHeight = alpha_SH*(FI**0.667_r8)
-    
-    if (ScorchHeight < nearzero) then 
-      call endrun(msg="scorch height is negative", &
-        additional_msg=errMsg(sourcefile, __LINE__))
+    if (FI < nearzero) then
+      ScorchHeight = 0.0_r8
+    else 
+      ScorchHeight = alpha_SH*(FI**0.667_r8)
     end if 
-
+    
   end function ScorchHeight
   
   !---------------------------------------------------------------------------------------
@@ -587,16 +588,31 @@ module SFEquationsMod
     
     ! relative residence time
     tau_r = tau_l/tau_c
-  
-    if (tau_r >= 2.0_r8) then
-      CambialMortality = 1.0_r8 
-    else if (tau_r < 2.0_r8 .and. tau_r > 0.22_r8) then
-      CambialMortality = 0.563_r8*tau_r - 0.125_r8
-    else 
-      CambialMortality = 0.0_r8
-    end if
+    
+    CambialMortality = cambial_mort(tau_r)
     
   end function CambialMortality
+  
+  !---------------------------------------------------------------------------------------
+  
+  real(r8) function cambial_mort(tau_r)
+    !
+    !  DESCRIPTION:
+    !  Helper function for CambialMortality
+    !
+
+    ! ARGUMENTS:
+  real(r8), intent(in) :: tau_r ! relative residence time of fire
+  
+    if (tau_r >= 2.0_r8) then
+      cambial_mort = 1.0_r8 
+    else if (tau_r < 2.0_r8 .and. tau_r > 0.22_r8) then
+      cambial_mort = 0.563_r8*tau_r - 0.125_r8
+    else 
+      cambial_mort = 0.0_r8
+    end if
+    
+  end function cambial_mort
   
   !---------------------------------------------------------------------------------------
   
@@ -630,7 +646,12 @@ module SFEquationsMod
     real(r8), intent(in) :: crownfire_mort      ! mortality rate from crown scorching [0-1]
     real(r8), intent(in) :: cambial_damage_mort ! mortality rate from cambial damage [0-1]
     
-    TotalFireMortality = crownfire_mort + cambial_damage_mort - (crownfire_mort*cambial_damage_mort)
+    if (crownfire_mort > 1.0_r8 .or. cambial_damage_mort > 1.0_r8) then 
+      TotalFireMortality = 1.0_r8
+    else 
+      TotalFireMortality = crownfire_mort + cambial_damage_mort - (crownfire_mort*cambial_damage_mort)
+    end if 
+    
     if (TotalFireMortality > 1.0_r8) TotalFireMortality = 1.0_r8
     if (TotalFireMortality < nearzero) TotalFireMortality = 0.0_r8
     
