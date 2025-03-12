@@ -51,9 +51,6 @@ class FireMortTest(FunctionalTest):
         self.plot_tau_c(mortality_dat, obs_dat, save_figs, plot_dir)
         
     @staticmethod
-    
-    
-    @staticmethod
     def plot_tau_c(ds, obs_dat, save_figs, plot_dir):
         
         data_frame = pd.DataFrame({
