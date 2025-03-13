@@ -1732,7 +1732,7 @@ data:
 
  fates_cohort_size_fusion_tol = 0.08 ;
 
- fates_comp_excln = 3 ;
+ fates_comp_excln = -1 ;
 
  fates_damage_canopy_layer_code = 1 ;
 
