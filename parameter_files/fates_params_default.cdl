@@ -741,9 +741,9 @@ variables:
 	double fates_dev_arbitrary ;
 		fates_dev_arbitrary:units = "unknown" ;
 		fates_dev_arbitrary:long_name = "Unassociated free parameter that developers can use for testing arbitrary new hypotheses" ;
-	double fates_fire_active_crown_fire ;
-		fates_fire_active_crown_fire:units = "0 or 1" ;
-		fates_fire_active_crown_fire:long_name = "flag, 1=active crown fire 0=no active crown fire" ;
+	double fates_crown_fire_switch ;
+		fates_crown_fire_switch:units = "0 or 1" ;
+		fates_crown_fire_switch:long_name = "flag, 1=active crown fire 0=no active crown fire" ;
 	double fates_fire_cg_strikes ;
 		fates_fire_cg_strikes:units = "fraction (0-1)" ;
 		fates_fire_cg_strikes:long_name = "fraction of cloud to ground lightning strikes" ;
@@ -1767,7 +1767,7 @@ data:
 
  fates_dev_arbitrary = _ ;
 
- fates_fire_active_crown_fire = 0 ;
+ fates_crown_fire_switch = 0 ;
 
  fates_fire_cg_strikes = 0.2 ;
 
