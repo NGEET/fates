@@ -4452,10 +4452,10 @@ contains
                    hio_m5_si_scls(io_si,i_scls) = hio_m5_si_scls(io_si,i_scls) + &
                         (sites(s)%fmort_rate_canopy(i_scls, ft) +              &
                         sites(s)%fmort_rate_ustory(i_scls, ft)) / m2_per_ha
-                        hio_m12_si_scpf(io_si,i_scpf) = (sites(s)%rxfmort_rate_canopy(i_scls, i_pft) + &
+                        hio_m12_si_scpf(io_si,i_scpf) = (sites(s)%rxfmort_rate_canopy(i_scls,ft) + &
                         sites(s)%rxfmort_rate_ustory(i_scls, ft)) / m2_per_ha  
                    hio_m12_si_scls(io_si,i_scls) = hio_m12_si_scls(io_si,i_scls) + &
-                        (sites(s)%rxfmort_rate_canopy(i_scls, i_pft) +             &
+                        (sites(s)%rxfmort_rate_canopy(i_scls, ft) +             &
                         sites(s)%rxfmort_rate_ustory(i_scls, ft)) / m2_per_ha  
                    !
                    hio_crownfiremort_si_scpf(io_si,i_scpf) = sites(s)%fmort_rate_crown(i_scls, ft) / m2_per_ha
