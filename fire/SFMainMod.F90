@@ -706,8 +706,6 @@ contains
     real(r8),parameter  :: sav_live_ft  = 1650.0_r8                    ! FM 10 live SAV (ft2/ft3)
     real(r8),parameter  :: tonnes_acre_to_kg_m2 = 0.2241701_r8         ! convert tons/acre to kg/m2
     real(r8),parameter  :: sqft_cubicft_to_sqm_cubicm = 0.03280844_r8  ! convert ft2/ft3 to m2/m3
-    real(r8),parameter  :: canopy_ignite_energy = 18000.0_r8           ! heat yield for canopy fuels (kJ/kg)
-    real(r8),parameter  :: km2_to_m2 = 1E+6.0_r8                       ! area conversion for square km to square m
     real(r8),parameter  :: km_per_hr_to_m_per_min = 16.6667_r8         ! convert km/hour to m/min for wind speed
     real(r8), parameter :: wind_atten_tree = 0.4_r8                    ! wind attenuation factor for tree fraction
     real(r8), parameter :: wind_atten_grass = 0.6_r8                   ! wind attenuation factor for grass fraction
