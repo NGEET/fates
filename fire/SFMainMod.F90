@@ -833,7 +833,7 @@ contains
                       ( ROS_active - currentPatch%ROS_front)
           ! update ROS_front with ROS_final
           currentPatch%ROS_front = ROS_final
-          ! update fire intensity by accounting got burned canopy fuels
+          ! update fire intensity by accounting for burned canopy fuels
           ! EQ. 22 in Scott & Reinhardt 2001
           FI_final = CrownFireIntensity(HPA, currentPatch%fuel%canopy_fuel_load, &
           canopy_frac_burnt, ROS_final)
