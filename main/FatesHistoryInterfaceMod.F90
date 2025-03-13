@@ -2555,7 +2555,7 @@ contains
          hio_effect_wspeed_si(io_si) = sites(s)%fireWeather%effective_windspeed/sec_per_min
 
          ! Prescribed fire burn window
-         hio_rx_burn_window_si(io_si) = hio_rx_burn_window_si(io_si) + sites(s)%rx_flag
+         hio_rx_burn_window_si(io_si) = hio_rx_burn_window_si(io_si) + sites(s)%fireWeather%rx_flag
 
          ! number of ignitions [#/km2/day -> #/m2/s]
          hio_fire_nignitions_si(io_si) = sites(s)%NF_successful / m2_per_km2 /  &
