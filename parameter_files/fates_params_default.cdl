@@ -1784,23 +1784,23 @@ data:
 
  fates_landuse_grazing_phosphorus_use_eff = 0.5 ;
 
- fates_landuse_logging_coll_under_frac = 0.55983 ;
+ fates_landuse_logging_coll_under_frac = 0. ;
 
- fates_landuse_logging_collateral_frac = 0.05 ;
+ fates_landuse_logging_collateral_frac = 0. ;
 
  fates_landuse_logging_dbhmax = _ ;
 
- fates_landuse_logging_dbhmax_infra = 35 ;
+ fates_landuse_logging_dbhmax_infra = 0 ;
 
- fates_landuse_logging_dbhmin = 50 ;
+ fates_landuse_logging_dbhmin = 0 ;
 
- fates_landuse_logging_direct_frac = 0.15 ;
+ fates_landuse_logging_direct_frac = 1. ;
 
  fates_landuse_logging_event_code = -30 ;
 
  fates_landuse_logging_export_frac = 0.8 ;
 
- fates_landuse_logging_mechanical_frac = 0.05 ;
+ fates_landuse_logging_mechanical_frac = 0. ;
 
  fates_leaf_photo_temp_acclim_thome_time = 30 ;
 
