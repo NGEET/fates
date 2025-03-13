@@ -922,7 +922,7 @@ variables:
 	    fates_rxfire_wind_lwthreshold:units = "m/s";
 		fates_rxfire_wind_lwthreshold:long_name= "minimum wind speed threshold for conducting prescribeb fire";
 	double fates_rxfire_AB ;
-	    fates_rxfire_AB:units = "m2/day";
+	    fates_rxfire_AB:units = "fraction/day";
 		fates_rxfire_AB:long_name= "daily burn capacity of prescribed fire";
 	double fates_rxfire_min_threshold ;
 	    fates_rxfire_min_threshold:units = "kJ/m/s or kW/s";
