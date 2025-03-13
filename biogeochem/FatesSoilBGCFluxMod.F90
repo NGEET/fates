@@ -252,7 +252,7 @@ contains
     type(fates_patch_type), pointer  :: cpatch        ! current patch pointer
     type(fates_cohort_type), pointer :: ccohort       ! current cohort pointer
     integer                       :: pft           ! plant functional type
-    integer                       :: fp            ! patch index of the site
+    integer                       :: ifp            ! patch index of the site
     real(r8) :: agnpp   ! Above ground daily npp
     real(r8) :: bgnpp   ! Below ground daily npp
     real(r8) :: plant_area ! crown area (m2) of all plants in patch
@@ -283,17 +283,17 @@ contains
 
     ! Process CH4 variables first
     !if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) )
-    
-    fp = 0
+
     cpatch => csite%oldest_patch
     do while (associated(cpatch))
+       
+       ifp = cpatch%patchno
+       
        if_notbare: if(cpatch%nocomp_pft_label .ne. nocomp_bareground)then
           ! Patch ordering when passing boundary conditions
           ! always goes from oldest to youngest, following
           ! the convention of EDPatchDynamics::set_patchno()
-          
-          fp    = fp + 1
-          
+
           agnpp = 0._r8
           bgnpp = 0._r8
           woody_area = 0._r8
@@ -334,13 +334,13 @@ contains
                 if(hlm_use_ch4==itrue)then
                    
                    ! Fine root fraction over depth
-                   bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) = &
-                        bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) + &
+                   bc_out%rootfr_pa(ifp,1:bc_in%nlevsoil) = &
+                        bc_out%rootfr_pa(ifp,1:bc_in%nlevsoil) + &
                         csite%rootfrac_scr(1:bc_in%nlevsoil)
                    
                    ! Fine root carbon, convert [kg/plant] -> [g/m2]
-                   bc_out%frootc_pa(fp) = &
-                        bc_out%frootc_pa(fp) + &
+                   bc_out%frootc_pa(ifp) = &
+                        bc_out%frootc_pa(ifp) + &
                         fnrt_c*ccohort%n/cpatch%area * g_per_kg
                    
                    ! (gC/m2/s) root respiration (fine root MR + total root GR)
@@ -366,10 +366,10 @@ contains
           end do
        
           if(hlm_use_ch4==itrue)then
-             if( sum(bc_out%rootfr_pa(fp,1:bc_in%nlevsoil)) > nearzero) then
-                bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) = &
-                     bc_out%rootfr_pa(fp,1:bc_in%nlevsoil) / &
-                     sum(bc_out%rootfr_pa(fp,1:bc_in%nlevsoil)) 
+             if( sum(bc_out%rootfr_pa(ifp,1:bc_in%nlevsoil)) > nearzero) then
+                bc_out%rootfr_pa(ifp,1:bc_in%nlevsoil) = &
+                     bc_out%rootfr_pa(ifp,1:bc_in%nlevsoil) / &
+                     sum(bc_out%rootfr_pa(ifp,1:bc_in%nlevsoil)) 
              end if
              
              ! RGK: These averages should switch to the new patch averaging methods
@@ -378,17 +378,18 @@ contains
              !      would be arguably worse than just using the instantaneous value
              
              ! gC/m2/s
-             bc_out%annavg_agnpp_pa(fp) = agnpp
-             bc_out%annavg_bgnpp_pa(fp) = bgnpp
+             bc_out%annavg_agnpp_pa(ifp) = agnpp
+             bc_out%annavg_bgnpp_pa(ifp) = bgnpp
              ! gc/m2/yr
-             bc_out%annsum_npp_pa(fp) = (bgnpp+agnpp)*days_per_year*sec_per_day
+             bc_out%annsum_npp_pa(ifp) = (bgnpp+agnpp)*days_per_year*sec_per_day
 
              if(plant_area>nearzero) then
-                bc_out%woody_frac_aere_pa(fp) = woody_area/plant_area
+                bc_out%woody_frac_aere_pa(ifp) = woody_area/plant_area
              end if
     
           end if
        end if if_notbare
+
        cpatch => cpatch%younger
     end do
     

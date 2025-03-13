@@ -15,6 +15,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : i_term_mort_type_canlev
   use FatesConstantsMod        , only : i_term_mort_type_numdens
   use FatesConstantsMod        , only : nocomp_bareground_land
+  use FatesConstantsMod        , only : nocomp_bareground
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDParamsMod              , only : nclmax, maxpft
@@ -478,6 +479,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_npp_agsw_si_scpf
   integer :: ih_npp_agdw_si_scpf
   integer :: ih_npp_stor_si_scpf
+  integer :: ih_grazing_si
 
   integer :: ih_mortality_canopy_si_scpf
   integer :: ih_mortality_understory_si_scpf
@@ -2366,7 +2368,6 @@ contains
     type(litter_type), pointer :: litt     ! Generic pointer to any litter pool
 
     integer  :: s                  ! site counter
-    integer  :: ipa                ! patch index matching host model array space
     integer  :: io_si              ! site's index in the history output array space
     integer  :: el                 ! element index
     integer  :: ft                 ! pft index
@@ -2393,6 +2394,7 @@ contains
     real(r8) :: fnrt_m_net_alloc   ! mass allocated to fine-root [kg/yr]
     real(r8) :: struct_m_net_alloc ! mass allocated to structure [kg/yr]
     real(r8) :: repro_m_net_alloc  ! mass allocated to reproduction [kg/yr]
+    real(r8) :: leaf_herbivory     ! mass of leaves eaten by herbivores [kg/yr]
     real(r8) :: n_perm2            ! abundance per m2
     real(r8) :: area_frac  ! Fraction of area for this patch
     
@@ -2453,6 +2455,7 @@ contains
          hio_npp_froot_si        => this%hvars(ih_npp_froot_si)%r81d, &
          hio_npp_croot_si        => this%hvars(ih_npp_croot_si)%r81d, &
          hio_npp_stor_si         => this%hvars(ih_npp_stor_si)%r81d, &
+         hio_grazing_si          => this%hvars(ih_grazing_si)%r81d, &
          hio_canopy_mortality_crownarea_si     => this%hvars(ih_canopy_mortality_crownarea_si)%r81d, &
          hio_ustory_mortality_crownarea_si => this%hvars(ih_understory_mortality_crownarea_si)%r81d, &
          hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
@@ -2645,7 +2648,6 @@ contains
               AREA_INV * days_per_sec
 
          ! Loop through patches to sum up diagonistics
-         ipa = 0
          cpatch => sites(s)%oldest_patch
          patchloop: do while(associated(cpatch))
 
@@ -2911,6 +2913,9 @@ contains
                   hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) +               &
                        store_m_net_alloc * n_perm2 / days_per_year / sec_per_day
 
+                  leaf_herbivory   = ccohort%prt%GetHerbivory(leaf_organ, carbon12_element) * days_per_year  !cdkcdk
+                  hio_grazing_si(io_si) = hio_grazing_si(io_si) + leaf_herbivory * n_perm2 / days_per_year / sec_per_day
+
                   ! Woody State Variables (basal area growth increment)
                   if ( prt_params%woody(ft) == itrue) then
 
@@ -2972,7 +2977,6 @@ contains
                ccohort => ccohort%taller
             enddo cohortloop ! cohort loop
 
-            ipa = ipa + 1
             cpatch => cpatch%younger
          end do patchloop !patch loop
 
@@ -3044,7 +3048,7 @@ contains
     type(litter_type), pointer :: litt_c   ! Pointer to the carbon12 litter pool
     type(litter_type), pointer :: litt     ! Generic pointer to any litter pool
     integer  :: s                  ! site counter
-    integer  :: ipa,ipa2           ! patch index matching host model array space
+    integer  :: ipa2           ! patch index matching host model array space
     integer  :: io_si              ! site's index in the history output array space
     integer  :: el                 ! element index
     integer  :: ft                 ! pft index
@@ -3411,7 +3415,6 @@ contains
              end do
 
              ! Loop through patches to sum up diagonistics
-             ipa = 0
              cpatch => sites(s)%oldest_patch
              patchloop: do while(associated(cpatch))
 
@@ -4328,7 +4331,6 @@ contains
 
                 end do
 
-                ipa = ipa + 1
                 cpatch => cpatch%younger
              end do patchloop !patch loop
 
@@ -4964,7 +4966,6 @@ contains
     ! Locals
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
-    integer  :: ipa      ! patch bc index for the patch
     integer  :: age_class  ! class age index
     real(r8) :: site_area_veg_inv  ! inverse canopy area of the site (1/m2)
     real(r8) :: site_area_rad_inv   ! inverse canopy area of site for only
@@ -5086,14 +5087,10 @@ contains
 
          else
 
-            ipa = 0
             site_area_veg_inv = 1._r8/site_area_veg_inv
 
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
-
-               ipa = ipa + 1
-
 
                hio_c_stomata_si(io_si) = hio_c_stomata_si(io_si) + &
                     cpatch%c_stomata * cpatch%total_canopy_area * mol_per_umol * site_area_veg_inv
@@ -5102,7 +5099,7 @@ contains
                     cpatch%c_lblayer * cpatch%total_canopy_area * mol_per_umol * site_area_veg_inv
 
                ! Only accumulate the instantaneous vegetation temperature for vegetated patches
-               if (cpatch%patchno .ne. 0) then
+               if (cpatch%nocomp_pft_label.ne.nocomp_bareground)then
                   hio_tveg(io_si) = hio_tveg(io_si) + &
                        (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm) * &
                        cpatch%total_canopy_area * site_area_veg_inv
@@ -5159,7 +5156,6 @@ contains
                   end if if_notnew
                   ccohort => ccohort%taller
                end do
-
                cpatch => cpatch%younger
             end do
          end if if_veg_area
@@ -5194,7 +5190,6 @@ contains
     ! Locals
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
-    integer  :: ipa      ! The local "I"ndex of "PA"tches
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
     integer  :: ft               ! functional type index
@@ -5280,15 +5275,11 @@ contains
 
          io_si  = sites(s)%h_gid
 
-         ipa = 0
-
          patch_area_by_age(1:nlevage) = 0._r8
          canopy_area_by_age(1:nlevage) = 0._r8
 
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
-
-            ipa = ipa + 1
 
             patch_area_by_age(cpatch%age_class)  = &
                  patch_area_by_age(cpatch%age_class) + cpatch%area
@@ -5636,7 +5627,6 @@ contains
     ! Locals
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
-    integer  :: ipa      ! The local "I"ndex of "PA"tches
     integer  :: ft               ! functional type index
     !    integer  :: io_shsl  ! The combined "SH"ell "S"oil "L"ayer index in the IO array
     real(r8) :: ncohort_scpf(nlevsclass*maxpft)  ! Bins to count up cohorts counts used in weighting
@@ -5889,7 +5879,6 @@ contains
                end do
             end do
 
-            ipa = 0
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
 
@@ -5972,7 +5961,7 @@ contains
 
                   ccohort => ccohort%taller
                enddo ! cohort loop
-               ipa = ipa + 1
+
                cpatch => cpatch%younger
             end do !patch loop
 
@@ -6800,6 +6789,12 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_npp_stor_si)
+
+       call this%set_history_var(vname='FATES_GRAZING', units='kg m-2 s-1',    &
+            long='grazing by herbivores of leaves in kg carbon per m2 per second',          &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            index = ih_grazing_si)
 
        hydro_active_if: if(hlm_use_planthydro.eq.itrue) then
           call this%set_history_var(vname='FATES_VEGH2O_DEAD', units = 'kg m-2',  &

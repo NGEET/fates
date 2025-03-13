@@ -225,7 +225,8 @@ contains
     integer                         :: iofp                    ! patch index
     
     ! CONSTANTS:
-    real(r8), parameter :: alpha = 0.0035_r8  ! potential human ignition counts (alpha in Li et al. 2012) (#/person/month)
+    real(r8), parameter :: igns_per_person_month = 0.0035_r8  ! potential human ignition counts (alpha in Li et al. 2012) (#/person/month)
+    real(r8), parameter :: approx_days_per_month = 30.0_r8    ! approximate days per month [days]
 
     ! initialize site parameters to zero
     currentSite%NF_successful = 0.0_r8
@@ -265,7 +266,7 @@ contains
     if (hlm_spitfire_mode == hlm_sf_anthro_ignitions_def) then
       ! anthropogenic ignitions (count/km2/day)
       !           =  (ignitions/person/month)*6.8*population_density**0.43/approximate days per month
-      anthro_ignitions = alpha*6.8_r8*bc_in%pop_density(iofp)**0.43_r8/30.0_r8
+      anthro_ignitions = igns_per_person_month*6.8_r8*bc_in%pop_density(iofp)**0.43_r8/approx_days_per_month
       currentSite%NF = currentSite%NF + anthro_ignitions
     end if
 
@@ -363,11 +364,9 @@ contains
     !  Calculates surface fireline intensity for each patch of a site
     !  Use calculated fire intensity to determine if prescribed fire or
     !  wildfire happens 
-    !  Right now also calculates the area burnt...
     !
-    use FatesConstantsMod, only : m2_per_km2
-    use SFEquationsMod,    only : FireDuration, LengthToBreadth
-    use SFEquationsMod,    only : AreaBurnt, FireSize, FireIntensity
+
+    use SFEquationsMod,    only : FireIntensity
     use SFParamsMod,       only : SF_val_fire_threshold, SF_val_rxfire_minthreshold, &
     SF_val_rxfire_maxthreshold, SF_val_rxfire_fuel_min, SF_val_rxfire_fuel_max
     use EDParamsMod,       only : rxfire_switch
@@ -378,10 +377,6 @@ contains
     ! LOCALS:
     type(fates_patch_type), pointer :: currentPatch                    ! patch object
     real(r8)                        :: fuel_consumed(num_fuel_classes) ! fuel consumed [kgC/m2]
-    real(r8)                        :: tree_fraction_patch             ! treed fraction on patch [0-1]
-    real(r8)                        :: length_to_breadth               ! length to breadth ratio of fire ellipse (unitless)
-    real(r8)                        :: fire_size                       ! size of fire [m2]
-    real(r8)                        :: area_burnt                      ! area burnt [m2/km2]
     logical                         :: is_rxfire                       ! is it a prescribed fire?
     logical                         :: rx_man                          ! prescribed fire use human ignition 
     logical                         :: rx_hyb                          ! prescribed fire due to both lightning strike and human ignition
@@ -496,6 +491,9 @@ contains
     real(r8)                        :: fire_size                       ! size of fire [m2]
     real(r8)                        :: area_burnt                      ! area burnt [m2/km2]
     
+    ! CONSTANTS:
+    real(r8), parameter :: max_frac_burnt = 0.99_r8 ! maximum fraction burnt on patch
+    
     currentPatch => currentSite%oldest_patch 
     do while (associated(currentPatch))
 
@@ -515,7 +513,7 @@ contains
           length_to_breadth = LengthToBreadth(currentSite%fireWeather%effective_windspeed, tree_fraction_patch)
 
           ! fire size [m2]
-          fire_size = FireSize(length_to_breadth, currentPatch%ROS_back,              &
+          fire_size = FireSize(length_to_breadth, currentPatch%ROS_back, &
               currentPatch%ROS_front, currentPatch%FD)
 
           ! area burnt [m2/km2]
@@ -523,7 +521,7 @@ contains
           
           ! convert to area burned per area patch per day
           ! i.e., fraction of the patch burned on that day
-          currentPatch%frac_burnt = min(0.99_r8, area_burnt/m2_per_km2)
+          currentPatch%frac_burnt = min(max_frac_burnt, area_burnt/m2_per_km2)
           
         end if
       end if
