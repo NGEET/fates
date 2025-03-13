@@ -67,6 +67,7 @@ contains
       call CalculateIgnitionsandFDI(currentSite, bc_in)
       call CalculateSurfaceRateOfSpread(currentSite)
       call CalculateSurfaceFireIntensity(currentSite)
+      call PassiveActiveCrownFireCheck(currentSite)
       call CalculateAreaBurnt(currentSite)
       call CalculateRxfireAreaBurnt(currentSite)
       call crown_scorching(currentSite)
@@ -307,6 +308,8 @@ contains
         biom_matrix(:) = biom_matrix(:) / currentPatch%area ! kg biomass / m3
         ! update canopy fuel bulk density
         call currentPatch%fuel%CalculateCanopyBulkDensity(biom_matrix, max_height)
+
+        deallocate(biom_matrix)
 
       end if ! nocomp_bareground 
       currentPatch => currentPatch%younger;
@@ -591,6 +594,265 @@ contains
 
   end subroutine CalculateSurfaceFireIntensity
    
+  !---------------------------------------------------------------------------------------
+
+  subroutine PassiveActiveCrownFireCheck(currentSite)
+    !
+    ! DESCRIPTION:
+    ! 1) Calculate theoretical active crown fire ROS (R_active) using fuel model 10 and Rothermel's ROS model
+    ! XLG: the calculation of R_active can also incluede canopy bulk density (CBD) and canopy water content (see EQ. 10),
+    ! but those are currently ignored in Scott & Reinhardt 2001 due to contrasting effects of CBD on R_active in lit.,
+    ! and the difficulty of obtaining a base-line FME (see discussion in Scott & Reinhardt 2001 pg12-13) 
+    ! 2) Calculate the critical mass flow rate for sustaining a fully active crown fire given current
+    ! canopy bulk density, which is R'_active in Scott & Reinhardt 2001; 
+    ! 3) Calculate the critical open wind speed for sustaining a fully active crown fire, AKA crowning index (CI)
+    ! using FM10 fuel characteristics 
+    ! and the theoretical surface fire ROS (R'_SA, will be used in calculating final ROS for crown fire) using CI
+    ! XLG: I'm not sure what SAV value they used in Scott & Reinhardt 2001 to calculate CI,
+    ! Sam. L used SAV values from the BEHAVE model, but when use that to calculate some constants and comapre
+    ! to EQ. 20 it doesn't seem right to me. This is something we have to discuss
+    ! 4) Calculate the critical surface fire ROS (R'_initiation) for initiating a crown fire 
+    ! 5) Determine passive or active crown fire by comparing current surface ROS_front to R'_initiation, and
+    ! R_active to R'_active. Passive: ROS_front > R'_initiation but R_active < R'_active; 
+    ! Active: ROS_front > R'_initiation and R_active > R'_active. Note: FI > FI_init is equivalent to ROS_front > R'_initiation
+    ! 6) Update ROS_front and FI if crown fire happens  
+    !
+    use SFParamsMod,    only : SF_val_miner_total, SF_val_part_dens, SF_val_drying_ratio
+    use EDTypesMod,     only : CalculateTreeGrassAreaSite
+    use SFEquationsMod, only : OptimumPackingRatio, ReactionIntensity
+    use SFEquationsMod, only : HeatofPreignition, EffectiveHeatingNumber
+    use SFEquationsMod, only : WindFactor, PropagatingFlux
+    use SFEquationsMod, only : ForwardRateOfSpread
+    use SFEquationsMod, only : PassiveCrownFireIntensity, HeatReleasePerArea
+    use SFEquationsMod, only : CrowningIndex, CrownFireIntensity
+
+    ! ARGUMENTS:
+    type(ed_site_type), intent(inout), target :: currentSite
+
+    ! LOCALS:
+    type(fates_patch_type), pointer :: currentPatch                    ! patch object
+
+
+    real(r8)                        :: FI_init           ! critical surface fire intensity for initiating a crown fire [kW/m or kJ/m/s]
+    real(r8)                        :: HPA               ! heat release per unit area [kW/m2]
+    real(r8)                        :: ROS_init          ! critical surface ROS for initiating a crown fire [m/min]
+    real(r8)                        :: ROS_active_min    ! critical ROS for sustaining a fully active crown fire [m/min]
+    real(r8)                        :: canopy_frac_burnt ! canopy fraction burnt due to crown fire [fraction]
+    real(r8)                        :: ROS_final         ! final ROS when a crown fire happens [m/min]
+    real(r8)                        :: FI_final          ! final fireline intensity with crown consumption [kW/m or kJ/m/s]
+
+
+   ! Local variables for calculating ROS_active 
+    real(r8)                        :: ROS_active        ! theoretical crown fire rate of spread using FM 10 fuels [m/min]
+    real(r8)                        :: fuel_1h           ! 1 hour fuel load using FM 10 [kg]
+    real(r8)                        :: fuel_10h          ! 10 hour fuel load using FM 10 [kg]
+    real(r8)                        :: fuel_100h         ! 100 hour fuel load using FM 10 [kg]
+    real(r8)                        :: fuel_live         ! live fuel load using FM 10 [kg]
+    real(r8)                        :: total_fuel        ! 1h + 10 h + 100h fuel using FM 10 [kg]
+    real(r8)                        :: net_fuel          ! total_fuel excluding mineral content [kg] 
+    real(r8)                        :: fuel_depth        ! fuel bed depth using FM 10 [m]
+    real(r8)                        :: fuel_bd           ! fuel bulk density using FM 10 [kg biomass/m3]
+    real(r8)                        :: fuel_sav1h        ! SAV for 1 hour fuel for FM 10 [/cm]
+    real(r8)                        :: fuel_sav10h       ! SAV for 10 hour fuel for FM 10 [/cm]
+    real(r8)                        :: fuel_sav100h      ! SAV for 100 hour fuel for FM 10 [/cm]
+    real(r8)                        :: fuel_savlive      ! SAV for live fuel for FM 10 [/cm]
+    real(r8)                        :: fuel_sav          ! mean fuel surface area to volume ratio using FM 10 [/cm]
+    real(r8)                        :: fuel_eff_moist    ! fuel effective moisture content using FM 10
+    real(r8)                        :: fuel_moist1h      ! FMC of 1 hour fuel for FM 10 [fraction]
+    real(r8)                        :: fuel_moist10h     ! FMC of 10 hour fuel for FM 10 [fraction]
+    real(r8)                        :: fuel_moist100h    ! FMC of 100 hour fuel for FM 10 [fraction]
+    real(r8)                        :: fuel_moist_live   ! FMC of live fuels for FM 10 [fraction]
+    real(r8)                        :: midflame_wind     ! 40% of open wind speed 
+    real(r8)                        :: beta_fm10         ! packing ratio derived for fuel model 10 [unitless]
+    real(r8)                        :: beta_op_fm10      ! optimum packing ratio for FM 10 [unitless]
+    real(r8)                        :: beta_ratio_fm10   ! relative packing ratio for FM 10 [unitless]
+    real(r8)                        :: i_r_fm10          ! reaction intensity for FM 10 [kJ/m2/min]
+    real(r8)                        :: xi_fm10           ! propagating flux ratio for FM 10 [unitless]
+    real(r8)                        :: eps_fm10          ! effective heating number for FM 10 [unitless]
+    real(r8)                        :: phi_wind_fm10     ! wind factor for FM 10 [unitless]
+    real(r8)                        :: q_ig_fm10         ! heat of pre-ignition for FM 10 [kJ/kg]
+  
+                        
+    ! local variables for calculating ROS_SA based on current patch fuel condition
+    real(r8)                        :: ROS_SA            ! surface ROS calculated at open wind speed of CI [m/min]
+    real(r8)                        :: beta         ! packing ratio of current patch [unitless]
+    real(r8)                        :: beta_op      ! optimum packing ratio of current patch [unitless]
+    real(r8)                        :: beta_ratio   ! relative packing ratio of current patch [unitless]
+    real(r8)                        :: i_r          ! reaction intensity of current patch [kJ/m2/min]
+    real(r8)                        :: xi           ! propagating flux ratio of current patch [unitless]
+    real(r8)                        :: eps          ! effective heating number of current patch [unitless]
+    real(r8)                        :: tree_fraction     ! site-level tree fraction [0-1]
+    real(r8)                        :: grass_fraction    ! site-level grass fraction [0-1]
+    real(r8)                        :: bare_fraction     ! site-level bare ground fraction [0-1]
+    real(r8)                        :: CI                ! crowning index: open wind speed to sustain active crown fire [km/hr]
+    real(r8)                        :: CI_effective      ! effective wind speed using CI [m/min]
+    real(r8)                        :: phi_wind_SA       ! wind factor for calculating ROS_SA [unitless]
+    real(r8)                        :: q_ig         ! heat of pre-ignition of current patch [kJ/kg]
+   
+                           
+
+    ! Parameters for fuel model 10 to describe fuel characteristics; and some constants 
+    ! XLG: Can consider change all FM 10 parameters to SF parameters so users can use costumized fuel model for their study
+
+    real(r8),parameter  :: fuel_1h_ton     = 3.01_r8                   ! FM 10 1-hr fuel loading (US tons/acre)
+    real(r8),parameter  :: fuel_10h_ton    = 2.0_r8                    ! FM 10 10-hr fuel loading (US tons/acre)             
+    real(r8),parameter  :: fuel_100h_ton   = 5.01_r8                   ! FM 10 100-hr fuel loading (US tons/acre)
+    real(r8),parameter  :: fuel_live_ton = 2.0_r8                      ! FM 10 live fuel loading (US tons/acre)
+    real(r8),parameter  :: fuel_mef     = 0.25_r8                      ! FM 10 moisture of extinction (volumetric), XLG: should we use this from FM 10??
+    real(r8),parameter  :: fuel_depth_ft= 1.0_r8                       ! FM 10 fuel depth (ft)
+    real(r8),parameter  :: sav_1h_ft   = 2000.0_r8                     ! FM 10 1-hr SAV (ft2/ft3)
+    real(r8),parameter  :: sav_10h_ft  = 109.0_r8                      ! FM 10 10-hr SAV (ft2/ft3)             
+    real(r8),parameter  :: sav_100h_ft = 30.0_r8                       ! FM 10 100-hr SAV (ft2/ft3)
+    real(r8),parameter  :: sav_live_ft  = 1650.0_r8                    ! FM 10 live SAV (ft2/ft3)
+    real(r8),parameter  :: tonnes_acre_to_kg_m2 = 0.2241701_r8         ! convert tons/acre to kg/m2
+    real(r8),parameter  :: sqft_cubicft_to_sqm_cubicm = 0.03280844_r8  ! convert ft2/ft3 to m2/m3
+    real(r8),parameter  :: canopy_ignite_energy = 18000.0_r8           ! heat yield for canopy fuels (kJ/kg)
+    real(r8),parameter  :: km2_to_m2 = 1E+6.0_r8                       ! area conversion for square km to square m
+    real(r8),parameter  :: km_per_hr_to_m_per_min = 16.6667_r8         ! convert km/hour to m/min for wind speed
+    real(r8), parameter :: wind_atten_tree = 0.4_r8                    ! wind attenuation factor for tree fraction
+    real(r8), parameter :: wind_atten_grass = 0.6_r8                   ! wind attenuation factor for grass fraction
+
+    currentPatch => currentSite%oldest_patch
+    do while(associated(currentPatch))
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground .and.         &
+      currentPatch%fire == itrue) then
+        ! initialize patch level variables
+        currentPatch%passive_crown_fire = 0
+        currentPatch%active_crown_fire = 0
+        
+        ! calculate passive crown fire intensity, the minimum surface FI to initiate a crown fire
+        FI_init = PassiveCrownFireIntensity(currentPatch%fuel%canopy_base_height)
+       
+        
+        ! check if there is a crown fire 
+        if (currentPatch%FI >= FI_init) then
+          ! calculate ROS_active 
+          fuel_1h     = fuel_1h_ton * tonnes_acre_to_kg_m2
+          fuel_10h    = fuel_10h_ton * tonnes_acre_to_kg_m2
+          fuel_100h   = fuel_100h_ton * tonnes_acre_to_kg_m2
+          fuel_live   = fuel_live_ton * tonnes_acre_to_kg_m2
+          total_fuel  = (fuel_1h + fuel_10h + fuel_100h + fuel_live) ! kg biomass /m2
+          fuel_sav1h  = sav_1h_ft * sqft_cubicft_to_sqm_cubicm
+          fuel_sav10h = sav_10h_ft * sqft_cubicft_to_sqm_cubicm
+          fuel_sav100h = sav_100h_ft * sqft_cubicft_to_sqm_cubicm
+          fuel_savlive  = sav_live_ft * sqft_cubicft_to_sqm_cubicm
+          fuel_moist1h     = exp(-1.0_r8 * ((fuel_sav1h/SF_val_drying_ratio) * currentSite%fire_weather%fire_weather_index))
+          fuel_moist10h    = exp(-1.0_r8 * ((fuel_sav10h/SF_val_drying_ratio) * currentSite%fire_weather%fire_weather_index))
+          fuel_moist100h   = exp(-1.0_r8 * ((fuel_sav100h/SF_val_drying_ratio) * currentSite%fire_weather%fire_weather_index))
+          fuel_moistlive   = exp(-1.0_r8 * ((fuel_savlive/SF_val_drying_ratio) * currentSite%fire_weather%fire_weather_index))
+          fuel_depth       = fuel_depth_ft *0.3048_r8           !convert to meters
+          fuel_bd          = total_fuel/fuel_depth              !fuel bulk density (kg/m3)
+
+          fuel_sav         = fuel_sav1h *(fuel_1h/total_fuel) + fuel_sav10h*(fuel_10h/total_fuel) + & 
+                             fuel_sav100h*(fuel_100h/total_fuel) + fuel_savlive*(fuel_live/total_fuel)
+
+          fuel_eff_moist   = fuel_moist1h *(fuel_1h/total_fuel) + fuel_moist10h*(fuel_10h/total_fuel) + & 
+                             fuel_moist100h*(fuel_100h/total_fuel) + fuel_moistlive*(fuel_live/total_fuel)
+
+          net_fuel  = total_fuel * (1.0_r8 - SF_val_miner_total)
+
+          beta_fm10 = fuel_bd / SF_val_part_dens
+          beta_op_fm10 = OptimumPackingRatio(fuel_sav)
+          if(beta_op_fm10 < nearzero) then
+            beta_ratio_fm10 = 0.0_r8
+          else
+            beta_ratio_fm10 = beta_fm10 / beta_op_fm10
+          end if
+
+          i_r_fm10 = ReactionIntensity(net_fuel, fuel_sav, beta_ratio_fm10, &
+          fuel_eff_moist, fuel_mef)
+
+          q_ig_fm10 = HeatofPreignition(fuel_eff_moist) ! XLG: I'm not sure if we should use a constant eff_moist from FM 10 
+
+          eps_fm10 = EffectiveHeatingNumber(fuel_sav)
+
+          midflame_wind = currentSite%wind * 0.40_r8 ! Scott & Reinhardt 2001 use 40% of open wind speed as effective wind speed
+                                                     ! XLG: should we scwitch to the way FATES calculateS effective wind speed?
+          phi_wind_fm10 = WindFactor(midflame_wind, beta_ratio_fm10, fuel_sav)
+
+          xi_fm10 = PropagatingFlux(beta_fm10, fuel_sav)
+          
+          ROS_active = ForwardRateOfSpread(fuel_bd, eps_fm10, q_ig_fm10, i_r_fm10, &
+          xi_fm10, phi_wind_fm10)
+
+          ! Calculate ROS_acitive_min, EQ 14 in Scott & Reinhardt 2001
+
+          ROS_acitive_min = 3.0_r8 / currentPatch%fuel%canopy_bulk_density
+
+          ! Calculate ROS_SA using current patch fuel conditions
+          beta = currentPatch%fuel%bulk_density_notrunks/SF_val_part_dens
+          beta_op = OptimumPackingRatio(currentPatch%fuel%SAV_notrunks)
+
+          if (beta_op < nearzero) then 
+            beta_ratio = 0.0_r8
+          else
+            beta_ratio = beta/beta_op 
+          end if
+
+          i_r = ReactionIntensity(currentPatch%fuel%non_trunk_loading/0.45_r8, &
+            currentPatch%fuel%SAV_notrunks, beta_ratio,                        &
+            currentPatch%fuel%average_moisture_notrunks, currentPatch%fuel%MEF_notrunks)
+          q_ig = HeatofPreignition(currentPatch%fuel%average_moisture_notrunks)
+          eps = EffectiveHeatingNumber(currentPatch%fuel%SAV_notrunks)
+
+          ! Calculate crowning index, which is used for calculating phi_wind 
+          CI = CrowningIndex(eps_fm10, q_ig_fm10, i_r_fm10, &
+          currentPatch%fuel%canopy_bulk_density )
+          CI = CI * km_per_hr_to_m_per_min  ! convert to m/min
+          ! effective wind speed at CI
+          call CalculateTreeGrassAreaSite(currentSite,tree_fraction, grass_fraction, bare_fraction)
+          CI_effective = CI * (tree_fraction*wind_atten_tree + &
+          (grass_fraction + bare_fraction)*wind_atten_grass)
+          ! phi_wind
+          phi_wind_SA = WindFactor(CI_effective, beta_ratio,   &
+              currentPatch%fuel%SAV_notrunks)
+          xi = PropagatingFlux(beta, currentPatch%fuel%SAV_notrunks)
+          ROS_SA = ForwardRateOfSpread(currentPatch%fuel%bulk_density_notrunks, &
+              eps, q_ig, i_r, xi, phi_wind_SA)
+          
+          ! Calculate ROS_init, EQ. 12 in Scott & Reinhardt 2001
+          ! first calculate heat release per unit area [kW/m2]
+          HPA = HeatReleasePerArea(currentPatch%fuel%SAV_notrunks, i_r)
+          ROS_init = (60.0_r8 * FI_init) / HPA 
+
+          ! Now check if there is passive or active crown fire
+          if (ROS_active >= ROS_acitive_min) then ! FI >= FI_init and ROS_active >= ROS_active_min
+            currentPatch%active_crown_fire = 1 
+            ! for active crown fire we set CFB to 1
+            canopy_frac_burnt = 1.0_r8
+          else if (ROS_active < ROS_active_min .and. &  ! FI >= FI_init but ROS_active < ROS_active_min
+            currentPatch%ROS_front >= ROS_init .and. &  ! seems redudant when FI >= FI_init, but calculation of ROS_init is 
+            currentPatch%ROS_front < ROS_SA) then       ! different from ROS_front, let's check to be safe
+              currentPatch%passive_crown_fire = 1
+              ! calculate crown fraction burnt EQ. 28 in Scott & Reinhardt 2001
+              canopy_frac_burnt = min(1.0_r8, (currentPatch%ROS_front - ROS_init) / &
+              (ROS_SA - ROS_init))
+          else ! a condition where crown fire cessation happens??
+            canopy_frac_burnt = 0.0_r8 
+          end if
+          ! calculate ROS_final EQ. 21 in Scott & Reinhardt 2001
+          ROS_final = currentPatch%ROS_front + canopy_frac_burnt * &
+                      ( ROS_active - currentPatch%ROS_front)
+          ! update ROS_front with ROS_final
+          currentPatch%ROS_front = ROS_final
+          ! update fire intensity by accounting got burned canopy fuels
+          ! EQ. 22 in Scott & Reinhardt 2001
+          FI_final = CrownFireIntensity(HPA, currentPatch%fuel%canopy_fuel_load, &
+          canopy_frac_burnt, ROS_final)
+          ! only update FI when CFB > 0
+          if (canopy_frac_burnt > 0.0_r8) then
+            currentPatch%FI = FI_final
+          end if
+
+        end if ! end check if there is crown fire 
+      end if ! if there is a fire 
+
+          
+      currentPatch => currentPatch%younger 
+    end do ! end patch loop
+
+  end subroutine PassiveActiveCrownFireCheck
+
   !---------------------------------------------------------------------------------------
   
   subroutine CalculateAreaBurnt(currentSite)
