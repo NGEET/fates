@@ -296,6 +296,9 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   ! Conversion: Joules per kiloJoules
   real(fates_r8), parameter, public :: J_per_kJ = 1000.0_fates_r8
 
+  ! Conversion: biomass to carbon 
+  real(fates_r8), parameter, public :: mass_2_carbon = 0.45_fates_r8
+
   ! Physical constants
   
   ! dewpoint calculation
