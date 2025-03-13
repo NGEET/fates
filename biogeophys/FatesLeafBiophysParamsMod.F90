@@ -114,6 +114,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_leaf_fnps'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    
     return
   end subroutine LeafBiophysRegisterParams
 
@@ -213,6 +218,9 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=lb_params%jmaxse)
 
+    name = 'fates_leaf_fnps'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=lb_params%fnps)
 
     return
   end subroutine LeafBiophysReceiveParams
@@ -240,6 +248,7 @@ contains
        write(fates_log(),fmt_rout) 'fates_leaf_jmaxhd = ',lb_params%jmaxhd
        write(fates_log(),fmt_rout) 'fates_leaf_vcmaxse = ',lb_params%vcmaxse
        write(fates_log(),fmt_rout) 'fates_leaf_jmaxse = ',lb_params%jmaxse
+       write(fates_log(),fmt_rout) 'fates_leaf_fnps = ',lb_params%fnps
        write(fates_log(),fmt_iout) 'fates_daylength_factor_switch = ',lb_params%dayl_switch
        write(fates_log(),fmt_iout) 'fates_leaf_stomatal_model = ',lb_params%stomatal_model
        write(fates_log(),fmt_iout) 'fates_leaf_stomatal_assim_model = ',lb_params%stomatal_assim_model
