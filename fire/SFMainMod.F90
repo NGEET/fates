@@ -615,7 +615,7 @@ contains
     ! 5) Determine passive or active crown fire by comparing current surface ROS_front to R'_initiation, and
     ! R_active to R'_active. Passive: ROS_front > R'_initiation but R_active < R'_active; 
     ! Active: ROS_front > R'_initiation and R_active > R'_active. Note: FI > FI_init is equivalent to ROS_front > R'_initiation
-    ! 6) Update ROS_front and FI if crown fire happens  
+    ! 6) Calculate new ROS and FI and update ROS_front and FI   
     !
     use SFParamsMod,    only : SF_val_miner_total, SF_val_part_dens, SF_val_drying_ratio
     use EDTypesMod,     only : CalculateTreeGrassAreaSite
@@ -692,6 +692,8 @@ contains
                            
 
     ! Parameters for fuel model 10 to describe fuel characteristics; and some constants 
+    ! fuel loading, MEF, and depth from Anderson 1982 Aids to determining fuel models for fire behavior
+    ! SAV values from BEHAVE model Burgan & Rothermel (1984) 
     ! XLG: Can consider change all FM 10 parameters to SF parameters so users can use costumized fuel model for their study
 
     real(r8),parameter  :: fuel_1h_ton     = 3.01_r8                   ! FM 10 1-hr fuel loading (US tons/acre)
@@ -700,10 +702,10 @@ contains
     real(r8),parameter  :: fuel_live_ton = 2.0_r8                      ! FM 10 live fuel loading (US tons/acre)
     real(r8),parameter  :: fuel_mef     = 0.25_r8                      ! FM 10 moisture of extinction (volumetric), XLG: should we use this from FM 10??
     real(r8),parameter  :: fuel_depth_ft= 1.0_r8                       ! FM 10 fuel depth (ft)
-    real(r8),parameter  :: sav_1h_ft   = 2000.0_r8                     ! FM 10 1-hr SAV (ft2/ft3)
-    real(r8),parameter  :: sav_10h_ft  = 109.0_r8                      ! FM 10 10-hr SAV (ft2/ft3)             
-    real(r8),parameter  :: sav_100h_ft = 30.0_r8                       ! FM 10 100-hr SAV (ft2/ft3)
-    real(r8),parameter  :: sav_live_ft  = 1650.0_r8                    ! FM 10 live SAV (ft2/ft3)
+    real(r8),parameter  :: sav_1h_ft   = 2000.0_r8                     ! BEHAVE model 1-hr SAV (ft2/ft3)
+    real(r8),parameter  :: sav_10h_ft  = 109.0_r8                      ! BEHAVE model 10-hr SAV (ft2/ft3)             
+    real(r8),parameter  :: sav_100h_ft = 30.0_r8                       ! BEHAVE model 100-hr SAV (ft2/ft3)
+    real(r8),parameter  :: sav_live_ft  = 1650.0_r8                    ! BEHAVE model live SAV (ft2/ft3)
     real(r8),parameter  :: tonnes_acre_to_kg_m2 = 0.2241701_r8         ! convert tons/acre to kg/m2
     real(r8),parameter  :: sqft_cubicft_to_sqm_cubicm = 0.03280844_r8  ! convert ft2/ft3 to m2/m3
     real(r8),parameter  :: km_per_hr_to_m_per_min = 16.6667_r8         ! convert km/hour to m/min for wind speed
@@ -723,7 +725,7 @@ contains
        
         
         ! check if there is a crown fire 
-        if (currentPatch%FI >= FI_init) then
+        if (currentPatch%FI > FI_init) then
           ! calculate ROS_active 
           fuel_1h     = fuel_1h_ton * tonnes_acre_to_kg_m2
           fuel_10h    = fuel_10h_ton * tonnes_acre_to_kg_m2
@@ -739,7 +741,7 @@ contains
           fuel_moist100h   = exp(-1.0_r8 * ((fuel_sav100h/SF_val_drying_ratio) * currentSite%fire_weather%fire_weather_index))
           fuel_moistlive   = exp(-1.0_r8 * ((fuel_savlive/SF_val_drying_ratio) * currentSite%fire_weather%fire_weather_index))
           fuel_depth       = fuel_depth_ft *0.3048_r8           !convert to meters
-          fuel_bd          = total_fuel/fuel_depth              !fuel bulk density (kg/m3)
+          fuel_bd          = total_fuel/fuel_depth              !fuel bulk density (kg biomass/m3)
 
           fuel_sav         = fuel_sav1h *(fuel_1h/total_fuel) + fuel_sav10h*(fuel_10h/total_fuel) + & 
                              fuel_sav100h*(fuel_100h/total_fuel) + fuel_savlive*(fuel_live/total_fuel)
@@ -793,11 +795,18 @@ contains
           q_ig = HeatofPreignition(currentPatch%fuel%average_moisture_notrunks)
           eps = EffectiveHeatingNumber(currentPatch%fuel%SAV_notrunks)
 
-          ! Calculate crowning index, which is used for calculating phi_wind 
+          ! Calculate crowning index, which is used for calculating phi_wind
+          ! CI is also calculated using fuel characteristics of FM 10 
           CI = CrowningIndex(eps_fm10, q_ig_fm10, i_r_fm10, &
           currentPatch%fuel%canopy_bulk_density )
           CI = CI * km_per_hr_to_m_per_min  ! convert to m/min
-          ! effective wind speed at CI
+
+          ! calculate effective wind speed at CI
+          ! XLG: this is the disconnection from ROS_active calculation, where they used midflame wind speed 
+          ! as effective wind speed. But it might also make sense as ROS_active is theoretical crown fire
+          ! rate of spread, and ROS_SA is just the surface fire rate of spread at crowning index wind speed,
+          ! so it makes senses to consider wind attenuation for grass cover as it's still surface fire??
+
           call CalculateTreeGrassAreaSite(currentSite,tree_fraction, grass_fraction, bare_fraction)
           CI_effective = CI * (tree_fraction*wind_atten_tree + &
           (grass_fraction + bare_fraction)*wind_atten_grass)
@@ -813,15 +822,18 @@ contains
           HPA = HeatReleasePerArea(currentPatch%fuel%SAV_notrunks, i_r)
           ROS_init = (60.0_r8 * FI_init) / HPA 
 
-          ! Now check if there is passive or active crown fire
+          ! Now check if there is passive or active crown fire and calculate crown fraction burnt (CFB)
+          ! XLG: there are alternative ways to calculate CFB, see pg 39-41 in Scott & Reinhardt 2001
+
           if (ROS_active >= ROS_acitive_min) then ! FI >= FI_init and ROS_active >= ROS_active_min
             currentPatch%active_crown_fire = 1 
             ! for active crown fire we set CFB to 1
             canopy_frac_burnt = 1.0_r8
           else if (ROS_active < ROS_active_min .and. &  ! FI >= FI_init but ROS_active < ROS_active_min
-            currentPatch%ROS_front >= ROS_init .and. &  ! seems redudant when FI >= FI_init, but calculation of ROS_init is 
-            currentPatch%ROS_front < ROS_SA) then       ! different from ROS_front, let's check to be safe
-              currentPatch%passive_crown_fire = 1
+            currentPatch%ROS_front > ROS_init .and. &   ! XLG: it seems redudant when FI > FI_init is true, but calculation of ROS_init is 
+            currentPatch%ROS_front < ROS_SA) then       ! different from ROS_front, let's check to be safe. I'm uncomfortable when calculations
+              currentPatch%passive_crown_fire = 1       ! of all kinds of ROS are so disconnected from each other
+
               ! calculate crown fraction burnt EQ. 28 in Scott & Reinhardt 2001
               canopy_frac_burnt = min(1.0_r8, (currentPatch%ROS_front - ROS_init) / &
               (ROS_SA - ROS_init))
@@ -837,6 +849,11 @@ contains
           ! EQ. 22 in Scott & Reinhardt 2001
           FI_final = CrownFireIntensity(HPA, currentPatch%fuel%canopy_fuel_load, &
           canopy_frac_burnt, ROS_final)
+
+          if(write_SF == itrue)then
+            if ( hlm_masterproc == itrue ) write(fates_log(),*) 'FI_final',FI_final
+         endif
+
           ! only update FI when CFB > 0
           if (canopy_frac_burnt > 0.0_r8) then
             currentPatch%FI = FI_final
@@ -1055,6 +1072,10 @@ contains
              if ( prt_params%woody(currentCohort%pft) == itrue) then !trees only
                 ! Flames lower than bottom of canopy. 
                 ! c%height is height of cohort
+                
+                ! XLG: can we simply change this logic here to just use whethere 
+                ! there is a passive or active crown fire? if no, crown fraction
+                ! burnt is zero, if yes, we can calculate CFB given active or passive scenario?
 
                 call CrownDepth(currentCohort%height,currentCohort%pft,crown_depth)
                 
@@ -1064,16 +1085,19 @@ contains
                 else
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
-                   ! flames over bottom of canopy but not over top.
+                   ! flames over bottom of canopy, CFB depends on whether it's active or passive crown fire
                    if ((currentCohort%height > 0.0_r8).and.(currentPatch%Scorch_ht(currentCohort%pft) >=  &
                         (currentCohort%height-crown_depth))) then 
-
-                        currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
+                          if (currentPatch%active_crown_fire == 1) then
+                            currentCohort%fraction_crown_burned = 1.0_r8
+                          else if (currentPatch%passive_crown_fire == 1) then 
+                            ! XLG: should we use CFB calculated in the PassiveActiveCrownFireCheck routine??
+                            ! since FI is calculated using that CFB, there will be mismatch between actual
+                            ! biomass consumed using the CFB here (thus resulted fire intensity) and the 
+                            ! calculated fire intenaity using the other CFB
+                            currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
                              (currentCohort%height - crown_depth))/crown_depth
-
-                   else 
-                      ! Flames over top of canopy. 
-                      currentCohort%fraction_crown_burned =  1.0_r8 
+                          end if
                    endif
 
                 endif
