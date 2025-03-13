@@ -983,7 +983,7 @@ contains
        ac = vcmax
 
        ! C4: RuBP-limited photosynthesis
-       aj = AgrossRuBPC4(par_abs)
+       aj = AgrossRuBPC4(par_abs, lb_params%fnps(ft))
                  
        ! C4: PEP carboxylase-limited (CO2-limited)
        ap = AgrossPEPC4(ci,kp,can_press)
