@@ -728,6 +728,9 @@ contains
       currentPatch%fire == itrue .and. crown_fire_switch) then
         ! calculate passive crown fire intensity, the minimum surface FI to initiate a crown fire
         FI_init = PassiveCrownFireIntensity(currentPatch%fuel%canopy_base_height)
+
+        write(fates_log(),*) 'FI_init is ', FI_init 
+        write(fates_log(),*) 'FI is ', currentPatch%FI
         
         ! check if there is a crown fire 
         if (currentPatch%FI > FI_init ) then
@@ -860,6 +863,14 @@ contains
           if(write_SF == itrue)then
             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'FI_final',FI_final
          endif
+
+         write(fates_log(),*) 'passive crown fire is ', currentPatch%passive_crown_fire
+         write(fates_log(),*) 'active crown fire is ', currentPatch%active_crown_fire
+         write(fates_log(),*) 'FI final is ', FI_final
+         write(fates_log(),*) 'ROS final is  ', ROS_final 
+         write(fates_log(),*) 'ROS_active is ', ROS_active
+         write(fates_log(),*) 'ROS_active_min is ', ROS_active_min
+
 
           ! only update FI when CFB > 0
           if (canopy_frac_burnt > 0.0_r8) then
@@ -1097,11 +1108,12 @@ contains
                         (currentCohort%height-crown_depth))) then 
                           if (currentPatch%active_crown_fire == 1) then
                             currentCohort%fraction_crown_burned = 1.0_r8
-                          else if (currentPatch%passive_crown_fire == 1) then 
+                          else 
                             ! XLG: should we use CFB calculated in the PassiveActiveCrownFireCheck routine??
                             ! since FI is calculated using that CFB, there will be mismatch between actual
                             ! biomass consumed using the CFB here (thus resulted fire intensity) and the 
                             ! calculated fire intenaity using the other CFB
+                            ! also, if passive_crown_fire also = 0, should we set FCB to 0 too??
                             currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
                              (currentCohort%height - crown_depth))/crown_depth
                           end if
