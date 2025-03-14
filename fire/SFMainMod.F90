@@ -828,7 +828,7 @@ contains
           ! Now check if there is passive or active crown fire and calculate crown fraction burnt (CFB)
           ! XLG: there are alternative ways to calculate CFB, see pg 39-41 in Scott & Reinhardt 2001
 
-          if (ROS_active >= ROS_acitive_min) then ! FI >= FI_init and ROS_active >= ROS_active_min
+          if (ROS_active >= ROS_active_min) then ! FI >= FI_init and ROS_active >= ROS_active_min
             currentPatch%active_crown_fire = 1 
             ! for active crown fire we set CFB to 1
             canopy_frac_burnt = 1.0_r8
