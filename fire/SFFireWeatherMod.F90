@@ -99,6 +99,8 @@ module SFFireWeatherMod
     if(t_check .le. 0.0_r8 .and. rh_check .le. 0.0_r8 .and. &
     ws_check .le. 0.0_r8)then
       this%rx_flag = 1
+    else
+      this%rx_flag = 0
     end if
 
   end subroutine UpdateRxfireBurnWindow
