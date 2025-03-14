@@ -457,10 +457,14 @@ module FatesFuelMod
           exit
         end if
       end do
-
-      this%canopy_bulk_density = sum(biom_matrix(int(this%canopy_base_height-1.0_r8):)) / &
-      (max_height - this%canopy_base_height)
-
+      
+      if ((max_height - this%canopy_base_height) > nearzero) then
+        this%canopy_bulk_density = sum(biom_matrix(int(this%canopy_base_height-1.0_r8):)) / &
+        (max_height - this%canopy_base_height)
+      else
+        this%canopy_bulk_density = 0.0_r8
+      end if
+      
 
     end subroutine CalculateCanopyBulkDensity
 
