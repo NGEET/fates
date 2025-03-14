@@ -296,6 +296,7 @@ contains
             call adjust_SF_CWD_frac(currentCohort%dbh, ncwd, SF_val_CWD_frac, SF_val_CWD_frac_adj)
             ! update canopy fuel load
             call currentPatch%fuel%CalculateCanopyFuelLoad(leaf_c, woody_c, SF_val_CWD_frac_adj)
+            write(fates_log(),*) 'current patch canopy fuel is ', currentPatch%fuel%canopy_fuel_load
             
             ! 1m biomass bin
             crown_fuel_per_m = (leaf_c + woody_c) / (carbon_2_biomass * crown_depth) !kg biomass / m
@@ -312,6 +313,8 @@ contains
         biom_matrix(:) = biom_matrix(:) / currentPatch%area ! kg biomass / m3
         ! update canopy fuel bulk density
         call currentPatch%fuel%CalculateCanopyBulkDensity(biom_matrix, max_height)
+        write(fates_log(),*) 'current patch CBD is ', currentPatch%fuel%canopy_bulk_density
+        write(fates_log(),*) 'current patch canopy base height is ', currentPatch%fuel%canopy_base_height
 
         deallocate(biom_matrix)
 
