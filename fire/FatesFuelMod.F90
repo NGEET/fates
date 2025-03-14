@@ -412,7 +412,7 @@ module FatesFuelMod
       ! Params
       real(r8), parameter :: carbon_2_biomass = 0.45_r8
 
-
+       ! this is the summed canopy fuel load at site level, not scaled by land area
        fuel_1h_c = leaf_c + woody_c * SF_val_CWD_frac_adj(1)
        this%canopy_fuel_load = this%canopy_fuel_load + (fuel_1h_c / carbon_2_biomass)
 
