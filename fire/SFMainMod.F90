@@ -244,7 +244,10 @@ contains
     do while(associated(currentPatch))
       if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
         !zero Patch level variables
-        max_height                          = 0.0_r8
+        max_height                            = 0.0_r8
+        currentPatch%fuel%canopy_fuel_load    = 0.0_r8
+        currentPatch%fuel%canopy_bulk_density = 0.0_r8
+    
       
         ! find the max cohort height to set the upper bounds of biom_matrix
         currentCohort=>currentPatch%tallest
