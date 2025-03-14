@@ -728,7 +728,7 @@ contains
        
         
         ! check if there is a crown fire 
-        if (currentPatch%FI > FI_init .and. SF_val_crown_fire_switch) then
+        if (currentPatch%FI > FI_init .and. crown_fire_switch) then
           ! calculate ROS_active 
           fuel_1h     = fuel_1h_ton * tonnes_acre_to_kg_m2
           fuel_10h    = fuel_10h_ton * tonnes_acre_to_kg_m2
@@ -739,10 +739,10 @@ contains
           fuel_sav10h = sav_10h_ft * sqft_cubicft_to_sqm_cubicm
           fuel_sav100h = sav_100h_ft * sqft_cubicft_to_sqm_cubicm
           fuel_savlive  = sav_live_ft * sqft_cubicft_to_sqm_cubicm
-          fuel_moist1h     = exp(-1.0_r8 * ((fuel_sav1h/SF_val_drying_ratio) * currentSite%fire_weather%fire_weather_index))
-          fuel_moist10h    = exp(-1.0_r8 * ((fuel_sav10h/SF_val_drying_ratio) * currentSite%fire_weather%fire_weather_index))
-          fuel_moist100h   = exp(-1.0_r8 * ((fuel_sav100h/SF_val_drying_ratio) * currentSite%fire_weather%fire_weather_index))
-          fuel_moistlive   = exp(-1.0_r8 * ((fuel_savlive/SF_val_drying_ratio) * currentSite%fire_weather%fire_weather_index))
+          fuel_moist1h     = exp(-1.0_r8 * ((fuel_sav1h/SF_val_drying_ratio) * currentSite%fireWeather%fire_weather_index))
+          fuel_moist10h    = exp(-1.0_r8 * ((fuel_sav10h/SF_val_drying_ratio) * currentSite%fireWeather%fire_weather_index))
+          fuel_moist100h   = exp(-1.0_r8 * ((fuel_sav100h/SF_val_drying_ratio) * currentSite%fireWeather%fire_weather_index))
+          fuel_moist_live  = exp(-1.0_r8 * ((fuel_savlive/SF_val_drying_ratio) * currentSite%fireWeather%fire_weather_index))
           fuel_depth       = fuel_depth_ft *0.3048_r8           !convert to meters
           fuel_bd          = total_fuel/fuel_depth              !fuel bulk density (kg biomass/m3)
 
@@ -750,7 +750,7 @@ contains
                              fuel_sav100h*(fuel_100h/total_fuel) + fuel_savlive*(fuel_live/total_fuel)
 
           fuel_eff_moist   = fuel_moist1h *(fuel_1h/total_fuel) + fuel_moist10h*(fuel_10h/total_fuel) + & 
-                             fuel_moist100h*(fuel_100h/total_fuel) + fuel_moistlive*(fuel_live/total_fuel)
+                             fuel_moist100h*(fuel_100h/total_fuel) + fuel_moist_live*(fuel_live/total_fuel)
 
           net_fuel  = total_fuel * (1.0_r8 - SF_val_miner_total)
 
@@ -780,7 +780,7 @@ contains
 
           ! Calculate ROS_acitive_min, EQ 14 in Scott & Reinhardt 2001
 
-          ROS_acitive_min = 3.0_r8 / currentPatch%fuel%canopy_bulk_density
+          ROS_active_min = 3.0_r8 / currentPatch%fuel%canopy_bulk_density
 
           ! Calculate ROS_SA using current patch fuel conditions
           beta = currentPatch%fuel%bulk_density_notrunks/SF_val_part_dens
