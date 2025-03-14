@@ -262,7 +262,7 @@ contains
         biom_matrix(:) = 0.0_r8
   
         !loop across cohorts to calculate canopy fuel load by 1m height bin
-        currentCohort=>currentCohort%tallest
+        currentCohort => currentPatch%tallest
         
         do while(associated(currentCohort))
           !zero cohort level variables
