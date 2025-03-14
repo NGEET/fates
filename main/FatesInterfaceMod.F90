@@ -179,7 +179,8 @@ module FatesInterfaceMod
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
-
+   public :: set_fates_drydep_indices
+   
    private :: FatesReadParameters
    public :: DetermineGridCellNeighbors
 
@@ -2209,6 +2210,58 @@ contains
 end subroutine UpdateFatesRMeansTStep
 
 ! ========================================================================================
+
+subroutine set_fates_drydep_indices(nsites,sites,fcolumn,bc_out)
+  
+    type(bc_out_type),  intent(inout)         :: bc_out(nsites)
+  integer :: s, ifp, c, p
+  type (fates_patch_type)  , pointer :: currentPatch
+  
+  do s = 1,nsites
+     bc_out(s)%wesley_pft_label_pa(:)=8 !for no vegetation.
+     currentPatch => sites(s)%oldest_patch
+     c = fcolumn(s)
+     do while(associated(currentPatch)
+        bc_out(s)%wesley_pft_label_pa(ifp) = EDPftvarcon_inst%wesley_pft_index_fordrydep(currentPatch%nocomp_pft_label)
+
+          ! Wesely seasonal "index_season"                                
+          ! 1 - midsummer with lush vegetation                           
+          ! 2 - Autumn with unharvested cropland                         
+          ! 3 - Late autumn after frost, no snow                         
+          ! 4 - Winter, snow on ground and subfreezing                   
+          ! 5 - Transitional spring with partially green short annuals
+          if(bc_out(s)%tlai_pa(ifp) .gt. 2.0_r8)then
+             bc_out(s)%drydep_season_pa(ifp) = 1 ! Summer, or something like it.
+          else ! NOT SUMMER
+             if(sites(s)%lat>0)then ! Northern HS
+                if(hlm_day_of_year .lt. 180)then ! DOY
+                   bc_out(s)%drydep_season_pa(ifp) = 5 ! NH spring
+                else ! autumn
+      	      	   if(bc_out(s)%tlai_pa(ifp) .gt. 1.0_r8)then
+                      bc_out(s)%drydep_season_pa(ifp) = 2 ! NH early autumn
+                   else
+                      bc_out(s)%drydep_season_pa(ifp) = 3 ! NH late autumn
+                   endif
+                endif ! DOY
+             else !Southern HS 
+                if(hlm_day_of_year .gt. 180)then ! spring
+                   bc_out(s)%drydep_season_pa(ifp) = 5 ! SH spring
+                else ! SH autumn
+                   if(bc_out(s)%tlai_pa(ifp) .gt. 1.0_r8)then
+                       bc_out(s)%drydep_season_pa(ifp) = 2 ! SH early autumn
+                   else 
+                      bc_out(s)%drydep_season_pa(ifp) = 3 ! SH late autumn
+                   endif ! autumn
+                endif ! DOY
+             endif ! Hemisphere
+          endif ! summer?
+          currentPatch => currentPatch%younger
+       end do
+
+     end do
+end subroutine set_fates_drydep_indices
+
+! ========================================================================================                 
 
 subroutine SeedlingParPatch(cpatch, & 
      atm_par, & 
