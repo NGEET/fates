@@ -1920,6 +1920,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
                end if
 
+            case('use_drydep')
+               hlm_use_drydep = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_drydep= ',ival,' to FATES'
+               end if
+
             case('use_planthydro')
                hlm_use_planthydro = ival
                if (fates_global_verbose()) then

@@ -199,6 +199,8 @@ module FatesInterfaceTypesMod
 
   integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
                                                                     !  1 = TRUE, 0 = FALSE
+  integer, public ::  hlm_use_drydep                                !  Flag to use calculate drydep-related variables in FATES
+                                                                    !  1 = TRUE, 0 = FALSE
 
   
   ! Flag specifying what types of history fields to allocate and prepare
