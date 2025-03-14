@@ -618,6 +618,7 @@ contains
     ! 6) Calculate new ROS and FI and update ROS_front and FI   
     !
     use SFParamsMod,    only : SF_val_miner_total, SF_val_part_dens, SF_val_drying_ratio
+    use SFParamsMod,    only : SF_val_crown_fire_switch
     use EDTypesMod,     only : CalculateTreeGrassAreaSite
     use SFEquationsMod, only : OptimumPackingRatio, ReactionIntensity
     use SFEquationsMod, only : HeatofPreignition, EffectiveHeatingNumber
@@ -712,6 +713,7 @@ contains
     real(r8), parameter :: wind_atten_tree = 0.4_r8                    ! wind attenuation factor for tree fraction
     real(r8), parameter :: wind_atten_grass = 0.6_r8                   ! wind attenuation factor for grass fraction
 
+    
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
       if (currentPatch%nocomp_pft_label /= nocomp_bareground .and.         &
@@ -719,13 +721,14 @@ contains
         ! initialize patch level variables
         currentPatch%passive_crown_fire = 0
         currentPatch%active_crown_fire = 0
+
         
         ! calculate passive crown fire intensity, the minimum surface FI to initiate a crown fire
         FI_init = PassiveCrownFireIntensity(currentPatch%fuel%canopy_base_height)
        
         
         ! check if there is a crown fire 
-        if (currentPatch%FI > FI_init) then
+        if (currentPatch%FI > FI_init .and. SF_val_crown_fire_switch) then
           ! calculate ROS_active 
           fuel_1h     = fuel_1h_ton * tonnes_acre_to_kg_m2
           fuel_10h    = fuel_10h_ton * tonnes_acre_to_kg_m2
@@ -859,7 +862,7 @@ contains
             currentPatch%FI = FI_final
           end if
 
-        end if ! end check if there is crown fire 
+        end if ! end check if there is a crown fire 
       end if ! if there is a fire 
 
           
