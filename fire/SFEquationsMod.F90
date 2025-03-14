@@ -33,6 +33,7 @@ module SFEquationsMod
   public :: HeatReleasePerArea
   public :: TorchingIndex
   public :: CrowningIndex
+  public :: CrownFireIntensity
   
   contains 
   
