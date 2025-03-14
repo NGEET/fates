@@ -716,19 +716,17 @@ contains
     
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
-      if (currentPatch%nocomp_pft_label /= nocomp_bareground .and.         &
-      currentPatch%fire == itrue) then
-        ! initialize patch level variables
-        currentPatch%passive_crown_fire = 0
-        currentPatch%active_crown_fire = 0
+      ! initialize patch level variables
+      currentPatch%passive_crown_fire = 0
+      currentPatch%active_crown_fire = 0
 
-        
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground .and.         &
+      currentPatch%fire == itrue .and. crown_fire_switch) then
         ! calculate passive crown fire intensity, the minimum surface FI to initiate a crown fire
         FI_init = PassiveCrownFireIntensity(currentPatch%fuel%canopy_base_height)
-       
         
         ! check if there is a crown fire 
-        if (currentPatch%FI > FI_init .and. crown_fire_switch) then
+        if (currentPatch%FI > FI_init ) then
           ! calculate ROS_active 
           fuel_1h     = fuel_1h_ton * tonnes_acre_to_kg_m2
           fuel_10h    = fuel_10h_ton * tonnes_acre_to_kg_m2
