@@ -828,12 +828,14 @@ contains
 
           if (ROS_active >= ROS_active_min) then ! FI >= FI_init and ROS_active >= ROS_active_min
             currentPatch%active_crown_fire = 1 
+            currentPatch%passive_crown_fire = 0
             ! for active crown fire we set CFB to 1
             canopy_frac_burnt = 1.0_r8
           else if (ROS_active < ROS_active_min .and. &  ! FI >= FI_init but ROS_active < ROS_active_min
             currentPatch%ROS_front > ROS_init .and. &   ! XLG: it seems redudant when FI > FI_init is true, but calculation of ROS_init is 
             currentPatch%ROS_front < ROS_SA) then       ! different from ROS_front, let's check to be safe. I'm uncomfortable when calculations
               currentPatch%passive_crown_fire = 1       ! of all kinds of ROS are so disconnected from each other
+              currentPatch%active_crown_fire = 0
 
               ! calculate crown fraction burnt EQ. 28 in Scott & Reinhardt 2001
               canopy_frac_burnt = min(1.0_r8, (currentPatch%ROS_front - ROS_init) / &
