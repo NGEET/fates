@@ -2219,6 +2219,7 @@ subroutine set_fates_drydep_indices(nsites,sites,fcolumn,bc_out)
   
   do s = 1,nsites
      bc_out(s)%wesley_pft_label_pa(:)=8 !for no vegetation.
+      bc_out(s)%drydep_season_pa(:) = 0
      currentPatch => sites(s)%oldest_patch
      c = fcolumn(s)
      do while(associated(currentPatch)
