@@ -2211,18 +2211,20 @@ end subroutine UpdateFatesRMeansTStep
 
 ! ========================================================================================
 
-subroutine set_fates_drydep_indices(nsites,sites,fcolumn,bc_out)
-  
-    type(bc_out_type),  intent(inout)         :: bc_out(nsites)
-  integer :: s, ifp, c, p
+subroutine set_fates_drydep_indices(nsites,sites,bc_out)
+  use EDPftvarcon           , only : EDPftvarcon_inst
+  type(bc_out_type),  intent(inout)         :: bc_out(nsites)
+  type(ed_site_type), pointer :: sites(:)
+  integer :: nsites
+  integer :: s, ifp,  p
   type (fates_patch_type)  , pointer :: currentPatch
   
   do s = 1,nsites
      bc_out(s)%wesley_pft_label_pa(:)=8 !for no vegetation.
       bc_out(s)%drydep_season_pa(:) = 0
      currentPatch => sites(s)%oldest_patch
-     c = fcolumn(s)
-     do while(associated(currentPatch)
+     
+     do while(associated(currentPatch))
         bc_out(s)%wesley_pft_label_pa(ifp) = EDPftvarcon_inst%wesley_pft_index_fordrydep(currentPatch%nocomp_pft_label)
 
           ! Wesely seasonal "index_season"                                
