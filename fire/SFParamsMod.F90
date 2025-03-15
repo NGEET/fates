@@ -49,6 +49,7 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_rxfire_maxthreshold ! maximum fire energy
    real(r8),protected, public :: SF_val_rxfire_fuel_min     ! minimum fuel load at the patch for the need of rx fire management
    real(r8),protected, public :: SF_val_rxfire_fuel_max     ! maximum fuel load, above which might be risky for conducting rx fire
+   real(r8),protected, public :: SF_val_rxfire_min_frac     ! minimum fraction needs to be burnable at site level for conducting rx fire
 
    character(len=param_string_length),parameter :: SF_name_fdi_alpha = "fates_fire_fdi_alpha"
    character(len=param_string_length),parameter :: SF_name_miner_total = "fates_fire_miner_total"
@@ -80,6 +81,8 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_rxfire_max_threshold = "fates_rxfire_max_threshold"
    character(len=param_string_length),parameter :: SF_name_rxfire_fuel_min = "fates_rxfire_fuel_min"
    character(len=param_string_length),parameter :: SF_name_rxfire_fuel_max = "fates_rxfire_fuel_max"
+   character(len=param_string_length),parameter :: SF_name_rxfire_min_frac = "fates_rxfire_min_frac"
+   
   
 
    character(len=*), parameter, private :: sourcefile =  __FILE__
@@ -192,6 +195,7 @@ contains
     SF_val_rxfire_maxthreshold = nan
     SF_val_rxfire_fuel_min = nan
     SF_val_rxfire_fuel_max = nan
+    SF_val_rxfire_min_frac = nan
 
   end subroutine SpitFireParamsInit
 
@@ -296,6 +300,11 @@ contains
 
     call fates_params%RegisterParameter(name=SF_name_rxfire_fuel_max, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
+     
+    call fates_params%RegisterParameter(name=SF_name_rxfire_min_frac, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+     
+     
 
 
   end subroutine SpitFireRegisterScalars
@@ -369,6 +378,9 @@ contains
 
     call fates_params%RetrieveParameter(name=SF_name_rxfire_fuel_max, &
          data=SF_val_rxfire_fuel_max)
+     
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_min_frac, &
+         data=SF_val_rxfire_min_frac)
 
 
 

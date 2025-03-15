@@ -936,6 +936,9 @@ variables:
 	double fates_rxfire_fuel_max ;
 	    fates_rxfire_fuel_max:units = "kgC/m2";
 		fates_rxfire_fuel_max:long_name= "maximum fuel load above which prescribed fire can be risky";
+	double fates_rxfire_min_frac ;
+	    fates_rxfire_min_frac:units = "fraction";
+		fates_rxfire_min_frac:long_name="minimum fraction of land needs to be burnable for conducting rx fire";
 	double fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
@@ -1897,6 +1900,8 @@ data:
  fates_rxfire_fuel_min = 0.5 ;
 
  fates_rxfire_fuel_max = 1.5 ;
+
+ fates_rxfire_min_frac = 0.1 ;
 
  fates_soil_salinity = 0.4 ;
 

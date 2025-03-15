@@ -541,6 +541,7 @@ contains
     !if yes, calculate burned fraction as (user defined frac / total burnable frac)
 
     use SFParamsMod,       only : SF_val_rxfire_AB !user defined prescribed fire area in fraction per day to reflect burning capacity
+    use SFParamsMod,       only : SF_val_rxfire_min_frac ! minimum fraction of land needs to be burnable for conducting prescribed fire
 
     ! ARGUMENTS
     type(ed_site_type), intent(inout), target :: currentSite
@@ -550,9 +551,7 @@ contains
 
     real(r8) :: total_burnable_frac        ! total fractional land area that can apply prescribed fire after condition checks at site level
 
-    ! Testing parameters 
-    real(r8), parameter :: min_frac_site = 0.1_r8 
-
+    
     ! initialize site variables
     currentSite%rxfire_area_final = 0.0_r8 
     total_burnable_frac = 0.0_r8
@@ -567,7 +566,7 @@ contains
       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
         currentPatch%rxfire_frac_burnt = 0.0_r8
         if (currentPatch%rxfire .eq. itrue .and. & 
-        total_burnable_frac .ge. min_frac_site ) then
+        total_burnable_frac .ge. SF_val_rxfire_min_frac ) then
           currentSite%rxfire_area_final = currentSite%rxfire_area_final + currentPatch%area ! the final burned total land area 
           currentPatch%rxfire_frac_burnt = min(0.99_r8, (SF_val_rxfire_AB / total_burnable_frac))
         else
