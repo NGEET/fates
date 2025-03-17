@@ -2096,6 +2096,7 @@ contains
       call bsap_allom(dbh,ipft,crown_damage,canopy_trim, 1.0_r8, sapw_area,sapw_c_target)
       call bagw_allom(dbh,ipft,crown_damage, 1.0_r8, agw_c_target)
       call bbgw_allom(dbh,ipft, 1.0_r8, bgw_c_target)
+      call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target)
 
        ! Target for storage is a fraction of the sum target of all
        ! non-reproductive organs
