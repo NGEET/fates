@@ -1518,7 +1518,7 @@ contains
     ! !USES:
 
     use EDtypesMod           , only : area, heightmax, n_height_bins
-    use EDParamsMod,           only : dlower_vai
+    use EDParamsMod,           only : dlower_vai,dinc_vai
 
     !
     ! !ARGUMENTS
@@ -2232,9 +2232,6 @@ contains
   subroutine UpdateCohortLAI(currentCohort, canopy_layer_tlai, total_canopy_area)
    
    ! Update LAI and related variables for a given cohort
-   
-   ! Uses
-   use EDParamsMod, only : dlower_vai
    
    ! Arguments
    type(fates_cohort_type),intent(inout), target   :: currentCohort
