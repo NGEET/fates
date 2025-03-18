@@ -741,10 +741,10 @@ contains
                                     
              if(z == currentCohort%nv) then
                 cumulative_lai_cohort = leaf_veg_frac * &
-                     (dlower_vai(iv)+0.5_r8*(currentCohort%treelai+currentCohort%treesai-dlower_vai(iv)))
+                     (dlower_vai(z)+0.5_r8*(currentCohort%treelai+currentCohort%treesai-dlower_vai(z)))
              else
                 cumulative_lai_cohort = leaf_veg_frac * &
-                     (dlower_vai(iv)+0.5_r8*dinc_vai(iv))
+                     (dlower_vai(z)+0.5_r8*dinc_vai(z))
              end if
 
              cumulative_lai = cumulative_lai_cohort + lai_canopy_above
