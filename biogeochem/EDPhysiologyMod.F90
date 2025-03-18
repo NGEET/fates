@@ -18,7 +18,8 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod, only    : hlm_use_nocomp
-  use EDParamsMod           , only    : crop_lu_pft_vector     
+  use EDParamsMod           , only    : crop_lu_pft_vector
+  use EDParamsMod           , only    : GetNVegLayers
   use FatesInterfaceTypesMod, only    : hlm_nitrogen_spec
   use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
   use FatesInterfaceTypesMod, only    : hlm_use_tree_damage
@@ -629,14 +630,11 @@ contains
     real(r8) :: sapw_c                ! sapwood carbon [kg]
     real(r8) :: store_c               ! storage carbon [kg]
     real(r8) :: struct_c              ! structure carbon [kg]
-    real(r8) :: leaf_inc              ! LAI-only portion of the vegetation increment of dinc_vai
     real(r8) :: lai_canopy_above      ! the LAI in the canopy layers above the layer of interest
-    real(r8) :: lai_layers_above      ! the LAI in the leaf layers, within the current canopy,
-    ! above the leaf layer of interest
-    real(r8) :: lai_current           ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai        ! whole canopy cumulative LAI, top down, to the leaf layer of interest
     real(r8) :: cumulative_lai_cohort ! cumulative LAI within the current cohort only
-
+    real(r8) :: leaf_veg_frac         ! fraction of vegetation area (leaf+stem) that is just leaf
+    
     ! Temporary diagnostic ouptut
 
     ! LAPACK linear least squares fit variables
@@ -704,15 +702,10 @@ contains
                currentCohort%dbh, currentCohort%crowndamage, currentCohort%canopy_trim, &
                currentCohort%efstem_coh, 0, currentCohort%treelai, currentCohort%treesai )
 
-          currentCohort%nv      = count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
+          currentCohort%nv = GetNVegLayers(currentCohort%treelai+currentCohort%treesai)
 
-          if (currentCohort%nv > nlevleaf)then
-             write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv, &
-                  currentCohort%treelai,currentCohort%treesai, &
-                  currentCohort%c_area,currentCohort%n,leaf_c
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          endif
-
+          leaf_veg_frac = currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
+          
           ! Find target leaf biomass. Here we assume that leaves would be fully flushed 
           ! (elongation factor = 1)
           call bleaf(currentcohort%dbh,ipft,&
@@ -746,20 +739,18 @@ contains
           !Leaf cost vs net uptake for each leaf layer.
           do z = 1, currentCohort%nv
 
-             ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
-             leaf_inc    = dinc_vai(z) * &
-                  currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
-             
-             ! Now calculate the cumulative top-down lai of the current layer's midpoint within the current cohort
-             lai_layers_above      = (dlower_vai(z) - dinc_vai(z)) * &
-                  currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
-             lai_current           = min(leaf_inc, currentCohort%treelai - lai_layers_above)
-             cumulative_lai_cohort = lai_layers_above + 0.5*lai_current
-
-             ! Now add in the lai above the current cohort for calculating the sla leaf level
              lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1))
-             cumulative_lai    = lai_canopy_above + cumulative_lai_cohort
+                                    
+             if(z == currentCohort%nv) then
+                cumulative_lai_cohort = leaf_veg_frac * &
+                     (dlower_vai(z)+0.5_r8*(currentCohort%treelai+currentCohort%treesai-dlower_vai(z)))
+             else
+                cumulative_lai_cohort = leaf_veg_frac * &
+                     (dlower_vai(z)+0.5_r8*dinc_vai(z))
+             end if
 
+             cumulative_lai = cumulative_lai_cohort + lai_canopy_above
+             
              ! There was activity this year in this leaf layer.  This should only occur for bottom most leaf layer
              if (currentCohort%year_net_uptake(z) /= 999._r8)then
 
