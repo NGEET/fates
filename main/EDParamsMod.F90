@@ -250,10 +250,23 @@ module EDParamsMod
    public :: FatesRegisterParams
    public :: FatesReceiveParams
    public :: FatesReportParams
-  
-contains
+   public :: GetNVegLayers
 
+   
+ contains
+
+
+   function GetNVegLayers(treevai) result(nv)
+
+     real(r8) :: treevai  ! The LAI+SAI of the cohort (m2/m2)
+     integer  :: nv
+     
+     nv = maxloc(dlower_vai, DIM=1, MASK=(dlower_vai<=(treevai)))
+
+   end function GetNVegLayers
+     
   !-----------------------------------------------------------------------
+   
   subroutine FatesParamsInit()
     ! Initialize all parameters to nan to ensure that we get valid
     ! values back from the host.
