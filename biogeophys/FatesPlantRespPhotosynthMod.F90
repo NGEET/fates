@@ -649,7 +649,7 @@ contains
                                     
                                  else    ! Two-stream
 
-                                    if(cohort_layer_elai(iv) > nearzero .and. currentPatch%solar_zenith_flag) then
+                                    if(cohort_layer_elai(iv) > nearzero .and. sites(s)%coszen>0._r8 ) then
 
                                        call FatesGetCohortAbsRad(currentPatch, currentCohort, ipar, &
                                             cohort_vaitop(iv), cohort_vaibot(iv), cohort_elai, cohort_esai, &
