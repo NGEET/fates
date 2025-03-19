@@ -3881,7 +3881,7 @@ contains
 
            if_zenith_flag: if (sites(s)%coszen>0._r8) then
               
-              select case(radiation_model)
+              select case(hlm_radiation_model)
               case(norman_solver)
                  
                  call PatchNormanRadiation (currentPatch, &
