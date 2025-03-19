@@ -1,4 +1,4 @@
-set(pfunit_sources test_{module_name}.pf)
+set(pfunit_sources {file_name})
 
 add_pfunit_ctest({module_name}
   TEST_SOURCES "${{pfunit_sources}}"

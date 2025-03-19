@@ -1,4 +1,4 @@
-set(test_sources {program_name}.F90)
+set(test_sources {file_name})
 
 set(NETCDF_C_DIR ${{NETCDF_C_PATH}})
 set(NETCDF_FORTRAN_DIR ${{NETCDF_F_PATH}})

@@ -16,91 +16,89 @@ Specifically, this script peforms the following steps:
 4. Appends an entry for this test to the configuration file.
 5. If it's a functional test, generates a new Python TestCase file.
 
-Note that you may need to 
-
 """
 
 import os 
 import argparse
-
-_TEST_SUB_DIR = os.path.dirname(os.path.abspath(__file__))
-_TEMPLATE_DIR = os.path.join(_TEST_SUB_DIR, 'templates')
-_UNIT_TESTING_DIR = os.path.join(_TEST_SUB_DIR, "unit_testing")
-_FUNCTIONAL_TESTING_DIR = os.path.join(_TEST_SUB_DIR, "functional_testing")
-_UNIT_CMAKE_TEMPLATE = 'cmake_utest_template.txt'
-_TEST_CMAKELISTS = os.path.join(_TEST_SUB_DIR, 'CMakeLists.txt')
+import textwrap
+from utils import snake_to_camel
+from test_class import generate_test
 
 def commandline_args():
     """Parse and return command-line arguments"""
-
-    description = """
-    Driver for creating a new empty test
-
-    Typical usage:
-
-    ./generate_empty_test.py 
-
-    """
     parser = argparse.ArgumentParser(
-        description=description, formatter_class=argparse.RawTextHelpFormatter
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument('test_name', help="Name of the new test")
-    parser.add_argument('test_type', choices=['unit', 'functional'], help='Type of test')
-    parser.add_argument('--module', default="NewTest", help="Module name for test")
-
+    parser.print_usage = parser.print_help
+    subparsers = parser.add_subparsers(
+        help="Two types of tests, either:", dest="test_type"
+    )
+    unit_parser = subparsers.add_parser('unit', help="Create an empty unit test")
+    functional_parser = subparsers.add_parser('functional', help="Create an empty functional test")
+    
+    # Unit test parser options
+    
+    # Functional test parser options
+    
+    # common options between both subparsers
+    for subparser in [unit_parser, functional_parser]:
+        subparser.add_argument('--test-name', default="hello_world", help="Name of the new test")
+        subparser.add_argument('--test-sub-dir', default=None, help='Optional test subdirectory path')
+        
+    # print help for both subparsers
+    parser.epilog = textwrap.dedent(
+        f"""\
+         {unit_parser.format_help()}
+         {functional_parser.format_help()}
+         """
+    )
+    
     args = parser.parse_args()
-
+    
     return args
 
-def load_template(template_name):
-    """Load a template file from the templates directory."""
-    template_path = os.path.join(_TEMPLATE_DIR, template_name)
-    if not os.path.exists(template_path):
-        raise FileNotFoundError(f"Error: Template '{template_path}' not found.")
-    with open(template_path, "r") as f:
-        return f.read()
+def get_config_path(test_type: str) -> str:
+    """Returns path to config file based on input test type
 
-def generate_test_dir_name(test_type, test_name):
+    Args:
+        test_type (str): test type [unit, functional]
+
+    Raises:
+        RuntimeError: test_type must be either unit or functional
+
+    Returns:
+        str: path to config file
+    """
     if test_type == 'unit':
-        return os.path.join(_UNIT_TESTING_DIR, f"fates_{test_name}_utest")
+        return _UNIT_TESTS_CONFIG
     elif test_type == 'functional':
-        return os.path.join(_FUNCTIONAL_TESTING_DIR, f"fates_{test_name}_ftest")
+        return _FUNCTIONAL_TESTS_CONFIG
     else:
         raise RuntimeError("test_type must be one of [unit, functional]")
-
-def create_directory(path):
-    if os.path.exists(path):
-        raise FileExistsError(f"Error: Directory '{path}' already exists.")
-    os.makedirs(path)
-    print(f"Created directory: {path}")
-    
-def create_cmake_file(test_dir, test_type, module_name):
-    if test_type == 'unit':
-        cmake_template = load_template(_UNIT_CMAKE_TEMPLATE)
-    else:
-        return
         
-    cmake_path = os.path.join(test_dir, "CMakeLists.txt")
-    with open(cmake_path, "w") as f:
-        f.write(cmake_template.format(module_name=module_name))
-    print(f"Created {cmake_path}")
+def update_config(config_path: str, test_name: str, build_dir: str):
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Warning: {config_path} not found.")
     
-def update_main_cmake(test_dir):
-    if os.path.exists(_TEST_CMAKELISTS):
-        with open(_TEST_CMAKELISTS, "a") as f:
-            f.write(f"\nadd_subdirectory({test_dir})\n")
-        print(f"Updated {_TEST_CMAKELISTS} to include {test_dir}")
-    else:
-        raise FileNotFoundError(f"Warning: {_TEST_CMAKELISTS} not found.")
+    if os.path.exists(config_path):
+        with open(config_path, "a") as f:
+            f.write(f"[{test_name}]\n")
+            f.write(f"test_dir = {build_dir}\n")
+        print(f"Updated {config_path} with {test_name}")
+
+        
 
 def main():
   
-  args = commandline_args()
-  
-  test_dir = generate_test_dir_name(args.test_type, args.test_name)
-  create_directory(test_dir)
-  create_cmake_file(test_dir, args.test_type, args.module)
-  update_main_cmake(test_dir)
+    #args = commandline_args()
+
+    # Example - create a unit test
+    unit_test = generate_test("unit", "hello_world")
+    unit_test.setup_test()
+
+    # Example: Creating a functional test
+    functional_test = generate_test("functional", "hello_world")
+    functional_test.setup_test()
 
 if __name__ == "__main__":
   main()
