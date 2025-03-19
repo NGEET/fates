@@ -19,7 +19,6 @@ module FatesInterfaceMod
    use EDParamsMod               , only : maxpatches_by_landuse
    use EDParamsMod               , only : max_cohort_per_patch
    use FatesRadiationMemMod      , only : num_swb,ivis,inir
-   use EDParamsMod               , only : regeneration_model
    use EDParamsMod               , only : nclmax
    use EDParamsMod               , only : nlevleaf
    use EDParamsMod               , only : maxpft
@@ -72,6 +71,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
    use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
    use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
+   use FatesLeafBiophysParamsMod , only : LeafBiophysRegisterParams, LeafBiophysReceiveParams,LeafBiophysReportParams
    use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
    use EDParamsMod               , only : p_uptake_mode
    use EDParamsMod               , only : n_uptake_mode
@@ -112,6 +112,7 @@ module FatesInterfaceMod
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
    use FatesTwoStreamUtilsMod, only : TransferRadParams
+   use LeafBiophysicsMod         , only : lb_params
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -1494,6 +1495,16 @@ contains
          hlm_num_luh2_states       = unset_int
          hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
+         hlm_daylength_factor_switch = unset_int
+         hlm_photo_tempsens_model = unset_int
+         hlm_stomatal_assim_model = unset_int
+         hlm_stomatal_model = unset_int
+         hlm_hydr_solver = unset_int
+         hlm_maintresp_leaf_model = unset_int
+         hlm_mort_cstarvation_model = unset_int
+         hlm_radiation_model = unset_int
+         hlm_electron_transport_model = unset_int
+         hlm_regeneration_model = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1778,6 +1789,56 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_daylength_factor_switch .eq. unset_int) then
+            write(fates_log(), *) 'use daylength factor switch is unset: hlm_daylength_factor_switch, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_photo_tempsens_model .eq. unset_int) then
+            write(fates_log(), *) 'photosynthetic acclimation model is unset: hlm_photo_tempsens_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_stomatal_assim_model .eq. unset_int) then
+            write(fates_log(), *) 'stomatal model assimilation mode is unset: hlm_stomatal_assim_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_stomatal_model .eq. unset_int) then
+            write(fates_log(), *) 'stomatal model conductance is unset: hlm_stomatal_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_hydr_solver .eq. unset_int) then
+            write(fates_log(), *) 'FATES hydro solver is unset: hlm_hydr_solver, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_maintresp_leaf_model .eq. unset_int) then
+            write(fates_log(), *) 'leaf maintenance respiration model is unset: hlm_maintresp_leaf_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_mort_cstarvation_model .eq. unset_int) then
+            write(fates_log(), *) 'carbon starvation mortality model is unset: hlm_mort_cstarvation_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_radiation_model .eq. unset_int) then
+            write(fates_log(), *) 'radiation model is unset: hlm_radiation_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_electron_transport_model .eq. unset_int) then
+            write(fates_log(), *) 'electron transport model is unset: hlm_electron_transport_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+         if(hlm_regeneration_model .eq. unset_int) then
+            write(fates_log(), *) 'seed regeneration model is unset: hlm_regeneration_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(hlm_use_sp.eq.itrue.and.hlm_use_nocomp.eq.ifalse)then
             write(fates_log(), *) 'SP cannot be on if nocomp mode is off. Exiting. '
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1981,6 +2042,70 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
                end if
 
+            case('use_daylength_factor_switch')
+               hlm_daylength_factor_switch = ival
+               lb_params%dayl_switch    = hlm_daylength_factor_switch
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_daylength_factor_switch= ',ival,' to FATES'
+               end if
+
+            case('photosynth_acclimation')
+               hlm_photo_tempsens_model = ival
+               lb_params%photo_tempsens_model = hlm_photo_tempsens_model
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_photo_tempsens_model= ',ival,' to FATES'
+               end if
+
+            case('stomatal_assim_model')
+               hlm_stomatal_assim_model = ival
+               lb_params%stomatal_assim_model = hlm_stomatal_assim_model
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_stomatal_assim_model ',ival,' to FATES'
+               end if
+
+            case('stomatal_model')
+               hlm_stomatal_model = ival
+               lb_params%stomatal_model = hlm_stomatal_model
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_stomatal_model ',ival,' to FATES'
+               end if
+
+            case('hydr_solver')
+               hlm_hydr_solver = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hydr_solver= ',ival,' to FATES'
+               end if
+
+            case('maintresp_leaf_model')
+               hlm_maintresp_leaf_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_maintresp_leaf_model ',ival,' to FATES'
+               end if
+
+            case('mort_cstarvation_model')
+               hlm_mort_cstarvation_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_mort_cstarvation_model ',ival,' to FATES'
+               end if
+
+            case('radiation_model')
+               hlm_radiation_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_radiation_model ',ival,' to FATES'
+               end if
+
+            case('electron_transport_model')
+               hlm_electron_transport_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
+               end if
+
+            case('regeneration_model')
+               hlm_regeneration_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_regeneration_model ',ival,' to FATES'
+               end if
+
             case('use_logging')
                hlm_use_logging = ival
                if (fates_global_verbose()) then
@@ -2091,6 +2216,7 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
+      call LeafBiophysReportParams(masterproc)
       call PRTDerivedParams()              ! Update PARTEH derived constants
       call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
@@ -2143,7 +2269,7 @@ contains
            call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
            ! Update the seedling layer par running means
-           if ( regeneration_model == TRS_regeneration ) then
+           if ( hlm_regeneration_model == TRS_regeneration ) then
 
               ! Return the par intensity at the ground. This routine
               ! breaks it up into high and low light levels. The high
@@ -2532,6 +2658,7 @@ subroutine FatesReadParameters(param_reader)
   call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
   call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
   call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
+  call LeafBiophysRegisterParams(fates_params)
   call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
 
   call param_reader%Read(fates_params)
@@ -2539,6 +2666,7 @@ subroutine FatesReadParameters(param_reader)
   call FatesReceiveParams(fates_params)
   call SpitFireReceiveParams(fates_params)
   call PRTReceiveParams(fates_params)
+  call LeafBiophysReceiveParams(fates_params)
   call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
 
   call fates_params%Destroy()

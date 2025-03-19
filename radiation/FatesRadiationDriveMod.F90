@@ -22,13 +22,13 @@ module FatesRadiationDriveMod
   use FatesInterfaceTypesMod , only : bc_in_type
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : numpft
+  use FatesInterfaceTypesMod , only : hlm_radiation_model
   use FatesRadiationMemMod, only : num_rad_stream_types
   use FatesRadiationMemMod, only : idirect, idiffuse
   use FatesRadiationMemMod, only : num_swb, ivis, inir, ipar
   use FatesRadiationMemMod, only : alb_ice, rho_snow, tau_snow
   use FatesRadiationMemMod, only : norman_solver
   use FatesRadiationMemMod, only : twostr_solver
-  use EDParamsMod, only          : radiation_model
   use TwoStreamMLPEMod, only : normalized_upper_boundary
   use FatesTwoStreamUtilsMod, only : FatesPatchFSun
   use FatesTwoStreamUtilsMod, only : CheckPatchRadiationBalance
@@ -104,7 +104,6 @@ contains
 
           ifp = currentpatch%patchno
           
-          ! do not do albedo calculations for bare ground patch in SP mode
           if_bareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              
              ! Initialize output boundary conditions with trivial assumption
@@ -136,7 +135,7 @@ contains
                 
                 select case(radiation_model)
                 case(norman_solver)
-                   
+
                    call PatchNormanRadiation (currentPatch, &
                         bc_in(s)%coszen, &
                         bc_out(s)%albd_parb(ifp,:), &   ! Surface Albedo direct
@@ -195,7 +194,7 @@ contains
                 end select
              endif if_zenith_flag
           end if if_bareground
-          
+
           currentPatch => currentPatch%younger
        end do
     end do

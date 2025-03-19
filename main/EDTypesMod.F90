@@ -313,6 +313,8 @@ module EDTypesMod
                                        ! due to re-sizing patches when area math starts to lose
                                        ! precision
 
+     real(r8) :: herbivory_flux_out    ! loss of element due to grazing (and/or browsing) by herbivores
+     
    contains
 
      procedure :: ZeroMassBalState
@@ -582,6 +584,13 @@ contains
   ! ============================================================================
 
   subroutine set_patchno( currentSite, check , call_id)
+
+    !
+    ! !DESCRIPTION:
+    ! Give patches an order number from the oldest to youngest. 
+    ! Oldest patches start with an index of 1.
+    ! Special case: For no-comp runs, we treat the bare-ground
+    ! patch as index 0.
     
     type(ed_site_type),intent(in) :: currentSite
     logical,intent(in) :: check     ! If true, we are checking order, not setting
@@ -687,6 +696,7 @@ contains
       this%flux_generic_in   = 0._r8
       this%flux_generic_out  = 0._r8
       this%patch_resize_err  = 0._r8
+      this%herbivory_flux_out= 0._r8
 
       return
   end subroutine ZeroMassBalFlux

@@ -1128,9 +1128,14 @@ contains
      logical :: is_season_decid ! Is the PFT cold-deciduous?
      logical :: is_stress_decid ! Is the PFT drought-deciduous?
      logical :: is_semi_decid   ! Is the PFT drought semi-deciduous?
+     logical :: is_hmode_fine   ! Did the height allometry pass the check?
      integer :: nerror          ! Count number of errors. If this is not
                                 !    zero by theend of the subroutine, stop 
                                 !    the run.
+     real(r8) :: height_crit    ! Critical height where crown depth equals height
+     real(r8) :: height_max     ! Maximum height attainable by PFT.
+
+
 
      npft = size(prt_params%evergreen,1)
 
@@ -1145,6 +1150,10 @@ contains
      ! positive, but we will hold on until all checks are performed before stopping
      ! the run.
      nerror = 0
+
+     ! Initialise height allometry success flag to .true., and update it if there are
+     ! inconsistencies.
+     is_hmode_fine = .true.
 
      if( any(prt_params%organ_id(:)<1) .or. &
          any(prt_params%organ_id(:)>num_organ_types) ) then
@@ -1383,7 +1392,153 @@ contains
            write(fates_log(),*) ''
            write(fates_log(),*) ''
            nerror = nerror + 1
+           
+           ! Update flag so we do not run tests that depend on reasonable height allometry
+           ! parameters. It is fine to bypass these additional tests because the code will
+           ! stop due to the height allometry error.
+           ! -------------------------------------------------------------------------------
+           is_hmode_fine = .false.
         end if
+
+        ! Make sure that the crown depth does not exceed plant height.
+        ! ----------------------------------------------------------------------------------
+        select_dmode_check: select case (prt_params%allom_dmode(ipft))
+        case (1)
+           ! Linear allometry
+           ! -------------------------------------------------------------------------------
+           if ( ( prt_params%allom_h2cd1 (ipft) <  nearzero ) .or. &
+                ( prt_params%allom_h2cd1 (ipft) >  1._r8    ) ) then
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) " Incorrect settings for crown depth allometry."
+              write(fates_log(),*) ' PFT index:   ',ipft
+              write(fates_log(),*) ' allom_dmode: ',prt_params%allom_dmode(ipft)
+              write(fates_log(),*) ' allom_h2cd1: ',prt_params%allom_h2cd1(ipft)
+              write(fates_log(),*) " Parameter ""allom_h2cd1"" must be positive and <= 1"
+              write(fates_log(),*) "    when allom_dmode = 1 (or allom_h2cd2 = 1)."
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
+           end if
+        case (2)
+           ! Log-linear allometry. Multiplier factor cannot be negative or zero.
+           ! -------------------------------------------------------------------------------
+           if ( prt_params%allom_h2cd1 (ipft) < nearzero ) then
+              !   Calculations for the generic case require allom_h2cd1 to be positive. If
+              ! not, issue an error.
+              ! ----------------------------------------------------------------------------
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) " Incorrect settings for crown depth allometry."
+              write(fates_log(),*) ' PFT index:   ',ipft
+              write(fates_log(),*) ' allom_dmode: ',prt_params%allom_dmode(ipft)
+              write(fates_log(),*) ' allom_h2cd1: ',prt_params%allom_h2cd1(ipft)
+              write(fates_log(),*) " Parameter ""allom_h2cd1"" must be positive when"
+              write(fates_log(),*) "    allom_dmode = 2."
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
+           elseif ( abs(prt_params%allom_h2cd2 (ipft) - 1._r8 ) < nearzero ) then
+              !    Special case when the log-linear equation reduces to linear. This must
+              ! be checked separately to avoid singularities in the general case.
+              ! ----------------------------------------------------------------------------
+              if ( ( prt_params%allom_h2cd1 (ipft) < nearzero ) .or. &
+                   ( prt_params%allom_h2cd1 (ipft) > 1._r8    ) ) then
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) " Incorrect settings for crown depth allometry."
+                 write(fates_log(),*) ' PFT index:   ',ipft
+                 write(fates_log(),*) ' allom_dmode: ',prt_params%allom_dmode(ipft)
+                 write(fates_log(),*) ' allom_h2cd1: ',prt_params%allom_h2cd1(ipft)
+                 write(fates_log(),*) " Parameter ""allom_h2cd1"" must be positive and <= 1"
+                 write(fates_log(),*) "    when allom_h2cd2 = 1 (or allom_dmode = 1)."
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) ''
+                 write(fates_log(),*) ''
+                 nerror = nerror + 1
+              end if
+           elseif (is_hmode_fine) then
+              ! ----------------------------------------------------------------------------
+              !    General log-linear case. Depending on the parameter values, crown depth 
+              ! may exceed for very small or very large plants. The code has safeguards 
+              ! to prevent this behaviour, but we must at least issue some warning.
+              ! ----------------------------------------------------------------------------
+
+              !   Find the critical height in which crown depth becomes height
+              ! ----------------------------------------------------------------------------
+              height_crit = prt_params%allom_h2cd1 (ipft) ** &
+                           ( 1.0_r8 / (1.0_r8 - prt_params%allom_h2cd2 (ipft)) )
+
+              !   Find the maximum height.
+              ! ----------------------------------------------------------------------------
+              call h_allom(prt_params%allom_dbh_maxheight(ipft),ipft,height_max)
+
+              if ( ( prt_params%allom_h2cd2 (ipft)  <  1.0_r8     ) .and. &
+                   ( EDPftvarcon_inst%hgt_min(ipft) < height_crit ) ) then
+                 !   These parameters will cause the code to cap crown depth to height for
+                 ! small plants. We print a warning message, but we do not stop the run.
+                 ! -------------------------------------------------------------------------
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) "   WARNING!"
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) " Parameter settings will require capping crown"
+                 write(fates_log(),*) "    depth to height for cohorts with height less"
+                 write(fates_log(),*) "    than ""height_crit""."
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) ' PFT index:   ',ipft
+                 write(fates_log(),*) ' allom_dmode: ',prt_params%allom_dmode(ipft)
+                 write(fates_log(),*) ' allom_h2cd1: ',prt_params%allom_h2cd1(ipft)
+                 write(fates_log(),*) ' allom_h2cd2: ',prt_params%allom_h2cd2(ipft)
+                 write(fates_log(),*) ' height_crit: ',height_crit
+                 write(fates_log(),*) ' height_min:  ',EDPftvarcon_inst%hgt_min(ipft)
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) " To avoid this message, set ""allom_h2cd1"" and"
+                 write(fates_log(),*) "    ""allom_h2cd2"" such that ""height_crit"" is"
+                 write(fates_log(),*) "    less than ""height_min""."
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) " height_crit = allom_h2cd1**(1/(1-allom_h2cd2))"
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) ""
+                 write(fates_log(),*) ""
+              elseif ( ( prt_params%allom_h2cd2 (ipft) > 1.0_r8      ) .and. &
+                       ( height_max                    > height_crit ) ) then
+                 !   These parameters will cause the code to cap crown depth to height for
+                 ! large plants. We print a warning message, but we do not stop the run.
+                 ! -------------------------------------------------------------------------
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) "   WARNING!"
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) " Parameter settings will require capping crown"
+                 write(fates_log(),*) "    depth to height for cohorts with height greater"
+                 write(fates_log(),*) "    than ""height_crit""."
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) ' PFT index:   ',ipft
+                 write(fates_log(),*) ' allom_dmode: ',prt_params%allom_dmode(ipft)
+                 write(fates_log(),*) ' allom_h2cd1: ',prt_params%allom_h2cd1(ipft)
+                 write(fates_log(),*) ' allom_h2cd2: ',prt_params%allom_h2cd2(ipft)
+                 write(fates_log(),*) ' height_crit: ',height_crit
+                 write(fates_log(),*) ' height_max:  ',height_max
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) " To avoid this message, set ""allom_h2cd1"" and"
+                 write(fates_log(),*) "    ""allom_h2cd2"" such that ""height_crit"" is"
+                 write(fates_log(),*) "    greater than ""height_max""."
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) " height_crit = allom_h2cd1**(1/(1-allom_h2cd2))"
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) ""
+                 write(fates_log(),*) ""
+              end if
+           end if
+        case default
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) " Incorrect settings for crown depth allometry."
+           write(fates_log(),*) ' PFT index:   ',ipft
+           write(fates_log(),*) ' allom_dmode: ',prt_params%allom_dmode(ipft)
+           write(fates_log(),*) " Parameter ""allom_dmode"" must be 1 or 2."
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
+        end select select_dmode_check
 
         ! Check if non-woody plants have structural biomass (agb) intercept
         ! ----------------------------------------------------------------------------------
