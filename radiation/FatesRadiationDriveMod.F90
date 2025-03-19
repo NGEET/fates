@@ -133,7 +133,7 @@ contains
 
              if_zenith_flag: if( bc_in(s)%coszen>0._r8 )then
                 
-                select case(radiation_model)
+                select case(hlm_radiation_model)
                 case(norman_solver)
 
                    call PatchNormanRadiation (currentPatch, &
@@ -194,7 +194,6 @@ contains
                 end select
              endif if_zenith_flag
           end if if_bareground
-
           currentPatch => currentPatch%younger
        end do
     end do
@@ -254,7 +253,7 @@ contains
              cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
              cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
 
-             if_norm_twostr: if (radiation_model.eq.norman_solver) then
+             if_norm_twostr: if (hlm_radiation_model.eq.norman_solver) then
 
                 sunlai = 0._r8
                 shalai = 0._r8

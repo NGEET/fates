@@ -1451,7 +1451,7 @@ contains
 
        call leaf_area_profile(sites(s))
        
-       if(radiation_model.eq.twostr_solver) then
+       if(hlm_radiation_model.eq.twostr_solver) then
           call FatesConstructRadElements(sites(s))
        end if
        

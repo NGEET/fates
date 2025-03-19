@@ -79,6 +79,7 @@ contains
     integer :: max_elements     ! Maximum number of scattering elements on the site
     integer :: n_scr            ! The size of the scratch arrays
     logical :: allocate_scratch ! Whether to re-allocate the scratch arrays
+
     integer  :: icolmax         ! Column index for each layer with largest area footprint
     real(r8) :: areamax         ! The area footprint of the largest column
     
@@ -92,7 +93,6 @@ contains
     ! could create indexing problems when transfering fluxes back into FATES arrays
     
     logical, parameter :: do_simple_area_correct = .true.
-    
     
     ! These parameters are not used yet
     !real(r8) :: max_vai_diff_per_elem ! The maximum vai difference in any element
@@ -305,7 +305,7 @@ contains
                      areamax = twostr%scelg(ican,icol)%area
                   end if
                end do
-               
+
                ! Test out a simpler way to correct area errors
                if(do_simple_area_correct) then
                   if(debug) then
