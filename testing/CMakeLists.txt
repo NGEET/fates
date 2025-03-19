@@ -14,3 +14,5 @@ add_subdirectory(unit_testing/sort_cohorts_test fates_sort_cohorts_utest)
 add_subdirectory(unit_testing/insert_cohort_test fates_insert_cohort_utest)
 add_subdirectory(unit_testing/validate_cohorts_test fates_validate_cohorts_utest)
 add_subdirectory(unit_testing/count_cohorts_test fates_count_cohorts_utest)
+
+add_subdirectory(/Users/afoster/Documents/ncar/CTSM/src/fates/testing/unit_testing/fates_new_test_utest)

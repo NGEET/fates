@@ -1,0 +1,6 @@
+set(pfunit_sources test_{module_name}.pf)
+
+add_pfunit_ctest({module_name}
+  TEST_SOURCES "${{pfunit_sources}}"
+  LINK_LIBRARIES fates csm_share)
+  
