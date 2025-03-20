@@ -1020,7 +1020,7 @@ contains
                                       currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
                                            nextc%n*nextc%fire_mort)/newn
                                       
-                                      currentCohort%nonrx_mort     = (currentCohort%n*currentCohort*nonrx_mort + &
+                                      currentCohort%nonrx_mort     = (currentCohort%n*currentCohort%nonrx_mort + &
                                            nextc%n*nextc%nonrx_mort)/newn
                                       
                                       currentCohort%rx_mort        = (currentCohort%n*currentCohort%rx_mort + &
