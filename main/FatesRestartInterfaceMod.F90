@@ -2422,7 +2422,7 @@ contains
                 rio_termcflux_usto_sipft(io_idx_si_pft_term)  = sites(s)%term_carbonflux_ustory(i_term_type,i_pft)
                 io_idx_si_pft_term = io_idx_si_pft_term + 1
              end do
-             rio_nonrx_cflux_cano_sipft(io_idx_si_pft) = sites(s)%nonrx_fmort_carbonflux_canopy(i_pft)
+             rio_nonrx_fmortcflux_cano_sipft(io_idx_si_pft) = sites(s)%nonrx_fmort_carbonflux_canopy(i_pft)
              rio_nonrx_fmortcflux_usto_sipft(io_idx_si_pft) = sites(s)%nonrx_fmort_carbonflux_ustory(i_pft)
              rio_rx_fmortcflux_cano_sipft(io_idx_si_pft) = sites(s)%rx_fmort_carbonflux_canopy(i_pft)
              rio_rx_fmortcflux_usto_sipft(io_idx_si_pft) = sites(s)%rx_fmort_carbonflux_ustory(i_pft)
