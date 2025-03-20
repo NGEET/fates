@@ -10,6 +10,8 @@ module SFMainMod
   use FatesConstantsMod,      only : pi_const
   use FatesConstantsMod,      only : nocomp_bareground, nearzero
   use FatesGlobals,           only : fates_log
+  use FatesGlobals          , only : endrun => fates_endrun
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesInterfaceTypesMod, only : hlm_masterproc 
   use FatesInterfaceTypesMod, only : hlm_spitfire_mode
   use FatesInterfaceTypesMod, only : hlm_sf_nofire_def
@@ -33,9 +35,13 @@ module SFMainMod
   use FatesInterfaceTypesMod, only : numpft
   use FatesAllometryMod,      only : CrownDepth
   use FatesFuelClassesMod,    only : fuel_classes
+
   
   implicit none
   private
+
+  character(len=*), parameter, private :: sourcefile = &
+  __FILE__
 
 
   public :: DailyFireModel
@@ -387,7 +393,7 @@ contains
     currentPatch => currentSite%oldest_patch 
     do while (associated(currentPatch))
       
-      currentPatch%fuel%frac_burnt(:) = 0.0_r8
+      currentPatch%fuel%frac_burnt(:) = 0.0_r8 
 
       if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
 
@@ -399,10 +405,11 @@ contains
         currentPatch%TFC_ROS = sum(fuel_consumed) - fuel_consumed(fuel_classes%trunks())  
 
         ! initialize patch parameters to zero
-        currentPatch%FI = 0.0_r8 
-        currentPatch%fire = 0
-        currentPatch%rxfire = 0
-        currentPatch%rxfire_FI = 0.0_r8
+        currentPatch%FI = 0.0_r8        ! either nonrx or rx FI
+        currentPatch%nonrx_fire = 0     ! only wildfire 
+        currentPatch%rx_fire = 0        ! only rx fire
+        currentPatch%rx_FI = 0.0_r8
+        currentPatch%nonrx_FI = 0.0_r8        
         
         if (currentSite%NF > 0.0_r8 .or. currentSite%fireWeather%rx_flag .eq. itrue) then
           
@@ -441,24 +448,25 @@ contains
             currentSite%rxfire_area_fuel = currentSite%rxfire_area_fuel + currentPatch%area ! record burnable area after fuel load check
             if (is_rxfire) then
               currentSite%rxfire_area_fi = currentSite%rxfire_area_fi + currentPatch%area ! record burnable area after FI check
-              currentPatch%rxfire = 1
+              currentPatch%rx_fire = 1
             else if (is_wildfire) then
-              currentPatch%fire = 1
+              currentPatch%nonrx_fire = 1
             end if
 
           else  ! not a patch suitable for conducting prescribed fire or rxfire is not even turned on
             ! track wildfires greater than kW/m energy threshold
             if (currentPatch%FI > SF_val_fire_threshold) then 
-              currentPatch%fire = 1 
+              currentPatch%nonrx_fire = 1 
             end if
 
           end if
 
-          if (currentPatch%fire == itrue) then
+          if (currentPatch%nonrx_fire == itrue) then
             currentSite%NF_successful = currentSite%NF_successful + &
             currentSite%NF*currentSite%FDI*currentPatch%area/area
-          else if (currentPatch%rxfire == itrue) then
-            currentPatch%rxfire_FI = currentPatch%FI
+            currentPatch%nonrx_FI = currentPatch%FI
+          else if (currentPatch%rx_fire == itrue) then
+            currentPatch%rx_FI = currentPatch%FI
           end if
           
         end if
@@ -479,7 +487,6 @@ contains
     use FatesConstantsMod, only : m2_per_km2
     use SFEquationsMod,    only : FireDuration, LengthToBreadth
     use SFEquationsMod,    only : AreaBurnt, FireSize
-    use SFParamsMod,       only : SF_val_fire_threshold
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
@@ -501,9 +508,9 @@ contains
 
         ! initialize patch parameters to zero
         currentPatch%FD = 0.0_r8
-        currentPatch%frac_burnt = 0.0_r8
+        currentPatch%nonrx_frac_burnt = 0.0_r8
 
-        if (currentSite%NF > 0.0_r8 .and. currentPatch%FI > SF_val_fire_threshold) then
+        if (currentPatch%nonrx_fire == 1) then
 
           ! fire duration [min]
           currentPatch%FD = FireDuration(currentSite%FDI)
@@ -521,7 +528,7 @@ contains
           
           ! convert to area burned per area patch per day
           ! i.e., fraction of the patch burned on that day
-          currentPatch%frac_burnt = min(max_frac_burnt, area_burnt/m2_per_km2)
+          currentPatch%nonrx_frac_burnt = min(max_frac_burnt, area_burnt/m2_per_km2)
           
         end if
       end if
@@ -564,15 +571,31 @@ contains
     do while(associated(currentPatch))
 
       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
-        currentPatch%rxfire_frac_burnt = 0.0_r8
-        if (currentPatch%rxfire .eq. itrue .and. & 
+        currentPatch%fire = 0           ! fire, either rx or non-rx
+        currentPatch%frac_burnt = 0.0_r8 ! rx_frac_burnt + nonrx_frac_burnt
+        currentPatch%rx_frac_burnt = 0.0_r8
+        if (currentPatch%rx_fire .eq. itrue .and. & 
         total_burnable_frac .ge. SF_val_rxfire_min_frac ) then
           currentSite%rxfire_area_final = currentSite%rxfire_area_final + currentPatch%area ! the final burned total land area 
-          currentPatch%rxfire_frac_burnt = min(0.99_r8, (SF_val_rxfire_AB / total_burnable_frac))
+          currentPatch%rx_frac_burnt = min(0.99_r8, (SF_val_rxfire_AB / total_burnable_frac))
         else
-          currentPatch%rxfire = 0 ! update rxfire occurence at patch 
-          currentPatch%rxfire_FI = 0.0_r8
+          currentPatch%rx_fire = 0 ! update rxfire occurence at patch 
+          currentPatch%rx_FI = 0.0_r8
         end if
+        ! update patch level fire occurence and total frac burnt
+        currentPatch%fire = currentPatch%nonrx_fire + currentPatch%rx_fire
+        currentPatch%frac_burnt = currentPatch%nonrx_frac_burnt + currentPatch%rx_frac_burnt
+
+        ! currentPatch%fire cannot be >1, which indicates both rx and wildfire are happening
+        ! we currently do not allow this to happen on the same patch yet
+        if (currentPatch%fire > 1) then
+          write(fates_log(),*) 'Both wildfire and management fire are happening at same patch'
+          write(fates_log(),*) 'rxfire =',currentPatch%rx_fire
+          write(fates_log(),*) 'wildfire =',currentPatch%nonrx_fire
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+
       end if
 
       currentPatch => currentPatch%younger;  
@@ -610,7 +633,7 @@ contains
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
        
        tree_ag_biomass = 0.0_r8
-       if (currentPatch%fire == 1 .or. currentPatch%rxfire == 1) then
+       if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
              if ( prt_params%woody(currentCohort%pft) == itrue) then !trees only
@@ -666,7 +689,7 @@ contains
     do while(associated(currentPatch)) 
 
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
-       if (currentPatch%fire == 1 .or. currentPatch%rxfire == 1) then
+       if (currentPatch%fire == 1) then
 
           currentCohort=>currentPatch%tallest
 
@@ -736,7 +759,7 @@ contains
 
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
-       if (currentPatch%fire == 1 .or. currentPatch%rxfire == 1) then
+       if (currentPatch%fire == 1) then
           currentCohort => currentPatch%tallest;
           do while(associated(currentCohort))  
              if ( prt_params%woody(currentCohort%pft) == itrue) then !trees only
@@ -789,14 +812,18 @@ contains
 
        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
-       if (currentPatch%fire == 1 .or. currentPatch%rxfire == 1) then 
+       if (currentPatch%fire == 1) then 
           currentCohort => currentPatch%tallest
           do while(associated(currentCohort))  
-             currentCohort%fire_mort = 0.0_r8
+             currentCohort%fire_mort = 0.0_r8 
              currentCohort%crownfire_mort = 0.0_r8
-             currentCohort%rxfire_mort = 0.0_r8
-             currentCohort%rxcrownfire_mort = 0.0_r8
-             currentCohort%rxcambial_mort = 0.0_r8
+             currentCohort%nonrx_mort = 0.0_r8
+             currentCohort%nonrx_crown_mort = 0.0_r8
+             currentCohort%nonrx_cambial_mort = 0.0_r8
+             currentCohort%rx_mort = 0.0_r8
+             currentCohort%rx_crown_mort = 0.0_r8
+             currentCohort%rx_cambial_mort = 0.0_r8
+             
              if ( prt_params%woody(currentCohort%pft) == itrue) then
                 ! Equation 22 in Thonicke et al. 2010. 
                 currentCohort%crownfire_mort = EDPftvarcon_inst%crown_kill(currentCohort%pft)*currentCohort%fraction_crown_burned**3.0_r8
@@ -808,13 +835,14 @@ contains
              endif !trees
 
              ! now decide which type of post-fire mortality, prescribed fire or wildfire?
-             if (currentPatch%rxfire == itrue .and. currentPatch%fire == ifalse) then
-              currentCohort%rxfire_mort = currentCohort%fire_mort
-              currentCohort%rxcrownfire_mort = currentCohort%crownfire_mort
-              currentCohort%rxcambial_mort = currentCohort%cambial_mort
-              currentCohort%fire_mort = 0.0_r8
-              currentCohort%crownfire_mort = 0.0_r8
-              currentCohort%cambial_mort = 0.0_r8
+             if (currentPatch%nonrx_fire == itrue .and. currentPatch%rx_fire == ifalse) then
+              currentCohort%nonrx_mort = currentCohort%fire_mort
+              currentCohort%nonrx_crown_mort = currentCohort%crownfire_mort
+              currentCohort%nonrx_cambial_mort = currentCohort%cambial_mort
+             else 
+              currentCohort%rx_mort = currentCohort%fire_mort
+              currentCohort%rx_crown_mort = currentCohort%crownfire_mort
+              currentCohort%rx_cambial_mort = currentCohort%cambial_mort      
              end if
              
              currentCohort => currentCohort%shorter

@@ -1020,8 +1020,11 @@ contains
                                       currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
                                            nextc%n*nextc%fire_mort)/newn
                                       
-                                      currentCohort%rxfire_mort    = (currentCohort%n*currentCohort%rxfire_mort + &
-                                           nextc%n*nextc%rxfire_mort)/newn
+                                      currentCohort%nonrx_mort     = (currentCohort%n*currentCohort*nonrx_mort + &
+                                           nextc%n*nextc%nonrx_mort)/newn
+                                      
+                                      currentCohort%rx_mort        = (currentCohort%n*currentCohort%rx_mort + &
+                                           nextc%n*nextc%rx_mort)/newn
 
                                       ! mortality diagnostics
                                       currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
