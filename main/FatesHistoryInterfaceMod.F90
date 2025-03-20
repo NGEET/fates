@@ -2567,13 +2567,13 @@ contains
          hio_fire_fdi_si(io_si) = sites(s)%FDI
 
          ! total rx burnable fraction when fuel condition met
-         hio_rx_area_fuel_si(io_si) = sites(s)%rx_area_fuel * AREA_INV
+         hio_rx_area_fuel_si(io_si) = sites(s)%rxfire_area_fuel * AREA_INV
 
          ! total rx burnable fraction when fuel and FI conditions met
-         hio_rx_area_fi_si(io_si) = sites(s)%rx_area_fi * AREA_INV
+         hio_rx_area_fi_si(io_si) = sites(s)%rxfire_area_fi * AREA_INV
 
          ! total rx burnable fraction when all conditions met
-         hio_rx_area_final_si(io_si) = sites(s)%rx_area_final * AREA_INV
+         hio_rx_area_final_si(io_si) = sites(s)%rxfire_area_final * AREA_INV
 
          ! If hydraulics are turned on, track the error terms associated with
          ! dynamics [kg/m2]
