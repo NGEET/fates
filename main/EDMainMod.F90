@@ -837,6 +837,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
+    real(r8) :: total_stock  ! dummy variable for receiving from sitemassstock
     !-----------------------------------------------------------------------
 
     ! check patch order (set second argument to true)
@@ -902,6 +903,10 @@ contains
           call trim_canopy(currentSite)
      endif
     endif
+
+    ! report summary diagnostic values of FATES carbon mass pools for HLM to include in total land stocks
+    call SiteMassStock(currentSite,carbon12_element,total_stock,&
+         bc_out%veg_c_si, bc_out%litter_cwd_c_si, bc_out%seed_c_si)
 
   end subroutine ed_update_site
 

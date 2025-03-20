@@ -817,6 +817,11 @@ module FatesInterfaceTypesMod
       real(r8) :: grazing_closs_to_atm_si    ! Loss of carbon to atmosphere via grazing [Site-Level, gC m-2 s-1]
       real(r8) :: fire_closs_to_atm_si       ! Loss of carbon to atmosphere via burning (includes burning from land use change) [Site-Level, gC m-2 s-1]
 
+      ! summary carbon stock variables
+      real(r8) :: veg_c_si                   ! Total vegetation carbon [Site-Level, kgC m-2]
+      real(r8) :: litter_cwd_c_si            ! Total litter plus CWD carbon [Site-Level, kgC m-2]
+      real(r8) :: seed_c_si                  ! Total seed carbon [Site-Level, kgC m-2]
+
    end type bc_out_type
 
 

@@ -416,6 +416,10 @@ contains
        fates%bc_in(s)%hlm_luh_transitions(:) = 0.0_r8
     end if
 
+    fates%bc_out(s)%veg_c_si        = 0.0_r8
+    fates%bc_out(s)%litter_cwd_c_si = 0.0_r8
+    fates%bc_out(s)%seed_c_si       = 0.0_r8
+
     return
   end subroutine zero_bcs
 
