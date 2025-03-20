@@ -22,13 +22,13 @@ module FatesRadiationDriveMod
   use FatesInterfaceTypesMod , only : bc_in_type
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : numpft
+  use FatesInterfaceTypesMod , only : hlm_radiation_model
   use FatesRadiationMemMod, only : num_rad_stream_types
   use FatesRadiationMemMod, only : idirect, idiffuse
   use FatesRadiationMemMod, only : num_swb, ivis, inir, ipar
   use FatesRadiationMemMod, only : alb_ice, rho_snow, tau_snow
   use FatesRadiationMemMod, only : norman_solver
   use FatesRadiationMemMod, only : twostr_solver
-  use EDParamsMod, only          : radiation_model
   use TwoStreamMLPEMod, only : normalized_upper_boundary
   use FatesTwoStreamUtilsMod, only : FatesPatchFSun
   use FatesTwoStreamUtilsMod, only : CheckPatchRadiationBalance
@@ -97,17 +97,14 @@ contains
 
     do s = 1, nsites
 
-       ifp = 0
        currentpatch => sites(s)%oldest_patch
        do while (associated(currentpatch))
 
           ! do not do albedo calculations for bare ground patch in SP mode
-          ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
-          ! ifp=1 is the first vegetated patch.
-          
-          if_notbareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
 
-             ifp = ifp+1
+          ifp = currentpatch%patchno
+          
+          if_bareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              
              ! Zero diagnostics
              currentPatch%f_sun      (:,:,:) = 0._r8
@@ -128,7 +125,7 @@ contains
              currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
              currentPatch%fcansno                   = bc_in(s)%fcansno_pa(ifp)
              
-             if(radiation_model.eq.twostr_solver) then
+             if(hlm_radiation_model.eq.twostr_solver) then
                 call currentPatch%twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp))
                 call currentPatch%twostr%ZenithPrep(bc_in(s)%coszen_pa(ifp))
              end if
@@ -177,7 +174,7 @@ contains
 
                 else
 
-                   select case(radiation_model)
+                   select case(hlm_radiation_model)
                    case(norman_solver)
 
                       call PatchNormanRadiation (currentPatch, &
@@ -240,7 +237,7 @@ contains
                 end if if_nrad
 
              endif if_zenith_flag
-          end if if_notbareground
+          end if if_bareground
 
           currentPatch => currentPatch%younger
        end do       ! Loop linked-list patches
@@ -282,17 +279,15 @@ contains
 
     do s = 1,nsites
 
-       ifp = 0
        cpatch => sites(s)%oldest_patch
-
        do while (associated(cpatch))
 
-          if_notbareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
-             ! do not do albedo calculations for bare ground patch in SP mode
-             ! and (more impotantly) do not iterate ifp or it will mess up the indexing wherein
-             ! ifp=1 is the first vegetated patch.
-             ifp=ifp+1
+          ifp = cpatch%patchno
+          
+          if_bareground:if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then !only for veg patches
 
+             ! do not do albedo calculations for bare ground patch in SP mode
+             
              ! Initialize diagnostics
              cpatch%ed_parsun_z(:,:,:) = 0._r8
              cpatch%ed_parsha_z(:,:,:) = 0._r8
@@ -312,7 +307,7 @@ contains
 
              sunlai  = 0._r8
              shalai  = 0._r8
-             if_norm_twostr: if (radiation_model.eq.norman_solver) then
+             if_norm_twostr: if (hlm_radiation_model.eq.norman_solver) then
                 
                 ! Loop over patches to calculate laisun_z and laisha_z for each layer.
                 ! Derive canopy laisun, laisha, and fsun from layer sums.
@@ -490,7 +485,7 @@ contains
                 end if if_zenithflag
              endif if_norm_twostr
              
-          end if if_notbareground
+          end if if_bareground
           
           cpatch => cpatch%younger
        enddo

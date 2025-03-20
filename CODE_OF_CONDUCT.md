@@ -29,7 +29,7 @@ We aim to create an open development environment for FATES where scientists can 
 * Document the version of the code used in any publication, preferably by  using a release tag (existing or newly created) if possible, or a commit hash if not.
 * Do not use code from anywhere other than the central FATES development repository (the “master” branch of the “NGEET/fates“ github repository) without discussing with the author(s) of the modified code your intentions for using the code and receiving their permission to do so.
 * When using model features that have recently been integrated into the central FATES development repository, be mindful of the contributions of others and, where the novel features qualitatively affect the results of a given simulation, involve the author(s) of these features in any resulting manuscripts.  Be particularly aware of the concerns of early career researchers, and ensure they have sufficient opportunities to lead publications using their developments.
-* When discussing results arising from older model features that have been described in the literature, accurately cite the publications describing those features or releases. A list of some relevant publications can be found at [https://github.com/NGEET/fates/wiki/Relevant-References][wiki_ref_page]
+* When discussing results arising from older model features that have been described in the literature, accurately cite the publications describing those features or releases. A list of some relevant publications can be found in the [users guide](https://fates-users-guide.readthedocs.io/en/latest/user/Reference-List.html).
 
 ## Our Responsibilities
 
