@@ -91,6 +91,12 @@ module SFFireWeatherMod
     real(r8)             :: ws_check !intermediate value derived from wind speed condition check
 
     if(.not. rxfire_switch) return   
+    
+    ! check if ambient temperature, relative humidity, and wind speed
+    ! are within user defined ranges by comparing current weather
+    ! condition to the lower and upper bounds defined. when within range,
+    ! it should result in negative value or zero (at the boundary condition)
+    ! for each check below 
 
     t_check   = (temp_C - temp_low)*(temp_C - temp_up)
     rh_check  = (rh - rh_low)*(rh - rh_up)
