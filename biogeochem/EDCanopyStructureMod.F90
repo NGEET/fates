@@ -1877,7 +1877,7 @@ contains
     use EDTypesMod        , only : ed_site_type, AREA
     use FatesPatchMod,      only : fates_patch_type
     use FatesInterfaceTypesMod , only : bc_out_type
-     use FatesInterfaceTypesMod    , only : hlm_day_of_year
+
     !
     ! !ARGUMENTS
     integer,            intent(in)            :: nsites
@@ -1894,7 +1894,7 @@ contains
     real(r8) :: total_canopy_area
     real(r8) :: total_patch_leaf_stem_area
     real(r8) :: weight  ! Weighting for cohort variables in patch
-
+    
     do s = 1,nsites
 
        ifp = 0
@@ -1904,6 +1904,7 @@ contains
        bc_out(s)%dleaf_pa(:) = 0._r8
        bc_out(s)%z0m_pa(:) = 0._r8
        bc_out(s)%displa_pa(:) = 0._r8
+       
        currentPatch => sites(s)%oldest_patch
        c = fcolumn(s)
        do while(associated(currentPatch))
@@ -1978,8 +1979,6 @@ contains
                 bc_out(s)%dleaf_pa(ifp)  = EDPftvarcon_inst%dleaf(1)
                 bc_out(s)%nocomp_MEGAN_pft_label_pa(ifp) = 1
              endif
-
-              
              ! -----------------------------------------------------------------------------
 
              ! We are assuming here that grass is all located underneath tree canopies.
@@ -2002,6 +2001,7 @@ contains
 
              total_canopy_area = total_canopy_area + bc_out(s)%canopy_fraction_pa(ifp)
 
+             bc_out(s)%nocomp_pft_label_pa(ifp) = currentPatch%nocomp_pft_label
 
              if(currentPatch%nocomp_pft_label.gt.0)then
                 bc_out(s)%nocomp_MEGAN_pft_label_pa(ifp) = EDPftvarcon_inst%voc_pftindex(currentPatch%nocomp_pft_label)
@@ -2061,7 +2061,8 @@ contains
              if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then ! for vegetated patches only
                 ifp = ifp+1
                 bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
-              endif ! veg patch
+             endif ! veg patch
+
              currentPatch => currentPatch%younger
           end do
 
@@ -2081,6 +2082,7 @@ contains
 
        ! Pass FATES Harvested C to bc_out.
        call UpdateHarvestC(sites(s),bc_out(s))
+
     end do
 
     ! This call to RecruitWaterStorage() makes an accounting of
