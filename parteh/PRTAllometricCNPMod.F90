@@ -1907,9 +1907,8 @@ contains
 
     ! turn on the dynamic L2FR post supplemental N period
     call get_curr_date(yr, mon, day, sec)
-    if (spinup_state == 1 .and. yr .gt. nyears_ad_carbon_only) then
-      call this%CNPAdjustFRootTargets(target_c,target_dcdd)
-    else if (spinup_state /= 1) then
+    if ((spinup_state == 1 .and. yr .gt. nyears_ad_carbon_only) .or. &
+         spinup_state /= 1) then
       call this%CNPAdjustFRootTargets(target_c,target_dcdd)
    end if
 
