@@ -471,7 +471,7 @@ contains
                         end do do_icol
                         
                         do ft = 1,numpft
-                           do_iv: do iv = 1, nlevleaf
+                           do_iv: do iv = 1,cpatch%nleaf(cl,ft)
                               if(area_vlpfcl(iv,ft,cl)<nearzero) exit do_iv
                               cpatch%parprof_pft_dir_z(cl,ft,iv) = &
                                    cpatch%parprof_pft_dir_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
