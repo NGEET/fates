@@ -2503,23 +2503,24 @@ contains
             efstem_coh  = 1.0_r8
             leaf_status = leaves_on
 
-            ! but if the plant is seasonally (cold) deciduous, and the site status is flagged
-            ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
-            if ((prt_params%phen_leaf_habit(ft) == ihard_season_decid) .and.                   &
-               (any(currentSite%phen_status(ft) == [phen_cstat_nevercold, phen_cstat_iscold]))) then
-               efleaf_coh  = 0.0_r8
-               effnrt_coh  = 1.0_r8 - fnrt_drop_fraction
-               efstem_coh  = 1.0_r8 - stem_drop_fraction
-               leaf_status = leaves_off
-            end if 
-
-            ! Or.. if the plant is drought deciduous, make sure leaf status is consistent with the
-            ! leaf elongation factor.
-            ! For tissues other than leaves, the actual drop fraction is a combination of the
-            ! elongation factor (e) and the drop fraction (x), which will ensure that the remaining
-            ! tissue biomass will be exactly e when x=1, and exactly the original biomass when x = 0.
+            ! look for cases in which leaves should be off
             select case (prt_params%phen_leaf_habit(ft))
+            case (ihard_season_decid)
+               select case(currentSite%phen_status(ft))
+               case (phen_cstat_nevercold, phen_cstat_iscold)
+                  ! If the plant is seasonally (cold) deciduous, and the site status is flagged
+                  ! as "cold", then set the cohort's status to leaves_off.
+                  efleaf_coh  = 0.0_r8
+                  effnrt_coh  = 1.0_r8 - fnrt_drop_fraction
+                  efstem_coh  = 1.0_r8 - stem_drop_fraction
+                  leaf_status = leaves_off
+               end select
             case (ihard_stress_decid, isemi_stress_decid)
+               ! If the plant is drought deciduous, make sure leaf status is consistent with the
+               ! leaf elongation factor.
+               ! For tissues other than leaves, the actual drop fraction is a combination of the
+               ! elongation factor (e) and the drop fraction (x), which will ensure that the remaining
+               ! tissue biomass will be exactly e when x=1, and exactly the original biomass when x = 0.
                efleaf_coh = currentSite%elong_factor(ft)
                effnrt_coh = 1.0_r8 - (1.0_r8 - efleaf_coh)*fnrt_drop_fraction
                efstem_coh = 1.0_r8 - (1.0_r8 - efleaf_coh)*stem_drop_fraction
