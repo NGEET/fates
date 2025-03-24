@@ -53,8 +53,8 @@ module EDPhysiologyMod
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
   use EDTypesMod          , only : numWaterMem
+  use FatesFuelClassesMod , only : fuel_classes
   use EDTypesMod          , only : elem_diag_type
-  use FatesLitterMod      , only : dl_sf
   use EDParamsMod         , only : dinc_vai, dlower_vai
   use EDTypesMod          , only : area_inv
   use EDTypesMod          , only : AREA
@@ -3269,11 +3269,11 @@ contains
     do dcmpy = 1,ndcmpy
 
        litt%leaf_fines_frag(dcmpy) = litt%leaf_fines(dcmpy) * &
-             years_per_day * SF_val_max_decomp(dl_sf) * fragmentation_scaler(soil_layer_index)
+             years_per_day * SF_val_max_decomp(fuel_classes%dead_leaves()) * fragmentation_scaler(soil_layer_index)
 
        do ilyr = 1,nlev_eff_decomp
            litt%root_fines_frag(dcmpy,ilyr) = litt%root_fines(dcmpy,ilyr) * &
-                 years_per_day *  SF_val_max_decomp(dl_sf) * fragmentation_scaler(ilyr)
+                 years_per_day *  SF_val_max_decomp(fuel_classes%dead_leaves()) * fragmentation_scaler(ilyr)
        end do
     enddo
 

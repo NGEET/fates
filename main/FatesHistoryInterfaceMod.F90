@@ -123,7 +123,7 @@ module FatesHistoryInterfaceMod
   use FatesSizeAgeTypeIndicesMod, only : get_layersizetype_class_index
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
 
-  use FatesLitterMod      , only : nfsc
+  use FatesFuelClassesMod , only : num_fuel_classes
   use FatesLitterMod      , only : ncwd
   use FatesConstantsMod   , only : ican_upper
   use FatesConstantsMod   , only : ican_ustory
@@ -2707,11 +2707,11 @@ contains
             hio_tfc_ros_si(io_si)              = hio_tfc_ros_si(io_si) + cpatch%TFC_ROS * cpatch%area * AREA_INV
             hio_fire_intensity_si(io_si)       = hio_fire_intensity_si(io_si) + cpatch%FI * cpatch%area * AREA_INV * J_per_kJ
             hio_fire_fracarea_si(io_si)        = hio_fire_fracarea_si(io_si) + cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
-            hio_fire_fuel_bulkd_si(io_si)      = hio_fire_fuel_bulkd_si(io_si) + cpatch%fuel_bulkd * cpatch%area * AREA_INV
-            hio_fire_fuel_eff_moist_si(io_si)  = hio_fire_fuel_eff_moist_si(io_si) + cpatch%fuel_eff_moist * cpatch%area * AREA_INV
-            hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel_sav * cpatch%area * AREA_INV / m_per_cm
-            hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel_mef * cpatch%area * AREA_INV
-            hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%sum_fuel * cpatch%area * AREA_INV
+            hio_fire_fuel_bulkd_si(io_si)      = hio_fire_fuel_bulkd_si(io_si) + cpatch%fuel%bulk_density_notrunks * cpatch%area * AREA_INV
+            hio_fire_fuel_eff_moist_si(io_si)  = hio_fire_fuel_eff_moist_si(io_si) + cpatch%fuel%average_moisture_notrunks * cpatch%area * AREA_INV
+            hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel%SAV_notrunks * cpatch%area * AREA_INV / m_per_cm
+            hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel%MEF_notrunks * cpatch%area * AREA_INV
+            hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%fuel%non_trunk_loading * cpatch%area * AREA_INV
 
             hio_fire_intensity_fracarea_product_si(io_si) = hio_fire_intensity_fracarea_product_si(io_si) + &
                  cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
@@ -4136,16 +4136,16 @@ contains
                    hio_fragmentation_scaler_sl(io_si,ilyr) = hio_fragmentation_scaler_sl(io_si,ilyr) + cpatch%fragmentation_scaler(ilyr) * cpatch%area * AREA_INV
                 end do
 
-                do i_fuel = 1,nfsc
+                do i_fuel = 1, num_fuel_classes
 
                    hio_litter_moisture_si_fuel(io_si, i_fuel) = hio_litter_moisture_si_fuel(io_si, i_fuel) + &
-                        cpatch%litter_moisture(i_fuel) * cpatch%area * AREA_INV
+                        cpatch%fuel%effective_moisture(i_fuel) * cpatch%area * AREA_INV
 
                    hio_fuel_amount_si_fuel(io_si, i_fuel) = hio_fuel_amount_si_fuel(io_si, i_fuel) + &
-                        cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * cpatch%area * AREA_INV
+                        cpatch%fuel%frac_loading(i_fuel) * cpatch%fuel%non_trunk_loading * cpatch%area * AREA_INV
 
                    hio_burnt_frac_litter_si_fuel(io_si, i_fuel) = hio_burnt_frac_litter_si_fuel(io_si, i_fuel) + &
-                        cpatch%burnt_frac_litter(i_fuel) * cpatch%frac_burnt * cpatch%area * AREA_INV
+                        cpatch%fuel%frac_burnt(i_fuel) * cpatch%frac_burnt * cpatch%area * AREA_INV
                 end do
 
 
@@ -4776,11 +4776,11 @@ contains
                cpatch%frac_burnt / sec_per_day &  ! [frac/day] -> [frac/sec]
                * patch_area_div_site_area
           hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) = hio_fire_sum_fuel_si_age(io_si, cpatch%age_class)   +  &
-               cpatch%sum_fuel * patch_area_div_site_area
-          do i_fuel = 1,nfsc
+               cpatch%fuel%non_trunk_loading * patch_area_div_site_area
+          do i_fuel = 1,num_fuel_classes
              i_agefuel = get_agefuel_class_index(cpatch%age,i_fuel)
              hio_fuel_amount_age_fuel(io_si,i_agefuel) = hio_fuel_amount_age_fuel(io_si,i_agefuel) + &
-                  cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * patch_area_div_site_area
+                  cpatch%fuel%frac_loading(i_fuel) * cpatch%fuel%non_trunk_loading * patch_area_div_site_area
           end do
 
           ! only valid when "strict ppa" enabled
