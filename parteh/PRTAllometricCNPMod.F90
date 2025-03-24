@@ -69,11 +69,7 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : prescribed_n_uptake
   use EDPftvarcon, only : EDPftvarcon_inst
   use FatesInterfaceTypesMod, only : hlm_regeneration_model
-  use FatesInterfaceTypesMod, only : hlm_current_year
-
-  use elm_varctl          , only : nyears_ad_carbon_only, spinup_state
-
-
+  use FatesInterfaceTypesMod, only : hlm_ad_temp_carbon
 
   implicit none
   private
@@ -1857,9 +1853,6 @@ contains
     real(r8)          :: canopy_trim
     integer           :: crown_damage
 
-    character(len=256)   :: dateTimeString
-    integer ::  yr, mon, day, sec
-
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
     ipft        = this%bc_in(acnp_bc_in_id_pft)%ival
@@ -1905,9 +1898,11 @@ contains
     ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
     ! It will also update the target
 
-    ! turn on the dynamic L2FR post supplemental N period
-    if ((spinup_state == 1 .and. hlm_current_year .gt. nyears_ad_carbon_only) .or. &
-         spinup_state /= 1) then
+    ! Turn on the dynamic L2FR post supplemental N period
+    ! If conducting an accelerated decomposition (AD) spinup in ELM with supplemental
+    ! nutrients we need to avoid turning this on until after the initial carbon only
+    ! phase of the spinup
+    if (.not. hlm_ad_temp_carbon) then
       call this%CNPAdjustFRootTargets(target_c,target_dcdd)
    end if
 
