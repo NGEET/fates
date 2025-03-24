@@ -69,9 +69,9 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : prescribed_n_uptake
   use EDPftvarcon, only : EDPftvarcon_inst
   use FatesInterfaceTypesMod, only : hlm_regeneration_model
+  use FatesInterfaceTypesMod, only : hlm_current_year
 
   use elm_varctl          , only : nyears_ad_carbon_only, spinup_state
-  use elm_time_manager    , only: get_curr_date, get_curr_time_string
 
 
 
@@ -1906,8 +1906,7 @@ contains
     ! It will also update the target
 
     ! turn on the dynamic L2FR post supplemental N period
-    call get_curr_date(yr, mon, day, sec)
-    if ((spinup_state == 1 .and. yr .gt. nyears_ad_carbon_only) .or. &
+    if ((spinup_state == 1 .and. hlm_current_year .gt. nyears_ad_carbon_only) .or. &
          spinup_state /= 1) then
       call this%CNPAdjustFRootTargets(target_c,target_dcdd)
    end if
