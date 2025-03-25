@@ -52,6 +52,11 @@ class TestClass(ABC):
         """Appends information to the correct config file (must be implemented by subclasses)."""
         pass
     
+    @abstractmethod
+    def create_template_program(self):
+        """Creates a template program file (must be implemented by subclasses)."""
+        pass
+        
     def create_test_directory(self):
         """Creates a new test directory
 
@@ -186,6 +191,9 @@ class UnitTest(TestClass):
             f.write(f"[{self.test_name}]\n")
             f.write(f"test_dir = {self.build_dir}\n")
         print(f"Updated {_UNIT_TESTS_CONFIG} with {_UNIT_TESTS_CONFIG}")
+        
+    def create_template_program(self):
+        pass
                 
 class FunctionalTest(TestClass):
     """Class for functional tests"""
@@ -250,7 +258,7 @@ class FunctionalTest(TestClass):
             f.write(f"out_file = None\n")
             f.write(f"use_param_file = False\n")
             f.write(f"other_args = []\n")
-        print(f"Updated {_FUNCTIONAL_TESTS_CONFIG} with {_FUNCTIONAL_TESTS_CONFIG}")
+        print(f"Updated {_FUNCTIONAL_TESTS_CONFIG} with {self.test_name}")
                 
 def generate_test(test_type: str, test_name: str, sub_dir: str = None) -> TestClass:
     if test_type == "unit":
