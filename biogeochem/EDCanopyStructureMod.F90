@@ -1452,7 +1452,7 @@ contains
        call leaf_area_profile(sites(s))
        
        if(hlm_radiation_model.eq.twostr_solver) then
-          call FatesConstructRadElements(sites(s),bc_in(s)%fcansno_pa,bc_in(s)%coszen_pa)
+          call FatesConstructRadElements(sites(s))
        end if
        
     end do ! site loop
@@ -1858,9 +1858,10 @@ contains
        end if if_any_canopy_area
 
        cpatch => cpatch%younger
-
     enddo !patch
 
+    
+    
     return
   end subroutine leaf_area_profile
 

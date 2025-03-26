@@ -293,8 +293,6 @@ contains
     fates%bc_in(s)%watsat_sl(:)        = 0.0_r8
     fates%bc_in(s)%tempk_sl(:)         = 0.0_r8
     fates%bc_in(s)%h2o_liqvol_sl(:)    = 0.0_r8
-    fates%bc_in(s)%filter_vegzen_pa(:) = .false.
-    fates%bc_in(s)%coszen_pa(:)        = 0.0_r8
     fates%bc_in(s)%fcansno_pa(:)       = 0.0_r8
     fates%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
     fates%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
@@ -375,13 +373,13 @@ contains
     fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
     fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
     
-    fates%bc_out(s)%albd_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%albi_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%ftdd_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%ftid_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%ftii_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%albd_parb(:,:) = 0.0_r8   ! zero albedo, soil absorbs all rad
+    fates%bc_out(s)%albi_parb(:,:) = 0.0_r8   ! zero albedo, soil absorbs all rad
+    fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
+    fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
+    fates%bc_out(s)%ftdd_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftid_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftii_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
     
     fates%bc_out(s)%elai_pa(:)   = 0.0_r8
     fates%bc_out(s)%esai_pa(:)   = 0.0_r8
@@ -533,8 +531,7 @@ contains
       allocate(bc_in%t_soisno_sl(nlevsoil_in))
 
       ! Canopy Radiation
-      allocate(bc_in%filter_vegzen_pa(maxpatch_total))
-      allocate(bc_in%coszen_pa(maxpatch_total))
+      bc_in%coszen = nan
       allocate(bc_in%fcansno_pa(maxpatch_total))
       allocate(bc_in%albgr_dir_rb(num_swb))
       allocate(bc_in%albgr_dif_rb(num_swb))
@@ -621,13 +618,15 @@ contains
       allocate(bc_out%rssha_pa(maxpatch_total))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%albi_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%fabd_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%fabi_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%ftdd_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%ftid_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%ftii_parb(fates_maxPatchesPerSite,num_swb))
+
+     
+      allocate(bc_out%albd_parb(maxpatch_total,num_swb))
+      allocate(bc_out%albi_parb(maxpatch_total,num_swb))
+      allocate(bc_out%fabd_parb(maxpatch_total,num_swb))
+      allocate(bc_out%fabi_parb(maxpatch_total,num_swb))
+      allocate(bc_out%ftdd_parb(maxpatch_total,num_swb))
+      allocate(bc_out%ftid_parb(maxpatch_total,num_swb))
+      allocate(bc_out%ftii_parb(maxpatch_total,num_swb))
 
       ! We allocate the boundary conditions to the BGC
       ! model, regardless of what scheme we use. The BGC
