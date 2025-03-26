@@ -25,8 +25,9 @@ module EDCanopyStructureMod
   use FatesAllometryMod     , only : CrownDepth
   use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod,         only : fates_cohort_type
-  use EDParamsMod            , only : nclmax
-  use EDParamsMod            , only : nlevleaf
+  use EDParamsMod           , only : nclmax
+  use EDParamsMod           , only : nlevleaf
+  use EDParamsMod           , only : GetNVegLayers
   use EDtypesMod            , only : AREA
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
@@ -1517,7 +1518,7 @@ contains
     ! !USES:
 
     use EDtypesMod           , only : area, heightmax, n_height_bins
-    use EDParamsMod,           only : dinc_vai, dlower_vai
+    use EDParamsMod,           only : dlower_vai,dinc_vai
 
     !
     ! !ARGUMENTS
@@ -1669,15 +1670,7 @@ contains
                    endif
 
                    if(iv==currentCohort%NV) then
-                      remainder = (currentCohort%treelai + currentCohort%treesai) - &
-                           (dlower_vai(iv) - dinc_vai(iv))
-                      if(remainder > dinc_vai(iv) )then
-                         write(fates_log(), *)'ED: issue with remainder', &
-                              currentCohort%treelai,currentCohort%treesai,dinc_vai(iv), & 
-                              currentCohort%NV,remainder
-
-                         call endrun(msg=errMsg(sourcefile, __LINE__))
-                      endif
+                      remainder = (currentCohort%treelai + currentCohort%treesai) - dlower_vai(iv)
                    else
                       remainder = dinc_vai(iv)
                    end if
@@ -2240,9 +2233,6 @@ contains
    
    ! Update LAI and related variables for a given cohort
    
-   ! Uses
-   use EDParamsMod, only : dlower_vai, dinc_vai
-   
    ! Arguments
    type(fates_cohort_type),intent(inout), target   :: currentCohort
    real(r8), intent(in) :: canopy_layer_tlai(nclmax)  ! total leaf area index of each canopy layer
@@ -2266,14 +2256,7 @@ contains
    end if
    
    ! Number of actual vegetation layers in this cohort's crown
-   currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
-
-   if( currentCohort%nv .ne. minloc(dlower_vai, DIM=1, MASK=(dlower_vai>(currentCohort%treelai+currentCohort%treesai))) ) then
-      write(fates_log(),*) 'We use two methods of finding maximum leaf layers, and they are not equivalent'
-      write(fates_log(),*) 'count method:',currentCohort%nv
-      write(fates_log(),*) 'minloc method:',minloc(dlower_vai, DIM=1, MASK=(dlower_vai>(currentCohort%treelai+currentCohort%treesai)))
-      call endrun(msg=errMsg(sourcefile, __LINE__))
-   end if
+   currentCohort%nv = GetNVegLayers(currentCohort%treelai+currentCohort%treesai)
    
   end subroutine UpdateCohortLAI
   

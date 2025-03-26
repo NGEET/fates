@@ -952,9 +952,10 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
-         ! lower edges of VAI bins       
-         do i = 1,nlevleaf
-            dlower_vai(i) = sum(dinc_vai(1:i))
+         ! lower edges of VAI bins
+         dlower_vai(1) = 0._r8
+         do i = 2,nlevleaf
+            dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
          end do
 
          ! Identify number of size and age class bins for history output
