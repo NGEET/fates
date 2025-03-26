@@ -209,9 +209,19 @@ module FatesPatchMod
     real(r8)              :: ros_back                ! rate of backward spread of fire [m/min]
     real(r8)              :: tau_l                   ! duration of lethal heating [min]
     real(r8)              :: fi                      ! average fire intensity of flaming front [kJ/m/s] or [kW/m]
-    integer               :: fire                    ! is there a fire? [1=yes; 0=no]
+    integer               :: fire                    ! is there a fire (rx + nonrx)? [1=yes; 0=no]
     real(r8)              :: fd                      ! fire duration [min]
-    real(r8)              :: frac_burnt              ! fraction of patch burnt by fire
+    real(r8)              :: frac_burnt              ! total fraction of patch burnt by fire (rx + nonrx)
+
+    ! wildfire
+    real(r8)              :: nonrx_fire              ! is there a wildfire [1=yes; 0=no]
+    real(r8)              :: nonrx_fi                ! average fire intensity of wildfire flaming front
+    real(r8)              :: nonrx_frac_burnt        ! fraction burnt by wildfire          
+
+    ! prescribed fire 
+    integer               :: rx_fire                 ! is there a prescribed fire? [1=yes; 0=no]
+    real(r8)              :: rx_fi                   ! average fire intensity of prescribed fire flaming front
+    real(r8)              :: rx_frac_burnt           ! fraction burnt by prescribed fire, it's user defined at patch level per fire event
 
     ! fire effects      
     real(r8)              :: scorch_ht(maxpft)       ! scorch height [m] 
@@ -503,6 +513,12 @@ module FatesPatchMod
       this%tau_l                        = nan
       this%fi                           = nan 
       this%fire                         = fates_unset_int
+      this%nonrx_fire                   = fates_unset_int
+      this%rx_fire                      = fates_unset_int
+      this%nonrx_fi                     = nan
+      this%nonrx_frac_burnt             = nan
+      this%rx_fi                        = nan
+      this%rx_frac_burnt                = nan
       this%fd                           = nan 
       this%scorch_ht(:)                 = nan 
       this%tfc_ros                      = nan
@@ -593,6 +609,10 @@ module FatesPatchMod
       this%scorch_ht(:)                      = 0.0_r8  
       this%tfc_ros                           = 0.0_r8
       this%frac_burnt                        = 0.0_r8
+      this%nonrx_fi                          = 0.0_r8
+      this%nonrx_frac_burnt                  = 0.0_r8
+      this%rx_fi                             = 0.0_r8
+      this%rx_frac_burnt                     = 0.0_r8
 
     end subroutine ZeroValues
 
