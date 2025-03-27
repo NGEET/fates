@@ -110,6 +110,7 @@ module FatesAllometryMod
   public :: bagw_allom    ! Generic AGWB (above grnd. woody bio) wrapper
   public :: blmax_allom   ! Generic maximum leaf biomass wrapper
   public :: bleaf         ! Generic actual leaf biomass wrapper
+  public :: bbranch_allom ! Generic branch biomass wrapper
   public :: storage_fraction_of_target ! storage as fraction of leaf biomass
   public :: bsap_allom    ! Generic sapwood wrapper
   public :: bbgw_allom    ! Generic coarse root wrapper
@@ -487,6 +488,133 @@ contains
     end associate
     return
   end subroutine blmax_allom
+  ! ============================================================================
+  ! generic allometry for branch biomass
+  ! ============================================================================
+  subroutine bbranch_allom(d, h, ipft, bbranch, dbbranchdd)
+    implicit none
+
+    real(r8), intent(in)    :: d            ! Trunk diameter dbh [cm]
+    real(r8), intent(in)    :: h            ! Trunk height [m]
+    integer(i4), intent(in) :: ipft         ! PFT index
+    real(r8), intent(out)   :: bbranch      ! Branch carbon [kg]
+    real(r8), intent(out), optional :: dbbranchdd  ! Derivative wrt diameter [kg/cm]
+    real(r8) a,b,c, dparam                !temp. parameters
+    integer mode                          !branch allometry mode
+    associate( dbh_maxh    => prt_params%allom_dbh_maxheight(ipft), &
+               rho         => prt_params%wood_density(ipft),         &
+               !mode        => prt_params%branch_mode(ipft),          &
+               !a           => prt_params%branch_param_a(ipft),       &
+               !b           => prt_params%branch_param_b(ipft),       &
+               !c           => prt_params%branch_param_c(ipft),       &
+               !dparam      => prt_params%branch_param_d(ipft),       &
+               c2b         => prt_params%c2b(ipft) )
+      !bypassing parameter file for now
+      mode = 3
+      a = -3.007
+      b =  2.761
+      c = -0.69
+      
+      select case(mode)
+      case(1)  ! Liu et al. (2023)
+         call bbranch_liu(d, h, rho, a, b, c, dbh_maxh, c2b, bbranch, dbbranchdd)
+
+      case(2)  ! Mahmood et al. (2019) - Model 3
+         call bbranch_mahmood_m3(d, h, rho, a, b, c, dparam, dbh_maxh, c2b, bbranch, dbbranchdd)
+
+      case(3)  ! Mahmood et al. (2019) - Model 2
+         call bbranch_mahmood_m2(d, h, a, b, c, dbh_maxh, c2b, bbranch, dbbranchdd)
+
+      case default
+         write(fates_log(),*) 'Undefined branch allometry model: ', mode
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
+
+    end associate
+
+    return
+  end subroutine bbranch_allom
+  
+  !===============================================================
+  ! # Calculate branch parameters based on branch carbon, liu et al. (2023), 
+  !  https://doi.org/10.1016/j.gecco.2022.e02359
+  !  a=-2.5612; b=1.3958; c=-0.5762
+  !===============================================================
+  subroutine bbranch_liu(d, h, rho, a, b, c, c2b, dbh_maxh, bbranch, dbbranchdd)
+  implicit none
+  real(r8), intent(in) :: d, h, rho, a, b, c, c2b, dbh_maxh
+  real(r8), intent(out) :: bbranch
+  real(r8), intent(out), optional :: dbbranchdd
+  real(r8) :: d_eff, x, y, deriv
+
+  d_eff = min(d, dbh_maxh)
+  x = log(d_eff**2 * rho)
+  y = a + b * x + c * log(h)
+  bbranch = exp(y) / c2b
+
+  if (present(dbbranchdd)) then
+     if (d < dbh_maxh) then
+        deriv = b * 2.0 / d
+        dbbranchdd = exp(y) * deriv / c2b
+     else
+        dbbranchdd = 0.0
+     end if
+  end if
+ end subroutine bbranch_liu
+ !=====================================================================
+ !   #Mahmood et al, 2019, model 3,best branch biomass model
+ !   #ln (B) = a + b ln (DBH) + c ln (H) +d ln (WD)
+ !   #Mahmood et al, 2019. Allometric models for estimating biomass, 
+ !   #carbon and nutrient stock in the Sal zone of Bangladesh. 
+ !   #IForest-Biogeosciences and Forestry, 12(1), p.69.
+ !   a = -3.154; b=2.798; c=	-0.729; d=	-0.355
+ !===========================================================================
+ subroutine bbranch_mahmood_m3(d, h, rho, a, b, c, dparam, c2b, dbh_maxh, bbranch, dbbranchdd)
+  implicit none
+  real(r8), intent(in) :: d, h, rho, a, b, c, dparam, c2b, dbh_maxh
+  real(r8), intent(out) :: bbranch
+  real(r8), intent(out), optional :: dbbranchdd
+  real(r8) :: d_eff, y, deriv
+
+  d_eff = min(d, dbh_maxh)
+  y = a + b * log(d_eff) + c * log(h) + dparam * log(rho)
+  bbranch = exp(y) / c2b
+
+  if (present(dbbranchdd)) then
+     if (d < dbh_maxh) then
+        deriv = b / d
+        dbbranchdd = exp(y) * deriv / c2b
+     else
+        dbbranchdd = 0.0
+     end if
+  end if
+ end subroutine bbranch_mahmood_m3
+ !=============================================================
+ !    #Mahmood et al, 2019, model 2
+ !   #ln (B) = a + b ln (DBH) + c ln (H)
+ !   a=-3.007; b= 2.761; c= -0.69
+ !==============================================
+ subroutine bbranch_mahmood_m2(d, h, a, b, c, c2b, dbh_maxh, bbranch, dbbranchdd)
+  implicit none
+  real(r8), intent(in) :: d, h, a, b, c, c2b, dbh_maxh
+  real(r8), intent(out) :: bbranch
+  real(r8), intent(out), optional :: dbbranchdd
+  real(r8) :: d_eff, y, deriv
+
+  d_eff = min(d, dbh_maxh)
+  y = a + b * log(d_eff) + c * log(h)
+  bbranch = exp(y) / c2b
+
+   if (present(dbbranchdd)) then
+     if (d < dbh_maxh) then
+        deriv = b / d
+        dbbranchdd = exp(y) * deriv / c2b
+     else
+        dbbranchdd = 0.0
+     end if
+   end if
+  end subroutine bbranch_mahmood_m2
+
 
   ! ============================================================================
   ! Generic crown area allometry wrapper
