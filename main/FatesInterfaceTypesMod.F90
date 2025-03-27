@@ -374,7 +374,6 @@ module FatesInterfaceTypesMod
                                                       ! include a leap
    real(r8), public :: hlm_freq_day        ! fraction of year for daily time-step 
                                                       ! (1/days_per_year_, this is a frequency
-   logical,  public :: hlm_ad_temp_carbon  ! Is ELM in temporary carbon only mode during AD spinup?
    
 
    ! -------------------------------------------------------------------------------------

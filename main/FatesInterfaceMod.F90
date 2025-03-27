@@ -1391,8 +1391,7 @@ contains
                           current_day_in, current_tod_in, &
                           current_date_in, reference_date_in, &
                           model_day_in, day_of_year_in, &
-                          days_per_year_in, freq_day_in, &
-                          ad_temp_carbon_flag)
+                          days_per_year_in, freq_day_in)
 
      ! This subroutine should be called directly from the HLM
      
@@ -1406,7 +1405,6 @@ contains
      integer,  intent(in) :: day_of_year_in
      integer,  intent(in) :: days_per_year_in
      real(r8), intent(in) :: freq_day_in
-     logical,  intent(in) :: ad_temp_carbon_flag
 
      hlm_current_year   = current_year_in
      hlm_current_month  = current_month_in
@@ -1418,7 +1416,6 @@ contains
      hlm_day_of_year    = day_of_year_in
      hlm_days_per_year  = days_per_year_in
      hlm_freq_day       = freq_day_in
-     hlm_ad_temp_carbon = ad_temp_carbon_flag
 
   end subroutine SetFatesTime
 
