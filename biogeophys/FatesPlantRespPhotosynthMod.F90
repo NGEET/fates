@@ -61,6 +61,7 @@ module FATESPlantRespPhotosynthMod
   use FatesRadiationMemMod, only : ipar
   use FatesTwoStreamUtilsMod, only : FatesGetCohortAbsRad
   use FatesAllometryMod     , only : VegAreaLayer
+  use FatesAllometryMod     , only : bbranch_allom
   use FatesInterfaceTypesMod, only : hlm_radiation_model
   use FatesInterfaceTypesMod, only : hlm_maintresp_leaf_model
   use LeafBiophysicsMod, only : LeafLayerPhotosynthesis
@@ -288,7 +289,23 @@ contains
     integer  :: NCL_p               ! number of canopy layers in patch
     integer  :: iage                ! loop counter for leaf age classes
     integer  :: solve_iter          ! number of iterations required for photosynthesis solve
-    
+
+    !put the option of surface-area-based wood respiration
+    logical :: surface_area_resp_flag !whether to use surface-area-based wood respriation
+    real(r8) :: ra_umol, ra, rb,rc !#eq. (4) from   https://doi.org/10.1046/j.1365-3040.2002.00877.x,Rm = a/(1+exp(-(D-c)/b))
+    real(r8) :: wood_respiration_base_25 !wood respriation at 25 degrees per unit of bark
+    real(r8) :: trunk_surf_area     !total trunk surface area (m2)  
+    real(r8) :: croot_surf_area     !coarse root surface area (m2)
+    real(r8) :: branch_surf_area     !coarse root surface area (m2)
+    real(r8) :: croot_vol,croot_voli   !volume of corse root (m3), total and individual root
+    real(r8) :: branch_vol,branch_voli   !volume of branch (m3), total and individual root
+    real(r8) :: mean_croot_length !lenth of coarse root (m)
+    real(r8) :: mean_croot_diam !mean diameter of coarse root(m)
+    real(r8) :: num_croot !number of coarse root
+    real(r8) :: mean_branch_length !lenth of branch (m)
+    real(r8) :: mean_branch_diam !mean diameter of branch(m)
+    real(r8) :: num_branch !number of branch
+    real(r8) :: branch_c !branch carbon (kg c/individual tree)
     ! Parameters
     ! Absolute convergence tolerance on solving intracellular CO2 concentration [Pa]
 
@@ -981,10 +998,39 @@ contains
 
                         ! Live stem MR (kgC/plant/s) (above ground sapwood)
                         ! ------------------------------------------------------------------
+                        !put the option of surface-area-based wood respiration
+                        surface_area_resp_flag = .true.
+                        ra_umol = 2.87_r8 !unit: umol/m^2/s, eq. (4) from   https://doi.org/10.1046/j.1365-3040.2002.00877.x
+                        ra = ra_umol * 12._r8 * 1.e-9_r8 !convert to kg C/m2/s
+                        rb = 0.07_r8
+                        rc = 0.13_r8
                         if ( int(woody(ft)) == itrue) then
-                           tcwood = q10_mr**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8)
-                           ! kgC/s = kgN * kgC/kgN/s
-                           currentCohort%livestem_mr  = live_stem_n * maintresp_nonleaf_baserate * tcwood * maintresp_reduction_factor
+                           if(.not.surface_area_resp_flag) then
+                              tcwood = q10_mr**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8)
+                              ! kgC/s = kgN * kgC/kgN/s
+                              currentCohort%livestem_mr  = live_stem_n * maintresp_nonleaf_baserate * tcwood * maintresp_reduction_factor
+                           else !if the surface area-based wood respiration is true
+                              tcwood = q10_mr**((bc_in(s)%t_veg_pa(ifp)-tfrz - 25.0_r8)/10.0_r8)
+                              !calculate the maintenance respiration for trunk
+                              wood_respiration_base_25 = ra/(1.0_r8+exp((-(currentCohort%dbh/100._r8-rc)/rb)))
+                              trunk_surf_area = 3.14_r8 * currentCohort%dbh/100.0 * currentCohort%height
+                              currentCohort%livestem_mr  = trunk_surf_area * wood_respiration_base_25 * tcwood * maintresp_reduction_factor
+                              !calculate the maintenance respiration for branch
+                              mean_branch_diam = 0.03_r8
+                              wood_respiration_base_25 = ra/(1.0_r8+exp((-(mean_branch_diam-rc)/rb)))
+                              !branch_c = 1.0 !need to get from the allometry
+                              call bbranch_allom(currentCohort%dbh, currentCohort%height, ft, branch_c)
+                              branch_vol = branch_c/ (prt_params%wood_density(ft) * 1000._r8)
+                              mean_branch_length = 0.1_r8
+                              if(currentCohort%n>0)then
+                                 mean_branch_length= sqrt(currentCohort%c_area/currentCohort%n/3.14_r8)
+                              end if
+                              branch_voli = 3.14_r8* (mean_branch_diam/2.0_r8)**2 * mean_branch_length
+                              num_branch = branch_vol / branch_voli
+                              branch_surf_area = 3.14_r8 * mean_branch_diam * mean_branch_length * num_branch
+                              currentCohort%livestem_mr = currentCohort%livestem_mr + &
+                                   branch_surf_area * wood_respiration_base_25 * tcwood * maintresp_reduction_factor
+                           end if
                         else
                            currentCohort%livestem_mr  = 0._r8
                         end if
@@ -1022,10 +1068,26 @@ contains
                            currentCohort%livecroot_mr = 0._r8
                            do j = 1,bc_in(s)%nlevsoil
                               ! Soil temperature used to adjust base rate of MR
-                              tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
-                              currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
-                                   live_croot_n * maintresp_nonleaf_baserate * tcsoi * &
-                                   rootfr_ft(ft,j) * maintresp_reduction_factor
+                              if(.not.surface_area_resp_flag) then
+                                 tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
+                                 currentCohort%livecroot_mr = currentCohort%livecroot_mr + &
+                                      live_croot_n * maintresp_nonleaf_baserate * tcsoi * &
+                                      rootfr_ft(ft,j) * maintresp_reduction_factor
+                              else
+                                 mean_croot_diam = 0.03_r8
+                                 tcsoi = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 25.0_r8)/10.0_r8)
+                                 wood_respiration_base_25 = ra/(1.0_r8+exp((-(mean_croot_diam-rc)/rb)))
+                                 croot_vol = rootfr_ft(ft,j) * sapw_c_bgw/ (prt_params%wood_density(ft) * 1000._r8)
+                                 mean_croot_length = 0.1_r8
+                                 if(currentCohort%n>0)then
+                                    mean_croot_length= sqrt(currentCohort%c_area/currentCohort%n/3.14_r8)
+                                 end if
+                                 croot_voli = 3.14_r8* (mean_croot_diam/2.0_r8)**2 * mean_croot_length
+                                 num_croot = croot_vol / croot_voli
+                                 croot_surf_area = 3.14_r8 * mean_croot_diam * mean_croot_length * num_croot
+                                 currentCohort%livecroot_mr  = currentCohort%livecroot_mr + &
+                                      croot_surf_area * wood_respiration_base_25 * tcsoi * maintresp_reduction_factor
+                              end if
                            enddo
                         else
                            currentCohort%livecroot_mr = 0._r8
