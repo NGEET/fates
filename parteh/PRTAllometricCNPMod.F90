@@ -69,10 +69,8 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : prescribed_n_uptake
   use EDPftvarcon, only : EDPftvarcon_inst
   use FatesInterfaceTypesMod, only : hlm_regeneration_model
-  use FatesInterfaceTypesMod, only : hlm_current_year
-
-  use elm_varctl          , only : nyears_ad_carbon_only, spinup_state
-
+  use FatesInterfaceTypesMod, only : hlm_nitrogen_supl
+  use FatesInterfaceTypesMod, only : hlm_phosphorus_supl
 
 
   implicit none
@@ -1848,6 +1846,8 @@ contains
     real(r8), dimension(num_organs) :: deficit_p
     real(r8) :: target_n
     real(r8) :: target_p
+    logical  :: limiting_p
+    logical  :: limiting_n
     real(r8) :: store_c_target   ! Target amount of C in storage including "overflow" [kgC]
     real(r8) :: total_c_flux     ! Total C flux from gains into storage and growth R [kgC]
     real(r8), pointer :: dbh
@@ -1856,9 +1856,6 @@ contains
     integer, pointer  :: limiter
     real(r8)          :: canopy_trim
     integer           :: crown_damage
-
-    character(len=256)   :: dateTimeString
-    integer ::  yr, mon, day, sec
 
     dbh         => this%bc_inout(acnp_bc_inout_id_dbh)%rval
     canopy_trim = this%bc_in(acnp_bc_in_id_ctrim)%rval
@@ -1905,11 +1902,13 @@ contains
     ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
     ! It will also update the target
 
-    ! turn on the dynamic L2FR post supplemental N period
-    if ((spinup_state == 1 .and. hlm_current_year .gt. nyears_ad_carbon_only) .or. &
-         spinup_state /= 1) then
+    ! turn on the dynamic L2FR if either nutrient in not being supplemented
+    limiting_p = ((p_uptake_mode .eq. coupled_p_uptake) .and. (hlm_phosphorus_supl .eq. ifalse))
+    limiting_n = ((n_uptake_mode .eq. coupled_p_uptake) .and. (hlm_nitrogen_supl .eq. ifalse))
+
+    if (limiting_p .or. limiting_n) then
       call this%CNPAdjustFRootTargets(target_c,target_dcdd)
-   end if
+    end if
 
     ! -----------------------------------------------------------------------------------
     ! If carbon is still available, lets cram some into storage overflow
