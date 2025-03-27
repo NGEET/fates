@@ -2101,7 +2101,7 @@ contains
        ! only on patches that allow that PFT to grow, then we need to add up all the patch areas
        ! for each nocomp PFT to normalize the seed fluxes with later.
        if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue ) then
-          nocomp_patch_areas(0:numpft) = 0.r8
+          nocomp_patch_areas(0:numpft) = 0._r8
           currentPatch => currentSite%oldest_patch
           nocomp_patch_loop: do while (associated(currentPatch))
              nocomp_patch_areas(currentPatch%nocomp_pft_label) = nocomp_patch_areas(currentPatch%nocomp_pft_label) &
