@@ -93,6 +93,7 @@ module FatesAllometryMod
   use FatesConstantsMod, only : fates_unset_r8
   use FatesConstantsMod, only : itrue
   use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : pi_const
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use FatesGlobals     , only : fates_log
   use FatesGlobals     , only : endrun => fates_endrun
@@ -1045,8 +1046,10 @@ contains
             ! dead woody biomass. So bsap = bagw. Might remove the bsap and bdead for grass
             ! in the future as there is no need to distinguish the two for grass above- and belowground biomass
 
+       call SapwoodAreaGrass(d,sapw_area)
        call bagw_allom(d,ipft,crowndamage,elongf_stem,bagw,dbagwdd)
        call bbgw_allom(d,ipft, elongf_stem,bbgw,dbbgwdd)
+       
        bsap = bagw + bbgw
 
        ! This is a grass-only functionnal type, no need to run crown-damage effects
@@ -1410,6 +1413,45 @@ contains
     end associate
     return
   end subroutine bsap_ltarg_slatop
+
+
+
+  ! ============================================================================
+  ! Area of sap wood cross-section specifically for grass PFT
+  ! ============================================================================
+
+  subroutine SapwoodAreaGrass(d,sapw_area)
+
+     !---------------------------------------------------------------------------
+     ! This function calculates sapwood cross-sectional area specifically for grass
+     ! PFT using basal diameter (cm) of the entire plant as size reference,
+     ! assume sapwood area of the entire plant as the sum of the cross-sectional area
+     ! of each grass tiller
+     ! such that water transport through sapwood can be seen as a collective behavior
+     ! of all tillers
+     ! No reference. Might update this to more theoretical-based approach once there
+     ! is empirical evidence
+     !----------------
+     ! Input arguments
+     !----------------
+     ! d                -- basal diameter               [cm]
+
+     !----------------
+     ! Output variables
+     !----------------
+     ! sapw_area        -- sapwood cross-sectional area   [m2]
+
+     !---Arguments
+     real(r8), intent(in)              :: d             ! plant basal diameter               [    cm]
+     real(r8), intent(out)             :: sapw_area     ! sapwood cross-sectional area       [    m2]
+
+     ! Calculate sapwood cross-sectional area assuming sapwood geometry as a
+     ! cylinder and basal diameter is the diameter of the cylinder
+     sapw_area = (pi_const * ((d / 2.0_r8)**2.0_r8)) / cm2_per_m2
+
+     return
+
+  end subroutine SapwoodAreaGrass
 
   ! ============================================================================
   ! Specific storage relationships

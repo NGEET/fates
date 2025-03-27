@@ -4846,7 +4846,7 @@ contains
              hio_canopy_fracarea_si_age(io_si,cpatch%age_class) = hio_canopy_fracarea_si_age(io_si,cpatch%age_class) &
                   + ccohort%c_area * AREA_INV
              hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
-                  + ccohort%npp_tstep * dt_tstep_inv &
+                  + ccohort%npp_acc_hold / days_per_year / sec_per_day &
                   * cohort_n_div_site_area
 
              ccohort => ccohort%taller
@@ -5682,7 +5682,7 @@ contains
     associate( &
        hio_c_lblayer_si_age => this%hvars(ih_c_lblayer_si_age)%r82d, &
        hio_c_stomata_si_age => this%hvars(ih_c_stomata_si_age)%r82d, &
-       hio_gpp_si_age       => this%hvars(ih_gpp_si_age)%r82d
+       hio_gpp_si_age       => this%hvars(ih_gpp_si_age)%r82d &
     )
 
     dt_tstep_inv = 1.0_r8 / dt_tstep
