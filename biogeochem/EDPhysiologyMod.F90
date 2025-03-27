@@ -2080,6 +2080,10 @@ contains
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
 
+    logical, parameter  :: nocomp_seed_localization  = .true.  ! if nocomp is on, only send a given PFT's seeds to patches of that nocomp PFT
+    real(r8) :: nocomp_seed_scaling    ! scalar to handle case for nocomp_seed_localization
+    real(r8) :: nocomp_patch_areas(0:numpft) ! vector of the total patch areas for each nocomp PFT
+
     ! If the dispersal kernel is not turned on, keep the dispersal fraction at zero
     site_disp_frac(:) = 0._r8
     if (hlm_seeddisp_cadence .ne. fates_dispersal_cadence_none) then
@@ -2092,6 +2096,19 @@ contains
        element_id = element_list(el)
 
        site_mass => currentSite%mass_balance(el)
+
+       ! If we are in nocomp configuration and we are restricting each PFT's seeds to all fall
+       ! only on patches that allow that PFT to grow, then we need to add up all the patch areas
+       ! for each nocomp PFT to normalize the seed fluxes with later.
+       if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue ) then
+          nocomp_patch_areas(0:numpft) = 0.r8
+          currentPatch => currentSite%oldest_patch
+          nocomp_patch_loop: do while (associated(currentPatch))
+             nocomp_patch_areas(currentPatch%nocomp_pft_label) = nocomp_patch_areas(currentPatch%nocomp_pft_label) &
+                  + currentPatch%area
+             currentPatch => currentPatch%younger
+          end do nocomp_patch_loop
+       endif
 
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
@@ -2152,9 +2169,23 @@ contains
 
              if(currentSite%use_this_pft(pft).eq.itrue)then
 
+                ! special case: do we want to restrict each PFT's seeds to only go to patches with that nocomp PFT label?
+                ! If so, then use a normalization factor that is one over the nocomp patch fraction for all patches of
+                ! that PFT's nocomp label, and zero for all other patches.  If we don't do this, then just set scalar to one.
+                if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue ) then
+                   if (currentPatch%nocomp_pft_label .eq. pft) then
+                      nocomp_seed_scaling = AREA/nocomp_patch_areas(pft)
+                   else
+                      nocomp_seed_scaling = 0._r8
+                   endif
+                else
+                   nocomp_seed_scaling = 1._r8
+                endif
+
                 ! Seed input from local sources (within site).  Note that a fraction of the
                 ! internal seed rain is sent out to neighboring gridcells.
-                litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1.0_r8-site_disp_frac(pft))/area ![kg/m2/day]
+                litt%seed_in_local(pft) = litt%seed_in_local(pft) + nocomp_seed_scaling * &
+                     site_seed_rain(pft)*(1.0_r8-site_disp_frac(pft))/area ![kg/m2/day]
 
                 ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
                 if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
