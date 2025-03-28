@@ -189,7 +189,6 @@ contains
          ipiv, &
          albedo_beam, & 
          albedo_diff, &
-         err_solve,   &
          err_consv,   &
          frac_abs_can_beam, &
          frac_abs_can_diff, &
