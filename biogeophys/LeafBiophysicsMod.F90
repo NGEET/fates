@@ -553,10 +553,9 @@ contains
   
   ! =======================================================================================
 
-  function AgrossRuBPC4(par_abs, fnps) result(aj)
+  function AgrossRuBPC4(par_abs) result(aj)
 
     real(r8) :: par_abs ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
-    real(r8) :: fnps    ! Fraction of light absorbed by non-photosynthetic pigments
     real(r8) :: aj      ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
 
     ! quantum efficiency, used only for C4 (mol CO2 / mol photons)
@@ -634,13 +633,13 @@ contains
        ! Maximum conductance (minimum resistance)
        
        ag(1) = vcmax
-       ag(2) = AgrossRuBPC4(par_abs, lb_params%fnps(ft))
+       ag(2) = AgrossRuBPC4(par_abs)
 
        ! C4: Rubisco-limited photosynthesis
        ac = vcmax
        
        ! C4: RuBP-limited photosynthesis
-       aj = AgrossRuBPC4(par_abs, lb_params%fnps(ft))
+       aj = AgrossRuBPC4(par_abs)
        
        aquad = theta_cj_c4
        bquad = -(ac + aj)
@@ -983,7 +982,7 @@ contains
        ac = vcmax
 
        ! C4: RuBP-limited photosynthesis
-       aj = AgrossRuBPC4(par_abs, lb_params%fnps(ft))
+       aj = AgrossRuBPC4(par_abs)
                  
        ! C4: PEP carboxylase-limited (CO2-limited)
        ap = AgrossPEPC4(ci,kp,can_press)
