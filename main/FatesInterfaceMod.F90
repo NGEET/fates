@@ -2042,7 +2042,7 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
                end if
 
-            case('use_daylength_factor_switch')
+             case('use_daylength_factor_switch')
                hlm_daylength_factor_switch = ival
                lb_params%dayl_switch    = hlm_daylength_factor_switch
                if (fates_global_verbose()) then
@@ -2070,6 +2070,13 @@ contains
                   write(fates_log(),*) 'Transfering hlm_stomatal_model ',ival,' to FATES'
                end if
 
+            case('electron_transport_model')
+               hlm_electron_transport_model = ival
+               lb_params%electron_transport_model = hlm_electron_transport_model
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
+               end if
+
             case('hydr_solver')
                hlm_hydr_solver = ival
                if (fates_global_verbose()) then
@@ -2093,13 +2100,7 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_radiation_model ',ival,' to FATES'
                end if
-
-            case('electron_transport_model')
-               hlm_electron_transport_model = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
-               end if
-
+               
             case('regeneration_model')
                hlm_regeneration_model = ival
                if (fates_global_verbose()) then
