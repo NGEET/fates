@@ -4790,6 +4790,13 @@ contains
           cohortloop: do while(associated(ccohort))
              hio_canopy_fracarea_si_age(io_si,cpatch%age_class) = hio_canopy_fracarea_si_age(io_si,cpatch%age_class) &
                   + ccohort%c_area * AREA_INV
+
+             notnew: if( .not.(ccohort%isnew) ) then
+                hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
+                     + ccohort%npp_acc_hold / days_per_year / sec_per_day &
+                     * cohort_n_div_site_area
+             end if notnew
+
              ccohort => ccohort%taller
           end do cohortloop
 
