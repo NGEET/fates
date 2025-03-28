@@ -39,7 +39,8 @@ Module TwoStreamMLPEMod
   integer, parameter :: twostr_vis = 1         ! Named index of visible shortwave radiation
   integer, parameter :: twostr_nir = 2         ! Named index for near infrared shortwave radiation
 
-
+  integer, parameter :: max_bands = 2          ! maximum number of bands (for scratch space)
+  
   ! Allowable error, as a fraction of total incident for total canopy
   ! radiation balance checks
 
@@ -893,26 +894,31 @@ contains
     ! notably the scattering coefficient "om".
 
     class(twostream_type) :: this
-    integer               :: ib      ! band index, matches indexing of rad_params
+    
     real(r8),intent(in)   :: cosz_in ! Un-protected cosine of the zenith angle
 
-    real(r8) :: cosz ! the near-zero protected cosz
-    integer :: ican  ! scattering element canopy layer index (top down)
-    integer :: icol  ! scattering element column
-    real(r8) :: asu  ! single scattering albedo
+    real(r8) :: cosz                          ! the near-zero protected cosz
+    integer :: ican                           ! scattering element canopy layer index (top down)
+    integer :: icol                           ! scattering element column
+    integer :: ib                             ! band index, matches indexing of rad_params
+    integer :: ib2                            ! band inner loop index while testing for singularity
+    real(r8) :: asu                           ! single scattering albedo
     real(r8) :: gdir
     real(r8) :: tmp0,tmp1,tmp2
-    real(r8) :: betab_veg  ! beam backscatter for vegetation (no snow)
-    real(r8) :: betab_om   ! multiplication of beam backscatter and reflectance
-    real(r8) :: om_veg     ! scattering coefficient for vegetation (no snow)
-    real(r8) :: Kb_sing    ! the KB_leaf that would generate a singularity
-                           ! with the scelb%a parameter
-    real(r8) :: Kb_stem    ! actual optical depth of stem with not planar geometry effects
-                           ! usually the base value
+    real(r8) :: betab_veg                     ! beam backscatter for vegetation (no snow)
+    real(r8) :: betab_om                      ! multiplication of beam backscatter and reflectance
+    real(r8) :: om_veg                        ! scattering coefficient for vegetation (no snow)
+    real(r8) :: Kb_sing(max_bands)            ! the KB_leaf that would generate a singularity
+                                              ! with the scelb%a parameter
+    real(r8) :: Kb_stem                       ! actual optical depth of stem with not planar geometry effects
+                                              ! usually the base value
     real(r8), parameter :: Kb_stem_base = 1.0_r8
     real(r8), parameter :: sing_tol = 0.01_r8 ! allowable difference between
-                                               ! the Kb_leaf that creates
-                                               ! a singularity and the actual
+                                              ! the Kb_leaf that creates
+                                              ! a singularity and the actual
+    logical :: is_sing   ! use this to control if we are actively trying to remove a singularity
+    integer :: iter_sing ! iterator check to ensure we don't try to fix a singularity indefinitely
+    real(r8) :: Kb_eff   ! When testing for singularity, this is either the stem or stem and leaf optical depth
     
     if( (cosz_in-1.0) > nearzero ) then
        write(log_unit,*)"The cosine of the zenith angle cannot exceed 1"
@@ -950,6 +956,7 @@ contains
                scelg%Kb_leaf = min(kb_max,rad_params%clumping_index(ft) * gdir / cosz)
 
                ! To avoid singularities, we need to make sure that Kb =/ a
+               ! for any of the bands...
                ! If they are too similar, it will create a very large
                ! term in the linear solution and generate solution errors
                ! Lets identify the Kb_leaf that gives a singularity.
@@ -960,21 +967,46 @@ contains
                ! (a*(lai+sai) - sai*kb_stem)/lai = Kb_sing
                ! or.. adjust stem Kb?
                ! (a*(lai+sai) - lai*kb_leaf)/sai = kb_stem_sing
+
                if(scelg%lai>nearzero) then
-                  do ib = 1,this%n_bands
-                     Kb_sing = (this%band(ib)%scelb(ican,icol)%a*(scelg%lai+scelg%sai) - scelg%sai*Kb_stem)/scelg%lai
-                     if(abs(scelg%Kb_leaf - Kb_sing)<sing_tol)then
-                        scelg%Kb_leaf = Kb_sing + sing_tol
-                     end if
-                  end do
+                  Kb_eff = scelg%Kb_leaf
                else
-                  do ib = 1,this%n_bands
-                     Kb_sing = this%band(ib)%scelb(ican,icol)%a
-                     if(abs(Kb_stem - Kb_sing)<sing_tol)then
-                        Kb_stem = Kb_sing + sing_tol
-                     end if
-                  end do
+                  Kb_eff = Kb_stem
                end if
+                                  
+               ! Assume there is a singularity so that we test for it
+               is_sing = .true.
+               iter_sing = 0
+
+               ! Compute the singularity for all bands
+               do ib = 1,this%n_bands
+                  Kb_sing(ib) = this%band(ib)%scelb(ican,icol)%a
+                  if (scelg%lai>nearzero) then
+                     Kb_sing(ib) = (Kb_sing(ib) * (scelg%lai+scelg%sai) - scelg%sai*Kb_stem)/scelg%lai
+                  end if
+               end do
+
+               do_test_sing: do while(is_sing)
+                  ! Now that we have commited to testing it, assume the solution works
+                  is_sing = .false.
+                  iter_sing = iter_sing
+                  if(iter_sing==10)then
+                     write(log_unit,*) 'error trying to remove singularity',iter_sing,scelg%Kb_leaf,Kb_stem,Kb_sing(:)
+                     call endrun(msg=errMsg(sourcefile, __LINE__))
+                  end if
+                  ! Test to see if there is a singularity and make corrections if needed
+                  if (any((abs(Kb_sing(:) - Kb_eff)) < sing_tol)) then
+                     Kb_eff = Kb_eff + sing_tol
+                     is_sing = .true.
+                  end if
+               end do do_test_sing
+               
+               if(scelg%lai>nearzero) then
+                  scelg%Kb_leaf = Kb_eff
+               else
+                  Kb_stem = Kb_eff
+               end if
+               
                
                ! RGK: My sense is that snow should be adding optical depth
                !      but we don't have any precedent for that in the FATES

@@ -2540,8 +2540,13 @@ contains
         ! repro_w = (total_w + repro_w)*repro_c_frac = total_w*repro_c_frac + repro_w*repro_c_frac
         ! repro_w * (1 - repro_c_frac) = total_w*repro_c_frac
         ! repro_w = total_w * repro_c_frac/(1-repro_c_frac)
+
+        if(1._r8 - repro_c_frac < nearzero) then
+           repro_w = repro_c_frac 
+        else
+           repro_w = total_w * repro_c_frac/(1._r8 - repro_c_frac)
+        end if
         
-        repro_w = total_w * repro_c_frac/(1._r8 - repro_c_frac)
         total_w = total_w  + repro_w
         avg_nc = avg_nc + repro_w * nc_repro
         avg_pc = avg_pc + repro_w * pc_repro
