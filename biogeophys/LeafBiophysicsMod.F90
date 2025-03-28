@@ -440,6 +440,33 @@ contains
   
   ! =====================================================================================
 
+  function GetJe(electron_transport_model,par_abs,jmax,fnps) result (je)
+
+    ! Input
+    integer  :: electron_transport_model ! index for electron transport model
+    real(r8) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
+    real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
+    real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
+
+    select case(electron_transport_model)
+    case (FvCB1980)   
+       ! Get the smoothed (quadratic between J and Jmax) electron transport rate
+       je = GetJe_FvCB(par_abs,jmax,fnps)
+
+    case (JohnsonBerry2021)
+       je = GetJe_JB(par_abs,jmax,fnps)
+
+    case default
+       write (fates_log(),*)'error, incorrect leaf electron transport model specified'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end select
+
+  end function GetJe
+  
+    
+  !======================================================================================
+
   function GetJe_FvCB(par_abs,jmax,fnps) result(je)
 
     ! Input
@@ -515,9 +542,10 @@ contains
 
   ! =====================================================================================
   
-  function AgrossRuBPC3(par_abs,jmax,fnps,ci,co2_cpoint) result(aj)
+  function AgrossRuBPC3(electron_transport_model,par_abs,jmax,fnps,ci,co2_cpoint) result(aj)
 
     ! Input
+    integer  :: electron_transport_model ! index for electron transport model
     real(r8) :: par_abs    ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
     real(r8) :: jmax       ! maximum electron transport rate (umol electrons/m**2/s)
     real(r8) :: fnps       ! Fraction of light absorbed by non-photosynthetic pigments
@@ -531,19 +559,7 @@ contains
     real(r8) :: je         ! actual electron transport rate (umol electrons/m**2/s)
 
     
-    select case(lb_params%electron_transport_model)
-    case (FvCB1980)   
-
-       ! Get the smoothed (quadratic between J and Jmax) electron transport rate
-       je = GetJe_FvCB(par_abs,jmax,fnps)
-
-    case (JohnsonBerry2021)
-       je = GetJe_JB(par_abs,jmax,fnps)
-
-    case default
-       write (fates_log(),*)'error, incorrect leaf electron transport model specified'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end select
+    je = GetJe(electron_transport_model,par_abs,jmax,fnps)
 
     aj = je * max(ci-co2_cpoint, 0._r8) / &
          (4._r8*ci+8._r8*co2_cpoint)
@@ -771,21 +787,7 @@ contains
     end if
        
     ! Get the maximum e tranport rate for when we solve for RuBP (twice)
-    
-    select case(lb_params%electron_transport_model)
-    case (FvCB1980)   
-       ! Get the smoothed (quadratic between J and Jmax) electron transport rate
-       je = GetJe_FvCB(par_abs,jmax,lb_params%fnps(ft))
-
-    case (JohnsonBerry2021)
-       je = GetJe_JB(par_abs,jmax,lb_params%fnps(ft))
-
-    case default
-       write (fates_log(),*)'error, incorrect leaf electron transport model specified'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end select
-
-
+    je = GetJe(lb_params%electron_transport_model,par_abs,jmax,lb_params%fnps(ft))
      
     ! Find ci at maximum conductance (1/inf = 0)
     
@@ -814,7 +816,8 @@ contains
     f = 8._r8*co2_cpoint
     g = lmr
     ci(2) = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
-    ag(2) = AgrossRuBPC3(par_abs,jmax,lb_params%fnps(ft),ci(2),co2_cpoint)
+    ag(2) = AgrossRuBPC3(lb_params%electron_transport_model,par_abs,jmax, &
+         lb_params%fnps(ft),ci(2),co2_cpoint)
     
     if(debug)then
        if ( abs((can_co2_ppress-ci(2))/b - (ag(2)-lmr))  > 1.e-3_r8 ) then
@@ -852,7 +855,8 @@ contains
     f = 8._r8*co2_cpoint
     g = lmr
     ci(2) = CiFromAnetDiffGrad(a,b,c,d,e,f,g)
-    ag(2) = AgrossRuBPC3(par_abs,jmax,lb_params%fnps(ft),ci(2),co2_cpoint)
+    ag(2) = AgrossRuBPC3(lb_params%electron_transport_model,par_abs,jmax, &
+         lb_params%fnps(ft),ci(2),co2_cpoint)
     
     if(debug)then
        if ( abs((can_co2_ppress-ci(2))/b -(ag(2)-lmr))  > 1.e-3_r8 ) then
@@ -971,7 +975,8 @@ contains
        ac = AgrossRubiscoC3(vcmax,ci,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2)
        
        ! C3: RuBP-limited photosynthesis
-       aj = AgrossRuBPC3(par_abs,jmax,lb_params%fnps(ft),ci,co2_cpoint )
+       aj = AgrossRuBPC3(lb_params%electron_transport_model,par_abs,jmax, &
+            lb_params%fnps(ft),ci,co2_cpoint )
 
        ! Take the minimum, no smoothing
        agross = min(ac,aj)
