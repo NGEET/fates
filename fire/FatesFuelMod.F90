@@ -26,6 +26,7 @@ module FatesFuelMod
     real(r8) :: canopy_fuel_load                     ! patch level total canopy fuel load [kg biomass]
     real(r8) :: canopy_base_height                   ! patch level canopy base height at which biomass density > minimum density required for canopy fire spread [m]
     real(r8) :: canopy_bulk_density                  ! patch level canopy fuel bulk density [kg biomass m-3]
+    real(r8) :: canopy_water_content                 ! patch level canopy water content [%]
 
 
     contains
@@ -42,6 +43,7 @@ module FatesFuelMod
       procedure :: CalculateCanopyBulkDensity
       procedure :: CalculateFuelBurnt
       procedure :: CalculateResidenceTime
+      procedure :: NonHydroCanopyWaterContent
 
   end type fuel_type
   
@@ -67,6 +69,7 @@ module FatesFuelMod
       this%canopy_fuel_load = 0.0_r8
       this%canopy_base_height = 0.0_r8
       this%canopy_bulk_density = 0.0_r8
+      this%canopy_water_content = 0.0_r8
 
     end subroutine Init 
     
@@ -115,6 +118,8 @@ module FatesFuelMod
         donor_fuel%canopy_base_height*donor_weight
       this%canopy_bulk_density = this%canopy_bulk_density*self_weight +    &
         donor_fuel%canopy_bulk_density*donor_weight
+      this%canopy_water_content = this%canopy_water_content*self_weight +    &
+        donor_fuel%canopy_water_content*donor_weight
       
     end subroutine Fuse
 
@@ -440,7 +445,7 @@ module FatesFuelMod
       real(r8),         intent(in)    :: max_height            ! the max. cohort height at current patch [m]
 
       ! Locals:
-      real(r8) :: canopy_base_height            ! canopy base height at which biomass density is > minimum canopy fuel density [m]
+      real(r8) :: canopy_top_height             ! the highest point at which biomass density is > minimum canopy fuel density [m]
       integer  :: ih                            ! biomass bin counter
 
       ! Params:
@@ -455,18 +460,51 @@ module FatesFuelMod
                                                    ! add 1 to be conservative when searching for CBH
 
           exit
+        else                                            ! when this is an open stand that there is no such a height, use max_height
+          this%canopy_base_height = max_height
         end if
       end do
-      
-      if ((max_height - this%canopy_base_height) > nearzero) then
-        this%canopy_bulk_density = sum(biom_matrix(int(this%canopy_base_height-1.0_r8):)) / &
-        (max_height - this%canopy_base_height)
+
+      ! now loop from top to bottom to find the highest point at which the minimum bulk density is met
+      ! XLG: I modified the way how canopy bulk density is calculated by reducing the maximum canopy height
+      ! to the highest point where the minimum bulk density is met. 
+  
+      do ih = max_height, 0, -1
+        if (biom_matrix(ih) > min_density_canopy_fuel) then
+          canopy_top_height = dble(ih) + 1.0_r8 
+          exit
+        else
+          canopy_top_height = max_height 
+        end if
+      end do
+
+      ! XLG: We now only calculate canopy bulk density for fuels between
+      ! canopy base and top height 
+      if ((canopy_top_height - this%canopy_base_height) > nearzero) then
+        this%canopy_bulk_density = sum(biom_matrix(int(this%canopy_base_height-1.0_r8):int(canopy_top_height-1.0_r8))) / &
+        (canopy_top_height - this%canopy_base_height)
       else
         this%canopy_bulk_density = 0.0_r8
       end if
       
 
     end subroutine CalculateCanopyBulkDensity
+
+ !---------------------------------------------------------------------------------------
+
+    subroutine NonHydroCanopyWaterContent(this, co_lfmc, co_fuel)
+      ! DESCRIPTION:
+      ! Calculates live canopy water content  
+      ! as sum of fuel load weighted cohort level live fuel moisture content
+      !
+      ! ARGUMENTS
+      class(fuel_type), intent(inout) :: this                  ! fuel class
+
+      this%canopy_water_content = this%canopy_water_content + &
+      co_lfmc * co_fuel/this%canopy_fuel_load
+      
+
+    end subroutine NonHydroCanopyWaterContent
 
  !---------------------------------------------------------------------------------------
 
