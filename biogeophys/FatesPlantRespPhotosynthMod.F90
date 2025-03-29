@@ -1020,7 +1020,7 @@ contains
                               wood_respiration_base_25 = ra/(1.0_r8+exp((-(mean_branch_diam-rc)/rb)))
                               !branch_c = 1.0 !need to get from the allometry
                               call bbranch_allom(currentCohort%dbh, currentCohort%height, ft, branch_c)
-                              branch_vol = branch_c/ (prt_params%wood_density(ft) * 1000._r8)
+                              branch_vol = branch_c * prt_params%c2b(ft) / (prt_params%wood_density(ft) * 1000._r8)
                               mean_branch_length = 0.1_r8
                               if(currentCohort%n>0)then
                                  mean_branch_length= sqrt(currentCohort%c_area/currentCohort%n/3.14_r8)
@@ -1077,7 +1077,8 @@ contains
                                  mean_croot_diam = 0.03_r8
                                  tcsoi = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 25.0_r8)/10.0_r8)
                                  wood_respiration_base_25 = ra/(1.0_r8+exp((-(mean_croot_diam-rc)/rb)))
-                                 croot_vol = rootfr_ft(ft,j) * sapw_c_bgw/ (prt_params%wood_density(ft) * 1000._r8)
+                                 croot_vol = rootfr_ft(ft,j) * sapw_c_bgw * prt_params%c2b(ft) &
+                                      / (prt_params%wood_density(ft) * 1000._r8)
                                  mean_croot_length = 0.1_r8
                                  if(currentCohort%n>0)then
                                     mean_croot_length= sqrt(currentCohort%c_area/currentCohort%n/3.14_r8)
