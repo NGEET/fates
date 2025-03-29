@@ -441,6 +441,7 @@ module EDTypesMod
 
      real(r8) ::  liqvol_memory(numWaterMem,maxpft)            ! last 10 days of soil liquid water volume (drought phenology)
      real(r8) ::  smp_memory(numWaterMem,maxpft)               ! last 10 days of soil matric potential (drought phenology)
+     real(r8) ::  swc_vol(maxpft)                              ! volumetric soil water content for live fuel moisture content calculation
 
 
      ! FIRE

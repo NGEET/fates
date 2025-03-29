@@ -350,6 +350,7 @@ contains
             fuel_1h = (leaf_c + woody_c * SF_val_CWD_frac_adj(1))/carbon_2_biomass
             call currentPatch%fuel%NonHydroCanopyWaterContent(currentCohort%lfmc, fuel_1h)
             write(fates_log(),*) 'current patch canopy water content is ', currentPatch%fuel%canopy_water_content
+            write(fates_log(),*) 'current cohort LFMC is ', currentCohort%lfmc
 
           end if ! trees only
           currentCohort => currentCohort%shorter;
@@ -775,7 +776,8 @@ contains
       if (currentPatch%nocomp_pft_label /= nocomp_bareground .and.         &
       currentPatch%fire == itrue .and. crown_fire_switch) then
         ! calculate passive crown fire intensity, the minimum surface FI to initiate a crown fire
-        FI_init = PassiveCrownFireIntensity(currentPatch%fuel%canopy_base_height)
+        FI_init = PassiveCrownFireIntensity(currentPatch%fuel%canopy_base_height, &
+                                            currentPatch%fuel%canopy_water_content)
 
         write(fates_log(),*) 'FI_init is ', FI_init 
         write(fates_log(),*) 'FI is ', currentPatch%FI

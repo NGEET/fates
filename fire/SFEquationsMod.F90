@@ -474,18 +474,19 @@ module SFEquationsMod
 
 !---------------------------------------------------------------------------------------
   
-  real(r8) function PassiveCrownFireIntensity(canopy_base_height)
+  real(r8) function PassiveCrownFireIntensity(canopy_base_height, canopy_water_content)
   ! DESCRIPTION:
   ! Calculate the energy threshold for igniting crown fuels [kW/m or kJ/m/s]
   ! EQ. 11 in Scott & Reinhardt 2001
 
   ! ARGUMENTS:
   real(r8), intent(in) :: canopy_base_height   ! canopy base height at which biomass density > minimum density 0.011 kg/m3
+  real(r8), intent(in) :: canopy_water_content ! canopy water content [%]
   
 
   ! Locals:
   real(r8)            :: crown_ignition_energy  ! surface fire intensity required to ignite crown fuels [kJ/kg]
-  real(r8), parameter :: canopy_water_content = 100.0_r8  ! canopy fuel water content in %, to be replaced by transient value later 
+  !real(r8), parameter :: canopy_water_content = 100.0_r8  ! canopy fuel water content in %, to be replaced by transient value later 
 
   ! Note: crown_ignition_energy to be calculated based on PFT foliar moisture content from FATES-Hydro
   ! or create foliar moisture % based on BTRAN
