@@ -463,6 +463,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_canopy_fuel_bulkd_si
   integer :: ih_act_crown_fire_freq_si
   integer :: ih_pass_crown_fire_freq_si
+  integer :: ih_canopy_water_content_si
   integer :: ih_rx_burn_window_si
   integer :: ih_rxfire_intensity_area_product_si
   integer :: ih_rxfire_intensity_si
@@ -2429,6 +2430,7 @@ contains
          hio_canopy_fuel_bulkd_si     => this%hvars(ih_canopy_fuel_bulkd_si)%r81d, &
          hio_act_crown_fire_freq_si   => this%hvars(ih_act_crown_fire_freq_si)%r81d, &
          hio_pass_crown_fire_freq_si   => this%hvars(ih_pass_crown_fire_freq_si)%r81d, &
+         hio_canopy_water_content_si   => this%hvars(ih_canopy_water_content_si)%r81d, &
          hio_rxfire_intensity_si => this%hvars(ih_rxfire_intensity_si)%r81d, &
          hio_rxfire_intensity_area_product_si => this%hvars(ih_rxfire_intensity_area_product_si)%r81d, &
          hio_rxfire_area_si      => this%hvars(ih_rxfire_area_si)%r81d, &
@@ -2711,6 +2713,7 @@ contains
             hio_canopy_fuel_bulkd_si(io_si)    = hio_canopy_fuel_bulkd_si(io_si) + cpatch%fuel%canopy_bulk_density * cpatch%area * AREA_INV * mass_2_carbon
             hio_act_crown_fire_freq_si(io_si)  = hio_act_crown_fire_freq_si(io_si) + cpatch%active_crown_fire * cpatch%area * AREA_INV
             hio_pass_crown_fire_freq_si(io_si) = hio_pass_crown_fire_freq_si(io_si) + cpatch%passive_crown_fire * cpatch%area * AREA_INV
+            hio_canopy_water_content_si(io_si) = hio_canopy_water_content_si(io_si) + cpatch%fuel%canopy_water_content * cpatch%area * AREA_INV
 
             hio_fire_intensity_area_product_si(io_si) = hio_fire_intensity_area_product_si(io_si) + &
                  cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
@@ -6386,6 +6389,12 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_canopy_fuel_bulkd_si)
+
+       call this%set_history_var(vname='FATES_CANOPY_WATER_CONTENT', units='%',  &
+            long='Non-hydro live canopy water content in %',                     &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+            index = ih_canopy_water_content_si)
 
        call this%set_history_var(vname='FATES_ACTIVE_CROWNFIRE_FREQ', units='1', &
             long='active canopy fire frequency scaled by patch to site area ratio',  &
