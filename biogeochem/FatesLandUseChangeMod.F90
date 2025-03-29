@@ -33,6 +33,7 @@ module FatesLandUseChangeMod
   public :: GetLUHStatedata
   public :: GetInitLanduseTransitionRates
   public :: GetInitLanduseHarvestRate
+  public :: FatesGrazing
 
   ! module data
   integer, parameter :: max_luh2_types_per_fates_lu_type = 5
@@ -386,6 +387,8 @@ contains
     if ( state_vector(secondaryland) .gt. min_allowed_landuse_fraction) then
        harvest_rate = state_vector(secondaryland)
        landuse_vector_gt_min(secondaryland) = .true.
+    else
+       harvest_rate = 0._r8
     endif
 
   end subroutine GetInitLanduseHarvestRate
@@ -424,4 +427,44 @@ contains
     
   end subroutine GetInitLanduseTransitionRates
     
+  !----------------------------------------------------------------------------------------------------
+
+  subroutine FatesGrazing(prt, ft, land_use_label, height)
+
+    use PRTGenericMod,    only : leaf_organ
+    use PRTGenericMod,    only : prt_vartypes
+    use PRTLossFluxesMod, only : PRTHerbivoryLosses
+    use EDParamsMod     , only : landuse_grazing_rate
+    use EDParamsMod     , only : landuse_grazing_maxheight
+    use EDPftvarcon     , only : EDPftvarcon_inst
+    use PRTParametersMod, only : prt_params
+    use FatesAllometryMod,only : CrownDepth
+
+    ! apply grazing and browsing to plants as a function of PFT, height (for woody plants), and land use label.
+
+    class(prt_vartypes), intent(inout), pointer :: prt
+    integer, intent(in)  :: ft
+    integer, intent(in)  :: land_use_label
+    real(r8), intent(in) :: height
+
+    real(r8) :: grazing_rate    ! rate of grazing (or browsing) of leaf tissue [day -1]
+    real(r8) :: crown_depth
+    
+    grazing_rate = landuse_grazing_rate(land_use_label) * EDPftvarcon_inst%landuse_grazing_palatability(ft)
+    
+    if ( grazing_rate .gt. 0._r8) then
+       if (prt_params%woody(ft) == itrue) then
+
+          call CrownDepth(height,ft,crown_depth)
+          
+          grazing_rate = grazing_rate * &
+               max(0._r8, min(1._r8, &
+               (landuse_grazing_maxheight - (height - crown_depth )) / crown_depth))
+       endif
+
+       call PRTHerbivoryLosses(prt, leaf_organ, grazing_rate)
+    end if
+
+  end subroutine FatesGrazing
+
 end module FatesLandUseChangeMod

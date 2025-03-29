@@ -133,7 +133,7 @@ def main():
                 for i in range(var.shape[0]):
                     var[i] = outputval[i]
             elif(ndim_file==0):
-                var.assignValue(outputval[0])
+                var[()] = outputval[()]
 
             else:
                 print("Unhandled dimension size in modify_fates_paramfile.py")
@@ -157,7 +157,7 @@ def main():
                                            'fates_history_damage_bins',
                                            'fates_NCWD','fates_litterclass','fates_leafage_class', \
                                            'fates_plant_organs','fates_hydr_organs','fates_hlm_pftno', \
-                                           'fates_leafage_class','fates_landuse_class']:
+                                           'fates_leafage_class','fates_landuseclass']:
                     otherdimpresent = True
                     otherdimname = var.dimensions[i]
                     otherdimlength = var.shape[i]

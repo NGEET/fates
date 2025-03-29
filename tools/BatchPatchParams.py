@@ -107,13 +107,17 @@ def main():
     base_cdl = xmlroot.find('base_file').text
     new_cdl = xmlroot.find('new_file').text
 
+    # Append extension nc to temporary files 
+    # (in some netcdf versions, the lack of extension causes failures)
+    ext_nc  = ".nc"
+
     # Convert the base cdl file into a temp nc binary
-    base_nc = os.popen('mktemp').read().rstrip('\n')
+    base_nc = os.popen('mktemp').read().rstrip('\n')+ext_nc
     gencmd = "ncgen -o "+base_nc+" "+base_cdl
     os.system(gencmd)
 	 
     # Generate a temp output file name
-    new_nc = os.popen('mktemp').read().rstrip('\n')
+    new_nc = os.popen('mktemp').read().rstrip('\n')+ext_nc
 
     os.system("ls "+base_nc)
     os.system("ls "+new_nc)
@@ -190,7 +194,7 @@ def main():
     fp_nc.close()
 
     # Sort the new file
-    newer_nc = os.popen('mktemp').read().rstrip('\n')
+    newer_nc = os.popen('mktemp').read().rstrip('\n')+ext_nc
     os.system("../tools/ncvarsort.py --fin "+new_nc+" --fout "+newer_nc+" --overwrite")
 
 
