@@ -234,7 +234,7 @@ contains
     real(r8) ::  leaf_c               ! leaf carbon (kgC)
     real(r8) ::  sapw_c               ! sapwood carbon (kgC)
     real(r8) ::  struct_c             ! structure carbon (kgC)
-    real(r8) ::  fuel_1h              ! 1 hour woody fuel + leaf biomass (kg biomass)
+    !real(r8) ::  fuel_1h              ! 1 hour woody fuel + leaf biomass (kg biomass)
     real(r8) ::  crown_fuel_per_m     ! crown fuel per 1m section in cohort
     real(r8) ::  SF_val_CWD_frac_adj(ncwd)  ! adjusted fractional allocation of woody biomass to coarse wood debris pool
     real(r8) ::  rootfrac_notop       ! Total rooting fraction excluding the top soil layer
@@ -335,8 +335,9 @@ contains
             leaf_c   = currentCohort%n * leaf_c
             
             call adjust_SF_CWD_frac(currentCohort%dbh, ncwd, SF_val_CWD_frac, SF_val_CWD_frac_adj)
+            currentCohort%canopy_fuel_1h = (leaf_c + woody_c*SF_val_CWD_frac_adj(1))/carbon_2_biomass
             ! update canopy fuel load
-            call currentPatch%fuel%CalculateCanopyFuelLoad(leaf_c, woody_c, SF_val_CWD_frac_adj)
+            call currentPatch%fuel%CalculateCanopyFuelLoad(currentCohort%canopy_fuel_1h)
             write(fates_log(),*) 'current patch canopy fuel is ', currentPatch%fuel%canopy_fuel_load
             
             ! 1m biomass bin
@@ -350,15 +351,27 @@ contains
             currentCohort%lfmc = LiveFuelMoistureContent(currentCohort%treelai, &
             currentSite%swc_vol(currentCohort%pft), &
             max_lfmc, min_lfmc, swc_alpha, lai_beta, gamma_int)
-            fuel_1h = (leaf_c + woody_c * SF_val_CWD_frac_adj(1))/carbon_2_biomass
-            call currentPatch%fuel%NonHydroCanopyWaterContent(currentCohort%lfmc, fuel_1h)
-            write(fates_log(),*) 'current patch canopy water content is ', currentPatch%fuel%canopy_water_content
+            !fuel_1h = (leaf_c + woody_c * SF_val_CWD_frac_adj(1))/carbon_2_biomass
+            !call currentPatch%fuel%NonHydroCanopyWaterContent(currentCohort%lfmc, fuel_1h)
+            !write(fates_log(),*) 'current patch canopy water content is ', currentPatch%fuel%canopy_water_content
             write(fates_log(),*) 'current cohort LFMC is ', currentCohort%lfmc
 
           end if ! trees only
           currentCohort => currentCohort%shorter;
         end do ! end cohort loop
 
+        ! loop across cohorts to calculate patch level canopy water content
+        currentCohort => currentPatch%tallest
+
+        do while(associated(currentCohort))
+         if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees
+            call currentPatch%fuel%NonHydroCanopyWaterContent(currentCohort%lfmc, &
+            currentCohort%canopy_fuel_1h)
+         end if
+         currentCohort => currentCohort%shorter;
+      end do
+
+      
         biom_matrix(:) = biom_matrix(:) / currentPatch%area ! kg biomass / m3
         ! update canopy fuel bulk density
         call currentPatch%fuel%CalculateCanopyBulkDensity(biom_matrix, max_height)

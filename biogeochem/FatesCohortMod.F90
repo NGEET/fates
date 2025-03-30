@@ -276,6 +276,7 @@ module FatesCohortMod
     real(r8) ::  rxcrownfire_mort      ! crown fire mortality due to prescribed fire
     real(r8) ::  rxfire_mort           ! post-fire mortality due to prescribed fire
     real(r8) ::  lfmc                  ! live fuel moisture content [%]
+    real(r8) ::  canopy_fuel_1h        ! leaf + 1 hour woody live fuel [kg biomass]
 
     !---------------------------------------------------------------------------
 
@@ -458,6 +459,7 @@ module FatesCohortMod
       this%rxcrownfire_mort        = nan
       this%rxfire_mort             = nan
       this%lfmc                    = nan
+      this%canopy_fuel_1h          = nan
    
     end subroutine NanValues
    
@@ -548,6 +550,7 @@ module FatesCohortMod
       this%rxcrownfire_mort        = 0._r8
       this%rxfire_mort             = 0._r8
       this%lfmc                    = 0._r8
+      this%canopy_fuel_1h          = 0._r8
     
     end subroutine ZeroValues
    
@@ -797,6 +800,7 @@ module FatesCohortMod
       copyCohort%rxcrownfire_mort        = this%rxcrownfire_mort
       copyCohort%rxfire_mort             = this%rxfire_mort
       copyCohort%lfmc                    = this%lfmc
+      copyCohort%canopy_fuel_1h          = this%canopy_fuel_1h
 
       ! HYDRAULICS
       if (hlm_use_planthydro .eq. itrue) then
@@ -1101,6 +1105,7 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%rxcambial_mort         = ', this%rxcambial_mort
       write(fates_log(),*) 'cohort%rxfire_mort            = ', this%rxfire_mort
       write(fates_log(),*) 'cohort%lfmc                   = ', this%lfmc
+      write(fates_log(),*) 'cohort%canopy_fuel_1h         = ', this%canopy_fuel_1h
       write(fates_log(),*) 'cohort%size_class             = ', this%size_class
       write(fates_log(),*) 'cohort%size_by_pft_class      = ', this%size_by_pft_class
    
