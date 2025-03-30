@@ -499,6 +499,8 @@ module FatesFuelMod
       !
       ! ARGUMENTS
       class(fuel_type), intent(inout) :: this                  ! fuel class
+      real(r8),         intent(in)    :: co_lfmc               ! coohort live fuel moisture content [%]
+      real(r8),         intent(in)    :: co_fuel               ! cohort canopy fuel, only 1 hour woody + leaf 
 
       this%canopy_water_content = this%canopy_water_content + &
       co_lfmc * co_fuel/this%canopy_fuel_load
