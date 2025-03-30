@@ -409,17 +409,9 @@ module FatesFuelMod
       ! ARGUMENTS:
       class(fuel_type), intent(inout) :: this                     ! fuel class
       real(r8),         intent(in)    :: fuel_1h                  ! leaf + 1 hour woody fuels of each cohort [kg biomass]
-      !real(r8),         intent(in)    :: leaf_c                   ! leaf carbon of all cohorts on a patch [kgC]
-      !real(r8),         intent(in)    :: woody_c                  ! sum of structural, sapwood, and twig carbon across cohorts on a patch [kgC]
-      !real(r8),         intent(in)    :: SF_val_CWD_frac_adj(:)   ! adjusted fractional allocation of woody biomass to coarse wood debris pool
 
-      ! Locals:
-      !real(r8)  :: fuel_1h_c               ! 1 hour fuel in carbon 
-      ! Params
-      !real(r8), parameter :: carbon_2_biomass = 0.45_r8
 
        ! this is the summed canopy fuel load at site level, not scaled by land area
-       !fuel_1h_c = leaf_c + woody_c * SF_val_CWD_frac_adj(1)
        this%canopy_fuel_load = this%canopy_fuel_load + fuel_1h
 
       

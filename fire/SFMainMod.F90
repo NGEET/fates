@@ -234,10 +234,9 @@ contains
     real(r8) ::  leaf_c               ! leaf carbon (kgC)
     real(r8) ::  sapw_c               ! sapwood carbon (kgC)
     real(r8) ::  struct_c             ! structure carbon (kgC)
-    !real(r8) ::  fuel_1h              ! 1 hour woody fuel + leaf biomass (kg biomass)
     real(r8) ::  crown_fuel_per_m     ! crown fuel per 1m section in cohort
     real(r8) ::  SF_val_CWD_frac_adj(ncwd)  ! adjusted fractional allocation of woody biomass to coarse wood debris pool
-    real(r8) ::  rootfrac_notop       ! Total rooting fraction excluding the top soil layer
+    real(r8) ::  rootfrac             ! Total rooting fraction 
     integer  ::  ipft                 ! pft index
     integer  ::  nlevroot             ! Number of rooting levels to consider
     
@@ -283,25 +282,19 @@ contains
         biom_matrix(:) = 0.0_r8
 
         ! update soil water content for each PFT
-        ! this is a copy of code from EDhysiologyMod where swc is used for drought deciduous phenology
-        ! rooting depth of cohort
+
         do ipft=1,numpft
          if(int(prt_params%woody(ipft)) == itrue) then 
             call set_root_fraction( currentSite%rootfrac_scr, ipft, currentSite%zi_soil, &
             bc_in%max_rooting_depth_index_col )
             nlevroot = max(2,min(ubound(currentSite%zi_soil,1),bc_in%max_rooting_depth_index_col))
-            rootfrac_notop = sum(currentSite%rootfrac_scr(2:nlevroot))
-            if ( rootfrac_notop <= nearzero ) then
-               ! Unlikely, but just in case all roots are in the first layer, we use the second
-               ! layer (to avoid FPE issues).
-               currentSite%rootfrac_scr(2) = 1.0_r8
-               rootfrac_notop              = 1.0_r8
-            end if
+            rootfrac = sum(currentSite%rootfrac_scr(1:nlevroot))
+        
             ! swc to be weighted average of soil water content using
             ! root fraction as weighting factor
-            currentSite%swc_vol(ipft) = sum(bc_in%h2o_liqvol_sl     (2:nlevroot) * &
-                                        currentSite%rootfrac_scr(2:nlevroot) ) / &
-                                        rootfrac_notop
+            currentSite%swc_vol(ipft) = sum(bc_in%h2o_liqvol_sl     (1:nlevroot) * &
+                                        currentSite%rootfrac_scr(1:nlevroot) ) / &
+                                        rootfrac
          end if
         end do
 
@@ -338,7 +331,6 @@ contains
             currentCohort%canopy_fuel_1h = (leaf_c + woody_c*SF_val_CWD_frac_adj(1))/carbon_2_biomass
             ! update canopy fuel load
             call currentPatch%fuel%CalculateCanopyFuelLoad(currentCohort%canopy_fuel_1h)
-            write(fates_log(),*) 'current patch canopy fuel is ', currentPatch%fuel%canopy_fuel_load
             
             ! 1m biomass bin
             crown_fuel_per_m = (leaf_c + woody_c) / (carbon_2_biomass * crown_depth) !kg biomass / m
@@ -351,14 +343,13 @@ contains
             currentCohort%lfmc = LiveFuelMoistureContent(currentCohort%treelai, &
             currentSite%swc_vol(currentCohort%pft), &
             max_lfmc, min_lfmc, swc_alpha, lai_beta, gamma_int)
-            !fuel_1h = (leaf_c + woody_c * SF_val_CWD_frac_adj(1))/carbon_2_biomass
-            !call currentPatch%fuel%NonHydroCanopyWaterContent(currentCohort%lfmc, fuel_1h)
-            !write(fates_log(),*) 'current patch canopy water content is ', currentPatch%fuel%canopy_water_content
+          
             write(fates_log(),*) 'current cohort LFMC is ', currentCohort%lfmc
 
           end if ! trees only
           currentCohort => currentCohort%shorter;
         end do ! end cohort loop
+        write(fates_log(),*) 'current patch canopy fuel is ', currentPatch%fuel%canopy_fuel_load
 
         ! loop across cohorts to calculate patch level canopy water content
         currentCohort => currentPatch%tallest
