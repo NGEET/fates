@@ -457,7 +457,7 @@ module FatesCohortMod
       this%rxcambial_mort          = nan
       this%rxcrownfire_mort        = nan
       this%rxfire_mort             = nan
-      this%lfmc                    = man
+      this%lfmc                    = nan
    
     end subroutine NanValues
    

@@ -64,7 +64,7 @@ contains
     if (hlm_spitfire_mode > hlm_sf_nofire_def) then
       call UpdateFireWeather(currentSite, bc_in)
       call UpdateFuelCharacteristics(currentSite)
-      call UpdateCanopyFuelCharacteristics(currentSite)
+      call UpdateCanopyFuelCharacteristics(currentSite, bc_in)
       call CalculateIgnitionsandFDI(currentSite, bc_in)
       call CalculateSurfaceRateOfSpread(currentSite)
       call CalculateSurfaceFireIntensity(currentSite)
@@ -219,8 +219,8 @@ contains
   
 
     ! ARGUMENTS:
-    type(ed_site_type), intent(in), target :: currentSite  ! site object
-    type(bc_in_type),   intent(in)         :: bc_in
+    type(ed_site_type), intent(inout), target :: currentSite  ! site object
+    type(bc_in_type),   intent(in)            :: bc_in
 
    
     type(fates_patch_type), pointer  :: currentPatch   ! FATES patch
@@ -247,6 +247,8 @@ contains
 
     real(r8), parameter :: carbon_2_biomass = 0.45_r8
     ! LFMC parameters for testing
+    real(r8), parameter :: max_lfmc = 132.6_r8
+    real(r8), parameter :: min_lfmc = 65.3_r8
     real(r8), parameter :: swc_alpha = 1.9_r8
     real(r8), parameter :: lai_beta = 0.0_r8
     real(r8), parameter :: gamma_int = 1.2_r8
