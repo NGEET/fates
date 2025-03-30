@@ -263,6 +263,7 @@ contains
         currentPatch%fuel%canopy_fuel_load    = 0.0_r8
         currentPatch%fuel%canopy_bulk_density = 0.0_r8
         currentPatch%fuel%canopy_base_height  = 0.0_r8
+        currentPatch%fuel%canopy_water_content = 0.0_r8
     
       
         ! find the max cohort height to set the upper bounds of biom_matrix
