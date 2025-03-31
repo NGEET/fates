@@ -817,10 +817,10 @@ contains
           do while(associated(currentCohort))  
              currentCohort%fire_mort = 0.0_r8 
              currentCohort%crownfire_mort = 0.0_r8
-             currentCohort%nonrx_mort = 0.0_r8
+             currentCohort%nonrx_fire_mort = 0.0_r8
              currentCohort%nonrx_crown_mort = 0.0_r8
              currentCohort%nonrx_cambial_mort = 0.0_r8
-             currentCohort%rx_mort = 0.0_r8
+             currentCohort%rx_fire_mort = 0.0_r8
              currentCohort%rx_crown_mort = 0.0_r8
              currentCohort%rx_cambial_mort = 0.0_r8
              
@@ -836,11 +836,11 @@ contains
 
              ! now decide which type of post-fire mortality, prescribed fire or wildfire?
              if (currentPatch%nonrx_fire == itrue .and. currentPatch%rx_fire == ifalse) then
-              currentCohort%nonrx_mort = currentCohort%fire_mort
+              currentCohort%nonrx_fire_mort = currentCohort%fire_mort
               currentCohort%nonrx_crown_mort = currentCohort%crownfire_mort
               currentCohort%nonrx_cambial_mort = currentCohort%cambial_mort
              else 
-              currentCohort%rx_mort = currentCohort%fire_mort
+              currentCohort%rx_fire_mort = currentCohort%fire_mort
               currentCohort%rx_crown_mort = currentCohort%crownfire_mort
               currentCohort%rx_cambial_mort = currentCohort%cambial_mort      
              end if
