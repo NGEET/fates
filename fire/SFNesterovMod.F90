@@ -33,6 +33,7 @@ module SFNesterovMod
       ! initialize values to 0.0
       this%fire_weather_index   = 0.0_r8
       this%effective_windspeed  = 0.0_r8
+      this%rx_flag = 0
 
     end subroutine init_nesterov_fire_weather
 
