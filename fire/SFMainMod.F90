@@ -323,7 +323,7 @@ contains
         if (beta_op < nearzero) then 
           beta_ratio = 0.0_r8
         else
-          beta_ratio = beta/beta_op 
+          beta_ratio = beta/beta_op
         end if
         
         ! remove mineral content from fuel load per Thonicke 2010 
@@ -393,7 +393,7 @@ contains
     currentPatch => currentSite%oldest_patch 
     do while (associated(currentPatch))
       
-      currentPatch%fuel%frac_burnt(:) = 0.0_r8 
+      currentPatch%fuel%frac_burnt(:) = 0.0_r8
 
       if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
 
@@ -409,7 +409,7 @@ contains
         currentPatch%nonrx_fire = 0     ! only wildfire 
         currentPatch%rx_fire = 0        ! only rx fire
         currentPatch%rx_FI = 0.0_r8
-        currentPatch%nonrx_FI = 0.0_r8        
+        currentPatch%nonrx_FI = 0.0_r8
         
         if (currentSite%NF > 0.0_r8 .or. currentSite%fireWeather%rx_flag .eq. itrue) then
           
@@ -456,7 +456,7 @@ contains
           else  ! not a patch suitable for conducting prescribed fire or rxfire is not even turned on
             ! track wildfires greater than kW/m energy threshold
             if (currentPatch%FI > SF_val_fire_threshold) then 
-              currentPatch%nonrx_fire = 1 
+              currentPatch%nonrx_fire = 1
             end if
 
           end if
@@ -560,7 +560,7 @@ contains
 
     
     ! initialize site variables
-    currentSite%rxfire_area_final = 0.0_r8 
+    currentSite%rxfire_area_final = 0.0_r8
     total_burnable_frac = 0.0_r8
 
     ! update total burnable fraction
@@ -716,7 +716,7 @@ contains
 
                    else 
                       ! Flames over top of canopy. 
-                      currentCohort%fraction_crown_burned =  1.0_r8 
+                      currentCohort%fraction_crown_burned =  1.0_r8
                    endif
 
                 endif
@@ -815,7 +815,7 @@ contains
        if (currentPatch%fire == 1) then 
           currentCohort => currentPatch%tallest
           do while(associated(currentCohort))  
-             currentCohort%fire_mort = 0.0_r8 
+             currentCohort%fire_mort = 0.0_r8
              currentCohort%crownfire_mort = 0.0_r8
              currentCohort%nonrx_fire_mort = 0.0_r8
              currentCohort%nonrx_crown_mort = 0.0_r8
@@ -842,7 +842,7 @@ contains
              else 
               currentCohort%rx_fire_mort = currentCohort%fire_mort
               currentCohort%rx_crown_mort = currentCohort%crownfire_mort
-              currentCohort%rx_cambial_mort = currentCohort%cambial_mort      
+              currentCohort%rx_cambial_mort = currentCohort%cambial_mort
              end if
              
              currentCohort => currentCohort%shorter
