@@ -1732,7 +1732,7 @@ contains
          long_name='disturbance rates by donor land-use type, receiver land-use type, and disturbance type', &
          units='1/day', initialize=initialize_variables,ivar=ivar, index = ir_disturbance_rates_siluludi)
 
-    if ( hlm_regeneration_model == TRS_regeneration ) then
+   if ( hlm_regeneration_model == TRS_regeneration ) then
       
       call this%DefineRMeanRestartVar(vname='fates_seedling_layer_par24',vtype=cohort_r8, &
            long_name='24-hour seedling layer PAR', &
@@ -1752,9 +1752,8 @@ contains
       
       call this%DefineRMeanRestartVar(vname='fates_sdlng_mdd',vtype=cohort_r8, &
            long_name='seedling moisture deficit days', &
-           units='mm days', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_mdd_pa)
-          
-    end if
+           units='mm days', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_mdd_pa)         
+   end if
       
    call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
