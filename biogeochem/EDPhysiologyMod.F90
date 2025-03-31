@@ -47,7 +47,7 @@ module EDPhysiologyMod
   use EDCohortDynamicsMod , only : InitPRTObject
   use FatesAllometryMod   , only : tree_lai_sai
   use FatesAllometryMod   , only : leafc_from_treelai
-  use FatesAllometryMod   , only : decay_coeff_vcmax
+  use LeafBiophysicsMod   , only : DecayCoeffVcmax
   use FatesLitterMod      , only : litter_type
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
@@ -98,7 +98,6 @@ module EDPhysiologyMod
   use EDParamsMod           , only : q10_mr
   use EDParamsMod           , only : q10_froz
   use EDParamsMod           , only : logging_export_frac
-  use EDParamsMod           , only : regeneration_model
   use EDParamsMod           , only : sdlng_mort_par_timescale
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesConstantsMod     , only : itrue,ifalse
@@ -143,7 +142,8 @@ module EDPhysiologyMod
   use FatesParameterDerivedMod, only : param_derived
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
-  use FatesInterfaceTypesMod    , only : hlm_use_luh
+  use FatesInterfaceTypesMod, only : hlm_use_luh
+  use FatesInterfaceTypesMod, only : hlm_regeneration_model
 
   implicit none
   private
@@ -765,7 +765,7 @@ contains
 
                 ! Calculate sla_levleaf following the sla profile with overlying leaf area
                 ! Scale for leaf nitrogen profile
-                kn = decay_coeff_vcmax(currentCohort%vcmax25top, &
+                kn = DecayCoeffVcmax(currentCohort%vcmax25top, &
                      prt_params%leafn_vert_scaler_coeff1(ipft), &
                      prt_params%leafn_vert_scaler_coeff2(ipft))
                 
@@ -2157,7 +2157,7 @@ contains
                 litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1.0_r8-site_disp_frac(pft))/area ![kg/m2/day]
 
                 ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
-                if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+                if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
                      prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees) then
                    
                    ! Send a fraction of reproductive carbon to litter to account for 
@@ -2215,7 +2215,7 @@ contains
     !
     ! !DESCRIPTION:
     ! 1. Flux from seed pool into leaf litter pool
-    ! 2. If the TRS with seedling dynamics is on (regeneration_model = 3)
+    ! 2. If the TRS with seedling dynamics is on (hlm_regeneration_model = 3)
     !    then we calculate seedling mortality here (i.e. flux from seedling pool
     !    (into leaf litter pool)   
     !
@@ -2249,7 +2249,7 @@ contains
     
        ! If the TRS is switched off or the pft can't get big enough to be considered a tree 
        ! then use FATES default regeneration.
-       if ( regeneration_model == default_regeneration .or. &
+       if ( hlm_regeneration_model == default_regeneration .or. &
             prt_params%allom_dbh_maxheight(pft) < min_max_dbh_for_trees ) then
 
           ! Default seed decay (TRS is off)
@@ -2261,7 +2261,7 @@ contains
        ! If the TRS is switched on and the pft is a tree then add non-seed reproductive biomass
        ! to the seed decay flux. This was added to litt%seed_decay in the previously called SeedIn 
        ! subroutine
-       if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+       if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
             prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
           
           litt%seed_decay(pft) = litt%seed_decay(pft) + &! From non-seed reproductive biomass (added in
@@ -2271,9 +2271,9 @@ contains
        end if 
 
 
-       ! If the TRS is switched on with seedling dynamics (regeneration_model = 2) 
+       ! If the TRS is switched on with seedling dynamics (hlm_regeneration_model = 2)
        ! then calculate seedling mortality.
-       if_trs_germ_decay: if ( regeneration_model == TRS_regeneration .and. &
+       if_trs_germ_decay: if ( hlm_regeneration_model == TRS_regeneration .and. &
             prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
           
           !----------------------------------------------------------------------
@@ -2379,8 +2379,8 @@ contains
 
        ! If the TRS's seedling dynamics is switched off, then we use FATES's default approach
        ! to germination 
-       if_tfs_or_def: if ( regeneration_model == default_regeneration .or. &
-            regeneration_model == TRS_no_seedling_dyn .or. & 
+       if_tfs_or_def: if ( hlm_regeneration_model == default_regeneration .or. &
+            hlm_regeneration_model == TRS_no_seedling_dyn .or. &
             prt_params%allom_dbh_maxheight(pft) < min_max_dbh_for_trees ) then
 
           litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &  
@@ -2388,7 +2388,7 @@ contains
 
           ! If TRS seedling dynamics is switched on we calculate seedling emergence (i.e. germination)
           ! as a pft-specific function of understory light and soil moisture.
-       else if ( regeneration_model == TRS_regeneration .and. &
+       else if ( hlm_regeneration_model == TRS_regeneration .and. &
             prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then	    
 
           ! Step 1. Calculate how germination rate is modified by understory light
@@ -2634,15 +2634,15 @@ contains
 
                   ! If TRS seedling dynamics is switched off then the available mass to make new recruits
                   ! is everything in the seed_germ pool.
-                  if (regeneration_model == default_regeneration .or.          &
-                     regeneration_model == TRS_no_seedling_dyn .or.            & 
+                  if (hlm_regeneration_model == default_regeneration .or.          &
+                     hlm_regeneration_model == TRS_no_seedling_dyn .or.            &
                      prt_params%allom_dbh_maxheight(ft) < min_max_dbh_for_trees) then
 
                      mass_avail = currentPatch%area * currentPatch%litter(el)%seed_germ(ft)
 
                      ! If TRS seedling dynamics is on then calculate the available mass to make new recruits
                      ! as a pft-specific function of light and soil moisture in the seedling layer.
-                  else if (regeneration_model == TRS_regeneration .and.        &
+                  else if (hlm_regeneration_model == TRS_regeneration .and.        &
                      prt_params%allom_dbh_maxheight(ft) > min_max_dbh_for_trees) then
 
                      sdlng2sap_par = currentPatch%sdlng2sap_par%GetMean()*     &

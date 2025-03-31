@@ -30,7 +30,7 @@ module EDPatchDynamicsMod
   use EDTypesMod           , only : elem_diag_type
   use EDTypesMod           , only : min_patch_area
   use EDTypesMod           , only : min_patch_area_forced
-  use EDParamsMod          , only : regeneration_model
+  use FatesInterfaceTypesMod, only : hlm_regeneration_model
   use FatesInterfaceTypesMod, only : numpft
   use FatesConstantsMod     , only : dtype_ifall
   use FatesConstantsMod     , only : dtype_ilog
@@ -411,8 +411,6 @@ contains
              else if (currentPatch%land_use_label .eq. primaryland .and. .not. &
                   site_in%landuse_vector_gt_min(secondaryland)) then
                 harvest_rate = state_vector(secondaryland) / sum(state_vector(:))
-             else
-                harvest_rate = 0._r8
              end if
           else
              call GetInitLanduseHarvestRate(bc_in, site_in%min_allowed_landuse_fraction, &
@@ -434,7 +432,8 @@ contains
        endif
 
        ! Fire Disturbance Rate
-       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
+       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt 
+
 
        ! Fires can't burn the whole patch, as this causes /0 errors. 
        if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
@@ -682,7 +681,7 @@ contains
 
                    call newPatch%Create(age, site_areadis, i_landusechange_receiverpatchlabel, i_nocomp_pft, &
                                          num_swb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
-                                         regeneration_model)
+                                         hlm_regeneration_model)
 
                    ! Initialize the litter pools to zero, these
                    ! pools will be populated by looping over the existing patches
@@ -1371,7 +1370,7 @@ contains
 
                 call buffer_patch%Create(0._r8, 0._r8, i_land_use_label, 0, &
                      num_swb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
-                     regeneration_model)
+                     hlm_regeneration_model)
 
                 ! Initialize the litter pools to zero
                 do el=1,num_elements
@@ -1559,7 +1558,7 @@ contains
                    if ( .not. buffer_patch_in_linked_list) then
                       if (buffer_patch%area .lt. rsnbl_math_prec) then
                          ! here we need to deallocate the buffer patch so that we don't get a memory leak.
-                         call buffer_patch%FreeMemory(regeneration_model, numpft)
+                         call buffer_patch%FreeMemory(hlm_regeneration_model, numpft)
                          deallocate(buffer_patch, stat=istat, errmsg=smsg)
                          if (istat/=0) then
                             write(fates_log(),*) 'dealloc: fail on deallocate(dp):'//trim(smsg)
@@ -1576,7 +1575,7 @@ contains
                    end if
                 else
                    ! buffer patch was never even used. deallocate.
-                   call buffer_patch%FreeMemory(regeneration_model, numpft)
+                   call buffer_patch%FreeMemory(hlm_regeneration_model, numpft)
                    deallocate(buffer_patch, stat=istat, errmsg=smsg)
                    if (istat/=0) then
                       write(fates_log(),*) 'dealloc: fail on deallocate(dp):'//trim(smsg)
@@ -1664,7 +1663,7 @@ contains
     call new_patch%Create(0._r8, temp_area, &
          currentPatch%land_use_label, currentPatch%nocomp_pft_label, &
          num_swb, numpft, currentSite%nlevsoil, hlm_current_tod, &
-         regeneration_model)
+         hlm_regeneration_model)
 
     ! Initialize the litter pools to zero, these
     ! pools will be populated shortly
@@ -3188,7 +3187,7 @@ contains
     call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
     call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
 
-    if ( regeneration_model == TRS_regeneration ) then
+    if ( hlm_regeneration_model == TRS_regeneration ) then
        call rp%seedling_layer_par24%FuseRMean(dp%seedling_layer_par24,rp%area*inv_sum_area)
        call rp%sdlng_mort_par%FuseRMean(dp%sdlng_mort_par,rp%area*inv_sum_area)
        call rp%sdlng2sap_par%FuseRMean(dp%sdlng2sap_par,rp%area*inv_sum_area)
@@ -3213,6 +3212,8 @@ contains
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
     rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
+
+    ! Radiation
     rp%rad_error(1)         = (dp%rad_error(1)*dp%area + rp%rad_error(1)*rp%area) * inv_sum_area
     rp%rad_error(2)         = (dp%rad_error(2)*dp%area + rp%rad_error(2)*rp%area) * inv_sum_area
     
@@ -3259,7 +3260,7 @@ contains
     end if
 
     ! We have no need for the dp pointer anymore, we have passed on it's legacy
-    call dp%FreeMemory(regeneration_model, numpft)
+    call dp%FreeMemory(hlm_regeneration_model, numpft)
     deallocate(dp, stat=istat, errmsg=smsg)
     if (istat/=0) then
        write(fates_log(),*) 'dealloc006: fail on deallocate(dp):'//trim(smsg)
@@ -3810,7 +3811,7 @@ contains
     call rp%tveg_lpa%CopyFromDonor(dp%tveg_lpa)
     call rp%tveg_longterm%CopyFromDonor(dp%tveg_longterm)
 
-    if ( regeneration_model == TRS_regeneration ) then
+    if ( hlm_regeneration_model == TRS_regeneration ) then
        call rp%seedling_layer_par24%CopyFromDonor(dp%seedling_layer_par24)
        call rp%sdlng_mort_par%CopyFromDonor(dp%sdlng_mort_par)
        call rp%sdlng2sap_par%CopyFromDonor(dp%sdlng2sap_par)
