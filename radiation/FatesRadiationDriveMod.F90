@@ -113,7 +113,7 @@ contains
              bc_out(s)%fabi_parb(ifp,:)            = 0._r8
              bc_out(s)%fabd_parb(ifp,:)            = 0._r8
              bc_out(s)%ftdd_parb(ifp,:)            = 1._r8
-             bc_out(s)%ftid_parb(ifp,:)            = 1._r8
+             bc_out(s)%ftid_parb(ifp,:)            = 0._r8
              bc_out(s)%ftii_parb(ifp,:)            = 1._r8
 
              ! Zero diagnostics

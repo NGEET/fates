@@ -380,7 +380,7 @@ contains
     fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
     fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
     fates%bc_out(s)%ftdd_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
-    fates%bc_out(s)%ftid_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftid_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
     fates%bc_out(s)%ftii_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
     
     fates%bc_out(s)%elai_pa(:)   = 0.0_r8
