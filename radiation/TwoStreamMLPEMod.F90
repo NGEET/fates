@@ -509,8 +509,8 @@ contains
 
       
       if(dlai>nearzero)then
-         leaf_sun_frac = max(0.001_r8,min(0.999_r8,scelb%Rbeam0/(dlai*scelg%Kb_leaf/rad_params%clumping_index(ft)) &
-              *(exp(-scelg%Kb_leaf*lai_top) - exp(-scelg%Kb_leaf*lai_bot))))
+         leaf_sun_frac =  max(0.001_r8,min(0.999_r8, &
+              scelb%Rbeam0*(exp(-scelg%Kb*vai_top) - exp(-scelg%Kb*vai_bot))/(dvai*scelg%Kb)))
       else
          leaf_sun_frac = 0001._r8
       end if
