@@ -422,7 +422,7 @@ contains
                   ! ------------------------------------------------------------------------
                   rate_mask_z(:,1:numpft,:) = .false.
 
-                  if_any_cohorts: if(currentPatch%countcohorts > 0.0)then
+                  if_any_cohorts: if(currentPatch%num_cohorts > 0.0)then
                      currentCohort => currentPatch%tallest
                      do_cohort_drive: do while (associated(currentCohort)) ! Cohort loop
 

@@ -1,0 +1,112 @@
+module test_CountCohorts
+  !
+  ! DESCRIPTION:
+  !		Tests the patch's CountCohorts method
+  !
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesCohortMod,    only : fates_cohort_type
+  use FatesPatchMod,     only : fates_patch_type
+  use FatesFactoryMod,   only : CreateTestPatchList
+  use funit
+
+  implicit none
+  
+  @TestCase
+  type, extends(TestCase) :: TestCountCohorts
+  end type TestCountCohorts
+
+  contains 
+  
+    @Test 
+    subroutine EmptyList_CountCohorts_GivesZero(this)
+      ! tests that for a patch with an empty list num_cohorts is 0
+      class(TestCountCohorts), intent(inout) :: this                 ! test object
+      type(fates_patch_type)                 :: patch                ! patch object
+      integer,                 parameter     :: expected_cohorts = 0 ! expected number of cohorts
+      
+      ! create an empty patch
+      patch%shortest => null()
+      patch%tallest => null()
+      
+      ! count cohorts
+      call patch%CountCohorts()
+      
+      @assertEqual(patch%num_cohorts, expected_cohorts)
+    
+    end subroutine EmptyList_CountCohorts_GivesZero
+    
+    @Test 
+    subroutine SingleCohort_CountCohorts_GivesOne(this)
+      ! tests that for a patch with one cohort, num_cohorts is 1
+      class(TestCountCohorts), intent(inout) :: this                 ! test object
+      type(fates_patch_type)                 :: patch                ! patch object
+      type(fates_cohort_type), pointer       :: cohort               ! cohort object
+      integer,                 parameter     :: expected_cohorts = 1 ! expected number of cohorts
+      
+      ! create hard-coded patch
+      allocate(cohort)
+      patch%shortest => cohort
+      patch%tallest => cohort
+      
+      ! count cohorts
+      call patch%CountCohorts()
+      @assertEqual(patch%num_cohorts, expected_cohorts)
+    
+    end subroutine SingleCohort_CountCohorts_GivesOne
+    
+    @Test 
+    subroutine SmallList_CountCohorts_GivesEight(this)
+      ! tests that for a patch with eight cohorts, num_cohorts is 8
+      class(TestCountCohorts), intent(inout) :: this                 ! test object
+      type(fates_patch_type)                 :: patch                ! patch object
+      type(fates_cohort_type), pointer       :: cohort, next_cohort  ! cohort objects
+      integer,                 parameter     :: expected_cohorts = 8 ! expected number of cohorts
+      integer                                :: i                    ! looping index
+
+      
+      ! create the patch and list
+      allocate(cohort)
+      patch%shortest => cohort
+      do i = 2, expected_cohorts
+        allocate(next_cohort)
+        cohort%taller => next_cohort
+        next_cohort%shorter => cohort
+        cohort => next_cohort
+      end do
+      patch%tallest => cohort
+      
+      ! count cohorts
+      call patch%CountCohorts()
+      @assertEqual(patch%num_cohorts, expected_cohorts)
+    
+    end subroutine SmallList_CountCohorts_GivesEight
+    
+    @Test 
+    subroutine LargeList_CountCohorts_GivesOneHundred(this)
+      ! tests that for a patch with 100 cohorts, num_cohorts is 100
+      class(TestCountCohorts), intent(inout) :: this                   ! test object
+      type(fates_patch_type)                 :: patch                  ! patch object
+      type(fates_cohort_type), pointer       :: cohort, next_cohort    ! cohort objects
+      integer,                 parameter     :: expected_cohorts = 100 ! expected number of cohorts
+      integer                                :: i                      ! looping index
+      
+      ! create the patch and list
+      allocate(cohort)
+      patch%shortest => cohort
+      do i = 2, expected_cohorts
+        allocate(next_cohort)
+        cohort%taller => next_cohort
+        next_cohort%shorter => cohort
+        cohort => next_cohort
+      end do
+      patch%tallest => cohort
+      
+      ! count cohorts
+      call patch%CountCohorts()
+      @assertEqual(patch%num_cohorts, expected_cohorts)
+    
+    end subroutine LargeList_CountCohorts_GivesOneHundred
+    
+end module test_CountCohorts
+
+
