@@ -313,6 +313,8 @@ module EDTypesMod
                                        ! due to re-sizing patches when area math starts to lose
                                        ! precision
 
+     real(r8) :: herbivory_flux_out    ! loss of element due to grazing (and/or browsing) by herbivores
+     
    contains
 
      procedure :: ZeroMassBalState
@@ -691,6 +693,7 @@ contains
       this%flux_generic_in   = 0._r8
       this%flux_generic_out  = 0._r8
       this%patch_resize_err  = 0._r8
+      this%herbivory_flux_out= 0._r8
 
       return
   end subroutine ZeroMassBalFlux

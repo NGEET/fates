@@ -22,13 +22,13 @@ module FatesRadiationDriveMod
   use FatesInterfaceTypesMod , only : bc_in_type
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : numpft
+  use FatesInterfaceTypesMod , only : hlm_radiation_model
   use FatesRadiationMemMod, only : num_rad_stream_types
   use FatesRadiationMemMod, only : idirect, idiffuse
   use FatesRadiationMemMod, only : num_swb, ivis, inir, ipar
   use FatesRadiationMemMod, only : alb_ice, rho_snow, tau_snow
   use FatesRadiationMemMod, only : norman_solver
   use FatesRadiationMemMod, only : twostr_solver
-  use EDParamsMod, only          : radiation_model
   use TwoStreamMLPEMod, only : normalized_upper_boundary
   use FatesTwoStreamUtilsMod, only : FatesPatchFSun
   use FatesTwoStreamUtilsMod, only : CheckPatchRadiationBalance
@@ -125,7 +125,7 @@ contains
              currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
              currentPatch%fcansno                   = bc_in(s)%fcansno_pa(ifp)
              
-             if(radiation_model.eq.twostr_solver) then
+             if(hlm_radiation_model.eq.twostr_solver) then
                 call currentPatch%twostr%CanopyPrep(bc_in(s)%fcansno_pa(ifp))
                 call currentPatch%twostr%ZenithPrep(bc_in(s)%coszen_pa(ifp))
              end if
@@ -174,7 +174,7 @@ contains
 
                 else
 
-                   select case(radiation_model)
+                   select case(hlm_radiation_model)
                    case(norman_solver)
 
                       call PatchNormanRadiation (currentPatch, &
@@ -307,7 +307,7 @@ contains
 
              sunlai  = 0._r8
              shalai  = 0._r8
-             if_norm_twostr: if (radiation_model.eq.norman_solver) then
+             if_norm_twostr: if (hlm_radiation_model.eq.norman_solver) then
                 
                 ! Loop over patches to calculate laisun_z and laisha_z for each layer.
                 ! Derive canopy laisun, laisha, and fsun from layer sums.
