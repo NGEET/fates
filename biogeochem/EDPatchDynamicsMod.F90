@@ -22,7 +22,8 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
   use EDTypesMod           , only : ed_site_type
-  use FatesPatchMod,         only : fates_patch_type
+  use FatesPatchMod        , only : fates_patch_type
+  use EDTypesMod           , only : set_patchno 
   use FatesCohortMod       , only : fates_cohort_type
   use EDTypesMod           , only : site_massbal_type
   use EDTypesMod           , only : site_fluxdiags_type
@@ -124,7 +125,6 @@ module EDPatchDynamicsMod
   public :: patch_pft_size_profile
   public :: disturbance_rates
   public :: check_patch_area
-  public :: set_patchno
   private:: fuse_2_patches
 
   character(len=*), parameter, private :: sourcefile = &
@@ -1323,7 +1323,7 @@ contains
 
 
                 call check_patch_area(currentSite)
-                call set_patchno(currentSite)
+                call set_patchno(currentSite,.false.,0)
 
              end do landusechange_receiverpatchlabel_loop
           end do landuse_donortype_loop
@@ -1809,48 +1809,6 @@ contains
 
     return
   end subroutine check_patch_area
-
-  ! ============================================================================
-  subroutine set_patchno( currentSite )
-    !
-    ! !DESCRIPTION:
-    !  Give patches an order number from the oldest to youngest. 
-    !
-    ! !USES:
-    !
-    ! !ARGUMENTS:
-    type(ed_site_type),intent(in) :: currentSite 
-    !
-    ! !LOCAL VARIABLES:
-    type(fates_patch_type), pointer :: currentPatch 
-    integer patchno
-    !---------------------------------------------------------------------
-
-    patchno = 1
-    currentPatch => currentSite%oldest_patch
-    do while(associated(currentPatch))
-       currentPatch%patchno = patchno
-       patchno = patchno + 1
-       currentPatch => currentPatch%younger
-    enddo
-
-    if(hlm_use_fixed_biogeog.eq.itrue .and. hlm_use_nocomp.eq.itrue)then
-      patchno = 1
-      currentPatch => currentSite%oldest_patch
-      do while(associated(currentPatch))
-        if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
-         ! for bareground patch, we make the patch number 0
-         ! we also do not count this in the veg. patch numbering scheme.
-          currentPatch%patchno = 0
-        else
-         currentPatch%patchno = patchno
-         patchno = patchno + 1
-        endif
-        currentPatch => currentPatch%younger
-       enddo
-    endif
-
-  end subroutine set_patchno
 
   ! ============================================================================
 
@@ -3595,6 +3553,8 @@ contains
     !check area is not exceeded
     call check_patch_area( currentSite )
 
+    call set_patchno( currentSite, .false., 0)
+    
     return
   end subroutine terminate_patches
 

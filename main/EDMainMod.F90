@@ -62,6 +62,7 @@ module EDMainMod
   use FatesLitterMod           , only : litter_type
   use FatesLitterMod           , only : ncwd
   use EDtypesMod               , only : ed_site_type
+  use EDTypesMod               , only : set_patchno
   use FatesPatchMod            , only : fates_patch_type
   use FatesCohortMod           , only : fates_cohort_type
   use EDTypesMod               , only : AREA
@@ -77,6 +78,7 @@ module EDMainMod
   use FatesConstantsMod        , only : nearzero
   use FatesConstantsMod        , only : m2_per_ha
   use FatesConstantsMod        , only : sec_per_day
+  use FatesConstantsMod        , only : nocomp_bareground
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydProps
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydStates
@@ -208,7 +210,8 @@ contains
        ! oldest patch per set_patchno, we check that the youngest patch isn't zero.
        ! If there are multiple patches on the site, the bareground patch is avoided
        ! at the level of the fire_model subroutines.
-       if (currentSite%youngest_patch%patchno .ne. 0) then 
+
+       if (currentSite%youngest_patch%nocomp_pft_label .ne. nocomp_bareground)then
           call DailyFireModel(currentSite, bc_in)
        end if
 
@@ -316,8 +319,6 @@ contains
     ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
 
-   
-    
     
   end subroutine ed_ecosystem_dynamics
 
@@ -834,6 +835,11 @@ contains
     type (fates_patch_type) , pointer :: currentPatch
     !-----------------------------------------------------------------------
 
+    ! check patch order (set second argument to true)
+    if (debug) then
+       call set_patchno(currentSite,.true.,1)
+    end if
+    
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting))then
       call canopy_spread(currentSite)
     end if
