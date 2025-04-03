@@ -204,7 +204,7 @@ module FatesCohortMod
     integer :: twostr_col  ! The column index in the two-stream solution that this cohort is part of
     
     ! RESPIRATION COMPONENTS
-    real(r8) :: resp_excess_hold ! respiration of excess carbon [kgC/indiv/yr]
+    real(r8) :: resp_excess_hold ! respiration of excess carbon [kgC/indiv/day]
                                  ! note: this is flagged "hold" because it is calculated
                                  ! at the end of the day (dynamics) but is used
                                  ! on the following day (like growth respiration)
