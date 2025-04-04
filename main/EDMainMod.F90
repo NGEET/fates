@@ -46,6 +46,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : SeedUpdate
   use EDPhysiologyMod          , only : ZeroAllocationRates
   use EDPhysiologyMod          , only : ZeroLitterFluxes
+  use EDPhysiologyMod          , only : ZeroBCOutFluxes
   use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceIntegrateLitter
   use EDPhysiologyMod          , only : UpdateRecruitL2FR
@@ -78,6 +79,7 @@ module EDMainMod
   use FatesConstantsMod        , only : nearzero
   use FatesConstantsMod        , only : m2_per_ha
   use FatesConstantsMod        , only : sec_per_day
+  use FatesConstantsMod        , only : g_per_kg
   use FatesConstantsMod        , only : nocomp_bareground
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydProps
@@ -188,6 +190,9 @@ contains
 
     ! Zero fluxes in and out of litter pools
     call ZeroLitterFluxes(currentSite)
+
+    ! Zero diagnostic bc_out fluxes
+    call ZeroBCOutFluxes(bc_out)
 
     ! Zero mass balance
     call TotalBalanceCheck(currentSite, 0)
@@ -907,6 +912,12 @@ contains
     ! report summary diagnostic values of FATES carbon mass pools for HLM to include in total land stocks
     call SiteMassStock(currentSite,carbon12_element,total_stock,&
          bc_out%veg_c_si, bc_out%litter_cwd_c_si, bc_out%seed_c_si)
+
+    ! because the outputs of SiteMassStock are in kg C/ha, convert units to g C/m2
+    bc_out%veg_c_si = bc_out%veg_c_si * g_per_kg * AREA_INV
+    bc_out%litter_cwd_c_si = bc_out%litter_cwd_c_si * g_per_kg * AREA_INV
+    bc_out%seed_c_si = bc_out%seed_c_si * g_per_kg * AREA_INV
+
 
   end subroutine ed_update_site
 

@@ -155,6 +155,7 @@ module EDPhysiologyMod
   public :: calculate_SP_properties
   public :: recruitment
   public :: ZeroLitterFluxes
+  public :: ZeroBCOutFluxes
 
   public :: ZeroAllocationRates
   public :: PreDisturbanceLitterFluxes
@@ -228,6 +229,20 @@ contains
 
     return
   end subroutine ZeroLitterFluxes
+
+  ! =====================================================================================
+
+  subroutine ZeroBCOutFluxes (bc_out)
+
+    ! !ARGUMENTS
+    type(bc_out_type), intent(inout)   :: bc_out
+
+    bc_out%grazing_closs_to_atm_si = 0._r8
+    bc_out%fire_closs_to_atm_si    = 0._r8
+    bc_out%gpp_site                = 0._r8
+    bc_out%ar_site                 = 0._r8
+
+  end subroutine ZeroBCOutFluxes
 
   ! =====================================================================================
 
