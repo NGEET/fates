@@ -468,7 +468,8 @@ contains
     real(r8), intent(out) :: leaf_sun_frac ! Fraction of leaves in the interval exposed
                                            ! to sunlight
     logical, intent(out)  :: call_fail
-    real(r8)              :: dvai,dlai     ! Amount of VAI and LAI in this interval [m2/m2]
+    real(r8)              :: dvai          ! Amount of VAI in this interval [m2/m2]
+    real(r8)              :: leaf_frac     ! Fraction of leaf+stem that is leaf
     real(r8)              :: Rd_net        ! Difference in diffuse radiation at upper and lower boundaries [W/m2]
     real(r8)              :: Rb_net        ! Difference in beam radiation at upper and lower boundaries [W/m2]
     real(r8)              :: vai_max       ! total integrated (leaf+stem) area index of the current element
@@ -502,28 +503,15 @@ contains
       vai_max = scelg%lai +  scelg%sai
 
       dvai = vai_bot - vai_top
-
-      lai_top = vai_top*scelg%lai/( scelg%lai+ scelg%sai)
-      lai_bot = vai_bot*scelg%lai/( scelg%lai+ scelg%sai)
-      dlai    = dvai *  scelg%lai/( scelg%lai+ scelg%sai)
-
+      leaf_frac = scelg%lai/( scelg%lai+ scelg%sai)
+      lai_top = vai_top*leaf_frac
+      lai_bot = vai_bot*leaf_frac
       
-      if(dlai>nearzero)then
-         leaf_sun_frac = max(0.001_r8,min(0.999_r8,scelb%Rbeam0/(dlai*scelg%Kb_leaf/rad_params%clumping_index(ft)) &
-              *(exp(-scelg%Kb_leaf*lai_top) - exp(-scelg%Kb_leaf*lai_bot))))
+      if(dvai>nearzero)then
+         leaf_sun_frac =  max(0.001_r8,min(0.999_r8, &
+              scelb%Rbeam0*(exp(-scelg%Kb*vai_top) - exp(-scelg%Kb*vai_bot))/(dvai*scelg%Kb)))
       else
          leaf_sun_frac = 0001._r8
-      end if
-         
-      !leaf_sun_frac = max(0.001_r8,min(0.999_r8,scelb%Rbeam0/(dvai*scelg%Kb/rad_params%clumping_index(ft)) &
-      !     *(exp(-scelg%Kb*vai_top) - exp(-scelg%Kb*vai_bot))))
-
-      
-      if(debug) then
-         if(leaf_sun_frac>1.0_r8 .or. leaf_sun_frac<0._r8) then
-            write(log_unit,*)"impossible leaf sun fraction"
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
       end if
 
       ! We have to disentangle the absorption between leaves and stems, we give them both
@@ -568,7 +556,7 @@ contains
 
       r_dn_top = this%GetRdDn(ican,icol,ib,vai_top)
       r_dn_bot = this%GetRdDn(ican,icol,ib,vai_bot)
-
+      
       if(r_dn_top<-1.e5 .or. r_dn_bot<-1.e5) then
          write(log_unit,*) 'error in diffuse calculations, negative values'
          call_fail = .true.
