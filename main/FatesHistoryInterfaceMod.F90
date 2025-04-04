@@ -304,11 +304,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_seeds_in_local_si       ! carbon only
   integer :: ih_ungerm_seed_bank_si     ! carbon only
   integer :: ih_seedling_pool_si        ! carbon only
-  integer :: ih_seed_bank_si_pft          ! carbon only
-  integer :: ih_seeds_in_si_pft           ! carbon only
-  integer :: ih_seeds_in_local_si_pft     ! carbon only
-  integer :: ih_ungerm_seed_bank_si_pft   ! carbon only
-  integer :: ih_seedling_pool_si_pft      ! carbon only
   integer :: ih_ba_weighted_height_si
   integer :: ih_ca_weighted_height_si
   integer :: ih_seeds_in_local_elem
@@ -642,6 +637,11 @@ module FatesHistoryInterfaceMod
   integer :: ih_nocomp_pftburnedarea_si_pft
   integer :: ih_seeds_out_gc_si_pft
   integer :: ih_seeds_in_gc_si_pft
+  integer :: ih_seed_bank_si_pft          ! carbon only
+  integer :: ih_seeds_in_si_pft           ! carbon only
+  integer :: ih_seeds_in_local_si_pft     ! carbon only
+  integer :: ih_ungerm_seed_bank_si_pft   ! carbon only
+  integer :: ih_seedling_pool_si_pft      ! carbon only
 
   ! indices to (site x patch-age) variables
   integer :: ih_area_si_age
