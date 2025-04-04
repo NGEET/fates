@@ -4878,7 +4878,6 @@ contains
   ! ===============================================================================================
 
   subroutine update_history_hifrq(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
->>>>>>> sci.1.82.4_api.39.0.0
 
     ! ---------------------------------------------------------------------------------
     ! This is the call to update the history IO arrays that are expected to only change
