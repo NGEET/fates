@@ -18,15 +18,15 @@ module EDCanopyStructureMod
   use FatesAllometryMod     , only : carea_allom
   use EDCohortDynamicsMod   , only : terminate_cohorts, terminate_cohort, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
-  use FatesAllometryMod     , only : tree_lai
-  use FatesAllometryMod     , only : tree_sai
+  use FatesAllometryMod     , only : tree_lai_sai
   use EDTypesMod            , only : ed_site_type
+  use EDTypesMod            , only : set_patchno
   use FatesAllometryMod     , only : VegAreaLayer
+  use FatesAllometryMod     , only : CrownDepth
   use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod,         only : fates_cohort_type
   use EDParamsMod            , only : nclmax
   use EDParamsMod            , only : nlevleaf
-  use EDParamsMod           , only : radiation_model
   use EDtypesMod            , only : AREA
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
@@ -48,6 +48,7 @@ module EDCanopyStructureMod
   use PRTGenericMod,          only : carbon12_element
   use FatesTwoStreamUtilsMod, only : FatesConstructRadElements
   use FatesRadiationMemMod  , only : twostr_solver
+  use FatesRadiationMemMod  , only : num_rad_stream_types
   
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -85,7 +86,7 @@ module EDCanopyStructureMod
   ! can be roughly considered the same right?
 
   logical, parameter :: preserve_b4b = .true.
-
+    
   ! 10/30/09: Created by Rosie Fisher
   ! 2017/2018: Modifications and updates by Ryan Knox
   ! ============================================================================
@@ -306,9 +307,19 @@ contains
        enddo ! do while(area_not_balanced)
 
 
-       ! Set current canopy layer occupancy indicator.
-       currentPatch%NCL_p = min(nclmax,z)
-
+       ! Save number of canopy layers to the patch structure
+       
+       if(z > nclmax) then
+          write(fates_log(),*) 'Termination should have ensured number of canopy layers was not larger than nclmax'
+          write(fates_log(),*) 'Predicted: ',z
+          write(fates_log(),*) 'nclmax: ',nclmax
+          write(fates_log(),*) 'Consider increasing nclmax if this value is to low'
+          write(fates_log(),*) 'and you think this number of canopy layers is reasonable.'
+          call endrun(msg=errMsg(sourcefile, __LINE__))
+       else
+          currentPatch%NCL_p = z
+       end if
+       
        ! -------------------------------------------------------------------------------------------
        ! if we are using "strict PPA", then calculate a z_star value as
        ! the height of the smallest tree in the canopy
@@ -1302,11 +1313,11 @@ contains
     ! ---------------------------------------------------------------------------------
 
     use FatesInterfaceTypesMod    , only : hlm_use_cohort_age_tracking
-    use EDPatchDynamicsMod   , only : set_patchno
+    use FatesInterfaceTypesMod    , only : hlm_radiation_model
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
-    use EDtypesMod           , only : area
-    use FatesConstantsMod    , only : itrue
+    use EDtypesMod                , only : area
+    use FatesConstantsMod         , only : itrue
 
     ! !ARGUMENTS
     integer                 , intent(in)            :: nsites
@@ -1339,7 +1350,7 @@ contains
        ! driving model.  Loops through all patches and sets cpatch%patchno to the integer
        ! order of oldest to youngest where the oldest is 1.
        ! --------------------------------------------------------------------------------
-       call set_patchno( sites(s) )
+       call set_patchno( sites(s) , .false., 0)
 
        currentPatch => sites(s)%oldest_patch
 
@@ -1440,8 +1451,8 @@ contains
 
        call leaf_area_profile(sites(s))
        
-       if(radiation_model.eq.twostr_solver) then
-          call FatesConstructRadElements(sites(s),bc_in(s)%fcansno_pa,bc_in(s)%coszen_pa)
+       if(hlm_radiation_model.eq.twostr_solver) then
+          call FatesConstructRadElements(sites(s))
        end if
        
     end do ! site loop
@@ -1488,7 +1499,7 @@ contains
     ! The following patch level diagnostics are updated here:
     !
     ! currentPatch%canopy_layer_tlai(cl)   ! total leaf area index of canopy layer
-    ! currentPatch%ncan(cl,ft)             ! number of vegetation layers needed
+    ! currentPatch%nleaf(cl,ft)             ! number of vegetation layers needed
     !                                      ! in this patch's pft/canopy-layer
     ! currentPatch%nrad(cl,ft)             ! same as ncan, but does not include
     !                                      ! layers occluded by snow
@@ -1515,13 +1526,14 @@ contains
 
     !
     ! !LOCAL VARIABLES:
-    type (fates_patch_type)  , pointer :: currentPatch
+    type (fates_patch_type)  , pointer :: cpatch
     type (fates_cohort_type) , pointer :: currentCohort
     real(r8) :: remainder                !Thickness of layer at bottom of canopy.
     real(r8) :: fleaf                    ! fraction of cohort incepting area that is leaves.
     integer  :: ft                       ! Plant functional type index.
     integer  :: iv                       ! Vertical leaf layer index
     integer  :: cl                       ! Canopy layer index
+ 
     real(r8) :: fraction_exposed         ! how much of this layer is not covered by snow?
     real(r8) :: frac_canopy(N_HEIGHT_BINS) ! amount of canopy in each height class
     real(r8) :: minh(N_HEIGHT_BINS)        ! minimum height in height class (m)
@@ -1532,7 +1544,7 @@ contains
     real(r8) :: elai_layer,tlai_layer    ! leaf area per canopy area
     real(r8) :: esai_layer,tsai_layer    ! stem area per canopy area
     real(r8) :: vai_top,vai_bot          ! integrated top down veg area index at boundary of layer
-
+    real(r8) :: crown_depth              ! Current cohort's crown depth
     real(r8) :: layer_bottom_height,layer_top_height,lai,sai  ! Can be removed later
     !----------------------------------------------------------------------
 
@@ -1542,42 +1554,46 @@ contains
     ! leaf area index above it, irrespective of PFT identity...
     ! Each leaf is defined by how deep in the canopy it is, in terms of LAI units.  (FIX(RF,032414), GB)
 
-    currentPatch => currentSite%oldest_patch
-    do while(associated(currentPatch))
+    cpatch => currentSite%oldest_patch
+    do while(associated(cpatch))
+       
+       cpatch%nleaf(:,:) = 0
+       cpatch%canopy_layer_tlai(:)        = 0._r8
+       ! This routine updates the %nleaf array
+       call UpdatePatchLAI(cpatch)
+          
+          
+       ! This call assesses if the large, dynamically allocated
+       ! patch arrays need to be allocated for the first time,
+       ! or resized
+       call cpatch%ReAllocateDynamics()
 
-       ! --------------------------------------------------------------------------------
-       ! Calculate tree and canopy areas.
-       ! calculate tree lai and sai.
-       ! --------------------------------------------------------------------------------
+       ! These calls NaN and zero the above mentioned arrays
+       call cpatch%NanDynamics()
+       call cpatch%ZeroDynamics()
+       
+       cpatch%canopy_mask(:,:) = 0
 
-       currentPatch%canopy_layer_tlai(:)        = 0._r8
-       currentPatch%ncan(:,:)                   = 0
-       currentPatch%nrad(:,:)                   = 0
-       currentPatch%tlai_profile(:,:,:)         = 0._r8
-       currentPatch%tsai_profile(:,:,:)         = 0._r8
-       currentPatch%elai_profile(:,:,:)         = 0._r8
-       currentPatch%esai_profile(:,:,:)         = 0._r8
-       currentPatch%canopy_area_profile(:,:,:)  = 0._r8
-       currentPatch%canopy_mask(:,:)            = 0
+       ! TO-DO: NRAD HYPOTHETICALLY WOULDNT INCLUDE LAYERS
+       ! UNDER THE SNOW, BUT WE DONT REALLY USE IT TO FILTER
+       ! THEM OUT. CHECK THE CODE AND CONSIDER REMOVING NRAD
+       ! ALTOGETHER (RGK 05-2024)
+       cpatch%nrad(:,:) = cpatch%nleaf(:,:)
        
        ! ------------------------------------------------------------------------------
        ! It is remotely possible that in deserts we will not have any canopy
        ! area, ie not plants at all...
        ! ------------------------------------------------------------------------------
 
-       if_any_canopy_area: if (currentPatch%total_canopy_area > nearzero ) then
+       if_any_canopy_area: if (cpatch%total_canopy_area > nearzero ) then
 
-          call UpdatePatchLAI(currentPatch)
-
-          currentPatch%nrad(:,:) = currentPatch%ncan(:,:)
-          
           ! -----------------------------------------------------------------------------
           ! Standard canopy layering model.
           ! Go through all cohorts and add their leaf area
           ! and canopy area to the accumulators.
           ! -----------------------------------------------------------------------------
 
-          currentCohort => currentPatch%shortest
+          currentCohort => cpatch%shortest
           do while(associated(currentCohort))
              ft = currentCohort%pft
              cl = currentCohort%canopy_layer
@@ -1586,52 +1602,59 @@ contains
              ! How much of each tree is stem area index? Assuming that there is
              ! This may indeed be zero if there is a sensecent grass
              ! ----------------------------------------------------------------
+
              ! preserve_b4b will be removed soon. This is kept here to prevent
              ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
              if_preserve_b4b: if(preserve_b4b) then
-                lai = currentCohort%treelai * currentCohort%c_area/currentPatch%total_canopy_area
-                sai = currentCohort%treesai * currentCohort%c_area/currentPatch%total_canopy_area
+
+                lai = currentCohort%treelai * currentCohort%c_area/cpatch%total_canopy_area
+                sai = currentCohort%treesai * currentCohort%c_area/cpatch%total_canopy_area
                 if( (currentCohort%treelai+currentCohort%treesai) > nearzero)then
-                   
+
                    ! See issue: https://github.com/NGEET/fates/issues/899
                    ! fleaf = currentCohort%treelai / (currentCohort%treelai + currentCohort%treesai)
                    fleaf = lai / (lai+sai)
                 else
                    fleaf = 0._r8
                 endif
-                
-                currentPatch%nrad(cl,ft) = currentPatch%ncan(cl,ft)
-                
-                if (currentPatch%nrad(cl,ft) > nlevleaf ) then
+
+                cpatch%nrad(cl,ft) = cpatch%nleaf(cl,ft)
+
+                if (cpatch%nrad(cl,ft) > nlevleaf ) then
                    write(fates_log(), *) 'Number of radiative leaf layers is larger'
                    write(fates_log(), *) ' than the maximum allowed.'
                    write(fates_log(), *) ' cl: ',cl
                    write(fates_log(), *) ' ft: ',ft
                    write(fates_log(), *) ' nlevleaf: ',nlevleaf
-                   write(fates_log(), *) ' currentPatch%nrad(cl,ft): ', currentPatch%nrad(cl,ft)
+                   write(fates_log(), *) ' cpatch%nrad(cl,ft): ', cpatch%nrad(cl,ft)
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end if
-                
+
+                !---~---
+                !   Find current crown depth using the allometric function.
+                !---~---
+                call CrownDepth(currentCohort%height,currentCohort%pft,crown_depth)
+                !---~---
+
+
                 ! --------------------------------------------------------------------------
                 ! Whole layers.  Make a weighted average of the leaf area in each layer
                 ! before dividing it by the total area. Fill up layer for whole layers.
                 ! --------------------------------------------------------------------------
-                
+
                 do iv = 1,currentCohort%NV
-                   
+
                    ! This loop builds the arrays that define the effective (not snow covered)
                    ! and total (includes snow covered) area indices for leaves and stems
                    ! We calculate the absolute elevation of each layer to help determine if the layer
                    ! is obscured by snow.
-                   
+
                    layer_top_height = currentCohort%height - &
-                        ( real(iv-1,r8)/currentCohort%NV * currentCohort%height *  &
-                        prt_params%crown_depth_frac(currentCohort%pft) )
-                   
+                        ( real(iv-1,r8)/currentCohort%NV * crown_depth )
+
                    layer_bottom_height = currentCohort%height - &
-                        ( real(iv,r8)/currentCohort%NV * currentCohort%height * &
-                        prt_params%crown_depth_frac(currentCohort%pft) )
-                   
+                        ( real(iv,r8)/currentCohort%NV * crown_depth )
+
                    fraction_exposed = 1.0_r8
                    if(currentSite%snow_depth  > layer_top_height)then
                       fraction_exposed = 0._r8
@@ -1644,7 +1667,7 @@ contains
                       fraction_exposed =  1._r8 - max(0._r8,(min(1.0_r8,(currentSite%snow_depth -layer_bottom_height)/ &
                            (layer_top_height-layer_bottom_height ))))
                    endif
-                
+
                    if(iv==currentCohort%NV) then
                       remainder = (currentCohort%treelai + currentCohort%treesai) - &
                            (dlower_vai(iv) - dinc_vai(iv))
@@ -1652,37 +1675,37 @@ contains
                          write(fates_log(), *)'ED: issue with remainder', &
                               currentCohort%treelai,currentCohort%treesai,dinc_vai(iv), & 
                               currentCohort%NV,remainder
-                         
+
                          call endrun(msg=errMsg(sourcefile, __LINE__))
                       endif
                    else
                       remainder = dinc_vai(iv)
                    end if
-                   
-                   currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) + &
-                        remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   currentPatch%elai_profile(cl,ft,iv) = currentPatch%elai_profile(cl,ft,iv) + &
-                        remainder * fleaf * currentCohort%c_area/currentPatch%total_canopy_area * &
+
+                   cpatch%tlai_profile(cl,ft,iv) = cpatch%tlai_profile(cl,ft,iv) + &
+                        remainder * fleaf * currentCohort%c_area/cpatch%total_canopy_area
+
+                   cpatch%elai_profile(cl,ft,iv) = cpatch%elai_profile(cl,ft,iv) + &
+                        remainder * fleaf * currentCohort%c_area/cpatch%total_canopy_area * &
                         fraction_exposed
-                   
-                   currentPatch%tsai_profile(cl,ft,iv) = currentPatch%tsai_profile(cl,ft,iv) + &
-                        remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   currentPatch%esai_profile(cl,ft,iv) = currentPatch%esai_profile(cl,ft,iv) + &
-                        remainder * (1._r8 - fleaf) * currentCohort%c_area/currentPatch%total_canopy_area * &
+
+                   cpatch%tsai_profile(cl,ft,iv) = cpatch%tsai_profile(cl,ft,iv) + &
+                        remainder * (1._r8 - fleaf) * currentCohort%c_area/cpatch%total_canopy_area
+
+                   cpatch%esai_profile(cl,ft,iv) = cpatch%esai_profile(cl,ft,iv) + &
+                        remainder * (1._r8 - fleaf) * currentCohort%c_area/cpatch%total_canopy_area * &
                         fraction_exposed
-                   
-                   currentPatch%canopy_area_profile(cl,ft,iv) = currentPatch%canopy_area_profile(cl,ft,iv) + &
-                        currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   
+
+                   cpatch%canopy_area_profile(cl,ft,iv) = cpatch%canopy_area_profile(cl,ft,iv) + &
+                        currentCohort%c_area/cpatch%total_canopy_area
+
+
                 end do
-                
+
              else !if_preserve_b4b
-                
+
                 do iv = 1,currentCohort%NV
-                   
+
                    call VegAreaLayer(currentCohort%treelai,     &
                         currentCohort%treesai,                  &
                         currentCohort%height,                   &
@@ -1690,27 +1713,27 @@ contains
                         currentSite%snow_depth,                    &
                         vai_top,vai_bot,                          &
                         elai_layer,esai_layer,tlai_layer,tsai_layer)
-                   
-                   
-                   currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) + &
-                        tlai_layer * currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   currentPatch%elai_profile(cl,ft,iv) = currentPatch%elai_profile(cl,ft,iv) + &
-                        elai_layer * currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   currentPatch%tsai_profile(cl,ft,iv) = currentPatch%tsai_profile(cl,ft,iv) + &
-                        tsai_layer * currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   currentPatch%esai_profile(cl,ft,iv) = currentPatch%esai_profile(cl,ft,iv) + &
-                        esai_layer * currentCohort%c_area/currentPatch%total_canopy_area
-                   
-                   currentPatch%canopy_area_profile(cl,ft,iv) = currentPatch%canopy_area_profile(cl,ft,iv) + &
-                        currentCohort%c_area/currentPatch%total_canopy_area
-                   
+
+
+                   cpatch%tlai_profile(cl,ft,iv) = cpatch%tlai_profile(cl,ft,iv) + &
+                        tlai_layer * currentCohort%c_area/cpatch%total_canopy_area
+
+                   cpatch%elai_profile(cl,ft,iv) = cpatch%elai_profile(cl,ft,iv) + &
+                        elai_layer * currentCohort%c_area/cpatch%total_canopy_area
+
+                   cpatch%tsai_profile(cl,ft,iv) = cpatch%tsai_profile(cl,ft,iv) + &
+                        tsai_layer * currentCohort%c_area/cpatch%total_canopy_area
+
+                   cpatch%esai_profile(cl,ft,iv) = cpatch%esai_profile(cl,ft,iv) + &
+                        esai_layer * currentCohort%c_area/cpatch%total_canopy_area
+
+                   cpatch%canopy_area_profile(cl,ft,iv) = cpatch%canopy_area_profile(cl,ft,iv) + &
+                        currentCohort%c_area/cpatch%total_canopy_area
+
                 end do
-                
+
              end if if_preserve_b4b
-             
+
              currentCohort => currentCohort%taller
 
           enddo !cohort
@@ -1721,20 +1744,20 @@ contains
           ! should have a value of exactly 1.0 in its top leaf layer
           ! --------------------------------------------------------------------------
 
-          if ( (currentPatch%NCL_p > 1) .and. &
-               (sum(currentPatch%canopy_area_profile(1,:,1)) < 0.9999 )) then
+          if ( (cpatch%NCL_p > 1) .and. &
+               (sum(cpatch%canopy_area_profile(1,:,1)) < 0.9999 )) then
              write(fates_log(), *) 'FATES: canopy_area_profile was less than 1 at the canopy top'
              write(fates_log(), *) 'cl: ',1
              write(fates_log(), *) 'iv: ',1
              write(fates_log(), *) 'sum(cpatch%canopy_area_profile(1,:,1)): ', &
-                  sum(currentPatch%canopy_area_profile(1,:,1))
-             currentCohort => currentPatch%shortest
+                  sum(cpatch%canopy_area_profile(1,:,1))
+             currentCohort => cpatch%shortest
              do while(associated(currentCohort))
                 if(currentCohort%canopy_layer==1)then
                    write(fates_log(), *) 'FATES: cohorts',currentCohort%dbh,currentCohort%c_area, &
-                        currentPatch%total_canopy_area,currentPatch%area
+                        cpatch%total_canopy_area,cpatch%area
                    write(fates_log(), *) 'ED: fracarea', currentCohort%pft, &
-                        currentCohort%c_area/currentPatch%total_canopy_area
+                        currentCohort%c_area/cpatch%total_canopy_area
                 endif
                 currentCohort => currentCohort%taller
              enddo !currentCohort
@@ -1754,24 +1777,24 @@ contains
           ! It should never be larger than 1 or less than 0.
           ! --------------------------------------------------------------------------
 
-          do cl = 1,currentPatch%NCL_p
-             do iv = 1,currentPatch%ncan(cl,ft)
+          do cl = 1,cpatch%NCL_p
+             do iv = 1,cpatch%nleaf(cl,ft)
 
-                if( debug .and. sum(currentPatch%canopy_area_profile(cl,:,iv)) > 1.0001_r8 ) then
+                if( debug .and. sum(cpatch%canopy_area_profile(cl,:,iv)) > 1.0001_r8 ) then
 
                    write(fates_log(), *) 'FATES: A canopy_area_profile exceeded 1.0'
                    write(fates_log(), *) 'cl: ',cl
                    write(fates_log(), *) 'iv: ',iv
                    write(fates_log(), *) 'sum(cpatch%canopy_area_profile(cl,:,iv)): ', &
-                        sum(currentPatch%canopy_area_profile(cl,:,iv))
-                   currentCohort => currentPatch%shortest
+                        sum(cpatch%canopy_area_profile(cl,:,iv))
+                   currentCohort => cpatch%shortest
                    do while(associated(currentCohort))
                       if(currentCohort%canopy_layer==cl)then
                          write(fates_log(), *) 'FATES: cohorts in layer cl = ',cl, &
                               currentCohort%dbh,currentCohort%c_area, &
-                              currentPatch%total_canopy_area,currentPatch%area
+                              cpatch%total_canopy_area,cpatch%area
                          write(fates_log(), *) 'ED: fracarea', currentCohort%pft, &
-                              currentCohort%c_area/currentPatch%total_canopy_area
+                              currentCohort%c_area/cpatch%total_canopy_area
                       endif
                       currentCohort => currentCohort%taller
                    enddo !currentCohort
@@ -1780,21 +1803,21 @@ contains
              end do
 
              do ft = 1,numpft
-                do iv = 1,currentPatch%ncan(cl,ft)
+                do iv = 1,cpatch%nleaf(cl,ft)
 
-                   if( currentPatch%canopy_area_profile(cl,ft,iv) > nearzero ) then
+                   if( cpatch%canopy_area_profile(cl,ft,iv) > nearzero ) then
 
-                      currentPatch%tlai_profile(cl,ft,iv) = currentPatch%tlai_profile(cl,ft,iv) / &
-                           currentPatch%canopy_area_profile(cl,ft,iv)
+                      cpatch%tlai_profile(cl,ft,iv) = cpatch%tlai_profile(cl,ft,iv) / &
+                           cpatch%canopy_area_profile(cl,ft,iv)
 
-                      currentPatch%tsai_profile(cl,ft,iv) = currentPatch%tsai_profile(cl,ft,iv) / &
-                           currentPatch%canopy_area_profile(cl,ft,iv)
+                      cpatch%tsai_profile(cl,ft,iv) = cpatch%tsai_profile(cl,ft,iv) / &
+                           cpatch%canopy_area_profile(cl,ft,iv)
 
-                      currentPatch%elai_profile(cl,ft,iv) = currentPatch%elai_profile(cl,ft,iv) / &
-                           currentPatch%canopy_area_profile(cl,ft,iv)
+                      cpatch%elai_profile(cl,ft,iv) = cpatch%elai_profile(cl,ft,iv) / &
+                           cpatch%canopy_area_profile(cl,ft,iv)
 
-                      currentPatch%esai_profile(cl,ft,iv) = currentPatch%esai_profile(cl,ft,iv) / &
-                           currentPatch%canopy_area_profile(cl,ft,iv)
+                      cpatch%esai_profile(cl,ft,iv) = cpatch%esai_profile(cl,ft,iv) / &
+                           cpatch%canopy_area_profile(cl,ft,iv)
                    end if
 
                 enddo
@@ -1810,23 +1833,23 @@ contains
           !      Leaving this for the time being.
           ! --------------------------------------------------------------------------
           
-          currentPatch%canopy_mask(:,:) = 0
+          cpatch%canopy_mask(:,:) = 0
           ! preserve_b4b will be removed soon. This is kept here to prevent
           ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
           if(preserve_b4b) then
-             do cl = 1,currentPatch%NCL_p
+             do cl = 1,cpatch%NCL_p
                 do ft = 1,numpft
-                   do  iv = 1, currentPatch%nrad(cl,ft)
-                      if(currentPatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
-                         currentPatch%canopy_mask(cl,ft) = 1
+                   do  iv = 1, cpatch%nrad(cl,ft)
+                      if(cpatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
+                         cpatch%canopy_mask(cl,ft) = 1
                       endif
                    end do !iv
                 end do
              end do
           else
-             do cl = 1,currentPatch%NCL_p
+             do cl = 1,cpatch%NCL_p
                 do ft = 1,numpft
-                   if(currentPatch%canopy_area_profile(cl,ft,1) > 0._r8 ) currentPatch%canopy_mask(cl,ft) = 1
+                   if(cpatch%canopy_area_profile(cl,ft,1) > 0._r8 ) cpatch%canopy_mask(cl,ft) = 1
                 end do
              end do
           end if
@@ -1834,10 +1857,11 @@ contains
              
        end if if_any_canopy_area
 
-       currentPatch => currentPatch%younger
-
+       cpatch => cpatch%younger
     enddo !patch
 
+    
+    
     return
   end subroutine leaf_area_profile
 
@@ -1873,7 +1897,6 @@ contains
     
     do s = 1,nsites
 
-       ifp = 0
        total_patch_area = 0._r8
        total_canopy_area = 0._r8
        bc_out(s)%canopy_fraction_pa(:) = 0._r8
@@ -1885,9 +1908,8 @@ contains
        c = fcolumn(s)
        do while(associated(currentPatch))
 
-          if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
-
-             ifp = ifp+1
+          ifp = currentPatch%patchno
+          if_bare: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
 
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
                 if(debug)then
@@ -2005,7 +2027,7 @@ contains
 
              total_patch_area = total_patch_area + currentPatch%area/AREA
 
-          end if
+          end if if_bare
           currentPatch => currentPatch%younger
        end do
 
@@ -2025,13 +2047,11 @@ contains
           end if
 
           currentPatch => sites(s)%oldest_patch
-          ifp = 0
           do while(associated(currentPatch))
+             ifp = currentPatch%patchno
              if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then ! for vegetated patches only
-                ifp = ifp+1
                 bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
              endif ! veg patch
-
              currentPatch => currentPatch%younger
           end do
 
@@ -2181,27 +2201,27 @@ contains
    type(fates_cohort_type), pointer :: currentCohort
    integer  :: cl                                  ! Canopy layer index
    integer  :: ft                                  ! Plant functional type index
-
+   
    ! Calculate LAI of layers above.  Because it is possible for some understory cohorts
    ! to be taller than cohorts in the top canopy layer, we must iterate through the 
    ! patch by canopy layer first.  Given that canopy_layer_tlai is a patch level variable
    ! we could iterate through each cohort in any direction as long as we go down through
    ! the canopy layers.
-   
+
    canopyloop: do cl = 1,nclmax
       currentCohort => currentPatch%tallest
       cohortloop: do while(associated(currentCohort))
 
          ! Only update the current cohort tree lai if lai of the above layers have been calculated
          if (currentCohort%canopy_layer .eq. cl) then
-            ft     = currentCohort%pft
             
+            ft     = currentCohort%pft
             ! Update the cohort level lai and related variables
             call UpdateCohortLAI(currentCohort,currentPatch%canopy_layer_tlai,  &
                  currentPatch%total_canopy_area)
             
             ! Update the number of number of vegetation layers
-            currentPatch%ncan(cl,ft) = max(currentPatch%ncan(cl,ft),currentCohort%NV)
+            currentPatch%nleaf(cl,ft) = max(currentPatch%nleaf(cl,ft),currentCohort%NV)
 
             ! Update the patch canopy layer tlai (LAI per canopy area)
             currentPatch%canopy_layer_tlai(cl) = currentPatch%canopy_layer_tlai(cl) +  &
@@ -2221,7 +2241,7 @@ contains
    ! Update LAI and related variables for a given cohort
    
    ! Uses
-   use EDParamsMod, only : dlower_vai
+   use EDParamsMod, only : dlower_vai, dinc_vai
    
    ! Arguments
    type(fates_cohort_type),intent(inout), target   :: currentCohort
@@ -2230,26 +2250,30 @@ contains
    
    ! Local variables
    real(r8) :: leaf_c                              ! leaf carbon [kg]
-      
+   real(r8) :: treesai                             ! stem area index within crown m2/m2
+   
    ! Obtain the leaf carbon
    leaf_c = currentCohort%prt%GetState(leaf_organ,carbon12_element)
 
-   
-   ! Note that tree_lai has an internal check on the canopy locatoin
-   currentCohort%treelai = tree_lai(leaf_c, currentCohort%pft, currentCohort%c_area, &
-        currentCohort%n, currentCohort%canopy_layer,               &
-        canopy_layer_tlai,currentCohort%vcmax25top )
- 
-   if (hlm_use_sp .eq. ifalse) then
-      currentCohort%treesai = tree_sai(currentCohort%pft, currentCohort%dbh, currentCohort%crowndamage, &
-                                       currentCohort%canopy_trim, currentCohort%efstem_coh, &
-                                       currentCohort%c_area, currentCohort%n, currentCohort%canopy_layer, &
-                                       canopy_layer_tlai, currentCohort%treelai , &
-                                       currentCohort%vcmax25top,4)
-   end if
+   ! Note that tree_lai has an internal check on the canopy location
+   call  tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n,           &
+          currentCohort%canopy_layer, canopy_layer_tlai, currentCohort%vcmax25top, currentCohort%dbh, currentCohort%crowndamage,          &
+          currentCohort%canopy_trim, currentCohort%efstem_coh, 4, currentCohort%treelai, treesai )
 
+   ! Do not update stem area index of SP vegetation
+   if (hlm_use_sp .eq. ifalse) then
+      currentCohort%treesai = treesai
+   end if
+   
    ! Number of actual vegetation layers in this cohort's crown
    currentCohort%nv =  count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
+
+   if( currentCohort%nv .ne. minloc(dlower_vai, DIM=1, MASK=(dlower_vai>(currentCohort%treelai+currentCohort%treesai))) ) then
+      write(fates_log(),*) 'We use two methods of finding maximum leaf layers, and they are not equivalent'
+      write(fates_log(),*) 'count method:',currentCohort%nv
+      write(fates_log(),*) 'minloc method:',minloc(dlower_vai, DIM=1, MASK=(dlower_vai>(currentCohort%treelai+currentCohort%treesai)))
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+   end if
    
   end subroutine UpdateCohortLAI
   

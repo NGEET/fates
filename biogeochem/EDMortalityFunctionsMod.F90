@@ -12,7 +12,6 @@ module EDMortalityFunctionsMod
    use FatesCohortMod        , only : fates_cohort_type
    use EDTypesMod            , only : ed_site_type
    use EDParamsMod,            only : maxpft
-   use EDParamsMod           , only : mort_cstarvation_model
    use FatesConstantsMod     , only : itrue,ifalse
    use FatesConstantsMod     , only : cstarvation_model_lin
    use FatesConstantsMod     , only : cstarvation_model_exp
@@ -29,7 +28,7 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_use_tree_damage
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
-
+   use FatesConstantsMod     , only : n_landuse_cats
    use PRTGenericMod,          only : carbon12_element
    use PRTGenericMod,          only : store_organ
    use PRTParametersMod      , only : prt_params
@@ -68,6 +67,7 @@ contains
     use FatesConstantsMod,      only : fates_check_param_set
     use DamageMainMod,          only : GetDamageMortality
     use EDParamsmod,            only : soil_tfrz_thresh
+    use FatesInterfaceTypesMod, only : hlm_mort_cstarvation_model
     
     type (fates_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
@@ -204,7 +204,7 @@ contains
           call storage_fraction_of_target(target_leaf_c, store_c, frac)
 
           ! Select the carbon starvation mortality model (linear or exponential)s.
-          select case (mort_cstarvation_model)
+          select case (hlm_mort_cstarvation_model)
           case (cstarvation_model_lin)
              ! Linear model. Carbon starvation mortality will be zero when fraction of
              ! storage is greater than or equal to mort_upthresh_cstarvation, and will
@@ -223,7 +223,7 @@ contains
 
           case default
               write(fates_log(),*) &
-                 'Invalid carbon starvation model (',mort_cstarvation_model,').'
+                 'Invalid carbon starvation model (',hlm_mort_cstarvation_model,').'
               call endrun(msg=errMsg(sourcefile, __LINE__))
           end select
 
@@ -281,7 +281,7 @@ contains
 
  subroutine Mortality_Derivative( currentSite, currentCohort, bc_in, btran_ft, &
       mean_temp, land_use_label, age_since_anthro_disturbance,       &
-      frac_site_primary, harvestable_forest_c, harvest_tag)
+      current_fates_landuse_state_vector, harvestable_forest_c, harvest_tag)
 
     !
     ! !DESCRIPTION:
@@ -300,8 +300,8 @@ contains
     real(r8),         intent(in)               :: mean_temp
     integer,          intent(in)               :: land_use_label
     real(r8),         intent(in)               :: age_since_anthro_disturbance
-    real(r8),         intent(in)               :: frac_site_primary
-
+    real(r8),         intent(in)               :: current_fates_landuse_state_vector(n_landuse_cats)
+    
     real(r8), intent(in) :: harvestable_forest_c(:)   ! total carbon available for logging, kgC site-1
     integer, intent(out) :: harvest_tag(:)    ! tag to record the harvest status
                                               ! for the calculation of harvest debt in C-based
@@ -329,7 +329,7 @@ contains
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
     call mortality_rates(currentCohort,bc_in,btran_ft, mean_temp,              &
       cmort,hmort,bmort,frmort, smort, asmort, dgmort)
-    call LoggingMortality_frac(ipft, currentCohort%dbh, currentCohort%canopy_layer, &
+    call LoggingMortality_frac(currentSite, bc_in, ipft, currentCohort%dbh, currentCohort%canopy_layer, &
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
                                currentCohort%lmort_infra,                        &
@@ -339,7 +339,7 @@ contains
                                bc_in%hlm_harvest_units, &
                                land_use_label, &
                                age_since_anthro_disturbance, &
-                               frac_site_primary, harvestable_forest_c, harvest_tag)
+                               current_fates_landuse_state_vector, harvestable_forest_c, harvest_tag)
 
     if (currentCohort%canopy_layer > 1)then 
        ! Include understory logging mortality rates not associated with disturbance

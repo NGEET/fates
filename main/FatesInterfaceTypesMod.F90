@@ -90,7 +90,7 @@ module FatesInterfaceTypesMod
                                                  ! between the pedotransfer functions of the HLM
                                                  ! and how it moves and stores water in its
                                                  ! rhizosphere shells
-   
+
    integer, public :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
                                                    ! Transport (exensible) Hypothesis (PARTEH) to use
 
@@ -124,6 +124,8 @@ module FatesInterfaceTypesMod
                                                          ! bc_in%hlm_harvest_rates and bc_in%hlm_harvest_catnames
 
    integer, public :: hlm_use_luh                   ! flag to signal whether or not to use luh2 drivers
+   integer, public :: hlm_use_potentialveg          ! flag to signal whether or not to use potential vegetation only
+                                                    ! (i.e., no land use and instead force all lands to be primary)
    integer, public :: hlm_num_luh2_states           ! number of land use state types provided in LUH2 forcing dataset
 
    integer, public :: hlm_num_luh2_transitions      ! number of land use transition types provided in LUH2 forcing dataset
@@ -155,7 +157,48 @@ module FatesInterfaceTypesMod
 
    integer, public :: hlm_use_tree_damage         ! This flag signals whether or not to turn on the
                                                   ! tree damage module
+
+   integer, public :: hlm_daylength_factor_switch ! This switch enables the use of the daylength factor from the HLM
+                                                  ! 1 = TRUE, 0 = FALSE
+
+   integer, public :: hlm_hydr_solver             ! Switch that defines which hydraulic solver to use
+                                                  ! 1 = Taylor solution that solves plant fluxes with 1 layer
+                                                  !     sequentially placing solution on top of previous layer solves
+                                                  ! 2 = Picard solution that solves all fluxes in a plant and
+                                                  !     the soil simultaneously, 2D: soil x (root + shell)
+                                                  ! 3 = Newton-Raphson (Deprecated) solution that solves all fluxes in a plant and
+                                                  !     the soil simultaneously, 2D: soil x (root + shell)
+
+   integer, public :: hlm_photo_tempsens_model    ! switch for choosing the model that defines the temperature
+                                                  ! sensitivity of photosynthetic parameters (vcmax, jmax).
+                                                  ! 0=non-acclimating, 1=Kumarathunge et al., 2019
+
+   integer, public :: hlm_stomatal_assim_model    ! Switch designating whether to use net or gross assimilation in the stomata model
+                                                  ! 1 for net, 2 for gross
+
+   integer, public :: hlm_stomatal_model          ! switch for choosing between stomatal conductance models
+                                                  ! 1 for Ball-Berry, 2 for Medlyn
+
+   integer, public :: hlm_maintresp_leaf_model    ! switch for choosing between leaf maintenance
+                                                  ! respiration model. 1=Ryan (1991), 2=Atkin et al (2017)
+
+   integer, public :: hlm_mort_cstarvation_model  ! Switch for carbon starvation mortality:
+                                                  ! 1 -- Linear model
+                                                  ! 2 -- Exponential model
+
+   integer, public :: hlm_radiation_model         ! Switch for radiation model
+                                                  ! Norman (1) and Two-stream (2)
+
+   integer, public :: hlm_electron_transport_model ! Switch for electron transport model
+                                                   ! (1) for Farquhar von Caemmerer & Berry  (FvCB)
+                                                   ! (2) for Johnson & Berry (2021) (JB) 
    
+   
+   integer, public :: hlm_regeneration_model      ! Switch for choosing between regeneration models:
+                                                  ! (1) for Fates default
+                                                  ! (2) for the Tree Recruitment Scheme (Hanbury-Brown et al., 2022)
+                                                  ! (3) for the Tree Recruitment Scheme without seedling dynamics
+
    integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
                                                   ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                   ! Essentially, this gives us the ability
@@ -198,6 +241,18 @@ module FatesInterfaceTypesMod
   integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
                                                                     !  1 = TRUE, 0 = FALSE
 
+  
+  ! Flag specifying what types of history fields to allocate and prepare
+  ! The "_dynam" refers to history fields that can be updated on the dynamics (daily) step
+  ! THe "_hifrq" refers to history fields that can be updated on the model (high-frequency) step
+  ! 0 = no output
+  ! 1 = site-level averages only
+  ! 2 = allow the second dimension
+  
+  integer, public :: hlm_hist_level_dynam                           
+                                                                    
+  integer, public :: hlm_hist_level_hifrq
+  
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
@@ -228,7 +283,7 @@ module FatesInterfaceTypesMod
    ! dataset than the number of PFTs in FATES, we have to allocate with
    ! the prior so that we can hold the LAI data
    integer, public :: fates_maxPatchesPerSite
-   
+
    integer, public :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
                                                            ! competitors that will be generated on each site
    
@@ -467,17 +522,10 @@ module FatesInterfaceTypesMod
 
       ! Canopy Radiation Boundaries
       ! ---------------------------------------------------------------------------------
+
+      ! Cosine of the zenith angle (0-1) - site level
+      real(r8) :: coszen
       
-      ! Filter for vegetation patches with a positive zenith angle (daylight)
-      logical, allocatable :: filter_vegzen_pa(:)
-
-      ! Cosine of the zenith angle (0-1), by patch
-      ! Note RGK: It does not seem like the code would currently generate
-      !           different zenith angles for different patches (nor should it)
-      !           I am leaving it at this scale for simplicity.  Patches should
-      !           have no spacially variable information
-      real(r8), allocatable :: coszen_pa(:)
-
       ! fraction of canopy that is covered in snow
       real(r8), allocatable :: fcansno_pa(:)
        
@@ -560,7 +608,12 @@ module FatesInterfaceTypesMod
       real(r8) :: site_area    ! Actual area of current site [m2], only used in carbon-based harvest
 
       ! Fixed biogeography mode 
-      real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
+      real(r8), allocatable :: pft_areafrac(:)          ! Fractional area of the FATES column occupied by each PFT
+
+      ! Fixed biogeography mode with land use active
+      real(r8), allocatable :: pft_areafrac_lu(:,:)     ! Fractional area occupied by each PFT on each land use type
+      real(r8) :: baregroundfrac                        ! fractional area held as bare-ground
+
     
      ! Satellite Phenology (SP) input variables.  (where each patch only has one PFT)
      ! ---------------------------------------------------------------------------------
@@ -610,6 +663,9 @@ module FatesInterfaceTypesMod
 
       ! Canopy Radiation Boundaries
       ! ---------------------------------------------------------------------------------
+
+      ! Note: We initialize and default the radiatioon balance to assume that the
+      ! canopy is invisible, and the soil absorbs all radiation.
       
       ! Surface albedo (direct) (HLMs use this for atm coupling and balance checks)
       real(r8), allocatable :: albd_parb(:,:)

@@ -19,7 +19,6 @@ module FatesInterfaceMod
    use EDParamsMod               , only : maxpatches_by_landuse
    use EDParamsMod               , only : max_cohort_per_patch
    use FatesRadiationMemMod      , only : num_swb,ivis,inir
-   use EDParamsMod               , only : regeneration_model
    use EDParamsMod               , only : nclmax
    use EDParamsMod               , only : nlevleaf
    use EDParamsMod               , only : maxpft
@@ -41,6 +40,9 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : n_landuse_cats
    use FatesConstantsMod         , only : primaryland
    use FatesConstantsMod         , only : secondaryland
+   use FatesConstantsMod         , only : n_crop_lu_types
+   use FatesConstantsMod         , only : n_term_mort_types
+   use FatesConstantsMod         , only : nocomp_bareground
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -69,6 +71,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
    use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
    use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
+   use FatesLeafBiophysParamsMod , only : LeafBiophysRegisterParams, LeafBiophysReceiveParams,LeafBiophysReportParams
    use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
    use EDParamsMod               , only : p_uptake_mode
    use EDParamsMod               , only : n_uptake_mode
@@ -109,6 +112,7 @@ module FatesInterfaceMod
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
    use FatesTwoStreamUtilsMod, only : TransferRadParams
+   use LeafBiophysicsMod         , only : lb_params
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -289,8 +293,6 @@ contains
     fates%bc_in(s)%watsat_sl(:)        = 0.0_r8
     fates%bc_in(s)%tempk_sl(:)         = 0.0_r8
     fates%bc_in(s)%h2o_liqvol_sl(:)    = 0.0_r8
-    fates%bc_in(s)%filter_vegzen_pa(:) = .false.
-    fates%bc_in(s)%coszen_pa(:)        = 0.0_r8
     fates%bc_in(s)%fcansno_pa(:)       = 0.0_r8
     fates%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
     fates%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
@@ -371,13 +373,13 @@ contains
     fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
     fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
     
-    fates%bc_out(s)%albd_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%albi_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%ftdd_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%ftid_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%ftii_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%albd_parb(:,:) = 0.0_r8   ! zero albedo, soil absorbs all rad
+    fates%bc_out(s)%albi_parb(:,:) = 0.0_r8   ! zero albedo, soil absorbs all rad
+    fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
+    fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
+    fates%bc_out(s)%ftdd_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftid_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftii_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
     
     fates%bc_out(s)%elai_pa(:)   = 0.0_r8
     fates%bc_out(s)%esai_pa(:)   = 0.0_r8
@@ -416,7 +418,7 @@ contains
   ! ===========================================================================
 
   subroutine allocate_bcin(bc_in, nlevsoil_in, nlevdecomp_in, num_lu_harvest_cats, num_luh2_states, &
-       num_luh2_transitions, natpft_lb,natpft_ub)
+       num_luh2_transitions, surfpft_lb,surfpft_ub)
       
       ! ---------------------------------------------------------------------------------
       ! Allocate and Initialze the FATES boundary condition vectors
@@ -429,7 +431,7 @@ contains
       integer,intent(in)              :: num_lu_harvest_cats
       integer,intent(in)              :: num_luh2_states
       integer,intent(in)              :: num_luh2_transitions
-      integer,intent(in)              :: natpft_lb,natpft_ub ! dimension bounds of the array holding surface file pft data
+      integer,intent(in)              :: surfpft_lb,surfpft_ub ! dimension bounds of the array holding surface file pft data
       
       ! Allocate input boundaries
 
@@ -529,8 +531,7 @@ contains
       allocate(bc_in%t_soisno_sl(nlevsoil_in))
 
       ! Canopy Radiation
-      allocate(bc_in%filter_vegzen_pa(maxpatch_total))
-      allocate(bc_in%coszen_pa(maxpatch_total))
+      bc_in%coszen = nan
       allocate(bc_in%fcansno_pa(maxpatch_total))
       allocate(bc_in%albgr_dir_rb(num_swb))
       allocate(bc_in%albgr_dif_rb(num_swb))
@@ -562,7 +563,13 @@ contains
          allocate(bc_in%hlm_harvest_catnames(0))
       end if
 
-      allocate(bc_in%pft_areafrac(natpft_lb:natpft_ub))
+      if ( hlm_use_fixed_biogeog .eq. itrue) then
+         if (hlm_use_luh .eq. itrue ) then
+            allocate(bc_in%pft_areafrac_lu(size( EDPftvarcon_inst%hlm_pft_map,2),n_landuse_cats-n_crop_lu_types))
+         else
+            allocate(bc_in%pft_areafrac(surfpft_lb:surfpft_ub))
+         endif
+      endif
 
       ! LUH2 state and transition data
       if (hlm_use_luh .eq. itrue) then
@@ -574,10 +581,11 @@ contains
 
       ! Variables for SP mode. 
       if(hlm_use_sp.eq.itrue) then
-        allocate(bc_in%hlm_sp_tlai(natpft_lb:natpft_ub))
-        allocate(bc_in%hlm_sp_tsai(natpft_lb:natpft_ub))     
-        allocate(bc_in%hlm_sp_htop(natpft_lb:natpft_ub))
-      end if 
+        allocate(bc_in%hlm_sp_tlai(surfpft_lb:surfpft_ub))
+        allocate(bc_in%hlm_sp_tsai(surfpft_lb:surfpft_ub))
+        allocate(bc_in%hlm_sp_htop(surfpft_lb:surfpft_ub))
+     end if
+
       return
    end subroutine allocate_bcin
 
@@ -610,6 +618,8 @@ contains
       allocate(bc_out%rssha_pa(maxpatch_total))
       
       ! Canopy Radiation
+
+     
       allocate(bc_out%albd_parb(maxpatch_total,num_swb))
       allocate(bc_out%albi_parb(maxpatch_total,num_swb))
       allocate(bc_out%fabd_parb(maxpatch_total,num_swb))
@@ -617,7 +627,6 @@ contains
       allocate(bc_out%ftdd_parb(maxpatch_total,num_swb))
       allocate(bc_out%ftid_parb(maxpatch_total,num_swb))
       allocate(bc_out%ftii_parb(maxpatch_total,num_swb))
-
 
       ! We allocate the boundary conditions to the BGC
       ! model, regardless of what scheme we use. The BGC
@@ -766,8 +775,9 @@ contains
       integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
       integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
       class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
-  
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
+
+      logical, parameter :: preserve_b4b = .true.
       
       if (use_fates) then
          
@@ -785,7 +795,7 @@ contains
             maxpatches_by_landuse(primaryland)   = fates_numpft
             maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
             maxpatch_total     = fates_numpft
-            
+
             ! If this is an SP run, we actually need enough patches on the
             ! CLM/ELM side of the code to hold the LAI data.  This
             ! number may be larger than what fates requires.  Of course
@@ -794,24 +804,29 @@ contains
             ! maxpatch_total does not include the bare ground (so add 1)
             
             fates_maxPatchesPerSite = max(surf_numpft+surf_numcft,maxpatch_total+1)
-
          else
 
             ! If we are using fixed biogeography or no-comp then we
             ! can also apply those constraints to maxpatch_primaryland and secondary
             ! and that value will match fates_maxPatchesPerSite
-            
-            if(hlm_use_nocomp==itrue) then
+            if_preserve_b4b: if(.not.preserve_b4b)then
 
-               maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
+               if(hlm_use_luh==ifalse) then
+                  maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
+               end if
+
                maxpatch_total = sum(maxpatches_by_landuse(:))
-
-               !if(maxpatch_primary<fates_numpft)then
-               !   write(fates_log(),*) 'warning: lower number of patches than pfts'
-               !   write(fates_log(),*) 'this may become a problem in nocomp mode'
-               !end if
-            end if
-
+                  
+            else
+            
+               if(hlm_use_nocomp==itrue) then
+                  
+                  maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
+                  maxpatch_total = sum(maxpatches_by_landuse(:))
+               end if
+               
+            end if if_preserve_b4b
+               
             ! maxpatch_total does not include the bare ground (so add 1)
             fates_maxPatchesPerSite = maxpatch_total+1
             
@@ -831,7 +846,7 @@ contains
       !
       ! --------------------------------------------------------------------------------
 
-      use FatesConstantsMod,      only : fates_check_param_set
+      use FatesConstantsMod,      only : fates_check_param_set, min_vai_bin_sum
 
       logical,intent(in) :: use_fates    ! Is fates turned on?
       integer :: i
@@ -877,7 +892,7 @@ contains
          end if
          
          fates_maxElementsPerSite = max(fates_maxPatchesPerSite * fates_maxElementsPerPatch, &
-              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft)
+              numWatermem*numpft, num_vegtemp_mem, num_elements, nlevsclass*numpft*n_term_mort_types)
 
          if(hlm_use_planthydro==itrue)then
             fates_maxElementsPerSite = max(fates_maxElementsPerSite, nshell*nlevsoi_hyd_max )
@@ -923,6 +938,20 @@ contains
             dinc_vai(i) = ED_val_vai_top_bin_width * ED_val_vai_width_increase_factor ** (i-1)
          end do
 
+         if (sum(dinc_vai) < min_vai_bin_sum ) then
+            write(fates_log(), *) 'You specified LAI+SAI bins that add up to a number'
+            write(fates_log(), *) 'that is not reasonably large enough to encapsulate in-canopy'
+            write(fates_log(), *) 'total area indices for large mature trees'
+            write(fates_log(), *) 'sum of vai increments sum(dinc_vai) = ',sum(dinc_vai)
+            write(fates_log(), *) 'minimum allowable user set vai, min_vai_bin_sum = ',min_vai_bin_sum
+            write(fates_log(), *) 'Increase either the top bin width fates_vai_top_bin_width'
+            write(fates_log(), *) 'or the increase factor fates_vai_width_increase_factor'
+            write(fates_log(), *) 'as found in the parameter file.'
+            write(fates_log(), *) 'Or, you can decrease the minimum if you believe its too large'
+            write(fates_log(), *) 'but that is not recommended in most cases.'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
          ! lower edges of VAI bins       
          do i = 1,nlevleaf
             dlower_vai(i) = sum(dinc_vai(1:i))
@@ -1114,7 +1143,7 @@ contains
     
     subroutine fates_history_maps
        
-       use FatesLitterMod, only : NFSC
+       use FatesFuelClassesMod, only : num_fuel_classes
        use EDParamsMod, only : nclmax
        use EDParamsMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
@@ -1149,7 +1178,7 @@ contains
        allocate( fates_hdim_scmap_levscpf(1:nlevsclass*numpft))
        allocate( fates_hdim_levpft(1:numpft   ))
        allocate( fates_hdim_levlanduse(1:n_landuse_cats))
-       allocate( fates_hdim_levfuel(1:NFSC   ))
+       allocate( fates_hdim_levfuel(1:num_fuel_classes   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
        allocate( fates_hdim_levheight(1:nlevheight   ))
@@ -1172,8 +1201,8 @@ contains
        allocate( fates_hdim_pftmap_levscagpft(nlevsclass * nlevage * numpft))
        allocate( fates_hdim_agmap_levagepft(nlevage * numpft))
        allocate( fates_hdim_pftmap_levagepft(nlevage * numpft))
-       allocate( fates_hdim_agmap_levagefuel(nlevage * nfsc))
-       allocate( fates_hdim_fscmap_levagefuel(nlevage * nfsc))
+       allocate( fates_hdim_agmap_levagefuel(nlevage * num_fuel_classes))
+       allocate( fates_hdim_fscmap_levagefuel(nlevage * num_fuel_classes))
 
        allocate( fates_hdim_elmap_levelpft(num_elements*numpft))
        allocate( fates_hdim_elmap_levelcwd(num_elements*ncwd))
@@ -1203,7 +1232,7 @@ contains
        end do
 
        ! make fuel array
-       do ifuel=1,NFSC
+       do ifuel=1,num_fuel_classes
           fates_hdim_levfuel(ifuel) = ifuel
        end do
 
@@ -1348,7 +1377,7 @@ contains
 
        i=0
        do iage=1,nlevage
-          do ifuel=1,NFSC
+          do ifuel=1,num_fuel_classes
              i=i+1
              fates_hdim_agmap_levagefuel(i) = iage
              fates_hdim_fscmap_levagefuel(i) = ifuel
@@ -1466,6 +1495,16 @@ contains
          hlm_num_luh2_states       = unset_int
          hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
+         hlm_daylength_factor_switch = unset_int
+         hlm_photo_tempsens_model = unset_int
+         hlm_stomatal_assim_model = unset_int
+         hlm_stomatal_model = unset_int
+         hlm_hydr_solver = unset_int
+         hlm_maintresp_leaf_model = unset_int
+         hlm_mort_cstarvation_model = unset_int
+         hlm_radiation_model = unset_int
+         hlm_electron_transport_model = unset_int
+         hlm_regeneration_model = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
          hlm_use_ed_prescribed_phys = unset_int
@@ -1474,7 +1513,10 @@ contains
          hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
+         hlm_hist_level_dynam = unset_int
+         hlm_hist_level_hifrq = unset_int
 
+         
       case('check_allset')
          
          if(hlm_numSWb .eq. unset_int) then
@@ -1674,6 +1716,16 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_hist_level_dynam .eq. unset_int) then
+            write(fates_log(), *) 'switch defining dynamics history level is unset, hlm_hist_level_dynam, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+          if(hlm_hist_level_hifrq .eq. unset_int) then
+            write(fates_log(), *) 'switch defining high-frequency history level is unset, hlm_hist_level_hifrq, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+
          if(hlm_use_ch4 .eq. unset_int) then
             write(fates_log(), *) 'switch for the HLMs CH4 module unset: hlm_use_ch4, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1734,6 +1786,56 @@ contains
 
          if(hlm_use_cohort_age_tracking .eq. unset_int) then
             write(fates_log(), *) 'switch for cohort_age_tracking  unset: hlm_use_cohort_age_tracking, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_daylength_factor_switch .eq. unset_int) then
+            write(fates_log(), *) 'use daylength factor switch is unset: hlm_daylength_factor_switch, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_photo_tempsens_model .eq. unset_int) then
+            write(fates_log(), *) 'photosynthetic acclimation model is unset: hlm_photo_tempsens_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_stomatal_assim_model .eq. unset_int) then
+            write(fates_log(), *) 'stomatal model assimilation mode is unset: hlm_stomatal_assim_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_stomatal_model .eq. unset_int) then
+            write(fates_log(), *) 'stomatal model conductance is unset: hlm_stomatal_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_hydr_solver .eq. unset_int) then
+            write(fates_log(), *) 'FATES hydro solver is unset: hlm_hydr_solver, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_maintresp_leaf_model .eq. unset_int) then
+            write(fates_log(), *) 'leaf maintenance respiration model is unset: hlm_maintresp_leaf_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_mort_cstarvation_model .eq. unset_int) then
+            write(fates_log(), *) 'carbon starvation mortality model is unset: hlm_mort_cstarvation_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_radiation_model .eq. unset_int) then
+            write(fates_log(), *) 'radiation model is unset: hlm_radiation_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_electron_transport_model .eq. unset_int) then
+            write(fates_log(), *) 'electron transport model is unset: hlm_electron_transport_model exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+         
+         if(hlm_regeneration_model .eq. unset_int) then
+            write(fates_log(), *) 'seed regeneration model is unset: hlm_regeneration_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -1840,6 +1942,9 @@ contains
                   write(fates_log(),*) 'Transfering hlm_seeddisp_cadence= ',ival,' to FATES'
                end if
 
+           
+               
+               
             case('spitfire_mode')
                hlm_spitfire_mode = ival
                if (fates_global_verbose()) then
@@ -1913,6 +2018,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_luh = ',ival,' to FATES'
                end if
 
+            case('use_fates_potentialveg')
+               hlm_use_potentialveg = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_potentialveg = ',ival,' to FATES'
+               end if
+
             case('num_luh2_states')
                hlm_num_luh2_states = ival
                if (fates_global_verbose()) then
@@ -1929,6 +2040,70 @@ contains
                hlm_use_cohort_age_tracking = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
+               end if
+
+            case('use_daylength_factor_switch')
+               hlm_daylength_factor_switch = ival
+               lb_params%dayl_switch    = hlm_daylength_factor_switch
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_daylength_factor_switch= ',ival,' to FATES'
+               end if
+
+            case('photosynth_acclimation')
+               hlm_photo_tempsens_model = ival
+               lb_params%photo_tempsens_model = hlm_photo_tempsens_model
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_photo_tempsens_model= ',ival,' to FATES'
+               end if
+
+            case('stomatal_assim_model')
+               hlm_stomatal_assim_model = ival
+               lb_params%stomatal_assim_model = hlm_stomatal_assim_model
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_stomatal_assim_model ',ival,' to FATES'
+               end if
+
+            case('stomatal_model')
+               hlm_stomatal_model = ival
+               lb_params%stomatal_model = hlm_stomatal_model
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_stomatal_model ',ival,' to FATES'
+               end if
+
+            case('hydr_solver')
+               hlm_hydr_solver = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hydr_solver= ',ival,' to FATES'
+               end if
+
+            case('maintresp_leaf_model')
+               hlm_maintresp_leaf_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_maintresp_leaf_model ',ival,' to FATES'
+               end if
+
+            case('mort_cstarvation_model')
+               hlm_mort_cstarvation_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_mort_cstarvation_model ',ival,' to FATES'
+               end if
+
+            case('radiation_model')
+               hlm_radiation_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_radiation_model ',ival,' to FATES'
+               end if
+
+            case('electron_transport_model')
+               hlm_electron_transport_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
+               end if
+
+            case('regeneration_model')
+               hlm_regeneration_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_regeneration_model ',ival,' to FATES'
                end if
 
             case('use_logging')
@@ -1955,6 +2130,19 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_inventory_init= ',ival,' to FATES'
                end if
 
+            case('hist_hifrq_dimlevel')
+               hlm_hist_level_hifrq = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_level_hifrq= ',ival,' to FATES'
+               end if
+               
+            case('hist_dynam_dimlevel')
+               hlm_hist_level_dynam = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_hist_level_dynam= ',ival,' to FATES'
+               end if
+
+               
             case default
                write(fates_log(), *) 'fates NL tag not recognized:',trim(tag)
                !! call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1977,6 +2165,8 @@ contains
 
          if(present(cval))then
             select case (trim(tag))
+
+          
                
             case('hlm_name')
                hlm_name = trim(cval)
@@ -2026,6 +2216,7 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
+      call LeafBiophysReportParams(masterproc)
       call PRTDerivedParams()              ! Update PARTEH derived constants
       call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
@@ -2065,18 +2256,20 @@ contains
 
      do s = 1,size(sites,dim=1)
 
-        ifp=0
         site_npp = 0._r8
         cpatch => sites(s)%oldest_patch
         do while(associated(cpatch))
-           if (cpatch%patchno .ne. 0) then
-           ifp=ifp+1
+
+           ifp = cpatch%patchno
+           
+           nocomp_bare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
+
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
 
            ! Update the seedling layer par running means
-           if ( regeneration_model == TRS_regeneration ) then
+           if ( hlm_regeneration_model == TRS_regeneration ) then
 
               ! Return the par intensity at the ground. This routine
               ! breaks it up into high and low light levels. The high
@@ -2131,7 +2324,7 @@ contains
               ccohort => ccohort%shorter
            end do
 
-        end if
+        end if nocomp_bare
 
         cpatch => cpatch%younger
      enddo
@@ -2195,7 +2388,7 @@ subroutine SeedlingParPatch(cpatch, &
      cl_par = 0._r8
      cl_area = 0._r8
      do ipft = 1,numpft
-        iv = cpatch%ncan(cl,ipft)
+        iv = cpatch%nleaf(cl,ipft)
         ! Avoid calculating when there are no leaf layers for the given pft in the current canopy layer
         if (iv .ne. 0) then
            cl_par = cl_par + cpatch%canopy_area_profile(cl,ipft,1)* &
@@ -2465,6 +2658,7 @@ subroutine FatesReadParameters(param_reader)
   call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
   call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
   call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
+  call LeafBiophysRegisterParams(fates_params)
   call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
 
   call param_reader%Read(fates_params)
@@ -2472,6 +2666,7 @@ subroutine FatesReadParameters(param_reader)
   call FatesReceiveParams(fates_params)
   call SpitFireReceiveParams(fates_params)
   call PRTReceiveParams(fates_params)
+  call LeafBiophysReceiveParams(fates_params)
   call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
 
   call fates_params%Destroy()

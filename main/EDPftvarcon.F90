@@ -13,6 +13,10 @@ module EDPftvarcon
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : itrue, ifalse
   use PRTParametersMod, only : prt_params
+  use LeafBiophysicsMod, only : lb_params
+  use LeafBiophysicsMod, only : btran_on_gs_gs02,btran_on_ag_vcmax_jmax
+  use LeafBiophysicsMod, only : lmr_r_1, lmr_r_2
+  use LeafBiophysicsMod, only : c3_path_index, c4_path_index
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
   use FatesLitterMod, only : ilabile,icellulose,ilignin
@@ -29,7 +33,6 @@ module EDPftvarcon
   use FatesConstantsMod   , only : default_regeneration
   use FatesConstantsMod   , only : TRS_regeneration
   use FatesConstantsMod   , only : TRS_no_seedling_dyn
-  use EDParamsMod         , only : regeneration_model
 
    ! CIME Globals
   use shr_log_mod ,   only : errMsg => shr_log_errMsg
@@ -56,10 +59,6 @@ module EDPftvarcon
      real(r8), allocatable :: initd(:)               ! initial seedling density
 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
-     real(r8), allocatable :: bb_slope(:)            ! ball berry slope parameter
-     real(r8), allocatable :: medlyn_slope(:)        ! Medlyn slope parameter KPa^0.5
-     real(r8), allocatable :: stomatal_intercept(:)  ! intercept of stomatal conductance model
-
 
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
      real(r8), allocatable :: lf_fcel(:)             ! Leaf litter cellulose fraction [-]
@@ -71,27 +70,15 @@ module EDPftvarcon
      real(r8), allocatable :: clumping_index(:)      ! factor describing how much self-occlusion
                                                      ! of leaf scattering elements
                                                      ! decreases light interception
-     real(r8), allocatable :: c3psn(:)               ! index defining the photosynthetic
-                                                     ! pathway C4 = 0,  C3 = 1
-
      real(r8), allocatable :: smpso(:)               ! Soil water potential at full stomatal opening
                                                      ! (non-HYDRO mode only) [mm]
      real(r8), allocatable :: smpsc(:)               ! Soil water potential at full stomatal closure
                                                      ! (non-HYDRO mode only) [mm]
 
-
-     real(r8), allocatable :: maintresp_reduction_curvature(:) ! curvature of MR reduction as f(carbon storage),
-                                                               ! 1=linear, 0=very curved
-     real(r8), allocatable :: maintresp_reduction_intercept(:) ! intercept of MR reduction as f(carbon storage),
-                                                               ! 0=no throttling, 1=max throttling
-     real(r8), allocatable :: maintresp_reduction_upthresh (:) ! Upper threshold for storage biomass (relative 
-                                                               !    to leaf biomass) above which MR is not reduced
-
-     real(r8), allocatable :: maintresp_leaf_atkin2017_baserate(:) ! leaf maintenance respiration base rate (r0)
-                                                                   ! per Atkin et al 2017
-
-     real(r8), allocatable :: maintresp_leaf_ryan1991_baserate(:)  ! leaf maintenance respiration per Ryan et al 1991
-
+     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff1(:) ! leaf maintenance respiration decrease through the canopy param 1
+                                                                   ! only with Atkin et al. 2017 respiration model
+     real(r8), allocatable :: maintresp_leaf_vert_scaler_coeff2(:) ! leaf maintenance respiration decrease through the canopy param 2
+                                                                   ! only with Atkin et al. 2017 respiraiton model 
      real(r8), allocatable :: bmort(:)
      real(r8), allocatable :: mort_ip_size_senescence(:) ! inflection point of dbh dependent senescence
      real(r8), allocatable :: mort_r_size_senescence(:)  ! rate of change in mortality with dbh
@@ -103,12 +90,7 @@ module EDPftvarcon
      real(r8), allocatable :: mort_upthresh_cstarvation(:) ! threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero
      real(r8), allocatable :: hf_sm_threshold(:)         ! soil moisture (btran units) at which drought mortality begins for non-hydraulic model
      real(r8), allocatable :: hf_flc_threshold(:)        ! plant fractional loss of conductivity at which drought mortality begins for hydraulic model
-     real(r8), allocatable :: vcmaxha(:)                 ! activation energy for vcmax
-     real(r8), allocatable :: jmaxha(:)                  ! activation energy for jmax
-     real(r8), allocatable :: vcmaxhd(:)                 ! deactivation energy for vcmax
-     real(r8), allocatable :: jmaxhd(:)                  ! deactivation energy for jmax
-     real(r8), allocatable :: vcmaxse(:)                 ! entropy term for vcmax
-     real(r8), allocatable :: jmaxse(:)                  ! entropy term for jmax
+
      real(r8), allocatable :: germination_rate(:)        ! Fraction of seed mass germinating per year (yr-1)
      real(r8), allocatable :: seed_decay_rate(:)         ! Fraction of seed mass (both germinated and
                                                          ! ungerminated), decaying per year    (yr-1)
@@ -271,9 +253,17 @@ module EDPftvarcon
      real(r8), allocatable :: hydr_thetas_node(:,:) ! saturated water content (cm3/cm3)
 
      ! Table that maps HLM pfts to FATES pfts for fixed biogeography mode
-     ! The values are area fractions (NOT IMPLEMENTED)
+     ! The values are area fractions
      real(r8), allocatable :: hlm_pft_map(:,:)
 
+     ! Land-use and land-use change related PFT parameters
+     real(r8), allocatable :: harvest_pprod10(:)              ! fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)
+     real(r8), allocatable :: landusechange_frac_burned(:)    ! fraction of land use change-generated and not-exported material that is burned (the remainder goes to litter)
+     real(r8), allocatable :: landusechange_frac_exported(:)  ! fraction of land use change-generated wood material that is exported to wood product (the remainder is either burned or goes to litter)
+     real(r8), allocatable :: landusechange_pprod10(:)        ! fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)
+
+     ! Grazing
+     real(r8), allocatable :: landuse_grazing_palatability(:) ! Relative intensity of leaf grazing/browsing per PFT (unitless 0-1)
 
    contains
      procedure, public :: Init => EDpftconInit
@@ -395,18 +385,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leaf_stomatal_slope_ballberry'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_stomatal_slope_medlyn'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_stomatal_intercept'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_frag_leaf_flab'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -439,10 +417,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_leaf_c3psn'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
     name = 'fates_nonhydro_smpso'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -451,25 +425,13 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_maintresp_reduction_curvature'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_maintresp_reduction_intercept'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_maintresp_reduction_upthresh'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_maintresp_leaf_atkin2017_baserate'
+    name = 'fates_maintresp_leaf_vert_scaler_coeff1'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_maintresp_leaf_ryan1991_baserate'
+    name = 'fates_maintresp_leaf_vert_scaler_coeff2'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-        dimension_names=dim_names, lower_bounds=dim_lower_bound)
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
@@ -584,30 +546,6 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_mort_hf_flc_threshold'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_vcmaxha'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_jmaxha'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_vcmaxhd'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_jmaxhd'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_vcmaxse'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_jmaxse'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -782,6 +720,26 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_landuse_harvest_pprod10'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_landuse_luc_frac_burned'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_landuse_luc_frac_exported'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_landuse_luc_pprod10'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_landuse_grazing_palatability'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_dev_arbitrary_pft'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -836,18 +794,6 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%seed_suppl)
 
-    name = 'fates_leaf_stomatal_slope_ballberry'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%bb_slope)
-
-    name = 'fates_leaf_stomatal_slope_medlyn'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%medlyn_slope)
-
-    name = 'fates_leaf_stomatal_intercept'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%stomatal_intercept)
-
     name = 'fates_frag_leaf_flab'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%lf_flab)
@@ -880,10 +826,6 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%clumping_index)
 
-    name = 'fates_leaf_c3psn'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%c3psn)
-
     name = 'fates_nonhydro_smpso'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%smpso)
@@ -892,25 +834,13 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%smpsc)
 
-    name = 'fates_maintresp_reduction_curvature'
+    name = 'fates_maintresp_leaf_vert_scaler_coeff1'
     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%maintresp_reduction_curvature)
+         data=this%maintresp_leaf_vert_scaler_coeff1)
 
-    name = 'fates_maintresp_reduction_intercept'
+    name = 'fates_maintresp_leaf_vert_scaler_coeff2'
     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%maintresp_reduction_intercept)
-
-    name = 'fates_maintresp_reduction_upthresh'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%maintresp_reduction_upthresh)
-
-    name = 'fates_maintresp_leaf_atkin2017_baserate'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%maintresp_leaf_atkin2017_baserate)
-
-    name = 'fates_maintresp_leaf_ryan1991_baserate'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%maintresp_leaf_ryan1991_baserate)
+         data=this%maintresp_leaf_vert_scaler_coeff2)
 
     name = 'fates_prescribed_npp_canopy'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1041,30 +971,6 @@ contains
     name = 'fates_mort_hf_flc_threshold'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%hf_flc_threshold)
-
-    name = 'fates_leaf_vcmaxha'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%vcmaxha)
-
-    name = 'fates_leaf_jmaxha'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%jmaxha)
-
-    name = 'fates_leaf_vcmaxhd'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%vcmaxhd)
-
-    name = 'fates_leaf_jmaxhd'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%jmaxhd)
-
-    name = 'fates_leaf_vcmaxse'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%vcmaxse)
-
-    name = 'fates_leaf_jmaxse'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%jmaxse)
 
     name = 'fates_recruit_seed_germination_rate'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1241,6 +1147,26 @@ contains
     name = 'fates_hlm_pft_map'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%hlm_pft_map)
+
+    name = 'fates_landuse_harvest_pprod10'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%harvest_pprod10)
+
+    name = 'fates_landuse_luc_frac_burned'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landusechange_frac_burned)
+
+    name = 'fates_landuse_luc_frac_exported'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landusechange_frac_exported)
+
+    name = 'fates_landuse_luc_pprod10'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landusechange_pprod10)
+
+    name = 'fates_landuse_grazing_palatability'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landuse_grazing_palatability)
 
   end subroutine Receive_PFT
 
@@ -1457,7 +1383,7 @@ contains
      name = 'fates_leaf_vcmax25top'
      call fates_params%RetrieveParameterAllocate(name=name, &
           data=this%vcmax25top)
-
+          
      return
    end subroutine Receive_PFT_leafage
 
@@ -1655,9 +1581,6 @@ contains
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
-        write(fates_log(),fmt0) 'bb_slope = ',EDPftvarcon_inst%bb_slope
-        write(fates_log(),fmt0) 'medlyn_slope = ',EDPftvarcon_inst%medlyn_slope
-        write(fates_log(),fmt0) 'stomatal_intercept = ',EDPftvarcon_inst%stomatal_intercept
         write(fates_log(),fmt0) 'lf_flab = ',EDPftvarcon_inst%lf_flab
         write(fates_log(),fmt0) 'lf_fcel = ',EDPftvarcon_inst%lf_fcel
         write(fates_log(),fmt0) 'lf_flig = ',EDPftvarcon_inst%lf_flig
@@ -1666,7 +1589,7 @@ contains
         write(fates_log(),fmt0) 'fr_flig = ',EDPftvarcon_inst%fr_flig
         write(fates_log(),fmt0) 'xl = ',EDPftvarcon_inst%xl
         write(fates_log(),fmt0) 'clumping_index = ',EDPftvarcon_inst%clumping_index
-        write(fates_log(),fmt0) 'c3psn = ',EDPftvarcon_inst%c3psn
+        
         write(fates_log(),fmt0) 'vcmax25top = ',EDPftvarcon_inst%vcmax25top
         write(fates_log(),fmt0) 'smpso = ',EDPftvarcon_inst%smpso
         write(fates_log(),fmt0) 'smpsc = ',EDPftvarcon_inst%smpsc
@@ -1681,12 +1604,7 @@ contains
         write(fates_log(),fmt0) 'mort_upthresh_cstarvation = ',EDPftvarcon_inst%mort_upthresh_cstarvation
         write(fates_log(),fmt0) 'hf_sm_threshold = ',EDPftvarcon_inst%hf_sm_threshold
         write(fates_log(),fmt0) 'hf_flc_threshold = ',EDPftvarcon_inst%hf_flc_threshold
-        write(fates_log(),fmt0) 'vcmaxha = ',EDPftvarcon_inst%vcmaxha
-        write(fates_log(),fmt0) 'jmaxha = ',EDPftvarcon_inst%jmaxha
-        write(fates_log(),fmt0) 'vcmaxhd = ',EDPftvarcon_inst%vcmaxhd
-        write(fates_log(),fmt0) 'jmaxhd = ',EDPftvarcon_inst%jmaxhd
-        write(fates_log(),fmt0) 'vcmaxse = ',EDPftvarcon_inst%vcmaxse
-        write(fates_log(),fmt0) 'jmaxse = ',EDPftvarcon_inst%jmaxse
+ 
         write(fates_log(),fmt0) 'germination_timescale = ',EDPftvarcon_inst%germination_rate
         write(fates_log(),fmt0) 'seed_decay_turnover = ',EDPftvarcon_inst%seed_decay_rate
         write(fates_log(),fmt0) 'seed_dispersal_pdf_scale = ',EDPftvarcon_inst%seed_dispersal_pdf_scale
@@ -1737,6 +1655,8 @@ contains
         write(fates_log(),fmt0) 'hydro_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
         write(fates_log(),fmt0) 'hydro_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
         write(fates_log(),fmt0) 'hydro_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
+        write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff1 = ',EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1
+        write(fates_log(),fmt0) 'maintresp_leaf_vert_scaler_coeff2 = ',EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2
         write(fates_log(),*) '-------------------------------------------------'
 
      end if
@@ -1760,14 +1680,15 @@ contains
     use FatesConstantsMod  , only : fates_check_param_set
     use FatesConstantsMod  , only : itrue, ifalse
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-    use FatesConstantsMod, only : lmr_r_1
-    use FatesConstantsMod, only : lmr_r_2
+    
     use EDParamsMod        , only : logging_mechanical_frac, logging_collateral_frac
     use EDParamsMod        , only : logging_direct_frac,logging_export_frac
-    use EDParamsMod        , only : radiation_model
     use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog,hlm_use_sp, hlm_name
     use FatesInterfaceTypesMod, only : hlm_use_inventory_init
-    
+    use FatesInterfaceTypesMod, only : hlm_use_nocomp
+    use EDParamsMod        , only : max_nocomp_pfts_by_landuse, maxpatches_by_landuse
+    use FatesConstantsMod  , only : n_landuse_cats
+
      ! Argument
      logical, intent(in) :: is_master    ! Only log if this is the master proc
 
@@ -1780,6 +1701,7 @@ contains
      integer :: norgans  ! size of the plant organ dimension
      integer  :: hlm_pft    ! used in fixed biogeog mode
      integer  :: fates_pft  ! used in fixed biogeog mode
+     integer  :: i_lu    ! land use index
 
      real(r8) :: sumarea    ! area of PFTs in nocomp mode.
      real(r8) :: neg_lmr_temp ! temperature at which lmr would got negative 
@@ -1790,26 +1712,6 @@ contains
      npft = size(EDPftvarcon_inst%freezetol,1)
 
      if(.not.is_master) return
-
-     if(.not.any(radiation_model == [norman_solver,twostr_solver])) then
-        write(fates_log(),*) 'The only available canopy radiation models'
-        write(fates_log(),*) 'are the Norman and Two-stream schemes, '
-        write(fates_log(),*) 'fates_rad_model = 1 or 2 ...'
-        write(fates_log(),*) 'You specified fates_rad_model = ',radiation_model
-        write(fates_log(),*) 'Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
-
-     if(.not.any(regeneration_model == [default_regeneration, &
-                                        TRS_regeneration, &
-                                        TRS_no_seedling_dyn] )) then
-        write(fates_log(),*) 'The regeneration model must be set to a known model type'
-        write(fates_log(),*) 'the default is 1, and the Hanbury-Brown models are 2 and 3'
-        write(fates_log(),*) 'You specified fates_regeneration_model = ',regeneration_model
-        write(fates_log(),*) 'Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
-     end if
-
 
      select case (hlm_parteh_mode)
      case (prt_cnp_flex_allom_hyp)
@@ -1845,7 +1747,6 @@ contains
                     call endrun(msg=errMsg(sourcefile, __LINE__))
                  end if
               end if
-
            end if
         end if
         
@@ -1871,7 +1772,25 @@ contains
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         end if
-        
+
+        ! We are using a simple phosphatase model right now. There is
+        ! no critical value (lambda) , and there is no preferential uptake (alpha).
+        ! Make sure these parameters are both set to 0.
+
+        if ((hlm_phosphorus_spec>0) .and. (trim(hlm_nu_com).eq.'ECA')) then
+           if (any(abs(EDPftvarcon_inst%eca_lambda_ptase(:)) > nearzero ) ) then
+              write(fates_log(),*) 'Critical Values for phosphatase in ECA are not'
+              write(fates_log(),*) 'enabled right now. Please set fates_eca_lambda_ptase = 0'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+           if (any(abs(EDPftvarcon_inst%eca_alpha_ptase(:)) > nearzero ) ) then
+              write(fates_log(),*) 'There is no preferential plant uptake of P from phosphatase'
+              write(fates_log(),*) 'enabled right now. Please set fates_eca_alpha_ptase = 0'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end if
         
      case (prt_carbon_allom_hyp)
         ! No additional checks needed for now.
@@ -1914,6 +1833,9 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
      end if
+
+
+     
 
      do ipft = 1,npft
 
@@ -2089,6 +2011,19 @@ contains
         end if
            
 
+        ! Check to make sure that if a grass sapwood allometry is used, it is not
+        ! a woody plant.
+        if ( ( prt_params%allom_smode(ipft)==2 ) .and. (prt_params%woody(ipft)==itrue) ) then
+           write(fates_log(),*) 'Allometry mode 2 is a mode that is only appropriate'
+           write(fates_log(),*) 'for a grass functional type. Sapwood allometry is set with'
+           write(fates_log(),*) 'fates_allom_smode in the parameter file. Woody versus non woody'
+           write(fates_log(),*) 'plants are set via fates_woody in the parameter file.'
+           write(fates_log(),*) 'Current settings for pft number: ',ipft
+           write(fates_log(),*) 'fates_woody: true'
+           write(fates_log(),*) 'fates_allom_smode: ',prt_params%allom_smode(ipft)
+           write(fates_log(),*) 'Please correct this discrepancy before re-running. Aborting.'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
 
         ! Check if fraction of storage to reproduction is between 0-1
         ! ----------------------------------------------------------------------------------
@@ -2109,15 +2044,13 @@ contains
 
         ! Check if photosynthetic pathway is neither C3/C4
         ! ----------------------------------------------------------------------------------
-
-        if ( ( EDPftvarcon_inst%c3psn(ipft) < 0.0_r8 ) .or. &
-             ( EDPftvarcon_inst%c3psn(ipft) > 1.0_r8 ) ) then
+        if(.not.any(lb_params%c3psn(ipft) == [c3_path_index,c4_path_index])) then
 
            write(fates_log(),*) ' Two photosynthetic pathways are currently supported'
-           write(fates_log(),*) ' C4 plants have c3psn = 0'
-           write(fates_log(),*) ' C3 plants have c3psn = 1'
+           write(fates_log(),*) ' C4 plants have c3psn = ',c3_path_index
+           write(fates_log(),*) ' C3 plants have c3psn = ',c4_path_index
            write(fates_log(),*) ' PFT#: ',ipft
-           write(fates_log(),*) ' c3psn(pft): ',EDPftvarcon_inst%c3psn(ipft)
+           write(fates_log(),*) ' c3psn(pft): ',lb_params%c3psn(ipft)
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
@@ -2142,12 +2075,31 @@ contains
      end do !ipft
 
 
+     ! if nocomp is enabled, check to make sure the max number of nocomp PFTs per land use is
+     ! less than or equal to the max number of patches per land use. (unless this is an
+     ! SP run, then all PFTS are tracked on the primary LU and the others are allocated
+     ! zero patch space
+
+     if ( hlm_use_nocomp .eq. itrue .and. hlm_use_sp.eq.ifalse) then
+        do i_lu = 1, n_landuse_cats
+           if (max_nocomp_pfts_by_landuse(i_lu) .gt. maxpatches_by_landuse(i_lu)) then
+              write(fates_log(),*) 'The max number of nocomp PFTs must all be less than or equal to the number of patches, for a given land use type'
+              write(fates_log(),*) 'land use index:',i_lu
+              write(fates_log(),*) 'max_nocomp_pfts_by_landuse(i_lu):', max_nocomp_pfts_by_landuse(i_lu)
+              write(fates_log(),*) 'maxpatches_by_landuse(i_lu):', maxpatches_by_landuse(i_lu)
+              write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+        end do
+     endif
+     
+
      ! Check the temperature at which Rdark would become negative for each PFT -
      ! given their parameters
      !------------------------------------------------------------------------------------
      do ipft = 1,npft
         
-        r_0 = EDPftvarcon_inst%maintresp_leaf_atkin2017_baserate(ipft)
+        r_0 = lb_params%maintresp_leaf_atkin2017_baserate(ipft)
 
         lnc_top = prt_params%nitr_stoich_p1(ipft, prt_params%organ_param_id(leaf_organ))
         
@@ -2165,6 +2117,30 @@ contains
         write(fates_log(),*)  'FatesPlantRespPhotosynthMod'  
      
      end do ! ipft
+
+     ! Check to make sure the btran limitation models are within expected ranges
+
+     do ipft = 1,npft
+        
+        if( lb_params%stomatal_btran_model(ipft) < 0 .or. &
+            lb_params%stomatal_btran_model(ipft) > btran_on_gs_gs02 ) then
+
+           write(fates_log(),*)  'PFT  ',  ipft
+           write(fates_log(),*)  'Undefined fates_leaf_stomatal_btran_model = ',lb_params%stomatal_btran_model
+           write(fates_log(),*)  'See biogeophys/LeafbiophysicsMod.F90 btran_on_gs_* for model types'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        if( lb_params%agross_btran_model(ipft) < 0 .or. &
+            lb_params%agross_btran_model(ipft) > btran_on_ag_vcmax_jmax ) then
+           write(fates_log(),*)  'PFT  ',  ipft
+           write(fates_log(),*)  'Undefined fates_leaf_agross_btran_model = ',lb_params%agross_btran_model
+           write(fates_log(),*)  'See biogeophys/LeafbiophysicsMod.F90 btran_on_ag_* for model types'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+     end do
+     
      
      
 

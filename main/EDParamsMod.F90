@@ -10,7 +10,6 @@ module EDParamsMod
    use FatesGlobals        , only : fates_log
    use FatesGlobals        , only : endrun => fates_endrun
    use FatesConstantsMod,    only : fates_unset_r8
-   use FatesConstantsMod,    only : cstarvation_model_lin
    use FatesConstantsMod,    only : n_landuse_cats
 
    ! CIME Globals
@@ -34,8 +33,6 @@ module EDParamsMod
    real(r8),protected, public :: photo_temp_acclim_thome_time ! Length of the window for the long-term exponential moving average (ema)
                                                               ! of vegetation temperature used in photosynthesis 
                                                               ! T_home term in Kumarathunge parameterization [years]
-   integer,protected, public :: maintresp_leaf_model  ! switch for choosing between leaf maintenance
-                                                      ! respiration model. 1=Ryan (1991), 2=Atkin et al (2017)
    real(r8),protected, public :: sdlng_emerg_h2o_timescale !Length of the window for the exponential moving
                                                                  !average of smp used to calculate seedling emergence
    real(r8),protected, public :: sdlng_mort_par_timescale !Length of the window for the exponential moving average 
@@ -46,16 +43,6 @@ module EDParamsMod
    real(r8),protected, public :: sdlng2sap_par_timescale !Length of the window for the exponential 
                                                                !moving average of par at the seedling layer used to 
                                                                !calculate seedling to sapling transition rates
-   integer,protected, public :: photo_tempsens_model  ! switch for choosing the model that defines the temperature
-                                                      ! sensitivity of photosynthetic parameters (vcmax, jmax).
-                                                      ! 1=non-acclimating, 2=Kumarathunge et al., 2019
-
-   integer,protected, public :: radiation_model       ! Switch betrween Norman (1) and Two-stream (2) radiation models
-
-   integer,protected, public :: mort_cstarvation_model ! Switch for carbon starvation mortality:
-                                                       ! 1 -- Linear model
-                                                       ! 2 -- Exponential model
-
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln                    ! weighting factor for canopy layer exclusion and promotion
    real(r8),protected, public :: ED_val_vai_top_bin_width             ! width in VAI units of uppermost leaf+stem layer scattering element
@@ -76,24 +63,14 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_cohort_age_fusion_tol         ! minimum fraction in differece in cohort age between cohorts
    real(r8),protected, public :: ED_val_patch_fusion_tol              ! minimum fraction in difference in profiles between patches
    real(r8),protected, public :: ED_val_canopy_closure_thresh         ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
-   integer,protected, public  :: stomatal_model                       ! switch for choosing between stomatal conductance models, 1 for Ball-Berry, 2 for Medlyn
-   integer,protected, public  :: regeneration_model                   ! Switch for choosing between regeneration models:
-                                                                      ! (1) for Fates default
-                                                                      ! (2) for the Tree Recruitment Scheme (Hanbury-Brown et al., 2022)
-                                                                      ! (3) for the Tree Recruitment Scheme without seedling dynamics
-   
-   
+
    logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
 
    real(r8), protected, public :: cg_strikes             ! fraction of cloud to ground lightning strikes (0-1)
    character(len=param_string_length),parameter :: fates_name_cg_strikes="fates_fire_cg_strikes"
 
-   ! empirical curvature parameters for ac, aj photosynthesis co-limitation, c3 and c4 plants respectively
-   real(r8),protected,public  :: theta_cj_c3    ! Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants
-   real(r8),protected,public  :: theta_cj_c4    ! Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants
-
-     ! Global identifier of how nutrients interact with the host land model
+   ! Global identifier of how nutrients interact with the host land model
   ! either they are fully coupled, or they generate uptake rates synthetically
   ! in prescribed mode. In the latter, there is both NO mass removed from the HLM's soil
   ! BGC N and P pools, and there is also none removed.
@@ -103,7 +80,10 @@ module EDParamsMod
 
    real(r8), parameter, public :: soil_tfrz_thresh = -2.0_r8 ! Soil temperature threshold below which hydraulic failure mortality is off (non-hydro only) in degrees C
    
-   integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
+   integer, parameter, public :: nclmax = 2   ! Maximum number of canopy layers (used only for scratch arrays)
+                                              ! We would make this even higher, but making this
+                                              ! a little lower keeps the size down on some output arrays
+                                              ! For large arrays at patch level we use dynamic allocation
 
    ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
    integer, parameter, public :: nlevleaf = 30   ! number of leaf+stem layers in each canopy layer
@@ -115,6 +95,13 @@ module EDParamsMod
    
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
+
+   ! grazing parameters
+   real(r8),protected,public :: landuse_grazing_carbon_use_eff
+   real(r8),protected,public :: landuse_grazing_maxheight
+   real(r8),protected,public :: landuse_grazing_nitrogen_use_eff
+   real(r8),protected,public :: landuse_grazing_phosphorus_use_eff
+   real(r8),protected,public :: landuse_grazing_rate(n_landuse_cats)
 
    ! Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses
    ! (THIS PARAMETER IS UNUSED, FEEL FREE TO USE IT FOR WHATEVER PURPOSE YOU LIKE. WE CAN
@@ -140,12 +127,8 @@ module EDParamsMod
    integer, protected,allocatable,public :: hydr_htftype_node(:)
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_timescale = "fates_leaf_photo_temp_acclim_timescale"
    character(len=param_string_length),parameter,public :: ED_name_photo_temp_acclim_thome_time = "fates_leaf_photo_temp_acclim_thome_time"
-   character(len=param_string_length),parameter,public :: name_photo_tempsens_model = "fates_leaf_photo_tempsens_model"
-   character(len=param_string_length),parameter,public :: name_maintresp_model = "fates_maintresp_leaf_model"
-   character(len=param_string_length),parameter,public :: name_radiation_model = "fates_rad_model"
    character(len=param_string_length),parameter,public :: ED_name_hydr_htftype_node = "fates_hydro_htftype_node"
    character(len=param_string_length),parameter,public :: ED_name_mort_disturb_frac = "fates_mort_disturb_frac"
-   character(len=param_string_length),parameter,public :: ED_name_mort_cstarvation_model = "fates_mort_cstarvation_model"
    character(len=param_string_length),parameter,public :: ED_name_comp_excln = "fates_comp_excln"
    character(len=param_string_length),parameter,public :: ED_name_vai_top_bin_width = "fates_vai_top_bin_width"
    character(len=param_string_length),parameter,public :: ED_name_vai_width_increase_factor = "fates_vai_width_increase_factor"
@@ -165,12 +148,6 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_cohort_age_fusion_tol = "fates_cohort_age_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_canopy_closure_thresh= "fates_canopy_closure_thresh"      
-   character(len=param_string_length),parameter,public :: ED_name_stomatal_model= "fates_leaf_stomatal_model"
-   character(len=param_string_length),parameter,public :: ED_name_regeneration_model= "fates_regeneration_model"
-
-   character(len=param_string_length),parameter,public :: name_theta_cj_c3 = "fates_leaf_theta_cj_c3"
-   character(len=param_string_length),parameter,public :: name_theta_cj_c4 = "fates_leaf_theta_cj_c4"
-   
    character(len=param_string_length),parameter :: fates_name_q10_mr="fates_q10_mr"
    character(len=param_string_length),parameter :: fates_name_q10_froz="fates_q10_froz"
 
@@ -180,7 +157,10 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
+   character(len=param_string_length),parameter,public :: ED_name_crop_lu_pft_vector = "fates_landuse_crop_lu_pft_vector"
    character(len=param_string_length),parameter,public :: ED_name_maxpatches_by_landuse = "fates_maxpatches_by_landuse"
+   character(len=param_string_length),parameter,public :: ED_name_max_nocomp_pfts_by_landuse = "fates_max_nocomp_pfts_by_landuse"
+
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -198,26 +178,10 @@ module EDParamsMod
    real(r8),protected,public :: hydr_psicap        !  sapwood water potential at which capillary reserves exhausted (MPa)
    character(len=param_string_length),parameter,public :: hydr_name_psicap = "fates_hydro_psicap"
 
-   
-   ! Switch that defines which hydraulic solver to use
-   ! 1 = Taylor solution that solves plant fluxes with 1 layer
-   !     sequentially placing solution on top of previous layer solves
-   ! 2 = Picard solution that solves all fluxes in a plant and
-   !     the soil simultaneously, 2D: soil x (root + shell)
-   ! 3 = Newton-Raphson (Deprecated) solution that solves all fluxes in a plant and
-   !     the soil simultaneously, 2D: soil x (root + shell)
-   
-   integer,protected,public :: hydr_solver        !  switch designating hydraulics numerical solver
-   character(len=param_string_length),parameter,public :: hydr_name_solver = "fates_hydro_solver"
-   
    !Soil BGC parameters, mostly used for testing FATES when not coupled to the dynamics bgc hlm
    ! ----------------------------------------------------------------------------------------------
    real(r8),protected,public :: bgc_soil_salinity ! site-level soil salinity for FATES when not coupled to dynamic soil BGC of salinity
    character(len=param_string_length),parameter,public :: bgc_name_soil_salinity= "fates_soil_salinity"      
-
-   ! Switch designating whether to use net or gross assimilation in the stomata model
-   integer, protected, public :: stomatal_assim_model
-   character(len=param_string_length), parameter, public :: stomatal_assim_name = "fates_leaf_stomatal_assim_model"
 
    ! Integer code that options how damage events are structured
    integer, protected, public :: damage_event_code
@@ -234,7 +198,11 @@ module EDParamsMod
    ! thus they are not protected here.
    
    integer, public :: maxpatches_by_landuse(n_landuse_cats)
+   integer, public :: max_nocomp_pfts_by_landuse(n_landuse_cats)
    integer, public :: maxpatch_total
+
+   ! which crops can be grown on a given crop land use type
+   integer,protected,public :: crop_lu_pft_vector(n_landuse_cats)
 
    ! Maximum allowable cohorts per patch
    integer, protected, public :: max_cohort_per_patch
@@ -277,9 +245,12 @@ module EDParamsMod
                                                     ! leftovers will be left onsite as large CWD
    character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_landuse_logging_export_frac"   
 
-   real(r8),protected,public :: pprodharv10_forest_mean ! "mean harvest mortality proportion of deadstem to 10-yr 
-                                                        ! product pool (pprodharv10) of all woody PFT types
-   character(len=param_string_length),parameter,public :: logging_name_pprodharv10="fates_landuse_pprodharv10_forest_mean"
+   ! grazing-related parameters
+   character(len=param_string_length),parameter,public :: name_landuse_grazing_rate               = "fates_landuse_grazing_rate"
+   character(len=param_string_length),parameter,public :: name_landuse_grazing_carbon_use_eff     = "fates_landuse_grazing_carbon_use_eff"
+   character(len=param_string_length),parameter,public :: name_landuse_grazing_maxheight          = "fates_landuse_grazing_maxheight"
+   character(len=param_string_length),parameter,public :: name_landuse_grazing_nitrogen_use_eff   = "fates_landuse_grazing_nitrogen_use_eff"
+   character(len=param_string_length),parameter,public :: name_landuse_grazing_phosphorus_use_eff = "fates_landuse_grazing_phosphorus_use_eff"
 
    real(r8),protected,public :: eca_plant_escalar  ! scaling factor for plant fine root biomass to 
                                                ! calculate nutrient carrier enzyme abundance (ECA)
@@ -313,11 +284,7 @@ contains
     sdlng_mdd_timescale                   = nan
     sdlng2sap_par_timescale               = nan
     photo_temp_acclim_thome_time          = nan
-    photo_tempsens_model                  = -9
-    maintresp_leaf_model                  = -9
-    radiation_model                       = -9
     fates_mortality_disturbance_fraction  = nan
-    mort_cstarvation_model                = -9
     ED_val_comp_excln                     = nan
     ED_val_vai_top_bin_width              = nan
     ED_val_vai_width_increase_factor      = nan
@@ -337,15 +304,11 @@ contains
     ED_val_cohort_age_fusion_tol          = nan
     ED_val_patch_fusion_tol               = nan
     ED_val_canopy_closure_thresh          = nan
-    stomatal_model                        = -9
-    regeneration_model                    = -9
-    stomatal_assim_model                  = -9
     max_cohort_per_patch                  = -9
     hydr_kmax_rsurf1                      = nan
     hydr_kmax_rsurf2                      = nan
     hydr_psi0                             = nan
     hydr_psicap                           = nan
-    hydr_solver                           = -9
     bgc_soil_salinity                     = nan
     logging_dbhmin                        = nan
     logging_dbhmax                        = nan
@@ -355,15 +318,18 @@ contains
     logging_event_code                    = nan
     logging_dbhmax_infra                  = nan
     logging_export_frac                   = nan
-    pprodharv10_forest_mean               = nan
     eca_plant_escalar                     = nan
     q10_mr                                = nan
     q10_froz                              = nan
-    theta_cj_c3                           = nan
-    theta_cj_c4                           = nan
     dev_arbitrary                         = nan
     damage_event_code                     = -9
     damage_canopy_layer_code              = -9
+    landuse_grazing_carbon_use_eff        = nan
+    landuse_grazing_nitrogen_use_eff      = nan
+    landuse_grazing_phosphorus_use_eff    = nan
+    landuse_grazing_maxheight             = nan
+    landuse_grazing_rate(:)               = nan
+
   end subroutine FatesParamsInit
 
   !-----------------------------------------------------------------------
@@ -412,27 +378,8 @@ contains
     call fates_params%RegisterParameter(name=ED_name_photo_temp_acclim_thome_time, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=name_photo_tempsens_model,dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=name_radiation_model,dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
-    call fates_params%RegisterParameter(name=name_maintresp_model,dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
-    call fates_params%RegisterParameter(name=name_theta_cj_c3, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
-    call fates_params%RegisterParameter(name=name_theta_cj_c4, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-    
     call fates_params%RegisterParameter(name=ED_name_mort_disturb_frac, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-
-    ! Temporary until we add parameter to file
-    !call fates_params%RegisterParameter(name=ED_name_mort_cstarvation_model, dimension_shape=dimension_shape_scalar, &
-    !     dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_comp_excln, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
@@ -491,21 +438,9 @@ contains
     call fates_params%RegisterParameter(name=ED_name_canopy_closure_thresh, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=ED_name_stomatal_model, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-	 
-    call fates_params%RegisterParameter(name=ED_name_regeneration_model, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-	 
-    call fates_params%RegisterParameter(name=stomatal_assim_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=maxcohort_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
-    call fates_params%RegisterParameter(name=hydr_name_solver, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=hydr_name_kmax_rsurf1, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -548,9 +483,6 @@ contains
     call fates_params%RegisterParameter(name=logging_name_export_frac, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
-    call fates_params%RegisterParameter(name=logging_name_pprodharv10, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=eca_name_plant_escalar, dimension_shape=dimension_shape_scalar, & 
          dimension_names=dim_names_scalar)
 
@@ -568,7 +500,19 @@ contains
     
     call fates_params%RegisterParameter(name=damage_name_canopy_layer_code, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
+    call fates_params%RegisterParameter(name=name_landuse_grazing_carbon_use_eff, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=name_landuse_grazing_maxheight, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=name_landuse_grazing_nitrogen_use_eff, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=name_landuse_grazing_phosphorus_use_eff, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
     ! non-scalar parameters
 
     call fates_params%RegisterParameter(name=ED_name_hydr_htftype_node, dimension_shape=dimension_shape_1d, &
@@ -595,9 +539,17 @@ contains
     call fates_params%RegisterParameter(name=ED_name_history_damage_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_damageclass)
 
+    call fates_params%RegisterParameter(name=ED_name_crop_lu_pft_vector, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
+
     call fates_params%RegisterParameter(name=ED_name_maxpatches_by_landuse, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_landuse)
 
+    call fates_params%RegisterParameter(name=ED_name_max_nocomp_pfts_by_landuse, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
+
+    call fates_params%RegisterParameter(name=name_landuse_grazing_rate, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
   end subroutine FatesRegisterParams
 
   
@@ -613,8 +565,11 @@ contains
 
     real(r8) :: tmpreal ! local real variable for changing type on read
     real(r8), allocatable :: hydr_htftype_real(:)
-    real(r8) :: tmp_vector_by_landuse(n_landuse_cats)  ! local real vector for changing type on read
-    
+    real(r8), allocatable :: tmp_vector_by_landuse1(:)  ! local real vector for changing type on read
+    real(r8), allocatable :: tmp_vector_by_landuse2(:)  ! local real vector for changing type on read
+    real(r8), allocatable :: tmp_vector_by_landuse3(:)  ! local real vector for changing type on read
+    real(r8), allocatable :: tmp_vector_by_landuse4(:)  ! local real vector for changing type on read
+
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
 
@@ -633,27 +588,9 @@ contains
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_thome_time, &
          data=photo_temp_acclim_thome_time)
 
-    call fates_params%RetrieveParameter(name=name_photo_tempsens_model, &
-         data=tmpreal)
-    photo_tempsens_model = nint(tmpreal)
-
-    call fates_params%RetrieveParameter(name=name_radiation_model, &
-         data=tmpreal)
-    radiation_model = nint(tmpreal)
-    
-    call fates_params%RetrieveParameter(name=name_maintresp_model, &
-         data=tmpreal)
-    maintresp_leaf_model = nint(tmpreal)
-    
     call fates_params%RetrieveParameter(name=ED_name_mort_disturb_frac, &
           data=fates_mortality_disturbance_fraction)
 
-    ! Temporary until we add parameter to file 
-    !call fates_params%RetrieveParameter(name=ED_name_mort_cstarvation_model, &
-    !     data=tmpreal)
-    !    mort_cstarvation_model = nint(tmpreal)
-    mort_cstarvation_model = cstarvation_model_lin
-    
     call fates_params%RetrieveParameter(name=ED_name_comp_excln, &
          data=ED_val_comp_excln)
 
@@ -711,18 +648,6 @@ contains
     call fates_params%RetrieveParameter(name=ED_name_canopy_closure_thresh, &
          data=ED_val_canopy_closure_thresh)
 
-    call fates_params%RetrieveParameter(name=ED_name_stomatal_model, &
-         data=tmpreal)
-    stomatal_model = nint(tmpreal)
-
-    call fates_params%RetrieveParameter(name=ED_name_regeneration_model, &
-         data=tmpreal)
-    regeneration_model = nint(tmpreal)
-    
-    call fates_params%RetrieveParameter(name=stomatal_assim_name, &
-         data=tmpreal)
-    stomatal_assim_model = nint(tmpreal)
-    
     call fates_params%RetrieveParameter(name=maxcohort_name, &
          data=tmpreal)
     max_cohort_per_patch = nint(tmpreal)
@@ -739,10 +664,6 @@ contains
     call fates_params%RetrieveParameter(name=hydr_name_psicap, &
           data=hydr_psicap)
 
-    call fates_params%RetrieveParameter(name=hydr_name_solver, &
-         data=tmpreal)
-    hydr_solver = nint(tmpreal)
-    
     call fates_params%RetrieveParameter(name=bgc_name_soil_salinity, &
           data=bgc_soil_salinity)	  
 
@@ -773,17 +694,8 @@ contains
     call fates_params%RetrieveParameter(name=logging_name_export_frac, &
           data=logging_export_frac)
 
-    call fates_params%RetrieveParameter(name=logging_name_pprodharv10, &
-         data=pprodharv10_forest_mean)
-    
     call fates_params%RetrieveParameter(name=eca_name_plant_escalar, &
           data=eca_plant_escalar)
-
-    call fates_params%RetrieveParameter(name=name_theta_cj_c3, &
-          data=theta_cj_c3)
-
-     call fates_params%RetrieveParameter(name=name_theta_cj_c4, &
-          data=theta_cj_c4)
      
     call fates_params%RetrieveParameter(name=fates_name_q10_mr, &
           data=q10_mr)
@@ -825,17 +737,49 @@ contains
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_damage_bin_edges, &
          data=ED_val_history_damage_bin_edges)
 
-    call fates_params%RetrieveParameter(name=ED_name_maxpatches_by_landuse, &
-         data=tmp_vector_by_landuse)
+    call fates_params%RetrieveParameterAllocate(name=ED_name_crop_lu_pft_vector, &
+         data=tmp_vector_by_landuse1)
 
-    maxpatches_by_landuse(:) = nint(tmp_vector_by_landuse(:))
+    crop_lu_pft_vector(:) = nint(tmp_vector_by_landuse1(:))
+    deallocate(tmp_vector_by_landuse1)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_maxpatches_by_landuse, &
+         data=tmp_vector_by_landuse2)
+
+    maxpatches_by_landuse(:) = nint(tmp_vector_by_landuse2(:))
     maxpatch_total = sum(maxpatches_by_landuse(:))
+    deallocate(tmp_vector_by_landuse2)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_max_nocomp_pfts_by_landuse, &
+         data=tmp_vector_by_landuse3)
+
+    max_nocomp_pfts_by_landuse(:) = nint(tmp_vector_by_landuse3(:))
+    deallocate(tmp_vector_by_landuse3)
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_hydr_htftype_node, &
          data=hydr_htftype_real)
     allocate(hydr_htftype_node(size(hydr_htftype_real)))
     hydr_htftype_node(:) = nint(hydr_htftype_real(:))
     deallocate(hydr_htftype_real)
+
+    call fates_params%RetrieveParameter(name=name_landuse_grazing_carbon_use_eff, &
+         data=landuse_grazing_carbon_use_eff)
+
+    call fates_params%RetrieveParameter(name=name_landuse_grazing_nitrogen_use_eff, &
+         data=landuse_grazing_nitrogen_use_eff)
+
+    call fates_params%RetrieveParameter(name=name_landuse_grazing_phosphorus_use_eff, &
+         data=landuse_grazing_phosphorus_use_eff)
+
+    call fates_params%RetrieveParameter(name=name_landuse_grazing_maxheight, &
+         data=landuse_grazing_maxheight)
+
+    call fates_params%RetrieveParameterAllocate(name=name_landuse_grazing_rate, &
+         data=tmp_vector_by_landuse4)
+
+    landuse_grazing_rate(:) = tmp_vector_by_landuse4(:)
+
+    deallocate(tmp_vector_by_landuse4)
 
   end subroutine FatesReceiveParams
   
@@ -882,14 +826,10 @@ contains
         write(fates_log(),fmt0) 'ED_val_cohort_age_fusion_tol = ',ED_val_cohort_age_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
         write(fates_log(),fmt0) 'ED_val_canopy_closure_thresh = ',ED_val_canopy_closure_thresh
-        write(fates_log(),fmt0) 'regeneration_model = ',regeneration_model      
-        write(fates_log(),fmt0) 'stomatal_model = ',stomatal_model
-        write(fates_log(),fmt0) 'stomatal_assim_model = ',stomatal_assim_model            
         write(fates_log(),fmt0) 'hydro_kmax_rsurf1 = ',hydr_kmax_rsurf1
         write(fates_log(),fmt0) 'hydro_kmax_rsurf2 = ',hydr_kmax_rsurf2  
         write(fates_log(),fmt0) 'hydro_psi0 = ',hydr_psi0
         write(fates_log(),fmt0) 'hydro_psicap = ',hydr_psicap
-        write(fates_log(),fmt0) 'hydro_solver = ',hydr_solver
         write(fates_log(),fmt0) 'bgc_soil_salinity = ', bgc_soil_salinity
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin
         write(fates_log(),fmt0) 'logging_dbhmax = ',logging_dbhmax
@@ -906,6 +846,11 @@ contains
         write(fates_log(),'(a,L2)') 'active_crown_fire = ',active_crown_fire
         write(fates_log(),fmt0) 'damage_event_code = ',damage_event_code
         write(fates_log(),fmt0) 'damage_canopy_layer_code = ', damage_canopy_layer_code
+	write(fates_log(),fmt0) 'landuse_grazing_carbon_use_eff = ', landuse_grazing_carbon_use_eff
+        write(fates_log(),fmt0) 'name_landuse_grazing_nitrogen_use_eff = ', name_landuse_grazing_nitrogen_use_eff
+        write(fates_log(),fmt0) 'name_landuse_grazing_phosphorus_use_eff = ', name_landuse_grazing_phosphorus_use_eff
+        write(fates_log(),fmt0) 'name_landuse_grazing_maxheight = ', name_landuse_grazing_maxheight
+        write(fates_log(),fmt0) 'name_landuse_grazing_rate(:) = ', name_landuse_grazing_rate(:)
         write(fates_log(),*) '------------------------------------------------------'
 
      end if

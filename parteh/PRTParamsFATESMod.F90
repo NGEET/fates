@@ -201,10 +201,6 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_allom_crown_depth_frac'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
     name = 'fates_wood_density'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -241,6 +237,14 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_leafn_vert_scaler_coeff1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_leafn_vert_scaler_coeff2'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    
     name = 'fates_recruit_seed_alloc_mature'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -321,6 +325,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_allom_dmode'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_allom_la_per_sa_int'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -382,6 +390,14 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_allom_agb4'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_h2cd1'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_allom_h2cd2'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -501,10 +517,6 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%fnrt_prof_mode)
 
-    name = 'fates_allom_crown_depth_frac'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%crown_depth_frac)
-    
     name = 'fates_woody'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=tmpreal)
@@ -536,6 +548,14 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%root_long)
 
+    name = 'fates_leafn_vert_scaler_coeff1'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=prt_params%leafn_vert_scaler_coeff1)
+
+    name = 'fates_leafn_vert_scaler_coeff2'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=prt_params%leafn_vert_scaler_coeff2)
+    
     name = 'fates_recruit_seed_alloc_mature'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%seed_alloc_mature)
@@ -566,31 +586,59 @@ contains
 
     name = 'fates_allom_hmode'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_hmode)
+         data=tmpreal)
+    allocate(prt_params%allom_hmode(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%allom_hmode)
+    deallocate(tmpreal)
 
     name = 'fates_allom_lmode'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_lmode)
+         data=tmpreal)
+    allocate(prt_params%allom_lmode(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%allom_lmode)
+    deallocate(tmpreal)
 
     name = 'fates_allom_fmode'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_fmode)
+         data=tmpreal)
+    allocate(prt_params%allom_fmode(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%allom_fmode)
+    deallocate(tmpreal)
 
     name = 'fates_allom_amode'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_amode)
+         data=tmpreal)
+    allocate(prt_params%allom_amode(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%allom_amode)
+    deallocate(tmpreal)
 
     name = 'fates_allom_stmode'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_stmode)
+         data=tmpreal)
+    allocate(prt_params%allom_stmode(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%allom_stmode)
+    deallocate(tmpreal)
 
     name = 'fates_allom_cmode'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_cmode)
+         data=tmpreal)
+    allocate(prt_params%allom_cmode(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%allom_cmode)
+    deallocate(tmpreal)
 
     name = 'fates_allom_smode'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_smode)
+         data=tmpreal)
+    allocate(prt_params%allom_smode(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%allom_smode)
+    deallocate(tmpreal)
+
+    name = 'fates_allom_dmode'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=tmpreal)
+    allocate(prt_params%allom_dmode(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%allom_dmode)
+    deallocate(tmpreal)
 
     name = 'fates_allom_la_per_sa_int'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -680,6 +728,14 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_agb4)
 
+    name = 'fates_allom_h2cd1'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=prt_params%allom_h2cd1)
+
+    name = 'fates_allom_h2cd2'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=prt_params%allom_h2cd2)
+
     name = 'fates_allom_zroot_max_dbh'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%allom_zroot_max_dbh)
@@ -734,7 +790,11 @@ contains
     dim_names(1) = dimension_name_pft
     dim_names(2) = dimension_name_leaf_age
 
-    name = 'fates_turnover_leaf'
+    name = 'fates_turnover_leaf_canopy'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_turnover_leaf_ustory'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -814,9 +874,13 @@ contains
      
      character(len=param_string_length) :: name
 
-     name = 'fates_turnover_leaf'
+     name = 'fates_turnover_leaf_canopy'
      call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%leaf_long)
+
+     name = 'fates_turnover_leaf_ustory'
+     call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%leaf_long_ustory)
 
      return
   end subroutine PRTReceivePFTLeafAge
@@ -949,6 +1013,7 @@ contains
         write(fates_log(),fmt0) 'slatop = ',prt_params%slatop
         write(fates_log(),fmt0) 'allom_sai_scaler = ',prt_params%allom_sai_scaler
         write(fates_log(),fmt0) 'leaf_long = ',prt_params%leaf_long
+        write(fates_log(),fmt0) 'leaf_long_ustory = ',prt_params%leaf_long_ustory
         write(fates_log(),fmt0) 'grperc = ',prt_params%grperc
         write(fates_log(),fmt0) 'c2b = ',prt_params%c2b
         write(fates_log(),fmt0) 'branch_turnover = ',prt_params%branch_long
@@ -979,6 +1044,8 @@ contains
         write(fates_log(),fmt0) 'allom_agb2 = ',prt_params%allom_agb2
         write(fates_log(),fmt0) 'allom_agb3 = ',prt_params%allom_agb3
         write(fates_log(),fmt0) 'allom_agb4 = ',prt_params%allom_agb4
+        write(fates_log(),fmt0) 'allom_h2cd1 = ',prt_params%allom_h2cd1
+        write(fates_log(),fmt0) 'allom_h2cd2 = ',prt_params%allom_h2cd2
 
         write(fates_log(),fmt0) 'allom_zroot_max_dbh = ',prt_params%allom_zroot_max_dbh
         write(fates_log(),fmt0) 'allom_zroot_max_z = ',prt_params%allom_zroot_max_z
@@ -990,7 +1057,6 @@ contains
         write(fates_log(),fmt0) 'stoich_phos = ',prt_params%phos_stoich_p1
         write(fates_log(),fmt0) 'alloc_organ_priority = ',prt_params%alloc_priority
         write(fates_log(),fmt0) 'woody = ',prt_params%woody
-        write(fates_log(),fmt0) 'crown_depth_frac = ',prt_params%crown_depth_frac
         write(fates_log(),fmt0) 'roota_par = ',prt_params%fnrt_prof_a
         write(fates_log(),fmt0) 'rootb_par = ',prt_params%fnrt_prof_b
         write(fates_log(),fmt0) 'fnrt_prof_mode = ',prt_params%fnrt_prof_mode
@@ -999,6 +1065,8 @@ contains
         write(fates_log(),fmti) 'organ_id = ',prt_params%organ_id
         write(fates_log(),fmt0) 'nitr_store_ratio = ',prt_params%nitr_store_ratio
         write(fates_log(),fmt0) 'phos_store_ratio = ',prt_params%phos_store_ratio
+        write(fates_log(),fmt0) 'leafn_vert_scaler_coeff1 = ',prt_params%leafn_vert_scaler_coeff1
+        write(fates_log(),fmt0) 'leafn_vert_scaler_coeff2 = ',prt_params%leafn_vert_scaler_coeff2
         write(fates_log(),*) '-------------------------------------------------'
 
      end if
@@ -1060,6 +1128,14 @@ contains
      logical :: is_season_decid ! Is the PFT cold-deciduous?
      logical :: is_stress_decid ! Is the PFT drought-deciduous?
      logical :: is_semi_decid   ! Is the PFT drought semi-deciduous?
+     logical :: is_hmode_fine   ! Did the height allometry pass the check?
+     integer :: nerror          ! Count number of errors. If this is not
+                                !    zero by theend of the subroutine, stop 
+                                !    the run.
+     real(r8) :: height_crit    ! Critical height where crown depth equals height
+     real(r8) :: height_max     ! Maximum height attainable by PFT.
+
+
 
      npft = size(prt_params%evergreen,1)
 
@@ -1070,14 +1146,25 @@ contains
 
      if(.not.is_master) return
 
+     ! Initialise nerror with zero. If anything is incorrectly set, nerror will be 
+     ! positive, but we will hold on until all checks are performed before stopping
+     ! the run.
+     nerror = 0
+
+     ! Initialise height allometry success flag to .true., and update it if there are
+     ! inconsistencies.
+     is_hmode_fine = .true.
 
      if( any(prt_params%organ_id(:)<1) .or. &
          any(prt_params%organ_id(:)>num_organ_types) ) then
+        write(fates_log(),*) '---~---'
         write(fates_log(),*) 'prt_organ_ids should match the global ids'
         write(fates_log(),*) 'of organ types found in PRTGenericMod.F90'
         write(fates_log(),*) 'organ_ids: ',prt_params%organ_id(:)
-        write(fates_log(),*) 'Aborting'
-        call endrun(msg=errMsg(sourcefile, __LINE__))
+        write(fates_log(),*) '---~---'
+        write(fates_log(),*) ''
+        write(fates_log(),*) ''
+        nerror = nerror + 1
      end if
 
      ! Check to make sure the organ ids are valid if this is the
@@ -1087,22 +1174,28 @@ contains
 
          do io = 1,norgans
            if(prt_params%organ_id(io) == repro_organ) then
+              write(fates_log(),*) '---~---'
               write(fates_log(),*) 'with flexible cnp or c-only alloc hypotheses'
               write(fates_log(),*) 'reproductive tissues are a special case'
               write(fates_log(),*) 'and therefore should not be included in'
               write(fates_log(),*) 'the parameter file organ list'
               write(fates_log(),*) 'fates_prt_organ_id: ',prt_params%organ_id(:)
-              write(fates_log(),*) 'Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) '---~---'
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
            if(prt_params%organ_id(io) == store_organ) then
+              write(fates_log(),*) '---~---'
               write(fates_log(),*) 'with flexible cnp or c-only alloc hypotheses'
               write(fates_log(),*) 'storage is a special case'
               write(fates_log(),*) 'and therefore should not be included in'
               write(fates_log(),*) 'the parameter file organ list'
               write(fates_log(),*) 'fates_prt_organ_id: ',prt_params%organ_id(:)
-              write(fates_log(),*) 'Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) '---~---'
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
 
         end do
@@ -1112,10 +1205,13 @@ contains
      ! between 0 and 1
      if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
         if(any(prt_params%nfix_mresp_scfrac(:)<0._r8) .or. any(prt_params%nfix_mresp_scfrac(:)>1.0_r8)) then
+           write(fates_log(),*) '---~---'
            write(fates_log(),*) 'The N fixation surcharge nfix_mresp_sfrac (fates_nfix1) must be between 0-1.'
            write(fates_log(),*) 'here are the values: ',prt_params%nfix_mresp_scfrac(:)
-           write(fates_log(),*) 'Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
+           write(fates_log(),*) '---~---'
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
         end if
      end if
 
@@ -1136,14 +1232,17 @@ contains
              ( is_evergreen    .and. is_stress_decid ) .or. &
              ( is_season_decid .and. is_stress_decid ) ) then
 
+           write(fates_log(),*) '---~---'
            write(fates_log(),*) 'PFT # ',ipft,' must be defined as having one of three'
            write(fates_log(),*) 'phenology habits, ie, only one of the flags below should'
            write(fates_log(),*) 'be different than ',ifalse
            write(fates_log(),*) 'stress_decid: ',prt_params%stress_decid(ipft)
            write(fates_log(),*) 'season_decid: ',prt_params%season_decid(ipft)
            write(fates_log(),*) 'evergreen: ',prt_params%evergreen(ipft)
-           write(fates_log(),*) 'Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
+           write(fates_log(),*) '---~---'
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
         end if
 
 
@@ -1155,6 +1254,7 @@ contains
               ! In case the product of the lower and upper thresholds is negative, the
               !    thresholds are inconsistent as both should be defined using the same 
               !    quantity.
+              write(fates_log(),*) '---~---'
               write(fates_log(),*) ' When using drought semi-deciduous phenology,'
               write(fates_log(),*) '    the moist threshold must have the same sign as'
               write(fates_log(),*) '    the dry threshold.  Positive = soil water content [m3/m3],'
@@ -1163,10 +1263,13 @@ contains
               write(fates_log(),*) ' Stress_decid                 = ',prt_params%stress_decid(ipft)
               write(fates_log(),*) ' fates_phen_drought_threshold = ',prt_params%phen_drought_threshold(ipft)
               write(fates_log(),*) ' fates_phen_moist_threshold   = ',prt_params%phen_moist_threshold  (ipft)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) '---~---'
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
 
            elseif ( prt_params%phen_drought_threshold(ipft) >= prt_params%phen_moist_threshold(ipft) ) then
+              write(fates_log(),*) '---~---'
               write(fates_log(),*) ' When using drought semi-deciduous phenology,'
               write(fates_log(),*) '   the moist threshold must be greater than the dry threshold.'
               write(fates_log(),*) '   By greater we mean more positive or less negative, and'
@@ -1175,8 +1278,10 @@ contains
               write(fates_log(),*) ' Stress_decid                 = ',prt_params%stress_decid(ipft)
               write(fates_log(),*) ' fates_phen_drought_threshold = ',prt_params%phen_drought_threshold(ipft)
               write(fates_log(),*) ' fates_phen_moist_threshold   = ',prt_params%phen_moist_threshold  (ipft)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) '---~---'
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
         end if
 
@@ -1186,13 +1291,16 @@ contains
            ! is bounded between 0 and 1 (exactly 0 and 1 are acceptable).
            if ( ( prt_params%phen_fnrt_drop_fraction(ipft) < 0.0_r8 ) .or. &
                 ( prt_params%phen_fnrt_drop_fraction(ipft) > 1.0_r8 ) ) then
+              write(fates_log(),*) '---~---'
               write(fates_log(),*) ' Abscission rate for fine roots must be between 0 and 1 for '
               write(fates_log(),*) ' deciduous PFTs.'
               write(fates_log(),*) ' PFT#: ',ipft
               write(fates_log(),*) ' evergreen flag: (should be 0):',prt_params%evergreen(ipft)
               write(fates_log(),*) ' phen_fnrt_drop_fraction: ', prt_params%phen_fnrt_drop_fraction(ipft)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) '---~---'
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
 
 
@@ -1203,21 +1311,27 @@ contains
            if ( ( prt_params%woody(ipft) == itrue )                     .and. &
                 ( ( prt_params%phen_stem_drop_fraction(ipft) < 0.0_r8 ) .or.  &
                   ( prt_params%phen_stem_drop_fraction(ipft) > nearzero )   ) ) then
+              write(fates_log(),*) '---~---'
               write(fates_log(),*) ' Non-zero stem-drop fractions are not allowed for woody plants'
               write(fates_log(),*) ' PFT#: ',ipft
               write(fates_log(),*) ' part_params%woody:',prt_params%woody(ipft)
               write(fates_log(),*) ' phen_stem_drop_fraction: ', prt_params%phen_stem_drop_fraction(ipft)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) '---~---'
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            elseif ( ( prt_params%phen_stem_drop_fraction(ipft) < 0.0_r8 ) .or. &
                     ( prt_params%phen_stem_drop_fraction(ipft) > 1.0_r8 ) ) then
+              write(fates_log(),*) '---~---'
               write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
               write(fates_log(),*) ' during the deciduous period.'
               write(fates_log(),*) ' PFT#: ',ipft
               write(fates_log(),*) ' evergreen flag: (should be 0):',prt_params%evergreen(ipft)
               write(fates_log(),*) ' phen_stem_drop_fraction: ', prt_params%phen_stem_drop_fraction(ipft)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) '---~---'
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
         end if
 
@@ -1229,14 +1343,16 @@ contains
         if ( ( prt_params%seed_alloc(ipft) + &
                prt_params%seed_alloc_mature(ipft)) > 1.0_r8 ) then
 
+           write(fates_log(),*) '---~---'
            write(fates_log(),*) 'The sum of seed allocation from base and mature trees may'
            write(fates_log(),*) ' not exceed 1.'
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) ' seed_alloc: ',prt_params%seed_alloc(ipft)
            write(fates_log(),*) ' seed_alloc_mature: ',prt_params%seed_alloc_mature(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-           
+           write(fates_log(),*) '---~---'
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
         end if
 
         ! Check if woody plants have a structural biomass (agb) intercept
@@ -1244,21 +1360,192 @@ contains
         if ( ( prt_params%allom_agb1(ipft) <= tiny(prt_params%allom_agb1(ipft)) ) .and. &
              ( prt_params%woody(ipft) .eq. 1 ) ) then
 
+           write(fates_log(),*) '---~---'
            write(fates_log(),*) 'Woody plants are expected to have a non-zero intercept'
            write(fates_log(),*) ' in the diameter to AGB allometry equations'
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
            write(fates_log(),*) ' woody: ',prt_params%woody(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
+           write(fates_log(),*) '---~---'
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
 
         end if
+
+        ! Check if parameter 2 for dbh -> height is negative when allom_hmode is 2
+        ! (Weibull function / Poorter et al. (2006)
+        ! ML: FATES definition for parameter 2 is a bit unusual, which is why I added
+        !     the check. Normally the minus sign is left outside the parameter for 
+        !     Weibull functions.
+        ! ----------------------------------------------------------------------------------
+        if ( ( prt_params%allom_hmode(ipft) == 2     ) .and. &
+             ( prt_params%allom_d2h2 (ipft) >  0._r8 ) ) then
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) " Incorrect settings for height allometry."
+           write(fates_log(),*) ' PFT index:   ',ipft
+           write(fates_log(),*) ' allom_hmode: ',prt_params%allom_hmode(ipft)
+           write(fates_log(),*) ' allom_d2h2:  ',prt_params%allom_d2h2 (ipft)
+           write(fates_log(),*) " Parameter ""allom_d2h2"" must be negative when using"
+           write(fates_log(),*) "    allom_hmode = 2."
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
+           
+           ! Update flag so we do not run tests that depend on reasonable height allometry
+           ! parameters. It is fine to bypass these additional tests because the code will
+           ! stop due to the height allometry error.
+           ! -------------------------------------------------------------------------------
+           is_hmode_fine = .false.
+        end if
+
+        ! Make sure that the crown depth does not exceed plant height.
+        ! ----------------------------------------------------------------------------------
+        select_dmode_check: select case (prt_params%allom_dmode(ipft))
+        case (1)
+           ! Linear allometry
+           ! -------------------------------------------------------------------------------
+           if ( ( prt_params%allom_h2cd1 (ipft) <  nearzero ) .or. &
+                ( prt_params%allom_h2cd1 (ipft) >  1._r8    ) ) then
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) " Incorrect settings for crown depth allometry."
+              write(fates_log(),*) ' PFT index:   ',ipft
+              write(fates_log(),*) ' allom_dmode: ',prt_params%allom_dmode(ipft)
+              write(fates_log(),*) ' allom_h2cd1: ',prt_params%allom_h2cd1(ipft)
+              write(fates_log(),*) " Parameter ""allom_h2cd1"" must be positive and <= 1"
+              write(fates_log(),*) "    when allom_dmode = 1 (or allom_h2cd2 = 1)."
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
+           end if
+        case (2)
+           ! Log-linear allometry. Multiplier factor cannot be negative or zero.
+           ! -------------------------------------------------------------------------------
+           if ( prt_params%allom_h2cd1 (ipft) < nearzero ) then
+              !   Calculations for the generic case require allom_h2cd1 to be positive. If
+              ! not, issue an error.
+              ! ----------------------------------------------------------------------------
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) " Incorrect settings for crown depth allometry."
+              write(fates_log(),*) ' PFT index:   ',ipft
+              write(fates_log(),*) ' allom_dmode: ',prt_params%allom_dmode(ipft)
+              write(fates_log(),*) ' allom_h2cd1: ',prt_params%allom_h2cd1(ipft)
+              write(fates_log(),*) " Parameter ""allom_h2cd1"" must be positive when"
+              write(fates_log(),*) "    allom_dmode = 2."
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
+           elseif ( abs(prt_params%allom_h2cd2 (ipft) - 1._r8 ) < nearzero ) then
+              !    Special case when the log-linear equation reduces to linear. This must
+              ! be checked separately to avoid singularities in the general case.
+              ! ----------------------------------------------------------------------------
+              if ( ( prt_params%allom_h2cd1 (ipft) < nearzero ) .or. &
+                   ( prt_params%allom_h2cd1 (ipft) > 1._r8    ) ) then
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) " Incorrect settings for crown depth allometry."
+                 write(fates_log(),*) ' PFT index:   ',ipft
+                 write(fates_log(),*) ' allom_dmode: ',prt_params%allom_dmode(ipft)
+                 write(fates_log(),*) ' allom_h2cd1: ',prt_params%allom_h2cd1(ipft)
+                 write(fates_log(),*) " Parameter ""allom_h2cd1"" must be positive and <= 1"
+                 write(fates_log(),*) "    when allom_h2cd2 = 1 (or allom_dmode = 1)."
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) ''
+                 write(fates_log(),*) ''
+                 nerror = nerror + 1
+              end if
+           elseif (is_hmode_fine) then
+              ! ----------------------------------------------------------------------------
+              !    General log-linear case. Depending on the parameter values, crown depth 
+              ! may exceed for very small or very large plants. The code has safeguards 
+              ! to prevent this behaviour, but we must at least issue some warning.
+              ! ----------------------------------------------------------------------------
+
+              !   Find the critical height in which crown depth becomes height
+              ! ----------------------------------------------------------------------------
+              height_crit = prt_params%allom_h2cd1 (ipft) ** &
+                           ( 1.0_r8 / (1.0_r8 - prt_params%allom_h2cd2 (ipft)) )
+
+              !   Find the maximum height.
+              ! ----------------------------------------------------------------------------
+              call h_allom(prt_params%allom_dbh_maxheight(ipft),ipft,height_max)
+
+              if ( ( prt_params%allom_h2cd2 (ipft)  <  1.0_r8     ) .and. &
+                   ( EDPftvarcon_inst%hgt_min(ipft) < height_crit ) ) then
+                 !   These parameters will cause the code to cap crown depth to height for
+                 ! small plants. We print a warning message, but we do not stop the run.
+                 ! -------------------------------------------------------------------------
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) "   WARNING!"
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) " Parameter settings will require capping crown"
+                 write(fates_log(),*) "    depth to height for cohorts with height less"
+                 write(fates_log(),*) "    than ""height_crit""."
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) ' PFT index:   ',ipft
+                 write(fates_log(),*) ' allom_dmode: ',prt_params%allom_dmode(ipft)
+                 write(fates_log(),*) ' allom_h2cd1: ',prt_params%allom_h2cd1(ipft)
+                 write(fates_log(),*) ' allom_h2cd2: ',prt_params%allom_h2cd2(ipft)
+                 write(fates_log(),*) ' height_crit: ',height_crit
+                 write(fates_log(),*) ' height_min:  ',EDPftvarcon_inst%hgt_min(ipft)
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) " To avoid this message, set ""allom_h2cd1"" and"
+                 write(fates_log(),*) "    ""allom_h2cd2"" such that ""height_crit"" is"
+                 write(fates_log(),*) "    less than ""height_min""."
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) " height_crit = allom_h2cd1**(1/(1-allom_h2cd2))"
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) ""
+                 write(fates_log(),*) ""
+              elseif ( ( prt_params%allom_h2cd2 (ipft) > 1.0_r8      ) .and. &
+                       ( height_max                    > height_crit ) ) then
+                 !   These parameters will cause the code to cap crown depth to height for
+                 ! large plants. We print a warning message, but we do not stop the run.
+                 ! -------------------------------------------------------------------------
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) "   WARNING!"
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) " Parameter settings will require capping crown"
+                 write(fates_log(),*) "    depth to height for cohorts with height greater"
+                 write(fates_log(),*) "    than ""height_crit""."
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) ' PFT index:   ',ipft
+                 write(fates_log(),*) ' allom_dmode: ',prt_params%allom_dmode(ipft)
+                 write(fates_log(),*) ' allom_h2cd1: ',prt_params%allom_h2cd1(ipft)
+                 write(fates_log(),*) ' allom_h2cd2: ',prt_params%allom_h2cd2(ipft)
+                 write(fates_log(),*) ' height_crit: ',height_crit
+                 write(fates_log(),*) ' height_max:  ',height_max
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) " To avoid this message, set ""allom_h2cd1"" and"
+                 write(fates_log(),*) "    ""allom_h2cd2"" such that ""height_crit"" is"
+                 write(fates_log(),*) "    greater than ""height_max""."
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) " height_crit = allom_h2cd1**(1/(1-allom_h2cd2))"
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) ""
+                 write(fates_log(),*) ""
+              end if
+           end if
+        case default
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) " Incorrect settings for crown depth allometry."
+           write(fates_log(),*) ' PFT index:   ',ipft
+           write(fates_log(),*) ' allom_dmode: ',prt_params%allom_dmode(ipft)
+           write(fates_log(),*) " Parameter ""allom_dmode"" must be 1 or 2."
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
+        end select select_dmode_check
 
         ! Check if non-woody plants have structural biomass (agb) intercept
         ! ----------------------------------------------------------------------------------
 !        if ( ( prt_params%allom_agb1(ipft) > tiny(prt_params%allom_agb1(ipft)) ) .and. &
 !              ( iprt_params%woody(ipft) .ne. 1 ) ) then
 !
+!           write(fates_log(),*) "---~---"
 !           write(fates_log(),*) 'Non-woody plants are expected to have a zero intercept'
 !           write(fates_log(),*) ' in the diameter to AGB allometry equations'
 !           write(fates_log(),*) ' This is because the definition of AGB (as far as allometry)'
@@ -1267,8 +1554,10 @@ contains
 !           write(fates_log(),*) ' PFT#: ',ipft
 !           write(fates_log(),*) ' allom_agb1: ',prt_params%allom_agb1(ipft)
 !           write(fates_log(),*) ' woody: ',prt_params%woody(ipft)
-!           write(fates_log(),*) ' Aborting'
-!           call endrun(msg=errMsg(sourcefile, __LINE__))
+!           write(fates_log(),*) "---~---"
+!           write(fates_log(),*) ''
+!           write(fates_log(),*) ''
+!           nerror = nerror + 1
 !
 !        end if
 
@@ -1278,13 +1567,16 @@ contains
         if ( ( prt_params%leaf_stor_priority(ipft) < 0.0_r8 ) .or. &
              ( prt_params%leaf_stor_priority(ipft) > 1.0_r8 ) ) then
 
+           write(fates_log(),*) "---~---"
            write(fates_log(),*) 'Prioritization of carbon allocation to leaf'
            write(fates_log(),*) ' and root turnover replacement, must be between'
            write(fates_log(),*) ' 0 and 1'
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) 'leaf_stor_priority: ',prt_params%leaf_stor_priority(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
 
         end if
 
@@ -1293,18 +1585,26 @@ contains
 
            ! Make sure nutrient storage fractions are positive
            if( prt_params%nitr_store_ratio(ipft) < 0._r8  ) then
+              write(fates_log(),*) "---~---"
               write(fates_log(),*) 'With parteh allometric CNP hypothesis'
               write(fates_log(),*) 'nitr_store_ratio must be > 0'
               write(fates_log(),*) 'PFT#: ',ipft
               write(fates_log(),*) 'nitr_store_ratio = ',prt_params%nitr_store_ratio(ipft)
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
            if( prt_params%phos_store_ratio(ipft) < 0._r8 ) then
+              write(fates_log(),*) "---~---"
               write(fates_log(),*) 'With parteh allometric CNP hypothesis'
               write(fates_log(),*) 'phos_store_ratio must be > 0'
               write(fates_log(),*) 'PFT#: ',ipft
               write(fates_log(),*) 'nitr_store_ratio = ',prt_params%phos_store_ratio(ipft)
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
 
            do i = 1,norgans
@@ -1312,33 +1612,45 @@ contains
 
               if(io == sapw_organ) then
                  if ((prt_params%turnover_nitr_retrans(ipft,i) > nearzero)) then
+                    write(fates_log(),*) "---~---"
                     write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
                     write(fates_log(),*) ' PFT#: ',ipft
                     write(fates_log(),*) ' nitrogen retrans: ',prt_params%turnover_nitr_retrans(ipft,i)
-                    write(fates_log(),*) ' Aborting'
-                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                    write(fates_log(),*) "---~---"
+                    write(fates_log(),*) ''
+                    write(fates_log(),*) ''
+                    nerror = nerror + 1
                  end if
                  if ((prt_params%turnover_phos_retrans(ipft,i) > nearzero)) then
+                    write(fates_log(),*) "---~---"
                     write(fates_log(),*) ' Retranslocation of sapwood tissues should be zero.'
                     write(fates_log(),*) ' PFT#: ',ipft
                     write(fates_log(),*) ' phosphorus retrans: ',prt_params%turnover_nitr_retrans(ipft,i)
-                    write(fates_log(),*) ' Aborting'
-                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                    write(fates_log(),*) "---~---"
+                    write(fates_log(),*) ''
+                    write(fates_log(),*) ''
+                    nerror = nerror + 1
                  end if
               elseif(io == struct_organ) then
                  if ((prt_params%turnover_nitr_retrans(ipft,i) > nearzero)) then
+                    write(fates_log(),*) "---~---"
                     write(fates_log(),*) ' Retranslocation of structural tissues should be zero.'
                     write(fates_log(),*) ' PFT#: ',ipft
                     write(fates_log(),*) ' carbon retrans: ',prt_params%turnover_nitr_retrans(ipft,i)
-                    write(fates_log(),*) ' Aborting'
-                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                    write(fates_log(),*) "---~---"
+                    write(fates_log(),*) ''
+                    write(fates_log(),*) ''
+                    nerror = nerror + 1
                  end if
                  if ((prt_params%turnover_phos_retrans(ipft,i) > nearzero)) then
+                    write(fates_log(),*) "---~---"
                     write(fates_log(),*) ' Retranslocation of structural tissues should be zero.'
                     write(fates_log(),*) ' PFT#: ',ipft
                     write(fates_log(),*) ' phosphorus retrans: ',prt_params%turnover_nitr_retrans(ipft,i)
-                    write(fates_log(),*) ' Aborting'
-                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                    write(fates_log(),*) "---~---"
+                    write(fates_log(),*) ''
+                    write(fates_log(),*) ''
+                    nerror = nerror + 1
                  end if
               end if
               
@@ -1347,13 +1659,16 @@ contains
                    (prt_params%turnover_phos_retrans(ipft,i) > 1.0_r8) .or. &
                    (prt_params%turnover_nitr_retrans(ipft,i) < 0.0_r8) .or.  & 
                    (prt_params%turnover_phos_retrans(ipft,i) < 0.0_r8)) then
+                 write(fates_log(),*) "---~---"
                  write(fates_log(),*) ' Retranslocation should range from 0 to 1.'
                  write(fates_log(),*) ' PFT#: ',ipft
                  write(fates_log(),*) ' parameter file organ index: ',i,' global index: ',io
                  write(fates_log(),*) ' nitr: ',prt_params%turnover_nitr_retrans(ipft,i)
                  write(fates_log(),*) ' phos: ',prt_params%turnover_phos_retrans(ipft,i)
-                 write(fates_log(),*) ' Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) ''
+                 write(fates_log(),*) ''
+                 nerror = nerror + 1
               end if
 
            end do
@@ -1365,18 +1680,24 @@ contains
         !        if (parteh_mode .eq. prt_carbon_allom_hyp) then
         if ( ( prt_params%grperc(ipft) < 0.0_r8) .or. &
              ( prt_params%grperc(ipft) > 1.0_r8 ) ) then
+           write(fates_log(),*) "---~---"
            write(fates_log(),*) ' PFT#: ',ipft
            write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',prt_params%grperc(ipft)
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
         end if
 !        elseif(parteh_mode .eq. prt_cnp_flex_allom_hyp) then
 !           if ( ( any(prt_params%grperc_organ(ipft,:) < 0.0_r8)) .or. &
 !                ( any(prt_params%grperc_organ(ipft,:) >= 1.0_r8)) ) then
+!              write(fates_log(),*) "---~---"
 !              write(fates_log(),*) ' PFT#: ',ipft
 !              write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',prt_params%grperc_organ(ipft,:)
-!              write(fates_log(),*) ' Aborting'
-!              call endrun(msg=errMsg(sourcefile, __LINE__))
+!              write(fates_log(),*) "---~---"
+!              write(fates_log(),*) ''
+!              write(fates_log(),*) ''
+!              nerror = nerror + 1
 !           end if
 !        end if
 
@@ -1385,11 +1706,14 @@ contains
            ! The first nitrogen stoichiometry is used in all cases
            if ( (any(prt_params%nitr_stoich_p1(ipft,:) < 0.0_r8)) .or. &
                 (any(prt_params%nitr_stoich_p1(ipft,:) >= 1.0_r8))) then
+              write(fates_log(),*) "---~---"
               write(fates_log(),*) ' PFT#: ',ipft
               write(fates_log(),*) ' N per C stoichiometry must bet between 0-1'
               write(fates_log(),*) prt_params%nitr_stoich_p1(ipft,:)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
         end select
 
@@ -1401,6 +1725,7 @@ contains
                    (prt_params%phos_stoich_p1(ipft,i) < 0._r8) .or. &
                    (prt_params%nitr_stoich_p1(ipft,i) > 1._r8) .or. &
                    (prt_params%phos_stoich_p1(ipft,i) > 1._r8) ) then
+                 write(fates_log(),*) "---~---"
                  write(fates_log(),*) 'When the C,N,P allocation hypothesis with flexible'
                  write(fates_log(),*) 'stoichiometry is turned on (prt_cnp_flex_allom_hyp),'
                  write(fates_log(),*) 'all stoichiometries must be greater than or equal to zero,'
@@ -1410,18 +1735,23 @@ contains
                  write(fates_log(),*) 'organ index (see head of PRTGenericMod): ',io
                  write(fates_log(),*) 'nitr_stoich: ',prt_params%nitr_stoich_p1(ipft,i)
                  write(fates_log(),*) 'phos_stoich: ',prt_params%phos_stoich_p1(ipft,i)
-                 write(fates_log(),*) 'Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) ''
+                 write(fates_log(),*) ''
+                 nerror = nerror + 1
               end if
            end do
 
            if ( any(prt_params%alloc_priority(ipft,:) < 0) .or. &
                 any(prt_params%alloc_priority(ipft,:) > 6) ) then
+              write(fates_log(),*) "---~---"
               write(fates_log(),*) ' PFT#: ',ipft
               write(fates_log(),*) ' Allocation priorities should be 0-6 for CNP flex hypothesis'
               write(fates_log(),*) prt_params%alloc_priority(ipft,:)
-              write(fates_log(),*) ' Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
 
         end select
@@ -1437,35 +1767,45 @@ contains
               
               ! Check that leaf turnover doesn't exeed 1 day
               if ( (years_per_day / prt_params%leaf_long(ipft,iage)) > 1._r8 ) then
+                 write(fates_log(),*) "---~---"
                  write(fates_log(),*) 'Leaf turnover time-scale is greater than 1 day!'
                  write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
                  write(fates_log(),*) 'leaf_long(ipft,iage): ',prt_params%leaf_long(ipft,iage),' [years]'
-                 write(fates_log(),*) 'Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) ''
+                 write(fates_log(),*) ''
+                 nerror = nerror + 1
               end if
               
               ! Check to make sure that all other age-classes for this PFT also
               ! have non-zero entries, it wouldn't make sense otherwise
               if ( any(prt_params%leaf_long(ipft,:) <= nearzero) ) then
+                 write(fates_log(),*) "---~---"
                  write(fates_log(),*) 'You specified a leaf_long that is zero or'
                  write(fates_log(),*) 'invalid for a particular age class.'
                  write(fates_log(),*) 'Yet, other age classes for this PFT are non-zero.'
                  write(fates_log(),*) 'this doesnt make sense.'
                  write(fates_log(),*) 'ipft = ',ipft
                  write(fates_log(),*) 'leaf_long(ipft,:) =  ',prt_params%leaf_long(ipft,:)
-                 write(fates_log(),*) 'Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) ''
+                 write(fates_log(),*) ''
+                 nerror = nerror + 1
               end if
 
            else
               if (prt_params%evergreen(ipft) .eq. itrue) then
+                 write(fates_log(),*) "---~---"
                  write(fates_log(),*) 'You specified zero leaf turnover: '
                  write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
                  write(fates_log(),*) 'leaf_long(ipft,iage): ',prt_params%leaf_long(ipft,iage)
                  write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
                  write(fates_log(),*) 'that an evergreen would have leaf maintenance turnover'
                  write(fates_log(),*) 'disable this error if you are ok with this'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) ''
+                 write(fates_log(),*) ''
+                 nerror = nerror + 1
               end if
            end if
 
@@ -1478,23 +1818,30 @@ contains
            if ( (years_per_day / &
                  (prt_params%leaf_long(ipft,nleafage) * &
                   prt_params%senleaf_long_fdrought(ipft))) > 1._r8 ) then
+              write(fates_log(),*) "---~---"
               write(fates_log(),*) 'Drought-senescent turnover time-scale is greater than 1 day!'
               write(fates_log(),*) 'ipft: ',ipft
               write(fates_log(),*) 'leaf_long(ipft,nleafage)*senleaf_long_fdrought: ', &
                     prt_params%leaf_long(ipft,nleafage)*prt_params%senleaf_long_fdrought(ipft),' [years]'
-              write(fates_log(),*) 'Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
         end if
         
         if ( prt_params%senleaf_long_fdrought(ipft)<nearzero .or. &
              prt_params%senleaf_long_fdrought(ipft)>1._r8 ) then
+           write(fates_log(),*) "---~---"
            write(fates_log(),*) 'senleaf_long_fdrought(ipft) must be greater than 0 '
            write(fates_log(),*) 'or less than or equal to 1.'
            write(fates_log(),*) 'Set this to 1 if you want no accelerated senescence turnover'
            write(fates_log(),*) 'ipft = ',ipft
            write(fates_log(),*) 'senleaf_long_fdrought(ipft) = ',prt_params%senleaf_long_fdrought(ipft)
-           call endrun(msg=errMsg(sourcefile, __LINE__))
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
         end if
            
 
@@ -1502,22 +1849,29 @@ contains
            
            ! Check that root turnover doesn't exeed 1 day
            if ( (years_per_day / prt_params%root_long(ipft)) > 1._r8 ) then
+              write(fates_log(),*) "---~---"
               write(fates_log(),*) 'Root turnover time-scale is greater than 1 day!'
               write(fates_log(),*) 'ipft: ',ipft
               write(fates_log(),*) 'root_long(ipft): ',prt_params%root_long(ipft),' [years]'
-              write(fates_log(),*) 'Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
            
         else
            if (prt_params%evergreen(ipft) .eq. itrue) then
+              write(fates_log(),*) "---~---"
               write(fates_log(),*) 'You specified zero root turnover: '
               write(fates_log(),*) 'ipft: ',ipft
               write(fates_log(),*) 'root_long(ipft): ',prt_params%root_long(ipft)
               write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
               write(fates_log(),*) 'that an evergreen would have root maintenance turnover'
               write(fates_log(),*) 'disable this error if you are ok with this'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
         end if
         
@@ -1526,17 +1880,28 @@ contains
            
            ! Check that branch turnover doesn't exeed 1 day
            if ( (years_per_day / prt_params%branch_long(ipft)) > 1._r8 ) then
+              write(fates_log(),*) "---~---"
               write(fates_log(),*) 'Branch turnover time-scale is greater than 1 day!'
               write(fates_log(),*) 'ipft: ',ipft
               write(fates_log(),*) 'branch_long(ipft): ',prt_params%branch_long(ipft),' [years]'
-              write(fates_log(),*) 'Aborting'
-              call endrun(msg=errMsg(sourcefile, __LINE__))
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
         end if
 
 
      end do pftloop
 
+
+     ! If any error was found, abort. We add a single point to abort the run after all
+     ! checks so users can get all the errors and address them in one go (as opposed to
+     ! multiple submissions).
+     if (nerror > 0) then
+        write(fates_log(),*) 'One or more parameter errors found. Aborting.'
+        call endrun(msg=errMsg(sourcefile, __LINE__))
+     end if
 
      return
    end subroutine PRTCheckParams

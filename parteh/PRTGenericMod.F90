@@ -189,8 +189,7 @@ module PRTGenericMod
 
      real(r8),allocatable :: burned(:)    ! Losses due to burn                     [kg]
      real(r8),allocatable :: damaged(:)   ! Losses due to damage                   [kg]
-
-     !     real(r8),allocatable :: herbiv(:)    ! Losses due to herbivory                [kg]
+     real(r8),allocatable :: herbivory(:) ! Losses due to herbivory                [kg]
 
      ! Placeholder
      ! To save on memory, keep this commented out, or simply
@@ -261,6 +260,7 @@ module PRTGenericMod
      procedure, non_overridable :: GetState
      procedure, non_overridable :: GetTurnover
      procedure, non_overridable :: GetBurned
+     procedure, non_overridable :: GetHerbivory
      procedure, non_overridable :: GetNetAlloc
      procedure, non_overridable :: ZeroRates
      procedure, non_overridable :: CheckMassConservation
@@ -549,6 +549,7 @@ contains
         allocate(this%variables(i_var)%net_alloc(num_pos))
         allocate(this%variables(i_var)%burned(num_pos))
         allocate(this%variables(i_var)%damaged(num_pos))
+        allocate(this%variables(i_var)%herbivory(num_pos))
         
      end do
 
@@ -576,6 +577,7 @@ contains
        this%variables(i_var)%burned(:)    = un_initialized
        this%variables(i_var)%damaged(:)   = un_initialized
        this%variables(i_var)%net_alloc(:) = un_initialized
+       this%variables(i_var)%herbivory(:) = un_initialized
     end do
 
     ! Initialize the optimum step size as very large.
@@ -796,6 +798,7 @@ contains
        this%variables(i_var)%turnover(:)  = donor_prt_obj%variables(i_var)%turnover(:)
        this%variables(i_var)%burned(:)    = donor_prt_obj%variables(i_var)%burned(:)
        this%variables(i_var)%damaged(:)   = donor_prt_obj%variables(i_var)%damaged(:)
+       this%variables(i_var)%herbivory(:) = donor_prt_obj%variables(i_var)%herbivory(:)
     end do
 
     this%ode_opt_step = donor_prt_obj%ode_opt_step
@@ -846,6 +849,8 @@ contains
           this%variables(i_var)%damaged(pos_id)    = recipient_fuse_weight * this%variables(i_var)%damaged(pos_id) + &
                 (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%damaged(pos_id)
           
+          this%variables(i_var)%herbivory(pos_id)    = recipient_fuse_weight * this%variables(i_var)%herbivory(pos_id) + &
+                (1.0_r8-recipient_fuse_weight) * donor_prt_obj%variables(i_var)%herbivory(pos_id)
        end do
     end do
 
@@ -887,6 +892,7 @@ contains
                this%variables(i_var)%net_alloc, &
                this%variables(i_var)%turnover, &
                this%variables(i_var)%burned, &
+               this%variables(i_var)%herbivory, &               
                stat=istat, errmsg=smsg )
           if (istat/=0) call endrun(msg='DeallocatePRTVartypes 1 stat/=0:'//trim(smsg)//errMsg(sourcefile, __LINE__))
        end do
@@ -936,6 +942,7 @@ contains
          this%variables(i_var)%net_alloc(:) = 0.0_r8
          this%variables(i_var)%turnover(:)  = 0.0_r8
          this%variables(i_var)%burned(:)    = 0.0_r8
+         this%variables(i_var)%herbivory(:)    = 0.0_r8
          this%variables(i_var)%damaged(:)   = 0.0_r8    
       end do
       
@@ -973,6 +980,7 @@ contains
                   (this%variables(i_var)%net_alloc(i_pos) &
                    -this%variables(i_var)%turnover(i_pos) & 
                    -this%variables(i_var)%burned(i_pos) &
+                   -this%variables(i_var)%herbivory(i_pos) &
                    -this%variables(i_var)%damaged(i_pos)))
                   
            if(this%variables(i_var)%val(i_pos) > nearzero ) then
@@ -998,7 +1006,8 @@ contains
                                                this%variables(i_var)%val0(i_pos), &
                                                this%variables(i_var)%net_alloc(i_pos), &
                                                this%variables(i_var)%turnover(i_pos), &
-                                               this%variables(i_var)%burned(i_pos), & 
+                                               this%variables(i_var)%burned(i_pos), &
+                                               this%variables(i_var)%herbivory(i_pos), & 
                                                this%variables(i_var)%damaged(i_pos)
               write(fates_log(),*) ' Exiting.'
               call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1123,6 +1132,39 @@ contains
       
       return
    end function GetBurned
+
+    ! =========================================================================
+    
+    function GetHerbivory(this, organ_id, element_id, position_id) result(herbivory_val)
+
+      ! This function is very very similar to GetBurned
+      
+      class(prt_vartypes)                   :: this
+      integer,intent(in)                    :: organ_id           ! Organ type querried
+      integer,intent(in)                    :: element_id         ! Element type querried
+      integer,intent(in),optional           :: position_id        ! Position querried
+      real(r8)                              :: herbivory_val      ! Amount (value) of herbivory [kg]
+      integer                               :: i_pos              ! position loop counter
+      integer                               :: i_var              ! variable id
+
+      if(present(position_id)) then
+
+         i_pos = position_id
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         herbivory_val = this%variables(i_var)%herbivory(i_pos)
+
+      else
+         
+         herbivory_val = 0.0_r8
+         i_var = prt_global%sp_organ_map(organ_id,element_id)
+         do i_pos = 1, prt_global%state_descriptor(i_var)%num_pos
+            herbivory_val = herbivory_val + this%variables(i_var)%herbivory(i_pos)
+         end do
+
+      end if
+      
+      return
+   end function GetHerbivory
 
    ! ====================================================================================
    
@@ -1269,7 +1311,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine AgeLeaves(this,ipft,period_sec)
+   subroutine AgeLeaves(this,ipft,icanlayer,period_sec)
 
      ! -----------------------------------------------------------------------------------
      ! If we have more than one leaf age classification, allow
@@ -1282,6 +1324,7 @@ contains
 
      class(prt_vartypes)              :: this
      integer,intent(in)               :: ipft
+     integer,intent(in)               :: icanlayer
      real(r8),intent(in)              :: period_sec  ! Time period over which this routine
                                                      ! is called [seconds] daily=86400
      integer                          :: nleafage
@@ -1291,7 +1334,7 @@ contains
      integer                          :: element_id
      real(r8)                         :: leaf_age_flux_frac
      real(r8),dimension(max_nleafage) :: leaf_m0
-
+     real(r8)                         :: leaf_long
 
      do el = 1, num_elements
 
@@ -1311,9 +1354,15 @@ contains
              do i_age = 1,nleafage-1
                 if (prt_params%leaf_long(ipft,i_age)>nearzero) then
 
+                   if (icanlayer  .eq.  1)  then
+                      leaf_long = prt_params%leaf_long(ipft,i_age)
+                   else
+                      leaf_long = prt_params%leaf_long_ustory(ipft,i_age)
+                   end if
+
                    ! Units: [-] = [sec] * [day/sec] * [years/day] * [1/years]
-                   leaf_age_flux_frac = period_sec * days_per_sec * years_per_day / prt_params%leaf_long(ipft,i_age)
-                   
+                   leaf_age_flux_frac = period_sec * days_per_sec * years_per_day / leaf_long
+                                   
                    leaf_m(i_age)    = leaf_m(i_age)   - leaf_m0(i_age) * leaf_age_flux_frac
                    leaf_m(i_age+1)  = leaf_m(i_age+1) + leaf_m0(i_age) * leaf_age_flux_frac
                    
