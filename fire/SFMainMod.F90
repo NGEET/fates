@@ -328,7 +328,8 @@ contains
             leaf_c   = currentCohort%n * leaf_c
             
             call adjust_SF_CWD_frac(currentCohort%dbh, ncwd, SF_val_CWD_frac, SF_val_CWD_frac_adj)
-            currentCohort%canopy_fuel_1h = (leaf_c + woody_c*SF_val_CWD_frac_adj(1))/carbon_2_biomass
+            woody_c = woody_c*SF_val_CWD_frac_adj(1)
+            currentCohort%canopy_fuel_1h = (leaf_c + woody_c)/carbon_2_biomass
             ! update canopy fuel load
             call currentPatch%fuel%CalculateCanopyFuelLoad(currentCohort%canopy_fuel_1h)
             
