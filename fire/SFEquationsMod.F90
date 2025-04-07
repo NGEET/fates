@@ -647,7 +647,7 @@ real(r8),         intent(in)    :: gamma_int             ! model coef. for inter
 real(r8)          :: effect_temp        ! the temporary variable for calculating effect of SWC and LAI
 
 effect_temp = swc_alpha*swc + lai_beta*lai + gamma_int*swc*lai
-LiveFuelMoistureContent = max_lfmc - min_lfmc*exp(-effect_temp)
+LiveFuelMoistureContent = max_lfmc + min_lfmc*exp(effect_temp)
       
 
 end function LiveFuelMoistureContent
