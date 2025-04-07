@@ -657,6 +657,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_c_lblayer_si_age
   integer :: ih_agesince_anthrodist_si
   integer :: ih_agesince_anthrodist_si_age
+  integer :: ih_primarylands_fracarea_si
   integer :: ih_secondarylands_fracarea_si
   integer :: ih_secondarylands_fracarea_si_age
   integer :: ih_fracarea_burnt_si_age
@@ -3225,6 +3226,7 @@ contains
            hio_fracarea_si         => this%hvars(ih_fracarea_si)%r81d, &
            hio_canopy_fracarea_si  => this%hvars(ih_canopy_fracarea_si)%r81d, &
            hio_agesince_anthrodist_si     => this%hvars(ih_agesince_anthrodist_si)%r81d, &
+           hio_primarylands_fracarea_si => this%hvars(ih_primarylands_fracarea_si)%r81d, &
            hio_secondarylands_fracarea_si => this%hvars(ih_secondarylands_fracarea_si)%r81d, &
            hio_fracarea_si_landuse     => this%hvars(ih_fracarea_si_landuse)%r82d, &
            hio_burnt_frac_litter_si_fuel      => this%hvars(ih_burnt_frac_litter_si_fuel)%r82d, &
@@ -3371,6 +3373,13 @@ contains
                    hio_secondarylands_fracarea_si(io_si) = &
                         hio_secondarylands_fracarea_si(io_si) &
                         + cpatch%area * AREA_INV
+
+                else if ( cpatch%land_use_label .eq. primaryland ) then
+
+                    hio_primarylands_fracarea_si(io_si) = &
+                         hio_primarylands_fracarea_si(io_si) &
+                         + cpatch%area * AREA_INV
+
                 endif
 
                 ! patch-age-resolved fire variables
@@ -7194,6 +7203,13 @@ contains
                use_default='inactive', avgflag='A', vtype=site_age_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_secondarylands_fracarea_si_age)
+
+          call this%set_history_var(vname='FATES_PRIMARY_AREA',                  &
+               units='m2 m-2',                                                   &
+               long='primary forest patch area since any kind of disturbance',   &
+               use_default='inactive', avgflag='A', vtype=site_r8,               &
+               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+               index=ih_primarylands_fracarea_si)
 
           call this%set_history_var(vname='FATES_PRIMARY_AREA_AP',                &
                units='m2 m-2',                                                       &
