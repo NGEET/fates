@@ -241,7 +241,7 @@ contains
     real(r8) ::  rootfrac             ! Total rooting fraction 
     real(r8) ::  mean_10day_smp(numpft)       ! averaged 10 day soil matric potential for each PFT 
     integer  ::  ipft                 ! pft index
-    integer  ::  i_wmen               ! soil water dynamic memory index
+    integer  ::  i_wmem               ! soil water dynamic memory index
     integer  ::  j
     integer  ::  nlevroot             ! Number of rooting levels to consider
     
@@ -256,6 +256,7 @@ contains
     real(r8), parameter :: swc_alpha = 0.25_r8
     real(r8), parameter :: lai_beta = 0.15_r8
     real(r8), parameter :: gamma_int = 0.0_r8
+    real(r8), parameter :: smp_lwr_bound = -1000000._r8
 
     ! update site level soil water content for each PFT
     mean_10day_smp(:) = 0.0_r8
