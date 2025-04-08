@@ -3364,8 +3364,6 @@ contains
                 ! some diagnostics on secondary forest area and its age distribution
                 if ( cpatch%land_use_label .eq. secondaryland ) then
 
-                   iscag_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
-
                    hio_agesince_anthrodist_si(io_si) = &
                         hio_agesince_anthrodist_si(io_si)  &
                         + cpatch%area * AREA_INV
