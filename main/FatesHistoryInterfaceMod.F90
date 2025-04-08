@@ -3367,7 +3367,6 @@ contains
 
                 endif
 
-                ! patch-age-resolved fire variables
                 do ft = 1,numpft
                    ! weight the value by patch area within any given age class - in the event that
                    ! there is more than one patch per age class -
