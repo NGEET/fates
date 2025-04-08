@@ -7149,14 +7149,14 @@ contains
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_biomass_si_age)
 
-          call this%set_history_var(vname='FATES_SECONDARY_ANTHRODIST_AP',           &
+          call this%set_history_var(vname='FATES_SECONDARY_AREA_ANTHRO_AP',           &
                units='m2 m-2',                                                       &
                long='secondary forest patch area age distribution since anthropogenic disturbance', &
                use_default='inactive', avgflag='A', vtype=site_age_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_agesince_anthrodist_si_age)
 
-          call this%set_history_var(vname='FATES_SECONDARY_AREA_ANTHRODIST',          &
+          call this%set_history_var(vname='FATES_SECONDARY_AREA_ANTHRO',          &
                units='m2 m-2',                                                       &
                long='secondary forest patch area since anthropgenic disturbance', &
                use_default='inactive', avgflag='A', vtype=site_r8,               &
