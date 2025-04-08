@@ -1,0 +1,879 @@
+module test_FireEquations
+  !
+  ! DESCRIPTION:
+  !		Test the SPITFIRE-related equations - tests all methods in SFEquationsMod
+  !
+  use FatesConstantsMod,   only : r8 => fates_r8
+  use FatesConstantsMod,   only : nearzero
+  use SFEquationsMod
+  use funit
+
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: TestFireEquations
+  end type TestFireEquations
+
+  real(r8), parameter :: low_tol = 1.e-7_r8
+  real(r8), parameter :: high_tol = 1.e-13_r8
+
+  contains 
+
+    @Test 
+    subroutine OptimumPackingRatio_ZeroInput_ReturnsZero(this)
+      ! test that when SAV is zero or very close to zero, OptimumPackingRatio returns 0.0
+      class(TestFireEquations), intent(inout) :: this ! test object
+      real(r8)                                :: beta ! optimum packing ratio returned
+    
+      ! first test 0.0
+      beta = OptimumPackingRatio(0.0_r8)
+      @assertEqual(beta, 0.0_r8)
+      
+      ! now test close to zero
+      beta = OptimumPackingRatio(1.0e-31_r8)
+      @assertEqual(beta, 0.0_r8)
+      
+    end subroutine OptimumPackingRatio_ZeroInput_ReturnsZero
+    
+    @Test 
+    subroutine OptimumPackingRatio_ReturnsReasonableValues(this)
+      ! test that when SAV is some reasonable value, OptimumPackingRatio is correctly output
+      class(TestFireEquations), intent(inout) :: this ! test object
+      real(r8)                                :: beta ! optimum packing ratio returned
+    
+      ! test 1.0, 10.0, 100.0, 1000.0
+      beta = OptimumPackingRatio(1.0_r8)
+      @assertEqual(beta, 0.200395_r8, tolerance=low_tol)
+      
+      beta = OptimumPackingRatio(10.0_r8)
+      @assertEqual(beta, 0.03040793_r8, tolerance=low_tol)
+      
+      beta = OptimumPackingRatio(100.0_r8)
+      @assertEqual(beta, 0.004614099_r8, tolerance=low_tol)
+      
+      beta = OptimumPackingRatio(1000.0_r8)
+      @assertEqual(beta, 0.0007001432_r8, tolerance=low_tol)
+      
+    end subroutine OptimumPackingRatio_ReturnsReasonableValues
+    
+    @Test 
+    subroutine OptimumPackingRatio_VerySmall_ReturnsReasonableValues(this)
+      ! test that when SAV is very small (but not zero), the function returns something larger than zero
+      class(TestFireEquations), intent(inout) :: this ! test object
+      real(r8)                                :: beta ! optimum packing ratio returned
+    
+      ! test a small number as well as nearzero
+      beta = OptimumPackingRatio(1.0e-6_r8)
+      @assertGreaterThan(beta, 0.0_r8)
+      
+      beta = OptimumPackingRatio(nearzero)
+      @assertGreaterThan(beta, 0.0_r8)
+      
+    end subroutine OptimumPackingRatio_VerySmall_ReturnsReasonableValues
+    
+    @Test 
+    subroutine MaximumReactionVelocity_ZeroInput_ReturnsZero(this)
+      ! test that when SAV is zero or very close to zero, MaximumReactionVelocity returns 0.0
+      class(TestFireEquations), intent(inout) :: this ! test object
+      real(r8)                                :: vel  ! maximum reaction velocity returned
+    
+      ! first test 0.0
+      vel = MaximumReactionVelocity(0.0_r8)
+      @assertEqual(vel, 0.0_r8)
+      
+      ! now test close to zero
+      vel = MaximumReactionVelocity(1.0e-31_r8)
+      @assertEqual(vel, 0.0_r8)
+      
+    end subroutine MaximumReactionVelocity_ZeroInput_ReturnsZero
+    
+    @Test 
+    subroutine MaximumReactionVelocity_IncreasesAsSAVIncreases(this)
+      ! test that MaximumReactionVelocity output increases as SAV input increases
+      class(TestFireEquations), intent(inout) :: this    ! test object
+      real(r8)                                :: vels(5) ! maximum reaction velocity returned
+      integer                                 :: i       ! looping index
+      ! hard-coded sav values
+      real(r8), parameter :: sav_vals(5) = [10.0_r8, 50.0_r8, 100.0_r8, 500.0_r8, 1000.0_r8]
+    
+      do i = 1, size(sav_vals)
+        vels(i) = MaximumReactionVelocity(sav_vals(i))
+      end do
+      
+      ! check that function outputs increase as SAV increases
+      do i = 1, size(sav_vals) - 1
+        @assertLessThan(vels(i), vels(i+1))
+      end do
+    
+    end subroutine MaximumReactionVelocity_IncreasesAsSAVIncreases
+    
+    @Test 
+    subroutine MaximumReactionVelocity_VerySmall_ReturnsNonZero(this)
+      ! test that when SAV is very small (but not zero), the function returns something larger than zero
+      class(TestFireEquations), intent(inout) :: this ! test object
+      real(r8)                                :: vel  ! maximum reaction velocity returned
+    
+      ! test a small number as well as nearzero
+      vel = MaximumReactionVelocity(1.0e-6_r8)
+      @assertGreaterThan(vel, 0.0_r8)
+      
+      vel = MaximumReactionVelocity(nearzero)
+      @assertGreaterThan(vel, 0.0_r8)
+      
+    end subroutine MaximumReactionVelocity_VerySmall_ReturnsNonZero
+    
+    @Test 
+    subroutine OptimumReactionVelocity_BetaRatioZero_ReturnsZero(this)
+      ! test that when beta ratio is zero, the function returns zero
+      class(TestFireEquations), intent(inout) :: this                       ! test object
+      real(r8)                                :: vel                        ! optimum reaction velocity returned
+      real(r8), parameter                     :: max_reaction_vel = 10.0_r8 ! value for maximum reaction velocity
+      real(r8), parameter                     :: sav = 50.0_r8              ! value for SAV
+    
+      vel = OptimumReactionVelocity(max_reaction_vel, sav, 0.0_r8)
+      @assertEqual(vel, 0.0_r8)
+      
+    end subroutine OptimumReactionVelocity_BetaRatioZero_ReturnsZero
+    
+    @Test 
+    subroutine OptimumReactionVelocity_BetaRatioOne_ReturnsMaxReactionVel(this)
+      ! test that when beta ratio is 1.0, the function returns maximum reaction velocity
+      class(TestFireEquations), intent(inout) :: this                       ! test object
+      real(r8)                                :: vel                        ! optimum reaction velocity returned
+      real(r8), parameter                     :: max_reaction_vel = 10.0_r8 ! value for maximum reaction velocity
+      real(r8), parameter                     :: sav = 50.0_r8              ! value for SAV
+    
+      vel = OptimumReactionVelocity(max_reaction_vel, sav, 1.0_r8)
+      @assertEqual(vel, max_reaction_vel)
+      
+    end subroutine OptimumReactionVelocity_BetaRatioOne_ReturnsMaxReactionVel
+    
+    @Test 
+    subroutine OptimumReactionVelocity_ReasonableInputs_ReturnsNonZero(this)
+      ! test that OptimumReactionVelocity produces reasonable output with reasonable input values (i.e. non zero)
+      class(TestFireEquations), intent(inout) :: this                       ! test object
+      real(r8)                                :: vel                        ! optimum reaction velocity returned
+      integer                                 :: i, j                       ! looping indices
+      real(r8), parameter                     :: max_reaction_vel = 10.0_r8 ! value for maximum reaction velocity
+      ! hard-coded sav and beta values
+      real(r8), parameter :: sav_vals(3) = [10.0_r8, 50.0_r8, 100.0_r8]
+      real(r8), parameter :: beta_vals(3) = [0.25_r8, 0.5_r8, 0.75_r8]
+    
+      do i = 1, size(sav_vals)
+        do j = 1, size(beta_vals)
+          vel = OptimumReactionVelocity(max_reaction_vel, sav_vals(i), beta_vals(j))
+          @assertGreaterThan(vel, 0.0_r8)
+        end do
+      end do
+      
+    end subroutine OptimumReactionVelocity_ReasonableInputs_ReturnsNonZero
+    
+    @Test 
+    subroutine OptimumReactionVelocity_IncreasesAsSAVIncreases(this)
+      ! test that OptimumReactionVelocity output increases as SAV input increases
+      class(TestFireEquations), intent(inout) :: this                       ! test object
+      real(r8)                                :: vels(7)                    ! maximum reaction velocity returned
+      integer                                 :: i                          ! looping index
+      real(r8), parameter                     :: max_reaction_vel = 10.0_r8 ! value for maximum reaction velocity
+      real(r8), parameter                     :: beta = 0.5_r8              ! value for beta
+      ! hard-coded sav values
+      real(r8), parameter :: sav_vals(7) = [0.1_r8, 1.0_r8, 10.0_r8, 50.0_r8, 100.0_r8, 500.0_r8, 1000.0_r8]
+    
+      do i = 1, size(sav_vals)
+        vels(i) = OptimumReactionVelocity(max_reaction_vel, sav_vals(i), beta)
+      end do
+      
+      ! check that function increases decrease as SAV increases
+      do i = 1, size(sav_vals) - 1
+        @assertLessThan(vels(i), vels(i+1))
+      end do
+    
+    end subroutine OptimumReactionVelocity_IncreasesAsSAVIncreases
+    
+    @Test 
+    subroutine OptimumReactionVelocity_ScalesWithMaxReactionVel(this)
+      ! test that OptimumReactionVelocity scales correctly with maximum reaction velocity
+      class(TestFireEquations), intent(inout) :: this                        ! test object
+      real(r8)                                :: vel1                        ! result for max reaction vel 1
+      real(r8)                                :: vel2                        ! result for max reaction vel 2
+      real(r8)                                :: ratio                       ! ratio between vel2 and vel1
+      real(r8), parameter                     :: max_reaction_vel1 = 5.0_r8  ! value 1 for maximum reaction velocity
+      real(r8), parameter                     :: max_reaction_vel2 = 10.0_r8 ! value 2 for maximum reaction velocity
+      real(r8), parameter                     :: sav = 50.0_r8               ! value for SAV
+      real(r8), parameter                     :: beta = 0.6_r8               ! value for beta
+
+      vel1 = OptimumReactionVelocity(max_reaction_vel1, sav, beta)
+      vel2 = OptimumReactionVelocity(max_reaction_vel2, sav, beta)
+      ratio = vel2/vel1
+      
+      @assertEqual(ratio, 2.0_r8)
+      
+    end subroutine OptimumReactionVelocity_ScalesWithMaxReactionVel
+    
+    @Test 
+    subroutine MoistureCoefficient_ZeroMoisture_ReturnsOne(this)
+      ! test that when moisture is zero, the function returns one
+      class(TestFireEquations), intent(inout) :: this         ! test object
+      real(r8)                                :: coeff        ! result 
+      real(r8),                 parameter     :: MEF = 0.3_r8 ! value for MEF
+
+      coeff = MoistureCoefficient(0.0_r8, MEF)
+      @assertEqual(coeff, 1.0_r8)
+      
+    end subroutine MoistureCoefficient_ZeroMoisture_ReturnsOne
+    
+    @Test 
+    subroutine MoistureCoefficient_MoistureExceedsMEF_ReturnsZero(this)
+      ! test that when moisture exceeds MEF, the function resturns zero
+      class(TestFireEquations), intent(inout) :: this         ! test object
+      real(r8)                                :: coeff        ! result 
+      real(r8),                 parameter     :: MEF = 0.3_r8 ! value for MEF
+
+      coeff = MoistureCoefficient(0.4_r8, MEF)
+      @assertEqual(coeff, 0.0_r8)
+      
+    end subroutine MoistureCoefficient_MoistureExceedsMEF_ReturnsZero
+    
+    @Test 
+    subroutine MoistureCoefficient_DecreasesWithIncreasingMoisture(this)
+      ! test that when moisture increases, the coefficient decreases
+      class(TestFireEquations), intent(inout) :: this         ! test object
+      real(r8)                                :: coeffs(6)    ! result 
+      integer                                 :: i            ! looping index
+      real(r8),                 parameter     :: MEF = 0.6_r8 ! value for MEF
+      ! hard-coded moisture values
+      real(r8), parameter :: moist(6) = [0.1_r8, 0.2_r8, 0.3_r8, 0.4_r8, 0.5_r8, 0.55_r8]
+     
+      do i = 1, size(moist)
+        coeffs(i) = MoistureCoefficient(moist(i), MEF)
+      end do
+    
+      do i = 1, size(moist) - 1
+        
+        ! check that function outputs decrease as moisture increases
+        @assertGreaterThan(coeffs(i), coeffs(i+1))
+        
+        ! also make sure value is between 0.0 and 1.0
+        @assertLessThan(coeffs(i), 1.0_r8)
+        @assertGreaterThan(coeffs(i), 0.0_r8)
+      end do
+    
+    end subroutine MoistureCoefficient_DecreasesWithIncreasingMoisture
+    
+    @Test 
+    subroutine MoistureCoefficient_MEFZero_ReturnsZero(this)
+      ! test that when MEF == zero, function returns zero - this is an edge case
+      class(TestFireEquations), intent(inout) :: this           ! test object
+      real(r8)                                :: coeff          ! result 
+      real(r8),                 parameter     :: moist = 0.3_r8 ! value for moisture
+
+      coeff = MoistureCoefficient(moist, 0.0_r8)
+      @assertEqual(coeff, 0.0_r8)
+      
+    end subroutine MoistureCoefficient_MEFZero_ReturnsZero
+    
+    @Test 
+    subroutine ReactionIntensity_HighMoisture_ReactionIntensityZero(this)
+      ! test that when moisture exceeds MEF, reaction intensity is zero
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: I_r                 ! result 
+      real(r8),                 parameter     :: fuel = 1.0_r8       ! value for fuel loading
+      real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      real(r8),                 parameter     :: MEF = 0.3_r8        ! value for MEF
+
+      I_r = ReactionIntensity(fuel, SAV,  beta_ratio, 0.5_r8, MEF)
+      @assertEqual(I_r, 0.0_r8)
+      
+    end subroutine ReactionIntensity_HighMoisture_ReactionIntensityZero
+    
+    @Test 
+    subroutine ReactionIntensity_DecreasesWithIncreasingMoisture(this)
+      ! test that reaction intensity decreases with increasing moisture
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: I_r(4)              ! result
+      integer                                 :: i                   ! looping index
+      real(r8),                 parameter     :: fuel = 1.0_r8       ! value for fuel loading
+      real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      real(r8),                 parameter     :: MEF = 0.5_r8        ! value for MEF
+      ! hard-coded moisture values
+      real(r8), parameter :: moist(4) = [0.1_r8, 0.2_r8, 0.3_r8, 0.4_r8]
+     
+      do i = 1, size(moist)
+        I_r(i) = ReactionIntensity(fuel, SAV,  beta_ratio, moist(i), MEF)
+      end do
+    
+      do i = 1, size(moist) - 1
+        ! check that function outputs decrease as moisture increases
+        @assertGreaterThan(I_r(i), I_r(i+1), tolerance=high_tol)
+      end do
+            
+    end subroutine ReactionIntensity_DecreasesWithIncreasingMoisture
+    
+    @Test 
+    subroutine ReactionIntensity_IncreasesWithIncreasingFuel(this)
+      ! test that reaction intensity increases with increasing fuel loading
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: I_r(5)              ! result
+      integer                                 :: i                   ! looping index
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
+      real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      real(r8),                 parameter     :: MEF = 0.5_r8        ! value for MEF
+      ! hard-coded moisture values
+      real(r8), parameter :: fuel(5) = [0.01_r8, 1.0_r8, 5.0_r8, 10.0_r8, 100.0_r8]
+     
+      do i = 1, size(fuel)
+        I_r(i) = ReactionIntensity(fuel(i), SAV,  beta_ratio, moist, MEF)
+      end do
+    
+      do i = 1, size(fuel) - 1
+        ! check that function outputs increase as fuel increases
+        @assertLessThan(I_r(i), I_r(i+1), tolerance=high_tol)
+      end do
+            
+    end subroutine ReactionIntensity_IncreasesWithIncreasingFuel
+    
+    @Test 
+    subroutine ReactionIntensity_IncreasesWithIncreasingSAV(this)
+      ! test that reaction intensity increases with increasing SAV
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: I_r(5)              ! result
+      integer                                 :: i                   ! looping index
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
+      real(r8),                 parameter     :: fuel = 10.0_r8      ! value for fuel
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      real(r8),                 parameter     :: MEF = 0.5_r8        ! value for MEF
+      ! hard-coded SAV values
+      real(r8), parameter :: SAV(5) = [0.1_r8, 1.0_r8, 5.0_r8, 10.0_r8, 100.0_r8]
+     
+      do i = 1, size(SAV)
+        I_r(i) = ReactionIntensity(fuel, SAV(i),  beta_ratio, moist, MEF)
+      end do
+    
+      do i = 1, size(SAV) - 1
+        ! check that function outputs increase as SAV increases
+        @assertLessThan(I_r(i), I_r(i+1), tolerance=high_tol)
+      end do
+            
+    end subroutine ReactionIntensity_IncreasesWithIncreasingSAV
+    
+    @Test 
+    subroutine ReactionIntensity_IncreasesWithIncreasingBeta(this)
+      ! test that reaction intensity increases with increasing beta ratio
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: I_r(5)              ! result
+      integer                                 :: i                   ! looping index
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
+      real(r8),                 parameter     :: fuel = 10.0_r8      ! value for fuel
+      real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
+      real(r8),                 parameter     :: MEF = 0.5_r8        ! value for MEF
+      ! hard-coded beta ratio (relative packing ratio [unitless]) values
+      real(r8), parameter :: beta_ratio(5) = [0.0_r8, 0.25_r8, 0.5_r8, 0.75_r8, 1.0_r8]
+     
+      do i = 1, size(beta_ratio)
+        I_r(i) = ReactionIntensity(fuel, SAV,  beta_ratio(i), moist, MEF)
+      end do
+    
+      do i = 1, size(beta_ratio) - 1
+        ! check that function outputs increase as beta_ratio increases
+        @assertLessThan(I_r(i), I_r(i+1), tolerance=high_tol)
+      end do
+            
+    end subroutine ReactionIntensity_IncreasesWithIncreasingBeta
+    
+    @Test 
+    subroutine ReactionIntensity_IncreasesWithIncreasingMEF(this)
+      ! test that reaction intensity increases with increasing MEF
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: I_r(4)              ! result
+      integer                                 :: i                   ! looping index
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
+      real(r8),                 parameter     :: fuel = 10.0_r8      ! value for fuel
+      real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      ! hard-coded beta ratio values
+      real(r8), parameter :: MEF(4) = [0.25_r8, 0.5_r8, 0.75_r8, 1.0_r8]
+     
+      do i = 1, size(MEF)
+        I_r(i) = ReactionIntensity(fuel, SAV,  beta_ratio, moist, MEF(i))
+      end do
+    
+      do i = 1, size(MEF) - 1
+        ! check that function outputs increase as beta_ratio increases
+        @assertLessThan(I_r(i), I_r(i+1), tolerance=high_tol)
+      end do
+            
+    end subroutine ReactionIntensity_IncreasesWithIncreasingMEF
+    
+    @Test 
+    subroutine ReactionIntensity_ZeroFuel_ZeroIntensity(this)
+      ! test that reaction intensity increases with increasing beta ratio
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: I_r                 ! result
+      integer                                 :: i                   ! looping index
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
+      real(r8),                 parameter     :: MEF = 0.5_r8        ! value for beta MEF
+     
+      I_r = ReactionIntensity(0.0_r8, SAV,  beta_ratio, moist, MEF)
+      @assertEqual(I_r, 0.0_r8)
+            
+    end subroutine ReactionIntensity_ZeroFuel_ZeroIntensity
+    
+    @Test 
+    subroutine HeatofPreignition_ZeroFuelMoisture_CorrectOutput(this)
+      ! test that for zero fuel moisture, heat of preignition is equal to dry heat of preignition
+      class(TestFireEquations), intent(inout) :: this             ! test object
+      real(r8)                                :: Q_ig             ! result
+      real(r8),                 parameter     :: q_dry = 581.0_r8 ! heat of preignition of dry fuels
+     
+      Q_ig = HeatofPreignition(0.0_r8)
+      @assertEqual(Q_ig, q_dry)
+            
+    end subroutine HeatofPreignition_ZeroFuelMoisture_CorrectOutput
+    
+    @Test 
+    subroutine HeatofPreignition_IncreasesWithIncreasingMoisture(this)
+      ! test that heat of preignition increases with increasing moisture
+      class(TestFireEquations), intent(inout) :: this    ! test object
+      real(r8)                                :: Q_ig(4) ! result
+      integer                                 :: i       ! looping index
+      ! hard-coded moisture values
+      real(r8), parameter :: moist(4) = [0.1_r8, 0.2_r8, 0.3_r8, 0.4_r8]
+     
+      do i = 1, size(moist)
+        Q_ig(i) = HeatofPreignition(moist(i))
+      end do
+    
+      do i = 1, size(moist) - 1
+        ! check that function outputs increase as moisture increases
+        @assertLessThan(Q_ig(i), Q_ig(i+1))
+      end do
+            
+    end subroutine HeatofPreignition_IncreasesWithIncreasingMoisture
+    
+    @Test 
+    subroutine EffectiveHeatingNumber_ZeroInput_ReturnsZero(this)
+      ! test that when SAV is zero or very close to zero, EffectiveHeatingNumber returns 0.0
+      class(TestFireEquations), intent(inout) :: this ! test object
+      real(r8)                                :: eps  ! result
+    
+      ! first test 0.0
+      eps = EffectiveHeatingNumber(0.0_r8)
+      @assertEqual(eps, 0.0_r8)
+      
+      ! now test close to zero
+      eps = EffectiveHeatingNumber(1.0e-31_r8)
+      @assertEqual(eps, 0.0_r8)
+      
+    end subroutine EffectiveHeatingNumber_ZeroInput_ReturnsZero
+    
+    @Test 
+    subroutine EffectiveHeatingNumber_IncreasesWithIncreasingSAV(this)
+      ! test that effective heating number increases with increasing SAV
+      class(TestFireEquations), intent(inout) :: this   ! test object
+      real(r8)                                :: eps(4) ! result
+      integer                                 :: i      ! looping index
+      ! hard-coded SAV values
+      real(r8), parameter :: SAV(4) = [0.1_r8, 10.0_r8, 50.0_r8, 1000.0_r8]
+     
+      do i = 1, size(SAV)
+        eps(i) = EffectiveHeatingNumber(SAV(i))
+      end do
+    
+      do i = 1, size(SAV) - 1
+        ! check that function outputs increase as SAV increases
+        @assertLessThan(eps(i), eps(i+1))
+      end do
+            
+    end subroutine EffectiveHeatingNumber_IncreasesWithIncreasingSAV
+    
+    @Test 
+    subroutine WindFactor_ZeroWind_GivesZero(this)
+      ! test that the wind factor returns zero when wind speed is zero
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: phi                 ! result
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
+      
+      phi = WindFactor(0.0_r8, beta_ratio, SAV)
+      @assertEqual(phi, 0.0_r8)
+     
+    end subroutine WindFactor_ZeroWind_GivesZero
+    
+    @Test 
+    subroutine WindFactor_IncreasesWithIncreasingWindSpeed(this)
+      ! test that the wind factor increases with increasing wind speed
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: phi(4)              ! result
+      integer                                 :: i                   ! looping index
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
+      ! hard-coded wind speed values
+      real(r8), parameter :: wind(4) = [0.1_r8, 1.0_r8, 10.0_r8, 20.0_r8]
+      
+      do i = 1, size(wind)
+        phi(i) = WindFactor(wind(i), beta_ratio, SAV)
+      end do
+    
+      do i = 1, size(wind) - 1
+        ! check that function outputs increase as wind speed increases
+        @assertLessThan(phi(i), phi(i+1))
+      end do
+     
+    end subroutine WindFactor_IncreasesWithIncreasingWindSpeed
+    
+    @Test 
+    subroutine WindFactor_DecreasesWithIncreasingSAV(this)
+      ! test that the wind factor decreases with increasing SAV
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: phi(4)              ! result
+      integer                                 :: i                   ! looping index
+      real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
+      real(r8),                 parameter     :: wind = 10.0_r8      ! value for wind speed
+      ! hard-coded SAV values
+      real(r8), parameter :: SAV(4) = [0.1_r8, 10.0_r8, 50.0_r8, 300.0_r8]
+      
+      do i = 1, size(SAV)
+        phi(i) = WindFactor(wind, beta_ratio, SAV(i))
+      end do
+    
+      do i = 1, size(SAV) - 1
+        ! check that function outputs decreases as SAV increases
+        @assertGreaterThan(phi(i), phi(i+1))
+      end do
+     
+    end subroutine WindFactor_DecreasesWithIncreasingSAV
+    
+    @Test 
+    subroutine WindFactor_DecreasesWithIncreasingBeta(this)
+      ! test that the wind factor decreases with increasing beta ratio
+      class(TestFireEquations), intent(inout) :: this           ! test object
+      real(r8)                                :: phi(4)         ! result
+      integer                                 :: i              ! looping index
+      real(r8),                 parameter     :: SAV = 50.0_r8  ! value for beta ratio
+      real(r8),                 parameter     :: wind = 10.0_r8 ! value for wind speed
+      ! hard-coded beta ratio values
+      real(r8), parameter :: beta_ratio(4) = [0.1_r8, 0.25_r8, 0.75_r8, 1.0_r8]
+      
+      do i = 1, size(beta_ratio)
+        phi(i) = WindFactor(wind, beta_ratio(i), SAV)
+      end do
+    
+      do i = 1, size(beta_ratio) - 1
+        ! check that function outputs decreases as SAV increases
+        @assertGreaterThan(phi(i), phi(i+1))
+      end do
+     
+    end subroutine WindFactor_DecreasesWithIncreasingBeta
+    
+    @Test 
+    subroutine PropagatingFlux_IncreasesWithIncreasingSAV(this)
+      ! test that the propagating flux increases with increasing SAV
+      class(TestFireEquations), intent(inout) :: this          ! test object
+      real(r8)                                :: prop_flux(4)  ! result
+      integer                                 :: i             ! looping index
+      real(r8),                 parameter     :: beta = 0.5_r8 ! value for beta
+      ! hard-coded SAV values
+      real(r8), parameter :: SAV(4) = [0.1_r8, 10.0_r8, 50.0_r8, 100.0_r8]
+      
+      do i = 1, size(SAV)
+        prop_flux(i) = PropagatingFlux(beta, SAV(i))
+      end do
+    
+      do i = 1, size(SAV) - 1
+        ! check that function outputs increases as SAV increases
+        @assertLessThan(prop_flux(i), prop_flux(i+1))
+      end do
+     
+    end subroutine PropagatingFlux_IncreasesWithIncreasingSAV
+    
+    @Test 
+    subroutine PropagatingFlux_IncreasesWithIncreasingBeta(this)
+      ! test that the propagating flux increases with increasing beta
+      class(TestFireEquations), intent(inout) :: this          ! test object
+      real(r8)                                :: prop_flux(4)  ! result
+      integer                                 :: i             ! looping index
+      real(r8),                 parameter     :: SAV = 50.0_r8 ! value for SAV
+      ! hard-coded beta values
+      real(r8), parameter :: beta(4) = [0.0_r8, 0.3_r8, 0.7_r8, 1.0_r8]
+      
+      do i = 1, size(beta)
+        prop_flux(i) = PropagatingFlux(beta(i), SAV)
+      end do
+    
+      do i = 1, size(beta) - 1
+        ! check that function outputs increases as beta increases
+        @assertLessThan(prop_flux(i), prop_flux(i+1))
+      end do
+     
+    end subroutine PropagatingFlux_IncreasesWithIncreasingBeta
+    
+    @Test 
+    subroutine ForwardRateOfSpread_ZeroBD_ReturnsZero(this)
+      ! test that if the bulk density is zero or close to zero, the function returns zero
+      class(TestFireEquations), intent(inout) :: this              ! test object
+      real(r8)                                :: ros               ! result
+      real(r8),                 parameter     :: eps = 0.35_r8     ! value for effective heating number
+      real(r8),                 parameter     :: q_ig = 1200.0_r8  ! value for heat of preignition
+      real(r8),                 parameter     :: i_r = 5000.0_r8   ! value for reaction intensity
+      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propagating flux
+      real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
+      
+      ! first test 0.0
+      ros = ForwardRateOfSpread(0.0_r8, eps, q_ig, i_r, xi, phi_wind)
+      @assertEqual(ros, 0.0_r8)
+      
+      ! now test close to zero
+      ros = ForwardRateOfSpread(1.0e-31_r8, eps, q_ig, i_r, xi, phi_wind)
+      @assertEqual(ros, 0.0_r8)
+      
+    end subroutine ForwardRateOfSpread_ZeroBD_ReturnsZero
+    
+    @Test 
+    subroutine ForwardRateOfSpread_ZeroEps_ReturnsZero(this)
+      ! test that if the effective heating number is zero or close to zero, the function returns zero
+      class(TestFireEquations), intent(inout) :: this              ! test object
+      real(r8)                                :: ros               ! result
+      real(r8),                 parameter     :: bd = 0.5_r8       ! value for bulk density
+      real(r8),                 parameter     :: q_ig = 1200.0_r8  ! value for heat of preignition
+      real(r8),                 parameter     :: i_r = 5000.0_r8   ! value for reaction intensity
+      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propagating flux
+      real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
+      
+      ! first test 0.0
+      ros = ForwardRateOfSpread(bd, 0.0_r8, q_ig, i_r, xi, phi_wind)
+      @assertEqual(ros, 0.0_r8)
+      
+      ! now test close to zero
+      ros = ForwardRateOfSpread(bd, 1.0e-31_r8, q_ig, i_r, xi, phi_wind)
+      @assertEqual(ros, 0.0_r8)
+      
+    end subroutine ForwardRateOfSpread_ZeroEps_ReturnsZero
+    
+    @Test 
+    subroutine ForwardRateOfSpread_ZeroQig_ReturnsZero(this)
+      ! test that if the heat of preiginition is zero or close to zero, the function returns zero
+      class(TestFireEquations), intent(inout) :: this              ! test object
+      real(r8)                                :: ros               ! result
+      real(r8),                 parameter     :: bd = 0.5_r8       ! value for bulk density
+      real(r8),                 parameter     :: eps = 0.35_r8     ! value for effective heating number
+      real(r8),                 parameter     :: i_r = 5000.0_r8   ! value for reaction intensity
+      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propagating flux
+      real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
+      
+      ! first test 0.0
+      ros = ForwardRateOfSpread(bd, eps, 0.0_r8, i_r, xi, phi_wind)
+      @assertEqual(ros, 0.0_r8)
+      
+      ! now test close to zero
+      ros = ForwardRateOfSpread(bd, eps, 1.0e-31_r8, i_r, xi, phi_wind)
+      @assertEqual(ros, 0.0_r8)
+      
+    end subroutine ForwardRateOfSpread_ZeroQig_ReturnsZero
+    
+    @Test 
+    subroutine ForwardRateOfSpread_ZeroIr_ReturnsZero(this)
+      ! test that if the reaction intensity is zero, the function returns zero
+      class(TestFireEquations), intent(inout) :: this              ! test object
+      real(r8)                                :: ros               ! result
+      real(r8),                 parameter     :: bd = 0.5_r8       ! value for bulk density
+      real(r8),                 parameter     :: eps = 0.35_r8     ! value for effective heating number
+      real(r8),                 parameter     :: q_ig = 1200.0_r8  ! value for heat of preignition
+      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propagating flux
+      real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
+
+      ros = ForwardRateOfSpread(bd, eps, q_ig, 0.0_r8, xi, phi_wind)
+      @assertEqual(ros, 0.0_r8)
+      
+    end subroutine ForwardRateOfSpread_ZeroIr_ReturnsZero
+    
+    @Test 
+    subroutine ForwardRateOfSpread_ZeroPropFlux_ReturnsZero(this)
+      ! test that if the propagating flux is zero, the function returns zero
+      class(TestFireEquations), intent(inout) :: this              ! test object
+      real(r8)                                :: ros               ! result
+      real(r8),                 parameter     :: bd = 0.5_r8       ! value for bulk density
+      real(r8),                 parameter     :: eps = 0.35_r8     ! value for effective heating number
+      real(r8),                 parameter     :: q_ig = 1200.0_r8  ! value for heat of preignition
+      real(r8),                 parameter     :: i_r = 5000.0_r8   ! value for reaction intensity
+      real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
+
+      ros = ForwardRateOfSpread(bd, eps, q_ig, i_r, 0.0_r8, phi_wind)
+      @assertEqual(ros, 0.0_r8)
+      
+    end subroutine ForwardRateOfSpread_ZeroPropFlux_ReturnsZero
+    
+    @Test 
+    subroutine BackwardsRateofSpread_ZeroWind_ReturnsForwardRateofSpread(this)
+      ! test that if the wind speed is zero, the backwards ros == forwards ros
+      class(TestFireEquations), intent(inout) :: this                ! test object
+      real(r8)                                :: ros_back            ! result
+      real(r8),                 parameter     :: ros_front = 10.0_r8 ! value for forward ros
+
+      ros_back = BackwardRateOfSpread(ros_front, 0.0_r8)
+      @assertEqual(ros_back, ros_front)
+      
+    end subroutine BackwardsRateofSpread_ZeroWind_ReturnsForwardRateofSpread
+    
+    @Test 
+    subroutine BackwardsRateofSpread_ZeroROS_ReturnsZero(this)
+      ! test that if the forward ros is zero, the backwards ros is also zero
+      class(TestFireEquations), intent(inout) :: this           ! test object
+      real(r8)                                :: ros_back       ! result
+      real(r8),                 parameter     :: wind = 10.0_r8 ! value for wind speed
+
+      ros_back = BackwardRateOfSpread(0.0_r8, wind)
+      @assertEqual(ros_back, 0.0_r8)
+      
+    end subroutine BackwardsRateofSpread_ZeroROS_ReturnsZero
+    
+    @Test 
+    subroutine FireDuration_ZeroFDI_ReturnsOne(this)
+      ! test that if FDI is zero, FireDuration returns 1.0
+      class(TestFireEquations), intent(inout) :: this ! test object
+      real(r8)                                :: fd   ! result
+ 
+      fd = FireDuration(0.0_r8)
+      @assertEqual(fd, 1.0_r8)
+      
+    end subroutine FireDuration_ZeroFDI_ReturnsOne
+    
+    @Test 
+    subroutine FireDuration_IncreasesWithIncreasingFDI(this)
+      ! test that fire duration increases with increasing FDI
+      class(TestFireEquations), intent(inout) :: this  ! test object
+      real(r8)                                :: fd(4) ! result
+      integer                                 :: i     ! looping index
+      ! hard-coded FDI values
+      real(r8), parameter :: FDI(4) = [0.1_r8, 0.25_r8, 0.75_r8, 1.0_r8]
+      
+      do i = 1, size(FDI)
+        fd(i) = FireDuration(FDI(i))
+      end do
+    
+      do i = 1, size(FDI) - 1
+        ! check that function outputs increases as FDI increases
+        @assertLessThan(fd(i), fd(i+1), tolerance=high_tol)
+      end do
+     
+    end subroutine FireDuration_IncreasesWithIncreasingFDI
+    
+    @Test 
+    subroutine LengthToBreadth_ZeroWind_ReturnsOne(this)
+      ! test that if effective windspeed is zero, the function returns one
+      class(TestFireEquations), intent(inout) :: this                    ! test object
+      real(r8)                                :: ltb                     ! result
+      real(r8),                 parameter     :: tree_fraction = 0.75_r8 ! value for tree fraction
+ 
+      ltb = LengthToBreadth(0.0_r8, tree_fraction)
+      @assertEqual(ltb, 1.0_r8)
+      
+    end subroutine LengthToBreadth_ZeroWind_ReturnsOne
+    
+    @Test 
+    subroutine LengthToBreadth_IncreasesWithIncreasingWind_Forest(this)
+      ! test that the length to breadth ratio increases with increasing wind speed in forested patches
+      class(TestFireEquations), intent(inout) :: this                    ! test object
+      real(r8)                                :: ltb(4)                  ! result
+      integer                                 :: i                       ! looping index
+      real(r8),                 parameter     :: tree_fraction = 0.75_r8 ! value for tree fraction
+      ! hard-coded wind values
+      real(r8), parameter :: wind(4) = [1.1_r8, 10.0_r8, 100.0_r8, 500.0_r8]
+      
+      do i = 1, size(wind)
+        ltb(i) = LengthToBreadth(wind(i), tree_fraction)
+        ! make sure greater than 1.0
+        @assertGreaterThan(ltb(i), 1.0_r8, tolerance=high_tol)
+      end do
+    
+      do i = 1, size(wind) - 1
+        ! check that function outputs increases as wind speed increases
+        @assertLessThan(ltb(i), ltb(i+1), tolerance=high_tol)
+      end do
+     
+    end subroutine LengthToBreadth_IncreasesWithIncreasingWind_Forest
+    
+    @Test 
+    subroutine LengthToBreadth_IncreasesWithIncreasingWind_Grassland(this)
+      ! test that the length to breadth ratio increases with increasing wind speed in grassland patches
+      class(TestFireEquations), intent(inout) :: this                   ! test object
+      real(r8)                                :: ltb(4)                 ! result
+      integer                                 :: i                      ! looping index
+      real(r8),                 parameter     :: tree_fraction = 0.0_r8 ! value for tree fraction
+      ! hard-coded wind values
+      real(r8), parameter :: wind(4) = [1.1_r8, 10.0_r8, 100.0_r8, 500.0_r8]
+      
+      do i = 1, size(wind)
+        ltb(i) = LengthToBreadth(wind(i), tree_fraction)
+        ! make sure greater than 1.0
+        @assertGreaterThan(ltb(i), 1.0_r8, tolerance=high_tol)
+      end do
+    
+      do i = 1, size(wind) - 1
+        ! check that function outputs increases as wind speed increases
+        @assertLessThan(ltb(i), ltb(i+1), tolerance=high_tol)
+      end do
+     
+    end subroutine LengthToBreadth_IncreasesWithIncreasingWind_Grassland
+    
+    @Test 
+    subroutine LengthToBreadth_UsesCorrectTreeVsGrassEquations(this)
+      ! test that the function uses the correct equation depending on the tree_fraction
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: ltb                          ! result
+      real(r8),                 parameter     :: wind = 200.0_r8              ! value for wind speed
+      real(r8),                 parameter     :: expected_grass_ltb = 3.4844  ! expected value for grassland patches
+      real(r8),                 parameter     :: expected_forest_ltb = 1.6628 ! expected value for forested patches
+      
+      ! test low tree fraction
+      ltb = LengthToBreadth(wind, 0.0_r8)
+      @assertEqual(ltb, expected_grass_ltb, tolerance=1e-4)
+      
+      ! test high tree fraction
+      ltb = LengthToBreadth(wind, 0.99_r8)
+      @assertEqual(ltb, expected_forest_ltb, tolerance=1e-4)
+      
+      ! test tree fraction exactly at threshold
+      ! should be grassland
+      ltb = LengthToBreadth(wind, 0.55_r8)
+      @assertEqual(ltb, expected_grass_ltb, tolerance=1e-4)
+      
+    end subroutine LengthToBreadth_UsesCorrectTreeVsGrassEquations
+    
+    @Test 
+    subroutine FireSize_ZeroLtB_ReturnsZero(this)
+      ! test that when the length_to_breadth ratio is zero or near zero, the function returns zero
+      class(TestFireEquations), intent(inout) :: this                   ! test object
+      real(r8)                                :: fire_size              ! result
+      real(r8),                 parameter     :: ros_back = 5.0_r8      ! value backwards ros
+      real(r8),                 parameter     :: ros_forward = 10.0_r8  ! value for forward ros
+      real(r8),                 parameter     :: fire_duration = 8.0_r8 ! value for fire duration
+      
+      ! first test 0.0
+      fire_size = FireSize(0.0_r8, ros_back, ros_forward, fire_duration)
+      @assertEqual(fire_size, 0.0_r8)
+      
+      ! now test close to zero
+      fire_size = FireSize(1.0e-31_r8, ros_back, ros_forward, fire_duration)
+      @assertEqual(fire_size, 0.0_r8)
+      
+    end subroutine FireSize_ZeroLtB_ReturnsZero
+    
+    @Test 
+    subroutine FireSize_ZeroROS_ReturnsZero(this)
+      ! test that when the rates of spread are zero, the function returns zero
+      class(TestFireEquations), intent(inout) :: this                       ! test object
+      real(r8)                                :: fire_size                  ! result
+      real(r8),                 parameter     :: fire_duration = 8.0_r8     ! value for fire duration
+      real(r8),                 parameter     :: length_to_breadth = 2.0_r8 ! value for fire duration
+      
+      fire_size = FireSize(length_to_breadth, 0.0_r8, 0.0_r8, fire_duration)
+      @assertEqual(fire_size, 0.0_r8)
+
+    end subroutine FireSize_ZeroROS_ReturnsZero
+    
+end module test_FireEquations
