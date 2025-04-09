@@ -777,7 +777,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_crownarea_cl
 
   ! indices to (patch age x fuel size class) variables
-  integer :: ih_fuel_amount_age_fuel
+  integer :: ih_fuel_amount_si_agfc
 
   ! The number of variable dim/kind types we have defined (static)
 
@@ -4698,7 +4698,7 @@ contains
          hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
          hio_fracarea_burnt_si_age          => this%hvars(ih_fracarea_burnt_si_age)%r82d, &
          hio_fire_sum_fuel_si_age           => this%hvars(ih_fire_sum_fuel_si_age)%r82d, &
-         hio_fuel_amount_age_fuel            => this%hvars(ih_fuel_amount_age_fuel)%r82d, &
+         hio_fuel_amount_si_agfc            => this%hvars(ih_fuel_amount_si_agfc)%r82d, &
 !         hio_fire_rate_of_spread_front_si_age => this%hvars(ih_fire_rate_of_spread_front_si_age)%r82d, &
          hio_mortality_canopy_si_scag         => this%hvars(ih_mortality_canopy_si_scag)%r82d, &
          hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
@@ -4752,8 +4752,8 @@ contains
                cpatch%sum_fuel * patch_area_div_site_area
           do i_fuel = 1,nfsc
              i_agefuel = get_agefuel_class_index(cpatch%age,i_fuel)
-             hio_fuel_amount_age_fuel(io_si,i_agefuel) = hio_fuel_amount_age_fuel(io_si,i_agefuel) + &
-                  cpatch%fuel_frac(i_fuel) * cpatch%sum_fuel * patch_area_div_site_area
+             hio_fuel_amount_si_agfc(io_si,i_agefuel) = hio_fuel_amount_si_agfc(io_si,i_agefuel) + &
+                  cpatch%fuel%frac_loading(i_fuel) * cpatch%fuel%non_trunk_loading * patch_area_div_site_area
           end do
 
           ! only valid when "strict ppa" enabled
@@ -7241,7 +7241,7 @@ contains
                long='spitfire fuel quantity in each age x fuel class in kg carbon per m2 land area', &
                use_default='inactive', avgflag='A', vtype=site_agefuel_r8,           &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
-               index = ih_fuel_amount_age_fuel)
+               index = ih_fuel_amount_si_agfc)
 
           call this%set_history_var(vname='FATES_BURNFRAC_AP', units='s-1',          &
                long='spitfire fraction area burnt (per second) by patch age',        &
