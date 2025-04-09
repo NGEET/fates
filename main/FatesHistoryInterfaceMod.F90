@@ -2402,6 +2402,7 @@ contains
          hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
          hio_ncohorts_sec_si     => this%hvars(ih_ncohorts_sec_si)%r81d, &
          hio_ncl_si              => this%hvars(ih_ncl_si)%r81d, &
+         hio_zstar_si            => this%hvars(ih_zstar_si)%r81d, &
          hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
          hio_fracarea_plant_si   => this%hvars(ih_fracarea_plant_si)%r81d, &
          hio_fracarea_trees_si  => this%hvars(ih_fracarea_trees_si)%r81d, &
@@ -2622,6 +2623,12 @@ contains
                  cpatch%total_canopy_area * AREA_INV
             
             hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl_p * cpatch%area * AREA_INV
+
+            ! only valid when "strict ppa" enabled
+            if ( ED_val_comp_excln .lt. 0._r8 ) then
+               hio_zstar_si(io_si) = hio_zstar_si(io_si) &
+                    + cpatch%zstar * cpatch%area * AREA_INV
+            end if
 
             ! 24hr veg temperature
             hio_tveg24(io_si) = hio_tveg24(io_si) + &
@@ -3232,6 +3239,7 @@ contains
              hio_disturbance_rate_si_lulu         => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
              hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d, &
              hio_transition_matrix_si_lulu      => this%hvars(ih_transition_matrix_si_lulu)%r82d, &
+             hio_scorch_height_si_pft           => this%hvars(ih_scorch_height_si_pft)%r82d, &
              hio_sapwood_area_scpf              => this%hvars(ih_sapwood_area_scpf)%r82d)
 
           model_day_int = nint(hlm_model_day)
@@ -3332,7 +3340,6 @@ contains
              cpatch => sites(s)%oldest_patch
              patchloop: do while(associated(cpatch))
 
-
                 cpatch%age_class  = get_age_class_index(cpatch%age)
                 hio_fracarea_si(io_si) = hio_fracarea_si(io_si) &
                      + cpatch%area * AREA_INV
@@ -3368,6 +3375,9 @@ contains
                 endif
 
                 do ft = 1,numpft
+                   hio_scorch_height_si_pft(io_si,ft) = hio_scorch_height_si_pft(io_si,ft) + &
+                        cpatch%Scorch_ht(ft) * cpatch%area * AREA_INV
+
                    ! weight the value by patch area within any given age class - in the event that
                    ! there is more than one patch per age class -
                    ! and also pft-labeled patch areas in the event that we are in nocomp mode
@@ -4671,9 +4681,7 @@ contains
     associate( &
          hio_lai_si_age => this%hvars(ih_lai_si_age)%r82d, &
          hio_ncl_si_age => this%hvars(ih_ncl_si_age)%r82d, &
-         hio_scorch_height_si_pft => this%hvars(ih_scorch_height_si_pft)%r82d, &
          hio_scorch_height_si_agepft => this%hvars(ih_scorch_height_si_agepft)%r82d, &
-         hio_zstar_si        => this%hvars(ih_zstar_si)%r81d, &
          hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
          hio_fracarea_burnt_si_age          => this%hvars(ih_fracarea_burnt_si_age)%r82d, &
          hio_fire_sum_fuel_si_age           => this%hvars(ih_fire_sum_fuel_si_age)%r82d, &
@@ -4717,8 +4725,6 @@ contains
 
           do ft = 1,numpft
              iagepft = get_agepft_class_index(cpatch%age,ft)
-             hio_scorch_height_si_pft(io_si,ft) = hio_scorch_height_si_pft(io_si,ft) + &
-                  cpatch%Scorch_ht(ft) * patch_area_div_site_area
              hio_scorch_height_si_agepft(io_si,iagepft) = hio_scorch_height_si_agepft(io_si,iagepft) + &
                   cpatch%Scorch_ht(ft) * patch_area_div_site_area
           end do
@@ -4740,8 +4746,6 @@ contains
           ! only valid when "strict ppa" enabled
           if ( ED_val_comp_excln .lt. 0._r8 ) then
              hio_zstar_si_age(io_si,cpatch%age_class) = hio_zstar_si_age(io_si,cpatch%age_class) &
-                  + cpatch%zstar * patch_area_div_site_area
-             hio_zstar_si(io_si) = hio_zstar_si(io_si) &
                   + cpatch%zstar * patch_area_div_site_area
           end if
 
