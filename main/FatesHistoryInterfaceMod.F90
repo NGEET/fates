@@ -4275,7 +4275,7 @@ contains
                 do i_pft = 1, numpft
                    ! Sum up total seed bank (germinated and ungerminated)
                    hio_seed_bank_si_pft(io_si,i_pft) = hio_seed_bank_si_pft(io_si,i_pft) + &
-                        (litt_c%seed(i_pft)+litt%seed_germ(i_pft)) * cpatch%area * AREA_INV
+                        (litt_c%seed(i_pft)+litt_c%seed_germ(i_pft)) * cpatch%area * AREA_INV
 
                    ! Sum up total seed bank (just ungerminated)
                    hio_ungerm_seed_bank_si_pft(io_si,i_pft) = hio_ungerm_seed_bank_si_pft(io_si,i_pft) + &
@@ -4287,7 +4287,7 @@ contains
 
                    ! Sum up the input flux into the seed bank (local and external)
                    hio_seeds_in_si_pft(io_si,i_pft) = hio_seeds_in_si_pft(io_si,i_pft) + &
-                        (litt_c%seed_in_local(i_pft) + litt%seed_in_extern(i_pft)) * &
+                        (litt_c%seed_in_local(i_pft) + litt_c%seed_in_extern(i_pft)) * &
                         cpatch%area * AREA_INV * days_per_sec
 
                    hio_seeds_in_local_si_pft(io_si,i_pft) = hio_seeds_in_local_si_pft(io_si,i_pft) + &
