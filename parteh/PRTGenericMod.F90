@@ -258,6 +258,7 @@ module PRTGenericMod
      procedure, non_overridable :: RegisterBCOut
      procedure, non_overridable :: RegisterBCInout
      procedure, non_overridable :: GetState
+     procedure, non_overridable :: GetBiomass
      procedure, non_overridable :: GetTurnover
      procedure, non_overridable :: GetBurned
      procedure, non_overridable :: GetHerbivory
@@ -1056,6 +1057,36 @@ contains
       return
     end function GetState
 
+    ! ====================================================================================
+
+    subroutine GetBiomass(this, element_id, &
+         sapw_m, struct_m, leaf_m, fnrt_m, store_m, repro_m, alive_m, total_m)
+
+      ! This subroutine returns the current amount of mass of a given element for all
+      ! organs, as well as some aggregate biomass variables.
+
+      class(prt_vartypes)   :: this
+      integer, intent(in)   :: element_id  ! Element type queried
+      real(r8), intent(out) :: sapw_m    ! Sapwood mass (elemental, c, n, or p) [kg/plant]
+      real(r8), intent(out) :: struct_m  ! Structural mass ""
+      real(r8), intent(out) :: leaf_m    ! Leaf mass ""
+      real(r8), intent(out) :: fnrt_m    ! Fineroot mass ""
+      real(r8), intent(out) :: store_m   ! Storage mass ""
+      real(r8), intent(out) :: repro_m   ! Total reproductive mass (on plant) ""
+      real(r8), intent(out) :: alive_m   ! Alive biomass (sap+leaf+fineroot+repro+storage) ""
+      real(r8), intent(out) :: total_m   ! Total vegetation mass ""
+
+      sapw_m   = this%GetState(sapw_organ, element_id)
+      struct_m = this%GetState(struct_organ, element_id)
+      leaf_m   = this%GetState(leaf_organ, element_id)
+      fnrt_m   = this%GetState(fnrt_organ, element_id)
+      store_m  = this%GetState(store_organ, element_id)
+      repro_m  = this%GetState(repro_organ, element_id)  ! 2024-11-06: Is zero for now; include for future-proofing
+
+      alive_m  = leaf_m + fnrt_m + sapw_m
+      total_m  = alive_m + store_m + struct_m + repro_m
+
+    end subroutine GetBiomass
     
    ! ====================================================================================
 
