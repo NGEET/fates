@@ -3340,7 +3340,6 @@ contains
              cpatch => sites(s)%oldest_patch
              patchloop: do while(associated(cpatch))
 
-                cpatch%age_class  = get_age_class_index(cpatch%age)
                 hio_fracarea_si(io_si) = hio_fracarea_si(io_si) &
                      + cpatch%area * AREA_INV
 
@@ -5081,7 +5080,6 @@ contains
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
                if( abs(cpatch%rad_error(ivis))>nearzero ) then
-                  age_class = get_age_class_index(cpatch%age)
 
                   hio_vis_rad_err_si(io_si) = hio_vis_rad_err_si(io_si) + &
                        cpatch%rad_error(ivis)*cpatch%total_canopy_area/sum_area_rad
@@ -5633,6 +5631,7 @@ contains
        ! Get ageclass-stratified variables
        cpatch => sites(s)%oldest_patch
        do while(associated(cpatch))
+          cpatch%age_class  = get_age_class_index(cpatch%age)
 
           ! Canopy resistance terms
           if (site_canopy_area .gt. nearzero) then
