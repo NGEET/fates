@@ -239,10 +239,11 @@ contains
        write(fates_log(),fmt_rout) 'fates_leaf_vcmaxse = ',lb_params%vcmaxse
        write(fates_log(),fmt_rout) 'fates_leaf_jmaxse = ',lb_params%jmaxse
        write(fates_log(),fmt_rout) 'fates_leaf_fnps = ',lb_params%fnps
-       write(fates_log(),fmt_iout) 'fates_daylength_factor_switch = ',lb_params%dayl_switch
-       write(fates_log(),fmt_iout) 'fates_leaf_stomatal_model = ',lb_params%stomatal_model
-       write(fates_log(),fmt_iout) 'fates_leaf_stomatal_assim_model = ',lb_params%stomatal_assim_model
-       write(fates_log(),fmt_iout) 'fates_leaf_photo_tempsens_model = ',lb_params%photo_tempsens_model
+       write(fates_log(),fmt_rout) 'nl: electron_transport_model = ',lb_params%electron_transport_model
+       write(fates_log(),fmt_iout) 'nl: daylength_factor_switch = ',lb_params%dayl_switch
+       write(fates_log(),fmt_iout) 'nl: leaf_stomatal_model = ',lb_params%stomatal_model
+       write(fates_log(),fmt_iout) 'nl: leaf_stomatal_assim_model = ',lb_params%stomatal_assim_model
+       write(fates_log(),fmt_iout) 'nl: leaf_photo_tempsens_model = ',lb_params%photo_tempsens_model
        write(fates_log(),fmt_rout) 'fates_leaf_stomatal_slope_medlyn = ',lb_params%medlyn_slope
        write(fates_log(),fmt_rout) 'fates_leaf_stomatal_slope_ballberry = ',lb_params%bb_slope
        write(fates_log(),fmt_rout) 'fates_leaf_stomatal_intercept = ',lb_params%stomatal_intercept

@@ -113,7 +113,7 @@ module FatesInterfaceMod
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
    use FatesTwoStreamUtilsMod, only : TransferRadParams
    use LeafBiophysicsMod         , only : lb_params
-   
+   use LeafBiophysicsMod         , only : FvCB1980
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -1503,7 +1503,7 @@ contains
          hlm_maintresp_leaf_model = unset_int
          hlm_mort_cstarvation_model = unset_int
          hlm_radiation_model = unset_int
-         lb_params%electron_transport_model = unset_int
+         lb_params%electron_transport_model = unset_int !FvCB1980 ! Temporary until API Has this switch
          hlm_regeneration_model = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
@@ -1833,7 +1833,7 @@ contains
             write(fates_log(), *) 'electron transport model is unset: lb_params%electron_transport_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         
+                  
          if(hlm_regeneration_model .eq. unset_int) then
             write(fates_log(), *) 'seed regeneration model is unset: hlm_regeneration_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -2078,7 +2078,7 @@ contains
             case('electron_transport_model')
                ! Switch for electron transport model
                ! (1) for Farquhar von Caemmerer & Berry  (FvCB)
-               ! (2) for Johnson & Berry (2021) (JB) 
+               ! (2) for Johnson & Berry (2021) (JB)
                lb_params%electron_transport_model = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering lb_params%electron_transport_model ',ival,' to FATES'
