@@ -104,6 +104,7 @@ module EDMainMod
   use PRTLossFluxesMod,       only : PRTMaintTurnover
   use EDPftvarcon,            only : EDPftvarcon_inst
   use FatesHistoryInterfaceMod, only : fates_hist
+  use FatesCumulativeMemoryMod, only : UpdateCumulativeMemoryVars
 
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -166,6 +167,10 @@ contains
     end do
     call currentSite%flux_diags%ZeroFluxDiags()
 
+    ! Call a routine that will compute cumulative variables and "memory" averages for 
+    ! a suite of variables. These variables are mostly used for leaf phenology, but they
+    ! may be useful for other components (disturbances, mortality, management).
+    call UpdateCumulativeMemoryVars(currentSite,bc_in)
     
     ! Call a routine that simply identifies if logging should occur
     ! This is limited to a global event until more structured event handling is enabled
