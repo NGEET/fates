@@ -2153,7 +2153,7 @@ contains
                      ! Excess carbon respired
                      this%hvars(ih_excess_resp_si)%r81d(io_si) = &
                           this%hvars(ih_excess_resp_si)%r81d(io_si) + &
-                          ccohort%resp_excess_hold*uconv/days_per_year
+                          ccohort%resp_excess_hold*uconv
 
                   case (nitrogen_element) 
 
@@ -2842,8 +2842,8 @@ contains
                        ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
 
                   hio_aresp_si(io_si) = hio_aresp_si(io_si) + &
-                       (ccohort%resp_g_acc_hold + ccohort%resp_m_acc_hold + &
-                       ccohort%resp_excess_hold) * n_perm2 / days_per_year / sec_per_day
+                       (ccohort%resp_g_acc_hold + ccohort%resp_m_acc_hold) * n_perm2 / days_per_year / sec_per_day  + &
+                       ccohort%resp_excess_hold * n_perm2 / sec_per_day
 
                   ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
                   sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, carbon12_element) * days_per_year
