@@ -113,7 +113,7 @@ module FatesInterfaceMod
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
    use FatesTwoStreamUtilsMod, only : TransferRadParams
    use LeafBiophysicsMod         , only : lb_params
-   
+   use LeafBiophysicsMod         , only : FvCB1980
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -293,8 +293,6 @@ contains
     fates%bc_in(s)%watsat_sl(:)        = 0.0_r8
     fates%bc_in(s)%tempk_sl(:)         = 0.0_r8
     fates%bc_in(s)%h2o_liqvol_sl(:)    = 0.0_r8
-    fates%bc_in(s)%filter_vegzen_pa(:) = .false.
-    fates%bc_in(s)%coszen_pa(:)        = 0.0_r8
     fates%bc_in(s)%fcansno_pa(:)       = 0.0_r8
     fates%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
     fates%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
@@ -375,13 +373,13 @@ contains
     fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
     fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
     
-    fates%bc_out(s)%albd_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%albi_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%ftdd_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%ftid_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%ftii_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%albd_parb(:,:) = 0.0_r8   ! zero albedo, soil absorbs all rad
+    fates%bc_out(s)%albi_parb(:,:) = 0.0_r8   ! zero albedo, soil absorbs all rad
+    fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
+    fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
+    fates%bc_out(s)%ftdd_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftid_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftii_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
     
     fates%bc_out(s)%elai_pa(:)   = 0.0_r8
     fates%bc_out(s)%esai_pa(:)   = 0.0_r8
@@ -533,8 +531,7 @@ contains
       allocate(bc_in%t_soisno_sl(nlevsoil_in))
 
       ! Canopy Radiation
-      allocate(bc_in%filter_vegzen_pa(maxpatch_total))
-      allocate(bc_in%coszen_pa(maxpatch_total))
+      bc_in%coszen = nan
       allocate(bc_in%fcansno_pa(maxpatch_total))
       allocate(bc_in%albgr_dir_rb(num_swb))
       allocate(bc_in%albgr_dif_rb(num_swb))
@@ -621,13 +618,15 @@ contains
       allocate(bc_out%rssha_pa(maxpatch_total))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%albi_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%fabd_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%fabi_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%ftdd_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%ftid_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%ftii_parb(fates_maxPatchesPerSite,num_swb))
+
+     
+      allocate(bc_out%albd_parb(maxpatch_total,num_swb))
+      allocate(bc_out%albi_parb(maxpatch_total,num_swb))
+      allocate(bc_out%fabd_parb(maxpatch_total,num_swb))
+      allocate(bc_out%fabi_parb(maxpatch_total,num_swb))
+      allocate(bc_out%ftdd_parb(maxpatch_total,num_swb))
+      allocate(bc_out%ftid_parb(maxpatch_total,num_swb))
+      allocate(bc_out%ftii_parb(maxpatch_total,num_swb))
 
       ! We allocate the boundary conditions to the BGC
       ! model, regardless of what scheme we use. The BGC
@@ -1496,15 +1495,15 @@ contains
          hlm_num_luh2_states       = unset_int
          hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
-         hlm_daylength_factor_switch = unset_int
-         hlm_photo_tempsens_model = unset_int
-         hlm_stomatal_assim_model = unset_int
-         hlm_stomatal_model = unset_int
+         lb_params%dayl_switch = unset_int
+         lb_params%photo_tempsens_model = unset_int
+         lb_params%stomatal_assim_model = unset_int
+         lb_params%stomatal_model = unset_int
          hlm_hydr_solver = unset_int
          hlm_maintresp_leaf_model = unset_int
          hlm_mort_cstarvation_model = unset_int
          hlm_radiation_model = unset_int
-         hlm_electron_transport_model = unset_int
+         lb_params%electron_transport_model = unset_int !FvCB1980 ! Temporary until API Has this switch
          hlm_regeneration_model = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
@@ -1790,23 +1789,23 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_daylength_factor_switch .eq. unset_int) then
-            write(fates_log(), *) 'use daylength factor switch is unset: hlm_daylength_factor_switch, exiting'
+         if(lb_params%dayl_switch .eq. unset_int) then
+            write(fates_log(), *) 'use daylength factor switch is unset: lb_params%dayl_switch, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_photo_tempsens_model .eq. unset_int) then
-            write(fates_log(), *) 'photosynthetic acclimation model is unset: hlm_photo_tempsens_model exiting'
+         if(lb_params%photo_tempsens_model .eq. unset_int) then
+            write(fates_log(), *) 'photosynthetic acclimation model is unset: lb_params%photo_tempsens_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_stomatal_assim_model .eq. unset_int) then
-            write(fates_log(), *) 'stomatal model assimilation mode is unset: hlm_stomatal_assim_model exiting'
+         if(lb_params%stomatal_assim_model .eq. unset_int) then
+            write(fates_log(), *) 'stomatal model assimilation mode is unset: lb_params%stomatal_assim_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_stomatal_model .eq. unset_int) then
-            write(fates_log(), *) 'stomatal model conductance is unset: hlm_stomatal_model exiting'
+         if(lb_params%stomatal_model .eq. unset_int) then
+            write(fates_log(), *) 'stomatal model conductance is unset: lb_params%stomatal_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -1830,11 +1829,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_electron_transport_model .eq. unset_int) then
-            write(fates_log(), *) 'electron transport model is unset: hlm_electron_transport_model exiting'
+         if(lb_params%electron_transport_model .eq. unset_int) then
+            write(fates_log(), *) 'electron transport model is unset: lb_params%electron_transport_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         
+                  
          if(hlm_regeneration_model .eq. unset_int) then
             write(fates_log(), *) 'seed regeneration model is unset: hlm_regeneration_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -2043,39 +2042,46 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_cohort_age_tracking= ',ival,' to FATES'
                end if
 
-             case('use_daylength_factor_switch')
-               hlm_daylength_factor_switch = ival
-               lb_params%dayl_switch    = hlm_daylength_factor_switch
+            case('use_daylength_factor_switch')
+               ! This switch enables the use of the daylength factor from the HLM
+               ! 1 = TRUE, 0 = FALSE
+               lb_params%dayl_switch    = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_daylength_factor_switch= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering lb_params%dayl_switch= ',ival,' to FATES'
                end if
 
             case('photosynth_acclimation')
-               hlm_photo_tempsens_model = ival
-               lb_params%photo_tempsens_model = hlm_photo_tempsens_model
+               ! switch for choosing the model that defines the temperature
+               ! sensitivity of photosynthetic parameters (vcmax, jmax).
+               ! 0=non-acclimating, 1=Kumarathunge et al., 2019
+               lb_params%photo_tempsens_model = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_photo_tempsens_model= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering lb_params%photo_tempsens_model= ',ival,' to FATES'
                end if
 
             case('stomatal_assim_model')
-               hlm_stomatal_assim_model = ival
-               lb_params%stomatal_assim_model = hlm_stomatal_assim_model
+               ! Switch designating whether to use net or gross
+               ! assimilation in the stomata model, 1 for net, 2 for gross
+               lb_params%stomatal_assim_model = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_stomatal_assim_model ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering lb_params%stomatal_assim_model ',ival,' to FATES'
                end if
 
             case('stomatal_model')
-               hlm_stomatal_model = ival
-               lb_params%stomatal_model = hlm_stomatal_model
+               ! switch for choosing between stomatal conductance models
+               ! 1 for Ball-Berry, 2 for Medlyn
+               lb_params%stomatal_model = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_stomatal_model ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering lb_params%stomatal_model ',ival,' to FATES'
                end if
 
             case('electron_transport_model')
-               hlm_electron_transport_model = ival
-               lb_params%electron_transport_model = hlm_electron_transport_model
+               ! Switch for electron transport model
+               ! (1) for Farquhar von Caemmerer & Berry  (FvCB)
+               ! (2) for Johnson & Berry (2021) (JB)
+               lb_params%electron_transport_model = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering lb_params%electron_transport_model ',ival,' to FATES'
                end if
 
             case('hydr_solver')
