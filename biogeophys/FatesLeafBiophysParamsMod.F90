@@ -126,20 +126,10 @@ contains
 
   subroutine LeafBiophysReceiveParams(fates_params)
 
-    !use FatesInterfaceTypesMod, only : hlm_daylength_factor_switch
-    !use FatesInterfaceTypesMod, only : hlm_stomatal_model
-    !use FatesInterfaceTypesMod, only : hlm_stomatal_assim_model
-    !use FatesInterfaceTypesMod, only : hlm_photo_tempsens_model
-    
     class(fates_parameters_type), intent(inout) :: fates_params
     real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
     real(r8)              :: tmpscalar
     character(len=param_string_length) :: name
-
-    !lb_params%dayl_switch    = hlm_daylength_factor_switch
-    !lb_params%stomatal_model = hlm_stomatal_model
-    !lb_params%stomatal_assim_model = hlm_stomatal_assim_model
-    !lb_params%photo_tempsens_model = hlm_photo_tempsens_model
 
     name = 'fates_leaf_c3psn'
     call fates_params%RetrieveParameterAllocate(name=name, &
