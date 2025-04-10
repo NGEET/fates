@@ -10,6 +10,7 @@ module FatesUnitTestParamReaderMod
   use SFParamsMod,                only : SpitFireRegisterParams, SpitFireReceiveParams
   use PRTInitParamsFatesMod,      only : PRTRegisterParams, PRTReceiveParams
   use PRTParametersMod,           only : prt_params
+  use FatesInterfaceTypesMod,     only : nleafage
   use FatesParameterDerivedMod,   only : param_derived
   use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
   use EDPftvarcon,                only : EDPftvarcon_inst
@@ -140,7 +141,9 @@ module FatesUnitTestParamReaderMod
     call fates_pft_params%Destroy()
     deallocate(fates_params)
     deallocate(fates_pft_params)
-
+    
+    nleafage = size(prt_params%leaf_long, dim=2)
+  
     ! initialize derived parameters
     call param_derived%Init(size(prt_params%wood_density, dim=1))
 
