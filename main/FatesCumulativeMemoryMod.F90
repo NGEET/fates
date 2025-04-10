@@ -95,16 +95,28 @@ contains
       ! Local variables
       type(fates_patch_type), pointer :: cpatch    ! Current patch
       real(r8)   :: temp_in_C         ! Daily averaged temperature in degC
-
+      real(r8)   :: temp_wgt          ! Canopy area weighting factor for daily average
+                                      !    vegetation temperature calculation
 
       ! Find the average temperature for the previous 24 hours
       temp_in_C = 0._r8
+      temp_wgt = 0._r8
       cpatch => CurrentSite%oldest_patch
-      do while(associated(cpatch))
-         temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%area
+      do while( associated(cpatch) )
+         temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%total_canopy_area
+         temp_wgt = temp_wgt + cpatch%total_canopy_area
          cpatch => cpatch%younger
       end do
-      temp_in_C = temp_in_C * area_inv - tfrz
+      if ( temp_wgt > nearzero ) then
+         temp_in_C = temp_in_C/temp_wgt - tfrz
+      else
+         ! If there is no canopy area, we use the vegetation temperature
+         ! of the first patch, which is the forcing air temperature
+         ! as defined in CLM/ELM. The forcing air temperature
+         ! should be the same across all patches. (Although
+         ! it is unlikely there are more than 1 in this scenario)
+         temp_in_C = CurrentSite%oldest_patch%tveg24%GetMean() - tfrz
+      end if
 
 
       ! Record temperature for the last 10 days to the memory variable.
