@@ -196,10 +196,6 @@ module EDPhysiologyMod
                                                       !    a residual amount of leaves, which may create
                                                       !    computational problems. The current threshold
                                                       !    is the same used in ED-2.2.
-
-  real(r8), parameter :: smp_lwr_bound = -1000000._r8 ! Imposed soil matric potential lower bound for 
-                                                      !    frozen or excessively dry soils, used when
-                                                      !    computing water stress.
   ! ============================================================================
 
 contains
@@ -911,7 +907,6 @@ contains
     use EDParamsMod, only : ED_val_phen_mindayson
     use EDParamsMod, only : ED_val_phen_ncolddayslim
     use EDParamsMod, only : ED_val_phen_coldtemp
-    use EDBtranMod, only  : check_layer_water
     !
     ! !ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
@@ -920,7 +915,6 @@ contains
     !
     ! !LOCAL VARIABLES:
 
-    type(fates_patch_type),pointer :: cpatch
     integer  :: model_day_int     ! integer model day 1 - inf
     integer  :: ncolddays         ! no days underneath the threshold for leaf drop
     integer  :: i_wmem            ! Loop counter for water mem days
@@ -935,10 +929,8 @@ contains
     real(r8) :: store_c           ! storage carbon [kg]
     real(r8) :: struct_c          ! structure carbon [kg]
     real(r8) :: gdd_threshold     ! GDD accumulation function,
-    real(r8) :: rootfrac_notop    ! Total rooting fraction excluding the top soil layer
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
-    integer  :: nlevroot          ! Number of rooting levels to consider
     real(r8) :: temp_in_C         ! daily averaged temperature in celsius
     real(r8) :: temp_wgt          ! canopy area weighting factor for daily average
                                   ! vegetation temperature calculation
@@ -980,38 +972,16 @@ contains
     logical  :: last_flush_long_ago      ! Has it been a very long time since last flushing?
 
 
-    ! This is the integer model day. The first day of the simulation is 1, and it
-    ! continues monotonically, indefinitely
-    ! Advance it. (this should be a global, no reason
-    ! for site level, but we don't have global scalars in the
-    ! restart file)
-    currentSite%phen_model_date = currentSite%phen_model_date + 1
+    ! This is the elapsed number of days since the very beginning of the simulation time
     model_day_int = currentSite%phen_model_date
 
 
-    ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414)
-    ! - this is arbitrary and poorly understood. Needs work. ED_
     !Parameters: defaults from Botta et al. 2000 GCB,6 709-725
     !Parameters, default from from SDGVM model of senesence
 
-    temp_in_C = 0._r8
-    temp_wgt = 0._r8
-    cpatch => CurrentSite%oldest_patch
-    do while(associated(cpatch))
-       temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%total_canopy_area
-       temp_wgt = temp_wgt + cpatch%total_canopy_area
-       cpatch => cpatch%younger
-    end do
-    if(temp_wgt>nearzero)then
-       temp_in_C = temp_in_C/temp_wgt - tfrz
-    else
-       ! If there is no canopy area, we use the veg temperature
-       ! of the first patch, which is the forcing air temperature
-       ! as defined in CLM/ELM. The forcing air temperature
-       ! should be the same among all patches. (Although
-       ! it is unlikely there are more than 1 in this scenario)
-       temp_in_C = CurrentSite%oldest_patch%tveg24%GetMean() - tfrz
-    end if
+    ! Retrieve average canopy temperature of the current day
+    temp_in_C = currentSite%vegtemp_memory(1)
+
 
     !-----------------Cold Phenology--------------------!
 
@@ -1040,10 +1010,6 @@ contains
     !GDD accumulation function, which also depends on chilling days.
     !  -68 + 638 * (-0.001 * ncd)
     gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%nchilldays,r8))
-
-    !Accumulate temperature of last 10 days.
-    currentSite%vegtemp_memory(2:num_vegtemp_mem) = currentSite%vegtemp_memory(1:num_vegtemp_mem-1)
-    currentSite%vegtemp_memory(1) = temp_in_C
 
     !count number of days for leaves off
     ncolddays = 0
@@ -1181,53 +1147,6 @@ contains
        phen_drought_threshold = prt_params%phen_drought_threshold(ipft)
        phen_moist_threshold   = prt_params%phen_moist_threshold  (ipft)
        phen_doff_time         = prt_params%phen_doff_time        (ipft)
-
-
-       ! Update soil moisture information memory (we always track the last 10 days)
-       do i_wmem = numWaterMem,2,-1 !shift memory to previous day, to make room for current day
-          currentSite%liqvol_memory(i_wmem,ipft) = currentSite%liqvol_memory(i_wmem-1,ipft)
-          currentSite%smp_memory   (i_wmem,ipft) = currentSite%smp_memory   (i_wmem-1,ipft)
-       end do
-
-       ! Find the rooting depth distribution for PFT
-       call set_root_fraction( currentSite%rootfrac_scr, ipft, currentSite%zi_soil, &
-                               bc_in%max_rooting_depth_index_col )
-       nlevroot = max(2,min(ubound(currentSite%zi_soil,1),bc_in%max_rooting_depth_index_col))
-
-       ! The top most layer is typically very thin (~ 2cm) and dries rather quickly. Despite
-       ! being thin, it can have a non-negligible rooting fraction (e.g., using 
-       ! exponential_2p_root_profile with default parameters make the top layer to contain
-       ! about 7% of the total fine root density).  To avoid overestimating dryness, we 
-       ! ignore the top layer when calculating the memory.
-       rootfrac_notop = sum(currentSite%rootfrac_scr(2:nlevroot))
-       if ( rootfrac_notop <= nearzero ) then
-          ! Unlikely, but just in case all roots are in the first layer, we use the second
-          ! layer the second layer (to avoid FPE issues).
-          currentSite%rootfrac_scr(2) = 1.0_r8
-          rootfrac_notop              = 1.0_r8
-       end if
-
-       ! Set the memory to be the weighted average of the soil properties, using the
-       ! root fraction of each layer (except the topmost one) as the weighting factor.
-
-       currentSite%liqvol_memory(1,ipft) = sum( bc_in%h2o_liqvol_sl     (2:nlevroot) * &
-                                                currentSite%rootfrac_scr(2:nlevroot) ) / &
-                                                rootfrac_notop
-       currentSite%smp_memory   (1,ipft)  = 0._r8
-       do j = 2,nlevroot
-          if(check_layer_water(bc_in%h2o_liqvol_sl(j),bc_in%tempk_sl(j)) ) then
-             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + & 
-                  bc_in%smp_sl            (j) * &
-                  currentSite%rootfrac_scr(j)  / &
-                  rootfrac_notop
-          else
-             ! Nominal extreme suction for frozen or unreasonably dry soil
-             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + & 
-                  smp_lwr_bound * &
-                  currentSite%rootfrac_scr(j)  / &
-                  rootfrac_notop
-          end if
-       end do
 
        ! Calculate the mean soil moisture ( liquid volume (m3/m3) and matric potential (mm))
        !    over the last 10 days
