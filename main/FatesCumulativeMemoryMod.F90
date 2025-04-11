@@ -9,6 +9,7 @@ module FatesCumulativeMemoryMod
    use EDTypesMod            , only : phen_cstat_iscold
    use FatesAllometryMod     , only : set_root_fraction
    use FatesConstantsMod     , only : ndays_per_year
+   use FatesConstantsMod     , only : nearzero
    use FatesConstantsMod     , only : r8   => fates_r8
    use FatesConstantsMod     , only : tfrz => t_water_freeze_k_1atm
    use FatesInterfaceTypesMod, only : bc_in_type
