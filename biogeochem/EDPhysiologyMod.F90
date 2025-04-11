@@ -920,7 +920,6 @@ contains
     integer  :: i_wmem            ! Loop counter for water mem days
     integer  :: i_tmem            ! Loop counter for veg temp mem days
     integer  :: ipft              ! plant functional type index
-    integer  :: j                 ! Soil layer index
     real(r8) :: mean_10day_liqvol ! mean soil liquid volume over last 10 days [m3/m3]
     real(r8) :: mean_10day_smp    ! mean soil matric potential over last 10 days [mm]
     real(r8) :: leaf_c            ! leaf carbon [kg]

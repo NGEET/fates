@@ -145,6 +145,7 @@ contains
       ! Local variables
       integer  :: ipft              ! Plant Functional Type index
       integer  :: i_wmem            ! Loop counter for water memory days
+      integer  :: j                 ! Soil layer index
       integer  :: nlevroot          ! Number of rooting levels to consider
       real(r8) :: rootfrac_notop    ! Total rooting fraction excluding the top soil layer
 
