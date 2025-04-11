@@ -14,6 +14,7 @@ module FatesCumulativeMemoryMod
    use FatesConstantsMod     , only : tfrz => t_water_freeze_k_1atm
    use FatesInterfaceTypesMod, only : bc_in_type
    use FatesInterfaceTypesMod, only : hlm_day_of_year
+   use FatesInterfaceTypesMod, only : numpft
    use FatesPatchMod         , only : fates_patch_type
 
    implicit none
