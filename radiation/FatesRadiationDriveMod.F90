@@ -318,8 +318,12 @@ contains
                 
                 ! Convert normalized radiation error units from fraction of radiation to W/m2
                 do ib = 1,num_swb
-                   cpatch%rad_error(ib) = cpatch%rad_error(ib) * &
+                   if (cpatch%rad_error(ib) /= hlm_hio_ignore_val) then
+                      cpatch%rad_error(ib) = cpatch%rad_error(ib) * &
                         (bc_in(s)%solad_parb(ifp,ib) + bc_in(s)%solai_parb(ifp,ib))
+                   else
+                      cpatch%rad_error(ib) = hlm_hio_ignore_val
+                   endif
                 end do
                 
                 ! output the actual PAR profiles through the canopy for diagnostic purposes

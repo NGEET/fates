@@ -29,6 +29,7 @@ module FatesRestartInterfaceMod
   use FatesInterfaceTypesMod,  only : hlm_use_potentialveg
   use FatesInterfaceTypesMod,  only : fates_maxElementsPerSite
   use FatesInterfaceTypesMod,  only : hlm_use_tree_damage
+  use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val
   use FatesHydraulicsMemMod,   only : nshell
   use FatesHydraulicsMemMod,   only : n_hypool_ag
   use FatesHydraulicsMemMod,   only : n_hypool_troot
@@ -3875,7 +3876,7 @@ contains
            ! zero diagnostic radiation profiles
            currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
            currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
-           currentPatch%rad_error(:) = 0._r8
+           currentPatch%rad_error(:) = hlm_hio_ignore_val
 
            if_notbareground: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground) then
 
