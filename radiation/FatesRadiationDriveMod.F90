@@ -108,13 +108,13 @@ contains
              
              ! Initialize output boundary conditions with trivial assumption
              ! of a black body soil and fully transmitting canopy
-             bc_out(s)%albd_parb(ifp,:)            = 0._r8
-             bc_out(s)%albi_parb(ifp,:)            = 0._r8
+             bc_out(s)%albd_parb(ifp,:)            = 1._r8
+             bc_out(s)%albi_parb(ifp,:)            = 1._r8
              bc_out(s)%fabi_parb(ifp,:)            = 0._r8
              bc_out(s)%fabd_parb(ifp,:)            = 0._r8
-             bc_out(s)%ftdd_parb(ifp,:)            = 1._r8
-             bc_out(s)%ftid_parb(ifp,:)            = 1._r8
-             bc_out(s)%ftii_parb(ifp,:)            = 1._r8
+             bc_out(s)%ftdd_parb(ifp,:)            = 0._r8
+             bc_out(s)%ftid_parb(ifp,:)            = 0._r8
+             bc_out(s)%ftii_parb(ifp,:)            = 0._r8
 
              ! Zero diagnostics
              currentPatch%f_sun      (:,:,:) = 0._r8
@@ -318,8 +318,12 @@ contains
                 
                 ! Convert normalized radiation error units from fraction of radiation to W/m2
                 do ib = 1,num_swb
-                   cpatch%rad_error(ib) = cpatch%rad_error(ib) * &
+                   if (cpatch%rad_error(ib) /= hlm_hio_ignore_val) then
+                      cpatch%rad_error(ib) = cpatch%rad_error(ib) * &
                         (bc_in(s)%solad_parb(ifp,ib) + bc_in(s)%solai_parb(ifp,ib))
+                   else
+                      cpatch%rad_error(ib) = hlm_hio_ignore_val
+                   endif
                 end do
                 
                 ! output the actual PAR profiles through the canopy for diagnostic purposes
