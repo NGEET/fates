@@ -13,6 +13,7 @@ module FatesRestartInterfaceMod
   use FatesConstantsMod,       only : n_landuse_cats
   use FatesConstantsMod,       only : default_regeneration
   use FatesConstantsMod,       only : TRS_regeneration
+  use FatesConstantsMod , only : nocomp_bareground
   use FatesGlobals,            only : fates_log
   use FatesGlobals,            only : endrun => fates_endrun
   use FatesIODimensionsMod,    only : fates_io_dimension_type
@@ -39,11 +40,14 @@ module FatesRestartInterfaceMod
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesInterfaceTypesMod,  only : nlevsclass
   use FatesInterfaceTypesMod,  only : nlevdamage
+  use FatesInterfaceTypesMod,  only : hlm_radiation_model
+  use FatesInterfaceTypesMod,  only : hlm_regeneration_model
   use FatesLitterMod,          only : litter_type
   use FatesLitterMod,          only : ncwd
   use FatesFuelClassesMod,     only : num_fuel_classes
   use FatesLitterMod,          only : ndcmpy
   use EDTypesMod,              only : area
+  use EDTypesMod,              only : set_patchno
   use EDParamsMod,             only : nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
@@ -51,8 +55,6 @@ module FatesRestartInterfaceMod
   use FatesRunningMeanMod,     only : ema_lpa
   use FatesRadiationMemMod,    only : num_swb,norman_solver,twostr_solver
   use TwoStreamMLPEMod,        only : normalized_upper_boundary
-  use EDParamsMod,             only : regeneration_model
-  use EDParamsMod,             only : radiation_model
   use FatesConstantsMod,       only : n_term_mort_types
   use FatesConstantsMod,       only : n_landuse_cats
   use FatesConstantsMod,       only : N_DIST_TYPES
@@ -138,10 +140,11 @@ module FatesRestartInterfaceMod
   integer :: ir_nplant_co
   integer :: ir_gpp_acc_co
   integer :: ir_npp_acc_co
-  integer :: ir_resp_acc_co
+  integer :: ir_resp_m_acc_co
   integer :: ir_gpp_acc_hold_co
   integer :: ir_npp_acc_hold_co
-  integer :: ir_resp_acc_hold_co
+  integer :: ir_resp_m_acc_hold_co
+  integer :: ir_resp_g_acc_hold_co
   integer :: ir_resp_excess_co
   integer :: ir_bmort_co
   integer :: ir_hmort_co
@@ -165,8 +168,7 @@ module FatesRestartInterfaceMod
 
   ! Radiation
   integer :: ir_fcansno_pa
-  integer :: ir_solar_zenith_flag_pa
-  integer :: ir_solar_zenith_angle_pa
+  integer :: ir_solar_zenith_angle
   integer :: ir_gnd_alb_dif_pasb
   integer :: ir_gnd_alb_dir_pasb
 
@@ -186,7 +188,7 @@ module FatesRestartInterfaceMod
 
 
   integer :: ir_ddbhdt_co
-  integer :: ir_resp_tstep_co
+  integer :: ir_resp_m_tstep_co
   integer :: ir_pft_co
   integer :: ir_status_co
   integer :: ir_efleaf_co
@@ -763,13 +765,9 @@ contains
          long_name='Fraction of canopy covered in snow', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_fcansno_pa )
 
-    call this%set_restart_var(vname='fates_solar_zenith_flag_pa', vtype=cohort_int, &
-         long_name='switch specifying if zenith is positive', units='unitless', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_solar_zenith_flag_pa )
-
-    call this%set_restart_var(vname='fates_solar_zenith_angle_pa', vtype=cohort_r8, &
-         long_name='the angle of the solar zenith for each patch', units='radians', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_solar_zenith_angle_pa )
+    call this%set_restart_var(vname='fates_solar_zenith_angle', vtype=site_r8, &
+         long_name='the angle of the solar zenith', units='radians', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_solar_zenith_angle )
 
 
 
@@ -881,10 +879,10 @@ contains
          units='kgC/indiv', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_acc_co )
 
-    call this%set_restart_var(vname='fates_resp_acc', vtype=cohort_r8, &
-         long_name='ed cohort - accumulated respiration over dynamics step', &
+    call this%set_restart_var(vname='fates_resp_m_acc', vtype=cohort_r8, &
+         long_name='ed cohort - accumulated maintenance respiration over dynamics step', &
          units='kgC/indiv', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_acc_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_m_acc_co )
 
     call this%set_restart_var(vname='fates_gpp_acc_hold', vtype=cohort_r8, &
          long_name='ed cohort - current step gpp', &
@@ -896,14 +894,19 @@ contains
          units='kgC/indiv/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_npp_acc_hold_co )
 
-    call this%set_restart_var(vname='fates_resp_acc_hold', vtype=cohort_r8, &
-         long_name='ed cohort - current step resp', &
+    call this%set_restart_var(vname='fates_resp_m_acc_hold', vtype=cohort_r8, &
+         long_name='ed cohort - current step maint resp', &
          units='kgC/indiv/year', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_acc_hold_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_m_acc_hold_co )
+
+    call this%set_restart_var(vname='fates_resp_g_acc_hold', vtype=cohort_r8, &
+         long_name='ed cohort - current step growth resp', &
+         units='kgC/indiv/year', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_g_acc_hold_co )
 
     call this%set_restart_var(vname='fates_resp_excess', vtype=cohort_r8, &
          long_name='ed cohort - maintenance respiration deficit', &
-         units='kgC/indiv', flushval = flushzero, &
+         units='kgC/indiv/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_excess_co )
 
     call this%set_restart_var(vname='fates_bmort', vtype=cohort_r8, &
@@ -963,10 +966,10 @@ contains
          units='cm/year', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ddbhdt_co )
 
-    call this%set_restart_var(vname='fates_resp_tstep', vtype=cohort_r8, &
-         long_name='ed cohort - autotrophic respiration over timestep', &
+    call this%set_restart_var(vname='fates_resp_m_tstep', vtype=cohort_r8, &
+         long_name='ed cohort - maintenance respiration over timestep', &
          units='kgC/indiv/timestep', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_tstep_co )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_m_tstep_co )
 
     call this%set_restart_var(vname='fates_pft', vtype=cohort_int, &
          long_name='ed cohort - plant functional type', units='index', flushval = flushzero, &
@@ -1569,7 +1572,7 @@ contains
         long_name='disturbance rates by donor land-use type, receiver land-use type, and disturbance type', &
         units='1/day', initialize=initialize_variables,ivar=ivar, index = ir_disturbance_rates_siluludi)
 
-   if ( regeneration_model == TRS_regeneration ) then
+   if ( hlm_regeneration_model == TRS_regeneration ) then
       
       call this%DefineRMeanRestartVar(vname='fates_seedling_layer_par24',vtype=cohort_r8, &
            long_name='24-hour seedling layer PAR', &
@@ -1815,6 +1818,23 @@ contains
 
            ! The expanded long name of the variable
            long_name = trim(name_base)//', burned mass:'//trim(pos_symbol)
+
+           call this%set_restart_var(vname=symbol, &
+                 vtype=cohort_r8, &
+                 long_name=trim(long_name), &
+                 units='kg', flushval = flushzero, &
+                 hlms='CLM:ALM', initialize=initialize_variables, &
+                 ivar=ivar, index = dummy_out )
+
+
+
+           ! Register the herbivory (i.e., grazing) flux variable
+           ! ----------------------------------------------------------------------------
+           ! The symbol that is written to file
+           symbol    = trim(symbol_base)//'_herbivory_'//trim(pos_symbol)
+
+           ! The expanded long name of the variable
+           long_name = trim(name_base)//', herbivory mass:'//trim(pos_symbol)
 
            call this%set_restart_var(vname=symbol, &
                  vtype=cohort_r8, &
@@ -2102,8 +2122,7 @@ contains
            rio_landuse_config_s        => this%rvars(ir_landuse_config_si)%int1d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
-           rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
-           rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
+           rio_solar_zenith_angle      => this%rvars(ir_solar_zenith_angle)%r81d, &
            rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
            rio_canopy_layer_yesterday_co    => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
            rio_crowndamage_co          => this%rvars(ir_crowndamage_co)%int1d, &
@@ -2118,9 +2137,10 @@ contains
            rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
            rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
            rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
-           rio_resp_acc_co             => this%rvars(ir_resp_acc_co)%r81d, &
+           rio_resp_m_acc_co           => this%rvars(ir_resp_m_acc_co)%r81d, &
            rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
-           rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
+           rio_resp_m_acc_hold_co      => this%rvars(ir_resp_m_acc_hold_co)%r81d, &
+           rio_resp_g_acc_hold_co      => this%rvars(ir_resp_g_acc_hold_co)%r81d, &
            rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
            rio_resp_excess_co           => this%rvars(ir_resp_excess_co)%r81d, &
            rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
@@ -2134,7 +2154,7 @@ contains
            rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
            rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
            rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
-           rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
+           rio_resp_m_tstep_co         => this%rvars(ir_resp_m_tstep_co)%r81d, &
            rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
            rio_status_co               => this%rvars(ir_status_co)%int1d, &
            rio_efleaf_co               => this%rvars(ir_efleaf_co)%r81d, &
@@ -2416,6 +2436,10 @@ contains
                       this%rvars(ir_prt_var)%r81d(io_idx_co) = &
                             ccohort%prt%variables(i_var)%burned(i_pos)
 
+                      ir_prt_var = ir_prt_var + 1
+                      this%rvars(ir_prt_var)%r81d(io_idx_co) = &
+                            ccohort%prt%variables(i_var)%herbivory(i_pos)
+
                    end do
                 end do
 
@@ -2464,12 +2488,13 @@ contains
                 rio_nplant_co(io_idx_co)       = ccohort%n
                 rio_gpp_acc_co(io_idx_co)      = ccohort%gpp_acc
                 rio_npp_acc_co(io_idx_co)      = ccohort%npp_acc
-                rio_resp_acc_co(io_idx_co)     = ccohort%resp_acc
+                rio_resp_m_acc_co(io_idx_co)     = ccohort%resp_m_acc
                 rio_gpp_acc_hold_co(io_idx_co) = ccohort%gpp_acc_hold
-                rio_resp_acc_hold_co(io_idx_co) = ccohort%resp_acc_hold
+                rio_resp_m_acc_hold_co(io_idx_co) = ccohort%resp_m_acc_hold
+                rio_resp_g_acc_hold_co(io_idx_co) = ccohort%resp_g_acc_hold
                 rio_npp_acc_hold_co(io_idx_co) = ccohort%npp_acc_hold
 
-                rio_resp_excess_co(io_idx_co)   = ccohort%resp_excess
+                rio_resp_excess_co(io_idx_co)   = ccohort%resp_excess_hold
 
                 rio_bmort_co(io_idx_co)        = ccohort%bmort
                 rio_hmort_co(io_idx_co)        = ccohort%hmort
@@ -2486,7 +2511,7 @@ contains
                 rio_lmort_infra_co(io_idx_co)        = ccohort%lmort_infra
 
                 rio_ddbhdt_co(io_idx_co)       = ccohort%ddbhdt
-                rio_resp_tstep_co(io_idx_co)   = ccohort%resp_tstep
+                rio_resp_m_tstep_co(io_idx_co) = ccohort%resp_m_tstep
                 rio_pft_co(io_idx_co)          = ccohort%pft
                 rio_status_co(io_idx_co)       = ccohort%status_coh
                 rio_efleaf_co(io_idx_co)       = ccohort%efleaf_coh
@@ -2531,7 +2556,7 @@ contains
              call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%SetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
 
-             if ( regeneration_model == TRS_regeneration ) then
+             if ( hlm_regeneration_model == TRS_regeneration ) then
                 call this%SetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
                 call this%SetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
                 call this%SetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
@@ -2547,14 +2572,6 @@ contains
              rio_ncohort_pa( io_idx_co_1st )   = cohortsperpatch
 
              rio_fcansno_pa( io_idx_co_1st )   = cpatch%fcansno
-
-             ! Set zenith angle info
-             if ( cpatch%solar_zenith_flag ) then
-                rio_solar_zenith_flag_pa(io_idx_co_1st)     = itrue
-             else
-                rio_solar_zenith_flag_pa(io_idx_co_1st)     = ifalse
-             endif
-             rio_solar_zenith_angle_pa( io_idx_co_1st) = cpatch%solar_zenith_angle
 
              if ( debug ) then
                 write(fates_log(),*) 'offsetNumCohorts III ' &
@@ -2721,8 +2738,7 @@ contains
           rio_gdd_si(io_idx_si)           = sites(s)%grow_deg_days
           rio_phenmodeldate_si(io_idx_si) = sites(s)%phen_model_date
 
- 
-
+          rio_solar_zenith_angle(io_idx_si) = sites(s)%coszen  
 
           rio_fireweather_index_si(io_idx_si) = sites(s)%fireWeather%fire_weather_index
           rio_snow_depth_si(io_idx_si)   = sites(s)%snow_depth
@@ -2806,7 +2822,7 @@ contains
      use EDTypesMod,             only : ed_site_type
      use FatesCohortMod,         only : fates_cohort_type
      use FatesPatchMod,          only : fates_patch_type
-     use EDParamsMod,            only : regeneration_model
+     use FatesInterfaceTypesMod, only : hlm_regeneration_model
      use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
      use FatesInterfaceTypesMod, only : hlm_current_tod, numpft
      use EDTypesMod,             only : area
@@ -2880,7 +2896,7 @@ contains
              ! make new patch
              call newp%Create(fates_unset_r8, fates_unset_r8, primaryland,   &
                nocomp_pft, num_swb, numpft, sites(s)%nlevsoil,              &
-               hlm_current_tod, regeneration_model)
+               hlm_current_tod, hlm_regeneration_model)
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches
@@ -2894,8 +2910,9 @@ contains
                      init_seed_germ=fates_unset_r8)
              end do
 
-             ! give this patch a unique patch number
-             newp%patchno = idx_pa
+             ! Set the new patch number to nonsense, we will
+             ! call set_patchno()
+             newp%patchno = -9
 
 
              ! Iterate over the number of cohorts
@@ -3103,8 +3120,7 @@ contains
           rio_landuse_config_si       => this%rvars(ir_landuse_config_si)%int1d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
-          rio_solar_zenith_flag_pa    => this%rvars(ir_solar_zenith_flag_pa)%int1d, &
-          rio_solar_zenith_angle_pa   => this%rvars(ir_solar_zenith_angle_pa)%r81d, &
+          rio_solar_zenith_angle      => this%rvars(ir_solar_zenith_angle)%r81d, &
           rio_canopy_layer_co         => this%rvars(ir_canopy_layer_co)%int1d, &
           rio_canopy_layer_yesterday_co         => this%rvars(ir_canopy_layer_yesterday_co)%r81d, &
           rio_crowndamage_co          => this%rvars(ir_crowndamage_co)%int1d, &
@@ -3119,9 +3135,10 @@ contains
           rio_nplant_co               => this%rvars(ir_nplant_co)%r81d, &
           rio_gpp_acc_co              => this%rvars(ir_gpp_acc_co)%r81d, &
           rio_npp_acc_co              => this%rvars(ir_npp_acc_co)%r81d, &
-          rio_resp_acc_co             => this%rvars(ir_resp_acc_co)%r81d, &
+          rio_resp_m_acc_co           => this%rvars(ir_resp_m_acc_co)%r81d, &
           rio_gpp_acc_hold_co         => this%rvars(ir_gpp_acc_hold_co)%r81d, &
-          rio_resp_acc_hold_co        => this%rvars(ir_resp_acc_hold_co)%r81d, &
+          rio_resp_m_acc_hold_co      => this%rvars(ir_resp_m_acc_hold_co)%r81d, &
+          rio_resp_g_acc_hold_co      => this%rvars(ir_resp_g_acc_hold_co)%r81d, &
           rio_npp_acc_hold_co         => this%rvars(ir_npp_acc_hold_co)%r81d, &
           rio_resp_excess_co           => this%rvars(ir_resp_excess_co)%r81d, &
           rio_bmort_co                => this%rvars(ir_bmort_co)%r81d, &
@@ -3135,7 +3152,7 @@ contains
           rio_lmort_collateral_co     => this%rvars(ir_lmort_collateral_co)%r81d, &
           rio_lmort_infra_co          => this%rvars(ir_lmort_infra_co)%r81d, &
           rio_ddbhdt_co               => this%rvars(ir_ddbhdt_co)%r81d, &
-          rio_resp_tstep_co           => this%rvars(ir_resp_tstep_co)%r81d, &
+          rio_resp_m_tstep_co         => this%rvars(ir_resp_m_tstep_co)%r81d, &
           rio_pft_co                  => this%rvars(ir_pft_co)%int1d, &
           rio_status_co               => this%rvars(ir_status_co)%int1d, &
           rio_efleaf_co               => this%rvars(ir_efleaf_co)%r81d, &
@@ -3396,6 +3413,10 @@ contains
                       ir_prt_var = ir_prt_var + 1
                       ccohort%prt%variables(i_var)%burned(i_pos) = &
                             this%rvars(ir_prt_var)%r81d(io_idx_co)
+
+                      ir_prt_var = ir_prt_var + 1
+                      ccohort%prt%variables(i_var)%herbivory(i_pos) = &
+                            this%rvars(ir_prt_var)%r81d(io_idx_co)
                    end do
                 end do
 
@@ -3429,11 +3450,12 @@ contains
                 ccohort%n            = rio_nplant_co(io_idx_co)
                 ccohort%gpp_acc      = rio_gpp_acc_co(io_idx_co)
                 ccohort%npp_acc      = rio_npp_acc_co(io_idx_co)
-                ccohort%resp_acc     = rio_resp_acc_co(io_idx_co)
+                ccohort%resp_m_acc   = rio_resp_m_acc_co(io_idx_co)
                 ccohort%gpp_acc_hold = rio_gpp_acc_hold_co(io_idx_co)
-                ccohort%resp_acc_hold = rio_resp_acc_hold_co(io_idx_co)
+                ccohort%resp_m_acc_hold = rio_resp_m_acc_hold_co(io_idx_co)
+                ccohort%resp_g_acc_hold = rio_resp_g_acc_hold_co(io_idx_co)
                 ccohort%npp_acc_hold = rio_npp_acc_hold_co(io_idx_co)
-                ccohort%resp_excess   = rio_resp_excess_co(io_idx_co)
+                ccohort%resp_excess_hold   = rio_resp_excess_co(io_idx_co)
 
                 ccohort%bmort        = rio_bmort_co(io_idx_co)
                 ccohort%hmort        = rio_hmort_co(io_idx_co)
@@ -3451,7 +3473,7 @@ contains
                 ccohort%lmort_infra        = rio_lmort_infra_co(io_idx_co)
 
                 ccohort%ddbhdt       = rio_ddbhdt_co(io_idx_co)
-                ccohort%resp_tstep   = rio_resp_tstep_co(io_idx_co)
+                ccohort%resp_m_tstep = rio_resp_m_tstep_co(io_idx_co)
                 ccohort%pft          = rio_pft_co(io_idx_co)
                 ccohort%status_coh   = rio_status_co(io_idx_co)
                 ccohort%efleaf_coh   = rio_efleaf_co(io_idx_co)
@@ -3511,8 +3533,6 @@ contains
              cpatch%fcansno            = rio_fcansno_pa(io_idx_co_1st)
 
              ! Set zenith angle info
-             cpatch%solar_zenith_flag  = ( rio_solar_zenith_flag_pa(io_idx_co_1st) .eq. itrue )
-             cpatch%solar_zenith_angle = rio_solar_zenith_angle_pa(io_idx_co_1st)
 
              cpatch%ncl_p = this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st)
              cpatch%zstar = this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st)
@@ -3521,7 +3541,7 @@ contains
              call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
              call this%GetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
 
-             if ( regeneration_model == TRS_regeneration ) then
+             if ( hlm_regeneration_model == TRS_regeneration ) then
                 call this%GetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
                 call this%GetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
                 call this%GetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
@@ -3751,8 +3771,8 @@ contains
           sites(s)%grow_deg_days  = rio_gdd_si(io_idx_si)
           sites(s)%phen_model_date= rio_phenmodeldate_si(io_idx_si)
 
+          sites(s)%coszen         = rio_solar_zenith_angle(io_idx_si)
          
-
           sites(s)%fireWeather%fire_weather_index  = rio_fireweather_index_si(io_idx_si)
           sites(s)%snow_depth     = rio_snow_depth_si(io_idx_si)
           sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
@@ -3769,8 +3789,12 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           endif
 
+
+          call set_patchno(sites(s),.false.,0)
+          
        end do
 
+       
        if ( debug ) then
           write(fates_log(),*) 'CVTL total cohorts ',totalCohorts
        end if
@@ -3790,6 +3814,7 @@ contains
      use FatesNormanRadMod, only : PatchNormanRadiation
      use EDTypesMod,             only : ed_site_type
      use FatesPatchMod,          only : fates_patch_type
+     use EDParamsMod               , only : maxpatch_total
 
      ! !ARGUMENTS:
      class(fates_restart_interface_type) , intent(inout) :: this
@@ -3799,17 +3824,45 @@ contains
 
      ! locals
      ! ----------------------------------------------------------------------------------
+
      type(fates_patch_type),pointer  :: currentPatch  ! current patch
      integer                      :: s             ! site counter
      integer                      :: ib            ! radiation band counter
      integer                      :: ifp           ! patch counter
 
-     do s = 1, nsites
+     ! We need dummy variables for the solver, we don't want to update
+     ! the output boundary conditions since the HLM remembers it
+     real(r8) ,pointer :: albd_parb(:,:)
+     real(r8) ,pointer :: albi_parb(:,:)
+     real(r8) ,pointer :: fabd_parb(:,:)
+     real(r8) ,pointer :: fabi_parb(:,:)
+     real(r8) ,pointer :: ftdd_parb(:,:)
+     real(r8) ,pointer :: ftid_parb(:,:)
+     real(r8) ,pointer :: ftii_parb(:,:)
 
-        ifp = 0
+     allocate(albd_parb(maxpatch_total,2))
+     allocate(albi_parb(maxpatch_total,2))
+     allocate(fabd_parb(maxpatch_total,2))
+     allocate(fabi_parb(maxpatch_total,2))
+     allocate(ftdd_parb(maxpatch_total,2))
+     allocate(ftid_parb(maxpatch_total,2))
+     allocate(ftii_parb(maxpatch_total,2))
+     
+     do_sites: do s = 1, nsites
+
+        ! The HLM should remember the albedos, do not try to mess with them
+        !bc_out(s)%albd_parb(:,:) = 0._r8  ! output HLM  Assume soil absorbs 100%
+        !bc_out(s)%albi_parb(:,:) = 0._r8  ! output HLM  Assume soil absorbs 100%
+        !bc_out(s)%fabi_parb(:,:) = 0._r8  ! output HLM  Assume canopy absorbs 0%
+        !bc_out(s)%fabd_parb(:,:) = 0._r8  ! output HLM  Assume canopy absorbs 0%
+        !bc_out(s)%ftdd_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
+        !bc_out(s)%ftid_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
+        !bc_out(s)%ftii_parb(:,:) = 1._r8  ! output HLM  Canopy transmits 100%
+        
         currentpatch => sites(s)%oldest_patch
-        do while (associated(currentpatch))
-           ifp = ifp+1
+        while_patch: do while (associated(currentpatch))
+
+           ifp = currentPatch%patchno
            
            currentPatch%f_sun      (:,:,:) = 0._r8
            currentPatch%fabd_sun_z (:,:,:) = 0._r8
@@ -3822,94 +3875,71 @@ contains
            ! zero diagnostic radiation profiles
            currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
            currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
-
            currentPatch%rad_error(:) = 0._r8
-           
-           ! -----------------------------------------------------------
-           ! When calling norman radiation from the short-timestep
-           ! we are passing in boundary conditions to set the following
-           ! variables:
-           ! currentPatch%solar_zenith_flag     (is there daylight?)
-           ! currentPatch%solar_zenith_angle    (what is the value?)
-           ! -----------------------------------------------------------
 
-           if(currentPatch%solar_zenith_flag)then
+           if_notbareground: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground) then
 
-              bc_out(s)%albd_parb(ifp,:) = 0._r8  ! output HLM
-              bc_out(s)%albi_parb(ifp,:) = 0._r8  ! output HLM
-              bc_out(s)%fabi_parb(ifp,:) = 0._r8  ! output HLM
-              bc_out(s)%fabd_parb(ifp,:) = 0._r8  ! output HLM
-              bc_out(s)%ftdd_parb(ifp,:) = 1._r8  ! output HLM
-              bc_out(s)%ftid_parb(ifp,:) = 1._r8  ! output HLM
-              bc_out(s)%ftii_parb(ifp,:) = 1._r8  ! output HLM
-
-              if (maxval(currentPatch%nrad(1,:))==0)then
-                 !there are no leaf layers in this patch. it is effectively bare ground.
-                 ! no radiation is absorbed
-                 bc_out(s)%fabd_parb(ifp,:) = 0.0_r8
-                 bc_out(s)%fabi_parb(ifp,:) = 0.0_r8
-                 do ib = 1,num_swb
-
-                    bc_out(s)%albd_parb(ifp,ib) = currentPatch%gnd_alb_dir(ib)
-                    bc_out(s)%albi_parb(ifp,ib) = currentPatch%gnd_alb_dif(ib)
-                    bc_out(s)%ftdd_parb(ifp,ib)= 1.0_r8
-                    bc_out(s)%ftid_parb(ifp,ib)= 1.0_r8
-                    bc_out(s)%ftii_parb(ifp,ib)= 1.0_r8
-                 enddo
-              else
-
-                 select case(radiation_model)
-                 case(norman_solver)
+           if_zenith_flag: if (sites(s)%coszen>0._r8) then
+              
+              select case(hlm_radiation_model)
+              case(norman_solver)
                  
-                    call PatchNormanRadiation (currentPatch, &
-                         bc_out(s)%albd_parb(ifp,:), &
-                         bc_out(s)%albi_parb(ifp,:), &
-                         bc_out(s)%fabd_parb(ifp,:), &
-                         bc_out(s)%fabi_parb(ifp,:), &
-                         bc_out(s)%ftdd_parb(ifp,:), &
-                         bc_out(s)%ftid_parb(ifp,:), &
-                         bc_out(s)%ftii_parb(ifp,:))
+                 call PatchNormanRadiation (currentPatch, &
+                      sites(s)%coszen, &
+                      albd_parb(ifp,:), &
+                      albi_parb(ifp,:), &
+                      fabd_parb(ifp,:), &
+                      fabi_parb(ifp,:), &
+                      ftdd_parb(ifp,:), &
+                      ftid_parb(ifp,:), &
+                      ftii_parb(ifp,:))
+                 
+              case(twostr_solver)
+                 associate( twostr => currentPatch%twostr)
 
-
-                 case(twostr_solver)
-                    associate( twostr => currentPatch%twostr)
-
-                      call twostr%CanopyPrep(currentPatch%fcansno)
-                      call twostr%ZenithPrep(currentPatch%solar_zenith_angle)
+                   if(currentPatch%fcansno>10000._r8 .or. currentPatch%fcansno < -100000._r8)then
+                      write(fates_log(),*) 'restart snow problem:',currentPatch%fcansno
+                      call endrun(msg=errMsg(sourcefile, __LINE__))
+                   end if
                       
-                      do ib = 1,num_swb
-                         
-                         twostr%band(ib)%albedo_grnd_diff = currentPatch%gnd_alb_dif(ib)
-                         twostr%band(ib)%albedo_grnd_beam = currentPatch%gnd_alb_dir(ib)
-                         
-                         call twostr%Solve(ib,             &  ! in
-                              normalized_upper_boundary,   &  ! in
-                              1.0_r8,1.0_r8,               &  ! in
-                              sites(s)%taulambda_2str,     &  ! inout (scratch)
-                              sites(s)%omega_2str,         &  ! inout (scratch)
-                              sites(s)%ipiv_2str,          &  ! inout (scratch)
-                              bc_out(s)%albd_parb(ifp,ib), &  ! out
-                              bc_out(s)%albi_parb(ifp,ib), &  ! out
-                              currentPatch%rad_error(ib),  &  ! out
-                              bc_out(s)%fabd_parb(ifp,ib), &  ! out
-                              bc_out(s)%fabi_parb(ifp,ib), &  ! out
-                              bc_out(s)%ftdd_parb(ifp,ib), &  ! out
-                              bc_out(s)%ftid_parb(ifp,ib), &  ! out
-                              bc_out(s)%ftii_parb(ifp,ib))
-                                                  
-                      end do
+                   call twostr%CanopyPrep(currentPatch%fcansno)
+                   call twostr%ZenithPrep(sites(s)%coszen)
+                   
+                   do ib = 1,num_swb
                       
-                    end associate
-                    
-                 end select
-                    
-              endif ! is there vegetation?
+                      twostr%band(ib)%albedo_grnd_diff = currentPatch%gnd_alb_dif(ib)
+                      twostr%band(ib)%albedo_grnd_beam = currentPatch%gnd_alb_dir(ib)
+                      
+                      call twostr%Solve(ib,             &  ! in
+                           normalized_upper_boundary,   &  ! in
+                           1.0_r8,1.0_r8,               &  ! in
+                           sites(s)%taulambda_2str,     &  ! inout (scratch)
+                           sites(s)%omega_2str,         &  ! inout (scratch)
+                           sites(s)%ipiv_2str,          &  ! inout (scratch)
+                           albd_parb(ifp,ib), &
+                           albi_parb(ifp,ib), &
+                           currentPatch%rad_error(ib),  &
+                           fabd_parb(ifp,ib), &
+                           fabi_parb(ifp,ib), &
+                           ftdd_parb(ifp,ib), &
+                           ftid_parb(ifp,ib), &
+                           ftii_parb(ifp,ib))
+                      
+                   end do
+                 end associate
+              end select
 
-           end if    ! if the vegetation and zenith filter is active
+           end if if_zenith_flag
+           end if if_notbareground    ! if the vegetation and zenith filter is active
+           
            currentPatch => currentPatch%younger
-        end do       ! Loop linked-list patches
-     enddo           ! Loop Sites
-
+        end do while_patch
+     enddo do_sites
+     
+     deallocate(albd_parb, albi_parb)
+     deallocate(fabd_parb, fabi_parb)
+     deallocate(ftdd_parb, ftid_parb, ftii_parb)
+     
      return
    end subroutine update_3dpatch_radiation
 

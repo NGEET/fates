@@ -33,8 +33,6 @@ module EDMainMod
   use PRTGenericMod            , only : phosphorus_element
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
-  use EDCohortDynamicsMod      , only : sort_cohorts
-  use EDCohortDynamicsMod      , only : count_cohorts
   use EDCohortDynamicsMod      , only : EvaluateAndCorrectDBH
   use EDCohortDynamicsMod      , only : DamageRecovery
   use EDPatchDynamicsMod       , only : disturbance_rates
@@ -58,12 +56,13 @@ module EDMainMod
   use FatesSoilBGCFluxMod      , only : EffluxIntoLitterPools
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs
   use FatesSoilBGCFluxMod      , only : PrepCH4BCs
-  use SFMainMod                , only : fire_model
+  use SFMainMod                , only : DailyFireModel
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
   use FatesLitterMod           , only : litter_type
   use FatesLitterMod           , only : ncwd
   use EDtypesMod               , only : ed_site_type
+  use EDTypesMod               , only : set_patchno
   use FatesPatchMod            , only : fates_patch_type
   use FatesCohortMod           , only : fates_cohort_type
   use EDTypesMod               , only : AREA
@@ -79,13 +78,14 @@ module EDMainMod
   use FatesConstantsMod        , only : nearzero
   use FatesConstantsMod        , only : m2_per_ha
   use FatesConstantsMod        , only : sec_per_day
+  use FatesConstantsMod        , only : nocomp_bareground
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydProps
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydStates
   use FatesPlantHydraulicsMod  , only : InitPlantHydStates
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepRhizHydProps
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
-  use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
+  use FatesAllometryMod        , only : h_allom
   use EDLoggingMortalityMod    , only : IsItLoggingTime
   use EDLoggingMortalityMod    , only : get_harvestable_carbon
   use DamageMainMod            , only : IsItDamageTime
@@ -102,8 +102,10 @@ module EDMainMod
   use PRTGenericMod,          only : repro_organ
   use PRTGenericMod,          only : struct_organ
   use PRTLossFluxesMod,       only : PRTMaintTurnover
+  use PRTParametersMod      , only : prt_params
   use EDPftvarcon,            only : EDPftvarcon_inst
   use FatesHistoryInterfaceMod, only : fates_hist
+  use FatesLandUseChangeMod,  only: FatesGrazing
   use FatesCumulativeMemoryMod, only : UpdateCumulativeMemoryVars
 
   ! CIME Globals
@@ -214,8 +216,9 @@ contains
        ! oldest patch per set_patchno, we check that the youngest patch isn't zero.
        ! If there are multiple patches on the site, the bareground patch is avoided
        ! at the level of the fire_model subroutines.
-       if (currentSite%youngest_patch%patchno .ne. 0) then 
-          call fire_model(currentSite, bc_in)
+
+       if (currentSite%youngest_patch%nocomp_pft_label .ne. nocomp_bareground)then
+          call DailyFireModel(currentSite, bc_in)
        end if
 
        ! Calculate disturbance and mortality based on previous timestep vegetation.
@@ -237,7 +240,7 @@ contains
        ! values.  If we aren't entering that sequence, we need to set the flag
        ! Make sure cohorts are marked as non-recruits
 
-       call bypass_dynamics(currentSite)
+       call bypass_dynamics(currentSite,bc_out)
 
     end if
 
@@ -263,7 +266,7 @@ contains
        do while (associated(currentPatch))
 
           ! puts cohorts in right order
-          call sort_cohorts(currentPatch)
+          call currentPatch%SortCohorts()
 
           ! kills cohorts that are too few
           call terminate_cohorts(currentSite, currentPatch, 1, 10, bc_in  )
@@ -277,6 +280,7 @@ contains
 
           currentPatch => currentPatch%younger
        enddo
+         
     end if
 
     call TotalBalanceCheck(currentSite,2)
@@ -321,8 +325,6 @@ contains
     ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
 
-   
-    
     
   end subroutine ed_ecosystem_dynamics
 
@@ -345,7 +347,8 @@ contains
     use FatesConstantsMod, only : itrue
     use FatesConstantsMod     , only : nearzero
     use EDCanopyStructureMod  , only : canopy_structure
-    
+
+
     ! !ARGUMENTS:
 
     type(ed_site_type)     , intent(inout) :: currentSite
@@ -469,6 +472,7 @@ contains
        do while(associated(currentCohort))
 
           ft = currentCohort%pft
+          
           ! Some cohorts are created and inserted to the list while
           ! the loop is going. These are pointed to the "taller" position
           ! of current, and then inherit properties of their donor (current)
@@ -483,8 +487,9 @@ contains
              call Mortality_Derivative(currentSite, currentCohort, bc_in,      &
                currentPatch%btran_ft, mean_temp,                               &
                currentPatch%land_use_label,                                    &
-               currentPatch%age_since_anthro_disturbance, current_fates_landuse_state_vector(primaryland),   &
-               current_fates_landuse_state_vector(secondaryland), harvestable_forest_c, harvest_tag)
+               currentPatch%age_since_anthro_disturbance, current_fates_landuse_state_vector,   &
+               harvestable_forest_c, harvest_tag)
+
 
              ! -----------------------------------------------------------------------------
              ! Apply Plant Allocation and Reactive Transport
@@ -499,16 +504,16 @@ contains
              if (hlm_use_ed_prescribed_phys .eq. itrue) then
                 if (currentCohort%canopy_layer .eq. 1) then
                    currentCohort%npp_acc = EDPftvarcon_inst%prescribed_npp_canopy(ft) &
-                        * currentCohort%c_area / currentCohort%n / hlm_days_per_year
+                        * currentCohort%c_area / currentCohort%n / real( hlm_days_per_year,r8)
                 else
                    currentCohort%npp_acc = EDPftvarcon_inst%prescribed_npp_understory(ft) &
-                        * currentCohort%c_area / currentCohort%n / hlm_days_per_year
+                        * currentCohort%c_area / currentCohort%n / real( hlm_days_per_year,r8)
                 endif
 
                 ! We don't explicitly define a respiration rate for prescribe phys
                 ! but we do need to pass mass balance. So we say it is zero respiration
                 currentCohort%gpp_acc  = currentCohort%npp_acc
-                currentCohort%resp_acc = 0._r8
+                currentCohort%resp_m_acc = 0._r8
 
              end if
 
@@ -524,15 +529,32 @@ contains
              !         photosynthesis step
              ! -----------------------------------------------------------------------------
 
-             currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
              currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
-             currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
+             currentCohort%resp_m_acc_hold = currentCohort%resp_m_acc * real(hlm_days_per_year,r8)
 
-             ! Passing gpp_acc_hold to HLM 
-             bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
-                  AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
-             bc_out%ar_site = bc_out%ar_site + currentCohort%resp_acc_hold * & 
-                  AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
+             ! at this point we have the info we need to calculate growth respiration
+             ! as a "tax" on the difference between daily GPP and daily maintenance respiration
+             if (hlm_use_ed_prescribed_phys .eq. ifalse) then
+
+                currentCohort%resp_g_acc_hold = prt_params%grperc(ft) * &
+                     max(0._r8,(currentCohort%gpp_acc - currentCohort%resp_m_acc)) * real(hlm_days_per_year,r8)
+
+             else
+                ! set growth respiration to zero in prescribed physiology mode,
+                ! that way the npp_acc vars will be set to the nominal gpp values set above.
+                currentCohort%resp_g_acc_hold = 0._r8
+             endif
+
+             ! calculate the npp as the difference between gpp and autotrophic respiration
+             ! (NPP is also updated if there is any excess respiration from nutrient limitations)
+             currentCohort%npp_acc       = currentCohort%gpp_acc - &
+                  (currentCohort%resp_m_acc + currentCohort%resp_g_acc_hold/real(hlm_days_per_year,r8))
+             currentCohort%npp_acc_hold  = currentCohort%gpp_acc_hold - &
+                  (currentCohort%resp_m_acc_hold + currentCohort%resp_g_acc_hold)
+             
+
+             ! allow herbivores to graze
+             call FatesGrazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height)
 
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
@@ -560,7 +582,7 @@ contains
              currentCohort%daily_n_gain = currentCohort%daily_nh4_uptake + &
                   currentCohort%daily_no3_uptake + currentCohort%sym_nfix_daily
 
-             currentCohort%resp_excess = 0._r8
+             currentCohort%resp_excess_hold = 0._r8
              
           end if if_not_newlyrecovered
 
@@ -609,11 +631,31 @@ contains
           end if
 
           call currentCohort%prt%DailyPRT(phase=3)
+
+          ! If nutrients are limiting growth, and carbon continues
+          ! to accumulate beyond the plant's storage capacity, then
+          ! it will burn carbon as what we call "excess respiration"
+          ! We must subtract this term from NPP. We do not need to subtract it from
+          ! currentCohort%npp_acc, it has already been removed from this in
+          ! the daily growth code (PARTEH). Note the unit conversion here, resp_excess_hold
+          ! is in units of kg/plant/day and npp_acc_hold is kg/plant/yr
+          
+          currentCohort%npp_acc_hold  = currentCohort%npp_acc_hold - &
+               currentCohort%resp_excess_hold*real( hlm_days_per_year,r8)
+
+          ! Passing gpp_acc_hold to HLM 
+          bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
+               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
+          bc_out%ar_site = bc_out%ar_site + (currentCohort%resp_m_acc_hold + &
+               currentCohort%resp_g_acc_hold + currentCohort%resp_excess_hold*real(hlm_days_per_year,r8) ) * & 
+               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
           
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
 
           ! -----------------------------------------------------------------------------
+
+
           
           call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in )
 
@@ -638,14 +680,16 @@ contains
           ! Save NPP diagnostic for flux accounting [kg/m2/day]
 
           currentSite%flux_diags%npp = currentSite%flux_diags%npp + &
-               (currentCohort%npp_acc_hold/hlm_days_per_year  - currentCohort%resp_excess) * currentCohort%n * area_inv
+               currentCohort%npp_acc_hold/real( hlm_days_per_year,r8) * currentCohort%n * area_inv
           
           ! And simultaneously add the input fluxes to mass balance accounting
           site_cmass%gpp_acc   = site_cmass%gpp_acc + &
                 currentCohort%gpp_acc * currentCohort%n
 
           site_cmass%aresp_acc = site_cmass%aresp_acc + &
-               (currentCohort%resp_acc+currentCohort%resp_excess) * currentCohort%n
+               currentCohort%resp_m_acc*currentCohort%n + &
+               currentCohort%resp_excess_hold*currentCohort%n + &
+               currentCohort%resp_g_acc_hold*currentCohort%n/real( hlm_days_per_year,r8)
 
           call currentCohort%prt%CheckMassConservation(ft,5)
 
@@ -669,7 +713,7 @@ contains
 
           currentCohort%npp_acc  = 0.0_r8
           currentCohort%gpp_acc  = 0.0_r8
-          currentCohort%resp_acc = 0.0_r8
+          currentCohort%resp_m_acc = 0.0_r8
 
           ! BOC...update tree 'hydraulic geometry'
           ! (size --> heights of elements --> hydraulic path lengths -->
@@ -802,6 +846,11 @@ contains
     type (fates_patch_type) , pointer :: currentPatch
     !-----------------------------------------------------------------------
 
+    ! check patch order (set second argument to true)
+    if (debug) then
+       call set_patchno(currentSite,.true.,1)
+    end if
+    
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting))then
       call canopy_spread(currentSite)
     end if
@@ -828,7 +877,7 @@ contains
        end if
 
        ! This cohort count is used in the photosynthesis loop
-       call count_cohorts(currentPatch)
+       call currentPatch%CountCohorts()
        
        ! Update the total area of by patch age class array 
        currentSite%area_by_age(currentPatch%age_class) = &
@@ -939,7 +988,8 @@ contains
                   site_mass%seed_out + &
                   site_mass%flux_generic_out + &
                   site_mass%frag_out + &
-                  site_mass%aresp_acc
+                  site_mass%aresp_acc + &
+                  site_mass%herbivory_flux_out
 
        net_flux        = flux_in - flux_out
        error           = abs(net_flux - change_in_stock)
@@ -972,6 +1022,7 @@ contains
           write(fates_log(),*) 'flux_generic_out: ',site_mass%flux_generic_out
           write(fates_log(),*) 'frag_out: ',site_mass%frag_out
           write(fates_log(),*) 'aresp_acc: ',site_mass%aresp_acc
+          write(fates_log(),*) 'herbivory_flux_out: ',site_mass%herbivory_flux_out
           write(fates_log(),*) 'error=net_flux-dstock:', error
           write(fates_log(),*) 'biomass', biomass_stock
           write(fates_log(),*) 'litter',litter_stock
@@ -1009,7 +1060,7 @@ contains
                         write(fates_log(),*) 'leaf: ',leaf_m,' structure: ',struct_m,' store: ',store_m
                         write(fates_log(),*) 'fineroot: ',fnrt_m,' repro: ',repro_m,' sapwood: ',sapw_m
                         write(fates_log(),*) 'num plant: ',currentCohort%n
-                        write(fates_log(),*) 'resp excess: ',currentCohort%resp_excess*currentCohort%n
+                        write(fates_log(),*) 'resp excess: ',currentCohort%resp_excess_hold*currentCohort%n
 
                         if(element_list(el).eq.nitrogen_element) then
                            write(fates_log(),*) 'NH4 uptake: ',currentCohort%daily_nh4_uptake*currentCohort%n
@@ -1048,7 +1099,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine bypass_dynamics(currentSite)
+  subroutine bypass_dynamics(currentSite, bc_out)
 
     ! ----------------------------------------------------------------------------------
     ! If dynamics are bypassed, various fluxes, rates and flags need to be set
@@ -1058,12 +1109,16 @@ contains
     ! ----------------------------------------------------------------------------------
 
     ! Arguments
-    type(ed_site_type)      , intent(inout), target  :: currentSite
-
+    type(ed_site_type)      , intent(inout) :: currentSite
+    type(bc_out_type)       , intent(inout) :: bc_out
+    
     ! Locals
     type(fates_patch_type), pointer :: currentPatch
     type(fates_cohort_type), pointer :: currentCohort
 
+    bc_out%gpp_site = 0._r8
+    bc_out%ar_site = 0._r8
+    
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
        currentCohort => currentPatch%shortest
@@ -1071,13 +1126,17 @@ contains
 
           currentCohort%isnew=.false.
 
+          currentCohort%resp_g_acc_hold = prt_params%grperc(currentCohort%pft) * &
+               max(0._r8,(currentCohort%gpp_acc - currentCohort%resp_m_acc))*real(hlm_days_per_year,r8)
+          
           currentCohort%npp_acc_hold  = currentCohort%npp_acc  * real(hlm_days_per_year,r8)
           currentCohort%gpp_acc_hold  = currentCohort%gpp_acc  * real(hlm_days_per_year,r8)
-          currentCohort%resp_acc_hold = currentCohort%resp_acc * real(hlm_days_per_year,r8)
-
+          currentCohort%resp_m_acc_hold = currentCohort%resp_m_acc * real(hlm_days_per_year,r8)
+          
+          currentCohort%resp_excess_hold = 0._r8
           currentCohort%npp_acc  = 0.0_r8
           currentCohort%gpp_acc  = 0.0_r8
-          currentCohort%resp_acc = 0.0_r8
+          currentCohort%resp_m_acc = 0.0_r8
 
           ! No need to set the "net_art" terms to zero
           ! they are zeroed at the beginning of the daily step
@@ -1100,6 +1159,14 @@ contains
           ! as they should just be zero, no uptake
           ! in ST3 mode.
 
+          ! Passing 
+          bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
+               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
+          bc_out%ar_site = bc_out%ar_site + (currentCohort%resp_m_acc_hold + &
+               currentCohort%resp_g_acc_hold +  &
+               currentCohort%resp_excess_hold*real( hlm_days_per_year,r8)) * & 
+               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
+          
           currentCohort => currentCohort%taller
        enddo
        currentPatch => currentPatch%older

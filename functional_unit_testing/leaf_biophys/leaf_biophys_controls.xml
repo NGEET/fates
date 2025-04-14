@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<all>
+
+  <!-- Parameters for leaf biophysics unit tests -->
+  <pdf_out_file>base_pfts.pdf</pdf_out_file>
+  <numpft> 12 </numpft>
+  <f90_params> <!-- parameters that are in the f90 structure -->
+    <scalar_dim>
+      <param name='fates_daylength_factor_switch'>1</param>
+      <param name='fates_leaf_stomatal_model'>2</param>
+      <param name='fates_leaf_stomatal_assim_model'>1</param>
+      <param name='fates_leaf_photo_tempsens_model'>0</param>
+    </scalar_dim>
+    <pft_dim>
+      <param name='fates_leaf_stomatal_btran_model'> 2,2,2,2,2,2,2,2,2,2,2,2 </param>
+      <param name='fates_leaf_agross_btran_model'> 2,0,0,0,0,0,0,0,0,0,0,0 </param>
+      <param name='fates_leaf_c3psn'> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 </param>
+      <param name='fates_leaf_stomatal_slope_ballberry'> 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 </param>
+      <param name='fates_leaf_stomatal_slope_medlyn'> 4.1, 2.3, 2.3, 4.1, 4.4, 4.4, 4.7, 4.7, 4.7, 2.2, 5.3, 1.6 </param>
+      <param name='fates_leaf_stomatal_intercept'> 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 40000 </param>
+      <param name='fates_maintresp_reduction_curvature'>  0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 </param>
+      <param name='fates_maintresp_reduction_intercept'> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </param>
+      <param name='fates_maintresp_reduction_upthresh'> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 </param>
+      <param name='fates_maintresp_leaf_atkin2017_baserate'>  1.756, 1.4995, 1.4995, 1.756, 1.756, 1.756, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956, 2.1956 </param>
+      <param name='fates_maintresp_leaf_ryan1991_baserate'> 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06 </param>
+      <param name='fates_leaf_vcmaxha'> 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330 </param>
+      <param name='fates_leaf_jmaxha'> 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540 </param>
+      <param name='fates_leaf_vcmaxhd'>  149250, 149250, 149250, 149250, 149250, 149250, 149250, 149250, 149250, 149250, 149250, 149250 </param>
+      <param name='fates_leaf_jmaxhd'> 149250, 149250, 149250, 149250, 149250, 149250, 149250, 149250, 149250, 149250, 149250, 149250 </param>
+      <param name='fates_leaf_vcmaxse'> 485, 485, 485, 485, 485, 485, 485, 485, 485, 485, 485, 485 </param>
+      <param name='fates_leaf_jmaxse'> 495, 495, 495, 495, 495, 495, 495, 495, 495, 495, 495, 495 </param>
+    </pft_dim>
+  </f90_params>
+  <py_params>
+    <scalar_dim>
+      <param name='fates_maintresp_leaf_model'> 1 </param>
+    </scalar_dim>
+    <pft_dim>
+      <param name='fates_leafn_vert_scaler_coeff1'> 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963 </param>
+      <param name='fates_leafn_vert_scaler_coeff2'> 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43</param>
+      <param name='fates_leaf_vcmax25top'> 50, 62, 39, 61, 58, 58, 62, 54, 54, 78, 78, 78 </param>
+      <param name='fates_stoich_nitr'> 0.033, 0.029, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04, 0.04, 0.04, 0.04, 0.04  </param>
+      <param name='fates_leaf_slatop'>  0.012, 0.005, 0.024, 0.009, 0.03, 0.03, 0.012, 0.03, 0.03, 0.03, 0.03, 0.03 </param>
+    </pft_dim>
+  </py_params>
+</all>

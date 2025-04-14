@@ -20,7 +20,7 @@ import matplotlib
 import os
 import sys
 import getopt
-import code  # For development: code.interact(local=locals())  code.interact(local=dict(globals(), **locals()))
+import code
 import time
 import importlib
 import csv
@@ -50,7 +50,8 @@ dealloc_twostream_call = f90_wrap_obj.__radiationwrapmod_MOD_dealloc
 alloc_radparams_call = f90_twostr_obj.__twostreammlpemod_MOD_allocateradparams
 set_radparams_call   = f90_wrap_obj.__radiationwrapmod_MOD_setradparam
 set_radparams_call.argtypes = [POINTER(c_double),POINTER(c_int),POINTER(c_int),c_char_p,c_long]
-param_prep_call = f90_twostr_obj.__twostreammlpemod_MOD_radparamprep
+
+param_prep_call = f90_twostr_obj.__twostreammlpemod_MOD_paramprep
 
 setup_canopy_call = f90_wrap_obj.__radiationwrapmod_MOD_setupcanopy
 setup_canopy_call.argtypes = [POINTER(c_int),POINTER(c_int),POINTER(c_int), \
