@@ -217,7 +217,6 @@ contains
     use FatesLitterMod,  only : adjust_SF_CWD_frac
     use SFEquationsMod,  only : LiveFuelMoistureContent
     use EDTypesMod,      only : numWaterMem
-    use EDBtranMod,      only  : check_layer_water
   
 
     ! ARGUMENTS:
@@ -241,8 +240,6 @@ contains
     real(r8) ::  rootfrac             ! Total rooting fraction 
     real(r8) ::  mean_10day_smp(numpft)       ! averaged 10 day soil matric potential for each PFT 
     integer  ::  ipft                 ! pft index
-    integer  ::  i_wmen               ! soil water dynamic memory index
-    integer  ::  j
     integer  ::  nlevroot             ! Number of rooting levels to consider
     
 
@@ -262,9 +259,6 @@ contains
 
     do ipft=1,numpft
       if(int(prt_params%woody(ipft)) == itrue) then 
-         do i_wmem = numWaterMem,2,-1 
-          currentSite%smp_lfmc   (i_wmem,ipft) = currentSite%smp_lfmc   (i_wmem-1,ipft)
-         end do
          call set_root_fraction( currentSite%rootfrac_scr, ipft, currentSite%zi_soil, &
          bc_in%max_rooting_depth_index_col )
          nlevroot = max(2,min(ubound(currentSite%zi_soil,1),bc_in%max_rooting_depth_index_col))
@@ -275,18 +269,7 @@ contains
          currentSite%swc_vol(ipft) = sum(bc_in%h2o_liqvol_sl(1:nlevroot) * &
                                      currentSite%rootfrac_scr(1:nlevroot) ) / &
                                      rootfrac
-         currentSite%smp_lfmc(1,ipft) = 0._r8
-         do j = 1,nlevroot
-          if(check_layer_water(bc_in%h2o_liqvol_sl(j),bc_in%tempk_sl(j)) ) then
-            currentSite%smp_lfmc(1,ipft) = currentSite%smp_lfmc(1,ipft) + &
-            bc_in%smp_sl(j) * currentSite%rootfrac_scr(j)/rootfrac
-          else
-            currentSite%smp_lfmc(1,ipft) = currentSite%smp_lfmc(1,ipft) + &
-            smp_lwr_bound*currentSite%rootfrac_scr(j)/rootfrac
-          end if
-        end do
-
-         mean_10day_smp(ipft) = sum(currentSite%smp_lfmc(1:numWaterMem,ipft)) / &
+         mean_10day_smp(ipft) = sum(currentSite%smp_memory(1:numWaterMem,ipft)) / &
                                 real(numWaterMem,r8)
          
       end if
