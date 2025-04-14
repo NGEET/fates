@@ -4821,12 +4821,12 @@ contains
 
        ! Loop through patches to sum up diagnostics
        cpatch => sites(s)%oldest_patch
-       patchloop: do while(associated(cpatch))
+       patchloop2: do while(associated(cpatch))
           cpatch%age_class  = get_age_class_index(cpatch%age)
 
           ! Loop through cohorts on patch
           ccohort => cpatch%shortest
-          cohortloop: do while(associated(ccohort))
+          cohortloop2: do while(associated(ccohort))
 
              ! If you SUM across all age classes, you should get the mean site value.
              cohort_n_div_site_area = ccohort%n * AREA_INV
@@ -4870,10 +4870,10 @@ contains
              end if  ! cohort is new?
 
              ccohort => ccohort%taller
-          end do cohortloop
+          end do cohortloop2
 
           cpatch => cpatch%younger
-       end do patchloop
+       end do patchloop2
 
        ! The mortality components in this loop already include cohort density (cohort%n), so they
        ! don't use cohort_n_div_site_area.
