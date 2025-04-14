@@ -1,4 +1,13 @@
 module FatesCumulativeMemoryMod
+   !---~---
+   !   This module contains procedures that update multiple cumulative/memory variables
+   ! that drive leaf phenology, and potentially mortality, disturbances, and management.
+   ! These sub-routines are related to FatesRunningMeanMod, however, they need a separate
+   ! module because many of these procedures require access to EDTypesMod, which in turn
+   ! depends on FatesRunningMeanMod.
+   !---~---
+
+
 
    use EDBtranMod            , only : check_layer_water
    use EDParamsMod           , only : ED_val_phen_chiltemp
@@ -20,13 +29,18 @@ module FatesCumulativeMemoryMod
    implicit none
    private
 
+   !---~---
+   !   The main sub-routine that updates all cumulative and memory-related variables. 
+   ! This is the only sub-routine that needs to be public, the specific procedures that
+   ! update time, temperature and moisture memories are called by this sub-routine.
+   !---~---
    public :: UpdateCumulativeMemoryVars
-   public :: UpdateCumulativeThermal
-   public :: UpdatePhenologyDate
 
-   real(r8), parameter :: smp_lwr_bound = -1000000._r8 ! Imposed soil matric potential lower bound
-                                                       !    for frozen or excessively dry soils, 
-                                                       !    used when computing water stress.
+   !---~---
+   !   Imposed soil matric potential lower bound for frozen or excessively dry soils,
+   ! used when computing water stress.
+   !---~---
+   real(r8), public, parameter :: smp_lwr_bound = -1000000._r8 
 
 contains
 
@@ -45,10 +59,13 @@ contains
       ! Update elapsed time
       call UpdatePhenologyDate(currentSite)
 
-      ! Update temperature-related thermal variables. Currently this is just the 
-      !    temperature memory, but it will eventually contain growing degree days
-      !    and number of chilling days.
+      ! Update temperature-related variables. Currently this is just the temperature
+      !    memory, but it will eventually contain growing degree days and number of
+      !    chilling days.
       call UpdateCumulativeThermal(currentSite,bc_in)
+
+      ! Update moisture-related memory variables.
+      call UpdateMemoryMoisture(currentSite,bc_in)
 
       return
    end subroutine UpdateCumulativeMemoryVars
