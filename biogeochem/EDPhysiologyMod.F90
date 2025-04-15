@@ -477,7 +477,7 @@ contains
          ! Calculate seed germination rate, the status flags prevent
          ! germination from occuring when the site is in a drought
          ! (for drought deciduous) or too cold (for cold deciduous)
-         call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), bc_in, currentPatch)
+         call SeedGermination(litt, currentSite%cstatus(1:numpft), currentSite%dstatus(1:numpft), bc_in, currentPatch)
          
          ! Send fluxes from newly created litter into the litter pools
          ! This litter flux is from non-disturbance inducing mortality, as well
@@ -932,11 +932,8 @@ contains
     !
     ! !USES:
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-    use EDParamsMod, only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c
-    use EDParamsMod, only : ED_val_phen_chiltemp
     use EDParamsMod, only : ED_val_phen_mindayson
     use EDParamsMod, only : ED_val_phen_ncolddayslim
-    use EDParamsMod, only : ED_val_phen_coldtemp
     use EDBtranMod, only  : check_layer_water
     !
     ! !ARGUMENTS:
@@ -964,6 +961,7 @@ contains
     real(r8) :: rootfrac_notop    ! Total rooting fraction excluding the top soil layer
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
+    integer  :: gddend            ! end of counting period for growing degree days.
     integer  :: nlevroot          ! Number of rooting levels to consider
     real(r8) :: temp_in_C         ! daily averaged temperature in celsius
     real(r8) :: elongf_prev       ! Elongation factor from previous time
@@ -1002,6 +1000,7 @@ contains
     logical  :: prolonged_on_period      ! Has leaves been flushed for too long?
     logical  :: prolonged_off_period     ! Have leaves been abscissed for too long?
     logical  :: last_flush_long_ago      ! Has it been a very long time since last flushing?
+    logical  :: growing_season           ! Is this the growing season for cold-deciduous?
 
 
     ! This is the integer model day. The first day of the simulation is 1, and it
@@ -1031,170 +1030,175 @@ contains
 
     !Zero growing degree and chilling day counters
     if (currentSite%lat > 0)then
-       ncdstart = 270  !Northern Hemisphere begining November
-       gddstart = 1    !Northern Hemisphere begining January
+       ncdstart = 270  ! Northern Hemisphere begining November
+       gddstart = 1    ! Northern Hemisphere begining January
+       gddend   = 180  ! Northern Hemisphere ending June
     else
-       ncdstart = 120  !Southern Hemisphere beginning May
-       gddstart = 181  !Northern Hemisphere begining July
+       ncdstart = 120  ! Southern Hemisphere beginning May
+       gddstart = 181  ! Southern Hemisphere begining July
+       gddend   = 365  ! Southern Hemisphere ending December
     endif
+
+    ! Define growing season based on start and end dates. Check for cases in which the growing season
+    ! includes 31 December and 1 January.
+    if (gddend >= gddstart) then
+       growing_season = hlm_day_of_year >= gddstart .and. hlm_day_of_year <= gddend
+    else
+       growing_season = hlm_day_of_year >= gddstart .or.  hlm_day_of_year <= gddend
+    end if
+
 
     ! Count the number of chilling days over a seasonal window.
     ! For comparing against GDD, we start calculating chilling
     ! in the late autumn.
     ! This value is used to determine the GDD exceedance threshold
     if (hlm_day_of_year == ncdstart)then
-       currentSite%nchilldays = 0
+       currentSite%nchilldays(1:numpft) = 0
     endif
-
-    !Accumulate growing/chilling days after start of counting period
-    if (temp_in_C  <  ED_val_phen_chiltemp)then
-       currentSite%nchilldays = currentSite%nchilldays + 1
+    !
+    ! reset GDD on set dates
+    if (hlm_day_of_year == gddstart)then
+       currentSite%grow_deg_days(1:numpft) = 0._r8
     endif
-
-    !GDD accumulation function, which also depends on chilling days.
-    !  -68 + 638 * (-0.001 * ncd)
-    gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%nchilldays,r8))
 
     !Accumulate temperature of last 10 days.
     currentSite%vegtemp_memory(2:num_vegtemp_mem) = currentSite%vegtemp_memory(1:num_vegtemp_mem-1)
     currentSite%vegtemp_memory(1) = temp_in_C
 
-    !count number of days for leaves off
-    ncolddays = 0
-    do i_tmem = 1,num_vegtemp_mem
-       if (currentSite%vegtemp_memory(i_tmem) < ED_val_phen_coldtemp)then
-          ncolddays = ncolddays + 1
-       endif
-    enddo
-
-    ! Here is where we do the GDD accumulation calculation
-    !
-    ! reset GDD on set dates
-    if (hlm_day_of_year == gddstart)then
-       currentSite%grow_deg_days = 0._r8
-    endif
-    !
-    ! accumulate the GDD using daily mean temperatures
-    ! Don't accumulate GDD during the growing season (that wouldn't make sense)
-    if (temp_in_C .gt. 0._r8 .and. currentSite%cstatus == phen_cstat_iscold) then
-       currentSite%grow_deg_days = currentSite%grow_deg_days + temp_in_C
-    endif
-
-    !this logic is to prevent GDD accumulating after the leaves have fallen and before the
-    ! beginnning of the accumulation period, to prevend erroneous autumn leaf flushing.
-    if(model_day_int> ndays_per_year)then !only do this after the first year to prevent odd behaviour
-
-       if(currentSite%lat .gt. 0.0_r8)then !Northern Hemisphere
-          ! In the north, don't accumulate when we are past the leaf fall date.
-          ! Accumulation starts on day 1 of year in NH.
-          ! The 180 is to prevent going into an 'always off' state after initialization
-          if( model_day_int .gt. currentSite%cleafoffdate.and.hlm_day_of_year.gt.180)then !
-             currentSite%grow_deg_days = 0._r8
-          endif
-       else !Southern Hemisphere
-          ! In the South, don't accumulate after the leaf off date, and before the start of
-          ! the accumulation phase (day 181).
-          if(model_day_int .gt. currentSite%cleafoffdate.and.hlm_day_of_year.lt.gddstart) then!
-             currentSite%grow_deg_days = 0._r8
-          endif
-       endif
-    endif !year1
-
-    ! Calculate the number of days since the leaves last came on
-    ! and off. If this is the beginning of the simulation, that day might
-    ! not had occured yet, so set it to last year to get things rolling
-
-    if (model_day_int < currentSite%cleafoffdate) then
-       currentSite%cndaysleafoff = model_day_int - (currentSite%cleafoffdate - ndays_per_year)
-    else
-       currentSite%cndaysleafoff = model_day_int - currentSite%cleafoffdate
-    end if
-
-    if (model_day_int < currentSite%cleafondate) then
-       currentSite%cndaysleafon = model_day_int - (currentSite%cleafondate - ndays_per_year)
-    else
-       currentSite%cndaysleafon = model_day_int - currentSite%cleafondate
-    end if
-
-
-
-    !LEAF ON: COLD DECIDUOUS. Needs to
-    !1) have exceeded the growing degree day threshold
-    !2) The leaves should not be on already
-    !3) There should have been at least one chilling day in the counting period.
-    !   this prevents tropical or warm climate plants that are "cold-deciduous"
-    !   from ever re-flushing after they have reached their maximum age (thus
-    !   preventing them from competing
-
-    if ( any(currentSite%cstatus == [phen_cstat_iscold,phen_cstat_nevercold]) .and. &
-         (currentSite%grow_deg_days > gdd_threshold) .and. &
-         (currentSite%cndaysleafoff > ED_val_phen_mindayson) .and. &
-         (currentSite%nchilldays >= 1)) then
-       currentSite%cstatus = phen_cstat_notcold  ! Set to not-cold status (leaves can come on)
-       currentSite%cleafondate = model_day_int
-       currentSite%cndaysleafon = 0
-       currentSite%grow_deg_days = 0._r8 ! zero GDD for the rest of the year until counting season begins.
-       if ( debug ) write(fates_log(),*) 'leaves on'
-    endif !GDD
-
-
-
-
-    !LEAF OFF: COLD THRESHOLD
-    !Needs to:
-    !1) have exceeded the number of cold days threshold
-    !2) have exceeded the minimum leafon time.
-    !3) The leaves should not be off already
-    !4) The day of simulation should be larger than the counting period.
-
-
-    if ( (currentSite%cstatus == phen_cstat_notcold) .and. &
-         (model_day_int > num_vegtemp_mem)      .and. &
-         (ncolddays > ED_val_phen_ncolddayslim) .and. &
-         (currentSite%cndaysleafon > ED_val_phen_mindayson) )then
-
-       currentSite%grow_deg_days  = 0._r8          ! The equations for Botta et al
-       ! are for calculations of
-       ! first flush, but if we dont
-       ! clear this value, it will cause
-       ! leaves to flush later in the year
-       currentSite%cstatus       = phen_cstat_iscold  ! alter status of site to 'leaves off'
-       currentSite%cleafoffdate = model_day_int       ! record leaf off date
-       currentSite%cndaysleafoff = 0
-
-       if ( debug ) write(fates_log(),*) 'leaves off'
-    endif
-
-    ! LEAF OFF: COLD LIFESPAN THRESHOLD
-    ! NOTE: Some areas of the planet will never generate a cold day
-    ! and thus %nchilldays will never go from zero to 1.  The following logic
-    ! when coupled with this fact will essentially prevent cold-deciduous
-    ! plants from re-emerging in areas without at least some cold days
-    
-    if( (currentSite%cstatus == phen_cstat_notcold)  .and. &
-        (currentSite%cndaysleafoff > 400)) then   ! remove leaves after a whole year,
-                                                  ! when there is no 'off' period.
-       currentSite%grow_deg_days  = 0._r8
-
-       currentSite%cstatus = phen_cstat_nevercold  ! alter status of site to imply that this
-       ! site is never really cold enough
-       ! for cold deciduous
-       currentSite%cleafoffdate = model_day_int    ! record leaf off date
-       currentSite%cndaysleafoff = 0
-
-       if ( debug ) write(fates_log(),*) 'leaves off'
-    endif
-
-
 
     ! Loop through every PFT to assign the elongation factor. 
-    ! Add PFT look to account for different PFT rooting depth profiles.
-    pft_elong_loop: do ipft=1,numpft
-
+    ! Add PFT loop to account for different parameters and PFT-specific rooting depth profiles.
+    phen_elong_loop: do ipft=1,numpft
        ! Copy values to a local variable to make code more legible.
+       phen_a_gdd             = prt_params%phen_a_gdd            (ipft)
+       phen_b_gdd             = prt_params%phen_b_gdd            (ipft)
+       phen_c_gdd             = prt_params%phen_c_gdd            (ipft)
+       phen_coldtemp          = prt_params%phen_coldtemp         (ipft)
+       phen_chiltemp          = prt_params%phen_chiltemp         (ipft)
+       phen_gddtemp           = prt_params%phen_gddtemp          (ipft)
        phen_drought_threshold = prt_params%phen_drought_threshold(ipft)
        phen_moist_threshold   = prt_params%phen_moist_threshold  (ipft)
        phen_doff_time         = prt_params%phen_doff_time        (ipft)
+
+       !---~---
+       !   COLD (SEASON) DECIDUOUS
+       !---~---
+
+       ! Accumulate growing/chilling days after start of counting period
+       if (temp_in_C  <  phen_chiltemp) then
+          currentSite%nchilldays(ipft) = currentSite%nchilldays(ipft) + 1
+       end if
+
+       !GDD accumulation function, which also depends on chilling days.
+       !  -68 + 638 * (-0.001 * ncd)
+       gdd_threshold = phen_a_gdd + phen_b_gdd * exp(phen_c_gdd*real(currentSite%nchilldays(ipft),r8))
+
+       !count number of days for leaves off
+       ncolddays = count(currentSite%vegtemp_memory(1:num_vegtemp_mem) < phen_coldtemp)
+
+       ! Accumulate the GDD using daily mean temperatures
+       ! Don't accumulate GDD during the growing season (that wouldn't make sense)
+       if ( temp_in_C > phen_gddtemp .and. currentSite%cstatus(ipft) == phen_cstat_iscold ) then
+          currentSite%grow_deg_days(ipft) = currentSite%grow_deg_days(ipft) + &
+                                            temp_in_C - phen_gddtemp
+       end if
+
+       ! This logic is to prevent GDD accumulating after the leaves have fallen and before the
+       ! beginnning of the accumulation period, to prevend erroneous autumn leaf flushing.
+       ! We only do this after the first year to prevent odd behaviour.
+       if ( ( model_day_int > ndays_per_year ) .and. &                  ! Past the first year
+            ( model_day_int > currentSite%cleafoffdate(ipft) ) .and. &  ! Past the abscission date
+            ( .not. growing_season ) ) then                             ! Not in the growing season
+          currentSite%grow_deg_days(ipft) = 0._r8
+       end if
+
+       ! Calculate the number of days since the leaves last came on
+       ! and off. If this is the beginning of the simulation, that day might
+       ! not had occured yet, so set it to last year to get things rolling
+       if (model_day_int < currentSite%cleafoffdate(ipft)) then
+          currentSite%cndaysleafoff(ipft) = model_day_int - (currentSite%cleafoffdate(ipft) - ndays_per_year)
+       else
+          currentSite%cndaysleafoff(ipft) = model_day_int - currentSite%cleafoffdate(ipft)
+       end if
+
+       if (model_day_int < currentSite%cleafondate(ipft)) then
+          currentSite%cndaysleafon(ipft) = model_day_int - (currentSite%cleafondate(ipft) - ndays_per_year)
+       else
+          currentSite%cndaysleafon(ipft) = model_day_int - currentSite%cleafondate(ipft)
+       end if
+
+
+
+       ! LEAF ON: COLD DECIDUOUS. Needs to
+       ! 1) have exceeded the growing degree day threshold
+       ! 2) The leaves should not be on already
+       ! 3) There should have been at least one chilling day in the counting period.
+       !    this prevents tropical or warm climate plants that are "cold-deciduous"
+       !    from ever re-flushing after they have reached their maximum age (thus
+       !    preventing them from competing).
+
+       if ( any(currentSite%cstatus(ipft) == [phen_cstat_iscold,phen_cstat_nevercold]) .and. &
+            (currentSite%grow_deg_days(ipft) > gdd_threshold) .and. &
+            (currentSite%cndaysleafoff(ipft) > ED_val_phen_mindayson) .and. &
+            (currentSite%nchilldays(ipft) >= 1)) then
+          currentSite%cstatus      (ipft) = phen_cstat_notcold  ! Set to not-cold status (leaves can come on)
+          currentSite%cleafondate  (ipft) = model_day_int       ! Record flushing date
+          currentSite%cndaysleafon (ipft) = 0                   ! Reset time since flushing
+          currentSite%grow_deg_days(ipft) = 0._r8 ! zero GDD for the rest of the year until counting season begins.
+          if ( debug ) write(fates_log(),*) 'leaves on'
+       endif !GDD
+
+
+
+
+       ! LEAF OFF: COLD THRESHOLD. Needs to:
+       ! 1) have exceeded the number of cold days threshold
+       ! 2) have exceeded the minimum leafon time.
+       ! 3) The leaves should not be off already
+       ! 4) The day of simulation should be larger than the counting period.
+
+       if ( (currentSite%cstatus(ipft) == phen_cstat_notcold) .and. &
+            (model_day_int > num_vegtemp_mem)      .and. &
+            (ncolddays > ED_val_phen_ncolddayslim) .and. &
+            (currentSite%cndaysleafon(ipft) > ED_val_phen_mindayson) )then
+
+          ! The equations for Botta et al. (2000) are for calculations of first flush, but if we don't
+          ! clear this value, it will cause leaves to flush later in the year
+          ! MLO - I wonder if this wouldn't be desirable in some cases (e.g., recovery from spring frost damage)
+          currentSite%grow_deg_days(ipft)  = 0._r8
+
+          currentSite%cstatus      (ipft) = phen_cstat_iscold  ! Alter status of site to 'leaves off'
+          currentSite%cleafoffdate (ipft) = model_day_int      ! Record abscission date
+          currentSite%cndaysleafoff(ipft) = 0                  ! Reset time since abscission
+
+          if ( debug ) write(fates_log(),*) 'leaves off'
+       endif
+
+       ! LEAF OFF: COLD LIFESPAN THRESHOLD.
+       ! 
+       ! Remove leaves after an entire year has passed and no temperature-driven abscission event 
+       ! ocurred.
+       !
+       ! NOTE: Some areas of the planet will never generate a cold day
+       ! and thus %nchilldays will never go from zero to 1.  The following logic
+       ! when coupled with this fact will essentially prevent cold-deciduous
+       ! plants from re-emerging in areas without at least some cold days
+       
+       if ( (currentSite%cstatus(ipft) == phen_cstat_notcold)  .and. &
+            (currentSite%cndaysleafoff(ipft) > 400) ) then
+          currentSite%grow_deg_days(ipft)  = 0._r8                ! Reset GDD
+          currentSite%cstatus      (ipft) = phen_cstat_nevercold  ! Alter status to imply that this site
+                                                                  !    is never really cold enough for
+                                                                  !    this cold deciduous PFT
+          currentSite%cleafoffdate (ipft) = model_day_int         ! Record abscission date
+          currentSite%cndaysleafoff(ipft) = 0                     ! Reset time since abscission
+
+          if ( debug ) write(fates_log(),*) 'leaves off'
+       end if
+
+       !---~---
+       !   HYDRO (STRESS) DECIDUOUS
+       !---~---
 
 
        ! Update soil moisture information memory (we always track the last 10 days)
@@ -1528,7 +1532,7 @@ contains
              currentSite%elong_factor(ipft) = 1.0_r8
           case (itrue)
              ! Cold-deciduous. Define elongation factor based on cold status
-             select case (currentSite%cstatus)
+             select case (currentSite%cstatus(ipft))
              case (phen_cstat_nevercold,phen_cstat_iscold)
                 currentSite%elong_factor(ipft) = 0.0_r8
              case (phen_cstat_notcold)
@@ -1628,10 +1632,10 @@ contains
           is_time_block: if (prt_params%season_decid(ipft) == itrue) then ! Cold deciduous
 
              ! A. Is this the time for COLD LEAVES to switch to ON?
-             is_flushing_time = ( currentSite%cstatus      == phen_cstat_notcold .and. & ! We just moved to leaves being on
+             is_flushing_time = ( currentSite%cstatus(ipft) == phen_cstat_notcold .and. & ! We just moved to leaves being on
                                   currentCohort%status_coh == leaves_off         )        ! Leaves are currently off
              ! B. Is this the time for COLD LEAVES to switch to OFF?
-             is_shedding_time = any(currentSite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]) .and. & ! Past leaf drop day or too cold
+             is_shedding_time = any(currentSite%cstatus(ipft) == [phen_cstat_nevercold,phen_cstat_iscold]) .and. & ! Past leaf drop day or too cold
                                 currentCohort%status_coh == leaves_on                                .and. & ! Leaves have not dropped yet
                                 ( currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) .or. & ! Grasses are big enough or...
                                   prt_params%woody(ipft) == itrue                                     )      ! this is a woody PFT.
@@ -2342,7 +2346,7 @@ contains
     !
     ! !ARGUMENTS
     type(litter_type) :: litt
-    integer                   , intent(in) :: cold_stat    ! Is the site in cold leaf-off status?
+    integer, dimension(numpft), intent(in) :: cold_stat    ! Is the site in cold leaf-off status?
     integer, dimension(numpft), intent(in) :: drought_stat ! Is the site in drought leaf-off status?
     type(bc_in_type),           intent(in) :: bc_in
     type(fates_patch_type),        intent(in) :: currentPatch
@@ -2438,7 +2442,7 @@ contains
       !set the germination only under the growing season...c.xu
 
       if ((prt_params%season_decid(pft) == itrue ) .and. &
-            (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold]))) then
+            (any(cold_stat(pft) == [phen_cstat_nevercold,phen_cstat_iscold]))) then
           ! no germination for all PFTs when cold
           litt%seed_germ_in(pft) = 0.0_r8
        endif
@@ -2558,7 +2562,7 @@ contains
             ! but if the plant is seasonally (cold) deciduous, and the site status is flagged
             ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
             if ((prt_params%season_decid(ft) == itrue) .and.                   &
-               (any(currentSite%cstatus == [phen_cstat_nevercold, phen_cstat_iscold]))) then
+               (any(currentSite%cstatus(ft) == [phen_cstat_nevercold, phen_cstat_iscold]))) then
                efleaf_coh  = 0.0_r8
                effnrt_coh  = 1.0_r8 - fnrt_drop_fraction
                efstem_coh  = 1.0_r8 - stem_drop_fraction
