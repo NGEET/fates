@@ -966,7 +966,7 @@ contains
          stem_drop_fraction = prt_params%phen_stem_drop_fraction(temp_cohort%pft)
 
          if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
-              any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
+              any(csite%cstatus(temp_cohort%pft) == [phen_cstat_nevercold,phen_cstat_iscold])) then
             ! Cold deciduous and season is for leaves off. Set leaf status and 
             ! elongation factors accordingly
             temp_cohort%efleaf_coh = 0.0_r8
