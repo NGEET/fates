@@ -2596,8 +2596,8 @@ end subroutine flush_hvars
          hio_site_dstatus_si_pft(io_si,i_pft) = real(sites(s)%dstatus(i_pft),r8)
 
          ! Model days elapsed since leaf off/on for drought deciduous
-         hio_dleafoff_si_pft(io_si,i_pft)     = real(sites(s)%dndaysleafon (i_pft),r8)
-         hio_dleafon_si_pft(io_si,i_pft)      = real(sites(s)%dndaysleafoff(i_pft),r8)
+         hio_dleafoff_si_pft(io_si,i_pft)     = real(sites(s)%dndaysleafoff(i_pft),r8)
+         hio_dleafon_si_pft(io_si,i_pft)      = real(sites(s)%dndaysleafon (i_pft),r8)
 
          ! Leaf elongation factor (0 means fully abscissed, 1 means fully flushed).
          hio_elong_factor_si_pft(io_si,i_pft) = sites(s)%elong_factor(i_pft)
