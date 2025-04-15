@@ -3339,10 +3339,9 @@ contains
                 hio_site_ncolddays_si(io_si,ft)  = real(sites(s)%ncolddays(ft),r8)
 
                 ! Growing degree-days
-                hio_gdd_si(io_si,ft) = sites(s)%grow_deg_days
+                hio_gdd_si(io_si,ft) = sites(s)%grow_deg_days(ft)
 
                 ! Model days elapsed since leaf on/off for cold-deciduous
-                ! MLO - Is there any reason for not using cndaysleafon and cndaysleafoff?
                 hio_cleafoff_si(io_si,ft) = real(sites(s)%cndaysleafoff(ft),r8)
                 hio_cleafon_si(io_si,ft)  = real(sites(s)%cndaysleafon (ft),r8)
 
@@ -3350,8 +3349,8 @@ contains
                 hio_site_dstatus_si_pft(io_si,ft) = real(sites(s)%dstatus(ft),r8)
 
                 ! Model days elapsed since leaf off/on for drought deciduous
-                hio_dleafoff_si_pft(io_si,ft)     = real(sites(s)%dndaysleafon (ft),r8)
-                hio_dleafon_si_pft(io_si,ft)      = real(sites(s)%dndaysleafoff(ft),r8)
+                hio_dleafoff_si_pft(io_si,ft)     = real(sites(s)%dndaysleafoff(ft),r8)
+                hio_dleafon_si_pft(io_si,ft)      = real(sites(s)%dndaysleafon (ft),r8)
 
                 ! Leaf elongation factor (0 means fully abscissed, 1 means fully flushed).
                 hio_elong_factor_si_pft(io_si,ft) = sites(s)%elong_factor(ft)

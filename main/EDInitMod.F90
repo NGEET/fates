@@ -262,18 +262,18 @@ contains
 
     ! PHENOLOGY
 
-    site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
+    site_in%cstatus(:)       = fates_unset_int    ! are leaves in this pixel on or off?
     site_in%dstatus(:)       = fates_unset_int
-    site_in%grow_deg_days    = nan  ! growing degree days
+    site_in%grow_deg_days(:) = nan  ! growing degree days
     site_in%snow_depth       = nan
-    site_in%nchilldays       = fates_unset_int
-    site_in%ncolddays        = fates_unset_int
-    site_in%cleafondate      = fates_unset_int  ! doy of leaf on (cold)
-    site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off (cold)
+    site_in%nchilldays(:)    = fates_unset_int
+    site_in%ncolddays(:)     = fates_unset_int
+    site_in%cleafondate(:)   = fates_unset_int  ! doy of leaf on (cold)
+    site_in%cleafoffdate(:)  = fates_unset_int  ! doy of leaf off (cold)
     site_in%dleafondate(:)   = fates_unset_int  ! doy of leaf on (drought)
     site_in%dleafoffdate(:)  = fates_unset_int  ! doy of leaf off (drought)
-    site_in%cndaysleafon     = fates_unset_int  ! days since leaf on (cold)
-    site_in%cndaysleafoff    = fates_unset_int  ! days since leaf off (cold)
+    site_in%cndaysleafon(:)  = fates_unset_int  ! days since leaf on (cold)
+    site_in%cndaysleafoff(:) = fates_unset_int  ! days since leaf off (cold)
     site_in%dndaysleafon(:)  = fates_unset_int  ! days since leaf on (drought)
     site_in%dndaysleafoff(:) = fates_unset_int  ! days since leaf off (drought)
     site_in%elong_factor(:)  = nan              ! Elongation factor (0 - full abscission; 1 - fully flushed)
@@ -441,27 +441,27 @@ contains
        elong_factor = 1._r8
 
        do s = 1,nsites
-          sites(s)%nchilldays    = 0
-          sites(s)%ncolddays     = 0        ! recalculated in phenology
+          sites(s)%nchilldays(1:numpft)    = 0
+          sites(s)%ncolddays(1:numpft)     = 0        ! recalculated in phenology
                                             ! immediately, so yes this
                                             ! is memory-less, but needed
                                             ! for first value in history file
           sites(s)%phen_model_date         = 0
-          sites(s)%cleafondate             = cleafon    - hlm_day_of_year
-          sites(s)%cleafoffdate            = cleafoff   - hlm_day_of_year
-          sites(s)%cndaysleafon            = cndleafon
-          sites(s)%cndaysleafoff           = cndleafoff
+          sites(s)%cleafondate  (1:numpft) = cleafon    - hlm_day_of_year
+          sites(s)%cleafoffdate (1:numpft) = cleafoff   - hlm_day_of_year
+          sites(s)%cndaysleafon (1:numpft) = cndleafon
+          sites(s)%cndaysleafoff(1:numpft) = cndleafoff
           sites(s)%dleafoffdate (1:numpft) = dleafoff   - hlm_day_of_year
           sites(s)%dleafondate  (1:numpft) = dleafon    - hlm_day_of_year
           sites(s)%dndaysleafon (1:numpft) = dndleafon
           sites(s)%dndaysleafoff(1:numpft) = dndleafoff
-          sites(s)%grow_deg_days   = GDD
+          sites(s)%grow_deg_days(1:numpft) = GDD
 
           sites(s)%liqvol_memory(1:numWaterMem,1:numpft) = liqvolmem
           sites(s)%smp_memory(1:numWaterMem,1:numpft) = smpmem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
 
-          sites(s)%cstatus = cstat
+          sites(s)%cstatus(1:numpft) = cstat
           sites(s)%dstatus(1:numpft) = dstat
           sites(s)%elong_factor(1:numpft) = elong_factor
 
@@ -1145,7 +1145,7 @@ contains
             else 
                ! use built-in phenology 
                if (prt_params%season_decid(pft) == itrue .and.                 &
-                  any(site_in%cstatus == [phen_cstat_nevercold, phen_cstat_iscold])) then 
+                  any(site_in%cstatus(pft) == [phen_cstat_nevercold, phen_cstat_iscold])) then 
                   ! Cold deciduous, off season, assume complete abscission
                   efleaf_coh = 0.0_r8
                   effnrt_coh = 1.0_r8 - fnrt_drop_fraction 
