@@ -302,8 +302,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_seed_bank_si            ! carbon only
   integer :: ih_seeds_in_si             ! carbon only
   integer :: ih_seeds_in_local_si       ! carbon only
-  integer :: ih_ungerm_seed_bank_si        ! carbon only
-  integer :: ih_seedling_pool_si    ! carbon only
+  integer :: ih_ungerm_seed_bank_si     ! carbon only
+  integer :: ih_seedling_pool_si        ! carbon only
   integer :: ih_ba_weighted_height_si
   integer :: ih_ca_weighted_height_si
   integer :: ih_seeds_in_local_elem
@@ -638,6 +638,11 @@ module FatesHistoryInterfaceMod
   integer :: ih_nocomp_pftburnedarea_si_pft
   integer :: ih_seeds_out_gc_si_pft
   integer :: ih_seeds_in_gc_si_pft
+  integer :: ih_seed_bank_si_pft          ! carbon only
+  integer :: ih_seeds_in_si_pft           ! carbon only
+  integer :: ih_seeds_in_local_si_pft     ! carbon only
+  integer :: ih_ungerm_seed_bank_si_pft   ! carbon only
+  integer :: ih_seedling_pool_si_pft      ! carbon only
 
   ! Non-per-ageclass equivalents of per-ageclass variables
   integer :: ih_canopy_fracarea_si
@@ -2162,7 +2167,7 @@ contains
                      ! Excess carbon respired
                      this%hvars(ih_excess_resp_si)%r81d(io_si) = &
                           this%hvars(ih_excess_resp_si)%r81d(io_si) + &
-                          ccohort%resp_excess_hold*uconv/days_per_year
+                          ccohort%resp_excess_hold*uconv
 
                   case (nitrogen_element) 
 
@@ -2861,8 +2866,8 @@ contains
                        ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
 
                   hio_aresp_si(io_si) = hio_aresp_si(io_si) + &
-                       (ccohort%resp_g_acc_hold + ccohort%resp_m_acc_hold + &
-                       ccohort%resp_excess_hold) * n_perm2 / days_per_year / sec_per_day
+                       (ccohort%resp_g_acc_hold + ccohort%resp_m_acc_hold) * n_perm2 / days_per_year / sec_per_day  + &
+                       ccohort%resp_excess_hold * n_perm2 / sec_per_day
 
                   ! Turnover pools [kgC/day] * [day/yr] = [kgC/yr]
                   sapw_m_turnover   = ccohort%prt%GetTurnover(sapw_organ, carbon12_element) * days_per_year
@@ -3264,6 +3269,11 @@ contains
              hio_meanliqvol_si_pft                => this%hvars(ih_meanliqvol_si_pft)%r82d, &
              hio_meansmp_si_pft                   => this%hvars(ih_meansmp_si_pft)%r82d, &
              hio_elong_factor_si_pft              => this%hvars(ih_elong_factor_si_pft)%r82d, &
+             hio_seed_bank_si_pft                 => this%hvars(ih_seed_bank_si_pft)%r82d, &
+             hio_ungerm_seed_bank_si_pft          => this%hvars(ih_ungerm_seed_bank_si_pft)%r82d, &
+             hio_seedling_pool_si_pft             => this%hvars(ih_seedling_pool_si_pft)%r82d, &
+             hio_seeds_in_si_pft                  => this%hvars(ih_seeds_in_si_pft)%r82d, &
+             hio_seeds_in_local_si_pft            => this%hvars(ih_seeds_in_local_si_pft)%r82d, &
              hio_disturbance_rate_si_lulu         => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
              hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d, &
              hio_transition_matrix_si_lulu      => this%hvars(ih_transition_matrix_si_lulu)%r82d, &
@@ -4126,6 +4136,29 @@ contains
 
                 litt_c       => cpatch%litter(element_pos(carbon12_element))
 
+                do i_pft = 1, numpft
+                   ! Sum up total seed bank (germinated and ungerminated)
+                   hio_seed_bank_si_pft(io_si,i_pft) = hio_seed_bank_si_pft(io_si,i_pft) + &
+                        (litt_c%seed(i_pft)+litt_c%seed_germ(i_pft)) * cpatch%area * AREA_INV
+
+                   ! Sum up total seed bank (just ungerminated)
+                   hio_ungerm_seed_bank_si_pft(io_si,i_pft) = hio_ungerm_seed_bank_si_pft(io_si,i_pft) + &
+                        litt_c%seed(i_pft) * cpatch%area * AREA_INV
+
+                   ! Sum up total seedling pool
+                   hio_seedling_pool_si_pft(io_si,i_pft) = hio_seedling_pool_si_pft(io_si,i_pft) + &
+                        litt_c%seed_germ(i_pft) * cpatch%area * AREA_INV
+
+                   ! Sum up the input flux into the seed bank (local and external)
+                   hio_seeds_in_si_pft(io_si,i_pft) = hio_seeds_in_si_pft(io_si,i_pft) + &
+                        (litt_c%seed_in_local(i_pft) + litt_c%seed_in_extern(i_pft)) * &
+                        cpatch%area * AREA_INV * days_per_sec
+
+                   hio_seeds_in_local_si_pft(io_si,i_pft) = hio_seeds_in_local_si_pft(io_si,i_pft) + &
+                        litt_c%seed_in_local(i_pft) * &
+                        cpatch%area * AREA_INV * days_per_sec
+
+                end do
 
                 do i_cwd = 1, ncwd
 
@@ -4276,7 +4309,8 @@ contains
                      sum(sites(s)%term_carbonflux_ustory(:,ft)) * days_per_sec * ha_per_m2 + &
                      sum(sites(s)%term_carbonflux_canopy(:,ft)) * days_per_sec * ha_per_m2
 
-                hio_firemortality_carbonflux_si_pft(io_si,ft) = sites(s)%fmort_carbonflux_canopy(ft) / g_per_kg
+                hio_firemortality_carbonflux_si_pft(io_si,ft) = (sites(s)%fmort_carbonflux_canopy(ft) + &
+                    sites(s)%fmort_carbonflux_ustory(ft)) / g_per_kg
              end do
 
              ! add imort and fmort to aboveground woody mortality 
@@ -6994,6 +7028,36 @@ contains
                use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index=ih_seeds_out_gc_si_pft)
+
+          call this%set_history_var(vname='FATES_SEED_BANK_PF', units='kg m-2',         &
+               long='total seed mass per PFT in kg carbon per m2 land area',     &
+               use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+               index = ih_seed_bank_si_pft)
+
+          call this%set_history_var(vname='FATES_UNGERM_SEED_BANK_PF', units='kg m-2',         &
+               long='ungerminated seed mass per PFT in kg carbon per m2 land area',     &
+               use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+               index = ih_ungerm_seed_bank_si_pft)
+
+          call this%set_history_var(vname='FATES_SEEDLING_POOL_PF', units='kg m-2',         &
+               long='total seedling (ie germinated seeds) mass per PFT in kg carbon per m2 land area',     &
+               use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+               index = ih_seedling_pool_si_pft)
+
+          call this%set_history_var(vname='FATES_SEEDS_IN_PF', units='kg m-2 s-1',      &
+               long='seed production rate per PFT in kg carbon per m2 second',               &
+               use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+               index = ih_seeds_in_si_pft)
+
+          call this%set_history_var(vname='FATES_SEEDS_IN_LOCAL_PF', units='kg m-2 s-1',      &
+               long='local seed production rate per PFT in kg carbon per m2 second',               &
+               use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+               index = ih_seeds_in_local_si_pft)
 
           call this%set_history_var(vname='FATES_MORTALITY_PF', units='m-2 yr-1',    &
                long='PFT-level mortality rate in number of individuals per m2 land area per year', &
