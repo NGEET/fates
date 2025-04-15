@@ -438,13 +438,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_h2oveg_hydro_err_si
   integer :: ih_lai_si
   integer :: ih_elai_si
-  
-  integer :: ih_site_cstatus_si
-  integer :: ih_gdd_si
-  integer :: ih_site_nchilldays_si
-  integer :: ih_site_ncolddays_si
-  integer :: ih_cleafoff_si
-  integer :: ih_cleafon_si
 
   integer :: ih_nesterov_fire_danger_si
   integer :: ih_fire_nignitions_si
@@ -627,6 +620,12 @@ module FatesHistoryInterfaceMod
   integer :: ih_crownarea_si_cnlf
   integer :: ih_gpp_si_pft
   integer :: ih_npp_si_pft
+  integer :: ih_site_cstatus_si_pft
+  integer :: ih_gdd_si_pft
+  integer :: ih_site_nchilldays_si_pft
+  integer :: ih_site_ncolddays_si_pft
+  integer :: ih_cleafoff_si_pft
+  integer :: ih_cleafon_si_pft
   integer :: ih_site_dstatus_si_pft
   integer :: ih_dleafoff_si_pft
   integer :: ih_dleafon_si_pft
@@ -2472,12 +2471,6 @@ contains
          hio_canopy_mortality_carbonflux_si     => this%hvars(ih_canopy_mortality_carbonflux_si)%r81d, &
          hio_ustory_mortality_carbonflux_si => this%hvars(ih_understory_mortality_carbonflux_si)%r81d, &
          hio_woodproduct_si                 => this%hvars(ih_woodproduct_si)%r81d, &
-         hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
-         hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
-         hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
-         hio_site_cstatus_si                  => this%hvars(ih_site_cstatus_si)%r81d, &
-         hio_cleafoff_si                      => this%hvars(ih_cleafoff_si)%r81d, &
-         hio_cleafon_si                       => this%hvars(ih_cleafon_si)%r81d, &
          hio_cbal_err_fates_si                => this%hvars(ih_cbal_err_fates_si)%r81d, &
          hio_tveg24                           => this%hvars(ih_tveg24_si)%r81d, &
          hio_tlongterm                        => this%hvars(ih_tlongterm_si)%r81d, &
@@ -2530,20 +2523,6 @@ contains
 
          ! Canopy spread index (0-1)
          hio_canopy_spread_si(io_si) = sites(s)%spread
-
-         ! Update the site status for cold deciduous (drought deciduous is now PFT dependent)
-         hio_site_cstatus_si(io_si)   = real(sites(s)%cstatus,r8)
-
-         ! Number of chill days and cold days
-         hio_site_nchilldays_si(io_si) = real(sites(s)%nchilldays,r8)
-         hio_site_ncolddays_si(io_si)  = real(sites(s)%ncolddays,r8)
-
-         ! Growing degree-days
-         hio_gdd_si(io_si) = sites(s)%grow_deg_days
-
-         ! Model days elapsed since leaf on/off for cold-deciduous
-         hio_cleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%cleafoffdate,r8)
-         hio_cleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%cleafondate,r8)
 
          ! track total wood product accumulation at the site level
          hio_woodproduct_si(io_si) = sites(s)%resources_management%trunk_product_site &
@@ -3263,7 +3242,14 @@ contains
            hio_crownarea_cl                     => this%hvars(ih_crownarea_cl)%r82d)
 
         ! Break up associates for NAG compilers
-        associate( hio_site_dstatus_si_pft              => this%hvars(ih_site_dstatus_si_pft)%r82d, &
+        associate(
+             hio_gdd_si_pft                       => this%hvars(ih_gdd_si_pft)%r82d, &
+             hio_site_ncolddays_si_pft            => this%hvars(ih_site_ncolddays_si_pft)%r82d, &
+             hio_site_nchilldays_si_pft           => this%hvars(ih_site_nchilldays_si_pft)%r82d, &
+             hio_site_cstatus_si_pft              => this%hvars(ih_site_cstatus_si_pft)%r82d, &
+             hio_cleafoff_si_pft                  => this%hvars(ih_cleafoff_si_pft)%r82d, &
+             hio_cleafon_si_pft                   => this%hvars(ih_cleafon_si_pft)%r82d, &
+             hio_site_dstatus_si_pft              => this%hvars(ih_site_dstatus_si_pft)%r82d, &
              hio_dleafoff_si_pft                  => this%hvars(ih_dleafoff_si_pft)%r82d, &
              hio_dleafon_si_pft                   => this%hvars(ih_dleafon_si_pft)%r82d, &
              hio_meanliqvol_si_pft                => this%hvars(ih_meanliqvol_si_pft)%r82d, &
@@ -3342,8 +3328,24 @@ contains
              end do
 
 
-             ! Update drought deciduous information (now separated by PFT).
+             ! Update deciduous information (now separated by PFT).
              do ft = 1,numpft
+
+                ! Update the site status for cold deciduous (drought deciduous is now PFT dependent)
+                hio_site_cstatus_si(io_si,ft)   = real(sites(s)%cstatus(ft),r8)
+
+                ! Number of chill days and cold days
+                hio_site_nchilldays_si(io_si,ft) = real(sites(s)%nchilldays(ft),r8)
+                hio_site_ncolddays_si(io_si,ft)  = real(sites(s)%ncolddays(ft),r8)
+
+                ! Growing degree-days
+                hio_gdd_si(io_si,ft) = sites(s)%grow_deg_days
+
+                ! Model days elapsed since leaf on/off for cold-deciduous
+                ! MLO - Is there any reason for not using cndaysleafon and cndaysleafoff?
+                hio_cleafoff_si(io_si,ft) = real(sites(s)%cndaysleafoff(ft),r8)
+                hio_cleafon_si(io_si,ft)  = real(sites(s)%cndaysleafon (ft),r8)
+
                 ! Update the site-PFT status for drought deciduous
                 hio_site_dstatus_si_pft(io_si,ft) = real(sites(s)%dstatus(ft),r8)
 
@@ -6290,41 +6292,6 @@ contains
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_ca_weighted_height_si)
 
-       call this%set_history_var(vname='FATES_COLD_STATUS', units='',             &
-            long='site-level cold status, 0=not cold-dec, 1=too cold for leaves, 2=not too cold',  &
-            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
-            index=ih_site_cstatus_si)
-
-       call this%set_history_var(vname='FATES_GDD', units='degree_Celsius',       &
-            long='site-level growing degree days', use_default='active',          &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, index=ih_gdd_si)
-
-       call this%set_history_var(vname='FATES_NCHILLDAYS', units = 'days',        &
-            long='site-level number of chill days', use_default='active',         &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-            index=ih_site_nchilldays_si)
-
-       call this%set_history_var(vname='FATES_NCOLDDAYS', units = 'days',         &
-            long='site-level number of cold days', use_default='active',          &
-            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-            index=ih_site_ncolddays_si)
-
-       call this%set_history_var(vname='FATES_DAYSINCE_COLDLEAFOFF',              &
-            units='days', long='site-level days elapsed since cold leaf drop',    &
-            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-            index=ih_cleafoff_si)
-
-       call this%set_history_var(vname='FATES_DAYSINCE_COLDLEAFON',               &
-            units='days', long='site-level days elapsed since cold leaf flush',   &
-            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-            index=ih_cleafon_si)
-
        call this%set_history_var(vname='FATES_CANOPY_SPREAD', units='',           &
             long='scaling factor (0-1) between tree basal area and canopy area',  &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -7065,7 +7032,43 @@ contains
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index=ih_mortality_si_pft)
 
-          !MLO - Drought-deciduous phenology variables are now defined for each PFT.
+          !MLO - Phenology variables are now defined for each PFT.
+
+          call this%set_history_var(vname='FATES_COLD_STATUS_PF', units='',             &
+               long='PFT-level cold status, 0=not cold-dec, 1=too cold for leaves, 2=not too cold',  &
+               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
+               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+               index=ih_site_cstatus_si_pft)
+
+          call this%set_history_var(vname='FATES_GDD_PF', units='degree_Celsius',       &
+               long='PFT-level growing degree days', use_default='active',          &
+               avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',                           &
+               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, index=ih_gdd_si_pft)
+
+          call this%set_history_var(vname='FATES_NCHILLDAYS_PF', units = 'days',        &
+               long='PFT-level number of chill days', use_default='active',         &
+               avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',                           &
+               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+               index=ih_site_nchilldays_si_pft)
+
+          call this%set_history_var(vname='FATES_NCOLDDAYS_PF', units = 'days',         &
+               long='PFT-level number of cold days', use_default='active',          &
+               avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',                           &
+               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+               index=ih_site_ncolddays_si_pft)
+
+          call this%set_history_var(vname='FATES_DAYSINCE_COLDLEAFOFF_PF',              &
+               units='days', long='PFT-level days elapsed since cold leaf drop',    &
+               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
+               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+               index=ih_cleafoff_si_pft)
+
+          call this%set_history_var(vname='FATES_DAYSINCE_COLDLEAFON_PF',               &
+               units='days', long='PFT-level days elapsed since cold leaf flush',   &
+               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
+               upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+               index=ih_cleafon_si_pft)
+
           call this%set_history_var(vname='FATES_DROUGHT_STATUS_PF',                     &
                units='',                                                                &
                long='PFT-level drought status, <2 too dry for leaves, >=2 not too dry', &
