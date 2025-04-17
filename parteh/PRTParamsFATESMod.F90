@@ -173,7 +173,39 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_phen_gddthresh_a'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phen_gddthresh_b'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phen_gddthresh_c'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phen_gddtemp'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phen_chilltemp'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phen_coldtemp'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phen_mindayson'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_phen_mindaysoff'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_phen_ncolddayslim'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -481,9 +513,41 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
           data=prt_params%phen_fnrt_drop_fraction)
 
+    name = 'fates_phen_gddthresh_a'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_gddthresh_a)
+
+    name = 'fates_phen_gddthresh_b'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_phen_gddthresh_b)
+
+    name = 'fates_phen_gddthresh_c'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_gddthresh_c)
+
+    name = 'fates_phen_gddtemp'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_gddtemp)
+
+    name = 'fates_phen_chilltemp'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_chilltemp)
+
+    name = 'fates_phen_coldtemp'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_coldtemp)
+
+    name = 'fates_phen_mindayson'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_mindayson)
+
     name = 'fates_phen_mindaysoff'
     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=prt_params%phen_doff_time)
+          data=prt_params%phen_mindaysoff)
+
+    name = 'fates_phen_ncolddayslim'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+          data=prt_params%phen_ncolddayslim)
 
     name = 'fates_phen_drought_threshold'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -995,7 +1059,15 @@ contains
         write(fates_log(),fmti) 'evergreen = ',prt_params%evergreen
         write(fates_log(),fmt0) 'phen_fnrt_drop_fraction = ',prt_params%phen_fnrt_drop_fraction
         write(fates_log(),fmt0) 'phen_stem_drop_fraction = ',prt_params%phen_stem_drop_fraction
-        write(fates_log(),fmt0) 'phen_doff_time = ',prt_params%phen_doff_time
+        write(fates_log(),fmt0) 'phen_gddthresh_a = ',prt_params%phen_gddthresh_a
+        write(fates_log(),fmt0) 'phen_gddthresh_b = ',prt_params%phen_gddthresh_b
+        write(fates_log(),fmt0) 'phen_gddthresh_c = ',prt_params%phen_gddthresh_c
+        write(fates_log(),fmt0) 'phen_gddtemp = ',prt_params%phen_gddtemp
+        write(fates_log(),fmt0) 'phen_chilltemp = ',prt_params%phen_chilltemp
+        write(fates_log(),fmt0) 'phen_coldtemp = ',prt_params%phen_coldtemp
+        write(fates_log(),fmt0) 'phen_mindayson = ',prt_params%phen_mindayson
+        write(fates_log(),fmt0) 'phen_mindaysoff = ',prt_params%phen_mindaysoff
+        write(fates_log(),fmt0) 'phen_ncolddayslim = ',prt_params%phen_ncolddayslim
         write(fates_log(),fmt0) 'phen_drought_threshold = ',prt_params%phen_drought_threshold
         write(fates_log(),fmt0) 'phen_moist_threshold = ',prt_params%phen_moist_threshold
         write(fates_log(),fmt0) 'wood_density = ',prt_params%wood_density

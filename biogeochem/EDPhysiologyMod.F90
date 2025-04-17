@@ -172,8 +172,6 @@ module EDPhysiologyMod
 
   integer :: istat           ! return status code
   character(len=255) :: smsg ! Message string for deallocation errors
-  
-  integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter
 
   real(r8), parameter :: decid_leaf_long_max = 1.0_r8 ! Maximum leaf lifespan for
                                                       !    deciduous PFTs [years]
@@ -932,8 +930,6 @@ contains
     !
     ! !USES:
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-    use EDParamsMod, only : ED_val_phen_mindayson
-    use EDParamsMod, only : ED_val_phen_ncolddayslim
     use EDBtranMod, only  : check_layer_water
     !
     ! !ARGUMENTS:
@@ -971,6 +967,27 @@ contains
                                         !    lifespan and the maximum lifespan of drought 
                                         !    deciduous (see parameter decid_leaf_long_max
                                         !    at the beginning of this file).
+
+                                        ! The three parameters below are for the growing degree days
+                                        !    threshold function, which is modulated by the number of
+                                        !    chilling days (NCD): GDD_Thresh = a + b * exp (c * NCD)
+     real(r8) :: phen_gddthresh_a       !    - a parameter (intercept)
+     real(r8) :: phen_gddthresh_b       !    - b parameter (multiplier)
+     real(r8) :: phen_gddthresh_c       !    - c parameter (exponent)
+
+     real(r8) :: phen_gddtemp           ! (Lower) Temperature threshold for accumulating
+                                        !    growing degree days (used for leaf flushing)
+     real(r8) :: phen_chilltemp         ! (Upper) Temperature threshold for accumulating
+                                        !    number of chilling days (used for leaf flushing)
+     real(r8) :: phen_coldtemp          ! (Upper) daily average temperature threshold below which the
+                                        !    day is considered cold and will count towards leaf
+                                        !    abscission
+     real(r8) :: phen_mindayson         ! Minimum number of days that plants must remain with leaves
+                                        !    flushed before they can abscise leaves again.
+     real(r8) :: phen_mindaysoff        ! Minimum number of days that plants must remain leafless
+                                        !    before theu can flush leaves again.
+     real(r8) :: phen_ncolddayslim      ! Minimum number of recent days below the temperature threshold
+                                        !    that initiates temperature-driven leaf abscission.
      real(r8) :: phen_drought_threshold ! For drought hard-deciduous, this is the threshold
                                         !   below which plants will abscise leaves, and
                                         !   above which plants will flush leaves. For semi-
@@ -988,8 +1005,6 @@ contains
                                         !    the values are soil matric potential [mm].
                                         !    Ignored for hard-deciduous and evergreen 
                                         !    plants.
-     real(r8) :: phen_doff_time         ! Minimum number of days that plants must remain
-                                        !   leafless before flushing leaves again.
 
     ! Logical tests to make code more readable
     logical  :: smoist_below_threshold   ! Is soil moisture below threshold?
@@ -1070,28 +1085,31 @@ contains
     ! Add PFT loop to account for different parameters and PFT-specific rooting depth profiles.
     phen_elong_loop: do ipft=1,numpft
        ! Copy values to a local variable to make code more legible.
-       phen_a_gdd             = prt_params%phen_a_gdd            (ipft)
-       phen_b_gdd             = prt_params%phen_b_gdd            (ipft)
-       phen_c_gdd             = prt_params%phen_c_gdd            (ipft)
-       phen_coldtemp          = prt_params%phen_coldtemp         (ipft)
-       phen_chiltemp          = prt_params%phen_chiltemp         (ipft)
+       phen_gddthresh_a       = prt_params%phen_gddthresh_a      (ipft)
+       phen_gddthresh_b       = prt_params%phen_gddthresh_b      (ipft)
+       phen_gddthresh_c       = prt_params%phen_gddthresh_c      (ipft)
        phen_gddtemp           = prt_params%phen_gddtemp          (ipft)
+       phen_chilltemp         = prt_params%phen_chilltemp        (ipft)
+       phen_coldtemp          = prt_params%phen_coldtemp         (ipft)
+       phen_mindayson         = prt_params%phen_mindayson        (ipft)
+       phen_mindaysoff        = prt_params%phen_mindaysoff       (ipft)
+       phen_ncolddayslim      = prt_params%phen_ncolddayslim     (ipft)
        phen_drought_threshold = prt_params%phen_drought_threshold(ipft)
        phen_moist_threshold   = prt_params%phen_moist_threshold  (ipft)
-       phen_doff_time         = prt_params%phen_doff_time        (ipft)
 
        !---~---
        !   COLD (SEASON) DECIDUOUS
        !---~---
 
        ! Accumulate growing/chilling days after start of counting period
-       if (temp_in_C  <  phen_chiltemp) then
+       if (temp_in_C  <  phen_chilltemp) then
           currentSite%nchilldays(ipft) = currentSite%nchilldays(ipft) + 1
        end if
 
        !GDD accumulation function, which also depends on chilling days.
        !  -68 + 638 * (-0.001 * ncd)
-       gdd_threshold = phen_a_gdd + phen_b_gdd * exp(phen_c_gdd*real(currentSite%nchilldays(ipft),r8))
+       gdd_threshold = phen_gddthresh_a + &
+          phen_gddthresh_b * exp(phen_gddthresh_c*real(currentSite%nchilldays(ipft),r8))
 
        !count number of days for leaves off
        ncolddays = count(currentSite%vegtemp_memory(1:num_vegtemp_mem) < phen_coldtemp)
@@ -1138,8 +1156,8 @@ contains
        !    preventing them from competing).
 
        if ( any(currentSite%cstatus(ipft) == [phen_cstat_iscold,phen_cstat_nevercold]) .and. &
-            (currentSite%grow_deg_days(ipft) > gdd_threshold) .and. &
-            (currentSite%cndaysleafoff(ipft) > ED_val_phen_mindayson) .and. &
+            (currentSite%grow_deg_days(ipft) > gdd_threshold  ) .and. &
+            (currentSite%cndaysleafoff(ipft) > phen_mindaysoff) .and. &
             (currentSite%nchilldays(ipft) >= 1)) then
           currentSite%cstatus      (ipft) = phen_cstat_notcold  ! Set to not-cold status (leaves can come on)
           currentSite%cleafondate  (ipft) = model_day_int       ! Record flushing date
@@ -1159,8 +1177,8 @@ contains
 
        if ( (currentSite%cstatus(ipft) == phen_cstat_notcold) .and. &
             (model_day_int > num_vegtemp_mem)      .and. &
-            (ncolddays > ED_val_phen_ncolddayslim) .and. &
-            (currentSite%cndaysleafon(ipft) > ED_val_phen_mindayson) )then
+            (ncolddays > phen_ncolddayslim)        .and. &
+            (currentSite%cndaysleafon(ipft) > phen_mindayson) )then
 
           ! The equations for Botta et al. (2000) are for calculations of first flush, but if we don't
           ! clear this value, it will cause leaves to flush later in the year
@@ -1327,7 +1345,7 @@ contains
           ! Leaves have been "on" for longer than the minimum number of days.
           exceed_min_on_period     = &
              any( currentSite%dstatus(ipft) == [phen_dstat_timeon,phen_dstat_moiston] )   .and. &
-             (currentSite%dndaysleafon(ipft) > dleafon_drycheck)
+             (currentSite%dndaysleafon(ipft) > phen_mindayson)
           ! Leaves have been "off" for longer than the minimum number of days.
           exceed_min_off_period    = &
              ( currentSite%dstatus(ipft)       == phen_dstat_timeoff       ) .and. &
@@ -1340,8 +1358,8 @@ contains
           ! was about one year ago (+/- tolerance).
           prolonged_off_period     = &
              any( currentSite%dstatus(ipft) == [phen_dstat_timeoff,phen_dstat_moistoff] ) .and. &
-             ( currentSite%dndaysleafoff(ipft) > phen_doff_time     )                     .and. &
-             ( currentSite%dndaysleafon(ipft) >= ndays_per_year-dd_offon_toler )                     .and. &
+             ( currentSite%dndaysleafoff(ipft) > phen_mindaysoff    )                     .and. &
+             ( currentSite%dndaysleafon(ipft) >= ndays_per_year-dd_offon_toler )          .and. &
              ( currentSite%dndaysleafon(ipft) <= ndays_per_year+dd_offon_toler )
           ! Last flushing was a very long time ago.
           last_flush_long_ago      = &
@@ -1447,7 +1465,7 @@ contains
           !---~---
           !  Leaves have been flushing for a short period of time.
           recent_flush         = elongf_prev >= elongf_min .and. &
-                                 ( currentSite%dndaysleafon(ipft) <= dleafon_drycheck )
+                                 ( currentSite%dndaysleafon(ipft) <= phen_mindayson )
           !  Leaves have been abscissing for a short period of time.
           recent_abscission    = elongf_prev <  elongf_min .and. &
                                  ( currentSite%dndaysleafoff(ipft) <=  min_daysoff_dforcedflush )
