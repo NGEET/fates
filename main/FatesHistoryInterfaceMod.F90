@@ -56,7 +56,6 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : hlm_parteh_mode
   use FatesInterfaceTypesMod        , only : hlm_use_sp
   use EDParamsMod              , only : ED_val_comp_excln
-  use EDParamsMod              , only : ED_val_phen_coldtemp
   use EDParamsMod                   , only : nlevleaf
   use EDParamsMod               , only : ED_val_history_height_bin_edges
   use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
