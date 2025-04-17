@@ -3281,7 +3281,7 @@ contains
            hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d )
 
         ! Break up associates for NAG compilers
-        associate(
+        associate( &
              hio_gdd_si_pft                       => this%hvars(ih_gdd_si_pft)%r82d, &
              hio_site_ncolddays_si_pft            => this%hvars(ih_site_ncolddays_si_pft)%r82d, &
              hio_site_nchilldays_si_pft           => this%hvars(ih_site_nchilldays_si_pft)%r82d, &
