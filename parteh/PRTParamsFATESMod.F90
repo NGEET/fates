@@ -519,7 +519,7 @@ contains
 
     name = 'fates_phen_gddthresh_b'
     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=prt_params%phen_phen_gddthresh_b)
+          data=prt_params%phen_gddthresh_b)
 
     name = 'fates_phen_gddthresh_c'
     call fates_params%RetrieveParameterAllocate(name=name, &
