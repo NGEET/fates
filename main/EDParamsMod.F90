@@ -151,13 +151,6 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_cwd_fcel= "fates_frag_cwd_fcel"   
    character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_frag_cwd_flig"   
    character(len=param_string_length),parameter,public :: fates_name_maintresp_nonleaf_baserate= "fates_maintresp_nonleaf_baserate"
-   character(len=param_string_length),parameter,public :: ED_name_phen_a= "fates_phen_gddthresh_a"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_b= "fates_phen_gddthresh_b"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_c= "fates_phen_gddthresh_c"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_chiltemp= "fates_phen_chilltemp"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_mindayson= "fates_phen_mindayson"
-   character(len=param_string_length),parameter,public :: ED_name_phen_ncolddayslim= "fates_phen_ncolddayslim"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_coldtemp= "fates_phen_coldtemp"   
    character(len=param_string_length),parameter,public :: ED_name_cohort_size_fusion_tol= "fates_cohort_size_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_cohort_age_fusion_tol = "fates_cohort_age_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
@@ -448,27 +441,6 @@ contains
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=fates_name_maintresp_nonleaf_baserate, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_a, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_b, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_c, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_chiltemp, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_mindayson, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_ncolddayslim, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_coldtemp, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_cohort_size_fusion_tol, dimension_shape=dimension_shape_scalar, &
