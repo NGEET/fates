@@ -3367,18 +3367,18 @@ contains
              do ft = 1,numpft
 
                 ! Update the site status for cold deciduous (drought deciduous is now PFT dependent)
-                hio_site_cstatus_si(io_si,ft)   = real(sites(s)%cstatus(ft),r8)
+                hio_site_cstatus_si_pft(io_si,ft)   = real(sites(s)%cstatus(ft),r8)
 
                 ! Number of chill days and cold days
-                hio_site_nchilldays_si(io_si,ft) = real(sites(s)%nchilldays(ft),r8)
-                hio_site_ncolddays_si(io_si,ft)  = real(sites(s)%ncolddays(ft),r8)
+                hio_site_nchilldays_si_pft(io_si,ft) = real(sites(s)%nchilldays(ft),r8)
+                hio_site_ncolddays_si_pft(io_si,ft)  = real(sites(s)%ncolddays(ft),r8)
 
                 ! Growing degree-days
-                hio_gdd_si(io_si,ft) = sites(s)%grow_deg_days(ft)
+                hio_gdd_si_pft(io_si,ft) = sites(s)%grow_deg_days(ft)
 
                 ! Model days elapsed since leaf on/off for cold-deciduous
-                hio_cleafoff_si(io_si,ft) = real(sites(s)%cndaysleafoff(ft),r8)
-                hio_cleafon_si(io_si,ft)  = real(sites(s)%cndaysleafon (ft),r8)
+                hio_cleafoff_si_pft(io_si,ft) = real(sites(s)%cndaysleafoff(ft),r8)
+                hio_cleafon_si_pft(io_si,ft)  = real(sites(s)%cndaysleafon (ft),r8)
 
                 ! Update the site-PFT status for drought deciduous
                 hio_site_dstatus_si_pft(io_si,ft) = real(sites(s)%dstatus(ft),r8)
