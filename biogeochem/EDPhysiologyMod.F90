@@ -901,7 +901,6 @@ contains
     ! Phenology.
     !
     ! !USES:
-    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use EDParamsMod, only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c
     use EDParamsMod, only : ED_val_phen_chiltemp
     use EDParamsMod, only : ED_val_phen_mindayson
@@ -917,16 +916,10 @@ contains
 
     integer  :: model_day_int     ! integer model day 1 - inf
     integer  :: ncolddays         ! no days underneath the threshold for leaf drop
-    integer  :: i_wmem            ! Loop counter for water mem days
     integer  :: i_tmem            ! Loop counter for veg temp mem days
     integer  :: ipft              ! plant functional type index
     real(r8) :: mean_10day_liqvol ! mean soil liquid volume over last 10 days [m3/m3]
     real(r8) :: mean_10day_smp    ! mean soil matric potential over last 10 days [mm]
-    real(r8) :: leaf_c            ! leaf carbon [kg]
-    real(r8) :: fnrt_c            ! fineroot carbon [kg]
-    real(r8) :: sapw_c            ! sapwood carbon [kg]
-    real(r8) :: store_c           ! storage carbon [kg]
-    real(r8) :: struct_c          ! structure carbon [kg]
     real(r8) :: gdd_threshold     ! GDD accumulation function,
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
