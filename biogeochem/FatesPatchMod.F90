@@ -1,39 +1,39 @@
 module FatesPatchMod
 
-  use FatesConstantsMod,   only : r8 => fates_r8
-  use FatesConstantsMod,   only : fates_unset_r8
-  use FatesConstantsMod,   only : fates_unset_int
-  use FatesConstantsMod,   only : primaryland, secondaryland
-  use FatesConstantsMod,   only : n_landuse_cats
-  use FatesConstantsMod,   only : TRS_regeneration
-  use FatesConstantsMod,   only : itrue, ifalse
-  use FatesGlobals,        only : fates_log
-  use FatesGlobals,        only : endrun => fates_endrun
-  use FatesUtilsMod,       only : check_hlm_list
-  use FatesUtilsMod,       only : check_var_real
-  use FatesCohortMod,      only : fates_cohort_type
-  use FatesRunningMeanMod, only : rmean_type, rmean_arr_type
-  use FatesLitterMod,      only : litter_type
-  use FatesFuelMod,        only : fuel_type
-  use PRTGenericMod,       only : num_elements
-  use PRTGenericMod,       only : element_list
-  use PRTGenericMod,       only : carbon12_element
-  use PRTGenericMod,       only : struct_organ, leaf_organ, sapw_organ
-  use PRTParametersMod,    only : prt_params
-  use FatesConstantsMod,   only : nocomp_bareground
-  use EDParamsMod,         only : nlevleaf, nclmax, maxpft
-  use FatesConstantsMod,   only : n_dbh_bins, n_dist_types
-  use FatesConstantsMod,   only : t_water_freeze_k_1atm
-  use FatesRunningMeanMod, only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
-  use FatesRunningMeanMod, only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
-  use FatesRunningMeanMod, only : ema_sdlng2sap_par, ema_sdlng_mdd
-  use TwoStreamMLPEMod,    only : twostream_type
-  use FatesRadiationMemMod,only : num_swb
-  use FatesRadiationMemMod,only : num_rad_stream_types
-  use FatesInterfaceTypesMod,only : hlm_hio_ignore_val
+  use FatesConstantsMod,      only : r8 => fates_r8
+  use FatesConstantsMod,      only : fates_unset_r8
+  use FatesConstantsMod,      only : fates_unset_int
+  use FatesConstantsMod,      only : primaryland, secondaryland
+  use FatesConstantsMod,      only : n_landuse_cats
+  use FatesConstantsMod,      only : TRS_regeneration
+  use FatesConstantsMod,      only : itrue, ifalse
+  use FatesGlobals,           only : fates_log
+  use FatesGlobals,           only : endrun => fates_endrun
+  use FatesUtilsMod,          only : check_hlm_list
+  use FatesUtilsMod,          only : check_var_real
+  use FatesCohortMod,         only : fates_cohort_type
+  use FatesRunningMeanMod,    only : rmean_type, rmean_arr_type
+  use FatesLitterMod,         only : litter_type
+  use FatesFuelMod,           only : fuel_type
+  use PRTGenericMod,          only : num_elements
+  use PRTGenericMod,          only : element_list
+  use PRTGenericMod,          only : carbon12_element
+  use PRTGenericMod,          only : struct_organ, leaf_organ, sapw_organ
+  use PRTParametersMod,       only : prt_params
+  use FatesConstantsMod,      only : nocomp_bareground
+  use EDParamsMod,            only : nlevleaf, nclmax, maxpft
+  use FatesConstantsMod,      only : n_dbh_bins, n_dist_types
+  use FatesConstantsMod,      only : t_water_freeze_k_1atm
+  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
+  use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
+  use FatesRunningMeanMod,    only : ema_sdlng2sap_par, ema_sdlng_mdd
+  use TwoStreamMLPEMod,       only : twostream_type
+  use FatesRadiationMemMod,   only : num_swb
+  use FatesRadiationMemMod,   only : num_rad_stream_types
+  use FatesInterfaceTypesMod, only : hlm_hio_ignore_val
   use FatesInterfaceTypesMod, only : numpft
-  use shr_infnan_mod,      only : nan => shr_infnan_nan, assignment(=)
-  use shr_log_mod,         only : errMsg => shr_log_errMsg
+  use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)
+  use shr_log_mod,            only : errMsg => shr_log_errMsg
 
   implicit none
   private
@@ -66,7 +66,7 @@ module FatesPatchMod
     real(r8) :: age                          ! average patch age [years]                  
     integer  :: age_class                    ! age class of the patch for history binning purposes
     real(r8) :: area                         ! patch area [m2]
-    integer  :: countcohorts                 ! number of cohorts in patch
+    integer  :: num_cohorts                  ! number of cohorts in patch
     integer  :: ncl_p                        ! number of occupied canopy layers
     integer  :: land_use_label               ! patch label for land use classification (primaryland, secondaryland, etc)
     real(r8) :: age_since_anthro_disturbance ! average age for secondary forest since last anthropogenic disturbance [years]
@@ -136,8 +136,6 @@ module FatesPatchMod
     ! RADIATION
     real(r8) :: rad_error(num_swb)                        ! radiation consv error by band [W/m2]
     real(r8) :: fcansno                                   ! fraction of canopy covered in snow [0-1]
-    logical  :: solar_zenith_flag                         ! integer flag specifying daylight (based on zenith angle)
-    real(r8) :: solar_zenith_angle                        ! solar zenith angle [radians]
     real(r8) :: gnd_alb_dif(num_swb)                      ! ground albedo for diffuse rad, both bands [0-1]
     real(r8) :: gnd_alb_dir(num_swb)                      ! ground albedo for direct rad, both bands [0-1]
     
@@ -234,6 +232,10 @@ module FatesPatchMod
       procedure :: InitRunningMeans
       procedure :: InitLitter
       procedure :: Create
+      procedure :: CountCohorts
+      procedure :: ValidateCohorts
+      procedure :: InsertCohort
+      procedure :: SortCohorts
       procedure :: UpdateTreeGrassArea
       procedure :: UpdateLiveGrass
       procedure :: FreeMemory
@@ -437,7 +439,7 @@ module FatesPatchMod
       this%age                          = nan                          
       this%age_class                    = fates_unset_int
       this%area                         = nan    
-      this%countcohorts                 = fates_unset_int 
+      this%num_cohorts                  = fates_unset_int 
       this%ncl_p                        = fates_unset_int
       this%land_use_label               = fates_unset_int
       this%age_since_anthro_disturbance = nan
@@ -462,8 +464,6 @@ module FatesPatchMod
       ! RADIATION
       this%rad_error(:)                 = nan
       this%fcansno                      = nan 
-      this%solar_zenith_flag            = .false. 
-      this%solar_zenith_angle           = nan 
       this%gnd_alb_dif(:)               = nan 
       this%gnd_alb_dir(:)               = nan
 
@@ -540,6 +540,8 @@ module FatesPatchMod
       
     end subroutine ZeroDynamics
     
+    !===========================================================================
+    
     subroutine ZeroValues(this)
       !
       ! DESCRIPTION:
@@ -559,7 +561,6 @@ module FatesPatchMod
       this%c_stomata                         = 0.0_r8 
       this%c_lblayer                         = 0.0_r8
 
-      
       ! RADIATION
       this%rad_error(:)                      = 0.0_r8
       this%tr_soil_dir_dif(:)                = 0.0_r8
@@ -568,7 +569,7 @@ module FatesPatchMod
       this%fabd(:)                           = 0.0_r8
       this%sabs_dir(:)                       = 0.0_r8
       this%sabs_dif(:)                       = 0.0_r8
-
+      
       ! ROOTS
       this%btran_ft(:)                       = 0.0_r8
 
@@ -685,7 +686,7 @@ module FatesPatchMod
     !===========================================================================
 
     subroutine Create(this, age, area, land_use_label, nocomp_pft, num_swb, num_pft,    &
-      num_levsoil, current_tod, regeneration_model) 
+      num_levsoil, current_tod, regeneration_model)
       !
       ! DESCRIPTION:
       ! create a new patch with input and default values
@@ -702,7 +703,7 @@ module FatesPatchMod
       integer,                 intent(in)    :: num_levsoil        ! number of soil layers
       integer,                 intent(in)    :: current_tod        ! time of day [seconds past 0Z]
       integer,                 intent(in)    :: regeneration_model ! regeneration model version
-    
+      
       ! initialize patch
       ! sets all values to nan, then some values to zero
       call this%Init(num_swb, num_levsoil)
@@ -782,32 +783,32 @@ module FatesPatchMod
     !===========================================================================
 
     subroutine UpdateLiveGrass(this)
-    !
-    ! DESCRIPTION:
-    ! Calculates the sum of live grass biomass [kgC/m2] on a patch
-  
-    ! ARGUMENTS:
-    class(fates_patch_type), intent(inout) :: this ! patch
+      !
+      ! DESCRIPTION:
+      ! Calculates the sum of live grass biomass [kgC/m2] on a patch
     
-    ! LOCALS:
-    real(r8)                         :: live_grass    ! live grass [kgC/m2]
-    type(fates_cohort_type), pointer :: currentCohort ! cohort type
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this ! patch
+      
+      ! LOCALS:
+      real(r8)                         :: live_grass    ! live grass [kgC/m2]
+      type(fates_cohort_type), pointer :: currentCohort ! cohort type
 
-    live_grass = 0.0_r8
-    currentCohort => this%tallest
-    do while(associated(currentCohort))
-        ! for grasses sum all aboveground tissues
-        if (prt_params%woody(currentCohort%pft) == ifalse) then 
-          live_grass = live_grass +                                      &
-            (currentCohort%prt%GetState(leaf_organ, carbon12_element) +  &
-            currentCohort%prt%GetState(sapw_organ, carbon12_element) +   &
-            currentCohort%prt%GetState(struct_organ, carbon12_element))* &
-            currentCohort%n/this%area
-       endif
-       currentCohort => currentCohort%shorter
-    enddo
-    
-    this%livegrass = live_grass
+      live_grass = 0.0_r8
+      currentCohort => this%tallest
+      do while(associated(currentCohort))
+          ! for grasses sum all aboveground tissues
+          if (prt_params%woody(currentCohort%pft) == ifalse) then 
+            live_grass = live_grass +                                      &
+              (currentCohort%prt%GetState(leaf_organ, carbon12_element) +  &
+              currentCohort%prt%GetState(sapw_organ, carbon12_element) +   &
+              currentCohort%prt%GetState(struct_organ, carbon12_element))* &
+              currentCohort%n/this%area
+        endif
+        currentCohort => currentCohort%shorter
+      enddo
+      
+      this%livegrass = live_grass
 
     end subroutine UpdateLiveGrass
 
@@ -944,6 +945,243 @@ module FatesPatchMod
     end subroutine FreeMemory
 
     !===========================================================================
+    
+    subroutine InsertCohort(this, cohort)
+      !
+      ! DESCRIPTION:
+      ! Inserts a cohort into a patch's linked list structure
+      !
+      
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout), target  :: this   ! patch 
+      type(fates_cohort_type), intent(inout), pointer :: cohort ! cohort to insert
+      
+      ! LOCALS:
+      type(fates_cohort_type), pointer :: temp_cohort1, temp_cohort2 ! temporary cohorts to store pointers
+      
+      ! validate the cohort before insertion
+      if (.not. associated(cohort)) then
+        call endrun(msg="cohort is not allocated",                                       &
+          additional_msg=errMsg(sourcefile, __LINE__))
+          return
+      end if
+      
+      ! check for inconsistent list state
+      if ((.not. associated(this%shortest) .and. associated(this%tallest)) .or.          &
+        (associated(this%shortest) .and. .not. associated(this%tallest))) then
+        call endrun(msg="inconsistent list state",                                       &
+          additional_msg=errMsg(sourcefile, __LINE__))
+          return
+      end if
+    
+      ! nothing in the list - add to head
+      if (.not. associated(this%shortest)) then
+        this%shortest => cohort
+        this%tallest  => this%shortest
+        cohort%taller => null()
+        cohort%shorter => null()
+        return
+      end if 
+        
+      ! shortest - add to front of list
+      if (cohort%height < this%shortest%height) then
+        temp_cohort1 => this%shortest         ! save current shortest in temporary pointer
+        cohort%taller => this%shortest        ! attach cohort to list
+        this%shortest => cohort               ! cohort is now the shortest 
+        this%shortest%shorter => null()       ! nullify new head's "shorter" pointer
+        temp_cohort1%shorter => this%shortest ! new head is previous head's 'shorter'
+        return
+      end if 
+
+      ! tallest - add to end
+      if (cohort%height >= this%tallest%height) then
+        this%tallest%taller => cohort        ! attach cohort to end of list
+        temp_cohort1 => this%tallest         ! store current tallest in temporary pointer
+        this%tallest => cohort               ! cohort is now the tallest
+        this%tallest%shorter => temp_cohort1 ! new tail is previous tails's 'taller'
+        this%tallest%taller => null()        ! nullify new tails's "taller" pointer
+        return
+      end if 
+
+      ! traverse list to find where to put cohort
+      temp_cohort1 => this%shortest
+      temp_cohort2 => temp_cohort1%taller
+      do while (associated(temp_cohort2))
+        
+        ! validate list structure before insertion
+        
+        if (associated(temp_cohort1%taller) .and.                                        &
+          .not. associated(temp_cohort1%taller%shorter, temp_cohort1)) then 
+          call endrun(msg="corrupted list structure",                                    &
+            additional_msg=errMsg(sourcefile, __LINE__))
+            return
+        end if 
+        
+        if ((cohort%height >= temp_cohort1%height) .and. (cohort%height < temp_cohort2%height)) then 
+          ! add cohort here
+          cohort%taller => temp_cohort2
+          temp_cohort1%taller => cohort
+          cohort%shorter => temp_cohort1
+          temp_cohort2%shorter => cohort
+          exit
+        end if
+        temp_cohort1 => temp_cohort2
+        temp_cohort2 => temp_cohort2%taller
+      end do
+    
+    end subroutine InsertCohort
+    
+    !===========================================================================
+    
+    subroutine ValidateCohorts(this)
+      !
+      ! DESCRIPTION:
+      ! Validates a patch's cohort linked list
+      !
+      
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(in), target :: this ! patch
+           
+      ! LOCALS:
+      type(fates_cohort_type), pointer :: currentCohort                 ! cohort object
+      integer                          :: forward_count, backward_count ! forwards and backwards counts of cohorts
+
+      ! check initial conditions
+      if (.not. associated(this%shortest) .and. .not. associated(this%tallest)) then
+          ! validation passed - empty list
+          return
+      else if (.not. associated(this%shortest) .or. .not. associated(this%tallest)) then
+          call endrun(msg="one of shortest or tallest is null",                          &
+            additional_msg=errMsg(sourcefile, __LINE__))
+            return
+      end if
+      
+      ! initialize counts
+      forward_count = 0
+      backward_count = 0
+      
+      ! traverse taller chain
+      currentCohort => this%shortest
+      do while (associated(currentCohort))
+        forward_count = forward_count + 1
+
+        ! validate cohort
+        if (associated(currentCohort%taller)) then
+          if (.not. associated(currentCohort%taller%shorter, currentCohort)) then
+              call endrun(msg="mismatch in patch's taller chain",                        &
+                additional_msg=errMsg(sourcefile, __LINE__))
+                return
+          end if
+        else
+          if (.not. associated(currentCohort, this%tallest)) then
+            call endrun(msg="cohort list does not end at tallest",                       &
+              additional_msg=errMsg(sourcefile, __LINE__))
+              return
+          end if
+        end if
+          currentCohort => currentCohort%taller
+      end do
+      
+      ! traverse shorter chain
+      currentCohort => this%tallest
+      do while (associated(currentCohort))
+        backward_count = backward_count + 1
+
+        if (associated(currentCohort%shorter)) then
+          if (.not. associated(currentCohort%shorter%taller, currentCohort)) then
+            call endrun(msg="mismatch in patch's shorter chain",                         &
+              additional_msg=errMsg(sourcefile, __LINE__))
+              return
+          end if
+        else
+          if (.not. associated(currentCohort, this%shortest)) then
+            call endrun(msg="cohort list does not start at shortest",                    &
+              additional_msg=errMsg(sourcefile, __LINE__))
+              return
+          end if
+        end if
+        currentCohort => currentCohort%shorter
+      end do
+      
+      ! check consistency between forward and backward counts
+      if (forward_count /= backward_count) then
+        call endrun(msg="forward and backward traversal counts do not match",            &
+          additional_msg=errMsg(sourcefile, __LINE__))
+          return
+      end if
+        
+    end subroutine ValidateCohorts
+    
+    !===========================================================================
+    
+    subroutine CountCohorts(this)
+      !
+      ! DESCRIPTION:
+      ! Counts the number of a cohorts in a patch's linked list and updates 
+      ! the this%num_cohorts attribute
+      !
+      
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout), target :: this ! patch 
+      
+      ! LOCALS:
+      type(fates_cohort_type), pointer :: currentCohort ! cohort object
+      integer                          :: cohort_count  ! count of cohorts 
+      
+      cohort_count = 0
+      currentCohort => this%shortest
+      do while (associated(currentCohort))
+        cohort_count = cohort_count + 1
+        currentCohort => currentCohort%taller
+      end do
+      
+      this%num_cohorts = cohort_count
+          
+    end subroutine CountCohorts
+    
+    !===========================================================================
+    
+    subroutine SortCohorts(this)
+      !
+      ! DESCRIPTION: sort cohorts in patch's linked list
+      ! uses insertion sort to build a new list
+      !
+    
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout), target :: this ! patch
+      
+      ! LOCALS:
+      type(fates_cohort_type), pointer :: currentCohort
+      type(fates_cohort_type), pointer :: nextCohort
+      
+      ! check for inconsistent list state
+      if (.not. associated(this%shortest) .and. .not. associated(this%tallest)) then
+          ! empty list
+          return
+      else if (.not. associated(this%shortest) .or. .not. associated(this%tallest)) then
+          call endrun(msg="inconsistent list state",                                     &
+            additional_msg=errMsg(sourcefile, __LINE__))
+          return
+      end if
+      
+      ! hold on to current linked list so we don't lose it
+      currentCohort => this%shortest
+      
+      ! reset the current list: we'll build it incrementally
+      this%shortest => null()
+      this%tallest => null()
+      
+      ! insert each cohort
+      do while (associated(currentCohort))
+        ! store the next cohort to sort
+        nextCohort => currentCohort%taller
+        call this%InsertCohort(currentCohort)
+        currentCohort => nextCohort
+      end do
+    
+    end subroutine SortCohorts
+  
+    !===========================================================================
 
     subroutine Dump(this)
       !
@@ -965,14 +1203,12 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%age                = ',this%age
       write(fates_log(),*) 'pa%age_class          = ',this%age_class
       write(fates_log(),*) 'pa%area               = ',this%area
-      write(fates_log(),*) 'pa%countcohorts       = ',this%countcohorts
+      write(fates_log(),*) 'pa%num_cohorts        = ',this%num_cohorts
       write(fates_log(),*) 'pa%ncl_p              = ',this%ncl_p
       write(fates_log(),*) 'pa%total_canopy_area  = ',this%total_canopy_area
       write(fates_log(),*) 'pa%total_tree_area    = ',this%total_tree_area
       write(fates_log(),*) 'pa%total_grass_area   = ',this%total_grass_area
       write(fates_log(),*) 'pa%zstar              = ',this%zstar
-      write(fates_log(),*) 'pa%solar_zenith_flag  = ',this%solar_zenith_flag
-      write(fates_log(),*) 'pa%solar_zenith_angle = ',this%solar_zenith_angle
       write(fates_log(),*) 'pa%gnd_alb_dif        = ',this%gnd_alb_dif(:)
       write(fates_log(),*) 'pa%gnd_alb_dir        = ',this%gnd_alb_dir(:)
       write(fates_log(),*) 'pa%c_stomata          = ',this%c_stomata

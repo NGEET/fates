@@ -5,6 +5,7 @@ list(APPEND fates_sources
   SFNesterovMod.F90
   FatesFuelMod.F90
   FatesFuelClassesMod.F90
+  SFEquationsMod.F90
   )
 
 sourcelist_to_parent(fates_sources)

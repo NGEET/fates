@@ -66,6 +66,7 @@ module PRTLossFluxesMod
   public :: PRTReproRelease
   public :: PRTDamageLosses
   public :: PRTDamageRecoveryFluxes
+  public :: PRTHerbivoryLosses
   
 contains
 
@@ -885,7 +886,63 @@ contains
          + (mass - mass_0)
 
     end subroutine PRTDamageRecoveryFluxes
-      
+
+     ! =====================================================================================
+
+  subroutine PRTHerbivoryLosses(prt, organ_id, mass_fraction)
+
+    ! ----------------------------------------------------------------------------------
+    ! This subroutine assumes that there is no re-translocation associated
+    ! with herbivory. There are two pathways for grazed matter. Some fraction 
+    ! is lost from the land system (i.e. to the atmosphere via respiration or gas-phase 
+    ! nutrient loss pathways), and some fraction is passed to litter decomposition 
+    ! (i.e. via manure or grazer mortality). These pathways of consumed biomass 
+    ! are handled outside PARTEH (e.g., the litter flux is handled in EDPhysiologyMod, 
+    ! and controlled by element-specific "use efficiency" parameters).
+    ! ----------------------------------------------------------------------------------
+
+    class(prt_vartypes) :: prt
+    integer,intent(in)  :: organ_id
+    real(r8),intent(in) :: mass_fraction
+
+    integer             :: i_pos          ! position index
+    integer             :: i_var          ! index for the variable of interest 
+    integer             :: i_var_of_organ ! loop counter for all element in this organ
+    integer             :: element_id     ! Element id of the turnover pool
+    real(r8)            :: herbivore_consumed_mass  ! Consumed mass of each element, in each
+                                                    ! position, in the organ of interest
+     
+    associate(organ_map => prt_global%organ_map)
+
+       ! This is the total number of state variables associated
+       ! with this particular organ
+
+       do i_var_of_organ = 1, organ_map(organ_id)%num_vars
+          
+          i_var = organ_map(organ_id)%var_id(i_var_of_organ)
+          
+          element_id = prt_global%state_descriptor(i_var)%element_id
+          
+          ! Loop over all of the coordinate ids
+          do i_pos = 1,prt_global%state_descriptor(i_var)%num_pos
+             
+             ! The mass that is leaving the plant
+             herbivore_consumed_mass = mass_fraction * prt%variables(i_var)%val(i_pos)
+             
+             ! Track the amount of mass being eaten (+ is amount lost)
+             prt%variables(i_var)%herbivory(i_pos) = prt%variables(i_var)%herbivory(i_pos) &
+                  + herbivore_consumed_mass
+             
+             ! Update the state of the pool to reflect the mass lost
+             prt%variables(i_var)%val(i_pos)    = prt%variables(i_var)%val(i_pos) &
+                  - herbivore_consumed_mass
+             
+          end do
+          
+       end do
+       
+     end associate
+  end subroutine PRTHerbivoryLosses
   ! =====================================================================================
 
 
