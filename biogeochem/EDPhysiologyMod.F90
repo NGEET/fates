@@ -1031,7 +1031,7 @@ contains
 
     ! Loop through every PFT to assign the elongation factor. 
     ! Add PFT loop to account for different parameters and PFT-specific rooting depth profiles.
-    phen_elong_loop: do ipft=1,numpft
+    pft_elong_loop: do ipft=1,numpft
        ! Copy values to a local variable to make code more legible.
        phen_gddthresh_a       = prt_params%phen_gddthresh_a      (ipft)
        phen_gddthresh_b       = prt_params%phen_gddthresh_b      (ipft)
