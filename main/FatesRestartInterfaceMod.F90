@@ -2104,6 +2104,7 @@ contains
 
 
     associate( rio_npatch_si           => this%rvars(ir_npatch_si)%int1d, &
+           rio_phenmodeldate_si        => this%rvars(ir_phenmodeldate_si)%int1d, &
            rio_fireweather_index_si    => this%rvars(ir_fireweather_index_si)%r81d, &
            rio_min_allowed_landuse_fraction_si  => this%rvars(ir_min_allowed_landuse_fraction_si)%r81d, &
            rio_landuse_vector_gt_min_si  => this%rvars(ir_landuse_vector_gt_min_si)%int1d, &
@@ -2168,7 +2169,6 @@ contains
            rio_cleafoffdate_sift       => this%rvars(ir_cleafoffdate_sift)%int1d, &
            rio_cndaysleafon_sift       => this%rvars(ir_cndaysleafon_sift)%int1d, &
            rio_cndaysleafoff_sift      => this%rvars(ir_cndaysleafoff_sift)%int1d, &
-           rio_phenmodeldate_sift      => this%rvars(ir_phenmodeldate_sift)%int1d, &
            rio_gdd_sift                => this%rvars(ir_gdd_sift)%r81d, &
            rio_dd_status_sift          => this%rvars(ir_dd_status_sift)%int1d, &
            rio_dleafondate_sift        => this%rvars(ir_dleafondate_sift)%int1d, &
