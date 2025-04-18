@@ -10,7 +10,6 @@ module FatesCumulativeMemoryMod
 
 
    use EDBtranMod            , only : check_layer_water
-   use EDParamsMod           , only : ED_val_phen_chiltemp
    use EDTypesMod            , only : area_inv
    use EDTypesMod            , only : ed_site_type
    use EDTypesMod            , only : num_vegtemp_mem
