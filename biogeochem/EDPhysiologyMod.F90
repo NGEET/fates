@@ -979,7 +979,8 @@ contains
     logical  :: prolonged_off_period     ! Have leaves been abscissed for too long?
     logical  :: last_flush_long_ago      ! Has it been a very long time since last flushing?
     logical  :: growing_season           ! Is this the growing season for cold-deciduous?
-
+    logical  :: gdd_above_threshold      ! Has the growing degree day threshold been exceeded?
+    logical  :: colddays_above_threshold ! Has there been many cold days recently?
 
     ! This is the elapsed number of days since the very beginning of the simulation time
     model_day_int = currentSite%phen_model_date
@@ -1045,9 +1046,20 @@ contains
        phen_drought_threshold = prt_params%phen_drought_threshold(ipft)
        phen_moist_threshold   = prt_params%phen_moist_threshold  (ipft)
 
+
+       ! PFT leaf lifespan in days. This is the shortest between the leaf longevity
+       ! (defined as a PFT parameter) and the maximum canopy leaf life span allowed
+       ! for drought deciduous (local parameter). The sum term accounts for the
+       ! total leaf life span of this cohort.
+       ! Note we only use canopy leaf lifespan here and assume that understory cohorts
+       ! would  behave the same as canopy cohorts with regards to phenology. 
+       ndays_pft_leaf_lifespan = &
+          nint(ndays_per_year*min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:))))
+
        !---~---
        !   COLD (SEASON) DECIDUOUS
        !---~---
+
 
        ! Accumulate growing/chilling days after start of counting period
        if (temp_in_C  <  phen_chilltemp) then
@@ -1095,6 +1107,39 @@ contains
 
 
 
+       ! Leaves have been "on" for longer than the minimum number of days.
+       exceed_min_on_period     = &
+          ( currentSite%cstatus(ipft) == phen_cstat_notcold ) .and. &
+          ( currentSite%cndaysleafon(ipft) > phen_mindayson )
+       ! Leaves have been "off" for longer than the minimum number of days.
+       exceed_min_off_period    = &
+          any( currentSite%cstatus(ipft) == [phen_cstat_iscold,phen_cstat_nevercold] ) .and. &
+          ( currentSite%cndaysleafoff(ipft) > phen_mindaysoff )
+
+       ! Leaves have been "on" for longer than the leaf lifetime.
+       prolonged_on_period      = &
+
+       ! Last flushing was a very long time ago.
+       last_flush_long_ago      = &
+
+       !    Check whether GDD has exceeded the threshold for flushing or not. Currently we
+       ! also check that there has been at least one chilling day in the counting period.
+       ! This prevents tropical or warm climate plants that are "cold-deciduous" from ever
+       ! re-flushing after they have reached their maximum age (thus preventing them from
+       ! competing).
+       ! MLO - Is the latter a desirable feature? I wonder if this blocks seasonal 
+       !       deciduous plants in areas where they exist but winters are mild, like 
+       !       the temperate west coast of most continents.
+       gdd_above_threshold = &
+          ( currentSite%grow_deg_days(ipft) > gdd_threshold  ) .and. &
+          ( currentSite%nchilldays(ipft) >= 1 )
+
+       !    Check whether there have been multiple cold days recently (except when it is
+       ! very early in the simulation and the memory count has not been fully populated).
+       colddays_above_threshold = &
+          ( ncolddays > phen_ncolddayslim ) .and. &
+          ( model_day_int > num_vegtemp_mem )
+
        ! LEAF ON: COLD DECIDUOUS. Needs to
        ! 1) have exceeded the growing degree day threshold
        ! 2) The leaves should not be on already
@@ -1103,10 +1148,7 @@ contains
        !    from ever re-flushing after they have reached their maximum age (thus
        !    preventing them from competing).
 
-       if ( any(currentSite%cstatus(ipft) == [phen_cstat_iscold,phen_cstat_nevercold]) .and. &
-            (currentSite%grow_deg_days(ipft) > gdd_threshold  ) .and. &
-            (currentSite%cndaysleafoff(ipft) > phen_mindaysoff) .and. &
-            (currentSite%nchilldays(ipft) >= 1)) then
+       if ( exceed_min_off_period .and. gdd_above_threshold ) then
           currentSite%cstatus      (ipft) = phen_cstat_notcold  ! Set to not-cold status (leaves can come on)
           currentSite%cleafondate  (ipft) = model_day_int       ! Record flushing date
           currentSite%cndaysleafon (ipft) = 0                   ! Reset time since flushing
@@ -1123,10 +1165,7 @@ contains
        ! 3) The leaves should not be off already
        ! 4) The day of simulation should be larger than the counting period.
 
-       if ( (currentSite%cstatus(ipft) == phen_cstat_notcold) .and. &
-            (model_day_int > num_vegtemp_mem)      .and. &
-            (ncolddays > phen_ncolddayslim)        .and. &
-            (currentSite%cndaysleafon(ipft) > phen_mindayson) )then
+       if ( exceed_min_on_period  .and. colddays_above_threshold ) then
 
           ! The equations for Botta et al. (2000) are for calculations of first flush, but if we don't
           ! clear this value, it will cause leaves to flush later in the year
@@ -1246,16 +1285,6 @@ contains
 
        ! Elongation factor from the previous step.
        elongf_prev = currentSite%elong_factor(ipft)
-
-
-       ! PFT leaf lifespan in days. This is the shortest between the leaf longevity
-       ! (defined as a PFT parameter) and the maximum canopy leaf life span allowed
-       ! for drought deciduous (local parameter). The sum term accounts for the
-       ! total leaf life span of this cohort.
-       ! Note we only use canopy leaf lifespan here and assume  that understory cohorts
-       ! would  behave the same as canopy cohorts with regards to phenology. 
-       ndays_pft_leaf_lifespan = &
-          nint(ndays_per_year*min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:))))
 
 
        !---~---
