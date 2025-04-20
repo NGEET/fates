@@ -93,18 +93,21 @@ module EDTypesMod
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter, public :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
 
-  ! Phenology status flag definitions (cold type is cstat, dry type is dstat)
+  ! Phenology status flag definitions (cold type is cstat, dry type is dstat).
+  ! MLO - Now that the phenology status is shared across both cold and drought deciduous, make sure these indices are unique
+  !       The default phen_estat_evergreen is a dummy value reserved for evergreen PFTs.
 
-  integer, parameter, public :: phen_cstat_nevercold = 0        ! This (location/plant) has not experienced a cold period over a large number
-                                                        ! of days, leaves are dropped and flagged as non-cold region
-  integer, parameter, public :: phen_cstat_iscold    = 1        ! This (location/plant) is in a cold-state where leaves should have fallen
-  integer, parameter, public :: phen_cstat_notcold   = 2        ! This site is in a warm-state where leaves are allowed to flush
+  integer, parameter, public :: phen_estat_evergreen = 0  ! This PFT is evergreen.
+  integer, parameter, public :: phen_cstat_nevercold = 1  ! This (location/plant) has not experienced a cold period over a large number
+                                                          !    of days, leaves are dropped and flagged as non-cold region
+  integer, parameter, public :: phen_cstat_iscold    = 2  ! This (location/plant) is in a cold-state where leaves should have fallen
+  integer, parameter, public :: phen_cstat_notcold   = 3  ! This site is in a warm-state where leaves are allowed to flush
 
-  integer, parameter, public :: phen_dstat_timeoff   = 0       ! Leaves off due to time exceedance (drought phenology)
-  integer, parameter, public :: phen_dstat_moistoff  = 1       ! Leaves off due to moisture avail  (drought phenology)
-  integer, parameter, public :: phen_dstat_moiston   = 2       ! Leaves on due to moisture avail   (drought phenology)
-  integer, parameter, public :: phen_dstat_timeon    = 3       ! Leaves on due to time exceedance  (drought phenology)
-  integer, parameter, public :: phen_dstat_pshed     = 4 ! Leaves partially abscissing       (drought phenology)
+  integer, parameter, public :: phen_dstat_timeoff   = 4  ! Leaves off due to time exceedance (drought phenology)
+  integer, parameter, public :: phen_dstat_moistoff  = 5  ! Leaves off due to moisture avail  (drought phenology)
+  integer, parameter, public :: phen_dstat_moiston   = 6  ! Leaves on due to moisture avail   (drought phenology)
+  integer, parameter, public :: phen_dstat_timeon    = 7  ! Leaves on due to time exceedance  (drought phenology)
+  integer, parameter, public :: phen_dstat_pshed     = 8  ! Leaves partially abscissing       (drought phenology)
 
   ! PATCH FUSION 
   real(r8), parameter, public :: force_patchfuse_min_biomass = 0.005_r8   ! min biomass (kg / m2 patch area) below which to force-fuse patches
@@ -417,28 +420,25 @@ module EDTypesMod
      real(r8) ::  snow_depth                                   ! site-level snow depth (used for ELAI/TLAI calcs)
 
      real(r8), dimension(maxpft) ::  grow_deg_days             ! Phenology growing degree days
-     integer, dimension(maxpft)  ::  cstatus                   ! are leaves in this pixel on or off for cold decid
-                                                               ! 0 = this site has not experienced a cold period over at least
+     integer, dimension(maxpft)  ::  phen_status               ! Phenology status of this PFT. This is shared by all
+                                                               !    phenology habits:
+                                                               ! 0 = this is an evergreen PFT
+                                                               ! 1 = this site has not experienced a cold period over at least
                                                                !     400 days, leaves are dropped and flagged as non-cold region
-                                                               ! 1 = this site is in a cold-state where leaves should have fallen
-                                                               ! 2 = this site is in a warm-state where leaves are allowed to flush
-     integer, dimension(maxpft)  ::  dstatus                   ! are leaves in this pixel on or off for drought decid
-                                                               ! 0 = leaves off due to time exceedance
-                                                               ! 1 = leaves off due to moisture avail
-                                                               ! 2 = leaves on due to moisture avail
-                                                               ! 3 = leaves on due to time exceedance
-                                                               ! 4 = leaves partially on (ED2-like phenology)
-     integer, dimension(maxpft)  ::  nchilldays                ! num chilling days: (for botta gdd trheshold calculation)
-     integer, dimension(maxpft)  ::  ncolddays                 ! num cold days: (must exceed threshold to drop leaves)
+                                                               ! 2 = this site is in a cold-state where leaves should have fallen
+                                                               ! 3 = this site is in a warm-state where leaves are allowed to flush
+                                                               ! 4 = leaves off due to time exceedance
+                                                               ! 5 = leaves off due to moisture avail
+                                                               ! 6 = leaves on due to moisture avail
+                                                               ! 7 = leaves on due to time exceedance
+                                                               ! 8 = leaves partially on (ED2-like phenology)
+     integer, dimension(maxpft)  ::  nchilldays                ! Number of  chilling days (for Botta's GDD trheshold calculation)
+     integer, dimension(maxpft)  ::  ncolddays                 ! Number of cold days (for temperature-driven leaf abscission)
      real(r8), dimension(num_vegtemp_mem) ::  vegtemp_memory   ! record of last 10 days temperature for senescence model. deg C
-     integer, dimension(maxpft)  ::  cleafondate               ! model date (day integer) of leaf on (cold):-
-     integer, dimension(maxpft)  ::  cleafoffdate              ! model date (day integer) of leaf off (cold):-
-     integer, dimension(maxpft)  ::  cndaysleafon              ! number of days since leaf on period started (cold)
-     integer, dimension(maxpft)  ::  cndaysleafoff             ! number of days since leaf off period started (cold)
-     integer, dimension(maxpft)  ::  dleafondate               ! model date (day integer) of leaf on drought:-
-     integer, dimension(maxpft)  ::  dleafoffdate              ! model date (day integer) of leaf off drought:-
-     integer, dimension(maxpft)  ::  dndaysleafon              ! number of days since leaf on period started (drought)
-     integer, dimension(maxpft)  ::  dndaysleafoff             ! number of days since leaf off period started (drought)
+     integer, dimension(maxpft)  ::  leafondate                ! Model date (day integer) of last leaf flushing event
+     integer, dimension(maxpft)  ::  leafoffdate               ! Model date (day integer) of last leaf abscission event
+     integer, dimension(maxpft)  ::  ndaysleafon               ! Number of days since last leaf flushing event
+     integer, dimension(maxpft)  ::  ndaysleafoff              ! Number of days since last leaf abscission event
      real(r8), dimension(maxpft) ::  elong_factor              ! Elongation factor (ED2-like phenology). This is zero when leaves are
                                                                ! completely off, and one when they are completely flushed.
      integer  ::  phen_model_date                              ! current model date (day integer)

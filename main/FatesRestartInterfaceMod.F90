@@ -217,19 +217,14 @@ module FatesRestartInterfaceMod
   integer :: ir_litter_moisture_pa_nfsc
 
   ! Site level
-  integer :: ir_cd_status_sift
+  integer :: ir_phen_status_sift
   integer :: ir_nchill_days_sift
   integer :: ir_ncold_days_sift
-  integer :: ir_cleafondate_sift
-  integer :: ir_cleafoffdate_sift
-  integer :: ir_cndaysleafon_sift
-  integer :: ir_cndaysleafoff_sift
+  integer :: ir_leafondate_sift
+  integer :: ir_leafoffdate_sift
+  integer :: ir_ndaysleafon_sift
+  integer :: ir_ndaysleafoff_sift
   integer :: ir_gdd_sift
-  integer :: ir_dd_status_sift
-  integer :: ir_dleafondate_sift
-  integer :: ir_dleafoffdate_sift
-  integer :: ir_dndaysleafon_sift
-  integer :: ir_dndaysleafoff_sift
   integer :: ir_elong_factor_sift
   integer :: ir_liqvolmem_siwmft
   integer :: ir_smpmem_siwmft
@@ -1272,9 +1267,9 @@ contains
     ! site x time level vars
     !
 
-    call this%set_restart_var(vname='fates_cold_dec_status', vtype=site_int, &
-         long_name='status flag for cold deciduous plants', units='unitless', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cd_status_sift )
+    call this%set_restart_var(vname='fates_phen_status', vtype=site_int, &
+         long_name='phenology status flag', units='unitless', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_phen_status_sift )
 
     call this%set_restart_var(vname='fates_chilling_days', vtype=site_int, &
          long_name='chilling day counter', units='unitless', flushval = flushinvalid, &
@@ -1284,45 +1279,25 @@ contains
          long_name='cold day counter', units='unitless', flushval = flushinvalid, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ncold_days_sift )
 
-    call this%set_restart_var(vname='fates_cold_leafondate', vtype=site_int, &
-         long_name='the model day of last cold leaf on', units='absolute integer day', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cleafondate_sift )
+    call this%set_restart_var(vname='fates_phen_leafondate', vtype=site_int, &
+         long_name='the model day of last leaf flushing event', units='absolute integer day', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafondate_sift )
 
-    call this%set_restart_var(vname='fates_cold_leafoffdate', vtype=site_int, &
-         long_name='the model day last cold leaf off', units='absolute integer day', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cleafoffdate_sift )
+    call this%set_restart_var(vname='fates_phen_leafoffdate', vtype=site_int, &
+         long_name='the model day last leaf abscission event', units='absolute integer day', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_leafoffdate_sift )
 
-    call this%set_restart_var(vname='fates_cold_ndaysleafon', vtype=site_int, &
-         long_name='number of days since leaf on (cold deciduous)', units='days', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cndaysleafon_sift )
+    call this%set_restart_var(vname='fates_phen_ndaysleafon', vtype=site_int, &
+         long_name='number of days since last leaf flushing event', units='days', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ndaysleafon_sift )
 
-    call this%set_restart_var(vname='fates_cold_ndaysleafoff', vtype=site_int, &
-         long_name='number of days since leaf off (cold deciduous)', units='days', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_cndaysleafoff_sift )
+    call this%set_restart_var(vname='fates_phen_ndaysleafoff', vtype=site_int, &
+         long_name='number of days since last leaf abscission event', units='days', flushval = flushinvalid, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ndaysleafoff_sift )
 
     call this%set_restart_var(vname='fates_gdd_site', vtype=site_r8, &
          long_name='growing degree days at each site', units='degC days', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gdd_sift )
-
-    call this%set_restart_var(vname='fates_drought_dec_status', vtype=cohort_int, &
-         long_name='status flag for drought deciduous plants', units='unitless', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dd_status_sift )
-
-    call this%set_restart_var(vname='fates_drought_leafondate', vtype=cohort_int, &
-         long_name='the day of year for drought based leaf-on', units='day of year', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafondate_sift )
-
-    call this%set_restart_var(vname='fates_drought_leafoffdate', vtype=cohort_int, &
-         long_name='the day of year for drought based leaf-off', units='day of year', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dleafoffdate_sift )
-
-    call this%set_restart_var(vname='fates_drought_ndaysleafon', vtype=cohort_int, &
-         long_name='number of days since leaf on (drought deciduous)', units='days', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dndaysleafon_sift )
-
-    call this%set_restart_var(vname='fates_drought_ndaysleafoff', vtype=cohort_int, &
-         long_name='number of days since leaf off (drought deciduous)', units='days', flushval = flushinvalid, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_dndaysleafoff_sift )
 
     call this%set_restart_var(vname='fates_elong_factor', vtype=cohort_r8, &
          long_name='leaf elongation factor (0 - completely abscissed; 1 - completely flushed)', units='unitless', flushval = flushinvalid, &
@@ -2162,19 +2137,14 @@ contains
            rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
            rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
            rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
-           rio_cd_status_sift          => this%rvars(ir_cd_status_sift)%int1d, &
+           rio_phen_status_sift        => this%rvars(ir_phen_status_sift)%int1d, &
            rio_nchill_days_sift        => this%rvars(ir_nchill_days_sift)%int1d, &
            rio_ncold_days_sift         => this%rvars(ir_ncold_days_sift)%int1d, &
-           rio_cleafondate_sift        => this%rvars(ir_cleafondate_sift)%int1d, &
-           rio_cleafoffdate_sift       => this%rvars(ir_cleafoffdate_sift)%int1d, &
-           rio_cndaysleafon_sift       => this%rvars(ir_cndaysleafon_sift)%int1d, &
-           rio_cndaysleafoff_sift      => this%rvars(ir_cndaysleafoff_sift)%int1d, &
+           rio_leafondate_sift         => this%rvars(ir_leafondate_sift)%int1d, &
+           rio_leafoffdate_sift        => this%rvars(ir_leafoffdate_sift)%int1d, &
+           rio_ndaysleafon_sift        => this%rvars(ir_ndaysleafon_sift)%int1d, &
+           rio_ndaysleafoff_sift       => this%rvars(ir_ndaysleafoff_sift)%int1d, &
            rio_gdd_sift                => this%rvars(ir_gdd_sift)%r81d, &
-           rio_dd_status_sift          => this%rvars(ir_dd_status_sift)%int1d, &
-           rio_dleafondate_sift        => this%rvars(ir_dleafondate_sift)%int1d, &
-           rio_dleafoffdate_sift       => this%rvars(ir_dleafoffdate_sift)%int1d, &
-           rio_dndaysleafon_sift       => this%rvars(ir_dndaysleafon_sift)%int1d, &
-           rio_dndaysleafoff_sift      => this%rvars(ir_dndaysleafoff_sift)%int1d, &
            rio_elong_factor_sift       => this%rvars(ir_elong_factor_sift)%r81d, &
            rio_liqvolmem_siwmft        => this%rvars(ir_liqvolmem_siwmft)%r81d, &
            rio_smpmem_siwmft           => this%rvars(ir_smpmem_siwmft)%r81d, &
@@ -2325,19 +2295,14 @@ contains
              rio_fmortcflux_usto_sipft(io_idx_si_pft) = sites(s)%fmort_carbonflux_ustory(i_pft)
              rio_imortcflux_sipft(io_idx_si_pft)      = sites(s)%imort_carbonflux(i_pft)
 
-             rio_cd_status_sift(io_idx_si_pft)     = sites(s)%cstatus(i_pft)
+             rio_phen_status_sift(io_idx_si_pft)   = sites(s)%phen_status(i_pft)
              rio_nchill_days_sift(io_idx_si_pft)   = sites(s)%nchilldays(i_pft)
              rio_ncold_days_sift(io_idx_si_pft)    = sites(s)%ncolddays(i_pft)
-             rio_cleafondate_sift(io_idx_si_pft)   = sites(s)%cleafondate(i_pft)
-             rio_cleafoffdate_sift(io_idx_si_pft)  = sites(s)%cleafoffdate(i_pft)
-             rio_cndaysleafon_sift(io_idx_si_pft)  = sites(s)%cndaysleafon(i_pft)
-             rio_cndaysleafoff_sift(io_idx_si_pft) = sites(s)%cndaysleafoff(i_pft)
+             rio_leafondate_sift(io_idx_si_pft)    = sites(s)%leafondate(i_pft)
+             rio_leafoffdate_sift(io_idx_si_pft)   = sites(s)%leafoffdate(i_pft)
+             rio_ndaysleafon_sift(io_idx_si_pft)   = sites(s)%ndaysleafon(i_pft)
+             rio_ndaysleafoff_sift(io_idx_si_pft)  = sites(s)%ndaysleafoff(i_pft)
              rio_gdd_sift(io_idx_si_pft)           = sites(s)%grow_deg_days(i_pft)
-             rio_dd_status_sift(io_idx_si_pft)     = sites(s)%dstatus(i_pft)
-             rio_dleafondate_sift(io_idx_si_pft)   = sites(s)%dleafondate(i_pft)
-             rio_dleafoffdate_sift(io_idx_si_pft)  = sites(s)%dleafoffdate(i_pft)
-             rio_dndaysleafon_sift(io_idx_si_pft)  = sites(s)%dndaysleafon(i_pft)
-             rio_dndaysleafoff_sift(io_idx_si_pft) = sites(s)%dndaysleafoff(i_pft)
              rio_elong_factor_sift(io_idx_si_pft)  = sites(s)%elong_factor(i_pft)
              rio_seed_in_sift(io_idx_si_pft)       = sites(s)%seed_in(i_pft)
              rio_seed_out_sift(io_idx_si_pft)      = sites(s)%seed_out(i_pft)
@@ -3162,19 +3127,14 @@ contains
           rio_agesinceanthrodist_pa   => this%rvars(ir_agesinceanthrodist_pa)%r81d, &
           rio_nocomp_pft_label_pa     => this%rvars(ir_nocomp_pft_label_pa)%int1d, &
           rio_area_pa                 => this%rvars(ir_area_pa)%r81d, &
-          rio_cd_status_sift          => this%rvars(ir_cd_status_sift)%int1d, &
+          rio_phen_status_sift        => this%rvars(ir_phen_status_sift)%int1d, &
           rio_nchill_days_sift        => this%rvars(ir_nchill_days_sift)%int1d, &
           rio_ncold_days_sift         => this%rvars(ir_ncold_days_sift)%int1d, &
-          rio_cleafondate_sift        => this%rvars(ir_cleafondate_sift)%int1d, &
-          rio_cleafoffdate_sift       => this%rvars(ir_cleafoffdate_sift)%int1d, &
-          rio_cndaysleafon_sift       => this%rvars(ir_cndaysleafon_sift)%int1d, &
-          rio_cndaysleafoff_sift      => this%rvars(ir_cndaysleafoff_sift)%int1d, &
+          rio_leafondate_sift         => this%rvars(ir_leafondate_sift)%int1d, &
+          rio_leafoffdate_sift        => this%rvars(ir_leafoffdate_sift)%int1d, &
+          rio_ndaysleafon_sift        => this%rvars(ir_ndaysleafon_sift)%int1d, &
+          rio_ndaysleafoff_sift       => this%rvars(ir_ndaysleafoff_sift)%int1d, &
           rio_gdd_sift                => this%rvars(ir_gdd_sift)%r81d, &
-          rio_dd_status_sift          => this%rvars(ir_dd_status_sift)%int1d, &
-          rio_dleafondate_sift        => this%rvars(ir_dleafondate_sift)%int1d, &
-          rio_dleafoffdate_sift       => this%rvars(ir_dleafoffdate_sift)%int1d, &
-          rio_dndaysleafon_sift       => this%rvars(ir_dndaysleafon_sift)%int1d, &
-          rio_dndaysleafoff_sift      => this%rvars(ir_dndaysleafoff_sift)%int1d, &
           rio_elong_factor_sift       => this%rvars(ir_elong_factor_sift)%r81d, &
           rio_liqvolmem_siwmft        => this%rvars(ir_liqvolmem_siwmft)%r81d, &
           rio_smpmem_siwmft           => this%rvars(ir_smpmem_siwmft)%r81d, &
@@ -3311,19 +3271,14 @@ contains
              sites(s)%fmort_carbonflux_canopy(i_pft)  = rio_fmortcflux_cano_sipft(io_idx_si_pft)
              sites(s)%fmort_carbonflux_ustory(i_pft)  = rio_fmortcflux_usto_sipft(io_idx_si_pft)
              sites(s)%imort_carbonflux(i_pft)         = rio_imortcflux_sipft(io_idx_si_pft)
-             sites(s)%cstatus(i_pft)        = rio_cd_status_sift(io_idx_si_pft)
+             sites(s)%phen_status(i_pft)    = rio_phen_status_sift(io_idx_si_pft)
              sites(s)%nchilldays(i_pft)     = rio_nchill_days_sift(io_idx_si_pft)
              sites(s)%ncolddays(i_pft)      = rio_ncold_days_sift(io_idx_si_pft)
-             sites(s)%cleafondate(i_pft)    = rio_cleafondate_sift(io_idx_si_pft)
-             sites(s)%cleafoffdate(i_pft)   = rio_cleafoffdate_sift(io_idx_si_pft)
-             sites(s)%cndaysleafon(i_pft)   = rio_cndaysleafon_sift(io_idx_si_pft)
-             sites(s)%cndaysleafoff(i_pft)  = rio_cndaysleafoff_sift(io_idx_si_pft)
+             sites(s)%leafondate(i_pft)     = rio_leafondate_sift(io_idx_si_pft)
+             sites(s)%leafoffdate(i_pft)    = rio_leafoffdate_sift(io_idx_si_pft)
+             sites(s)%ndaysleafon(i_pft)    = rio_ndaysleafon_sift(io_idx_si_pft)
+             sites(s)%ndaysleafoff(i_pft)   = rio_ndaysleafoff_sift(io_idx_si_pft)
              sites(s)%grow_deg_days(i_pft)  = rio_gdd_sift(io_idx_si_pft)
-             sites(s)%dstatus(i_pft)        = rio_dd_status_sift(io_idx_si_pft)
-             sites(s)%dleafondate(i_pft)    = rio_dleafondate_sift(io_idx_si_pft)
-             sites(s)%dleafoffdate(i_pft)   = rio_dleafoffdate_sift(io_idx_si_pft)
-             sites(s)%dndaysleafon(i_pft)   = rio_dndaysleafon_sift(io_idx_si_pft)
-             sites(s)%dndaysleafoff(i_pft)  = rio_dndaysleafoff_sift(io_idx_si_pft)
              sites(s)%elong_factor(i_pft)   = rio_elong_factor_sift(io_idx_si_pft)
              sites(s)%seed_in(i_pft)        = rio_seed_in_sift(io_idx_si_pft)
              sites(s)%seed_out(i_pft)        = rio_seed_out_sift(io_idx_si_pft)
