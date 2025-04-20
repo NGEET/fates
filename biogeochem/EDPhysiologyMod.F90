@@ -1477,7 +1477,7 @@ contains
           elseif ( last_flush_long_ago ) then
              ! Plant has not flushed at all for a very long time. Force flushing
              currentSite%elong_factor(ipft)  = elongf_min         ! Force minimum budburst
-             currentSite%phenstatus(ipft)    = phen_dstat_timeon  ! Flag that this has been forced
+             currentSite%phen_status(ipft)   = phen_dstat_timeon  ! Flag that this has been forced
              currentSite%leafondate(ipft)    = model_day_int      ! Record leaf on date
              currentSite%ndaysleafon(ipft)   = 0                  ! Reset clock
 
