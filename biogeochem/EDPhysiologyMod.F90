@@ -1034,10 +1034,6 @@ contains
        currentSite%grow_deg_days(1:numpft) = 0._r8
     endif
 
-    !Accumulate temperature of last 10 days.
-    currentSite%vegtemp_memory(2:num_vegtemp_mem) = currentSite%vegtemp_memory(1:num_vegtemp_mem-1)
-    currentSite%vegtemp_memory(1) = temp_in_C
-
 
     ! Loop through every PFT to assign the elongation factor. 
     ! Add PFT loop to account for different parameters and PFT-specific rooting depth profiles.
@@ -1064,21 +1060,6 @@ contains
        ! would  behave the same as canopy cohorts with regards to phenology. 
        ndays_pft_leaf_lifespan = &
           nint(ndays_per_year*min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:))))
-
-       !    Calculate the number of days since the last leaf flushing and leaf abscission
-       ! events.  If this is the beginning of the simulation, that day might not had occured
-       ! yet, so set it to last year to get things rolling.
-       if (model_day_int < currentSite%leafoffdate(ipft)) then
-          currentSite%ndaysleafoff(ipft) = model_day_int - (currentSite%leafoffdate(ipft) - ndays_per_year)
-       else
-          currentSite%ndaysleafoff(ipft) = model_day_int - currentSite%leafoffdate(ipft)
-       end if
-
-       if (model_day_int < currentSite%leafondate(ipft)) then
-          currentSite%ndaysleafon(ipft) = model_day_int - (currentSite%leafondate(ipft) - ndays_per_year)
-       else
-          currentSite%ndaysleafon(ipft) = model_day_int - currentSite%leafondate(ipft)
-       end if
 
 
        !---~---

@@ -22,6 +22,7 @@ module EDInitMod
   use FatesInterfaceTypesMod    , only : hlm_is_restart
   use FatesInterfaceTypesMod    , only : hlm_current_tod
   use FatesInterfaceTypesMod    , only : hlm_regeneration_model
+  use FatesInterfaceTypesMod    , only : hlm_model_day
   use EDPftvarcon               , only : EDPftvarcon_inst
   use PRTParametersMod          , only : prt_params
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts
@@ -390,25 +391,20 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  :: s
-    integer  :: estat      ! evergreen phenology flag
-    integer  :: cstat      ! cold status phenology flag
-    real(r8) :: GDD
-    integer  :: dstat      ! drought status phenology flag
-    real(r8) :: liqvolmem
-    real(r8) :: smpmem
-    real(r8) :: elong_factor ! Elongation factor (0 - fully off; 1 - fully on)
-    integer  :: cleafon    ! DOY for cold-decid leaf-on, initial guess
-    integer  :: cleafoff   ! DOY for cold-decid leaf-off, initial guess
-    integer  :: dleafoff   ! DOY for drought-decid leaf-off, initial guess
-    integer  :: dleafon    ! DOY for drought-decid leaf-on, initial guess
-    integer  :: cndleafon  ! days since leaf on  (cold), initial guess
-    integer  :: cndleafoff ! days since leaf off  (cold), initial guess
-    integer  :: dndleafon  ! days since leaf on  (drought), initial guess
-    integer  :: dndleafoff ! days since leaf off (drought), initial guess
-    integer  :: ft         ! PFT loop
-    real(r8) :: sumarea    ! area of PFTs in nocomp mode.
-    integer  :: hlm_pft    ! used in fixed biogeog mode
-    integer  :: fates_pft  ! used in fixed biogeog mode
+    real(r8) :: GDD               ! First guess for growing degree days
+    real(r8) :: liqvolmem         ! First guess for soil water content memory
+    real(r8) :: smpmem            ! First guess for soil matric potential memory
+    real(r8) :: tempmem           ! First guess for temperature memory
+    real(r8) :: elong_factor      ! Elongation factor (0 - fully off; 1 - fully on)
+    integer  :: leafon            ! DOY for last leaf flushing event, initial guess
+    integer  :: leafoff           ! DOY for last leaf abscission event, initial guess
+    integer  :: ndleafon          ! Elapsed days since last flushing, initial guess
+    integer  :: ndleafoff         ! Elapsed days since last abscission, initial guess
+    integer  :: ft                ! PFT loop index
+    integer  :: model_day_int     ! Model integration date
+    real(r8) :: sumarea           ! area of PFTs in nocomp mode.
+    integer  :: hlm_pft           ! used in fixed biogeog mode
+    integer  :: fates_pft         ! used in fixed biogeog mode
     integer  :: i_landusetype
     real(r8) :: temp_vec(numpft)  ! temporary vector
     integer  :: i_pftcount
@@ -422,40 +418,79 @@ contains
 
     if ( hlm_is_restart == ifalse ) then
 
-       GDD        = 30.0_r8
-       cleafon    = 100
-       cleafoff   = 300
-       cndleafon  = 0
-       cndleafoff = 0
-       estat      = phen_estat_evergreen
-       cstat      = phen_cstat_notcold     ! Leaves are on
-       dstat      = phen_dstat_moiston     ! Leaves are on
-       dleafoff   = 300
-       dleafon    = 100
-       dndleafon  = 0
-       dndleafoff = 0
-       liqvolmem  = 0.5_r8 
-       smpmem     = 0._r8
-       elong_factor = 1._r8
+       !    For now, we impose that deciduous plants start the simulation fully flushed,
+       ! but with the possibility of switching status if needed.
+       GDD           = 30.0_r8 ! Assume sufficiently warm conditions
+       liqvolmem     = 0.5_r8  ! Assume well watered conditions
+       smpmem        = 0._r8   ! Assume well watered conditions
+       tmpmem        = 15.0_r8 ! Assume sufficiently warm conditions
+       elong_factor  = 1._r8   ! Assume leaves fully flushed.
+
+       !   Set the model integration date since the beginning of time.
+       model_day_int = floor(hlm_model_day)
 
        do s = 1,nsites
+
+          !    Define the last flushing and abscission dates based on the hemisphere. This
+          ! is to avoid the dates to be too far from optimal in the Southern Hemisphere, 
+          ! which could make deciduous plants spend multiple years until synchronising with
+          ! the local climate. For now, both cold- and drought-deciduous default to leaf
+          ! flushing during spring, and to leaf abscission during autumn. This assumes winter
+          ! dry season, which is common in many tropical regions. This is still not ideal
+          ! for some tropical and Mediterranean climates, which peak greenness during autumn
+          ! or spring. In the future, we could consider implementing some map that allows
+          ! assigning the expected dates for each location.
+          if (sites(s)%lat > 0._r8) then
+             leafon  = 100 - hlm_day_of_year
+             leafoff = 300 - hlm_day_of_year
+          else
+             leafon  = 280 - hlm_day_of_year
+             leafoff = 120 - hlm_day_of_year
+          end if
+
+          !    Make sure the initial dates for last leaf abscission and leaf flushing events
+          ! precede the the beginning of the simulation. This check used to occur inside the
+          ! integrator, but it is better to ensure this during initialisation, so we reduce
+          ! the number of logical tests during time steps.
+          if ( leafon  > model_day_int ) then
+             leafon  = leafon  - ndays_per_year
+          end if
+          if ( leafoff > model_day_int ) then
+             leafoff = leafoff - ndays_per_year
+          end if
+
+          !   Initialise the number of days since last phenological transitions as the 
+          ! negative of the last transition dates. This is consistent with the original
+          ! calculation, but different from the original cold start that assumed that
+          ! both elapsed dates were 
+          ndleafon  = model_day_int - leafon
+          ndleafoff = model_day_int - leafoff
+
+
+          estat         = phen_estat_evergreen
+          cstat         = phen_cstat_notcold     ! Leaves are on
+          dstat         = phen_dstat_moiston     ! Leaves are on
+
+
+          ! We set the number of chilling days and cold days to zero. This will be 
           sites(s)%nchilldays(1:numpft)    = 0
-          sites(s)%ncolddays(1:numpft)     = 0        ! recalculated in phenology
-                                            ! immediately, so yes this
-                                            ! is memory-less, but needed
-                                            ! for first value in history file
-          sites(s)%phen_model_date         = 0
+          sites(s)%ncolddays(1:numpft)     = 0 ! recalculated in phenology
+                                               ! immediately, so yes this
+                                               ! is memory-less, but needed
+                                               ! for first value in history file
+          sites(s)%phen_model_date         = model_day_int
           sites(s)%grow_deg_days(1:numpft) = GDD
 
           sites(s)%liqvol_memory(1:numWaterMem,1:numpft) = liqvolmem
           sites(s)%smp_memory(1:numWaterMem,1:numpft) = smpmem
-          sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
+          sites(s)%vegtemp_memory(1:num_vegtemp_mem) = tempmem
 
           do ft = 1, numpft
              ! These must be updated once the new parameter is integrated to FATES.
              select case (prt_params%evergreen(ft))
              case (itrue)
-                ! Evergreens. These variables are not used, set them to any state
+                ! Evergreens. Phenological status is not used, set it accordingly.
+                !    Assign dummy values to other values.
                 sites(s)%phen_status (ft) = estat
                 sites(s)%leafondate  (ft) = cleafon    - hlm_day_of_year
                 sites(s)%leafoffdate (ft) = cleafoff   - hlm_day_of_year
