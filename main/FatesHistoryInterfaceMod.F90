@@ -618,15 +618,12 @@ module FatesHistoryInterfaceMod
   integer :: ih_crownarea_si_cnlf
   integer :: ih_gpp_si_pft
   integer :: ih_npp_si_pft
-  integer :: ih_site_cstatus_si_pft
+  integer :: ih_site_phen_status_si_pft
   integer :: ih_gdd_si_pft
   integer :: ih_site_nchilldays_si_pft
   integer :: ih_site_ncolddays_si_pft
-  integer :: ih_cleafoff_si_pft
-  integer :: ih_cleafon_si_pft
-  integer :: ih_site_dstatus_si_pft
-  integer :: ih_dleafoff_si_pft
-  integer :: ih_dleafon_si_pft
+  integer :: ih_leafoff_si_pft
+  integer :: ih_leafon_si_pft
   integer :: ih_meanliqvol_si_pft
   integer :: ih_meansmp_si_pft
   integer :: ih_elong_factor_si_pft
@@ -3256,12 +3253,9 @@ contains
              hio_gdd_si_pft                       => this%hvars(ih_gdd_si_pft)%r82d, &
              hio_site_ncolddays_si_pft            => this%hvars(ih_site_ncolddays_si_pft)%r82d, &
              hio_site_nchilldays_si_pft           => this%hvars(ih_site_nchilldays_si_pft)%r82d, &
-             hio_site_cstatus_si_pft              => this%hvars(ih_site_cstatus_si_pft)%r82d, &
-             hio_cleafoff_si_pft                  => this%hvars(ih_cleafoff_si_pft)%r82d, &
-             hio_cleafon_si_pft                   => this%hvars(ih_cleafon_si_pft)%r82d, &
-             hio_site_dstatus_si_pft              => this%hvars(ih_site_dstatus_si_pft)%r82d, &
-             hio_dleafoff_si_pft                  => this%hvars(ih_dleafoff_si_pft)%r82d, &
-             hio_dleafon_si_pft                   => this%hvars(ih_dleafon_si_pft)%r82d, &
+             hio_site_phen_status_si_pft          => this%hvars(ih_site_phen_status_si_pft)%r82d, &
+             hio_leafoff_si_pft                   => this%hvars(ih_leafoff_si_pft)%r82d, &
+             hio_leafon_si_pft                    => this%hvars(ih_leafon_si_pft)%r82d, &
              hio_meanliqvol_si_pft                => this%hvars(ih_meanliqvol_si_pft)%r82d, &
              hio_meansmp_si_pft                   => this%hvars(ih_meansmp_si_pft)%r82d, &
              hio_elong_factor_si_pft              => this%hvars(ih_elong_factor_si_pft)%r82d, &
@@ -3343,8 +3337,8 @@ contains
              ! Update deciduous information (now separated by PFT).
              do ft = 1,numpft
 
-                ! Update the site status for cold deciduous (drought deciduous is now PFT dependent)
-                hio_site_cstatus_si_pft(io_si,ft)   = real(sites(s)%cstatus(ft),r8)
+                ! Update the site phenological status for this PFT
+                hio_site_phen_status_si_pft(io_si,ft)   = real(sites(s)%phen_status(ft),r8)
 
                 ! Number of chill days and cold days
                 hio_site_nchilldays_si_pft(io_si,ft) = real(sites(s)%nchilldays(ft),r8)
@@ -3353,16 +3347,9 @@ contains
                 ! Growing degree-days
                 hio_gdd_si_pft(io_si,ft) = sites(s)%grow_deg_days(ft)
 
-                ! Model days elapsed since leaf on/off for cold-deciduous
-                hio_cleafoff_si_pft(io_si,ft) = real(sites(s)%cndaysleafoff(ft),r8)
-                hio_cleafon_si_pft(io_si,ft)  = real(sites(s)%cndaysleafon (ft),r8)
-
-                ! Update the site-PFT status for drought deciduous
-                hio_site_dstatus_si_pft(io_si,ft) = real(sites(s)%dstatus(ft),r8)
-
-                ! Model days elapsed since leaf off/on for drought deciduous
-                hio_dleafoff_si_pft(io_si,ft)     = real(sites(s)%dndaysleafoff(ft),r8)
-                hio_dleafon_si_pft(io_si,ft)      = real(sites(s)%dndaysleafon (ft),r8)
+                ! Model days elapsed since leaf on/off for deciduous
+                hio_leafoff_si_pft(io_si,ft) = real(sites(s)%ndaysleafoff(ft),r8)
+                hio_leafon_si_pft(io_si,ft)  = real(sites(s)%ndaysleafon (ft),r8)
 
                 ! Leaf elongation factor (0 means fully abscissed, 1 means fully flushed).
                 hio_elong_factor_si_pft(io_si,ft) = sites(s)%elong_factor(ft)
@@ -6854,11 +6841,12 @@ contains
 
           !MLO - Phenology variables are now defined for each PFT.
 
-          call this%set_history_var(vname='FATES_COLD_STATUS_PF', units='',             &
-               long='PFT-level cold status, 0=not cold-dec, 1=too cold for leaves, 2=not too cold',  &
+          call this%set_history_var(vname='FATES_PHEN_STATUS_PF', units='',             &
+               long='Phenology status: 0 evergreen; 1 never cold; 2 cold state; 3 warm state; 4 forced abscission;'// &
+                    ' 5 dry state; 6 moist state; 7 forced flush; 8 partial abscission',  &
                use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
                upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
-               index=ih_site_cstatus_si_pft)
+               index=ih_site_phen_status_si_pft)
 
           call this%set_history_var(vname='FATES_GDD_PF', units='degree_Celsius',       &
                long='PFT-level growing degree days', use_default='active',          &
@@ -6877,37 +6865,17 @@ contains
                upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
                index=ih_site_ncolddays_si_pft)
 
-          call this%set_history_var(vname='FATES_DAYSINCE_COLDLEAFOFF_PF',              &
-               units='days', long='PFT-level days elapsed since cold leaf drop',    &
+          call this%set_history_var(vname='FATES_DAYSINCE_LEAFOFF_PF',              &
+               units='days', long='PFT-level days elapsed since last leaf abscission event',    &
                use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
                upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-               index=ih_cleafoff_si_pft)
+               index=ih_leafoff_si_pft)
 
-          call this%set_history_var(vname='FATES_DAYSINCE_COLDLEAFON_PF',               &
-               units='days', long='PFT-level days elapsed since cold leaf flush',   &
+          call this%set_history_var(vname='FATES_DAYSINCE_LEAFON_PF',               &
+               units='days', long='PFT-level days elapsed since last leaf flushing event',   &
                use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
                upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-               index=ih_cleafon_si_pft)
-
-          call this%set_history_var(vname='FATES_DROUGHT_STATUS_PF',                     &
-               units='',                                                                &
-               long='PFT-level drought status, <2 too dry for leaves, >=2 not too dry', &
-               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
-               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                    &
-               index=ih_site_dstatus_si_pft)
-
-          call this%set_history_var(vname='FATES_DAYSINCE_DROUGHTLEAFOFF_PF',           &
-               units='days', long='PFT-level days elapsed since drought leaf drop',     &
-               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
-               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                    &
-               index=ih_dleafoff_si_pft)
-
-          call this%set_history_var(vname='FATES_DAYSINCE_DROUGHTLEAFON_PF',            &
-               units='days',                                                            &
-               long='PFT-level days elapsed since drought leaf flush',                  &
-               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
-               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                    &
-               index=ih_dleafon_si_pft)
+               index=ih_leafon_si_pft)
 
           call this%set_history_var(vname='FATES_MEANLIQVOL_DROUGHTPHEN_PF',            &
                units='m3 m-3',                                                          &
