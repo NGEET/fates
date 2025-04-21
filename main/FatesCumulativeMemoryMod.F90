@@ -83,6 +83,10 @@ contains
 
       ! Arguments
       type(ed_site_type), intent(inout), target :: currentSite
+      ! Local variables
+      integer :: ipft
+      integer :: date_offset_off
+      integer :: date_offset_on
 
       !---~---
       !    Advance elapsed time. The only reason this is a site variable instead of a 
@@ -90,6 +94,41 @@ contains
       ! and we do not have global scalars in the restart file.
       !---~---
       currentSite%phen_model_date = currentSite%phen_model_date + 1
+
+
+      !---~---
+      !   Update the number of days since last flushing and abscission events.
+      !---~---
+      do ipft = 1, numpft
+
+         !  If this is the beginning of the simulation, the last leaf abscission and/or
+         ! the last flushing events may have occurred before 
+         ! might not had occured yet, so set it to last year to get things rolling.
+         if ( model_day_int < currentSite%leafoffdate(ipft) ) then
+            date_offset = ndays_per_year
+         else 
+            date_offset = 0
+         end if
+         
+
+         !    Calculate the number of days since the last leaf flushing and leaf
+         ! abscission events.
+         if (model_day_int < currentSite%leafoffdate(ipft)) then
+            currentSite%ndaysleafoff(ipft) = &
+               currentSite%phen_model_date - (currentSite%leafoffdate(ipft) - ndays_per_year)
+         else
+            currentSite%ndaysleafoff(ipft) = 
+            model_day_int - currentSite%leafoffdate(ipft)
+         end if
+
+         if (model_day_int < currentSite%leafondate(ipft)) then
+            currentSite%ndaysleafon(ipft) = model_day_int - (currentSite%leafondate(ipft) - ndays_per_year)
+         else
+            currentSite%ndaysleafon(ipft) = model_day_int - currentSite%leafondate(ipft)
+         end if
+      end do
+      !---~---
+
 
       return
    end subroutine UpdatePhenologyDate

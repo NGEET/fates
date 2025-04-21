@@ -1056,20 +1056,6 @@ contains
        ndays_pft_leaf_lifespan = &
           nint(ndays_per_year*min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:))))
 
-       !    Calculate the number of days since the last leaf flushing and leaf abscission
-       ! events.  If this is the beginning of the simulation, that day might not had occured
-       ! yet, so set it to last year to get things rolling.
-       if (model_day_int < currentSite%leafoffdate(ipft)) then
-          currentSite%ndaysleafoff(ipft) = model_day_int - (currentSite%leafoffdate(ipft) - ndays_per_year)
-       else
-          currentSite%ndaysleafoff(ipft) = model_day_int - currentSite%leafoffdate(ipft)
-       end if
-
-       if (model_day_int < currentSite%leafondate(ipft)) then
-          currentSite%ndaysleafon(ipft) = model_day_int - (currentSite%leafondate(ipft) - ndays_per_year)
-       else
-          currentSite%ndaysleafon(ipft) = model_day_int - currentSite%leafondate(ipft)
-       end if
 
        !---~---
        !   COLD (SEASON) DECIDUOUS
