@@ -107,14 +107,15 @@ contains
           if_bareground: if(currentpatch%nocomp_pft_label.ne.nocomp_bareground)then
              
              ! Initialize output boundary conditions with trivial assumption
-             ! of a black body soil and fully transmitting canopy
-             bc_out(s)%albd_parb(ifp,:)            = 0._r8
-             bc_out(s)%albi_parb(ifp,:)            = 0._r8
+             ! This matches CLM/ELM
+             ! Albedo is perfect reflector, no flux into or through canopy
+             bc_out(s)%albd_parb(ifp,:)            = 1._r8
+             bc_out(s)%albi_parb(ifp,:)            = 1._r8
              bc_out(s)%fabi_parb(ifp,:)            = 0._r8
              bc_out(s)%fabd_parb(ifp,:)            = 0._r8
-             bc_out(s)%ftdd_parb(ifp,:)            = 1._r8
-             bc_out(s)%ftid_parb(ifp,:)            = 1._r8
-             bc_out(s)%ftii_parb(ifp,:)            = 1._r8
+             bc_out(s)%ftdd_parb(ifp,:)            = 0._r8
+             bc_out(s)%ftid_parb(ifp,:)            = 0._r8
+             bc_out(s)%ftii_parb(ifp,:)            = 0._r8
 
              ! Zero diagnostics
              currentPatch%f_sun      (:,:,:) = 0._r8

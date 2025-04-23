@@ -373,13 +373,13 @@ contains
     fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
     fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
     
-    fates%bc_out(s)%albd_parb(:,:) = 0.0_r8   ! zero albedo, soil absorbs all rad
-    fates%bc_out(s)%albi_parb(:,:) = 0.0_r8   ! zero albedo, soil absorbs all rad
+    fates%bc_out(s)%albd_parb(:,:) = 1.0_r8   ! zero albedo, soil absorbs all rad
+    fates%bc_out(s)%albi_parb(:,:) = 1.0_r8   ! zero albedo, soil absorbs all rad
     fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
     fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
-    fates%bc_out(s)%ftdd_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
-    fates%bc_out(s)%ftid_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
-    fates%bc_out(s)%ftii_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftdd_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftid_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftii_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
     
     fates%bc_out(s)%elai_pa(:)   = 0.0_r8
     fates%bc_out(s)%esai_pa(:)   = 0.0_r8
