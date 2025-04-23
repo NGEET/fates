@@ -828,7 +828,7 @@ contains
                 ! Check leaf cost against the yearly net uptake for that cohort leaf layer
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost) then
                    ! Make sure the cohort trim fraction is great than the pft trim limit
-                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft)) then
+                   if (currentCohort%canopy_trim > (EDPftvarcon_inst%trim_limit(ipft) + EDPftvarcon_inst%trim_inc(ipft))) then
 
                       ! keep trimming until none of the canopy is in negative carbon balance.
                       if (currentCohort%height > EDPftvarcon_inst%hgt_min(ipft)) then
@@ -877,11 +877,14 @@ contains
                 optimum_trim = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_trim
 
                 ! Determine if the optimum trim value makes sense.  The smallest cohorts tend to have unrealistic fits.
-                if (optimum_trim > 0. .and. optimum_trim < 1.) then
+                if (optimum_trim > EDPftvarcon_inst%trim_limit(ipft) .and. optimum_trim < 1.) then
                    currentCohort%canopy_trim = optimum_trim
 
                    trimmed = .true.
 
+                else if (optimum_trim <= EDPftvarcon_inst%trim_limit(ipft)) then
+                   currentCohort%canopy_trim = EDPftvarcon_inst%trim_limit(ipft)
+                   trimmed = .true.
                 endif
              endif
           endif
