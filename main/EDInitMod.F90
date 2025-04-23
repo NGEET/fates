@@ -11,6 +11,7 @@ module EDInitMod
   use FatesConstantsMod         , only : primaryland
   use FatesConstantsMod         , only : nearzero
   use FatesConstantsMod         , only : rsnbl_math_prec
+  use FatesConstantsMod         , only : ndays_per_year
   use EDTypesMod                , only : min_patch_area_forced
   use FatesConstantsMod         , only : n_landuse_cats
   use FatesConstantsMod         , only : is_crop
@@ -48,11 +49,11 @@ module EDInitMod
   use FatesConstantsMod         , only : isemi_stress_decid
   use PRTGenericMod             , only : num_elements
   use PRTGenericMod             , only : element_list
-  use EDTypesMod                , only : phen_cstat_nevercold
-  use EDTypesMod                , only : phen_cstat_iscold
+  use EDTypesMod                , only : phen_cstat_timeoff
+  use EDTypesMod                , only : phen_cstat_tempoff
   use EDTypesMod                , only : phen_dstat_timeoff
   use EDTypesMod                , only : phen_dstat_moistoff
-  use EDTypesMod                , only : phen_cstat_notcold
+  use EDTypesMod                , only : phen_cstat_tempon
   use EDTypesMod                , only : phen_dstat_moiston
   use EDTypesMod                , only : phen_estat_evergreen
   use FatesInterfaceTypesMod         , only : bc_in_type,bc_out_type
@@ -393,11 +394,15 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  :: s
-    real(r8) :: GDD               ! First guess for growing degree days
-    real(r8) :: liqvolmem         ! First guess for soil water content memory
-    real(r8) :: smpmem            ! First guess for soil matric potential memory
-    real(r8) :: tempmem           ! First guess for temperature memory
-    real(r8) :: elong_factor      ! Elongation factor (0 - fully off; 1 - fully on)
+    real(r8) :: gdd_1st           ! First guess for growing degree days
+    real(r8) :: liqvolmem_1st     ! First guess for soil water content memory
+    real(r8) :: smpmem_1st        ! First guess for soil matric potential memory
+    real(r8) :: tempmem_1st       ! First guess for temperature memory
+    real(r8) :: elong_factor_1st  ! First guess for elongation factor (fraction of leaves
+                                  !    flushed relative to the maximum given plant size)
+                                  !    0   - completely leafless
+                                  !    0.5 - 50% of leaves flushed
+                                  !    1.0 - 100% of leaves flushed
     integer  :: leafon            ! DOY for last leaf flushing event, initial guess
     integer  :: leafoff           ! DOY for last leaf abscission event, initial guess
     integer  :: ndleafon          ! Elapsed days since last flushing, initial guess
@@ -422,26 +427,26 @@ contains
 
        !    For now, we impose that deciduous plants start the simulation fully flushed,
        ! but with the possibility of switching status if needed.
-       GDD           = 30.0_r8 ! Assume sufficiently warm conditions
-       liqvolmem     = 0.5_r8  ! Assume well watered conditions
-       smpmem        = 0._r8   ! Assume well watered conditions
-       tmpmem        = 15.0_r8 ! Assume sufficiently warm conditions
-       elong_factor  = 1._r8   ! Assume leaves fully flushed.
+       gdd_1st           = 30.0_r8 ! Assume sufficiently warm conditions
+       liqvolmem_1st     = 0.5_r8  ! Assume well watered conditions
+       smpmem_1st        = 0._r8   ! Assume well watered conditions
+       tempmem_1st       = 15.0_r8 ! Assume sufficiently warm conditions
+       elong_factor_1st  = 1._r8   ! Assume leaves fully flushed.
 
        !   Set the model integration date since the beginning of time.
        model_day_int = floor(hlm_model_day)
 
        do s = 1,nsites
-
           !    Define the last flushing and abscission dates based on the hemisphere. This
-          ! is to avoid the dates to be too far from optimal in the Southern Hemisphere, 
-          ! which could make deciduous plants spend multiple years until synchronising with
-          ! the local climate. For now, both cold- and drought-deciduous default to leaf
-          ! flushing during spring, and to leaf abscission during autumn. This assumes winter
-          ! dry season, which is common in many tropical regions. This is still not ideal
-          ! for some tropical and Mediterranean climates, which peak greenness during autumn
-          ! or spring. In the future, we could consider implementing some map that allows
-          ! assigning the expected dates for each location.
+          ! is to avoid first guess dates that are too far from optimal in the Southern 
+          ! Hemisphere, which could make deciduous plants spend multiple years until 
+          ! synchronising with the local climate. For now, both cold- and drought-deciduous
+          ! dates default to leaf flushing during spring, and to leaf abscission during 
+          ! autumn. This assumes winter dry season, which is common in many tropical 
+          ! regions. This is still not ideal for some tropical areas and for Mediterranean
+          ! climates, in which peak greenness occurs during autumn or spring, respectively.
+          ! In the future, we could consider implementing some map that allows assigning
+          ! the expected dates for each location.
           if (sites(s)%lat > 0._r8) then
              leafon  = 100 - hlm_day_of_year
              leafoff = 300 - hlm_day_of_year
@@ -450,10 +455,11 @@ contains
              leafoff = 120 - hlm_day_of_year
           end if
 
-          !    Make sure the initial dates for last leaf abscission and leaf flushing events
-          ! precede the the beginning of the simulation. This check used to occur inside the
-          ! integrator, but it is better to ensure this during initialisation, so we reduce
-          ! the number of logical tests during time steps.
+
+          !    Make sure the initial dates for last leaf abscission and leaf flushing
+          ! events precede the the beginning of the simulation. This check used to occur
+          ! inside the integrator, but it is better to ensure this during initialisation,
+          ! so we reduce the number of logical tests during time steps.
           if ( leafon  > model_day_int ) then
              leafon  = leafon  - ndays_per_year
           end if
@@ -469,60 +475,57 @@ contains
           ndleafoff = model_day_int - leafoff
 
 
-          estat         = phen_estat_evergreen
-          cstat         = phen_cstat_notcold     ! Leaves are on
-          dstat         = phen_dstat_moiston     ! Leaves are on
+          !---~---
+          !   Initialise site-level variables that are not PFT specific or that can be
+          ! set for all PFTs without considering the leaf phenological habit. Some of 
+          ! the memory and cumulative variables are currently used only for leaf
+          ! phenology, but they may be useful for other modules, so they are set for
+          ! all PFTs.
+          !    Some variables such as ncolddays are recalculated every day (memoryless)
+          ! but they need an initial value so they are defined for the first history 
+          ! file.
+          !---~---
+          sites(s)%phen_model_date                        = model_day_int
+          sites(s)%vegtemp_memory(1:num_vegtemp_mem)      = tempmem_1st
+          sites(s)%liqvol_memory (1:numWaterMem,1:numpft) = liqvolmem_1st
+          sites(s)%smp_memory    (1:numWaterMem,1:numpft) = smpmem_1st
+          sites(s)%grow_deg_days (1:numpft)               = gdd_1st
+          sites(s)%nchilldays    (1:numpft)               = 0
+          sites(s)%ncolddays     (1:numpft)               = 0 
+          sites(s)%elong_factor  (1:numpft)               = elong_factor_1st
 
 
-          ! We set the number of chilling days and cold days to zero. This will be 
-          sites(s)%nchilldays(1:numpft)    = 0
-          sites(s)%ncolddays(1:numpft)     = 0 ! recalculated in phenology
-                                               ! immediately, so yes this
-                                               ! is memory-less, but needed
-                                               ! for first value in history file
-          sites(s)%phen_model_date         = model_day_int
-          sites(s)%grow_deg_days(1:numpft) = GDD
 
-          sites(s)%liqvol_memory(1:numWaterMem,1:numpft) = liqvolmem
-          sites(s)%smp_memory(1:numWaterMem,1:numpft) = smpmem
-          sites(s)%vegtemp_memory(1:num_vegtemp_mem) = tempmem
-
-          do ft = 1, numpft
-             ! These must be updated once the new parameter is integrated to FATES.
-             select case (prt_params%evergreen(ft))
-             case (itrue)
+          !---~---
+          !   Fill in variables that do require checks for leaf phenology habit.
+          !---~---
+          do_phen_pft_init: do ft = 1, numpft
+             case_leaf_habit: select case (prt_params%phen_leaf_habit(ft))
+             case (ievergreen)
                 ! Evergreens. Phenological status is not used, set it accordingly.
-                !    Assign dummy values to other values.
-                sites(s)%phen_status (ft) = estat
-                sites(s)%leafondate  (ft) = cleafon    - hlm_day_of_year
-                sites(s)%leafoffdate (ft) = cleafoff   - hlm_day_of_year
-                sites(s)%ndaysleafon (ft) = 0
-                sites(s)%ndaysleafoff(ft) = 0
-             end select
-
-             select case (prt_params%season_decid(ft))
-             case (itrue)
-                ! Cold deciduous
-                sites(s)%phen_status (ft) = cstat
-                sites(s)%leafondate  (ft) = cleafon    - hlm_day_of_year
-                sites(s)%leafoffdate (ft) = cleafoff   - hlm_day_of_year
-                sites(s)%ndaysleafon (ft) = cndleafon
-                sites(s)%ndaysleafoff(ft) = cndleafoff
-             end select
-
-
-             select case (prt_params%stress_decid(ft))
+                sites(s)%phen_status (ft) = phen_estat_evergreen
+             case (ihard_season_decid)
+                !    Cold deciduous. Initialise both status and time since last flushing
+                ! and abscission days. We assume the initial status to be with leaves
+                ! fully flushed.
+                sites(s)%phen_status (ft) = phen_cstat_tempon
+                sites(s)%leafondate  (ft) = leafon
+                sites(s)%leafoffdate (ft) = leafoff
+                sites(s)%ndaysleafon (ft) = ndleafon
+                sites(s)%ndaysleafoff(ft) = ndleafoff
              case (ihard_stress_decid,isemi_stress_decid)
-                ! Drought deciduous
-                sites(s)%phen_status (ft) = dstat
-                sites(s)%leafondate  (ft) = dleafon    - hlm_day_of_year
-                sites(s)%leafoffdate (ft) = dleafoff   - hlm_day_of_year
-                sites(s)%ndaysleafon (ft) = dndleafon
-                sites(s)%ndaysleafoff(ft) = dndleafoff
-             end select
-          end do
+                ! Drought deciduous. Initialise both status and time since last flushing
+                ! and abscission days. We assume the initial status to be with leaves
+                ! fully flushed.
+                sites(s)%phen_status (ft) = phen_dstat_moiston
+                sites(s)%leafondate  (ft) = leafon
+                sites(s)%leafoffdate (ft) = leafoff
+                sites(s)%ndaysleafon (ft) = ndleafon
+                sites(s)%ndaysleafoff(ft) = ndleafoff
+             end select case_leaf_habit
+          end do do_phen_pft_init
+          !---~---
 
-          sites(s)%elong_factor(1:numpft) = elong_factor
 
           sites(s)%NF         = 0.0_r8
           sites(s)%NF_successful  = 0.0_r8
@@ -1205,19 +1208,20 @@ contains
                ! use built-in phenology
                phen_select: select case (prt_params%phen_leaf_habit(pft))
                case (ihard_season_decid)
-                  if ( any(site_in%phen_status(pft) == [phen_cstat_nevercold, phen_cstat_iscold]) ) then 
+                  select case (site_in%phen_status(pft))
+                  case (phen_cstat_tempoff, phen_cstat_timeoff)
                      ! Cold deciduous, off season, assume complete abscission
                      efleaf_coh = 0.0_r8
                      effnrt_coh = 1.0_r8 - fnrt_drop_fraction 
                      efstem_coh = 1.0_r8 - stem_drop_fraction
                      leaf_status = leaves_off
-                  else
+                  case default
                      ! Cold deciduous, growing season, assume leaves fully flushed
                      efleaf_coh = 1.0_r8
                      effnrt_coh = 1.0_r8
                      efstem_coh = 1.0_r8
                      leaf_status = leaves_on
-                  end if
+                  end select
                case (ihard_stress_decid, isemi_stress_decid)
                   ! If the plant is drought deciduous, make sure leaf status is
                   ! always consistent with the leaf elongation factor.  For tissues

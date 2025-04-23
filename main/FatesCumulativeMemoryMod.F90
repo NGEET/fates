@@ -14,16 +14,20 @@ module FatesCumulativeMemoryMod
    use EDTypesMod            , only : ed_site_type
    use EDTypesMod            , only : num_vegtemp_mem
    use EDTypesMod            , only : numWaterMem
-   use EDTypesMod            , only : phen_cstat_iscold
    use FatesAllometryMod     , only : set_root_fraction
+   use FatesConstantsMod     , only : ievergreen
+   use FatesConstantsMod     , only : ihard_season_decid
+   use FatesConstantsMod     , only : ihard_stress_decid
+   use FatesConstantsMod     , only : isemi_stress_decid
    use FatesConstantsMod     , only : ndays_per_year
    use FatesConstantsMod     , only : nearzero
    use FatesConstantsMod     , only : r8   => fates_r8
    use FatesConstantsMod     , only : tfrz => t_water_freeze_k_1atm
    use FatesInterfaceTypesMod, only : bc_in_type
-   use FatesInterfaceTypesMod, only : hlm_day_of_year
+   use FatesInterfaceTypesMod, only : hlm_model_day
    use FatesInterfaceTypesMod, only : numpft
    use FatesPatchMod         , only : fates_patch_type
+   use PRTParametersMod      , only : prt_params
 
    implicit none
    private
@@ -66,7 +70,6 @@ contains
       ! Update moisture-related memory variables.
       call UpdateMemoryMoisture(currentSite,bc_in)
 
-      return
    end subroutine UpdateCumulativeMemoryVars
 
 
@@ -84,53 +87,37 @@ contains
       ! Arguments
       type(ed_site_type), intent(inout), target :: currentSite
       ! Local variables
-      integer :: ipft
-      integer :: date_offset_off
-      integer :: date_offset_on
+      integer :: ipft          ! PFT index
 
       !---~---
-      !    Advance elapsed time. The only reason this is a site variable instead of a 
-      ! global variable is that we need to save this information to the restart file,
-      ! and we do not have global scalars in the restart file.
+      !    Advance elapsed time, by using the host land model variable. The only reason
+      ! this is a site variable instead of a global variable is that we need to save this
+      ! information to the restart file, and we do not have global scalars in the restart
+      ! file. This value starts at zero and increases indefinitely.
       !---~---
-      currentSite%phen_model_date = currentSite%phen_model_date + 1
+      currentSite%phen_model_date = floor(hlm_model_day)
 
 
-      !---~---
-      !   Update the number of days since last flushing and abscission events.
-      !---~---
+      !   Update the number of days since last flushing and abscission events. This is
+      ! done for deciduous PFTs only. 
       do ipft = 1, numpft
-
-         !  If this is the beginning of the simulation, the last leaf abscission and/or
-         ! the last flushing events may have occurred before 
-         ! might not had occured yet, so set it to last year to get things rolling.
-         if ( model_day_int < currentSite%leafoffdate(ipft) ) then
-            date_offset = ndays_per_year
-         else 
-            date_offset = 0
-         end if
-         
-
-         !    Calculate the number of days since the last leaf flushing and leaf
-         ! abscission events.
-         if (model_day_int < currentSite%leafoffdate(ipft)) then
+         select case (prt_params%phen_leaf_habit(ipft))
+         case (ihard_season_decid,ihard_stress_decid,isemi_stress_decid)
+            !---~---
+            !    Update the number of days since last flushing and abscission events, by
+            ! using the current date and the dates of the last events.  Note that we no
+            ! longer need to check whether this is the beginning of the simulation, 
+            ! because the cold start initialisation already fixes the dates of the last
+            ! event to be prior to the beginning of the simulation.
+            !---~---
             currentSite%ndaysleafoff(ipft) = &
-               currentSite%phen_model_date - (currentSite%leafoffdate(ipft) - ndays_per_year)
-         else
-            currentSite%ndaysleafoff(ipft) = 
-            model_day_int - currentSite%leafoffdate(ipft)
-         end if
-
-         if (model_day_int < currentSite%leafondate(ipft)) then
-            currentSite%ndaysleafon(ipft) = model_day_int - (currentSite%leafondate(ipft) - ndays_per_year)
-         else
-            currentSite%ndaysleafon(ipft) = model_day_int - currentSite%leafondate(ipft)
-         end if
+               currentSite%phen_model_date - currentSite%leafoffdate(ipft)
+            currentSite%ndaysleafon (ipft) = &
+               currentSite%phen_model_date - currentSite%leafondate (ipft)
+         end select
       end do
       !---~---
 
-
-      return
    end subroutine UpdatePhenologyDate
 
 
@@ -181,7 +168,6 @@ contains
       currentSite%vegtemp_memory(1) = temp_in_C
 
 
-      return
    end subroutine UpdateCumulativeThermal
 
 
@@ -262,6 +248,5 @@ contains
       end do pft_memory_loop
 
 
-      return
    end subroutine UpdateMemoryMoisture
 end module FatesCumulativeMemoryMod

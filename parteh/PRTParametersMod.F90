@@ -20,7 +20,10 @@ module PRTParametersMod
                                                           !      leaves will abscie and flush at least once a year)
                                                           !    - isemi_stress_decid - drought semi-deciduous (i.e., 
                                                           !      partial abscission and flushing are allowed).
-     ! Drop fraction for tissues other than leaves (PFT-dependent)
+
+                                                          ! Drop fraction for tissues other than leaves (PFT-dependent)
+     real(r8), allocatable :: phen_fnrt_drop_fraction(:)  !    - Abscission fraction of fine roots
+     real(r8), allocatable :: phen_stem_drop_fraction(:)  !    - Abscission fraction of stems
 
      real(r8), allocatable :: phen_fnrt_drop_fraction(:)  ! Abscission fraction of fine roots
      real(r8), allocatable :: phen_stem_drop_fraction(:)  ! Abscission fraction of stems

@@ -50,8 +50,8 @@ module FatesInventoryInitMod
    use FatesConstantsMod, only : isemi_stress_decid
    use PRTGenericMod    , only : num_elements
    use PRTGenericMod    , only : element_list
-   use EDTypesMod       , only : phen_cstat_nevercold
-   use EDTypesMod       , only : phen_cstat_iscold
+   use EDTypesMod       , only : phen_cstat_timeoff
+   use EDTypesMod       , only : phen_cstat_tempoff
    use EDTypesMod       , only : phen_dstat_timeoff
    use EDTypesMod       , only : phen_dstat_moistoff
    use PRTParametersMod , only : prt_params
@@ -973,20 +973,21 @@ contains
 
          phen_select: select case (prt_params%phen_leaf_habit(temp_cohort%pft))
          case (ihard_season_decid)
-            if ( any(csite%phen_status(temp_cohort%pft) == [phen_cstat_nevercold,phen_cstat_iscold]) ) then
+            select case(csite%phen_status(temp_cohort%pft))
+            case (phen_cstat_tempoff,phen_cstat_timeoff)
                ! Cold deciduous and season is for leaves off. Set leaf status and 
                ! elongation factors accordingly
                temp_cohort%efleaf_coh = 0.0_r8
                temp_cohort%effnrt_coh = 1._r8 - fnrt_drop_fraction
                temp_cohort%efstem_coh = 1._r8 - stem_drop_fraction
                temp_cohort%status_coh = leaves_off
-            else
+            case default
                ! Cold deciduous during the growing season. Assume tissues are fully flushed.
                temp_cohort%efleaf_coh = 1.0_r8
                temp_cohort%effnrt_coh = 1.0_r8
                temp_cohort%efstem_coh = 1.0_r8
                temp_cohort%status_coh = leaves_on
-            end if
+            end select
 
          case (ihard_stress_decid,isemi_stress_decid)
             ! Drought deciduous.  For the default approach, elongation factor is either
