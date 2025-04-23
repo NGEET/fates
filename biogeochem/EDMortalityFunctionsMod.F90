@@ -16,6 +16,7 @@ module EDMortalityFunctionsMod
    use FatesConstantsMod     , only : cstarvation_model_lin
    use FatesConstantsMod     , only : cstarvation_model_exp
    use FatesConstantsMod     , only : nearzero
+   use FatesConstantsMod     , only : ihard_season_decid
    use FatesConstantsMod     , only : ihard_stress_decid
    use FatesConstantsMod     , only : isemi_stress_decid
    use FatesConstantsMod     , only : leaves_off
@@ -112,11 +113,9 @@ contains
     ! the future we could accelerate senescence to avoid mortality. Note that both drought 
     ! deciduous and cold deciduous are considered here to be consistent with the idea that
     ! plants without leaves cannot die of hydraulic failure.
-    is_decid_dormant =                                                            & !
-       ( prt_params%stress_decid(cohort_in%pft) == ihard_stress_decid .or.        & ! Drought deciduous
-         prt_params%stress_decid(cohort_in%pft) == isemi_stress_decid .or.        & ! Semi-deciduous
-         prt_params%season_decid(cohort_in%pft) == itrue                  ) .and. & ! Cold deciduous
-       ( cohort_in%status_coh == leaves_off )                                     ! ! Fully abscised
+    is_decid_dormant =                                                                                                      & !
+       any ( prt_params%phen_leaf_habit(cohort_in%pft) == [ihard_season_decid,ihard_stress_decid,isemi_stress_decid]) .and. & ! Deciduous
+       ( cohort_in%status_coh == leaves_off )                                                                               ! ! Fully abscised
     
     ! Size Dependent Senescence
     ! rate (r) and inflection point (ip) define the increase in mortality rate with dbh
