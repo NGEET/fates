@@ -143,6 +143,14 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   integer, parameter, public :: lmrmodel_ryan_1991         = 1
   integer, parameter, public :: lmrmodel_atkin_etal_2017   = 2
 
+  ! integer labels for logging size preference and rotation length options
+  integer, parameter, public :: logging_uniform_size       = 1
+  integer, parameter, public :: logging_double_rotation    = 2
+  integer, parameter, public :: logging_quadruple_rotation = 3
+  integer, parameter, public :: logging_logistic_size      = 4
+  integer, parameter, public :: logging_inv_logistic_size  = 5
+  integer, parameter, public :: logging_gaussian_size      = 6
+
   ! Error Tolerances
 
   ! Allowable error in carbon allocations, should be applied to estimates

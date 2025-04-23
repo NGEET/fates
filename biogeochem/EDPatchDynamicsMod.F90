@@ -86,6 +86,8 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : fates_unset_r8
   use FatesConstantsMod    , only : fates_unset_int
   use FatesConstantsMod    , only : hlm_harvest_carbon
+  use FatesConstantsMod    , only : logging_uniform_size, logging_double_rotation, logging_quadruple_rotation
+  use FatesConstantsMod    , only : logging_logistic_size, logging_inv_logistic_size, logging_gaussian_size
   use EDCohortDynamicsMod  , only : InitPRTObject
   use ChecksBalancesMod,      only : SiteMassStock
   use PRTGenericMod,          only : carbon12_element
@@ -102,6 +104,7 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
+  use EDParamsMod,            only : logging_preference_options
   use EDParamsMod,            only : maxpatches_by_landuse
   use FatesRunningMeanMod,    only : ema_sdlng_mdd
   use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
@@ -202,6 +205,9 @@ contains
     real(r8) :: l_degrad         ! fraction of trees that are not killed but suffer from forest 
                                  ! degradation (i.e. they are moved to newly-anthro-disturbed 
                                  ! secondary forest patch)
+    real(r8) :: target_wp        ! For size-dependent IFM: target harvest wood product for adjustment ratio calculation
+    real(r8) :: actual_wp        ! For size-dependent IFM: actual harvest wood product after considering size priority 
+                                 ! for adjustment ratio calculation
     real(r8) :: dist_rate_ldist_notharvested
     integer  :: threshold_sizeclass
     integer  :: i_dist
@@ -226,6 +232,8 @@ contains
                                                    ! patch
                                                    ! 0 - no;
                                                    ! 1 - yes, maximize the oldest.
+    real(r8), parameter :: target_harvest_wp_scale = 0.5  ! For Size-dependent IFM. The scale is a target fraction of wood product 
+                                                          ! expected afer considering size-priority of IFM reduce the total harvest amount
     integer :: exchanged     ! used in bubble sorting
     integer :: temp_order    ! used in bubble sorting
     real(r8) :: temp_age     ! used in bubble sorting
@@ -251,7 +259,10 @@ contains
     npatches = 0
     frac_site = 1._r8
     harvest_tag_csite = 2
+    target_wp = 0._r8
+    actual_wp = 0._r8
     remain_harvest_rate = fates_unset_r8  ! set to negative value to indicate uninitialized
+    site_in%resources_management%harvest_wp_scale = 1._r8
 
     ! The following code will calculate harvest_rate_scale for each secondary patch
     ! There're currently 2 options:
@@ -458,6 +469,57 @@ contains
 
     end if  ! logging_time
 
+    !Loop through cohorts to preview the harvest product assuming no harvest size priority and with size priority 
+    !Then calculate the ratio between these two cases to calculate adjustment ratio
+    if (logging_time .and. logging_preference_options >= logging_logistic_size) then
+       !Revise logging rate scale to match the target harvest demand after 
+       !considering the logging size preference
+       currentPatch => site_in%oldest_patch
+       do while (associated(currentPatch))   
+
+          currentCohort => currentPatch%shortest
+          do while(associated(currentCohort))
+
+             ! Target harvest product  
+             call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
+                   lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
+                   bc_in%hlm_harvest_rates, &
+                   bc_in%hlm_harvest_catnames, &
+                   bc_in%hlm_harvest_units, &
+                   currentPatch%land_use_label, &
+                   currentPatch%age_since_anthro_disturbance, &
+                   frac_site_primary, &
+                   frac_site_secondary_mature, &
+                   harvestable_forest_c, &
+                   currentPatch%harvest_rate_scale, &
+                   harvest_tag, target_harvest_wp_scale, logging_uniform_size)
+             target_wp = target_wp + lmort_direct
+
+             ! Actual harvest product  
+             call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
+                   lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
+                   bc_in%hlm_harvest_rates, &
+                   bc_in%hlm_harvest_catnames, &
+                   bc_in%hlm_harvest_units, &
+                   currentPatch%land_use_label, &
+                   currentPatch%age_since_anthro_disturbance, &
+                   frac_site_primary, &
+                   frac_site_secondary_mature, &
+                   harvestable_forest_c, &
+                   currentPatch%harvest_rate_scale, &
+                   harvest_tag, site_in%resources_management%harvest_wp_scale, logging_preference_options)
+             actual_wp = actual_wp + lmort_direct
+
+             currentCohort => currentCohort%taller
+          end do
+
+          currentPatch => currentPatch%younger
+       end do
+       ! adjustment ratio
+       site_in%resources_management%harvest_wp_scale = target_wp/(actual_wp+1e-7_r8)
+       write(fates_log(),*) 'See adjustment factor for harvest scale:', site_in%resources_management%harvest_wp_scale
+    end if  ! logging_time
+
     !Loop through cohorts to get disturbance rates
     currentPatch => site_in%oldest_patch
     do while (associated(currentPatch))   
@@ -493,7 +555,7 @@ contains
                 frac_site_secondary_mature, &
                 harvestable_forest_c, &
                 currentPatch%harvest_rate_scale, &
-                harvest_tag)
+                harvest_tag, site_in%resources_management%harvest_wp_scale, logging_preference_options)
 
           currentCohort%lmort_direct     = lmort_direct
           currentCohort%lmort_collateral = lmort_collateral

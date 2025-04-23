@@ -7472,14 +7472,14 @@ end subroutine update_history_hifrq
     call this%set_history_var(vname='FATES_DEMOTION_RATE_SZ',                  &
           units = 'm-2 yr-1',                                                  &
           long='demotion rate from canopy to understory by size class in number of plants per m2 per year', &
-          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          use_default='active', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_demotion_rate_si_scls)
 
     call this%set_history_var(vname='FATES_PROMOTION_RATE_SZ',                 &
           units = 'm-2 yr-1',                                                  &
           long='promotion rate from understory to canopy by size class',       &
-          use_default='inactive', avgflag='A', vtype=site_size_r8,             &
+          use_default='active', avgflag='A', vtype=site_size_r8,             &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_promotion_rate_si_scls)
 
@@ -7795,7 +7795,7 @@ end subroutine update_history_hifrq
    call this%set_history_var(vname='FATES_SAPWOOD_ALLOC_CANOPY_SZ',            &
          units = 'kg m-2 s-1',                                                 &
          long='allocation to sapwood C for canopy plants by size class in kg carbon per m2 per second', &
-         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         use_default='active', avgflag='A', vtype=site_size_r8,              &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_npp_sapw_canopy_si_scls)
 
@@ -7956,7 +7956,7 @@ end subroutine update_history_hifrq
    call this%set_history_var(vname='FATES_SAPWOOD_ALLOC_USTORY_SZ',        &
          units = 'kg m-2 s-1',                                                 &
          long='allocation to sapwood C for understory plants by size class in kg carbon per m2 per second', &
-         use_default='inactive', avgflag='A', vtype=site_size_r8,              &
+         use_default='active', avgflag='A', vtype=site_size_r8,              &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_npp_sapw_understory_si_scls)
 

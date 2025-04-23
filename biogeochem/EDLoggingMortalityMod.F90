@@ -68,7 +68,13 @@ module EDLoggingMortalityMod
    use FatesConstantsMod , only : months_per_year, days_per_sec, years_per_day, g_per_kg
    use FatesConstantsMod , only : hlm_harvest_area_fraction
    use FatesConstantsMod , only : hlm_harvest_carbon
-   use FatesConstantsMod, only : fates_check_param_set
+   use FatesConstantsMod , only : fates_check_param_set
+   use FatesConstantsMod , only : logging_uniform_size
+   use FatesConstantsMod , only : logging_double_rotation
+   use FatesConstantsMod , only : logging_quadruple_rotation
+   use FatesConstantsMod , only : logging_logistic_size
+   use FatesConstantsMod , only : logging_inv_logistic_size
+   use FatesConstantsMod , only : logging_gaussian_size
 
    implicit none
    private
@@ -202,8 +208,8 @@ contains
                                      hlm_harvest_units, &
                                      patch_land_use_label, secondary_age, &
                                      frac_site_primary, frac_site_secondary_mature, &
-                                     harvestable_forest_c, &
-                                     harvest_rate_scale, harvest_tag)
+                                     harvestable_forest_c, harvest_rate_scale, harvest_tag, &
+                                     harvest_wp_scale, logging_preference_options )
 
       ! Arguments
       integer,  intent(in)  :: pft_i            ! pft index 
@@ -219,7 +225,11 @@ contains
       real(r8), intent(in) :: frac_site_primary
       real(r8), intent(in) :: frac_site_secondary_mature
       real(r8), intent(in) :: harvest_rate_scale  ! scaling factor which increase/decrease 
-                                                  ! the harvest rate proportionally considering patch age
+                                                  ! the disturbance rate proportionally considering patch age
+      real(r8), intent(in) :: harvest_wp_scale    ! For IFM: scaling factor which increase/decrease
+                                                  ! the harvest wood product, not apply to the disturbance area/rate
+      integer, intent(in) :: logging_preference_options  ! Options for IFM management strategy
+
       real(r8), intent(out) :: lmort_direct     ! direct (harvestable) mortality fraction
       real(r8), intent(out) :: lmort_collateral ! collateral damage mortality fraction
       real(r8), intent(out) :: lmort_infra      ! infrastructure mortality fraction
@@ -237,7 +247,7 @@ contains
       ! Local variables
       integer :: cur_harvest_tag ! the harvest tag of the cohort today
       real(r8) :: harvest_rate ! the final harvest rate to apply to this cohort today
-      real(r8) :: harvest_rate_scale_cohort  ! scaling factor after considering dbh size
+      real(r8) :: harvest_rate_scale_cohort  ! scaling factor after considering dbh size for each cohort
 
       ! todo: probably lower the dbhmin default value to 30 cm
       ! todo: change the default logging_event_code to 1 september (-244)
@@ -296,14 +306,23 @@ contains
             
          endif
 
-         ! Logistic curve to account for preserving young trees
-         !harvest_rate_scale_cohort = harvest_rate_scale
-         ! Logistic
-         !harvest_rate_scale_cohort = harvest_rate_scale * 1._r8/(1._r8 + exp(-0.1*(dbh-(logging_dbhmin+logging_dbhmax)/2._r8)))
-         ! Inverse logistic
-         !harvest_rate_scale_cohort = harvest_rate_scale * 1._r8/(1._r8 + exp(0.1*(dbh-(logging_dbhmin+logging_dbhmax)/2._r8)))
-         ! Gaussian
-         harvest_rate_scale_cohort = harvest_rate_scale * 3._r8 * exp(-(dbh - (logging_dbhmin+logging_dbhmax)/2._r8) ** 2._r8 / (2._r8 * 5._r8 ** 2._r8))
+         ! Logging size prefrence or change rotation length
+         if (logging_preference_options .eq. logging_uniform_size) then
+            harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale
+         else if(logging_preference_options .eq. logging_double_rotation) then
+            harvest_rate_scale_cohort = harvest_wp_scale * 0.5_r8 * harvest_rate_scale
+         else if(logging_preference_options .eq. logging_quadruple_rotation) then
+            harvest_rate_scale_cohort = harvest_wp_scale * 0.25_r8 * harvest_rate_scale
+         else if(logging_preference_options .eq. logging_logistic_size) then
+            harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale * &
+                1._r8/(1._r8 + exp(-0.1*(dbh-(logging_dbhmin+logging_dbhmax)/2._r8)))
+         else if(logging_preference_options .eq. logging_inv_logistic_size) then
+            harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale * &
+                1._r8/(1._r8 + exp(0.1*(dbh-(logging_dbhmin+logging_dbhmax)/2._r8)))
+         else if(logging_preference_options .eq. logging_gaussian_size) then
+            harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale * &
+                (1._r8/(5._r8*2.5_r8)) * exp(-(dbh - (logging_dbhmin+logging_dbhmax)/2._r8) ** 2._r8 / (2._r8 * 5._r8 ** 2._r8))
+         end if
 
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
          ! l_degrad accounts for the affected area between logged crowns
@@ -315,7 +334,12 @@ contains
                   ! the logic of the above line is a bit unintuitive but allows turning off the dbhmax comparison entirely.
                   ! since there is an .and. .not. after the first conditional, the dbh:dbhmax comparison needs to be 
                   ! the opposite of what would otherwise be expected...
-                  lmort_direct = harvest_rate_scale_cohort * harvest_rate * logging_direct_frac
+                  ! For IFM calculation we may encounter issue with inappropriately high target wood product which exceeds supply
+                  ! in which case, harvest_rate_scale_cohort >> harvest_rate_scale. We added the min() function to just 
+                  ! truncate any lmort_direct beyond supply and maximize the lmort_direct first, so under this circumstance 
+                  ! lmort_collateral and lmort_infra might not be the same value as settled in parameter file
+                  ! Need further improvement for a more general case 
+                  lmort_direct = min(harvest_rate_scale_cohort * harvest_rate * logging_direct_frac, harvest_rate_scale*harvest_rate)
                else
                   lmort_direct = 0.0_r8
                end if
@@ -327,13 +351,15 @@ contains
             if (dbh >= logging_dbhmax_infra) then
                lmort_infra      = 0.0_r8
             else
-               lmort_infra      = harvest_rate_scale_cohort * harvest_rate * logging_mechanical_frac
+               lmort_infra      = min(harvest_rate_scale_cohort * harvest_rate * logging_mechanical_frac, &
+                   harvest_rate_scale*harvest_rate - lmort_direct)
             end if
 
             ! Collateral damage to smaller plants below the direct logging size threshold
             ! will be applied via "understory_death" via the disturbance algorithm
             if (canopy_layer .eq. 1) then
-               lmort_collateral = harvest_rate_scale_cohort * harvest_rate * logging_collateral_frac
+               lmort_collateral = min(harvest_rate_scale_cohort * harvest_rate * logging_collateral_frac, &
+                   harvest_rate_scale*harvest_rate - lmort_direct - lmort_infra)
             else
                lmort_collateral = 0._r8
             endif
@@ -341,7 +367,8 @@ contains
          else  ! non-woody plants still killed by infrastructure
             lmort_direct    = 0.0_r8
             lmort_collateral = 0.0_r8
-            lmort_infra      = harvest_rate_scale_cohort * harvest_rate * logging_mechanical_frac
+            lmort_infra      = min(harvest_rate_scale_cohort * harvest_rate * logging_mechanical_frac, &
+                harvest_rate_scale*harvest_rate)
          end if
 
          ! the area occupied by all plants in the canopy that aren't killed is still disturbed at the harvest rate

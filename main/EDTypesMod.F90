@@ -138,6 +138,8 @@ module EDTypesMod
                                                            ! not successfully harvested
      real(r8) ::  harvest_debt_sec_m                       ! the amount of kgC per site from mature secondary patches that did
                                                            ! not successfully harvested
+     real(r8) ::  harvest_wp_scale                         ! For Size-dependent IFM. The adjustment factor revising harvest scale to match a target
+                                                           ! harvest wood product amount
 
      !debug variables
      real(r8) ::  delta_litter_stock                       ! kgC/site = kgC/ha

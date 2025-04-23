@@ -179,7 +179,7 @@ module FatesPatchMod
     real(r8) :: landuse_transition_rates(n_landuse_cats)  ! land use tranision rate
     real(r8) :: fract_ldist_not_harvested                 ! fraction of logged area that is canopy trees that weren't harvested [0-1]
     real(r8) :: harvest_rate_scale                        ! scaling factor applied to logging disturbance rate (primaryland, secondaryland, etc)
-                                                          ! purpose is to assign patch-specific harvest priority based on certain
+                                                          ! purpose is to assign patch-specific harvest priority based on certain IFM
                                                           ! strategy
     integer  :: order_age_since_anthro                    ! order of the patch based on the age since anthropogenic disturbance
 

@@ -22,6 +22,7 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_use_tree_damage
    use EDLoggingMortalityMod , only : LoggingMortality_frac
    use EDParamsMod           , only : fates_mortality_disturbance_fraction
+   use EDParamsMod           , only : logging_preference_options
 
    use PRTGenericMod,          only : carbon12_element
    use PRTGenericMod,          only : store_organ
@@ -298,7 +299,8 @@ contains
                                age_since_anthro_disturbance, &
                                frac_site_primary, frac_site_secondary_mature, &
                                harvestable_forest_c, &
-                               harvest_rate_scale, harvest_tag)
+                               harvest_rate_scale, harvest_tag, &
+                               currentSite%resources_management%harvest_wp_scale, logging_preference_options)
 
     if (currentCohort%canopy_layer > 1)then 
        ! Include understory logging mortality rates not associated with disturbance
