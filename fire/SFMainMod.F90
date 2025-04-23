@@ -32,7 +32,6 @@ module SFMainMod
   use PRTGenericMod,          only : struct_organ
   use FatesInterfaceTypesMod, only : numpft
   use FatesAllometryMod,      only : CrownDepth
-  use FatesAllometryMod,      only : set_root_fraction
   use FatesFuelClassesMod,    only : fuel_classes
   
   implicit none
@@ -237,10 +236,8 @@ contains
     real(r8) ::  struct_c             ! structure carbon (kgC)
     real(r8) ::  crown_fuel_per_m     ! crown fuel per 1m section in cohort
     real(r8) ::  SF_val_CWD_frac_adj(ncwd)  ! adjusted fractional allocation of woody biomass to coarse wood debris pool
-    real(r8) ::  rootfrac             ! Total rooting fraction 
     real(r8) ::  mean_10day_smp(numpft)       ! averaged 10 day soil matric potential for each PFT 
     integer  ::  ipft                 ! pft index
-    integer  ::  nlevroot             ! Number of rooting levels to consider
     
 
     real(r8), dimension(:), allocatable :: biom_matrix   ! matrix to track biomass from bottom to top
@@ -248,32 +245,22 @@ contains
 
     real(r8), parameter :: carbon_2_biomass = 0.45_r8
     ! LFMC parameters for testing
-    real(r8), parameter :: max_lfmc = 79_r8
-    real(r8), parameter :: min_lfmc = 25_r8
-    real(r8), parameter :: swc_alpha = 0.25_r8
+    real(r8), parameter :: max_lfmc = 70.0_r8
+    real(r8), parameter :: min_lfmc = 40.0_r8
+    real(r8), parameter :: swc_alpha = 3.0E-6_r8
     real(r8), parameter :: lai_beta = 0.15_r8
     real(r8), parameter :: gamma_int = 0.0_r8
 
-    ! update site level soil water content for each PFT
+    ! update site level soil matric potential for each PFT
     mean_10day_smp(:) = 0.0_r8
 
     do ipft=1,numpft
       if(int(prt_params%woody(ipft)) == itrue) then 
-         call set_root_fraction( currentSite%rootfrac_scr, ipft, currentSite%zi_soil, &
-         bc_in%max_rooting_depth_index_col )
-         nlevroot = max(2,min(ubound(currentSite%zi_soil,1),bc_in%max_rooting_depth_index_col))
-         rootfrac = sum(currentSite%rootfrac_scr(1:nlevroot))
-     
-         ! swc to be weighted average of soil water content using
-         ! root fraction as weighting factor
-         currentSite%swc_vol(ipft) = sum(bc_in%h2o_liqvol_sl(1:nlevroot) * &
-                                     currentSite%rootfrac_scr(1:nlevroot) ) / &
-                                     rootfrac
          mean_10day_smp(ipft) = sum(currentSite%smp_memory(1:numWaterMem,ipft)) / &
                                 real(numWaterMem,r8)
          
       end if
-     end do
+    end do
 
     currentPatch => currentSite%oldest_patch
 

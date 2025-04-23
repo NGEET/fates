@@ -298,7 +298,6 @@ contains
     site_in%liqvol_memory(:,:)  = nan
     site_in%smp_memory(:,:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
-    site_in%swc_vol(:)        = nan              ! PFT level volumetric soil water content for live fuel moisture content
 
     site_in%phen_model_date  = fates_unset_int
 
@@ -490,7 +489,6 @@ contains
           sites(s)%liqvol_memory(1:numWaterMem,1:numpft) = liqvolmem
           sites(s)%smp_memory(1:numWaterMem,1:numpft) = smpmem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
-          sites(s)%swc_vol(1:numpft) = 0._r8
 
           sites(s)%cstatus = cstat
           sites(s)%dstatus(1:numpft) = dstat
