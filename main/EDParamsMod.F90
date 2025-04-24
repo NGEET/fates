@@ -264,8 +264,10 @@ module EDParamsMod
 
      real(r8) :: treevai  ! The LAI+SAI of the cohort (m2/m2)
      integer  :: nv
+
+     nv = count(treevai .gt. dlower_vai(:))
      
-     nv = maxloc(dlower_vai, DIM=1, MASK=(dlower_vai<=(treevai)))
+     !nv = maxloc(dlower_vai, DIM=1, MASK=(dlower_vai<=(treevai)))
 
    end function GetNVegLayers
      
