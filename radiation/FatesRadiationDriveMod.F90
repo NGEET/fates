@@ -82,6 +82,8 @@ contains
     integer :: nsites                              ! number of sites
     integer :: ifp                                 ! patch loop counter
     integer :: ib                                  ! radiation broad band counter
+    integer :: cl, icol, ft                        ! indices for canopy layer,
+                                                   ! rad column and functional type
     type(fates_patch_type), pointer :: currentPatch   ! patch pointer
 
     !-----------------------------------------------------------------------
@@ -127,11 +129,11 @@ contains
              currentPatch%fabi       (:)     = 0._r8
              currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
              currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
-             currentPatch%rad_error(:)           = hlm_hio_ignore_val
              currentPatch%gnd_alb_dif(1:num_swb) = bc_in(s)%albgr_dif_rb(1:num_swb)
              currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
              currentPatch%fcansno                = bc_in(s)%fcansno_pa(ifp)
-
+             currentPatch%rad_error(:)           = 0._r8
+             
              if_zenith_flag: if( bc_in(s)%coszen>0._r8 )then
                 
                 select case(hlm_radiation_model)
@@ -189,8 +191,26 @@ contains
                               call endrun(msg=errMsg(sourcefile, __LINE__))
                            end if
                         end if
-
                      end do
+
+                     ! Fill in the diagnostic arrays for normalized radiation profiles
+                     do_cl: do cl = 1,twostr%n_lyr
+                        do_icol: do icol = 1,twostr%n_col(cl)
+                           ft = twostr%scelg(cl,icol)%pft
+                           nv = minloc(dlower_vai, DIM=1, MASK=(dlower_vai>vai))
+                           area_frac = twostr%scelg(cl,icol)%area
+                           ! WAIT FOR THE BIN INDEXING PR TO GO IN ...
+                           do iv = 1, nv
+                              vai_top = dlower_vai(iv)
+                              cpatch%nrmlzd_parprof_pft_dir_z(cl,ft,iv) = cpatch%nrmlzd_parprof_pft_dir_z(cl,ft,iv) + &
+                                   area_frac*twostr%GetRb(cl,icol,ivis,vai_top)
+                              cpatch%nrmlzd_parprof_pft_dif_z(cl,ft,iv) = cpatch%nrmlzd_parprof_pft_dif_z(cl,ft,iv) + &
+                                   area_frac*twostr%GetRdDn(cl,icol,ivis,vai_top) + &
+                                   area_frac*twostr%GetRdUp(cl,icol,ivis,vai_top)
+                           end do
+                        end do do_icol
+                     end do do_cl
+                     
                    end associate
                 end select
              endif if_zenith_flag
@@ -251,8 +271,6 @@ contains
              cpatch%ed_parsha_z(:,:,:) = 0._r8
              cpatch%ed_laisun_z(:,:,:) = 0._r8
              cpatch%ed_laisha_z(:,:,:) = 0._r8
-             cpatch%parprof_pft_dir_z(:,:,:) = 0._r8
-             cpatch%parprof_pft_dif_z(:,:,:) = 0._r8
 
              if_norm_twostr: if (hlm_radiation_model.eq.norman_solver) then
 
@@ -317,29 +335,7 @@ contains
                    end do !ft
                 end do !cl
                 
-                ! Convert normalized radiation error units from fraction of radiation to W/m2
-                do ib = 1,num_swb
-                   cpatch%rad_error(ib) = cpatch%rad_error(ib) * &
-                        (bc_in(s)%solad_parb(ifp,ib) + bc_in(s)%solai_parb(ifp,ib))
-                end do
                 
-                ! output the actual PAR profiles through the canopy for diagnostic purposes
-                do cl = 1, cpatch%ncl_p
-                   do ft = 1,numpft
-                      do iv = 1, cpatch%nrad(cl,ft)
-                         cpatch%parprof_pft_dir_z(cl,ft,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
-                              cpatch%nrmlzd_parprof_pft_dir_z(idirect,cl,ft,iv)) + &
-                              (bc_in(s)%solai_parb(ifp,ipar) * &
-                              cpatch%nrmlzd_parprof_pft_dir_z(idiffuse,cl,ft,iv))
-                         
-                         cpatch%parprof_pft_dif_z(cl,ft,iv) = (bc_in(s)%solad_parb(ifp,ipar) * &
-                              cpatch%nrmlzd_parprof_pft_dif_z(idirect,cl,ft,iv)) + &
-                              (bc_in(s)%solai_parb(ifp,ipar) * &
-                              cpatch%nrmlzd_parprof_pft_dif_z(idiffuse,cl,ft,iv))
-                         
-                      end do ! iv
-                   end do    ! ft
-                end do       ! cl
                 
              else  ! if_norm_twostr
 
@@ -383,12 +379,6 @@ contains
                                  vai_top = dlower_vai(iv)-dinc_vai(iv)
                                  vai_bot = min(dlower_vai(iv),twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai)
                                  
-                                 cpatch%parprof_pft_dir_z(cl,ft,iv) = cpatch%parprof_pft_dir_z(cl,ft,iv) + &
-                                      area_frac*twostr%GetRb(cl,icol,ivis,vai_top)
-                                 cpatch%parprof_pft_dif_z(cl,ft,iv) = cpatch%parprof_pft_dif_z(cl,ft,iv) + &
-                                      area_frac*twostr%GetRdDn(cl,icol,ivis,vai_top) + &
-                                      area_frac*twostr%GetRdUp(cl,icol,ivis,vai_top)
-                                 
                                  call twostr%GetAbsRad(cl,icol,ipar,vai_top,vai_bot, &
                                       Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac,call_fail)
 
@@ -418,10 +408,6 @@ contains
                         do ft = 1,numpft
                            do_iv: do iv = 1,cpatch%nleaf(cl,ft)
                               if(area_vlpfcl(iv,ft,cl)<nearzero) exit do_iv
-                              cpatch%parprof_pft_dir_z(cl,ft,iv) = &
-                                   cpatch%parprof_pft_dir_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
-                              cpatch%parprof_pft_dif_z(cl,ft,iv) = &
-                                   cpatch%parprof_pft_dif_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
                               cpatch%f_sun(cl,ft,iv) = cpatch%f_sun(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
                               cpatch%ed_parsun_z(cl,ft,iv) = cpatch%ed_parsun_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)
                               cpatch%ed_parsha_z(cl,ft,iv) = cpatch%ed_parsha_z(cl,ft,iv) / area_vlpfcl(iv,ft,cl)

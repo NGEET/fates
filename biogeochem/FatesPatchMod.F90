@@ -128,8 +128,8 @@ module FatesPatchMod
     real(r8) :: c_stomata                                   ! mean stomatal conductance of all leaves in the patch   [umol/m2/s]
     real(r8) :: c_lblayer                                   ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
     
-    real(r8),allocatable :: nrmlzd_parprof_pft_dir_z(:,:,:,:) !num_rad_stream_types,nclmax,maxpft,nlevleaf)
-    real(r8),allocatable :: nrmlzd_parprof_pft_dif_z(:,:,:,:) !num_rad_stream_types,nclmax,maxpft,nlevleaf)
+    real(r8),allocatable :: nrmlzd_parprof_pft_dir_z(:,:,:) ! nclmax,maxpft,nlevleaf)
+    real(r8),allocatable :: nrmlzd_parprof_pft_dif_z(:,:,:) ! nclmax,maxpft,nlevleaf)
 
     !---------------------------------------------------------------------------
 
@@ -369,8 +369,8 @@ module FatesPatchMod
          allocate(this%fabd_sha_z(ncan,numpft,nveg))
          allocate(this%fabi_sun_z(ncan,numpft,nveg))
          allocate(this%fabi_sha_z(ncan,numpft,nveg))
-         allocate(this%nrmlzd_parprof_pft_dir_z(num_rad_stream_types,ncan,numpft,nveg))
-         allocate(this%nrmlzd_parprof_pft_dif_z(num_rad_stream_types,ncan,numpft,nveg))
+         allocate(this%nrmlzd_parprof_pft_dir_z(ncan,numpft,nveg))
+         allocate(this%nrmlzd_parprof_pft_dif_z(ncan,numpft,nveg))
          allocate(this%ed_parsun_z(ncan,numpft,nveg))
          allocate(this%ed_parsha_z(ncan,numpft,nveg))
          allocate(this%ed_laisun_z(ncan,numpft,nveg))
@@ -393,8 +393,8 @@ module FatesPatchMod
       this%tlai_profile(:,:,:)          = nan 
       this%tsai_profile(:,:,:)          = nan
       this%canopy_area_profile(:,:,:)   = nan  
-      this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = nan
-      this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = nan
+      this%nrmlzd_parprof_pft_dir_z(:,:,:) = nan
+      this%nrmlzd_parprof_pft_dif_z(:,:,:) = nan
 
       this%fabd_sun_z(:,:,:)            = nan 
       this%fabd_sha_z(:,:,:)            = nan 
@@ -521,8 +521,8 @@ module FatesPatchMod
       this%fabi_sun_z(:,:,:) = 0._r8
       this%fabd_sha_z(:,:,:) = 0._r8
       this%fabi_sha_z(:,:,:) = 0._r8
-      this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
-      this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+      this%nrmlzd_parprof_pft_dir_z(:,:,:) = 0._r8
+      this%nrmlzd_parprof_pft_dif_z(:,:,:) = 0._r8
 
       ! Added
       this%elai_profile(:,:,:)          = 0._r8
@@ -562,7 +562,6 @@ module FatesPatchMod
       this%c_lblayer                         = 0.0_r8
 
       ! RADIATION
-      this%rad_error(:)                      = 0.0_r8
       this%tr_soil_dir_dif(:)                = 0.0_r8
       this%fab(:)                            = 0.0_r8
       this%fabi(:)                           = 0.0_r8
