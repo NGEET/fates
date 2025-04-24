@@ -387,7 +387,7 @@ contains
                                  if(iv == nv) then
                                     vai_bot = twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai
                                  else
-                                    vai_bot = dlower_vai(iv)+dinc_vai(iv)
+                                    vai_bot = dlower_vai(iv+1)
                                  end if
                                  
                                  cpatch%parprof_pft_dir_z(cl,ft,iv) = cpatch%parprof_pft_dir_z(cl,ft,iv) + &
