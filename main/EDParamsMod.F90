@@ -280,8 +280,6 @@ module EDParamsMod
      integer  :: nv
 
      nv = count(treevai .gt. dlower_vai(:))
-     
-     !nv = maxloc(dlower_vai, DIM=1, MASK=(dlower_vai<=(treevai)))
 
    end function GetNVegLayers
      
