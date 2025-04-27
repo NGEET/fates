@@ -531,7 +531,7 @@ contains
     ! Equation to convert PFT specific Jmax to cb6fmax
     ! jfn - could be moved out of here to where jmax is defined?
     cb6fmax = (Qsat * jmax) / &
-         (Qsat * eta**-1.0_r8 - (jmax / phi) ) 
+         (Qsat * eta**(-1.0_r8) - (jmax / phi) ) 
 
     ! Simplified RH JB formulation
     je = par_abs * cb6fmax / &
