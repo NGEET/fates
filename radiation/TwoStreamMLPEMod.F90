@@ -370,9 +370,13 @@ contains
            scelb%B1*scelb%lambda2_diff*exp(-scelb%a*vai))
 
       if(debug)then
+
          ! if(isnan(r_diff_dn))then  !RGK: NVHPC HAS A BUG IN THIS INTRINSIC (01-2024)
+         ! if(shr_infnan_isnan(r_diff_dn)) then !RGK: this statement simply didn't work
+         ! Dont trigger an endrun, we flag an error with r_diff_dn,
+         ! which will be caught downstream and reported with more information
          if(r_diff_dn /= r_diff_dn) then
-         !if(shr_infnan_isnan(r_diff_dn)) then
+            r_diff_dn = -1.e6_r8
             write(log_unit,*)"GETRDN"
             write(log_unit,*)scelg%Kb
             write(log_unit,*)scelb%a
@@ -432,7 +436,7 @@ contains
   end function GetRb
 
   subroutine GetAbsRad(this,ican,icol,ib,vai_top,vai_bot, &
-       Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac)
+       Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac,call_fail)
 
     ! This routine is used to help decompose radiation scattering
     ! and return the amount of absorbed radiation.  The canopy layer and column
@@ -463,7 +467,7 @@ contains
     real(r8), intent(out) :: R_abs_snow    ! Absorbed beam+diff radiation snow   [W/m2 ground]
     real(r8), intent(out) :: leaf_sun_frac ! Fraction of leaves in the interval exposed
                                            ! to sunlight
-
+    logical, intent(out)  :: call_fail
     real(r8)              :: dvai,dlai     ! Amount of VAI and LAI in this interval [m2/m2]
     real(r8)              :: Rd_net        ! Difference in diffuse radiation at upper and lower boundaries [W/m2]
     real(r8)              :: Rb_net        ! Difference in beam radiation at upper and lower boundaries [W/m2]
@@ -474,11 +478,14 @@ contains
     real(r8)              :: beam_wt_leaf  ! beam absorption weighting for leaves
     real(r8)              :: beam_wt_stem  ! beam absorption weighting for stems
     real(r8)              :: lai_bot,lai_top
+    real(r8)              :: r_dn_top,r_dn_bot
     
     associate(scelb => this%band(ib)%scelb(ican,icol), &
          scelg => this%scelg(ican,icol), &
          ft => this%scelg(ican,icol)%pft )
 
+      call_fail = .false.
+      
       ! If this is air, trivial solutions
       if(ft==air_ft) then
          Rb_abs        = 0._r8
@@ -559,7 +566,16 @@ contains
 
       Rb_net = this%GetRb(ican,icol,ib,vai_top)-this%GetRb(ican,icol,ib,vai_bot)
 
-      Rd_net = (this%GetRdDn(ican,icol,ib,vai_top) - this%GetRdDn(ican,icol,ib,vai_bot)) + &
+      r_dn_top = this%GetRdDn(ican,icol,ib,vai_top)
+      r_dn_bot = this%GetRdDn(ican,icol,ib,vai_bot)
+
+      if(r_dn_top<-1.e5 .or. r_dn_bot<-1.e5) then
+         write(log_unit,*) 'error in diffuse calculations, negative values'
+         call_fail = .true.
+         return
+      end if
+         
+      Rd_net = (r_dn_top - r_dn_bot) + &
            (this%GetRdUp(ican,icol,ib,vai_bot) - this%GetRdUp(ican,icol,ib,vai_top))
 
       ! The net beam radiation includes that which is absorbed, but also,
@@ -847,6 +863,12 @@ contains
                  a2 = scelg%Kd*scelg%Kd*(1._r8-scelb%om)*(1._r8-scelb%om+2._r8*scelb%om*scelb%betad)
                  if(a2<0._r8) then
                     write(log_unit,*)'a^2 is less than zero'
+                    write(log_unit,*) scelg%Kd
+                    write(log_unit,*) scelb%om
+                    write(log_unit,*) scelb%betad
+                    write(log_unit,*) this%frac_snow,this%frac_snow_old
+                    write(log_unit,*) ib,ican,icol,ft
+                    write(log_unit,*) om_snow(ib),vai,om_veg,this%force_prep
                     call endrun(msg=errMsg(sourcefile, __LINE__))
                  end if
                  
@@ -919,20 +941,21 @@ contains
     integer :: iter_sing ! iterator check to ensure we don't try to fix a singularity indefinitely
     real(r8) :: Kb_eff   ! When testing for singularity, this is either the stem or stem and leaf optical depth
     
-    if( (cosz_in-1.0) > nearzero ) then
+    if( (cosz_in-1.0_r8) > nearzero ) then
        write(log_unit,*)"The cosine of the zenith angle cannot exceed 1"
-       write(log_unit,*)"cosz: ",cosz
-       write(log_unit,*)"TwoStreamMLPEMod.F90:ZenithPrep"
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    elseif(cosz_in<0._r8)then
-       write(log_unit,*)"The cosine of the zenith angle should not be less than zero"
-       write(log_unit,*)"It can be exactly zero, but not less than"
-       write(log_unit,*)"cosz: ",cosz
+       write(log_unit,*)"cosz: ",cosz_in
        write(log_unit,*)"TwoStreamMLPEMod.F90:ZenithPrep"
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
-       
-    cosz = max(0.001,cosz_in)
+
+
+    ! Force zenith to be non-zero positive. In the future
+    ! we may allow the scheme to be called in twilight hours where
+    ! the sun is below the horizon and diffuse radiation is the only
+    ! radiation.  We don't currently filter for that scenario,
+    ! but the following code is compatible with that idea.
+    
+    cosz = max(0.001_r8,cosz_in)
 
     this%cosz = cosz
     
@@ -1186,7 +1209,7 @@ contains
     real(r8) :: r_abs_stem          ! total absorbed by stems (dummy)
     real(r8) :: r_abs_snow          ! total absorbed by snow (dummy)
     real(r8) :: leaf_sun_frac       ! sunlit fraction of leaves (dummy)
-   
+    logical  :: call_fail
 
     real(r8) :: beam_err,diff_err   ! error partitioned by beam and diffuse
     type(scelg_type),pointer :: scelgp   ! Pointer to the scelg data structure
@@ -1242,6 +1265,18 @@ contains
     ! upper canopy.
     ! --------------------------------------------------------------------------
 
+    ! Trivial Solution (no vegetation)
+    if(this%n_lyr==0)then
+       albedo_beam = this%band(ib)%albedo_grnd_beam
+       albedo_diff = this%band(ib)%albedo_grnd_diff
+       frac_abs_can_beam = 0._r8
+       frac_abs_can_diff = 0._r8
+       frac_beam_grnd_beam = 1._r8
+       frac_diff_grnd_beam = 1._r8
+       frac_diff_grnd_diff = 1._r8
+       return
+    end if
+       
     if((Rbeam_atm+Rdiff_atm)<nearzero)then
        write(log_unit,*)"No radiation"
        write(log_unit,*)"Two stream should not had been called"
@@ -1639,7 +1674,7 @@ contains
                 scelgp => this%scelg(ican,icol)
                 scelbp => this%band(ib)%scelb(ican,icol)
                 call this%GetAbsRad(ican,icol,ib, 0._r8,scelgp%lai+scelgp%sai, &
-                     rb_abs,rd_abs,rd_abs_leaf,rb_abs_leaf,r_abs_stem,r_abs_snow,leaf_sun_frac)
+                     rb_abs,rd_abs,rd_abs_leaf,rb_abs_leaf,r_abs_stem,r_abs_snow,leaf_sun_frac,call_fail)
                 frac_abs_can_beam = frac_abs_can_beam + scelgp%area*(rb_abs+rd_abs)
              end do
           end do
@@ -1661,7 +1696,7 @@ contains
                 scelgp => this%scelg(ican,icol)
                 scelbp => this%band(ib)%scelb(ican,icol)
                 call this%GetAbsRad(ican,icol,ib,0._r8,scelgp%lai+scelgp%sai, &
-                     rb_abs,rd_abs,rd_abs_leaf,rb_abs_leaf,r_abs_stem,r_abs_snow,leaf_sun_frac)
+                     rb_abs,rd_abs,rd_abs_leaf,rb_abs_leaf,r_abs_stem,r_abs_snow,leaf_sun_frac,call_fail)
                 frac_abs_can_diff = frac_abs_can_diff + scelgp%area*rd_abs
              end do
           end do

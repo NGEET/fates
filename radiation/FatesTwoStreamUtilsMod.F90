@@ -8,7 +8,7 @@ Module FatesTwoStreamUtilsMod
   use FatesConstantsMod     , only : r8 => fates_r8
   use FatesConstantsMod     , only : ifalse
   use FatesConstantsMod     , only : itrue
-  use FatesConstantsMod     , only : nearzero
+  use FatesConstantsMod     , only : nearzero,nocomp_bareground
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
@@ -17,6 +17,7 @@ Module FatesTwoStreamUtilsMod
   use FatesRadiationMemMod  , only : num_swb
   use FatesRadiationMemMod  , only : ivis, inir
   use FatesRadiationMemMod  , only : rho_snow,tau_snow
+  use TwoStreamMLPEMod      , only : normalized_upper_boundary
   use TwoStreamMLPEMod      , only : air_ft, AllocateRadParams, rad_params
   use FatesCohortMod        , only : fates_cohort_type
   use FatesPatchMod         , only : fates_patch_type
@@ -28,6 +29,7 @@ Module FatesTwoStreamUtilsMod
   use TwoStreamMLPEMod      , only : rel_err_thresh,area_err_thresh
   use EDPftvarcon           , only : EDPftvarcon_inst
   use FatesAllometryMod     , only : VegAreaLayer
+  use EDParamsMod           , only : maxpatch_total
   
   implicit none
 
@@ -44,13 +46,11 @@ Module FatesTwoStreamUtilsMod
 contains
 
 
-  subroutine FatesConstructRadElements(site,fcansno_pa,coszen_pa)
+  subroutine FatesConstructRadElements(site)
 
     type(ed_site_type)  :: site
+
     type(fates_patch_type),pointer :: patch
-    real(r8)                    :: fcansno_pa(:)
-    real(r8)                    :: coszen_pa(:)
-    
     type(fates_cohort_type), pointer :: cohort
     integer :: n_col(nclmax) ! Number of parallel column elements per layer
     integer :: ican,ft,icol
@@ -63,8 +63,9 @@ contains
     real(r8), parameter :: canopy_open_frac = 0.00_r8
 
     integer :: maxcol
-    real(r8) :: canopy_frac(5)
+    real(r8) :: canopy_frac(nclmax)
     integer  :: ifp
+    integer  :: ib
     ! Area indices for the cohort [m2 media / m2 crown footprint]
     real(r8) :: elai_cohort,tlai_cohort,esai_cohort,tsai_cohort
     real(r8) :: vai_top,vai_bot  ! veg area index at top and bottom of cohort (dummy vars)
@@ -78,6 +79,7 @@ contains
     integer :: max_elements     ! Maximum number of scattering elements on the site
     integer :: n_scr            ! The size of the scratch arrays
     logical :: allocate_scratch ! Whether to re-allocate the scratch arrays
+
     integer  :: icolmax         ! Column index for each layer with largest area footprint
     real(r8) :: areamax         ! The area footprint of the largest column
     
@@ -92,7 +94,6 @@ contains
     
     logical, parameter :: do_simple_area_correct = .true.
     
-    
     ! These parameters are not used yet
     !real(r8) :: max_vai_diff_per_elem ! The maximum vai difference in any element
     !                                  ! between the least and most vai of constituting
@@ -102,12 +103,19 @@ contains
     !type(fates_cohort_type), pointer :: elem_co_ptrs(ncl*max_el_per_layer,100)
 
     max_elements = -1
-    ifp=0
+
+    ifp = 0
     patch => site%oldest_patch
     do while (associated(patch))
-       ifp=ifp+1
+
+       if_notbareground: if(patch%nocomp_pft_label.ne.nocomp_bareground)then
+
+       ifp = ifp + 1
+          
+       !ifp = patch%patchno
        associate(twostr => patch%twostr)
 
+         
          ! Identify how many elements we need, and possibly consolidate
          ! cohorts into elements where they are very similar (LAI and PFT)
          ! -------------------------------------------------------------------------------------------
@@ -236,6 +244,24 @@ contains
             ! Cohort needs to know which column its in
             cohort%twostr_col = n_col(ican)
 
+            if (debug) then
+               if ( twostr%scelg(ican,n_col(ican))%area .gt. 1.1_r8) then
+                  write(fates_log(),*) 'error in calc of twostr%scelg(ican,n_col(ican))%area.'
+                  write(fates_log(),*) 'should be less than 1'
+                  write(fates_log(),*) twostr%scelg(ican,n_col(ican))%area
+                  write(fates_log(),*) cohort%c_area, patch%total_canopy_area
+                  call patch%Dump()
+                  cohort => patch%tallest
+                  do while (associated(cohort))
+                     write(fates_log(),*) ' ------- dumping cohort ------'
+                     call cohort%Dump()
+                     write(fates_log(),*) ''
+                     cohort => cohort%shorter
+                  enddo
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               endif
+            end if
+
             cohort => cohort%shorter
          enddo
 
@@ -279,7 +305,7 @@ contains
                      areamax = twostr%scelg(ican,icol)%area
                   end if
                end do
-               
+
                ! Test out a simpler way to correct area errors
                if(do_simple_area_correct) then
                   if(debug) then
@@ -318,12 +344,10 @@ contains
          max_elements = max(max_elements,twostr%n_scel)
          
          twostr%force_prep = .true.   ! This signals that two-stream scattering coefficients
-
-         ! that are dependent on geometry need to be updated
-         call twostr%CanopyPrep(fcansno_pa(ifp))
-         call twostr%ZenithPrep(coszen_pa(ifp))
          
        end associate
+
+       end if if_notbareground
        
        patch => patch%younger
     end do
@@ -332,7 +356,7 @@ contains
     ! The scratch space needs to be 2x the number of computational elements
     ! for the patch with the most elements.
     
-    if(allocated(site%taulambda_2str) .and. max_elements>0 )then
+    if(allocated(site%taulambda_2str)) then
        n_scr = ubound(site%taulambda_2str,dim=1)
        allocate_scratch = .false.
        if(2*max_elements > n_scr) then
@@ -354,21 +378,24 @@ contains
        allocate(site%omega_2str(n_scr,n_scr))
        allocate(site%ipiv_2str(n_scr))
     end if
-       
+    
     return
   end subroutine FatesConstructRadElements
 
   ! =============================================================================================
   
-  subroutine FatesPatchFSun(patch,fsun,laisun,laisha)
+  subroutine FatesPatchFSun(site,patch,fsun,laisun,laisha)
 
+    type(ed_site_type) :: site
     type(fates_patch_type) :: patch
+    type(fates_patch_type), pointer :: fpatch
     real(r8)            :: fsun    ! Patch average sunlit fraction
     real(r8)            :: laisun  ! Patch average LAI of leaves in sun
     real(r8)            :: laisha  ! Patch average LAI of leaves in shade
 
     integer :: ican, icol  ! Canopy vertical and horizontal element index
-
+    logical :: call_fail
+    
     ! Dummy variables
     real(r8)            :: Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow
 
@@ -379,7 +406,6 @@ contains
     laisha = 0._r8
 
     associate(twostr => patch%twostr)
-              
     
       do ican = 1,twostr%n_lyr
          do icol = 1,twostr%n_col(ican)
@@ -387,7 +413,19 @@ contains
             associate(scelg => patch%twostr%scelg(ican,icol))
             
               call twostr%GetAbsRad(ican,icol,ivis,0._r8,scelg%lai+scelg%sai, &
-                   Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac)
+                   Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem, &
+                   R_abs_snow,leaf_sun_frac,call_fail)
+              
+              if(call_fail) then
+                 write(fates_log(),*) 'patch failure:',patch%patchno,' of:'
+                 fpatch => site%oldest_patch
+                 do while (associated(fpatch))
+                    write(fates_log(),*) fpatch%patchno
+                    fpatch => fpatch%younger
+                 end do
+                 call twostr%Dump(ivis,lat=site%lat,lon=site%lon)
+                 call endrun(msg=errMsg(sourcefile, __LINE__))
+              end if
               
               laisun = laisun + scelg%area*scelg%lai*leaf_sun_frac
               laisha = laisha + scelg%area*scelg%lai*(1._r8-leaf_sun_frac)
@@ -428,7 +466,8 @@ contains
     real(r8)               :: cohort_elai
     real(r8)               :: cohort_esai
     real(r8) :: rb_abs,rd_abs,rb_abs_leaf,rd_abs_leaf,leaf_sun_frac,check_fab,in_fab
-
+    logical :: call_fail
+    
     associate(twostr => patch%twostr)
 
       check_fab = 0._r8
@@ -459,7 +498,7 @@ contains
             icol = cohort%twostr_col
             
             call FatesGetCohortAbsRad(patch,cohort,ib,cohort_vaitop(iv),cohort_vaibot(iv), &
-                 cohort_elai,cohort_esai,rb_abs,rd_abs,rb_abs_leaf,rd_abs_leaf,leaf_sun_frac )
+                 cohort_elai,cohort_esai,rb_abs,rd_abs,rb_abs_leaf,rd_abs_leaf,leaf_sun_frac)
             
             check_fab = check_fab + (Rb_abs+Rd_abs) * cohort%c_area/patch%total_canopy_area
             
@@ -472,7 +511,9 @@ contains
       if( abs(check_fab-in_fab) > in_fab*10._r8*rel_err_thresh ) then
          write(fates_log(),*)'Absorbed radiation didnt balance after cohort sum'
          write(fates_log(),*) ib,in_fab,check_fab,snow_depth
-         call twostr%Dump(ib,patch%solar_zenith_angle)
+         ! Remove the comment below for more information about the failure
+         ! We keep it commented for now because the output is significant
+         !call twostr%Dump(ib,patch%site%coszen)
          call endrun(msg=errMsg(sourcefile, __LINE__))
       end if
       
@@ -515,6 +556,7 @@ contains
     real(r8) :: diff_wt_leaf,diff_wt_elem
     real(r8) :: beam_wt_leaf,beam_wt_elem
     real(r8) :: evai_cvai  ! element VAI / cohort VAI
+    logical  :: call_fail
     
     associate(scelg => patch%twostr%scelg(cohort%canopy_layer,cohort%twostr_col), &
          scelb => patch%twostr%band(ib)%scelb(cohort%canopy_layer,cohort%twostr_col) )
@@ -536,7 +578,7 @@ contains
 
       ! Return the absorbed radiation for the element over that band
       call patch%twostr%GetAbsRad(cohort%canopy_layer,cohort%twostr_col,ib,vai_top_el,vai_bot_el, & 
-           Rb_abs_el,Rd_abs_el,rd_abs_leaf_el,rb_abs_leaf_el,r_abs_stem_el,r_abs_snow_el,leaf_sun_frac)
+           Rb_abs_el,Rd_abs_el,rd_abs_leaf_el,rb_abs_leaf_el,r_abs_stem_el,r_abs_snow_el,leaf_sun_frac,call_fail)
 
       ! Note that rd_abs_el and rb_abs_el both contain absorption by water, the abs_leaf terms do not
       rd_abs = rd_abs_el / evai_cvai
