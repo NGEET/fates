@@ -34,6 +34,8 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : megajoules_per_joule
   use FatesConstantsMod, only    : mpa_per_mm_suction
   use FatesConstantsMod, only    : g_per_kg
+  use FatesConstantsMod, only    : ha_per_m2
+  use FatesConstantsMod, only    : days_per_sec
   use FatesConstantsMod, only    : ndays_per_year
   use FatesConstantsMod, only    : nocomp_bareground
   use FatesConstantsMod, only    : nocomp_bareground_land
@@ -493,7 +495,6 @@ contains
        nlev_eff_decomp = max(bc_in%max_rooting_depth_index_col, 1)
        call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
 
-       site_mass => currentSite%mass_balance(el)
 
        ! Fragmentation flux to soil decomposition model [kg/site/day]
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
