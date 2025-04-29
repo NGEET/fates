@@ -756,7 +756,7 @@ contains
                             call CopyPatchMeansTimers(currentPatch, newPatch)
 
 
-                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis, bc_out)
+                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis, bc_out, i_disturbance_type)
 
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
@@ -1682,9 +1682,7 @@ contains
 
     call CopyPatchMeansTimers(currentPatch, new_patch)
 
-    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, bc_out)
-
-    currentPatch%burnt_frac_litter(:) = 0._r8
+    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, bc_out, 0)
 
 
     ! Next, we loop through the cohorts in the donor patch, copy them with
@@ -1819,7 +1817,7 @@ contains
   subroutine TransLitterNewPatch(currentSite,        &
                                  currentPatch,       &
                                  newPatch,           &
-                                 patch_site_areadis, bc_out)
+                                 patch_site_areadis, bc_out, dist_type)
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -1869,7 +1867,7 @@ contains
     real(r8)            , intent(in)    :: patch_site_areadis ! Area being donated
                                                               ! by current patch
     type(bc_out_type)   , intent(inout)         :: bc_out
-
+    integer,              intent(in)    :: dist_type          ! disturbance type
     
     ! locals
     type(site_massbal_type), pointer :: site_mass
