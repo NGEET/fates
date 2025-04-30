@@ -52,13 +52,6 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_cwd_fcel                      ! Cellulose fraction for CWD
    real(r8),protected, public :: ED_val_cwd_flig                      ! Lignin fraction of coarse woody debris
    real(r8),protected, public :: maintresp_nonleaf_baserate           ! Base maintenance respiration rate for plant tissues
-   real(r8),protected, public :: ED_val_phen_a                        ! GDD accumulation function, intercept parameter: gdd_thesh = a + b exp(c*ncd)
-   real(r8),protected, public :: ED_val_phen_b                        ! GDD accumulation function, multiplier parameter: gdd_thesh = a + b exp(c*ncd)
-   real(r8),protected, public :: ED_val_phen_c                        ! GDD accumulation function, exponent parameter: gdd_thesh = a + b exp(c*ncd)
-   real(r8),protected, public :: ED_val_phen_chiltemp                 ! chilling day counting threshold for vegetation
-   real(r8),protected, public :: ED_val_phen_mindayson                ! day threshold compared against days since leaves became on-allometry
-   real(r8),protected, public :: ED_val_phen_ncolddayslim             ! day threshold exceedance for temperature leaf-drop
-   real(r8),protected, public :: ED_val_phen_coldtemp                 ! vegetation temperature exceedance that flags a cold-day for leaf-drop
    real(r8),protected, public :: ED_val_cohort_size_fusion_tol        ! minimum fraction in difference in dbh between cohorts
    real(r8),protected, public :: ED_val_cohort_age_fusion_tol         ! minimum fraction in differece in cohort age between cohorts
    real(r8),protected, public :: ED_val_patch_fusion_tol              ! minimum fraction in difference in profiles between patches
@@ -141,13 +134,6 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_cwd_fcel= "fates_frag_cwd_fcel"   
    character(len=param_string_length),parameter,public :: ED_name_cwd_flig= "fates_frag_cwd_flig"   
    character(len=param_string_length),parameter,public :: fates_name_maintresp_nonleaf_baserate= "fates_maintresp_nonleaf_baserate"
-   character(len=param_string_length),parameter,public :: ED_name_phen_a= "fates_phen_gddthresh_a"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_b= "fates_phen_gddthresh_b"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_c= "fates_phen_gddthresh_c"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_chiltemp= "fates_phen_chilltemp"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_mindayson= "fates_phen_mindayson"
-   character(len=param_string_length),parameter,public :: ED_name_phen_ncolddayslim= "fates_phen_ncolddayslim"   
-   character(len=param_string_length),parameter,public :: ED_name_phen_coldtemp= "fates_phen_coldtemp"   
    character(len=param_string_length),parameter,public :: ED_name_cohort_size_fusion_tol= "fates_cohort_size_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_cohort_age_fusion_tol = "fates_cohort_age_fusion_tol"
    character(len=param_string_length),parameter,public :: ED_name_patch_fusion_tol= "fates_patch_fusion_tol"
@@ -310,13 +296,6 @@ module EDParamsMod
     ED_val_cwd_fcel                       = nan
     ED_val_cwd_flig                       = nan
     maintresp_nonleaf_baserate            = nan
-    ED_val_phen_a                         = nan
-    ED_val_phen_b                         = nan
-    ED_val_phen_c                         = nan
-    ED_val_phen_chiltemp                  = nan
-    ED_val_phen_mindayson                 = nan
-    ED_val_phen_ncolddayslim              = nan
-    ED_val_phen_coldtemp                  = nan
     ED_val_cohort_size_fusion_tol         = nan
     ED_val_cohort_age_fusion_tol          = nan
     ED_val_patch_fusion_tol               = nan
@@ -420,27 +399,6 @@ module EDParamsMod
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=fates_name_maintresp_nonleaf_baserate, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_a, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_b, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_c, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_chiltemp, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_mindayson, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_ncolddayslim, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=ED_name_phen_coldtemp, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=ED_name_cohort_size_fusion_tol, dimension_shape=dimension_shape_scalar, &
@@ -632,27 +590,6 @@ module EDParamsMod
     call fates_params%RetrieveParameter(name=fates_name_maintresp_nonleaf_baserate, &
          data=maintresp_nonleaf_baserate)
 
-    call fates_params%RetrieveParameter(name=ED_name_phen_a, &
-         data=ED_val_phen_a)
-
-    call fates_params%RetrieveParameter(name=ED_name_phen_b, &
-         data=ED_val_phen_b)
-
-    call fates_params%RetrieveParameter(name=ED_name_phen_c, &
-         data=ED_val_phen_c)
-
-    call fates_params%RetrieveParameter(name=ED_name_phen_chiltemp, &
-         data=ED_val_phen_chiltemp)
-
-    call fates_params%RetrieveParameter(name=ED_name_phen_mindayson, &
-         data=ED_val_phen_mindayson)
-
-    call fates_params%RetrieveParameter(name=ED_name_phen_ncolddayslim, &
-         data=ED_val_phen_ncolddayslim)
-
-    call fates_params%RetrieveParameter(name=ED_name_phen_coldtemp, &
-         data=ED_val_phen_coldtemp)
-
     call fates_params%RetrieveParameter(name=ED_name_cohort_size_fusion_tol, &
          data=ED_val_cohort_size_fusion_tol)
 
@@ -832,13 +769,6 @@ module EDParamsMod
         write(fates_log(),fmt0) 'ED_val_cwd_fcel = ',ED_val_cwd_fcel
         write(fates_log(),fmt0) 'ED_val_cwd_flig = ',ED_val_cwd_flig
         write(fates_log(),fmt0) 'fates_maintresp_nonleaf_baserate = ', maintresp_nonleaf_baserate
-        write(fates_log(),fmt0) 'ED_val_phen_a = ',ED_val_phen_a
-        write(fates_log(),fmt0) 'ED_val_phen_b = ',ED_val_phen_b
-        write(fates_log(),fmt0) 'ED_val_phen_c = ',ED_val_phen_c
-        write(fates_log(),fmt0) 'ED_val_phen_chiltemp = ',ED_val_phen_chiltemp
-        write(fates_log(),fmt0) 'ED_val_phen_mindayson = ',ED_val_phen_mindayson
-        write(fates_log(),fmt0) 'ED_val_phen_ncolddayslim = ',ED_val_phen_ncolddayslim
-        write(fates_log(),fmt0) 'ED_val_phen_coldtemp = ',ED_val_phen_coldtemp
         write(fates_log(),fmt0) 'ED_val_cohort_size_fusion_tol = ',ED_val_cohort_size_fusion_tol
         write(fates_log(),fmt0) 'ED_val_cohort_age_fusion_tol = ',ED_val_cohort_age_fusion_tol
         write(fates_log(),fmt0) 'ED_val_patch_fusion_tol = ',ED_val_patch_fusion_tol
