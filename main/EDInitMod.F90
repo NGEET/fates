@@ -284,6 +284,7 @@ contains
     site_in%smp_memory(:,:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
 
+    site_in%coszen = 0._r8
     site_in%phen_model_date  = fates_unset_int
 
     ! Disturbance rates tracking

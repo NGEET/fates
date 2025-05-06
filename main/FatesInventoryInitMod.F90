@@ -850,7 +850,7 @@ contains
          read(css_file_unit,fmt=*,iostat=ios) c_time, p_name, c_dbh, &
               c_height, c_pft, c_nplant
       end if
-         
+
       if( debug_inv) then
          write(*,fmt=wr_fmt) &
               c_time, p_name, c_dbh, c_height, c_pft, c_nplant

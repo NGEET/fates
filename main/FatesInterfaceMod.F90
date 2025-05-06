@@ -71,6 +71,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
    use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
    use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
+   use FatesLeafBiophysParamsMod , only : LeafBiophysRegisterParams, LeafBiophysReceiveParams,LeafBiophysReportParams
    use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
    use EDParamsMod               , only : p_uptake_mode
    use EDParamsMod               , only : n_uptake_mode
@@ -111,6 +112,7 @@ module FatesInterfaceMod
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
    use FatesTwoStreamUtilsMod, only : TransferRadParams
+   use LeafBiophysicsMod         , only : lb_params
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -291,8 +293,6 @@ contains
     fates%bc_in(s)%watsat_sl(:)        = 0.0_r8
     fates%bc_in(s)%tempk_sl(:)         = 0.0_r8
     fates%bc_in(s)%h2o_liqvol_sl(:)    = 0.0_r8
-    fates%bc_in(s)%filter_vegzen_pa(:) = .false.
-    fates%bc_in(s)%coszen_pa(:)        = 0.0_r8
     fates%bc_in(s)%fcansno_pa(:)       = 0.0_r8
     fates%bc_in(s)%albgr_dir_rb(:)     = 0.0_r8
     fates%bc_in(s)%albgr_dif_rb(:)     = 0.0_r8
@@ -373,13 +373,13 @@ contains
     fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
     fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
     
-    fates%bc_out(s)%albd_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%albi_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%ftdd_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%ftid_parb(:,:) = 0.0_r8
-    fates%bc_out(s)%ftii_parb(:,:) = 0.0_r8
+    fates%bc_out(s)%albd_parb(:,:) = 1.0_r8   ! zero albedo, soil absorbs all rad
+    fates%bc_out(s)%albi_parb(:,:) = 1.0_r8   ! zero albedo, soil absorbs all rad
+    fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
+    fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
+    fates%bc_out(s)%ftdd_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftid_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftii_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
     
     fates%bc_out(s)%elai_pa(:)   = 0.0_r8
     fates%bc_out(s)%esai_pa(:)   = 0.0_r8
@@ -531,8 +531,7 @@ contains
       allocate(bc_in%t_soisno_sl(nlevsoil_in))
 
       ! Canopy Radiation
-      allocate(bc_in%filter_vegzen_pa(maxpatch_total))
-      allocate(bc_in%coszen_pa(maxpatch_total))
+      bc_in%coszen = nan
       allocate(bc_in%fcansno_pa(maxpatch_total))
       allocate(bc_in%albgr_dir_rb(num_swb))
       allocate(bc_in%albgr_dif_rb(num_swb))
@@ -619,13 +618,15 @@ contains
       allocate(bc_out%rssha_pa(maxpatch_total))
       
       ! Canopy Radiation
-      allocate(bc_out%albd_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%albi_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%fabd_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%fabi_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%ftdd_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%ftid_parb(fates_maxPatchesPerSite,num_swb))
-      allocate(bc_out%ftii_parb(fates_maxPatchesPerSite,num_swb))
+
+     
+      allocate(bc_out%albd_parb(maxpatch_total,num_swb))
+      allocate(bc_out%albi_parb(maxpatch_total,num_swb))
+      allocate(bc_out%fabd_parb(maxpatch_total,num_swb))
+      allocate(bc_out%fabi_parb(maxpatch_total,num_swb))
+      allocate(bc_out%ftdd_parb(maxpatch_total,num_swb))
+      allocate(bc_out%ftid_parb(maxpatch_total,num_swb))
+      allocate(bc_out%ftii_parb(maxpatch_total,num_swb))
 
       ! We allocate the boundary conditions to the BGC
       ! model, regardless of what scheme we use. The BGC
@@ -951,9 +952,10 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
-         ! lower edges of VAI bins       
-         do i = 1,nlevleaf
-            dlower_vai(i) = sum(dinc_vai(1:i))
+         ! lower edges of VAI bins
+         dlower_vai(1) = 0._r8
+         do i = 2,nlevleaf
+            dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
          end do
 
          ! Identify number of size and age class bins for history output
@@ -2043,24 +2045,28 @@ contains
 
             case('use_daylength_factor_switch')
                hlm_daylength_factor_switch = ival
+               lb_params%dayl_switch    = hlm_daylength_factor_switch
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_daylength_factor_switch= ',ival,' to FATES'
                end if
 
             case('photosynth_acclimation')
                hlm_photo_tempsens_model = ival
+               lb_params%photo_tempsens_model = hlm_photo_tempsens_model
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_photo_tempsens_model= ',ival,' to FATES'
                end if
 
             case('stomatal_assim_model')
                hlm_stomatal_assim_model = ival
+               lb_params%stomatal_assim_model = hlm_stomatal_assim_model
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_stomatal_assim_model ',ival,' to FATES'
                end if
 
             case('stomatal_model')
                hlm_stomatal_model = ival
+               lb_params%stomatal_model = hlm_stomatal_model
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_stomatal_model ',ival,' to FATES'
                end if
@@ -2211,6 +2217,7 @@ contains
 
       call FatesReportPFTParams(masterproc)
       call FatesReportParams(masterproc)
+      call LeafBiophysReportParams(masterproc)
       call PRTDerivedParams()              ! Update PARTEH derived constants
       call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
@@ -2652,6 +2659,7 @@ subroutine FatesReadParameters(param_reader)
   call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
   call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
   call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
+  call LeafBiophysRegisterParams(fates_params)
   call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
 
   call param_reader%Read(fates_params)
@@ -2659,6 +2667,7 @@ subroutine FatesReadParameters(param_reader)
   call FatesReceiveParams(fates_params)
   call SpitFireReceiveParams(fates_params)
   call PRTReceiveParams(fates_params)
+  call LeafBiophysReceiveParams(fates_params)
   call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
 
   call fates_params%Destroy()
