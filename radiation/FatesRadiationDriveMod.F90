@@ -32,7 +32,7 @@ module FatesRadiationDriveMod
   use TwoStreamMLPEMod, only : normalized_upper_boundary
   use FatesTwoStreamUtilsMod, only : FatesPatchFSun
   use FatesTwoStreamUtilsMod, only : CheckPatchRadiationBalance
-  use FatesInterfaceTypesMod        , only : hlm_hio_ignore_val
+  use FatesInterfaceTypesMod, only : hlm_hio_ignore_val
   use EDParamsMod        , only : dinc_vai,dlower_vai
   use EDParamsMod        , only : nclmax
   use EDParamsMod        , only : nlevleaf
@@ -132,7 +132,7 @@ contains
              currentPatch%gnd_alb_dif(1:num_swb) = bc_in(s)%albgr_dif_rb(1:num_swb)
              currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
              currentPatch%fcansno                = bc_in(s)%fcansno_pa(ifp)
-             currentPatch%rad_error(:)           = 0._r8
+             currentPatch%rad_error(:)           = hlm_hio_ignore_val
              
              if_zenith_flag: if( bc_in(s)%coszen>0._r8 )then
                 

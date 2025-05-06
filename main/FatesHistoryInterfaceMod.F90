@@ -4978,6 +4978,11 @@ contains
          ! We do not call the radiation solver if
          ! a) there is no vegetation
          ! b) there is no light! (ie cos(zenith) ~= 0)
+         ! c) the "do albedo" flag is true...but, this
+         !    may be false in coupled runs on alternate time-steps
+         !    and it is ok to carry over the previous errors
+         !    and diagnostics between these steps
+         
          age_area_rad(:) = 0._r8
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -4986,7 +4991,7 @@ contains
             ! solver was called. The solver will be called for NIR
             ! if VIS is called, and likewise the same for conservation
             ! error. So the check on VIS solve error will catch all.
-            if( abs(cpatch%rad_error(ivis))>nearzero ) then
+            if( abs(cpatch%rad_error(ivis)-hlm_hio_ignore_val)>nearzero ) then
                age_class = get_age_class_index(cpatch%age)
                age_area_rad(age_class) = age_area_rad(age_class) + cpatch%total_canopy_area
             end if
@@ -4995,7 +5000,7 @@ contains
 
          sum_area_rad = sum(age_area_rad(:))
 
-         if_anyrad: if(sum_area_rad<nearzero .and. &
+         if_anyrad: if(sum_area_rad < nearzero .or. &
                        sites(s)%coszen < nearzero ) then
             hio_vis_rad_err_si(io_si)          = hlm_hio_ignore_val
             hio_nir_rad_err_si(io_si)          = hlm_hio_ignore_val
@@ -5004,8 +5009,7 @@ contains
             hio_nir_rad_err_si(io_si)          = 0._r8
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
-               if( abs(cpatch%rad_error(ivis))>nearzero ) then
-                  age_class = get_age_class_index(cpatch%age)
+               if( abs(cpatch%rad_error(ivis)-hlm_hio_ignore_val)>nearzero ) then
 
                   hio_vis_rad_err_si(io_si) = hio_vis_rad_err_si(io_si) + &
                        cpatch%rad_error(ivis)*cpatch%total_canopy_area/sum_area_rad
