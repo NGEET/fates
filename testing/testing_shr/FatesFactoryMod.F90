@@ -103,10 +103,12 @@ module FatesFactoryMod
       dinc_vai(i) = ED_val_vai_top_bin_width*ED_val_vai_width_increase_factor**(i-1)
     end do 
   
-    do i = 1, nlevleaf
-      dlower_vai(i) = sum(dinc_vai(1:i))
+    ! lower edges of VAI bins
+    dlower_vai(1) = 0._r8
+    do i = 2,nlevleaf
+       dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
     end do
-        
+    
   end subroutine InitializeGlobals
   
   !---------------------------------------------------------------------------------------

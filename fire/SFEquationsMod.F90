@@ -16,6 +16,7 @@ module SFEquationsMod
   public :: MaximumReactionVelocity
   public :: OptimumReactionVelocity
   public :: OptimumPackingRatio
+  public :: MoistureCoefficient
   public :: ReactionIntensity
   public :: HeatofPreignition
   public :: EffectiveHeatingNumber
@@ -23,6 +24,11 @@ module SFEquationsMod
   public :: PropagatingFlux
   public :: ForwardRateOfSpread
   public :: BackwardRateOfSpread
+  public :: FireDuration
+  public :: LengthToBreadth
+  public :: FireSize
+  public :: AreaBurnt
+  public :: FireIntensity
   
   contains 
   
@@ -62,7 +68,11 @@ module SFEquationsMod
       ! ARGUMENTS:
       real(r8), intent(in) :: SAV ! fuel surface area to volume ratio [/cm]
       
-      MaximumReactionVelocity = 1.0_r8/(0.0591_r8 + 2.926_r8*(SAV**(-1.5_r8)))
+      if (SAV < nearzero) then 
+        MaximumReactionVelocity = 0.0_r8
+      else 
+        MaximumReactionVelocity = 1.0_r8/(0.0591_r8 + 2.926_r8*(SAV**(-1.5_r8)))
+      end if
     
     end function MaximumReactionVelocity
    
@@ -111,6 +121,13 @@ module SFEquationsMod
       
       ! LOCALS:
       real(r8) :: mw_weight ! relative fuel moisture/fuel moisture of extinction
+      
+      if (MEF < nearzero) then 
+        ! this really should never happen - essentially this means fuel can never burn
+        ! but we are putting this here to avoid divide by zeros 
+        MoistureCoefficient = 0.0_r8
+        return
+      end if 
       
       ! average values for litter pools (dead leaves, twigs, small and large branches), plus grass
       mw_weight = moisture/MEF
@@ -314,5 +331,137 @@ module SFEquationsMod
     end function BackwardRateOfSpread
 
     !-------------------------------------------------------------------------------------
+    
+    real(r8) function FireDuration(FDI)
+      !
+      !  DESCRIPTION:
+      !  Calculates fire duration [min]
+      !
+      !  Equation 14 in Thonicke et al. 2010
+      !
+      use SFParamsMod, only : SF_val_max_durat, SF_val_durat_slope
+
+      ! ARGUMENTS:
+      real(r8), intent(in) :: FDI  ! fire danger index [0-1]
+
+      FireDuration = (SF_val_max_durat + 1.0_r8)/(1.0_r8 + SF_val_max_durat*             &
+        exp(SF_val_durat_slope*FDI))
+
+    end function FireDuration
+
+    !-------------------------------------------------------------------------------------
+  
+    real(r8) function LengthToBreadth(effective_windspeed, tree_fraction)
+      !
+      !  DESCRIPTION:
+      !  Calculates length to breadth ratio of fire ellipse [unitless], used for calculating area burnt 
+      !
+      !     Canadian Forest Fire Behavior Prediction System Ont.Int.Rep. ST-X-3, 1992
+      !     Information Report GLC-X-10, Wotten et al. 2009
+      !
+      use FatesConstantsMod, only : m_per_km, min_per_hr
+
+      ! ARGUMENTS:
+      real(r8), intent(in) :: effective_windspeed ! effective windspeed [m/min]
+      real(r8), intent(in) :: tree_fraction       ! tree fraction [0-1]
+      
+      ! LOCALS:
+      real(r8) :: windspeed_km_hr ! effective windspeed, converted to correct units [km/hr]
+            
+      ! CONSTANTS:
+      real(r8), parameter :: lb_threshold = 0.55_r8 ! tree canopy fraction below which to use grassland length-to-breadth eqn
+
+      windspeed_km_hr = effective_windspeed/m_per_km*min_per_hr
+
+      if (windspeed_km_hr < 1.0_r8) then 
+        LengthToBreadth = 1.0_r8
+      else
+        if (tree_fraction > lb_threshold) then 
+          LengthToBreadth = 1.0_r8 + 8.729_r8*((1.0_r8 - exp(-0.03_r8*windspeed_km_hr))**2.155_r8)
+        else  
+          LengthToBreadth = 1.1_r8*(windspeed_km_hr**0.464_r8)
+        endif
+      endif
+
+    end function LengthToBreadth
+
+    !-------------------------------------------------------------------------------------
+    
+    real(r8) function FireSize(length_to_breadth, ros_back, ros_forward, fire_duration)
+      !
+      !  DESCRIPTION:
+      !  Calculates fire size [m2]
+      !
+      !  Eq 14 Arora and Boer JGR 2005 (area of an ellipse)
+      !
+      use FatesConstantsMod, only : pi_const
+
+      ! ARGUMENTS:
+      real(r8), intent(in) :: length_to_breadth ! length to breadth ratio of fire ellipse [unitless]
+      real(r8), intent(in) :: ros_back          ! backwards rate of spread [m/min]
+      real(r8), intent(in) :: ros_forward       ! forward rate of spread [m/min]
+      real(r8), intent(in) :: fire_duration     ! fire duration [min]
+      
+      ! LOCALS:
+      real(r8) :: dist_back    ! distance fire has travelled backwards [m]
+      real(r8) :: dist_forward ! distance fire has travelled forward [m]
+      real(r8) :: fire_size    ! area of fire [m2]
+      
+      dist_back = ros_back*fire_duration
+      dist_forward = ros_forward*fire_duration
+      
+      ! Eq 14 Arora and Boer JGR 2005 (area of an ellipse)
+      if (length_to_breadth < nearzero) then 
+        FireSize = 0.0_r8
+      else 
+        FireSize = (pi_const/(4.0_r8*length_to_breadth))*((dist_forward + dist_back)**2.0_r8)
+      end if
+      
+    end function FireSize
+    
+    !-------------------------------------------------------------------------------------
+    
+    real(r8) function AreaBurnt(fire_size, num_ignitions, FDI)
+      !
+      !  DESCRIPTION:
+      !  Calculates area burnt [m2/km2/day]
+      !
+      ! daily area burnt = size fires in m2 * num ignitions per day per km2 * prob ignition starts fire
+      ! Thonicke 2010 Eq. 1
+      !
+      ! the denominator in the units of currentSite%NF is total gridcell area, but since we assume that ignitions 
+      ! are equally probable across patches, currentSite%NF is equivalently per area of a given patch
+      ! thus AreaBurnt has units of m2 burned area per km2 patch area per day
+      !
+      ! TO DO: Connect here with the Li & Levis GDP fire suppression algorithm. 
+      !     Equation 16 in arora and boer model JGR 2005
+      !
+
+      ! ARGUMENTS:
+      real(r8), intent(in) :: fire_size     ! fire size [m2]
+      real(r8), intent(in) :: num_ignitions ! number of ignitions [/km2/day]
+      real(r8), intent(in) :: FDI           ! fire danger index [0-1]
+      
+      AreaBurnt = fire_size*num_ignitions*FDI
+
+    end function AreaBurnt
+    
+    !-------------------------------------------------------------------------------------
+    
+    real(r8) function FireIntensity(fuel_consumed, ros)
+      !
+      !  DESCRIPTION:
+      !  Calculates fire intensity [kW/m]
+      !  Eq 15 Thonicke et al 2010
+
+      use SFParamsMod, only : SF_val_fuel_energy
+
+      ! ARGUMENTS:
+      real(r8), intent(in) :: fuel_consumed ! fuel consumed [kg/m2]
+      real(r8), intent(in) :: ros           ! rate of spread [m/s]
+      
+      FireIntensity = SF_val_fuel_energy*fuel_consumed*ros
+
+    end function FireIntensity
   
 end module SFEquationsMod
