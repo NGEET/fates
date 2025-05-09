@@ -9,6 +9,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : mg_per_kg
   use FatesConstantsMod        , only : pi_const
   use FatesConstantsMod        , only : nearzero
+  use FatesConstantsMod        , only : rsnbl_math_prec
   use FatesConstantsMod        , only : t_water_freeze_k_1atm
   use FatesConstantsMod        , only : n_term_mort_types
   use FatesConstantsMod        , only : i_term_mort_type_cstarv
@@ -138,6 +139,7 @@ module FatesHistoryInterfaceMod
   use FatesSizeAgeTypeIndicesMod, only : get_cdamagesize_class_index
   use FatesSizeAgeTypeIndicesMod, only : get_cdamagesizepft_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
+  use FatesInterfaceTypesMod    , only : hlm_use_luh
 
   implicit none
   private          ! By default everything is private
@@ -362,6 +364,12 @@ module FatesHistoryInterfaceMod
   integer :: ih_burnedarea_si_landuse
   integer :: ih_gpp_si_landuse
   integer :: ih_npp_si_landuse
+  integer :: ih_tveg_si_landuse
+  integer :: ih_tsa_si_landuse
+  integer :: ih_sw_abs_si_landuse
+  integer :: ih_lw_net_si_landuse
+  integer :: ih_shflux_si_landuse
+  integer :: ih_lhflux_si_landuse
 
   ! land use by land use variables
   integer :: ih_disturbance_rate_si_lulu
@@ -824,6 +832,7 @@ module FatesHistoryInterfaceMod
      procedure :: update_history_dyn2
      procedure :: update_history_hifrq
      procedure :: update_history_hifrq1
+     procedure :: update_history_hifrq_landuse
      procedure :: update_history_hifrq2
      procedure :: update_history_hydraulics
      procedure :: update_history_nutrflux
@@ -4897,6 +4906,9 @@ contains
     
     if(hlm_hist_level_hifrq>0) then
        call update_history_hifrq1(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+       if (hlm_use_luh .eq. itrue) then
+          call update_history_hifrq_landuse(this,nc,nsites,sites,bc_in)
+       end if
        if(hlm_hist_level_hifrq>1) then
           call update_history_hifrq2(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
        end if
@@ -5123,6 +5135,138 @@ contains
   end subroutine update_history_hifrq1
 
   ! ===============================================================================================
+
+  subroutine update_history_hifrq_landuse(this,nc,nsites,sites,bc_in)
+
+    !
+    ! Arguments
+    class(fates_history_interface_type)                 :: this
+    integer                 , intent(in)            :: nc   ! clump index
+    integer                 , intent(in)            :: nsites
+    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
+
+    ! Locals
+    integer  :: s        ! The local site index
+    integer  :: io_si     ! The site index of the IO array
+
+    real(r8) :: landuse_statevector(n_landuse_cats)
+    real(r8) :: canopy_area_bylanduse(n_landuse_cats)
+    integer  :: i_lu
+    logical  :: foundbaregroundpatch
+
+    type(fates_patch_type),pointer  :: cpatch
+
+    associate( hio_tveg_si_landuse    => this%hvars(ih_tveg_si_landuse)%r82d,&
+         hio_tsa_si_landuse           => this%hvars(ih_tsa_si_landuse)%r82d,&
+         hio_sw_abs_si_landuse        => this%hvars(ih_sw_abs_si_landuse)%r82d,&
+         hio_lw_net_si_landuse        => this%hvars(ih_lw_net_si_landuse)%r82d,&
+         hio_shflux_si_landuse        => this%hvars(ih_shflux_si_landuse)%r82d,&
+         hio_lhflux_si_landuse        => this%hvars(ih_lhflux_si_landuse)%r82d)
+
+      do_sites: do s = 1,nsites
+
+         io_si  = sites(s)%h_gid
+
+         ! biophysical properties that are indexed by land use
+         landuse_statevector(:) = sites(s)%get_current_landuse_statevector() * AREA
+
+         ! get the total canopy area for each land use type
+         canopy_area_bylanduse(:) = 0._r8
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            if ( cpatch%land_use_label .ne. nocomp_bareground_land ) then
+               canopy_area_bylanduse(cpatch%land_use_label) = canopy_area_bylanduse(cpatch%land_use_label) + &
+                    cpatch%total_canopy_area
+            endif
+            cpatch => cpatch%younger
+         end do
+
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            if (cpatch%total_canopy_area .gt. rsnbl_math_prec) then
+               ! for TVEG, since it is only defined on vegetated area of vegetated patches, normalize by the total vegetated area
+               hio_tveg_si_landuse(io_si,cpatch%land_use_label) = hio_tveg_si_landuse(io_si,cpatch%land_use_label) + &
+                    bc_in(s)%t_veg_pa(cpatch%patchno) * cpatch%total_canopy_area/canopy_area_bylanduse(cpatch%land_use_label)
+
+               ! for the rest of these, first weight by the vegetated area of each patch over the total patch area for each land use type
+               hio_tsa_si_landuse(io_si,cpatch%land_use_label) = hio_tsa_si_landuse(io_si,cpatch%land_use_label) + &
+                    bc_in(s)%t2m_pa(cpatch%patchno) * cpatch%total_canopy_area/landuse_statevector(cpatch%land_use_label)
+
+               hio_sw_abs_si_landuse(io_si,cpatch%land_use_label) = hio_sw_abs_si_landuse(io_si,cpatch%land_use_label) + &
+                    bc_in(s)%swabs_pa(cpatch%patchno) * cpatch%total_canopy_area/landuse_statevector(cpatch%land_use_label)
+
+               hio_lw_net_si_landuse(io_si,cpatch%land_use_label) = hio_lw_net_si_landuse(io_si,cpatch%land_use_label) + &
+                    bc_in(s)%netlw_pa(cpatch%patchno) * cpatch%total_canopy_area/landuse_statevector(cpatch%land_use_label)
+
+               hio_shflux_si_landuse(io_si,cpatch%land_use_label) = hio_shflux_si_landuse(io_si,cpatch%land_use_label) + &
+                    bc_in(s)%shflux_pa(cpatch%patchno) * cpatch%total_canopy_area/landuse_statevector(cpatch%land_use_label)
+
+               hio_lhflux_si_landuse(io_si,cpatch%land_use_label) = hio_lhflux_si_landuse(io_si,cpatch%land_use_label) + &
+                    bc_in(s)%lhflux_pa(cpatch%patchno) * cpatch%total_canopy_area/landuse_statevector(cpatch%land_use_label)
+            endif
+            cpatch => cpatch%younger
+         end do
+
+         ! for all the land-use indexed variables, excpet for TVEG, also add in the component for the unvegetated area of each land use
+         foundbaregroundpatch = .false.
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            if (cpatch%land_use_label .eq. nocomp_bareground_land .and. .not. foundbaregroundpatch) then
+               foundbaregroundpatch = .true.
+               do i_lu = 1, n_landuse_cats
+                  if ( landuse_statevector(i_lu) .gt. rsnbl_math_prec ) then
+                     hio_tsa_si_landuse(io_si,i_lu) = hio_tsa_si_landuse(io_si,i_lu) + &
+                          bc_in(s)%t2m_pa(cpatch%patchno) * &
+                          (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
+
+                     hio_sw_abs_si_landuse(io_si,i_lu) = hio_sw_abs_si_landuse(io_si,i_lu) + &
+                          bc_in(s)%swabs_pa(cpatch%patchno) * &
+                          (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
+
+                     hio_lw_net_si_landuse(io_si,i_lu) = hio_lw_net_si_landuse(io_si,i_lu) + &
+                          bc_in(s)%netlw_pa(cpatch%patchno) * &
+                          (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
+
+                     hio_shflux_si_landuse(io_si,i_lu) = hio_shflux_si_landuse(io_si,i_lu) + &
+                          bc_in(s)%shflux_pa(cpatch%patchno) * &
+                          (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
+
+                     hio_lhflux_si_landuse(io_si,i_lu) = hio_lhflux_si_landuse(io_si,i_lu) + &
+                          bc_in(s)%lhflux_pa(cpatch%patchno) * &
+                          (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
+                  end if
+               end do
+            end if
+            cpatch => cpatch%younger
+         end do
+
+         ! instead of leaving the values for unoccupied areas as zero, set as missing values
+         do i_lu = 1, n_landuse_cats
+
+            ! if a given land use type is not present, set the value as missing
+            if ( landuse_statevector(i_lu) .le. rsnbl_math_prec ) then
+               hio_tsa_si_landuse(io_si,i_lu) = hlm_hio_ignore_val
+               hio_sw_abs_si_landuse(io_si,i_lu) = hlm_hio_ignore_val
+               hio_lw_net_si_landuse(io_si,i_lu) = hlm_hio_ignore_val
+               hio_shflux_si_landuse(io_si,i_lu) = hlm_hio_ignore_val
+               hio_lhflux_si_landuse(io_si,i_lu) = hlm_hio_ignore_val
+            end if
+
+            ! for tveg, ignore if there is no vegetation present on any patches of a given land use type
+            if ( canopy_area_bylanduse(i_lu) .le. rsnbl_math_prec ) then
+               hio_tveg_si_landuse(io_si,i_lu) = hlm_hio_ignore_val
+            end if
+
+         end do
+
+      end do do_sites
+
+    end associate
+    return
+  end subroutine update_history_hifrq_landuse
+
+    ! ===============================================================================================
 
   subroutine update_history_hifrq2(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
 
@@ -8506,6 +8650,45 @@ contains
             use_default='active', &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
             ivar=ivar, initialize=initialize_variables, index = ih_tveg_si )
+
+       if (hlm_use_luh .eq. itrue) then
+          ! biophysics variables that are indexed by land use type
+          call this%set_history_var(vname='FATES_TVEG_LU', units='degrees Kelvin', &
+               long='fates instantaneous mean vegetation temperature by land use type', &
+               use_default='active', &
+               avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
+               ivar=ivar, initialize=initialize_variables, index = ih_tveg_si_landuse )
+
+          call this%set_history_var(vname='FATES_TSA_LU', units='degrees Kelvin', &
+               long='fates instantaneous mean near-surface (2m) air temperature by land use type', &
+               use_default='active', &
+               avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
+               ivar=ivar, initialize=initialize_variables, index = ih_tsa_si_landuse )
+
+          call this%set_history_var(vname='FATES_SWABS_LU', units='W m-2', &
+               long='fates absorbed shortwave radiation by land use type', &
+               use_default='active', &
+               avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
+               ivar=ivar, initialize=initialize_variables, index = ih_sw_abs_si_landuse )
+
+          call this%set_history_var(vname='FATES_NETLW_LU', units='W m-2', &
+               long='fates net longwave flux by land use type', &
+               use_default='active', &
+               avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
+               ivar=ivar, initialize=initialize_variables, index = ih_lw_net_si_landuse )
+
+          call this%set_history_var(vname='FATES_SHFLUX_LU', units='W m-2', &
+               long='fates sensible heat flux by land use type', &
+               use_default='active', &
+               avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
+               ivar=ivar, initialize=initialize_variables, index = ih_shflux_si_landuse )
+
+          call this%set_history_var(vname='FATES_LHFLUX_LU', units='W m-2', &
+               long='fates latent heat flux by land use type', &
+               use_default='active', &
+               avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
+               ivar=ivar, initialize=initialize_variables, index = ih_lhflux_si_landuse )
+       endif
 
        call this%set_history_var(vname='FATES_VIS_RAD_ERROR', units='-',          &
             long='mean two-stream solver error for VIS', use_default='active',            &
