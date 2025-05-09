@@ -5017,7 +5017,7 @@ contains
     if(hlm_hist_level_hifrq>0) then
        call update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
        if (hlm_use_luh .eq. itrue) then
-          call update_history_hifrq_landuse(this,nc,nsites,sites,bc_in)
+          call update_history_hifrq_landuse(this,nc,nsites,sites,bc_in,dt_tstep)
        end if
        if(hlm_hist_level_hifrq>1) then
           call update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
@@ -5252,7 +5252,7 @@ contains
 
   ! ===============================================================================================
 
-  subroutine update_history_hifrq_landuse(this,nc,nsites,sites,bc_in)
+  subroutine update_history_hifrq_landuse(this,nc,nsites,sites,bc_in,dt_tstep)
 
     !
     ! Arguments
@@ -5261,6 +5261,7 @@ contains
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
+    real(r8)                , intent(in)            :: dt_tstep
 
     ! Locals
     integer  :: s        ! The local site index
@@ -5272,8 +5273,11 @@ contains
     logical  :: foundbaregroundpatch
 
     type(fates_patch_type),pointer  :: cpatch
+    type(fates_cohort_type),pointer :: ccohort
+    real(r8) :: dt_tstep_inv          ! Time step in frequency units (/s)
 
     associate( hio_tveg_si_landuse    => this%hvars(ih_tveg_si_landuse)%r82d,&
+         hio_gpp_si_landuse           => this%hvars(ih_gpp_si_landuse)%r82d, &
          hio_tsa_si_landuse           => this%hvars(ih_tsa_si_landuse)%r82d,&
          hio_sw_abs_si_landuse        => this%hvars(ih_sw_abs_si_landuse)%r82d,&
          hio_lw_net_si_landuse        => this%hvars(ih_lw_net_si_landuse)%r82d,&
@@ -5283,6 +5287,8 @@ contains
       do_sites: do s = 1,nsites
 
          io_si  = sites(s)%h_gid
+
+         dt_tstep_inv = 1.0_r8/dt_tstep
 
          ! biophysical properties that are indexed by land use
          landuse_statevector(:) = sites(s)%get_current_landuse_statevector() * AREA
@@ -5376,6 +5382,22 @@ contains
 
          end do
 
+
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            ccohort => cpatch%shortest
+            do while(associated(ccohort))
+               if ( .not. ccohort%isnew ) then
+                  if (cpatch%land_use_label .gt. nocomp_bareground_land) then
+                     hio_gpp_si_landuse(io_si,cpatch%land_use_label) = hio_gpp_si_landuse(io_si,cpatch%land_use_label) &
+                          + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv
+                  end if
+               end if
+               ccohort => ccohort%taller
+            end do
+            cpatch => cpatch%younger
+         end do
+
       end do do_sites
 
     end associate
@@ -5442,7 +5464,6 @@ contains
          hio_froot_mr_understory_si_scls     => this%hvars(ih_froot_mr_understory_si_scls)%r82d, &
          hio_resp_g_understory_si_scls       => this%hvars(ih_resp_g_understory_si_scls)%r82d, &
          hio_resp_m_understory_si_scls       => this%hvars(ih_resp_m_understory_si_scls)%r82d, &
-         hio_gpp_si_landuse                  => this%hvars(ih_gpp_si_landuse)%r82d, &
          hio_parsun_z_si_cnlf                => this%hvars(ih_parsun_z_si_cnlf)%r82d, &
          hio_parsha_z_si_cnlf                => this%hvars(ih_parsha_z_si_cnlf)%r82d, &
          hio_ts_net_uptake_si_cnlf           => this%hvars(ih_ts_net_uptake_si_cnlf)%r82d, &
@@ -5530,11 +5551,6 @@ contains
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
                          ccohort%froot_mr * n_perm2
-
-                    if (cpatch%land_use_label .gt. nocomp_bareground_land) then
-                       hio_gpp_si_landuse(io_si,cpatch%land_use_label) = hio_gpp_si_landuse(io_si,cpatch%land_use_label) &
-                            + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv
-                    end if
 
                     ! accumulate fluxes on canopy- and understory- separated fluxes
                     if (ccohort%canopy_layer .eq. 1) then
@@ -8924,6 +8940,12 @@ contains
                use_default='active', &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_hifr_simple, &
                ivar=ivar, initialize=initialize_variables, index = ih_lhflux_si_landuse )
+
+          call this%set_history_var(vname='FATES_GPP_LU', units='kg m-2 s-1',        &
+               long='gross primary productivity by age bin in kg carbon per m2 per second', &
+               use_default='inactive', avgflag='A', vtype=site_landuse_r8,               &
+               hlms='CLM:ALM', upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, &
+               index = ih_gpp_si_landuse)
        endif
 
        call this%set_history_var(vname='FATES_VIS_RAD_ERROR', units='-',          &
@@ -9084,12 +9106,6 @@ contains
                use_default='inactive', avgflag='A', vtype=site_age_r8,               &
                hlms='CLM:ALM', upfreq=group_hifr_complx, ivar=ivar, initialize=initialize_variables, &
                index = ih_gpp_si_age)
-
-          call this%set_history_var(vname='FATES_GPP_LU', units='kg m-2 s-1',        &
-               long='gross primary productivity by land use type in kg carbon per m2 per second', &
-               use_default='inactive', avgflag='A', vtype=site_landuse_r8,               &
-               hlms='CLM:ALM', upfreq=group_hifr_complx, ivar=ivar, initialize=initialize_variables, &
-               index = ih_gpp_si_landuse)
 
           call this%set_history_var(vname='FATES_RDARK_USTORY_SZ',               &
                units = 'kg m-2 s-1',                                                &
