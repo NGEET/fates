@@ -8830,7 +8830,7 @@ contains
             upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_livestem_mr_si)
 
-       call this%set_history_var(vname='FATES_NEP', units='kg m-2 s-1',           &
+       call this%set_history_var(vname='FATES_NEP_INT', units='kg m-2 s-1',           &
             long='net ecosystem production in kg carbon per m2 per second',      &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
             upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables,                &
