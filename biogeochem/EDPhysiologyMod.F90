@@ -923,7 +923,6 @@ contains
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
     integer  :: gddend            ! end of counting period for growing degree days.
-    integer  :: nlevroot          ! Number of rooting levels to consider
     real(r8) :: temp_in_C         ! daily averaged temperature in celsius
     real(r8) :: temp_wgt          ! canopy area weighting factor for daily average
                                   ! vegetation temperature calculation
@@ -1102,54 +1101,10 @@ contains
 
 
 
-       ! Update soil moisture information memory (we always track the last 10 days)
-       do i_wmem = numWaterMem,2,-1 !shift memory to previous day, to make room for current day
-          currentSite%liqvol_memory(i_wmem,ipft) = currentSite%liqvol_memory(i_wmem-1,ipft)
-          currentSite%smp_memory   (i_wmem,ipft) = currentSite%smp_memory   (i_wmem-1,ipft)
-       end do
-
-       ! Find the rooting depth distribution for PFT
-       call set_root_fraction( currentSite%rootfrac_scr, ipft, currentSite%zi_soil, &
-                               bc_in%max_rooting_depth_index_col )
-       nlevroot = max(2,min(ubound(currentSite%zi_soil,1),bc_in%max_rooting_depth_index_col))
-
-       ! The top most layer is typically very thin (~ 2cm) and dries rather quickly. Despite
-       ! being thin, it can have a non-negligible rooting fraction (e.g., using 
-       ! exponential_2p_root_profile with default parameters make the top layer to contain
-       ! about 7% of the total fine root density).  To avoid overestimating dryness, we 
-       ! ignore the top layer when calculating the memory.
-       rootfrac_notop = sum(currentSite%rootfrac_scr(2:nlevroot))
-       if ( rootfrac_notop <= nearzero ) then
-          ! Unlikely, but just in case all roots are in the first layer, we use the second
-          ! layer the second layer (to avoid FPE issues).
-          currentSite%rootfrac_scr(2) = 1.0_r8
-          rootfrac_notop              = 1.0_r8
-       end if
-
-       ! Set the memory to be the weighted average of the soil properties, using the
-       ! root fraction of each layer (except the topmost one) as the weighting factor.
-
-       currentSite%liqvol_memory(1,ipft) = sum( bc_in%h2o_liqvol_sl     (2:nlevroot) * &
-                                                currentSite%rootfrac_scr(2:nlevroot) ) / &
-                                                rootfrac_notop
-       currentSite%smp_memory   (1,ipft)  = 0._r8
-       do j = 2,nlevroot
-          if(check_layer_water(bc_in%h2o_liqvol_sl(j),bc_in%tempk_sl(j)) ) then
-             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + & 
-                  bc_in%smp_sl            (j) * &
-                  currentSite%rootfrac_scr(j)  / &
-                  rootfrac_notop
-          else
-             ! Nominal extreme suction for frozen or unreasonably dry soil
-             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + & 
-                  smp_lwr_bound * &
-                  currentSite%rootfrac_scr(j)  / &
-                  rootfrac_notop
-          end if
-       end do
-
-       ! Calculate the mean soil moisture ( liquid volume (m3/m3) and matric potential (mm))
-       !    over the last 10 days
+       !---~---
+       !   Calculate the mean soil moisture ( liquid volume (m3/m3) and matric potential
+       ! (mm) over the last 10 days
+       !---~---
        mean_10day_liqvol = sum(currentSite%liqvol_memory(1:numWaterMem,ipft)) / &
                            real(numWaterMem,r8)
        mean_10day_smp    = sum(currentSite%smp_memory   (1:numWaterMem,ipft)) / &
