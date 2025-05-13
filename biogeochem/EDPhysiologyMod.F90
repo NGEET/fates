@@ -67,6 +67,8 @@ module EDPhysiologyMod
   use EDParamsMod         , only : nclmax
   use EDTypesMod          , only : AREA,AREA_INV
   use FatesConstantsMod   , only : leaves_shedding
+  use FatesConstantsMod   , only : ievergreen
+  use FatesConstantsMod   , only : ihard_season_decid
   use FatesConstantsMod   , only : ihard_stress_decid
   use FatesConstantsMod   , only : isemi_stress_decid
   use EDParamsMod         , only : nlevleaf
@@ -82,14 +84,15 @@ module EDPhysiologyMod
   use PRTGenericMod       , only : element_list
   use PRTGenericMod       , only : element_pos
   use EDTypesMod          , only : site_fluxdiags_type
-  use EDTypesMod          , only : phen_cstat_nevercold
-  use EDTypesMod          , only : phen_cstat_iscold
-  use EDTypesMod          , only : phen_cstat_notcold
+  use EDTypesMod          , only : phen_estat_evergreen
+  use EDTypesMod          , only : phen_cstat_timeoff
+  use EDTypesMod          , only : phen_cstat_tempoff
+  use EDTypesMod          , only : phen_cstat_tempon
+  use EDTypesMod          , only : phen_cstat_timeon
   use EDTypesMod          , only : phen_dstat_timeoff
   use EDTypesMod          , only : phen_dstat_moistoff
   use EDTypesMod          , only : phen_dstat_moiston
   use EDTypesMod          , only : phen_dstat_timeon
-  use EDTypesMod          , only : phen_dstat_pshed
   use EDTypesMod          , only : phen_dstat_pshed
   use EDTypesMod          , only : init_recruit_trim
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -172,8 +175,6 @@ module EDPhysiologyMod
 
   integer :: istat           ! return status code
   character(len=255) :: smsg ! Message string for deallocation errors
-  
-  integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter
 
   real(r8), parameter :: decid_leaf_long_max = 1.0_r8 ! Maximum leaf lifespan for
                                                       !    deciduous PFTs [years]
@@ -196,10 +197,6 @@ module EDPhysiologyMod
                                                       !    a residual amount of leaves, which may create
                                                       !    computational problems. The current threshold
                                                       !    is the same used in ED-2.2.
-
-  real(r8), parameter :: smp_lwr_bound = -1000000._r8 ! Imposed soil matric potential lower bound for 
-                                                      !    frozen or excessively dry soils, used when
-                                                      !    computing water stress.
   ! ============================================================================
 
 contains
@@ -477,7 +474,7 @@ contains
          ! Calculate seed germination rate, the status flags prevent
          ! germination from occuring when the site is in a drought
          ! (for drought deciduous) or too cold (for cold deciduous)
-         call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), bc_in, currentPatch)
+         call SeedGermination(litt, currentSite%phen_status(1:numpft), bc_in, currentPatch)
          
          ! Send fluxes from newly created litter into the litter pools
          ! This litter flux is from non-disturbance inducing mortality, as well
@@ -766,20 +763,21 @@ contains
                 sla_levleaf = min(sla_max,prt_params%slatop(ipft)/nscaler_levleaf)
 
                 ! Find the realised leaf lifespan, depending on the leaf phenology.
-                if (prt_params%season_decid(ipft) ==  itrue) then
+                select case (prt_params%phen_leaf_habit(ipft))
+                case (ihard_season_decid)
                    ! Cold-deciduous costs. Assume time-span to be 1 year to be consistent
                    ! with FATES default
                    pft_leaf_lifespan = decid_leaf_long_max
 
-                elseif (any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid]) )then
+                case (ihard_stress_decid,isemi_stress_decid)
                    ! Drought-decidous costs. Assume time-span to be the least between
                    !    1 year and the life span provided by the parameter file.
                    pft_leaf_lifespan = &
                       min(decid_leaf_long_max,leaf_long)
 
-                else !evergreen costs
+                case (ievergreen) !evergreen costs
                    pft_leaf_lifespan = leaf_long
-                end if
+                end select
 
                 ! Leaf cost at leaf level z (kgC m-2 year-1) accounting for sla profile
                 ! (Convert from SLA in m2g-1 to m2kg-1)
@@ -906,11 +904,6 @@ contains
     !
     ! !USES:
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-    use EDParamsMod, only : ED_val_phen_a, ED_val_phen_b, ED_val_phen_c
-    use EDParamsMod, only : ED_val_phen_chiltemp
-    use EDParamsMod, only : ED_val_phen_mindayson
-    use EDParamsMod, only : ED_val_phen_ncolddayslim
-    use EDParamsMod, only : ED_val_phen_coldtemp
     use EDBtranMod, only  : check_layer_water
     !
     ! !ARGUMENTS:
@@ -920,25 +913,16 @@ contains
     !
     ! !LOCAL VARIABLES:
 
-    type(fates_patch_type),pointer :: cpatch
     integer  :: model_day_int     ! integer model day 1 - inf
     integer  :: ncolddays         ! no days underneath the threshold for leaf drop
-    integer  :: i_wmem            ! Loop counter for water mem days
     integer  :: i_tmem            ! Loop counter for veg temp mem days
     integer  :: ipft              ! plant functional type index
-    integer  :: j                 ! Soil layer index
     real(r8) :: mean_10day_liqvol ! mean soil liquid volume over last 10 days [m3/m3]
     real(r8) :: mean_10day_smp    ! mean soil matric potential over last 10 days [mm]
-    real(r8) :: leaf_c            ! leaf carbon [kg]
-    real(r8) :: fnrt_c            ! fineroot carbon [kg]
-    real(r8) :: sapw_c            ! sapwood carbon [kg]
-    real(r8) :: store_c           ! storage carbon [kg]
-    real(r8) :: struct_c          ! structure carbon [kg]
     real(r8) :: gdd_threshold     ! GDD accumulation function,
-    real(r8) :: rootfrac_notop    ! Total rooting fraction excluding the top soil layer
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
     integer  :: gddstart          ! beginning of counting period for growing degree days.
-    integer  :: nlevroot          ! Number of rooting levels to consider
+    integer  :: gddend            ! end of counting period for growing degree days.
     real(r8) :: temp_in_C         ! daily averaged temperature in celsius
     real(r8) :: temp_wgt          ! canopy area weighting factor for daily average
                                   ! vegetation temperature calculation
@@ -949,6 +933,27 @@ contains
                                         !    lifespan and the maximum lifespan of drought 
                                         !    deciduous (see parameter decid_leaf_long_max
                                         !    at the beginning of this file).
+
+                                        ! The three parameters below are for the growing degree days
+                                        !    threshold function, which is modulated by the number of
+                                        !    chilling days (NCD): GDD_Thresh = a + b * exp (c * NCD)
+     real(r8) :: phen_gddthresh_a       !    - a parameter (intercept)
+     real(r8) :: phen_gddthresh_b       !    - b parameter (multiplier)
+     real(r8) :: phen_gddthresh_c       !    - c parameter (exponent)
+
+     real(r8) :: phen_gddtemp           ! (Lower) Temperature threshold for accumulating
+                                        !    growing degree days (used for leaf flushing)
+     real(r8) :: phen_chilltemp         ! (Upper) Temperature threshold for accumulating
+                                        !    number of chilling days (used for leaf flushing)
+     real(r8) :: phen_coldtemp          ! (Upper) daily average temperature threshold below which the
+                                        !    day is considered cold and will count towards leaf
+                                        !    abscission
+     real(r8) :: phen_mindayson         ! Minimum number of days that plants must remain with leaves
+                                        !    flushed before they can abscise leaves again.
+     real(r8) :: phen_mindaysoff        ! Minimum number of days that plants must remain leafless
+                                        !    before theu can flush leaves again.
+     real(r8) :: phen_ncolddayslim      ! Minimum number of recent days below the temperature threshold
+                                        !    that initiates temperature-driven leaf abscission.
      real(r8) :: phen_drought_threshold ! For drought hard-deciduous, this is the threshold
                                         !   below which plants will abscise leaves, and
                                         !   above which plants will flush leaves. For semi-
@@ -966,8 +971,6 @@ contains
                                         !    the values are soil matric potential [mm].
                                         !    Ignored for hard-deciduous and evergreen 
                                         !    plants.
-     real(r8) :: phen_doff_time         ! Minimum number of days that plants must remain
-                                        !   leafless before flushing leaves again.
 
     ! Logical tests to make code more readable
     logical  :: smoist_below_threshold   ! Is soil moisture below threshold?
@@ -978,259 +981,130 @@ contains
     logical  :: prolonged_on_period      ! Has leaves been flushed for too long?
     logical  :: prolonged_off_period     ! Have leaves been abscissed for too long?
     logical  :: last_flush_long_ago      ! Has it been a very long time since last flushing?
+    logical  :: growing_season           ! Is this the growing season for cold-deciduous?
+    logical  :: gdd_above_threshold      ! Has the growing degree day threshold been exceeded?
+    logical  :: colddays_above_threshold ! Has there been many cold days recently?
 
-
-    ! This is the integer model day. The first day of the simulation is 1, and it
-    ! continues monotonically, indefinitely
-    ! Advance it. (this should be a global, no reason
-    ! for site level, but we don't have global scalars in the
-    ! restart file)
-    currentSite%phen_model_date = currentSite%phen_model_date + 1
+    ! This is the elapsed number of days since the very beginning of the simulation time
     model_day_int = currentSite%phen_model_date
 
 
-    ! Parameter of drought decid leaf loss in mm in top layer...FIX(RF,032414)
-    ! - this is arbitrary and poorly understood. Needs work. ED_
     !Parameters: defaults from Botta et al. 2000 GCB,6 709-725
     !Parameters, default from from SDGVM model of senesence
 
-    temp_in_C = 0._r8
-    temp_wgt = 0._r8
-    cpatch => CurrentSite%oldest_patch
-    do while(associated(cpatch))
-       temp_in_C = temp_in_C + cpatch%tveg24%GetMean()*cpatch%total_canopy_area
-       temp_wgt = temp_wgt + cpatch%total_canopy_area
-       cpatch => cpatch%younger
-    end do
-    if(temp_wgt>nearzero)then
-       temp_in_C = temp_in_C/temp_wgt - tfrz
-    else
-       ! If there is no canopy area, we use the veg temperature
-       ! of the first patch, which is the forcing air temperature
-       ! as defined in CLM/ELM. The forcing air temperature
-       ! should be the same among all patches. (Although
-       ! it is unlikely there are more than 1 in this scenario)
-       temp_in_C = CurrentSite%oldest_patch%tveg24%GetMean() - tfrz
-    end if
+    ! Retrieve average canopy temperature of the current day
+    temp_in_C = currentSite%vegtemp_memory(1)
+
 
     !-----------------Cold Phenology--------------------!
 
     !Zero growing degree and chilling day counters
     if (currentSite%lat > 0)then
-       ncdstart = 270  !Northern Hemisphere begining November
-       gddstart = 1    !Northern Hemisphere begining January
+       ncdstart = 270  ! Northern Hemisphere begining November
+       gddstart = 1    ! Northern Hemisphere begining January
+       gddend   = 180  ! Northern Hemisphere ending June
     else
-       ncdstart = 120  !Southern Hemisphere beginning May
-       gddstart = 181  !Northern Hemisphere begining July
+       ncdstart = 120  ! Southern Hemisphere beginning May
+       gddstart = 181  ! Southern Hemisphere begining July
+       gddend   = 365  ! Southern Hemisphere ending December
     endif
+
+    ! Define growing season based on start and end dates. Check for cases in which the growing season
+    ! includes 31 December and 1 January.
+    if (gddend >= gddstart) then
+       growing_season = hlm_day_of_year >= gddstart .and. hlm_day_of_year <= gddend
+    else
+       growing_season = hlm_day_of_year >= gddstart .or.  hlm_day_of_year <= gddend
+    end if
+
 
     ! Count the number of chilling days over a seasonal window.
     ! For comparing against GDD, we start calculating chilling
     ! in the late autumn.
     ! This value is used to determine the GDD exceedance threshold
     if (hlm_day_of_year == ncdstart)then
-       currentSite%nchilldays = 0
+       currentSite%nchilldays(1:numpft) = 0
     endif
-
-    !Accumulate growing/chilling days after start of counting period
-    if (temp_in_C  <  ED_val_phen_chiltemp)then
-       currentSite%nchilldays = currentSite%nchilldays + 1
-    endif
-
-    !GDD accumulation function, which also depends on chilling days.
-    !  -68 + 638 * (-0.001 * ncd)
-    gdd_threshold = ED_val_phen_a + ED_val_phen_b*exp(ED_val_phen_c*real(currentSite%nchilldays,r8))
-
-    !Accumulate temperature of last 10 days.
-    currentSite%vegtemp_memory(2:num_vegtemp_mem) = currentSite%vegtemp_memory(1:num_vegtemp_mem-1)
-    currentSite%vegtemp_memory(1) = temp_in_C
-
-    !count number of days for leaves off
-    ncolddays = 0
-    do i_tmem = 1,num_vegtemp_mem
-       if (currentSite%vegtemp_memory(i_tmem) < ED_val_phen_coldtemp)then
-          ncolddays = ncolddays + 1
-       endif
-    enddo
-
-    ! Here is where we do the GDD accumulation calculation
     !
     ! reset GDD on set dates
     if (hlm_day_of_year == gddstart)then
-       currentSite%grow_deg_days = 0._r8
-    endif
-    !
-    ! accumulate the GDD using daily mean temperatures
-    ! Don't accumulate GDD during the growing season (that wouldn't make sense)
-    if (temp_in_C .gt. 0._r8 .and. currentSite%cstatus == phen_cstat_iscold) then
-       currentSite%grow_deg_days = currentSite%grow_deg_days + temp_in_C
-    endif
-
-    !this logic is to prevent GDD accumulating after the leaves have fallen and before the
-    ! beginnning of the accumulation period, to prevend erroneous autumn leaf flushing.
-    if(model_day_int> ndays_per_year)then !only do this after the first year to prevent odd behaviour
-
-       if(currentSite%lat .gt. 0.0_r8)then !Northern Hemisphere
-          ! In the north, don't accumulate when we are past the leaf fall date.
-          ! Accumulation starts on day 1 of year in NH.
-          ! The 180 is to prevent going into an 'always off' state after initialization
-          if( model_day_int .gt. currentSite%cleafoffdate.and.hlm_day_of_year.gt.180)then !
-             currentSite%grow_deg_days = 0._r8
-          endif
-       else !Southern Hemisphere
-          ! In the South, don't accumulate after the leaf off date, and before the start of
-          ! the accumulation phase (day 181).
-          if(model_day_int .gt. currentSite%cleafoffdate.and.hlm_day_of_year.lt.gddstart) then!
-             currentSite%grow_deg_days = 0._r8
-          endif
-       endif
-    endif !year1
-
-    ! Calculate the number of days since the leaves last came on
-    ! and off. If this is the beginning of the simulation, that day might
-    ! not had occured yet, so set it to last year to get things rolling
-
-    if (model_day_int < currentSite%cleafoffdate) then
-       currentSite%cndaysleafoff = model_day_int - (currentSite%cleafoffdate - ndays_per_year)
-    else
-       currentSite%cndaysleafoff = model_day_int - currentSite%cleafoffdate
-    end if
-
-    if (model_day_int < currentSite%cleafondate) then
-       currentSite%cndaysleafon = model_day_int - (currentSite%cleafondate - ndays_per_year)
-    else
-       currentSite%cndaysleafon = model_day_int - currentSite%cleafondate
-    end if
-
-
-
-    !LEAF ON: COLD DECIDUOUS. Needs to
-    !1) have exceeded the growing degree day threshold
-    !2) The leaves should not be on already
-    !3) There should have been at least one chilling day in the counting period.
-    !   this prevents tropical or warm climate plants that are "cold-deciduous"
-    !   from ever re-flushing after they have reached their maximum age (thus
-    !   preventing them from competing
-
-    if ( any(currentSite%cstatus == [phen_cstat_iscold,phen_cstat_nevercold]) .and. &
-         (currentSite%grow_deg_days > gdd_threshold) .and. &
-         (currentSite%cndaysleafoff > ED_val_phen_mindayson) .and. &
-         (currentSite%nchilldays >= 1)) then
-       currentSite%cstatus = phen_cstat_notcold  ! Set to not-cold status (leaves can come on)
-       currentSite%cleafondate = model_day_int
-       currentSite%cndaysleafon = 0
-       currentSite%grow_deg_days = 0._r8 ! zero GDD for the rest of the year until counting season begins.
-       if ( debug ) write(fates_log(),*) 'leaves on'
-    endif !GDD
-
-
-
-
-    !LEAF OFF: COLD THRESHOLD
-    !Needs to:
-    !1) have exceeded the number of cold days threshold
-    !2) have exceeded the minimum leafon time.
-    !3) The leaves should not be off already
-    !4) The day of simulation should be larger than the counting period.
-
-
-    if ( (currentSite%cstatus == phen_cstat_notcold) .and. &
-         (model_day_int > num_vegtemp_mem)      .and. &
-         (ncolddays > ED_val_phen_ncolddayslim) .and. &
-         (currentSite%cndaysleafon > ED_val_phen_mindayson) )then
-
-       currentSite%grow_deg_days  = 0._r8          ! The equations for Botta et al
-       ! are for calculations of
-       ! first flush, but if we dont
-       ! clear this value, it will cause
-       ! leaves to flush later in the year
-       currentSite%cstatus       = phen_cstat_iscold  ! alter status of site to 'leaves off'
-       currentSite%cleafoffdate = model_day_int       ! record leaf off date
-       currentSite%cndaysleafoff = 0
-
-       if ( debug ) write(fates_log(),*) 'leaves off'
-    endif
-
-    ! LEAF OFF: COLD LIFESPAN THRESHOLD
-    ! NOTE: Some areas of the planet will never generate a cold day
-    ! and thus %nchilldays will never go from zero to 1.  The following logic
-    ! when coupled with this fact will essentially prevent cold-deciduous
-    ! plants from re-emerging in areas without at least some cold days
-    
-    if( (currentSite%cstatus == phen_cstat_notcold)  .and. &
-        (currentSite%cndaysleafoff > 400)) then   ! remove leaves after a whole year,
-                                                  ! when there is no 'off' period.
-       currentSite%grow_deg_days  = 0._r8
-
-       currentSite%cstatus = phen_cstat_nevercold  ! alter status of site to imply that this
-       ! site is never really cold enough
-       ! for cold deciduous
-       currentSite%cleafoffdate = model_day_int    ! record leaf off date
-       currentSite%cndaysleafoff = 0
-
-       if ( debug ) write(fates_log(),*) 'leaves off'
+       currentSite%grow_deg_days(1:numpft) = 0._r8
     endif
 
 
-
-    ! Loop through every PFT to assign the elongation factor. 
-    ! Add PFT look to account for different PFT rooting depth profiles.
+    !---~---
+    !   Loop through every PFT to assign the elongation factor. 
+    ! Add PFT loop to account for different parameters and PFT-specific rooting depth profiles.
+    !---~---
     pft_elong_loop: do ipft=1,numpft
-
        ! Copy values to a local variable to make code more legible.
+       phen_gddthresh_a       = prt_params%phen_gddthresh_a      (ipft)
+       phen_gddthresh_b       = prt_params%phen_gddthresh_b      (ipft)
+       phen_gddthresh_c       = prt_params%phen_gddthresh_c      (ipft)
+       phen_gddtemp           = prt_params%phen_gddtemp          (ipft)
+       phen_chilltemp         = prt_params%phen_chilltemp        (ipft)
+       phen_coldtemp          = prt_params%phen_coldtemp         (ipft)
+       phen_mindayson         = prt_params%phen_mindayson        (ipft)
+       phen_mindaysoff        = prt_params%phen_mindaysoff       (ipft)
+       phen_ncolddayslim      = prt_params%phen_ncolddayslim     (ipft)
        phen_drought_threshold = prt_params%phen_drought_threshold(ipft)
        phen_moist_threshold   = prt_params%phen_moist_threshold  (ipft)
-       phen_doff_time         = prt_params%phen_doff_time        (ipft)
 
 
-       ! Update soil moisture information memory (we always track the last 10 days)
-       do i_wmem = numWaterMem,2,-1 !shift memory to previous day, to make room for current day
-          currentSite%liqvol_memory(i_wmem,ipft) = currentSite%liqvol_memory(i_wmem-1,ipft)
-          currentSite%smp_memory   (i_wmem,ipft) = currentSite%smp_memory   (i_wmem-1,ipft)
-       end do
+       ! PFT leaf lifespan in days. This is the shortest between the leaf longevity
+       ! (defined as a PFT parameter) and the maximum canopy leaf life span allowed
+       ! for drought deciduous (local parameter). The sum term accounts for the
+       ! total leaf life span of this cohort.
+       ! Note we only use canopy leaf lifespan here and assume that understory cohorts
+       ! would  behave the same as canopy cohorts with regards to phenology. 
+       ndays_pft_leaf_lifespan = &
+          nint(ndays_per_year*min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:))))
 
-       ! Find the rooting depth distribution for PFT
-       call set_root_fraction( currentSite%rootfrac_scr, ipft, currentSite%zi_soil, &
-                               bc_in%max_rooting_depth_index_col )
-       nlevroot = max(2,min(ubound(currentSite%zi_soil,1),bc_in%max_rooting_depth_index_col))
 
-       ! The top most layer is typically very thin (~ 2cm) and dries rather quickly. Despite
-       ! being thin, it can have a non-negligible rooting fraction (e.g., using 
-       ! exponential_2p_root_profile with default parameters make the top layer to contain
-       ! about 7% of the total fine root density).  To avoid overestimating dryness, we 
-       ! ignore the top layer when calculating the memory.
-       rootfrac_notop = sum(currentSite%rootfrac_scr(2:nlevroot))
-       if ( rootfrac_notop <= nearzero ) then
-          ! Unlikely, but just in case all roots are in the first layer, we use the second
-          ! layer the second layer (to avoid FPE issues).
-          currentSite%rootfrac_scr(2) = 1.0_r8
-          rootfrac_notop              = 1.0_r8
+       ! Accumulate growing/chilling days after start of counting period
+       if (temp_in_C  <  phen_chilltemp) then
+          currentSite%nchilldays(ipft) = currentSite%nchilldays(ipft) + 1
        end if
 
-       ! Set the memory to be the weighted average of the soil properties, using the
-       ! root fraction of each layer (except the topmost one) as the weighting factor.
+       ! GDD accumulation function, which also depends on chilling days.
+       !  -68 + 638 * (-0.001 * ncd)
+       gdd_threshold = phen_gddthresh_a + &
+          phen_gddthresh_b * exp(phen_gddthresh_c*real(currentSite%nchilldays(ipft),r8))
 
-       currentSite%liqvol_memory(1,ipft) = sum( bc_in%h2o_liqvol_sl     (2:nlevroot) * &
-                                                currentSite%rootfrac_scr(2:nlevroot) ) / &
-                                                rootfrac_notop
-       currentSite%smp_memory   (1,ipft)  = 0._r8
-       do j = 2,nlevroot
-          if(check_layer_water(bc_in%h2o_liqvol_sl(j),bc_in%tempk_sl(j)) ) then
-             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + & 
-                  bc_in%smp_sl            (j) * &
-                  currentSite%rootfrac_scr(j)  / &
-                  rootfrac_notop
-          else
-             ! Nominal extreme suction for frozen or unreasonably dry soil
-             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + & 
-                  smp_lwr_bound * &
-                  currentSite%rootfrac_scr(j)  / &
-                  rootfrac_notop
-          end if
-       end do
+       ! Count number of days for leaves off
+       ncolddays = count(currentSite%vegtemp_memory(1:num_vegtemp_mem) < phen_coldtemp)
 
-       ! Calculate the mean soil moisture ( liquid volume (m3/m3) and matric potential (mm))
-       !    over the last 10 days
+       !    Accumulate the GDD using daily mean temperatures. For now, we only accumulate GDD
+       ! when plants are leafless and when this is the growing season. This may change in
+       ! future pull requests.
+       if ( temp_in_C > phen_gddtemp .and. &                                                        ! Warm day
+            any( currentSite%phen_status(ipft) == [phen_cstat_tempoff,phen_cstat_timeoff] ) .and. & ! PFT is dormant
+            growing_season) then                                                                    ! Growing season
+          currentSite%grow_deg_days(ipft) = currentSite%grow_deg_days(ipft) + temp_in_C - phen_gddtemp
+       end if
+
+
+
+
+       !---~---
+       !   We update values relevant for phenology controls, but we do not update leaf
+       ! phenology until the memory variables are fully populated.
+       !---~---
+       case_past_spinup: select case(prt_params%phen_leaf_habit(ipft))
+       case (ihard_season_decid)
+          if (model_day_int <= num_vegtemp_mem) cycle pft_elong_loop
+       case (ihard_stress_decid,isemi_stress_decid)
+          if (model_day_int <= numWaterMem    ) cycle pft_elong_loop
+       end select case_past_spinup
+       !---~---
+
+
+
+
+       !---~---
+       !   Calculate the mean soil moisture ( liquid volume (m3/m3) and matric potential
+       ! (mm) over the last 10 days
+       !---~---
        mean_10day_liqvol = sum(currentSite%liqvol_memory(1:numWaterMem,ipft)) / &
                            real(numWaterMem,r8)
        mean_10day_smp    = sum(currentSite%smp_memory   (1:numWaterMem,ipft)) / &
@@ -1245,38 +1119,14 @@ contains
           smoist_below_threshold = mean_10day_smp    < phen_drought_threshold
        end if
 
-       ! Calculate days since last flushing and shedding event, but make a provision
-       ! for the first year of simulation, we have to assume leaf drop / leaf flush
-       ! dates to start, so if that is in the future, set it to last year
-       if (model_day_int < currentSite%dleafoffdate(ipft)) then
-          currentSite%dndaysleafoff(ipft) = model_day_int - (currentSite%dleafoffdate(ipft)-ndays_per_year)
-       else
-          currentSite%dndaysleafoff(ipft) = model_day_int - currentSite%dleafoffdate(ipft)
-       end if
-       if (model_day_int < currentSite%dleafondate(ipft)) then
-          currentSite%dndaysleafon(ipft) = model_day_int - (currentSite%dleafondate(ipft)-ndays_per_year)
-       else
-          currentSite%dndaysleafon(ipft) = model_day_int - currentSite%dleafondate(ipft)
-       end if
-
 
        ! Elongation factor from the previous step.
        elongf_prev = currentSite%elong_factor(ipft)
 
 
-       ! PFT leaf lifespan in days. This is the shortest between the leaf longevity
-       ! (defined as a PFT parameter) and the maximum canopy leaf life span allowed
-       ! for drought deciduous (local parameter). The sum term accounts for the
-       ! total leaf life span of this cohort.
-       ! Note we only use canopy leaf lifespan here and assume  that understory cohorts
-       ! would  behave the same as canopy cohorts with regards to phenology. 
-       ndays_pft_leaf_lifespan = &
-          nint(ndays_per_year*min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:))))
-
-
        !---~---
-       !    Find elongation factors by comparing the moisture with the thresholds. For each
-       ! tissue --- leaves, fine roots, and stems (sapwood+heartwood) --- elongation factor
+       !    Find elongation factors by comparing the temperature and moisture memories with thresholds. For each
+       ! tissue---leaves, fine roots, and stems (sapwood+heartwood)---, elongation factor
        ! is the maximum fraction of biomass (relative to maximum biomass given allometry)
        ! that can be allocated to each tissue due to phenology. In this select case, we
        ! define the elongation factor based on the PFT-specific phenology strategy of this
@@ -1289,17 +1139,174 @@ contains
        !    the leaf biomass will be capped at 40% of the biomass the cohort would have if
        !    it were in well-watered conditions.
        !---~---
-       case_drought_phen: select case (prt_params%stress_decid(ipft))
+       case_update_phen: select case(prt_params%phen_leaf_habit(ipft))
+       case (ievergreen)
+          !---~---
+          !   EVERGREEN
+          !
+          !   Trivial case, nothing happens, enforce that leaves must remain flushed.
+          ! This case could be suppressed from here too.
+          !---~---
+          currentSite%phen_status (ipft) = phen_estat_evergreen
+          currentSite%elong_factor(ipft) = 1.0_r8
+       case (ihard_season_decid)
+          !---~---
+          !   COLD (SEASON) DECIDUOUS
+          ! 
+          !    The decision on whether to abscise (shed) or flush leaves is in principle 
+          ! defined by the number of cold days and the growing degree days. However, we must 
+          ! also account the time since last abscission or flushing event, to avoid excessive
+          ! "flickering" of the leaf elongation factor, and to ensure plants do not remain
+          ! leafless if temperatures fail to exceed threshold or if temperature never drops
+          ! below the threshold.
+          !---~---
+
+
+
+          !---~---
+          !   Save some conditions in logical variables to simplify code below
+          !---~---
+          ! Leaves have been "on" for longer than the minimum number of days.
+          exceed_min_on_period     = &
+             any( currentSite%phen_status(ipft) == [phen_cstat_tempon,phen_cstat_timeon] ) .and. &
+             ( currentSite%ndaysleafon(ipft) > phen_mindayson )
+          ! Leaves have been "off" for longer than the minimum number of days.
+          exceed_min_off_period    = &
+             any( currentSite%phen_status(ipft) == [phen_cstat_tempoff,phen_cstat_timeoff] ) .and. &
+             ( currentSite%ndaysleafoff(ipft) > phen_mindaysoff )
+          !    Leaves have been "on" for longer than the leaf lifetime. Note that this is slightly different
+          ! than the original code. This now uses the same logic as the drought deciduous, leaves should not
+          ! last longer than their nominal leaf lifespan (unless the nominal leaf lifespan is more than one
+          ! year.
+          prolonged_on_period      = &
+             any( currentSite%phen_status(ipft)  == [phen_cstat_tempon,phen_cstat_timeon] )  .and. &
+             ( currentSite%ndaysleafoff(ipft) >  ndays_pft_leaf_lifespan)
+          !    Last flushing was a very long time ago. For now we only force flushing when the last
+          ! abscission event was thermally driven, so it remains consistent with the requirement of
+          ! having cold nights for cold-deciduous plants to exist. This may be revised.
+          last_flush_long_ago      = &
+             ( currentSite%phen_status(ipft)  == phen_cstat_tempoff  )                    .and. &
+             ( currentSite%ndaysleafoff(ipft) >  phen_mindaysoff     )                    .and. &
+             ( currentSite%ndaysleafon(ipft)  >= ndays_per_year-dd_offon_toler )          .and. &
+             ( currentSite%ndaysleafon(ipft)  <= ndays_per_year+dd_offon_toler )
+          !    Check whether GDD has exceeded the threshold for flushing or not. Currently we
+          ! also check that there has been at least one chilling day in the counting period.
+          ! This prevents tropical or warm climate plants that are "cold-deciduous" from ever
+          ! re-flushing after they have reached their maximum age (thus preventing them from
+          ! competing).
+          ! MLO - Is the latter a desirable feature? I wonder if this blocks seasonal 
+          !       deciduous plants in areas where they exist but winters are mild, like 
+          !       the temperate west coast of most continents.
+          gdd_above_threshold = &
+             ( currentSite%grow_deg_days(ipft) > gdd_threshold  ) .and. &
+             ( currentSite%nchilldays(ipft) >= 1 )
+          !    Check whether there have been multiple cold days recently (except when it is
+          ! very early in the simulation and the memory count has not been fully populated).
+          colddays_above_threshold = ncolddays > phen_ncolddayslim
+          !---~---
+
+
+
+          !---~---
+          !   Revision of the conditions, added an if/elseif/else structure to ensure only 
+          ! up to one change occurs at any given time. 
+          !---~---
+          cold_temp_ifelse: if ( exceed_min_off_period .and. gdd_above_threshold ) then
+             !---~---
+             ! LEAF ON: COLD DECIDUOUS,  THERMAL THRESHOLD EXCEEDED
+             ! 
+             !    Here we check that the following conditions were met, allowing 
+             ! leaves to flush:
+             ! 1) PFT has exceeded the growing degree day threshold
+             ! 2) PFT is in dormant state (leafless)
+             ! 3) There was at least one chilling day in the counting period. This
+             !    last check prevents tropical or warm climate plants that are "cold-deciduous"
+             !    from ever re-flushing after they have reached their maximum age (thus preventing 
+             !    them from competing).
+             ! MLO - Revise the third case? I imagine this may prevent deciduous trees to
+             !       establish in mild temperature climates, where they may still occur
+             !       (e.g., coastal California)
+             !---~---
+             currentSite%phen_status  (ipft) = phen_cstat_tempon ! Set to not-cold status (leaves can come on)
+             currentSite%leafondate   (ipft) = model_day_int     ! Record flushing date
+             currentSite%ndaysleafon  (ipft) = 0                 ! Reset time since flushing
+             currentSite%grow_deg_days(ipft) = 0._r8             ! zero GDD for the rest of the year until counting season begins.
+             if ( debug ) write(fates_log(),*) 'leaves on'
+          elseif ( last_flush_long_ago ) then
+             !---~---
+             ! LEAF ON: COLD DECIDUOUS, TIME OFF EXCEEDED
+             ! 
+             !   This did not exist in previous versions, but it mimics what is done in drought deciduous.
+             ! If the plants have been dormant for a very long time and the conditions never allowed for 
+             ! them to start flushing leaves, we force a bud burst, otherwise they can remain dormant for
+             ! ever. This will likley lead to high mortality, but this is fine, because this PFT's thermal
+             ! requirements are not suitable for this location.
+             !---~---
+             currentSite%phen_status  (ipft) = phen_cstat_timeon   ! Set to not-cold status (leaves can come on)
+             currentSite%leafondate   (ipft) = model_day_int       ! Record flushing date
+             currentSite%ndaysleafon  (ipft) = 0                   ! Reset time since flushing
+             currentSite%grow_deg_days(ipft) = 0._r8 ! zero GDD for the rest of the year until counting season begins.
+             if ( debug ) write(fates_log(),*) 'leaves on'
+
+          elseif ( prolonged_on_period ) then
+             !---~---
+             ! LEAF OFF: COLD DECIDUOUS, LIFESPAN THRESHOLD
+             !
+             !    Abscise leaves once they exceed their nominal leaf lifespan or 1 year,
+             ! whichever happens first. This will prevent deciduous plants to remain permanently green.
+             !---~---
+             currentSite%grow_deg_days(ipft)  = 0._r8             ! Reset GDD
+             currentSite%phen_status  (ipft) = phen_cstat_timeoff ! Alter status to imply that this site
+                                                                  !    is never really cold enough for
+                                                                  !    this cold deciduous PFT
+             currentSite%leafoffdate  (ipft) = model_day_int      ! Record abscission date
+             currentSite%ndaysleafoff (ipft) = 0                  ! Reset time since abscission
+
+             if ( debug ) write(fates_log(),*) 'leaves off'
+
+          elseif ( exceed_min_on_period  .and. colddays_above_threshold ) then
+             !---~---
+             ! LEAF OFF: COLD DECIDUOUS, THERMAL THRESHOLD EXCEEDED
+             !
+             !   Here we check that the following conditions are met, allowing
+             ! leaf abscission:
+             ! 1) The PFT has leaves on
+             ! 2) PFT has exceeded the number of cold days threshold
+             ! 3) PFT had leaves for more time than the minimum time required.
+             !---~---
+             currentSite%grow_deg_days(ipft)  = 0._r8             ! Reset GDD
+             currentSite%phen_status  (ipft) = phen_cstat_tempoff ! Alter status of site to 'leaves off'
+             currentSite%leafoffdate  (ipft) = model_day_int      ! Record abscission date
+             currentSite%ndaysleafoff (ipft) = 0                  ! Reset time since abscission
+
+             if ( debug ) write(fates_log(),*) 'leaves off'
+          end if cold_temp_ifelse
+          !---~---
+
+
+
+          !---~---
+          !   Assign elongation factors for cold-drought deciduous PFTs, which will be used
+          ! to define the cohort status. These are "hard" cold-deciduous, so the value should
+          ! be either zero or one.
+          !---~---
+          select case (currentSite%phen_status(ipft))
+          case (phen_cstat_tempoff,phen_cstat_timeoff)
+             currentSite%elong_factor(ipft) = 0.0_r8
+          case (phen_cstat_tempon,phen_cstat_timeon)
+             currentSite%elong_factor(ipft) = 1.0_r8
+          end select
+          !---~---
+
        case (ihard_stress_decid)
           !---~---
+          !   HYDRO (STRESS) DECIDUOUS, "HARD"
+          ! 
           !    Default ("hard") drought deciduous phenology. The decision on whether to 
           ! abscise (shed) or flush leaves is in principle defined by the soil moisture
           ! in the rooting zone.  However, we must also account the time since last 
           ! abscission or flushing event, to avoid excessive "flickering" of the leaf 
           ! elongation factor if soil moisture is right at the threshold.
-          !
-          ! (MLO thought: maybe we should define moisture equivalents of GDD and chilling
-          ! days to simplify the cases a bit...)
           !---~---
 
 
@@ -1308,92 +1315,88 @@ contains
           !---~---
           ! Leaves have been "on" for longer than the minimum number of days.
           exceed_min_on_period     = &
-             any( currentSite%dstatus(ipft) == [phen_dstat_timeon,phen_dstat_moiston] )   .and. &
-             (currentSite%dndaysleafon(ipft) > dleafon_drycheck)
+             any( currentSite%phen_status(ipft) == [phen_dstat_timeon,phen_dstat_moiston] )   .and. &
+             ( currentSite%ndaysleafon(ipft) > phen_mindayson )
           ! Leaves have been "off" for longer than the minimum number of days.
           exceed_min_off_period    = &
-             ( currentSite%dstatus(ipft)       == phen_dstat_timeoff       ) .and. &
-             ( currentSite%dndaysleafoff(ipft) >  min_daysoff_dforcedflush )
+             ( currentSite%phen_status(ipft)       == phen_dstat_timeoff       ) .and. &
+             ( currentSite%ndaysleafoff(ipft) >  min_daysoff_dforcedflush )
           ! Leaves have been "on" for longer than the leaf lifetime.
           prolonged_on_period      = &
-             any( currentSite%dstatus(ipft) == [phen_dstat_timeon,phen_dstat_moiston] )   .and. &
-             ( currentSite%dndaysleafon(ipft) > ndays_pft_leaf_lifespan )
+             any( currentSite%phen_status(ipft) == [phen_dstat_timeon,phen_dstat_moiston] )   .and. &
+             ( currentSite%ndaysleafon(ipft) > ndays_pft_leaf_lifespan )
           ! Leaves have been "off" for a sufficiently long time and the last flushing
           ! was about one year ago (+/- tolerance).
           prolonged_off_period     = &
-             any( currentSite%dstatus(ipft) == [phen_dstat_timeoff,phen_dstat_moistoff] ) .and. &
-             ( currentSite%dndaysleafoff(ipft) > phen_doff_time     )                     .and. &
-             ( currentSite%dndaysleafon(ipft) >= ndays_per_year-dd_offon_toler )                     .and. &
-             ( currentSite%dndaysleafon(ipft) <= ndays_per_year+dd_offon_toler )
+             any( currentSite%phen_status(ipft) == [phen_dstat_timeoff,phen_dstat_moistoff] ) .and. &
+             ( currentSite%ndaysleafoff(ipft) > phen_mindaysoff    )                     .and. &
+             ( currentSite%ndaysleafon(ipft) >= ndays_per_year-dd_offon_toler )          .and. &
+             ( currentSite%ndaysleafon(ipft) <= ndays_per_year+dd_offon_toler )
           ! Last flushing was a very long time ago.
           last_flush_long_ago      = &
-             ( currentSite%dstatus(ipft)      == phen_dstat_moistoff            ) .and. &
-             ( currentSite%dndaysleafon(ipft) >  ndays_per_year+dd_offon_toler  )
+             ( currentSite%phen_status(ipft)  == phen_dstat_moistoff            ) .and. &
+             ( currentSite%ndaysleafon(ipft)  >  ndays_per_year+dd_offon_toler  )
           !---~---
 
 
           !---~---
-          ! Revision of the conditions, added an if/elseif/else structure to ensure only 
-          ! up to one change occurs at any given time. Also, prevent changes until the
-          ! soil moisture memory is populated (the outer if check).
+          !   Revision of the conditions, added an if/elseif/else structure to ensure only 
+          ! up to one change occurs at any given time. 
           !---~---
-          past_spinup_ifelse: if (model_day_int > numWaterMem) then
-             drought_smoist_ifelse: if ( prolonged_off_period .and. &
-                                         ( .not. smoist_below_threshold ) ) then
-                ! LEAF ON: DROUGHT DECIDUOUS WETNESS
-                ! Here, we used a window of oppurtunity to determine if we are
-                ! close to the time when then leaves came on last year
-                ! The following conditions must be met
-                ! a) a year, plus or minus 1 month since we last had leaf-on?
-                ! b) Has there also been at least a nominaly short amount of "leaf-off"?
-                ! c) Is the soil moisture sufficiently high?
-                currentSite%dstatus(ipft)      = phen_dstat_moiston  ! set status to leaf-on
-                currentSite%dleafondate(ipft)  = model_day_int       ! save the model day we start flushing
-                currentSite%dndaysleafon(ipft) = 0
-                currentSite%elong_factor(ipft) = 1.
+          drought_smoist_ifelse: if ( prolonged_off_period .and. ( .not. smoist_below_threshold ) ) then
+             ! LEAF ON: DROUGHT DECIDUOUS WETNESS
+             ! Here, we used a window of oppurtunity to determine if we are
+             ! close to the time when then leaves came on last year
+             ! The following conditions must be met
+             ! a) a year, plus or minus 1 month since we last had leaf-on?
+             ! b) Has there also been at least a nominaly short amount of "leaf-off"?
+             ! c) Is the soil moisture sufficiently high?
+             currentSite%phen_status(ipft)  = phen_dstat_moiston  ! set status to leaf-on
+             currentSite%leafondate(ipft)   = model_day_int       ! save the model day we start flushing
+             currentSite%ndaysleafon(ipft)  = 0
+             currentSite%elong_factor(ipft) = 1.
 
-             elseif ( last_flush_long_ago ) then
-                ! LEAF ON: DROUGHT DECIDUOUS TIME EXCEEDANCE
-                ! If we still haven't done budburst by end of window, then force it
+          elseif ( last_flush_long_ago ) then
+             ! LEAF ON: DROUGHT DECIDUOUS TIME EXCEEDANCE
+             ! If we still haven't done budburst by end of window, then force it
 
-                ! If the status is "phen_dstat_moistoff", it means this site currently has
-                ! leaves off due to actual moisture limitations.
-                ! So we trigger bud-burst at the end of the month since
-                ! last year's bud-burst.  If this is imposed, then we set the new
-                ! status to indicate bud-burst was forced by timing
-                currentSite%dstatus(ipft)      = phen_dstat_timeon ! force budburst!
-                currentSite%dleafondate(ipft)  = model_day_int     ! record leaf on date
-                currentSite%dndaysleafon(ipft) = 0
-                currentSite%elong_factor(ipft) = 1.
+             ! If the status is "phen_dstat_moistoff", it means this site currently has
+             ! leaves off due to actual moisture limitations.
+             ! So we trigger bud-burst at the end of the month since
+             ! last year's bud-burst.  If this is imposed, then we set the new
+             ! status to indicate bud-burst was forced by timing
+             currentSite%phen_status(ipft)  = phen_dstat_timeon ! force budburst!
+             currentSite%leafondate(ipft)   = model_day_int     ! record leaf on date
+             currentSite%ndaysleafon(ipft)  = 0
+             currentSite%elong_factor(ipft) = 1.
 
-             elseif ( exceed_min_off_period ) then
-                ! LEAF ON: DROUGHT DECIDUOUS EXCEEDED MINIMUM OFF PERIOD
-                ! Leaves were off due to time, not really moisture, so we allow them to
-                ! flush again as soon as they exceed a minimum off time
-                ! This typically occurs in a perennially wet system.
-                currentSite%dstatus(ipft)      = phen_dstat_timeon    ! force budburst!
-                currentSite%dleafondate(ipft)  = model_day_int        ! record leaf on date
-                currentSite%dndaysleafon(ipft) = 0
-                currentSite%elong_factor(ipft) = 1.
+          elseif ( exceed_min_off_period ) then
+             ! LEAF ON: DROUGHT DECIDUOUS EXCEEDED MINIMUM OFF PERIOD
+             ! Leaves were off due to time, not really moisture, so we allow them to
+             ! flush again as soon as they exceed a minimum off time
+             ! This typically occurs in a perennially wet system.
+             currentSite%phen_status(ipft)  = phen_dstat_timeon    ! force budburst!
+             currentSite%leafondate(ipft)   = model_day_int        ! record leaf on date
+             currentSite%ndaysleafon(ipft)  = 0
+             currentSite%elong_factor(ipft) = 1.
 
-             elseif ( prolonged_on_period ) then
-                ! LEAF OFF: DROUGHT DECIDUOUS LIFESPAN
-                ! Are the leaves rouhgly at the end of their lives? If so, shed leaves 
-                ! even if it is not dry.
-                currentSite%dstatus(ipft)      = phen_dstat_timeoff    !alter status of site to 'leaves off'
-                currentSite%dleafoffdate(ipft) = model_day_int         !record leaf on date
-                currentSite%dndaysleafoff(ipft) = 0
-                currentSite%elong_factor(ipft)  = 0.
+          elseif ( prolonged_on_period ) then
+             ! LEAF OFF: DROUGHT DECIDUOUS LIFESPAN
+             ! Are the leaves rouhgly at the end of their lives? If so, shed leaves 
+             ! even if it is not dry.
+             currentSite%phen_status(ipft)   = phen_dstat_timeoff    !alter status of site to 'leaves off'
+             currentSite%leafoffdate(ipft)   = model_day_int         !record leaf on date
+             currentSite%ndaysleafoff(ipft)  = 0
+             currentSite%elong_factor(ipft)  = 0.
 
-             elseif ( exceed_min_on_period .and. smoist_below_threshold ) then
-                ! LEAF OFF: DROUGHT DECIDUOUS DRYNESS - if the soil gets too dry,
-                ! and the leaves have already been on a while...
-                currentSite%dstatus(ipft) = phen_dstat_moistoff     ! alter status of site to 'leaves off'
-                currentSite%dleafoffdate(ipft) = model_day_int      ! record leaf on date
-                currentSite%dndaysleafoff(ipft) = 0
-                currentSite%elong_factor(ipft)  = 0.
-             end if drought_smoist_ifelse
-          end if past_spinup_ifelse
+          elseif ( exceed_min_on_period .and. smoist_below_threshold ) then
+             ! LEAF OFF: DROUGHT DECIDUOUS DRYNESS - if the soil gets too dry,
+             ! and the leaves have already been on a while...
+             currentSite%phen_status(ipft)   = phen_dstat_moistoff ! alter status of site to 'leaves off'
+             currentSite%leafoffdate(ipft)   = model_day_int       ! record leaf on date
+             currentSite%ndaysleafoff(ipft)  = 0
+             currentSite%elong_factor(ipft)  = 0.
+          end if drought_smoist_ifelse
           !---~---
 
 
@@ -1429,47 +1432,43 @@ contains
           !---~---
           !  Leaves have been flushing for a short period of time.
           recent_flush         = elongf_prev >= elongf_min .and. &
-                                 ( currentSite%dndaysleafon(ipft) <= dleafon_drycheck )
+                                 ( currentSite%ndaysleafon(ipft) <= phen_mindayson )
           !  Leaves have been abscissing for a short period of time.
           recent_abscission    = elongf_prev <  elongf_min .and. &
-                                 ( currentSite%dndaysleafoff(ipft) <=  min_daysoff_dforcedflush )
+                                 ( currentSite%ndaysleafoff(ipft) <=  min_daysoff_dforcedflush )
           !  Leaves have been flushing for longer than their time span.
           prolonged_on_period  = all( [elongf_prev,elongf_1st] >= elongf_min ) .and. &
-                                 ( currentSite%dndaysleafon(ipft)  > ndays_pft_leaf_lifespan )
+                                 ( currentSite%ndaysleafon(ipft)  > ndays_pft_leaf_lifespan )
           !  It's been a long time since the plants had flushed their leaves.
           last_flush_long_ago  = all( [elongf_prev,elongf_1st] <  elongf_min ) .and. &
-                                 ( currentSite%dndaysleafon(ipft) >  ndays_per_year+dd_offon_toler )
+                                 ( currentSite%ndaysleafon(ipft) >  ndays_per_year+dd_offon_toler )
           !---~---
 
 
           ! Make sure elongation factor is bounded and check for special cases.
-          drought_gradual_ifelse: if ( model_day_int <= numWaterMem ) then
-             ! Too early in the simulation, keep the same elongation factor as the day before.
-             currentSite%elong_factor(ipft) = elongf_prev
-
-          elseif ( prolonged_on_period ) then
+          drought_gradual_ifelse: if ( prolonged_on_period ) then
              ! Leaves have been on for too long and exceeded leaf lifespan. Force abscission
              currentSite%elong_factor(ipft)  = 0.0_r8             ! Force full budburst
-             currentSite%dstatus(ipft)       = phen_dstat_timeoff ! Flag that this has been forced
-             currentSite%dleafoffdate(ipft)  = model_day_int      ! Record leaf off date
-             currentSite%dndaysleafoff(ipft) = 0                  ! Reset clock
+             currentSite%phen_status(ipft)   = phen_dstat_timeoff ! Flag that this has been forced
+             currentSite%leafoffdate(ipft)   = model_day_int      ! Record leaf off date
+             currentSite%ndaysleafoff(ipft)  = 0                  ! Reset clock
 
           elseif ( last_flush_long_ago ) then
              ! Plant has not flushed at all for a very long time. Force flushing
              currentSite%elong_factor(ipft)  = elongf_min         ! Force minimum budburst
-             currentSite%dstatus(ipft)       = phen_dstat_timeon  ! Flag that this has been forced
-             currentSite%dleafondate(ipft)   = model_day_int      ! Record leaf on date
-             currentSite%dndaysleafon(ipft)  = 0                  ! Reset clock
+             currentSite%phen_status(ipft)   = phen_dstat_timeon  ! Flag that this has been forced
+             currentSite%leafondate(ipft)    = model_day_int      ! Record leaf on date
+             currentSite%ndaysleafon(ipft)   = 0                  ! Reset clock
 
           elseif ( recent_flush .and. elongf_1st < elongf_prev ) then
              ! Leaves have only recently reached flushed status. Elongation factor cannot decrease
              currentSite%elong_factor(ipft) = elongf_prev       ! Elongation factor cannot decrease
-             currentSite%dstatus(ipft)      = phen_dstat_timeon ! Flag that this has been forced
+             currentSite%phen_status(ipft)  = phen_dstat_timeon ! Flag that this has been forced
 
           elseif ( recent_abscission .and. elongf_1st > elongf_min ) then
              ! Leaves have only recently abscissed. Prevent plant to flush leaves.
              currentSite%elong_factor(ipft) = 0.0_r8             ! Elongation factor must remain 0.
-             currentSite%dstatus(ipft)      = phen_dstat_timeoff ! Flag that this has been forced
+             currentSite%phen_status(ipft)  = phen_dstat_timeoff ! Flag that this has been forced
 
           elseif ( elongf_1st < elongf_min ) then
              ! First guess of elongation factor below minimum. Impose full abscission.
@@ -1477,9 +1476,9 @@ contains
 
              if (elongf_prev >= elongf_min ) then
                 ! This is the first day moisture fell below minimum. Flag change of status.
-                currentSite%dstatus(ipft)       = phen_dstat_moistoff ! Flag that this has not been forced
-                currentSite%dleafoffdate(ipft)  = model_day_int       ! Record leaf off date
-                currentSite%dndaysleafoff(ipft) = 0                   ! Reset clock
+                currentSite%phen_status(ipft)   = phen_dstat_moistoff ! Flag that this has not been forced
+                currentSite%leafoffdate(ipft)   = model_day_int       ! Record leaf off date
+                currentSite%ndaysleafoff(ipft)  = 0                   ! Reset clock
              end if
 
           else
@@ -1489,40 +1488,15 @@ contains
 
              if (elongf_prev < elongf_min ) then
                 ! This is the first day moisture allows leaves to exist. Flag change of status.
-                currentSite%dstatus(ipft)       = phen_dstat_moiston  ! Flag that this has not been forced
-                currentSite%dleafondate(ipft)   = model_day_int       ! Record leaf on date
-                currentSite%dndaysleafon(ipft)  = 0                   ! Reset clock
+                currentSite%phen_status(ipft)   = phen_dstat_moiston  ! Flag that this has not been forced
+                currentSite%leafondate(ipft)    = model_day_int       ! Record leaf on date
+                currentSite%ndaysleafon(ipft)   = 0                   ! Reset clock
              elseif (elongf_1st < elongf_prev) then
-                currentSite%dstatus(ipft)       = phen_dstat_pshed    ! Flag partial shedding,
+                currentSite%phen_status(ipft) = phen_dstat_pshed    ! Flag partial shedding,
                                                                     ! but do not reset the clock
              end if
           end if drought_gradual_ifelse
-
-
-       case default
-          !    Neither hard deciduous or semi-deciduous. For now we treat this as synonym
-          ! of non-drought deciduous. In the future we may consider other drought deciduous
-          ! strategies (e.g., abscission driven by moisture, flushing driven by photo-
-          ! period).
-          currentSite%dstatus(ipft)      = phen_dstat_moiston
-
-          ! Assign elongation factors for non-drought deciduous PFTs, which will be used
-          ! to define the cohort status.
-          case_cold_phen: select case(prt_params%season_decid(ipft))
-          case (ifalse)
-             ! Evergreen, ensure that elongation factor is always one.
-             currentSite%elong_factor(ipft) = 1.0_r8
-          case (itrue)
-             ! Cold-deciduous. Define elongation factor based on cold status
-             select case (currentSite%cstatus)
-             case (phen_cstat_nevercold,phen_cstat_iscold)
-                currentSite%elong_factor(ipft) = 0.0_r8
-             case (phen_cstat_notcold)
-                currentSite%elong_factor(ipft) = 1.0_r8
-             end select
-          end select case_cold_phen
-
-       end select case_drought_phen
+       end select case_update_phen
 
     end do pft_elong_loop
 
@@ -1611,31 +1585,36 @@ contains
           ! MLO. To avoid duplicating code for drought and cold deciduous PFTs, we first
           !      check whether or not it's time to flush or time to shed leaves, then
           !      use a common code for flushing or shedding leaves.
-          is_time_block: if (prt_params%season_decid(ipft) == itrue) then ! Cold deciduous
+          is_time_block: select case (prt_params%phen_leaf_habit(ipft))
+          case (ihard_season_decid) ! Cold deciduous
 
              ! A. Is this the time for COLD LEAVES to switch to ON?
-             is_flushing_time = ( currentSite%cstatus      == phen_cstat_notcold .and. & ! We just moved to leaves being on
-                                  currentCohort%status_coh == leaves_off         )        ! Leaves are currently off
+             is_flushing_time = &
+                any( currentSite%phen_status(ipft) == [phen_cstat_tempon,phen_cstat_timeon]) .and. & ! We just moved to leaves being on
+                currentCohort%status_coh == leaves_off                                               ! Leaves are currently off
              ! B. Is this the time for COLD LEAVES to switch to OFF?
-             is_shedding_time = any(currentSite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]) .and. & ! Past leaf drop day or too cold
-                                currentCohort%status_coh == leaves_on                                .and. & ! Leaves have not dropped yet
-                                ( currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) .or. & ! Grasses are big enough or...
-                                  prt_params%woody(ipft) == itrue                                     )      ! this is a woody PFT.
+             is_shedding_time = &
+                any(currentSite%phen_status(ipft) == [phen_cstat_tempoff,phen_cstat_timeoff]) .and. & ! Past leaf drop day or too cold
+                currentCohort%status_coh == leaves_on                                         .and. & ! Leaves have not dropped yet
+                ( currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft)         .or.  & ! Grasses are big enough or...
+                 prt_params%woody(ipft) == itrue                                      )               ! This is a woody PFT.
 
-          elseif (any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid]) ) then ! Drought deciduous
+          case (ihard_stress_decid,isemi_stress_decid) ! Drought deciduous
 
              ! A. Is this the time for DROUGHT LEAVES to switch to ON?
-             is_flushing_time = any( currentSite%dstatus(ipft) == [phen_dstat_moiston,phen_dstat_timeon] ) .and.  & ! Leaf flushing time (moisture or time)
-                                any( currentCohort%status_coh  == [leaves_off,leaves_shedding] )
+             is_flushing_time = &
+                any( currentSite%phen_status(ipft) == [phen_dstat_moiston,phen_dstat_timeon] ) .and.  & ! Leaf flushing time (moisture or time)
+                any( currentCohort%status_coh  == [leaves_off,leaves_shedding] )
              ! B. Is this the time for DROUGHT LEAVES to switch to OFF?
              !    This will be true when leaves are abscissing (partially or fully) due to moisture or time
-             is_shedding_time = any( currentSite%dstatus(ipft) == [phen_dstat_moistoff,phen_dstat_timeoff,phen_dstat_pshed] ) .and. &
-                                any( currentCohort%status_coh  == [leaves_on,leaves_shedding] )
-          else
+             is_shedding_time = &
+                any( currentSite%phen_status(ipft) == [phen_dstat_moistoff,phen_dstat_timeoff,phen_dstat_pshed] ) .and. &
+                any( currentCohort%status_coh == [leaves_on,leaves_shedding] )
+          case (ievergreen)
              ! This PFT is not deciduous.
              is_flushing_time         = .false.
              is_shedding_time         = .false.
-          end if is_time_block
+          end select is_time_block
 
 
 
@@ -2319,7 +2298,7 @@ contains
   end subroutine SeedDecay
 
   ! ============================================================================
-  subroutine SeedGermination( litt, cold_stat, drought_stat, bc_in, currentPatch )
+  subroutine SeedGermination( litt, phen_stat, bc_in, currentPatch )
     !
     ! !DESCRIPTION:
     !  Flux from seed bank into the seedling pool    
@@ -2329,8 +2308,7 @@ contains
     !
     ! !ARGUMENTS
     type(litter_type) :: litt
-    integer                   , intent(in) :: cold_stat    ! Is the site in cold leaf-off status?
-    integer, dimension(numpft), intent(in) :: drought_stat ! Is the site in drought leaf-off status?
+    integer, dimension(numpft), intent(in) :: phen_stat    ! Phenological status 
     type(bc_in_type),           intent(in) :: bc_in
     type(fates_patch_type),        intent(in) :: currentPatch
     !
@@ -2421,20 +2399,18 @@ contains
           litt%seed_germ_in(pft) = litt%seed(pft) * seedling_emerg_rate
 
        end if if_tfs_or_def
-    
-      !set the germination only under the growing season...c.xu
 
-      if ((prt_params%season_decid(pft) == itrue ) .and. &
-            (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold]))) then
-          ! no germination for all PFTs when cold
-          litt%seed_germ_in(pft) = 0.0_r8
-       endif
-
-       ! Drought deciduous, halt germination when status is shedding, even leaves are not
-       ! completely abscissed. MLO
-       select case (prt_params%stress_decid(pft))
+       select case (prt_params%phen_leaf_habit(pft))
+       case (ihard_season_decid)
+          !set the germination only under the growing season...c.xu
+          if (any(phen_stat(pft) == [phen_cstat_tempoff,phen_cstat_timeoff])) then
+             ! no germination for all PFTs when cold
+             litt%seed_germ_in(pft) = 0.0_r8
+          end if
        case (ihard_stress_decid,isemi_stress_decid)
-          if (any(drought_stat(pft) == [phen_dstat_timeoff,phen_dstat_moistoff,phen_dstat_pshed])) then
+          ! Drought deciduous, halt germination when status is shedding, even leaves are not
+          ! completely abscissed. MLO
+          if (any(phen_stat(pft) == [phen_dstat_timeoff,phen_dstat_moistoff,phen_dstat_pshed])) then
              litt%seed_germ_in(pft) = 0.0_r8
           end if
        end select
@@ -2542,23 +2518,24 @@ contains
             efstem_coh  = 1.0_r8
             leaf_status = leaves_on
 
-            ! but if the plant is seasonally (cold) deciduous, and the site status is flagged
-            ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
-            if ((prt_params%season_decid(ft) == itrue) .and.                   &
-               (any(currentSite%cstatus == [phen_cstat_nevercold, phen_cstat_iscold]))) then
-               efleaf_coh  = 0.0_r8
-               effnrt_coh  = 1.0_r8 - fnrt_drop_fraction
-               efstem_coh  = 1.0_r8 - stem_drop_fraction
-               leaf_status = leaves_off
-            end if 
-
-            ! Or.. if the plant is drought deciduous, make sure leaf status is consistent with the
-            ! leaf elongation factor.
-            ! For tissues other than leaves, the actual drop fraction is a combination of the
-            ! elongation factor (e) and the drop fraction (x), which will ensure that the remaining
-            ! tissue biomass will be exactly e when x=1, and exactly the original biomass when x = 0.
-            select case (prt_params%stress_decid(ft))
+            ! look for cases in which leaves should be off
+            select case (prt_params%phen_leaf_habit(ft))
+            case (ihard_season_decid)
+               select case(currentSite%phen_status(ft))
+               case (phen_cstat_tempoff, phen_cstat_timeoff)
+                  ! If the plant is seasonally (cold) deciduous, and the site status is flagged
+                  ! as "cold", then set the cohort's status to leaves_off.
+                  efleaf_coh  = 0.0_r8
+                  effnrt_coh  = 1.0_r8 - fnrt_drop_fraction
+                  efstem_coh  = 1.0_r8 - stem_drop_fraction
+                  leaf_status = leaves_off
+               end select
             case (ihard_stress_decid, isemi_stress_decid)
+               ! If the plant is drought deciduous, make sure leaf status is consistent with the
+               ! leaf elongation factor.
+               ! For tissues other than leaves, the actual drop fraction is a combination of the
+               ! elongation factor (e) and the drop fraction (x), which will ensure that the remaining
+               ! tissue biomass will be exactly e when x=1, and exactly the original biomass when x = 0.
                efleaf_coh = currentSite%elong_factor(ft)
                effnrt_coh = 1.0_r8 - (1.0_r8 - efleaf_coh)*fnrt_drop_fraction
                efstem_coh = 1.0_r8 - (1.0_r8 - efleaf_coh)*stem_drop_fraction

@@ -60,6 +60,7 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : leaves_on
   use FatesConstantsMod   , only : leaves_off
   use FatesConstantsMod   , only : leaves_shedding
+  use FatesConstantsMod   , only : ihard_season_decid
   use FatesConstantsMod   , only : ihard_stress_decid
   use FatesConstantsMod   , only : isemi_stress_decid
 
@@ -433,10 +434,10 @@ module PRTAllometricCarbonMod
     elongf_fnrt  = this%bc_in(ac_bc_in_id_effnrt)%rval
     elongf_stem  = this%bc_in(ac_bc_in_id_efstem)%rval
     !--- Set some logical flags to simplify "if" blocks
-    is_hydecid_dormant = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
+    is_hydecid_dormant = any( prt_params%phen_leaf_habit(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
                          .and. any(leaf_status == [leaves_off,leaves_shedding] )
-    is_deciduous       = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
-                         .or. ( prt_params%season_decid(ipft) == itrue )
+    is_deciduous       = &
+       any( prt_params%phen_leaf_habit(ipft) == [ihard_season_decid,ihard_stress_decid,isemi_stress_decid] )
 
     nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
 
