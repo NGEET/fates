@@ -376,7 +376,9 @@ contains
        if(this%c_index == this%def_type%n_mem) then
           this%l_mean    = this%c_mean
           this%c_mean    = 0._r8
+          this%l_minimum = this%c_minimum
           this%c_minimum = fates_huge
+          this%l_maximum = this%c_maximum
           this%c_maximum = -fates_huge
           this%c_index = 0
        end if
