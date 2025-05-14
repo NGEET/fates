@@ -173,7 +173,7 @@ contains
 
     !  (Keeping as an example)
     !! allocate(newCohort%tveg_lpa)
-    !! call newCohort%tveg_lpa%InitRMean(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
+    !! call newCohort%tveg_lpa%InitRSumm(ema_lpa,init_value=patchptr%tveg_lpa%GetMean())
 
     if (hlm_use_planthydro .eq. itrue) then
 

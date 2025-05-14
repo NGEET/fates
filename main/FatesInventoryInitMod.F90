@@ -71,7 +71,7 @@ module FatesInventoryInitMod
    use PRTGenericMod,       only : phosphorus_element
    use PRTGenericMod,       only : SetState
    use FatesConstantsMod,   only : primaryland
-   use FatesRunningMeanMod, only : ema_lpa
+   use FatesRunningSummMod, only : ema_lpa
    use PRTGenericMod,       only : StorageNutrientTarget
    use FatesConstantsMod,   only : fates_unset_int
    use EDCanopyStructureMod, only : canopy_summarization, canopy_structure
@@ -1040,7 +1040,7 @@ contains
          !  (Keeping as an example)
          ! Allocate running mean functions
          !allocate(temp_cohort%tveg_lpa)
-         !call temp_cohort%tveg_lpa%InitRMean(ema_lpa,init_value=cpatch%tveg_lpa%GetMean())
+         !call temp_cohort%tveg_lpa%InitRSumm(ema_lpa,init_value=cpatch%tveg_lpa%GetMean())
          
          do el = 1,num_elements
 
