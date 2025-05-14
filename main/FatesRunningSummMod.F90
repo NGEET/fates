@@ -342,9 +342,9 @@ contains
   subroutine UpdateRSumm(this, new_value)
     ! Sub-routine that updates the running summary metrics.
 
-    class(rsumm_type) :: this
-    real(r8)          :: new_value   ! The newest value added to the running mean
-    real(r8)          :: wgt
+    class(rsumm_type)    :: this
+    real(r8), intent(in) :: new_value   ! The newest value added to the running mean
+    real(r8)             :: wgt
     
     select case (this%def_type%method)
     case (moving_ema_window)
