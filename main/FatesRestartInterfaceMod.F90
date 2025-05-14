@@ -1575,7 +1575,8 @@ contains
 
    call this%set_restart_var(vname='fates_disturbance_rates',vtype=cohort_r8, &
         long_name='disturbance rates by donor land-use type, receiver land-use type, and disturbance type', &
-        units='1/day', initialize=initialize_variables,ivar=ivar, index = ir_disturbance_rates_siluludi)
+        units='1/day', flushval = flushzero, &
+        hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_disturbance_rates_siluludi)
 
    if ( hlm_regeneration_model == TRS_regeneration ) then
       
@@ -2599,7 +2600,7 @@ contains
 
              io_idx_pa_pft  = io_idx_co_1st
              do i_pft = 1, numpft
-                call this%SetRSummRestartVar(cpatch%btran24(i_pft)%p, ir_btran24_pa_pft,io_idx_pa_pft)
+                call this%SetRSummRestartVar(cpatch%btran24_ft(i_pft)%p, ir_btran24_pa_pft,io_idx_pa_pft)
                 io_idx_pa_pft = io_idx_pa_pft + 1
              end do
 
@@ -3591,7 +3592,7 @@ contains
              ! Daily summary for btran
              io_idx_pa_pft  = io_idx_co_1st
              do pft = 1, numpft 
-                call this%GetRSummRestartVar(cpatch%btran24(pft)%p, ir_btran24_pa_pft, io_idx_pa_pft)
+                call this%GetRSummRestartVar(cpatch%btran24_ft(pft)%p, ir_btran24_pa_pft, io_idx_pa_pft)
                 io_idx_pa_pft      = io_idx_pa_pft + 1
              enddo
 

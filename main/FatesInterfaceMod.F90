@@ -179,7 +179,7 @@ module FatesInterfaceMod
    public :: set_bcpconst
    public :: zero_bcs
    public :: set_bcs
-   public :: UpdateFatesRSummTStep
+   public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
 
    private :: FatesReadParameters
@@ -2231,7 +2231,7 @@ contains
 
    ! =====================================================================================
 
-   subroutine UpdateFatesRSummTStep(sites,bc_in, bc_out)
+   subroutine UpdateFatesRMeansTStep(sites,bc_in, bc_out)
 
      ! In this routine, we update any FATES buffers where
      ! we calculate running summaries. It is assumed that this buffer is updated
@@ -2272,7 +2272,7 @@ contains
 
            ! Update btran
            do pft = 1, numpft
-              call cpatch%btran24(pft)%UpdateRSumm(cpatch%btran_ft(pft))
+              call cpatch%btran24_ft(pft)%p%UpdateRSumm(cpatch%btran_ft(pft))
            end do
 
 
@@ -2349,7 +2349,7 @@ contains
   end do
 
   return
-end subroutine UpdateFatesRSummTStep
+end subroutine UpdateFatesRMeansTStep
 
 ! ========================================================================================
 

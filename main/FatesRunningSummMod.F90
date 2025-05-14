@@ -194,7 +194,7 @@ contains
        write(fates_log(), *) 'that is integrated using exponential moving averages.'
        call endrun(msg=errMsg(sourcefile, __LINE__))
 
-    case (fixed_value)
+    case (fixed_window)
        GetMin = this%l_minimum
     end select
 
@@ -215,7 +215,7 @@ contains
        write(fates_log(), *) 'that is integrated using exponential moving averages.'
        call endrun(msg=errMsg(sourcefile, __LINE__))
 
-    case (fixed_value)
+    case (fixed_window)
        GetMax = this%l_maximum
     end select
 

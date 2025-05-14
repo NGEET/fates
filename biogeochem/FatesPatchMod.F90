@@ -12,7 +12,7 @@ module FatesPatchMod
   use FatesUtilsMod,          only : check_hlm_list
   use FatesUtilsMod,          only : check_var_real
   use FatesCohortMod,         only : fates_cohort_type
-  use FatesRunningMeanMod,    only : rsumm_type, rsumm_arr_type
+  use FatesRunningSummMod,    only : rsumm_type, rsumm_arr_type
   use FatesLitterMod,         only : litter_type
   use FatesFuelMod,           only : fuel_type
   use PRTGenericMod,          only : num_elements
@@ -81,7 +81,7 @@ module FatesPatchMod
                                                            !   leaf photosynthesis acclimation timescale [K]
     class(rsumm_type),     pointer :: tveg_longterm        ! long-term running mean of vegetation temperature at the
                                                            !   leaf photosynthesis acclimation timescale [K] (i.e T_home)
-    class(rsumm_arr_type), pointer :: btran24(:)           ! 24-hour summary of transpiration wetness factor (aka btran)
+    class(rsumm_arr_type), pointer :: btran24_ft(:)        ! 24-hour summary of transpiration wetness factor (aka btran)
     class(rsumm_type),     pointer :: seedling_layer_par24 ! 24-hour summary of photosynthetically active radiation at seedling layer [W/m2]
     class(rsumm_arr_type), pointer :: sdlng_emerg_smp(:)   ! running mean of soil matric potential at the seedling
                                                            !   rooting depth at the H2O seedling emergence timescale (see sdlng_emerg_h2o_timescale parameter)
@@ -622,7 +622,7 @@ module FatesPatchMod
       allocate(this%tveg24)
       allocate(this%tveg_lpa)
       allocate(this%tveg_longterm)
-      allocate(this%btran24(numpft))
+      allocate(this%btran24_ft(numpft))
 
       ! set initial values for running summaries
       call this%tveg24%InitRSumm(fixed_24hr, init_value=temp_init_veg,         &
@@ -631,9 +631,9 @@ module FatesPatchMod
       call this%tveg_longterm%InitRSumm(ema_longterm, init_value=temp_init_veg)
 
       do pft = 1,numpft
-         allocate(this%btran24(pft)%p)
+         allocate(this%btran24_ft(pft)%p)
 
-         call this%btran24(pft)%p%InitRSumm(fixed_24hr,init_value=init_btran, &
+         call this%btran24_ft(pft)%p%InitRSumm(fixed_24hr,init_value=init_btran, &
             init_offset=real(current_tod, r8))
       end do
 
@@ -940,9 +940,9 @@ module FatesPatchMod
       endif
 
       do pft = 1, numpft 
-         deallocate(this%btran24(pft)%p)
+         deallocate(this%btran24_ft(pft)%p)
       end do 
-      deallocate(this%btran24)
+      deallocate(this%btran24_ft)
 
 
       if (regeneration_model == TRS_regeneration) then 

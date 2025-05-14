@@ -3188,7 +3188,7 @@ contains
     call rp%tveg_lpa%FuseRSumm(dp%tveg_lpa,rp%area*inv_sum_area)
 
     do pft = 1,numpft
-       call rp%btran24(pft)%p%FuseRSumm(dp%btran(pft)%p,rp%area*inv_sum_area)
+       call rp%btran24_ft(pft)%p%FuseRSumm(dp%btran24_ft(pft)%p,rp%area*inv_sum_area)
     enddo
 
 
@@ -3817,7 +3817,7 @@ contains
     call rp%tveg_longterm%CopyFromDonor(dp%tveg_longterm)
 
     do ipft = 1,numpft
-       call rp%btran24(ipft)%p%CopyFromDonor(dp%btran24(ipft)%p)
+       call rp%btran24_ft(ipft)%p%CopyFromDonor(dp%btran24_ft(ipft)%p)
     end do
 
     if ( hlm_regeneration_model == TRS_regeneration ) then
