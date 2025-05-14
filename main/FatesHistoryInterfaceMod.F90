@@ -630,6 +630,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_site_dstatus_si_pft
   integer :: ih_dleafoff_si_pft
   integer :: ih_dleafon_si_pft
+  integer :: ih_minbtran24_si_pft
   integer :: ih_meanliqvol_si_pft
   integer :: ih_meansmp_si_pft
   integer :: ih_elong_factor_si_pft
@@ -3266,6 +3267,7 @@ contains
         associate( hio_site_dstatus_si_pft              => this%hvars(ih_site_dstatus_si_pft)%r82d, &
              hio_dleafoff_si_pft                  => this%hvars(ih_dleafoff_si_pft)%r82d, &
              hio_dleafon_si_pft                   => this%hvars(ih_dleafon_si_pft)%r82d, &
+             hio_minbtran24_si_pft                => this%hvars(ih_minbtran24_si_pft)%r82d, &
              hio_meanliqvol_si_pft                => this%hvars(ih_meanliqvol_si_pft)%r82d, &
              hio_meansmp_si_pft                   => this%hvars(ih_meansmp_si_pft)%r82d, &
              hio_elong_factor_si_pft              => this%hvars(ih_elong_factor_si_pft)%r82d, &
@@ -3422,6 +3424,10 @@ contains
                            cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
                    endif
 
+
+                   ! 24hr minimum btran
+                   hio_minbtran24_si_pft(io_si,ft) = hio_minbtran24_si_pft(io_si,ft) + &
+                      cpatch%btran24(ft)%GetMin() * cpatch%area * AREA_INV
                 end do
 
                 ! loop through cohorts on patch
@@ -7085,6 +7091,13 @@ contains
                use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                    &
                index=ih_dleafon_si_pft)
+
+          call this%set_history_var(vname='FATES_MINBTRAN24_PF',                        &
+               units='1',                                                               &
+               long='PFT-level daily minimum transpiration wetness factor (btran)',     &
+               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                    &
+               index=ih_minbtran24_si_pft)
 
           call this%set_history_var(vname='FATES_MEANLIQVOL_DROUGHTPHEN_PF',            &
                units='m3 m-3',                                                          &
