@@ -46,7 +46,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : SeedUpdate
   use EDPhysiologyMod          , only : ZeroAllocationRates
   use EDPhysiologyMod          , only : ZeroLitterFluxes
-  use EDPhysiologyMod          , only : ZeroBCOutFluxes
+  use EDPhysiologyMod          , only : ZeroBCOutCarbonFluxes
   use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceIntegrateLitter
   use EDPhysiologyMod          , only : UpdateRecruitL2FR
@@ -191,8 +191,8 @@ contains
     ! Zero fluxes in and out of litter pools
     call ZeroLitterFluxes(currentSite)
 
-    ! Zero diagnostic bc_out fluxes
-    call ZeroBCOutFluxes(bc_out)
+    ! Zero diagnostic bc_out carbon fluxes
+    call ZeroBCOutCarbonFluxes(bc_out)
 
     ! Zero mass balance
     call TotalBalanceCheck(currentSite, 0)
