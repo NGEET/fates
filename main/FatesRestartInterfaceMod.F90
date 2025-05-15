@@ -51,8 +51,8 @@ module FatesRestartInterfaceMod
   use EDParamsMod,             only : nlevleaf
   use PRTGenericMod,           only : prt_global
   use PRTGenericMod,           only : num_elements
-  use FatesRunningMeanMod,     only : rmean_type
-  use FatesRunningMeanMod,     only : ema_lpa
+  use FatesRunningSummMod,     only : rsumm_type
+  use FatesRunningSummMod,     only : ema_lpa
   use FatesRadiationMemMod,    only : num_swb,norman_solver,twostr_solver
   use TwoStreamMLPEMod,        only : normalized_upper_boundary
   use FatesConstantsMod,       only : n_term_mort_types
@@ -215,6 +215,8 @@ module FatesRestartInterfaceMod
 
   integer :: ir_scorch_ht_pa_pft
   integer :: ir_litter_moisture_pa_nfsc
+
+  integer :: ir_btran24_pa_pft
 
   ! Site level
   integer :: ir_phen_status_sift
@@ -386,9 +388,9 @@ module FatesRestartInterfaceMod
      procedure, private :: GetCohortRealVector
      procedure, private :: SetCohortRealVector
      procedure, private :: RegisterCohortVector
-     procedure, private :: DefineRMeanRestartVar
-     procedure, private :: GetRMeanRestartVar
-     procedure, private :: SetRMeanRestartVar
+     procedure, private :: DefineRSummRestartVar
+     procedure, private :: GetRSummRestartVar
+     procedure, private :: SetRSummRestartVar
   end type fates_restart_interface_type
 
 
@@ -1018,7 +1020,10 @@ contains
             long_name='scorch height', units='m', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_litter_moisture_pa_nfsc)
     end if
-    
+
+    call this%DefineRSummRestartVar(vname='fates_btran24_pa_pft',vtype=cohort_r8, &
+         long_name='24-hour patch transpiration wetness factor', &
+         units='1', initialize=initialize_variables,ivar=ivar, index = ir_btran24_pa_pft)
 
     call this%RegisterCohortVector(symbol_base='fates_year_net_up', vtype=cohort_r8, &
          long_name_base='yearly net uptake at leaf layers',  &
@@ -1539,48 +1544,49 @@ contains
          units='kg/m2/yr', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_emanpp_si)
     
-   call this%DefineRMeanRestartVar(vname='fates_tveg24patch',vtype=cohort_r8, &
+   call this%DefineRSummRestartVar(vname='fates_tveg24patch',vtype=cohort_r8, &
         long_name='24-hour patch veg temp', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveg24_pa)
 
-   call this%DefineRMeanRestartVar(vname='fates_disturbance_rates',vtype=cohort_r8, &
+   call this%set_restart_var(vname='fates_disturbance_rates',vtype=cohort_r8, &
         long_name='disturbance rates by donor land-use type, receiver land-use type, and disturbance type', &
-        units='1/day', initialize=initialize_variables,ivar=ivar, index = ir_disturbance_rates_siluludi)
+        units='1/day', flushval = flushzero, &
+        hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_disturbance_rates_siluludi)
 
    if ( hlm_regeneration_model == TRS_regeneration ) then
       
-      call this%DefineRMeanRestartVar(vname='fates_seedling_layer_par24',vtype=cohort_r8, &
+      call this%DefineRSummRestartVar(vname='fates_seedling_layer_par24',vtype=cohort_r8, &
            long_name='24-hour seedling layer PAR', &
            units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_seedling_layer_par24_pa)
       
-      call this%DefineRMeanRestartVar(vname='fates_sdlng_emerg_smp',vtype=cohort_r8, &
+      call this%DefineRSummRestartVar(vname='fates_sdlng_emerg_smp',vtype=cohort_r8, &
            long_name='seedling layer PAR on the seedling emergence timescale', &
            units='mm suction', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_emerg_smp_pa)
       
-      call this%DefineRMeanRestartVar(vname='fates_sdlng_mort_par',vtype=cohort_r8, &
+      call this%DefineRSummRestartVar(vname='fates_sdlng_mort_par',vtype=cohort_r8, &
            long_name='seedling layer PAR on the seedling mortality timescale', &
            units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_mort_par_pa)
       
-      call this%DefineRMeanRestartVar(vname='fates_sdlng2sap_par',vtype=cohort_r8, &
+      call this%DefineRSummRestartVar(vname='fates_sdlng2sap_par',vtype=cohort_r8, &
            long_name='seedling layer PAR on the seedling to sapling transition timescale', &
            units='W m2-1', initialize=initialize_variables,ivar=ivar, index = ir_sdlng2sap_par_pa)
       
-      call this%DefineRMeanRestartVar(vname='fates_sdlng_mdd',vtype=cohort_r8, &
+      call this%DefineRSummRestartVar(vname='fates_sdlng_mdd',vtype=cohort_r8, &
            long_name='seedling moisture deficit days', &
            units='mm days', initialize=initialize_variables,ivar=ivar, index = ir_sdlng_mdd_pa)
 
    end if
       
-   call this%DefineRMeanRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
+   call this%DefineRSummRestartVar(vname='fates_tveglpapatch',vtype=cohort_r8, &
         long_name='running average (EMA) of patch veg temp for photo acclim', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_pa)
 
-   call this%DefineRMeanRestartVar(vname='fates_tveglongtermpatch',vtype=cohort_r8, &
+   call this%DefineRSummRestartVar(vname='fates_tveglongtermpatch',vtype=cohort_r8, &
         long_name='long-term (T_home) running average (EMA) of patch veg temp for photo acclim', &
         units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglongterm_pa)
 
    !  (Keeping as an example)
-   !call this%DefineRMeanRestartVar(vname='fates_tveglpacohort',vtype=cohort_r8, &
+   !call this%DefineRSummRestartVar(vname='fates_tveglpacohort',vtype=cohort_r8, &
    !     long_name='running average (EMA) of cohort veg temp for photo acclim', &
    !     units='K', initialize=initialize_variables,ivar=ivar, index = ir_tveglpa_co)
    
@@ -1599,7 +1605,7 @@ contains
 
  ! =====================================================================================
  
- subroutine DefineRMeanRestartVar(this,vname,vtype,long_name,units,initialize,ivar,index)
+ subroutine DefineRSummRestartVar(this,vname,vtype,long_name,units,initialize,ivar,index)
 
    class(fates_restart_interface_type) :: this
    character(len=*),intent(in)  :: vname
@@ -1622,6 +1628,26 @@ contains
         units=units, flushval = flushzero, &
         hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = dummy_index )
    
+   call this%set_restart_var(vname= trim(vname)//'_cminimum', vtype=vtype, &
+        long_name=long_name//' current minimum', &
+        units=units, flushval = flushzero, &
+        hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = index )
+
+   call this%set_restart_var(vname= trim(vname)//'_lminimum', vtype=vtype, &
+        long_name=long_name//' latest minimum', &
+        units=units, flushval = flushzero, &
+        hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = dummy_index )
+   
+   call this%set_restart_var(vname= trim(vname)//'_cmaximum', vtype=vtype, &
+        long_name=long_name//' current maximum', &
+        units=units, flushval = flushzero, &
+        hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = index )
+
+   call this%set_restart_var(vname= trim(vname)//'_lmaximum', vtype=vtype, &
+        long_name=long_name//' latest maximum', &
+        units=units, flushval = flushzero, &
+        hlms='CLM:ALM', initialize=initialize, ivar=ivar, index = dummy_index )
+   
    call this%set_restart_var(vname= trim(vname)//'_cindex', vtype=vtype, &
         long_name=long_name//' index', &
         units='index', flushval = flushzero, &
@@ -1629,15 +1655,15 @@ contains
 
    
    return
- end subroutine DefineRMeanRestartVar
+ end subroutine DefineRSummRestartVar
 
 
  ! =====================================================================================
   
-  subroutine GetRMeanRestartVar(this, rmean_var, ir_var_index, position_index)
+  subroutine GetRSummRestartVar(this, rsumm_var, ir_var_index, position_index)
     
     class(fates_restart_interface_type) , intent(inout) :: this
-    class(rmean_type), intent(inout) :: rmean_var
+    class(rsumm_type), intent(inout) :: rsumm_var
 
     integer,intent(in)     :: ir_var_index
     integer,intent(in)     :: position_index
@@ -1646,21 +1672,29 @@ contains
     integer :: ir_pos_var         ! global variable index
 
 
-    rmean_var%c_mean  = this%rvars(ir_var_index)%r81d(position_index)
+    rsumm_var%c_mean  = this%rvars(ir_var_index)%r81d(position_index)
      
-    rmean_var%l_mean  = this%rvars(ir_var_index+1)%r81d(position_index)
+    rsumm_var%l_mean  = this%rvars(ir_var_index+1)%r81d(position_index)
     
-    rmean_var%c_index = nint(this%rvars(ir_var_index+2)%r81d(position_index))
+    rsumm_var%c_minimum  = this%rvars(ir_var_index+2)%r81d(position_index)
+     
+    rsumm_var%l_minimum  = this%rvars(ir_var_index+3)%r81d(position_index)
+    
+    rsumm_var%c_maximum  = this%rvars(ir_var_index+4)%r81d(position_index)
+     
+    rsumm_var%l_maximum  = this%rvars(ir_var_index+5)%r81d(position_index)
+    
+    rsumm_var%c_index = nint(this%rvars(ir_var_index+6)%r81d(position_index))
     
     return
-  end subroutine GetRMeanRestartVar
+  end subroutine GetRSummRestartVar
 
   ! =======================================================================================
   
-  subroutine SetRMeanRestartVar(this, rmean_var, ir_var_index, position_index)
+  subroutine SetRSummRestartVar(this, rsumm_var, ir_var_index, position_index)
     
     class(fates_restart_interface_type) , intent(inout) :: this
-    class(rmean_type), intent(inout) :: rmean_var
+    class(rsumm_type), intent(inout) :: rsumm_var
 
     integer,intent(in)     :: ir_var_index
     integer,intent(in)     :: position_index
@@ -1668,14 +1702,22 @@ contains
     integer :: i_pos              ! vector position loop index
     integer :: ir_pos_var         ! global variable index
 
-    this%rvars(ir_var_index)%r81d(position_index) = rmean_var%c_mean
-     
-    this%rvars(ir_var_index+1)%r81d(position_index) = rmean_var%l_mean
-    
-    this%rvars(ir_var_index+2)%r81d(position_index) = real(rmean_var%c_index,r8)
+    this%rvars(ir_var_index)%r81d(position_index) = rsumm_var%c_mean
+
+    this%rvars(ir_var_index+1)%r81d(position_index) = rsumm_var%l_mean
+
+    this%rvars(ir_var_index+2)%r81d(position_index) = rsumm_var%c_minimum
+
+    this%rvars(ir_var_index+3)%r81d(position_index) = rsumm_var%l_minimum
+
+    this%rvars(ir_var_index+4)%r81d(position_index) = rsumm_var%c_maximum
+
+    this%rvars(ir_var_index+5)%r81d(position_index) = rsumm_var%l_maximum
+
+    this%rvars(ir_var_index+6)%r81d(position_index) = real(rsumm_var%c_index,r8)
     
     return
-  end subroutine SetRMeanRestartVar
+  end subroutine SetRSummRestartVar
 
  ! =====================================================================================
 
@@ -2508,7 +2550,7 @@ contains
                 endif
 
                 !  (Keeping as an example)
-                ! call this%SetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
+                ! call this%SetRSummRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
 
                 io_idx_co = io_idx_co + 1
 
@@ -2526,19 +2568,25 @@ contains
              rio_nocomp_pft_label_pa(io_idx_co_1st)= cpatch%nocomp_pft_label
              rio_area_pa(io_idx_co_1st)        = cpatch%area
 
-             ! Patch level running means
-             call this%SetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
-             call this%SetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
-             call this%SetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
+             ! Patch level running summaries
+             call this%SetRSummRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
+             call this%SetRSummRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
+             call this%SetRSummRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
+
+             io_idx_pa_pft  = io_idx_co_1st
+             do i_pft = 1, numpft
+                call this%SetRSummRestartVar(cpatch%btran24_ft(i_pft)%p, ir_btran24_pa_pft,io_idx_pa_pft)
+                io_idx_pa_pft = io_idx_pa_pft + 1
+             end do
 
              if ( hlm_regeneration_model == TRS_regeneration ) then
-                call this%SetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
-                call this%SetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
-                call this%SetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
+                call this%SetRSummRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
+                call this%SetRSummRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
+                call this%SetRSummRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
                 io_idx_pa_pft  = io_idx_co_1st
                 do i_pft = 1, numpft
-                   call this%SetRMeanRestartVar(cpatch%sdlng_mdd(i_pft)%p, ir_sdlng_mdd_pa,io_idx_pa_pft) 
-                   call this%SetRMeanRestartVar(cpatch%sdlng_emerg_smp(i_pft)%p, ir_sdlng_emerg_smp_pa,io_idx_pa_pft)
+                   call this%SetRSummRestartVar(cpatch%sdlng_mdd(i_pft)%p, ir_sdlng_mdd_pa,io_idx_pa_pft) 
+                   call this%SetRSummRestartVar(cpatch%sdlng_emerg_smp(i_pft)%p, ir_sdlng_emerg_smp_pa,io_idx_pa_pft)
                    io_idx_pa_pft      = io_idx_pa_pft + 1
                 enddo
              end if
@@ -2927,7 +2975,7 @@ contains
                 !  (Keeping as an example)
                 ! Allocate running mean functions
                 !allocate(new_cohort%tveg_lpa)
-                !call new_cohort%tveg_lpa%InitRMean(ema_lpa)
+                !call new_cohort%tveg_lpa%InitRSumm(ema_lpa)
 
                 
                 ! Update the previous
@@ -3467,7 +3515,7 @@ contains
                 end if
 
                 !  (Keeping as an example)
-                !call this%GetRMeanRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
+                !call this%GetRSummRestartVar(ccohort%tveg_lpa, ir_tveglpa_co, io_idx_co)
                 
                 ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
                 ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
@@ -3502,18 +3550,25 @@ contains
              cpatch%ncl_p = this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st)
              cpatch%zstar = this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st)
 
-             call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
-             call this%GetRMeanRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
-             call this%GetRMeanRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
+             call this%GetRSummRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)
+             call this%GetRSummRestartVar(cpatch%tveg_lpa, ir_tveglpa_pa, io_idx_co_1st)
+             call this%GetRSummRestartVar(cpatch%tveg_longterm, ir_tveglongterm_pa, io_idx_co_1st)
+
+             ! Daily summary for btran
+             io_idx_pa_pft  = io_idx_co_1st
+             do pft = 1, numpft 
+                call this%GetRSummRestartVar(cpatch%btran24_ft(pft)%p, ir_btran24_pa_pft, io_idx_pa_pft)
+                io_idx_pa_pft      = io_idx_pa_pft + 1
+             enddo
 
              if ( hlm_regeneration_model == TRS_regeneration ) then
-                call this%GetRMeanRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
-                call this%GetRMeanRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
-                call this%GetRMeanRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
+                call this%GetRSummRestartVar(cpatch%seedling_layer_par24, ir_seedling_layer_par24_pa, io_idx_co_1st)
+                call this%GetRSummRestartVar(cpatch%sdlng_mort_par, ir_sdlng_mort_par_pa,io_idx_co_1st)
+                call this%GetRSummRestartVar(cpatch%sdlng2sap_par, ir_sdlng2sap_par_pa,io_idx_co_1st)
                 io_idx_pa_pft  = io_idx_co_1st
                 do pft = 1, numpft 
-                   call this%GetRMeanRestartVar(cpatch%sdlng_mdd(pft)%p, ir_sdlng_mdd_pa,io_idx_pa_pft)
-                   call this%GetRMeanRestartVar(cpatch%sdlng_emerg_smp(pft)%p, ir_sdlng_emerg_smp_pa,io_idx_pa_pft)
+                   call this%GetRSummRestartVar(cpatch%sdlng_mdd(pft)%p, ir_sdlng_mdd_pa,io_idx_pa_pft)
+                   call this%GetRSummRestartVar(cpatch%sdlng_emerg_smp(pft)%p, ir_sdlng_emerg_smp_pa,io_idx_pa_pft)
                    io_idx_pa_pft      = io_idx_pa_pft + 1
                 enddo
              end if

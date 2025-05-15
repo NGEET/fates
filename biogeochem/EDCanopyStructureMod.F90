@@ -689,7 +689,7 @@ contains
                 !!allocate(copyc%l2fr_ema)
                 !  Note, no need to give a starter value here,
                 !  that will be taken care of in copy()
-                !!call copyc%l2fr_ema%InitRMean(ema_60day)
+                !!call copyc%l2fr_ema%InitRSumm(ema_60day)
                      
                 ! Initialize the PARTEH object and point to the
                 ! correct boundary condition fields
@@ -1157,7 +1157,7 @@ contains
                    !!allocate(copyc%l2fr_ema)
                    ! Note, no need to give a starter value here,
                    ! that will be taken care of in copy()
-                   !!call copyc%l2fr_ema%InitRMean(ema_60day)
+                   !!call copyc%l2fr_ema%InitRSumm(ema_60day)
                    
                    ! Initialize the PARTEH object and point to the
                    ! correct boundary condition fields
@@ -1172,7 +1172,7 @@ contains
                    ! (keep as an example)
                    ! Initialize running means
                    !allocate(copyc%tveg_lpa)
-                   !call copyc%tveg_lpa%InitRMean(ema_lpa,&
+                   !call copyc%tveg_lpa%InitRSumm(ema_lpa,&
                    !     init_value=currentPatch%tveg_lpa%GetMean())
                    
                    call currentCohort%Copy(copyc) !makes an identical copy...

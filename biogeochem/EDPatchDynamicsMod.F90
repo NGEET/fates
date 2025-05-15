@@ -106,9 +106,9 @@ module EDPatchDynamicsMod
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
   use EDParamsMod,            only : maxpatches_by_landuse
-  use FatesRunningMeanMod,    only : ema_sdlng_mdd
-  use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
-  use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
+  use FatesRunningSummMod,    only : ema_sdlng_mdd
+  use FatesRunningSummMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
+  use FatesRunningSummMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
   use FatesRadiationMemMod,   only : num_swb
 
   ! CIME globals
@@ -808,7 +808,7 @@ contains
                                !  (Keeping as an example)
                                ! Allocate running mean functions
                                !allocate(nc%tveg_lpa)
-                               !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=newPatch%tveg_lpa%GetMean())
+                               !call nc%tveg_lpa%InitRSumm(ema_lpa,init_value=newPatch%tveg_lpa%GetMean())
 
                                call nc%ZeroValues()
 
@@ -1701,7 +1701,7 @@ contains
        !  (Keeping as an example)
        ! Allocate running mean functions
        !allocate(nc%tveg_lpa)
-       !call nc%tveg_lpa%InitRMean(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
+       !call nc%tveg_lpa%InitRSumm(ema_lpa,init_value=new_patch%tveg_lpa%GetMean())
 
        call nc%ZeroValues()
 
@@ -3183,21 +3183,26 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     endif
 
-    ! Weighted mean of the running means
-    call rp%tveg24%FuseRMean(dp%tveg24,rp%area*inv_sum_area)
-    call rp%tveg_lpa%FuseRMean(dp%tveg_lpa,rp%area*inv_sum_area)
+    ! Weighted mean of the running summaries
+    call rp%tveg24%FuseRSumm(dp%tveg24,rp%area*inv_sum_area)
+    call rp%tveg_lpa%FuseRSumm(dp%tveg_lpa,rp%area*inv_sum_area)
+
+    do pft = 1,numpft
+       call rp%btran24_ft(pft)%p%FuseRSumm(dp%btran24_ft(pft)%p,rp%area*inv_sum_area)
+    enddo
+
 
     if ( hlm_regeneration_model == TRS_regeneration ) then
-       call rp%seedling_layer_par24%FuseRMean(dp%seedling_layer_par24,rp%area*inv_sum_area)
-       call rp%sdlng_mort_par%FuseRMean(dp%sdlng_mort_par,rp%area*inv_sum_area)
-       call rp%sdlng2sap_par%FuseRMean(dp%sdlng2sap_par,rp%area*inv_sum_area)
+       call rp%seedling_layer_par24%FuseRSumm(dp%seedling_layer_par24,rp%area*inv_sum_area)
+       call rp%sdlng_mort_par%FuseRSumm(dp%sdlng_mort_par,rp%area*inv_sum_area)
+       call rp%sdlng2sap_par%FuseRSumm(dp%sdlng2sap_par,rp%area*inv_sum_area)
        do pft = 1,numpft
-          call rp%sdlng_emerg_smp(pft)%p%FuseRMean(dp%sdlng_emerg_smp(pft)%p,rp%area*inv_sum_area)
-          call rp%sdlng_mdd(pft)%p%FuseRMean(dp%sdlng_mdd(pft)%p,rp%area*inv_sum_area)
+          call rp%sdlng_emerg_smp(pft)%p%FuseRSumm(dp%sdlng_emerg_smp(pft)%p,rp%area*inv_sum_area)
+          call rp%sdlng_mdd(pft)%p%FuseRSumm(dp%sdlng_mdd(pft)%p,rp%area*inv_sum_area)
        enddo
     end if
     
-    call rp%tveg_longterm%FuseRMean(dp%tveg_longterm,rp%area*inv_sum_area)
+    call rp%tveg_longterm%FuseRSumm(dp%tveg_longterm,rp%area*inv_sum_area)
 
     rp%livegrass               = (dp%livegrass*dp%area + rp%livegrass*rp%area) * inv_sum_area
     rp%ros_front               = (dp%ros_front*dp%area + rp%ros_front*rp%area) * inv_sum_area
@@ -3810,6 +3815,10 @@ contains
     call rp%tveg24%CopyFromDonor(dp%tveg24)
     call rp%tveg_lpa%CopyFromDonor(dp%tveg_lpa)
     call rp%tveg_longterm%CopyFromDonor(dp%tveg_longterm)
+
+    do ipft = 1,numpft
+       call rp%btran24_ft(ipft)%p%CopyFromDonor(dp%btran24_ft(ipft)%p)
+    end do
 
     if ( hlm_regeneration_model == TRS_regeneration ) then
        call rp%seedling_layer_par24%CopyFromDonor(dp%seedling_layer_par24)
