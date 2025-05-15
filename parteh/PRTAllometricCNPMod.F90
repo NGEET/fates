@@ -53,6 +53,9 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : nearzero
   use FatesConstantsMod   , only : itrue
+  use FatesConstantsMod   , only : ifalse
+  use FatesConstantsMod   , only : coupled_p_uptake
+  use FatesConstantsMod   , only : coupled_n_uptake
   use FatesConstantsMod   , only : fates_unset_r8
   use FatesConstantsMod   , only : fates_unset_int
   use FatesConstantsMod   , only : sec_per_day
