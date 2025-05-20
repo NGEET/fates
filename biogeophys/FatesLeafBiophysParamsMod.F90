@@ -114,6 +114,11 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_leaf_fnps'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    
     return
   end subroutine LeafBiophysRegisterParams
 
@@ -121,20 +126,10 @@ contains
 
   subroutine LeafBiophysReceiveParams(fates_params)
 
-    !use FatesInterfaceTypesMod, only : hlm_daylength_factor_switch
-    !use FatesInterfaceTypesMod, only : hlm_stomatal_model
-    !use FatesInterfaceTypesMod, only : hlm_stomatal_assim_model
-    !use FatesInterfaceTypesMod, only : hlm_photo_tempsens_model
-    
     class(fates_parameters_type), intent(inout) :: fates_params
     real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
     real(r8)              :: tmpscalar
     character(len=param_string_length) :: name
-
-    !lb_params%dayl_switch    = hlm_daylength_factor_switch
-    !lb_params%stomatal_model = hlm_stomatal_model
-    !lb_params%stomatal_assim_model = hlm_stomatal_assim_model
-    !lb_params%photo_tempsens_model = hlm_photo_tempsens_model
 
     name = 'fates_leaf_c3psn'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -213,6 +208,9 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=lb_params%jmaxse)
 
+    name = 'fates_leaf_fnps'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=lb_params%fnps)
 
     return
   end subroutine LeafBiophysReceiveParams
@@ -240,10 +238,12 @@ contains
        write(fates_log(),fmt_rout) 'fates_leaf_jmaxhd = ',lb_params%jmaxhd
        write(fates_log(),fmt_rout) 'fates_leaf_vcmaxse = ',lb_params%vcmaxse
        write(fates_log(),fmt_rout) 'fates_leaf_jmaxse = ',lb_params%jmaxse
-       write(fates_log(),fmt_iout) 'fates_daylength_factor_switch = ',lb_params%dayl_switch
-       write(fates_log(),fmt_iout) 'fates_leaf_stomatal_model = ',lb_params%stomatal_model
-       write(fates_log(),fmt_iout) 'fates_leaf_stomatal_assim_model = ',lb_params%stomatal_assim_model
-       write(fates_log(),fmt_iout) 'fates_leaf_photo_tempsens_model = ',lb_params%photo_tempsens_model
+       write(fates_log(),fmt_rout) 'fates_leaf_fnps = ',lb_params%fnps
+       write(fates_log(),fmt_rout) 'nl: electron_transport_model = ',lb_params%electron_transport_model
+       write(fates_log(),fmt_iout) 'nl: daylength_factor_switch = ',lb_params%dayl_switch
+       write(fates_log(),fmt_iout) 'nl: leaf_stomatal_model = ',lb_params%stomatal_model
+       write(fates_log(),fmt_iout) 'nl: leaf_stomatal_assim_model = ',lb_params%stomatal_assim_model
+       write(fates_log(),fmt_iout) 'nl: leaf_photo_tempsens_model = ',lb_params%photo_tempsens_model
        write(fates_log(),fmt_rout) 'fates_leaf_stomatal_slope_medlyn = ',lb_params%medlyn_slope
        write(fates_log(),fmt_rout) 'fates_leaf_stomatal_slope_ballberry = ',lb_params%bb_slope
        write(fates_log(),fmt_rout) 'fates_leaf_stomatal_intercept = ',lb_params%stomatal_intercept
