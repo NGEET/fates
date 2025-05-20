@@ -32,6 +32,8 @@ module FatesPatchMod
   use FatesRadiationMemMod,   only : num_rad_stream_types
   use FatesInterfaceTypesMod, only : hlm_hio_ignore_val
   use FatesInterfaceTypesMod, only : numpft
+  use FatesInterfaceTypesMod, only : bc_in_type
+  use FatesInterfaceTypesMod, only : bc_out_type
   use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,            only : errMsg => shr_log_errMsg
 
@@ -70,6 +72,11 @@ module FatesPatchMod
     type (fates_patch_type),  pointer :: younger => null()  ! pointer to next younger patch
     type (fates_cohort_vec_type), pointer :: co_scr(:)      ! Scratch vector of cohort properties
     
+    ! BC data
+    ! TODO change this to a specific bc type for incremental refactor purposes if this method is picked
+    type(bc_in_type)  :: bc_in
+    type(bc_out_type) :: bc_out
+  
     !---------------------------------------------------------------------------
 
     ! INDICES
