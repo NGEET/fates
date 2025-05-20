@@ -181,6 +181,7 @@ module FatesInterfaceMod
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
+   public :: TransferBCIn
 
    private :: FatesReadParameters
    public :: DetermineGridCellNeighbors
@@ -2675,4 +2676,36 @@ subroutine FatesReadParameters(param_reader)
 
  end subroutine FatesReadParameters
 
+! ======================================================================================
+
+ subroutine TransferBCIn(this, transfer_array)
+
+
+   type(ed_site_type), intent(inout) :: this
+   real, intent(in) :: transfer_array(:,:)
+
+   type(fates_patch_type), pointer :: currentPatch
+
+   integer :: ifp
+
+   currentPatch => this%oldest_patch
+
+   ifp = 1
+   do while associated(currentPatch)
+
+      ! Set the HLM array index - TODO import multicolumn switch
+      if (multicolumn_singlesite) ifp = currentPatch%patchno
+
+      currentPatch%bc_in%w_scalar_sisl = transfer_array(currentPatch%patchno,:)
+
+      ! TODO - if not multicolumn, all younger patches should point to older patch,
+      ! IF input is column level or higher!
+
+      currentPatch => this%younger
+   end do
+
+ end subroutine TransferBCIn
+
+
+! ======================================================================================
 end module FatesInterfaceMod
