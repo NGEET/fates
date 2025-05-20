@@ -41,7 +41,12 @@ contains
     use FatesPatchMod,      only : fates_patch_type
     use FatesCohortMod,     only : fates_cohort_type
     use FatesInterfaceTypesMod , only : bc_in_type,bc_out_type
-
+    use EDtypesMod               , only : AREA_INV
+    use clm_time_manager  , only : get_curr_days_per_year
+    use FatesConstantsMod        , only : sec_per_day
+    use FatesConstantsMod        , only : days_per_year    
+    use FatesConstantsMod        , only : g_per_kg
+    
     !
     ! !ARGUMENTS    
     integer,            intent(in)            :: nsites
@@ -57,8 +62,9 @@ contains
     integer :: c  ! clm/alm column
     integer :: s  ! ed site
     integer :: ifp ! index fates patch
+    real    :: ind_per_m2
     !----------------------------------------------------------------------
-
+    
     do s = 1, nsites
 
        ! Note: Do not attempt to accumulate or log any
@@ -66,6 +72,9 @@ contains
        ! It is likely this has not been calculated yet (ELM/CLM)
        
        cpatch => sites(s)%oldest_patch
+       bc_out(s)%npp_acc_site = 0._r8
+       bc_out(s)%npp_site = 0._r8
+       
        do while (associated(cpatch))
 
           ifp = cpatch%patchno
@@ -75,13 +84,27 @@ contains
              if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
                 ccohort => cpatch%shortest
                 do while(associated(ccohort))
-
+                   ind_per_m2 = ccohort%n * AREA_INV
                    ! Accumulate fluxes from hourly to daily values. 
                    ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
 
                    ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
                    ccohort%resp_m_acc = ccohort%resp_m_acc + ccohort%resp_m_tstep
 
+                   ! Make npp_acc variable for the site level to add to the NBP balance check
+                   ! Convert from kgC/ind to gC/m2 (i don't think there are actually time units here) 
+                   bc_out(s)%npp_acc_site = bc_out(s)%npp_acc_site + ccohort%gpp_acc - ccohort%resp_m_acc * ind_per_m2
+
+               ! Net Ecosystem Production [kgC/m2/s]. Use yesterday's growth respiration
+               ! This is taken from the NEP history variable calculation.
+               ! first add GPP-Rm and convert units from kgC/indiv/timestep to gC/m2/s
+               ! then smooth out yesterdays's calculated growth respiration and
+               ! convert units from kgC/indiv/year  to gC/m2/s. 
+                   bc_out(s)%npp_site = bc_out(s)%npp_site + (ccohort%gpp_tstep-ccohort%resp_m_tstep) &
+                        * ind_per_m2 * g_per_kg / dt_time - &
+                        (ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * &
+                        ind_per_m2 * g_per_kg / (days_per_year*sec_per_day)
+                   
                    ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
                    
                    ! weighted mean of D13C by gpp
