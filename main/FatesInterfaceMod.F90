@@ -412,6 +412,9 @@ contains
     ! Land Use realated
     fates%bc_out(s)%gpp_site = 0.0_r8
     fates%bc_out(s)%ar_site = 0.0_r8
+    fates%bc_out(s)%npp_site = 0.0_r8
+    fates%bc_out(s)%npp_acc_site = 0.0_r8
+    fates%bc_out(s)%fates_total_carbon_site = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
 

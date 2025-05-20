@@ -320,7 +320,6 @@ contains
     ! Final instantaneous mass balance check
     call TotalBalanceCheck(currentSite,5)
 
-    
   end subroutine ed_ecosystem_dynamics
 
   !-------------------------------------------------------------------------------!
@@ -642,8 +641,9 @@ contains
           bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
                AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
           bc_out%ar_site = bc_out%ar_site + (currentCohort%resp_m_acc_hold + &
-               currentCohort%resp_g_acc_hold + currentCohort%resp_excess_hold*real(hlm_days_per_year,r8) ) * & 
-               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
+               currentCohort%resp_g_acc_hold + currentCohort%resp_excess_hold) * & 
+               AREA_INV * currentCohort%n / hlm_days_per_year / sec_per_day
+
           
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
@@ -837,6 +837,11 @@ contains
     type(bc_out_type)  , intent(inout)    :: bc_out
     logical,intent(in)                    :: is_restarting ! is this called during restart read?
     !
+    real(r8) :: biomass_stock   ! total biomass   in Kg/site    
+    real(r8) :: litter_stock    ! total litter    in Kg/site
+    real(r8) :: seed_stock      ! total seed mass in Kg/site
+    real(r8) :: total_stock     ! total ED carbon in Kg/site
+
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
     !-----------------------------------------------------------------------
@@ -858,6 +863,9 @@ contains
 
     call TotalBalanceCheck(currentSite,final_check_id)
 
+    call SiteMassStock(currentSite,1,total_stock,biomass_stock,litter_stock,seed_stock)
+    bc_out%fates_total_carbon_site = total_stock
+    
     ! Update recruit L2FRs based on new canopy position
     call SetRecruitL2FR(currentSite)
     
@@ -970,7 +978,7 @@ contains
        call SiteMassStock(currentSite,el,total_stock,biomass_stock,litter_stock,seed_stock)
 
        change_in_stock = total_stock - site_mass%old_stock
-
+       
        flux_in  = site_mass%seed_in + &
                   site_mass%net_root_uptake + &
                   site_mass%gpp_acc + &
