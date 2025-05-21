@@ -25,9 +25,6 @@ module PRTParametersMod
      real(r8), allocatable :: phen_fnrt_drop_fraction(:)  !    - Abscission fraction of fine roots
      real(r8), allocatable :: phen_stem_drop_fraction(:)  !    - Abscission fraction of stems
 
-     real(r8), allocatable :: phen_fnrt_drop_fraction(:)  ! Abscission fraction of fine roots
-     real(r8), allocatable :: phen_stem_drop_fraction(:)  ! Abscission fraction of stems
-
                                                           ! The three parameters below are for the growing degree days
                                                           !    threshold function, which is modulated by the number of
                                                           !    chilling days (NCD): GDD_Thresh = a + b * exp (c * NCD)

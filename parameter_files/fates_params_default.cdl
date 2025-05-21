@@ -496,8 +496,8 @@ variables:
 		fates_phen_coldtemp:units = "degrees C" ;
 		fates_phen_coldtemp:long_name = "(Upper) daily average temperature threshold below which the day is considered cold and will count towards leaf abscission" ;
 	double fates_phen_drought_threshold(fates_pft) ;
-		fates_phen_drought_threshold:units = "m3/m3 or mm" ;
-		fates_phen_drought_threshold:long_name = "threshold for drought phenology (or lower threshold for semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
+		fates_phen_drought_threshold:units = "1 or mm" ;
+		fates_phen_drought_threshold:long_name = "threshold for drought phenology (or lower threshold for semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is water availability (btran units). If negative, the threshold is soil matric potentical (mm)" ;
 	double fates_phen_flush_fraction(fates_pft) ;
 		fates_phen_flush_fraction:units = "fraction" ;
 		fates_phen_flush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
@@ -526,8 +526,8 @@ variables:
 		fates_phen_mindayson:units = "days" ;
 		fates_phen_mindayson:long_name = "Minimum number of days that plants must remain with leaves flushed before they can abscise leaves again" ;
 	double fates_phen_moist_threshold(fates_pft) ;
-		fates_phen_moist_threshold:units = "m3/m3 or mm" ;
-		fates_phen_moist_threshold:long_name = "upper threshold for drought phenology (only for drought semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
+		fates_phen_moist_threshold:units = "1 or mm" ;
+		fates_phen_moist_threshold:long_name = "upper threshold for drought phenology (only for drought semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is water availability (btran units). If negative, the threshold is soil matric potentical (mm)" ;
 	double fates_phen_ncolddayslim(fates_pft) ;
 		fates_phen_ncolddayslim:units = "days" ;
 		fates_phen_ncolddayslim:long_name = "Minimum number of recent days below the temperature threshold that initiates temperature-driven leaf abscission" ;
@@ -1469,9 +1469,8 @@ data:
  fates_phen_coldtemp = 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 
     7.5, 7.5, 7.5, 7.5 ;
 
- fates_phen_drought_threshold = -152957.4, -152957.4, -152957.4, -152957.4, 
-    -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, 
-    -152957.4, -152957.4, -152957.4, -152957.4 ;
+ fates_phen_drought_threshold = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
+    0.2, 0.2, 0.2, 0.2, 0.2 ;
 
  fates_phen_flush_fraction = _, _, 0.5, _, 0.5, 0.5, _, 0.5, 0.5, _, 0.5, 
     0.5, 0.5, 0.5 ;
@@ -1500,9 +1499,8 @@ data:
  fates_phen_mindayson = 90, 90, 90, 90, 100, 90, 90, 100, 90, 90, 90, 90, 
     100, 100 ;
 
- fates_phen_moist_threshold = -122365.9, -122365.9, -122365.9, -122365.9, 
-    -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, 
-    -122365.9, -122365.9, -122365.9, -122365.9 ;
+ fates_phen_moist_threshold = 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 
+    0.4, 0.4, 0.4, 0.4, 0.4 ;
 
  fates_phen_ncolddayslim = 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5 ;
 

@@ -228,6 +228,7 @@ module FatesRestartInterfaceMod
   integer :: ir_ndaysleafoff_sift
   integer :: ir_gdd_sift
   integer :: ir_elong_factor_sift
+  integer :: ir_btranmem_siwmft
   integer :: ir_liqvolmem_siwmft
   integer :: ir_smpmem_siwmft
   integer :: ir_recl2fr_sipfcl
@@ -1313,13 +1314,18 @@ contains
          units='-', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_recl2fr_sipfcl)
 
+    call this%set_restart_var(vname='fates_btran_memory', vtype=cohort_r8, &
+         long_name='last 10 days of minimum transpiration wetness factor, by site x day-index x PFT', &
+         units='1', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_btranmem_siwmft )
+
     call this%set_restart_var(vname='fates_liqvol_memory', vtype=cohort_r8, &
-         long_name='last 10 days of volumetric soil water, by site x day-index', &
+         long_name='last 10 days of volumetric soil water, by site x day-index x PFT', &
          units='m3/m3', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_liqvolmem_siwmft )
 
     call this%set_restart_var(vname='fates_smp_memory', vtype=cohort_r8, &
-         long_name='last 10 days of soil matric potential, by site x day-index', &
+         long_name='last 10 days of soil matric potential, by site x day-index x PFT', &
          units='mm', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_smpmem_siwmft )
 
@@ -2188,6 +2194,7 @@ contains
            rio_ndaysleafoff_sift       => this%rvars(ir_ndaysleafoff_sift)%int1d, &
            rio_gdd_sift                => this%rvars(ir_gdd_sift)%r81d, &
            rio_elong_factor_sift       => this%rvars(ir_elong_factor_sift)%r81d, &
+           rio_btranmem_siwmft         => this%rvars(ir_btranmem_siwmft)%r81d, &
            rio_liqvolmem_siwmft        => this%rvars(ir_liqvolmem_siwmft)%r81d, &
            rio_smpmem_siwmft           => this%rvars(ir_smpmem_siwmft)%r81d, &
            rio_recl2fr_sipfcl          => this%rvars(ir_recl2fr_sipfcl)%r81d, &
@@ -2777,6 +2784,7 @@ contains
           
           do i = 1,numWaterMem ! numWaterMem currently 10
              do i_pft=1,numpft
+                rio_btranmem_siwmft ( io_idx_si_wmem ) = sites(s)%btran_memory(i,i_pft)
                 rio_liqvolmem_siwmft( io_idx_si_wmem ) = sites(s)%liqvol_memory(i,i_pft)
                 rio_smpmem_siwmft( io_idx_si_wmem ) = sites(s)%smp_memory(i,i_pft)
                 io_idx_si_wmem = io_idx_si_wmem + 1
@@ -3184,6 +3192,7 @@ contains
           rio_ndaysleafoff_sift       => this%rvars(ir_ndaysleafoff_sift)%int1d, &
           rio_gdd_sift                => this%rvars(ir_gdd_sift)%r81d, &
           rio_elong_factor_sift       => this%rvars(ir_elong_factor_sift)%r81d, &
+          rio_btranmem_siwmft         => this%rvars(ir_btranmem_siwmft)%r81d, &
           rio_liqvolmem_siwmft        => this%rvars(ir_liqvolmem_siwmft)%r81d, &
           rio_smpmem_siwmft           => this%rvars(ir_smpmem_siwmft)%r81d, &
           rio_recl2fr_sipfcl          => this%rvars(ir_recl2fr_sipfcl)%r81d, &
@@ -3695,6 +3704,7 @@ contains
           
           do i = 1,numWaterMem
              do i_pft=1,numpft
+                sites(s)%btran_memory (i,i_pft) = rio_btranmem_siwmft ( io_idx_si_wmem )
                 sites(s)%liqvol_memory(i,i_pft) = rio_liqvolmem_siwmft( io_idx_si_wmem )
                 sites(s)%smp_memory(i,i_pft) = rio_smpmem_siwmft( io_idx_si_wmem )
                 io_idx_si_wmem = io_idx_si_wmem + 1

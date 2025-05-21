@@ -917,7 +917,7 @@ contains
     integer  :: ncolddays         ! no days underneath the threshold for leaf drop
     integer  :: i_tmem            ! Loop counter for veg temp mem days
     integer  :: ipft              ! plant functional type index
-    real(r8) :: mean_10day_liqvol ! mean soil liquid volume over last 10 days [m3/m3]
+    real(r8) :: mean_10day_btran  ! mean transpitation wetness factor (btran) over last 10 days.
     real(r8) :: mean_10day_smp    ! mean soil matric potential over last 10 days [mm]
     real(r8) :: gdd_threshold     ! GDD accumulation function,
     integer  :: ncdstart          ! beginning of counting period for chilling degree days.
@@ -1102,18 +1102,18 @@ contains
 
 
        !---~---
-       !   Calculate the mean soil moisture ( liquid volume (m3/m3) and matric potential
+       !   Calculate the mean transpiration wetness factor (btran) and matric potential
        ! (mm) over the last 10 days
        !---~---
-       mean_10day_liqvol = sum(currentSite%liqvol_memory(1:numWaterMem,ipft)) / &
-                           real(numWaterMem,r8)
-       mean_10day_smp    = sum(currentSite%smp_memory   (1:numWaterMem,ipft)) / &
-                           real(numWaterMem,r8)
+       mean_10day_btran = sum(currentSite%btran_memory(1:numWaterMem,ipft)) / &
+                          real(numWaterMem,r8)
+       mean_10day_smp   = sum(currentSite%smp_memory  (1:numWaterMem,ipft)) / &
+                          real(numWaterMem,r8)
 
        ! Compare the moisture with the threshold.
        if ( phen_drought_threshold >= 0. ) then
-          ! Liquid volume in reference layer (m3/m3)
-          smoist_below_threshold = mean_10day_liqvol < phen_drought_threshold
+          ! Transpiration wetness factor (btran)
+          smoist_below_threshold = mean_10day_btran  < phen_drought_threshold
        else
           ! Soil matric potential in reference layer (mm)
           smoist_below_threshold = mean_10day_smp    < phen_drought_threshold
@@ -1415,7 +1415,7 @@ contains
           !---~---
           if (phen_drought_threshold >= 0.) then
              elongf_1st = elongf_min + (1.0_r8 - elongf_min ) * &
-                          ( mean_10day_liqvol    - phen_drought_threshold ) / &
+                          ( mean_10day_btran     - phen_drought_threshold ) / &
                           ( phen_moist_threshold - phen_drought_threshold )
           else
              elongf_1st = elongf_min + (1.0_r8 - elongf_min ) * &

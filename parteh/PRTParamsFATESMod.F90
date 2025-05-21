@@ -4,10 +4,12 @@ module PRTInitParamsFatesMod
   ! the CLM/ELM module system.
 
   use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : ifalse
   use FatesConstantsMod, only : itrue
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : years_per_day
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
+  use FatesInterfaceTypesMod, only : hlm_use_planthydro
   use PRTParametersMod,  only : prt_params
   use PRTGenericMod,     only : num_organ_types
   use PRTGenericMod,     only : leaf_organ, fnrt_organ, store_organ
@@ -33,6 +35,8 @@ module PRTInitParamsFatesMod
   use PRTGenericMod, only : StorageNutrientTarget
   use EDTypesMod,          only : init_recruit_trim
   use FatesConstantsMod,   only : ievergreen
+  use FatesConstantsMod,   only : ihard_season_decid
+  use FatesConstantsMod,   only : ihard_stress_decid
   use FatesConstantsMod,   only : isemi_stress_decid
   
   !
@@ -1173,6 +1177,9 @@ contains
      integer :: norgans         ! size of the plant organ dimension
      integer :: i, io           ! generic loop index and organ loop index
      logical :: is_hmode_fine   ! Did the height allometry pass the check?
+     logical :: risk_hf_mort_dd ! Is there a risk for drought deciduous to die of 
+                                !    hydraulic failure before abscising leaves,
+                                !    due to parameter settings?
      integer :: nerror          ! Count number of errors. If this is not
                                 !    zero by theend of the subroutine, stop 
                                 !    the run.
@@ -1265,7 +1272,25 @@ contains
         ! When using the the drought semi-deciduous phenology, we must ensure that the lower
         ! and upper thresholds are consistent (i.e., that both are based on either soil
         ! water content or soil matric potential).
-        if (prt_params%phen_leaf_habit(ipft) == isemi_stress_decid) then
+        select_phen_thresh: select case (prt_params%phen_leaf_habit(ipft))
+        case (ihard_stress_decid)
+           if ( prt_params%phen_drought_threshold(ipft) > 1._r8 ) then
+              ! In case the product of the lower and upper thresholds is negative, the
+              !    thresholds are inconsistent as both should be defined using the same 
+              !    quantity.
+              write(fates_log(),*) '---~---'
+              write(fates_log(),*) ' When using drought-deciduous phenology and a positive parameter,'
+              write(fates_log(),*) '    (water availability [btran units]) the threshold must be less'
+              write(fates_log(),*) '    than or equal to 1.'
+              write(fates_log(),*) ' PFT                          = ',ipft
+              write(fates_log(),*) ' phen_leaf_habit              = ',prt_params%phen_leaf_habit(ipft)
+              write(fates_log(),*) ' fates_phen_drought_threshold = ',prt_params%phen_drought_threshold(ipft)
+              write(fates_log(),*) '---~---'
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
+           end if
+        case (isemi_stress_decid)
            if ( prt_params%phen_drought_threshold(ipft)*prt_params%phen_moist_threshold(ipft) < 0._r8 ) then
               ! In case the product of the lower and upper thresholds is negative, the
               !    thresholds are inconsistent as both should be defined using the same 
@@ -1273,7 +1298,7 @@ contains
               write(fates_log(),*) '---~---'
               write(fates_log(),*) ' When using drought semi-deciduous phenology,'
               write(fates_log(),*) '    the moist threshold must have the same sign as'
-              write(fates_log(),*) '    the dry threshold.  Positive = soil water content [m3/m3],'
+              write(fates_log(),*) '    the dry threshold.  Positive = water availability [btran units],'
               write(fates_log(),*) '    Negative = soil matric potential [mm].'
               write(fates_log(),*) ' PFT                          = ',ipft
               write(fates_log(),*) ' phen_leaf_habit              = ',prt_params%phen_leaf_habit(ipft)
@@ -1298,11 +1323,29 @@ contains
               write(fates_log(),*) ''
               write(fates_log(),*) ''
               nerror = nerror + 1
+
+           elseif ( any([prt_params%phen_drought_threshold(ipft),prt_params%phen_moist_threshold(ipft)] > 1._r8 )) then
+              ! In case the product of the lower and upper thresholds is negative, the
+              !    thresholds are inconsistent as both should be defined using the same 
+              !    quantity.
+              write(fates_log(),*) '---~---'
+              write(fates_log(),*) ' When using drought semi-deciduous phenology and positive parameters,'
+              write(fates_log(),*) '    (water availability [btran units]) both parameters must be less'
+              write(fates_log(),*) '    than or equal to 1.'
+              write(fates_log(),*) ' PFT                          = ',ipft
+              write(fates_log(),*) ' phen_leaf_habit              = ',prt_params%phen_leaf_habit(ipft)
+              write(fates_log(),*) ' fates_phen_drought_threshold = ',prt_params%phen_drought_threshold(ipft)
+              write(fates_log(),*) ' fates_phen_moist_threshold   = ',prt_params%phen_moist_threshold  (ipft)
+              write(fates_log(),*) '---~---'
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
-        end if
+        end select select_phen_thresh
 
         ! For all deciduous PFTs, check that abscission fractions are all bounded.
-        if (prt_params%phen_leaf_habit(ipft) /= ievergreen) then
+        select_drop_frac: select case (prt_params%phen_leaf_habit(ipft))
+        case (ihard_season_decid,ihard_stress_decid,isemi_stress_decid)
            ! Check if the fraction of fine roots to be actively abscised relative to leaf abscission
            ! is bounded between 0 and 1 (exactly 0 and 1 are acceptable).
            if ( ( prt_params%phen_fnrt_drop_fraction(ipft) < 0.0_r8 ) .or. &
@@ -1349,9 +1392,94 @@ contains
               write(fates_log(),*) ''
               nerror = nerror + 1
            end if
-        end if
+        end select select_drop_frac
 
 
+        !    When using the the drought deciduous phenology, it is now deprecated to set
+        ! the parameters as negative, because it makes it really hard to coordinate with
+        ! the hydraulic failure mortality parameter. If the values are positive, we compare
+        ! the parameter against the hydraulic failure mortality thresholds and warn the user
+        ! if their parameters may lead to hydraulic failure mortality before leaf abscission.
+        ! For now these will be warnings only, but they may be escalated to errors in the 
+        ! future.
+        select_phen_hfmort: select case (prt_params%phen_leaf_habit(ipft))
+        case (ihard_stress_decid,isemi_stress_decid)
+           if_phen_deprecated: if (prt_params%phen_drought_threshold(ipft) < 0._r8) then
+              ! Negative parameter, warn the user this is now deprecated.
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) "   WARNING!"
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) " The drought phenology threshold is negative (i.e., based"
+              write(fates_log(),*) "    on soil matric potential). This setting makes coordination"
+              write(fates_log(),*) "    with hydraulic failure mortality hard, potentially result-"
+              write(fates_log(),*) "    ing in excessive hydraulic failure mortality for the"
+              write(fates_log(),*) "    following PFT. This is still allowed for back compatibility,"
+              write(fates_log(),*) "    but it is deprecated. We recommend using positive values,"
+              write(fates_log(),*) "    which sets phenology in ""btran"" units."
+              write(fates_log(),*) " "
+              write(fates_log(),*) " PFT index:   ",ipft
+              write(fates_log(),*) " phen_drought_threshold: ",prt_params%phen_drought_threshold(ipft)
+              select case (prt_params%phen_leaf_habit(ipft))
+              case (isemi_stress_decid)
+                 write(fates_log(),*) " phen_moist_threshold:   ",prt_params%phen_moist_threshold(ipft)
+              end select
+              select case (hlm_use_planthydro)
+              case (ifalse)
+                 write(fates_log(),*) " hf_sm_threshold:        ",EDPftvarcon_inst%hf_sm_threshold(ipft)
+              case (itrue)
+                 write(fates_log(),*) " hf_flc_threshold:       ",EDPftvarcon_inst%hf_flc_threshold(ipft)
+              end select
+              write(fates_log(),*) " "
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ""
+              write(fates_log(),*) ""
+           else
+              !    Check for potential parameter-driven hydraulic failure mortality for drought deciduous
+              ! plants.
+              select case (hlm_use_planthydro)
+              case (ifalse)
+                risk_hf_mort_dd = &
+                   prt_params%phen_drought_threshold(ipft) < EDPftvarcon_inst%hf_sm_threshold(ipft)
+              case (itrue)
+                risk_hf_mort_dd = &
+                   prt_params%phen_drought_threshold(ipft) < (1._r8 - EDPftvarcon_inst%hf_flc_threshold(ipft))
+              end select
+
+              if_phen_hfmort: if (risk_hf_mort_dd) then
+                 ! Positive parameter, but threshold is lower than the hydraulic failure threshold.
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) "   WARNING!"
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) " The drought phenology threshold requires drier conditions than"
+                 write(fates_log(),*) "    the hydraulic failure mortality. This will likely cause"
+                 write(fates_log(),*) "    deciduous trees to die before they can abscise leaves. If this"
+                 write(fates_log(),*) "    is not the intended behaviour, revise the parameters below."
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) " PFT index:   ",ipft
+                 write(fates_log(),*) " phen_drought_threshold: ",prt_params%phen_drought_threshold(ipft)
+                 select case (prt_params%phen_leaf_habit(ipft))
+                 case (isemi_stress_decid)
+                    write(fates_log(),*) " phen_moist_threshold:   ",prt_params%phen_moist_threshold(ipft)
+                 end select
+                 select case (hlm_use_planthydro)
+                 case (ifalse)
+                    write(fates_log(),*) " hf_sm_threshold:        ",EDPftvarcon_inst%hf_sm_threshold(ipft)
+                 case (itrue)
+                    write(fates_log(),*) " hf_flc_threshold:       ",EDPftvarcon_inst%hf_flc_threshold(ipft)
+                    write(fates_log(),*) " "
+                    write(fates_log(),*) " Note: ""hf_flc_threshold"" is fraction of LOSS of conductivity,"
+                    write(fates_log(),*) "    so the higher hydraulic the number, the less likely the plant"
+                    write(fates_log(),*) "    will experience failure mortality. Parameter"
+                    write(fates_log(),*) "    ""fates_phen_drought_threshold"" is defined in ""btran"""
+                    write(fates_log(),*) "    units, which is equivalent to 1-flc."
+                 end select
+                 write(fates_log(),*) " "
+                 write(fates_log(),*) "---~---"
+                 write(fates_log(),*) ""
+                 write(fates_log(),*) ""
+              end if if_phen_hfmort
+           end if if_phen_deprecated
+        end select select_phen_hfmort
 
 
         ! Check to see if mature and base seed allocation is greater than 1

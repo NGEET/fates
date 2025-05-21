@@ -449,6 +449,7 @@ module EDTypesMod
                                                                ! in runs that are restarted, regardless of
                                                                ! the conditions of restart
 
+     real(r8), dimension(numWaterMem,maxpft) ::  btran_memory  ! last 10 days of transpiration wetness factor (drought phenology)
      real(r8), dimension(numWaterMem,maxpft) ::  liqvol_memory ! last 10 days of soil liquid water volume (drought phenology)
      real(r8), dimension(numWaterMem,maxpft) ::  smp_memory    ! last 10 days of soil matric potential (drought phenology)
 

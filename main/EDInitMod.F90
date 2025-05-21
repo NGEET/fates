@@ -278,6 +278,7 @@ contains
     site_in%ndaysleafoff(: ) = fates_unset_int  ! days since last leaf abscission
     site_in%elong_factor(:)  = nan              ! Elongation factor (0 - full abscission; 1 - fully flushed)
 
+    site_in%btran_memory(:,:) = nan
     site_in%liqvol_memory(:,:)  = nan
     site_in%smp_memory(:,:)  = nan
     site_in%vegtemp_memory(:) = nan              ! record of last 10 days temperature for senescence model.
@@ -395,6 +396,7 @@ contains
     ! !LOCAL VARIABLES:
     integer  :: s
     real(r8) :: gdd_1st           ! First guess for growing degree days
+    real(r8) :: btranmem_1st      ! First guess for transpiration wetness factor memory
     real(r8) :: liqvolmem_1st     ! First guess for soil water content memory
     real(r8) :: smpmem_1st        ! First guess for soil matric potential memory
     real(r8) :: tempmem_1st       ! First guess for temperature memory
@@ -428,6 +430,7 @@ contains
        !    For now, we impose that deciduous plants start the simulation fully flushed,
        ! but with the possibility of switching status if needed.
        gdd_1st           = 30.0_r8 ! Assume sufficiently warm conditions
+       btranmem_1st      = 1._r8   ! Assume well watered conditions
        liqvolmem_1st     = 0.5_r8  ! Assume well watered conditions
        smpmem_1st        = 0._r8   ! Assume well watered conditions
        tempmem_1st       = 15.0_r8 ! Assume sufficiently warm conditions
@@ -487,6 +490,7 @@ contains
           !---~---
           sites(s)%phen_model_date                        = model_day_int
           sites(s)%vegtemp_memory(1:num_vegtemp_mem)      = tempmem_1st
+          sites(s)%btran_memory  (1:numWaterMem,1:numpft) = btranmem_1st
           sites(s)%liqvol_memory (1:numWaterMem,1:numpft) = liqvolmem_1st
           sites(s)%smp_memory    (1:numWaterMem,1:numpft) = smpmem_1st
           sites(s)%grow_deg_days (1:numpft)               = gdd_1st
