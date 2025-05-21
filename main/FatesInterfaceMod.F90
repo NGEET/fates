@@ -2703,10 +2703,11 @@ subroutine FatesReadParameters(param_reader)
          case('decomp_frac_moisture')
             currentPatch%bc_in%w_scalar_sisl = transfer_array(ifp,:)
 
-      ! TODO - if not multicolumn, all younger patches should point to older patch,
-      ! IF input is column level or higher!
-      ! Given this, should the patch level bc subtypes actually be pointers to the
-      ! input values instead of copies of the pointer data?
+      ! NOTE: should the patch level bc subtypes actually be pointers to the
+      ! input values instead of copies of the pointer data?  Or is not a good idea
+      ! since the HLM runs on a different time step than fates?
+      ! If these are not pointers then we really don't have a good way to avoid
+      ! memory duplicity.
 
       currentPatch => this%younger
    end do
