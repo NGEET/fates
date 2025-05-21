@@ -2708,11 +2708,13 @@ subroutine FatesReadParameters(param_reader)
 
 ! ======================================================================================
 
- subroutine TransferBCIn(this, transfer_array)
+ subroutine TransferBCIn(this, tag, transfer_array)
 
+   ! TODO - make an interface and dimensional versions of this subroutine?
 
    type(ed_site_type), intent(inout) :: this
-   real, intent(in) :: transfer_array(:,:)
+   character(len=*),   intent(in)    :: tag
+   real(r8), pointer,  intent(in)    :: transfer_array(:,:)
 
    type(fates_patch_type), pointer :: currentPatch
 
@@ -2723,13 +2725,18 @@ subroutine FatesReadParameters(param_reader)
    ifp = 1
    do while associated(currentPatch)
 
-      ! Set the HLM array index - TODO import multicolumn switch
-      if (multicolumn_singlesite) ifp = currentPatch%patchno
+      ! TODO import multicolumn switch
+      !if (multicolumn_singlesite) ifp = currentPatch%patchno
 
-      currentPatch%bc_in%w_scalar_sisl = transfer_array(currentPatch%patchno,:)
+      select case(trim(tag))
+
+         case('decomp_frac_moisture')
+            currentPatch%bc_in%w_scalar_sisl = transfer_array(ifp,:)
 
       ! TODO - if not multicolumn, all younger patches should point to older patch,
       ! IF input is column level or higher!
+      ! Given this, should the patch level bc subtypes actually be pointers to the
+      ! input values instead of copies of the pointer data?
 
       currentPatch => this%younger
    end do
