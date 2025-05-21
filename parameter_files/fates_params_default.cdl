@@ -1706,7 +1706,7 @@ data:
 
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
 
- fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
+ fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 13 ;
 
  fates_landuse_grazing_rate = 0, 0, 0, 0, 0 ;
 
