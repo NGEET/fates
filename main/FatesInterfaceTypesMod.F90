@@ -593,6 +593,13 @@ module FatesInterfaceTypesMod
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
 
+      ! Diagnostic quantities for outputting FATES patch-resolved
+      real(r8),allocatable :: lhflux_pa(:)         ! latent heat flux
+      real(r8),allocatable :: shflux_pa(:)         ! sensible heat flux
+      real(r8),allocatable :: swabs_pa(:)          ! shortwave absorbed radiation
+      real(r8),allocatable :: netlw_pa(:)          ! longwave net radiation
+      real(r8),allocatable :: t2m_pa(:)            ! 2m air temeprature
+
       ! Land use
       ! ---------------------------------------------------------------------------------
       real(r8),allocatable :: hlm_harvest_rates(:)    ! annual harvest rate per cat from hlm for a site
