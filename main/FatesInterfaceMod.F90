@@ -187,8 +187,18 @@ module FatesInterfaceMod
    public :: DetermineGridCellNeighbors
 
    logical :: debug = .false.  ! for debugging this module
-   
+
+
 contains
+
+  ! ====================================================================================
+   interface TransferBCIn(this, tag, data)
+
+      module procedure TransferBCIn_1d
+      module procedure TransferBCIn_2d
+      module procedure TransferBCIn_3d
+
+   end interface TransferBCIn
 
   ! ====================================================================================
   subroutine FatesInterfaceInit(log_unit,global_verbose)
@@ -2678,30 +2688,30 @@ subroutine FatesReadParameters(param_reader)
 
 ! ======================================================================================
 
- subroutine TransferBCIn(this, tag, transfer_array)
+ subroutine TransferBCIn_1d(this, tag, data)
 
    ! TODO - make an interface and dimensional versions of this subroutine?
 
    type(ed_site_type), intent(inout) :: this
    character(len=*),   intent(in)    :: tag
-   real(r8), pointer,  intent(in)    :: transfer_array(:,:)
+   real(r8), pointer,  intent(in)    :: data(:)
 
    type(fates_patch_type), pointer :: currentPatch
 
-   integer :: ifp
+   ! LOCAL
+   integer :: ifc  ! HLM column index
 
    currentPatch => this%oldest_patch
 
-   ifp = 1
    do while associated(currentPatch)
 
-      ! TODO import multicolumn switch
-      !if (multicolumn_singlesite) ifp = currentPatch%patchno
+      p = this%patch_map(currentPatch%patchno)
 
       select case(trim(tag))
 
-         case('decomp_frac_moisture')
-            currentPatch%bc_in%w_scalar_sisl = transfer_array(ifp,:)
+         case('leaf_area_index')
+            currentPatch%bc_in%hlm_sp_tlai = data(p)
+            ! currentPatch%bc_in%w_scalar_sisl => transfer_array(ifp,:)
 
       ! NOTE: should the patch level bc subtypes actually be pointers to the
       ! input values instead of copies of the pointer data?  Or is not a good idea
@@ -2712,7 +2722,43 @@ subroutine FatesReadParameters(param_reader)
       currentPatch => this%younger
    end do
 
- end subroutine TransferBCIn
+! ======================================================================================
+
+ subroutine TransferBCIn_2d(this, tag, data)
+
+   ! TODO - make an interface and dimensional versions of this subroutine?
+
+   type(ed_site_type), intent(inout) :: this
+   character(len=*),   intent(in)    :: tag
+   real(r8), pointer,  intent(in)    :: data(:,:)
+
+   type(fates_patch_type), pointer :: currentPatch
+
+   ! LOCAL
+   integer :: c  ! HLM column index
+
+   currentPatch => this%oldest_patch
+
+   do while associated(currentPatch)
+
+      c = this%column_map(currentPatch%patchno)
+
+      select case(trim(tag))
+
+         case('decomp_frac_moisture')
+            currentPatch%bc_in%w_scalar_sisl = data(c,:)
+            ! currentPatch%bc_in%w_scalar_sisl => transfer_array(ifp,:)
+
+      ! NOTE: should the patch level bc subtypes actually be pointers to the
+      ! input values instead of copies of the pointer data?  Or is not a good idea
+      ! since the HLM runs on a different time step than fates?
+      ! If these are not pointers then we really don't have a good way to avoid
+      ! memory duplicity.
+
+      currentPatch => this%younger
+   end do
+
+ end subroutine TransferBCIn_2d
 
 
 ! ======================================================================================
