@@ -2184,7 +2184,11 @@ contains
                 
                 ! Seed input from external sources (user param seed rain, or dispersal model)
                 ! Include both prescribed seed_suppl and seed_in dispersed from neighbouring gridcells
-                seed_in_external = seed_stoich*(currentSite%seed_in(pft)/area + EDPftvarcon_inst%seed_suppl(pft)*years_per_day) ![kg/m2/day]
+                seed_in_external = seed_stoich * currentSite%seed_in(pft)/area  ![kg/m2/day]
+                !only add external seed rain to a given PFT's nocomp patches
+                if ( (hlm_use_nocomp .eq. ifalse) .or. (hlm_use_nocomp .eq. itrue .and. currentPatch%nocomp_pft_label .eq. pft) ) then
+                   seed_in_external = seed_in_external + seed_stoich * EDPftvarcon_inst%seed_suppl(pft)*years_per_day ![kg/m2/day]
+                endif
                 litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
                 
                 ! Seeds entering externally [kg/site/day]
