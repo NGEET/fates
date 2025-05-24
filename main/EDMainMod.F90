@@ -714,7 +714,7 @@ contains
           ! (size --> heights of elements --> hydraulic path lengths -->
           ! maximum node-to-node conductances)
           if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
-             call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
+             call UpdateSizeDepPlantHydProps(currentSite,currentCohort)
              call UpdateSizeDepPlantHydStates(currentSite,currentCohort)
           end if
 

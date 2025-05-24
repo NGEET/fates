@@ -1118,7 +1118,7 @@ contains
                                    ! update hydraulics quantities that are functions of height & biomasses
                                    ! deallocate the hydro structure of nextc
                                    if (hlm_use_planthydro.eq.itrue) then
-                                      call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
+                                      call UpdateSizeDepPlantHydProps(currentSite,currentCohort)
                                    endif
 
                                    call nextc%FreeMemory()
