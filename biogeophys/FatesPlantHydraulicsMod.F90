@@ -1203,14 +1203,13 @@ end function constrain_water_contents
 
 ! =====================================================================================
 
-subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, bc_in, newn)
+subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, newn)
 
 
   type(fates_cohort_type), intent(inout), target :: currentCohort ! current cohort
   type(fates_cohort_type), intent(inout), target :: nextCohort    ! next (donor) cohort
   type(ed_site_type), intent(inout), target :: currentSite    ! current site
 
-  type(bc_in_type), intent(in)                :: bc_in
   real(r8), intent(in)                        :: newn
 
   ! !LOCAL VARIABLES:

@@ -941,7 +941,7 @@ contains
                                         currentCohort%size_class,currentCohort%size_by_pft_class)
 
                                    if(hlm_use_planthydro.eq.itrue) then
-                                      call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)
+                                      call FuseCohortHydraulics(currentSite,currentCohort,nextc,newn)
                                    endif
 
                                    ! recent canopy history
