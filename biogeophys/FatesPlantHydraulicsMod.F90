@@ -840,7 +840,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine UpdateSizeDepPlantHydProps(currentSite,ccohort,bc_in)
+  subroutine UpdateSizeDepPlantHydProps(currentSite,ccohort)
 
 
     ! DESCRIPTION: Updates absorbing root length (total and its vertical distribution)
@@ -853,7 +853,6 @@ contains
     ! ARGUMENTS:
     type(ed_site_type)     , intent(in)             :: currentSite ! Site stuff
     type(fates_cohort_type)   , intent(inout)          :: ccohort     ! current cohort pointer
-    type(bc_in_type)       , intent(in)             :: bc_in       ! Boundary Conditions
 
     ! Locals
     integer                            :: nlevrhiz             ! Number of total soil layers
@@ -1203,14 +1202,13 @@ end function constrain_water_contents
 
 ! =====================================================================================
 
-subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, bc_in, newn)
+subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, newn)
 
 
   type(fates_cohort_type), intent(inout), target :: currentCohort ! current cohort
   type(fates_cohort_type), intent(inout), target :: nextCohort    ! next (donor) cohort
   type(ed_site_type), intent(inout), target :: currentSite    ! current site
 
-  type(bc_in_type), intent(in)                :: bc_in
   real(r8), intent(in)                        :: newn
 
   ! !LOCAL VARIABLES:
