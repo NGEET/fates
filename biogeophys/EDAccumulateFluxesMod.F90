@@ -85,26 +85,34 @@ contains
                 ccohort => cpatch%shortest
                 do while(associated(ccohort))
                    ind_per_m2 = ccohort%n * AREA_INV
+
                    ! Accumulate fluxes from hourly to daily values. 
                    ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
-
                    ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
                    ccohort%resp_m_acc = ccohort%resp_m_acc + ccohort%resp_m_tstep
 
                    ! Make npp_acc variable for the site level to add to the NBP balance check
-                   ! Convert from kgC/ind to gC/m2 (i don't think there are actually time units here) 
-                   bc_out(s)%npp_acc_site = bc_out(s)%npp_acc_site + ccohort%gpp_acc - ccohort%resp_m_acc * ind_per_m2
+                   ! Convert from kgC/ind to gC/m2
+                   if(.not.ccohort%isnew)then
+                      bc_out(s)%npp_acc_site = bc_out(s)%npp_acc_site + &
+                     (ccohort%gpp_acc - ccohort%resp_m_acc) &
+                      * ind_per_m2 * g_per_kg &
+                      -(ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * & 
+                      ind_per_m2 * g_per_kg * dt_time/(days_per_year*sec_per_day)
+                      ! gresp is converted from kgC/indiv/year to gC/m2/timestep. 
+                   endif 
 
                ! Net Ecosystem Production [kgC/m2/s]. Use yesterday's growth respiration
                ! This is taken from the NEP history variable calculation.
                ! first add GPP-Rm and convert units from kgC/indiv/timestep to gC/m2/s
                ! then smooth out yesterdays's calculated growth respiration and
                ! convert units from kgC/indiv/year  to gC/m2/s. 
-                   bc_out(s)%npp_site = bc_out(s)%npp_site + (ccohort%gpp_tstep-ccohort%resp_m_tstep) &
+                  if(.not.ccohort%isnew)then
+                    bc_out(s)%npp_site = bc_out(s)%npp_site + (ccohort%gpp_tstep-ccohort%resp_m_tstep) &
                         * ind_per_m2 * g_per_kg / dt_time - &
                         (ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * &
                         ind_per_m2 * g_per_kg / (days_per_year*sec_per_day)
-                   
+                  endif
                    ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
                    
                    ! weighted mean of D13C by gpp
@@ -130,7 +138,8 @@ contains
 
           cpatch => cpatch%younger
        end do  ! while(associated(cpatch))
-    end do
+
+   end do
     return
 
   end subroutine AccumulateFluxes_ED
