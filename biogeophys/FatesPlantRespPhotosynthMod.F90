@@ -216,11 +216,8 @@ contains
     real(r8) :: lnc_top                          ! Leaf nitrogen content per unit area at canopy top [gN/m2]
     real(r8) :: lmr25top                         ! canopy top leaf maint resp rate at 25C 
                                                  ! for this plant or pft (umol CO2/m**2/s)
-    real(r8) :: leaf_inc                         ! LAI-only portion of the vegetation increment of dinc_vai
     real(r8) :: lai_canopy_above                 ! the LAI in the canopy layers above the layer of interest
-    real(r8) :: lai_layers_above                 ! the LAI in the leaf layers, within the current canopy,
-                                                 ! above the leaf layer of interest
-    real(r8) :: lai_current                      ! the LAI in the current leaf layer
+    real(r8) :: leaf_veg_frac                    ! fraction of vegetation area (leaf+stem) that is just leaf
     real(r8) :: cumulative_lai                   ! the cumulative LAI, top down, to the leaf layer of interest
     real(r8) :: leaf_psi                         ! leaf xylem matric potential [MPa] (only meaningful/used w/ hydro)
     real(r8) :: fnrt_mr_layer                    ! fine root maintenance respiation per layer [kgC/plant/s]
@@ -478,6 +475,9 @@ contains
                         canopy_mask_if: if(currentPatch%canopy_mask(cl,ft) == 1)then
 
                            ! Loop over leaf-layers
+
+                           leaf_veg_frac = currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
+                           
                            leaf_layer_loop : do iv = 1,currentCohort%nv
 
                               ! ------------------------------------------------------------
@@ -510,20 +510,18 @@ contains
                                  if (hlm_use_planthydro.eq.itrue ) then
 
                                     btran_eff = currentCohort%co_hydr%btran 
+                                    
+                                    ! Find the cumulative LAI from the top of this cohort's crown to the
+                                    ! center of the current veg layer. If this is the cohort's last layer
+                                    ! then the mid-point is between the dlower and the total lai
 
-                                    ! dinc_vai(:) is the total vegetation area index of each "leaf" layer
-                                    ! we convert to the leaf only portion of the increment
-                                    ! ------------------------------------------------------
-                                    leaf_inc    = dinc_vai(iv) * &
-                                         currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
-
-                                    ! Now calculate the cumulative top-down lai of the current layer's midpoint
-                                    lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1)) 
-
-                                    lai_layers_above  = (dlower_vai(iv) - dinc_vai(iv)) * &
-                                         currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
-                                    lai_current       = min(leaf_inc, currentCohort%treelai - lai_layers_above)
-                                    cumulative_lai    = lai_canopy_above + lai_layers_above + 0.5*lai_current 
+                                    lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1))
+                                    
+                                    if(iv == currentCohort%nv) then
+                                       cumulative_lai = lai_canopy_above + leaf_veg_frac * (dlower_vai(iv)+0.5_r8*(currentCohort%treelai+currentCohort%treesai-dlower_vai(iv)))
+                                    else
+                                       cumulative_lai = lai_canopy_above + leaf_veg_frac * (dlower_vai(iv)+0.5_r8*dinc_vai(iv))
+                                    end if
 
                                     leaf_psi = currentCohort%co_hydr%psi_ag(1)
 
