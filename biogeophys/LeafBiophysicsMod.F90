@@ -516,22 +516,21 @@ contains
     real(r8) :: cb6fmax           ! maximum activity of the cytochrome b6f complex
                                   ! (umol electrons/m**2/s)
                                   ! referred to as vqmax in Lamour et al.
-    real(r8) :: eta               ! quantifies the ratio of PSI to PSII electron transport rate
-                                  ! From Lamour et al. can be assumed to be 1
     real(r8) :: Qsat              ! Saturating irradiance - assumed to be a constant (umol/m**2/s)
                                   ! Here we asssume abosorbed irradiance
+    real(r8) :: jsat              ! Electron transport rate estimated by the FvCB model for a
+                                  ! given Jmax at Qsat
 
-    eta = 1.0_r8
-    Qsat = 1275.0_r8
+    Qsat = 1530.0_r8
     
     phi = (1.0_r8 - fnps) * photon_to_e
+
+    ! Calculate jsat
+    jsat = GetJe_FvCB(par_abs, jmax, fnps)
    
-    ! Electron transport rate for C3 plants.
- 
     ! Equation to convert PFT specific Jmax to cb6fmax
-    ! jfn - could be moved out of here to where jmax is defined?
-    cb6fmax = (Qsat * jmax) / &
-         (Qsat * eta**(-1.0_r8) - (jmax / phi) ) 
+    cb6fmax = (Qsat * jsat) / &
+         (Qsat - (jsat / phi) ) 
 
     ! Simplified RH JB formulation
     je = par_abs * cb6fmax / &
