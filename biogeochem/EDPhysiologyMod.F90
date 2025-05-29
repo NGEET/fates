@@ -474,12 +474,12 @@ contains
                   diag => currentSite%flux_diags%elem(el))
 
          ! Calculate loss rate of viable seeds to litter
-         call SeedDecay(litt, currentPatch, bc_in)
+         call SeedDecay(litt, currentPatch)
          
          ! Calculate seed germination rate, the status flags prevent
          ! germination from occuring when the site is in a drought
          ! (for drought deciduous) or too cold (for cold deciduous)
-         call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), bc_in, currentPatch)
+         call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), currentPatch)
          
          ! Send fluxes from newly created litter into the litter pools
          ! This litter flux is from non-disturbance inducing mortality, as well
@@ -2206,7 +2206,7 @@ contains
 
   ! ============================================================================
 
-  subroutine SeedDecay( litt , currentPatch, bc_in )
+  subroutine SeedDecay( litt , currentPatch )
     !
     ! !DESCRIPTION:
     ! 1. Flux from seed pool into leaf litter pool
@@ -2217,7 +2217,6 @@ contains
     ! !ARGUMENTS
     type(litter_type) :: litt
     type(fates_patch_type), intent(in) :: currentPatch ! ahb added this
-    type(bc_in_type), intent(in) :: bc_in ! ahb added this    
     !
     ! !LOCAL VARIABLES:
     integer  ::  pft
@@ -2323,7 +2322,7 @@ contains
   end subroutine SeedDecay
 
   ! ============================================================================
-  subroutine SeedGermination( litt, cold_stat, drought_stat, bc_in, currentPatch )
+  subroutine SeedGermination( litt, cold_stat, drought_stat, currentPatch )
     !
     ! !DESCRIPTION:
     !  Flux from seed bank into the seedling pool    
@@ -2335,7 +2334,6 @@ contains
     type(litter_type) :: litt
     integer                   , intent(in) :: cold_stat    ! Is the site in cold leaf-off status?
     integer, dimension(numpft), intent(in) :: drought_stat ! Is the site in drought leaf-off status?
-    type(bc_in_type),           intent(in) :: bc_in
     type(fates_patch_type),        intent(in) :: currentPatch
     !
     ! !LOCAL VARIABLES:
