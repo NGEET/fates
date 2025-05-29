@@ -2344,10 +2344,10 @@ contains
     if (hlm_use_ed_st3.eq.itrue) return
 
     if(hlm_hist_level_dynam>0) then
-       call update_history_dyn_sitelevel(this,nc,nsites,sites,bc_in)
+       call update_history_dyn_sitelevel(this,nc,nsites,sites)
        if(hlm_hist_level_dynam>1) then
           call update_history_dyn_subsite(this,nc,nsites,sites,bc_in)
-          call update_history_dyn_subsite_ageclass(this,nc,nsites,sites,bc_in)
+          call update_history_dyn_subsite_ageclass(this,nc,nsites,sites)
           call reset_history_dyn_subsite(this, nsites, sites)
        end if
     end if
@@ -2359,7 +2359,7 @@ contains
 
   ! =========================================================================
 
-  subroutine update_history_dyn_sitelevel(this,nc,nsites,sites,bc_in)
+  subroutine update_history_dyn_sitelevel(this,nc,nsites,sites)
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine is intended to update all history variables with upfreq ==
@@ -2373,7 +2373,6 @@ contains
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
 
     type(fates_cohort_type), pointer :: ccohort
     type(fates_patch_type),  pointer :: cpatch
@@ -4678,7 +4677,7 @@ contains
 
   ! =========================================================================================
 
-  subroutine update_history_dyn_subsite_ageclass(this,nc,nsites,sites,bc_in)
+  subroutine update_history_dyn_subsite_ageclass(this,nc,nsites,sites)
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine is intended to update all history variables with upfreq ==
@@ -4692,7 +4691,6 @@ contains
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
 
     type(fates_cohort_type), pointer :: ccohort
     type(fates_patch_type),  pointer :: cpatch
@@ -5008,7 +5006,7 @@ contains
     if(hlm_hist_level_hifrq>0) then
        call update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
        if(hlm_hist_level_hifrq>1) then
-          call update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+          call update_history_hifrq_subsite(this,nc,nsites,sites,bc_out,dt_tstep)
           call update_history_hifrq_subsite_ageclass(this,nsites,sites,dt_tstep)
        end if
     end if
@@ -5240,7 +5238,7 @@ contains
 
   ! ===============================================================================================
 
-  subroutine update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+  subroutine update_history_hifrq_subsite(this,nc,nsites,sites,bc_out,dt_tstep)
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine is intended to update all history variables with upfreq ==
@@ -5256,7 +5254,6 @@ contains
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     type(bc_out_type)       , intent(in)            :: bc_out(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 
