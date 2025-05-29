@@ -260,13 +260,12 @@ contains
 
   ! ============================================================================
   
-  subroutine GenerateDamageAndLitterFluxes( csite, cpatch, bc_in )
+  subroutine GenerateDamageAndLitterFluxes( csite, cpatch )
 
     ! Arguments
     type(ed_site_type)  :: csite
     type(fates_patch_type) :: cpatch
-    type(bc_in_type), intent(in) :: bc_in
-    
+
 
     ! Locals
     type(fates_cohort_type), pointer :: ccohort    ! Current cohort
