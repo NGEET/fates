@@ -1787,7 +1787,7 @@ end subroutine HydrSiteColdStart
 end subroutine UpdateH2OVeg
 
 !=====================================================================================
-subroutine RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
+subroutine RecruitWUptake(nsites,sites,dtime,recruitflag)
 
   ! ----------------------------------------------------------------------------------
   ! This subroutine is called to calculate the water requirement for newly recruited cohorts
@@ -1802,7 +1802,6 @@ subroutine RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
   ! Arguments
   integer, intent(in)                       :: nsites
   type(ed_site_type), intent(inout), target :: sites(nsites)
-  type(bc_in_type), intent(in)              :: bc_in(nsites)
   real(r8), intent(in)                      :: dtime !time (seconds)
   logical, intent(out)                      :: recruitflag      !flag to check if there is newly recruited cohorts
 
@@ -2442,7 +2441,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
   ! ----------------------------------------------------------------------------------
 
   !For newly recruited cohorts, add the water uptake demand to csite_hydr%recruit_w_uptake
-  call RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
+  call RecruitWUptake(nsites,sites,dtime,recruitflag)
 
   !update water storage in veg after incorporating newly recuited cohorts
     if(recruitflag)then
