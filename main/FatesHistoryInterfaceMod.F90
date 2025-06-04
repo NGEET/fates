@@ -5004,9 +5004,9 @@ contains
     real(r8)                , intent(in)            :: dt_tstep
     
     if(hlm_hist_level_hifrq>0) then
-       call update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+       call update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,dt_tstep)
        if(hlm_hist_level_hifrq>1) then
-          call update_history_hifrq_subsite(this,nc,nsites,sites,bc_out,dt_tstep)
+          call update_history_hifrq_subsite(this,nc,nsites,sites,dt_tstep)
           call update_history_hifrq_subsite_ageclass(this,nsites,sites,dt_tstep)
        end if
     end if
@@ -5015,7 +5015,7 @@ contains
     return
   end subroutine update_history_hifrq
 
-  subroutine update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+  subroutine update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,dt_tstep)
 
      ! ---------------------------------------------------------------------------------
      ! This subroutine is intended to update all history variables with upfreq ==
@@ -5030,7 +5030,6 @@ contains
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
-    type(bc_out_type)       , intent(in)            :: bc_out(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 
     ! Locals
@@ -5238,7 +5237,7 @@ contains
 
   ! ===============================================================================================
 
-  subroutine update_history_hifrq_subsite(this,nc,nsites,sites,bc_out,dt_tstep)
+  subroutine update_history_hifrq_subsite(this,nc,nsites,sites,dt_tstep)
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine is intended to update all history variables with upfreq ==
@@ -5254,7 +5253,6 @@ contains
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    type(bc_out_type)       , intent(in)            :: bc_out(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 
     ! Locals
