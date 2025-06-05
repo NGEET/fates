@@ -294,7 +294,7 @@ contains
 
     case (1)
 
-       call FillDrainRhizShells(nsites, sites, bc_in, bc_out )
+       call FillDrainRhizShells(nsites, sites, bc_in)
        call hydraulics_BC(nsites, sites,bc_in,bc_out,dtime )
 
     case (2)
@@ -840,7 +840,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine UpdateSizeDepPlantHydProps(currentSite,ccohort,bc_in)
+  subroutine UpdateSizeDepPlantHydProps(currentSite,ccohort)
 
 
     ! DESCRIPTION: Updates absorbing root length (total and its vertical distribution)
@@ -853,7 +853,6 @@ contains
     ! ARGUMENTS:
     type(ed_site_type)     , intent(in)             :: currentSite ! Site stuff
     type(fates_cohort_type)   , intent(inout)          :: ccohort     ! current cohort pointer
-    type(bc_in_type)       , intent(in)             :: bc_in       ! Boundary Conditions
 
     ! Locals
     integer                            :: nlevrhiz             ! Number of total soil layers
@@ -1203,14 +1202,13 @@ end function constrain_water_contents
 
 ! =====================================================================================
 
-subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, bc_in, newn)
+subroutine FuseCohortHydraulics(currentSite,currentCohort, nextCohort, newn)
 
 
   type(fates_cohort_type), intent(inout), target :: currentCohort ! current cohort
   type(fates_cohort_type), intent(inout), target :: nextCohort    ! next (donor) cohort
   type(ed_site_type), intent(inout), target :: currentSite    ! current site
 
-  type(bc_in_type), intent(in)                :: bc_in
   real(r8), intent(in)                        :: newn
 
   ! !LOCAL VARIABLES:
@@ -1789,7 +1787,7 @@ end subroutine HydrSiteColdStart
 end subroutine UpdateH2OVeg
 
 !=====================================================================================
-subroutine RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
+subroutine RecruitWUptake(nsites,sites,dtime,recruitflag)
 
   ! ----------------------------------------------------------------------------------
   ! This subroutine is called to calculate the water requirement for newly recruited cohorts
@@ -1804,7 +1802,6 @@ subroutine RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
   ! Arguments
   integer, intent(in)                       :: nsites
   type(ed_site_type), intent(inout), target :: sites(nsites)
-  type(bc_in_type), intent(in)              :: bc_in(nsites)
   real(r8), intent(in)                      :: dtime !time (seconds)
   logical, intent(out)                      :: recruitflag      !flag to check if there is newly recruited cohorts
 
@@ -2186,7 +2183,7 @@ end subroutine BTranForHLMDiagnosticsFromCohortHydr
 
 ! ==========================================================================
 
-subroutine FillDrainRhizShells(nsites, sites, bc_in, bc_out)
+subroutine FillDrainRhizShells(nsites, sites, bc_in)
   !
   ! Created by Brad Christoffersen, Jan 2016
   !
@@ -2212,7 +2209,6 @@ subroutine FillDrainRhizShells(nsites, sites, bc_in, bc_out)
   integer, intent(in)                       :: nsites
   type(ed_site_type), intent(inout), target :: sites(nsites)
   type(bc_in_type), intent(in)              :: bc_in(nsites)
-  type(bc_out_type), intent(inout)          :: bc_out(nsites)
 
   ! Locals
   type(ed_site_hydr_type), pointer :: csite_hydr       ! pointer to site hydraulics object
@@ -2444,7 +2440,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
   ! ----------------------------------------------------------------------------------
 
   !For newly recruited cohorts, add the water uptake demand to csite_hydr%recruit_w_uptake
-  call RecruitWUptake(nsites,sites,bc_in,dtime,recruitflag)
+  call RecruitWUptake(nsites,sites,dtime,recruitflag)
 
   !update water storage in veg after incorporating newly recuited cohorts
     if(recruitflag)then
@@ -4314,7 +4310,7 @@ end subroutine AccumulateMortalityWaterStorage
 
 !-------------------------------------------------------------------------------!
 
-subroutine RecruitWaterStorage(nsites,sites,bc_out)
+subroutine RecruitWaterStorage(nsites,sites)
 
   ! ---------------------------------------------------------------------------
   ! This subroutine accounts for the water bound in plants that have
@@ -4329,7 +4325,6 @@ subroutine RecruitWaterStorage(nsites,sites,bc_out)
   ! Arguments
    integer, intent(in)                       :: nsites
    type(ed_site_type), intent(inout), target :: sites(nsites)
-   type(bc_out_type), intent(inout)          :: bc_out(nsites)
 
    ! Locals
    type(fates_cohort_type), pointer :: currentCohort
