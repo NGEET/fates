@@ -294,7 +294,7 @@ contains
 
     case (1)
 
-       call FillDrainRhizShells(nsites, sites, bc_in, bc_out )
+       call FillDrainRhizShells(nsites, sites, bc_in)
        call hydraulics_BC(nsites, sites,bc_in,bc_out,dtime )
 
     case (2)
@@ -2183,7 +2183,7 @@ end subroutine BTranForHLMDiagnosticsFromCohortHydr
 
 ! ==========================================================================
 
-subroutine FillDrainRhizShells(nsites, sites, bc_in, bc_out)
+subroutine FillDrainRhizShells(nsites, sites, bc_in)
   !
   ! Created by Brad Christoffersen, Jan 2016
   !
@@ -2209,7 +2209,6 @@ subroutine FillDrainRhizShells(nsites, sites, bc_in, bc_out)
   integer, intent(in)                       :: nsites
   type(ed_site_type), intent(inout), target :: sites(nsites)
   type(bc_in_type), intent(in)              :: bc_in(nsites)
-  type(bc_out_type), intent(inout)          :: bc_out(nsites)
 
   ! Locals
   type(ed_site_hydr_type), pointer :: csite_hydr       ! pointer to site hydraulics object
