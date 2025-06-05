@@ -26,7 +26,8 @@ module FatesMossMod
 contains
 
 !------------------------------------------------------------------------------
-subroutine moss(soil, alff, cla, decLit, drydays, siteID, plot, year)
+subroutine moss(alff, cla, decLit, drydays, siteID, plot, year, moss_biom_kg, moss_litter_flux, &
+                livemoss_depth)
   !
   !  Calculates annual moss growth and mortality
   !  Adapted from Bonan and Korzukhin 1989 Vegetatio 84:31-44
@@ -44,7 +45,6 @@ subroutine moss(soil, alff, cla, decLit, drydays, siteID, plot, year)
   real, parameter :: LRMAX = 0.05   ! Light compensation point
 
   ! Data dictionary: calling arguments
-  class (SoilData), intent(inout) :: soil    ! Soil object
   real,             intent(in)    :: alff    ! Available light on the forest floor (0-1)
   real,             intent(in)    :: cla     ! Cumulative leaf area on forest floor (m2)
   real,             intent(in)    :: decLit  ! Fresh deciduous leaf litter (t/ha)
@@ -52,6 +52,9 @@ subroutine moss(soil, alff, cla, decLit, drydays, siteID, plot, year)
   integer,          intent(in)    :: siteID  ! Site ID
   integer,          intent(in)    :: plot    ! Plot number
   integer,          intent(in)    :: year    ! Year
+  real,             intent(inout) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
+  real,             intent(out)   :: moss_litter_flux  ! Moss biomass flux to litter (t/ha)
+  real,             intent(out)   :: livemoss_depth  ! Depth (m) of live moss layer
 
   ! Data dictionary: local variables
   real :: biokg     ! Moss biomass (kg/m2)
@@ -66,7 +69,7 @@ subroutine moss(soil, alff, cla, decLit, drydays, siteID, plot, year)
   real :: litter    ! Moss litter (kg)
 
   ! Convert moss biomass in kg to kg/m2
-  biokg = soil%moss_biom/plotsize
+  biokg = moss_biom_kg/plotsize
 
   ! Light growth multiplier
   al = exp(-1.0*EXT*(cla/plotsize + biokg*SLA))
@@ -112,21 +115,17 @@ subroutine moss(soil, alff, cla, decLit, drydays, siteID, plot, year)
       prod = -1.0*biokg
   end if
 
-  soil%moss_biom = (biokg + prod)*plotsize
+  moss_biom_kg = (biokg + prod)*plotsize
 
   ! Calculate litter (kg)
   litter = (assim_eff*biokg + SPORES*dlgf*ddgf - prod)*plotsize
-  if (litter < 0.0) then
-      soil%litter(IMOSS) = 0.0
-  else
-      soil%litter(IMOSS) = litter
-  end if
+  litter = max(0.0, litter)
 
   ! Convert to tonnes/ha from kg/plot
-  soil%litter(IMOSS) = soil%litter(IMOSS)/plotsize*HEC_TO_M2*KG_TO_T
+  moss_litter_flux = litter/plotsize*HEC_TO_M2*KG_TO_T
 
-  ! Thickness of moss layer (m)
-  soil%M_depth = soil%moss_biom/plotsize/BULK_MOSS
+  ! Thickness of live moss layer (m)
+  livemoss_depth = moss_biom_kg/plotsize/BULK_MOSS
 
 
 end subroutine moss
