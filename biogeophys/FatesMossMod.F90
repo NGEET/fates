@@ -18,6 +18,16 @@ module FatesMossMod
 
   implicit none
 
+  ! Constants from Bonan & Korzukhin (1989)
+  real(r8), parameter :: Q = 0.12       ! Mortality parameter
+  real(r8), parameter :: B = 0.136      ! Mortality parameter
+  real(r8), parameter :: EXT = 0.5      ! Light extinction coefficient
+  real(r8), parameter :: SLA = 1.0       ! Specific leaf area (m2/kg)
+  real(r8), parameter :: SPORES = 0.001 ! Proportion of biomass spent on reproduction
+  real(r8), parameter :: PMAX = 0.35    ! Maximum moss production (kg/m2/yr)
+  real(r8), parameter :: LRMIN = 0.01   ! Light compensation point
+  real(r8), parameter :: LRMAX = 0.05   ! Light compensation point
+
 
   ! PUBLIC MEMBER FUNCTIONS:
   public :: moss
@@ -33,17 +43,7 @@ subroutine moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, &
   !  Further adapted from Foster et al. (2019, Ecol. Mod., doi: 10.1016/j.ecolmodel.2019.108765)
   !
 
-  ! Data dictionary: constants - from Bonan & Korzukhin (1989)
-  real(r8), parameter :: Q = 0.12       ! Mortality parameter
-  real(r8), parameter :: B = 0.136      ! Mortality parameter
-  real(r8), parameter :: EXT = 0.5      ! Light extinction coefficient
-  real(r8), parameter :: SLA = 1.0       ! Specific leaf area (m2/kg)
-  real(r8), parameter :: SPORES = 0.001 ! Proportion of biomass spent on reproduction
-  real(r8), parameter :: PMAX = 0.35    ! Maximum moss production (kg/m2/yr)
-  real(r8), parameter :: LRMIN = 0.01   ! Light compensation point
-  real(r8), parameter :: LRMAX = 0.05   ! Light compensation point
-
-  ! Data dictionary: calling arguments
+  ! Arguments
   real(r8), intent(in)    :: alff    ! Available light on the forest floor (0-1)
   real(r8), intent(in)    :: cla     ! Cumulative leaf area on forest floor (m2)
   real(r8), intent(in)    :: decLit  ! Fresh deciduous leaf litter (t/ha)
@@ -51,7 +51,7 @@ subroutine moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, &
   real(r8), intent(out)   :: moss_litter_flux  ! Moss biomass flux to litter (t/ha)
   real(r8), intent(out)   :: livemoss_depth  ! Depth (m) of live moss layer
 
-  ! Data dictionary: local variables
+  ! Local variables
   real(r8) :: biokg     ! Moss biomass (kg/m2)
   real(r8) :: al        ! Available light
   real(r8) :: algf      ! Available light growth factor
