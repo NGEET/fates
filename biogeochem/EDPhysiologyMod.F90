@@ -2172,14 +2172,13 @@ contains
                 ! special case: do we want to restrict each PFT's seeds to only go to patches with that nocomp PFT label?
                 ! If so, then use a normalization factor that is one over the nocomp patch fraction for all patches of
                 ! that PFT's nocomp label, and zero for all other patches.  If we don't do this, then just set scalar to one.
+                nocomp_seed_scaling = 1._r8
                 if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue ) then
                    if (currentPatch%nocomp_pft_label .eq. pft) then
                       nocomp_seed_scaling = AREA/nocomp_patch_areas(pft)
                    else
                       nocomp_seed_scaling = 0._r8
                    endif
-                else
-                   nocomp_seed_scaling = 1._r8
                 endif
 
                 ! Seed input from local sources (within site).  Note that a fraction of the
