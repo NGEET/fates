@@ -4310,7 +4310,7 @@ end subroutine AccumulateMortalityWaterStorage
 
 !-------------------------------------------------------------------------------!
 
-subroutine RecruitWaterStorage(nsites,sites,bc_out)
+subroutine RecruitWaterStorage(nsites,sites)
 
   ! ---------------------------------------------------------------------------
   ! This subroutine accounts for the water bound in plants that have
@@ -4325,7 +4325,6 @@ subroutine RecruitWaterStorage(nsites,sites,bc_out)
   ! Arguments
    integer, intent(in)                       :: nsites
    type(ed_site_type), intent(inout), target :: sites(nsites)
-   type(bc_out_type), intent(inout)          :: bc_out(nsites)
 
    ! Locals
    type(fates_cohort_type), pointer :: currentCohort
