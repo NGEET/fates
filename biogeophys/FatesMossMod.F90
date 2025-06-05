@@ -24,7 +24,7 @@ module FatesMossMod
 contains
 
 !------------------------------------------------------------------------------
-subroutine moss(alff, cla, decLit, drydays, siteID, plot, year, moss_biom_kg, moss_litter_flux, &
+subroutine moss(alff, cla, decLit, drydays, moss_biom_kg, moss_litter_flux, &
                 livemoss_depth)
   !
   !  Calculates annual moss growth and mortality
@@ -47,9 +47,6 @@ subroutine moss(alff, cla, decLit, drydays, siteID, plot, year, moss_biom_kg, mo
   real,             intent(in)    :: cla     ! Cumulative leaf area on forest floor (m2)
   real,             intent(in)    :: decLit  ! Fresh deciduous leaf litter (t/ha)
   real,             intent(in)    :: drydays ! Drought index (0-1)
-  integer,          intent(in)    :: siteID  ! Site ID
-  integer,          intent(in)    :: plot    ! Plot number
-  integer,          intent(in)    :: year    ! Year
   real,             intent(inout) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
   real,             intent(out)   :: moss_litter_flux  ! Moss biomass flux to litter (t/ha)
   real,             intent(out)   :: livemoss_depth  ! Depth (m) of live moss layer
