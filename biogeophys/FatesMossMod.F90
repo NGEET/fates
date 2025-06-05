@@ -11,6 +11,7 @@ module FatesMossMod
 !
 ! ==============================================================================================
 
+  use FatesConstantsMod , only: r8 => fates_r8
   use FatesGlobals, only      : endrun => fates_endrun
   use FatesGlobals, only      : fates_log
 
@@ -33,34 +34,34 @@ subroutine moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, &
   !
 
   ! Data dictionary: constants - from Bonan & Korzukhin (1989)
-  real, parameter :: Q = 0.12       ! Mortality parameter
-  real, parameter :: B = 0.136      ! Mortality parameter
-  real, parameter :: EXT = 0.5      ! Light extinction coefficient
-  real, parameter :: SLA = 1.0       ! Specific leaf area (m2/kg)
-  real, parameter :: SPORES = 0.001 ! Proportion of biomass spent on reproduction
-  real, parameter :: PMAX = 0.35    ! Maximum moss production (kg/m2/yr)
-  real, parameter :: LRMIN = 0.01   ! Light compensation point
-  real, parameter :: LRMAX = 0.05   ! Light compensation point
+  real(r8), parameter :: Q = 0.12       ! Mortality parameter
+  real(r8), parameter :: B = 0.136      ! Mortality parameter
+  real(r8), parameter :: EXT = 0.5      ! Light extinction coefficient
+  real(r8), parameter :: SLA = 1.0       ! Specific leaf area (m2/kg)
+  real(r8), parameter :: SPORES = 0.001 ! Proportion of biomass spent on reproduction
+  real(r8), parameter :: PMAX = 0.35    ! Maximum moss production (kg/m2/yr)
+  real(r8), parameter :: LRMIN = 0.01   ! Light compensation point
+  real(r8), parameter :: LRMAX = 0.05   ! Light compensation point
 
   ! Data dictionary: calling arguments
-  real,             intent(in)    :: alff    ! Available light on the forest floor (0-1)
-  real,             intent(in)    :: cla     ! Cumulative leaf area on forest floor (m2)
-  real,             intent(in)    :: decLit  ! Fresh deciduous leaf litter (t/ha)
-  real,             intent(inout) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
-  real,             intent(out)   :: moss_litter_flux  ! Moss biomass flux to litter (t/ha)
-  real,             intent(out)   :: livemoss_depth  ! Depth (m) of live moss layer
+  real(r8), intent(in)    :: alff    ! Available light on the forest floor (0-1)
+  real(r8), intent(in)    :: cla     ! Cumulative leaf area on forest floor (m2)
+  real(r8), intent(in)    :: decLit  ! Fresh deciduous leaf litter (t/ha)
+  real(r8), intent(inout) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
+  real(r8), intent(out)   :: moss_litter_flux  ! Moss biomass flux to litter (t/ha)
+  real(r8), intent(out)   :: livemoss_depth  ! Depth (m) of live moss layer
 
   ! Data dictionary: local variables
-  real :: biokg     ! Moss biomass (kg/m2)
-  real :: al        ! Available light
-  real :: algf      ! Available light growth factor
-  real :: fcgf      ! Forest cover growth factor
-  real :: dlgf      ! Deciduous leaf litter growth factor
-  real :: ddgf      ! Moisture growth factor
-  real :: assim     ! Moss assimilation rate (kg/m2)
-  real :: assim_eff ! Effective assimilation (kg/kg)
-  real :: prod      ! Moss production (kg/m2)
-  real :: litter    ! Moss litter (kg)
+  real(r8) :: biokg     ! Moss biomass (kg/m2)
+  real(r8) :: al        ! Available light
+  real(r8) :: algf      ! Available light growth factor
+  real(r8) :: fcgf      ! Forest cover growth factor
+  real(r8) :: dlgf      ! Deciduous leaf litter growth factor
+  real(r8) :: ddgf      ! Moisture growth factor
+  real(r8) :: assim     ! Moss assimilation rate (kg/m2)
+  real(r8) :: assim_eff ! Effective assimilation (kg/kg)
+  real(r8) :: prod      ! Moss production (kg/m2)
+  real(r8) :: litter    ! Moss litter (kg)
 
   ! Convert moss biomass in kg to kg/m2
   biokg = moss_biom_kg/plotsize
