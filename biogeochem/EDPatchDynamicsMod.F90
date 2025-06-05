@@ -1075,10 +1075,17 @@ contains
                                           currentSite%flux_diags%elem(el)%burned_liveveg + & 
                                           leaf_burn_frac * leaf_m * nc%n * area_inv
                                      
-                                     bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + &
-                                          leaf_burn_frac * leaf_m * nc%n * ha_per_m2 * days_per_sec
+                                     
                                   end do
 
+                                  ! Add burned leaf carbon to the atmospheric carbon flux
+                                  ! for burning.
+                                  ! [frac/day]*[kgC/plant]*[plant/ha]*[m2/ha]*[day/s] = [kg/m2/s] 
+                                 
+                                  bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + &
+                                       leaf_burn_frac * nc%prt%GetState(leaf_organ, carbon12_element) * &
+                                       nc%n * ha_per_m2 * days_per_sec
+                                  
                                   ! Here the mass is removed from the plant
 
                                   if(int(prt_params%woody(currentCohort%pft)) == itrue)then
