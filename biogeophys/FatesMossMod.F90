@@ -24,7 +24,7 @@ module FatesMossMod
 contains
 
 !------------------------------------------------------------------------------
-subroutine moss(alff, cla, decLit, drydays, moss_biom_kg, moss_litter_flux, &
+subroutine moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, &
                 livemoss_depth)
   !
   !  Calculates annual moss growth and mortality
@@ -46,7 +46,6 @@ subroutine moss(alff, cla, decLit, drydays, moss_biom_kg, moss_litter_flux, &
   real,             intent(in)    :: alff    ! Available light on the forest floor (0-1)
   real,             intent(in)    :: cla     ! Cumulative leaf area on forest floor (m2)
   real,             intent(in)    :: decLit  ! Fresh deciduous leaf litter (t/ha)
-  real,             intent(in)    :: drydays ! Drought index (0-1)
   real,             intent(inout) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
   real,             intent(out)   :: moss_litter_flux  ! Moss biomass flux to litter (t/ha)
   real,             intent(out)   :: livemoss_depth  ! Depth (m) of live moss layer
@@ -90,12 +89,9 @@ subroutine moss(alff, cla, decLit, drydays, moss_biom_kg, moss_litter_flux, &
       dlgf = 1.0
   end if
 
-  ! Soil moisture growth multiplier
-  if (drydays > 0.025) then
-      ddgf = 0.0
-  else
-      ddgf = 1.0
-  end if
+  ! Moisture growth factor
+  ! TODO: Implement this
+  ddgf = 1.0
 
   ! Moss assimilation
   assim = PMAX*algf*fcgf*dlgf*ddgf
