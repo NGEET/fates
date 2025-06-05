@@ -1,0 +1,46 @@
+module test_Moss
+  !
+  ! DESCRIPTION:
+  !		Test the moss functionality
+  !
+  use ESMF
+  use FatesConstantsMod,   only : r8 => fates_r8
+  use FatesConstantsMod,   only : nearzero
+  use FatesMossMod
+  use funit
+
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: TestMoss
+  end type TestMoss
+
+  contains
+
+    @Test
+    subroutine ZeroMoss(this)
+      ! test that all outputs are zero if input moss biomass is zero
+      class(TestMoss), intent(inout) :: this ! test object
+      real(r8) :: alff    ! Available light on the forest floor (0-1)
+      real(r8) :: cla     ! Cumulative leaf area on forest floor (m2)
+      real(r8) :: decLit  ! Fresh deciduous leaf litter (t/ha)
+      real(r8) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
+      real(r8) :: moss_litter_flux  ! Moss biomass flux to litter (t/ha)
+      real(r8) :: livemoss_depth  ! Depth (m) of live moss layer
+
+      ! All inputs good for moss except zero biomass
+      alff = 1.0_r8
+      cla = 0.0_r8
+      decLit = 0.0_r8
+      moss_biom_kg = 0.0_r8
+
+      ! Outputs should all be zero
+      call moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, livemoss_depth)
+      @assertEqual(moss_biom_kg, 0.0_r8)
+      @assertEqual(moss_litter_flux, 0.0_r8)
+      @assertEqual(livemoss_depth, 0.0_r8)
+
+    end subroutine ZeroMoss
+
+
+end module test_Moss
