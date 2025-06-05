@@ -17,8 +17,6 @@ module FatesMossMod
 
   implicit none
 
-  integer, public :: use_ed_planthydraulics    =  1      ! 0 => use vanilla btran
-
 
   ! PUBLIC MEMBER FUNCTIONS:
   public :: moss
