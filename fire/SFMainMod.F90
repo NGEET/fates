@@ -245,9 +245,9 @@ contains
 
     real(r8), parameter :: carbon_2_biomass = 0.45_r8
     ! LFMC parameters for testing
-    real(r8), parameter :: max_lfmc = 70.0_r8
-    real(r8), parameter :: min_lfmc = 40.0_r8
-    real(r8), parameter :: swc_alpha = 3.0E-6_r8
+    real(r8), parameter :: min_lfmc = 70.0_r8
+    real(r8), parameter :: coeff_lfmc = 40.0_r8
+    real(r8), parameter :: smp_alpha = 3.0E-6_r8
     real(r8), parameter :: lai_beta = 0.15_r8
     real(r8), parameter :: gamma_int = 0.0_r8
 
@@ -335,7 +335,7 @@ contains
             ! calculate live fuel moisture content
             currentCohort%lfmc = LiveFuelMoistureContent(currentCohort%treelai, &
             mean_10day_smp(currentCohort%pft), &
-            max_lfmc, min_lfmc, swc_alpha, lai_beta, gamma_int)
+            min_lfmc, coeff_lfmc, smp_alpha, lai_beta, gamma_int)
           
             write(fates_log(),*) 'current cohort LFMC is ', currentCohort%lfmc
 

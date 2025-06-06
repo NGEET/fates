@@ -621,33 +621,33 @@ end function CrownFireIntensity
 
 !---------------------------------------------------------------------------------------
 
-real(r8) function LiveFuelMoistureContent(lai, swc, max_lfmc, min_lfmc, &
-swc_alpha, lai_beta, gamma_int)
+real(r8) function LiveFuelMoistureContent(lai, smp, min_lfmc, coeff_lfmc, &
+smp_alpha, lai_beta, gamma_int)
 !
 ! DESCRIPTION
 ! Calculates live fuel moisture content  
 ! using EQ. 4 in McNorton and Giuseppe 2024 'A global fuel characteristic model
 ! and dataset for wildfire prediction'
 ! LFMC = max_lfmc - min_lfmc * exp(-swc_alpha*swc + lai_beta*lai + gamma_int*swc*lai)
-! swc is mass-based in the original Eq., we now switch to volumetric soil water content.
-! As swc_alpha and gamma_int are fit using observations, we can make them as model 
-! parameters thus this change in swc unit and resulted error hopefully can be
-! adjusted through parameter tuning
+! swc is mass-based soil water content in the original Eq., we now switch to soil matric potential (smp).
+! This switch require refitting this equation to min_lfmc + coeff_lfmc*exp(smp_alpha*smp + lai_beta*lai +
+! gamma_int*smp*lai)
+! we can make all parameters to be PFT specific 
 !
 ! ARGUMENTS:
 real(r8),         intent(in)    :: lai                   ! cohort level leaf area index [m2 m-2]
-real(r8),         intent(in)    :: swc                   ! volumetric soil water content [m3 m-3]
-real(r8),         intent(in)    :: max_lfmc              ! max. live fuel moisure content [%]
-real(r8),         intent(in)    :: min_lfmc              ! min. live fuel moisture content [%]
-real(r8),         intent(in)    :: swc_alpha             ! model coef. associated with swc [unitless]
+real(r8),         intent(in)    :: smp                   ! soil matric potential [MPa]
+real(r8),         intent(in)    :: min_lfmc              ! min. live fuel moisure content [%]
+real(r8),         intent(in)    :: coeff_lfmc            ! this will adds to the min to increase LMFC based on soil water and plant phenology [unitelss] 
+real(r8),         intent(in)    :: smp_alpha             ! model coef. associated with swc [unitless]
 real(r8),         intent(in)    :: lai_beta              ! model coef. associated with lai [unitless]
 real(r8),         intent(in)    :: gamma_int             ! model coef. for interaction effect of swc and lai on LFMC [unitless]
 
 ! Locals:
 real(r8)          :: effect_temp        ! the temporary variable for calculating effect of SWC and LAI
 
-effect_temp = swc_alpha*swc + lai_beta*lai + gamma_int*swc*lai
-LiveFuelMoistureContent = max_lfmc + min_lfmc*exp(effect_temp)
+effect_temp = smp_alpha*smp + lai_beta*lai + gamma_int*smp*lai
+LiveFuelMoistureContent = min_lfmc + coeff_lfmc*exp(effect_temp)
       
 
 end function LiveFuelMoistureContent
