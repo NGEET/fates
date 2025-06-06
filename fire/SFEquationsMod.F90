@@ -527,50 +527,6 @@ HeatReleasePerArea = i_r * time_r
 
 end function HeatReleasePerArea
 
-!---------------------------------------------------------------------------------------
-
-real(r8) function TorchingIndex(bulk_density, SAV, eps, q_ig, i_r, xi, beta_ratio, &
-                                passive_crown_FI, HPA)
-!
-! DESCRIPTION:
-! Calculate open wind speed [in km/hour] at which surface fire intensity equals 
-! to the minimum fire intensity for initiating crown fire, AKA Torching Index (TI).
-!  EQ. 18 in Scott & Reinhardt 2001
-! XLG: currently we are ignoring the slope effect 
-! ARGUMENTS:
-
-real(r8), intent(in) :: bulk_density      ! fulk bulk density [kg/m3]
-real(r8), intent(in) :: SAV               ! fuel surface area to volume ratio [/cm]
-real(r8), intent(in) :: eps               ! effective heating number [unitless]
-real(r8), intent(in) :: q_ig              ! heat of preignition [kJ/kg] 
-real(r8), intent(in) :: i_r               ! reaction intensity [kJ/m2/min]
-real(r8), intent(in) :: xi                ! propagating flux [unitless]      
-real(r8), intent(in) :: beta_ratio        ! relative packing ratio [unitless]
-real(r8), intent(in) :: passive_crown_FI  ! fire intensity threshold for initiating crown fire [kW/m or kJ/m/s] 
-real(r8), intent(in) :: HPA               ! heat release per unit area [kJ/m2]
-
-! Locals:
-real(r8)              :: wind_coef                   ! critical wind coefficient for crown fire initiation [unitless]
-real(r8)              :: b, c, e                     ! temporary variables
-real(r8), parameter   :: wind_reduce_factor = 0.2_r8 ! wind reduction factor. XLG: can be incluede as a user defined param later?
-
-! EQ. 16 in Scott & Reinhardt 2001 ignoring slope factor
-wind_coef = (60._r8 * passive_crown_FI * bulk_density * eps * q_ig) / &
-(HPA * xi * i_r) - 1.0_r8  
-
-! Equation A7 in Thonicke et al. 2010 per eqn 49 from Rothermel 1972
-b = 0.15988_r8*(SAV**0.54_r8)
-      
-! Equation A8 in Thonicke et al. 2010 per eqn 48 from Rothermel 1972 
-c = 7.47_r8*(exp(-0.8711_r8*(SAV**0.55_r8)))
-
-! Equation A9 in Thonicke et al. 2010 (appears to have typo, using coefficient Eq. 50 Rothermel 1972)
-e = 0.715_r8*(exp(-0.01094_r8*SAV))
-
-! EQ. 18 in Scott & Reinhardt 2001
-TorchingIndex = (wind_coef / c * (beta_ratio**(-e)))**(1.0_r8 / b)
-
-end function TorchingIndex
 
 !---------------------------------------------------------------------------------------
 real(r8) function CrowningIndex(eps, q_ig, i_r, canopy_bulk_density)
