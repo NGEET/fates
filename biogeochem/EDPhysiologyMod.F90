@@ -2056,7 +2056,6 @@ contains
 
     ! !USES:
     use EDTypesMod, only : area
-    use EDTypesMod, only : homogenize_seed_pfts
     use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
     use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
     !
@@ -2150,13 +2149,6 @@ contains
 
           currentPatch => currentPatch%younger
        enddo seed_rain_loop
-
-       ! We can choose to homogenize seeds. This is simple, we just
-       ! add up all the seed from each pft at the site level, and then
-       ! equally distribute to the PFT pools
-       if ( homogenize_seed_pfts ) then
-          site_seed_rain(1:numpft) = sum(site_seed_rain(:))/real(numpft,r8)
-       end if
 
        ! Loop over all patches again and disperse the mixed seeds into the input flux
        ! arrays
