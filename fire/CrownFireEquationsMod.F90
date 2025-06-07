@@ -8,6 +8,11 @@ module CrownFireEquationsMod
 
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
+  use SFEquationsMod,    only : OptimumPackingRatio, ReactionIntensity
+  use SFEquationsMod,    only : HeatofPreignition, EffectiveHeatingNumber
+  use SFEquationsMod,    only : WindFactor, PropagatingFlux
+  use SFEquationsMod,    only : ForwardRateOfSpread
+
 
   implicit none
   private
