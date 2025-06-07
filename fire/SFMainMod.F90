@@ -693,7 +693,6 @@ contains
     real(r8)                        :: ROS_init          ! critical surface ROS for initiating a crown fire [m/min]
     real(r8)                        :: ROS_active_min    ! critical ROS for sustaining a fully active crown fire [m/min]
     real(r8)                        :: ROS_active        ! theoretical crown fire rate of spread using FM 10 fuels [m/min]
-    real(r8)                        :: canopy_frac_burnt ! canopy fraction burnt due to crown fire [fraction]
     real(r8)                        :: ROS_final         ! final ROS when a crown fire happens [m/min]
     real(r8)                        :: FI_final          ! final fireline intensity with crown consumption [kW/m or kJ/m/s]
 
@@ -719,6 +718,7 @@ contains
       ! initialize patch level variables
       currentPatch%passive_crown_fire = 0
       currentPatch%active_crown_fire = 0
+      currentPatch%canopy_frac_burnt = 0.0_r8
 
       if (currentPatch%nocomp_pft_label /= nocomp_bareground .and.         &
       currentPatch%fire == itrue .and. crown_fire_switch) then
@@ -796,18 +796,19 @@ contains
               currentPatch%active_crown_fire = 0
 
               ! calculate crown fraction burnt EQ. 28 in Scott & Reinhardt 2001
-              canopy_frac_burnt = min(1.0_r8, (currentPatch%ROS_front - ROS_init) / &
+              currentPatch%canopy_frac_burnt = min(1.0_r8, (currentPatch%ROS_front - ROS_init) / &
               (ROS_SA - ROS_init))
           else ! a condition where crown fire cessation happens??
-            canopy_frac_burnt = 0.0_r8 
+            currentPatch%canopy_frac_burnt = 0.0_r8 
           end if
           ! calculate ROS_final EQ. 21 in Scott & Reinhardt 2001
-          ROS_final = currentPatch%ROS_front + canopy_frac_burnt * &
+          ROS_final = currentPatch%ROS_front + currentPatch%canopy_frac_burnt * &
                       ( ROS_active - currentPatch%ROS_front)
+          
           ! calculate final fire intensity by accounting for burned canopy fuels
           ! EQ. 22 in Scott & Reinhardt 2001
           FI_final = CrownFireIntensity(HPA, currentPatch%fuel%canopy_fuel_load, &
-          canopy_frac_burnt, ROS_final)
+          currentPatch%canopy_frac_burnt, ROS_final)
 
           if(write_SF == itrue)then
             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'FI_final',FI_final
@@ -1041,9 +1042,6 @@ contains
                 ! Flames lower than bottom of canopy. 
                 ! c%height is height of cohort
                 
-                ! XLG: can we simply change this logic here to just use whethere 
-                ! there is a passive or active crown fire? if no, crown fraction
-                ! burnt is zero, if yes, we can calculate CFB given active or passive scenario?
 
                 call CrownDepth(currentCohort%height,currentCohort%pft,crown_depth)
                 
@@ -1058,12 +1056,9 @@ contains
                         (currentCohort%height-crown_depth))) then 
                           if (currentPatch%active_crown_fire == 1) then
                             currentCohort%fraction_crown_burned = 1.0_r8
-                          else 
-                            ! XLG: should we use CFB calculated in the PassiveActiveCrownFireCheck routine??
-                            ! since FI is calculated using that CFB, there will be mismatch between actual
-                            ! biomass consumed using the CFB here (thus resulted fire intensity) and the 
-                            ! calculated fire intenaity using the other CFB
-                            ! also, if passive_crown_fire also = 0, should we set FCB to 0 too??
+                          else if (currentPatch%passive_crown_fire == 1) then
+                            currentCohort%fraction_crown_burned = currentPatch%canopy_frac_burnt
+                          else
                             currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
                              (currentCohort%height - crown_depth))/crown_depth
                           end if

@@ -223,6 +223,7 @@ module FatesPatchMod
     ! fire effects      
     real(r8)              :: scorch_ht(maxpft)       ! scorch height [m] 
     real(r8)              :: tfc_ros                 ! total intensity-relevant fuel consumed - no trunks [kgC/m2 of burned ground/day]
+    real(r8)              :: canopy_frac_burnt       ! crown fire resulted crown fraction burned [fraction]
 
     ! crown fire
     integer               :: passive_crown_fire      ! is there a passive crown fire [1=yes; 0=no]
@@ -521,6 +522,7 @@ module FatesPatchMod
       this%fd                           = nan 
       this%scorch_ht(:)                 = nan 
       this%tfc_ros                      = nan
+      this%canopy_frac_burnt            = nan
       this%frac_burnt                   = nan
       
     end subroutine NanValues
@@ -606,6 +608,7 @@ module FatesPatchMod
       this%fd                                = 0.0_r8
       this%scorch_ht(:)                      = 0.0_r8  
       this%tfc_ros                           = 0.0_r8
+      this%canopy_frac_burnt                 = 0.0_r8
       this%frac_burnt                        = 0.0_r8
       this%rxfire_fi                         = 0.0_r8
       this%rxfire_frac_burnt                 = 0.0_r8
