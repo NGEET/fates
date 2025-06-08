@@ -788,7 +788,7 @@ contains
             currentPatch%active_crown_fire = 1 
             currentPatch%passive_crown_fire = 0
             ! for active crown fire we set CFB to 1
-            canopy_frac_burnt = 1.0_r8
+            currentPatch%canopy_frac_burnt = 1.0_r8
           else if (ROS_active < ROS_active_min .and. &  ! FI >= FI_init but ROS_active < ROS_active_min
             currentPatch%ROS_front > ROS_init .and. &   ! XLG: it seems redudant when FI > FI_init is true, but calculation of ROS_init is 
             currentPatch%ROS_front < ROS_SA) then       ! different from ROS_front, let's check to be safe. I'm uncomfortable when calculations
@@ -823,7 +823,7 @@ contains
 
 
           ! only update FI and ROS_front when CFB > 0
-          if (canopy_frac_burnt > 0.0_r8) then
+          if (currentPatch%canopy_frac_burnt > 0.0_r8) then
             currentPatch%ROS_front = ROS_final
             currentPatch%FI = FI_final
           end if
@@ -1054,9 +1054,8 @@ contains
                    ! flames over bottom of canopy, CFB depends on whether it's active or passive crown fire
                    if ((currentCohort%height > 0.0_r8).and.(currentPatch%Scorch_ht(currentCohort%pft) >=  &
                         (currentCohort%height-crown_depth))) then 
-                          if (currentPatch%active_crown_fire == 1) then
-                            currentCohort%fraction_crown_burned = 1.0_r8
-                          else if (currentPatch%passive_crown_fire == 1) then
+                          if (currentPatch%active_crown_fire == 1 .or. &
+                          currentPatch%passive_crown_fire == 1) then
                             currentCohort%fraction_crown_burned = currentPatch%canopy_frac_burnt
                           else
                             currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
