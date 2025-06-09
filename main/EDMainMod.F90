@@ -918,6 +918,11 @@ contains
     bc_out%litter_cwd_c_si = bc_out%litter_cwd_c_si * g_per_kg * AREA_INV
     bc_out%seed_c_si = bc_out%seed_c_si * g_per_kg * AREA_INV
 
+    ! Set boundary condition to HLM for carbon loss to atm from fires
+    ! [kgC/ha/day]*[m2/ha]*[day/s] = [kg/m2/s] 
+    site_mass => currentSite%mass_balance(element_pos(carbon12_element))
+    bc_out%fire_closs_to_atm_si = site_mass%burn_flux_to_atm * ha_per_m2 * days_per_sec
+    
 
   end subroutine ed_update_site
 
