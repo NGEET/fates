@@ -492,24 +492,30 @@ variables:
 	double fates_phen_drought_threshold(fates_pft) ;
 		fates_phen_drought_threshold:units = "m3/m3 or mm" ;
 		fates_phen_drought_threshold:long_name = "threshold for drought phenology (or lower threshold for semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
+	double fates_phen_evergreen(fates_pft) ;
+		fates_phen_evergreen:units = "logical flag" ;
+		fates_phen_evergreen:long_name = "Binary flag for evergreen leaf habit" ;
 	double fates_phen_flush_fraction(fates_pft) ;
 		fates_phen_flush_fraction:units = "fraction" ;
 		fates_phen_flush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
 	double fates_phen_fnrt_drop_fraction(fates_pft) ;
 		fates_phen_fnrt_drop_fraction:units = "fraction" ;
 		fates_phen_fnrt_drop_fraction:long_name = "fraction of fine roots to drop during drought/cold" ;
-	double fates_phen_leaf_habit(fates_pft) ;
-		fates_phen_leaf_habit:units = "flag" ;
-		fates_phen_leaf_habit:long_name = "Flag for leaf phenology habit. 1 - evergreen; 2 - season (cold) deciduous; 3 - stress (hydro) deciduous; 4 - stress (hydro) semi-deciduous" ;
 	double fates_phen_mindaysoff(fates_pft) ;
 		fates_phen_mindaysoff:units = "days" ;
 		fates_phen_mindaysoff:long_name = "day threshold compared against days since leaves abscised (shed)" ;
 	double fates_phen_moist_threshold(fates_pft) ;
 		fates_phen_moist_threshold:units = "m3/m3 or mm" ;
 		fates_phen_moist_threshold:long_name = "upper threshold for drought phenology (only for drought semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
+	double fates_phen_season_decid(fates_pft) ;
+		fates_phen_season_decid:units = "logical flag" ;
+		fates_phen_season_decid:long_name = "Binary flag for seasonal-deciduous leaf habit" ;
 	double fates_phen_stem_drop_fraction(fates_pft) ;
 		fates_phen_stem_drop_fraction:units = "fraction" ;
 		fates_phen_stem_drop_fraction:long_name = "fraction of stems to drop for non-woody species during drought/cold" ;
+	double fates_phen_stress_decid(fates_pft) ;
+		fates_phen_stress_decid:units = "logical flag" ;
+		fates_phen_stress_decid:long_name = "Flag for stress/drought-deciduous leaf habit. 0 - not stress deciduous; 1 - default drought deciduous (two target states only, fully flushed or fully abscised); 2 - semi-deciduous" ;
 	double fates_prescribed_npp_canopy(fates_pft) ;
 		fates_prescribed_npp_canopy:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_canopy:long_name = "NPP per unit crown area of canopy trees for prescribed physiology mode" ;
@@ -860,7 +866,7 @@ variables:
 		fates_maxcohort:long_name = "maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances" ;
 	double fates_mort_disturb_frac ;
 		fates_mort_disturb_frac:units = "fraction" ;
-		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from old to new patch)" ;
+		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)" ;
 	double fates_mort_understorey_death ;
 		fates_mort_understorey_death:units = "fraction" ;
 		fates_mort_understorey_death:long_name = "fraction of plants in understorey cohort impacted by overstorey tree-fall" ;
@@ -894,45 +900,6 @@ variables:
 	double fates_q10_mr ;
 		fates_q10_mr:units = "unitless" ;
 		fates_q10_mr:long_name = "Q10 for maintenance respiration" ;
-	double fates_rxfire_switch ;
-	    fates_rxfire_switch:units = "unitless" ;
-		fates_rxfire_switch:long_name = "management fire mode, 1 = use management fire, 0 = turn off management fire" ;
-	double fates_rxfire_temp_upthreshold ;
-	    fates_rxfire_temp_upthreshold:units = "degree C";
-		fates_rxfire_temp_upthreshold:long_name= "maximum temprature threshold for conducting prescribed fire";
-	double fates_rxfire_temp_lwthreshold ;
-	    fates_rxfire_temp_lwthreshold:units = "degree C";
-		fates_rxfire_temp_lwthreshold:long_name=	"minimum temprature threshold for conducting prescribed	fire";
-	double fates_rxfire_rh_upthreshold ;
-	    fates_rxfire_rh_upthreshold:units = "%";
-		fates_rxfire_rh_upthreshold:long_name= "maximum relative humidity threshold for conducting prescribed fire";
-	double fates_rxfire_rh_lwthreshold ;
-	    fates_rxfire_rh_lwthreshold:units = "%";
-		fates_rxfire_rh_lwthreshold:long_name= "minimum relative humidity threshold for conducting prescribed fire";
-	double fates_rxfire_wind_upthreshold ;
-	    fates_rxfire_wind_upthreshold:units = "m/s";
-		fates_rxfire_wind_upthreshold:long_name= "maximum wind speed threshold for conducting prescribed fire";
-	double fates_rxfire_wind_lwthreshold ;
-	    fates_rxfire_wind_lwthreshold:units = "m/s";
-		fates_rxfire_wind_lwthreshold:long_name= "minimum wind speed threshold for conducting prescribed fire";
-	double fates_rxfire_AB ;
-	    fates_rxfire_AB:units = "fraction/day";
-		fates_rxfire_AB:long_name= "daily burn capacity of prescribed fire";
-	double fates_rxfire_min_threshold ;
-	    fates_rxfire_min_threshold:units = "kJ/m/s or kW/s";
-		fates_rxfire_min_threshold:long_name= "minimum energy threshold for conducting prescribed fire";
-	double fates_rxfire_max_threshold ;
-	    fates_rxfire_max_threshold:units = "kJ/m/s or kW/s";
-		fates_rxfire_max_threshold:long_name= "maximum energy threshold for conducting prescribed fire";
-	double fates_rxfire_fuel_min ;
-	    fates_rxfire_fuel_min:units = "kgC/m2";
-		fates_rxfire_fuel_min:long_name= "minimum fuel load at the patch level for prescribed fire to occur";
-	double fates_rxfire_fuel_max ;
-	    fates_rxfire_fuel_max:units = "kgC/m2";
-		fates_rxfire_fuel_max:long_name= "maximum fuel load above which prescribed fire can be risky";
-	double fates_rxfire_min_frac ;
-	    fates_rxfire_min_frac:units = "fraction";
-		fates_rxfire_min_frac:long_name="minimum fraction of land needs to be burnable for conducting rx fire";
 	double fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
@@ -1504,12 +1471,12 @@ data:
     -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, 
     -152957.4, -152957.4, -152957.4, -152957.4 ;
 
+ fates_phen_evergreen = 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0 ;
+
  fates_phen_flush_fraction = _, _, 0.5, _, 0.5, 0.5, _, 0.5, 0.5, _, 0.5, 
     0.5, 0.5, 0.5 ;
 
  fates_phen_fnrt_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_phen_leaf_habit = 1, 1, 2, 1, 3, 2, 1, 3, 2, 1, 2, 2, 3, 3 ;
 
  fates_phen_mindaysoff = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
     100, 100, 100, 100 ;
@@ -1518,7 +1485,11 @@ data:
     -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, 
     -122365.9, -122365.9, -122365.9, -122365.9 ;
 
+ fates_phen_season_decid = 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0 ;
+
  fates_phen_stem_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+ fates_phen_stress_decid = 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1 ;
 
  fates_prescribed_npp_canopy = 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 
     0.4, 0.4, 0.4, 0.4, 0.4 ;
@@ -1761,7 +1732,7 @@ data:
 
  fates_cohort_size_fusion_tol = 0.08 ;
 
- fates_comp_excln = -1 ;
+ fates_comp_excln = 3 ;
 
  fates_damage_canopy_layer_code = 1 ;
 
@@ -1813,23 +1784,23 @@ data:
 
  fates_landuse_grazing_phosphorus_use_eff = 0.5 ;
 
- fates_landuse_logging_coll_under_frac = 0. ;
+ fates_landuse_logging_coll_under_frac = 0.55983 ;
 
- fates_landuse_logging_collateral_frac = 0. ;
+ fates_landuse_logging_collateral_frac = 0.05 ;
 
  fates_landuse_logging_dbhmax = _ ;
 
- fates_landuse_logging_dbhmax_infra = 0 ;
+ fates_landuse_logging_dbhmax_infra = 35 ;
 
- fates_landuse_logging_dbhmin = 0 ;
+ fates_landuse_logging_dbhmin = 50 ;
 
- fates_landuse_logging_direct_frac = 1. ;
+ fates_landuse_logging_direct_frac = 0.15 ;
 
  fates_landuse_logging_event_code = -30 ;
 
  fates_landuse_logging_export_frac = 0.8 ;
 
- fates_landuse_logging_mechanical_frac = 0. ;
+ fates_landuse_logging_mechanical_frac = 0.05 ;
 
  fates_leaf_photo_temp_acclim_thome_time = 30 ;
 
@@ -1866,32 +1837,6 @@ data:
  fates_q10_froz = 1.5 ;
 
  fates_q10_mr = 1.5 ;
-
- fates_rxfire_switch = 0 ;
-
- fates_rxfire_temp_upthreshold = 30 ;
-
- fates_rxfire_temp_lwthreshold = 5 ;
-
- fates_rxfire_rh_upthreshold = 55 ;
-
- fates_rxfire_rh_lwthreshold = 30 ;
-
- fates_rxfire_wind_upthreshold = 10 ;
-
- fates_rxfire_wind_lwthreshold = 2 ;
-
- fates_rxfire_AB = 0.01 ;
-
- fates_rxfire_min_threshold = 50 ;
-
- fates_rxfire_max_threshold = 500 ;
-
- fates_rxfire_fuel_min = 0.5 ;
-
- fates_rxfire_fuel_max = 1.5 ;
-
- fates_rxfire_min_frac = 0.1 ;
 
  fates_soil_salinity = 0.4 ;
 
