@@ -144,7 +144,8 @@ module EDPhysiologyMod
   use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
   use FatesInterfaceTypesMod, only : hlm_use_luh
   use FatesInterfaceTypesMod, only : hlm_regeneration_model
-
+  
+  
   implicit none
   private
 
@@ -155,8 +156,6 @@ module EDPhysiologyMod
   public :: calculate_SP_properties
   public :: recruitment
   public :: ZeroLitterFluxes
-  public :: ZeroBCOutCarbonFluxes
-
   public :: ZeroAllocationRates
   public :: PreDisturbanceLitterFluxes
   public :: PreDisturbanceIntegrateLitter
@@ -229,20 +228,6 @@ contains
 
     return
   end subroutine ZeroLitterFluxes
-
-  ! =====================================================================================
-
-  subroutine ZeroBCOutCarbonFluxes (bc_out)
-
-    ! !ARGUMENTS
-    type(bc_out_type), intent(inout)   :: bc_out
-
-    bc_out%grazing_closs_to_atm_si = 0._r8
-    bc_out%fire_closs_to_atm_si    = 0._r8
-    bc_out%gpp_site                = 0._r8
-    bc_out%ar_site                 = 0._r8
-
-  end subroutine ZeroBCOutCarbonFluxes
 
   ! =====================================================================================
 
@@ -496,7 +481,7 @@ contains
          ! Send fluxes from newly created litter into the litter pools
          ! This litter flux is from non-disturbance inducing mortality, as well
          ! as litter fluxes from live trees
-         call CWDInput(currentSite, currentPatch, litt,bc_in, bc_out)
+         call CWDInput(currentSite, currentPatch, litt,bc_in)
          
          ! Only calculate fragmentation flux over layers that are active
          ! (RGK-Mar2019) SHOULD WE MAX THIS AT 1? DONT HAVE TO
@@ -2803,7 +2788,7 @@ contains
 
    ! ======================================================================================
 
-  subroutine CWDInput( currentSite, currentPatch, litt, bc_in, bc_out)
+  subroutine CWDInput( currentSite, currentPatch, litt, bc_in)
 
     !
     ! !DESCRIPTION:
@@ -2823,7 +2808,6 @@ contains
     type(fates_patch_type),intent(inout), target :: currentPatch
     type(litter_type),intent(inout),target    :: litt
     type(bc_in_type),intent(in)               :: bc_in
-    type(bc_out_type),intent(inout)           :: bc_out
 
     !
     ! !LOCAL VARIABLES:
@@ -2976,10 +2960,6 @@ contains
        site_mass%herbivory_flux_out = &
             site_mass%herbivory_flux_out + &
             leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n
-
-       bc_out%grazing_closs_to_atm_si = bc_out%grazing_closs_to_atm_si + &
-            leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n * &
-            ha_per_m2 * days_per_sec
 
        ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
 

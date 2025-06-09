@@ -858,10 +858,25 @@ module FatesInterfaceTypesMod
                                                 ! increasing, or all 1s)
 
    end type bc_pconst_type
-  
+
+   public :: ZeroBCOutCarbonFluxes
+   
  contains
        
-    ! ======================================================================================
-      
+   ! ======================================================================================
+
+   subroutine ZeroBCOutCarbonFluxes(bc_out)
+
+    ! !ARGUMENTS
+    type(bc_out_type), intent(inout)   :: bc_out
+
+    bc_out%grazing_closs_to_atm_si = nan    ! set via site_mass%burn_flux
+    bc_out%fire_closs_to_atm_si    = nan    ! set via site_mass%herbivory_flux_out
+    bc_out%gpp_site                = 0._r8
+    bc_out%ar_site                 = 0._r8
+
+  end subroutine ZeroBCOutCarbonFluxes
+
+   
        
-  end module FatesInterfaceTypesMod
+end module FatesInterfaceTypesMod
