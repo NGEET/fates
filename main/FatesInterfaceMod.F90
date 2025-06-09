@@ -373,13 +373,13 @@ contains
     fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
     fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
     
-    fates%bc_out(s)%albd_parb(:,:) = 0.0_r8   ! zero albedo, soil absorbs all rad
-    fates%bc_out(s)%albi_parb(:,:) = 0.0_r8   ! zero albedo, soil absorbs all rad
+    fates%bc_out(s)%albd_parb(:,:) = 1.0_r8   ! zero albedo, soil absorbs all rad
+    fates%bc_out(s)%albi_parb(:,:) = 1.0_r8   ! zero albedo, soil absorbs all rad
     fates%bc_out(s)%fabd_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
     fates%bc_out(s)%fabi_parb(:,:) = 0.0_r8   ! no rad absorbed by veg
-    fates%bc_out(s)%ftdd_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
-    fates%bc_out(s)%ftid_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
-    fates%bc_out(s)%ftii_parb(:,:) = 1.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftdd_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftid_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
+    fates%bc_out(s)%ftii_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
     
     fates%bc_out(s)%elai_pa(:)   = 0.0_r8
     fates%bc_out(s)%esai_pa(:)   = 0.0_r8
@@ -952,9 +952,10 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
-         ! lower edges of VAI bins       
-         do i = 1,nlevleaf
-            dlower_vai(i) = sum(dinc_vai(1:i))
+         ! lower edges of VAI bins
+         dlower_vai(1) = 0._r8
+         do i = 2,nlevleaf
+            dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
          end do
 
          ! Identify number of size and age class bins for history output
