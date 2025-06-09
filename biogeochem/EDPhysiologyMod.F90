@@ -2079,6 +2079,7 @@ contains
 
     logical, parameter  :: nocomp_seed_localization  = .true.  ! if nocomp is on, only send a given PFT's seeds to patches of that nocomp PFT
     real(r8) :: nocomp_seed_scaling    ! scalar to handle case for nocomp_seed_localization
+    real(r8) :: seed_supply            ! external seed rain scalar to handle case for nocomp_seed_localization
     real(r8) :: nocomp_patch_areas(0:numpft) ! vector of the total patch areas for each nocomp PFT
 
     ! If the dispersal kernel is not turned on, keep the dispersal fraction at zero
@@ -2162,12 +2163,15 @@ contains
                 ! special case: do we want to restrict each PFT's seeds to only go to patches with that nocomp PFT label?
                 ! If so, then use a normalization factor that is one over the nocomp patch fraction for all patches of
                 ! that PFT's nocomp label, and zero for all other patches.  If we don't do this, then just set scalar to one.
+                ! Similarly, only add external seed rain to a given PFT's nocomp patches
                 nocomp_seed_scaling = 1._r8
+                seed_supply = EDPftvarcon_inst%seed_suppl(pft)
                 if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue ) then
                    if (currentPatch%nocomp_pft_label .eq. pft) then
                       nocomp_seed_scaling = AREA/nocomp_patch_areas(pft)
                    else
                       nocomp_seed_scaling = 0._r8
+                      seed_supply = 0._r8
                    endif
                 endif
 
@@ -2206,11 +2210,7 @@ contains
                 
                 ! Seed input from external sources (user param seed rain, or dispersal model)
                 ! Include both prescribed seed_suppl and seed_in dispersed from neighbouring gridcells
-                seed_in_external = seed_stoich * currentSite%seed_in(pft)/area  ![kg/m2/day]
-                !only add external seed rain to a given PFT's nocomp patches
-                if ( (hlm_use_nocomp .eq. ifalse) .or. (hlm_use_nocomp .eq. itrue .and. currentPatch%nocomp_pft_label .eq. pft) ) then
-                   seed_in_external = seed_in_external + seed_stoich * EDPftvarcon_inst%seed_suppl(pft)*years_per_day ![kg/m2/day]
-                endif
+                seed_in_external = seed_stoich * (seed_supply*years_per_day + currentSite%seed_in(pft)/area  ![kg/m2/day]
                 litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
                 
                 ! Seeds entering externally [kg/site/day]
