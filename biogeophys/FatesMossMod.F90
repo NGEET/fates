@@ -67,6 +67,7 @@ subroutine moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, &
   real(r8) :: ddgf      ! Moisture growth factor
   real(r8) :: assim     ! Moss assimilation rate (kg/m2)
   real(r8) :: assim_eff ! Effective assimilation (kg/kg)
+  real(r8) :: repro_eff ! Effective reproduction (kg/kg)
   real(r8) :: prod      ! Moss production (kg/m2)
   real(r8) :: litter    ! Moss litter (kg)
 
@@ -104,9 +105,12 @@ subroutine moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, &
   ! Moss assimilation
   assim = PMAX*algf*fcgf*dlgf*ddgf
 
+  ! Effective reproduction (fraction of live biomass)
+  repro_eff = SPORES*dlgf*ddgf
+
   ! Effective assimilation
-  assim_eff = SLA*assim*(1.0 - SPORES*dlgf*ddgf)
-  prod = assim_eff*biokg - biokg*Q - biokg*B + SPORES*dlgf*ddgf
+  assim_eff = SLA*assim*(1.0 - repro_eff)
+  prod = assim_eff*biokg - biokg*Q - biokg*B + repro_eff
 
   if (biokg + prod < 0.0) then
       ! Not enough moss to account for mortality/respiration
@@ -117,7 +121,7 @@ subroutine moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, &
   moss_biom_kg = (biokg + prod)*plotsize
 
   ! Calculate litter (kg)
-  litter = (assim_eff*biokg + SPORES*dlgf*ddgf - prod)*plotsize
+  litter = (assim_eff*biokg + repro_eff - prod)*plotsize
   litter = max(0.0, litter)
 
   ! Convert to tonnes/ha from kg/plot
