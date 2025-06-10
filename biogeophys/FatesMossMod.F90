@@ -28,6 +28,13 @@ module FatesMossMod
   real(r8), parameter :: LRMIN = 0.01   ! Light compensation point
   real(r8), parameter :: LRMAX = 0.05   ! Light compensation point
 
+  real(r8), parameter :: BULK_MOSS = 18       ! Moss bulk density (kg/m3)
+
+  ! TODO: Replace these with FATES versions (or delete)
+  real(r8), parameter :: HEC_TO_M2 = 10000.0  ! Convert from hectares to m2
+  real(r8), parameter :: KG_TO_T = 0.001      ! Convert from kg to metric tons
+  real(r8), parameter :: plotsize = 500.0     ! Area of plots (m2)
+
 
   ! PUBLIC MEMBER FUNCTIONS:
   public :: moss
