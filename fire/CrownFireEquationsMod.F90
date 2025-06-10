@@ -8,10 +8,6 @@ module CrownFireEquationsMod
 
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
-  use SFEquationsMod,    only : OptimumPackingRatio, ReactionIntensity
-  use SFEquationsMod,    only : HeatofPreignition, EffectiveHeatingNumber
-  use SFEquationsMod,    only : WindFactor, PropagatingFlux
-  use SFEquationsMod,    only : ForwardRateOfSpread
 
 
   implicit none
@@ -22,7 +18,7 @@ module CrownFireEquationsMod
   public :: CrowningIndex
   public :: CrownFireIntensity
   public :: LiveFuelMoistureContent
-  public :: ROSActiveFM10
+  public :: CrownFireBehaveFM10
 
   contains
 
@@ -163,18 +159,27 @@ module CrownFireEquationsMod
   !---------------------------------------------------------------------------------------
 
 
-  real(r8) function ROSActiveFM10(drying_ratio, fire_weather_index, miner_total, part_dens, wind)
+  subroutine CrownFireBehaveFM10(drying_ratio, fire_weather_index, miner_total, part_dens, wind, &
+                                 canopy_bulk_density, ROS_active, CI)
     !
     ! DESCRIPTION
     ! Calculate theoretical rate of spread for a active crown fire using
     ! fuel model 10 and Rothermel's ROS model
     !
+    use SFEquationsMod,    only : OptimumPackingRatio, ReactionIntensity
+    use SFEquationsMod,    only : HeatofPreignition, EffectiveHeatingNumber
+    use SFEquationsMod,    only : WindFactor, PropagatingFlux
+    use SFEquationsMod,    only : ForwardRateOfSpread
+
     ! ARGUMENTS:
-    real(r8), intent(in) :: drying_ratio       ! SPITFIRE fuel parameters controlling fuel dying rate [unitless]
-    real(r8), intent(in) :: fire_weather_index ! Nesterov fire weather index 
-    real(r8), intent(in) :: miner_total        ! SPITFIRE parameter to set fractional mineral content per unit biomass [fraction]
-    real(r8), intent(in) :: part_dens          ! SPITFIRE parameter to set particle density for fuels [kg/m2]
-    real(r8), intent(in) :: wind               ! Site wind speed [m/s]
+    real(r8), intent(in)  :: drying_ratio        ! SPITFIRE fuel parameters controlling fuel dying rate [unitless]
+    real(r8), intent(in)  :: fire_weather_index  ! Nesterov fire weather index 
+    real(r8), intent(in)  :: miner_total         ! SPITFIRE parameter to set fractional mineral content per unit biomass [fraction]
+    real(r8), intent(in)  :: part_dens           ! SPITFIRE parameter to set particle density for fuels [kg/m2]
+    real(r8), intent(in)  :: wind                ! Site wind speed [m/s]
+    real(r8), intent(in)  :: canopy_bulk_density ! Canopy fuel bulk density [kg biomass / m3]               ! 
+    real(r8), intent(out) :: ROS_active          ! Theoretical rate of spread a fully active crown fire using fuel model 10  [m/min]
+    real(r8), intent(out) :: CI                  ! Open wind speed to sustain an active crown fire using fuel model 10 [km/hr]
 
     ! Local variables:
 
@@ -225,8 +230,6 @@ module CrownFireEquationsMod
     real(r8),parameter  :: sqft_cubicft_to_sqm_cubicm = 0.03280844_r8  ! convert ft2/ft3 to m2/m3
     real(r8),parameter  :: ft_to_meter = 0.3048_r8                     ! convert ft to meter
     real(r8),parameter  :: km_per_hr_to_m_per_min = 16.6667_r8         ! convert km/hour to m/min for wind speed
-    real(r8), parameter :: wind_atten_tree = 0.4_r8                    ! wind attenuation factor for tree fraction
-    real(r8), parameter :: wind_atten_grass = 0.6_r8                   ! wind attenuation factor for grass fraction
 
     fuel_1h     = fuel_1h_ton * tonnes_acre_to_kg_m2
     fuel_10h    = fuel_10h_ton * tonnes_acre_to_kg_m2
@@ -273,10 +276,16 @@ module CrownFireEquationsMod
 
     xi_fm10 = PropagatingFlux(beta_fm10, fuel_sav)
 
-    ROSActiveFM10 = ForwardRateOfSpread(fuel_bd, eps_fm10, q_ig_fm10, i_r_fm10, &
+    ! Calculate ROS_active, used for determining whether there is active or passtive crown fire
+    ROS_active = ForwardRateOfSpread(fuel_bd, eps_fm10, q_ig_fm10, i_r_fm10, &
                                         xi_fm10, phi_wind_fm10)
 
-  end function ROSActiveFM10
+    ! Calculate crowning index, which is used for calculating ROS_SA
+    CI = CrowningIndex(eps_fm10, q_ig_fm10, i_r_fm10, &
+                       canopy_bulk_density )
+    CI = CI * km_per_hr_to_m_per_min  ! convert to m/min
+
+  end subroutine CrownFireBehaveFM10
 
 
 

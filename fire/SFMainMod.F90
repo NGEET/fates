@@ -677,7 +677,7 @@ contains
     use SFEquationsMod, only : HeatofPreignition, EffectiveHeatingNumber
     use SFEquationsMod, only : WindFactor, PropagatingFlux
     use SFEquationsMod, only : ForwardRateOfSpread
-    use CrownFireEquationsMod, only : ROSActiveFM10
+    use CrownFireEquationsMod, only : CrownFireBehaveFM10
     use CrownFireEquationsMod, only : PassiveCrownFireIntensity, HeatReleasePerArea
     use CrownFireEquationsMod, only : CrowningIndex, CrownFireIntensity
 
@@ -712,6 +712,10 @@ contains
     real(r8)                        :: phi_wind_SA       ! wind factor for calculating ROS_SA [unitless]
     real(r8)                        :: q_ig         ! heat of pre-ignition of current patch [kJ/kg]
 
+    ! Local parameters
+    real(r8), parameter :: wind_atten_tree = 0.4_r8                    ! wind attenuation factor for tree fraction
+    real(r8), parameter :: wind_atten_grass = 0.6_r8                   ! wind attenuation factor for grass fraction
+
 
     currentPatch => currentSite%oldest_patch
     do while(associated(currentPatch))
@@ -731,9 +735,10 @@ contains
         
         ! check if there is a crown fire 
         if (currentPatch%FI > FI_init ) then
-          ! calculate ROS_active using fuel model 10
-          ROS_active = ROSActiveFM10(SF_val_drying_ratio, currentSite%fireWeather%fire_weather_index, &
-          SF_val_miner_total, SF_val_part_dens, currentSite%wind)
+          ! calculate ROS_active and CI using fuel characteristics from fuel model 10
+          call CrownFireBehaveFM10(SF_val_drying_ratio, currentSite%fireWeather%fire_weather_index, &
+          SF_val_miner_total, SF_val_part_dens, currentSite%wind, &
+          currentPatch%fuel%canopy_bulk_density, ROS_active, CI)
 
           ! Calculate ROS_acitive_min, EQ 14 in Scott & Reinhardt 2001
           ROS_active_min = 3.0_r8 / currentPatch%fuel%canopy_bulk_density
@@ -754,11 +759,6 @@ contains
           q_ig = HeatofPreignition(currentPatch%fuel%average_moisture_notrunks)
           eps = EffectiveHeatingNumber(currentPatch%fuel%SAV_notrunks)
 
-          ! Calculate crowning index, which is used for calculating phi_wind
-          ! CI is also calculated using fuel characteristics of FM 10 
-          CI = CrowningIndex(eps_fm10, q_ig_fm10, i_r_fm10, &
-          currentPatch%fuel%canopy_bulk_density )
-          CI = CI * km_per_hr_to_m_per_min  ! convert to m/min
 
           ! calculate effective wind speed at CI
           ! XLG: this is the disconnection from ROS_active calculation, where they used midflame wind speed 
@@ -773,6 +773,7 @@ contains
           phi_wind_SA = WindFactor(CI_effective, beta_ratio,   &
               currentPatch%fuel%SAV_notrunks)
           xi = PropagatingFlux(beta, currentPatch%fuel%SAV_notrunks)
+          ! calculate surface fire spread rate at CI 
           ROS_SA = ForwardRateOfSpread(currentPatch%fuel%bulk_density_notrunks, &
               eps, q_ig, i_r, xi, phi_wind_SA)
           
