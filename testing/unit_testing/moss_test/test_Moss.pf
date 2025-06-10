@@ -36,9 +36,9 @@ module test_Moss
 
       ! Outputs should all be zero
       call moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, livemoss_depth)
-      @assertEqual(moss_biom_kg, 0.0_r8)
-      @assertEqual(moss_litter_flux, 0.0_r8)
-      @assertEqual(livemoss_depth, 0.0_r8)
+      @assertEqual(0.0_r8, moss_biom_kg)
+      @assertEqual(0.0_r8, moss_litter_flux)
+      @assertEqual(0.0_r8, livemoss_depth)
 
     end subroutine ZeroMoss
 
