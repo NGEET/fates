@@ -19,7 +19,6 @@ module CrownFireEquationsMod
 
   public :: PassiveCrownFireIntensity
   public :: HeatReleasePerArea
-  public :: TorchingIndex
   public :: CrowningIndex
   public :: CrownFireIntensity
   public :: LiveFuelMoistureContent
