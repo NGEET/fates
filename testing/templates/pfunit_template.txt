@@ -1,0 +1,22 @@
+module test_{module_name}
+  !
+  ! DESCRIPTION:
+  !		Add description here
+  !
+  use FatesConstantsMod, only : r8 => fates_r8
+  use funit
+
+  implicit none
+  
+  @TestCase
+  type, extends(TestCase) :: Test{module_name}
+    contains
+      procedure :: setUp
+      procedure :: tearDown 
+  end type Test{module_name}
+  
+  real(r8), parameter :: tol = 1.e-13_r8
+
+  contains 
+
+end module test_{module_name}

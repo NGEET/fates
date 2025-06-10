@@ -193,6 +193,16 @@ def str_to_bool(val: str) -> bool:
         return False
     raise ValueError(f"invalid truth value {val}")
 
+def snake_to_camel(snake_str: str) -> str:
+    """Convert a snake_case string to CamelCase.
+
+    Args:
+        snake_str (str): input snake case
+
+    Returns:
+        str: output CamelCase
+    """
+    return "".join(word.capitalize() for word in snake_str.split("_"))
 
 def str_to_list(val: str) -> list:
     """converts string representation of list to actual list
