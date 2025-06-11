@@ -28,7 +28,10 @@ module FatesMossMod
   real(r8), parameter :: LRMIN = 0.01   ! Light compensation point
   real(r8), parameter :: LRMAX = 0.05   ! Light compensation point
 
+  ! Constants from UVAFME (maybe also from Bonan & Korzukhin, 1989, but unsure)
   real(r8), parameter :: BULK_MOSS_KG_PER_M3 = 18       ! Moss bulk density (kg/m3)
+  real(r8), parameter :: FCGF_ALFF_THRESH = 0.75  ! Above this level of light on forest floor, moss assimilation starts to decrease
+  real(r8), parameter :: FCGF_INTERCEPT = 1.5625  ! Intercept parameter in fcgf equation
 
   ! TODO: Replace these with FATES versions (or delete)
   real(r8), parameter :: HEC_TO_M2 = 10000.0  ! Convert from hectares to m2
@@ -88,9 +91,9 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   algf = max(0.0, algf)
   algf = min(1.0, algf)
 
-  ! Forest cover growth multiplier (alff > 0.75)
-  if (alff > 0.75) then
-     fcgf = 1.5625 - alff**2
+  ! Forest cover growth multiplier
+  if (alff > FCGF_ALFF_THRESH) then
+     fcgf = FCGF_INTERCEPT - alff**2
   else
       fcgf = 1.0
   end if

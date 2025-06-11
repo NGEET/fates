@@ -20,6 +20,15 @@ module test_Moss
   contains
 
     @Test
+    subroutine fcgf_smooth(this)
+      ! test that there's a smooth transition from fcgf=1 at the point where alff starts to affect it
+      class(TestMoss), intent(inout) :: this ! test object
+
+      @assertEqual(1.0_r8, FCGF_INTERCEPT - FCGF_ALFF_THRESH**2)
+
+    end subroutine fcgf_smooth
+
+    @Test
     subroutine ZeroMoss(this)
       ! test that all outputs are zero if input moss biomass is zero
       class(TestMoss), intent(inout) :: this ! test object
