@@ -29,6 +29,15 @@ module test_Moss
     end subroutine fcgf_smooth
 
     @Test
+    subroutine dlgf_smooth(this)
+      ! test that there's a smooth transition from dlgf=1 at the point where deciduous leaf litter starts to affect it
+      class(TestMoss), intent(inout) :: this ! test object
+
+      @assertEqual(1.0_r8, exp(-DLGF_DECAY * DLGF_DECLIT_THRESH))
+
+    end subroutine dlgf_smooth
+
+    @Test
     subroutine ZeroMoss(this)
       ! test that all outputs are zero if input moss biomass is zero
       class(TestMoss), intent(inout) :: this ! test object

@@ -32,6 +32,8 @@ module FatesMossMod
   real(r8), parameter :: BULK_MOSS_KG_PER_M3 = 18       ! Moss bulk density (kg/m3)
   real(r8), parameter :: FCGF_ALFF_THRESH = 0.75  ! Above this level of light on forest floor, moss assimilation starts to decrease
   real(r8), parameter :: FCGF_INTERCEPT = 1.5625  ! Intercept parameter in fcgf equation
+  real(r8), parameter :: DLGF_DECLIT_THRESH = 0  ! Above this level of deciduous litter (t/ha plot), moss assimilation starts to decrease
+  real(r8), parameter :: DLGF_DECAY = 0.2932  ! Decay parameter of moss assimilation with increasing deciduous leaf litter
 
   ! TODO: Replace these with FATES versions (or delete)
   real(r8), parameter :: HEC_TO_M2 = 10000.0  ! Convert from hectares to m2
@@ -101,8 +103,8 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   if (fcgf < 0.0) fcgf = 0.0
 
   ! Deciduous leaf litter growth multiplier
-  if (decLit_t_per_haplot > 0.0) then
-      dlgf = exp(-0.2932*decLit_t_per_haplot)
+  if (decLit_t_per_haplot > DLGF_DECLIT_THRESH) then
+      dlgf = exp(-DLGF_DECAY * decLit_t_per_haplot)
       if (dlgf <= 0.0) dlgf = 0.0
       if (dlgf >= 1.0) dlgf = 1.0
   else
