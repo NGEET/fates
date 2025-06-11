@@ -8,6 +8,7 @@ module FatesFactoryMod
   use FatesConstantsMod,           only : isemi_stress_decid
   use FatesConstantsMod,           only : primaryland
   use FatesConstantsMod,           only : sec_per_day, days_per_year
+  use FatesCohortMod,              only : default_regeneration
   use FatesGlobals,                only : fates_log
   use FatesGlobals,                only : endrun => fates_endrun
   use FatesCohortMod,              only : fates_cohort_type
@@ -56,7 +57,6 @@ module FatesFactoryMod
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use FatesInterfaceTypesMod,      only : nleafage
   use FatesSizeAgeTypeIndicesMod,  only : get_age_class_index
-  use EDParamsMod,                 only : regeneration_model
   use SyntheticPatchTypes,         only : synthetic_patch_type
   use shr_log_mod,                 only : errMsg => shr_log_errMsg
 
@@ -88,6 +88,8 @@ module FatesFactoryMod
     element_pos(:) = 0
     element_pos(carbon12_element) = 1
     call InitPRTGlobalAllometricCarbon()
+    
+    hlm_regeneration_model = default_regeneration
     
     allocate(ema_24hr)
     call ema_24hr%define(sec_per_day, step_size, moving_ema_window)
@@ -445,7 +447,7 @@ module FatesFactoryMod
     
     allocate(patch)
     call patch%Create(age, area, land_use_label_local, nocomp_pft_local, num_swb,        &
-      num_pft, num_levsoil, tod_local, regeneration_model)
+      num_pft, num_levsoil, tod_local, default_regeneration)
     
     patch%patchno = 1
     patch%younger => null()
