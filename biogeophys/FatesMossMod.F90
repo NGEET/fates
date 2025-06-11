@@ -52,9 +52,15 @@ contains
 function available_light_under_canopy_and_moss(cla_m2_per_plot, moss_biom_kg_per_m2plot_before) result(al)
   real(r8), intent(in)    :: cla_m2_per_plot  ! Cumulative leaf area on forest floor (m2)
   real(r8), intent(in)    :: moss_biom_kg_per_m2plot_before  ! Moss biomass (kg/m2) before this timestep
+  real(r8) :: canopy_lai  ! Leaf area index of canopy (i.e., excluding moss) (m2 leaves / m2 plot)
+  real(r8) :: moss_lai  ! Leaf area index of moss (m2 leaves / m2 plot)
+  real(r8) :: lai       ! Total leaf area index, canopy + moss (m2 leaves / m2 plot)
   real(r8) :: al        ! Available light
 
-  al = exp(-1.0*EXT*(cla_m2_per_plot / plotsize_m2 + moss_biom_kg_per_m2plot_before * SLA_M2LEAF_PER_KGMOSS))
+  canopy_lai = cla_m2_per_plot / plotsize_m2
+  moss_lai = moss_biom_kg_per_m2plot_before * SLA_M2LEAF_PER_KGMOSS
+  lai = canopy_lai + moss_lai
+  al = exp(-1.0*EXT*lai)
 end function available_light_under_canopy_and_moss
 
 !------------------------------------------------------------------------------
