@@ -42,9 +42,23 @@ module FatesMossMod
 
 
   ! PUBLIC MEMBER FUNCTIONS:
+  public :: forest_cover_growth_multiplier
   public :: moss
 
 contains
+
+!------------------------------------------------------------------------------
+function forest_cover_growth_multiplier(alff) result(fcgf)
+  real(r8), intent(in)    :: alff    ! Available light on the forest floor (0-1)
+  real(r8) :: fcgf      ! Forest cover growth factor
+  if (alff > FCGF_ALFF_THRESH) then
+      fcgf = FCGF_INTERCEPT - alff**2
+  else
+      fcgf = 1.0
+  end if
+  if (fcgf > 1.0) fcgf = 1.0
+  if (fcgf < 0.0) fcgf = 0.0
+end function forest_cover_growth_multiplier
 
 !------------------------------------------------------------------------------
 subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plot_inout, moss_litter_flux_t_per_haplot, &
@@ -94,13 +108,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   algf = min(1.0, algf)
 
   ! Forest cover growth multiplier
-  if (alff > FCGF_ALFF_THRESH) then
-     fcgf = FCGF_INTERCEPT - alff**2
-  else
-      fcgf = 1.0
-  end if
-  if (fcgf > 1.0) fcgf = 1.0
-  if (fcgf < 0.0) fcgf = 0.0
+  fcgf = forest_cover_growth_multiplier(alff)
 
   ! Deciduous leaf litter growth multiplier
   if (decLit_t_per_haplot > DLGF_DECLIT_THRESH) then

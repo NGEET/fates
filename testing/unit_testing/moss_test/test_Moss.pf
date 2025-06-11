@@ -29,6 +29,24 @@ module test_Moss
     end subroutine fcgf_smooth
 
     @Test
+    subroutine fcgf_min_0(this)
+      ! test that forest cover growth multiplier is never < 0
+      class(TestMoss), intent(inout) :: this ! test object
+
+      @assertEqual(0.0_r8, forest_cover_growth_multiplier(999._r8))
+
+    end subroutine fcgf_min_0
+
+    @Test
+    subroutine fcgf_max_1(this)
+      ! test that forest cover growth multiplier is never > 1
+      class(TestMoss), intent(inout) :: this ! test object
+
+      @assertEqual(1.0_r8, forest_cover_growth_multiplier(-999._r8))
+
+    end subroutine fcgf_max_1
+
+    @Test
     subroutine dlgf_smooth(this)
       ! test that there's a smooth transition from dlgf=1 at the point where deciduous leaf litter starts to affect it
       class(TestMoss), intent(inout) :: this ! test object
