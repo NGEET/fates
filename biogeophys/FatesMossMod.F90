@@ -44,6 +44,7 @@ module FatesMossMod
   ! PUBLIC MEMBER FUNCTIONS:
   public :: light_growth_multiplier
   public :: forest_cover_growth_multiplier
+  public :: litter_growth_multiplier
   public :: moss
 
 contains
@@ -88,6 +89,19 @@ function forest_cover_growth_multiplier(alff) result(fcgf)
   if (fcgf > 1.0) fcgf = 1.0
   if (fcgf < 0.0) fcgf = 0.0
 end function forest_cover_growth_multiplier
+
+!------------------------------------------------------------------------------
+function litter_growth_multiplier(decLit_t_per_haplot) result(dlgf)
+  real(r8), intent(in)    :: decLit_t_per_haplot    ! Fresh deciduous leaf litter (t/ha)
+  real(r8) :: dlgf      ! Deciduous leaf litter growth multiplier
+  if (decLit_t_per_haplot > DLGF_DECLIT_THRESH) then
+      dlgf = exp(-DLGF_DECAY * decLit_t_per_haplot)
+      if (dlgf <= 0.0) dlgf = 0.0
+      if (dlgf >= 1.0) dlgf = 1.0
+  else
+      dlgf = 1.0
+  end if
+end function litter_growth_multiplier
 
 !------------------------------------------------------------------------------
 subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plot_inout, moss_litter_flux_t_per_haplot, &
@@ -136,13 +150,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   fcgf = forest_cover_growth_multiplier(alff)
 
   ! Deciduous leaf litter growth multiplier
-  if (decLit_t_per_haplot > DLGF_DECLIT_THRESH) then
-      dlgf = exp(-DLGF_DECAY * decLit_t_per_haplot)
-      if (dlgf <= 0.0) dlgf = 0.0
-      if (dlgf >= 1.0) dlgf = 1.0
-  else
-      dlgf = 1.0
-  end if
+  dlgf = litter_growth_multiplier(decLit_t_per_haplot)
 
   ! Moisture growth factor
   ! TODO: Implement this
