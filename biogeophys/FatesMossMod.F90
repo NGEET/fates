@@ -133,8 +133,7 @@ subroutine moss_biomass_change_kg_per_m2(q_kg_per_kg_moss_in, b_kg_per_kg_moss_i
 
   ! Calculate litter flux (kg)
   ! TODO: Flux to litter should only come from mortality. Respiration should go to atmosphere.
-  moss_to_litter_flux = assim_eff - moss_biom_change
-  moss_to_litter_flux = max(0.0, moss_to_litter_flux)
+  moss_to_litter_flux = moss_respmort
 
   ! Update biomass
   moss_biom_after = moss_biom_before + moss_biom_change
