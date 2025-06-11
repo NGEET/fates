@@ -69,6 +69,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   real(r8) :: assim_eff_kg_per_kgmoss ! Effective assimilation (kg/kg)
   real(r8) :: repro_eff_kg_per_kgmoss ! Effective reproduction (kg/kg)
   real(r8) :: prod_kg_per_m2plot      ! Moss production (kg/m2)
+  real(r8) :: moss_to_litter_flux_kg_per_m2plot  ! Flux from moss to litter (kg/m2)
   real(r8) :: moss_to_litter_flux_kg_per_plot    ! Flux from moss to litter (kg)
 
   ! Convert moss biomass in kg to kg/m2
@@ -125,11 +126,13 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   moss_to_litter_flux_kg_per_plot = (assim_eff_kg_per_kgmoss*moss_biom_kg_per_m2plot + repro_eff_kg_per_kgmoss - prod_kg_per_m2plot)*plotsize_m2
   moss_to_litter_flux_kg_per_plot = max(0.0, moss_to_litter_flux_kg_per_plot)
 
-  ! Convert to tonnes/ha from kg/plot
-  moss_litter_flux_t_per_haplot = moss_to_litter_flux_kg_per_plot/plotsize_m2*HEC_TO_M2*KG_TO_T
-
   ! Thickness of live moss layer (m)
   livemoss_depth_m = moss_biom_kg_per_plot/plotsize_m2/BULK_MOSS_KG_PER_M3
+  
+  ! Convert certain variables to their UVAFME outputs
+  ! TODO: Change these to what FATES needs
+  moss_litter_flux_t_per_haplot = moss_to_litter_flux_kg_per_plot/plotsize_m2*HEC_TO_M2*KG_TO_T
+  
 
 
 end subroutine moss
