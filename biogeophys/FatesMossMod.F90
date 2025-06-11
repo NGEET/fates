@@ -110,7 +110,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
 
   ! Effective assimilation
   assim_eff_kg_per_kgmoss = SLA_M2LEAF_PER_KGMOSS*assim_kg_per_m2leaf*(1.0 - repro_eff_kg_per_kgmoss)
-  prod_kg_per_m2plot = assim_eff_kg_per_kgmoss*moss_biom_kg_per_m2plot - moss_biom_kg_per_m2plot*Q_KG_PER_KGMOSS - moss_biom_kg_per_m2plot*B_KG_PER_KGMOSS + repro_eff_kg_per_kgmoss
+  prod_kg_per_m2plot = moss_biom_kg_per_m2plot*(assim_eff_kg_per_kgmoss - Q_KG_PER_KGMOSS - B_KG_PER_KGMOSS) + repro_eff_kg_per_kgmoss
 
   if (moss_biom_kg_per_m2plot + prod_kg_per_m2plot < 0.0) then
       ! Not enough moss to account for mortality/respiration
