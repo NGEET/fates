@@ -103,6 +103,36 @@ function litter_growth_multiplier(decLit_t_per_haplot) result(dlgf)
   end if
 end function litter_growth_multiplier
 
+subroutine moss_biomass_change_kg_per_m2(assim_eff, moss_respmort, moss_biom_before, moss_to_litter_flux, moss_biom_after)
+  ! ALL UNITS KG / M2 PLOT
+  real(r8), intent(in) :: assim_eff ! Assimilation (kg/m2)
+  real(r8), intent(in) :: moss_respmort  ! Moss respiration and mortality (kg/m2) during this timestep
+  real(r8), intent(in) :: moss_biom_before   ! Moss biomass (kg/m2) before this timestep
+  real(r8), intent(out) :: moss_to_litter_flux    ! Flux from moss to litter (kg/m2)
+  real(r8), intent(out) :: moss_biom_after   ! Moss biomass (kg/m2) after this timestep
+
+  ! Local variables
+  real(r8) :: moss_biom_change     ! Change in moss biomass (kg/m2) during this timestep
+
+  ! Net change in moss biomass
+  moss_biom_change = assim_eff - moss_respmort
+
+  if (moss_biom_before + moss_biom_change < 0.0) then
+      ! Not enough moss to account for mortality/respiration
+      ! Set moss loss to all of current biomass
+      ! TODO: Once respiration and mortality are broken up, they should be adjusted here.
+      moss_biom_change = -1.0 * moss_biom_before
+  end if
+
+  ! Calculate litter flux (kg)
+  ! TODO: Flux to litter should only come from mortality. Respiration should go to atmosphere.
+  moss_to_litter_flux = assim_eff - moss_biom_change
+  moss_to_litter_flux = max(0.0, moss_to_litter_flux)
+
+  ! Update biomass
+  moss_biom_after = moss_biom_before + moss_biom_change
+end subroutine moss_biomass_change_kg_per_m2
+
 !------------------------------------------------------------------------------
 subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plot_inout, moss_litter_flux_t_per_haplot, &
                 livemoss_depth_m)
@@ -167,23 +197,8 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   moss_respmort_kg_per_kgmoss = Q_KG_PER_KGMOSS + B_KG_PER_KGMOSS
   moss_respmort_kg_per_m2plot = moss_respmort_kg_per_kgmoss * moss_biom_kg_per_m2plot_before
 
-  ! Net change in moss biomass
-  moss_biom_change_kg_per_m2plot = assim_eff_kg_per_m2plot - moss_respmort_kg_per_m2plot
-
-  if (moss_biom_kg_per_m2plot_before + moss_biom_change_kg_per_m2plot < 0.0) then
-      ! Not enough moss to account for mortality/respiration
-      ! Set moss loss to all of current biomass
-      ! TODO: Once respiration and mortality are broken up, they should be adjusted here.
-      moss_biom_change_kg_per_m2plot = -1.0 * moss_biom_kg_per_m2plot_before
-  end if
-
-  ! Calculate litter flux (kg)
-  ! TODO: Flux to litter should only come from mortality. Respiration should go to atmosphere.
-  moss_to_litter_flux_kg_per_m2plot = assim_eff_kg_per_m2plot - moss_biom_change_kg_per_m2plot
-  moss_to_litter_flux_kg_per_m2plot = max(0.0, moss_to_litter_flux_kg_per_m2plot)
-
-  ! Update biomass
-  moss_biom_kg_per_m2plot_after = moss_biom_kg_per_m2plot_before + moss_biom_change_kg_per_m2plot
+  ! Get fluxes from moss and change in moss biomass
+  call moss_biomass_change_kg_per_m2(assim_eff_kg_per_m2plot, moss_respmort_kg_per_m2plot, moss_biom_kg_per_m2plot_before, moss_to_litter_flux_kg_per_m2plot, moss_biom_kg_per_m2plot_after)
 
   ! Thickness of live moss layer (m)
   livemoss_depth_m = moss_biom_kg_per_m2plot_after / BULK_MOSS_KG_PER_M3

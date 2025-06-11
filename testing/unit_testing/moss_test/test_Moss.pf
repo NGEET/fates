@@ -116,6 +116,31 @@ module test_Moss
     end subroutine dlgf_max_1
 
     @Test
+    subroutine moss_biomass_change_test(this)
+      ! test that moss biomass change and fluxes are what we expect given a timestep that doesn't kill the moss
+      class(TestMoss), intent(inout) :: this ! test object
+
+      ! ALL UNITS KG / M2 PLOT
+      ! Inputs
+      real(r8) :: assim_eff ! Assimilation (kg/m2)
+      real(r8) :: moss_respmort  ! Moss respiration and mortality (kg/m2) during this timestep
+      real(r8) :: moss_biom_before   ! Moss biomass (kg/m2) before this timestep
+      ! Outputs
+      real(r8) :: moss_to_litter_flux    ! Flux from moss to litter (kg/m2)
+      real(r8) :: moss_biom_after   ! Moss biomass (kg/m2) after this timestep
+
+      assim_eff = 15
+      moss_respmort = 4
+      moss_biom_before = 50
+
+      ! Outputs should all be zero
+      call moss_biomass_change_kg_per_m2(assim_eff, moss_respmort, moss_biom_before, moss_to_litter_flux, moss_biom_after)
+      @assertEqual(4.0_r8, moss_to_litter_flux)
+      @assertEqual(61.0_r8, moss_biom_after)
+
+    end subroutine moss_biomass_change_test
+
+    @Test
     subroutine ZeroMoss(this)
       ! test that all outputs are zero if input moss biomass is zero
       class(TestMoss), intent(inout) :: this ! test object
