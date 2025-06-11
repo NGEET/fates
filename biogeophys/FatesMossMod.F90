@@ -121,6 +121,7 @@ subroutine moss(alff, cla_m2, decLit_t_per_ha, moss_biom_kg, moss_litter_flux_t_
   moss_biom_kg = (moss_biom_kg_per_m2 + prod_kg_per_m2)*plotsize_m2
 
   ! Calculate litter (kg)
+  ! TODO: Flux to litter should only come from mortality. Respiration should go to atmosphere.
   litter_kg = (assim_eff_kg_per_kgmoss*moss_biom_kg_per_m2 + repro_eff_kg_per_kgmoss - prod_kg_per_m2)*plotsize_m2
   litter_kg = max(0.0, litter_kg)
 
