@@ -127,7 +127,8 @@ module test_Moss
       real(r8) :: b_kg_per_kg_moss  ! Mortality? parameter
       real(r8) :: moss_biom_before   ! Moss biomass (kg/m2) before this timestep
       ! Outputs
-      real(r8) :: moss_to_litter_flux    ! Flux from moss to litter (kg/m2)
+      real(r8) :: moss_resp  ! Moss respiration (kg/m2) during this timestep
+      real(r8) :: moss_mort  ! Moss mortality (kg/m2) during this timestep
       real(r8) :: moss_biom_after   ! Moss biomass (kg/m2) after this timestep
 
       assim_eff = 15
@@ -135,9 +136,8 @@ module test_Moss
       b_kg_per_kg_moss = 0.02
       moss_biom_before = 50
 
-      ! Outputs should all be zero
-      call moss_biomass_change_kg_per_m2(q_kg_per_kg_moss, b_kg_per_kg_moss, assim_eff, moss_biom_before, moss_to_litter_flux, moss_biom_after)
-      @assertEqual(4.0_r8, moss_to_litter_flux, tolerance=1e-6_r8)
+      call moss_biomass_change_kg_per_m2(q_kg_per_kg_moss, b_kg_per_kg_moss, assim_eff, moss_biom_before, moss_resp, moss_mort, moss_biom_after)
+      @assertEqual(4.0_r8, moss_resp + moss_mort, tolerance=1e-6_r8)
       @assertEqual(61.0_r8, moss_biom_after, tolerance=1e-6_r8)
 
     end subroutine moss_biomass_change_test
@@ -154,7 +154,8 @@ module test_Moss
       real(r8) :: b_kg_per_kg_moss  ! Mortality? parameter
       real(r8) :: moss_biom_before   ! Moss biomass (kg/m2) before this timestep
       ! Outputs
-      real(r8) :: moss_to_litter_flux    ! Flux from moss to litter (kg/m2)
+      real(r8) :: moss_resp  ! Moss respiration (kg/m2) during this timestep
+      real(r8) :: moss_mort  ! Moss mortality (kg/m2) during this timestep
       real(r8) :: moss_biom_after   ! Moss biomass (kg/m2) after this timestep
 
       moss_biom_before = 50
@@ -163,10 +164,14 @@ module test_Moss
       q_kg_per_kg_moss = 1.1
       b_kg_per_kg_moss = 0.9
 
-      ! Outputs should all be zero
-      call moss_biomass_change_kg_per_m2(q_kg_per_kg_moss, b_kg_per_kg_moss, assim_eff, moss_biom_before, moss_to_litter_flux, moss_biom_after)
+      call moss_biomass_change_kg_per_m2(q_kg_per_kg_moss, b_kg_per_kg_moss, assim_eff, moss_biom_before, moss_resp, moss_mort, moss_biom_after)
+
+      ! Total biomass should now be zero
       @assertEqual(0.0_r8, moss_biom_after, tolerance=0._r8)
-      @assertEqual(50.0_r8, moss_to_litter_flux, tolerance=0._r8)
+
+      ! Respiration and mortality should be proportional to their relative values and should sum to start-of-timestep biomass
+      @assertEqual(27.5_r8, moss_resp, tolerance=1e-6_r8)
+      @assertEqual(22.5_r8, moss_mort, tolerance=1e-6_r8)
 
     end subroutine moss_biomass_change_to_zero
 
