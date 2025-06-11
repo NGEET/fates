@@ -15,6 +15,8 @@ module test_Moss
   type, extends(TestCase) :: TestMoss
   end type TestMoss
 
+  real(r8), parameter :: tol = 1.e-13_r8
+
   contains
 
     @Test
@@ -41,6 +43,29 @@ module test_Moss
       @assertEqual(0.0_r8, livemoss_depth)
 
     end subroutine ZeroMoss
+
+    @Test
+    subroutine MossA(this)
+      ! temporary test to make sure refactoring has no effect
+      class(TestMoss), intent(inout) :: this ! test object
+      real(r8) :: alff    ! Available light on the forest floor (0-1)
+      real(r8) :: cla     ! Cumulative leaf area on forest floor (m2)
+      real(r8) :: decLit  ! Fresh deciduous leaf litter (t/ha)
+      real(r8) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
+      real(r8) :: moss_litter_flux  ! Moss biomass flux to litter (t/ha)
+      real(r8) :: livemoss_depth  ! Depth (m) of live moss layer
+
+      alff = 1.0_r8
+      cla = 3.0_r8
+      decLit = 1.0_r8
+      moss_biom_kg = 0.5_r8
+
+      call moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, livemoss_depth)
+      @assertEqual(0.8183036010977344_r8, moss_biom_kg, tolerance=tol)
+      @assertEqual(0.002560000168681147_r8, moss_litter_flux, tolerance=tol)
+      @assertEqual(.9092262234419271E-04_r8, livemoss_depth, tolerance=tol)
+
+    end subroutine MossA
 
 
 end module test_Moss
