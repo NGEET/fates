@@ -25,7 +25,7 @@ module test_Moss
       class(TestMoss), intent(inout) :: this ! test object
       real(r8) :: cla_m2_per_plot  ! Cumulative leaf area on forest floor (m2)
       real(r8) :: moss_biomass  ! kg/m2 plot
-      
+
       cla_m2_per_plot = 15._r8
       moss_biomass = 1._r8
 
@@ -39,7 +39,7 @@ module test_Moss
       class(TestMoss), intent(inout) :: this ! test object
       real(r8) :: cla_m2_per_plot  ! Cumulative leaf area on forest floor (m2)
       real(r8) :: moss_biomass  ! kg/m2 plot
-      
+
       cla_m2_per_plot = 999._r8
       moss_biomass = 999._r8
 
@@ -53,7 +53,7 @@ module test_Moss
       class(TestMoss), intent(inout) :: this ! test object
       real(r8) :: cla_m2_per_plot  ! Cumulative leaf area on forest floor (m2)
       real(r8) :: moss_biomass  ! kg/m2 plot
-      
+
       cla_m2_per_plot = -999._r8
       moss_biomass = -999._r8
 
@@ -123,20 +123,23 @@ module test_Moss
       ! ALL UNITS KG / M2 PLOT
       ! Inputs
       real(r8) :: assim_eff ! Assimilation (kg/m2)
-      real(r8) :: moss_respmort  ! Moss respiration and mortality (kg/m2) during this timestep
+      real(r8) :: q_kg_per_kg_moss  ! Respiration? parameter
+      real(r8) :: b_kg_per_kg_moss  ! Mortality? parameter
       real(r8) :: moss_biom_before   ! Moss biomass (kg/m2) before this timestep
       ! Outputs
       real(r8) :: moss_to_litter_flux    ! Flux from moss to litter (kg/m2)
       real(r8) :: moss_biom_after   ! Moss biomass (kg/m2) after this timestep
 
       assim_eff = 15
-      moss_respmort = 4
+      q_kg_per_kg_moss = 0.06
+      b_kg_per_kg_moss = 0.02
+
       moss_biom_before = 50
 
       ! Outputs should all be zero
-      call moss_biomass_change_kg_per_m2(assim_eff, moss_respmort, moss_biom_before, moss_to_litter_flux, moss_biom_after)
-      @assertEqual(4.0_r8, moss_to_litter_flux)
-      @assertEqual(61.0_r8, moss_biom_after)
+      call moss_biomass_change_kg_per_m2(q_kg_per_kg_moss, b_kg_per_kg_moss, assim_eff, moss_biom_before, moss_to_litter_flux, moss_biom_after)
+      @assertEqual(4.0_r8, moss_to_litter_flux, tolerance=1e-6_r8)
+      @assertEqual(61.0_r8, moss_biom_after, tolerance=1e-6_r8)
 
     end subroutine moss_biomass_change_test
 
