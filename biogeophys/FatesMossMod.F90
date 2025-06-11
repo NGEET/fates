@@ -162,6 +162,8 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   assim_eff_kg_per_m2plot = (assim_eff_kg_per_kgmoss * moss_biom_kg_per_m2plot_before)
 
   ! Total losses to respiration and mortality
+  ! TODO: Break this into separate fluxes, because respiration needs to go to atmosphere whereas
+  !       mortality needs to go to litter.
   moss_respmort_kg_per_kgmoss = Q_KG_PER_KGMOSS + B_KG_PER_KGMOSS
   moss_respmort_kg_per_m2plot = moss_respmort_kg_per_kgmoss * moss_biom_kg_per_m2plot_before
 
@@ -171,6 +173,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   if (moss_biom_kg_per_m2plot_before + moss_biom_change_kg_per_m2plot < 0.0) then
       ! Not enough moss to account for mortality/respiration
       ! Set moss loss to all of current biomass
+      ! TODO: Once respiration and mortality are broken up, they should be adjusted here.
       moss_biom_change_kg_per_m2plot = -1.0 * moss_biom_kg_per_m2plot_before
   end if
 
