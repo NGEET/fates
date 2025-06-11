@@ -121,15 +121,15 @@ subroutine moss_biomass_change_kg_per_m2(q_kg_per_kg_moss_in, b_kg_per_kg_moss_i
   !       mortality needs to go to litter.
   moss_respmort = (q_kg_per_kg_moss_in + b_kg_per_kg_moss_in) * moss_biom_before
 
+  ! Not enough moss to account for mortality/respiration
+  ! Set moss loss to all of current biomass
+  ! TODO: Once respiration and mortality are broken up, they should be adjusted here.
+  if (moss_respmort > moss_biom_before) then
+      moss_respmort = moss_biom_before
+  end if
+
   ! Net change in moss biomass
   moss_biom_change = assim_eff - moss_respmort
-
-  if (moss_biom_before + moss_biom_change < 0.0) then
-      ! Not enough moss to account for mortality/respiration
-      ! Set moss loss to all of current biomass
-      ! TODO: Once respiration and mortality are broken up, they should be adjusted here.
-      moss_biom_change = -1.0 * moss_biom_before
-  end if
 
   ! Calculate litter flux (kg)
   ! TODO: Flux to litter should only come from mortality. Respiration should go to atmosphere.
