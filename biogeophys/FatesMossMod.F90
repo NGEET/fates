@@ -125,11 +125,11 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   !       ... Right?
   repro_eff_frac_assim = FRAC_ASSIM_TO_SPORES*dlgf*ddgf
   repro_eff_kg_per_kgmoss = assim_eff_kg_per_kgmoss * repro_eff_frac_assim
-  repro_eff_kg_per_m2plot = repro_eff_frac_assim * moss_biom_kg_per_m2plot_before
+  repro_eff_kg_per_m2plot = repro_eff_kg_per_kgmoss * moss_biom_kg_per_m2plot_before
 
   ! Assimilation
   ! TODO: Get reproduction out of here
-  assim_eff_kg_per_m2plot = (assim_eff_kg_per_kgmoss * moss_biom_kg_per_m2plot_before) - (repro_eff_kg_per_kgmoss * moss_biom_kg_per_m2plot_before)
+  assim_eff_kg_per_m2plot = (assim_eff_kg_per_kgmoss * moss_biom_kg_per_m2plot_before) - repro_eff_kg_per_m2plot
 
   ! Total losses to respiration and mortality
   moss_respmort_kg_per_kgmoss = Q_KG_PER_KGMOSS + B_KG_PER_KGMOSS
