@@ -138,7 +138,7 @@ subroutine moss_biomass_change_kg_per_m2(q_kg_per_kg_moss_in, b_kg_per_kg_moss_i
 end subroutine moss_biomass_change_kg_per_m2
 
 !------------------------------------------------------------------------------
-subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plot_inout, moss_to_litter_flux_kg_per_m2plot, &
+subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plot_inout, moss_to_litter_flux_kg_per_m2plot, moss_to_atmos_flux_kg_per_m2plot, &
                 livemoss_depth_m)
   !
   !  Calculates annual moss growth and mortality
@@ -152,6 +152,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   real(r8), intent(in)    :: decLit_t_per_haplot  ! Fresh deciduous leaf litter (t/ha)
   real(r8), intent(inout) :: moss_biom_kg_per_plot_inout  ! Moss biomass (kg, not kg/m2)
   real(r8), intent(out)   :: moss_to_litter_flux_kg_per_m2plot  ! Flux from moss to litter (kg/m2)
+  real(r8), intent(out)   :: moss_to_atmos_flux_kg_per_m2plot  ! Flux from moss to atmosphere (kg/m2)
   real(r8), intent(out)   :: livemoss_depth_m  ! Depth (m) of live moss layer
 
   ! Local variables
@@ -200,8 +201,9 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   ! Get fluxes from moss and change in moss biomass
   call moss_biomass_change_kg_per_m2(Q_KG_PER_KGMOSS, B_KG_PER_KGMOSS, assim_eff_kg_per_m2plot, moss_biom_kg_per_m2plot_before, moss_resp, moss_mort, moss_biom_kg_per_m2plot_after)
 
-  ! Get flux from live moss to litter
-  moss_to_litter_flux_kg_per_m2plot = moss_resp + moss_mort
+  ! Get flux from live moss to litter and atmosphere
+  moss_to_litter_flux_kg_per_m2plot = moss_mort
+  moss_to_atmos_flux_kg_per_m2plot = moss_resp
 
   ! Thickness of live moss layer (m)
   livemoss_depth_m = moss_biom_kg_per_m2plot_after / BULK_MOSS_KG_PER_M3

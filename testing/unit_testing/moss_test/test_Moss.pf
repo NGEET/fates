@@ -184,6 +184,7 @@ module test_Moss
       real(r8) :: decLit  ! Fresh deciduous leaf litter (t/ha)
       real(r8) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
       real(r8) :: moss_litter_flux  ! Moss biomass flux to litter (kg/m2)
+      real(r8) :: moss_atmos_flux  ! Moss biomass flux to atmosphere (kg/m2)
       real(r8) :: livemoss_depth  ! Depth (m) of live moss layer
 
       ! All inputs good for moss except zero biomass
@@ -193,9 +194,10 @@ module test_Moss
       moss_biom_kg = 0.0_r8
 
       ! Outputs should all be zero
-      call moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, livemoss_depth)
+      call moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, moss_atmos_flux, livemoss_depth)
       @assertEqual(0.0_r8, moss_biom_kg)
       @assertEqual(0.0_r8, moss_litter_flux)
+      @assertEqual(0.0_r8, moss_atmos_flux)
       @assertEqual(0.0_r8, livemoss_depth)
 
     end subroutine ZeroMoss
@@ -209,6 +211,7 @@ module test_Moss
       real(r8) :: decLit  ! Fresh deciduous leaf litter (t/ha)
       real(r8) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
       real(r8) :: moss_litter_flux  ! Moss biomass flux to litter (kg/m2)
+      real(r8) :: moss_atmos_flux  ! Moss biomass flux to atmosphere (kg/m2)
       real(r8) :: livemoss_depth  ! Depth (m) of live moss layer
 
       alff = 1.0_r8
@@ -216,9 +219,10 @@ module test_Moss
       decLit = 1.0_r8
       moss_biom_kg = 0.5_r8
 
-      call moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, livemoss_depth)
+      call moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, moss_atmos_flux, livemoss_depth)
       @assertEqual(0.4454218660396674_r8, moss_biom_kg, tolerance=tol)
-      @assertEqual(0.0002560000047087669_r8, moss_litter_flux, tolerance=tol)
+      @assertEqual(0.0001360000073909760_r8, moss_litter_flux, tolerance=tol)
+      @assertEqual(0.0001199999973177910_r8, moss_atmos_flux, tolerance=tol)
       @assertEqual(0.4949131844885193E-04_r8, livemoss_depth, tolerance=tol)
 
     end subroutine MossA
