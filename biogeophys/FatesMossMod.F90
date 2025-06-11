@@ -36,8 +36,6 @@ module FatesMossMod
   real(r8), parameter :: DLGF_DECAY = 0.2932  ! Decay parameter of moss assimilation with increasing deciduous leaf litter
 
   ! TODO: Replace these with FATES versions (or delete)
-  real(r8), parameter :: HEC_TO_M2 = 10000.0  ! Convert from hectares to m2
-  real(r8), parameter :: KG_TO_T = 0.001      ! Convert from kg to metric tons
   real(r8), parameter :: plotsize_m2 = 500.0     ! Area of plots (m2)
 
 
@@ -140,7 +138,7 @@ subroutine moss_biomass_change_kg_per_m2(q_kg_per_kg_moss_in, b_kg_per_kg_moss_i
 end subroutine moss_biomass_change_kg_per_m2
 
 !------------------------------------------------------------------------------
-subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plot_inout, moss_litter_flux_t_per_haplot, &
+subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plot_inout, moss_to_litter_flux_kg_per_m2plot, &
                 livemoss_depth_m)
   !
   !  Calculates annual moss growth and mortality
@@ -153,7 +151,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   real(r8), intent(in)    :: cla_m2_per_plot     ! Cumulative leaf area on forest floor (m2)
   real(r8), intent(in)    :: decLit_t_per_haplot  ! Fresh deciduous leaf litter (t/ha)
   real(r8), intent(inout) :: moss_biom_kg_per_plot_inout  ! Moss biomass (kg, not kg/m2)
-  real(r8), intent(out)   :: moss_litter_flux_t_per_haplot  ! Moss biomass flux to litter (t/ha)
+  real(r8), intent(out)   :: moss_to_litter_flux_kg_per_m2plot  ! Flux from moss to litter (kg/m2)
   real(r8), intent(out)   :: livemoss_depth_m  ! Depth (m) of live moss layer
 
   ! Local variables
@@ -171,7 +169,6 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   real(r8) :: moss_resp  ! Moss respiration (kg/m2) during this timestep
   real(r8) :: moss_mort  ! Moss mortality (kg/m2) during this timestep
 
-  real(r8) :: moss_to_litter_flux_kg_per_m2plot  ! Flux from moss to litter (kg/m2)
   real(r8) :: moss_to_litter_flux_kg_per_plot    ! Flux from moss to litter (kg)
   real(r8) :: moss_respmort_kg_per_kgmoss  ! Moss respiration and mortality (kg / kg moss) during this timestep
   real(r8) :: moss_respmort_kg_per_m2plot  ! Moss respiration and mortality (kg/m2) during this timestep
@@ -211,8 +208,6 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
 
   ! Convert certain variables to their UVAFME outputs
   ! TODO: Change these to what FATES needs
-  moss_to_litter_flux_kg_per_plot = moss_to_litter_flux_kg_per_m2plot * plotsize_m2
-  moss_litter_flux_t_per_haplot = moss_to_litter_flux_kg_per_plot/plotsize_m2*HEC_TO_M2*KG_TO_T
   moss_biom_kg_per_plot_inout = moss_biom_kg_per_m2plot_after * plotsize_m2
 
 
