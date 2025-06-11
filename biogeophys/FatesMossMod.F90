@@ -69,7 +69,7 @@ subroutine moss(alff, cla_m2, decLit_t_per_ha, moss_biom_kg, moss_litter_flux_t_
   real(r8) :: assim_eff_kg_per_kgmoss ! Effective assimilation (kg/kg)
   real(r8) :: repro_eff_kg_per_kgmoss ! Effective reproduction (kg/kg)
   real(r8) :: prod_kg_per_m2      ! Moss production (kg/m2)
-  real(r8) :: litter_kg    ! Moss litter (kg)
+  real(r8) :: moss_to_litter_flux_kg    ! Flux from moss to litter (kg)
 
   ! Convert moss biomass in kg to kg/m2
   moss_biom_kg_per_m2 = moss_biom_kg/plotsize_m2
@@ -120,13 +120,13 @@ subroutine moss(alff, cla_m2, decLit_t_per_ha, moss_biom_kg, moss_litter_flux_t_
 
   moss_biom_kg = (moss_biom_kg_per_m2 + prod_kg_per_m2)*plotsize_m2
 
-  ! Calculate litter (kg)
+  ! Calculate litter flux (kg)
   ! TODO: Flux to litter should only come from mortality. Respiration should go to atmosphere.
-  litter_kg = (assim_eff_kg_per_kgmoss*moss_biom_kg_per_m2 + repro_eff_kg_per_kgmoss - prod_kg_per_m2)*plotsize_m2
-  litter_kg = max(0.0, litter_kg)
+  moss_to_litter_flux_kg = (assim_eff_kg_per_kgmoss*moss_biom_kg_per_m2 + repro_eff_kg_per_kgmoss - prod_kg_per_m2)*plotsize_m2
+  moss_to_litter_flux_kg = max(0.0, moss_to_litter_flux_kg)
 
   ! Convert to tonnes/ha from kg/plot
-  moss_litter_flux_t_per_ha = litter_kg/plotsize_m2*HEC_TO_M2*KG_TO_T
+  moss_litter_flux_t_per_ha = moss_to_litter_flux_kg/plotsize_m2*HEC_TO_M2*KG_TO_T
 
   ! Thickness of live moss layer (m)
   livemoss_depth_m = moss_biom_kg/plotsize_m2/BULK_MOSS_KG_PER_M3
