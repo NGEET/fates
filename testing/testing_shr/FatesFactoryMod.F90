@@ -8,7 +8,7 @@ module FatesFactoryMod
   use FatesConstantsMod,           only : isemi_stress_decid
   use FatesConstantsMod,           only : primaryland
   use FatesConstantsMod,           only : sec_per_day, days_per_year
-  use FatesCohortMod,              only : default_regeneration
+  use FatesConstantsMod,           only : default_regeneration
   use FatesGlobals,                only : fates_log
   use FatesGlobals,                only : endrun => fates_endrun
   use FatesCohortMod,              only : fates_cohort_type
@@ -54,7 +54,7 @@ module FatesFactoryMod
   use FatesAllometryMod,           only : bdead_allom
   use FatesAllometryMod,           only : bstore_allom
   use FatesAllometryMod,           only : carea_allom
-  use FatesInterfaceTypesMod,      only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,      only : hlm_parteh_mode, hlm_regeneration_model
   use FatesInterfaceTypesMod,      only : nleafage
   use FatesSizeAgeTypeIndicesMod,  only : get_age_class_index
   use SyntheticPatchTypes,         only : synthetic_patch_type
