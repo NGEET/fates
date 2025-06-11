@@ -71,10 +71,13 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   real(r8) :: assim_eff_kg_per_kgmoss ! Effective assimilation (kg/kg)
   real(r8) :: assim_eff_kg_per_m2plot ! Assimilation (kg/m2)
   real(r8) :: repro_eff_frac_assim ! Effective reproduction (kg reproduction / kg assimilation)
+  real(r8) :: repro_eff_kg_per_kgmoss  ! Effective reproduction (kg reproduction / kg moss)
   real(r8) :: repro_eff_kg_per_m2plot ! Effective reproduction (kg/m2)
   real(r8) :: moss_biom_change_kg_per_m2plot     ! Change in moss biomass (kg/m2) during this timestep
   real(r8) :: moss_to_litter_flux_kg_per_m2plot  ! Flux from moss to litter (kg/m2)
   real(r8) :: moss_to_litter_flux_kg_per_plot    ! Flux from moss to litter (kg)
+  real(r8) :: moss_respmort_kg_per_kgmoss  ! Moss respiration and mortality (kg / kg moss) during this timestep
+  real(r8) :: moss_respmort_kg_per_m2plot  ! Moss respiration and mortality (kg/m2) during this timestep
 
   ! Save this for later
   moss_biom_kg_per_plot_before = moss_biom_kg_per_plot_inout
@@ -112,20 +115,28 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
 
   ! Moss assimilation
   assim_kg_per_m2leaf = PMAX_KG_PER_M2_PER_YR*algf*fcgf*dlgf*ddgf
+  assim_eff_kg_per_kgmoss = SLA_M2LEAF_PER_KGMOSS * assim_kg_per_m2leaf
 
-  ! Effective reproduction (fraction of live biomass)
+  ! Reproduction
   ! TODO: Do we really mean to apply dlgf and ddgf here? I.e., do those affect the fraction of
   !       ASSIMILATION that goes to reproduction? Those are already accounted for in assimilation
   !       above.
+  ! TODO: Actually, do we even need reproduction at all? It ends up as live moss biomass anyway.
+  !       ... Right?
   repro_eff_frac_assim = FRAC_ASSIM_TO_SPORES*dlgf*ddgf
+  repro_eff_kg_per_kgmoss = assim_eff_kg_per_kgmoss * repro_eff_frac_assim
   repro_eff_kg_per_m2plot = repro_eff_frac_assim * moss_biom_kg_per_m2plot_before
 
-  ! Effective assimilation
-  assim_eff_kg_per_kgmoss = SLA_M2LEAF_PER_KGMOSS*assim_kg_per_m2leaf*(1.0 - repro_eff_frac_assim)
-  assim_eff_kg_per_m2plot = assim_eff_kg_per_kgmoss * moss_biom_kg_per_m2plot_before + repro_eff_kg_per_m2plot
+  ! Assimilation
+  ! TODO: Get reproduction out of here
+  assim_eff_kg_per_m2plot = (assim_eff_kg_per_kgmoss * moss_biom_kg_per_m2plot_before) - (repro_eff_kg_per_kgmoss * moss_biom_kg_per_m2plot_before)
+
+  ! Total losses to respiration and mortality
+  moss_respmort_kg_per_kgmoss = Q_KG_PER_KGMOSS + B_KG_PER_KGMOSS
+  moss_respmort_kg_per_m2plot = moss_respmort_kg_per_kgmoss * moss_biom_kg_per_m2plot_before
 
   ! Net change in moss biomass
-  moss_biom_change_kg_per_m2plot = assim_eff_kg_per_m2plot - moss_biom_kg_per_m2plot_before*(Q_KG_PER_KGMOSS + B_KG_PER_KGMOSS)
+  moss_biom_change_kg_per_m2plot = assim_eff_kg_per_m2plot + repro_eff_kg_per_m2plot - moss_respmort_kg_per_m2plot
 
   if (moss_biom_kg_per_m2plot_before + moss_biom_change_kg_per_m2plot < 0.0) then
       ! Not enough moss to account for mortality/respiration
@@ -135,7 +146,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
 
   ! Calculate litter flux (kg)
   ! TODO: Flux to litter should only come from mortality. Respiration should go to atmosphere.
-  moss_to_litter_flux_kg_per_m2plot = assim_eff_kg_per_m2plot - moss_biom_change_kg_per_m2plot
+  moss_to_litter_flux_kg_per_m2plot = assim_eff_kg_per_m2plot + repro_eff_kg_per_m2plot - moss_biom_change_kg_per_m2plot
   moss_to_litter_flux_kg_per_m2plot = max(0.0, moss_to_litter_flux_kg_per_m2plot)
 
   ! Update biomass
