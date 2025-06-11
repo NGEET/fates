@@ -20,6 +20,48 @@ module test_Moss
   contains
 
     @Test
+    subroutine al_test(this)
+      ! test to make sure refactoring has no effect
+      class(TestMoss), intent(inout) :: this ! test object
+      real(r8) :: cla_m2_per_plot  ! Cumulative leaf area on forest floor (m2)
+      real(r8) :: moss_biomass  ! kg/m2 plot
+      
+      cla_m2_per_plot = 15._r8
+      moss_biomass = 1._r8
+
+      @assertEqual(0.5975005946182375_r8, available_light_under_canopy_and_moss(cla_m2_per_plot, moss_biomass))
+
+    end subroutine al_test
+
+    @Test
+    subroutine algf_min_0(this)
+      ! test that light growth multiplier is never < 0
+      class(TestMoss), intent(inout) :: this ! test object
+      real(r8) :: cla_m2_per_plot  ! Cumulative leaf area on forest floor (m2)
+      real(r8) :: moss_biomass  ! kg/m2 plot
+      
+      cla_m2_per_plot = 999._r8
+      moss_biomass = 999._r8
+
+      @assertEqual(0.0_r8, light_growth_multiplier(cla_m2_per_plot, moss_biomass))
+
+    end subroutine algf_min_0
+
+    @Test
+    subroutine algf_max_1(this)
+      ! test that light growth multiplier is never > 1
+      class(TestMoss), intent(inout) :: this ! test object
+      real(r8) :: cla_m2_per_plot  ! Cumulative leaf area on forest floor (m2)
+      real(r8) :: moss_biomass  ! kg/m2 plot
+      
+      cla_m2_per_plot = -999._r8
+      moss_biomass = -999._r8
+
+      @assertEqual(1.0_r8, light_growth_multiplier(cla_m2_per_plot, moss_biomass))
+
+    end subroutine algf_max_1
+
+    @Test
     subroutine fcgf_smooth(this)
       ! test that there's a smooth transition from fcgf=1 at the point where alff starts to affect it
       class(TestMoss), intent(inout) :: this ! test object

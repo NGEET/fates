@@ -42,10 +42,33 @@ module FatesMossMod
 
 
   ! PUBLIC MEMBER FUNCTIONS:
+  public :: light_growth_multiplier
   public :: forest_cover_growth_multiplier
   public :: moss
 
 contains
+
+!------------------------------------------------------------------------------
+function available_light_under_canopy_and_moss(cla_m2_per_plot, moss_biom_kg_per_m2plot_before) result(al)
+  real(r8), intent(in)    :: cla_m2_per_plot  ! Cumulative leaf area on forest floor (m2)
+  real(r8), intent(in)    :: moss_biom_kg_per_m2plot_before  ! Moss biomass (kg/m2) before this timestep
+  real(r8) :: al        ! Available light
+
+  al = exp(-1.0*EXT*(cla_m2_per_plot / plotsize_m2 + moss_biom_kg_per_m2plot_before * SLA_M2LEAF_PER_KGMOSS))
+end function available_light_under_canopy_and_moss
+
+!------------------------------------------------------------------------------
+function light_growth_multiplier(cla_m2_per_plot, moss_biom_kg_per_m2plot_before) result(algf)
+  real(r8), intent(in)    :: cla_m2_per_plot  ! Cumulative leaf area on forest floor (m2)
+  real(r8), intent(in)    :: moss_biom_kg_per_m2plot_before  ! Moss biomass (kg/m2) before this timestep
+  real(r8) :: al        ! Available light
+  real(r8) :: algf      ! Light growth multiplier
+
+  al = available_light_under_canopy_and_moss(cla_m2_per_plot, moss_biom_kg_per_m2plot_before)
+  algf = (al - LRMIN)/(LRMAX - LRMIN)
+  algf = max(0.0, algf)
+  algf = min(1.0, algf)
+end function light_growth_multiplier
 
 !------------------------------------------------------------------------------
 function forest_cover_growth_multiplier(alff) result(fcgf)
@@ -81,7 +104,6 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   real(r8) :: moss_biom_kg_per_plot_before    ! Moss biomass (kg per plot) before this timestep
   real(r8) :: moss_biom_kg_per_m2plot_before  ! Moss biomass (kg/m2) before this timestep
   real(r8) :: moss_biom_kg_per_m2plot_after   ! Moss biomass (kg/m2) after this timestep
-  real(r8) :: al        ! Available light
   real(r8) :: algf      ! Available light growth factor
   real(r8) :: fcgf      ! Forest cover growth factor
   real(r8) :: dlgf      ! Deciduous leaf litter growth factor
@@ -102,10 +124,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   moss_biom_kg_per_m2plot_before = moss_biom_kg_per_plot_before/plotsize_m2
 
   ! Light growth multiplier
-  al = exp(-1.0*EXT*(cla_m2_per_plot / plotsize_m2 + moss_biom_kg_per_m2plot_before * SLA_M2LEAF_PER_KGMOSS))
-  algf = (al - LRMIN)/(LRMAX - LRMIN)
-  algf = max(0.0, algf)
-  algf = min(1.0, algf)
+  algf = light_growth_multiplier(cla_m2_per_plot, moss_biom_kg_per_m2plot_before)
 
   ! Forest cover growth multiplier
   fcgf = forest_cover_growth_multiplier(alff)
