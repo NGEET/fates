@@ -23,7 +23,7 @@ module FatesMossMod
   real(r8), parameter :: B_KG_PER_KGMOSS = 0.136      ! Mortality? parameter
   real(r8), parameter :: EXT = 0.5      ! Light extinction coefficient
   real(r8), parameter :: SLA_M2LEAF_PER_KGMOSS = 1.0       ! Specific leaf area (m2/kg)
-  real(r8), parameter :: SPORES_KG_PER_KGMOSS = 0.001 ! Proportion of biomass spent on reproduction
+  real(r8), parameter :: FRAC_ASSIM_TO_SPORES = 0.001 ! Proportion of assimilation spent on reproduction
   real(r8), parameter :: PMAX_KG_PER_M2_PER_YR = 0.35    ! Maximum moss production (kg/m2/yr)
   real(r8), parameter :: LRMIN = 0.01   ! Light compensation point
   real(r8), parameter :: LRMAX = 0.05   ! Light compensation point
@@ -70,7 +70,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   real(r8) :: assim_kg_per_m2leaf     ! Moss assimilation rate (kg/m2)
   real(r8) :: assim_eff_kg_per_kgmoss ! Effective assimilation (kg/kg)
   real(r8) :: assim_eff_kg_per_m2plot ! Assimilation (kg/m2)
-  real(r8) :: repro_eff_kg_per_kgmoss ! Effective reproduction (kg/kg)
+  real(r8) :: repro_eff_frac_assim ! Effective reproduction (kg reproduction / kg assimilation)
   real(r8) :: repro_eff_kg_per_m2plot ! Effective reproduction (kg/m2)
   real(r8) :: moss_biom_change_kg_per_m2plot     ! Change in moss biomass (kg/m2) during this timestep
   real(r8) :: moss_to_litter_flux_kg_per_m2plot  ! Flux from moss to litter (kg/m2)
@@ -114,11 +114,14 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   assim_kg_per_m2leaf = PMAX_KG_PER_M2_PER_YR*algf*fcgf*dlgf*ddgf
 
   ! Effective reproduction (fraction of live biomass)
-  repro_eff_kg_per_kgmoss = SPORES_KG_PER_KGMOSS*dlgf*ddgf
-  repro_eff_kg_per_m2plot = repro_eff_kg_per_kgmoss * moss_biom_kg_per_m2plot_before
+  ! TODO: Do we really mean to apply dlgf and ddgf here? I.e., do those affect the fraction of
+  !       ASSIMILATION that goes to reproduction? Those are already accounted for in assimilation
+  !       above.
+  repro_eff_frac_assim = FRAC_ASSIM_TO_SPORES*dlgf*ddgf
+  repro_eff_kg_per_m2plot = repro_eff_frac_assim * moss_biom_kg_per_m2plot_before
 
   ! Effective assimilation
-  assim_eff_kg_per_kgmoss = SLA_M2LEAF_PER_KGMOSS*assim_kg_per_m2leaf*(1.0 - repro_eff_kg_per_kgmoss)
+  assim_eff_kg_per_kgmoss = SLA_M2LEAF_PER_KGMOSS*assim_kg_per_m2leaf*(1.0 - repro_eff_frac_assim)
   assim_eff_kg_per_m2plot = assim_eff_kg_per_kgmoss * moss_biom_kg_per_m2plot_before + repro_eff_kg_per_m2plot
 
   ! Net change in moss biomass
