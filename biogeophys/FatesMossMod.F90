@@ -60,8 +60,8 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
 
   ! Local variables
   real(r8) :: moss_biom_kg_per_plot_before    ! Moss biomass (kg per plot) before this timestep
-  real(r8) :: moss_biom_kg_per_plot_after     ! Moss biomass (kg per plot) after this timestep
   real(r8) :: moss_biom_kg_per_m2plot_before  ! Moss biomass (kg/m2) before this timestep
+  real(r8) :: moss_biom_kg_per_m2plot_after   ! Moss biomass (kg/m2) after this timestep
   real(r8) :: al        ! Available light
   real(r8) :: algf      ! Available light growth factor
   real(r8) :: fcgf      ! Forest cover growth factor
@@ -69,6 +69,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   real(r8) :: ddgf      ! Moisture growth factor
   real(r8) :: assim_kg_per_m2leaf     ! Moss assimilation rate (kg/m2)
   real(r8) :: assim_eff_kg_per_kgmoss ! Effective assimilation (kg/kg)
+  real(r8) :: assim_eff_kg_per_m2plot ! Assimilation (kg/m2)
   real(r8) :: repro_eff_kg_per_kgmoss ! Effective reproduction (kg/kg)
   real(r8) :: prod_kg_per_m2plot      ! Moss production (kg/m2)
   real(r8) :: moss_to_litter_flux_kg_per_m2plot  ! Flux from moss to litter (kg/m2)
@@ -116,7 +117,8 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
 
   ! Effective assimilation
   assim_eff_kg_per_kgmoss = SLA_M2LEAF_PER_KGMOSS*assim_kg_per_m2leaf*(1.0 - repro_eff_kg_per_kgmoss)
-  prod_kg_per_m2plot = moss_biom_kg_per_m2plot_before*(assim_eff_kg_per_kgmoss - Q_KG_PER_KGMOSS - B_KG_PER_KGMOSS) + repro_eff_kg_per_kgmoss
+  assim_eff_kg_per_m2plot = assim_eff_kg_per_kgmoss * moss_biom_kg_per_m2plot_before
+  prod_kg_per_m2plot = assim_eff_kg_per_m2plot - moss_biom_kg_per_m2plot_before*(Q_KG_PER_KGMOSS + B_KG_PER_KGMOSS) + repro_eff_kg_per_kgmoss
 
   if (moss_biom_kg_per_m2plot_before + prod_kg_per_m2plot < 0.0) then
       ! Not enough moss to account for mortality/respiration
@@ -124,20 +126,22 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
       prod_kg_per_m2plot = -1.0*moss_biom_kg_per_m2plot_before
   end if
 
-  moss_biom_kg_per_plot_after = (moss_biom_kg_per_m2plot_before + prod_kg_per_m2plot)*plotsize_m2
-
   ! Calculate litter flux (kg)
   ! TODO: Flux to litter should only come from mortality. Respiration should go to atmosphere.
-  moss_to_litter_flux_kg_per_plot = (assim_eff_kg_per_kgmoss*moss_biom_kg_per_m2plot_before + repro_eff_kg_per_kgmoss - prod_kg_per_m2plot)*plotsize_m2
-  moss_to_litter_flux_kg_per_plot = max(0.0, moss_to_litter_flux_kg_per_plot)
+  moss_to_litter_flux_kg_per_m2plot = assim_eff_kg_per_m2plot + repro_eff_kg_per_kgmoss - prod_kg_per_m2plot
+  moss_to_litter_flux_kg_per_m2plot = max(0.0, moss_to_litter_flux_kg_per_m2plot)
+
+  ! Update biomass
+  moss_biom_kg_per_m2plot_after = moss_biom_kg_per_m2plot_before + prod_kg_per_m2plot
 
   ! Thickness of live moss layer (m)
-  livemoss_depth_m = moss_biom_kg_per_plot_after/plotsize_m2/BULK_MOSS_KG_PER_M3
+  livemoss_depth_m = moss_biom_kg_per_m2plot_after / BULK_MOSS_KG_PER_M3
 
   ! Convert certain variables to their UVAFME outputs
   ! TODO: Change these to what FATES needs
+  moss_to_litter_flux_kg_per_plot = moss_to_litter_flux_kg_per_m2plot * plotsize_m2
   moss_litter_flux_t_per_haplot = moss_to_litter_flux_kg_per_plot/plotsize_m2*HEC_TO_M2*KG_TO_T
-  moss_biom_kg_per_plot_inout = moss_biom_kg_per_plot_after
+  moss_biom_kg_per_plot_inout = moss_biom_kg_per_m2plot_after * plotsize_m2
 
 
 
