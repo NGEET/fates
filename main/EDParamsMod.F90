@@ -1,8 +1,8 @@
 module EDParamsMod
 
-   !
-   ! module that deals with reading the ED parameter file
-   !
+                                                                      !
+                                                                      ! module that deals with reading the ED parameter file
+                                                                      !
 
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : nearzero
@@ -12,37 +12,37 @@ module EDParamsMod
    use FatesConstantsMod,    only : fates_unset_r8
    use FatesConstantsMod,    only : n_landuse_cats
 
-   ! CIME Globals
+                                                                      ! CIME Globals
    use shr_log_mod         , only : errMsg => shr_log_errMsg
 
    implicit none
    private
    save
 
-   !
-   ! this is what the user can use for the actual values
-   !
+                                                                      !
+                                                                      ! this is what the user can use for the actual values
+                                                                      !
 
-   real(r8),protected, public :: vai_top_bin_width           ! width in VAI units of uppermost leaf+stem
-                                                             ! layer scattering element in each canopy layer [m2/m2]
-   real(r8),protected, public :: vai_width_increase_factor   ! factor by which each leaf+stem scattering element
-                                                             ! increases in VAI width (1 = uniform spacing)
-   real(r8),protected, public :: photo_temp_acclim_timescale ! Length of the window for the exponential moving average (ema)
-                                                             ! of vegetation temperature used in photosynthesis and respiration
-                                                             ! temperature acclimation [days]
-   real(r8),protected, public :: photo_temp_acclim_thome_time ! Length of the window for the long-term exponential moving average (ema)
-                                                              ! of vegetation temperature used in photosynthesis 
-                                                              ! T_home term in Kumarathunge parameterization [years]
-   real(r8),protected, public :: sdlng_emerg_h2o_timescale !Length of the window for the exponential moving
-                                                                 !average of smp used to calculate seedling emergence
-   real(r8),protected, public :: sdlng_mort_par_timescale !Length of the window for the exponential moving average 
-                                                                !of par at the seedling layer used to calculate 
-                                                                !seedling mortality
-   real(r8),protected, public :: sdlng_mdd_timescale !Length of the window for the exponential moving average
-                                                           ! of moisture deficit days used to calculate seedling mortality
-   real(r8),protected, public :: sdlng2sap_par_timescale !Length of the window for the exponential 
-                                                               !moving average of par at the seedling layer used to 
-                                                               !calculate seedling to sapling transition rates
+   real(r8),protected, public :: vai_top_bin_width                    ! width in VAI units of uppermost leaf+stem
+                                                                      ! layer scattering element in each canopy layer [m2/m2]
+   real(r8),protected, public :: vai_width_increase_factor            ! factor by which each leaf+stem scattering element
+                                                                      ! increases in VAI width (1 = uniform spacing)
+   real(r8),protected, public :: photo_temp_acclim_timescale          ! Length of the window for the exponential moving average (ema)
+                                                                      ! of vegetation temperature used in photosynthesis and respiration
+                                                                      ! temperature acclimation [days]
+   real(r8),protected, public :: photo_temp_acclim_thome_time         ! Length of the window for the long-term exponential moving average (ema)
+                                                                      ! of vegetation temperature used in photosynthesis 
+                                                                      ! T_home term in Kumarathunge parameterization [years]
+   real(r8),protected, public :: sdlng_emerg_h2o_timescale            !Length of the window for the exponential moving
+                                                                      !average of smp used to calculate seedling emergence
+   real(r8),protected, public :: sdlng_mort_par_timescale             !Length of the window for the exponential moving average 
+                                                                      !of par at the seedling layer used to calculate 
+                                                                      !seedling mortality
+   real(r8),protected, public :: sdlng_mdd_timescale                  !Length of the window for the exponential moving average
+                                                                      ! of moisture deficit days used to calculate seedling mortality
+   real(r8),protected, public :: sdlng2sap_par_timescale              !Length of the window for the exponential 
+                                                                      !moving average of par at the seedling layer used to 
+                                                                      !calculate seedling to sapling transition rates
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: ED_val_comp_excln                    ! weighting factor for canopy layer exclusion and promotion
    real(r8),protected, public :: ED_val_vai_top_bin_width             ! width in VAI units of uppermost leaf+stem layer scattering element
@@ -64,33 +64,37 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_patch_fusion_tol              ! minimum fraction in difference in profiles between patches
    real(r8),protected, public :: ED_val_canopy_closure_thresh         ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
 
-   logical,protected, public :: active_crown_fire        ! flag, 1=active crown fire 0=no active crown fire
+   logical,protected, public :: active_crown_fire                     ! flag, 1=active crown fire 0=no active crown fire
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
 
-   real(r8), protected, public :: cg_strikes             ! fraction of cloud to ground lightning strikes (0-1)
+   real(r8), protected, public :: cg_strikes                          ! fraction of cloud to ground lightning strikes (0-1)
    character(len=param_string_length),parameter :: fates_name_cg_strikes="fates_fire_cg_strikes"
 
-   ! Global identifier of how nutrients interact with the host land model
-  ! either they are fully coupled, or they generate uptake rates synthetically
-  ! in prescribed mode. In the latter, there is both NO mass removed from the HLM's soil
-  ! BGC N and P pools, and there is also none removed.
+                                                                      ! Global identifier of how nutrients interact with the host land model
+                                                                      ! either they are fully coupled, or they generate uptake rates synthetically
+                                                                      ! in prescribed mode. In the latter, there is both NO mass removed from the HLM's soil
+                                                                      ! BGC N and P pools, and there is also none removed.
 
    integer, public :: n_uptake_mode
    integer, public :: p_uptake_mode
 
-   real(r8), parameter, public :: soil_tfrz_thresh = -2.0_r8 ! Soil temperature threshold below which hydraulic failure mortality is off (non-hydro only) in degrees C
+   real(r8), parameter, public :: soil_tfrz_thresh = -2.0_r8          ! Soil temperature threshold below which hydraulic failure mortality is off (non-hydro only) in degrees C
    
-   integer, parameter, public :: nclmax = 2   ! Maximum number of canopy layers (used only for scratch arrays)
-                                              ! We would make this even higher, but making this
-                                              ! a little lower keeps the size down on some output arrays
-                                              ! For large arrays at patch level we use dynamic allocation
+   integer, parameter, public :: nclmax = 2                           ! Maximum number of canopy layers (used only for scratch arrays)
+                                                                      ! We would make this even higher, but making this
+                                                                      ! a little lower keeps the size down on some output arrays
+                                                                      ! For large arrays at patch level we use dynamic allocation
 
-   ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
-   integer, parameter, public :: nlevleaf = 30   ! number of leaf+stem layers in each canopy layer
+                                                                      ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
+   integer, parameter, public :: nlevleaf = 30                        ! number of leaf+stem layers in each canopy layer
 
-   real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8 ! VAI bin widths array
-   real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8 ! lower edges of VAI bins
- 
+   real(r8), public :: dinc_vai(nlevleaf)   = fates_unset_r8          ! VAI bin widths array
+   real(r8), public :: dlower_vai(nlevleaf) = fates_unset_r8          ! numericaly (not vertically) lower edges of VAI bins
+                                                                      ! starting with zero in the first index, the last bin
+                                                                      ! is assumed to be bounded, but a user can override this
+                                                                      ! if change a local parameter vai_capping in tree_lai()
+                                                                      ! in the allometry module
+   
    integer, parameter, public :: maxpft = 16      ! maximum number of PFTs allowed
    
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
@@ -264,10 +268,23 @@ module EDParamsMod
    public :: FatesRegisterParams
    public :: FatesReceiveParams
    public :: FatesReportParams
-  
-contains
+   public :: GetNVegLayers
 
+   
+ contains
+
+
+   function GetNVegLayers(treevai) result(nv)
+
+     real(r8) :: treevai  ! The LAI+SAI of the cohort (m2/m2)
+     integer  :: nv
+
+     nv = count(treevai .gt. dlower_vai(:))
+
+   end function GetNVegLayers
+     
   !-----------------------------------------------------------------------
+   
   subroutine FatesParamsInit()
     ! Initialize all parameters to nan to ensure that we get valid
     ! values back from the host.
