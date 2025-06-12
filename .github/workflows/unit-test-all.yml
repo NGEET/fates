@@ -16,6 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run FATES unit tests
+        working-directory: ./testing/
         run: |
-          cd testing
+          . /opt/spack-environment/activate.sh
           python run_unit_tests.py --make-j 2 --test-list all
