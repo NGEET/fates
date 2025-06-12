@@ -599,6 +599,8 @@ module SFEquationsMod
     !
     !  DESCRIPTION:
     !  Helper function for CambialMortality
+    !  Calculates rate of cambial damage mortality [0-1]
+    !  Equation 19 in Thonicke et al. 2010
     !
 
     ! ARGUMENTS:
