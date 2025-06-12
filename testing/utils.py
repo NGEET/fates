@@ -132,6 +132,13 @@ def config_to_dict(config_file: str) -> dict:
     Returns:
         dictionary: dictionary of config file
     """
+
+    # Check that config file exists and is a file
+    if not os.path.exists(config_file):
+        raise FileNotFoundError(config_file)
+    if not os.path.isfile(config_file):
+        raise RuntimeError(f"config_file is a directory: '{config_file}'")
+
     config = configparser.ConfigParser()
     config.read(config_file)
 
