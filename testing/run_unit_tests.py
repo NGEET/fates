@@ -60,6 +60,13 @@ def commandline_args():
     )
 
     parser.add_argument(
+        "--config-file",
+        type=str,
+        default=_DEFAULT_CONFIG_FILE,
+        help=f"Configuration file where test list is defined. Default: '{_DEFAULT_CONFIG_FILE}'",
+    )
+
+    parser.add_argument(
         "--make-j",
         type=int,
         default=8,
@@ -130,9 +137,8 @@ def main():
     Reads in command-line arguments and then runs the tests.
     """
 
-    full_test_dict = config_to_dict(_DEFAULT_CONFIG_FILE)
-
     args = commandline_args()
+    full_test_dict = config_to_dict(args.config_file)
     test_dict = parse_test_list(full_test_dict, args.test_list)
 
     run_unit_tests(
