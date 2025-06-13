@@ -447,7 +447,7 @@ module FatesFactoryMod
     
     allocate(patch)
     call patch%Create(age, area, land_use_label_local, nocomp_pft_local, num_swb,        &
-      num_pft, num_levsoil, tod_local, default_regeneration)
+      num_pft, num_levsoil, tod_local, hlm_regeneration_model)
     
     patch%patchno = 1
     patch%younger => null()
