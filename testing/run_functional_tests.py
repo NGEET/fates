@@ -295,8 +295,11 @@ def run_functional_tests(
     if run_executables:
         print("Running executables")
         for _, test in test_dict.items():
-            # prepend parameter file (if required) to argument list
             args = test.other_args
+            # prepend datm file (if required) to argument list
+            if test.datm_file:
+                args.insert(0, test.datm_file)
+            # prepend parameter file (if required) to argument list
             if test.use_param_file:
                 args.insert(0, param_file)
             # run

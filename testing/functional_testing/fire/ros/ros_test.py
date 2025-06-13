@@ -26,6 +26,7 @@ class ROSTest(FunctionalTest):
             test_dict["test_exe"],
             test_dict["out_file"],
             test_dict["use_param_file"],
+            test_dict["datm_file"],
             test_dict["other_args"],
         )
         self.plot = True
