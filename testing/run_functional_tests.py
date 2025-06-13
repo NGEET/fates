@@ -202,7 +202,7 @@ def check_param_file(param_file):
             None, "Must supply parameter file with .cdl or .nc ending."
         )
     if not os.path.isfile(param_file):
-        raise argparse.ArgumentError(None, f"Cannot find file {param_file}.")
+        raise FileNotFoundError(param_file)
 
 
 def check_build_dir(build_dir, test_dict):
