@@ -199,6 +199,10 @@ contains
     !
     do while (associated(currentPatch)) ! Patch loop
 
+       ! Make sure we are sorted
+       call currentPatch%SortCohorts(check_order=.true.)
+
+       
        ! ------------------------------------------------------------------------------
        ! Perform numerical checks on some cohort and patch structures
        ! ------------------------------------------------------------------------------

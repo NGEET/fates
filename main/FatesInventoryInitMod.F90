@@ -428,7 +428,7 @@ contains
 
             ! Perform Cohort Fusion
             call fuse_cohorts(sites(s), currentpatch,bc_in(s))
-            call currentpatch%SortCohorts()
+            call currentpatch%SortCohorts(check_order=.false.)
 
             ! This calculates %num_cohorts
             call currentPatch%CountCohorts()

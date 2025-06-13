@@ -1164,7 +1164,7 @@ module FatesPatchMod
     
     !===========================================================================
     
-    subroutine SortCohorts(this)
+    subroutine SortCohorts(this,check_order)
       !
       ! DESCRIPTION: sort cohorts in patch's linked list
       ! uses insertion sort to build a new list
@@ -1172,6 +1172,8 @@ module FatesPatchMod
     
       ! ARGUMENTS:
       class(fates_patch_type), intent(inout), target :: this ! patch
+
+      logical,intent(in) :: check_order
       
       ! LOCALS:
       type(fates_cohort_type), pointer :: currentCohort
@@ -1189,6 +1191,23 @@ module FatesPatchMod
       
       ! hold on to current linked list so we don't lose it
       currentCohort => this%shortest
+
+      if(check_order)then
+         do while (associated(currentCohort))
+            if( associated(currentCohort%taller)) then
+               if(currentCohort%height > currentCohort%taller%height)then
+                  write(fates_log(),*) 'Cohort sort checking has failed,'
+                  write(fates_log(),*) 'they are not in height order:'
+                  write(fates_log(),*) 'current: ',currentCohort%height
+                  write(fates_log(),*) 'taller: ',currentCohort%taller%height
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if
+            end if
+            currentCohort => currentCohort%taller
+         end do
+         return
+      end if
+
       
       ! reset the current list: we'll build it incrementally
       this%shortest => null()

@@ -1218,7 +1218,7 @@ contains
      endif ! patch.
      
      if (fusion_took_place == 1) then  ! if fusion(s) occured sort cohorts
-        call currentPatch%SortCohorts()
+        call currentPatch%SortCohorts(check_order=.false.)
         call currentPatch%ValidateCohorts()
      endif
    
