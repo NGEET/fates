@@ -2,11 +2,13 @@ module FatesFactoryMod
 
   use FatesConstantsMod,           only : r8 => fates_r8
   use FatesConstantsMod,           only : leaves_on, leaves_off
-  use FatesConstantsMod,           only : itrue
+  use FatesConstantsMod,           only : ievergreen
+  use FatesConstantsMod,           only : ihard_season_decid
   use FatesConstantsMod,           only : ihard_stress_decid
   use FatesConstantsMod,           only : isemi_stress_decid
   use FatesConstantsMod,           only : primaryland
   use FatesConstantsMod,           only : sec_per_day, days_per_year
+  use FatesConstantsMod,           only : default_regeneration
   use FatesGlobals,                only : fates_log
   use FatesGlobals,                only : endrun => fates_endrun
   use FatesCohortMod,              only : fates_cohort_type
@@ -55,7 +57,7 @@ module FatesFactoryMod
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use FatesInterfaceTypesMod,      only : nleafage
   use FatesSizeAgeTypeIndicesMod,  only : get_age_class_index
-  use EDParamsMod,                 only : regeneration_model
+  use FatesInterfaceTypesMod,      only : hlm_regeneration_model
   use SyntheticPatchTypes,         only : synthetic_patch_type
   use shr_log_mod,                 only : errMsg => shr_log_errMsg
 
@@ -103,9 +105,13 @@ module FatesFactoryMod
       dinc_vai(i) = ED_val_vai_top_bin_width*ED_val_vai_width_increase_factor**(i-1)
     end do 
   
-    do i = 1, nlevleaf
-      dlower_vai(i) = sum(dinc_vai(1:i))
+    ! lower edges of VAI bins
+    dlower_vai(1) = 0._r8
+    do i = 2,nlevleaf
+       dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
     end do
+    
+    hlm_regeneration_model = default_regeneration
         
   end subroutine InitializeGlobals
   
@@ -305,27 +311,34 @@ module FatesFactoryMod
     end if
     
     ! set leaf elongation factors
-    if (prt_params%season_decid(pft) == itrue .and. status_local == leaves_off) then
-      elongf_leaf = 0.0_r8
-      elongf_fnrt = 1.0_r8 - prt_params%phen_fnrt_drop_fraction(pft) 
-      elongf_stem = 1.0_r8 - prt_params%phen_stem_drop_fraction(pft)
-    
-    else if (any(prt_params%stress_decid(pft) == [ihard_stress_decid, isemi_stress_decid])) then
+    phen_select: select case (prt_params%phen_leaf_habit(pft))
+    case (ihard_season_decid)
+       if (status_local == leaves_off) then
+          elongf_leaf = 0.0_r8
+          elongf_fnrt = 1.0_r8 - prt_params%phen_fnrt_drop_fraction(pft) 
+          elongf_stem = 1.0_r8 - prt_params%phen_stem_drop_fraction(pft)
+       else
+          elongf_leaf = 1.0_r8
+          elongf_fnrt = 1.0_r8
+          elongf_stem = 1.0_r8
+       end if
+
+    case (ihard_stress_decid, isemi_stress_decid)
       elongf_leaf = elong_fact_local
       elongf_fnrt = 1.0_r8 - (1.0_r8 - elongf_leaf)*prt_params%phen_fnrt_drop_fraction(pft)
       elongf_stem = 1.0_r8 - (1.0_r8 - elongf_leaf)*prt_params%phen_stem_drop_fraction(pft)
-      
-      if (elongf_leaf > 0.0_r8) then 
+
+      if (elongf_leaf > 0.0_r8) then
         status_local = leaves_on
       else 
         status_local = leaves_off
       end if
-    
-    else
+
+    case (ievergreen)
       elongf_leaf = 1.0_r8
-      elongf_fnrt = 1.0_r8 
-      elongf_stem = 1.0_r8 
-    end if
+      elongf_fnrt = 1.0_r8
+      elongf_stem = 1.0_r8
+    end select phen_select
     
     ! calculate allometric properties
     
@@ -435,7 +448,7 @@ module FatesFactoryMod
     
     allocate(patch)
     call patch%Create(age, area, land_use_label_local, nocomp_pft_local, num_swb,        &
-      num_pft, num_levsoil, tod_local, regeneration_model)
+      num_pft, num_levsoil, tod_local, hlm_regeneration_model)
     
     patch%patchno = 1
     patch%younger => null()
