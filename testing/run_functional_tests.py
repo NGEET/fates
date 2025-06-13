@@ -42,9 +42,15 @@ add_cime_lib_to_path()
 from CIME.utils import run_cmd_no_fail
 
 # constants for this script
-_DEFAULT_CONFIG_FILE = "functional_tests.cfg"
-_DEFAULT_CDL_PATH = os.path.abspath("../parameter_files/fates_params_default.cdl")
-_CMAKE_BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")
+_FILE_DIR = os.path.dirname(__file__)
+_DEFAULT_CONFIG_FILE = os.path.join(_FILE_DIR, "functional_tests.cfg")
+_DEFAULT_CDL_PATH = os.path.abspath(os.path.join(
+    _FILE_DIR,
+    os.pardir,
+    "parameter_files",
+    "fates_params_default.cdl",
+))
+_CMAKE_BASE_DIR = os.path.join(_FILE_DIR, os.pardir)
 _TEST_SUB_DIR = "testing"
 
 
