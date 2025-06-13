@@ -520,7 +520,7 @@ module FatesFactoryMod
     if (present(dbhs)) then 
       if (size(heights) /= size(dbhs)) then 
         write(*, '(a)') "Size of heights array must match size of dbh array."
-        stop
+        call abort()
       end if 
     end if 
     
