@@ -28,6 +28,7 @@ specify anything, the script will use the default FATES parameter cdl file.
 """
 import os
 import argparse
+import subprocess
 import matplotlib.pyplot as plt
 
 from build_fortran_tests import build_tests, build_exists
@@ -39,7 +40,7 @@ from load_functional_tests import *
 
 add_cime_lib_to_path()
 
-from CIME.utils import run_cmd_no_fail
+from CIME.utils import run_cmd
 
 # constants for this script
 _FILE_DIR = os.path.dirname(__file__)
@@ -402,7 +403,11 @@ def run_fortran_exectuables(build_dir, test_dir, test_exe, run_dir, args):
     run_command.extend(args)
 
     os.chdir(run_dir)
-    out = run_cmd_no_fail(" ".join(run_command), combine_output=True)
+    cmd = " ".join(run_command)
+    stat, out, _ = run_cmd(cmd, combine_output=True)
+    if stat:
+        print(out)
+        raise subprocess.CalledProcessError(stat, cmd, out)
     print(out)
 
 
