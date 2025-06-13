@@ -44,7 +44,7 @@ module EDParamsMod
                                                                !moving average of par at the seedling layer used to 
                                                                !calculate seedling to sapling transition rates
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
-   real(r8),protected, public :: ED_val_comp_excln                    ! weighting factor for canopy layer exclusion and promotion
+   real(r8),protected, public :: comp_excln_exp                       ! weighting factor (exponent) for canopy layer exclusion and promotion
    real(r8),protected, public :: ED_val_vai_top_bin_width             ! width in VAI units of uppermost leaf+stem layer scattering element
    real(r8),protected, public :: ED_val_vai_width_increase_factor     ! factor by which each leaf+stem scattering element increases in VAI width
    real(r8),protected, public :: ED_val_nignitions                    ! number of annual ignitions per square km
@@ -285,7 +285,7 @@ contains
     sdlng2sap_par_timescale               = nan
     photo_temp_acclim_thome_time          = nan
     fates_mortality_disturbance_fraction  = nan
-    ED_val_comp_excln                     = nan
+    comp_excln_exp                        = nan
     ED_val_vai_top_bin_width              = nan
     ED_val_vai_width_increase_factor      = nan
     ED_val_nignitions                     = nan
@@ -592,7 +592,7 @@ contains
           data=fates_mortality_disturbance_fraction)
 
     call fates_params%RetrieveParameter(name=ED_name_comp_excln, &
-         data=ED_val_comp_excln)
+         data=comp_excln_exp)
 
     call fates_params%RetrieveParameter(name=ED_name_vai_top_bin_width, &
          data=ED_val_vai_top_bin_width)
@@ -807,7 +807,7 @@ contains
         write(fates_log(),fmt0) 'photo_temp_acclim_thome_time (years) = ',photo_temp_acclim_thome_time
         write(fates_log(),fmti) 'hydr_htftype_node = ',hydr_htftype_node
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
-        write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
+        write(fates_log(),fmt0) 'comp_excln_exp = ',comp_excln_exp
         write(fates_log(),fmt0) 'ED_val_vai_top_bin_width = ',ED_val_vai_top_bin_width
         write(fates_log(),fmt0) 'ED_val_vai_width_increase_factor = ',ED_val_vai_width_increase_factor
         write(fates_log(),fmt0) 'ED_val_nignitions = ',ED_val_nignitions

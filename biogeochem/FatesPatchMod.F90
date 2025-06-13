@@ -21,7 +21,7 @@ module FatesPatchMod
   use PRTGenericMod,          only : struct_organ, leaf_organ, sapw_organ
   use PRTParametersMod,       only : prt_params
   use FatesConstantsMod,      only : nocomp_bareground
-  use EDParamsMod,            only : nlevleaf, nclmax, maxpft
+  use EDParamsMod,            only : nlevleaf, nclmax, maxpft,max_cohort_per_patch
   use FatesConstantsMod,      only : n_dbh_bins, n_dist_types
   use FatesConstantsMod,      only : t_water_freeze_k_1atm
   use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
@@ -41,6 +41,26 @@ module FatesPatchMod
   ! for error message writing
   character(len=*), parameter :: sourcefile = __FILE__
 
+  type :: fates_cohort_vec_type
+
+     ! This is a scratch array for cohort pointers
+     ! this is useful if you want to loop over a sparse subset
+     ! of fates cohorts over and over again, allowing
+     ! you to iterate them in a do loop
+     
+     type(fates_cohort_type), pointer :: p => null()
+
+     ! This is the area of the cohort (less than or equal to cohort%carea)
+     ! that will be promoted or demoted, ie promoted/demoted crown area
+     ! units [m2/site] or [m2/ha] (same as the patch area and crown area)
+     ! We track it here because we construct the cohort list for specific
+     ! canopy layers
+     
+     real(r8) :: pd_area
+     
+  end type fates_cohort_vec_type
+
+  
   type, public :: fates_patch_type
 
     ! POINTERS
@@ -48,7 +68,8 @@ module FatesPatchMod
     type (fates_cohort_type), pointer :: shortest => null() ! pointer to patch's shortest cohort
     type (fates_patch_type),  pointer :: older => null()    ! pointer to next older patch   
     type (fates_patch_type),  pointer :: younger => null()  ! pointer to next younger patch
-  
+    type (fates_cohort_vec_type), pointer :: co_scr(:)      ! Scratch vector of cohort properties
+    
     !---------------------------------------------------------------------------
 
     ! INDICES
@@ -269,7 +290,8 @@ module FatesPatchMod
       allocate(this%sabs_dir(num_swb))
       allocate(this%sabs_dif(num_swb))
       allocate(this%fragmentation_scaler(num_levsoil))
-
+      allocate(this%co_scr(max_cohort_per_patch))
+      
       ! initialize all values to nan
       call this%NanValues()
 
@@ -878,6 +900,7 @@ module FatesPatchMod
                  this%sabs_dir,                 &
                  this%sabs_dif,                 &
                  this%fragmentation_scaler,     &
+                 this%co_scr,                   &
                  stat=istat, errmsg=smsg)
 
       ! These arrays are allocated via a call from EDCanopyStructureMod
