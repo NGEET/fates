@@ -28,6 +28,7 @@ module EDCanopyStructureMod
   use EDParamsMod           , only : nclmax
   use EDParamsMod           , only : nlevleaf
   use EDParamsMod           , only : GetNVegLayers
+  use EDParamsMod           , only : comp_excln_exp
   use EDtypesMod            , only : AREA
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun
@@ -154,7 +155,6 @@ contains
     !
     ! !USES:
 
-    use EDParamsMod, only : comp_excln_exp
     use EDTypesMod , only : min_patch_area
 
     !
@@ -314,7 +314,7 @@ contains
           if(patch_area_counter > max_patch_iterations .and. area_not_balanced) then
              write(fates_log(),*) 'PATCH AREA CHECK NOT CLOSING'
              write(fates_log(),*) 'patch area:',currentpatch%area
-             write(fates_lot(),*) 'fraction that is imperfect (unclosed):',imperfect_fraction
+             write(fates_log(),*) 'fraction that is imperfect (unclosed):',imperfect_fraction
              do i_lyr = 1,z
                 write(fates_log(),*) 'layer: ',i_lyr,' area: ',arealayer(i_lyr)
                 write(fates_log(),*) 'rel error: ',(arealayer(i_lyr)- &
@@ -422,7 +422,9 @@ contains
     type(fates_cohort_type), pointer :: cohort
     type(fates_cohort_type), pointer :: copyc
 
-    real(r8) :: sumpd_carea     ! Sum crown area of all cohorts in layer [m2/ha]
+    real(r8) :: promdem_area    ! Actual area promoted or demoted (minimum of target
+                                ! and existing canopy area)
+    real(r8) :: sumpd_area      ! Sum crown area of all cohorts in layer [m2/ha]
     real(r8) :: group_area      ! Sum area of cohorts with the same height [m2/ha]
     real(r8) :: remainder_area  ! The area that has not been accounted
     real(r8) :: excess_area     ! The area that could not be accounted
@@ -453,7 +455,7 @@ contains
       !         note that this is inconsequential for probabalistic
 
       ic = 0
-      layer_area = 0._r8
+      group_area = 0._r8
       if(phase==demotion_phase) then
          cohort => patch%shortest
          ilyr_change = -1
@@ -466,7 +468,7 @@ contains
             ic = ic + 1
             call carea_allom(cohort%dbh,cohort%n,site%spread, &
                  cohort%pft,cohort%crowndamage,cohort%c_area)
-            layer_area = layer_area + cohort%c_area
+            group_area = group_area + cohort%c_area
             layer_co(ic)%p => cohort
          end if
          if(phase==demotion_phase) then
@@ -478,7 +480,7 @@ contains
 
       ! We update the target area to be no more than the
       ! area of the layer (can't take more than there is..)
-      target_area = min(target_area,layer_area)
+      promdem_area = min(target_area,group_area)
 
       
       ! Store the number of cohorts in the layer
@@ -517,7 +519,7 @@ contains
          remainder_area = 0._r8
          do ic = 1,n_layer
             cohort => layer_co(ic)%p
-            attempt_area = target_area*layer_co(ic)%pd_area/sumpd_area
+            attempt_area = promdem_area*layer_co(ic)%pd_area/sumpd_area
             if(attempt_area>cohort%c_area)then
                excess_area  = excess_area + (attempt_area - cohort%c_area)
             else
@@ -533,7 +535,7 @@ contains
                ! remove from them the same fraction of their remaining space
                if (abs(layer_co(ic)%pd_area-cohort%c_area) > nearzero) then
                   layer_co(ic)%pd_area = layer_co(ic)%pd_area + &
-                       (excess_area/remainder) * &
+                       (excess_area/remainder_area) * &
                        (cohort%c_area - layer_co(ic)%pd_area)
                end if
             end do
@@ -548,7 +550,7 @@ contains
 
          sumpd_area = 0._r8
          ic  = 1
-         do while( ic<=n_layer .and. (target_area-sumpd_area)>co_area_target_precision)
+         do while( ic<=n_layer .and. (promdem_area-sumpd_area)>co_area_target_precision) 
 
             cohort => layer_co(ic)%p
 
@@ -566,9 +568,9 @@ contains
                end if
             end do check_next
 
-            remainder_area = min(target_area-sumpd_area,group_area)
+            remainder_area = min(promdem_area-sumpd_area,group_area)
             do ic_nn = ic,ic_n
-               layer_co(ic_nn)%pd_area = remainder_area*layer_co(ic_nn)%p%c_area/norm_area
+               layer_co(ic_nn)%pd_area = remainder_area*layer_co(ic_nn)%p%c_area/group_area
                sumpd_area = sumpd_area + layer_co(ic_nn)%pd_area
             end do
 
@@ -606,7 +608,7 @@ contains
          ! If the dem/prom area is less than zero or larger than
          !    the cohort area within precision checks then FAIL
 
-         whole_or_part: if ( abs(layer_co(ic)%pd_area - cohort%c_area) <
+         whole_or_part: if ( abs(layer_co(ic)%pd_area - cohort%c_area) < &
                              co_area_target_precision ) then
 
             ! Whole cohort promotion/demotion
@@ -639,7 +641,7 @@ contains
             call InitPRTObject(copyc%prt)
 
             if( hlm_use_planthydro.eq.itrue ) then
-               call InitHydrCohort(currentSite,copyc)
+               call InitHydrCohort(site,copyc)
             endif
 
             call cohort%Copy(copyc)
@@ -663,7 +665,7 @@ contains
             !----------- Insert copy into linked list ------------------------!
             ! Since we are not changing the heights, no sorting necessary
             !-----------------------------------------------------------------!
-            copyc%shorter => ccohort
+            copyc%shorter => cohort
             if(associated(cohort%taller))then
                copyc%taller => cohort%taller
                cohort%taller%shorter => copyc
