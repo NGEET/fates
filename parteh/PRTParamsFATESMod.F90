@@ -4,7 +4,7 @@ module PRTInitParamsFatesMod
   ! the CLM/ELM module system.
 
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesConstantsMod, only : itrue,ifalse
+  use FatesConstantsMod, only : itrue
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : years_per_day
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
@@ -32,7 +32,8 @@ module PRTInitParamsFatesMod
   use FatesAllometryMod, only : set_root_fraction
   use PRTGenericMod, only : StorageNutrientTarget
   use EDTypesMod,          only : init_recruit_trim
-  use FatesConstantsMod,   only : ihard_stress_decid, isemi_stress_decid
+  use FatesConstantsMod,   only : ievergreen
+  use FatesConstantsMod,   only : isemi_stress_decid
   
   !
   ! !PUBLIC TYPES:
@@ -153,15 +154,7 @@ contains
     character(len=param_string_length) :: name
 
 
-    name = 'fates_phen_stress_decid'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_phen_season_decid'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_phen_evergreen'
+    name = 'fates_phen_leaf_habit'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -452,25 +445,11 @@ contains
     real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
                                          ! that are converted to ints
 
-    name = 'fates_phen_stress_decid'
+    name = 'fates_phen_leaf_habit'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=tmpreal)
-    allocate(prt_params%stress_decid(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%stress_decid)
-    deallocate(tmpreal)
-    
-    name = 'fates_phen_season_decid'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%season_decid(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%season_decid)
-    deallocate(tmpreal)
-    
-    name = 'fates_phen_evergreen'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%evergreen(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%evergreen)
+    allocate(prt_params%phen_leaf_habit(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%phen_leaf_habit)
     deallocate(tmpreal)
 
     name = 'fates_phen_stem_drop_fraction'
@@ -990,9 +969,7 @@ contains
         end if
 
         write(fates_log(),*) '-----------  FATES PARTEH Parameters -----------------'
-        write(fates_log(),fmti) 'stress_decid = ',prt_params%stress_decid
-        write(fates_log(),fmti) 'season_decid = ',prt_params%season_decid
-        write(fates_log(),fmti) 'evergreen = ',prt_params%evergreen
+        write(fates_log(),fmti) 'phen_leaf_habit = ',prt_params%phen_leaf_habit
         write(fates_log(),fmt0) 'phen_fnrt_drop_fraction = ',prt_params%phen_fnrt_drop_fraction
         write(fates_log(),fmt0) 'phen_stem_drop_fraction = ',prt_params%phen_stem_drop_fraction
         write(fates_log(),fmt0) 'phen_doff_time = ',prt_params%phen_doff_time
@@ -1083,7 +1060,7 @@ contains
     integer :: i, io    ! generic loop index and organ loop index
     
     norgans = size(prt_params%organ_id,1)
-    npft    = size(prt_params%evergreen,1)
+    npft    = size(prt_params%phen_leaf_habit,1)
     
     ! Set the reverse lookup map for organs to the parameter file index
     allocate(prt_params%organ_param_id(num_organ_types))
@@ -1107,9 +1084,8 @@ contains
      ! This subroutine performs logical checks on user supplied parameters.  It cross
      ! compares various parameters and will fail if they don't make sense.  
      ! Examples:
-     ! A tree can not be defined as both evergreen and deciduous.  A woody plant
-     ! cannot have a structural biomass allometry intercept of 0, and a non-woody
-     ! plant (grass) can't have a non-zero intercept...
+     ! A woody plant cannot have a structural biomass allometry intercept of 0, and a 
+     ! non-woody plant (grass) can't have a non-zero intercept...
      ! -----------------------------------------------------------------------------------
 
 
@@ -1124,10 +1100,6 @@ contains
      integer :: iage            ! leaf age class index
      integer :: norgans         ! size of the plant organ dimension
      integer :: i, io           ! generic loop index and organ loop index
-     logical :: is_evergreen    ! Is the PFT evergreen
-     logical :: is_season_decid ! Is the PFT cold-deciduous?
-     logical :: is_stress_decid ! Is the PFT drought-deciduous?
-     logical :: is_semi_decid   ! Is the PFT drought semi-deciduous?
      logical :: is_hmode_fine   ! Did the height allometry pass the check?
      integer :: nerror          ! Count number of errors. If this is not
                                 !    zero by theend of the subroutine, stop 
@@ -1137,7 +1109,7 @@ contains
 
 
 
-     npft = size(prt_params%evergreen,1)
+     npft = size(prt_params%phen_leaf_habit,1)
 
      ! Prior to performing checks copy grperc to the 
      ! organ dimensioned version
@@ -1218,38 +1190,10 @@ contains
      
      pftloop: do ipft = 1,npft
 
-        ! Check to see if evergreen, deciduous flags are mutually exclusive
-        !      By the way, if these are mutually exclusive, shouldn't we define a
-        !      single prt_params%leaf_phenology and a list of codes for the different
-        !      types (i.e., ievergreen, iseason_decid, istress_hard, istress_semi, etc.)?
-        ! ----------------------------------------------------------------------------------
-        is_evergreen    = prt_params%evergreen(ipft)    == itrue
-        is_season_decid = prt_params%season_decid(ipft) == itrue
-        is_stress_decid = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid])
-        is_semi_decid   = prt_params%stress_decid(ipft) == isemi_stress_decid
-
-        if ( ( is_evergreen    .and. is_season_decid ) .or. &
-             ( is_evergreen    .and. is_stress_decid ) .or. &
-             ( is_season_decid .and. is_stress_decid ) ) then
-
-           write(fates_log(),*) '---~---'
-           write(fates_log(),*) 'PFT # ',ipft,' must be defined as having one of three'
-           write(fates_log(),*) 'phenology habits, ie, only one of the flags below should'
-           write(fates_log(),*) 'be different than ',ifalse
-           write(fates_log(),*) 'stress_decid: ',prt_params%stress_decid(ipft)
-           write(fates_log(),*) 'season_decid: ',prt_params%season_decid(ipft)
-           write(fates_log(),*) 'evergreen: ',prt_params%evergreen(ipft)
-           write(fates_log(),*) '---~---'
-           write(fates_log(),*) ''
-           write(fates_log(),*) ''
-           nerror = nerror + 1
-        end if
-
-
         ! When using the the drought semi-deciduous phenology, we must ensure that the lower
         ! and upper thresholds are consistent (i.e., that both are based on either soil
         ! water content or soil matric potential).
-        if (is_semi_decid) then
+        if (prt_params%phen_leaf_habit(ipft) == isemi_stress_decid) then
            if ( prt_params%phen_drought_threshold(ipft)*prt_params%phen_moist_threshold(ipft) < 0._r8 ) then
               ! In case the product of the lower and upper thresholds is negative, the
               !    thresholds are inconsistent as both should be defined using the same 
@@ -1260,7 +1204,7 @@ contains
               write(fates_log(),*) '    the dry threshold.  Positive = soil water content [m3/m3],'
               write(fates_log(),*) '    Negative = soil matric potential [mm].'
               write(fates_log(),*) ' PFT                          = ',ipft
-              write(fates_log(),*) ' Stress_decid                 = ',prt_params%stress_decid(ipft)
+              write(fates_log(),*) ' phen_leaf_habit              = ',prt_params%phen_leaf_habit(ipft)
               write(fates_log(),*) ' fates_phen_drought_threshold = ',prt_params%phen_drought_threshold(ipft)
               write(fates_log(),*) ' fates_phen_moist_threshold   = ',prt_params%phen_moist_threshold  (ipft)
               write(fates_log(),*) '---~---'
@@ -1275,7 +1219,7 @@ contains
               write(fates_log(),*) '   By greater we mean more positive or less negative, and'
               write(fates_log(),*) '   they cannot be the identical.'
               write(fates_log(),*) ' PFT                          = ',ipft
-              write(fates_log(),*) ' Stress_decid                 = ',prt_params%stress_decid(ipft)
+              write(fates_log(),*) ' phen_leaf_habit              = ',prt_params%phen_leaf_habit(ipft)
               write(fates_log(),*) ' fates_phen_drought_threshold = ',prt_params%phen_drought_threshold(ipft)
               write(fates_log(),*) ' fates_phen_moist_threshold   = ',prt_params%phen_moist_threshold  (ipft)
               write(fates_log(),*) '---~---'
@@ -1286,7 +1230,7 @@ contains
         end if
 
         ! For all deciduous PFTs, check that abscission fractions are all bounded.
-        if (prt_params%evergreen(ipft) == ifalse) then
+        if (prt_params%phen_leaf_habit(ipft) /= ievergreen) then
            ! Check if the fraction of fine roots to be actively abscised relative to leaf abscission
            ! is bounded between 0 and 1 (exactly 0 and 1 are acceptable).
            if ( ( prt_params%phen_fnrt_drop_fraction(ipft) < 0.0_r8 ) .or. &
@@ -1295,7 +1239,7 @@ contains
               write(fates_log(),*) ' Abscission rate for fine roots must be between 0 and 1 for '
               write(fates_log(),*) ' deciduous PFTs.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (should be 0):',prt_params%evergreen(ipft)
+              write(fates_log(),*) ' phen_leaf_habit: ',prt_params%phen_leaf_habit(ipft)
               write(fates_log(),*) ' phen_fnrt_drop_fraction: ', prt_params%phen_fnrt_drop_fraction(ipft)
               write(fates_log(),*) '---~---'
               write(fates_log(),*) ''
@@ -1326,7 +1270,7 @@ contains
               write(fates_log(),*) ' Deciduous non-wood plants must keep 0-100% of their stems'
               write(fates_log(),*) ' during the deciduous period.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (should be 0):',prt_params%evergreen(ipft)
+              write(fates_log(),*) ' phen_leaf_habit: ',prt_params%phen_leaf_habit(ipft)
               write(fates_log(),*) ' phen_stem_drop_fraction: ', prt_params%phen_stem_drop_fraction(ipft)
               write(fates_log(),*) '---~---'
               write(fates_log(),*) ''
@@ -1793,20 +1737,19 @@ contains
                  nerror = nerror + 1
               end if
 
-           else
-              if (prt_params%evergreen(ipft) .eq. itrue) then
-                 write(fates_log(),*) "---~---"
-                 write(fates_log(),*) 'You specified zero leaf turnover: '
-                 write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
-                 write(fates_log(),*) 'leaf_long(ipft,iage): ',prt_params%leaf_long(ipft,iage)
-                 write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
-                 write(fates_log(),*) 'that an evergreen would have leaf maintenance turnover'
-                 write(fates_log(),*) 'disable this error if you are ok with this'
-                 write(fates_log(),*) "---~---"
-                 write(fates_log(),*) ''
-                 write(fates_log(),*) ''
-                 nerror = nerror + 1
-              end if
+           elseif (prt_params%phen_leaf_habit(ipft) == ievergreen) then
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) 'You specified zero leaf turnover: '
+              write(fates_log(),*) 'ipft: ',ipft,' iage: ',iage
+              write(fates_log(),*) 'phen_leaf_habit: ',prt_params%phen_leaf_habit(ipft)
+              write(fates_log(),*) 'leaf_long(ipft,iage): ',prt_params%leaf_long(ipft,iage)
+              write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
+              write(fates_log(),*) 'that an evergreen would have leaf maintenance turnover'
+              write(fates_log(),*) 'disable this error if you are ok with this'
+              write(fates_log(),*) "---~---"
+              write(fates_log(),*) ''
+              write(fates_log(),*) ''
+              nerror = nerror + 1
            end if
 
         end do
@@ -1858,21 +1801,19 @@ contains
               write(fates_log(),*) ''
               nerror = nerror + 1
            end if
-           
-        else
-           if (prt_params%evergreen(ipft) .eq. itrue) then
-              write(fates_log(),*) "---~---"
-              write(fates_log(),*) 'You specified zero root turnover: '
-              write(fates_log(),*) 'ipft: ',ipft
-              write(fates_log(),*) 'root_long(ipft): ',prt_params%root_long(ipft)
-              write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
-              write(fates_log(),*) 'that an evergreen would have root maintenance turnover'
-              write(fates_log(),*) 'disable this error if you are ok with this'
-              write(fates_log(),*) "---~---"
-              write(fates_log(),*) ''
-              write(fates_log(),*) ''
-              nerror = nerror + 1
-           end if
+        elseif (prt_params%phen_leaf_habit(ipft) == ievergreen) then
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) 'You specified zero root turnover: '
+           write(fates_log(),*) 'ipft: ',ipft
+           write(fates_log(),*) 'phen_leaf_habit: ',prt_params%phen_leaf_habit(ipft)
+           write(fates_log(),*) 'root_long(ipft): ',prt_params%root_long(ipft)
+           write(fates_log(),*) 'yet this is an evergreen PFT, and it only makes sense'
+           write(fates_log(),*) 'that an evergreen would have root maintenance turnover'
+           write(fates_log(),*) 'disable this error if you are ok with this'
+           write(fates_log(),*) "---~---"
+           write(fates_log(),*) ''
+           write(fates_log(),*) ''
+           nerror = nerror + 1
         end if
         
         ! Check Branch turnover doesn't exceed one day

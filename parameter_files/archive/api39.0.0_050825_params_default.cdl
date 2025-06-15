@@ -492,24 +492,30 @@ variables:
 	double fates_phen_drought_threshold(fates_pft) ;
 		fates_phen_drought_threshold:units = "m3/m3 or mm" ;
 		fates_phen_drought_threshold:long_name = "threshold for drought phenology (or lower threshold for semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
+	double fates_phen_evergreen(fates_pft) ;
+		fates_phen_evergreen:units = "logical flag" ;
+		fates_phen_evergreen:long_name = "Binary flag for evergreen leaf habit" ;
 	double fates_phen_flush_fraction(fates_pft) ;
 		fates_phen_flush_fraction:units = "fraction" ;
 		fates_phen_flush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
 	double fates_phen_fnrt_drop_fraction(fates_pft) ;
 		fates_phen_fnrt_drop_fraction:units = "fraction" ;
 		fates_phen_fnrt_drop_fraction:long_name = "fraction of fine roots to drop during drought/cold" ;
-	double fates_phen_leaf_habit(fates_pft) ;
-		fates_phen_leaf_habit:units = "flag" ;
-		fates_phen_leaf_habit:long_name = "Flag for leaf phenology habit. 1 - evergreen; 2 - season (cold) deciduous; 3 - stress (hydro) deciduous; 4 - stress (hydro) semi-deciduous" ;
 	double fates_phen_mindaysoff(fates_pft) ;
 		fates_phen_mindaysoff:units = "days" ;
 		fates_phen_mindaysoff:long_name = "day threshold compared against days since leaves abscised (shed)" ;
 	double fates_phen_moist_threshold(fates_pft) ;
 		fates_phen_moist_threshold:units = "m3/m3 or mm" ;
 		fates_phen_moist_threshold:long_name = "upper threshold for drought phenology (only for drought semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
+	double fates_phen_season_decid(fates_pft) ;
+		fates_phen_season_decid:units = "logical flag" ;
+		fates_phen_season_decid:long_name = "Binary flag for seasonal-deciduous leaf habit" ;
 	double fates_phen_stem_drop_fraction(fates_pft) ;
 		fates_phen_stem_drop_fraction:units = "fraction" ;
 		fates_phen_stem_drop_fraction:long_name = "fraction of stems to drop for non-woody species during drought/cold" ;
+	double fates_phen_stress_decid(fates_pft) ;
+		fates_phen_stress_decid:units = "logical flag" ;
+		fates_phen_stress_decid:long_name = "Flag for stress/drought-deciduous leaf habit. 0 - not stress deciduous; 1 - default drought deciduous (two target states only, fully flushed or fully abscised); 2 - semi-deciduous" ;
 	double fates_prescribed_npp_canopy(fates_pft) ;
 		fates_prescribed_npp_canopy:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_canopy:long_name = "NPP per unit crown area of canopy trees for prescribed physiology mode" ;
@@ -678,15 +684,9 @@ variables:
 	double fates_woody(fates_pft) ;
 		fates_woody:units = "logical flag" ;
 		fates_woody:long_name = "Binary woody lifeform flag" ;
-	double fates_voc_pftindex(fates_pft) ;
-	       fates_voc_pftindex: units = "Integer PFT index" ;
-	       fates_voc_pftindex: long_name = "integer index for MEGAN PFT definitions" ;
 	double fates_hlm_pft_map(fates_hlm_pftno, fates_pft) ;
 		fates_hlm_pft_map:units = "area fraction" ;
 		fates_hlm_pft_map:long_name = "In fixed biogeog mode, fraction of HLM area associated with each FATES PFT" ;
-        double fates_wesley_pft_index_fordrydep(fates_pft) ; 
-	        fates_wesley_pft_index_fordrydep:units = "integer index";
-		fates_wesley_pft_index_fordrydep:long_name = "index to map from fates pfts into the wesley pft space used to determing dry deposition veolcity." ;
 	double fates_fire_FBD(fates_litterclass) ;
 		fates_fire_FBD:units = "kg Biomass/m3" ;
 		fates_fire_FBD:long_name = "fuel bulk density" ;
@@ -866,7 +866,7 @@ variables:
 		fates_maxcohort:long_name = "maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances" ;
 	double fates_mort_disturb_frac ;
 		fates_mort_disturb_frac:units = "fraction" ;
-		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from old to new patch)" ;
+		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)" ;
 	double fates_mort_understorey_death ;
 		fates_mort_understorey_death:units = "fraction" ;
 		fates_mort_understorey_death:long_name = "fraction of plants in understorey cohort impacted by overstorey tree-fall" ;
@@ -990,8 +990,8 @@ data:
   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 ;
 
- fates_alloc_storage_cushion = 1.2, 2.4, 2.4, 1.2, 2.4, 2.4, 2.4, 2.4, 2.4, 
-    2.4, 2.4, 2.4, 2.4, 2.4 ;
+ fates_alloc_storage_cushion = 1.2, 1.2, 1.2, 1.2, 2.4, 1.2, 1.2, 2.4, 1.2, 
+    1.5, 1.4, 1.2, 1.2, 1.2 ;
 
  fates_alloc_store_priority_frac = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 
     0.8, 0.7, 0.6, 0.6, 0.8, 0.8 ;
@@ -1019,8 +1019,8 @@ data:
 
  fates_allom_cmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_allom_d2bl1 = 0.04, 0.08, 0.08, 0.01, 0.04, 0.07, 0.07, 0.07, 0.05, 
-    0.0481934, 0.0481934, 0.05, 0.04, 0.04 ;
+ fates_allom_d2bl1 = 0.04, 0.07, 0.07, 0.01, 0.04, 0.07, 0.07, 0.07, 0.07, 
+    0.0481934, 0.0481934, 0.0004, 0.0004, 0.0012 ;
 
  fates_allom_d2bl2 = 1.6019679, 1.5234373, 1.3051237, 1.9621397, 1.6019679, 
     1.3998939, 1.3, 1.3, 1.3, 1.0600586, 1.7176758, 1.7092, 1.7092, 1.5879 ;
@@ -1069,7 +1069,7 @@ data:
 
  fates_allom_hmode = 5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1, 3, 3, 3 ;
 
- fates_allom_l2fr = 1, 0.75, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 4, 1.41 ;
+ fates_allom_l2fr = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.67, 0.67, 1.41 ;
 
  fates_allom_la_per_sa_int = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 
     0.8, 0.8, 0.8, 0.8, 0.8 ;
@@ -1315,14 +1315,14 @@ data:
     0.75, 0.75 ;
 
  fates_hydro_vg_alpha_node =
-  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
-    0.005, 0.005, 0.005, 0.005,
-  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
-    0.005, 0.005, 0.005, 0.005,
-  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
-    0.005, 0.005, 0.005, 0.005,
-  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
-    0.005, 0.005, 0.005, 0.005 ;
+  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
+    0.12, 0.12,
+  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
+    0.12, 0.12,
+  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
+    0.12, 0.12,
+  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
+    0.12, 0.12 ;
 
  fates_hydro_vg_m_node =
   0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
@@ -1366,26 +1366,24 @@ data:
  fates_leaf_jmaxse = 495, 495, 495, 495, 495, 495, 495, 495, 495, 495, 495, 
     495, 495, 495 ;
 
- fates_leaf_slamax = 0.03, 0.03, 0.025, 0.03, 0.05, 0.05, 0.012, 0.03, 0.03, 
-    0.012, 0.032, 0.05, 0.05, 0.05 ;
+ fates_leaf_slamax = 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.012, 
+    0.03, 0.03, 0.012, 0.032, 0.05, 0.05, 0.05 ;
 
- fates_leaf_slatop = 0.024, 0.01, 0.021, 0.024, 0.02, 0.03, 0.012, 0.03, 
-    0.03, 0.01, 0.032, 0.027, 0.04, 0.04 ;
+ fates_leaf_slatop = 0.012, 0.005, 0.024, 0.009, 0.03, 0.03, 0.012, 0.03, 
+    0.03, 0.01, 0.032, 0.027, 0.05, 0.05 ;
 
  fates_leaf_stomatal_btran_model = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_leaf_stomatal_intercept = 50000, 21529.33, 13370.411, 26779.681, 
-    12869.022, 6205.777, 10000, 10000, 3750.669, 10000, 10000, 1624.209, 
-    313709.616, 439459.319 ;
+ fates_leaf_stomatal_intercept = 10000, 10000, 10000, 10000, 10000, 10000, 
+    10000, 10000, 10000, 10000, 10000, 10000, 10000, 40000 ;
 
- fates_leaf_stomatal_slope_ballberry = 12, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 ;
+ fates_leaf_stomatal_slope_ballberry = 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 ;
 
- fates_leaf_stomatal_slope_medlyn = 2.038, 2.482, 2.571, 4.038, 3.459, 4.353, 
-    4.7, 4.7, 2.503, 4.7, 4.7, 2.423, 5.799, 0.967 ;
+ fates_leaf_stomatal_slope_medlyn = 4.1, 2.3, 2.3, 4.1, 4.4, 4.4, 4.7, 4.7, 
+    4.7, 4.7, 4.7, 2.2, 5.3, 1.6 ;
 
  fates_leaf_vcmax25top =
-  53.142, 40, 20.443, 20.252, 38.393, 34.363, 62, 54, 43.712, 38, 54, 39.168, 
-    64, 17.955 ;
+  50, 62, 39, 61, 58, 58, 62, 54, 54, 38, 54, 86, 78, 78 ;
 
  fates_leaf_vcmaxha = 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330, 
     65330, 65330, 65330, 65330, 65330, 65330 ;
@@ -1403,8 +1401,9 @@ data:
  fates_leafn_vert_scaler_coeff2 = 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 
     2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43 ;
 
- fates_maintresp_leaf_atkin2017_baserate = 1.734, 2.169, 2.104, 2.104, 2.069, 
-    1.622, 2.0749, 2.0749, 3.054, 2.0749, 2.0749, 2.079, 2.0749, 2.182 ;
+ fates_maintresp_leaf_atkin2017_baserate = 1.756, 1.4995, 1.4995, 1.756, 
+    1.756, 1.756, 2.0749, 2.0749, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956, 
+    2.1956 ;
 
  fates_maintresp_leaf_ryan1991_baserate = 2.525e-06, 2.525e-06, 2.525e-06, 
     2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 
@@ -1415,7 +1414,7 @@ data:
     0.00963, 0.00963, 0.00963 ;
 
  fates_maintresp_leaf_vert_scaler_coeff2 = 2.43, 2.43, 2.43, 2.43, 2.43, 
-    2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.25 ;
+    2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43 ;
 
  fates_maintresp_reduction_curvature = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
     0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 ;
@@ -1460,13 +1459,11 @@ data:
 
  fates_mort_upthresh_cstarvation = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_nonhydro_smpsc = -177537.967, -352444.342, -214798.413, -307679.665, 
-    -347451.834, -175120.945, -255000, -255000, -134673.93, -255000, -255000, 
-    -317882.916, -200123.906, -360214.919 ;
+ fates_nonhydro_smpsc = -255000, -255000, -255000, -255000, -255000, -255000, 
+    -255000, -255000, -255000, -255000, -255000, -255000, -255000, -255000 ;
 
- fates_nonhydro_smpso = -34844.846, -87067.176, -33560.298, -98998.485, 
-    -98986.971, -33160.364, -66000, -66000, -33137.782, -66000, -66000, 
-    -96187.704, -35291.509, -51250.654 ;
+ fates_nonhydro_smpso = -66000, -66000, -66000, -66000, -66000, -66000, 
+    -66000, -66000, -66000, -66000, -66000, -66000, -66000, -66000 ;
 
  fates_phen_cold_size_threshold = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
@@ -1474,12 +1471,12 @@ data:
     -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, 
     -152957.4, -152957.4, -152957.4, -152957.4 ;
 
+ fates_phen_evergreen = 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0 ;
+
  fates_phen_flush_fraction = _, _, 0.5, _, 0.5, 0.5, _, 0.5, 0.5, _, 0.5, 
     0.5, 0.5, 0.5 ;
 
  fates_phen_fnrt_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_phen_leaf_habit = 1, 1, 2, 1, 3, 2, 1, 3, 2, 1, 2, 2, 3, 3 ;
 
  fates_phen_mindaysoff = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
     100, 100, 100, 100 ;
@@ -1488,7 +1485,11 @@ data:
     -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, 
     -122365.9, -122365.9, -122365.9, -122365.9 ;
 
+ fates_phen_season_decid = 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0 ;
+
  fates_phen_stem_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+ fates_phen_stress_decid = 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1 ;
 
  fates_prescribed_npp_canopy = 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 
     0.4, 0.4, 0.4, 0.4, 0.4 ;
@@ -1530,7 +1531,7 @@ data:
  fates_recruit_height_min = 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.2, 0.2, 0.2, 0.8, 
     0.8, 0.11, 0.2, 0.2 ;
 
- fates_recruit_init_density = 2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
+ fates_recruit_init_density = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
     0.16, 0.2, 0.2, 0.2, 0.2 ;
 
  fates_recruit_prescribed_rate = 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 
@@ -1548,8 +1549,7 @@ data:
  fates_recruit_seed_germination_rate = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5, 0.4, 0.49, 0.29, 0.5, 0.5 ;
 
- fates_recruit_seed_supplement = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
-    0.1, 0.1, 0.1, 0.1, 0.1 ;
+ fates_recruit_seed_supplement = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_seed_dispersal_fraction = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
 
@@ -1659,19 +1659,19 @@ data:
  fates_turb_leaf_diameter = 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 
     0.04, 0.04, 0.04, 0.04, 0.04, 0.04 ;
 
- fates_turb_z0mr = 0.075, 0.055, 0.055, 0.075, 0.055, 0.055, 0.12, 0.12,
+ fates_turb_z0mr = 0.075, 0.055, 0.055, 0.075, 0.055, 0.055, 0.12, 0.12, 
     0.12, 0.12, 0.12, 0.12, 0.12, 0.12 ;
 
  fates_turnover_branch = 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 
     150, 0, 0, 0 ;
 
- fates_turnover_fnrt = 1, 2, 1.5, 1.5, 1, 1, 1.5, 1, 1, 1.5, 1, 1, 0.5, 0.5 ;
+ fates_turnover_fnrt = 1, 2, 1, 1.5, 1, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1 ;
 
  fates_turnover_leaf_canopy =
-  1.5, 4, 1, 1.5, 1, 1, 1.5, 1, 1, 1.5, 1, 0.5, 0.15, 0.5 ;
+  1.5, 4, 1, 1.5, 1, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1 ;
 
  fates_turnover_leaf_ustory =
-  2.5, 5, 1, 1.5, 1, 1, 1.5, 1, 1, 1.5, 1, 1, 0.15, 0.5 ;
+  1.5, 4, 1, 1.5, 1, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1 ;
 
  fates_turnover_senleaf_fdrought = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
@@ -1679,8 +1679,6 @@ data:
     0.566452, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7 ;
 
  fates_woody = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0 ;
-
- fates_voc_pftindex = 4, 1, 3, 5, 6, 7, 9, 10, 10, 9, 11, 12, 13, 14 ;
 
  fates_hlm_pft_map =
   0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1697,8 +1695,6 @@ data:
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ;
-
- fates_wesley_pft_index_fordrydep =  4, 5, 5, 4, 4, 4, 11, 11, 11 ,3, 3, 3, 3, 3;
 
  fates_fire_FBD = 15.4, 16.8, 19.6, 999, 4, 4 ;
 
@@ -1732,11 +1728,11 @@ data:
 
  fates_cnp_eca_plant_escalar = 1.25e-05 ;
 
- fates_cohort_age_fusion_tol = 0.25 ;
+ fates_cohort_age_fusion_tol = 0.08 ;
 
- fates_cohort_size_fusion_tol = 0.25 ;
+ fates_cohort_size_fusion_tol = 0.08 ;
 
- fates_comp_excln = -1 ;
+ fates_comp_excln = 3 ;
 
  fates_damage_canopy_layer_code = 1 ;
 
@@ -1788,23 +1784,23 @@ data:
 
  fates_landuse_grazing_phosphorus_use_eff = 0.5 ;
 
- fates_landuse_logging_coll_under_frac = 0. ;
+ fates_landuse_logging_coll_under_frac = 0.55983 ;
 
- fates_landuse_logging_collateral_frac = 0. ;
+ fates_landuse_logging_collateral_frac = 0.05 ;
 
  fates_landuse_logging_dbhmax = _ ;
 
- fates_landuse_logging_dbhmax_infra = 0 ;
+ fates_landuse_logging_dbhmax_infra = 35 ;
 
- fates_landuse_logging_dbhmin = 0 ;
+ fates_landuse_logging_dbhmin = 50 ;
 
- fates_landuse_logging_direct_frac = 1. ;
+ fates_landuse_logging_direct_frac = 0.15 ;
 
  fates_landuse_logging_event_code = -30 ;
 
  fates_landuse_logging_export_frac = 0.8 ;
 
- fates_landuse_logging_mechanical_frac = 0. ;
+ fates_landuse_logging_mechanical_frac = 0.05 ;
 
  fates_leaf_photo_temp_acclim_thome_time = 30 ;
 
@@ -1822,7 +1818,7 @@ data:
 
  fates_mort_understorey_death = 0.55983 ;
 
- fates_patch_fusion_tol = 0.15 ;
+ fates_patch_fusion_tol = 0.05 ;
 
  fates_phen_chilltemp = 5 ;
 
@@ -1852,7 +1848,7 @@ data:
 
  fates_trs_seedling_mort_par_timescale = 32 ;
 
- fates_vai_top_bin_width = 0.5 ;
+ fates_vai_top_bin_width = 1 ;
 
- fates_vai_width_increase_factor = 1.1 ;
+ fates_vai_width_increase_factor = 1 ;
 }

@@ -907,7 +907,7 @@ contains
 
     call this%set_restart_var(vname='fates_resp_excess', vtype=cohort_r8, &
          long_name='ed cohort - maintenance respiration deficit', &
-         units='kgC/indiv', flushval = flushzero, &
+         units='kgC/indiv/day', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_resp_excess_co )
 
     call this%set_restart_var(vname='fates_bmort', vtype=cohort_r8, &
