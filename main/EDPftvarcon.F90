@@ -26,6 +26,7 @@ module EDPftvarcon
   use FatesInterfaceTypesMod, only : hlm_nitrogen_spec, hlm_phosphorus_spec
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : hlm_nu_com
+  use FatesConstantsMod   , only : ievergreen
   use FatesConstantsMod   , only : prescribed_p_uptake
   use FatesConstantsMod   , only : prescribed_n_uptake
   use FatesConstantsMod   , only : coupled_p_uptake
@@ -1695,9 +1696,8 @@ contains
      ! This subroutine performs logical checks on user supplied parameters.  It cross
      ! compares various parameters and will fail if they don't make sense.
      ! Examples:
-     ! A tree can not be defined as both evergreen and deciduous.  A woody plant
-     ! cannot have a structural biomass allometry intercept of 0, and a non-woody
-     ! plant (grass) can't have a non-zero intercept...
+     ! A woody plant cannot have a structural biomass allometry intercept of 0, and a 
+     ! non-woody plant (grass) can't have a non-zero intercept...
      ! -----------------------------------------------------------------------------------
     use FatesConstantsMod  , only : fates_check_param_set
     use FatesConstantsMod  , only : itrue, ifalse
@@ -1984,7 +1984,7 @@ contains
 
         ! Check if the fraction of storage used for flushing deciduous trees
         ! is greater than zero, and less than or equal to 1.
-        if (prt_params%evergreen(ipft) == ifalse) then
+        if (prt_params%phen_leaf_habit(ipft) /= ievergreen) then
            if ( ( EDPftvarcon_inst%phenflush_fraction(ipft) < nearzero ) .or. &
                 ( EDPFtvarcon_inst%phenflush_fraction(ipft) > 1 ) ) then
 
@@ -1992,7 +1992,8 @@ contains
               write(fates_log(),*) ' on bud-burst. If phenflush_fraction is not greater than 0'
               write(fates_log(),*) ' it will not be able to put out any leaves. Plants need leaves.'
               write(fates_log(),*) ' PFT#: ',ipft
-              write(fates_log(),*) ' evergreen flag: (should be 0):',int(prt_params%evergreen(ipft))
+              write(fates_log(),*) ' phen_leaf_habit: (evergreen should be ',ievergreen,'):', &
+                                        int(prt_params%phen_leaf_habit(ipft))
               write(fates_log(),*) ' phenflush_fraction: ', EDPFtvarcon_inst%phenflush_fraction(ipft)
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))

@@ -24,6 +24,7 @@ module PRTLossFluxesMod
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : calloc_abs_error
   use FatesConstantsMod, only : itrue
+  use FatesConstantsMod, only : ievergreen
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : fates_log 
   use shr_log_mod      , only : errMsg => shr_log_errMsg
@@ -756,7 +757,7 @@ contains
       ! Only evergreens have maintenance turnover (must also change trimming logic
       ! if we want to change this)
       ! -------------------------------------------------------------------------------------
-      if ( leaf_long > nearzero .and. prt_params%evergreen(ipft)==itrue ) then
+      if ( leaf_long > nearzero .and. prt_params%phen_leaf_habit(ipft) == ievergreen ) then
          
          if(is_drought) then
             base_turnover(leaf_organ) = years_per_day / &
