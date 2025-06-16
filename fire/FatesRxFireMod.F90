@@ -50,7 +50,7 @@ module FatesRxFireMod
   !---------------------------------------------------------------------------------------
   
   logical function fire_has_ignitions_and_intensity(wildfire_FI, wildfire_ignitions,         &
-    wildfire_intensity_thresh)
+    wildfire_FI_thresh)
     !
     !  DESCRIPTION:
     !  Determines if a wildfire is happening
