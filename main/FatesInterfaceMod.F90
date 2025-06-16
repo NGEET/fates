@@ -371,7 +371,11 @@ contains
        write(fates_log(), *) 'hlm_parteh_mode: ',hlm_parteh_mode
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
-    
+
+    ! carbon loss to atmosphere pathways
+    fates%bc_out(s)%grazing_closs_to_atm_si = 0.0_r8
+    fates%bc_out(s)%fire_closs_to_atm_si    = 0.0_r8
+
     fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
     fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
     
@@ -408,6 +412,9 @@ contains
     ! Land Use realated
     fates%bc_out(s)%gpp_site = 0.0_r8
     fates%bc_out(s)%ar_site = 0.0_r8
+    fates%bc_out(s)%npp_site = 0.0_r8
+    fates%bc_out(s)%npp_acc_site = 0.0_r8
+    fates%bc_out(s)%fates_total_carbon_site = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod10c = 0.0_r8
     fates%bc_out(s)%hrv_deadstemc_to_prod100c = 0.0_r8
 

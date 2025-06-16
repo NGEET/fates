@@ -804,6 +804,13 @@ module FatesInterfaceTypesMod
       real(r8) :: hrv_deadstemc_to_prod100c  ! Harvested C flux to 100-yr wood product pool [Site-Level, gC m-2 s-1]
       real(r8) :: gpp_site  ! Site level GPP, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
       real(r8) :: ar_site   ! Site level Autotrophic Resp, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
+      real(r8) :: npp_site  ! Site level timestep-specific NPP, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
+      real(r8) :: npp_acc_site ! Sitelevel, timestep-specific accumulated NPP to account for assimilate but not allocated C in HLM balance check
+      real(r8) :: fates_total_carbon_site ! Site level total carbon in FATES (g/m2) for  HLM balance check
+      
+      ! direct carbon loss to atm pathways
+      real(r8) :: grazing_closs_to_atm_si    ! Loss of carbon to atmosphere via grazing [Site-Level, gC m-2 s-1]
+      real(r8) :: fire_closs_to_atm_si       ! Loss of carbon to atmosphere via burning (includes burning from land use change) [Site-Level, gC m-2 s-1]
 
    end type bc_out_type
 

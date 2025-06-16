@@ -34,6 +34,8 @@ module EDPhysiologyMod
   use FatesConstantsMod, only    : megajoules_per_joule
   use FatesConstantsMod, only    : mpa_per_mm_suction
   use FatesConstantsMod, only    : g_per_kg
+  use FatesConstantsMod, only    : ha_per_m2
+  use FatesConstantsMod, only    : days_per_sec
   use FatesConstantsMod, only    : ndays_per_year
   use FatesConstantsMod, only    : nocomp_bareground
   use FatesConstantsMod, only    : nocomp_bareground_land
@@ -432,7 +434,7 @@ contains
 
   ! ============================================================================
 
-  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in )
+  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in, bc_out )
 
     ! -----------------------------------------------------------------------------------
     !
@@ -440,8 +442,7 @@ contains
     ! associated with seed turnover, seed influx, litterfall from live and
     ! dead plants, germination, and fragmentation.
     !
-    ! At this time we do not have explicit herbivory, and burning losses to litter
-    ! are handled elsewhere.
+    ! Herbivory is handled here. burning losses to litter are handled elsewhere.
     !
     ! Note: The processes conducted here DO NOT handle litter fluxes associated
     !       with disturbance.  Those fluxes are handled elsewhere (EDPatchDynamcisMod)
@@ -455,6 +456,7 @@ contains
     type(ed_site_type), intent(inout)  :: currentSite
     type(fates_patch_type), intent(inout) :: currentPatch
     type(bc_in_type), intent(in)       :: bc_in
+    type(bc_out_type), intent(inout)   :: bc_out
 
     !
     ! !LOCAL VARIABLES:
@@ -473,34 +475,33 @@ contains
                   site_mass => currentSite%mass_balance(el), &
                   diag => currentSite%flux_diags%elem(el))
 
-         ! Calculate loss rate of viable seeds to litter
-         call SeedDecay(litt, currentPatch, bc_in)
-         
-         ! Calculate seed germination rate, the status flags prevent
-         ! germination from occuring when the site is in a drought
-         ! (for drought deciduous) or too cold (for cold deciduous)
-         call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), bc_in, currentPatch)
-         
-         ! Send fluxes from newly created litter into the litter pools
-         ! This litter flux is from non-disturbance inducing mortality, as well
-         ! as litter fluxes from live trees
-         call CWDInput(currentSite, currentPatch, litt,bc_in)
-         
-         ! Only calculate fragmentation flux over layers that are active
-         ! (RGK-Mar2019) SHOULD WE MAX THIS AT 1? DONT HAVE TO
-         
-         nlev_eff_decomp = max(bc_in%max_rooting_depth_index_col, 1)
-         call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
-         
-         ! Fragmentation flux to soil decomposition model [kg/site/day]
-         site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
-              ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
-              sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
-              sum(litt%seed_decay) + sum(litt%seed_germ_decay))
-         
-         ! Track total seed decay diagnostic in [kg/m2/day]
-         diag%tot_seed_turnover = diag%tot_seed_turnover + &
-              (sum(litt%seed_decay) + sum(litt%seed_germ_decay))*currentPatch%area*area_inv
+       ! Calculate loss rate of viable seeds to litter
+       call SeedDecay(litt, currentPatch, bc_in)
+       
+
+       ! Calculate seed germination rate, the status flags prevent
+       ! germination from occuring when the site is in a drought
+       ! (for drought deciduous) or too cold (for cold deciduous)
+       call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), bc_in, currentPatch)
+
+       ! Send fluxes from newly created litter into the litter pools
+       ! This litter flux is from non-disturbance inducing mortality, as well
+       ! as litter fluxes from live trees
+       call CWDInput(currentSite, currentPatch, litt,bc_in, bc_out)
+
+       ! Only calculate fragmentation flux over layers that are active
+       ! (RGK-Mar2019) SHOULD WE MAX THIS AT 1? DONT HAVE TO
+
+       nlev_eff_decomp = max(bc_in%max_rooting_depth_index_col, 1)
+       call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
+
+
+       ! Fragmentation flux to soil decomposition model [kg/site/day]
+       site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
+            ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
+            sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
+            sum(litt%seed_decay) + sum(litt%seed_germ_decay))
+
 
        end associate
     end do
@@ -2785,7 +2786,7 @@ contains
 
    ! ======================================================================================
 
-  subroutine CWDInput( currentSite, currentPatch, litt, bc_in)
+  subroutine CWDInput( currentSite, currentPatch, litt, bc_in, bc_out)
 
     !
     ! !DESCRIPTION:
@@ -2805,6 +2806,7 @@ contains
     type(fates_patch_type),intent(inout), target :: currentPatch
     type(litter_type),intent(inout),target    :: litt
     type(bc_in_type),intent(in)               :: bc_in
+    type(bc_out_type),intent(inout)           :: bc_out
 
     !
     ! !LOCAL VARIABLES:
@@ -2952,11 +2954,15 @@ contains
             elflux_diags%root_litter_input(pft) +  &
             (fnrt_m_turnover + store_m_turnover ) * currentCohort%n
 
-       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere
+       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere (and also for tracking)
 
        site_mass%herbivory_flux_out = &
             site_mass%herbivory_flux_out + &
             leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n
+
+       bc_out%grazing_closs_to_atm_si = bc_out%grazing_closs_to_atm_si + &
+            leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n * &
+            ha_per_m2 * days_per_sec
 
        ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
 
