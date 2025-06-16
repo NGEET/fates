@@ -13,18 +13,18 @@ jobs:
 
     steps:
       
-      
       - name: Activate Spack environment
         run: |
           . /opt/spack-environment/activate.sh
           which python
+          python --version
+
+      - name: Check Python environment
+        run: |
+          echo "PYTHONPATH: $PYTHONPATH"
       
       - name: Checkout repository
         uses: actions/checkout@v4
-        
-      - name: echo path
-        run: |
-          echo "PATH: $PATH"
           
       # - name: Install unit test python dependencies
       #   run: |
