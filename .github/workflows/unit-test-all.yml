@@ -15,7 +15,7 @@ jobs:
       
       - name: Activate Spack environment
         run: |
-          source entrypoint.sh
+          . entrypoint.sh
           echo "PYTHONPATH: $PYTHONPATH"
           which python
           python --version
