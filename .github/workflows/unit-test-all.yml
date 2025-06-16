@@ -15,12 +15,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         
-      - name: Activate Spack environment
-        run: . /opt/spack-environment/activate.sh
-
-      - name: Install unit test python dependencies
+      - name: debug python installation
         run: |
-          python -m pip install matplotlib
+          echo "PATH: $PATH"
+          which python
+          which python3
+          ls -l   /usr/local/bin/python*
+          id
+          env
+        
+      # - name: Activate Spack environment
+      #   run: . /opt/spack-environment/activate.sh
+
+      # - name: Install unit test python dependencies
+      #   run: |
+      #     python -m pip install matplotlib
 
       # - name: Run FATES unit tests
       #   working-directory: ./testing/
