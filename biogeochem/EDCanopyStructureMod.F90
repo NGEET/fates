@@ -201,8 +201,13 @@ contains
     do while (associated(currentPatch)) ! Patch loop
 
        ! Make sure we are sorted
-       call currentPatch%SortCohorts(check_order=.true.)
+       ! call currentPatch%SortCohorts(check_order=.true.)
 
+       ! Terminate cohorts before organizing canopy. That
+       ! step will be interested in preserving area, so termination
+       ! during that step will be counter productive
+       call terminate_cohorts(currentSite, currentPatch, 1,13,bc_in)
+       call terminate_cohorts(currentSite, currentPatch, 2,13,bc_in)       
        
        ! ------------------------------------------------------------------------------
        ! Perform numerical checks on some cohort and patch structures
@@ -232,10 +237,6 @@ contains
           ! the layers below.
           ! ---------------------------------------------------------------------------
 
-          ! Its possible that before we even enter this scheme
-          ! some cohort numbers are very low.  Terminate them.
-          call terminate_cohorts(currentSite, currentPatch, 1, 12, bc_in)
-
           ! Calculate how many layers we have in this canopy
           ! This also checks the understory to see if its crown
           ! area is large enough to warrant a temporary sub-understory layer
@@ -247,14 +248,7 @@ contains
              call PromoteOrDemote(currentSite, currentPatch, i_lyr, demotion_phase, target_area)
           end do
 
-          ! After demotions, we may then again have cohorts that
-          ! are very very very sparse, remove them
-          call terminate_cohorts(currentSite, currentPatch, 1,13,bc_in)
-
           call fuse_cohorts(currentSite, currentPatch, bc_in)
-
-          ! Remove cohorts for various other reasons
-          call terminate_cohorts(currentSite, currentPatch, 2,13,bc_in)
 
           ! ---------------------------------------------------------------------------------------
           ! Promotion Phase: Identify if any upper-layers are underful and layers below them
@@ -272,13 +266,7 @@ contains
                 call PromoteOrDemote(currentSite, currentPatch, i_lyr, promotion_phase, target_area)
              end do
 
-             ! Remove cohorts that are incredibly sparse
-             call terminate_cohorts(currentSite, currentPatch, 1,14,bc_in)
-
              call fuse_cohorts(currentSite, currentPatch, bc_in)
-
-             ! Remove cohorts for various other reasons
-             call terminate_cohorts(currentSite, currentPatch, 2,14,bc_in)
 
           end if
 
@@ -315,33 +303,27 @@ contains
              write(fates_log(),*) 'PATCH AREA CHECK NOT CLOSING'
              write(fates_log(),*) 'patch area:',currentpatch%area
              write(fates_log(),*) 'fraction that is imperfect (unclosed):',imperfect_fraction
-             do i_lyr = 1,z
-                write(fates_log(),*) 'layer: ',i_lyr,' area: ',arealayer(i_lyr)
-                write(fates_log(),*) 'rel error: ',(arealayer(i_lyr)- &
-                     (1._r8-imperfect_fraction)*currentPatch%area)/ &
-                     ((1._r8-imperfect_fraction)*currentPatch%area)
-                write(fates_log(),*) 'abs error: ',arealayer(i_lyr) - &
-                     (1._r8-imperfect_fraction)*currentPatch%area
-             enddo
              write(fates_log(),*) 'lat:',currentSite%lat
              write(fates_log(),*) 'lon:',currentSite%lon
              write(fates_log(),*) 'spread:',currentSite%spread
-             currentCohort => currentPatch%tallest
-             do while (associated(currentCohort))
-                write(fates_log(),*) 'coh ilayer:',currentCohort%canopy_layer
-                write(fates_log(),*) 'coh dbh:',currentCohort%dbh
-                write(fates_log(),*) 'coh pft:',currentCohort%pft
-                write(fates_log(),*) 'coh n:',currentCohort%n
-                write(fates_log(),*) 'coh carea:',currentCohort%c_area
-                ipft=currentCohort%pft
-                write(fates_log(),*) 'maxh:',prt_params%allom_dbh_maxheight(ipft)
-                write(fates_log(),*) 'lmode: ',prt_params%allom_lmode(ipft)
-                write(fates_log(),*) 'd2bl2: ',prt_params%allom_d2bl2(ipft)
-                write(fates_log(),*) 'd2bl_ediff: ',prt_params%allom_blca_expnt_diff(ipft)
-                write(fates_log(),*) 'd2ca_min: ',prt_params%allom_d2ca_coefficient_min(ipft)
-                write(fates_log(),*) 'd2ca_max: ',prt_params%allom_d2ca_coefficient_max(ipft)
-                currentCohort => currentCohort%shorter
+             do i_lyr = 1,z
+                write(fates_log(),*) '-----------------------------------------'
+                write(fates_log(),*) 'layer: ',i_lyr,' area: ',arealayer(i_lyr)
+                write(fates_log(),*) 'abs error (layer-patch): ',(arealayer(i_lyr)- &
+                     (1._r8-imperfect_fraction)*currentPatch%area)
+                currentCohort => currentPatch%tallest
+                do while (associated(currentCohort))
+                   if(currentCohort%canopy_layer == i_lyr)then
+                      write(fates_log(),*) '-----------'
+                      write(fates_log(),*) ' co area:',currentCohort%c_area
+                      write(fates_log(),*) ' co dbh: ',currentCohort%dbh
+                      write(fates_log(),*) ' co pft: ',currentCohort%pft
+                      write(fates_log(),*) ' co n: ',currentCohort%n
+                   end if
+                   currentCohort => currentCohort%shorter
+                end do
              enddo
+
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 
@@ -445,8 +427,6 @@ contains
     ! to help track which cohorts are in the target layer
     associate(layer_co => patch%co_scr)
 
-
-
       ! Step 1: Determine which cohorts are in the layer
       !         and point to them in the scratch vector
       !         Make sure their areas are updated too.
@@ -458,10 +438,10 @@ contains
       group_area = 0._r8
       if(phase==demotion_phase) then
          cohort => patch%shortest
-         ilyr_change = -1
+         ilyr_change = 1
       else
          cohort => patch%tallest
-         ilyr_change =  1
+         ilyr_change = -1
       end if
       do while (associated(cohort))
          if(cohort%canopy_layer == target_layer)then
@@ -582,7 +562,7 @@ contains
       ! Check to make sure the changes are within bounds
       do ic = 1,n_layer
          cohort => layer_co(ic)%p
-         if( (layer_co(ic)%pd_area > cohort%c_area) .or. &
+         if( ((layer_co(ic)%pd_area - cohort%c_area) > co_area_target_precision ) .or. &
              (layer_co(ic)%pd_area < 0._r8) ) then
             write(fates_log(),*) 'negative,or more area than the cohort has is being promoted/demoted'
             write(fates_log(),*) 'change: ',layer_co(ic)%pd_area
