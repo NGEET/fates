@@ -13,15 +13,17 @@ jobs:
 
     steps:
       
-      - name: Activate Spack environment
-        run: |
-          . /opt/spack-environment/activate.sh
-          which python
-          python --version
-          echo "PYTHONPATH: $PYTHONPATH"
+      # - name: Activate Spack environment
+      #   run: |
+      #     . /opt/spack-environment/activate.sh
+      #     which python
+      #     python --version
+      #     echo "PYTHONPATH: $PYTHONPATH"
 
       - name: Check Python environment
         run: |
+          which python
+          python --version
           echo "PYTHONPATH: $PYTHONPATH"
       
       - name: Checkout repository
