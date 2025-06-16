@@ -22,9 +22,9 @@ jobs:
 
       - name: Check Python environment
         run: |
+          echo "PYTHONPATH: $PYTHONPATH"
           which python
           python --version
-          echo "PYTHONPATH: $PYTHONPATH"
       
       # - name: Checkout repository
       #   uses: actions/checkout@v4
