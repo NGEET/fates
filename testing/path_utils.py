@@ -36,10 +36,12 @@ def path_to_cime() -> str:
     Returns:
         str: full path to cime
     """
-    # cime_path = os.path.join(path_to_fates_root(), "../../cime")
-    cime_path = "/cime"
+    cime_path = os.path.join(path_to_fates_root(), "../../cime")
     if os.path.isdir(cime_path):
         return cime_path
+    elif os.path.isdir("/cime"):
+        return "/cime"
+
     raise RuntimeError("Cannot find cime.")
 
 
