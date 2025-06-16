@@ -20,7 +20,7 @@ jobs:
 
       - name: Install unit test python dependencies
         run: |
-          python3 -m pip install matplotlib
+          python -m pip install matplotlib
 
       - name: Run FATES unit tests
         working-directory: ./testing/
