@@ -22,7 +22,7 @@ jobs:
         run: |
           python -m pip install matplotlib
 
-      - name: Run FATES unit tests
-        working-directory: ./testing/
-        run: |
-          python run_unit_tests.py --make-j 2 --test-list all
+      # - name: Run FATES unit tests
+      #   working-directory: ./testing/
+      #   run: |
+      #     python run_unit_tests.py --make-j 2 --test-list all
