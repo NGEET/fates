@@ -47,38 +47,4 @@ module FatesRxFireMod
   
   end logical function is_prescribed_burn
   
-  !---------------------------------------------------------------------------------------
-  
-  logical function is_wild_fire(wildfire_FI, wildfire_ignitions, rxfire_maxFI,         &
-    wildfire_intensity_thresh)
-    !
-    !  DESCRIPTION:
-    !  Determines if a wildfire is happening
-    !
-    
-    ! ARGUMENTS:
-    real(r8), intent(in) :: wildfire_FI        ! wildfire fire intensity [kW/m]
-    real(r8), intent(in) :: wildfire_ignitions ! wildfire ignitions [count/km2/day]
-    real(r8), intent(in) :: rx_max_FI          ! maximum fire energy of prescribed fire [kW/m]
-    real(r8), intent(in) :: wildfire_FI_thresh ! threshold for fires that spread or go out [kW/m]
-    
-    ! LOCALS:
-    logical :: managed_wildfire      ! is it a wildfire with FI lower than the max rxfire intensity? [can either be Rx fire or wildfire]
-    logical :: true_wildfire         ! is it a wildfire that cannot be managed?
-    logical :: has_ignitions         ! any natural ignitions at the site?
-    logical :: above_wildfire_thresh ! above the wildfire energy threshold
-    
-    has_ignitions = wildfire_ignitions > nearzero
-    above_wildfire_thresh = wildfire_FI > wildfire_FI_thresh
-  
-    managed_wildfire = has_ignitions .and. above_wildfire_thresh .and.  &
-      wildfire_FI < rx_max_FI
-
-    true_wildfire = has_ignitions .and. above_wildfire_thresh .and.  &
-      wildfire_FI > rx_max_FI
-      
-    is_wildfire = managed_wildfire .or. true_wildfire
-  
-  end logical function is_wild_fire
-  
 end module FatesRxFireMod
