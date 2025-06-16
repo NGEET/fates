@@ -12,15 +12,21 @@ jobs:
       image: ghcr.io/glemieux/containers/unit-testing:latest
 
     steps:
+      
+      - run: which python
+      
       - name: Checkout repository
         uses: actions/checkout@v4
         
-      - name: debug python installation
+      - name: echo path
         run: |
           echo "PATH: $PATH"
+          
+      - name: Print Python versions
+        run: |
           which python
           which python3
-          ls -l   /usr/local/bin/python*
+          ls -l /usr/local/bin/python*
           id
           env
         
