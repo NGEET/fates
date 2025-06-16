@@ -13,6 +13,7 @@ jobs:
 
     steps:
       
+      - run: ls -l /usr/bin/python
       - run: which python
       
       - name: Checkout repository
