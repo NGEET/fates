@@ -18,6 +18,7 @@ jobs:
           . /opt/spack-environment/activate.sh
           which python
           python --version
+          echo "PYTHONPATH: $PYTHONPATH"
 
       - name: Check Python environment
         run: |
