@@ -371,7 +371,7 @@ contains
     use SFParamsMod,       only : SF_val_rxfire_maxthreshold, SF_val_rxfire_fuel_min
     use SFParamsMod,       only : SF_val_rxfire_fuel_max
     use EDParamsMod,       only : rxfire_switch
-    use FatesRxFireMod,    only : is_prescribed_burn, fire_has_ignitions_and_intensity
+    use FatesRxFireMod,    only : is_prescribed_burn
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
@@ -380,8 +380,8 @@ contains
     type(fates_patch_type), pointer :: currentPatch                    ! patch object
     real(r8)                        :: fuel_consumed(num_fuel_classes) ! fuel consumed [kgC/m2]
     logical                         :: is_rxfire                       ! is it a prescribed fire?
-    logical                         :: is_wildfire                     ! combine both managed and true wildfire for now
     logical                         :: rxfire_fuel_check               ! is fuel within thresholds for prescribed burn               
+    logical                         :: fi_check  ! is (potential) fire intensity high enough for fire to actually happen?
     
     currentPatch => currentSite%oldest_patch 
     do while (associated(currentPatch))
@@ -408,6 +408,7 @@ contains
           
           ! fire intensity [kW/m]
           currentPatch%FI = FireIntensity(currentPatch%TFC_ROS/0.45_r8, currentPatch%ROS_front/60.0_r8)
+          fi_check = currentPatch%FI > SF_val_fire_threshold
           
           ! check if prescribed fire can occur based on fuel load
           rxfire_fuel_check = currentPatch%fuel%non_trunk_loading > SF_val_rxfire_fuel_min .and. & 
@@ -423,22 +424,16 @@ contains
             is_rxfire = is_prescribed_burn(currentPatch%FI, currentSite%NF, &
               SF_val_rxfire_minthreshold, SF_val_rxfire_maxthreshold, SF_val_fire_threshold)
 
-            is_wildfire = fire_has_ignitions_and_intensity(currentPatch%FI, currentSite%NF, SF_val_rxfire_minthreshold, &
-              SF_val_fire_threshold)
-
             if (is_rxfire) then
               currentSite%rxfire_area_fi = currentSite%rxfire_area_fi + currentPatch%area ! record burnable area after FI check
               currentPatch%rx_fire = 1
               
-            else if (is_wildfire) then
+            else if (fi_check) then  ! (potential) intensity is greater than kW/m energy threshold
               currentPatch%nonrx_fire = 1
             end if
               
-          else  ! not a patch suitable for conducting prescribed fire or rxfire is not even turned on
-            ! track wildfires greater than kW/m energy threshold
-            if (currentPatch%FI > SF_val_fire_threshold) then 
-              currentPatch%nonrx_fire = 1
-            end if
+          else if (fi_check)  ! not a patch suitable for conducting prescribed fire or rxfire is not even turned on, but (potential) intensity is greater than kW/m energy threshold
+            currentPatch%nonrx_fire = 1
           end if
 
           ! assign fire intensities and ignitions based on fire type
