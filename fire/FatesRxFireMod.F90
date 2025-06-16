@@ -49,7 +49,7 @@ module FatesRxFireMod
   
   !---------------------------------------------------------------------------------------
   
-  logical function is_wild_fire(wildfire_FI, wildfire_ignitions, rxfire_maxFI,         &
+  logical function fire_has_ignitions_and_intensity(wildfire_FI, wildfire_ignitions, rxfire_maxFI,         &
     wildfire_intensity_thresh)
     !
     !  DESCRIPTION:
@@ -79,6 +79,6 @@ module FatesRxFireMod
       
     is_wildfire = managed_wildfire .or. true_wildfire
   
-  end logical function is_wild_fire
+  end logical function fire_has_ignitions_and_intensity
   
 end module FatesRxFireMod

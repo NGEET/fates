@@ -371,7 +371,7 @@ contains
     use SFParamsMod,       only : SF_val_rxfire_maxthreshold, SF_val_rxfire_fuel_min
     use SFParamsMod,       only : SF_val_rxfire_fuel_max
     use EDParamsMod,       only : rxfire_switch
-    use FatesRxFireMod,    only : is_prescribed_burn, is_wild_fire
+    use FatesRxFireMod,    only : is_prescribed_burn, fire_has_ignitions_and_intensity
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
@@ -423,7 +423,7 @@ contains
             is_rxfire = is_prescribed_burn(currentPatch%FI, currentSite%NF, &
               SF_val_rxfire_minthreshold, SF_val_rxfire_maxthreshold, SF_val_fire_threshold)
 
-            is_wildfire = is_wild_fire(currentPatch%FI, currentSite%NF, SF_val_rxfire_minthreshold, &
+            is_wildfire = fire_has_ignitions_and_intensity(currentPatch%FI, currentSite%NF, SF_val_rxfire_minthreshold, &
               SF_val_fire_threshold)
 
             if (is_rxfire) then
