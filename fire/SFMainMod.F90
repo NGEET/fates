@@ -382,6 +382,7 @@ contains
     logical                         :: is_rxfire                       ! is it a prescribed fire?
     logical                         :: rxfire_fuel_check               ! is fuel within thresholds for prescribed burn               
     logical                         :: fi_check  ! is (potential) fire intensity high enough for fire to actually happen?
+    logical                         :: has_ignition                    ! is ignition greater than zero?
     
     currentPatch => currentSite%oldest_patch 
     do while (associated(currentPatch))
@@ -403,8 +404,10 @@ contains
         currentPatch%rx_fire = 0        ! only rx fire
         currentPatch%rx_FI = 0.0_r8
         currentPatch%nonrx_FI = 0.0_r8
+
+        has_ignition = currentSite%NF > 0.0_r8
         
-        if (currentSite%NF > 0.0_r8 .or. currentSite%fireWeather%rx_flag == itrue) then
+        if (has_ignition .or. currentSite%fireWeather%rx_flag == itrue) then
           
           ! fire intensity [kW/m]
           currentPatch%FI = FireIntensity(currentPatch%TFC_ROS/0.45_r8, currentPatch%ROS_front/60.0_r8)
@@ -428,11 +431,11 @@ contains
               currentSite%rxfire_area_fi = currentSite%rxfire_area_fi + currentPatch%area ! record burnable area after FI check
               currentPatch%rx_fire = 1
               
-            else if (fi_check) then  ! (potential) intensity is greater than kW/m energy threshold
+            else if (has_ignition .and. fi_check) then  ! (potential) intensity is greater than kW/m energy threshold
               currentPatch%nonrx_fire = 1
             end if
               
-          else if (fi_check)  ! not a patch suitable for conducting prescribed fire or rxfire is not even turned on, but (potential) intensity is greater than kW/m energy threshold
+          else if (has_ignition .and. fi_check)  ! not a patch suitable for conducting prescribed fire or rxfire is not even turned on, but (potential) intensity is greater than kW/m energy threshold
             currentPatch%nonrx_fire = 1
           end if
 
