@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/glemieux/containers/unit-testing:latest
+      options: --hostname fatestestcontainer
 
     steps:
       
