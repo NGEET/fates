@@ -10,11 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/glemieux/containers/unit-testing:latest
-      env:
-        HOME: /root/
       options: --hostname fatestestcontainer
 
     steps:
+     
+      - name: Preserve $HOME set in the container
+        run: echo HOME=/root >> "$GITHUB_ENV"
       
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,6 +24,7 @@ jobs:
         run: |
           . /opt/spack-environment/activate.sh
           python -m pip install matplotlib
+          echo "HOSTNAME: $HOSTNAME"
           echo "HOME: $HOME"
           echo "CIMEROOT: $CIMEROOT"
           echo "NETCDF_FORTRAN_PATH: $NETCDF_FORTRAN_PATH"
