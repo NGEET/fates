@@ -30,6 +30,7 @@ jobs:
           python -c 'from utils import get_config_path; print(get_config_path())'
           python -c 'from utils import get_schema_path; print(get_schema_path())'
 
+
         # cd testing/
         # echo "path_to_cime:"
         # python -c 'from path_utils import path_to_cime; print(path_to_cime())'
