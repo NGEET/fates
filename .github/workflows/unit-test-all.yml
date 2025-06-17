@@ -15,7 +15,7 @@ jobs:
     steps:
      
       - name: Preserve $HOME set in the container
-        run: echo HOME=/root >> "$GITHUB_ENV"
+        run: echo HOME=/root/ >> "$GITHUB_ENV"
       
       - name: Checkout repository
         uses: actions/checkout@v4
