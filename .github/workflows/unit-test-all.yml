@@ -24,7 +24,7 @@ jobs:
           which python
           python --version
           python -m pip install matplotlib
-          cd testing
+          cd testing/
           python run_unit_tests.py --make-j 2 --test-list all
 
       # - name: Run FATES unit tests
