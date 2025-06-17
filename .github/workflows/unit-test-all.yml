@@ -29,13 +29,16 @@ jobs:
           echo "CIMEROOT: $CIMEROOT"
           echo "NETCDF_FORTRAN_PATH: $NETCDF_FORTRAN_PATH"
           echo "NETCDF_C_PATH: $NETCDF_C_PATH"
-          cd /cime/CIME
-          echo "get cime root"
-          python -c 'from utils import get_cime_root; print(get_cime_root())'
-          echo "get config path"
-          python -c 'from utils import get_config_path; print(get_config_path())'
-          echo "get schema path"
-          python -c 'from utils import get_schema_path; print(get_schema_path())'
+          cd testing/
+          python run_unit_tests.py --make-j 2 --test-list all
+
+        # cd /cime/CIME
+        # echo "get cime root"
+        # python -c 'from utils import get_cime_root; print(get_cime_root())'
+        # echo "get config path"
+        # python -c 'from utils import get_config_path; print(get_config_path())'
+        # echo "get schema path"
+        # python -c 'from utils import get_schema_path; print(get_schema_path())'
 
 
         # cd testing/
