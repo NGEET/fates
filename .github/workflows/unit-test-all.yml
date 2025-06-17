@@ -20,9 +20,10 @@ jobs:
       - name: Activate Spack environment and run tests
         run: |
           . /opt/spack-environment/activate.sh
-          echo "PYTHONPATH: $PYTHONPATH"
-          which python
-          python --version
+          echo "HOME: $HOME"
+          echo "CIMEROOT: $CIMEROOT"
+          echo "NETCDF_FORTRAN_PATH: $NETCDF_FORTRAN_PATH"
+          echo "NETCDF_C_PATH: $NETCDF_C_PATH"
           python -m pip install matplotlib
           cd testing/
           python run_unit_tests.py --make-j 2 --test-list all
