@@ -26,8 +26,8 @@ jobs:
           which python
           python --version
       
-      # - name: Checkout repository
-      #   uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
           
       # - name: Install unit test python dependencies
       #   run: |
