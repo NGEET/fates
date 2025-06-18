@@ -54,7 +54,7 @@ module FatesFactoryMod
   use FatesAllometryMod,           only : bdead_allom
   use FatesAllometryMod,           only : bstore_allom
   use FatesAllometryMod,           only : carea_allom
-  use FatesInterfaceTypesMod,      only : hlm_parteh_mode, hlm_regeneration_model
+  use FatesInterfaceTypesMod,      only : hlm_parteh_mode
   use FatesInterfaceTypesMod,      only : nleafage
   use FatesSizeAgeTypeIndicesMod,  only : get_age_class_index
   use FatesInterfaceTypesMod,      only : hlm_regeneration_model
@@ -112,8 +112,6 @@ module FatesFactoryMod
     do i = 2,nlevleaf
        dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
     end do
-    
-    hlm_regeneration_model = default_regeneration
         
   end subroutine InitializeGlobals
   
