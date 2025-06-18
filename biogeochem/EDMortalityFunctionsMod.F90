@@ -186,7 +186,7 @@ contains
 
           ! Hydraulic failure mortality increases as fmc decreases. Note that this is different
           ! than before when FATES-Hydro was disabled, in which mortality followed a step function.
-          hmort = max( 0.0_r8, ( mort_hydrfail_threshold - min_fmc ) / mort_hydrfail_threshold ) * &
+          hmort = max( 0.0_r8, ( mort_hydrfailure_threshold - min_fmc ) / mort_hydrfailure_threshold ) * &
                   EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
 
        else
