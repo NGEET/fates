@@ -57,6 +57,7 @@ module FatesFactoryMod
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode, hlm_regeneration_model
   use FatesInterfaceTypesMod,      only : nleafage
   use FatesSizeAgeTypeIndicesMod,  only : get_age_class_index
+  use FatesInterfaceTypesMod,      only : hlm_regeneration_model
   use SyntheticPatchTypes,         only : synthetic_patch_type
   use shr_log_mod,                 only : errMsg => shr_log_errMsg
 
@@ -112,6 +113,8 @@ module FatesFactoryMod
        dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
     end do
     
+    hlm_regeneration_model = default_regeneration
+        
   end subroutine InitializeGlobals
   
   !---------------------------------------------------------------------------------------
