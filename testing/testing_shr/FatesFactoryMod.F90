@@ -90,6 +90,8 @@ module FatesFactoryMod
     element_pos(carbon12_element) = 1
     call InitPRTGlobalAllometricCarbon()
     
+    hlm_regeneration_model = default_regeneration
+    
     allocate(ema_24hr)
     call ema_24hr%define(sec_per_day, step_size, moving_ema_window)
     allocate(fixed_24hr)
@@ -110,8 +112,6 @@ module FatesFactoryMod
     do i = 2,nlevleaf
        dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
     end do
-    
-    hlm_regeneration_model = default_regeneration
         
   end subroutine InitializeGlobals
   

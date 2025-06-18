@@ -72,9 +72,6 @@ Next set up some other environment variables:
 
 ```bash
 export ESMF_INSTALL_PREFIX=$ESMF_DIR/install_dir
-export ESMF_NETCDF=split
-export ESMF_NETCDF_INCLUDE=/usr/local/include
-export ESMF_NETCDF_LIBPATH=/usr/local/lib
 export ESMF_COMM=openmpi
 export ESMF_COMPILER=gfortranclang
 ```
