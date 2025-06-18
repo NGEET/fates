@@ -1256,7 +1256,7 @@ contains
                             enddo cohortloop
                             call newPatch%ValidateCohorts()
 
-                            call currentPatch%SortCohorts()
+                            call currentPatch%SortCohorts(check_order=.false.)
                             call currentPatch%ValidateCohorts()
 
                             !update area of donor patch
@@ -1288,7 +1288,7 @@ contains
                             call terminate_cohorts(currentSite, currentPatch, 1,16,bc_in)
                             call fuse_cohorts(currentSite,currentPatch, bc_in)
                             call terminate_cohorts(currentSite, currentPatch, 2,16,bc_in)
-                            call currentPatch%SortCohorts()
+                            call currentPatch%SortCohorts(check_order=.false.)
                             call currentPatch%ValidateCohorts()
 
                          end if areadis_gt_zero_if   ! if ( newPatch%area > nearzero ) then
@@ -1316,7 +1316,7 @@ contains
                    call terminate_cohorts(currentSite, newPatch, 1,17, bc_in)
                    call fuse_cohorts(currentSite,newPatch, bc_in)
                    call terminate_cohorts(currentSite, newPatch, 2,17, bc_in)
-                   call newPatch%SortCohorts()
+                   call newPatch%SortCohorts(check_order=.false.)
                    call newPatch%ValidateCohorts()
                 endif
 
@@ -1721,7 +1721,7 @@ contains
     enddo ! currentCohort
     call new_patch%ValidateCohorts()
 
-    call currentPatch%SortCohorts()
+    call currentPatch%SortCohorts(check_order=.false.)
     call currentPatch%ValidateCohorts()
 
     !update area of donor patch
@@ -3023,7 +3023,7 @@ contains
                             tmpptr => currentPatch%older       
                             call fuse_2_patches(csite, currentPatch, tpp)
                             call fuse_cohorts(csite,tpp, bc_in)
-                            call tpp%SortCohorts()
+                            call tpp%SortCohorts(check_order=.false.)
                             call tpp%ValidateCohorts()
                             currentPatch => tmpptr
 
