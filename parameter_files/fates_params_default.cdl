@@ -444,9 +444,9 @@ variables:
 	double fates_mort_freezetol(fates_pft) ;
 		fates_mort_freezetol:units = "degrees C" ;
 		fates_mort_freezetol:long_name = "minimum temperature tolerance" ;
-	double fates_mort_hydrfail_threshold(fates_pft) ;
-		fates_mort_hydrfail_threshold:units = "fraction" ;
-		fates_mort_hydrfail_threshold:long_name = "threshold (btran units) below which hydraulic failure mortality begins. When running FATES-Hydro, this is numerically equivalent to fraction of total conductivity (or one minus fraction of loss of conductivity)." ;
+	double fates_mort_hydrfailure_threshold(fates_pft) ;
+		fates_mort_hydrfailure_threshold:units = "fraction" ;
+		fates_mort_hydrfailure_threshold:long_name = "threshold (btran units) below which hydraulic failure mortality begins. When running FATES-Hydro, this is numerically equivalent to fraction of maximum conductivity (or one minus fraction of loss of conductivity)." ;
 	double fates_mort_ip_age_senescence(fates_pft) ;
 		fates_mort_ip_age_senescence:units = "years" ;
 		fates_mort_ip_age_senescence:long_name = "Mortality cohort age senescence inflection point. If _ this mortality term is off. Setting this value turns on age dependent mortality. " ;
@@ -1420,7 +1420,7 @@ data:
  fates_mort_freezetol = 2.5, -55, -80, -30, 2.5, -80, -60, -10, -80, -71, 
     -95, -89, -20, 2.5 ;
 
- fates_mort_hydrfail_threshold = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
+ fates_mort_hydrfailure_threshold = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5, 0.5, 0.5, 0.5 ;
 
  fates_mort_ip_age_senescence = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
