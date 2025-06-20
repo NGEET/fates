@@ -5,7 +5,7 @@ import os
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import get_color_palette
+from utils_plotting import get_color_palette
 from functional_class import FunctionalTest
 
 
