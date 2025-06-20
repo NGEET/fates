@@ -63,27 +63,6 @@ def commandline_args():
 
     return args
 
-
-# def get_config_path(test_type: str) -> str:
-#     """Returns path to config file based on input test type
-
-#     Args:
-#         test_type (str): test type [unit, functional]
-
-#     Raises:
-#         RuntimeError: test_type must be either unit or functional
-
-#     Returns:
-#         str: path to config file
-#     """
-#     if test_type == 'unit':
-#         return _UNIT_TESTS_CONFIG
-#     elif test_type == 'functional':
-#         return _FUNCTIONAL_TESTS_CONFIG
-#     else:
-#         raise RuntimeError("test_type must be one of [unit, functional]")
-
-
 def main():
 
     # args = commandline_args()
@@ -93,8 +72,8 @@ def main():
     unit_test.setup_test()
 
     # Example: Creating a functional test
-    # functional_test = generate_test("functional", "hello_world")
-    # functional_test.setup_test()
+    functional_test = generate_test("functional", "hello_world")
+    functional_test.setup_test()
 
 
 if __name__ == "__main__":

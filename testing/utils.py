@@ -3,6 +3,7 @@
 
 import math
 import os
+import re
 import configparser
 import argparse
 import matplotlib.pyplot as plt
@@ -203,6 +204,17 @@ def snake_to_camel(snake_str: str) -> str:
         str: output CamelCase
     """
     return "".join(word.capitalize() for word in snake_str.split("_"))
+
+def camel_to_snake(camel_str: str) -> str:
+    """Convert a CamelCase string to snake_case.
+
+    Args:
+        camel_str (str): input camel case
+
+    Returns:
+        str: output snake_case
+    """
+    return re.sub(r'(?<!^)(?=[A-Z])', '_', camel_str).lower()
 
 def str_to_list(val: str) -> list:
     """converts string representation of list to actual list
