@@ -14,7 +14,8 @@ Specifically, this script peforms the following steps:
 2. Generates the CMakeLists.txt file for the new test.
 3. Updates the existing CMakeLists.txt file to include the new test.
 4. Appends an entry for this test to the configuration file.
-5. If it's a functional test, generates a new Python TestCase file.
+5. Creates a template test file in the new directory.
+6. If it's a functional test, generates a new Python TestCase file and updates load_functional_tests.py
 
 """
 
