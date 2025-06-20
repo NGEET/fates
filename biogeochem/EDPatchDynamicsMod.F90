@@ -411,8 +411,6 @@ contains
              else if (currentPatch%land_use_label .eq. primaryland .and. .not. &
                   site_in%landuse_vector_gt_min(secondaryland)) then
                 harvest_rate = state_vector(secondaryland) / sum(state_vector(:))
-             else
-                harvest_rate = 0._r8
              end if
           else
              call GetInitLanduseHarvestRate(bc_in, site_in%min_allowed_landuse_fraction, &
@@ -434,7 +432,8 @@ contains
        endif
 
        ! Fire Disturbance Rate
-       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
+       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt 
+
 
        ! Fires can't burn the whole patch, as this causes /0 errors. 
        if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
@@ -3213,6 +3212,8 @@ contains
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
     rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
+
+    ! Radiation
     rp%rad_error(1)         = (dp%rad_error(1)*dp%area + rp%rad_error(1)*rp%area) * inv_sum_area
     rp%rad_error(2)         = (dp%rad_error(2)*dp%area + rp%rad_error(2)*rp%area) * inv_sum_area
     

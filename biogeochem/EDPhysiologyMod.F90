@@ -18,7 +18,8 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod, only    : hlm_use_nocomp
-  use EDParamsMod           , only    : crop_lu_pft_vector     
+  use EDParamsMod           , only    : crop_lu_pft_vector
+  use EDParamsMod           , only    : GetNVegLayers
   use FatesInterfaceTypesMod, only    : hlm_nitrogen_spec
   use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
   use FatesInterfaceTypesMod, only    : hlm_use_tree_damage
@@ -47,7 +48,7 @@ module EDPhysiologyMod
   use EDCohortDynamicsMod , only : InitPRTObject
   use FatesAllometryMod   , only : tree_lai_sai
   use FatesAllometryMod   , only : leafc_from_treelai
-  use FatesAllometryMod   , only : decay_coeff_vcmax
+  use LeafBiophysicsMod   , only : DecayCoeffVcmax
   use FatesLitterMod      , only : litter_type
   use EDTypesMod          , only : site_massbal_type
   use EDTypesMod          , only : numlevsoil_max
@@ -66,6 +67,8 @@ module EDPhysiologyMod
   use EDParamsMod         , only : nclmax
   use EDTypesMod          , only : AREA,AREA_INV
   use FatesConstantsMod   , only : leaves_shedding
+  use FatesConstantsMod   , only : ievergreen
+  use FatesConstantsMod   , only : ihard_season_decid
   use FatesConstantsMod   , only : ihard_stress_decid
   use FatesConstantsMod   , only : isemi_stress_decid
   use EDParamsMod         , only : nlevleaf
@@ -629,14 +632,11 @@ contains
     real(r8) :: sapw_c                ! sapwood carbon [kg]
     real(r8) :: store_c               ! storage carbon [kg]
     real(r8) :: struct_c              ! structure carbon [kg]
-    real(r8) :: leaf_inc              ! LAI-only portion of the vegetation increment of dinc_vai
     real(r8) :: lai_canopy_above      ! the LAI in the canopy layers above the layer of interest
-    real(r8) :: lai_layers_above      ! the LAI in the leaf layers, within the current canopy,
-    ! above the leaf layer of interest
-    real(r8) :: lai_current           ! the LAI in the current leaf layer
     real(r8) :: cumulative_lai        ! whole canopy cumulative LAI, top down, to the leaf layer of interest
     real(r8) :: cumulative_lai_cohort ! cumulative LAI within the current cohort only
-
+    real(r8) :: leaf_veg_frac         ! fraction of vegetation area (leaf+stem) that is just leaf
+    
     ! Temporary diagnostic ouptut
 
     ! LAPACK linear least squares fit variables
@@ -704,15 +704,10 @@ contains
                currentCohort%dbh, currentCohort%crowndamage, currentCohort%canopy_trim, &
                currentCohort%efstem_coh, 0, currentCohort%treelai, currentCohort%treesai )
 
-          currentCohort%nv      = count((currentCohort%treelai+currentCohort%treesai) .gt. dlower_vai(:)) + 1
+          currentCohort%nv = GetNVegLayers(currentCohort%treelai+currentCohort%treesai)
 
-          if (currentCohort%nv > nlevleaf)then
-             write(fates_log(),*) 'nv > nlevleaf',currentCohort%nv, &
-                  currentCohort%treelai,currentCohort%treesai, &
-                  currentCohort%c_area,currentCohort%n,leaf_c
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          endif
-
+          leaf_veg_frac = currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
+          
           ! Find target leaf biomass. Here we assume that leaves would be fully flushed 
           ! (elongation factor = 1)
           call bleaf(currentcohort%dbh,ipft,&
@@ -746,26 +741,24 @@ contains
           !Leaf cost vs net uptake for each leaf layer.
           do z = 1, currentCohort%nv
 
-             ! Calculate the cumulative total vegetation area index (no snow occlusion, stems and leaves)
-             leaf_inc    = dinc_vai(z) * &
-                  currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
-             
-             ! Now calculate the cumulative top-down lai of the current layer's midpoint within the current cohort
-             lai_layers_above      = (dlower_vai(z) - dinc_vai(z)) * &
-                  currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
-             lai_current           = min(leaf_inc, currentCohort%treelai - lai_layers_above)
-             cumulative_lai_cohort = lai_layers_above + 0.5*lai_current
-
-             ! Now add in the lai above the current cohort for calculating the sla leaf level
              lai_canopy_above  = sum(currentPatch%canopy_layer_tlai(1:cl-1))
-             cumulative_lai    = lai_canopy_above + cumulative_lai_cohort
+                                    
+             if(z == currentCohort%nv) then
+                cumulative_lai_cohort = leaf_veg_frac * &
+                     (dlower_vai(z)+0.5_r8*(currentCohort%treelai+currentCohort%treesai-dlower_vai(z)))
+             else
+                cumulative_lai_cohort = leaf_veg_frac * &
+                     (dlower_vai(z)+0.5_r8*dinc_vai(z))
+             end if
 
+             cumulative_lai = cumulative_lai_cohort + lai_canopy_above
+             
              ! There was activity this year in this leaf layer.  This should only occur for bottom most leaf layer
              if (currentCohort%year_net_uptake(z) /= 999._r8)then
 
                 ! Calculate sla_levleaf following the sla profile with overlying leaf area
                 ! Scale for leaf nitrogen profile
-                kn = decay_coeff_vcmax(currentCohort%vcmax25top, &
+                kn = DecayCoeffVcmax(currentCohort%vcmax25top, &
                      prt_params%leafn_vert_scaler_coeff1(ipft), &
                      prt_params%leafn_vert_scaler_coeff2(ipft))
                 
@@ -775,20 +768,21 @@ contains
                 sla_levleaf = min(sla_max,prt_params%slatop(ipft)/nscaler_levleaf)
 
                 ! Find the realised leaf lifespan, depending on the leaf phenology.
-                if (prt_params%season_decid(ipft) ==  itrue) then
+                select case (prt_params%phen_leaf_habit(ipft))
+                case (ihard_season_decid)
                    ! Cold-deciduous costs. Assume time-span to be 1 year to be consistent
                    ! with FATES default
                    pft_leaf_lifespan = decid_leaf_long_max
 
-                elseif (any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid]) )then
+                case (ihard_stress_decid,isemi_stress_decid)
                    ! Drought-decidous costs. Assume time-span to be the least between
                    !    1 year and the life span provided by the parameter file.
                    pft_leaf_lifespan = &
                       min(decid_leaf_long_max,leaf_long)
 
-                else !evergreen costs
+                case (ievergreen) !evergreen costs
                    pft_leaf_lifespan = leaf_long
-                end if
+                end select
 
                 ! Leaf cost at leaf level z (kgC m-2 year-1) accounting for sla profile
                 ! (Convert from SLA in m2g-1 to m2kg-1)
@@ -828,7 +822,7 @@ contains
                 ! Check leaf cost against the yearly net uptake for that cohort leaf layer
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost) then
                    ! Make sure the cohort trim fraction is great than the pft trim limit
-                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft)) then
+                   if (currentCohort%canopy_trim > (EDPftvarcon_inst%trim_limit(ipft) + EDPftvarcon_inst%trim_inc(ipft))) then
 
                       ! keep trimming until none of the canopy is in negative carbon balance.
                       if (currentCohort%height > EDPftvarcon_inst%hgt_min(ipft)) then
@@ -877,11 +871,14 @@ contains
                 optimum_trim = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_trim
 
                 ! Determine if the optimum trim value makes sense.  The smallest cohorts tend to have unrealistic fits.
-                if (optimum_trim > 0. .and. optimum_trim < 1.) then
+                if (optimum_trim > EDPftvarcon_inst%trim_limit(ipft) .and. optimum_trim < 1.) then
                    currentCohort%canopy_trim = optimum_trim
 
                    trimmed = .true.
 
+                else if (optimum_trim <= EDPftvarcon_inst%trim_limit(ipft)) then
+                   currentCohort%canopy_trim = EDPftvarcon_inst%trim_limit(ipft)
+                   trimmed = .true.
                 endif
              endif
           endif
@@ -1298,7 +1295,7 @@ contains
        !    the leaf biomass will be capped at 40% of the biomass the cohort would have if
        !    it were in well-watered conditions.
        !---~---
-       case_drought_phen: select case (prt_params%stress_decid(ipft))
+       case_drought_phen: select case (prt_params%phen_leaf_habit(ipft))
        case (ihard_stress_decid)
           !---~---
           !    Default ("hard") drought deciduous phenology. The decision on whether to 
@@ -1517,11 +1514,11 @@ contains
 
           ! Assign elongation factors for non-drought deciduous PFTs, which will be used
           ! to define the cohort status.
-          case_cold_phen: select case(prt_params%season_decid(ipft))
-          case (ifalse)
+          case_cold_phen: select case(prt_params%phen_leaf_habit(ipft))
+          case (ievergreen)
              ! Evergreen, ensure that elongation factor is always one.
              currentSite%elong_factor(ipft) = 1.0_r8
-          case (itrue)
+          case (ihard_season_decid)
              ! Cold-deciduous. Define elongation factor based on cold status
              select case (currentSite%cstatus)
              case (phen_cstat_nevercold,phen_cstat_iscold)
@@ -1620,7 +1617,8 @@ contains
           ! MLO. To avoid duplicating code for drought and cold deciduous PFTs, we first
           !      check whether or not it's time to flush or time to shed leaves, then
           !      use a common code for flushing or shedding leaves.
-          is_time_block: if (prt_params%season_decid(ipft) == itrue) then ! Cold deciduous
+          is_time_block: select case (prt_params%phen_leaf_habit(ipft))
+          case (ihard_season_decid) ! Cold deciduous
 
              ! A. Is this the time for COLD LEAVES to switch to ON?
              is_flushing_time = ( currentSite%cstatus      == phen_cstat_notcold .and. & ! We just moved to leaves being on
@@ -1631,7 +1629,7 @@ contains
                                 ( currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) .or. & ! Grasses are big enough or...
                                   prt_params%woody(ipft) == itrue                                     )      ! this is a woody PFT.
 
-          elseif (any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid]) ) then ! Drought deciduous
+          case (ihard_stress_decid,isemi_stress_decid) ! Drought deciduous
 
              ! A. Is this the time for DROUGHT LEAVES to switch to ON?
              is_flushing_time = any( currentSite%dstatus(ipft) == [phen_dstat_moiston,phen_dstat_timeon] ) .and.  & ! Leaf flushing time (moisture or time)
@@ -1640,11 +1638,11 @@ contains
              !    This will be true when leaves are abscissing (partially or fully) due to moisture or time
              is_shedding_time = any( currentSite%dstatus(ipft) == [phen_dstat_moistoff,phen_dstat_timeoff,phen_dstat_pshed] ) .and. &
                                 any( currentCohort%status_coh  == [leaves_on,leaves_shedding] )
-          else
+          case (ievergreen)
              ! This PFT is not deciduous.
              is_flushing_time         = .false.
              is_shedding_time         = .false.
-          end if is_time_block
+          end select is_time_block
 
 
 
@@ -2430,19 +2428,17 @@ contains
           litt%seed_germ_in(pft) = litt%seed(pft) * seedling_emerg_rate
 
        end if if_tfs_or_def
-    
-      !set the germination only under the growing season...c.xu
 
-      if ((prt_params%season_decid(pft) == itrue ) .and. &
-            (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold]))) then
-          ! no germination for all PFTs when cold
-          litt%seed_germ_in(pft) = 0.0_r8
-       endif
-
-       ! Drought deciduous, halt germination when status is shedding, even leaves are not
-       ! completely abscissed. MLO
-       select case (prt_params%stress_decid(pft))
+       select case (prt_params%phen_leaf_habit(pft))
+       case (ihard_season_decid)
+          !set the germination only under the growing season...c.xu
+          if (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold])) then
+             ! no germination for all PFTs when cold
+             litt%seed_germ_in(pft) = 0.0_r8
+          end if
        case (ihard_stress_decid,isemi_stress_decid)
+          ! Drought deciduous, halt germination when status is shedding, even leaves are not
+          ! completely abscissed. MLO
           if (any(drought_stat(pft) == [phen_dstat_timeoff,phen_dstat_moistoff,phen_dstat_pshed])) then
              litt%seed_germ_in(pft) = 0.0_r8
           end if
@@ -2551,23 +2547,24 @@ contains
             efstem_coh  = 1.0_r8
             leaf_status = leaves_on
 
-            ! but if the plant is seasonally (cold) deciduous, and the site status is flagged
-            ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
-            if ((prt_params%season_decid(ft) == itrue) .and.                   &
-               (any(currentSite%cstatus == [phen_cstat_nevercold, phen_cstat_iscold]))) then
-               efleaf_coh  = 0.0_r8
-               effnrt_coh  = 1.0_r8 - fnrt_drop_fraction
-               efstem_coh  = 1.0_r8 - stem_drop_fraction
-               leaf_status = leaves_off
-            end if 
-
-            ! Or.. if the plant is drought deciduous, make sure leaf status is consistent with the
-            ! leaf elongation factor.
-            ! For tissues other than leaves, the actual drop fraction is a combination of the
-            ! elongation factor (e) and the drop fraction (x), which will ensure that the remaining
-            ! tissue biomass will be exactly e when x=1, and exactly the original biomass when x = 0.
-            select case (prt_params%stress_decid(ft))
+            ! look for cases in which leaves should be off
+            select case (prt_params%phen_leaf_habit(ft))
+            case (ihard_season_decid)
+               select case(currentSite%cstatus)
+               case (phen_cstat_nevercold, phen_cstat_iscold)
+                  ! If the plant is seasonally (cold) deciduous, and the site status is flagged
+                  ! as "cold", then set the cohort's status to leaves_off.
+                  efleaf_coh  = 0.0_r8
+                  effnrt_coh  = 1.0_r8 - fnrt_drop_fraction
+                  efstem_coh  = 1.0_r8 - stem_drop_fraction
+                  leaf_status = leaves_off
+               end select
             case (ihard_stress_decid, isemi_stress_decid)
+               ! If the plant is drought deciduous, make sure leaf status is consistent with the
+               ! leaf elongation factor.
+               ! For tissues other than leaves, the actual drop fraction is a combination of the
+               ! elongation factor (e) and the drop fraction (x), which will ensure that the remaining
+               ! tissue biomass will be exactly e when x=1, and exactly the original biomass when x = 0.
                efleaf_coh = currentSite%elong_factor(ft)
                effnrt_coh = 1.0_r8 - (1.0_r8 - efleaf_coh)*fnrt_drop_fraction
                efstem_coh = 1.0_r8 - (1.0_r8 - efleaf_coh)*stem_drop_fraction
