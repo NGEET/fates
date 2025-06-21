@@ -321,6 +321,12 @@ contains
        fates%bc_in(s)%hksat_sisl(:) = 0.0_r8
     end if
 
+    ! Diagnostic quantities for outputting FATES patch-resolved
+    fates%bc_in(s)%lhflux_pa(:)       = 0._r8
+    fates%bc_in(s)%shflux_pa(:)       = 0._r8
+    fates%bc_in(s)%swabs_pa(:)        = 0._r8
+    fates%bc_in(s)%netlw_pa(:)        = 0._r8
+    fates%bc_in(s)%t2m_pa(:)          = 0._r8
     
     ! Output boundaries
     fates%bc_out(s)%active_suction_sl(:) = .false.
@@ -552,6 +558,12 @@ contains
       end if
 
       ! Land use
+      ! Diagnostic quantities for outputting FATES patch-resolved
+      allocate(bc_in%lhflux_pa(0:maxpatch_total))
+      allocate(bc_in%shflux_pa(0:maxpatch_total))
+      allocate(bc_in%swabs_pa(0:maxpatch_total))
+      allocate(bc_in%netlw_pa(0:maxpatch_total))
+      allocate(bc_in%t2m_pa(0:maxpatch_total))
 
       ! harvest flag denote data from hlm,
       ! while the logging flag signifies only that logging is occurring (which could just be FATES logging)
