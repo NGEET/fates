@@ -32,6 +32,7 @@ import subprocess
 import matplotlib.pyplot as plt
 
 from build_fortran_tests import build_tests, build_exists
+from functional_class_with_drivers import FunctionalTestWithDrivers
 from path_utils import add_cime_lib_to_path
 from utils import copy_file, create_nc_from_cdl, config_to_dict, parse_test_list
 
@@ -45,12 +46,14 @@ from CIME.utils import run_cmd
 # constants for this script
 _FILE_DIR = os.path.dirname(__file__)
 _DEFAULT_CONFIG_FILE = os.path.join(_FILE_DIR, "functional_tests.cfg")
-_DEFAULT_CDL_PATH = os.path.abspath(os.path.join(
-    _FILE_DIR,
-    os.pardir,
-    "parameter_files",
-    "fates_params_default.cdl",
-))
+_DEFAULT_CDL_PATH = os.path.abspath(
+    os.path.join(
+        _FILE_DIR,
+        os.pardir,
+        "parameter_files",
+        "fates_params_default.cdl",
+    )
+)
 _CMAKE_BASE_DIR = os.path.join(_FILE_DIR, os.pardir)
 _TEST_SUB_DIR = "testing"
 
@@ -311,7 +314,7 @@ def run_functional_tests(
         for _, test in test_dict.items():
             args = test.other_args
             # prepend datm file (if required) to argument list
-            if test.datm_file:
+            if isinstance(test, FunctionalTestWithDrivers) and test.datm_file:
                 args.insert(0, test.datm_file)
             # prepend parameter file (if required) to argument list
             if test.use_param_file:
@@ -411,6 +414,17 @@ def run_fortran_exectuables(build_dir, test_dir, test_exe, run_dir, args):
     print(out)
 
 
+def get_test_subclasses(*argv):
+    """
+    Given a FunctionalTest* class, find all its test subclasses. Do not include child
+    FunctionalTest* classes.
+    """
+    test_subclasses = []
+    for ftest_class in argv:
+        test_subclasses += [x for x in ftest_class.__subclasses__() if hasattr(x, "name")]
+    return test_subclasses
+
+
 def main():
     """Main script
     Reads in command-line arguments and then runs the tests.
@@ -422,7 +436,11 @@ def main():
     config_dict = parse_test_list(full_test_dict, args.test_list)
 
     test_dict = {}
-    subclasses = FunctionalTest.__subclasses__()
+
+    # Get all the possible test subclasses.
+    subclasses = get_test_subclasses(FunctionalTest, FunctionalTestWithDrivers)
+
+    # Associate each test in the config file with the appropriate test subclass
     for name in config_dict.keys():
         test_class = list(filter(lambda subclass: subclass.name == name, subclasses))[
             0
