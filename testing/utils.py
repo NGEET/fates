@@ -107,12 +107,6 @@ def config_to_dict(config_file: str) -> dict:
         dictionary: dictionary of config file
     """
 
-    # Check that config file exists and is a file
-    if not os.path.exists(config_file):
-        raise FileNotFoundError(config_file)
-    if not os.path.isfile(config_file):
-        raise RuntimeError(f"config_file is a directory: '{config_file}'")
-
     # Define list of config file options that we expect to be paths
     options_that_are_paths = ["datm_file"]
 

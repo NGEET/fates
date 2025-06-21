@@ -196,6 +196,12 @@ def check_arg_validity(args):
             )
         check_build_dir(args.build_dir, args.test_dict)
 
+    # Check that config file exists and is a file
+    if not os.path.exists(args.config_file):
+        raise FileNotFoundError(args.config_file)
+    if not os.path.isfile(args.config_file):
+        raise RuntimeError(f"config 'file' is a directory: '{args.config_file}'")
+
 
 def check_param_file(param_file):
     """Checks to see if param_file exists and is of the correct form (.nc or .cdl)
