@@ -8,16 +8,6 @@ class FunctionalTestWithDrivers(FunctionalTest):
 
     def __init__(self, datm_file: str, datm_file_url: str, *args):
 
-        # Things that are set up in super().__init__()
-        self.name = None
-        self.test_dir = None
-        self.test_exe = None
-        self.out_file = None
-        self.use_param_file = None
-        self.datm_file = None
-        self.other_args = None
-        self.plot = False
-
         # Check that datm exists and save its absolute path
         self.datm_file = os.path.abspath(datm_file)
         if not os.path.exists(self.datm_file):
