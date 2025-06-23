@@ -176,6 +176,28 @@ contains
   end subroutine rank_forest_edge_proximity
 
 
+  function gffeb_gaussian_numerator(x, A, mu, sigma)
+    ! TODO: This is almost the same as gffeb_lognorm_numerator(). Combine.
+    real(r8), intent(in) :: x
+    real(r8), intent(in) :: A      ! Amplitude
+    real(r8), intent(in) :: mu     ! Center
+    real(r8), intent(in) :: sigma  ! Sigma
+    real(r8) :: gffeb_gaussian_numerator
+
+    gffeb_gaussian_numerator = A * exp(-(log(x) - mu)**2 / (2*sigma**2))
+  end function gffeb_gaussian_numerator
+
+  function gffeb_gaussian_denominator(x, sigma)
+    ! TODO: This is the same as gffeb_lognorm_denominator(). Combine.
+    use FatesConstantsMod, only : pi => pi_const
+    real(r8), intent(in) :: x
+    real(r8), intent(in) :: sigma  ! Sigma
+    real(r8) :: gffeb_gaussian_denominator
+
+    gffeb_gaussian_denominator = sigma * sqrt(2*pi) * x
+  end function gffeb_gaussian_denominator
+
+
   function gffeb_lognorm_numerator(x, A, mu, sigma)
     real(r8), intent(in) :: x
     real(r8), intent(in) :: A      ! Amplitude
@@ -195,7 +217,17 @@ contains
     gffeb_lognorm_denominator = sigma * sqrt(2*pi) * x
   end function gffeb_lognorm_denominator
 
-  subroutine get_fraction_of_edgeforest_in_each_bin(x, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_bin, norm)
+
+  function gffeb_quadratic(x, a, b, c)
+    real(r8), intent(in) :: x
+    real(r8), intent(in) :: a, b, c  ! Parameters
+    real(r8) :: gffeb_quadratic
+
+    gffeb_quadratic = a*(x**2) + b*x + c
+  end function gffeb_quadratic
+
+
+  subroutine get_fraction_of_edgeforest_in_each_bin(x, nlevedgeforest, efb_gaussian_amplitudes, efb_gaussian_sigmas, efb_gaussian_centers, efb_lognormal_amplitudes, efb_lognormal_sigmas, efb_lognormal_centers, efb_quadratic_a, efb_quadratic_b, efb_quadratic_c, fraction_forest_in_bin, norm)
     ! DESCRIPTION:
     ! Get the fraction of forest in each bin.
     !
@@ -205,11 +237,16 @@ contains
     ! ARGUMENTS
     real(r8), intent(in)  :: x  ! Independent variable in the fit
     integer, intent(in) :: nlevedgeforest
-    real(r8), dimension(:), intent(in) :: efb_amplitudes
-    real(r8), dimension(:), intent(in) :: efb_sigmas
-    real(r8), dimension(:), intent(in) :: efb_centers
-    real(r8), intent(in) :: efb_decay
-    real(r8), dimension(:), pointer, intent(in) :: fraction_forest_in_bin
+    real(r8), dimension(:), intent(in) :: efb_gaussian_amplitudes
+    real(r8), dimension(:), intent(in) :: efb_gaussian_sigmas
+    real(r8), dimension(:), intent(in) :: efb_gaussian_centers
+    real(r8), dimension(:), intent(in) :: efb_lognormal_amplitudes
+    real(r8), dimension(:), intent(in) :: efb_lognormal_sigmas
+    real(r8), dimension(:), intent(in) :: efb_lognormal_centers
+    real(r8), dimension(:), intent(in) :: efb_quadratic_a
+    real(r8), dimension(:), intent(in) :: efb_quadratic_b
+    real(r8), dimension(:), intent(in) :: efb_quadratic_c
+    real(r8), dimension(:), intent(out) :: fraction_forest_in_bin
     logical, optional, intent(in) :: norm
     !
     ! LOCAL VARIABLES
@@ -229,20 +266,37 @@ contains
     end if
 
     binloop: do b = 1, nlevedgeforest
-       A = efb_amplitudes(b)
-       if (b == nlevedgeforest) then
-          ! Exponential
-          fraction_forest_in_bin(b) = A * exp(-x/efb_decay)
-       else
-          ! Lognormal
+       if (.not. isnan(efb_gaussian_amplitudes(b))) then
+         ! Gaussian
+         ! TODO: This is almost the same as for Lognormal. Combine.
          if (x == 0._r8) then
             ! Avoid divide-by-zero
             fraction_forest_in_bin(b) = 0._r8
             cycle
          end if
-         mu = efb_centers(b)
-         sigma = efb_sigmas(b)
+         A = efb_gaussian_amplitudes(b)
+         mu = efb_gaussian_centers(b)
+         sigma = efb_gaussian_sigmas(b)
+         fraction_forest_in_bin(b) = gffeb_gaussian_numerator(x, A, mu, sigma) / gffeb_gaussian_denominator(x, sigma)
+
+       else if (.not. isnan(efb_lognormal_amplitudes(b))) then
+         ! Lognormal
+         if (x == 0._r8) then
+            ! Avoid divide-by-zero
+            fraction_forest_in_bin(b) = 0._r8
+            cycle
+         end if
+         A = efb_lognormal_amplitudes(b)
+         mu = efb_lognormal_centers(b)
+         sigma = efb_lognormal_sigmas(b)
          fraction_forest_in_bin(b) = gffeb_lognorm_numerator(x, A, mu, sigma) / gffeb_lognorm_denominator(x, sigma)
+
+       else if (.not. isnan(efb_quadratic_a(b))) then
+         ! Quadratic
+         fraction_forest_in_bin(b) = gffeb_quadratic(x, efb_quadratic_a(b), efb_quadratic_b(b), efb_quadratic_c(b))
+
+       else
+         call endrun("Unrecognized bin fit type")
        end if
     end do binloop
 
@@ -417,7 +471,7 @@ contains
 
     ! Get percentage of nonforest area in each bin
     pct_nonforest = 100._r8 * (area - area_forest_patches) / area
-   !  call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, ED_val_edgeforest_amplitudes, ED_val_edgeforest_sigmas, ED_val_edgeforest_centers, ED_val_edgeforest_decay, fraction_forest_in_each_bin)
+    call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, fraction_forest_in_each_bin)
 
     ! Assign patches to bins
     call assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
