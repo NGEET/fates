@@ -1,7 +1,7 @@
 netcdf fates_params_default {
 dimensions:
 	fates_NCWD = 4 ;
-	fates_edgeforest_bins = 5 ;
+	fates_edgeforest_bins = 6 ;
 	fates_history_age_bins = 7 ;
 	fates_history_coage_bins = 2 ;
 	fates_history_damage_bins = 2 ;
@@ -262,18 +262,33 @@ variables:
 	double fates_edgeforest_bin_edges(fates_edgeforest_bins) ;
 		fates_edgeforest_bin_edges:units = "m" ;
 		fates_edgeforest_bin_edges:long_name = "Boundaries of forest edge bins (for each bin, include value closest to zero)" ;
-	double fates_edgeforest_amplitudes(fates_edgeforest_bins) ;
-		fates_edgeforest_amplitudes:units = "unitless" ;
-		fates_edgeforest_amplitudes:long_name = "Amplitudes for calculating forest area in each edge bin" ;
-	double fates_edgeforest_centers(fates_edgeforest_bins) ;
-		fates_edgeforest_centers:units = "unitless" ;
-		fates_edgeforest_centers:long_name = "Centers for calculating forest area in each edge bin (only used for lognormal-fit bins)" ;
-	double fates_edgeforest_decay ;
-		fates_edgeforest_decay:units = "unitless" ;
-		fates_edgeforest_decay:long_name = "Decay for calculating forest area in 'deep forest' edge bin (the only one fit with an exponential function)" ;
-	double fates_edgeforest_sigmas(fates_edgeforest_bins) ;
-		fates_edgeforest_sigmas:units = "unitless" ;
-		fates_edgeforest_sigmas:long_name = "Sigmas for calculating forest area in each edge bin (only used for lognormal-fit bins)" ;
+	double fates_edgeforest_gaussian_amplitude(fates_edgeforest_bins) ;
+		fates_edgeforest_gaussian_amplitude:units = "unitless" ;
+		fates_edgeforest_gaussian_amplitude:long_name = "Amplitudes for calculating forest area in each edge bin (gaussian fit)" ;
+	double fates_edgeforest_gaussian_sigma(fates_edgeforest_bins) ;
+		fates_edgeforest_gaussian_sigma:units = "unitless" ;
+		fates_edgeforest_gaussian_sigma:long_name = "Sigmas for calculating forest area in each edge bin (gaussian fit)" ;
+	double fates_edgeforest_gaussian_center(fates_edgeforest_bins) ;
+		fates_edgeforest_gaussian_center:units = "unitless" ;
+		fates_edgeforest_gaussian_center:long_name = "Centers for calculating forest area in each edge bin (gaussian fit)" ;
+	double fates_edgeforest_lognormal_amplitude(fates_edgeforest_bins) ;
+		fates_edgeforest_lognormal_amplitude:units = "unitless" ;
+		fates_edgeforest_lognormal_amplitude:long_name = "Amplitudes for calculating forest area in each edge bin (lognormal fit)" ;
+	double fates_edgeforest_lognormal_sigma(fates_edgeforest_bins) ;
+		fates_edgeforest_lognormal_sigma:units = "unitless" ;
+		fates_edgeforest_lognormal_sigma:long_name = "Sigmas for calculating forest area in each edge bin (lognormal fit)" ;
+	double fates_edgeforest_lognormal_center(fates_edgeforest_bins) ;
+		fates_edgeforest_lognormal_center:units = "unitless" ;
+		fates_edgeforest_lognormal_center:long_name = "Centers for calculating forest area in each edge bin (lognormal fit)" ;
+	double fates_edgeforest_quadratic_a(fates_edgeforest_bins) ;
+		fates_edgeforest_quadratic_a:units = "unitless" ;
+		fates_edgeforest_quadratic_a:long_name = "x^2 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
+	double fates_edgeforest_quadratic_b(fates_edgeforest_bins) ;
+		fates_edgeforest_quadratic_b:units = "unitless" ;
+		fates_edgeforest_quadratic_b:long_name = "x^1 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
+	double fates_edgeforest_quadratic_c(fates_edgeforest_bins) ;
+		fates_edgeforest_quadratic_c:units = "unitless" ;
+		fates_edgeforest_quadratic_c:long_name = "x^0 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
 	double fates_fire_alpha_SH(fates_pft) ;
 		fates_fire_alpha_SH:units = "m / (kw/m)**(2/3)" ;
 		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
@@ -1194,15 +1209,25 @@ data:
 
  fates_dev_arbitrary_pft = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
 
- fates_edgeforest_bin_edges = 0.0, 1.0, 2.0, 3.0, 4.0 ;
+ fates_edgeforest_gaussian_amplitude = 0.37033665947126704, 0.25548576693720165, _, _, _, _ ;
 
- fates_edgeforest_amplitudes = 334.20118864369647, 7.453608488098321, 2.8450130607077506, 1.601064269911203, 0.9227139932095219 ;
+ fates_edgeforest_gaussian_sigma = 0.4329573815987602, 0.42239011110175917, _, _, _, _ ;
 
- fates_edgeforest_centers = 5.4114116418770735, 2.7788419192134937, 2.3020137304843664, 1.973996133523811, -999.9 ;
+ fates_edgeforest_gaussian_center = -0.35596450526414164, -0.28183332150023604, _, _, _, _ ;
 
- fates_edgeforest_decay = 4.151608208778201 ;
+ fates_edgeforest_lognormal_amplitude = _, _, _, _, _, 14.283227336273354 ;
 
- fates_edgeforest_sigmas = 1.185102216622059, 0.6230347414031212, 0.7500050901443256, 0.8465094354405984, -999.9 ;
+ fates_edgeforest_lognormal_sigma = _, _, _, _, _, 1.26210031507715 ;
+
+ fates_edgeforest_lognormal_center = _, _, _, _, _, 2.1958393621871597 ;
+
+ fates_edgeforest_quadratic_a = _, _, 0.2549551300197741, 0.07685044819893726, 0.035189070666016925, _ ;
+
+ fates_edgeforest_quadratic_b = _, _, -0.5457222474679617, -0.19438641157435982, -0.300528731650077, _ ;
+
+ fates_edgeforest_quadratic_c = _, _, 0.29299184857665717, 0.11825507562859365, 0.2669694066063096, _ ;
+
+ fates_edgeforest_bin_edges = 0, 30, 60, 120, 150, 300 ;
 
  fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
     0.2, 0.2, 0.2 ;
