@@ -10,7 +10,9 @@ from path_utils import add_cime_lib_to_path
 
 add_cime_lib_to_path()
 
-from CIME.utils import run_cmd_no_fail  # pylint: disable=wrong-import-position,import-error,wrong-import-order
+from CIME.utils import (
+    run_cmd_no_fail,
+)  # pylint: disable=wrong-import-position,import-error,wrong-import-order
 
 
 def round_up(num: float, decimals: int = 0) -> float:
