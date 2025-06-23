@@ -325,6 +325,8 @@ contains
        call GetLUHStatedata(bc_in, state_vector)
        site_secondaryland_first_exceeding_min =  (state_vector(secondaryland) .gt. site_in%min_allowed_landuse_fraction) &
             .and. (.not. site_in%landuse_vector_gt_min(secondaryland))
+    else
+       state_vector = current_fates_landuse_state_vector
     end if
 
     currentPatch => site_in%oldest_patch

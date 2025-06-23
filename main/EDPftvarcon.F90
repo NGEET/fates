@@ -2183,6 +2183,19 @@ contains
         end if
            
 
+        ! Check to make sure that if a grass sapwood allometry is used, it is not
+        ! a woody plant.
+        if ( ( prt_params%allom_smode(ipft)==2 ) .and. (prt_params%woody(ipft)==itrue) ) then
+           write(fates_log(),*) 'Allometry mode 2 is a mode that is only appropriate'
+           write(fates_log(),*) 'for a grass functional type. Sapwood allometry is set with'
+           write(fates_log(),*) 'fates_allom_smode in the parameter file. Woody versus non woody'
+           write(fates_log(),*) 'plants are set via fates_woody in the parameter file.'
+           write(fates_log(),*) 'Current settings for pft number: ',ipft
+           write(fates_log(),*) 'fates_woody: true'
+           write(fates_log(),*) 'fates_allom_smode: ',prt_params%allom_smode(ipft)
+           write(fates_log(),*) 'Please correct this discrepancy before re-running. Aborting.'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
 
         ! Check if fraction of storage to reproduction is between 0-1
         ! ----------------------------------------------------------------------------------
