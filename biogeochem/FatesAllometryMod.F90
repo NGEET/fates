@@ -860,7 +860,11 @@ contains
     
     real(r8), intent(out) :: treelai         ! plant LAI [m2 leaf area/m2 crown area]
     real(r8), intent(out) :: treesai         ! plant SAI [m2 stem area/m2 crown area]
-   
+
+    ! If this is true, prevent plants from exceeding the maximum VAI
+    ! that is specified in the dinc_vai array.
+    logical, parameter :: do_vai_capping = .true.
+    
     
     treelai = tree_lai( leaf_c, pft, c_area, nplant, cl, canopy_lai, vcmax25top)
     
@@ -868,11 +872,12 @@ contains
                              cl, canopy_lai, treelai, vcmax25top, call_id )
 
     ! Don't allow lai+sai to exceed the vertical discretization bounds
-    if( (treelai + treesai) > (sum(dinc_vai)) )then
-       treelai = sum(dinc_vai) * (1._r8 - prt_params%allom_sai_scaler(pft)) - nearzero
-       treesai = sum(dinc_vai) * prt_params%allom_sai_scaler(pft) - nearzero
+    if( do_vai_capping ) then
+       if( (treelai + treesai) > (sum(dinc_vai)) )then
+          treelai = sum(dinc_vai) * (1._r8 - prt_params%allom_sai_scaler(pft)) - nearzero
+          treesai = sum(dinc_vai) * prt_params%allom_sai_scaler(pft) - nearzero
+       end if
     end if
-    
     
     return
   end subroutine tree_lai_sai
@@ -3177,22 +3182,21 @@ contains
 
     if_any_vai: if(tree_vai>0._r8)then
 
+       ! This function will return the total VAI of the cohort
+       ! if an index of 0 is passed in...
        if(iv==0)then
           vai_top = 0.0
           vai_bot = tree_vai
        else
 
-          if(iv>1)then
-             vai_top = dlower_vai(iv) - dinc_vai(iv)
-          else
-             vai_top = 0._r8
-          end if
-
-          if(iv<nv) then
-             vai_bot = dlower_vai(iv)
-          else
+          vai_top = dlower_vai(iv)
+          
+          if(iv==nv) then
              vai_bot = tree_vai
+          else
+             vai_bot = dlower_vai(iv+1)
           end if
+          
        end if
 
        if(layer_height_method .eq. layer_height_const_depth)then
