@@ -189,7 +189,7 @@ contains
     tau_layer(:,:,:,:)=0.0_r8
     f_abs(:,:,:,:)=0.0_r8
     f_abs_leaf(:,:,:,:)=0._r8
-    do L = 1,nclmax
+    do L = 1,currentPatch%ncl_p
        do ft = 1,numpft
           currentPatch%canopy_mask(L,ft) = 0
           do  iv = 1, currentPatch%nrad(L,ft)

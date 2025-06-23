@@ -104,7 +104,10 @@ module EDParamsMod
 
    real(r8), parameter, public :: soil_tfrz_thresh = -2.0_r8 ! Soil temperature threshold below which hydraulic failure mortality is off (non-hydro only) in degrees C
    
-   integer, parameter, public :: nclmax = 2                ! Maximum number of canopy layers
+   integer, parameter, public :: nclmax = 2   ! Maximum number of canopy layers (used only for scratch arrays)
+                                              ! We would make this even higher, but making this
+                                              ! a little lower keeps the size down on some output arrays
+                                              ! For large arrays at patch level we use dynamic allocation
 
    ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
    integer, parameter, public :: nlevleaf = 30   ! number of leaf+stem layers in each canopy layer
