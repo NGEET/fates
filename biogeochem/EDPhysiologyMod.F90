@@ -2799,7 +2799,9 @@ contains
     ! and turnover in dying trees.
     !
     ! !USES:
-
+    use EDParamsMod           , only : landuse_grazing_carbon_use_eff
+    use EDParamsMod           , only : landuse_grazing_nitrogen_use_eff
+    use EDParamsMod           , only : landuse_grazing_phosphorus_use_eff
     !
     ! !ARGUMENTS
     type(ed_site_type), intent(inout), target :: currentSite
@@ -2846,6 +2848,8 @@ contains
     integer  :: numlevsoil        ! Actual number of soil layers
 
     real(r8) :: SF_val_CWD_frac_adj(4) !SF_val_CWD_frac adjusted based on cohort dbh
+    real(r8) :: leaf_herbivory  ! leaf that is eaten by grazers [kg]
+    real(r8) :: herbivory_element_use_efficiency   ! fraction of grazed biomass that is returned to litter pool versus atmosphere
     !----------------------------------------------------------------------
 
     ! -----------------------------------------------------------------------------------
@@ -2855,6 +2859,15 @@ contains
     numlevsoil = currentSite%nlevsoil
 
     element_id = litt%element_id
+
+    select case(element_id)
+       case (carbon12_element)
+          herbivory_element_use_efficiency = landuse_grazing_carbon_use_eff
+       case (nitrogen_element)
+          herbivory_element_use_efficiency = landuse_grazing_nitrogen_use_eff
+       case (phosphorus_element)
+          herbivory_element_use_efficiency = landuse_grazing_phosphorus_use_eff
+    end select
 
     ! Object tracking flux diagnostics for each element
     elflux_diags => currentSite%flux_diags%elem(element_pos(element_id))
@@ -2880,6 +2893,8 @@ contains
        store_m         = currentCohort%prt%GetState(store_organ,element_id)
        fnrt_m          = currentCohort%prt%GetState(fnrt_organ,element_id)
        repro_m         = currentCohort%prt%GetState(repro_organ,element_id)
+
+       leaf_herbivory  = currentCohort%prt%GetHerbivory(leaf_organ, element_id)
 
        if (prt_params%woody(currentCohort%pft) == itrue) then
           ! Assumption: for woody plants fluxes from deadwood and sapwood go together in CWD pool
@@ -2925,7 +2940,9 @@ contains
        do dcmpy=1,ndcmpy
           dcmpy_frac = GetDecompyFrac(pft,leaf_organ,dcmpy)
           litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
-               (leaf_m_turnover+repro_m_turnover) * plant_dens * dcmpy_frac
+               (leaf_m_turnover+repro_m_turnover + &
+               leaf_herbivory * herbivory_element_use_efficiency) * &
+               plant_dens * dcmpy_frac
 
           dcmpy_frac = GetDecompyFrac(pft,fnrt_organ,dcmpy)
           do ilyr = 1, numlevsoil
@@ -2938,6 +2955,11 @@ contains
             elflux_diags%root_litter_input(pft) +  &
             (fnrt_m_turnover + store_m_turnover ) * currentCohort%n
 
+       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere
+
+       site_mass%herbivory_flux_out = &
+            site_mass%herbivory_flux_out + &
+            leaf_herbivory * (1._r8 - herbivory_element_use_efficiency) * currentCohort%n
 
        ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
 

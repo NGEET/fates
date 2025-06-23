@@ -132,6 +132,13 @@ module EDParamsMod
    real(r8),protected,allocatable,public :: ED_val_edgeforest_quadratic_c(:)
    real(r8),protected,allocatable,public :: ED_val_edgeforest_bin_edges(:)
 
+   ! grazing parameters
+   real(r8),protected,public :: landuse_grazing_carbon_use_eff
+   real(r8),protected,public :: landuse_grazing_maxheight
+   real(r8),protected,public :: landuse_grazing_nitrogen_use_eff
+   real(r8),protected,public :: landuse_grazing_phosphorus_use_eff
+   real(r8),protected,public :: landuse_grazing_rate(n_landuse_cats)
+
    ! Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses
    ! (THIS PARAMETER IS UNUSED, FEEL FREE TO USE IT FOR WHATEVER PURPOSE YOU LIKE. WE CAN
    !  HELP MIGRATE YOUR USAGE OF THE PARMETER TO A PERMANENT HOME LATER)
@@ -210,6 +217,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: ED_name_crop_lu_pft_vector = "fates_landuse_crop_lu_pft_vector"
    character(len=param_string_length),parameter,public :: ED_name_maxpatches_by_landuse = "fates_maxpatches_by_landuse"
    character(len=param_string_length),parameter,public :: ED_name_max_nocomp_pfts_by_landuse = "fates_max_nocomp_pfts_by_landuse"
+
 
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -312,6 +320,13 @@ module EDParamsMod
                                                     ! leftovers will be left onsite as large CWD
    character(len=param_string_length),parameter,public :: logging_name_export_frac ="fates_landuse_logging_export_frac"   
 
+   ! grazing-related parameters
+   character(len=param_string_length),parameter,public :: name_landuse_grazing_rate               = "fates_landuse_grazing_rate"
+   character(len=param_string_length),parameter,public :: name_landuse_grazing_carbon_use_eff     = "fates_landuse_grazing_carbon_use_eff"
+   character(len=param_string_length),parameter,public :: name_landuse_grazing_maxheight          = "fates_landuse_grazing_maxheight"
+   character(len=param_string_length),parameter,public :: name_landuse_grazing_nitrogen_use_eff   = "fates_landuse_grazing_nitrogen_use_eff"
+   character(len=param_string_length),parameter,public :: name_landuse_grazing_phosphorus_use_eff = "fates_landuse_grazing_phosphorus_use_eff"
+
    real(r8),protected,public :: eca_plant_escalar  ! scaling factor for plant fine root biomass to 
                                                ! calculate nutrient carrier enzyme abundance (ECA)
 
@@ -396,6 +411,12 @@ contains
     damage_event_code                     = -9
     damage_canopy_layer_code              = -9
     forest_tree_fraction_threshold        = nan
+    landuse_grazing_carbon_use_eff        = nan
+    landuse_grazing_nitrogen_use_eff      = nan
+    landuse_grazing_phosphorus_use_eff    = nan
+    landuse_grazing_maxheight             = nan
+    landuse_grazing_rate(:)               = nan
+
   end subroutine FatesParamsInit
 
   !-----------------------------------------------------------------------
@@ -606,6 +627,18 @@ contains
     call fates_params%RegisterParameter(name=forest_tree_fraction_threshold_name, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
+    call fates_params%RegisterParameter(name=name_landuse_grazing_carbon_use_eff, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=name_landuse_grazing_maxheight, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=name_landuse_grazing_nitrogen_use_eff, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=name_landuse_grazing_phosphorus_use_eff, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
     ! non-scalar parameters
 
     call fates_params%RegisterParameter(name=ED_name_hydr_htftype_node, dimension_shape=dimension_shape_1d, &
@@ -671,6 +704,8 @@ contains
     call fates_params%RegisterParameter(name=ED_name_max_nocomp_pfts_by_landuse, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_landuse)
 
+    call fates_params%RegisterParameter(name=name_landuse_grazing_rate, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_landuse)
   end subroutine FatesRegisterParams
 
   
@@ -689,6 +724,7 @@ contains
     real(r8), allocatable :: tmp_vector_by_landuse1(:)  ! local real vector for changing type on read
     real(r8), allocatable :: tmp_vector_by_landuse2(:)  ! local real vector for changing type on read
     real(r8), allocatable :: tmp_vector_by_landuse3(:)  ! local real vector for changing type on read
+    real(r8), allocatable :: tmp_vector_by_landuse4(:)  ! local real vector for changing type on read
 
     call fates_params%RetrieveParameter(name=ED_name_photo_temp_acclim_timescale, &
          data=photo_temp_acclim_timescale)
@@ -957,6 +993,25 @@ contains
     hydr_htftype_node(:) = nint(hydr_htftype_real(:))
     deallocate(hydr_htftype_real)
 
+    call fates_params%RetrieveParameter(name=name_landuse_grazing_carbon_use_eff, &
+         data=landuse_grazing_carbon_use_eff)
+
+    call fates_params%RetrieveParameter(name=name_landuse_grazing_nitrogen_use_eff, &
+         data=landuse_grazing_nitrogen_use_eff)
+
+    call fates_params%RetrieveParameter(name=name_landuse_grazing_phosphorus_use_eff, &
+         data=landuse_grazing_phosphorus_use_eff)
+
+    call fates_params%RetrieveParameter(name=name_landuse_grazing_maxheight, &
+         data=landuse_grazing_maxheight)
+
+    call fates_params%RetrieveParameterAllocate(name=name_landuse_grazing_rate, &
+         data=tmp_vector_by_landuse4)
+
+    landuse_grazing_rate(:) = tmp_vector_by_landuse4(:)
+
+    deallocate(tmp_vector_by_landuse4)
+
   end subroutine FatesReceiveParams
   
   ! =====================================================================================
@@ -1028,6 +1083,11 @@ contains
         write(fates_log(),fmt0) 'damage_event_code = ',damage_event_code
         write(fates_log(),fmt0) 'damage_canopy_layer_code = ', damage_canopy_layer_code
         write(fates_log(),fmt0) 'forest_tree_fraction_threshold = ', forest_tree_fraction_threshold
+	write(fates_log(),fmt0) 'landuse_grazing_carbon_use_eff = ', landuse_grazing_carbon_use_eff
+        write(fates_log(),fmt0) 'name_landuse_grazing_nitrogen_use_eff = ', name_landuse_grazing_nitrogen_use_eff
+        write(fates_log(),fmt0) 'name_landuse_grazing_phosphorus_use_eff = ', name_landuse_grazing_phosphorus_use_eff
+        write(fates_log(),fmt0) 'name_landuse_grazing_maxheight = ', name_landuse_grazing_maxheight
+        write(fates_log(),fmt0) 'name_landuse_grazing_rate(:) = ', name_landuse_grazing_rate(:)
         write(fates_log(),*) '------------------------------------------------------'
 
      end if

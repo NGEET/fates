@@ -1,7 +1,6 @@
 netcdf fates_params_default {
 dimensions:
 	fates_NCWD = 4 ;
-	fates_edgeforest_bins = 5 ;
 	fates_history_age_bins = 7 ;
 	fates_history_coage_bins = 2 ;
 	fates_history_damage_bins = 2 ;
@@ -259,21 +258,6 @@ variables:
 	double fates_dev_arbitrary_pft(fates_pft) ;
 		fates_dev_arbitrary_pft:units = "unknown" ;
 		fates_dev_arbitrary_pft:long_name = "Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses" ;
-	double fates_edgeforest_bin_edges(fates_edgeforest_bins) ;
-		fates_edgeforest_bin_edges:units = "m" ;
-		fates_edgeforest_bin_edges:long_name = "Boundaries of forest edge bins (for each bin, include value closest to zero)" ;
-	double fates_edgeforest_amplitudes(fates_edgeforest_bins) ;
-		fates_edgeforest_amplitudes:units = "unitless" ;
-		fates_edgeforest_amplitudes:long_name = "Amplitudes for calculating forest area in each edge bin" ;
-	double fates_edgeforest_centers(fates_edgeforest_bins) ;
-		fates_edgeforest_centers:units = "unitless" ;
-		fates_edgeforest_centers:long_name = "Centers for calculating forest area in each edge bin (only used for lognormal-fit bins)" ;
-	double fates_edgeforest_decay ;
-		fates_edgeforest_decay:units = "unitless" ;
-		fates_edgeforest_decay:long_name = "Decay for calculating forest area in 'deep forest' edge bin (the only one fit with an exponential function)" ;
-	double fates_edgeforest_sigmas(fates_edgeforest_bins) ;
-		fates_edgeforest_sigmas:units = "unitless" ;
-		fates_edgeforest_sigmas:long_name = "Sigmas for calculating forest area in each edge bin (only used for lognormal-fit bins)" ;
 	double fates_fire_alpha_SH(fates_pft) ;
 		fates_fire_alpha_SH:units = "m / (kw/m)**(2/3)" ;
 		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
@@ -364,9 +348,6 @@ variables:
 	double fates_hydro_vg_n_node(fates_hydr_organs, fates_pft) ;
 		fates_hydro_vg_n_node:units = "unitless" ;
 		fates_hydro_vg_n_node:long_name = "(used if hydr_htftype_node = 2),n in van Genuchten 1980 model, pore size distribution parameter" ;
-	double fates_landuse_grazing_palatability(fates_pft) ;
-		fates_landuse_grazing_palatability:units = "unitless 0-1" ;
-		fates_landuse_grazing_palatability:long_name = "Relative intensity of leaf grazing/browsing per PFT" ;
 	double fates_landuse_harvest_pprod10(fates_pft) ;
 		fates_landuse_harvest_pprod10:units = "fraction" ;
 		fates_landuse_harvest_pprod10:long_name = "fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
@@ -379,9 +360,6 @@ variables:
 	double fates_landuse_luc_pprod10(fates_pft) ;
 		fates_landuse_luc_pprod10:units = "fraction" ;
 		fates_landuse_luc_pprod10:long_name = "fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
-	double fates_leaf_agross_btran_model(fates_pft) ;
-		fates_leaf_agross_btran_model:units = "index" ;
-		fates_leaf_agross_btran_model:long_name = "model switch for how gross assimilation affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
@@ -400,9 +378,6 @@ variables:
 	double fates_leaf_slatop(fates_pft) ;
 		fates_leaf_slatop:units = "m^2/gC" ;
 		fates_leaf_slatop:long_name = "Specific Leaf Area (SLA) at top of canopy, projected area basis" ;
-	double fates_leaf_stomatal_btran_model(fates_pft) ;
-		fates_leaf_stomatal_btran_model:units = "index" ;
-		fates_leaf_stomatal_btran_model:long_name = "model switch for how btran affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
 	double fates_leaf_stomatal_intercept(fates_pft) ;
 		fates_leaf_stomatal_intercept:units = "umol H2O/m**2/s" ;
 		fates_leaf_stomatal_intercept:long_name = "Minimum unstressed stomatal conductance for Ball-Berry model and Medlyn model" ;
@@ -733,9 +708,6 @@ variables:
 	double fates_landuse_crop_lu_pft_vector(fates_landuseclass) ;
 		fates_landuse_crop_lu_pft_vector:units = "NA" ;
 		fates_landuse_crop_lu_pft_vector:long_name = "the FATES PFT index to use on a given crop land-use type (dummy value of -999 for non-crop types)" ;
-	double fates_landuse_grazing_rate(fates_landuseclass) ;
-		fates_landuse_grazing_rate:units = "1/day" ;
-		fates_landuse_grazing_rate:long_name = "fraction of leaf biomass consumed by grazers per day" ;
 	double fates_max_nocomp_pfts_by_landuse(fates_landuseclass) ;
 		fates_max_nocomp_pfts_by_landuse:units = "count" ;
 		fates_max_nocomp_pfts_by_landuse:long_name = "maximum number of nocomp PFTs on each land use type (only used in nocomp mode)" ;
@@ -805,9 +777,6 @@ variables:
 	double fates_fire_threshold ;
 		fates_fire_threshold:units = "kW/m" ;
 		fates_fire_threshold:long_name = "spitfire parameter, fire intensity threshold for tracking fires that spread" ;
-	double fates_forest_tree_fraction_threshold ;
-		fates_forest_tree_fraction_threshold:units = "m2/m2" ;
-		fates_forest_tree_fraction_threshold:long_name = "Tree fraction above which patch is considered 'forest'" ;
 	double fates_frag_cwd_fcel ;
 		fates_frag_cwd_fcel:units = "unitless" ;
 		fates_frag_cwd_fcel:long_name = "Cellulose fraction for CWD" ;
@@ -829,18 +798,6 @@ variables:
 	double fates_hydro_solver ;
 		fates_hydro_solver:units = "unitless" ;
 		fates_hydro_solver:long_name = "switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard, 3 = 2D Newton (deprecated)" ;
-	double fates_landuse_grazing_carbon_use_eff ;
-		fates_landuse_grazing_carbon_use_eff:units = "unitless" ;
-		fates_landuse_grazing_carbon_use_eff:long_name = "carbon use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
-	double fates_landuse_grazing_maxheight ;
-		fates_landuse_grazing_maxheight:units = "m" ;
-		fates_landuse_grazing_maxheight:long_name = "maximum height that grazers (browsers, actually) can reach" ;
-	double fates_landuse_grazing_nitrogen_use_eff ;
-		fates_landuse_grazing_nitrogen_use_eff:units = "unitless" ;
-		fates_landuse_grazing_nitrogen_use_eff:long_name = "nitrogen use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
-	double fates_landuse_grazing_phosphorus_use_eff ;
-		fates_landuse_grazing_phosphorus_use_eff:units = "unitless" ;
-		fates_landuse_grazing_phosphorus_use_eff:long_name = "phosphorus use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
 	double fates_landuse_logging_coll_under_frac ;
 		fates_landuse_logging_coll_under_frac:units = "fraction" ;
 		fates_landuse_logging_coll_under_frac:long_name = "Fraction of stems killed in the understory when logging generates disturbance" ;
@@ -1224,16 +1181,6 @@ data:
 
  fates_dev_arbitrary_pft = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
 
- fates_edgeforest_bin_edges = 0.0, 1.0, 2.0, 3.0, 4.0 ;
-
- fates_edgeforest_amplitudes = 334.20118864369647, 7.453608488098321, 2.8450130607077506, 1.601064269911203, 0.9227139932095219 ;
-
- fates_edgeforest_centers = 5.4114116418770735, 2.7788419192134937, 2.3020137304843664, 1.973996133523811, -999.9 ;
-
- fates_edgeforest_decay = 4.151608208778201 ;
-
- fates_edgeforest_sigmas = 1.185102216622059, 0.6230347414031212, 0.7500050901443256, 0.8465094354405984, -999.9 ;
-
  fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
     0.2, 0.2, 0.2 ;
 
@@ -1368,14 +1315,14 @@ data:
     0.75, 0.75 ;
 
  fates_hydro_vg_alpha_node =
-  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
-    0.12, 0.12,
-  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
-    0.12, 0.12,
-  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
-    0.12, 0.12,
-  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
-    0.12, 0.12 ;
+  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
+    0.005, 0.005, 0.005, 0.005,
+  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
+    0.005, 0.005, 0.005, 0.005,
+  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
+    0.005, 0.005, 0.005, 0.005,
+  0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.005, 0.005, 0.005, 0.005, 0.005, 
+    0.005, 0.005, 0.005, 0.005 ;
 
  fates_hydro_vg_m_node =
   0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
@@ -1389,8 +1336,6 @@ data:
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
- fates_landuse_grazing_palatability = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 ;
-
  fates_landuse_harvest_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 
     1, 1, 1 ;
 
@@ -1402,8 +1347,6 @@ data:
 
  fates_landuse_luc_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 1, 
     1, 1 ;
-
- fates_leaf_agross_btran_model = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 
@@ -1421,8 +1364,6 @@ data:
 
  fates_leaf_slatop = 0.012, 0.005, 0.024, 0.009, 0.03, 0.03, 0.012, 0.03, 
     0.03, 0.01, 0.032, 0.027, 0.05, 0.05 ;
-
- fates_leaf_stomatal_btran_model = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_leaf_stomatal_intercept = 10000, 10000, 10000, 10000, 10000, 10000, 
     10000, 10000, 10000, 10000, 10000, 10000, 10000, 40000 ;
@@ -1709,8 +1650,8 @@ data:
  fates_turb_leaf_diameter = 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 
     0.04, 0.04, 0.04, 0.04, 0.04, 0.04 ;
 
- fates_turb_z0mr = 0.075, 0.055, 0.055, 0.075, 0.055, 0.055, 0.12, 0.12, 
-    0.12, 0.12, 0.12, 0.12, 0.12, 0.12 ;
+ fates_turb_z0mr = 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 
+    0.055, 0.055, 0.055, 0.055, 0.055, 0.055 ;
 
  fates_turnover_branch = 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 
     150, 0, 0, 0 ;
@@ -1768,8 +1709,6 @@ data:
 
  fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
 
- fates_landuse_grazing_rate = 0, 0, 0, 0, 0 ;
-
  fates_max_nocomp_pfts_by_landuse = 4, 4, 1, 1, 1 ;
 
  fates_maxpatches_by_landuse = 9, 4, 1, 1, 1 ;
@@ -1816,8 +1755,6 @@ data:
 
  fates_fire_threshold = 50 ;
 
- fates_forest_tree_fraction_threshold = 0.5 ;
-
  fates_frag_cwd_fcel = 0.76 ;
 
  fates_frag_cwd_flig = 0.24 ;
@@ -1830,15 +1767,7 @@ data:
 
  fates_hydro_psicap = -0.6 ;
 
- fates_hydro_solver = 2 ;
-
- fates_landuse_grazing_carbon_use_eff = 0 ;
-
- fates_landuse_grazing_maxheight = 1 ;
-
- fates_landuse_grazing_nitrogen_use_eff = 0.25 ;
-
- fates_landuse_grazing_phosphorus_use_eff = 0.5 ;
+ fates_hydro_solver = 1 ;
 
  fates_landuse_logging_coll_under_frac = 0.55983 ;
 
