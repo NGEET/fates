@@ -1,7 +1,6 @@
 netcdf fates_params_default {
 dimensions:
 	fates_NCWD = 4 ;
-	fates_edgeforest_bins = 5 ;
 	fates_history_age_bins = 7 ;
 	fates_history_coage_bins = 2 ;
 	fates_history_damage_bins = 2 ;
@@ -259,21 +258,6 @@ variables:
 	double fates_dev_arbitrary_pft(fates_pft) ;
 		fates_dev_arbitrary_pft:units = "unknown" ;
 		fates_dev_arbitrary_pft:long_name = "Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses" ;
-	double fates_edgeforest_bin_edges(fates_edgeforest_bins) ;
-		fates_edgeforest_bin_edges:units = "m" ;
-		fates_edgeforest_bin_edges:long_name = "Boundaries of forest edge bins (for each bin, include value closest to zero)" ;
-	double fates_edgeforest_amplitudes(fates_edgeforest_bins) ;
-		fates_edgeforest_amplitudes:units = "unitless" ;
-		fates_edgeforest_amplitudes:long_name = "Amplitudes for calculating forest area in each edge bin" ;
-	double fates_edgeforest_centers(fates_edgeforest_bins) ;
-		fates_edgeforest_centers:units = "unitless" ;
-		fates_edgeforest_centers:long_name = "Centers for calculating forest area in each edge bin (only used for lognormal-fit bins)" ;
-	double fates_edgeforest_decay ;
-		fates_edgeforest_decay:units = "unitless" ;
-		fates_edgeforest_decay:long_name = "Decay for calculating forest area in 'deep forest' edge bin (the only one fit with an exponential function)" ;
-	double fates_edgeforest_sigmas(fates_edgeforest_bins) ;
-		fates_edgeforest_sigmas:units = "unitless" ;
-		fates_edgeforest_sigmas:long_name = "Sigmas for calculating forest area in each edge bin (only used for lognormal-fit bins)" ;
 	double fates_fire_alpha_SH(fates_pft) ;
 		fates_fire_alpha_SH:units = "m / (kw/m)**(2/3)" ;
 		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
@@ -385,9 +369,6 @@ variables:
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
-	double fates_leaf_fnps(fates_pft) ;
-		fates_leaf_fnps:units = "fraction" ;
-		fates_leaf_fnps:long_name = "fraction of light absorbed by non-photosynthetic pigments" ;
 	double fates_leaf_jmaxha(fates_pft) ;
 		fates_leaf_jmaxha:units = "J/mol" ;
 		fates_leaf_jmaxha:long_name = "activation energy for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
@@ -805,9 +786,6 @@ variables:
 	double fates_fire_threshold ;
 		fates_fire_threshold:units = "kW/m" ;
 		fates_fire_threshold:long_name = "spitfire parameter, fire intensity threshold for tracking fires that spread" ;
-	double fates_forest_tree_fraction_threshold ;
-		fates_forest_tree_fraction_threshold:units = "m2/m2" ;
-		fates_forest_tree_fraction_threshold:long_name = "Tree fraction above which patch is considered 'forest'" ;
 	double fates_frag_cwd_fcel ;
 		fates_frag_cwd_fcel:units = "unitless" ;
 		fates_frag_cwd_fcel:long_name = "Cellulose fraction for CWD" ;
@@ -1200,16 +1178,6 @@ data:
 
  fates_dev_arbitrary_pft = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
 
- fates_edgeforest_bin_edges = 0.0, 1.0, 2.0, 3.0, 4.0 ;
-
- fates_edgeforest_amplitudes = 334.20118864369647, 7.453608488098321, 2.8450130607077506, 1.601064269911203, 0.9227139932095219 ;
-
- fates_edgeforest_centers = 5.4114116418770735, 2.7788419192134937, 2.3020137304843664, 1.973996133523811, -999.9 ;
-
- fates_edgeforest_decay = 4.151608208778201 ;
-
- fates_edgeforest_sigmas = 1.185102216622059, 0.6230347414031212, 0.7500050901443256, 0.8465094354405984, -999.9 ;
-
  fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
     0.2, 0.2, 0.2 ;
 
@@ -1382,9 +1350,6 @@ data:
  fates_leaf_agross_btran_model = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
-
- fates_leaf_fnps = 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 
-    0.15, 0.15, 0.15, 0.15, 0.15 ;
 
  fates_leaf_jmaxha = 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540, 
     43540, 43540, 43540, 43540, 43540, 43540 ;
@@ -1792,8 +1757,6 @@ data:
  fates_fire_part_dens = 513 ;
 
  fates_fire_threshold = 50 ;
-
- fates_forest_tree_fraction_threshold = 0.5 ;
 
  fates_frag_cwd_fcel = 0.76 ;
 
