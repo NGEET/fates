@@ -43,6 +43,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : secondaryland
    use FatesConstantsMod         , only : n_crop_lu_types
    use FatesConstantsMod         , only : n_term_mort_types
+   use FatesConstantsMod         , only : nocomp_bareground
    use FatesInterfaceTypesMod    , only : nlevedgeforest
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
@@ -776,8 +777,9 @@ contains
       integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
       integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
       class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
-  
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
+
+      logical, parameter :: preserve_b4b = .true.
       
       if (use_fates) then
          
@@ -795,7 +797,7 @@ contains
             maxpatches_by_landuse(primaryland)   = fates_numpft
             maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
             maxpatch_total     = fates_numpft
-            
+
             ! If this is an SP run, we actually need enough patches on the
             ! CLM/ELM side of the code to hold the LAI data.  This
             ! number may be larger than what fates requires.  Of course
@@ -804,24 +806,29 @@ contains
             ! maxpatch_total does not include the bare ground (so add 1)
             
             fates_maxPatchesPerSite = max(surf_numpft+surf_numcft,maxpatch_total+1)
-
          else
 
             ! If we are using fixed biogeography or no-comp then we
             ! can also apply those constraints to maxpatch_primaryland and secondary
             ! and that value will match fates_maxPatchesPerSite
-            
-            if(hlm_use_nocomp==itrue) then
+            if_preserve_b4b: if(.not.preserve_b4b)then
 
-               maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
+               if(hlm_use_luh==ifalse) then
+                  maxpatches_by_landuse(secondaryland:n_landuse_cats) = 0
+               end if
+
                maxpatch_total = sum(maxpatches_by_landuse(:))
-
-               !if(maxpatch_primary<fates_numpft)then
-               !   write(fates_log(),*) 'warning: lower number of patches than pfts'
-               !   write(fates_log(),*) 'this may become a problem in nocomp mode'
-               !end if
-            end if
-
+                  
+            else
+            
+               if(hlm_use_nocomp==itrue) then
+                  
+                  maxpatches_by_landuse(primaryland) = max(maxpatches_by_landuse(primaryland),fates_numpft)
+                  maxpatch_total = sum(maxpatches_by_landuse(:))
+               end if
+               
+            end if if_preserve_b4b
+               
             ! maxpatch_total does not include the bare ground (so add 1)
             fates_maxPatchesPerSite = maxpatch_total+1
             
@@ -2140,12 +2147,14 @@ contains
 
      do s = 1,size(sites,dim=1)
 
-        ifp=0
         site_npp = 0._r8
         cpatch => sites(s)%oldest_patch
         do while(associated(cpatch))
-           if (cpatch%patchno .ne. 0) then
-           ifp=ifp+1
+
+           ifp = cpatch%patchno
+           
+           nocomp_bare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
+
            call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
            call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
@@ -2206,7 +2215,7 @@ contains
               ccohort => ccohort%shorter
            end do
 
-        end if
+        end if nocomp_bare
 
         cpatch => cpatch%younger
      enddo

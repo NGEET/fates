@@ -15,6 +15,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : i_term_mort_type_canlev
   use FatesConstantsMod        , only : i_term_mort_type_numdens
   use FatesConstantsMod        , only : nocomp_bareground_land
+  use FatesConstantsMod        , only : nocomp_bareground
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDParamsMod              , only : nclmax, maxpft
@@ -2414,7 +2415,6 @@ contains
     type(litter_type), pointer :: litt     ! Generic pointer to any litter pool
 
     integer  :: s                  ! site counter
-    integer  :: ipa                ! patch index matching host model array space
     integer  :: io_si              ! site's index in the history output array space
     integer  :: el                 ! element index
     integer  :: ft                 ! pft index
@@ -2684,7 +2684,6 @@ contains
               AREA_INV * days_per_sec
 
          ! Loop through patches to sum up diagonistics
-         ipa = 0
          cpatch => sites(s)%oldest_patch
          patchloop: do while(associated(cpatch))
 
@@ -3017,7 +3016,6 @@ contains
                ccohort => ccohort%taller
             enddo cohortloop ! cohort loop
 
-            ipa = ipa + 1
             cpatch => cpatch%younger
          end do patchloop !patch loop
 
@@ -3097,7 +3095,6 @@ contains
     type(litter_type), pointer :: litt     ! Generic pointer to any litter pool
     integer  :: s                  ! site counter
     integer  :: b                  ! edge bin counter
-    integer  :: ipa,ipa2           ! patch index matching host model array space
     integer  :: io_si              ! site's index in the history output array space
     integer  :: el                 ! element index
     integer  :: ft                 ! pft index
@@ -3429,7 +3426,6 @@ contains
              end do
 
              ! Loop through patches to sum up diagonistics
-             ipa = 0
              cpatch => sites(s)%oldest_patch
              patchloop: do while(associated(cpatch))
 
@@ -4237,7 +4233,6 @@ contains
 
                 end do
 
-                ipa = ipa + 1
                 cpatch => cpatch%younger
              end do patchloop !patch loop
 
@@ -5126,7 +5121,6 @@ contains
     ! Locals
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
-    integer  :: ipa      ! patch bc index for the patch
     integer  :: age_class  ! class age index
     real(r8) :: site_area_veg_inv  ! inverse canopy area of the site (1/m2)
     real(r8) :: site_area_rad_inv   ! inverse canopy area of site for only
@@ -5248,14 +5242,10 @@ contains
 
          else
 
-            ipa = 0
             site_area_veg_inv = 1._r8/site_area_veg_inv
 
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
-
-               ipa = ipa + 1
-
 
                hio_c_stomata_si(io_si) = hio_c_stomata_si(io_si) + &
                     cpatch%c_stomata * cpatch%total_canopy_area * mol_per_umol * site_area_veg_inv
@@ -5264,7 +5254,7 @@ contains
                     cpatch%c_lblayer * cpatch%total_canopy_area * mol_per_umol * site_area_veg_inv
 
                ! Only accumulate the instantaneous vegetation temperature for vegetated patches
-               if (cpatch%patchno .ne. 0) then
+               if (cpatch%nocomp_pft_label.ne.nocomp_bareground)then
                   hio_tveg(io_si) = hio_tveg(io_si) + &
                        (bc_in(s)%t_veg_pa(cpatch%patchno) - t_water_freeze_k_1atm) * &
                        cpatch%total_canopy_area * site_area_veg_inv
@@ -5321,7 +5311,6 @@ contains
                   end if if_notnew
                   ccohort => ccohort%taller
                end do
-
                cpatch => cpatch%younger
             end do
          end if if_veg_area
@@ -5358,7 +5347,6 @@ contains
     ! Locals
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
-    integer  :: ipa      ! The local "I"ndex of "PA"tches
     integer  :: lb1,ub1,lb2,ub2  ! IO array bounds for the calling thread
     integer  :: ivar             ! index of IO variable object vector
     integer  :: ft               ! functional type index
@@ -5439,12 +5427,8 @@ contains
 
          io_si  = sites(s)%h_gid
 
-         ipa = 0
-
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
-
-            ipa = ipa + 1
 
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -5839,7 +5823,6 @@ contains
     ! Locals
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
-    integer  :: ipa      ! The local "I"ndex of "PA"tches
     integer  :: ft               ! functional type index
     !    integer  :: io_shsl  ! The combined "SH"ell "S"oil "L"ayer index in the IO array
     real(r8) :: ncohort_scpf(nlevsclass*maxpft)  ! Bins to count up cohorts counts used in weighting
@@ -6092,7 +6075,6 @@ contains
                end do
             end do
 
-            ipa = 0
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
 
@@ -6175,7 +6157,7 @@ contains
 
                   ccohort => ccohort%taller
                enddo ! cohort loop
-               ipa = ipa + 1
+
                cpatch => cpatch%younger
             end do !patch loop
 

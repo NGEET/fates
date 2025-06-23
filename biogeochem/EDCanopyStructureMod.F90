@@ -20,6 +20,7 @@ module EDCanopyStructureMod
   use EDCohortDynamicsMod   , only : InitPRTObject
   use FatesAllometryMod     , only : tree_lai_sai
   use EDTypesMod            , only : ed_site_type
+  use EDTypesMod            , only : set_patchno
   use FatesAllometryMod     , only : VegAreaLayer
   use FatesAllometryMod     , only : CrownDepth
   use FatesPatchMod,          only : fates_patch_type
@@ -1313,7 +1314,6 @@ contains
     ! ---------------------------------------------------------------------------------
 
     use FatesInterfaceTypesMod    , only : hlm_use_cohort_age_tracking
-    use EDPatchDynamicsMod   , only : set_patchno
     use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod           , only : area
@@ -1353,7 +1353,7 @@ contains
        ! driving model.  Loops through all patches and sets cpatch%patchno to the integer
        ! order of oldest to youngest where the oldest is 1.
        ! --------------------------------------------------------------------------------
-       call set_patchno( sites(s) )
+       call set_patchno( sites(s) , .false., 0)
 
        currentPatch => sites(s)%oldest_patch
 
@@ -1903,7 +1903,6 @@ contains
     
     do s = 1,nsites
 
-       ifp = 0
        total_patch_area = 0._r8
        total_canopy_area = 0._r8
        bc_out(s)%canopy_fraction_pa(:) = 0._r8
@@ -1915,9 +1914,8 @@ contains
        c = fcolumn(s)
        do while(associated(currentPatch))
 
-          if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
-
-             ifp = ifp+1
+          ifp = currentPatch%patchno
+          if_bare: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then  ! ignore the bare-ground-PFT patch entirely for these BC outs
 
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.000001_r8 ) then
                 if(debug)then
@@ -2035,7 +2033,7 @@ contains
 
              total_patch_area = total_patch_area + currentPatch%area/AREA
 
-          end if
+          end if if_bare
           currentPatch => currentPatch%younger
        end do
 
@@ -2055,13 +2053,11 @@ contains
           end if
 
           currentPatch => sites(s)%oldest_patch
-          ifp = 0
           do while(associated(currentPatch))
+             ifp = currentPatch%patchno
              if(currentPatch%nocomp_pft_label.ne.nocomp_bareground)then ! for vegetated patches only
-                ifp = ifp+1
                 bc_out(s)%canopy_fraction_pa(ifp) = bc_out(s)%canopy_fraction_pa(ifp)/total_patch_area
              endif ! veg patch
-
              currentPatch => currentPatch%younger
           end do
 
