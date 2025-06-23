@@ -4939,10 +4939,6 @@ contains
              end if notnew
 
              ccohort => ccohort%taller
-             hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
-                  + ccohort%npp_tstep * dt_tstep_inv &
-                  * cohort_n_div_site_area
-
           end do cohortloop
 
           ! Not weighted
