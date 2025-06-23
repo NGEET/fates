@@ -1,11 +1,13 @@
 module FatesEdgeForestMod
 
   use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : nocomp_bareground
   use FatesInterfaceTypesMod, only : nlevedgeforest
   use FatesGlobals, only : fates_log
   use FatesGlobals, only : endrun => fates_endrun
   use shr_log_mod, only : errMsg => shr_log_errMsg
   use EDTypesMod, only : ed_site_type
+  use EDTypesMod, only : AREA
   use FatesPatchMod, only : fates_patch_type
   use FatesEcotypesMod, only : is_patch_forest
 
@@ -13,6 +15,7 @@ module FatesEdgeForestMod
   private  ! By default everything is private
 
   ! Make public necessary subroutines and functions
+  public :: CalculateTreeGrassAreaSite
   public :: calculate_edgeforest_area
   ! Public for unit testing
   public :: indexx
@@ -23,6 +26,47 @@ module FatesEdgeForestMod
 contains
 
   ! =====================================================================================
+
+  subroutine CalculateTreeGrassAreaSite(csite, tree_fraction, grass_fraction, bare_fraction)
+    !
+    !  DESCRIPTION:
+    !  Calculates total grass, tree, and bare fractions for a site
+
+    use FatesEcotypesMod,   only : is_patch_forest
+    use EDParamsMod,        only : forest_tree_fraction_threshold
+
+    ! ARGUMENTS:
+    type(ed_site_type), intent(inout), target :: csite  ! site object
+    real(r8),           intent(out)   :: tree_fraction  ! total site tree fraction
+    real(r8),           intent(out)   :: grass_fraction ! total site grass fraction
+    real(r8),           intent(out)   :: bare_fraction  ! total site bare fraction
+
+    ! LOCALS:
+    type(fates_patch_type), pointer :: currentPatch ! patch object
+    
+    tree_fraction = 0.0_r8
+    grass_fraction = 0.0_r8
+    
+    currentPatch => csite%oldest_patch
+    do while(associated(currentPatch))
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
+        call currentPatch%UpdateTreeGrassArea()
+        tree_fraction = tree_fraction + currentPatch%total_tree_area/AREA
+        grass_fraction = grass_fraction + currentPatch%total_grass_area/AREA
+        currentPatch%is_forest = is_patch_forest(currentPatch, forest_tree_fraction_threshold)
+      end if 
+      currentPatch => currentPatch%younger
+    end do
+
+    ! if cover > 1.0, grasses are under the trees
+    grass_fraction = min(grass_fraction, 1.0_r8 - tree_fraction)
+    bare_fraction = 1.0_r8 - tree_fraction - grass_fraction
+
+    ! Must come after patch loop with is_patch_forest() call
+    call calculate_edgeforest_area(csite)
+
+  end subroutine CalculateTreeGrassAreaSite
+
 
   subroutine get_number_of_forest_patches(site, n_forest_patches, area_forest_patches, area)
     ! DESCRIPTION

@@ -1,6 +1,7 @@
 module FatesEcotypesMod
 
   use FatesConstantsMod, only : r8 => fates_r8
+  use EDTypesMod, only : ed_site_type
   use FatesPatchMod, only : fates_patch_type
 
   implicit none
