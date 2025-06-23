@@ -33,8 +33,6 @@ module EDMainMod
   use PRTGenericMod            , only : phosphorus_element
   use EDCohortDynamicsMod      , only : terminate_cohorts
   use EDCohortDynamicsMod      , only : fuse_cohorts
-  use EDCohortDynamicsMod      , only : sort_cohorts
-  use EDCohortDynamicsMod      , only : count_cohorts
   use EDCohortDynamicsMod      , only : EvaluateAndCorrectDBH
   use EDCohortDynamicsMod      , only : DamageRecovery
   use EDPatchDynamicsMod       , only : disturbance_rates
@@ -259,7 +257,7 @@ contains
        do while (associated(currentPatch))
 
           ! puts cohorts in right order
-          call sort_cohorts(currentPatch)
+          call currentPatch%SortCohorts()
 
           ! kills cohorts that are too few
           call terminate_cohorts(currentSite, currentPatch, 1, 10, bc_in  )
@@ -273,6 +271,7 @@ contains
 
           currentPatch => currentPatch%younger
        enddo
+         
     end if
 
     call TotalBalanceCheck(currentSite,2)
@@ -861,7 +860,7 @@ contains
        end if
 
        ! This cohort count is used in the photosynthesis loop
-       call count_cohorts(currentPatch)
+       call currentPatch%CountCohorts()
        
        ! Update the total area of by patch age class array 
        currentSite%area_by_age(currentPatch%age_class) = &
