@@ -4371,7 +4371,8 @@ contains
                      sum(sites(s)%term_carbonflux_ustory(:,ft)) * days_per_sec * ha_per_m2 + &
                      sum(sites(s)%term_carbonflux_canopy(:,ft)) * days_per_sec * ha_per_m2
 
-                hio_firemortality_carbonflux_si_pft(io_si,ft) = sites(s)%fmort_carbonflux_canopy(ft) / g_per_kg
+                hio_firemortality_carbonflux_si_pft(io_si,ft) = (sites(s)%fmort_carbonflux_canopy(ft) + &
+                    sites(s)%fmort_carbonflux_ustory(ft)) / g_per_kg
              end do
 
              ! add imort and fmort to aboveground woody mortality 

@@ -9,10 +9,10 @@ module FatesParametersInterface
   implicit none
   private ! Modules are private by default
 
-  integer, parameter, public :: max_params = 250
+  integer, parameter, public :: max_params = 500
   integer, parameter, public :: max_dimensions = 2
   integer, parameter, public :: max_used_dimensions = 25
-  integer, parameter, public :: param_string_length = 40
+  integer, parameter, public :: param_string_length = 80
   ! NOTE(bja, 2017-02) these are the values returned from netcdf after
   ! inquiring about the number of dimensions
   integer, parameter, public :: dimension_shape_scalar = 0
