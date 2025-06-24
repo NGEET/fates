@@ -1070,7 +1070,7 @@ contains
                                           currentSite%mass_balance(el)%burn_flux_to_atm + &
                                           leaf_burn_frac * leaf_m * nc%n
 
-                                     ! This diagnostic only tracks
+                                     ! This term increments the loss flux from surviving trees
                                      currentSite%flux_diags%elem(el)%burned_liveveg = &
                                           currentSite%flux_diags%elem(el)%burned_liveveg + & 
                                           leaf_burn_frac * leaf_m * nc%n * area_inv
@@ -1080,12 +1080,6 @@ contains
 
                                   ! Add burned leaf carbon to the atmospheric carbon flux
                                   ! for burning.
-                                  ! [frac/day]*[kgC/plant]*[plant/ha]*[m2/ha]*[day/s] = [kg/m2/s] 
-                                  !bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + &
-                                  !     leaf_burn_frac * nc%prt%GetState(leaf_organ, carbon12_element) * &
-                                  !     nc%n * ha_per_m2 * days_per_sec
-                                  
-                                  ! Here the mass is removed from the plant
 
                                   if(int(prt_params%woody(currentCohort%pft)) == itrue)then
                                      call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
@@ -2002,12 +1996,7 @@ contains
 
           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-          !if(element_list(el) == carbon12_element) then
-          !   bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
-          !end if
-
           ! Transfer below ground CWD (none burns)
-          
           do sl = 1,currentSite%nlevsoil
              donatable_mass         = curr_litt%bg_cwd(c,sl) * patch_site_areadis
              new_litt%bg_cwd(c,sl)  = new_litt%bg_cwd(c,sl) + donatable_mass*donate_m2
@@ -2035,10 +2024,6 @@ contains
            
            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-           !if(element_list(el) == carbon12_element) then
-           !   bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
-           !end if
-           
            ! Transfer root fines (none burns)
            do sl = 1,currentSite%nlevsoil
                donatable_mass = curr_litt%root_fines(dcmpy,sl) * patch_site_areadis             
@@ -2250,10 +2235,6 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-             !if(element_list(el) == carbon12_element) then
-             !   bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
-             !end if
-
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -2315,10 +2296,6 @@ contains
                       burned_mass = num_dead_trees * SF_val_CWD_frac_adj(c) * bstem * &
                       currentCohort%fraction_crown_burned
                       site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
-                      !if(element_list(el) == carbon12_element) then
-                      !   bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
-                      !end if
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
@@ -2730,7 +2707,6 @@ contains
              end do
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-             !!bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
@@ -2791,7 +2767,7 @@ contains
                         EDPftvarcon_inst%landusechange_frac_burned(pft)
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-                   !!bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
+
                 else ! all other pools can end up as timber products or burn or go to litter
                    donatable_mass = donatable_mass * (1.0_r8-EDPftvarcon_inst%landusechange_frac_exported(pft)) * &
                         (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
@@ -2804,8 +2780,6 @@ contains
                         EDPftvarcon_inst%landusechange_frac_exported(pft)
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
-                   !!bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
                    trunk_product_site = trunk_product_site + &
                         woodproduct_mass
