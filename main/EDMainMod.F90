@@ -27,6 +27,7 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : hlm_masterproc
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
+  use FatesInterfaceTypesMod        , only : ZeroBCOutCarbonFluxes
   use PRTGenericMod            , only : prt_carbon_allom_hyp
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
   use PRTGenericMod            , only : nitrogen_element
@@ -46,7 +47,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : SeedUpdate
   use EDPhysiologyMod          , only : ZeroAllocationRates
   use EDPhysiologyMod          , only : ZeroLitterFluxes
-  use EDPhysiologyMod          , only : ZeroBCOutCarbonFluxes
+ 
   use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceIntegrateLitter
   use EDPhysiologyMod          , only : UpdateRecruitL2FR
@@ -842,6 +843,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
+    type(site_massbal_type), pointer :: site_cmass
     real(r8) :: total_stock  ! dummy variable for receiving from sitemassstock
     !-----------------------------------------------------------------------
 
@@ -918,6 +920,11 @@ contains
     bc_out%litter_cwd_c_si = bc_out%litter_cwd_c_si * g_per_kg * AREA_INV
     bc_out%seed_c_si = bc_out%seed_c_si * g_per_kg * AREA_INV
 
+    ! Set boundary condition to HLM for carbon loss to atm from fires and grazing
+    ! [kgC/ha/day]*[m2/ha]*[day/s] = [kg/m2/s] 
+    site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
+    bc_out%fire_closs_to_atm_si = site_cmass%burn_flux_to_atm * ha_per_m2 * days_per_sec
+    bc_out%grazing_closs_to_atm_si = site_cmass%herbivory_flux_out * ha_per_m2 * days_per_sec
 
   end subroutine ed_update_site
 
