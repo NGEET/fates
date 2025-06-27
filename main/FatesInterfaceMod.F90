@@ -99,15 +99,15 @@ module FatesInterfaceMod
    use PRTInitParamsFatesMod     , only : PRTCheckParams, PRTDerivedParams
    use PRTAllometricCarbonMod    , only : InitPRTGlobalAllometricCarbon
    use PRTAllometricCNPMod       , only : InitPRTGlobalAllometricCNP
-   use FatesRunningMeanMod       , only : ema_24hr
-   use FatesRunningMeanMod       , only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
-   use FatesRunningMeanMod       , only : ema_sdlng_mdd, ema_sdlng2sap_par
-   use FatesRunningMeanMod       , only : fixed_24hr
-   use FatesRunningMeanMod       , only : ema_lpa
-   use FatesRunningMeanMod       , only : ema_longterm
-   use FatesRunningMeanMod       , only : ema_60day
-   use FatesRunningMeanMod       , only : moving_ema_window
-   use FatesRunningMeanMod       , only : fixed_window
+   use FatesRunningSummMod       , only : ema_24hr
+   use FatesRunningSummMod       , only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par
+   use FatesRunningSummMod       , only : ema_sdlng_mdd, ema_sdlng2sap_par
+   use FatesRunningSummMod       , only : fixed_24hr
+   use FatesRunningSummMod       , only : ema_lpa
+   use FatesRunningSummMod       , only : ema_longterm
+   use FatesRunningSummMod       , only : ema_60day
+   use FatesRunningSummMod       , only : moving_ema_window
+   use FatesRunningSummMod       , only : fixed_window
    use FatesHistoryInterfaceMod  , only : fates_hist
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
@@ -529,6 +529,7 @@ contains
       allocate(bc_in%t_veg_pa(maxpatch_total))
       allocate(bc_in%tgcm_pa(maxpatch_total))
       allocate(bc_in%t_soisno_sl(nlevsoil_in))
+
 
       ! Canopy Radiation
       bc_in%coszen = nan
@@ -1085,8 +1086,8 @@ contains
       
       !allocate(ema_60day)
       !call ema_60day%define(prt_params%fnrt_adapt_tscl*sec_per_day,sec_per_day,moving_ema_window)
-      !class(rmean_arr_type), pointer :: ema_fnrt_tscale(:)
-      !rmean_arr_type
+      !class(rsumm_arr_type), pointer :: ema_fnrt_tscale(:)
+      !rsumm_arr_type
       
       
       return
@@ -2241,7 +2242,7 @@ contains
    subroutine UpdateFatesRMeansTStep(sites,bc_in, bc_out)
 
      ! In this routine, we update any FATES buffers where
-     ! we calculate running means. It is assumed that this buffer is updated
+     ! we calculate running summaries. It is assumed that this buffer is updated
      ! on the model time-step.
 
      type(ed_site_type), intent(inout) :: sites(:)
@@ -2273,9 +2274,15 @@ contains
            
            nocomp_bare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
 
-           call cpatch%tveg24%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-           call cpatch%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
-           call cpatch%tveg_longterm%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg24%UpdateRSumm(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg_lpa%UpdateRSumm(bc_in(s)%t_veg_pa(ifp))
+           call cpatch%tveg_longterm%UpdateRSumm(bc_in(s)%t_veg_pa(ifp))
+
+           ! Update btran
+           do pft = 1, numpft
+              call cpatch%btran24_ft(pft)%p%UpdateRSumm(cpatch%btran_ft(pft))
+           end do
+
 
            ! Update the seedling layer par running means
            if ( hlm_regeneration_model == TRS_regeneration ) then
@@ -2293,9 +2300,9 @@ contains
               
               new_seedling_layer_par = seedling_par_high*par_high_frac + seedling_par_low*par_low_frac
               
-              call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
-              call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)
-              call cpatch%sdlng2sap_par%UpdateRMean(new_seedling_layer_par)
+              call cpatch%seedling_layer_par24%UpdateRSumm(new_seedling_layer_par)
+              call cpatch%sdlng_mort_par%UpdateRSumm(new_seedling_layer_par)
+              call cpatch%sdlng2sap_par%UpdateRSumm(new_seedling_layer_par)
 
               do pft = 1,numpft
 
@@ -2315,8 +2322,8 @@ contains
                  endif
 
                  ! Update the seedling layer smp and mdd running means
-                 call cpatch%sdlng_emerg_smp(pft)%p%UpdateRMean(new_seedling_layer_smp)
-                 call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd)
+                 call cpatch%sdlng_emerg_smp(pft)%p%UpdateRSumm(new_seedling_layer_smp)
+                 call cpatch%sdlng_mdd(pft)%p%UpdateRSumm(new_seedling_mdd)
 
               enddo !end pft loop
               
@@ -2324,7 +2331,7 @@ contains
 
            ccohort => cpatch%tallest
            do while (associated(ccohort))
-              !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
+              !   call ccohort%tveg_lpa%UpdateRSumm(bc_in(s)%t_veg_pa(ifp))
               if(.not.ccohort%isnew)then
                  ! [kgC/plant/yr] -> [gC/m2/s]
                  site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
