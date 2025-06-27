@@ -714,7 +714,7 @@ contains
           ! (size --> heights of elements --> hydraulic path lengths -->
           ! maximum node-to-node conductances)
           if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
-             call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
+             call UpdateSizeDepPlantHydProps(currentSite,currentCohort)
              call UpdateSizeDepPlantHydStates(currentSite,currentCohort)
           end if
 
@@ -782,7 +782,7 @@ contains
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
        
-       call GenerateDamageAndLitterFluxes( currentSite, currentPatch, bc_in)
+       call GenerateDamageAndLitterFluxes( currentSite, currentPatch)
 
        call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
 
