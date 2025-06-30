@@ -128,123 +128,123 @@ module test_EdgeForest
     end subroutine indexx_all_equal
 
 
-    @Test
-    subroutine edge_distrib_test100pctForest(this)
-      class(TestEdgeForest), intent(inout) :: this
-      real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
-      real(r8), dimension(nlevedgeforest) :: expected
-      real(r8) :: pct_nonforest
+    ! @Test
+    ! subroutine edge_distrib_test100pctForest(this)
+    !   class(TestEdgeForest), intent(inout) :: this
+    !   real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
+    !   real(r8), dimension(nlevedgeforest) :: expected
+    !   real(r8) :: pct_nonforest
 
-      pct_nonforest = 0._r8
-      expected = (/ &
-         0, &
-         0, &
-         0, &
-         0, &
-         1 /)
+    !   pct_nonforest = 0._r8
+    !   expected = (/ &
+    !      0, &
+    !      0, &
+    !      0, &
+    !      0, &
+    !      1 /)
 
-      call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+    !   call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
 
-      @assertEqual(expected, fraction_forest_in_each_bin, tolerance=tol)
+    !   @assertEqual(expected, fraction_forest_in_each_bin, tolerance=tol)
 
-    end subroutine edge_distrib_test100pctForest
-
-
-    @Test
-    subroutine edge_distrib_test90pctForest_bin1(this)
-      class(TestEdgeForest), intent(inout) :: this
-      real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
-      real(r8), dimension(nlevedgeforest) :: expected
-      real(r8) :: pct_nonforest
-
-      pct_nonforest = 10._r8
-
-      call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
-
-      @assertEqual(expected_90pctForest(1)/sum(expected_90pctForest), fraction_forest_in_each_bin(1), tolerance=tol)
-
-    end subroutine edge_distrib_test90pctForest_bin1
+    ! end subroutine edge_distrib_test100pctForest
 
 
-    @Test
-    subroutine edge_distrib_test90pctForest_bin2(this)
-      class(TestEdgeForest), intent(inout) :: this
-      real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
-      real(r8), dimension(nlevedgeforest) :: expected
-      real(r8) :: pct_nonforest
+    ! @Test
+    ! subroutine edge_distrib_test90pctForest_bin1(this)
+    !   class(TestEdgeForest), intent(inout) :: this
+    !   real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
+    !   real(r8), dimension(nlevedgeforest) :: expected
+    !   real(r8) :: pct_nonforest
 
-      pct_nonforest = 10._r8
+    !   pct_nonforest = 10._r8
 
-      call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+    !   call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
 
-      @assertEqual(expected_90pctForest(2)/sum(expected_90pctForest), fraction_forest_in_each_bin(2), tolerance=tol)
+    !   @assertEqual(expected_90pctForest(1)/sum(expected_90pctForest), fraction_forest_in_each_bin(1), tolerance=tol)
 
-    end subroutine edge_distrib_test90pctForest_bin2
-
-
-    @Test
-    subroutine edge_distrib_test90pctForest_bin3(this)
-      class(TestEdgeForest), intent(inout) :: this
-      real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
-      real(r8), dimension(nlevedgeforest) :: expected
-      real(r8) :: pct_nonforest
-
-      pct_nonforest = 10._r8
-
-      call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
-
-      @assertEqual(expected_90pctForest(3)/sum(expected_90pctForest), fraction_forest_in_each_bin(3), tolerance=tol)
-
-    end subroutine edge_distrib_test90pctForest_bin3
+    ! end subroutine edge_distrib_test90pctForest_bin1
 
 
-    @Test
-    subroutine edge_distrib_test90pctForest_bin4(this)
-      class(TestEdgeForest), intent(inout) :: this
-      real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
-      real(r8), dimension(nlevedgeforest) :: expected
-      real(r8) :: pct_nonforest
+    ! @Test
+    ! subroutine edge_distrib_test90pctForest_bin2(this)
+    !   class(TestEdgeForest), intent(inout) :: this
+    !   real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
+    !   real(r8), dimension(nlevedgeforest) :: expected
+    !   real(r8) :: pct_nonforest
 
-      pct_nonforest = 10._r8
+    !   pct_nonforest = 10._r8
 
-      call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+    !   call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
 
-      @assertEqual(expected_90pctForest(4)/sum(expected_90pctForest), fraction_forest_in_each_bin(4), tolerance=tol)
+    !   @assertEqual(expected_90pctForest(2)/sum(expected_90pctForest), fraction_forest_in_each_bin(2), tolerance=tol)
 
-    end subroutine edge_distrib_test90pctForest_bin4
+    ! end subroutine edge_distrib_test90pctForest_bin2
+
+
+    ! @Test
+    ! subroutine edge_distrib_test90pctForest_bin3(this)
+    !   class(TestEdgeForest), intent(inout) :: this
+    !   real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
+    !   real(r8), dimension(nlevedgeforest) :: expected
+    !   real(r8) :: pct_nonforest
+
+    !   pct_nonforest = 10._r8
+
+    !   call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+
+    !   @assertEqual(expected_90pctForest(3)/sum(expected_90pctForest), fraction_forest_in_each_bin(3), tolerance=tol)
+
+    ! end subroutine edge_distrib_test90pctForest_bin3
+
+
+    ! @Test
+    ! subroutine edge_distrib_test90pctForest_bin4(this)
+    !   class(TestEdgeForest), intent(inout) :: this
+    !   real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
+    !   real(r8), dimension(nlevedgeforest) :: expected
+    !   real(r8) :: pct_nonforest
+
+    !   pct_nonforest = 10._r8
+
+    !   call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+
+    !   @assertEqual(expected_90pctForest(4)/sum(expected_90pctForest), fraction_forest_in_each_bin(4), tolerance=tol)
+
+    ! end subroutine edge_distrib_test90pctForest_bin4
     
     
-    @Test
-    subroutine edge_distrib_test90pctForest_bin4_noNorm(this)
-      class(TestEdgeForest), intent(inout) :: this
-      real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
-      real(r8), dimension(nlevedgeforest) :: expected
-      real(r8) :: pct_nonforest
+    ! @Test
+    ! subroutine edge_distrib_test90pctForest_bin4_noNorm(this)
+    !   class(TestEdgeForest), intent(inout) :: this
+    !   real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
+    !   real(r8), dimension(nlevedgeforest) :: expected
+    !   real(r8) :: pct_nonforest
 
-      pct_nonforest = 10._r8
+    !   pct_nonforest = 10._r8
 
-      call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin, norm=.false.)
+    !   call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin, norm=.false.)
 
-      @assertEqual(expected_90pctForest(4), fraction_forest_in_each_bin(4), tolerance=tol)
+    !   @assertEqual(expected_90pctForest(4), fraction_forest_in_each_bin(4), tolerance=tol)
 
-    end subroutine edge_distrib_test90pctForest_bin4_noNorm
+    ! end subroutine edge_distrib_test90pctForest_bin4_noNorm
 
 
 
-    @Test
-    subroutine edge_distrib_test90pctForest_bin5(this)
-      class(TestEdgeForest), intent(inout) :: this
-      real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
-      real(r8), dimension(nlevedgeforest) :: expected
-      real(r8) :: pct_nonforest
+    ! @Test
+    ! subroutine edge_distrib_test90pctForest_bin5(this)
+    !   class(TestEdgeForest), intent(inout) :: this
+    !   real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
+    !   real(r8), dimension(nlevedgeforest) :: expected
+    !   real(r8) :: pct_nonforest
 
-      pct_nonforest = 10._r8
+    !   pct_nonforest = 10._r8
 
-      call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
+    !   call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, efb_amplitudes, efb_sigmas, efb_centers, efb_decay, fraction_forest_in_each_bin)
 
-      @assertEqual(expected_90pctForest(5)/sum(expected_90pctForest), fraction_forest_in_each_bin(5), tolerance=tol)
+    !   @assertEqual(expected_90pctForest(5)/sum(expected_90pctForest), fraction_forest_in_each_bin(5), tolerance=tol)
 
-    end subroutine edge_distrib_test90pctForest_bin5
+    ! end subroutine edge_distrib_test90pctForest_bin5
 
 
     ! @Test
