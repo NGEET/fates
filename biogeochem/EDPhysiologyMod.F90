@@ -429,7 +429,7 @@ contains
 
   ! ============================================================================
 
-  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in, bc_out )
+  subroutine PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in )
 
     ! -----------------------------------------------------------------------------------
     !
@@ -451,7 +451,6 @@ contains
     type(ed_site_type), intent(inout)  :: currentSite
     type(fates_patch_type), intent(inout) :: currentPatch
     type(bc_in_type), intent(in)       :: bc_in
-    type(bc_out_type), intent(inout)   :: bc_out
 
     !
     ! !LOCAL VARIABLES:
