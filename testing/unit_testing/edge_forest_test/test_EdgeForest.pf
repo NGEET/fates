@@ -312,4 +312,24 @@ module test_EdgeForest
 
     end subroutine test_gffeb_lognorm_denominator
 
+    @Test
+    subroutine test_assign_patch_to_bins_01(this)
+      class(TestEdgeForest), intent(inout) :: this
+      ! In
+      real(r8) :: tol = 1.e-9_r8
+      integer, parameter :: nlevedgeforest = 3
+      real(r8), dimension(nlevedgeforest) :: fraction_forest_in_each_bin
+      real(r8) :: area_forest_patches = 100._r8
+      real(r8) :: patch_area = 100._r8
+      ! Inout
+      real(r8), dimension(nlevedgeforest) :: sum_forest_bins_so_far_m2(:) = 0._r8
+      ! Out
+      real(r8), dimension(nlevedgeforest) :: area_in_edgeforest_bins
+
+      call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, nlevedgeforest, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
+
+      @assertEqual(sum_forest_bins_so_far_m2(1), 100._r8, tolerance=tol)
+      @assertEqual(area_in_edgeforest_bins(1), 100._r8, tolerance=tol)
+    end subroutine test_assign_patch_to_bins_01
+
   end module test_EdgeForest
