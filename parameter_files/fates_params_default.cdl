@@ -846,12 +846,6 @@ variables:
 	double fates_leaf_photo_temp_acclim_timescale ;
 		fates_leaf_photo_temp_acclim_timescale:units = "days" ;
 		fates_leaf_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_maintresp_leaf_model=2 or fates_leaf_photo_tempsens_model = 2)" ;
-	double fates_leaf_theta_cj_c3 ;
-		fates_leaf_theta_cj_c3:units = "unitless" ;
-		fates_leaf_theta_cj_c3:long_name = "SOON TO BE DEPRECATED, DO NOT USE" ;
-	double fates_leaf_theta_cj_c4 ;
-		fates_leaf_theta_cj_c4:units = "unitless" ;
-		fates_leaf_theta_cj_c4:long_name = "SOON TO BE DEPRECATED, DO NOT USE" ;
 	double fates_maintresp_nonleaf_baserate ;
 		fates_maintresp_nonleaf_baserate:units = "gC/gN/s" ;
 		fates_maintresp_nonleaf_baserate:long_name = "Base maintenance respiration rate for plant tissues, using Ryan 1991" ;
@@ -1774,9 +1768,9 @@ data:
 
  fates_landuse_grazing_phosphorus_use_eff = 0.5 ;
 
- fates_landuse_logging_coll_under_frac = 0. ;
+ fates_landuse_logging_coll_under_frac = 0 ;
 
- fates_landuse_logging_collateral_frac = 0. ;
+ fates_landuse_logging_collateral_frac = 0 ;
 
  fates_landuse_logging_dbhmax = _ ;
 
@@ -1784,21 +1778,17 @@ data:
 
  fates_landuse_logging_dbhmin = 0 ;
 
- fates_landuse_logging_direct_frac = 1. ;
+ fates_landuse_logging_direct_frac = 1 ;
 
  fates_landuse_logging_event_code = -30 ;
 
  fates_landuse_logging_export_frac = 0.8 ;
 
- fates_landuse_logging_mechanical_frac = 0. ;
+ fates_landuse_logging_mechanical_frac = 0 ;
 
  fates_leaf_photo_temp_acclim_thome_time = 30 ;
 
  fates_leaf_photo_temp_acclim_timescale = 30 ;
-
- fates_leaf_theta_cj_c3 = 0.999 ;
-
- fates_leaf_theta_cj_c4 = 0.999 ;
 
  fates_maintresp_nonleaf_baserate = 2.525e-06 ;
 

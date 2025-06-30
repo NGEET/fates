@@ -5,7 +5,7 @@
   into a single pdt-dimensioned parameter using integers to set the phenology habit -->
 
   <!-- To use this patch file run the following command: -->
-  <!--   Run `python ../tools/UpdateParamAPI.py -/-f archive/api40.0.0_pr1355_patch_params.xml` -->
+  <!--   Run `python ../tools/UpdateParamAPI.py -/-f archive/api41.0.0_prxxxx_patch_params.xml` -->
 
   <!-- General xml file usage notes: -->
   <!-- Special mod types "variable_add": creates a new variable
