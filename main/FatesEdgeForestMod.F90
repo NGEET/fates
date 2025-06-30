@@ -315,6 +315,61 @@ contains
   end subroutine get_fraction_of_edgeforest_in_each_bin
 
 
+  subroutine assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, tol, area_in_edgeforest_bins, sum_forest_bins_so_far_m2)
+    ! DESCRIPTION
+    ! Given one patch in a site, assign its area to edge bin(s).
+    !
+    ! ARGUMENTS
+    real(r8), dimension(:), pointer, intent(in) :: fraction_forest_in_each_bin
+    real(r8), intent(in) :: area_forest_patches
+    real(r8), intent(in) :: patch_area
+    real(r8), intent(in) :: tol
+    real(r8), dimension(:), intent(inout) :: area_in_edgeforest_bins
+    real(r8), intent(inout) :: sum_forest_bins_so_far_m2
+    !
+    ! LOCAL VARIABLES
+    real(r8) :: remaining_to_assign_from_patch_m2
+    real(r8) :: remaining_to_assign_to_bin_m2
+    integer  :: b
+    ! For checks
+    real(r8) :: err_chk
+
+    area_in_edgeforest_bins(:) = 0._r8
+    remaining_to_assign_from_patch_m2 = patch_area
+    binloop: do b = 1, nlevedgeforest
+
+       ! How much area is left for this bin?
+       remaining_to_assign_to_bin_m2 = sum(fraction_forest_in_each_bin(1:b))*area_forest_patches - sum_forest_bins_so_far_m2
+       if (remaining_to_assign_to_bin_m2 <= 0) then
+          cycle
+       end if
+
+       ! Assign area
+       area_in_edgeforest_bins(b) = min(remaining_to_assign_from_patch_m2, remaining_to_assign_to_bin_m2)
+       remaining_to_assign_from_patch_m2 = remaining_to_assign_from_patch_m2 - area_in_edgeforest_bins(b)
+
+       ! Update accounting
+       sum_forest_bins_so_far_m2 = sum_forest_bins_so_far_m2 + area_in_edgeforest_bins(b)
+
+       if (remaining_to_assign_from_patch_m2 == 0._r8) then
+          exit
+       end if
+    end do binloop
+
+    ! Check that this patch's complete area was assigned (and no more)
+    err_chk = remaining_to_assign_from_patch_m2
+    if (abs(err_chk) > tol) then
+       write(fates_log(),*) "ERROR: not enough or too much patch area was assigned to bins (check 1); remainder = ",err_chk
+       call endrun(msg=errMsg(__FILE__, __LINE__))
+    end if
+    err_chk = patch_area - sum(area_in_edgeforest_bins)
+    if (abs(err_chk) > tol) then
+       write(fates_log(),*) "ERROR: not enough or too much patch area was assigned to bins (check 2); remainder = ",err_chk
+       call endrun(msg=errMsg(__FILE__, __LINE__))
+    end if
+  end subroutine assign_patch_to_bins
+
+
   subroutine assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
     ! DESCRIPTION
     ! Loops through forest patches from nearest to farthest from edge, assigning their
@@ -332,8 +387,6 @@ contains
     integer :: f, i, p, b
     type(fates_patch_type), pointer  :: currentPatch
     real(r8) :: sum_forest_bins_so_far_m2
-    real(r8) :: remaining_to_assign_from_patch_m2
-    real(r8) :: remaining_to_assign_to_bin_m2
     ! For checks
     real(r8), dimension(nlevedgeforest) :: bin_area_sums
     real(r8), parameter :: tol = 1.e-9_r8  ! m2
@@ -363,39 +416,7 @@ contains
        end if
 
        ! Assign this patch's area
-       currentPatch%area_in_edgeforest_bins(:) = 0._r8
-       remaining_to_assign_from_patch_m2 = currentPatch%area
-       binloop: do b = 1, nlevedgeforest
-
-          ! How much area is left for this bin?
-          remaining_to_assign_to_bin_m2 = sum(fraction_forest_in_each_bin(1:b))*area_forest_patches - sum_forest_bins_so_far_m2
-          if (remaining_to_assign_to_bin_m2 <= 0) then
-             cycle
-          end if
-
-          ! Assign area
-          currentPatch%area_in_edgeforest_bins(b) = min(remaining_to_assign_from_patch_m2, remaining_to_assign_to_bin_m2)
-          remaining_to_assign_from_patch_m2 = remaining_to_assign_from_patch_m2 - currentPatch%area_in_edgeforest_bins(b)
-
-          ! Update accounting
-          sum_forest_bins_so_far_m2 = sum_forest_bins_so_far_m2 + currentPatch%area_in_edgeforest_bins(b)
-
-          if (remaining_to_assign_from_patch_m2 == 0._r8) then
-             exit
-          end if
-       end do binloop
-
-       ! Check that this patch's complete area was assigned (and no more)
-       err_chk = remaining_to_assign_from_patch_m2
-       if (abs(err_chk) > tol) then
-          write(fates_log(),*) "ERROR: not enough or too much patch area was assigned to bins (check 1); remainder = ",err_chk
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-       end if
-       err_chk = currentPatch%area - sum(currentPatch%area_in_edgeforest_bins)
-       if (abs(err_chk) > tol) then
-          write(fates_log(),*) "ERROR: not enough or too much patch area was assigned to bins (check 2); remainder = ",err_chk
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-       end if
+       call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, currentPatch%area, tol, currentPatch%area_in_edgeforest_bins, sum_forest_bins_so_far_m2)
 
     end do forestpatchloop
 
