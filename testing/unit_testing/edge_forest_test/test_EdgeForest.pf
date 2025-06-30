@@ -32,7 +32,7 @@ module test_EdgeForest
   real(r8), parameter, dimension(nlevedgeforest-1) :: efb_sigmas = (/ 1.185102216622059, 0.6230347414031212, 0.7500050901443256, 0.8465094354405984 /)
   real(r8), parameter, dimension(nlevedgeforest-1) :: efb_centers = (/ 5.4114116418770735, 2.7788419192134937, 2.3020137304843664, 1.973996133523811 /)
   real(r8), parameter :: efb_decay = 4.151608208778201
-  
+
   real(r8), parameter, dimension(nlevedgeforest) :: expected_90pctForest = (/ &
   0.3604703360785574, &
   0.3563516833665867, &
@@ -213,8 +213,8 @@ module test_EdgeForest
     !   @assertEqual(expected_90pctForest(4)/sum(expected_90pctForest), fraction_forest_in_each_bin(4), tolerance=tol)
 
     ! end subroutine edge_distrib_test90pctForest_bin4
-    
-    
+
+
     ! @Test
     ! subroutine edge_distrib_test90pctForest_bin4_noNorm(this)
     !   class(TestEdgeForest), intent(inout) :: this
@@ -268,7 +268,7 @@ module test_EdgeForest
     !   @assertEqual(expected, fraction_forest_in_each_bin, tolerance=tol)
 
     ! end subroutine edge_distrib_test50pctForest
-    
+
     @Test
     subroutine test_gffeb_lognorm_numerator(this)
       class(TestEdgeForest), intent(inout) :: this
@@ -278,7 +278,7 @@ module test_EdgeForest
       real(r8) :: sigma  ! Sigma
       real(r8) :: expected
       real(r8) :: actual
-      
+
       x = 10._r8
       ! Bin 4
       A = 1.601064269911203
@@ -291,7 +291,7 @@ module test_EdgeForest
       @assertEqual(expected, actual, tolerance=tol)
 
     end subroutine test_gffeb_lognorm_numerator
-    
+
     @Test
     subroutine test_gffeb_lognorm_denominator(this)
       class(TestEdgeForest), intent(inout) :: this
@@ -301,7 +301,7 @@ module test_EdgeForest
       real(r8) :: sigma  ! Sigma
       real(r8) :: expected
       real(r8) :: actual
-      
+
       x = 10._r8
       ! Bin 4
       sigma = 0.8465094354405984
