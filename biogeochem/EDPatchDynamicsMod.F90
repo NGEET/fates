@@ -48,7 +48,6 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : nocomp_bareground
   use FatesInterfaceTypesMod    , only : hlm_use_planthydro
   use FatesInterfaceTypesMod    , only : bc_in_type
-  use FatesInterfaceTypesMod    , only : bc_out_type
   use FatesInterfaceTypesMod    , only : numpft
   use FatesInterfaceTypesMod    , only : hlm_stepsize
   use FatesInterfaceTypesMod    , only : hlm_use_sp
@@ -483,7 +482,7 @@ contains
 
     ! ============================================================================
 
-  subroutine spawn_patches( currentSite, bc_in, bc_out)
+  subroutine spawn_patches( currentSite, bc_in )
     !
     ! !DESCRIPTION:
     ! In this subroutine, the following happens,
@@ -510,7 +509,6 @@ contains
     ! !ARGUMENTS:
     type (ed_site_type), intent(inout) :: currentSite
     type (bc_in_type), intent(in)      :: bc_in
-    type (bc_out_type), intent(inout)  :: bc_out
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: newPatch
@@ -755,7 +753,7 @@ contains
 
                             call CopyPatchMeansTimers(currentPatch, newPatch)
 
-                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis, i_disturbance_type, bc_out)
+                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis, i_disturbance_type)
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
                             select case(i_disturbance_type)
@@ -770,13 +768,13 @@ contains
                                end if
                             case (dtype_ifire)
                                call fire_litter_fluxes(currentSite, currentPatch, &
-                                    newPatch, patch_site_areadis,bc_in, bc_out)
+                                    newPatch, patch_site_areadis,bc_in)
                             case (dtype_ifall)
                                call mortality_litter_fluxes(currentSite, currentPatch, &
                                     newPatch, patch_site_areadis,bc_in)
                             case (dtype_ilandusechange)
                                call landusechange_litter_fluxes(currentSite, currentPatch, &
-                                    newPatch, patch_site_areadis,bc_in, bc_out, &
+                                    newPatch, patch_site_areadis,bc_in, &
                                     clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel))
 
                                ! if land use change, then may need to change nocomp pft, so tag as having transitioned LU
@@ -1425,7 +1423,7 @@ contains
 
                          allocate(temp_patch)
 
-                         call split_patch(currentSite, currentPatch, temp_patch, fraction_to_keep, newp_area, bc_out)
+                         call split_patch(currentSite, currentPatch, temp_patch, fraction_to_keep, newp_area)
                          !
                          temp_patch%nocomp_pft_label = 0
 
@@ -1528,7 +1526,7 @@ contains
                                ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
                                allocate(temp_patch)
 
-                               call split_patch(currentSite, buffer_patch, temp_patch, fraction_to_keep, newp_area, bc_out)
+                               call split_patch(currentSite, buffer_patch, temp_patch, fraction_to_keep, newp_area)
 
                                ! give the new patch the intended nocomp PFT label
                                temp_patch%nocomp_pft_label = i_pft
@@ -1637,7 +1635,7 @@ contains
 
   ! -----------------------------------------------------------------------------------------
 
-  subroutine split_patch(currentSite, currentPatch, new_patch, fraction_to_keep, area_to_remove, bc_out)
+  subroutine split_patch(currentSite, currentPatch, new_patch, fraction_to_keep, area_to_remove)
     !
     ! !DESCRIPTION:
     !  Split a patch into two patches that are identical except in their areas
@@ -1648,7 +1646,6 @@ contains
     type(fates_patch_type) , intent(inout), pointer :: new_patch         ! New Patch
     real(r8), intent(in)                            :: fraction_to_keep  ! fraction of currentPatch to keep, the rest goes to newpatch
     real(r8), intent(in), optional                  :: area_to_remove     ! area of currentPatch to remove, the rest goes to newpatch
-    type(bc_out_type)   , intent(inout)             :: bc_out
     !
     ! !LOCAL VARIABLES:
     integer  :: el                           ! element loop index
@@ -1685,7 +1682,7 @@ contains
 
     call CopyPatchMeansTimers(currentPatch, new_patch)
 
-    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, 0, bc_out)
+    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, 0)
 
     ! Next, we loop through the cohorts in the donor patch, copy them with
     ! area modified number density into the new-patch, and apply survivorship.
@@ -1820,8 +1817,7 @@ contains
                                  currentPatch,       &
                                  newPatch,           &
                                  patch_site_areadis, &
-                                 dist_type,          &
-                                 bc_out)
+                                 dist_type)
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -1871,8 +1867,7 @@ contains
     real(r8)            , intent(in)    :: patch_site_areadis ! Area being donated
                                                               ! by current patch
     integer,              intent(in)    :: dist_type          ! disturbance type
-    type(bc_out_type)   , intent(inout)         :: bc_out
-    
+
     ! locals
     type(site_massbal_type), pointer :: site_mass
     type(litter_type),pointer :: curr_litt  ! litter object for current patch
@@ -2073,7 +2068,7 @@ contains
   ! ============================================================================
 
   subroutine fire_litter_fluxes(currentSite, currentPatch, &
-       newPatch, patch_site_areadis, bc_in, bc_out)
+       newPatch, patch_site_areadis, bc_in)
     !
     ! !DESCRIPTION:
     !  CWD pool burned by a fire. 
@@ -2093,8 +2088,7 @@ contains
     type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)    , intent(in)            :: bc_in
-    type(bc_out_type)   , intent(inout)         :: bc_out
-    
+
     !
     ! !LOCAL VARIABLES:
 
@@ -2546,7 +2540,7 @@ contains
     ! ============================================================================
 
   subroutine landusechange_litter_fluxes(currentSite, currentPatch, &
-       newPatch, patch_site_areadis, bc_in, bc_out, &
+       newPatch, patch_site_areadis, bc_in,  &
        clearing_matrix_element)
     !
     ! !DESCRIPTION:
@@ -2563,7 +2557,6 @@ contains
     type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)               , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)       , intent(in)            :: bc_in
-    type(bc_out_type)      , intent(inout)         :: bc_out
     logical                , intent(in)            :: clearing_matrix_element ! whether or not to clear vegetation
 
     !
