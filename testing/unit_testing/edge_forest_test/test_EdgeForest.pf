@@ -315,8 +315,8 @@ module test_EdgeForest
 
     @Test
     subroutine test_assign_patch_to_bins_01(this)
+      ! The site has just one forest patch. All of the site's forest area is in the bin closest to edge.
       class(TestEdgeForest), intent(inout) :: this
-      real(r8) :: tol = 1.e-9_r8
       integer, parameter :: nlevedgeforest_tmp = 3
 
       ! The site has 100 area of forest
@@ -335,10 +335,150 @@ module test_EdgeForest
       real(r8), dimension(nlevedgeforest_tmp), target :: fraction_forest_in_each_bin
       fraction_forest_in_each_bin = (/ 1._r8, 0._r8, 0._r8 /)
 
-      call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, nlevedgeforest_tmp, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
+      call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
+           nlevedgeforest_tmp, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
 
+      ! 0+100=100 area of the site's forest has been assigned after this call
       @assertEqual(100._r8, sum_forest_bins_so_far_m2, tolerance=tol)
+
+      ! All of the patch's area was assigned to the first edge bin
       @assertEqual(100._r8, area_in_edgeforest_bins(1), tolerance=tol)
     end subroutine test_assign_patch_to_bins_01
+
+    @Test
+    subroutine test_assign_patch_to_bins_02(this)
+      ! The site has multiple forest patches. All of the site's forest area is in the bin closest to edge.
+      class(TestEdgeForest), intent(inout) :: this
+      integer, parameter :: nlevedgeforest_tmp = 3
+
+      ! The site has 300 area of forest
+      real(r8) :: area_forest_patches = 300._r8
+
+      ! The size of this patch is 100 area
+      real(r8) :: patch_area = 100._r8
+
+      ! So far none of the site's forest area has been allocated to any bin
+      real(r8) :: sum_forest_bins_so_far_m2 = 0._r8
+
+      ! Out
+      real(r8), dimension(nlevedgeforest_tmp) :: area_in_edgeforest_bins
+
+      ! All of the site's forest is in the bin closest to edge
+      real(r8), dimension(nlevedgeforest_tmp), target :: fraction_forest_in_each_bin
+      fraction_forest_in_each_bin = (/ 1._r8, 0._r8, 0._r8 /)
+
+      call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
+           nlevedgeforest_tmp, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
+
+      ! 0+100=100 area of the site's forest has been assigned after this call
+      @assertEqual(100._r8, sum_forest_bins_so_far_m2, tolerance=tol)
+
+      ! All of the patch's area was assigned to the first edge bin
+      @assertEqual(100._r8, area_in_edgeforest_bins(1), tolerance=tol)
+      @assertEqual(0._r8, area_in_edgeforest_bins(2), tolerance=tol)
+      @assertEqual(0._r8, area_in_edgeforest_bins(3), tolerance=tol)
+    end subroutine test_assign_patch_to_bins_02
+
+    @Test
+    subroutine test_assign_patch_to_bins_03(this)
+      ! The site has just one forest patch. The site's forest split evenly across the two bins closest to edge.
+      class(TestEdgeForest), intent(inout) :: this
+      integer, parameter :: nlevedgeforest_tmp = 3
+
+      ! The site has 100 area of forest
+      real(r8) :: area_forest_patches = 100._r8
+
+      ! The size of this patch is 100 area
+      real(r8) :: patch_area = 100._r8
+
+      ! So far none of the site's forest area has been allocated to any bin
+      real(r8) :: sum_forest_bins_so_far_m2 = 0._r8
+
+      ! Out
+      real(r8), dimension(nlevedgeforest_tmp) :: area_in_edgeforest_bins
+
+      ! The site's forest split evenly across the two bins closest to edge
+      real(r8), dimension(nlevedgeforest_tmp), target :: fraction_forest_in_each_bin
+      fraction_forest_in_each_bin = (/ 0.5_r8, 0.5_r8, 0._r8 /)
+
+      call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
+           nlevedgeforest_tmp, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
+
+      ! 0+100=100 area of the site's forest has been assigned after this call
+      @assertEqual(100._r8, sum_forest_bins_so_far_m2, tolerance=tol)
+
+      ! Half of the patch's area was assigned to the first edge bin, half to the second
+      @assertEqual(50._r8, area_in_edgeforest_bins(1), tolerance=tol)
+      @assertEqual(50._r8, area_in_edgeforest_bins(2), tolerance=tol)
+      @assertEqual(0._r8, area_in_edgeforest_bins(3), tolerance=tol)
+    end subroutine test_assign_patch_to_bins_03
+
+    @Test
+    subroutine test_assign_patch_to_bins_04(this)
+      ! The site has just one forest patch. The site's forest is split evenly across the two bins farthest from edge.
+      class(TestEdgeForest), intent(inout) :: this
+      integer, parameter :: nlevedgeforest_tmp = 3
+
+      ! The site has 100 area of forest
+      real(r8) :: area_forest_patches = 100._r8
+
+      ! The size of this patch is 100 area
+      real(r8) :: patch_area = 100._r8
+
+      ! So far none of the site's forest area has been allocated to any bin
+      real(r8) :: sum_forest_bins_so_far_m2 = 0._r8
+
+      ! Out
+      real(r8), dimension(nlevedgeforest_tmp) :: area_in_edgeforest_bins
+
+      ! The site's forest is split evenly across the two bins farthest from edge
+      real(r8), dimension(nlevedgeforest_tmp), target :: fraction_forest_in_each_bin
+      fraction_forest_in_each_bin = (/ 0._r8, 0.5_r8, 0.5_r8 /)
+
+      call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
+           nlevedgeforest_tmp, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
+
+      ! 0+100=100 area of the site's forest has been assigned after this call
+      @assertEqual(100._r8, sum_forest_bins_so_far_m2, tolerance=tol)
+
+      ! Half of the patch's area was assigned to the second edge bin, half to the third
+      @assertEqual(0._r8, area_in_edgeforest_bins(1), tolerance=tol)
+      @assertEqual(50._r8, area_in_edgeforest_bins(2), tolerance=tol)
+      @assertEqual(50._r8, area_in_edgeforest_bins(3), tolerance=tol)
+    end subroutine test_assign_patch_to_bins_04
+
+    @Test
+    subroutine test_assign_patch_to_bins_05(this)
+      ! The site has multiple forest patches. Some of the site's forest area has already been assigned. The patch isn't big enough to take the rest of the site's forest area.
+      class(TestEdgeForest), intent(inout) :: this
+      integer, parameter :: nlevedgeforest_tmp = 3
+
+      ! The site has 100 area of forest
+      real(r8) :: area_forest_patches = 100._r8
+
+      ! The size of this patch is 50 area
+      real(r8) :: patch_area = 50._r8
+
+      ! So far 30 of the site's forest area has been allocated to any bin
+      real(r8) :: sum_forest_bins_so_far_m2 = 30._r8
+
+      ! Out
+      real(r8), dimension(nlevedgeforest_tmp) :: area_in_edgeforest_bins
+
+      ! The site's forest is split evenly across the two bins farthest from edge
+      real(r8), dimension(nlevedgeforest_tmp), target :: fraction_forest_in_each_bin
+      fraction_forest_in_each_bin = (/ 0._r8, 0.5_r8, 0.5_r8 /)
+
+      call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
+           nlevedgeforest_tmp, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
+
+      ! 30+50=80 area of the site's forest has been assigned after this call
+      @assertEqual(80._r8, sum_forest_bins_so_far_m2, tolerance=tol)
+
+      ! Some of the patch's area was assigned to the second edge bin, rest to the third
+      @assertEqual(0._r8, area_in_edgeforest_bins(1), tolerance=tol)
+      @assertEqual(20._r8, area_in_edgeforest_bins(2), tolerance=tol)
+      @assertEqual(30._r8, area_in_edgeforest_bins(3), tolerance=tol)
+    end subroutine test_assign_patch_to_bins_05
 
   end module test_EdgeForest
