@@ -2,7 +2,6 @@ module FatesEdgeForestMod
 
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nocomp_bareground
-  use FatesInterfaceTypesMod, only : nlevedgeforest
   use FatesGlobals, only : fates_log
   use FatesGlobals, only : endrun => fates_endrun
   use shr_log_mod, only : errMsg => shr_log_errMsg
@@ -315,7 +314,7 @@ contains
   end subroutine get_fraction_of_edgeforest_in_each_bin
 
 
-  subroutine assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, tol, area_in_edgeforest_bins, sum_forest_bins_so_far_m2)
+  subroutine assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, nlevedgeforest, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
     ! DESCRIPTION
     ! Given one patch in a site, assign its area to edge bin(s).
     !
@@ -323,9 +322,10 @@ contains
     real(r8), dimension(:), pointer, intent(in) :: fraction_forest_in_each_bin
     real(r8), intent(in) :: area_forest_patches
     real(r8), intent(in) :: patch_area
+    integer,  intent(in) :: nlevedgeforest
     real(r8), intent(in) :: tol
-    real(r8), dimension(:), intent(inout) :: area_in_edgeforest_bins
     real(r8), intent(inout) :: sum_forest_bins_so_far_m2
+    real(r8), dimension(:), intent(out) :: area_in_edgeforest_bins
     !
     ! LOCAL VARIABLES
     real(r8) :: remaining_to_assign_from_patch_m2
@@ -374,6 +374,9 @@ contains
     ! DESCRIPTION
     ! Loops through forest patches from nearest to farthest from edge, assigning their
     ! area to edge bin(s).
+    !
+    ! USES:
+    use FatesInterfaceTypesMod, only : nlevedgeforest
     ! ARGUMENTS
     type(ed_site_type), pointer, intent(in) :: site
     integer, dimension(:), intent(in) :: indices  ! Indices to use if you want to sort patches
@@ -416,7 +419,7 @@ contains
        end if
 
        ! Assign this patch's area
-       call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, currentPatch%area, tol, currentPatch%area_in_edgeforest_bins, sum_forest_bins_so_far_m2)
+       call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, currentPatch%area, nlevedgeforest, tol, sum_forest_bins_so_far_m2, currentPatch%area_in_edgeforest_bins)
 
     end do forestpatchloop
 
@@ -458,6 +461,7 @@ contains
     ! area of each patch that is in each edge bin.
     !
     ! USES:
+    use FatesInterfaceTypesMod, only : nlevedgeforest
     use EDParamsMod, only : ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center
     use EDParamsMod, only : ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center
     use EDParamsMod, only : ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c
