@@ -158,9 +158,6 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_use_tree_damage         ! This flag signals whether or not to turn on the
                                                   ! tree damage module
 
-   integer, public :: hlm_daylength_factor_switch ! This switch enables the use of the daylength factor from the HLM
-                                                  ! 1 = TRUE, 0 = FALSE
-
    integer, public :: hlm_hydr_solver             ! Switch that defines which hydraulic solver to use
                                                   ! 1 = Taylor solution that solves plant fluxes with 1 layer
                                                   !     sequentially placing solution on top of previous layer solves
@@ -168,16 +165,6 @@ module FatesInterfaceTypesMod
                                                   !     the soil simultaneously, 2D: soil x (root + shell)
                                                   ! 3 = Newton-Raphson (Deprecated) solution that solves all fluxes in a plant and
                                                   !     the soil simultaneously, 2D: soil x (root + shell)
-
-   integer, public :: hlm_photo_tempsens_model    ! switch for choosing the model that defines the temperature
-                                                  ! sensitivity of photosynthetic parameters (vcmax, jmax).
-                                                  ! 0=non-acclimating, 1=Kumarathunge et al., 2019
-
-   integer, public :: hlm_stomatal_assim_model    ! Switch designating whether to use net or gross assimilation in the stomata model
-                                                  ! 1 for net, 2 for gross
-
-   integer, public :: hlm_stomatal_model          ! switch for choosing between stomatal conductance models
-                                                  ! 1 for Ball-Berry, 2 for Medlyn
 
    integer, public :: hlm_maintresp_leaf_model    ! switch for choosing between leaf maintenance
                                                   ! respiration model. 1=Ryan (1991), 2=Atkin et al (2017)
@@ -189,11 +176,6 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_radiation_model         ! Switch for radiation model
                                                   ! Norman (1) and Two-stream (2)
 
-   integer, public :: hlm_electron_transport_model ! Switch for electron transport model
-                                                   ! (1) for Farquhar von Caemmerer & Berry  (FvCB)
-                                                   ! (2) for Johnson & Berry (2021) (JB) 
-   
-   
    integer, public :: hlm_regeneration_model      ! Switch for choosing between regeneration models:
                                                   ! (1) for Fates default
                                                   ! (2) for the Tree Recruitment Scheme (Hanbury-Brown et al., 2022)
