@@ -185,7 +185,7 @@ contains
     real(r8), intent(in) :: sigma  ! Sigma
     real(r8) :: gffeb_gaussian_numerator
 
-    gffeb_gaussian_numerator = A * exp(-(log(x) - mu)**2 / (2*sigma**2))
+    gffeb_gaussian_numerator = A * exp(-(x - mu)**2 / (2*sigma**2))
   end function gffeb_gaussian_numerator
 
   function gffeb_gaussian_denominator(x, sigma)
