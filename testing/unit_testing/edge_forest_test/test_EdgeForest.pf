@@ -301,6 +301,30 @@ module test_EdgeForest
     end subroutine test_gffeb_lognorm_numerator
 
     @Test
+    subroutine test_gffeb_gaussian_numerator(this)
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: x
+      real(r8) :: A      ! Amplitude
+      real(r8) :: mu     ! Center
+      real(r8) :: sigma  ! Sigma
+      real(r8) :: expected
+      real(r8) :: actual
+      logical  :: lognorm
+
+      x = 0.87
+      A = 2
+      sigma = 3
+      mu = 4
+      expected = 1.160527865802580
+      lognorm = .false.
+
+      actual = gffeb_norm_numerator(x, A, mu, sigma, lognorm)
+
+      @assertEqual(expected, actual, tolerance=tol)
+
+    end subroutine test_gffeb_gaussian_numerator
+
+    @Test
     subroutine test_gffeb_norm_denominator(this)
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: x
