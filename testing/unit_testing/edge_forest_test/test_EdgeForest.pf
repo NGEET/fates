@@ -7,6 +7,7 @@ module test_EdgeForest
   use FatesEdgeForestMod, only : indexx
   use FatesEdgeForestMod, only : get_fraction_of_edgeforest_in_each_bin
   use FatesEdgeForestMod, only : gffeb_norm_numerator, gffeb_norm_denominator, gffeb_quadratic
+  use FatesEdgeForestMod, only : gffeb_norm
   use FatesEdgeForestMod, only : assign_patch_to_bins
   use funit
 
@@ -323,6 +324,55 @@ module test_EdgeForest
       @assertEqual(expected, actual, tolerance=tol)
 
     end subroutine test_gffeb_gaussian_numerator
+
+    @Test
+    subroutine test_gffeb_norm_lognorm(this)
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: x
+      real(r8) :: A      ! Amplitude
+      real(r8) :: mu     ! Center
+      real(r8) :: sigma  ! Sigma
+      real(r8) :: expected
+      real(r8) :: actual
+      logical  :: lognorm
+
+      x = 10._r8
+      ! Bin 4
+      A = 1.601064269911203
+      sigma = 0.8465094354405984
+      mu = 1.973996133523811
+      expected = 0.06997909055322099
+      lognorm = .true.
+
+      actual = gffeb_norm(x, A, mu, sigma, lognorm)
+
+      @assertEqual(expected, actual, tolerance=tol)
+
+    end subroutine test_gffeb_norm_lognorm
+
+    @Test
+    subroutine test_gffeb_norm_gaussian(this)
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: x
+      real(r8) :: A      ! Amplitude
+      real(r8) :: mu     ! Center
+      real(r8) :: sigma  ! Sigma
+      real(r8) :: expected
+      real(r8) :: actual
+      logical  :: lognorm
+
+      x = 0.87
+      A = 2
+      sigma = 3
+      mu = 4
+      expected = 0.1773883645528331
+      lognorm = .false.
+
+      actual = gffeb_norm(x, A, mu, sigma, lognorm)
+
+      @assertEqual(expected, actual, tolerance=tol)
+
+    end subroutine test_gffeb_norm_gaussian
 
     @Test
     subroutine test_gffeb_norm_denominator(this)

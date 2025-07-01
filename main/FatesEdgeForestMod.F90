@@ -22,6 +22,7 @@ module FatesEdgeForestMod
   public :: get_fraction_of_edgeforest_in_each_bin
   public :: gffeb_norm_numerator
   public :: gffeb_norm_denominator
+  public :: gffeb_norm
   public :: gffeb_quadratic
   public :: assign_patch_to_bins
 
@@ -204,6 +205,16 @@ contains
     gffeb_norm_denominator = sigma * sqrt(2*pi) * x
   end function gffeb_norm_denominator
 
+  function gffeb_norm(x, A, mu, sigma, lognorm)
+    real(r8), intent(in) :: x
+    real(r8), intent(in) :: A      ! Amplitude
+    real(r8), intent(in) :: mu     ! Center
+    real(r8), intent(in) :: sigma  ! Sigma
+    logical,  intent(in) :: lognorm  ! Whether to take log(x) in numerator
+    real(r8) :: gffeb_norm
+
+    gffeb_norm = gffeb_norm_numerator(x, A, mu, sigma, lognorm) / gffeb_norm_denominator(x, sigma)
+  end function gffeb_norm
 
   function gffeb_quadratic(x, a, b, c)
     real(r8), intent(in) :: x
@@ -274,7 +285,7 @@ contains
             mu = efb_gaussian_centers(b)
             sigma = efb_gaussian_sigmas(b)
          end if
-         fraction_forest_in_bin(b) = gffeb_norm_numerator(x, A, mu, sigma, lognorm) / gffeb_norm_denominator(x, sigma)
+         fraction_forest_in_bin(b) = gffeb_norm(x, A, mu, sigma, lognorm)
 
        else if (.not. isnan(efb_quadratic_a(b))) then
          ! Quadratic
