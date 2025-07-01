@@ -5,7 +5,7 @@ from functional_class import FunctionalTest
 class FunctionalTestWithDrivers(FunctionalTest):
     """Class for running FATES functional tests with driver files"""
 
-    def __init__(self, datm_file: str, datm_file_url: str, *args):
+    def __init__(self, datm_file: str, *args):
 
         # Check that datm exists and save its absolute path
         self.datm_file = os.path.abspath(datm_file)

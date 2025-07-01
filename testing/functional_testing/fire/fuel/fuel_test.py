@@ -16,7 +16,6 @@ class FuelTest(FunctionalTestWithDrivers):
     def __init__(self, test_dict):
         super().__init__(
             test_dict["datm_file"],
-            test_dict["datm_file_url"],
             FuelTest.name,
             test_dict["test_dir"],
             test_dict["test_exe"],
