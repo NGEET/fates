@@ -2,6 +2,7 @@ module FatesEdgeForestMod
 
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nocomp_bareground
+  use FatesConstantsMod, only : nearzero
   use FatesGlobals, only : fates_log
   use FatesGlobals, only : endrun => fates_endrun
   use shr_log_mod, only : errMsg => shr_log_errMsg
@@ -259,6 +260,13 @@ contains
     real(r8) :: err_chk
     logical :: do_norm
 
+    ! If x is zero, the cell is 100% forest, and therefore it's all "deep forest"
+    fraction_forest_in_bin(:) = 0._r8
+    if (x < nearzero) then
+       fraction_forest_in_bin(nlevedgeforest) = 1._r8
+       return
+    end if
+
     if (present(norm)) then
        do_norm = norm
     else
@@ -269,11 +277,6 @@ contains
        if (.not. isnan(efb_gaussian_amplitudes(b))) then
          ! Gaussian
          ! TODO: This is almost the same as for Lognormal. Combine.
-         if (x == 0._r8) then
-            ! Avoid divide-by-zero
-            fraction_forest_in_bin(b) = 0._r8
-            cycle
-         end if
          A = efb_gaussian_amplitudes(b)
          mu = efb_gaussian_centers(b)
          sigma = efb_gaussian_sigmas(b)
@@ -281,11 +284,6 @@ contains
 
        else if (.not. isnan(efb_lognormal_amplitudes(b))) then
          ! Lognormal
-         if (x == 0._r8) then
-            ! Avoid divide-by-zero
-            fraction_forest_in_bin(b) = 0._r8
-            cycle
-         end if
          A = efb_lognormal_amplitudes(b)
          mu = efb_lognormal_centers(b)
          sigma = efb_lognormal_sigmas(b)

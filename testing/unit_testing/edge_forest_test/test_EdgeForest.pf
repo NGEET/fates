@@ -291,6 +291,29 @@ module test_EdgeForest
     end subroutine test_get_fraction_of_edgeforest_in_each_bin_x0
 
     @Test
+    subroutine test_get_fraction_of_edgeforest_in_each_bin_x0_norm(this)
+      ! If % nonforest is zero, all forest should be in last edge bin ("deep forest").
+      ! Same test as test_get_fraction_of_edgeforest_in_each_bin_x0, except norm=.true.
+      ! Shouldn't matter!
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: pct_nonforest = 0._r8
+      integer, parameter :: nlevedgeforest_tmp = 3
+      real(r8), dimension(nlevedgeforest_tmp) :: efb_params_dummy = (/ 1._r8, 2._r8, 3._r8 /)
+      logical :: norm = .true.  ! Shouldn't matter for this test
+      ! Output
+      real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
+
+      call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest_tmp, &
+           efb_params_dummy, efb_params_dummy, efb_params_dummy, &
+           efb_params_dummy, efb_params_dummy, efb_params_dummy, &
+           efb_params_dummy, efb_params_dummy, efb_params_dummy, &
+           fraction_forest_in_bin, norm)
+
+      @assertEqual( (/ 0._r8, 0._r8, 1._r8 /) , fraction_forest_in_bin)
+
+    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x0_norm
+
+    @Test
     subroutine test_gffeb_lognorm_numerator(this)
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: x
