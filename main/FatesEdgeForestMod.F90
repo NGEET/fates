@@ -22,6 +22,7 @@ module FatesEdgeForestMod
   public :: get_fraction_of_edgeforest_in_each_bin
   public :: gffeb_lognorm_numerator
   public :: gffeb_lognorm_denominator
+  public :: gffeb_quadratic
   public :: assign_patch_to_bins
 
 contains

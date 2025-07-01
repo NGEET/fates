@@ -6,7 +6,7 @@ module test_EdgeForest
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesEdgeForestMod, only : indexx
   use FatesEdgeForestMod, only : get_fraction_of_edgeforest_in_each_bin
-  use FatesEdgeForestMod, only : gffeb_lognorm_numerator, gffeb_lognorm_denominator
+  use FatesEdgeForestMod, only : gffeb_lognorm_numerator, gffeb_lognorm_denominator, gffeb_quadratic
   use FatesEdgeForestMod, only : assign_patch_to_bins
   use funit
 
@@ -318,6 +318,22 @@ module test_EdgeForest
       @assertEqual(expected, actual, tolerance=tol)
 
     end subroutine test_gffeb_lognorm_denominator
+
+    @Test
+    subroutine test_gffeb_quadratic(this)
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: x = 0.4_r8
+      real(r8) :: a = 1987._r8
+      real(r8) :: b = 2025._r8
+      real(r8) :: c = 1984._r8
+      real(r8) :: expected = 3111.92_r8
+      real(r8) :: actual
+
+      actual = gffeb_quadratic(x, a, b, c)
+
+      @assertEqual(expected, actual, tolerance=tol)
+
+    end subroutine test_gffeb_quadratic
 
     @Test
     subroutine test_assign_patch_to_bins_01(this)
