@@ -739,11 +739,6 @@ contains
          long_name='average snow depth', units='m', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_snow_depth_si )
 
-    call this%set_restart_var(vname='fates_trunk_product_site', vtype=site_r8, &
-         long_name='Accumulate trunk product flux at site', &
-         units='kgC/m2', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_trunk_product_si )
-
     call this%set_restart_var(vname='fates_landuse_config_site', vtype=site_int, &
          long_name='hlm_use_potentialveg status of run that created this restart file', &
          units='kgC/m2', flushval = flushzero, &
@@ -2743,9 +2738,6 @@ contains
           rio_fireweather_index_si(io_idx_si) = sites(s)%fireWeather%fire_weather_index
           rio_snow_depth_si(io_idx_si)   = sites(s)%snow_depth
 
-          ! Accumulated trunk product
-          rio_trunk_product_si(io_idx_si) = sites(s)%resources_management%trunk_product_site
-
           ! land use flag
           rio_landuse_config_si(io_idx_si) = hlm_use_potentialveg
 
@@ -3775,7 +3767,6 @@ contains
          
           sites(s)%fireWeather%fire_weather_index  = rio_fireweather_index_si(io_idx_si)
           sites(s)%snow_depth     = rio_snow_depth_si(io_idx_si)
-          sites(s)%resources_management%trunk_product_site = rio_trunk_product_si(io_idx_si)
 
           ! if needed, trigger the special procedure to initialize land use structure from a
           ! restart run that did not include land use.

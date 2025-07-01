@@ -430,7 +430,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_froot_mr_si
   integer :: ih_livestem_mr_si
   integer :: ih_livecroot_mr_si
-  integer :: ih_woodproduct_si
   integer :: ih_h2oveg_si
   integer :: ih_h2oveg_dead_si
   integer :: ih_h2oveg_recruit_si
@@ -2471,7 +2470,6 @@ contains
          hio_promotion_carbonflux_si       => this%hvars(ih_promotion_carbonflux_si)%r81d, &
          hio_canopy_mortality_carbonflux_si     => this%hvars(ih_canopy_mortality_carbonflux_si)%r81d, &
          hio_ustory_mortality_carbonflux_si => this%hvars(ih_understory_mortality_carbonflux_si)%r81d, &
-         hio_woodproduct_si                 => this%hvars(ih_woodproduct_si)%r81d, &
          hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
          hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
          hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
@@ -2544,10 +2542,6 @@ contains
          ! Model days elapsed since leaf on/off for cold-deciduous
          hio_cleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%cleafoffdate,r8)
          hio_cleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%cleafondate,r8)
-
-         ! track total wood product accumulation at the site level
-         hio_woodproduct_si(io_si) = sites(s)%resources_management%trunk_product_site &
-              * AREA_INV
 
          ! site-level fire variables:
 
@@ -6343,12 +6337,6 @@ contains
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_elai_si)
        
-       call this%set_history_var(vname='FATES_WOOD_PRODUCT', units='kg m-2',      &
-            long='total wood product from logging in kg carbon per m2 land area', &
-            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',   &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-            index=ih_woodproduct_si)
-
        ! Fire Variables
 
        call this%set_history_var(vname='FATES_NESTEROV_INDEX', units='',          &
