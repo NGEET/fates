@@ -20,8 +20,8 @@ module FatesEdgeForestMod
   ! Public for unit testing
   public :: indexx
   public :: get_fraction_of_edgeforest_in_each_bin
-  public :: gffeb_lognorm_numerator
-  public :: gffeb_lognorm_denominator
+  public :: gffeb_norm_numerator
+  public :: gffeb_norm_denominator
   public :: gffeb_quadratic
   public :: assign_patch_to_bins
 
@@ -45,10 +45,10 @@ contains
 
     ! LOCALS:
     type(fates_patch_type), pointer :: currentPatch ! patch object
-    
+
     tree_fraction = 0.0_r8
     grass_fraction = 0.0_r8
-    
+
     currentPatch => csite%oldest_patch
     do while(associated(currentPatch))
       if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
@@ -56,7 +56,7 @@ contains
         tree_fraction = tree_fraction + currentPatch%total_tree_area/AREA
         grass_fraction = grass_fraction + currentPatch%total_grass_area/AREA
         currentPatch%is_forest = is_patch_forest(currentPatch, forest_tree_fraction_threshold)
-      end if 
+      end if
       currentPatch => currentPatch%younger
     end do
 
@@ -177,47 +177,32 @@ contains
     deallocate(array)
   end subroutine rank_forest_edge_proximity
 
-
-  function gffeb_gaussian_numerator(x, A, mu, sigma)
-    ! TODO: This is almost the same as gffeb_lognorm_numerator(). Combine.
-    real(r8), intent(in) :: x
+  function gffeb_norm_numerator(x_in, A, mu, sigma, lognorm)
+    real(r8), intent(in) :: x_in
     real(r8), intent(in) :: A      ! Amplitude
     real(r8), intent(in) :: mu     ! Center
     real(r8), intent(in) :: sigma  ! Sigma
-    real(r8) :: gffeb_gaussian_numerator
+    logical,  intent(in) :: lognorm  ! Whether to take log(x)
+    real(r8) :: x
+    real(r8) :: gffeb_norm_numerator
 
-    gffeb_gaussian_numerator = A * exp(-(x - mu)**2 / (2*sigma**2))
-  end function gffeb_gaussian_numerator
+    if (lognorm) then
+       x = log(x_in)
+    else
+       x = x_in
+    end if
 
-  function gffeb_gaussian_denominator(x, sigma)
-    ! TODO: This is the same as gffeb_lognorm_denominator(). Combine.
+    gffeb_norm_numerator = A * exp(-(x - mu)**2 / (2*sigma**2))
+  end function gffeb_norm_numerator
+
+  function gffeb_norm_denominator(x, sigma)
     use FatesConstantsMod, only : pi => pi_const
     real(r8), intent(in) :: x
     real(r8), intent(in) :: sigma  ! Sigma
-    real(r8) :: gffeb_gaussian_denominator
+    real(r8) :: gffeb_norm_denominator
 
-    gffeb_gaussian_denominator = sigma * sqrt(2*pi) * x
-  end function gffeb_gaussian_denominator
-
-
-  function gffeb_lognorm_numerator(x, A, mu, sigma)
-    real(r8), intent(in) :: x
-    real(r8), intent(in) :: A      ! Amplitude
-    real(r8), intent(in) :: mu     ! Center
-    real(r8), intent(in) :: sigma  ! Sigma
-    real(r8) :: gffeb_lognorm_numerator
-
-    gffeb_lognorm_numerator = A * exp(-(log(x) - mu)**2 / (2*sigma**2))
-  end function gffeb_lognorm_numerator
-
-  function gffeb_lognorm_denominator(x, sigma)
-    use FatesConstantsMod, only : pi => pi_const
-    real(r8), intent(in) :: x
-    real(r8), intent(in) :: sigma  ! Sigma
-    real(r8) :: gffeb_lognorm_denominator
-
-    gffeb_lognorm_denominator = sigma * sqrt(2*pi) * x
-  end function gffeb_lognorm_denominator
+    gffeb_norm_denominator = sigma * sqrt(2*pi) * x
+  end function gffeb_norm_denominator
 
 
   function gffeb_quadratic(x, a, b, c)
@@ -259,6 +244,7 @@ contains
     ! Error checking
     real(r8), parameter :: tol = 1.e-9_r8  ! fraction of total forest area
     real(r8) :: err_chk
+    logical :: lognorm
     logical :: do_norm
 
     ! If x is zero, the cell is 100% forest, and therefore it's all "deep forest"
@@ -275,20 +261,20 @@ contains
     end if
 
     binloop: do b = 1, nlevedgeforest
-       if (.not. isnan(efb_gaussian_amplitudes(b))) then
-         ! Gaussian
-         ! TODO: This is almost the same as for Lognormal. Combine.
-         A = efb_gaussian_amplitudes(b)
-         mu = efb_gaussian_centers(b)
-         sigma = efb_gaussian_sigmas(b)
-         fraction_forest_in_bin(b) = gffeb_gaussian_numerator(x, A, mu, sigma) / gffeb_gaussian_denominator(x, sigma)
 
-       else if (.not. isnan(efb_lognormal_amplitudes(b))) then
-         ! Lognormal
-         A = efb_lognormal_amplitudes(b)
-         mu = efb_lognormal_centers(b)
-         sigma = efb_lognormal_sigmas(b)
-         fraction_forest_in_bin(b) = gffeb_lognorm_numerator(x, A, mu, sigma) / gffeb_lognorm_denominator(x, sigma)
+       if (.not. isnan(efb_gaussian_amplitudes(b)) .or. .not. isnan(efb_lognormal_amplitudes(b))) then
+         ! Gaussian or Lognormal
+         lognorm = .not. isnan(efb_lognormal_amplitudes(b))
+         if (lognorm) then
+            A = efb_lognormal_amplitudes(b)
+            mu = efb_lognormal_centers(b)
+            sigma = efb_lognormal_sigmas(b)
+         else
+            A = efb_gaussian_amplitudes(b)
+            mu = efb_gaussian_centers(b)
+            sigma = efb_gaussian_sigmas(b)
+         end if
+         fraction_forest_in_bin(b) = gffeb_norm_numerator(x, A, mu, sigma, lognorm) / gffeb_norm_denominator(x, sigma)
 
        else if (.not. isnan(efb_quadratic_a(b))) then
          ! Quadratic
