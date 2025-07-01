@@ -148,7 +148,7 @@ module test_EdgeForest
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            fraction_forest_in_bin, norm)
-      
+
       @assertEqual(0.704130653528599, fraction_forest_in_bin(1), tol)
 
     end subroutine test_get_fraction_of_edgeforest_in_each_bin_gaussian
@@ -172,7 +172,7 @@ module test_EdgeForest
            efb_params_amplitude, efb_params_sigma, efb_params_center, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            fraction_forest_in_bin, norm)
-      
+
       @assertEqual(0.19029780481010555, fraction_forest_in_bin(1), tol)
 
     end subroutine test_get_fraction_of_edgeforest_in_each_bin_lognorm
@@ -196,10 +196,39 @@ module test_EdgeForest
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_a, efb_params_b, efb_params_c, &
            fraction_forest_in_bin, norm)
-      
+
       @assertEqual(1.75, fraction_forest_in_bin(1), tol)
 
     end subroutine test_get_fraction_of_edgeforest_in_each_bin_quadratic
+
+
+    @Test
+    subroutine test_get_fraction_of_edgeforest_in_each_bin_norm(this)
+      ! Test that normalization works correctly: If all bins have the same parameters, they should
+      ! get normalized to 1/nbins.
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: pct_nonforest = 0.5_r8
+      integer, parameter :: nlevedgeforest_tmp = 3
+      real(r8), dimension(nlevedgeforest_tmp) :: efb_params_a = (/ 1._r8, 1._r8, 1._r8 /)
+      real(r8), dimension(nlevedgeforest_tmp) :: efb_params_b = (/ 1._r8, 1._r8, 1._r8 /)
+      real(r8), dimension(nlevedgeforest_tmp) :: efb_params_c = (/ 1._r8, 1._r8, 1._r8 /)
+      real(r8), dimension(nlevedgeforest_tmp) :: efb_params_nan = (/ nan, nan, nan /)
+      logical :: norm = .true.
+      ! Output
+      real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
+      real(r8) :: expected = 1._r8 / real(nlevedgeforest_tmp, r8)
+
+      call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest_tmp, &
+           efb_params_nan, efb_params_nan, efb_params_nan, &
+           efb_params_nan, efb_params_nan, efb_params_nan, &
+           efb_params_a, efb_params_b, efb_params_c, &
+           fraction_forest_in_bin, norm)
+
+      @assertEqual(expected, fraction_forest_in_bin(1), tol)
+      @assertEqual(expected, fraction_forest_in_bin(2), tol)
+      @assertEqual(expected, fraction_forest_in_bin(3), tol)
+
+    end subroutine test_get_fraction_of_edgeforest_in_each_bin_norm
 
 
     @Test
