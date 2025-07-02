@@ -138,9 +138,9 @@ program FatesTestEdgeForest
       b = ED_val_edgeforest_quadratic_b(e)
       c = ED_val_edgeforest_quadratic_c(e)
       write(*, '(a, i2, a)') "Quadratic (bin ",e,"):"
-      write(*, '(a, E15.6)') "   a: ",amplitude
-      write(*, '(a, E15.6)') "   b: ",mu
-      write(*, '(a, E15.6)') "   c: ",sigma
+      write(*, '(a, E15.6)') "   a: ",a
+      write(*, '(a, E15.6)') "   b: ",b
+      write(*, '(a, E15.6)') "   c: ",c
       exit
     end if
   end do
