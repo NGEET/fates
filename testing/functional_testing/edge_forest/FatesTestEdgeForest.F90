@@ -1,54 +1,41 @@
-program FatesTestAllometry
+program FatesTestEdgeForest
 
   use FatesConstantsMod,           only : r8 => fates_r8
-  use FatesAllometryMod,           only : h_allom, bagw_allom, blmax_allom
-  use FatesAllometryMod,           only : carea_allom, bsap_allom, bbgw_allom
-  use FatesAllometryMod,           only : bfineroot, bstore_allom, bdead_allom
-  use PRTParametersMod,            only : prt_params
-  use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
+  use FatesEdgeForestMod,          only : gffeb_norm, gffeb_quadratic
+  use EDParamsMod, only : ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma,ED_val_edgeforest_gaussian_center
+  use EDParamsMod, only : ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma,ED_val_edgeforest_lognormal_center
+  use EDParamsMod, only : ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b,ED_val_edgeforest_quadratic_c
+  use EDParamsMod, only : ED_val_edgeforest_bin_edges
+  use FatesUnitTestParamReaderMod, only :fates_unit_test_param_reader
   use FatesArgumentUtils,          only : command_line_arg
+  use shr_infnan_mod,              only : nan => shr_infnan_nan, assignment(=), isnan => shr_infnan_isnan
 
   implicit none
 
   ! LOCALS:
-  type(fates_unit_test_param_reader) :: param_reader            ! param reader instance
-  character(len=:), allocatable      :: param_file              ! input parameter file
-  integer                            :: numpft                  ! number of pfts (from parameter file)
-  integer                            :: i, j                    ! looping indices
-  integer                            :: numdbh                  ! size of dbh array
-  real(r8), allocatable              :: dbh(:)                  ! diameter at breast height [cm]
-  real(r8), allocatable              :: height(:, :)            ! height [m]
-  real(r8), allocatable              :: bagw(:, :)              ! aboveground woody biomass [kgC]
-  real(r8), allocatable              :: blmax(:, :)             ! plant leaf biomass [kgC]
-  real(r8), allocatable              :: crown_area(:, :)        ! crown area per cohort [m2]
-  real(r8), allocatable              :: sapwood_area(:, :)      ! cross sectional area of sapwood at reference height [m2]
-  real(r8), allocatable              :: bsap(:, :)              ! sapwood biomass [kgC]
-  real(r8), allocatable              :: bbgw(:, :)              ! belowground woody biomass [kgC]
-  real(r8), allocatable              :: fineroot_biomass(:, :)  ! belowground fineroot biomass [kgC]
-  real(r8), allocatable              :: bstore(:, :)            ! allometric target storage biomass [kgC]
-  real(r8), allocatable              :: bdead(:, :)             ! structural biomass (heartwood/struct) [kgC]
-  real(r8), allocatable              :: total_biom_tissues(:,:) ! total biomass calculated as bleaf + bfineroot + bdead + bsap [kgC]
-  real(r8), allocatable              :: total_biom_parts(:,:)   ! total biomass calculated as bleaf + bfineroot + agbw + bgbw [kgC]
+  type(fates_unit_test_param_reader) :: param_reader      ! param reader instance
+  character(len=:), allocatable      :: param_file        ! input parameter file
+  integer                            :: e, i              ! looping indices
+  integer                            :: n_bins            ! number of edge forest bins in the parameter file
+  integer                            :: n_pct_nonforest   ! size of pct_nonforest array
+  real(r8), allocatable              :: pct_nonforest(:)  ! percent nonforest in site
+  real(r8), allocatable              :: frac_in_bin_gaussian(:)  ! output: fraction of forest in a bin with Gaussian fit
+  real(r8), allocatable              :: frac_in_bin_lognormal(:) ! output: fraction of forest in a bin with lognormal fit
+  real(r8), allocatable              :: frac_in_bin_quadratic(:) ! output: fraction of forest in a bin with quadratic fit
+  ! Edge bin parameters
+  real(r8) :: amplitude, mu, sigma, a, b, c
+  logical  :: bin_found
 
   ! CONSTANTS:
   character(len=*), parameter :: out_file = 'edge_forest_out.nc'    ! output file
-  real(r8),         parameter :: min_dbh = 0.5_r8                 ! minimum DBH to calculate [cm]
-  real(r8),         parameter :: max_dbh = 200.0_r8               ! maximum DBH to calculate [cm]
-  real(r8),         parameter :: dbh_inc = 0.5_r8                 ! DBH increment to use [cm]
-
-  integer,          parameter :: crown_damage = 1                 ! crown damage
-  real(r8),         parameter :: elongation_factor = 1.0_r8       ! elongation factor for stem
-  real(r8),         parameter :: elongation_factor_roots = 1.0_r8 ! elongation factor for roots
-  real(r8),         parameter :: site_spread = 1.0_r8             ! site spread
-  real(r8),         parameter :: canopy_trim = 1.0_r8             ! canopy trim
-  real(r8),         parameter :: nplant = 1.0_r8                  ! number of plants per cohort
-  real(r8),         parameter :: leaf_to_fineroot = 1.0_r8        ! leaf to fineroot ratio
+  real(r8),         parameter :: min_pct_nonforest = 0._r8      ! minimum % nonforest to calculate
+  real(r8),         parameter :: max_pct_nonforest = 100.0_r8   ! maximum % nonforest to calculate
+  real(r8),         parameter :: pct_nonforest_inc = 0.1_r8     ! % nonforest increment to use
 
   interface
 
-    subroutine WriteAllometryData(out_file, ndbh, numpft, dbh, height, bagw, blmax,      &
-        crown_area, sapwood_area, bsap, bbgw, fineroot_biomass, bstore, bdead,           &
-        total_biom_parts, total_biom_tissues)
+    subroutine WriteEdgeForestData(out_file, n_pct_nonforest, pct_nonforest, frac_in_bin_gaussian, &
+        frac_in_bin_lognormal, frac_in_bin_quadratic)
 
       use FatesUnitTestIOMod, only : OpenNCFile, RegisterNCDims, CloseNCFile
       use FatesUnitTestIOMod, only : WriteVar, RegisterVar
@@ -57,248 +44,141 @@ program FatesTestAllometry
       implicit none
 
       character(len=*), intent(in) :: out_file
-      integer,          intent(in) :: ndbh, numpft
-      real(r8),         intent(in) :: dbh(:)
-      real(r8),         intent(in) :: height(:,:)
-      real(r8),         intent(in) :: bagw(:,:)
-      real(r8),         intent(in) :: blmax(:, :)
-      real(r8),         intent(in) :: crown_area(:, :)
-      real(r8),         intent(in) :: sapwood_area(:, :)
-      real(r8),         intent(in) :: bsap(:, :)
-      real(r8),         intent(in) :: bbgw(:, :)
-      real(r8),         intent(in) :: fineroot_biomass(:, :)
-      real(r8),         intent(in) :: bstore(:, :)
-      real(r8),         intent(in) :: bdead(:, :)
-      real(r8),         intent(in) :: total_biom_parts(:, :)
-      real(r8),         intent(in) :: total_biom_tissues(:, :)
-    end subroutine WriteAllometryData
+      integer,          intent(in) :: n_pct_nonforest
+      real(r8),         intent(in) :: pct_nonforest(:)
+      real(r8),         intent(in) :: frac_in_bin_gaussian(:)
+      real(r8),         intent(in) :: frac_in_bin_lognormal(:)
+      real(r8),         intent(in) :: frac_in_bin_quadratic(:)
+    end subroutine WriteEdgeForestData
 
   end interface
 
   ! read in parameter file name from command line
   param_file = command_line_arg(1)
-  
+
   ! read in parameter file
   call param_reader%Init(param_file)
   call param_reader%RetrieveParameters()
 
   ! determine sizes of arrays
-  numpft = size(prt_params%wood_density, dim=1)
-  numdbh = int((max_dbh - min_dbh)/dbh_inc + 1)
+  n_bins = size(ED_val_edgeforest_bin_edges, dim=1)
+  n_pct_nonforest = int((max_pct_nonforest - min_pct_nonforest)/pct_nonforest_inc + 1)
 
   ! allocate arrays
-  allocate(dbh(numdbh))
-  allocate(height(numdbh, numpft))
-  allocate(bagw(numdbh, numpft))
-  allocate(blmax(numdbh, numpft))
-  allocate(crown_area(numdbh, numpft))
-  allocate(sapwood_area(numdbh, numpft))
-  allocate(bsap(numdbh, numpft))
-  allocate(bbgw(numdbh, numpft))
-  allocate(fineroot_biomass(numdbh, numpft))
-  allocate(bstore(numdbh, numpft))
-  allocate(bdead(numdbh, numpft))
-  allocate(total_biom_parts(numdbh, numpft))
-  allocate(total_biom_tissues(numdbh, numpft))
+  allocate(pct_nonforest(n_pct_nonforest))
+  allocate(frac_in_bin_gaussian(n_pct_nonforest))
+  allocate(frac_in_bin_lognormal(n_pct_nonforest))
+  allocate(frac_in_bin_quadratic(n_pct_nonforest))
 
-  ! initialize dbh array
-  do i = 1, numdbh
-    dbh(i) = min_dbh + dbh_inc*(i-1)
+  ! initialize pct_nonforest array
+  do i = 1, n_pct_nonforest
+    pct_nonforest(i) = min_pct_nonforest + pct_nonforest_inc*(i-1)
   end do
 
-  ! calculate allometries
-  do i = 1, numpft
-    do j = 1, numdbh
-      call h_allom(dbh(j), i, height(j, i))
-      call bagw_allom(dbh(j), i, crown_damage, elongation_factor, bagw(j, i))
-      call blmax_allom(dbh(j), i, blmax(j, i))
-      call carea_allom(dbh(j), nplant, site_spread, i, crown_damage, crown_area(j, i))
-      call bsap_allom(dbh(j), i, crown_damage, canopy_trim, elongation_factor,           &
-        sapwood_area(j, i), bsap(j, i))
-      call bbgw_allom(dbh(j), i, elongation_factor, bbgw(j, i))
-      call bfineroot(dbh(j), i, canopy_trim, leaf_to_fineroot, elongation_factor_roots,  &
-        fineroot_biomass(j, i))
-      call bstore_allom(dbh(j), i, crown_damage, canopy_trim, bstore(j, i))
-      call bdead_allom(bagw(j, i), bbgw(j, i), bsap(j, i), i, bdead(j, i))
-      total_biom_parts(j, i) = blmax(j, i) + fineroot_biomass(j, i) + bagw(j, i) + bbgw(j, i)
-      total_biom_tissues(j, i) = blmax(j, i) + fineroot_biomass(j, i) + bdead(j, i) + bsap(j, i)
-    end do
+  ! calculate fraction using parameters of first Gaussian bin, if any
+  bin_found = .false.
+  do e = 1, n_bins
+    if (.not. isnan(ED_val_edgeforest_gaussian_amplitude(e))) then
+      bin_found = .true.
+      amplitude = ED_val_edgeforest_gaussian_amplitude(e)
+      mu = ED_val_edgeforest_gaussian_center(e)
+      sigma = ED_val_edgeforest_gaussian_sigma(e)
+      exit
+    end if
+  end do
+  do i = 1, n_pct_nonforest
+    if (bin_found) then
+      if (pct_nonforest(i) == 0._r8) then
+        frac_in_bin_gaussian(i) = 0._r8
+      else
+        frac_in_bin_gaussian(i) = gffeb_norm(pct_nonforest(i), amplitude, mu, sigma, lognorm=.false.)
+      end if
+    else
+      frac_in_bin_gaussian(i) = nan
+    end if
   end do
 
   ! write out data to netcdf file
-  call WriteAllometryData(out_file, numdbh, numpft, dbh, height, bagw, blmax, crown_area, &
-    sapwood_area, bsap, bbgw, fineroot_biomass, bstore, bdead, total_biom_parts,         &
-    total_biom_tissues)
+  call WriteEdgeForestData(out_file, n_pct_nonforest, pct_nonforest, frac_in_bin_gaussian, &
+    frac_in_bin_lognormal, frac_in_bin_quadratic)
 
-end program FatesTestAllometry
+end program FatesTestEdgeForest
 
 ! ----------------------------------------------------------------------------------------
 
-subroutine WriteAllometryData(out_file, numdbh, numpft, dbh, height, bagw, blmax,        &
-  crown_area, sapwood_area, bsap, bbgw, fineroot_biomass, bstore, bdead, total_biom_parts, &
-  total_biom_tissues)
+subroutine WriteEdgeForestData(out_file, n_pct_nonforest, pct_nonforest, frac_in_bin_gaussian, &
+        frac_in_bin_lognormal, frac_in_bin_quadratic)
   !
   ! DESCRIPTION:
-  ! Writes out data from the allometry test
+  ! Writes out data from the edge forest test
   !
-  use FatesConstantsMod,  only : r8 => fates_r8
   use FatesUnitTestIOMod, only : OpenNCFile, RegisterNCDims, CloseNCFile
   use FatesUnitTestIOMod, only : WriteVar
   use FatesUnitTestIOMod, only : RegisterVar
   use FatesUnitTestIOMod, only : EndNCDef
   use FatesUnitTestIOMod, only : type_double, type_int
-
+  use FatesConstantsMod,  only : r8 => fates_r8
   implicit none
 
-  ! ARGUMENTS:
-  character(len=*), intent(in) :: out_file                 ! output file name
-  integer,          intent(in) :: numdbh                   ! size of dbh array
-  integer,          intent(in) :: numpft                   ! number of pfts
-  real(r8),         intent(in) :: dbh(:)                   ! diameter at breast height [cm]
-  real(r8),         intent(in) :: height(:,:)              ! height [m]
-  real(r8),         intent(in) :: bagw(:,:)                ! aboveground biomass [kgC]
-  real(r8),         intent(in) :: blmax(:, :)              ! leaf biomass [kgC]
-  real(r8),         intent(in) :: crown_area(:, :)         ! crown area [m2]
-  real(r8),         intent(in) :: sapwood_area(:, :)       ! sapwood cross-sectional area [m2]
-  real(r8),         intent(in) :: bsap(:, :)               ! sapwood biomass [kgC]
-  real(r8),         intent(in) :: bbgw(:, :)               ! belowground biomass [kgC]
-  real(r8),         intent(in) :: fineroot_biomass(:, :)   ! fineroot biomass [kgC]
-  real(r8),         intent(in) :: bstore(:, :)             ! storage biomass [kgC]
-  real(r8),         intent(in) :: bdead(:, :)              ! deadwood biomass [kgC]
-  real(r8),         intent(in) :: total_biom_parts(:, :)   ! total biomass calculated from parts [kgC]
-  real(r8),         intent(in) :: total_biom_tissues(:, :) ! total biomass calculated from tissues [kgC]
+  ! ARGUMENTS
+  character(len=*), intent(in) :: out_file
+  integer,          intent(in) :: n_pct_nonforest
+  real(r8),         intent(in) :: pct_nonforest(:)
+  real(r8),         intent(in) :: frac_in_bin_gaussian(:)
+  real(r8),         intent(in) :: frac_in_bin_lognormal(:)
+  real(r8),         intent(in) :: frac_in_bin_quadratic(:)
 
   ! LOCALS:
-  integer, allocatable :: pft_indices(:) ! array of pft indices to write out
+  ! TODO: Set a local parameter for number of dimensions (1 here; was 2 for Allometry)
   integer              :: i              ! looping index
   integer              :: ncid           ! netcdf file id
-  character(len=8)     :: dim_names(2)   ! dimension names
-  integer              :: dimIDs(2)      ! dimension IDs
-  integer              :: dbhID, pftID   ! variable IDs for dimensions
-  integer              :: heightID, bagwID
-  integer              :: blmaxID, c_areaID
-  integer              :: sapwoodareaID, bsapID
-  integer              :: bbgwID, finerootID
-  integer              :: bstoreID, bdeadID
-  integer              :: totbiomID1, totbiomID2
+  character(len=24)     :: dim_names(1)   ! dimension name(s)
+  integer              :: dimIDs(1)      ! dimension ID(s)
+  integer              :: pctnonforestID ! variable ID(s) for dimensions
+  integer              :: gaussianID, lognormalID, quadraticID
 
-  ! create pft indices
-  allocate(pft_indices(numpft))
-  do i = 1, numpft
-    pft_indices(i) = i
-  end do
-
-  ! dimension names
-  dim_names = [character(len=12) :: 'dbh', 'pft']
+  ! dimension name(s)
+  dim_names = [character(len=24) :: 'pct_nonforest']
 
   ! open file
   call OpenNCFile(trim(out_file), ncid, 'readwrite')
 
   ! register dimensions
-  call RegisterNCDims(ncid, dim_names, (/numdbh, numpft/), 2, dimIDs)
+  call RegisterNCDims(ncid, dim_names, (/n_pct_nonforest/), 1, dimIDs)
 
-  ! register dbh
+  ! register percent nonforest
   call RegisterVar(ncid, dim_names(1), dimIDs(1:1), type_double,         &
     [character(len=20)  :: 'units', 'long_name'],                        &
-    [character(len=150) :: 'cm', 'diameter at breast height'], 2, dbhID)
+    [character(len=150) :: '%', 'Percentage of site that is nonforest'], 2, pctnonforestID)
 
-  ! register pft
-  call RegisterVar(ncid, dim_names(2), dimIDs(2:2), type_int,      &
-    [character(len=20)  :: 'units', 'long_name'],                  &
-    [character(len=150) :: '', 'plant functional type'], 2, pftID)
-
-  ! register height
-  call RegisterVar(ncid, 'height', dimIDs(1:2), type_double,   &
+  ! register frac_in_bin_gaussian
+  call RegisterVar(ncid, 'frac_in_bin_gaussian', dimIDs(1:1), type_double,   &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'], &
-    [character(len=150) :: 'pft dbh', 'm', 'plant height'],      &
-    3, heightID)
+    [character(len=150) :: 'pct_nonforest', 'unitless', 'Fraction of forest in first bin with Gaussian fit'],  &
+    3, gaussianID)
 
-  ! register aboveground biomass
-  call RegisterVar(ncid, 'bagw', dimIDs(1:2), type_double,                     &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],                 &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant aboveground woody biomass'], &
-    3, bagwID)
+  ! ! register frac_in_bin_lognormal
+  ! call RegisterVar(ncid, 'frac_in_bin_lognormal', dimIDs(1:1), type_double,   &
+  !   [character(len=20)  :: 'coordinates', 'units', 'long_name'], &
+  !   [character(len=150) :: 'pct_nonforest', 'unitless', 'Fraction of forest in first bin with lognormal fit'],  &
+  !   3, lognormalID)
 
-  ! register leaf biomass
-  call RegisterVar(ncid, 'blmax', dimIDs(1:2), type_double,               &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],            &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant maximum leaf biomass'], &
-    3, blmaxID)
-
-  ! register crown area
-  call RegisterVar(ncid, 'crown_area', dimIDs(1:2), type_double,          &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],            &
-    [character(len=150) :: 'pft dbh', 'm2', 'plant crown area per cohort'], &
-    3, c_areaID)
-
-  ! register sapwood area
-  call RegisterVar(ncid, 'sapwood_area', dimIDs(1:2), type_double,                                 &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],                                     &
-    [character(len=150) :: 'pft dbh', 'm2', 'plant cross section area sapwood at reference height'], &
-    3, sapwoodareaID)
-
-  ! register sapwood biomass
-  call RegisterVar(ncid, 'bsap', dimIDs(1:2), type_double,           &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant sapwood biomass'], &
-    3, bsapID)
-
-  ! register belowground woody biomass
-  call RegisterVar(ncid, 'bbgw', dimIDs(1:2), type_double,           &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant belowground woody biomass'], &
-    3, bbgwID)
-
-  ! register fineroot biomass
-  call RegisterVar(ncid, 'fineroot_biomass', dimIDs(1:2), type_double,         &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant fineroot biomass'], &
-    3, finerootID)
-
-  ! register storage biomass
-  call RegisterVar(ncid, 'bstore', dimIDs(1:2), type_double,         &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant storage biomass'], &
-    3, bstoreID)
-
-  ! register structural biomass
-  call RegisterVar(ncid, 'bdead', dimIDs(1:2), type_double,         &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant deadwood (structural/heartwood) biomass'], &
-    3, bdeadID)
-
-  ! register total biomass (parts)
-  call RegisterVar(ncid, 'total_biomass_parts', dimIDs(1:2), type_double,         &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant total biomass calculated from parts'], &
-    3, totbiomID1)
-
-  ! register total biomass (tissues)
-  call RegisterVar(ncid, 'total_biomass_tissues', dimIDs(1:2), type_double,         &
-    [character(len=20)  :: 'coordinates', 'units', 'long_name'],       &
-    [character(len=150) :: 'pft dbh', 'kgC', 'plant total biomass calculated from tissues'], &
-    3, totbiomID2)
+  ! ! register frac_in_bin_quadratic
+  ! call RegisterVar(ncid, 'frac_in_bin_quadratic', dimIDs(1:1), type_double,   &
+  !   [character(len=20)  :: 'coordinates', 'units', 'long_name'], &
+  !   [character(len=150) :: 'pct_nonforest', 'unitless', 'Fraction of forest in first bin with quadratic fit'],  &
+  !   3, quadraticID)
 
   ! finish defining variables
   call EndNCDef(ncid)
 
   ! write out data
-  call WriteVar(ncid, dbhID, dbh(:))
-  call WriteVar(ncid, pftID, pft_indices(:))
-  call WriteVar(ncid, heightID, height(:,:))
-  call WriteVar(ncid, bagwID, bagw(:,:))
-  call WriteVar(ncid, blmaxID, blmax(:,:))
-  call WriteVar(ncid, c_areaID, crown_area(:,:))
-  call WriteVar(ncid, sapwoodareaID, sapwood_area(:,:))
-  call WriteVar(ncid, bsapID, bsap(:,:))
-  call WriteVar(ncid, bbgwID, bbgw(:,:))
-  call WriteVar(ncid, finerootID, fineroot_biomass(:,:))
-  call WriteVar(ncid, bstoreID, bstore(:,:))
-  call WriteVar(ncid, bdeadID, bdead(:,:))
-  call WriteVar(ncid, totbiomID1, total_biom_parts(:,:))
-  call WriteVar(ncid, totbiomID2, total_biom_tissues(:,:))
+  call WriteVar(ncid, pctnonforestID, pct_nonforest(:))
+  call WriteVar(ncid, gaussianID, frac_in_bin_gaussian(:))
+  ! call WriteVar(ncid, lognormalID, frac_in_bin_lognormal(:))
+  ! call WriteVar(ncid, quadraticID, frac_in_bin_quadratic(:))
 
   ! close the file
   call CloseNCFile(ncid)
 
-end subroutine WriteAllometryData
+end subroutine WriteEdgeForestData
