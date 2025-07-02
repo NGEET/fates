@@ -7,6 +7,7 @@ add_subdirectory(functional_testing/fire/fuel fates_fuel_ftest)
 add_subdirectory(functional_testing/fire/ros fates_ros_ftest)
 add_subdirectory(functional_testing/patch fates_patch_ftest)
 add_subdirectory(functional_testing/fire/mortality fates_firemort_ftest)
+add_subdirectory(functional_testing/edge_forest fates_edge_forest_ftest)
 
 ## Unit tests
 add_subdirectory(unit_testing/fire_weather_test fates_fire_weather_utest)
