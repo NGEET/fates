@@ -1307,7 +1307,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine canopy_summarization( nsites, sites, bc_in )
+  subroutine canopy_summarization( nsites, sites )
 
     ! ----------------------------------------------------------------------------------
     ! Much of this routine was once ed_clm_link minus all the IO and history stuff
@@ -1323,7 +1323,6 @@ contains
     ! !ARGUMENTS
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type)  , pointer :: currentPatch
@@ -2075,7 +2074,7 @@ contains
     ! call during the fast timestep sequence
 
     if (hlm_use_planthydro.eq.itrue) then
-       call RecruitWaterStorage(nsites,sites,bc_out)
+       call RecruitWaterStorage(nsites,sites)
     end if
 
   end subroutine update_hlm_dynamics

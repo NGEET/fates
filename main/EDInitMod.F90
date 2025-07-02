@@ -53,7 +53,7 @@ module EDInitMod
   use EDTypesMod                , only : phen_dstat_moistoff
   use EDTypesMod                , only : phen_cstat_notcold
   use EDTypesMod                , only : phen_dstat_moiston
-  use FatesInterfaceTypesMod         , only : bc_in_type,bc_out_type
+  use FatesInterfaceTypesMod         , only : bc_in_type
   use FatesInterfaceTypesMod         , only : hlm_use_planthydro
   use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
   use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
@@ -128,7 +128,7 @@ contains
 
   ! ============================================================================
 
-  subroutine init_site_vars( site_in, bc_in, bc_out )
+  subroutine init_site_vars( site_in, bc_in )
     !
     ! !DESCRIPTION:
     !
@@ -136,7 +136,6 @@ contains
     ! !ARGUMENTS
     type(ed_site_type), intent(inout) :: site_in
     type(bc_in_type),intent(in)       :: bc_in
-    type(bc_out_type),intent(in)      :: bc_out
     !
     ! !LOCAL VARIABLES:
     !----------------------------------------------------------------------
