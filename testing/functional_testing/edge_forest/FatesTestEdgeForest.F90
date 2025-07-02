@@ -83,6 +83,10 @@ program FatesTestEdgeForest
       amplitude = ED_val_edgeforest_gaussian_amplitude(e)
       mu = ED_val_edgeforest_gaussian_center(e)
       sigma = ED_val_edgeforest_gaussian_sigma(e)
+      write(*, *) "Gaussian:"
+      write(*, '(a, E15.6)') "   amplitude: ",amplitude
+      write(*, '(a, E15.6)') "          mu: ",mu
+      write(*, '(a, E15.6)') "       sigma: ",sigma
       exit
     end if
   end do
@@ -106,6 +110,10 @@ program FatesTestEdgeForest
       amplitude = ED_val_edgeforest_lognormal_amplitude(e)
       mu = ED_val_edgeforest_lognormal_center(e)
       sigma = ED_val_edgeforest_lognormal_sigma(e)
+      write(*, *) "Lognormal:"
+      write(*, '(a, E15.6)') "   amplitude: ",amplitude
+      write(*, '(a, E15.6)') "          mu: ",mu
+      write(*, '(a, E15.6)') "       sigma: ",sigma
       exit
     end if
   end do
@@ -129,6 +137,10 @@ program FatesTestEdgeForest
       a = ED_val_edgeforest_quadratic_a(e)
       b = ED_val_edgeforest_quadratic_b(e)
       c = ED_val_edgeforest_quadratic_c(e)
+      write(*, *) "Quadratic:"
+      write(*, '(a, E15.6)') "   a: ",amplitude
+      write(*, '(a, E15.6)') "   b: ",mu
+      write(*, '(a, E15.6)') "   c: ",sigma
       exit
     end if
   end do
