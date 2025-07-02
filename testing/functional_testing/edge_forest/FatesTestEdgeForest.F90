@@ -1,7 +1,7 @@
 program FatesTestEdgeForest
 
   use FatesConstantsMod,           only : r8 => fates_r8
-  use FatesEdgeForestMod,          only : gffeb_norm, gffeb_quadratic
+  use FatesEdgeForestMod,          only : gffeb_norm, gffeb_quadratic, is_param_set
   use EDParamsMod, only : ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma,ED_val_edgeforest_gaussian_center
   use EDParamsMod, only : ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma,ED_val_edgeforest_lognormal_center
   use EDParamsMod, only : ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b,ED_val_edgeforest_quadratic_c
@@ -78,7 +78,7 @@ program FatesTestEdgeForest
   ! calculate fraction using parameters of first Gaussian bin, if any
   bin_found = .false.
   do e = 1, n_bins
-    if (.not. isnan(ED_val_edgeforest_gaussian_amplitude(e))) then
+    if (is_param_set(ED_val_edgeforest_gaussian_amplitude(e))) then
       bin_found = .true.
       amplitude = ED_val_edgeforest_gaussian_amplitude(e)
       mu = ED_val_edgeforest_gaussian_center(e)
@@ -105,7 +105,7 @@ program FatesTestEdgeForest
   ! calculate fraction using parameters of first lognormal bin, if any
   bin_found = .false.
   do e = 1, n_bins
-    if (.not. isnan(ED_val_edgeforest_lognormal_amplitude(e))) then
+    if (is_param_set(ED_val_edgeforest_lognormal_amplitude(e))) then
       bin_found = .true.
       amplitude = ED_val_edgeforest_lognormal_amplitude(e)
       mu = ED_val_edgeforest_lognormal_center(e)
@@ -132,7 +132,7 @@ program FatesTestEdgeForest
   ! calculate fraction using parameters of first quadratic bin, if any
   bin_found = .false.
   do e = 1, n_bins
-    if (.not. isnan(ED_val_edgeforest_quadratic_a(e))) then
+    if (is_param_set(ED_val_edgeforest_quadratic_a(e))) then
       bin_found = .true.
       a = ED_val_edgeforest_quadratic_a(e)
       b = ED_val_edgeforest_quadratic_b(e)

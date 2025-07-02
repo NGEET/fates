@@ -25,6 +25,7 @@ module FatesEdgeForestMod
   public :: gffeb_norm
   public :: gffeb_quadratic
   public :: assign_patch_to_bins
+  public :: is_param_set
 
 contains
 
@@ -225,6 +226,13 @@ contains
   end function gffeb_quadratic
 
 
+  function is_param_set(param)
+    real(r8), intent(in) :: param
+    logical :: is_param_set
+    is_param_set = .not. isnan(param)
+  end function is_param_set
+
+
   subroutine get_fraction_of_edgeforest_in_each_bin(x, nlevedgeforest, efb_gaussian_amplitudes, efb_gaussian_sigmas, efb_gaussian_centers, efb_lognormal_amplitudes, efb_lognormal_sigmas, efb_lognormal_centers, efb_quadratic_a, efb_quadratic_b, efb_quadratic_c, fraction_forest_in_bin, norm)
     ! DESCRIPTION:
     ! Get the fraction of forest in each bin.
@@ -273,9 +281,9 @@ contains
 
     binloop: do b = 1, nlevedgeforest
 
-       if (.not. isnan(efb_gaussian_amplitudes(b)) .or. .not. isnan(efb_lognormal_amplitudes(b))) then
+       if (is_param_set(efb_gaussian_amplitudes(b)) .or. is_param_set(efb_lognormal_amplitudes(b))) then
          ! Gaussian or Lognormal
-         lognorm = .not. isnan(efb_lognormal_amplitudes(b))
+         lognorm = is_param_set(efb_lognormal_amplitudes(b))
          if (lognorm) then
             A = efb_lognormal_amplitudes(b)
             mu = efb_lognormal_centers(b)
@@ -287,7 +295,7 @@ contains
          end if
          fraction_forest_in_bin(b) = gffeb_norm(x, A, mu, sigma, lognorm)
 
-       else if (.not. isnan(efb_quadratic_a(b))) then
+       else if (is_param_set(efb_quadratic_a(b))) then
          ! Quadratic
          fraction_forest_in_bin(b) = gffeb_quadratic(x, efb_quadratic_a(b), efb_quadratic_b(b), efb_quadratic_c(b))
 
