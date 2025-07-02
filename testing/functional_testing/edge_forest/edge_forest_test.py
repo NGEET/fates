@@ -45,6 +45,14 @@ class EdgeForestTest(FunctionalTest):
                 "varname": "Fraction of forest in first bin with Gaussian fit",
                 "units": "unitless",
             },
+            "frac_in_bin_lognormal": {
+                "varname": "Fraction of forest in first bin with lognormal fit",
+                "units": "unitless",
+            },
+            "frac_in_bin_quadratic": {
+                "varname": "Fraction of forest in first bin with quadratic fit",
+                "units": "unitless",
+            },
         }
         for plot, attributes in plot_dict.items():
             self.plot_edge_forest_frac_onebin(
