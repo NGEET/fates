@@ -3,6 +3,7 @@ module FatesEdgeForestMod
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nocomp_bareground
   use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : fates_check_param_set
   use FatesGlobals, only : fates_log
   use FatesGlobals, only : endrun => fates_endrun
   use shr_log_mod, only : errMsg => shr_log_errMsg
@@ -230,6 +231,9 @@ contains
     real(r8), intent(in) :: param
     logical :: is_param_set
     is_param_set = .not. isnan(param)
+    if (is_param_set) then
+       is_param_set = param < fates_check_param_set
+    end if
   end function is_param_set
 
 
