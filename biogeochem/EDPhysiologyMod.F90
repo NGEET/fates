@@ -2210,7 +2210,7 @@ contains
                 
                 ! Seed input from external sources (user param seed rain, or dispersal model)
                 ! Include both prescribed seed_suppl and seed_in dispersed from neighbouring gridcells
-                seed_in_external = seed_stoich * (seed_supply*years_per_day + currentSite%seed_in(pft)/area  ![kg/m2/day]
+                seed_in_external = seed_stoich * (seed_supply*years_per_day + currentSite%seed_in(pft)/area)  ![kg/m2/day]
                 litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
                 
                 ! Seeds entering externally [kg/site/day]
