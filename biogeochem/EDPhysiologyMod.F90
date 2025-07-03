@@ -147,7 +147,8 @@ module EDPhysiologyMod
   use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
   use FatesInterfaceTypesMod, only : hlm_use_luh
   use FatesInterfaceTypesMod, only : hlm_regeneration_model
-
+  
+  
   implicit none
   private
 
@@ -158,7 +159,6 @@ module EDPhysiologyMod
   public :: calculate_SP_properties
   public :: recruitment
   public :: ZeroLitterFluxes
-
   public :: ZeroAllocationRates
   public :: PreDisturbanceLitterFluxes
   public :: PreDisturbanceIntegrateLitter
@@ -440,8 +440,7 @@ contains
     ! associated with seed turnover, seed influx, litterfall from live and
     ! dead plants, germination, and fragmentation.
     !
-    ! At this time we do not have explicit herbivory, and burning losses to litter
-    ! are handled elsewhere.
+    ! Herbivory is handled here. burning losses to litter are handled elsewhere.
     !
     ! Note: The processes conducted here DO NOT handle litter fluxes associated
     !       with disturbance.  Those fluxes are handled elsewhere (EDPatchDynamcisMod)
@@ -2978,7 +2977,7 @@ contains
             elflux_diags%root_litter_input(pft) +  &
             (fnrt_m_turnover + store_m_turnover ) * currentCohort%n
 
-       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere
+       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere (and also for tracking)
 
        site_mass%herbivory_flux_out = &
             site_mass%herbivory_flux_out + &
