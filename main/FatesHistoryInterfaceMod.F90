@@ -356,7 +356,14 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_primaryland_fusion_error_si
 
+  ! land-use-resolved variables
   integer :: ih_fracarea_si_landuse
+  integer :: ih_biomass_si_landuse
+  integer :: ih_burnedarea_si_landuse
+  integer :: ih_gpp_si_landuse
+  integer :: ih_npp_si_landuse
+
+  ! land use by land use variables
   integer :: ih_disturbance_rate_si_lulu
   integer :: ih_transition_matrix_si_lulu
   
@@ -660,6 +667,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_primarylands_fracarea_si
   integer :: ih_secondarylands_fracarea_si
   integer :: ih_secondarylands_fracarea_si_age
+  integer :: ih_primarylands_fracarea_si_age
   integer :: ih_fracarea_burnt_si_age
   ! integer :: ih_fire_rate_of_spread_front_si_age
   integer :: ih_fire_intensity_si_age
@@ -2405,7 +2413,6 @@ contains
     
     associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
          hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
-         hio_ncohorts_sec_si     => this%hvars(ih_ncohorts_sec_si)%r81d, &
          hio_ncl_si              => this%hvars(ih_ncl_si)%r81d, &
          hio_zstar_si            => this%hvars(ih_zstar_si)%r81d, &
          hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
@@ -2685,11 +2692,11 @@ contains
             hio_tfc_ros_si(io_si)              = hio_tfc_ros_si(io_si) + cpatch%TFC_ROS * cpatch%area * AREA_INV
             hio_fire_intensity_si(io_si)       = hio_fire_intensity_si(io_si) + cpatch%FI * cpatch%area * AREA_INV * J_per_kJ
             hio_fire_fracarea_si(io_si)        = hio_fire_fracarea_si(io_si) + cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
-            hio_fire_fuel_bulkd_si(io_si)      = hio_fire_fuel_bulkd_si(io_si) + cpatch%fuel_bulkd * cpatch%area * AREA_INV
-            hio_fire_fuel_eff_moist_si(io_si)  = hio_fire_fuel_eff_moist_si(io_si) + cpatch%fuel_eff_moist * cpatch%area * AREA_INV
-            hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel_sav * cpatch%area * AREA_INV / m_per_cm
-            hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel_mef * cpatch%area * AREA_INV
-            hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%sum_fuel * cpatch%area * AREA_INV
+            hio_fire_fuel_bulkd_si(io_si)      = hio_fire_fuel_bulkd_si(io_si) + cpatch%fuel%bulk_density_notrunks * cpatch%area * AREA_INV
+            hio_fire_fuel_eff_moist_si(io_si)  = hio_fire_fuel_eff_moist_si(io_si) + cpatch%fuel%average_moisture_notrunks * cpatch%area * AREA_INV
+            hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel%SAV_notrunks * cpatch%area * AREA_INV / m_per_cm
+            hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel%MEF_notrunks * cpatch%area * AREA_INV
+            hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%fuel%non_trunk_loading * cpatch%area * AREA_INV
 
             hio_fire_intensity_fracarea_product_si(io_si) = hio_fire_intensity_fracarea_product_si(io_si) + &
                  cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
@@ -3236,6 +3243,9 @@ contains
            hio_primarylands_fracarea_si => this%hvars(ih_primarylands_fracarea_si)%r81d, &
            hio_secondarylands_fracarea_si => this%hvars(ih_secondarylands_fracarea_si)%r81d, &
            hio_fracarea_si_landuse     => this%hvars(ih_fracarea_si_landuse)%r82d, &
+           hio_npp_si_landuse                 => this%hvars(ih_npp_si_landuse)%r82d, &
+           hio_biomass_si_landuse            => this%hvars(ih_biomass_si_landuse)%r82d, &
+           hio_burnedarea_si_landuse         => this%hvars(ih_burnedarea_si_landuse)%r82d, &
            hio_burnt_frac_litter_si_fuel      => this%hvars(ih_burnt_frac_litter_si_fuel)%r82d, &
            hio_fuel_amount_si_fuel            => this%hvars(ih_fuel_amount_si_fuel)%r82d, &
            hio_canopy_height_dist_si_height   => this%hvars(ih_canopy_height_dist_si_height)%r82d, &
@@ -3257,6 +3267,11 @@ contains
              hio_meanliqvol_si_pft                => this%hvars(ih_meanliqvol_si_pft)%r82d, &
              hio_meansmp_si_pft                   => this%hvars(ih_meansmp_si_pft)%r82d, &
              hio_elong_factor_si_pft              => this%hvars(ih_elong_factor_si_pft)%r82d, &
+             hio_seed_bank_si_pft                 => this%hvars(ih_seed_bank_si_pft)%r82d, &
+             hio_ungerm_seed_bank_si_pft          => this%hvars(ih_ungerm_seed_bank_si_pft)%r82d, &
+             hio_seedling_pool_si_pft             => this%hvars(ih_seedling_pool_si_pft)%r82d, &
+             hio_seeds_in_si_pft                  => this%hvars(ih_seeds_in_si_pft)%r82d, &
+             hio_seeds_in_local_si_pft            => this%hvars(ih_seeds_in_local_si_pft)%r82d, &
              hio_disturbance_rate_si_lulu         => this%hvars(ih_disturbance_rate_si_lulu)%r82d, &
              hio_cstarvmortality_continuous_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_continuous_carbonflux_si_pft)%r82d, &
              hio_transition_matrix_si_lulu      => this%hvars(ih_transition_matrix_si_lulu)%r82d, &
@@ -3501,6 +3516,11 @@ contains
 
                          hio_biomass_si_pft(io_si, ft) = hio_biomass_si_pft(io_si, ft) + &
                               (ccohort%n * AREA_INV) * total_m
+
+                         ! biomass by land use type
+                         hio_biomass_si_landuse(io_si, cpatch%land_use_label) = &
+                              hio_biomass_si_landuse(io_si, cpatch%land_use_label) &
+                              + total_m * ccohort%n * AREA_INV
 
                          if (ccohort%canopy_layer .eq. 1) then
                             storec_canopy_scpf(i_scpf) = &
@@ -4703,6 +4723,7 @@ contains
          hio_mortality_understory_si_scag     => this%hvars(ih_mortality_understory_si_scag)%r82d, &
          hio_biomass_si_age        => this%hvars(ih_biomass_si_age)%r82d, &
          hio_biomass_si_agepft                => this%hvars(ih_biomass_si_agepft)%r82d, &
+         hio_npp_si_age                       => this%hvars(ih_npp_si_age)%r82d, &
          hio_npp_si_agepft                    => this%hvars(ih_npp_si_agepft)%r82d, &
          hio_ddbh_canopy_si_scag              => this%hvars(ih_ddbh_canopy_si_scag)%r82d, &
          hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
@@ -4714,6 +4735,7 @@ contains
          hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
          hio_fracarea_si_age                  => this%hvars(ih_fracarea_si_age)%r82d, &
          hio_agesince_anthrodist_si_age       => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
+         hio_primarylands_fracarea_si_age     => this%hvars(ih_primarylands_fracarea_si_age)%r82d, &
          hio_secondarylands_fracarea_si_age   => this%hvars(ih_secondarylands_fracarea_si_age)%r82d, &
          hio_ddbh_understory_si_scag          => this%hvars(ih_ddbh_understory_si_scag)%r82d)
 
@@ -4748,8 +4770,8 @@ contains
                cpatch%frac_burnt / sec_per_day &  ! [frac/day] -> [frac/sec]
                * patch_area_div_site_area
           hio_fire_sum_fuel_si_age(io_si, cpatch%age_class) = hio_fire_sum_fuel_si_age(io_si, cpatch%age_class)   +  &
-               cpatch%sum_fuel * patch_area_div_site_area
-          do i_fuel = 1,nfsc
+               cpatch%fuel%non_trunk_loading * patch_area_div_site_area
+          do i_fuel = 1,num_fuel_classes
              i_agefuel = get_agefuel_class_index(cpatch%age,i_fuel)
              hio_fuel_amount_si_agfc(io_si,i_agefuel) = hio_fuel_amount_si_agfc(io_si,i_agefuel) + &
                   cpatch%fuel%frac_loading(i_fuel) * cpatch%fuel%non_trunk_loading * patch_area_div_site_area
@@ -4772,6 +4794,10 @@ contains
 
              hio_secondarylands_fracarea_si_age(io_si,cpatch%age_class) = &
                   hio_secondarylands_fracarea_si_age(io_si,cpatch%age_class) &
+                  + patch_area_div_site_area
+          else if ( cpatch%land_use_label .eq. primaryland) then
+             hio_primarylands_fracarea_si_age(io_si,cpatch%age_class) = &
+                  hio_primarylands_fracarea_si_age(io_si,cpatch%age_class) & 
                   + patch_area_div_site_area
           endif
 
@@ -4797,6 +4823,8 @@ contains
           ! Weighted by cohort canopy area relative to site area
           ccohort => cpatch%shortest
           cohortloop: do while(associated(ccohort))
+             cohort_n_div_site_area = ccohort%n * AREA_INV
+
              hio_canopy_fracarea_si_age(io_si,cpatch%age_class) = hio_canopy_fracarea_si_age(io_si,cpatch%age_class) &
                   + ccohort%c_area * AREA_INV
 
@@ -5268,6 +5296,7 @@ contains
          hio_froot_mr_understory_si_scls     => this%hvars(ih_froot_mr_understory_si_scls)%r82d, &
          hio_resp_g_understory_si_scls       => this%hvars(ih_resp_g_understory_si_scls)%r82d, &
          hio_resp_m_understory_si_scls       => this%hvars(ih_resp_m_understory_si_scls)%r82d, &
+         hio_gpp_si_landuse                  => this%hvars(ih_gpp_si_landuse)%r82d, &
          hio_parsun_z_si_cnlf                => this%hvars(ih_parsun_z_si_cnlf)%r82d, &
          hio_parsha_z_si_cnlf                => this%hvars(ih_parsha_z_si_cnlf)%r82d, &
          hio_ts_net_uptake_si_cnlf           => this%hvars(ih_ts_net_uptake_si_cnlf)%r82d, &
@@ -5312,12 +5341,8 @@ contains
 
          io_si  = sites(s)%h_gid
 
-         ipa = 0
-
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
-
-            ipa = ipa + 1
 
             ccohort => cpatch%shortest
             do while(associated(ccohort))
@@ -5359,6 +5384,11 @@ contains
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
                          ccohort%froot_mr * n_perm2
+
+                    if (cpatch%land_use_label .gt. nocomp_bareground_land) then
+                       hio_gpp_si_landuse(io_si,cpatch%land_use_label) = hio_gpp_si_landuse(io_si,cpatch%land_use_label) &
+                            + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv
+                    end if
 
                     ! accumulate fluxes on canopy- and understory- separated fluxes
                     if (ccohort%canopy_layer .eq. 1) then
@@ -5623,8 +5653,7 @@ contains
     associate( &
        hio_c_lblayer_si_age => this%hvars(ih_c_lblayer_si_age)%r82d, &
        hio_c_stomata_si_age => this%hvars(ih_c_stomata_si_age)%r82d, &
-       hio_gpp_si_age       => this%hvars(ih_gpp_si_age)%r82d, &
-       hio_npp_si_age       => this%hvars(ih_npp_si_age)%r82d &
+       hio_gpp_si_age       => this%hvars(ih_gpp_si_age)%r82d &
     )
 
     dt_tstep_inv = 1.0_r8 / dt_tstep
@@ -5673,10 +5702,6 @@ contains
 
              hio_gpp_si_age(io_si,cpatch%age_class) = hio_gpp_si_age(io_si,cpatch%age_class) &
                   + ccohort%gpp_tstep * dt_tstep_inv &
-                  * cohort_n_div_site_area
-
-             hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
-                  + ccohort%npp_tstep * dt_tstep_inv &
                   * cohort_n_div_site_area
 
              ccohort => ccohort%taller
@@ -6906,7 +6931,17 @@ contains
                long='patch area by land use type', use_default='active',  &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
                ivar=ivar, initialize=initialize_variables, index=ih_fracarea_si_landuse)
-          
+
+          call this%set_history_var(vname='FATES_VEGC_LU', units='kg m-2',      &
+               long='Vegetation Carbon by land use type', use_default='active',  &
+               avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
+               ivar=ivar, initialize=initialize_variables, index=ih_biomass_si_landuse)
+
+          call this%set_history_var(vname='FATES_BURNEDAREA_LU', units='s-1',      &
+               long='burned area by land use type', use_default='active',  &
+               avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
+               ivar=ivar, initialize=initialize_variables, index=ih_burnedarea_si_landuse)
+
           call this%set_history_var(vname='FATES_TRANSITION_MATRIX_LULU', units='m2 m-2 yr-1',      &
                long='land use transition matrix', use_default='active',  &
                avgflag='A', vtype=site_lulu_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,  &
@@ -7190,14 +7225,14 @@ contains
                hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
                index=ih_agesince_anthrodist_si)
 
-          call this%set_history_var(vname='FATES_SECONDAREA_DIST',                &
+          call this%set_history_var(vname='FATES_SECONDARY_AREA',                &
                units='m2 m-2',                                                       &
                long='secondary forest patch area since any kind of disturbance', &
                use_default='inactive', avgflag='A', vtype=site_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
                index=ih_secondarylands_fracarea_si)
 
-          call this%set_history_var(vname='FATES_SECONDAREA_DIST_AP',                &
+          call this%set_history_var(vname='FATES_SECONDARY_AREA_AP',                &
                units='m2 m-2',                                                       &
                long='secondary forest patch area age distribution since any kind of disturbance', &
                use_default='inactive', avgflag='A', vtype=site_age_r8,               &
@@ -7216,7 +7251,7 @@ contains
                long='primary forest patch area age distribution since any kind of disturbance', &
                use_default='inactive', avgflag='A', vtype=site_age_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
-               index=ih_primarylands_area_si_age)
+               index=ih_primarylands_fracarea_si_age)
 
           call this%set_history_var(vname='FATES_FRAGMENTATION_SCALER_SL', units='', &
                long='factor (0-1) by which litter/cwd fragmentation proceeds relative to max rate by soil layer',  &
@@ -7638,7 +7673,8 @@ contains
                index = ih_npp_si_age)
 
           call this%set_history_var(vname='FATES_VEGC_APPF',units = 'kg m-2',        &
-               long='biomass per PFT in each age bin in kg carbon per m2',          &
+               long='biomass per PFT in each age bin in kg carbon per m2'//         &
+               this%per_ageclass_norm_info('FATES_PATCHAREA/FATES_PATCHAREA_AP'),   &
                use_default='inactive', avgflag='A', vtype=site_agepft_r8,           &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_biomass_si_agepft)

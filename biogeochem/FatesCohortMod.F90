@@ -144,7 +144,7 @@ module FatesCohortMod
     real(r8) :: gpp_tstep                 ! Gross Primary Production (see above *)
     real(r8) :: gpp_acc
     real(r8) :: gpp_acc_hold
-
+    
     real(r8) :: npp_acc
     real(r8) :: npp_acc_hold
 
@@ -156,7 +156,7 @@ module FatesCohortMod
     real(r8) :: c13disc_clm               ! carbon 13 discrimination in new synthesized carbon at each indiv/timestep [ppm]
     real(r8) :: c13disc_acc               ! carbon 13 discrimination in new synthesized carbon at each indiv/day
                                           !   at the end of a day [ppm]
-
+    
     ! The following four biophysical rates are assumed to be at the canopy top, at reference temp 25degC, 
     ! and based on the leaf age weighted average of the PFT parameterized values. 
     ! The last condition is why it is dynamic and tied to the cohort
@@ -499,7 +499,7 @@ module FatesCohortMod
       
       this%c13disc_clm             = 0._r8
       this%c13disc_acc             = 0._r8
-   
+
       this%ts_net_uptake(:)        = 0._r8
       this%year_net_uptake(:)      = 999._r8 ! this needs to be 999, or trimming of new cohorts will break.
    

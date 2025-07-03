@@ -67,6 +67,8 @@ module EDPhysiologyMod
   use EDParamsMod         , only : nclmax
   use EDTypesMod          , only : AREA,AREA_INV
   use FatesConstantsMod   , only : leaves_shedding
+  use FatesConstantsMod   , only : ievergreen
+  use FatesConstantsMod   , only : ihard_season_decid
   use FatesConstantsMod   , only : ihard_stress_decid
   use FatesConstantsMod   , only : isemi_stress_decid
   use EDParamsMod         , only : nlevleaf
@@ -762,20 +764,21 @@ contains
                 sla_levleaf = min(sla_max,prt_params%slatop(ipft)/nscaler_levleaf)
 
                 ! Find the realised leaf lifespan, depending on the leaf phenology.
-                if (prt_params%season_decid(ipft) ==  itrue) then
+                select case (prt_params%phen_leaf_habit(ipft))
+                case (ihard_season_decid)
                    ! Cold-deciduous costs. Assume time-span to be 1 year to be consistent
                    ! with FATES default
                    pft_leaf_lifespan = decid_leaf_long_max
 
-                elseif (any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid]) )then
+                case (ihard_stress_decid,isemi_stress_decid)
                    ! Drought-decidous costs. Assume time-span to be the least between
                    !    1 year and the life span provided by the parameter file.
                    pft_leaf_lifespan = &
                       min(decid_leaf_long_max,leaf_long)
 
-                else !evergreen costs
+                case (ievergreen) !evergreen costs
                    pft_leaf_lifespan = leaf_long
-                end if
+                end select
 
                 ! Leaf cost at leaf level z (kgC m-2 year-1) accounting for sla profile
                 ! (Convert from SLA in m2g-1 to m2kg-1)
@@ -815,7 +818,7 @@ contains
                 ! Check leaf cost against the yearly net uptake for that cohort leaf layer
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost) then
                    ! Make sure the cohort trim fraction is great than the pft trim limit
-                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft)) then
+                   if (currentCohort%canopy_trim > (EDPftvarcon_inst%trim_limit(ipft) + EDPftvarcon_inst%trim_inc(ipft))) then
 
                       ! keep trimming until none of the canopy is in negative carbon balance.
                       if (currentCohort%height > EDPftvarcon_inst%hgt_min(ipft)) then
@@ -864,11 +867,14 @@ contains
                 optimum_trim = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_trim
 
                 ! Determine if the optimum trim value makes sense.  The smallest cohorts tend to have unrealistic fits.
-                if (optimum_trim > 0. .and. optimum_trim < 1.) then
+                if (optimum_trim > EDPftvarcon_inst%trim_limit(ipft) .and. optimum_trim < 1.) then
                    currentCohort%canopy_trim = optimum_trim
 
                    trimmed = .true.
 
+                else if (optimum_trim <= EDPftvarcon_inst%trim_limit(ipft)) then
+                   currentCohort%canopy_trim = EDPftvarcon_inst%trim_limit(ipft)
+                   trimmed = .true.
                 endif
              endif
           endif
@@ -1200,7 +1206,7 @@ contains
        !    the leaf biomass will be capped at 40% of the biomass the cohort would have if
        !    it were in well-watered conditions.
        !---~---
-       case_drought_phen: select case (prt_params%stress_decid(ipft))
+       case_drought_phen: select case (prt_params%phen_leaf_habit(ipft))
        case (ihard_stress_decid)
           !---~---
           !    Default ("hard") drought deciduous phenology. The decision on whether to 
@@ -1419,11 +1425,11 @@ contains
 
           ! Assign elongation factors for non-drought deciduous PFTs, which will be used
           ! to define the cohort status.
-          case_cold_phen: select case(prt_params%season_decid(ipft))
-          case (ifalse)
+          case_cold_phen: select case(prt_params%phen_leaf_habit(ipft))
+          case (ievergreen)
              ! Evergreen, ensure that elongation factor is always one.
              currentSite%elong_factor(ipft) = 1.0_r8
-          case (itrue)
+          case (ihard_season_decid)
              ! Cold-deciduous. Define elongation factor based on cold status
              select case (currentSite%cstatus)
              case (phen_cstat_nevercold,phen_cstat_iscold)
@@ -1522,7 +1528,8 @@ contains
           ! MLO. To avoid duplicating code for drought and cold deciduous PFTs, we first
           !      check whether or not it's time to flush or time to shed leaves, then
           !      use a common code for flushing or shedding leaves.
-          is_time_block: if (prt_params%season_decid(ipft) == itrue) then ! Cold deciduous
+          is_time_block: select case (prt_params%phen_leaf_habit(ipft))
+          case (ihard_season_decid) ! Cold deciduous
 
              ! A. Is this the time for COLD LEAVES to switch to ON?
              is_flushing_time = ( currentSite%cstatus      == phen_cstat_notcold .and. & ! We just moved to leaves being on
@@ -1533,7 +1540,7 @@ contains
                                 ( currentCohort%dbh > EDPftvarcon_inst%phen_cold_size_threshold(ipft) .or. & ! Grasses are big enough or...
                                   prt_params%woody(ipft) == itrue                                     )      ! this is a woody PFT.
 
-          elseif (any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid]) ) then ! Drought deciduous
+          case (ihard_stress_decid,isemi_stress_decid) ! Drought deciduous
 
              ! A. Is this the time for DROUGHT LEAVES to switch to ON?
              is_flushing_time = any( currentSite%dstatus(ipft) == [phen_dstat_moiston,phen_dstat_timeon] ) .and.  & ! Leaf flushing time (moisture or time)
@@ -1542,11 +1549,11 @@ contains
              !    This will be true when leaves are abscissing (partially or fully) due to moisture or time
              is_shedding_time = any( currentSite%dstatus(ipft) == [phen_dstat_moistoff,phen_dstat_timeoff,phen_dstat_pshed] ) .and. &
                                 any( currentCohort%status_coh  == [leaves_on,leaves_shedding] )
-          else
+          case (ievergreen)
              ! This PFT is not deciduous.
              is_flushing_time         = .false.
              is_shedding_time         = .false.
-          end if is_time_block
+          end select is_time_block
 
 
 
@@ -1958,7 +1965,6 @@ contains
 
     ! !USES:
     use EDTypesMod, only : area
-    use EDTypesMod, only : homogenize_seed_pfts
     use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
     use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
     !
@@ -1982,6 +1988,11 @@ contains
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
 
+    logical, parameter  :: nocomp_seed_localization  = .true.  ! if nocomp is on, only send a given PFT's seeds to patches of that nocomp PFT
+    real(r8) :: nocomp_seed_scaling    ! scalar to handle case for nocomp_seed_localization
+    real(r8) :: seed_supply            ! external seed rain scalar to handle case for nocomp_seed_localization
+    real(r8) :: nocomp_patch_areas(0:numpft) ! vector of the total patch areas for each nocomp PFT
+
     ! If the dispersal kernel is not turned on, keep the dispersal fraction at zero
     site_disp_frac(:) = 0._r8
     if (hlm_seeddisp_cadence .ne. fates_dispersal_cadence_none) then
@@ -1994,6 +2005,19 @@ contains
        element_id = element_list(el)
 
        site_mass => currentSite%mass_balance(el)
+
+       ! If we are in nocomp configuration and we are restricting each PFT's seeds to all fall
+       ! only on patches that allow that PFT to grow, then we need to add up all the patch areas
+       ! for each nocomp PFT to normalize the seed fluxes with later.
+       if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue ) then
+          nocomp_patch_areas(0:numpft) = 0._r8
+          currentPatch => currentSite%oldest_patch
+          nocomp_patch_loop: do while (associated(currentPatch))
+             nocomp_patch_areas(currentPatch%nocomp_pft_label) = nocomp_patch_areas(currentPatch%nocomp_pft_label) &
+                  + currentPatch%area
+             currentPatch => currentPatch%younger
+          end do nocomp_patch_loop
+       endif
 
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
@@ -2036,13 +2060,6 @@ contains
           currentPatch => currentPatch%younger
        enddo seed_rain_loop
 
-       ! We can choose to homogenize seeds. This is simple, we just
-       ! add up all the seed from each pft at the site level, and then
-       ! equally distribute to the PFT pools
-       if ( homogenize_seed_pfts ) then
-          site_seed_rain(1:numpft) = sum(site_seed_rain(:))/real(numpft,r8)
-       end if
-
        ! Loop over all patches again and disperse the mixed seeds into the input flux
        ! arrays
        ! Loop over all patches and sum up the seed input for each PFT
@@ -2054,9 +2071,25 @@ contains
 
              if(currentSite%use_this_pft(pft).eq.itrue)then
 
+                ! special case: do we want to restrict each PFT's seeds to only go to patches with that nocomp PFT label?
+                ! If so, then use a normalization factor that is one over the nocomp patch fraction for all patches of
+                ! that PFT's nocomp label, and zero for all other patches.  If we don't do this, then just set scalar to one.
+                ! Similarly, only add external seed rain to a given PFT's nocomp patches
+                nocomp_seed_scaling = 1._r8
+                seed_supply = EDPftvarcon_inst%seed_suppl(pft)
+                if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue ) then
+                   if (currentPatch%nocomp_pft_label .eq. pft) then
+                      nocomp_seed_scaling = AREA/nocomp_patch_areas(pft)
+                   else
+                      nocomp_seed_scaling = 0._r8
+                      seed_supply = 0._r8
+                   endif
+                endif
+
                 ! Seed input from local sources (within site).  Note that a fraction of the
                 ! internal seed rain is sent out to neighboring gridcells.
-                litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1.0_r8-site_disp_frac(pft))/area ![kg/m2/day]
+                litt%seed_in_local(pft) = litt%seed_in_local(pft) + nocomp_seed_scaling * &
+                     (1.0_r8-site_disp_frac(pft)) * (site_seed_rain(pft)/area) ! site_seed_rain conversion from [kg/site/day -> kg/m2/day]
 
                 ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
                 if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
@@ -2088,7 +2121,7 @@ contains
                 
                 ! Seed input from external sources (user param seed rain, or dispersal model)
                 ! Include both prescribed seed_suppl and seed_in dispersed from neighbouring gridcells
-                seed_in_external = seed_stoich*(currentSite%seed_in(pft)/area + EDPftvarcon_inst%seed_suppl(pft)*years_per_day) ![kg/m2/day]
+                seed_in_external = seed_stoich * (seed_supply*years_per_day + currentSite%seed_in(pft)/area  ![kg/m2/day]
                 litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
                 
                 ! Seeds entering externally [kg/site/day]
@@ -2332,19 +2365,17 @@ contains
           litt%seed_germ_in(pft) = litt%seed(pft) * seedling_emerg_rate
 
        end if if_tfs_or_def
-    
-      !set the germination only under the growing season...c.xu
 
-      if ((prt_params%season_decid(pft) == itrue ) .and. &
-            (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold]))) then
-          ! no germination for all PFTs when cold
-          litt%seed_germ_in(pft) = 0.0_r8
-       endif
-
-       ! Drought deciduous, halt germination when status is shedding, even leaves are not
-       ! completely abscissed. MLO
-       select case (prt_params%stress_decid(pft))
+       select case (prt_params%phen_leaf_habit(pft))
+       case (ihard_season_decid)
+          !set the germination only under the growing season...c.xu
+          if (any(cold_stat == [phen_cstat_nevercold,phen_cstat_iscold])) then
+             ! no germination for all PFTs when cold
+             litt%seed_germ_in(pft) = 0.0_r8
+          end if
        case (ihard_stress_decid,isemi_stress_decid)
+          ! Drought deciduous, halt germination when status is shedding, even leaves are not
+          ! completely abscissed. MLO
           if (any(drought_stat(pft) == [phen_dstat_timeoff,phen_dstat_moistoff,phen_dstat_pshed])) then
              litt%seed_germ_in(pft) = 0.0_r8
           end if
@@ -2453,23 +2484,24 @@ contains
             efstem_coh  = 1.0_r8
             leaf_status = leaves_on
 
-            ! but if the plant is seasonally (cold) deciduous, and the site status is flagged
-            ! as "cold", then set the cohort's status to leaves_off, and remember the leaf biomass
-            if ((prt_params%season_decid(ft) == itrue) .and.                   &
-               (any(currentSite%cstatus == [phen_cstat_nevercold, phen_cstat_iscold]))) then
-               efleaf_coh  = 0.0_r8
-               effnrt_coh  = 1.0_r8 - fnrt_drop_fraction
-               efstem_coh  = 1.0_r8 - stem_drop_fraction
-               leaf_status = leaves_off
-            end if 
-
-            ! Or.. if the plant is drought deciduous, make sure leaf status is consistent with the
-            ! leaf elongation factor.
-            ! For tissues other than leaves, the actual drop fraction is a combination of the
-            ! elongation factor (e) and the drop fraction (x), which will ensure that the remaining
-            ! tissue biomass will be exactly e when x=1, and exactly the original biomass when x = 0.
-            select case (prt_params%stress_decid(ft))
+            ! look for cases in which leaves should be off
+            select case (prt_params%phen_leaf_habit(ft))
+            case (ihard_season_decid)
+               select case(currentSite%cstatus)
+               case (phen_cstat_nevercold, phen_cstat_iscold)
+                  ! If the plant is seasonally (cold) deciduous, and the site status is flagged
+                  ! as "cold", then set the cohort's status to leaves_off.
+                  efleaf_coh  = 0.0_r8
+                  effnrt_coh  = 1.0_r8 - fnrt_drop_fraction
+                  efstem_coh  = 1.0_r8 - stem_drop_fraction
+                  leaf_status = leaves_off
+               end select
             case (ihard_stress_decid, isemi_stress_decid)
+               ! If the plant is drought deciduous, make sure leaf status is consistent with the
+               ! leaf elongation factor.
+               ! For tissues other than leaves, the actual drop fraction is a combination of the
+               ! elongation factor (e) and the drop fraction (x), which will ensure that the remaining
+               ! tissue biomass will be exactly e when x=1, and exactly the original biomass when x = 0.
                efleaf_coh = currentSite%elong_factor(ft)
                effnrt_coh = 1.0_r8 - (1.0_r8 - efleaf_coh)*fnrt_drop_fraction
                efstem_coh = 1.0_r8 - (1.0_r8 - efleaf_coh)*stem_drop_fraction
