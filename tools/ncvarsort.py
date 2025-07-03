@@ -4,10 +4,18 @@
 # --input or --fin: input filename.
 # --output or --fout: output filename.  If missing, will assume its directly modifying the input file, and will prompt unless -O is specified
 
-import netCDF4 as nc
+#import netCDF4 as nc
 import sys
 import os
 import argparse
+
+# Newer versions of scipy have dropped the netcdf module and
+# netcdf functions are part of the io parent module
+try:
+    from scipy import io as nc
+
+except ImportError:
+    from scipy.io import netcdf as nc
 
 # program sorts the variables based on the provided list, and pulls them one at a time
 # from an existing file and adds them to a new file in the sorted order.
@@ -25,12 +33,12 @@ def main():
     args = parser.parse_args()
     #
     # open the input dataset
-    dsin = nc.Dataset(args.fnamein, 'r')
+    dsin = nc.netcdf_file(args.fnamein, 'r')
     #
     # make empty lists to hold the variable names in. the first of these is a list of sub-lists,
     # one for each type of variable (based on dimensionality).
     # the second is the master list that will contain all variables.
-    varnames_list = [[],[],[],[],[],[],[],[],[],[],[],[],[]]
+    varnames_list = [[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
     varnames_list_sorted = []
     #
     # sort the variables by dimensionality, but mix the PFT x other dimension in with the regular PFT-indexed variables
@@ -48,6 +56,7 @@ def main():
     (u'fates_prt_organs', u'fates_string_length'):7,
     (u'fates_plant_organs', u'fates_string_length'):7,
     (u'fates_litterclass', u'fates_string_length'):7,
+    (u'fates_landuseclass', u'fates_string_length'):7,
     (u'fates_pft',):8,
     (u'fates_hydr_organs', u'fates_pft'):8,
     (u'fates_leafage_class', u'fates_pft'):8,
@@ -56,7 +65,9 @@ def main():
     (u'fates_hlm_pftno', u'fates_pft'):9,
     (u'fates_litterclass',):10,
     (u'fates_NCWD',):11,
-    ():12}
+    (u'fates_landuseclass',):12,
+    (u'fates_landuseclass', u'fates_pft'):12,
+    ():13}
     #
     # go through each of the variables and assign it to one of the sub-lists based on its dimensionality
     for v_name, varin in dsin.variables.items():
@@ -95,13 +106,13 @@ def main():
         else:
             raise ValueError('Output file already exists and overwrite flag not specified for filename: '+args.fnameout)
     #
-    dsout = nc.Dataset(args.fnameout,  "w")
+    dsout = nc.netcdf_file(args.fnameout,  "w")
     #
     #Copy dimensions
     for dname, the_dim in dsin.dimensions.items():
         if args.debug:
-            if (verbose): print(dname, the_dim.size)
-        dsout.createDimension(dname, the_dim.size )
+            if (verbose): print(dname, the_dim)
+        dsout.createDimension(dname, int(the_dim) )
     #
     if (verbose): print()
     #
@@ -115,16 +126,30 @@ def main():
     # as well as all metadata to the new file.
     for i in range(len(varnames_list_sorted)):
         v_name = varnames_list_sorted[i]
-        varin = dsin.variables[v_name]
-        outVar = dsout.createVariable(v_name, varin.datatype, varin.dimensions)
+        varin  = dsin.variables.get(v_name)
+        v_type = dsin.variables[v_name].typecode()
+        v_dims = varin.dimensions
+        outVar = dsout.createVariable(v_name, v_type, v_dims)
+        
+        n_dims = len(v_dims)
         if args.debug:
             if (verbose): print(v_name)
         #
-        outVar.setncatts({k: varin.getncattr(k) for k in varin.ncattrs()})
-        outVar[:] = varin[:]
+        
+        # Copy attributes
+        for v_attr in varin._attributes:
+           setattr(outVar,v_attr,getattr(varin,v_attr))
+        
+        if ( n_dims == 0):
+           outVar[()] = varin[()]
+        else:
+           outVar[:] = varin[:]
         #
-        # copy global attributes
-        dsout.setncatts({k: dsin.getncattr(k) for k in dsin.ncattrs()})#
+
+    # copy global attributes
+    for g_attr in dsin._attributes:
+       setattr(dsout,g_attr,getattr(dsin,g_attr))
+
     #
     # close the output file
     dsin.close()

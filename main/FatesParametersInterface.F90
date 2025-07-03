@@ -9,10 +9,10 @@ module FatesParametersInterface
   implicit none
   private ! Modules are private by default
 
-  integer, parameter, public :: max_params = 250
+  integer, parameter, public :: max_params = 500
   integer, parameter, public :: max_dimensions = 2
   integer, parameter, public :: max_used_dimensions = 25
-  integer, parameter, public :: param_string_length = 40
+  integer, parameter, public :: param_string_length = 80
   ! NOTE(bja, 2017-02) these are the values returned from netcdf after
   ! inquiring about the number of dimensions
   integer, parameter, public :: dimension_shape_scalar = 0
@@ -38,6 +38,7 @@ module FatesParametersInterface
   character(len=*), parameter, public :: dimension_name_hlm_pftno = 'fates_hlm_pftno'
   character(len=*), parameter, public :: dimension_name_history_damage_bins = 'fates_history_damage_bins'
   character(len=*), parameter, public :: dimension_name_damage = 'fates_damage_class'
+  character(len=*), parameter, public :: dimension_name_landuse = 'fates_landuseclass'
   
   ! Dimensions in the host namespace:
   character(len=*), parameter, public :: dimension_name_host_allpfts = 'allpfts'
@@ -83,6 +84,35 @@ module FatesParametersInterface
      
   end type fates_parameters_type
 
+  ! Abstract class (to be implemented by host land models) to read in
+  ! parameter values.
+  type, abstract, public :: fates_param_reader_type
+   contains
+     ! Public functions
+     procedure(Read_interface), public, deferred :: Read
+
+  end type fates_param_reader_type
+
+  abstract interface
+   subroutine Read_interface(this, fates_params )
+    !
+    ! !DESCRIPTION:
+    ! Read 'fates_params' parameters from (HLM-provided) storage. Note this ignores
+    ! the legacy parameter_type.sync_with_host setting.
+    !
+    ! USES
+    import :: fates_param_reader_type
+    import :: fates_parameters_type
+    ! !ARGUMENTS:
+    class(fates_param_reader_type) :: this
+    class(fates_parameters_type), intent(inout) :: fates_params
+    !-----------------------------------------------------------------------
+
+    end subroutine Read_interface
+
+  !-----------------------------------------------------------------------
+  end interface
+
 contains
 
   !-----------------------------------------------------------------------
@@ -105,7 +135,7 @@ contains
 
     integer :: n
     do n = 1, this%num_parameters
-       deallocate(this%parameters(n)%data)
+      deallocate(this%parameters(n)%data)
     end do
 
   end subroutine Destroy

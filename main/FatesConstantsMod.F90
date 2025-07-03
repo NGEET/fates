@@ -34,23 +34,34 @@ module FatesConstantsMod
   ! are used, but this helps allocate scratch
   ! space and output arrays.
 
-  integer, parameter, public :: n_rad_stream_types = 2    ! The number of radiation streams used (direct/diffuse)
-
   integer , parameter, public       :: N_DBH_BINS = 6  ! no. of dbh bins used when comparing patches
   real(fates_r8), parameter, public :: patchfusion_dbhbin_loweredges(N_DBH_BINS) = &
   (/0._fates_r8, 5._fates_r8, 20._fates_r8, 50._fates_r8, 100._fates_r8, 150._fates_r8/) ! array of bin lower edges for comparing patches
 
-
-  integer , parameter, public :: N_DIST_TYPES = 3 ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging
+  
+  real(fates_r8), parameter, public :: min_vai_bin_sum = 5.0_fates_r8   ! The sum of vai increments used to discretize the canopy vertically                                                                                                                           ! must be larger than this number. 
+  
+  integer , parameter, public :: N_DIST_TYPES = 4          ! Disturbance Modes 1) tree-fall, 2) fire, 3) logging, 4) land-use change
   integer , parameter, public :: dtype_ifall  = 1          ! index for naturally occuring tree-fall generated event
   integer , parameter, public :: dtype_ifire  = 2          ! index for fire generated disturbance event
   integer , parameter, public :: dtype_ilog   = 3          ! index for logging generated disturbance event
+  integer , parameter, public :: dtype_ilandusechange = 4  ! index for land use change disturbance (not including logging)
 
-  ! Labels for patch disturbance history
-  integer, parameter, public :: n_anthro_disturbance_categories = 2
-  integer, parameter, public :: primaryforest = 1
-  integer, parameter, public :: secondaryforest = 2
+  ! Labels for patch land use type information
+  integer, parameter, public :: n_landuse_cats = 5
+  integer, parameter, public :: primaryland = 1
+  integer, parameter, public :: secondaryland = 2
+  integer, parameter, public :: rangeland = 3
+  integer, parameter, public :: pastureland = 4
+  integer, parameter, public :: cropland = 5
+  logical, parameter, dimension(n_landuse_cats), public :: is_crop = [.false., .false.,.false.,.false.,.true.]
+  integer, parameter, public :: n_crop_lu_types = 1
 
+  ! Bareground nocomp land use label
+  integer, parameter, public :: nocomp_bareground_land = 0  ! not a real land use type, only for labeling any bare-ground nocomp patches
+
+  ! Bareground nocomp PFT label for no competition mode
+  integer, parameter, public :: nocomp_bareground = 0
 
   integer, parameter, public :: leaves_on  = 2  ! Flag specifying that a deciduous plant has leaves
                                                 ! and should be allocating to them as well
@@ -61,28 +72,41 @@ module FatesConstantsMod
                                                      ! but is shedding them (partial shedding). This plant
                                                      ! should not allocate carbon towards growth or 
                                                      ! reproduction.
-integer, parameter, public :: ihard_stress_decid = 1 ! If the PFT is stress (drought) deciduous,
-                                                     !  this flag is used to tell that the PFT
-                                                     !  is a "hard" deciduous (i.e., the plant
-                                                     !  has only two statuses, the plant either
-                                                     !  sheds all leaves when it's time, or seeks
-                                                     !  to flush the leaves back to allometry 
-                                                     !  when conditions improve.
-integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (drought) deciduous,
-                                                     !  this flag is used to tell that the PFT
-                                                     !  is a semi-deciduous (i.e., the plant
-                                                     !  can downregulate the amount of leaves
-                                                     !  relative to the allometry based on 
-                                                     !  soil moisture conditions. It can still
-                                                     !  shed all leaves if conditions are very
-                                                     !  dry.
+integer, parameter, public :: ievergreen         = 1 ! Flag that indicates that the leaf phenology
+                                                     !    habit for a PFT is evergreen. This means
+                                                     !    that seasonal environmental conditions do
+                                                     !    not directly impact leaf biomass, although
+                                                     !    the total leaf biomass can fall below 
+                                                     !    allometry if the plant's NPP is negative 
+                                                     !    and causes a significant depletion of the
+                                                     !    storage pool.
+integer, parameter, public :: ihard_season_decid = 2 ! Flag that indicates that the leaf phenology
+                                                     !    habit for a PFT is a "hard" season (cold)
+                                                     !    deciduous. This means that the plant
+                                                     !    has only two statuses, the plant either
+                                                     !    abscises all leaves when conditions
+                                                     !    deteriorate, or flushes leaves to bring it
+                                                     !    back to allometry when conditions improve.
+integer, parameter, public :: ihard_stress_decid = 3 ! Flag that indicates that the leaf phenology
+                                                     !    habit for a PFT is a "hard" stress
+                                                     !    (drought) deciduous. This means that the
+                                                     !    plant has only two statuses, the plant
+                                                     !    either abscises all leaves when conditions
+                                                     !    deteriorate, or flushes leaves to bring it
+                                                     !    back to allometry when conditions improve
+integer, parameter, public :: isemi_stress_decid = 4 ! Flag that indicates that the leaf phenology
+                                                     !    habit for a PFT is a stress (hydro)
+                                                     !    semi-deciduous. This means that the plant
+                                                     !    can partially abscise or flush leaves
+                                                     !    based on water availability, and 
+                                                     !    conditions. It can still abscise all leaves
+                                                     !    when conditions are very dry, and flush all
+                                                     !    leaves back to allometry when water is not
+                                                     !    limiting.
 
   integer, parameter, public :: ican_upper = 1  ! nominal index for the upper canopy
   integer, parameter, public :: ican_ustory = 2 ! nominal index for diagnostics that refer to understory layers 
                                                 !  (all layers that are not the top canopy layer)
-
-  ! Bareground label for no competition mode
-  integer, parameter, public :: nocomp_bareground = 0
 
   ! Flags specifying how phosphorous uptake and turnover interacts
   ! with the host model.
@@ -128,16 +152,21 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
                                                             ! secondary 1900s land in hurtt-2011
 
   ! integer labels for specifying harvest units
-  integer, parameter, public :: photosynth_acclim_model_none = 1
-  integer, parameter, public :: photosynth_acclim_model_kumarathunge_etal_2019 = 2
-
-  ! integer labels for specifying harvest units
   integer, parameter, public :: hlm_harvest_area_fraction = 1 ! Code for harvesting by area
   integer, parameter, public :: hlm_harvest_carbon = 2 ! Code for harvesting based on carbon extracted.
+
+  ! integer labels for specifying harvest debt status
+  integer, parameter, public :: fates_no_harvest_debt = 0
+  integer, parameter, public :: fates_with_harvest_debt = 1
+  integer, parameter, public :: fates_bypass_harvest_debt = 2  ! Do not calculate harvest debt for area based harvest
 
   ! integer labels for specifying leaf maintenance respiration models
   integer, parameter, public :: lmrmodel_ryan_1991         = 1
   integer, parameter, public :: lmrmodel_atkin_etal_2017   = 2
+
+  ! integer labels for specifying carbon starvation model
+  integer, parameter, public :: cstarvation_model_lin = 1 ! Linear scaling
+  integer, parameter, public :: cstarvation_model_exp = 2 ! Exponential scaling
 
   ! Error Tolerances
 
@@ -162,6 +191,9 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   ! for multiplication/division procedures, also allowing for 3 orders
   ! of magnitude of buffer error (ie instead of 1e-15)
   real(fates_r8), parameter, public :: rsnbl_math_prec = 1.0e-12_fates_r8
+
+  ! in nocomp simulations, what is the minimum PFT fraction for any given land use type?
+  real(fates_r8), parameter, public :: min_nocomp_pftfrac_perlanduse = 0.01_fates_r8
 
   ! This is the precision of 8byte reals (~1e-308)
   real(fates_r8), parameter, public :: tinyr8 = tiny(1.0_fates_r8)
@@ -225,6 +257,9 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
 
   ! Conversion factor: m2 per km2
   real(fates_r8), parameter, public :: m2_per_km2 = 1.0e6_fates_r8
+  
+  ! Conversion factor: m per km
+  real(fates_r8), parameter, public :: m_per_km = 1000.0_fates_r8
 
   ! Conversion factor: cm2 per m2
   real(fates_r8), parameter, public :: cm2_per_m2 = 10000.0_fates_r8
@@ -242,6 +277,9 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
 
   ! Conversion: seconds per minute
   real(fates_r8), parameter, public :: sec_per_min = 60.0_fates_r8
+  
+  ! Conversion: minutes per hour
+  real(fates_r8), parameter, public :: min_per_hr = 60.0_fates_r8
 
   ! Conversion: seconds per day
   real(fates_r8), parameter, public :: sec_per_day = 86400.0_fates_r8
@@ -271,6 +309,10 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   real(fates_r8), parameter, public :: J_per_kJ = 1000.0_fates_r8
 
   ! Physical constants
+  
+  ! dewpoint calculation
+  real(fates_r8), parameter, public :: dewpoint_a = 17.62_fates_r8
+  real(fates_r8), parameter, public :: dewpoint_b = 243.12_fates_r8 ![degrees C]
 
   ! universal gas constant [J/K/kmol]
   real(fates_r8), parameter, public :: rgas_J_K_kmol          = 8314.4598_fates_r8
@@ -293,6 +335,9 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   ! Approximate molar mass of water vapor to dry air (-)
   real(fates_r8), parameter, public :: molar_mass_ratio_vapdry= 0.622_fates_r8
   
+  ! unit conversion of W/m2 to umol photons/m^2/s
+  real(fates_r8), parameter, public :: wm2_to_umolm2s = 4.6_fates_r8
+  
   ! Gravity constant on earth [m/s]
   real(fates_r8), parameter, public :: grav_earth = 9.8_fates_r8
 
@@ -302,10 +347,15 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   ! Pascals to megapascals
   real(fates_r8), parameter, public :: mpa_per_pa = 1.e-6_fates_r8
 
+  ! Pascals to kilopascals
+  real(fates_r8), parameter, public :: kpa_per_pa = 1.e-3_fates_r8
+  
   ! Conversion: megapascals per mm H2O suction
   real(fates_r8), parameter, public :: mpa_per_mm_suction = dens_fresh_liquid_water * &
                                        grav_earth * 1.0E-9_fates_r8
 
+  
+  
   ! For numerical inquiry
   real(fates_r8), parameter, public :: fates_huge = huge(g_per_kg)
 
@@ -322,17 +372,12 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   real(fates_r8), parameter, public :: pi_const = 3.14159265359_fates_r8
   real(fates_r8), parameter, public :: rad_per_deg = pi_const/180.0_fates_r8
 
-  ! Rdark constants from Atkin et al., 2017 https://doi.org/10.1007/978-3-319-68703-2_6
-  ! and Heskel et al., 2016 https://doi.org/10.1073/pnas.1520282113
-  real(fates_r8), parameter, public :: lmr_b = 0.1012_fates_r8       ! (degrees C**-1)
 
-  real(fates_r8), parameter, public :: lmr_c = -0.0005_fates_r8      ! (degrees C**-2)
-
-  real(fates_r8), parameter, public :: lmr_TrefC = 25._fates_r8      ! (degrees C)
-
-  real(fates_r8), parameter, public :: lmr_r_1 = 0.2061_fates_r8     ! (umol CO2/m**2/s / (gN/(m2 leaf))) 
-
-  real(fates_r8), parameter, public :: lmr_r_2 = -0.0402_fates_r8    ! (umol CO2/m**2/s/degree C)
   
-  
+  ! some integers related to termination mortality
+  integer, parameter, public :: n_term_mort_types = 3
+  integer, parameter, public :: i_term_mort_type_cstarv = 1
+  integer, parameter, public :: i_term_mort_type_canlev = 2
+  integer, parameter, public :: i_term_mort_type_numdens = 3
+
 end module FatesConstantsMod

@@ -15,9 +15,14 @@ import sys
 import getopt
 import code  # For development: code.interact(local=locals())
 from datetime import datetime
-from scipy.io import netcdf
-#import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
+# Newer versions of scipy have dropped the netcdf module and
+# netcdf functions are part of the io parent module
+try:
+    from scipy import io as nc
 
+except ImportError:
+    from scipy.io import netcdf as nc
 
 # =======================================================================================
 # Parameters
@@ -28,6 +33,7 @@ prt_dim_name = 'fates_plant_organs'
 hydro_dim_name = 'fates_hydr_organs'
 litt_dim_name = 'fates_litterclass'
 string_dim_name = 'fates_string_length'
+landuse_dim_name = 'fates_landuseclass'
 
 class timetype:
 
@@ -147,9 +153,9 @@ def main(argv):
     num_pft_out = len(donor_pft_indices)
 
     # Open the netcdf files
-    fp_out = netcdf.netcdf_file(output_fname, 'w')
+    fp_out = nc.netcdf_file(output_fname, 'w')
 
-    fp_in  = netcdf.netcdf_file(input_fname, 'r')
+    fp_in  = nc.netcdf_file(input_fname, 'r')
 
     for key, value in sorted(fp_in.dimensions.items()):
         if(key==pft_dim_name):
@@ -165,14 +171,14 @@ def main(argv):
 
 
         in_var  = fp_in.variables.get(key)
-
-
+      
         # Idenfity if this variable has pft dimension
-        pft_dim_found = -1
-        prt_dim_found = -1
-        hydro_dim_found = -1
-        litt_dim_found  = -1
-        string_dim_found = -1
+        pft_dim_found       = -1
+        prt_dim_found       = -1
+        hydro_dim_found     = -1
+        litt_dim_found      = -1
+        string_dim_found    = -1
+        landuse_dim_found   = -1
         pft_dim_len   = len(fp_in.variables.get(key).dimensions)
 
         for idim, name in enumerate(fp_in.variables.get(key).dimensions):
@@ -188,13 +194,19 @@ def main(argv):
                 hydro_dim_found = idim
             if(name==string_dim_name):
                 string_dim_found = idim
-
+            if(name==landuse_dim_name):
+                landuse_dim_found = idim
+               
+        
+        
+        
         # Copy over the input data
         # Tedious, but I have to permute through all combinations of dimension position
         if( pft_dim_len == 0 ):
-            out_var = fp_out.createVariable(key,'d',(fp_in.variables.get(key).dimensions))
-            out_var.assignValue(float(fp_in.variables.get(key).data))
-        elif( (pft_dim_found==-1) & (prt_dim_found==-1) & (litt_dim_found==-1) & (hydro_dim_found==-1)  ):
+            # Scalar: do not assume any dimensions.
+            out_var = fp_out.createVariable(key,'d',())
+            out_var[()] = in_var[()]
+        elif( (pft_dim_found==-1) & (prt_dim_found==-1) & (litt_dim_found==-1) & (hydro_dim_found==-1) & (landuse_dim_found==-1)  ):
             out_var = fp_out.createVariable(key,'d',(fp_in.variables.get(key).dimensions))
             out_var[:] = in_var[:]
         elif( (pft_dim_found==0) & (pft_dim_len==1) ):           # 1D fates_pft
@@ -232,6 +244,10 @@ def main(argv):
         
         elif( (litt_dim_found==0) & (string_dim_found>=0) ):       
             out_var = fp_out.createVariable(key,'c',(fp_in.variables.get(key).dimensions))
+            out_var[:] = in_var[:]
+
+        elif( (landuse_dim_found==0) & (string_dim_found>=0) ):       
+            out_var = fp_out.createVariable(key,'c',(fp_in.variables.get(key).dimensions))
             out_var[:] = in_var[:]   
 
         elif( prt_dim_found==0 ): # fates_prt_organs - indices
@@ -241,6 +257,9 @@ def main(argv):
         elif( litt_dim_found==0 ):
             out_var = fp_out.createVariable(key,'d',(fp_in.variables.get(key).dimensions))
             out_var[:] = in_var[:]
+        elif( landuse_dim_found==0 ):
+            out_var = fp_out.createVariable(key,'d',(fp_in.variables.get(key).dimensions))
+            out_var[:] = in_var[:]    
         elif( hydro_dim_found==0):
             out_var = fp_out.createVariable(key,'d',(fp_in.variables.get(key).dimensions))
             out_var[:] = in_var[:]
@@ -265,7 +284,7 @@ def main(argv):
     fp_in.close()
     fp_out.close()
 
-    print('Cloneing complete!')
+    print('Cloning complete!')
     exit(0)
 
 

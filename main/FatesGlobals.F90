@@ -5,6 +5,7 @@ module FatesGlobals
   ! immediately obvious home.
 
   use FatesConstantsMod         , only : r8 => fates_r8
+  use TwoStreamMLPEMod          , only : TwoStreamLogInit
    
   implicit none
   private         ! By default everything is private
@@ -63,6 +64,8 @@ contains
     fates_log_ = log_unit
     fates_global_verbose_ = global_verbose
 
+    call TwoStreamLogInit(log_unit)
+
   end subroutine FatesGlobalsInit
 
   ! =====================================================================================
@@ -75,7 +78,7 @@ contains
     fates_global_verbose = fates_global_verbose_
   end function fates_global_verbose
 
-  subroutine fates_endrun(msg) 
+  subroutine fates_endrun(msg, additional_msg) 
 
     !-----------------------------------------------------------------------
     ! !DESCRIPTION:
@@ -87,11 +90,17 @@ contains
     !
     ! !ARGUMENTS:
     implicit none
-    character(len=*), intent(in) :: msg    ! string to be printed
+    character(len=*), intent(in)           :: msg            ! string to be printed
+    character(len=*), intent(in), optional :: additional_msg ! string to be printed, but not passed to shr_sys_abort
     !-----------------------------------------------------------------------
 
-    write(fates_log(),*)'ENDRUN:', msg
-    call shr_sys_abort()
+    if (present(additional_msg)) then 
+      write(fates_log(),*) 'ENDRUN: ', trim(additional_msg)
+    else 
+      write(fates_log(),*) 'ENDRUN: '
+    end if
+    
+    call shr_sys_abort(msg)
 
   end subroutine fates_endrun
 

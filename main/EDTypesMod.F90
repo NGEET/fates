@@ -4,6 +4,11 @@ module EDTypesMod
   use FatesGlobals,          only : endrun => fates_endrun
   use FatesConstantsMod,     only : ifalse
   use FatesConstantsMod,     only : itrue
+  use FatesConstantsMod,     only : nocomp_bareground_land
+  use FatesConstantsMod,     only : nocomp_bareground
+  use FatesConstantsMod,     only : secondaryland
+  use FatesConstantsMod,     only : secondary_age_threshold
+  use FatesConstantsMod,     only : nearzero
   use FatesGlobals,          only : fates_log
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
@@ -18,19 +23,20 @@ module EDTypesMod
   use PRTGenericMod,         only : num_element_types
   use PRTGenericMod,         only : carbon12_element
   use FatesLitterMod,        only : litter_type
-  use FatesLitterMod,        only : ncwd, NFSC
-  use FatesConstantsMod,     only : n_anthro_disturbance_categories
+  use FatesLitterMod,        only : ncwd
   use FatesConstantsMod,     only : days_per_year
   use FatesRunningMeanMod,   only : rmean_type,rmean_arr_type
   use FatesConstantsMod,     only : fates_unset_r8
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
+  use FatesConstantsMod    , only : n_landuse_cats
   use FatesInterfaceTypesMod,only : hlm_parteh_mode
   use FatesCohortMod,        only : fates_cohort_type
   use FatesPatchMod,         only : fates_patch_type
-  use EDParamsMod,           only : maxSWb, nclmax, nlevleaf, maxpft
+  use EDParamsMod,           only : nclmax, nlevleaf, maxpft
   use FatesConstantsMod,     only : n_dbh_bins, n_dist_types
   use shr_log_mod,           only : errMsg => shr_log_errMsg
+  use SFFireWeatherMod,      only : fire_weather
 
   implicit none
   private               ! By default everything is private
@@ -87,7 +93,6 @@ module EDTypesMod
   ! BIOLOGY/BIOGEOCHEMISTRY        
   integer , parameter, public :: num_vegtemp_mem      = 10         ! Window of time over which we track temp for cold sensecence (days)
 
-
   ! Phenology status flag definitions (cold type is cstat, dry type is dstat)
 
   integer, parameter, public :: phen_cstat_nevercold = 0        ! This (location/plant) has not experienced a cold period over a large number
@@ -124,7 +129,6 @@ module EDTypesMod
                                                                           ! number densities of cohorts to prevent FPEs
 
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
-  logical, parameter, public :: homogenize_seed_pfts  = .false.
   character(len=*), parameter, private :: sourcefile = __FILE__
 
   !************************************
@@ -147,25 +151,114 @@ module EDTypesMod
 
   ! =====================================================================================
 
-  type, public :: site_fluxdiags_type
+  type, public :: elem_diag_type
 
      ! ----------------------------------------------------------------------------------
-     ! Diagnostics for fluxes into the litter pool from plants
-     ! these fluxes are the total from 
+     ! Diagnostics of fluxes
+     ! These act as an intermediary to write fluxes to the history
+     ! file after number densities of plants have changed. They also
+     ! allow the history flux diagnostics to be rebuilt during restart
+     !
+     ! Litter fluxes are the total from 
      ! (1) turnover from living plants
      ! (2) mass transfer from non-disturbance inducing mortality events
      ! (3) mass transfer from disturbance inducing mortality events
      ! [kg / ha / day]
      ! ---------------------------------------------------------------------------------
-
+     
      real(r8) :: cwd_ag_input(1:ncwd)               
      real(r8) :: cwd_bg_input(1:ncwd)               
-     real(r8),allocatable :: leaf_litter_input(:)
+     real(r8),allocatable :: surf_fine_litter_input(:)
      real(r8),allocatable :: root_litter_input(:)
+
+     real(r8) :: tot_seed_turnover ! decay of living seed bank to
+                                   ! fragmented litter [kg/m2/day]
+     real(r8) :: exported_harvest  ! mass of harvested vegetation exported and not sent to litter [kg/m2/day]
+     real(r8) :: burned_liveveg    ! Amount of mass burned from living plants [kg/m2/day]
+
+     ! Integrated Error Terms ( Int. Flux - State ) 
+     
+     real(r8) :: err_liveveg       ! Error from comparing [state-integrated flux]
+                                   ! in live vegetation [kg/m2]
+     real(r8) :: err_litter        ! Net change in litter [kg/m2]
+     
+     
+  end type elem_diag_type
+
+  ! -------------------------------------------------------------------------
+
+  type, public :: site_ifluxbal_type
+
+     ! The combination of living vegetation and litter accounts
+     ! for all of the mass that is tracked by FATES. We use these
+     ! data structures to ensure that an instantaneous assessment
+     ! of the mass of live vegetation and litter, is the same
+     ! as the initial condition plus the integrated fluxes in and
+     ! out of those pools over the duration of the simulation.
+     
+     ! Mass in living vegetation, this includes:
+     ! All organs on living plants, including non respiring tissues
+     ! and heartwood.
+     ! The live seed pool
+     
+     real(r8) :: state_liveveg   ! Assessed instanteously [kg/m2]
+     real(r8) :: iflux_liveveg   ! Integrated daily       [kg/m2]
+
+     ! Mass in all litter tracked by FATES
+     ! This includes only the unfragmented litter, litter that
+     ! has fragmented is tracked by the host models
+     
+     real(r8) :: state_litter    ! Assessed instantaneously [kg/m2]
+     real(r8) :: iflux_litter    ! Integrated daily         [kg/m2]
+
+  end type site_ifluxbal_type
+
+  ! -------------------------------------------------------------------------
+  
+  type, public :: site_fluxdiags_type
+
+
+     ! This is for all diagnostics that are uniform over all elements (C,N,P)
+     
+     type(elem_diag_type), pointer :: elem(:)
+
+     ! This variable is slated as to-do, but the fluxdiags type needs
+     ! to be refactored first. Currently this type is allocated
+     ! by chemical species (ie C, N or P). GPP is C, but not N or P (RGK 0524)
+     ! Previous day GPP [kgC/m2/year], partitioned by size x pft
+     !real(r8),allocatable :: gpp_prev_scpf(:)
+
+     real(r8) :: npp          ! kg m-2 day-1
+     
+     ! Nutrient Flux Diagnostics
+     
+     real(r8) :: resp_excess  ! plant carbon respired due to carbon overflow
+                              ! this happens when nutrients are limiting construction
+                              ! of new tissues kg m-2 s-1
+     real(r8) :: nh4_uptake   ! plant nh4 uptake, kg m-2 s-1
+     real(r8) :: no3_uptake   ! plant no3 uptake, kg m-2 s-1
+     real(r8) :: sym_nfix     ! plant N uptake via symbiotic fixation kg m-2 s-1
+     real(r8) :: n_efflux     ! efflux of unusable N from plant to soil labile pool kg m-2 s-1
+     real(r8) :: p_uptake     ! po4 uptake, kg m-2 s-1
+     real(r8) :: p_efflux     ! efflux of unusable P from plant to soil labile pool kg m-2 s-1
+
+     ! Size by PFT delineated nutrient flux diagnostics (same units as above)
+     ! These are only allocated if both complex history diagnostics, and the
+     ! species of interest (N or P) is requested
+     
+     real(r8),allocatable :: nh4_uptake_scpf(:)
+     real(r8),allocatable :: no3_uptake_scpf(:)
+     real(r8),allocatable :: sym_nfix_scpf(:)
+     real(r8),allocatable :: n_efflux_scpf(:)
+     real(r8),allocatable :: p_uptake_scpf(:)
+     real(r8),allocatable :: p_efflux_scpf(:)
+
+
      
    contains
 
      procedure :: ZeroFluxDiags
+
      
   end type site_fluxdiags_type
 
@@ -205,7 +298,10 @@ module EDTypesMod
 
      real(r8) :: frag_out         ! Litter and coarse woody debris fragmentation flux [kg/site/day]
 
-     real(r8) :: wood_product          ! Total mass exported as wood product [kg/site/day]
+     real(r8) :: wood_product_harvest(maxpft)    ! Total mass exported as wood product from wood harvest [kg/site/day]
+
+     real(r8) :: wood_product_landusechange(maxpft)    ! Total mass exported as wood product from land use change [kg/site/day]
+
      real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
 
      real(r8) :: flux_generic_in       ! Used for prescribed or artificial input fluxes
@@ -216,6 +312,8 @@ module EDTypesMod
                                        ! due to re-sizing patches when area math starts to lose
                                        ! precision
 
+     real(r8) :: herbivory_flux_out    ! loss of element due to grazing (and/or browsing) by herbivores
+     
    contains
 
      procedure :: ZeroMassBalState
@@ -250,12 +348,17 @@ module EDTypesMod
      real(r8) ::  lon                                          ! longitude: degrees 
 
      ! Fixed Biogeography mode inputs
-     real(r8), allocatable :: area_PFT(:)                      ! Area allocated to individual PFTs    
+     real(r8), allocatable :: area_PFT(:,:)                    ! Area allocated to individual PFTs, indexed by land use class  [ha/ha of non-bareground area]
+     real(r8) :: area_bareground                               ! Area allocated to bare ground in nocomp configurations (corresponds to HLM PFT 0) [ha/ha]
+
      integer, allocatable  :: use_this_pft(:)                  ! Is area_PFT > 0 ? (1=yes, 0=no)
 
      ! Total area of patches in each age bin [m2]
      real(r8), allocatable :: area_by_age(:)
 
+     ! Cosine of the zenith angle of the sun
+     real(r8) :: coszen
+     
      
      ! Nutrient relevant 
      real(r8), allocatable :: rec_l2fr(:,:) ! A running mean of the l2fr's for the newly
@@ -266,19 +369,48 @@ module EDTypesMod
                                             ! which is used for fixation
 
      
-     
+     ! Two-stream scratch arrays
+     real(r8), allocatable :: omega_2str(:,:)   ! This is the matrix that is inverted to solve
+                                                ! the linear system of equations in the two-stream
+                                                ! radiation module. This array will grow
+                                                ! and shrink depending on how many scattering
+                                                ! elements there are. This matrix is square,
+                                                ! and needs to be larger than 2 x number-of-elements
+                                                ! for each patch on the site
+
+     real(r8), allocatable :: taulambda_2str(:) ! These are the coefficients of the two-stream
+                                                ! linear system of equations (ie the unknowns, "lambda")
+                                                ! As well as the left-side (constants, "tau"). Since
+                                                ! the LAPACK solver dgesv uses the latter
+                                                ! as the argument and over-writes, we only
+                                                ! need one array
+
+     integer, allocatable :: ipiv_2str(:)       ! pivot indices for the lapack 2str solver
+
      ! SP mode target PFT level variables
      real(r8), allocatable :: sp_tlai(:)                      ! target TLAI per FATES pft
      real(r8), allocatable :: sp_tsai(:)                      ! target TSAI per FATES pft
      real(r8), allocatable :: sp_htop(:)                      ! target HTOP per FATES pft
      
-     ! Mass Balance (allocation for each element)
+     ! Instantaneous Mass Balance (allocation for each element)
 
      type(site_massbal_type), pointer :: mass_balance(:)
 
-     ! Flux diagnostics (allocation for each element)
+     ! Integrated Mass Balance checks, i.e. do the integrated
+     ! fluxes match the state?  One is for live vegetation,
+     ! one if for litter
 
-     type(site_fluxdiags_type), pointer :: flux_diags(:)
+     type(site_ifluxbal_type), pointer :: iflux_balance(:)
+     
+     
+     ! Flux diagnostics
+     ! These are used to write history output based on fluxes
+     ! that are calculated before mortality and cohort/patch restructuring
+     ! but are written after patch structure. This structure also allows for
+     ! accurate restarting of the history      
+
+     type(site_fluxdiags_type) :: flux_diags
+     
 
      ! PHENOLOGY 
      real(r8) ::  grow_deg_days                                ! Phenology growing degree days
@@ -319,10 +451,10 @@ module EDTypesMod
 
      ! FIRE
      real(r8) ::  wind                                         ! daily wind in m/min for Spitfire units 
-     real(r8) ::  acc_ni                                       ! daily nesterov index accumulating over time.
      real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
      real(r8) ::  NF                                           ! daily ignitions in km2
      real(r8) ::  NF_successful                                ! daily ignitions in km2 that actually lead to fire
+     class(fire_weather), pointer :: fireWeather               ! fire weather object
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr
@@ -364,18 +496,18 @@ module EDTypesMod
      real(r8) :: fmort_crownarea_canopy                ! crownarea of canopy indivs killed due to fire per year. [m2/sec]
      real(r8) :: fmort_crownarea_ustory                ! crownarea of understory indivs killed due to fire per year [m2/sec] 
 
-     real(r8), allocatable :: term_nindivs_canopy(:,:) ! number of canopy individuals that were in cohorts which 
-                                                       ! were terminated this timestep, on size x pft
-     real(r8), allocatable :: term_nindivs_ustory(:,:) ! number of understory individuals that were in cohorts which 
-                                                       ! were terminated this timestep, on size x pft
+     real(r8), allocatable :: term_nindivs_canopy(:,:,:)   ! number of canopy individuals that were in cohorts which 
+                                                           ! were terminated this timestep, by termination type, size x pft
+     real(r8), allocatable :: term_nindivs_ustory(:,:,:)   ! number of understory individuals that were in cohorts which 
+                                                           ! were terminated this timestep, by termination type, size x pft
 
-     real(r8), allocatable :: term_carbonflux_canopy(:)  ! carbon flux from live to dead pools associated 
-                                                         ! with termination mortality, per canopy level. [kgC/ha/day]
-     real(r8), allocatable :: term_carbonflux_ustory(:)  ! carbon flux from live to dead pools associated 
-                                                         ! with termination mortality, per canopy level.  [kgC/ha/day]    
-     real(r8), allocatable :: imort_carbonflux(:)        ! biomass of individuals killed due to impact mortality per year. [kgC/m2/sec]
-     real(r8), allocatable :: fmort_carbonflux_canopy(:) ! biomass of canopy indivs killed due to fire per year. [gC/m2/sec]
-     real(r8), allocatable :: fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to fire per year [gC/m2/sec] 
+     real(r8), allocatable :: term_carbonflux_canopy(:,:)  ! carbon flux from live to dead pools associated 
+                                                           ! with termination mortality, by termination type and pft. [kgC/ha/day]
+     real(r8), allocatable :: term_carbonflux_ustory(:,:)  ! carbon flux from live to dead pools associated 
+                                                         ! with termination mortality, by termination type and pft.  [kgC/ha/day]    
+     real(r8), allocatable :: imort_carbonflux(:)        ! biomass of individuals killed due to impact mortality per year, by pft. [kgC/m2/sec]
+     real(r8), allocatable :: fmort_carbonflux_canopy(:) ! biomass of canopy indivs killed due to fire per year, by pft. [gC/m2/sec]
+     real(r8), allocatable :: fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to fire per year, by pft [gC/m2/sec] 
 
      real(r8), allocatable :: term_abg_flux(:,:)          ! aboveground biomass lost due to termination mortality x size x pft
      real(r8), allocatable :: imort_abg_flux(:,:)         ! aboveground biomass lost due to impact mortality x size x pft [kgC/m2/sec]
@@ -426,32 +558,114 @@ module EDTypesMod
       real(r8), allocatable :: seed_in(:)                                ! amount of seed dispersed into the site from neighbouring cells  [kg/site/day]
 
      ! site-level variables to keep track of the disturbance rates, both actual and "potential"
-     real(r8) :: disturbance_rates_primary_to_primary(N_DIST_TYPES)      ! actual disturbance rates from primary patches to primary patches [m2/m2/day]
-     real(r8) :: disturbance_rates_primary_to_secondary(N_DIST_TYPES)    ! actual disturbance rates from primary patches to secondary patches [m2/m2/day]
-     real(r8) :: disturbance_rates_secondary_to_secondary(N_DIST_TYPES)  ! actual disturbance rates from secondary patches to secondary patches [m2/m2/day]
-     real(r8) :: potential_disturbance_rates(N_DIST_TYPES)               ! "potential" disturb rates (i.e. prior to the "which is most" logic) [m2/m2/day]
-     real(r8) :: primary_land_patchfusion_error                          ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
-     
-  end type ed_site_type
+     real(r8) :: disturbance_rates(N_DIST_TYPES,n_landuse_cats, n_landuse_cats)  ! actual disturbance rates for each disturbance type  [m2/m2/day]
+     real(r8) :: primary_land_patchfusion_error             ! error term in total area of primary patches associated with patch fusion [m2/m2/day]
+     real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats) ! land use transition matrix as read in from HLM and aggregated to FATES land use types [m2/m2/year]
 
+     real(r8) :: min_allowed_landuse_fraction             ! minimum amount of land-use type below which the resulting patches would be too small [m2/m2]
+     logical, allocatable :: landuse_vector_gt_min(:)     ! is the land use state vector for each land use type greater than the minimum below which we ignore?
+     logical :: transition_landuse_from_off_to_on         ! special flag to use only when reading restarts, which triggers procedure to initialize land use
+
+     contains
+
+       procedure, public :: get_current_landuse_statevector
+       procedure, public :: get_secondary_young_fraction
+
+  end type ed_site_type
+  
   ! Make public necessary subroutines and functions
   public :: dump_site
+  public :: CalculateTreeGrassAreaSite
+  public :: set_patchno
+  
+contains
 
-  contains
-      
-    ! =====================================================================================
+  ! ============================================================================
+
+  subroutine set_patchno( currentSite, check , call_id)
+
+    !
+    ! !DESCRIPTION:
+    ! Give patches an order number from the oldest to youngest. 
+    ! Oldest patches start with an index of 1.
+    ! Special case: For no-comp runs, we treat the bare-ground
+    ! patch as index 0.
+    
+    type(ed_site_type),intent(in) :: currentSite
+    logical,intent(in) :: check     ! If true, we are checking order, not setting
+    integer,intent(in) :: call_id   ! An index used for testing
+    type(fates_patch_type), pointer :: currentPatch
+    integer patchno
+
+    !---------------------------------------------------------------------
+    
+    patchno = 1
+    currentPatch => currentSite%oldest_patch
+    do while(associated(currentPatch))
+       if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
+          ! for bareground patch, we make the patch number 0
+          if(check .and. currentPatch%patchno.ne.0)then
+             write(fates_log(),*)'nocomp patch numbering is not correct:',currentPatch%patchno,'call_id:',call_id
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          currentPatch%patchno = 0
+       else
+          if(check .and. currentPatch%patchno.ne.patchno) then
+             write(fates_log(),*)'patch numbering is not correct:',currentPatch%patchno,patchno,'call_id:',call_id
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          currentPatch%patchno = patchno
+          patchno = patchno + 1
+       endif
+       currentPatch => currentPatch%younger
+    enddo
+    
+    return
+  end subroutine set_patchno
+    
+  ! =====================================================================================
 
     subroutine ZeroFluxDiags(this)
       
       class(site_fluxdiags_type) :: this
+      integer :: el
       
-      this%cwd_ag_input(:)      = 0._r8
-      this%cwd_bg_input(:)      = 0._r8
-      this%leaf_litter_input(:) = 0._r8
-      this%root_litter_input(:) = 0._r8
+      do el = 1,num_elements
+         this%elem(el)%cwd_ag_input(:)      = 0._r8
+         this%elem(el)%cwd_bg_input(:)      = 0._r8
+         this%elem(el)%surf_fine_litter_input(:) = 0._r8
+         this%elem(el)%root_litter_input(:) = 0._r8
+         this%elem(el)%burned_liveveg       = 0._r8
+         this%elem(el)%tot_seed_turnover   = 0._r8
+         this%elem(el)%exported_harvest   = 0._r8
+         this%elem(el)%err_liveveg   = 0._r8
+         this%elem(el)%err_litter   = 0._r8
+
+      end do
+
+     this%npp = 0._r8
+     this%resp_excess = 0._r8
+     this%nh4_uptake  = 0._r8
+     this%no3_uptake  = 0._r8
+     this%sym_nfix = 0._r8
+     this%n_efflux = 0._r8
+     this%p_uptake = 0._r8
+     this%p_efflux = 0._r8
+     
+     this%nh4_uptake_scpf(:) = 0._r8
+     this%no3_uptake_scpf(:) = 0._r8
+     this%sym_nfix_scpf(:) = 0._r8
+     this%n_efflux_scpf(:) = 0._r8
+     this%p_uptake_scpf(:) = 0._r8
+     this%p_efflux_scpf(:) = 0._r8
       
-      return
-    end subroutine ZeroFluxDiags
+     ! We don't zero gpp_prev_scpf because this is not
+     ! incremented like others, it is assigned at the end
+     ! of the daily history write process
+     
+     
+     return
+   end subroutine ZeroFluxDiags
 
     ! =====================================================================================
     
@@ -475,16 +689,53 @@ module EDTypesMod
       this%seed_in           = 0._r8
       this%seed_out          = 0._r8
       this%frag_out          = 0._r8
-      this%wood_product      = 0._r8
+      this%wood_product_harvest(:)        = 0._r8
+      this%wood_product_landusechange(:)  = 0._r8
       this%burn_flux_to_atm  = 0._r8
       this%flux_generic_in   = 0._r8
       this%flux_generic_out  = 0._r8
       this%patch_resize_err  = 0._r8
+      this%herbivory_flux_out= 0._r8
 
       return
   end subroutine ZeroMassBalFlux
    
   ! =====================================================================================
+
+  subroutine CalculateTreeGrassAreaSite(csite, tree_fraction, grass_fraction, bare_fraction)
+    !
+    !  DESCRIPTION:
+    !  Calculates total grass, tree, and bare fractions for a site
+
+    ! ARGUMENTS:
+    type(ed_site_type), intent(inout) :: csite          ! site object
+    real(r8),           intent(out)   :: tree_fraction  ! total site tree fraction
+    real(r8),           intent(out)   :: grass_fraction ! total site grass fraction
+    real(r8),           intent(out)   :: bare_fraction  ! total site bare fraction
+
+    ! LOCALS:
+    type(fates_patch_type), pointer :: currentPatch ! patch object
+    
+    tree_fraction = 0.0_r8
+    grass_fraction = 0.0_r8
+    
+    currentPatch => csite%oldest_patch
+    do while(associated(currentPatch))
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
+        call currentPatch%UpdateTreeGrassArea()
+        tree_fraction = tree_fraction + currentPatch%total_tree_area/AREA
+        grass_fraction = grass_fraction + currentPatch%total_grass_area/AREA
+      end if 
+      currentPatch => currentPatch%younger
+    end do
+
+    ! if cover > 1.0, grasses are under the trees
+    grass_fraction = min(grass_fraction, 1.0_r8 - tree_fraction)
+    bare_fraction = 1.0_r8 - tree_fraction - grass_fraction
+
+  end subroutine CalculateTreeGrassAreaSite
+
+  !---------------------------------------------------------------------------------------
 
   subroutine dump_site(csite) 
 
@@ -501,7 +752,82 @@ module EDTypesMod
    write(fates_log(),*) '----------------------------------------'
    return
 
-end subroutine dump_site
-  
-  
+  end subroutine dump_site
+
+  ! =====================================================================================
+
+  function get_current_landuse_statevector(this) result(current_state_vector)
+
+     !
+     ! !DESCRIPTION:
+     !  Calculate how much of a site is each land use category.
+     !  this does not include bare ground when nocomp + fixed biogeography is on,
+     !  so will not sum to one in that case. otherwise it will sum to one.
+     !
+     ! !USES:
+     !
+     ! !ARGUMENTS:
+     class(ed_site_type) :: this
+     real(r8)            :: current_state_vector(n_landuse_cats)
+
+     ! !LOCAL VARIABLES:
+     type(fates_patch_type), pointer :: currentPatch
+
+     current_state_vector(:) = 0._r8
+
+     currentPatch => this%oldest_patch
+     do while (associated(currentPatch))
+        if (currentPatch%land_use_label .gt. nocomp_bareground_land) then
+           current_state_vector(currentPatch%land_use_label) = &
+                current_state_vector(currentPatch%land_use_label) + &
+                currentPatch%area/AREA
+        end if
+        currentPatch => currentPatch%younger
+     end do
+
+   end function get_current_landuse_statevector
+
+   ! =====================================================================================
+
+   function get_secondary_young_fraction(this) result(secondary_young_fraction)
+
+     !
+     ! !DESCRIPTION:
+     !  Calculate how much of the secondary area is "young", i.e. below the age threshold.
+     !  If no seconday patch area at all, return -1.
+     !
+     ! !USES:
+     !
+     ! !ARGUMENTS:
+     class(ed_site_type) :: this
+     real(r8)            :: secondary_young_fraction
+     real(r8)            :: secondary_young_area
+     real(r8)            :: secondary_old_area
+
+     ! !LOCAL VARIABLES:
+     type(fates_patch_type), pointer :: currentPatch
+
+     secondary_young_area = 0._r8
+     secondary_old_area = 0._r8
+
+     currentPatch => this%oldest_patch
+     do while (associated(currentPatch))
+        if (currentPatch%land_use_label .eq. secondaryland) then
+           if ( currentPatch%age .ge. secondary_age_threshold ) then
+              secondary_old_area = secondary_old_area + currentPatch%area
+           else
+              secondary_young_area = secondary_young_area + currentPatch%area
+           end if
+        end if
+        currentPatch => currentPatch%younger
+     end do
+
+     if ( (secondary_young_area + secondary_old_area) .gt. nearzero ) then
+        secondary_young_fraction = secondary_young_area / (secondary_young_area + secondary_old_area)
+     else
+        secondary_young_fraction = -1._r8
+     endif
+
+   end function get_secondary_young_fraction
+
 end module EDTypesMod

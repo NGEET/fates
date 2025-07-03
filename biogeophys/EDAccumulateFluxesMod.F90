@@ -3,7 +3,7 @@ module EDAccumulateFluxesMod
   !------------------------------------------------------------------------------
   ! !DESCRIPTION:
   ! This routine accumulates NPP, GPP and respiration of each cohort over the course of each 24 hour period. 
-  ! The fluxes are stored per cohort, and the npp_tstep (etc) fluxes are calcualted in EDPhotosynthesis
+  ! The fluxes are stored per cohort, and the gpp_tstep (etc) fluxes are calculated in EDPhotosynthesis
   ! This routine cannot be in EDPhotosynthesis because EDPhotosynthesis is a loop and therefore would
   ! erroneously add these things up multiple times. 
   ! Rosie Fisher. March 2014. 
@@ -14,7 +14,6 @@ module EDAccumulateFluxesMod
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : nocomp_bareground
-
 
   implicit none
   private
@@ -62,16 +61,16 @@ contains
 
     do s = 1, nsites
 
-       ifp = 0
-       
        ! Note: Do not attempt to accumulate or log any
        ! heterotrophic respiration fluxes from the HLM here
        ! It is likely this has not been calculated yet (ELM/CLM)
        
        cpatch => sites(s)%oldest_patch
-       do while (associated(cpatch))                 
+       do while (associated(cpatch))
+
+          ifp = cpatch%patchno
+          
           if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
-             ifp = ifp+1
 
              if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
                 ccohort => cpatch%shortest
@@ -80,17 +79,8 @@ contains
                    ! Accumulate fluxes from hourly to daily values. 
                    ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
 
-                   if ( debug ) then
-
-                      write(fates_log(),*) 'EDAccumFlux 64 ',ccohort%npp_tstep
-                      write(fates_log(),*) 'EDAccumFlux 66 ',ccohort%gpp_tstep
-                      write(fates_log(),*) 'EDAccumFlux 67 ',ccohort%resp_tstep
-
-                   endif
-
-                   ccohort%npp_acc  = ccohort%npp_acc  + ccohort%npp_tstep 
                    ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
-                   ccohort%resp_acc = ccohort%resp_acc + ccohort%resp_tstep
+                   ccohort%resp_m_acc = ccohort%resp_m_acc + ccohort%resp_m_tstep
 
                    ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
                    
@@ -114,6 +104,7 @@ contains
                 enddo ! while(associated(ccohort))
              end if
           end if ! not bare ground
+
           cpatch => cpatch%younger
        end do  ! while(associated(cpatch))
     end do
