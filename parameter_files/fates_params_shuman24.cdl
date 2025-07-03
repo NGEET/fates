@@ -1,7 +1,6 @@
-netcdf fates_params_default {
+netcdf fates_params_shuman24 {
 dimensions:
 	fates_NCWD = 4 ;
-	fates_edgeforest_bins = 6 ;
 	fates_history_age_bins = 7 ;
 	fates_history_coage_bins = 2 ;
 	fates_history_damage_bins = 2 ;
@@ -12,49 +11,133 @@ dimensions:
 	fates_landuseclass = 5 ;
 	fates_leafage_class = 1 ;
 	fates_litterclass = 6 ;
-	fates_pft = 14 ;
+	fates_pft = 3 ;
 	fates_plant_organs = 4 ;
 	fates_string_length = 60 ;
 variables:
-	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
-		fates_history_ageclass_bin_edges:units = "yr" ;
-		fates_history_ageclass_bin_edges:long_name = "Lower edges for age class bins used in age-resolved patch history output" ;
-	double fates_history_coageclass_bin_edges(fates_history_coage_bins) ;
-		fates_history_coageclass_bin_edges:units = "years" ;
-		fates_history_coageclass_bin_edges:long_name = "Lower edges for cohort age class bins used in cohort age resolved history output" ;
-	double fates_history_height_bin_edges(fates_history_height_bins) ;
-		fates_history_height_bin_edges:units = "m" ;
-		fates_history_height_bin_edges:long_name = "Lower edges for height bins used in height-resolved history output" ;
-	double fates_history_damage_bin_edges(fates_history_damage_bins) ;
-		fates_history_damage_bin_edges:units = "% crown loss" ;
-		fates_history_damage_bin_edges:long_name = "Lower edges for damage class bins used in cohort history output" ;
+	double fates_hlm_pft_map(fates_hlm_pftno, fates_pft) ;
+		fates_hlm_pft_map:units = "area fraction" ;
+		fates_hlm_pft_map:long_name = "In fixed biogeog mode, fraction of HLM area associated with each FATES PFT" ;
 	double fates_history_sizeclass_bin_edges(fates_history_size_bins) ;
 		fates_history_sizeclass_bin_edges:units = "cm" ;
 		fates_history_sizeclass_bin_edges:long_name = "Lower edges for DBH size class bins used in size-resolved cohort history output" ;
+	double fates_history_ageclass_bin_edges(fates_history_age_bins) ;
+		fates_history_ageclass_bin_edges:units = "yr" ;
+		fates_history_ageclass_bin_edges:long_name = "Lower edges for age class bins used in age-resolved patch history output" ;
+	char fates_litterclass_name(fates_litterclass, fates_string_length) ;
+		fates_litterclass_name:units = "unitless - string" ;
+		fates_litterclass_name:long_name = "Name of the litter classes, for variables associated with dimension fates_litterclass" ;
+	double fates_fire_FBD(fates_litterclass) ;
+		fates_fire_FBD:units = "kg Biomass/m3" ;
+		fates_fire_FBD:long_name = "fuel bulk density" ;
+	double fates_fire_SAV(fates_litterclass) ;
+		fates_fire_SAV:units = "cm-1" ;
+		fates_fire_SAV:long_name = "fuel surface area to volume ratio" ;
+	double fates_fire_low_moisture_Coeff(fates_litterclass) ;
+		fates_fire_low_moisture_Coeff:units = "NA" ;
+		fates_fire_low_moisture_Coeff:long_name = "spitfire parameter, equation B1 Thonicke et al 2010" ;
+	double fates_fire_low_moisture_Slope(fates_litterclass) ;
+		fates_fire_low_moisture_Slope:units = "NA" ;
+		fates_fire_low_moisture_Slope:long_name = "spitfire parameter, equation B1 Thonicke et al 2010" ;
+	double fates_fire_mid_moisture(fates_litterclass) ;
+		fates_fire_mid_moisture:units = "NA" ;
+		fates_fire_mid_moisture:long_name = "spitfire litter moisture threshold to be considered medium dry" ;
+	double fates_fire_mid_moisture_Coeff(fates_litterclass) ;
+		fates_fire_mid_moisture_Coeff:units = "NA" ;
+		fates_fire_mid_moisture_Coeff:long_name = "spitfire parameter, equation B1 Thonicke et al 2010" ;
+	double fates_fire_mid_moisture_Slope(fates_litterclass) ;
+		fates_fire_mid_moisture_Slope:units = "NA" ;
+		fates_fire_mid_moisture_Slope:long_name = "spitfire parameter, equation B1 Thonicke et al 2010" ;
+	double fates_fire_min_moisture(fates_litterclass) ;
+		fates_fire_min_moisture:units = "NA" ;
+		fates_fire_min_moisture:long_name = "spitfire litter moisture threshold to be considered very dry" ;
+	double fates_frag_maxdecomp(fates_litterclass) ;
+		fates_frag_maxdecomp:units = "yr-1" ;
+		fates_frag_maxdecomp:long_name = "maximum rate of litter & CWD transfer from non-decomposing class into decomposing class" ;
+	double fates_history_height_bin_edges(fates_history_height_bins) ;
+		fates_history_height_bin_edges:units = "m" ;
+		fates_history_height_bin_edges:long_name = "Lower edges for height bins used in height-resolved history output" ;
+	char fates_landuseclass_name(fates_landuseclass, fates_string_length) ;
+		fates_landuseclass_name:units = "unitless - string" ;
+		fates_landuseclass_name:long_name = "Name of the land use classes, for variables associated with dimension fates_landuseclass" ;
+	double fates_landuse_crop_lu_pft_vector(fates_landuseclass) ;
+		fates_landuse_crop_lu_pft_vector:units = "NA" ;
+		fates_landuse_crop_lu_pft_vector:long_name = "the FATES PFT index to use on a given crop land-use type (dummy value of -999 for non-crop types)" ;
+	double fates_max_nocomp_pfts_by_landuse(fates_landuseclass) ;
+		fates_max_nocomp_pfts_by_landuse:units = "count" ;
+		fates_max_nocomp_pfts_by_landuse:long_name = "maximum number of nocomp PFTs on each land use type (only used in nocomp mode)" ;
+	double fates_maxpatches_by_landuse(fates_landuseclass) ;
+		fates_maxpatches_by_landuse:units = "count" ;
+		fates_maxpatches_by_landuse:long_name = "maximum number of patches per site on each land use type" ;
+	char fates_alloc_organ_name(fates_plant_organs, fates_string_length) ;
+		fates_alloc_organ_name:units = "unitless - string" ;
+		fates_alloc_organ_name:long_name = "Name of plant organs (with alloc_organ_id, must match PRTGenericMod.F90)" ;
+	char fates_hydro_organ_name(fates_hydr_organs, fates_string_length) ;
+		fates_hydro_organ_name:units = "unitless - string" ;
+		fates_hydro_organ_name:long_name = "Name of plant hydraulics organs (DONT CHANGE, order matches media list in FatesHydraulicsMemMod.F90)" ;
+	double fates_alloc_organ_priority(fates_plant_organs, fates_pft) ;
+		fates_alloc_organ_priority:units = "index" ;
+		fates_alloc_organ_priority:long_name = "Priority level for allocation, 1: replaces turnover from storage, 2: same priority as storage use/replacement, 3: ascending in order of least importance" ;
+	double fates_cnp_turnover_nitr_retrans(fates_plant_organs, fates_pft) ;
+		fates_cnp_turnover_nitr_retrans:units = "fraction" ;
+		fates_cnp_turnover_nitr_retrans:long_name = "retranslocation (reabsorbtion) fraction of nitrogen in turnover of scenescing tissues" ;
+	double fates_cnp_turnover_phos_retrans(fates_plant_organs, fates_pft) ;
+		fates_cnp_turnover_phos_retrans:units = "fraction" ;
+		fates_cnp_turnover_phos_retrans:long_name = "retranslocation (reabsorbtion) fraction of phosphorus in turnover of scenescing tissues" ;
+	double fates_hydro_avuln_node(fates_hydr_organs, fates_pft) ;
+		fates_hydro_avuln_node:units = "unitless" ;
+		fates_hydro_avuln_node:long_name = "xylem vulnerability curve shape parameter" ;
+	double fates_hydro_epsil_node(fates_hydr_organs, fates_pft) ;
+		fates_hydro_epsil_node:units = "MPa" ;
+		fates_hydro_epsil_node:long_name = "bulk elastic modulus" ;
+	double fates_hydro_fcap_node(fates_hydr_organs, fates_pft) ;
+		fates_hydro_fcap_node:units = "unitless" ;
+		fates_hydro_fcap_node:long_name = "fraction of non-residual water that is capillary in source" ;
+	double fates_hydro_kmax_node(fates_hydr_organs, fates_pft) ;
+		fates_hydro_kmax_node:units = "kg/MPa/m/s" ;
+		fates_hydro_kmax_node:long_name = "maximum xylem conductivity per unit conducting xylem area" ;
+	double fates_hydro_p50_node(fates_hydr_organs, fates_pft) ;
+		fates_hydro_p50_node:units = "MPa" ;
+		fates_hydro_p50_node:long_name = "xylem water potential at 50% loss of conductivity" ;
+	double fates_hydro_pinot_node(fates_hydr_organs, fates_pft) ;
+		fates_hydro_pinot_node:units = "MPa" ;
+		fates_hydro_pinot_node:long_name = "osmotic potential at full turgor" ;
+	double fates_hydro_pitlp_node(fates_hydr_organs, fates_pft) ;
+		fates_hydro_pitlp_node:units = "MPa" ;
+		fates_hydro_pitlp_node:long_name = "turgor loss point" ;
+	double fates_hydro_resid_node(fates_hydr_organs, fates_pft) ;
+		fates_hydro_resid_node:units = "cm3/cm3" ;
+		fates_hydro_resid_node:long_name = "residual water conent" ;
+	double fates_hydro_thetas_node(fates_hydr_organs, fates_pft) ;
+		fates_hydro_thetas_node:units = "cm3/cm3" ;
+		fates_hydro_thetas_node:long_name = "saturated water content" ;
+	double fates_hydro_vg_alpha_node(fates_hydr_organs, fates_pft) ;
+		fates_hydro_vg_alpha_node:units = "MPa-1" ;
+		fates_hydro_vg_alpha_node:long_name = "(used if hydr_htftype_node = 2), capillary length parameter in van Genuchten model" ;
+	double fates_hydro_vg_m_node(fates_hydr_organs, fates_pft) ;
+		fates_hydro_vg_m_node:units = "unitless" ;
+		fates_hydro_vg_m_node:long_name = "(used if hydr_htftype_node = 2),m in van Genuchten 1980 model, 2nd pore size distribution parameter" ;
+	double fates_hydro_vg_n_node(fates_hydr_organs, fates_pft) ;
+		fates_hydro_vg_n_node:units = "unitless" ;
+		fates_hydro_vg_n_node:long_name = "(used if hydr_htftype_node = 2),n in van Genuchten 1980 model, pore size distribution parameter" ;
+	double fates_stoich_nitr(fates_plant_organs, fates_pft) ;
+		fates_stoich_nitr:units = "gN/gC" ;
+		fates_stoich_nitr:long_name = "target nitrogen concentration (ratio with carbon) of organs" ;
+	double fates_stoich_phos(fates_plant_organs, fates_pft) ;
+		fates_stoich_phos:units = "gP/gC" ;
+		fates_stoich_phos:long_name = "target phosphorus concentration (ratio with carbon) of organs" ;
 	double fates_alloc_organ_id(fates_plant_organs) ;
 		fates_alloc_organ_id:units = "unitless" ;
 		fates_alloc_organ_id:long_name = "This is the global index that the organ in this file is associated with, values match those in parteh/PRTGenericMod.F90" ;
+	double fates_frag_cwd_frac(fates_NCWD) ;
+		fates_frag_cwd_frac:units = "fraction" ;
+		fates_frag_cwd_frac:long_name = "fraction of woody (bdead+bsw) biomass destined for CWD pool" ;
 	double fates_hydro_htftype_node(fates_hydr_organs) ;
 		fates_hydro_htftype_node:units = "unitless" ;
 		fates_hydro_htftype_node:long_name = "Switch that defines the hydraulic transfer functions for each organ." ;
 	char fates_pftname(fates_pft, fates_string_length) ;
 		fates_pftname:units = "unitless - string" ;
 		fates_pftname:long_name = "Description of plant type" ;
-	char fates_hydro_organ_name(fates_hydr_organs, fates_string_length) ;
-		fates_hydro_organ_name:units = "unitless - string" ;
-		fates_hydro_organ_name:long_name = "Name of plant hydraulics organs (DONT CHANGE, order matches media list in FatesHydraulicsMemMod.F90)" ;
-	char fates_alloc_organ_name(fates_plant_organs, fates_string_length) ;
-		fates_alloc_organ_name:units = "unitless - string" ;
-		fates_alloc_organ_name:long_name = "Name of plant organs (with alloc_organ_id, must match PRTGenericMod.F90)" ;
-	char fates_landuseclass_name(fates_landuseclass, fates_string_length) ;
-		fates_landuseclass_name:units = "unitless - string" ;
-		fates_landuseclass_name:long_name = "Name of the land use classes, for variables associated with dimension fates_landuseclass" ;
-	char fates_litterclass_name(fates_litterclass, fates_string_length) ;
-		fates_litterclass_name:units = "unitless - string" ;
-		fates_litterclass_name:long_name = "Name of the litter classes, for variables associated with dimension fates_litterclass" ;
-	double fates_alloc_organ_priority(fates_plant_organs, fates_pft) ;
-		fates_alloc_organ_priority:units = "index" ;
-		fates_alloc_organ_priority:long_name = "Priority level for allocation, 1: replaces turnover from storage, 2: same priority as storage use/replacement, 3: ascending in order of least importance" ;
 	double fates_alloc_storage_cushion(fates_pft) ;
 		fates_alloc_storage_cushion:units = "fraction" ;
 		fates_alloc_storage_cushion:long_name = "maximum size of storage C pool, relative to maximum size of leaf C pool" ;
@@ -229,12 +312,6 @@ variables:
 	double fates_cnp_store_ovrflw_frac(fates_pft) ;
 		fates_cnp_store_ovrflw_frac:units = "fraction" ;
 		fates_cnp_store_ovrflw_frac:long_name = "size of overflow storage (for excess C,N or P) as a fraction of storage target" ;
-	double fates_cnp_turnover_nitr_retrans(fates_plant_organs, fates_pft) ;
-		fates_cnp_turnover_nitr_retrans:units = "fraction" ;
-		fates_cnp_turnover_nitr_retrans:long_name = "retranslocation (reabsorbtion) fraction of nitrogen in turnover of scenescing tissues" ;
-	double fates_cnp_turnover_phos_retrans(fates_plant_organs, fates_pft) ;
-		fates_cnp_turnover_phos_retrans:units = "fraction" ;
-		fates_cnp_turnover_phos_retrans:long_name = "retranslocation (reabsorbtion) fraction of phosphorus in turnover of scenescing tissues" ;
 	double fates_cnp_vmax_nh4(fates_pft) ;
 		fates_cnp_vmax_nh4:units = "gN/gC/s" ;
 		fates_cnp_vmax_nh4:long_name = "maximum (potential) uptake rate of NH4 per gC of fineroot biomass (see main/EDPftvarcon.F90 vmax_nh4 for usage)" ;
@@ -259,36 +336,6 @@ variables:
 	double fates_dev_arbitrary_pft(fates_pft) ;
 		fates_dev_arbitrary_pft:units = "unknown" ;
 		fates_dev_arbitrary_pft:long_name = "Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses" ;
-	double fates_edgeforest_bin_edges(fates_edgeforest_bins) ;
-		fates_edgeforest_bin_edges:units = "m" ;
-		fates_edgeforest_bin_edges:long_name = "Boundaries of forest edge bins (for each bin, include value closest to zero)" ;
-	double fates_edgeforest_gaussian_amplitude(fates_edgeforest_bins) ;
-		fates_edgeforest_gaussian_amplitude:units = "unitless" ;
-		fates_edgeforest_gaussian_amplitude:long_name = "Amplitudes for calculating forest area in each edge bin (gaussian fit)" ;
-	double fates_edgeforest_gaussian_sigma(fates_edgeforest_bins) ;
-		fates_edgeforest_gaussian_sigma:units = "unitless" ;
-		fates_edgeforest_gaussian_sigma:long_name = "Sigmas for calculating forest area in each edge bin (gaussian fit)" ;
-	double fates_edgeforest_gaussian_center(fates_edgeforest_bins) ;
-		fates_edgeforest_gaussian_center:units = "unitless" ;
-		fates_edgeforest_gaussian_center:long_name = "Centers for calculating forest area in each edge bin (gaussian fit)" ;
-	double fates_edgeforest_lognormal_amplitude(fates_edgeforest_bins) ;
-		fates_edgeforest_lognormal_amplitude:units = "unitless" ;
-		fates_edgeforest_lognormal_amplitude:long_name = "Amplitudes for calculating forest area in each edge bin (lognormal fit)" ;
-	double fates_edgeforest_lognormal_sigma(fates_edgeforest_bins) ;
-		fates_edgeforest_lognormal_sigma:units = "unitless" ;
-		fates_edgeforest_lognormal_sigma:long_name = "Sigmas for calculating forest area in each edge bin (lognormal fit)" ;
-	double fates_edgeforest_lognormal_center(fates_edgeforest_bins) ;
-		fates_edgeforest_lognormal_center:units = "unitless" ;
-		fates_edgeforest_lognormal_center:long_name = "Centers for calculating forest area in each edge bin (lognormal fit)" ;
-	double fates_edgeforest_quadratic_a(fates_edgeforest_bins) ;
-		fates_edgeforest_quadratic_a:units = "unitless" ;
-		fates_edgeforest_quadratic_a:long_name = "x^2 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
-	double fates_edgeforest_quadratic_b(fates_edgeforest_bins) ;
-		fates_edgeforest_quadratic_b:units = "unitless" ;
-		fates_edgeforest_quadratic_b:long_name = "x^1 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
-	double fates_edgeforest_quadratic_c(fates_edgeforest_bins) ;
-		fates_edgeforest_quadratic_c:units = "unitless" ;
-		fates_edgeforest_quadratic_c:long_name = "x^0 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
 	double fates_fire_alpha_SH(fates_pft) ;
 		fates_fire_alpha_SH:units = "m / (kw/m)**(2/3)" ;
 		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
@@ -325,39 +372,15 @@ variables:
 	double fates_hydro_avuln_gs(fates_pft) ;
 		fates_hydro_avuln_gs:units = "unitless" ;
 		fates_hydro_avuln_gs:long_name = "shape parameter for stomatal control of water vapor exiting leaf" ;
-	double fates_hydro_avuln_node(fates_hydr_organs, fates_pft) ;
-		fates_hydro_avuln_node:units = "unitless" ;
-		fates_hydro_avuln_node:long_name = "xylem vulnerability curve shape parameter" ;
-	double fates_hydro_epsil_node(fates_hydr_organs, fates_pft) ;
-		fates_hydro_epsil_node:units = "MPa" ;
-		fates_hydro_epsil_node:long_name = "bulk elastic modulus" ;
-	double fates_hydro_fcap_node(fates_hydr_organs, fates_pft) ;
-		fates_hydro_fcap_node:units = "unitless" ;
-		fates_hydro_fcap_node:long_name = "fraction of non-residual water that is capillary in source" ;
 	double fates_hydro_k_lwp(fates_pft) ;
 		fates_hydro_k_lwp:units = "unitless" ;
 		fates_hydro_k_lwp:long_name = "inner leaf humidity scaling coefficient" ;
-	double fates_hydro_kmax_node(fates_hydr_organs, fates_pft) ;
-		fates_hydro_kmax_node:units = "kg/MPa/m/s" ;
-		fates_hydro_kmax_node:long_name = "maximum xylem conductivity per unit conducting xylem area" ;
 	double fates_hydro_p50_gs(fates_pft) ;
 		fates_hydro_p50_gs:units = "MPa" ;
 		fates_hydro_p50_gs:long_name = "water potential at 50% loss of stomatal conductance" ;
-	double fates_hydro_p50_node(fates_hydr_organs, fates_pft) ;
-		fates_hydro_p50_node:units = "MPa" ;
-		fates_hydro_p50_node:long_name = "xylem water potential at 50% loss of conductivity" ;
 	double fates_hydro_p_taper(fates_pft) ;
 		fates_hydro_p_taper:units = "unitless" ;
 		fates_hydro_p_taper:long_name = "xylem taper exponent" ;
-	double fates_hydro_pinot_node(fates_hydr_organs, fates_pft) ;
-		fates_hydro_pinot_node:units = "MPa" ;
-		fates_hydro_pinot_node:long_name = "osmotic potential at full turgor" ;
-	double fates_hydro_pitlp_node(fates_hydr_organs, fates_pft) ;
-		fates_hydro_pitlp_node:units = "MPa" ;
-		fates_hydro_pitlp_node:long_name = "turgor loss point" ;
-	double fates_hydro_resid_node(fates_hydr_organs, fates_pft) ;
-		fates_hydro_resid_node:units = "cm3/cm3" ;
-		fates_hydro_resid_node:long_name = "residual water conent" ;
 	double fates_hydro_rfrac_stem(fates_pft) ;
 		fates_hydro_rfrac_stem:units = "fraction" ;
 		fates_hydro_rfrac_stem:long_name = "fraction of total tree resistance from troot to canopy" ;
@@ -367,21 +390,6 @@ variables:
 	double fates_hydro_srl(fates_pft) ;
 		fates_hydro_srl:units = "m g-1" ;
 		fates_hydro_srl:long_name = "specific root length" ;
-	double fates_hydro_thetas_node(fates_hydr_organs, fates_pft) ;
-		fates_hydro_thetas_node:units = "cm3/cm3" ;
-		fates_hydro_thetas_node:long_name = "saturated water content" ;
-	double fates_hydro_vg_alpha_node(fates_hydr_organs, fates_pft) ;
-		fates_hydro_vg_alpha_node:units = "MPa-1" ;
-		fates_hydro_vg_alpha_node:long_name = "(used if hydr_htftype_node = 2), capillary length parameter in van Genuchten model" ;
-	double fates_hydro_vg_m_node(fates_hydr_organs, fates_pft) ;
-		fates_hydro_vg_m_node:units = "unitless" ;
-		fates_hydro_vg_m_node:long_name = "(used if hydr_htftype_node = 2),m in van Genuchten 1980 model, 2nd pore size distribution parameter" ;
-	double fates_hydro_vg_n_node(fates_hydr_organs, fates_pft) ;
-		fates_hydro_vg_n_node:units = "unitless" ;
-		fates_hydro_vg_n_node:long_name = "(used if hydr_htftype_node = 2),n in van Genuchten 1980 model, pore size distribution parameter" ;
-	double fates_landuse_grazing_palatability(fates_pft) ;
-		fates_landuse_grazing_palatability:units = "unitless 0-1" ;
-		fates_landuse_grazing_palatability:long_name = "Relative intensity of leaf grazing/browsing per PFT" ;
 	double fates_landuse_harvest_pprod10(fates_pft) ;
 		fates_landuse_harvest_pprod10:units = "fraction" ;
 		fates_landuse_harvest_pprod10:long_name = "fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
@@ -394,15 +402,9 @@ variables:
 	double fates_landuse_luc_pprod10(fates_pft) ;
 		fates_landuse_luc_pprod10:units = "fraction" ;
 		fates_landuse_luc_pprod10:long_name = "fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
-	double fates_leaf_agross_btran_model(fates_pft) ;
-		fates_leaf_agross_btran_model:units = "index" ;
-		fates_leaf_agross_btran_model:long_name = "model switch for how gross assimilation affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
 	double fates_leaf_c3psn(fates_pft) ;
 		fates_leaf_c3psn:units = "flag" ;
 		fates_leaf_c3psn:long_name = "Photosynthetic pathway (1=c3, 0=c4)" ;
-	double fates_leaf_fnps(fates_pft) ;
-		fates_leaf_fnps:units = "fraction" ;
-		fates_leaf_fnps:long_name = "fraction of light absorbed by non-photosynthetic pigments" ;
 	double fates_leaf_jmaxha(fates_pft) ;
 		fates_leaf_jmaxha:units = "J/mol" ;
 		fates_leaf_jmaxha:long_name = "activation energy for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
@@ -418,9 +420,6 @@ variables:
 	double fates_leaf_slatop(fates_pft) ;
 		fates_leaf_slatop:units = "m^2/gC" ;
 		fates_leaf_slatop:long_name = "Specific Leaf Area (SLA) at top of canopy, projected area basis" ;
-	double fates_leaf_stomatal_btran_model(fates_pft) ;
-		fates_leaf_stomatal_btran_model:units = "index" ;
-		fates_leaf_stomatal_btran_model:long_name = "model switch for how btran affects conductance. See LeafBiophysicsMod.F90, integer constants: btran_on_" ;
 	double fates_leaf_stomatal_intercept(fates_pft) ;
 		fates_leaf_stomatal_intercept:units = "umol H2O/m**2/s" ;
 		fates_leaf_stomatal_intercept:long_name = "Minimum unstressed stomatal conductance for Ball-Berry model and Medlyn model" ;
@@ -430,9 +429,6 @@ variables:
 	double fates_leaf_stomatal_slope_medlyn(fates_pft) ;
 		fates_leaf_stomatal_slope_medlyn:units = "KPa**0.5" ;
 		fates_leaf_stomatal_slope_medlyn:long_name = "stomatal slope parameter, as per Medlyn" ;
-	double fates_leaf_vcmax25top(fates_leafage_class, fates_pft) ;
-		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
-		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
 	double fates_leaf_vcmaxha(fates_pft) ;
 		fates_leaf_vcmaxha:units = "J/mol" ;
 		fates_leaf_vcmaxha:long_name = "activation energy for vcmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED" ;
@@ -523,24 +519,30 @@ variables:
 	double fates_phen_drought_threshold(fates_pft) ;
 		fates_phen_drought_threshold:units = "m3/m3 or mm" ;
 		fates_phen_drought_threshold:long_name = "threshold for drought phenology (or lower threshold for semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
+	double fates_phen_evergreen(fates_pft) ;
+		fates_phen_evergreen:units = "logical flag" ;
+		fates_phen_evergreen:long_name = "Binary flag for evergreen leaf habit" ;
 	double fates_phen_flush_fraction(fates_pft) ;
 		fates_phen_flush_fraction:units = "fraction" ;
 		fates_phen_flush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
 	double fates_phen_fnrt_drop_fraction(fates_pft) ;
 		fates_phen_fnrt_drop_fraction:units = "fraction" ;
 		fates_phen_fnrt_drop_fraction:long_name = "fraction of fine roots to drop during drought/cold" ;
-	double fates_phen_leaf_habit(fates_pft) ;
-		fates_phen_leaf_habit:units = "flag" ;
-		fates_phen_leaf_habit:long_name = "Flag for leaf phenology habit. 1 - evergreen; 2 - season (cold) deciduous; 3 - stress (hydro) deciduous; 4 - stress (hydro) semi-deciduous" ;
 	double fates_phen_mindaysoff(fates_pft) ;
 		fates_phen_mindaysoff:units = "days" ;
 		fates_phen_mindaysoff:long_name = "day threshold compared against days since leaves abscised (shed)" ;
 	double fates_phen_moist_threshold(fates_pft) ;
 		fates_phen_moist_threshold:units = "m3/m3 or mm" ;
 		fates_phen_moist_threshold:long_name = "upper threshold for drought phenology (only for drought semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
+	double fates_phen_season_decid(fates_pft) ;
+		fates_phen_season_decid:units = "logical flag" ;
+		fates_phen_season_decid:long_name = "Binary flag for seasonal-deciduous leaf habit" ;
 	double fates_phen_stem_drop_fraction(fates_pft) ;
 		fates_phen_stem_drop_fraction:units = "fraction" ;
 		fates_phen_stem_drop_fraction:long_name = "fraction of stems to drop for non-woody species during drought/cold" ;
+	double fates_phen_stress_decid(fates_pft) ;
+		fates_phen_stress_decid:units = "logical flag" ;
+		fates_phen_stress_decid:long_name = "Flag for stress/drought-deciduous leaf habit. 0 - not stress deciduous; 1 - default drought deciduous (two target states only, fully flushed or fully abscised); 2 - semi-deciduous" ;
 	double fates_prescribed_npp_canopy(fates_pft) ;
 		fates_prescribed_npp_canopy:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_canopy:long_name = "NPP per unit crown area of canopy trees for prescribed physiology mode" ;
@@ -613,12 +615,6 @@ variables:
 	double fates_seed_dispersal_pdf_shape(fates_pft) ;
 		fates_seed_dispersal_pdf_shape:units = "unitless" ;
 		fates_seed_dispersal_pdf_shape:long_name = "seed dispersal probability density function shape parameter, B, Table 1 Bullock et al 2016" ;
-	double fates_stoich_nitr(fates_plant_organs, fates_pft) ;
-		fates_stoich_nitr:units = "gN/gC" ;
-		fates_stoich_nitr:long_name = "target nitrogen concentration (ratio with carbon) of organs" ;
-	double fates_stoich_phos(fates_plant_organs, fates_pft) ;
-		fates_stoich_phos:units = "gP/gC" ;
-		fates_stoich_phos:long_name = "target phosphorus concentration (ratio with carbon) of organs" ;
 	double fates_trim_inc(fates_pft) ;
 		fates_trim_inc:units = "m2/m2" ;
 		fates_trim_inc:long_name = "Arbitrary incremental change in trimming function." ;
@@ -694,12 +690,6 @@ variables:
 	double fates_turnover_fnrt(fates_pft) ;
 		fates_turnover_fnrt:units = "yr" ;
 		fates_turnover_fnrt:long_name = "root longevity (alternatively, turnover time)" ;
-	double fates_turnover_leaf_canopy(fates_leafage_class, fates_pft) ;
-		fates_turnover_leaf_canopy:units = "yr" ;
-		fates_turnover_leaf_canopy:long_name = "Leaf longevity (ie turnover timescale) of canopy plants. For drought-deciduous PFTs, this also indicates the maximum length of the growing (i.e., leaves on) season." ;
-	double fates_turnover_leaf_ustory(fates_leafage_class, fates_pft) ;
-		fates_turnover_leaf_ustory:units = "yr" ;
-		fates_turnover_leaf_ustory:long_name = "Leaf longevity (ie turnover timescale) of understory plants." ;
 	double fates_turnover_senleaf_fdrought(fates_pft) ;
 		fates_turnover_senleaf_fdrought:units = "unitless[0-1]" ;
 		fates_turnover_senleaf_fdrought:long_name = "multiplication factor for leaf longevity of senescent leaves during drought" ;
@@ -709,51 +699,18 @@ variables:
 	double fates_woody(fates_pft) ;
 		fates_woody:units = "logical flag" ;
 		fates_woody:long_name = "Binary woody lifeform flag" ;
-	double fates_hlm_pft_map(fates_hlm_pftno, fates_pft) ;
-		fates_hlm_pft_map:units = "area fraction" ;
-		fates_hlm_pft_map:long_name = "In fixed biogeog mode, fraction of HLM area associated with each FATES PFT" ;
-	double fates_fire_FBD(fates_litterclass) ;
-		fates_fire_FBD:units = "kg Biomass/m3" ;
-		fates_fire_FBD:long_name = "fuel bulk density" ;
-	double fates_fire_low_moisture_Coeff(fates_litterclass) ;
-		fates_fire_low_moisture_Coeff:units = "NA" ;
-		fates_fire_low_moisture_Coeff:long_name = "spitfire parameter, equation B1 Thonicke et al 2010" ;
-	double fates_fire_low_moisture_Slope(fates_litterclass) ;
-		fates_fire_low_moisture_Slope:units = "NA" ;
-		fates_fire_low_moisture_Slope:long_name = "spitfire parameter, equation B1 Thonicke et al 2010" ;
-	double fates_fire_mid_moisture(fates_litterclass) ;
-		fates_fire_mid_moisture:units = "NA" ;
-		fates_fire_mid_moisture:long_name = "spitfire litter moisture threshold to be considered medium dry" ;
-	double fates_fire_mid_moisture_Coeff(fates_litterclass) ;
-		fates_fire_mid_moisture_Coeff:units = "NA" ;
-		fates_fire_mid_moisture_Coeff:long_name = "spitfire parameter, equation B1 Thonicke et al 2010" ;
-	double fates_fire_mid_moisture_Slope(fates_litterclass) ;
-		fates_fire_mid_moisture_Slope:units = "NA" ;
-		fates_fire_mid_moisture_Slope:long_name = "spitfire parameter, equation B1 Thonicke et al 2010" ;
-	double fates_fire_min_moisture(fates_litterclass) ;
-		fates_fire_min_moisture:units = "NA" ;
-		fates_fire_min_moisture:long_name = "spitfire litter moisture threshold to be considered very dry" ;
-	double fates_fire_SAV(fates_litterclass) ;
-		fates_fire_SAV:units = "cm-1" ;
-		fates_fire_SAV:long_name = "fuel surface area to volume ratio" ;
-	double fates_frag_maxdecomp(fates_litterclass) ;
-		fates_frag_maxdecomp:units = "yr-1" ;
-		fates_frag_maxdecomp:long_name = "maximum rate of litter & CWD transfer from non-decomposing class into decomposing class" ;
-	double fates_frag_cwd_frac(fates_NCWD) ;
-		fates_frag_cwd_frac:units = "fraction" ;
-		fates_frag_cwd_frac:long_name = "fraction of woody (bdead+bsw) biomass destined for CWD pool" ;
-	double fates_landuse_crop_lu_pft_vector(fates_landuseclass) ;
-		fates_landuse_crop_lu_pft_vector:units = "NA" ;
-		fates_landuse_crop_lu_pft_vector:long_name = "the FATES PFT index to use on a given crop land-use type (dummy value of -999 for non-crop types)" ;
-	double fates_landuse_grazing_rate(fates_landuseclass) ;
-		fates_landuse_grazing_rate:units = "1/day" ;
-		fates_landuse_grazing_rate:long_name = "fraction of leaf biomass consumed by grazers per day" ;
-	double fates_max_nocomp_pfts_by_landuse(fates_landuseclass) ;
-		fates_max_nocomp_pfts_by_landuse:units = "count" ;
-		fates_max_nocomp_pfts_by_landuse:long_name = "maximum number of nocomp PFTs on each land use type (only used in nocomp mode)" ;
-	double fates_maxpatches_by_landuse(fates_landuseclass) ;
-		fates_maxpatches_by_landuse:units = "count" ;
-		fates_maxpatches_by_landuse:long_name = "maximum number of patches per site on each land use type" ;
+	double fates_history_coageclass_bin_edges(fates_history_coage_bins) ;
+		fates_history_coageclass_bin_edges:units = "years" ;
+		fates_history_coageclass_bin_edges:long_name = "Lower edges for cohort age class bins used in cohort age resolved history output" ;
+	double fates_history_damage_bin_edges(fates_history_damage_bins) ;
+		fates_history_damage_bin_edges:units = "% crown loss" ;
+		fates_history_damage_bin_edges:long_name = "Lower edges for damage class bins used in cohort history output" ;
+	double fates_leaf_vcmax25top(fates_leafage_class, fates_pft) ;
+		fates_leaf_vcmax25top:units = "umol CO2/m^2/s" ;
+		fates_leaf_vcmax25top:long_name = "maximum carboxylation rate of Rub. at 25C, canopy top" ;
+	double fates_turnover_leaf(fates_leafage_class, fates_pft) ;
+		fates_turnover_leaf:units = "yr" ;
+		fates_turnover_leaf:long_name = "Leaf longevity (ie turnover timescale). For drought-deciduous PFTs, this also indicates the maximum length of the growing (i.e., leaves on) season." ;
 	double fates_canopy_closure_thresh ;
 		fates_canopy_closure_thresh:units = "unitless" ;
 		fates_canopy_closure_thresh:long_name = "tree canopy coverage at which crown area allometry changes from savanna to forest value" ;
@@ -775,6 +732,9 @@ variables:
 	double fates_damage_event_code ;
 		fates_damage_event_code:units = "unitless" ;
 		fates_damage_event_code:long_name = "Integer code that options how damage events are structured" ;
+	double fates_daylength_factor_switch ;
+		fates_daylength_factor_switch:units = "unitless" ;
+		fates_daylength_factor_switch:long_name = "user switch for turning on (1) or off (0) the day length factor scaling for photosynthetic parameters (ie scale vcmax and jmax)" ;
 	double fates_dev_arbitrary ;
 		fates_dev_arbitrary:units = "unknown" ;
 		fates_dev_arbitrary:long_name = "Unassociated free parameter that developers can use for testing arbitrary new hypotheses" ;
@@ -816,7 +776,7 @@ variables:
 		fates_fire_threshold:long_name = "spitfire parameter, fire intensity threshold for tracking fires that spread" ;
 	double fates_forest_tree_fraction_threshold ;
 		fates_forest_tree_fraction_threshold:units = "m2/m2" ;
-		fates_forest_tree_fraction_threshold:long_name = "Tree fraction above which patch is considered 'forest'" ;
+		fates_forest_tree_fraction_threshold:long_name = "Tree fraction above which patch is considered \'forest\'" ;
 	double fates_frag_cwd_fcel ;
 		fates_frag_cwd_fcel:units = "unitless" ;
 		fates_frag_cwd_fcel:long_name = "Cellulose fraction for CWD" ;
@@ -835,18 +795,9 @@ variables:
 	double fates_hydro_psicap ;
 		fates_hydro_psicap:units = "MPa" ;
 		fates_hydro_psicap:long_name = "sapwood water potential at which capillary reserves exhausted" ;
-	double fates_landuse_grazing_carbon_use_eff ;
-		fates_landuse_grazing_carbon_use_eff:units = "unitless" ;
-		fates_landuse_grazing_carbon_use_eff:long_name = "carbon use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
-	double fates_landuse_grazing_maxheight ;
-		fates_landuse_grazing_maxheight:units = "m" ;
-		fates_landuse_grazing_maxheight:long_name = "maximum height that grazers (browsers, actually) can reach" ;
-	double fates_landuse_grazing_nitrogen_use_eff ;
-		fates_landuse_grazing_nitrogen_use_eff:units = "unitless" ;
-		fates_landuse_grazing_nitrogen_use_eff:long_name = "nitrogen use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
-	double fates_landuse_grazing_phosphorus_use_eff ;
-		fates_landuse_grazing_phosphorus_use_eff:units = "unitless" ;
-		fates_landuse_grazing_phosphorus_use_eff:long_name = "phosphorus use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed)" ;
+	double fates_hydro_solver ;
+		fates_hydro_solver:units = "unitless" ;
+		fates_hydro_solver:long_name = "switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard, 3 = 2D Newton (deprecated)" ;
 	double fates_landuse_logging_coll_under_frac ;
 		fates_landuse_logging_coll_under_frac:units = "fraction" ;
 		fates_landuse_logging_coll_under_frac:long_name = "Fraction of stems killed in the understory when logging generates disturbance" ;
@@ -880,21 +831,36 @@ variables:
 	double fates_leaf_photo_temp_acclim_timescale ;
 		fates_leaf_photo_temp_acclim_timescale:units = "days" ;
 		fates_leaf_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_maintresp_leaf_model=2 or fates_leaf_photo_tempsens_model = 2)" ;
+	double fates_leaf_photo_tempsens_model ;
+		fates_leaf_photo_tempsens_model:units = "unitless" ;
+		fates_leaf_photo_tempsens_model:long_name = "switch for choosing the model that defines the temperature sensitivity of photosynthetic parameters (vcmax, jmax). 1=non-acclimating; 2=Kumarathunge et al 2019" ;
+	double fates_leaf_stomatal_assim_model ;
+		fates_leaf_stomatal_assim_model:units = "unitless" ;
+		fates_leaf_stomatal_assim_model:long_name = "a switch designating whether to use net (1) or gross (2) assimilation in the stomatal model" ;
+	double fates_leaf_stomatal_model ;
+		fates_leaf_stomatal_model:units = "unitless" ;
+		fates_leaf_stomatal_model:long_name = "switch for choosing between Ball-Berry (1) stomatal conductance model and Medlyn (2) model" ;
 	double fates_leaf_theta_cj_c3 ;
 		fates_leaf_theta_cj_c3:units = "unitless" ;
-		fates_leaf_theta_cj_c3:long_name = "SOON TO BE DEPRECATED, DO NOT USE" ;
+		fates_leaf_theta_cj_c3:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants" ;
 	double fates_leaf_theta_cj_c4 ;
 		fates_leaf_theta_cj_c4:units = "unitless" ;
-		fates_leaf_theta_cj_c4:long_name = "SOON TO BE DEPRECATED, DO NOT USE" ;
+		fates_leaf_theta_cj_c4:long_name = "Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants" ;
+	double fates_maintresp_leaf_model ;
+		fates_maintresp_leaf_model:units = "unitless" ;
+		fates_maintresp_leaf_model:long_name = "switch for choosing between maintenance respiration models. 1=Ryan (1991), 2=Atkin et al., (2017)" ;
 	double fates_maintresp_nonleaf_baserate ;
 		fates_maintresp_nonleaf_baserate:units = "gC/gN/s" ;
 		fates_maintresp_nonleaf_baserate:long_name = "Base maintenance respiration rate for plant tissues, using Ryan 1991" ;
 	double fates_maxcohort ;
 		fates_maxcohort:units = "count" ;
 		fates_maxcohort:long_name = "maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances" ;
+	double fates_mort_cstarvation_model ;
+		fates_mort_cstarvation_model:units = "unitless" ;
+		fates_mort_cstarvation_model:long_name = "switch defining the carbon starvation model ( 1) Linear or 2) Exponential) in the mortality_rates function." ;
 	double fates_mort_disturb_frac ;
 		fates_mort_disturb_frac:units = "fraction" ;
-		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from old to new patch)" ;
+		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)" ;
 	double fates_mort_understorey_death ;
 		fates_mort_understorey_death:units = "fraction" ;
 		fates_mort_understorey_death:long_name = "fraction of plants in understorey cohort impacted by overstorey tree-fall" ;
@@ -928,6 +894,12 @@ variables:
 	double fates_q10_mr ;
 		fates_q10_mr:units = "unitless" ;
 		fates_q10_mr:long_name = "Q10 for maintenance respiration" ;
+	double fates_rad_model ;
+		fates_rad_model:units = "unitless" ;
+		fates_rad_model:long_name = "switch designating the model for canopy radiation, 1 = Norman, 2 = Two-stream (experimental)" ;
+	double fates_regeneration_model ;
+		fates_regeneration_model:units = "-" ;
+		fates_regeneration_model:long_name = "switch for choosing between FATES\'s: 1) default regeneration scheme , 2) the Tree Recruitment Scheme (Hanbury-Brown et al., 2022), or (3) the Tree Recruitment Scheme without seedling dynamics" ;
 	double fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
@@ -951,58 +923,31 @@ variables:
 		fates_vai_width_increase_factor:long_name = "factor by which each leaf+stem scattering element increases in VAI width (1 = uniform spacing)" ;
 
 // global attributes:
-		:history = "This file was generated by BatchPatchParams.py:\nCDL Base File = fates_params_default.cdl\nXML patch file = archive/api36.1.0_100224_pr1255-2.xml" ;
+		:history = "This file was made from FatesPFTIndexSwapper.py \n",
+			" Input File = fates_params_default.nc \n",
+			" Indices = [1, 5, 12]" ;
 data:
 
- fates_history_ageclass_bin_edges = 0, 1, 2, 5, 10, 20, 50 ;
-
- fates_history_coageclass_bin_edges = 0, 5 ;
-
- fates_history_height_bin_edges = 0, 0.1, 0.3, 1, 3, 10 ;
-
- fates_history_damage_bin_edges = 0, 80 ;
+ fates_hlm_pft_map =
+  0, 0, 0,
+  0, 0, 0,
+  0, 0, 0,
+  1, 0, 0,
+  0, 0, 0,
+  0, 1, 0,
+  0, 0, 0,
+  0, 0, 0,
+  0, 0, 0,
+  0, 0, 0,
+  0, 0, 0,
+  0, 0, 0,
+  0, 0, 0,
+  0, 0, 1 ;
 
  fates_history_sizeclass_bin_edges = 0, 5, 10, 15, 20, 30, 40, 50, 60, 70, 
     80, 90, 100 ;
 
- fates_alloc_organ_id = 1, 2, 3, 6 ;
-
- fates_hydro_htftype_node = 1, 1, 1, 1 ;
-
- fates_pftname =
-  "broadleaf_evergreen_tropical_tree          ",
-  "needleleaf_evergreen_extratrop_tree        ",
-  "needleleaf_colddecid_extratrop_tree       ",
-  "broadleaf_evergreen_extratrop_tree         ",
-  "broadleaf_hydrodecid_tropical_tree         ",
-  "broadleaf_colddecid_extratrop_tree        ",
-  "broadleaf_evergreen_extratrop_shrub        ",
-  "broadleaf_hydrodecid_extratrop_shrub       ",
-  "broadleaf_colddecid_extratrop_shrub       ",
-  " broadleaf_evergreen_arctic_shrub                           ",
-  " broadleaf_colddecid_arctic_shrub                           ",
-  "arctic_c3_grass                            ",
-  "cool_c3_grass                              ",
-  "c4_grass                                   " ;
-
- fates_hydro_organ_name =
-  "leaf                                             ",
-  "stem                                             ",
-  "transporting root                                ",
-  "absorbing root                                   " ;
-
- fates_alloc_organ_name =
-  "leaf",
-  "fine root",
-  "sapwood",
-  "structure" ;
-
- fates_landuseclass_name =
-  "primaryland",
-  "secondaryland",
-  "rangeland",
-  "pastureland",
-  "cropland" ;
+ fates_history_ageclass_bin_edges = 0, 1, 2, 5, 10, 20, 50 ;
 
  fates_litterclass_name =
   "twig                                             ",
@@ -1012,735 +957,9 @@ data:
   "dead leaves                                      ",
   "live grass                                       " ;
 
- fates_alloc_organ_priority =
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-  4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 ;
+ fates_fire_FBD = 15.4, 16.8, 19.6, 999, 4, 0.95 ;
 
- fates_alloc_storage_cushion = 1.2, 1.2, 1.2, 1.2, 2.4, 1.2, 1.2, 2.4, 1.2, 
-    1.5, 1.4, 1.2, 1.2, 1.2 ;
-
- fates_alloc_store_priority_frac = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 
-    0.8, 0.7, 0.6, 0.6, 0.8, 0.8 ;
-
- fates_allom_agb1 = 0.0673, 0.1364012, 0.0393057, 0.2653695, 0.0673, 
-    0.0728698, 0.06896, 0.06896, 0.06896, 0.06896, 0.06896, 0.001, 0.001, 
-    0.003 ;
-
- fates_allom_agb2 = 0.976, 0.9449041, 1.087335, 0.8321321, 0.976, 1.0373211, 
-    0.572, 0.572, 0.572, 0.5289883, 0.6853945, 1.6592, 1.6592, 1.3456 ;
-
- fates_allom_agb3 = 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 
-    2.1010352, 1.7628613, 1.248, 1.248, 1.869 ;
-
- fates_allom_agb4 = 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 
-    0.931, 0.931, 0.931, -999.9, -999.9, -999.9 ;
-
- fates_allom_agb_frac = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
-    0.6, 1, 1, 1 ;
-
- fates_allom_amode = 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 5, 5, 5 ;
-
- fates_allom_blca_expnt_diff = -0.12, -0.34, -0.32, -0.22, -0.12, -0.35, 0, 
-    0, 0, 0, 0, -0.487, -0.487, -0.259 ;
-
- fates_allom_cmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_allom_d2bl1 = 0.04, 0.07, 0.07, 0.01, 0.04, 0.07, 0.07, 0.07, 0.07, 
-    0.0481934, 0.0481934, 0.0004, 0.0004, 0.0012 ;
-
- fates_allom_d2bl2 = 1.6019679, 1.5234373, 1.3051237, 1.9621397, 1.6019679, 
-    1.3998939, 1.3, 1.3, 1.3, 1.0600586, 1.7176758, 1.7092, 1.7092, 1.5879 ;
-
- fates_allom_d2bl3 = 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 
-    0.55, 0.55, 0.3417, 0.3417, 0.9948 ;
-
- fates_allom_d2ca_coefficient_max = 0.2715891, 0.3693718, 1.0787259, 
-    0.0579297, 0.2715891, 1.1553612, 0.6568464, 0.6568464, 0.6568464, 
-    0.4363427, 0.3166497, 0.0408, 0.0408, 0.0862 ;
-
- fates_allom_d2ca_coefficient_min = 0.2715891, 0.3693718, 1.0787259, 
-    0.0579297, 0.2715891, 1.1553612, 0.6568464, 0.6568464, 0.6568464, 
-    0.4363427, 0.3166497, 0.0408, 0.0408, 0.0862 ;
-
- fates_allom_d2h1 = 78.4087704, 306.842667, 106.8745821, 104.3586841, 
-    78.4087704, 31.4557047, 0.64, 0.64, 0.64, 0.8165625, 0.778125, 0.1812, 
-    0.1812, 0.3353 ;
-
- fates_allom_d2h2 = 0.8124383, 0.752377, 0.9471302, 1.1146973, 0.8124383, 
-    0.9734088, 0.37, 0.37, 0.37, 0.2316113, 0.4027002, 0.6384, 0.6384, 0.4235 ;
-
- fates_allom_d2h3 = 47.6666164, 196.6865691, 93.9790461, 160.6835089, 
-    47.6666164, 16.5928174, -999.9, -999.9, -999.9, -999.9, -999.9, -999.9, 
-    -999.9, -999.9 ;
-
- fates_allom_dbh_maxheight = 1000, 1000, 1000, 1000, 1000, 1000, 3, 3, 2, 
-    2.4, 1.9, 20, 20, 30 ;
-
- fates_allom_dmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_allom_fmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_allom_fnrt_prof_a = 7, 7, 7, 7, 6, 6, 7, 7, 7, 7, 7, 11, 11, 11 ;
-
- fates_allom_fnrt_prof_b = 1, 2, 2, 1, 2, 2, 1.5, 1.5, 1.5, 1.5, 1.5, 2, 2, 2 ;
-
- fates_allom_fnrt_prof_mode = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ;
-
- fates_allom_frbstor_repro = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_allom_h2cd1 = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.95, 0.95, 0.95, 0.95, 
-    0.95, 1, 1, 1 ;
-
- fates_allom_h2cd2 = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_allom_hmode = 5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1, 3, 3, 3 ;
-
- fates_allom_l2fr = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.67, 0.67, 1.41 ;
-
- fates_allom_la_per_sa_int = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 
-    0.8, 0.8, 0.8, 0.8, 0.8 ;
-
- fates_allom_la_per_sa_slp = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_allom_lmode = 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 5, 5, 5 ;
-
- fates_allom_sai_scaler = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
-    0.1, 0.1, 0.1, 0.1 ;
-
- fates_allom_smode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2 ;
-
- fates_allom_stmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_allom_zroot_k = 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10 ;
-
- fates_allom_zroot_max_dbh = 100, 100, 100, 100, 100, 100, 2, 2, 2, 2, 2, 2, 
-    2, 2 ;
-
- fates_allom_zroot_max_z = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
-    100, 100, 100, 100 ;
-
- fates_allom_zroot_min_dbh = 1, 1, 1, 2.5, 2.5, 2.5, 0.1, 0.1, 0.1, 0.1, 0.1, 
-    0.1, 0.1, 0.1 ;
-
- fates_allom_zroot_min_z = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
-    100, 100, 100, 100 ;
-
- fates_c2b = 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
-
- fates_cnp_eca_alpha_ptase = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_cnp_eca_decompmicc = 280, 280, 280, 280, 280, 280, 280, 280, 280, 280, 
-    280, 280, 280, 280 ;
-
- fates_cnp_eca_km_nh4 = 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 
-    0.14, 0.14, 0.14, 0.14, 0.14 ;
-
- fates_cnp_eca_km_no3 = 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 
-    0.27, 0.27, 0.27, 0.27, 0.27 ;
-
- fates_cnp_eca_km_p = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
-    0.1, 0.1, 0.1 ;
-
- fates_cnp_eca_km_ptase = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_cnp_eca_lambda_ptase = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_cnp_eca_vmax_ptase = 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 
-    5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09 ;
-
- fates_cnp_nfix1 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_cnp_nitr_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 
-    1.5, 1.5, 1.5, 1.5, 1.5 ;
-
- fates_cnp_phos_store_ratio = 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 
-    1.5, 1.5, 1.5, 1.5, 1.5 ;
-
- fates_cnp_pid_kd = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
-    0.1, 0.1, 0.1 ;
-
- fates_cnp_pid_ki = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_cnp_pid_kp = 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 
-    0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005 ;
-
- fates_cnp_prescribed_nuptake = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_cnp_prescribed_puptake = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_cnp_store_ovrflw_frac = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_cnp_turnover_nitr_retrans =
-  0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
-    0.25, 0.25,
-  0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
-    0.25, 0.25,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_cnp_turnover_phos_retrans =
-  0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
-    0.25, 0.25,
-  0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
-    0.25, 0.25,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_cnp_vmax_nh4 = 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 
-    2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09 ;
-
- fates_cnp_vmax_no3 = 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 
-    2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09 ;
-
- fates_cnp_vmax_p = 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 
-    5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10 ;
-
- fates_damage_frac = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
-    0.01, 0.01, 0.01, 0.01, 0.01 ;
-
- fates_damage_mort_p1 = 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9 ;
-
- fates_damage_mort_p2 = 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 
-    5.5, 5.5, 5.5, 5.5 ;
-
- fates_damage_recovery_scalar = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_dev_arbitrary_pft = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_edgeforest_gaussian_amplitude = 0.37033665947126704, 0.25548576693720165, _, _, _, _ ;
-
- fates_edgeforest_gaussian_sigma = 0.4329573815987602, 0.42239011110175917, _, _, _, _ ;
-
- fates_edgeforest_gaussian_center = -0.35596450526414164, -0.28183332150023604, _, _, _, _ ;
-
- fates_edgeforest_lognormal_amplitude = _, _, _, _, _, 14.283227336273354 ;
-
- fates_edgeforest_lognormal_sigma = _, _, _, _, _, 1.26210031507715 ;
-
- fates_edgeforest_lognormal_center = _, _, _, _, _, 2.1958393621871597 ;
-
- fates_edgeforest_quadratic_a = _, _, 0.2549551300197741, 0.07685044819893726, 0.035189070666016925, _ ;
-
- fates_edgeforest_quadratic_b = _, _, -0.5457222474679617, -0.19438641157435982, -0.300528731650077, _ ;
-
- fates_edgeforest_quadratic_c = _, _, 0.29299184857665717, 0.11825507562859365, 0.2669694066063096, _ ;
-
- fates_edgeforest_bin_edges = 0, 30, 60, 120, 150, 300 ;
-
- fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
-    0.2, 0.2, 0.2 ;
-
- fates_fire_bark_scaler = 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 
-    0.07, 0.07, 0.07, 0.07, 0.07, 0.07 ;
-
- fates_fire_crown_kill = 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 
-    0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775 ;
-
- fates_frag_fnrt_fcel = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
-    0.5, 0.5, 0.5, 0.5 ;
-
- fates_frag_fnrt_flab = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
-    0.25, 0.25, 0.25, 0.25, 0.25 ;
-
- fates_frag_fnrt_flig = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
-    0.25, 0.25, 0.25, 0.25, 0.25 ;
-
- fates_frag_leaf_fcel = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
-    0.5, 0.5, 0.5, 0.5 ;
-
- fates_frag_leaf_flab = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
-    0.25, 0.25, 0.25, 0.25, 0.25 ;
-
- fates_frag_leaf_flig = 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
-    0.25, 0.25, 0.25, 0.25, 0.25 ;
-
- fates_frag_seed_decay_rate = 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 
-    0.51, 0.74, 0.46, 0.35, 0.51, 0.51 ;
-
- fates_grperc = 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.12, 
-    0.11, 0.16, 0.11, 0.11 ;
-
- fates_hydro_avuln_gs = 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 
-    2.5, 2.5, 2.5, 2.5 ;
-
- fates_hydro_avuln_node =
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
-
- fates_hydro_epsil_node =
-  12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
-  10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-  10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-  8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 ;
-
- fates_hydro_fcap_node =
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 
-    0.08, 0.08,
-  0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 
-    0.08, 0.08,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_hydro_k_lwp = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_hydro_kmax_node =
-  -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, 
-    -999, -999,
-  3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-  -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, 
-    -999, -999,
-  -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, -999, 
-    -999, -999 ;
-
- fates_hydro_p50_gs = -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, 
-    -1.5, -1.5, -1.5, -1.5, -1.5 ;
-
- fates_hydro_p50_node =
-  -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, 
-    -2.25, -2.25, -2.25, -2.25,
-  -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, 
-    -2.25, -2.25, -2.25, -2.25,
-  -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, 
-    -2.25, -2.25, -2.25, -2.25,
-  -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, -2.25, 
-    -2.25, -2.25, -2.25, -2.25 ;
-
- fates_hydro_p_taper = 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 
-    0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333 ;
-
- fates_hydro_pinot_node =
-  -1.465984, -1.465984, -1.465984, -1.465984, -1.465984, -1.465984, 
-    -1.465984, -1.465984, -1.465984, -1.465984, -1.465984, -1.465984, 
-    -1.465984, -1.465984,
-  -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, 
-    -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807,
-  -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, 
-    -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807, -1.22807,
-  -1.043478, -1.043478, -1.043478, -1.043478, -1.043478, -1.043478, 
-    -1.043478, -1.043478, -1.043478, -1.043478, -1.043478, -1.043478, 
-    -1.043478, -1.043478 ;
-
- fates_hydro_pitlp_node =
-  -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, -1.67, 
-    -1.67, -1.67, -1.67, -1.67,
-  -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, 
-    -1.4, -1.4,
-  -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, -1.4, 
-    -1.4, -1.4,
-  -1.2, -1.2, -1.2, -1.2, -1.2, -1.2, -1.2, -1.2, -1.2, -1.2, -1.2, -1.2, 
-    -1.2, -1.2 ;
-
- fates_hydro_resid_node =
-  0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 0.16, 
-    0.16, 0.16,
-  0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 
-    0.21, 0.21,
-  0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 
-    0.21, 0.21,
-  0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 
-    0.11, 0.11 ;
-
- fates_hydro_rfrac_stem = 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 
-    0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625 ;
-
- fates_hydro_rs2 = 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 
-    0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001 ;
-
- fates_hydro_srl = 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25 ;
-
- fates_hydro_thetas_node =
-  0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 
-    0.65, 0.65,
-  0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 
-    0.65, 0.65,
-  0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 0.65, 
-    0.65, 0.65,
-  0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 
-    0.75, 0.75 ;
-
- fates_hydro_vg_alpha_node =
-  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
-    0.12, 0.12,
-  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
-    0.12, 0.12,
-  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
-    0.12, 0.12,
-  0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 
-    0.12, 0.12 ;
-
- fates_hydro_vg_m_node =
-  0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
-  0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
-  0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
-  0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 ;
-
- fates_hydro_vg_n_node =
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
-
- fates_landuse_grazing_palatability = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 ;
-
- fates_landuse_harvest_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 
-    1, 1, 1 ;
-
- fates_landuse_luc_frac_burned = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
-    0.5, 0.5, 0.5, 0.5, 0.5 ;
-
- fates_landuse_luc_frac_exported = 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.2, 0.2, 
-    0.2, 0.2, 0.2, 0, 0, 0 ;
-
- fates_landuse_luc_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 1, 
-    1, 1 ;
-
- fates_leaf_agross_btran_model = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
-
- fates_leaf_fnps = 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 
-    0.15, 0.15, 0.15, 0.15, 0.15 ;
-
- fates_leaf_jmaxha = 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540, 
-    43540, 43540, 43540, 43540, 43540, 43540 ;
-
- fates_leaf_jmaxhd = 152040, 152040, 152040, 152040, 152040, 152040, 152040, 
-    152040, 152040, 152040, 152040, 152040, 152040, 152040 ;
-
- fates_leaf_jmaxse = 495, 495, 495, 495, 495, 495, 495, 495, 495, 495, 495, 
-    495, 495, 495 ;
-
- fates_leaf_slamax = 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.012, 
-    0.03, 0.03, 0.012, 0.032, 0.05, 0.05, 0.05 ;
-
- fates_leaf_slatop = 0.012, 0.005, 0.024, 0.009, 0.03, 0.03, 0.012, 0.03, 
-    0.03, 0.01, 0.032, 0.027, 0.05, 0.05 ;
-
- fates_leaf_stomatal_btran_model = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_leaf_stomatal_intercept = 10000, 10000, 10000, 10000, 10000, 10000, 
-    10000, 10000, 10000, 10000, 10000, 10000, 10000, 40000 ;
-
- fates_leaf_stomatal_slope_ballberry = 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8 ;
-
- fates_leaf_stomatal_slope_medlyn = 4.1, 2.3, 2.3, 4.1, 4.4, 4.4, 4.7, 4.7, 
-    4.7, 4.7, 4.7, 2.2, 5.3, 1.6 ;
-
- fates_leaf_vcmax25top =
-  50, 62, 39, 61, 58, 58, 62, 54, 54, 38, 54, 86, 78, 78 ;
-
- fates_leaf_vcmaxha = 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330, 
-    65330, 65330, 65330, 65330, 65330, 65330 ;
-
- fates_leaf_vcmaxhd = 149250, 149250, 149250, 149250, 149250, 149250, 149250, 
-    149250, 149250, 149250, 149250, 149250, 149250, 149250 ;
-
- fates_leaf_vcmaxse = 485, 485, 485, 485, 485, 485, 485, 485, 485, 485, 485, 
-    485, 485, 485 ;
-
- fates_leafn_vert_scaler_coeff1 = 0.00963, 0.00963, 0.00963, 0.00963, 
-    0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 
-    0.00963, 0.00963 ;
-
- fates_leafn_vert_scaler_coeff2 = 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 
-    2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43 ;
-
- fates_maintresp_leaf_atkin2017_baserate = 1.756, 1.4995, 1.4995, 1.756, 
-    1.756, 1.756, 2.0749, 2.0749, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956, 
-    2.1956 ;
-
- fates_maintresp_leaf_ryan1991_baserate = 2.525e-06, 2.525e-06, 2.525e-06, 
-    2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 
-    2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06 ;
-
- fates_maintresp_leaf_vert_scaler_coeff1 = 0.00963, 0.00963, 0.00963, 
-    0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 
-    0.00963, 0.00963, 0.00963 ;
-
- fates_maintresp_leaf_vert_scaler_coeff2 = 2.43, 2.43, 2.43, 2.43, 2.43, 
-    2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43 ;
-
- fates_maintresp_reduction_curvature = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
-    0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 ;
-
- fates_maintresp_reduction_intercept = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_maintresp_reduction_upthresh = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_mort_bmort = 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 
-    0.014, 0.016, 0.01, 0.014, 0.014, 0.014 ;
-
- fates_mort_freezetol = 2.5, -55, -80, -30, 2.5, -80, -60, -10, -80, -71, 
-    -95, -89, -20, 2.5 ;
-
- fates_mort_hf_flc_threshold = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
-    0.5, 0.5, 0.5, 0.5, 0.5 ;
-
- fates_mort_hf_sm_threshold = 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 
-    1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06 ;
-
- fates_mort_ip_age_senescence = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_mort_ip_size_senescence = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_mort_prescribed_canopy = 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 
-    0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194 ;
-
- fates_mort_prescribed_understory = 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 
-    0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025 ;
-
- fates_mort_r_age_senescence = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_mort_r_size_senescence = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_mort_scalar_coldstress = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3.5, 2.3, 3, 3 ;
-
- fates_mort_scalar_cstarvation = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
-    0.6, 0.57, 0.6, 0.6, 0.6 ;
-
- fates_mort_scalar_hydrfailure = 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
-    0.6, 0.8, 0.6, 0.6, 0.6 ;
-
- fates_mort_upthresh_cstarvation = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_nonhydro_smpsc = -255000, -255000, -255000, -255000, -255000, -255000, 
-    -255000, -255000, -255000, -255000, -255000, -255000, -255000, -255000 ;
-
- fates_nonhydro_smpso = -66000, -66000, -66000, -66000, -66000, -66000, 
-    -66000, -66000, -66000, -66000, -66000, -66000, -66000, -66000 ;
-
- fates_phen_cold_size_threshold = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_phen_drought_threshold = -152957.4, -152957.4, -152957.4, -152957.4, 
-    -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, 
-    -152957.4, -152957.4, -152957.4, -152957.4 ;
-
- fates_phen_flush_fraction = _, _, 0.5, _, 0.5, 0.5, _, 0.5, 0.5, _, 0.5, 
-    0.5, 0.5, 0.5 ;
-
- fates_phen_fnrt_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_phen_leaf_habit = 1, 1, 2, 1, 3, 2, 1, 3, 2, 1, 2, 2, 3, 3 ;
-
- fates_phen_mindaysoff = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
-    100, 100, 100, 100 ;
-
- fates_phen_moist_threshold = -122365.9, -122365.9, -122365.9, -122365.9, 
-    -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, 
-    -122365.9, -122365.9, -122365.9, -122365.9 ;
-
- fates_phen_stem_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_prescribed_npp_canopy = 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 
-    0.4, 0.4, 0.4, 0.4, 0.4 ;
-
- fates_prescribed_npp_understory = 0.03125, 0.03125, 0.03125, 0.03125, 
-    0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 
-    0.03125, 0.03125 ;
-
- fates_rad_leaf_clumping_index = 0.85, 0.85, 0.8, 0.85, 0.85, 0.9, 0.85, 0.9, 
-    0.9, 0.85, 0.9, 0.75, 0.75, 0.75 ;
-
- fates_rad_leaf_rhonir = 0.46, 0.41, 0.39, 0.46, 0.41, 0.41, 0.46, 0.41, 
-    0.41, 0.46, 0.41, 0.28, 0.28, 0.28 ;
-
- fates_rad_leaf_rhovis = 0.11, 0.09, 0.08, 0.11, 0.08, 0.08, 0.11, 0.08, 
-    0.08, 0.11, 0.08, 0.05, 0.05, 0.05 ;
-
- fates_rad_leaf_taunir = 0.33, 0.32, 0.42, 0.33, 0.43, 0.43, 0.33, 0.43, 
-    0.43, 0.33, 0.43, 0.4, 0.4, 0.4 ;
-
- fates_rad_leaf_tauvis = 0.06, 0.04, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 
-    0.06, 0.06, 0.06, 0.05, 0.05, 0.05 ;
-
- fates_rad_leaf_xl = 0.32, 0.01, 0.01, 0.32, 0.2, 0.59, 0.32, 0.59, 0.59, 
-    0.32, 0.59, -0.23, -0.23, -0.23 ;
-
- fates_rad_stem_rhonir = 0.49, 0.36, 0.36, 0.49, 0.49, 0.49, 0.49, 0.49, 
-    0.49, 0.49, 0.49, 0.53, 0.53, 0.53 ;
-
- fates_rad_stem_rhovis = 0.21, 0.12, 0.12, 0.21, 0.21, 0.21, 0.21, 0.21, 
-    0.21, 0.21, 0.21, 0.31, 0.31, 0.31 ;
-
- fates_rad_stem_taunir = 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 
-    0.001, 0.001, 0.001, 0.001, 0.25, 0.25, 0.25 ;
-
- fates_rad_stem_tauvis = 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 
-    0.001, 0.001, 0.001, 0.001, 0.12, 0.12, 0.12 ;
-
- fates_recruit_height_min = 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.2, 0.2, 0.2, 0.8, 
-    0.8, 0.11, 0.2, 0.2 ;
-
- fates_recruit_init_density = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
-    0.16, 0.2, 0.2, 0.2, 0.2 ;
-
- fates_recruit_prescribed_rate = 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 
-    0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02 ;
-
- fates_recruit_seed_alloc = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
-    0.07, 0.1, 0, 0, 0 ;
-
- fates_recruit_seed_alloc_mature = 0, 0, 0, 0, 0, 0, 0.9, 0.9, 0.9, 0.9, 0.9, 
-    0.25, 0.25, 0.2 ;
-
- fates_recruit_seed_dbh_repro_threshold = 90, 80, 80, 80, 90, 80, 3, 3, 2, 
-    2.4, 1.9, 3, 3, 3 ;
-
- fates_recruit_seed_germination_rate = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
-    0.5, 0.5, 0.4, 0.49, 0.29, 0.5, 0.5 ;
-
- fates_recruit_seed_supplement = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_seed_dispersal_fraction = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_seed_dispersal_max_dist = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_seed_dispersal_pdf_scale = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_seed_dispersal_pdf_shape = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_stoich_nitr =
-  0.033, 0.029, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04, 
-    0.04, 0.04, 0.04,
-  0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 
-    0.024, 0.024, 0.024, 0.024,
-  1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 
-    1e-08, 1e-08, 1e-08, 1e-08,
-  0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 
-    0.0047, 0.0047, 0.0047, 0.0047, 0.0047 ;
-
- fates_stoich_phos =
-  0.0033, 0.0029, 0.004, 0.0033, 0.004, 0.004, 0.0033, 0.004, 0.004, 0.0033, 
-    0.004, 0.004, 0.004, 0.004,
-  0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 
-    0.0024, 0.0024, 0.0024, 0.0024, 0.0024,
-  1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 
-    1e-09, 1e-09, 1e-09, 1e-09,
-  0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 
-    0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047 ;
-
- fates_trim_inc = 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 
-    0.03, 0.03, 0.03, 0.03 ;
-
- fates_trim_limit = 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 
-    0.3, 0.3, 0.3 ;
-
- fates_trs_repro_alloc_a = 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 
-    0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049 ;
-
- fates_trs_repro_alloc_b = -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, 
-    -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, 
-    -2.6171 ;
-
- fates_trs_repro_frac_seed = 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 
-    0.24, 0.24, 0.24, 0.24, 0.24, 0.24 ;
-
- fates_trs_seedling_a_emerg = 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 
-    0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003 ;
-
- fates_trs_seedling_b_emerg = 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 
-    1.2, 1.2, 1.2, 1.2, 1.2 ;
-
- fates_trs_seedling_background_mort = 0.1085371, 0.1085371, 0.1085371, 
-    0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 
-    0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371 ;
-
- fates_trs_seedling_h2o_mort_a = 4.070565e-17, 4.070565e-17, 4.070565e-17, 
-    4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 
-    4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 
-    4.070565e-17 ;
-
- fates_trs_seedling_h2o_mort_b = -6.390757e-11, -6.390757e-11, -6.390757e-11, 
-    -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, 
-    -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, 
-    -6.390757e-11, -6.390757e-11, -6.390757e-11 ;
-
- fates_trs_seedling_h2o_mort_c = 1.268992e-05, 1.268992e-05, 1.268992e-05, 
-    1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 
-    1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 
-    1.268992e-05 ;
-
- fates_trs_seedling_light_mort_a = -0.009897694, -0.009897694, -0.009897694, 
-    -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, 
-    -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, 
-    -0.009897694 ;
-
- fates_trs_seedling_light_mort_b = -7.154063, -7.154063, -7.154063, 
-    -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, 
-    -7.154063, -7.154063, -7.154063, -7.154063, -7.154063 ;
-
- fates_trs_seedling_light_rec_a = 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 
-    0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007 ;
-
- fates_trs_seedling_light_rec_b = 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 
-    0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615 ;
-
- fates_trs_seedling_mdd_crit = 1400000, 1400000, 1400000, 1400000, 1400000, 
-    1400000, 1400000, 1400000, 1400000, 1400000, 1400000, 1400000, 1400000, 
-    1400000 ;
-
- fates_trs_seedling_par_crit_germ = 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 
-    0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656 ;
-
- fates_trs_seedling_psi_crit = -251995.7, -251995.7, -251995.7, -251995.7, 
-    -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, 
-    -251995.7, -251995.7, -251995.7, -251995.7 ;
-
- fates_trs_seedling_psi_emerg = -15744.65, -15744.65, -15744.65, -15744.65, 
-    -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, 
-    -15744.65, -15744.65, -15744.65, -15744.65 ;
-
- fates_trs_seedling_root_depth = 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 
-    0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06 ;
-
- fates_turb_displar = 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 
-    0.67, 0.67, 0.67, 0.67, 0.67 ;
-
- fates_turb_leaf_diameter = 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 
-    0.04, 0.04, 0.04, 0.04, 0.04, 0.04 ;
-
- fates_turb_z0mr = 0.075, 0.055, 0.055, 0.075, 0.055, 0.055, 0.12, 0.12, 
-    0.12, 0.12, 0.12, 0.12, 0.12, 0.12 ;
-
- fates_turnover_branch = 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 
-    150, 0, 0, 0 ;
-
- fates_turnover_fnrt = 1, 2, 1, 1.5, 1, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1 ;
-
- fates_turnover_leaf_canopy =
-  1.5, 4, 1, 1.5, 1, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1 ;
-
- fates_turnover_leaf_ustory =
-  1.5, 4, 1, 1.5, 1, 1, 1.5, 1, 1, 1.5, 1, 1, 1, 1 ;
-
- fates_turnover_senleaf_fdrought = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
-
- fates_wood_density = 0.548327, 0.44235, 0.454845, 0.754336, 0.548327, 
-    0.566452, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7 ;
-
- fates_woody = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0 ;
-
- fates_hlm_pft_map =
-  0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0.1, 0.8, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ;
-
- fates_fire_FBD = 15.4, 16.8, 19.6, 999, 4, 4 ;
+ fates_fire_SAV = 13, 3.58, 0.98, 0.2, 66, 66 ;
 
  fates_fire_low_moisture_Coeff = 1.12, 1.09, 0.98, 0.8, 1.15, 1.15 ;
 
@@ -1754,19 +973,531 @@ data:
 
  fates_fire_min_moisture = 0.18, 0.12, 0, 0, 0.24, 0.24 ;
 
- fates_fire_SAV = 13, 3.58, 0.98, 0.2, 66, 66 ;
-
  fates_frag_maxdecomp = 0.52, 0.383, 0.383, 0.19, 1, 999 ;
 
- fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
+ fates_history_height_bin_edges = 0, 0.1, 0.3, 1, 3, 10 ;
+
+ fates_landuseclass_name =
+  "primaryland",
+  "secondaryland",
+  "rangeland",
+  "pastureland",
+  "cropland" ;
 
  fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
-
- fates_landuse_grazing_rate = 0, 0, 0, 0, 0 ;
 
  fates_max_nocomp_pfts_by_landuse = 4, 4, 1, 1, 1 ;
 
  fates_maxpatches_by_landuse = 9, 4, 1, 1, 1 ;
+
+ fates_alloc_organ_name =
+  "leaf",
+  "fine root",
+  "sapwood",
+  "structure" ;
+
+ fates_hydro_organ_name =
+  "leaf                                             ",
+  "stem                                             ",
+  "transporting root                                ",
+  "absorbing root                                   " ;
+
+ fates_alloc_organ_priority =
+  1, 1, 1,
+  2, 2, 2,
+  3, 3, 3,
+  4, 4, 4 ;
+
+ fates_cnp_turnover_nitr_retrans =
+  0.25, 0.25, 0.25,
+  0.25, 0.25, 0.25,
+  0, 0, 0,
+  0, 0, 0 ;
+
+ fates_cnp_turnover_phos_retrans =
+  0.25, 0.25, 0.25,
+  0.25, 0.25, 0.25,
+  0, 0, 0,
+  0, 0, 0 ;
+
+ fates_hydro_avuln_node =
+  2, 2, 2,
+  2, 2, 2,
+  2, 2, 2,
+  2, 2, 2 ;
+
+ fates_hydro_epsil_node =
+  12, 12, 12,
+  10, 10, 10,
+  10, 10, 10,
+  8, 8, 8 ;
+
+ fates_hydro_fcap_node =
+  0, 0, 0,
+  0.08, 0.08, 0.08,
+  0.08, 0.08, 0.08,
+  0, 0, 0 ;
+
+ fates_hydro_kmax_node =
+  -999, -999, -999,
+  3, 3, 3,
+  -999, -999, -999,
+  -999, -999, -999 ;
+
+ fates_hydro_p50_node =
+  -2.25, -2.25, -2.25,
+  -2.25, -2.25, -2.25,
+  -2.25, -2.25, -2.25,
+  -2.25, -2.25, -2.25 ;
+
+ fates_hydro_pinot_node =
+  -1.465984, -1.465984, -1.465984,
+  -1.22807, -1.22807, -1.22807,
+  -1.22807, -1.22807, -1.22807,
+  -1.043478, -1.043478, -1.043478 ;
+
+ fates_hydro_pitlp_node =
+  -1.67, -1.67, -1.67,
+  -1.4, -1.4, -1.4,
+  -1.4, -1.4, -1.4,
+  -1.2, -1.2, -1.2 ;
+
+ fates_hydro_resid_node =
+  0.16, 0.16, 0.16,
+  0.21, 0.21, 0.21,
+  0.21, 0.21, 0.21,
+  0.11, 0.11, 0.11 ;
+
+ fates_hydro_thetas_node =
+  0.65, 0.65, 0.65,
+  0.65, 0.65, 0.65,
+  0.65, 0.65, 0.65,
+  0.75, 0.75, 0.75 ;
+
+ fates_hydro_vg_alpha_node =
+  0.0005, 0.0005, 0.005,
+  0.0005, 0.0005, 0.005,
+  0.0005, 0.0005, 0.005,
+  0.0005, 0.0005, 0.005 ;
+
+ fates_hydro_vg_m_node =
+  0.5, 0.5, 0.5,
+  0.5, 0.5, 0.5,
+  0.5, 0.5, 0.5,
+  0.5, 0.5, 0.5 ;
+
+ fates_hydro_vg_n_node =
+  2, 2, 2,
+  2, 2, 2,
+  2, 2, 2,
+  2, 2, 2 ;
+
+ fates_stoich_nitr =
+  0.033, 0.04, 0.04,
+  0.024, 0.024, 0.024,
+  1e-08, 1e-08, 1e-08,
+  0.0047, 0.0047, 0.0047 ;
+
+ fates_stoich_phos =
+  0.0033, 0.004, 0.004,
+  0.0024, 0.0024, 0.0024,
+  1e-09, 1e-09, 1e-09,
+  0.00047, 0.00047, 0.00047 ;
+
+ fates_alloc_organ_id = 1, 2, 3, 6 ;
+
+ fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
+
+ fates_hydro_htftype_node = 1, 1, 1, 1 ;
+
+ fates_pftname =
+  "moist_trop_tree                            ",
+  "dry_trop_tree                              ",
+  "C4_Grass                                   " ;
+
+ fates_alloc_storage_cushion = 1.2, 1.2, 2.25 ;
+
+ fates_alloc_store_priority_frac = 0.8, 0.8, 0.8 ;
+
+ fates_allom_agb1 = 0.0673, 0.0673, 0.01 ;
+
+ fates_allom_agb2 = 0.976, 0.976, 0.572 ;
+
+ fates_allom_agb3 = 1.94, 1.94, 1.94 ;
+
+ fates_allom_agb4 = 0.931, 0.931, 0.931 ;
+
+ fates_allom_agb_frac = 0.6, 0.6, 0.6 ;
+
+ fates_allom_amode = 3, 3, 1 ;
+
+ fates_allom_blca_expnt_diff = -0.12, -0.12, 0 ;
+
+ fates_allom_cmode = 1, 1, 1 ;
+
+ fates_allom_d2bl1 = 0.1266844, 0.1266844, 0.000964 ;
+
+ fates_allom_d2bl2 = 1.281329, 1.281329, 1.9492 ;
+
+ fates_allom_d2bl3 = 0.55, 0.55, 0.55 ;
+
+ fates_allom_d2ca_coefficient_max = 0.768654, 0.768654, 0.03 ;
+
+ fates_allom_d2ca_coefficient_min = 0.768654, 0.768654, 0.01 ;
+
+ fates_allom_d2h1 = 57.6, 57.6, 1 ;
+
+ fates_allom_d2h2 = 0.74, 0.74, 1 ;
+
+ fates_allom_d2h3 = 47.6666164, 47.6666164, -999.9 ;
+
+ fates_allom_dbh_maxheight = 1000, 1000, 0.35 ;
+
+ fates_allom_dmode = 1, 1, 1 ;
+
+ fates_allom_fmode = 1, 1, 1 ;
+
+ fates_allom_fnrt_prof_a = 7, 6, 11 ;
+
+ fates_allom_fnrt_prof_b = 1, 2, 2 ;
+
+ fates_allom_fnrt_prof_mode = 3, 3, 3 ;
+
+ fates_allom_frbstor_repro = 0, 0, 0 ;
+
+ fates_allom_h2cd1 = 0.33, 0.1, 1 ;
+
+ fates_allom_h2cd2 = 1, 1, 1 ;
+
+ fates_allom_hmode = 5, 5, 1 ;
+
+ fates_allom_l2fr = 0.4863088, 0.4863088, 1 ;
+
+ fates_allom_la_per_sa_int = 0.8, 0.8, 1000 ;
+
+ fates_allom_la_per_sa_slp = 0, 0, 0 ;
+
+ fates_allom_lmode = 2, 2, 1 ;
+
+ fates_allom_sai_scaler = 0.1, 0.1, 0.0012 ;
+
+ fates_allom_smode = 1, 1, 1 ;
+
+ fates_allom_stmode = 1, 1, 1 ;
+
+ fates_allom_zroot_k = 10, 10, 10 ;
+
+ fates_allom_zroot_max_dbh = 100, 100, 2 ;
+
+ fates_allom_zroot_max_z = 100, 100, 100 ;
+
+ fates_allom_zroot_min_dbh = 1, 2.5, 0.1 ;
+
+ fates_allom_zroot_min_z = 100, 100, 100 ;
+
+ fates_c2b = 2, 2, 2 ;
+
+ fates_cnp_eca_alpha_ptase = 0, 0, 0 ;
+
+ fates_cnp_eca_decompmicc = 280, 280, 280 ;
+
+ fates_cnp_eca_km_nh4 = 0.14, 0.14, 0.14 ;
+
+ fates_cnp_eca_km_no3 = 0.27, 0.27, 0.27 ;
+
+ fates_cnp_eca_km_p = 0.1, 0.1, 0.1 ;
+
+ fates_cnp_eca_km_ptase = 1, 1, 1 ;
+
+ fates_cnp_eca_lambda_ptase = 0, 0, 0 ;
+
+ fates_cnp_eca_vmax_ptase = 5e-09, 5e-09, 5e-09 ;
+
+ fates_cnp_nfix1 = 0, 0, 0 ;
+
+ fates_cnp_nitr_store_ratio = 1.5, 1.5, 1.5 ;
+
+ fates_cnp_phos_store_ratio = 1.5, 1.5, 1.5 ;
+
+ fates_cnp_pid_kd = 0.1, 0.1, 0.1 ;
+
+ fates_cnp_pid_ki = 0, 0, 0 ;
+
+ fates_cnp_pid_kp = 0.0005, 0.0005, 0.0005 ;
+
+ fates_cnp_prescribed_nuptake = 1, 1, 1 ;
+
+ fates_cnp_prescribed_puptake = 1, 1, 1 ;
+
+ fates_cnp_store_ovrflw_frac = 1, 1, 1 ;
+
+ fates_cnp_vmax_nh4 = 2.5e-09, 2.5e-09, 2.5e-09 ;
+
+ fates_cnp_vmax_no3 = 2.5e-09, 2.5e-09, 2.5e-09 ;
+
+ fates_cnp_vmax_p = 5e-10, 5e-10, 5e-10 ;
+
+ fates_damage_frac = 0.01, 0.01, 0.01 ;
+
+ fates_damage_mort_p1 = 9, 9, 9 ;
+
+ fates_damage_mort_p2 = 5.5, 5.5, 5.5 ;
+
+ fates_damage_recovery_scalar = 0, 0, 0 ;
+
+ fates_dev_arbitrary_pft = _, _, _ ;
+
+ fates_fire_alpha_SH = 0.1487, 0.06, 0.2;
+
+ fates_fire_bark_scaler = 0.0301, 0.1085, 0.07 ;
+
+ fates_fire_crown_kill = 1, 0.05, 0.775 ;
+
+ fates_frag_fnrt_fcel = 0.5, 0.5, 0.5 ;
+
+ fates_frag_fnrt_flab = 0.25, 0.25, 0.25 ;
+
+ fates_frag_fnrt_flig = 0.25, 0.25, 0.25 ;
+
+ fates_frag_leaf_fcel = 0.5, 0.5, 0.5 ;
+
+ fates_frag_leaf_flab = 0.25, 0.25, 0.25 ;
+
+ fates_frag_leaf_flig = 0.25, 0.25, 0.25 ;
+
+ fates_frag_seed_decay_rate = 0.51, 0.51, 0.51 ;
+
+ fates_grperc = 0.3, 0.3, 0.11 ;
+
+ fates_hydro_avuln_gs = 2.5, 2.5, 2.5 ;
+
+ fates_hydro_k_lwp = 0, 0, 0 ;
+
+ fates_hydro_p50_gs = -1.5, -1.5, -1.5 ;
+
+ fates_hydro_p_taper = 0.333, 0.333, 0.333 ;
+
+ fates_hydro_rfrac_stem = 0.625, 0.625, 0.625 ;
+
+ fates_hydro_rs2 = 0.0001, 0.0001, 0.0001 ;
+
+ fates_hydro_srl = 25, 25, 25 ;
+
+ fates_landuse_harvest_pprod10 = 1, 1, 1 ;
+
+ fates_landuse_luc_frac_burned = 0.5, 0.5, 0.5 ;
+
+ fates_landuse_luc_frac_exported = 0.4, 0.4, 0 ;
+
+ fates_landuse_luc_pprod10 = 1, 1, 1 ;
+
+ fates_leaf_c3psn = 1, 1, 0 ;
+
+ fates_leaf_jmaxha = 43540, 43540, 43540 ;
+
+ fates_leaf_jmaxhd = 152040, 152040, 152040 ;
+
+ fates_leaf_jmaxse = 495, 495, 495 ;
+
+ fates_leaf_slamax = 0.03991654, 0.03991654, 0.0135 ;
+
+ fates_leaf_slatop = 0.01995827, 0.01995827, 0.0135 ;
+
+ fates_leaf_stomatal_intercept = 10000, 10000, 40000 ;
+
+ fates_leaf_stomatal_slope_ballberry = 8, 8, 8 ;
+
+ fates_leaf_stomatal_slope_medlyn = 4.1, 4.4, 1.6 ;
+
+ fates_leaf_vcmaxha = 65330, 65330, 65330 ;
+
+ fates_leaf_vcmaxhd = 149250, 149250, 149250 ;
+
+ fates_leaf_vcmaxse = 485, 485, 485 ;
+
+ fates_leafn_vert_scaler_coeff1 = 0.00963, 0.00963, 0.00963 ;
+
+ fates_leafn_vert_scaler_coeff2 = 2.43, 2.43, 2.43 ;
+
+ fates_maintresp_leaf_atkin2017_baserate = 1.756, 1.756, 2.1956 ;
+
+ fates_maintresp_leaf_ryan1991_baserate = 2.525e-06, 2.525e-06, 2.525e-06 ;
+
+ fates_maintresp_leaf_vert_scaler_coeff1 = 0.00963, 0.00963, 0.00963 ;
+
+ fates_maintresp_leaf_vert_scaler_coeff2 = 2.43, 2.43, 2.43 ;
+
+ fates_maintresp_reduction_curvature = 0.01, 0.01, 0.01 ;
+
+ fates_maintresp_reduction_intercept = 1, 1, 1 ;
+
+ fates_maintresp_reduction_upthresh = 1, 1, 1 ;
+
+ fates_mort_bmort = 0.014, 0.014, 0.014 ;
+
+ fates_mort_freezetol = 2.5, 2.5, 2.5 ;
+
+ fates_mort_hf_flc_threshold = 0.5, 0.5, 0.5 ;
+
+ fates_mort_hf_sm_threshold = 0.025, 0.025, 1e-06 ;
+
+ fates_mort_ip_age_senescence = _, _, _ ;
+
+ fates_mort_ip_size_senescence = _, _, _ ;
+
+ fates_mort_prescribed_canopy = 0.0194, 0.0194, 0.0194 ;
+
+ fates_mort_prescribed_understory = 0.025, 0.025, 0.025 ;
+
+ fates_mort_r_age_senescence = _, _, _ ;
+
+ fates_mort_r_size_senescence = _, _, _ ;
+
+ fates_mort_scalar_coldstress = 3, 3, 3 ;
+
+ fates_mort_scalar_cstarvation = 0.02955703, 0.02955703, 0.2 ;
+
+ fates_mort_scalar_hydrfailure = 0.6, 0.6, 0.6 ;
+
+ fates_mort_upthresh_cstarvation = 1, 1, 1 ;
+
+ fates_nonhydro_smpsc = -255000, -255000, -255000 ;
+
+ fates_nonhydro_smpso = -66000, -66000, -66000 ;
+
+ fates_phen_cold_size_threshold = 0, 0, 0 ;
+
+ fates_phen_drought_threshold = -152957.4, -152957.4, -152957.4 ;
+
+ fates_phen_evergreen = 1, 0, 0 ;
+
+ fates_phen_flush_fraction = _, 0.5, 0.5 ;
+
+ fates_phen_fnrt_drop_fraction = 0, 0, 0 ;
+
+ fates_phen_mindaysoff = 100, 100, 100 ;
+
+ fates_phen_moist_threshold = -122365.9, -122365.9, -122365.9 ;
+
+ fates_phen_season_decid = 0, 0, 0 ;
+
+ fates_phen_stem_drop_fraction = 0, 0, 0 ;
+
+ fates_phen_stress_decid = 0, 1, 1 ;
+
+ fates_prescribed_npp_canopy = 0.4, 0.4, 0.4 ;
+
+ fates_prescribed_npp_understory = 0.03125, 0.03125, 0.03125 ;
+
+ fates_rad_leaf_clumping_index = 0.85, 0.85, 0.75 ;
+
+ fates_rad_leaf_rhonir = 0.46, 0.41, 0.28 ;
+
+ fates_rad_leaf_rhovis = 0.11, 0.08, 0.05 ;
+
+ fates_rad_leaf_taunir = 0.33, 0.43, 0.4 ;
+
+ fates_rad_leaf_tauvis = 0.06, 0.06, 0.05 ;
+
+ fates_rad_leaf_xl = 0.32, 0.2, -0.23 ;
+
+ fates_rad_stem_rhonir = 0.49, 0.49, 0.53 ;
+
+ fates_rad_stem_rhovis = 0.21, 0.21, 0.31 ;
+
+ fates_rad_stem_taunir = 0.001, 0.001, 0.25 ;
+
+ fates_rad_stem_tauvis = 0.001, 0.001, 0.12 ;
+
+ fates_recruit_height_min = 1.3, 1.3, 0.5 ;
+
+ fates_recruit_init_density = 0.2, 0.2, 20 ;
+
+ fates_recruit_prescribed_rate = 0.02, 0.02, 0.02 ;
+
+ fates_recruit_seed_alloc = 0.04680188, 0.04680188, 0.1 ;
+
+ fates_recruit_seed_alloc_mature = 0, 0, 0.9 ;
+
+ fates_recruit_seed_dbh_repro_threshold = 90, 90, 0.35 ;
+
+ fates_recruit_seed_germination_rate = 0.5, 0.5, 0.5 ;
+
+ fates_recruit_seed_supplement = 0, 0, 0 ;
+
+ fates_seed_dispersal_fraction = _, _, _ ;
+
+ fates_seed_dispersal_max_dist = _, _, _ ;
+
+ fates_seed_dispersal_pdf_scale = _, _, _ ;
+
+ fates_seed_dispersal_pdf_shape = _, _, _ ;
+
+ fates_trim_inc = 0.03, 0.03, 0.03 ;
+
+ fates_trim_limit = 0.3, 0.3, 0.3 ;
+
+ fates_trs_repro_alloc_a = 0.0049, 0.0049, 0.0049 ;
+
+ fates_trs_repro_alloc_b = -2.6171, -2.6171, -2.6171 ;
+
+ fates_trs_repro_frac_seed = 0.24, 0.24, 0.24 ;
+
+ fates_trs_seedling_a_emerg = 0.0003, 0.0003, 0.0003 ;
+
+ fates_trs_seedling_b_emerg = 1.2, 1.2, 1.2 ;
+
+ fates_trs_seedling_background_mort = 0.1085371, 0.1085371, 0.1085371 ;
+
+ fates_trs_seedling_h2o_mort_a = 4.070565e-17, 4.070565e-17, 4.070565e-17 ;
+
+ fates_trs_seedling_h2o_mort_b = -6.390757e-11, -6.390757e-11, -6.390757e-11 ;
+
+ fates_trs_seedling_h2o_mort_c = 1.268992e-05, 1.268992e-05, 1.268992e-05 ;
+
+ fates_trs_seedling_light_mort_a = -0.009897694, -0.009897694, -0.009897694 ;
+
+ fates_trs_seedling_light_mort_b = -7.154063, -7.154063, -7.154063 ;
+
+ fates_trs_seedling_light_rec_a = 0.007, 0.007, 0.007 ;
+
+ fates_trs_seedling_light_rec_b = 0.8615, 0.8615, 0.8615 ;
+
+ fates_trs_seedling_mdd_crit = 1400000, 1400000, 1400000 ;
+
+ fates_trs_seedling_par_crit_germ = 0.656, 0.656, 0.656 ;
+
+ fates_trs_seedling_psi_crit = -251995.7, -251995.7, -251995.7 ;
+
+ fates_trs_seedling_psi_emerg = -15744.65, -15744.65, -15744.65 ;
+
+ fates_trs_seedling_root_depth = 0.06, 0.06, 0.06 ;
+
+ fates_turb_displar = 0.67, 0.67, 0.67 ;
+
+ fates_turb_leaf_diameter = 0.04, 0.04, 0.04 ;
+
+ fates_turb_z0mr = 0.055, 0.055, 0.055 ;
+
+ fates_turnover_branch = 75, 75, 1000 ;
+
+ fates_turnover_fnrt = 1, 1, 1 ;
+
+ fates_turnover_senleaf_fdrought = 1, 1, 1 ;
+
+ fates_wood_density = 0.6305, 0.695, 0.7 ;
+
+ fates_woody = 1, 1, 0 ;
+
+ fates_history_coageclass_bin_edges = 0, 5 ;
+
+ fates_history_damage_bin_edges = 0, 80 ;
+
+ fates_leaf_vcmax25top =
+  41, 41, 40 ;
+
+ fates_turnover_leaf =
+  1.4025, 1.4025, 0.3208 ;
 
  fates_canopy_closure_thresh = 0.8 ;
 
@@ -1781,6 +1512,8 @@ data:
  fates_damage_canopy_layer_code = 1 ;
 
  fates_damage_event_code = 1 ;
+
+ fates_daylength_factor_switch = 1 ;
 
  fates_dev_arbitrary = _ ;
 
@@ -1822,47 +1555,51 @@ data:
 
  fates_hydro_psicap = -0.6 ;
 
- fates_landuse_grazing_carbon_use_eff = 0 ;
+ fates_hydro_solver = 1 ;
 
- fates_landuse_grazing_maxheight = 1 ;
+ fates_landuse_logging_coll_under_frac = 0.55983 ;
 
- fates_landuse_grazing_nitrogen_use_eff = 0.25 ;
-
- fates_landuse_grazing_phosphorus_use_eff = 0.5 ;
-
- fates_landuse_logging_coll_under_frac = 0. ;
-
- fates_landuse_logging_collateral_frac = 0. ;
+ fates_landuse_logging_collateral_frac = 0.05 ;
 
  fates_landuse_logging_dbhmax = _ ;
 
- fates_landuse_logging_dbhmax_infra = 0 ;
+ fates_landuse_logging_dbhmax_infra = 35 ;
 
- fates_landuse_logging_dbhmin = 0 ;
+ fates_landuse_logging_dbhmin = 50 ;
 
- fates_landuse_logging_direct_frac = 1. ;
+ fates_landuse_logging_direct_frac = 0.15 ;
 
  fates_landuse_logging_event_code = -30 ;
 
  fates_landuse_logging_export_frac = 0.8 ;
 
- fates_landuse_logging_mechanical_frac = 0. ;
+ fates_landuse_logging_mechanical_frac = 0.05 ;
 
  fates_leaf_photo_temp_acclim_thome_time = 30 ;
 
  fates_leaf_photo_temp_acclim_timescale = 30 ;
 
+ fates_leaf_photo_tempsens_model = 1 ;
+
+ fates_leaf_stomatal_assim_model = 1 ;
+
+ fates_leaf_stomatal_model = 1 ;
+
  fates_leaf_theta_cj_c3 = 0.999 ;
 
  fates_leaf_theta_cj_c4 = 0.999 ;
+
+ fates_maintresp_leaf_model = 1 ;
 
  fates_maintresp_nonleaf_baserate = 2.525e-06 ;
 
  fates_maxcohort = 100 ;
 
- fates_mort_disturb_frac = 1 ;
+ fates_mort_cstarvation_model = 1 ;
 
- fates_mort_understorey_death = 0.55983 ;
+ fates_mort_disturb_frac = 0.5 ;
+
+ fates_mort_understorey_death = 1 ;
 
  fates_patch_fusion_tol = 0.05 ;
 
@@ -1883,6 +1620,10 @@ data:
  fates_q10_froz = 1.5 ;
 
  fates_q10_mr = 1.5 ;
+
+ fates_rad_model = 1 ;
+
+ fates_regeneration_model = 1 ;
 
  fates_soil_salinity = 0.4 ;
 

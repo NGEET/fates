@@ -100,6 +100,18 @@ module EDParamsMod
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
 
+   ! Edge forest bin parameters
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_gaussian_amplitude(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_gaussian_sigma(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_gaussian_center(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_lognormal_amplitude(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_lognormal_sigma(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_lognormal_center(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_quadratic_a(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_quadratic_b(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_quadratic_c(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_bin_edges(:)
+
    ! grazing parameters
    real(r8),protected,public :: landuse_grazing_carbon_use_eff
    real(r8),protected,public :: landuse_grazing_maxheight
@@ -158,6 +170,16 @@ module EDParamsMod
    ! non-scalar parameter names
    character(len=param_string_length),parameter,public :: ED_name_history_sizeclass_bin_edges= "fates_history_sizeclass_bin_edges"      
    character(len=param_string_length),parameter,public :: ED_name_history_ageclass_bin_edges= "fates_history_ageclass_bin_edges"      
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_gaussian_amplitude = "fates_edgeforest_gaussian_amplitude"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_gaussian_sigma = "fates_edgeforest_gaussian_sigma"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_gaussian_center = "fates_edgeforest_gaussian_center"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_lognormal_amplitude = "fates_edgeforest_lognormal_amplitude"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_lognormal_sigma = "fates_edgeforest_lognormal_sigma"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_lognormal_center = "fates_edgeforest_lognormal_center"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_quadratic_a = "fates_edgeforest_quadratic_a"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_quadratic_b = "fates_edgeforest_quadratic_b"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_quadratic_c = "fates_edgeforest_quadratic_c"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_bin_edges = "fates_edgeforest_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_height_bin_edges= "fates_history_height_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_coageclass_bin_edges = "fates_history_coageclass_bin_edges"
    character(len=param_string_length),parameter,public :: ED_name_history_damage_bin_edges = "fates_history_damage_bin_edges"
@@ -212,7 +234,9 @@ module EDParamsMod
    integer, protected, public :: max_cohort_per_patch
    character(len=param_string_length), parameter, public :: maxcohort_name = "fates_maxcohort"
 
-   
+   ! Ecotypes parameters
+   real(r8),protected,public :: forest_tree_fraction_threshold  ! Tree fraction above which a patch is "forest"
+   character(len=param_string_length),parameter,public :: forest_tree_fraction_threshold_name = "fates_forest_tree_fraction_threshold"
    
    ! Logging Control Parameters (ONLY RELEVANT WHEN USE_FATES_LOGGING = TRUE)
    ! ----------------------------------------------------------------------------------------------
@@ -341,6 +365,7 @@ module EDParamsMod
     dev_arbitrary                         = nan
     damage_event_code                     = -9
     damage_canopy_layer_code              = -9
+    forest_tree_fraction_threshold        = nan
     landuse_grazing_carbon_use_eff        = nan
     landuse_grazing_nitrogen_use_eff      = nan
     landuse_grazing_phosphorus_use_eff    = nan
@@ -357,9 +382,11 @@ module EDParamsMod
 
     use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar, dimension_shape_1d
     use FatesParametersInterface, only : dimension_name_history_size_bins, dimension_name_history_age_bins
+    use FatesParametersInterface, only : dimension_name_edgeforest_bins
     use FatesParametersInterface, only : dimension_name_history_height_bins, dimension_name_hydr_organs
     use FatesParametersInterface, only : dimension_name_history_coage_bins, dimension_name_history_damage_bins
     use FatesParametersInterface, only : dimension_shape_scalar, dimension_name_landuse
+    use FatesParametersInterface, only : dimension_name_edgeforest_bins
 
 
     implicit none
@@ -369,6 +396,7 @@ module EDParamsMod
     character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
     character(len=param_string_length), parameter :: dim_names_sizeclass(1) = (/dimension_name_history_size_bins/)
     character(len=param_string_length), parameter :: dim_names_ageclass(1) = (/dimension_name_history_age_bins/)
+    character(len=param_string_length), parameter :: dim_names_edgeforest(1)= (/dimension_name_edgeforest_bins/)
     character(len=param_string_length), parameter :: dim_names_height(1) = (/dimension_name_history_height_bins/)
     character(len=param_string_length), parameter :: dim_names_coageclass(1) = (/dimension_name_history_coage_bins/)
     character(len=param_string_length), parameter :: dim_names_hydro_organs(1) = (/dimension_name_hydr_organs/)
@@ -517,6 +545,9 @@ module EDParamsMod
     
     call fates_params%RegisterParameter(name=damage_name_canopy_layer_code, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
+    
+    call fates_params%RegisterParameter(name=forest_tree_fraction_threshold_name, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=name_landuse_grazing_carbon_use_eff, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
@@ -540,6 +571,36 @@ module EDParamsMod
 
     call fates_params%RegisterParameter(name=ED_name_history_ageclass_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_ageclass)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_gaussian_amplitude, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_gaussian_sigma, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_gaussian_center, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_lognormal_amplitude, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_lognormal_sigma, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_lognormal_center, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_quadratic_a, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_quadratic_b, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_quadratic_c, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_bin_edges, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
 
     call fates_params%RegisterParameter(name=ED_name_history_height_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_height)
@@ -738,12 +799,45 @@ module EDParamsMod
          data=tmpreal)
     damage_canopy_layer_code = nint(tmpreal)
     
+    call fates_params%RetrieveParameter(name=forest_tree_fraction_threshold_name, &
+         data=forest_tree_fraction_threshold)
+
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
           data=ED_val_history_sizeclass_bin_edges)
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_ageclass_bin_edges, &
           data=ED_val_history_ageclass_bin_edges)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_gaussian_amplitude, &
+         data=ED_val_edgeforest_gaussian_amplitude)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_gaussian_sigma, &
+         data=ED_val_edgeforest_gaussian_sigma)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_gaussian_center, &
+         data=ED_val_edgeforest_gaussian_center)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_lognormal_amplitude, &
+         data=ED_val_edgeforest_lognormal_amplitude)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_lognormal_sigma, &
+         data=ED_val_edgeforest_lognormal_sigma)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_lognormal_center, &
+         data=ED_val_edgeforest_lognormal_center)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_quadratic_a, &
+         data=ED_val_edgeforest_quadratic_a)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_quadratic_b, &
+         data=ED_val_edgeforest_quadratic_b)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_quadratic_c, &
+         data=ED_val_edgeforest_quadratic_c)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_bin_edges, &
+         data=ED_val_edgeforest_bin_edges)
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_height_bin_edges, &
           data=ED_val_history_height_bin_edges)
@@ -863,6 +957,7 @@ module EDParamsMod
         write(fates_log(),'(a,L2)') 'active_crown_fire = ',active_crown_fire
         write(fates_log(),fmt0) 'damage_event_code = ',damage_event_code
         write(fates_log(),fmt0) 'damage_canopy_layer_code = ', damage_canopy_layer_code
+        write(fates_log(),fmt0) 'forest_tree_fraction_threshold = ', forest_tree_fraction_threshold
 	write(fates_log(),fmt0) 'landuse_grazing_carbon_use_eff = ', landuse_grazing_carbon_use_eff
         write(fates_log(),fmt0) 'name_landuse_grazing_nitrogen_use_eff = ', name_landuse_grazing_nitrogen_use_eff
         write(fates_log(),fmt0) 'name_landuse_grazing_phosphorus_use_eff = ', name_landuse_grazing_phosphorus_use_eff

@@ -297,6 +297,7 @@ module FatesInterfaceTypesMod
    integer , public, allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
    integer , public, allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
    real(r8), public, allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
+   real(r8), public, allocatable :: fates_hdim_levedge(:)          ! edge forest bin lower bound dimension
    real(r8), public, allocatable :: fates_hdim_levheight(:)        ! height lower bound dimension
    integer , public, allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
    integer , public, allocatable :: fates_hdim_levlanduse(:)       ! land use label dimension
@@ -371,6 +372,7 @@ module FatesInterfaceTypesMod
    integer, public :: nlevcoage        ! The total number of cohort age bins output to history 
    integer, public :: nleafage         ! The total number of leaf age classes
    integer, public :: nlevdamage       ! The total number of damage classes
+   integer, public :: nlevedgeforest   ! The total number of forest edge bins (incl. deep forest)
    
    ! -------------------------------------------------------------------------------------
    ! Structured Boundary Conditions (SITE/PATCH SCALE)
