@@ -112,7 +112,7 @@ module FatesFactoryMod
     do i = 2,nlevleaf
        dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
     end do
-        
+    
   end subroutine InitializeGlobals
   
   !---------------------------------------------------------------------------------------

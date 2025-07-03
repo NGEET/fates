@@ -53,6 +53,7 @@ module EDInitMod
   use EDTypesMod                , only : phen_dstat_moistoff
   use EDTypesMod                , only : phen_cstat_notcold
   use EDTypesMod                , only : phen_dstat_moiston
+  use EDTypesMod                , only : phen_estat_evergreen
   use FatesInterfaceTypesMod         , only : bc_in_type,bc_out_type
   use FatesInterfaceTypesMod         , only : hlm_use_planthydro
   use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
@@ -264,20 +265,15 @@ contains
 
     ! PHENOLOGY
 
-    site_in%cstatus          = fates_unset_int    ! are leaves in this pixel on or off?
-    site_in%dstatus(:)       = fates_unset_int
-    site_in%grow_deg_days    = nan  ! growing degree days
+    site_in%phen_status(:)   = fates_unset_int  ! are leaves in this pixel on or off?
+    site_in%grow_deg_days(:) = nan              ! growing degree days
     site_in%snow_depth       = nan
-    site_in%nchilldays       = fates_unset_int
-    site_in%ncolddays        = fates_unset_int
-    site_in%cleafondate      = fates_unset_int  ! doy of leaf on (cold)
-    site_in%cleafoffdate     = fates_unset_int  ! doy of leaf off (cold)
-    site_in%dleafondate(:)   = fates_unset_int  ! doy of leaf on (drought)
-    site_in%dleafoffdate(:)  = fates_unset_int  ! doy of leaf off (drought)
-    site_in%cndaysleafon     = fates_unset_int  ! days since leaf on (cold)
-    site_in%cndaysleafoff    = fates_unset_int  ! days since leaf off (cold)
-    site_in%dndaysleafon(:)  = fates_unset_int  ! days since leaf on (drought)
-    site_in%dndaysleafoff(:) = fates_unset_int  ! days since leaf off (drought)
+    site_in%nchilldays(:)    = fates_unset_int  ! number of chilling days
+    site_in%ncolddays(:)     = fates_unset_int  ! number of cold days
+    site_in%leafondate(:)    = fates_unset_int  ! doy of last leaf flushing event
+    site_in%leafoffdate(:)   = fates_unset_int  ! doy of last leaf abscission event
+    site_in%ndaysleafon(:)   = fates_unset_int  ! days since last leaf flushing
+    site_in%ndaysleafoff(: ) = fates_unset_int  ! days since last leaf abscission
     site_in%elong_factor(:)  = nan              ! Elongation factor (0 - full abscission; 1 - fully flushed)
 
     site_in%liqvol_memory(:,:)  = nan
@@ -396,6 +392,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer  :: s
+    integer  :: estat      ! evergreen phenology flag
     integer  :: cstat      ! cold status phenology flag
     real(r8) :: GDD
     integer  :: dstat      ! drought status phenology flag
@@ -427,15 +424,16 @@ contains
 
     if ( hlm_is_restart == ifalse ) then
 
-       GDD      = 30.0_r8
-       cleafon  = 100
-       cleafoff = 300
+       GDD        = 30.0_r8
+       cleafon    = 100
+       cleafoff   = 300
        cndleafon  = 0
        cndleafoff = 0
-       cstat    = phen_cstat_notcold     ! Leaves are on
-       dstat    = phen_dstat_moiston     ! Leaves are on
-       dleafoff = 300
-       dleafon  = 100
+       estat      = phen_estat_evergreen
+       cstat      = phen_cstat_notcold     ! Leaves are on
+       dstat      = phen_dstat_moiston     ! Leaves are on
+       dleafoff   = 300
+       dleafon    = 100
        dndleafon  = 0
        dndleafoff = 0
        liqvolmem  = 0.5_r8 
@@ -443,28 +441,52 @@ contains
        elong_factor = 1._r8
 
        do s = 1,nsites
-          sites(s)%nchilldays    = 0
-          sites(s)%ncolddays     = 0        ! recalculated in phenology
+          sites(s)%nchilldays(1:numpft)    = 0
+          sites(s)%ncolddays(1:numpft)     = 0        ! recalculated in phenology
                                             ! immediately, so yes this
                                             ! is memory-less, but needed
                                             ! for first value in history file
           sites(s)%phen_model_date         = 0
-          sites(s)%cleafondate             = cleafon    - hlm_day_of_year
-          sites(s)%cleafoffdate            = cleafoff   - hlm_day_of_year
-          sites(s)%cndaysleafon            = cndleafon
-          sites(s)%cndaysleafoff           = cndleafoff
-          sites(s)%dleafoffdate (1:numpft) = dleafoff   - hlm_day_of_year
-          sites(s)%dleafondate  (1:numpft) = dleafon    - hlm_day_of_year
-          sites(s)%dndaysleafon (1:numpft) = dndleafon
-          sites(s)%dndaysleafoff(1:numpft) = dndleafoff
-          sites(s)%grow_deg_days   = GDD
+          sites(s)%grow_deg_days(1:numpft) = GDD
 
           sites(s)%liqvol_memory(1:numWaterMem,1:numpft) = liqvolmem
           sites(s)%smp_memory(1:numWaterMem,1:numpft) = smpmem
           sites(s)%vegtemp_memory(1:num_vegtemp_mem) = 0._r8
 
-          sites(s)%cstatus = cstat
-          sites(s)%dstatus(1:numpft) = dstat
+          do ft = 1, numpft
+             ! These must be updated once the new parameter is integrated to FATES.
+             select case (prt_params%evergreen(ft))
+             case (itrue)
+                ! Evergreens. These variables are not used, set them to any state
+                sites(s)%phen_status (ft) = estat
+                sites(s)%leafondate  (ft) = cleafon    - hlm_day_of_year
+                sites(s)%leafoffdate (ft) = cleafoff   - hlm_day_of_year
+                sites(s)%ndaysleafon (ft) = 0
+                sites(s)%ndaysleafoff(ft) = 0
+             end select
+
+             select case (prt_params%season_decid(ft))
+             case (itrue)
+                ! Cold deciduous
+                sites(s)%phen_status (ft) = cstat
+                sites(s)%leafondate  (ft) = cleafon    - hlm_day_of_year
+                sites(s)%leafoffdate (ft) = cleafoff   - hlm_day_of_year
+                sites(s)%ndaysleafon (ft) = cndleafon
+                sites(s)%ndaysleafoff(ft) = cndleafoff
+             end select
+
+
+             select case (prt_params%stress_decid(ft))
+             case (ihard_stress_decid,isemi_stress_decid)
+                ! Drought deciduous
+                sites(s)%phen_status (ft) = dstat
+                sites(s)%leafondate  (ft) = dleafon    - hlm_day_of_year
+                sites(s)%leafoffdate (ft) = dleafoff   - hlm_day_of_year
+                sites(s)%ndaysleafon (ft) = dndleafon
+                sites(s)%ndaysleafoff(ft) = dndleafoff
+             end select
+          end do
+
           sites(s)%elong_factor(1:numpft) = elong_factor
 
           sites(s)%NF         = 0.0_r8
@@ -1148,7 +1170,7 @@ contains
                ! use built-in phenology
                phen_select: select case (prt_params%phen_leaf_habit(pft))
                case (ihard_season_decid)
-                  if ( any(site_in%cstatus == [phen_cstat_nevercold, phen_cstat_iscold]) ) then 
+                  if ( any(site_in%phen_status(pft) == [phen_cstat_nevercold, phen_cstat_iscold]) ) then 
                      ! Cold deciduous, off season, assume complete abscission
                      efleaf_coh = 0.0_r8
                      effnrt_coh = 1.0_r8 - fnrt_drop_fraction 

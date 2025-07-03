@@ -971,6 +971,15 @@ contains
          fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(temp_cohort%pft)
          stem_drop_fraction = prt_params%phen_stem_drop_fraction(temp_cohort%pft)
 
+<<<<<<< HEAD
+         if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
+              any(csite%phen_status(temp_cohort%pft) == [phen_cstat_nevercold,phen_cstat_iscold])) then
+            ! Cold deciduous and season is for leaves off. Set leaf status and 
+            ! elongation factors accordingly
+            temp_cohort%efleaf_coh = 0.0_r8
+            temp_cohort%effnrt_coh = 1._r8 - fnrt_drop_fraction
+            temp_cohort%efstem_coh = 1._r8 - stem_drop_fraction
+=======
          phen_select: select case (prt_params%phen_leaf_habit(temp_cohort%pft))
          case (ihard_season_decid)
             if ( any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]) ) then
@@ -987,6 +996,7 @@ contains
                temp_cohort%efstem_coh = 1.0_r8
                temp_cohort%status_coh = leaves_on
             end if
+>>>>>>> api40
 
          case (ihard_stress_decid,isemi_stress_decid)
             ! Drought deciduous.  For the default approach, elongation factor is either

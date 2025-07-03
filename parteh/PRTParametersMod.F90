@@ -21,8 +21,29 @@ module PRTParametersMod
                                                           !    - isemi_stress_decid - drought semi-deciduous (i.e., 
                                                           !      partial abscission and flushing are allowed).
      ! Drop fraction for tissues other than leaves (PFT-dependent)
-     real(r8), allocatable :: phen_fnrt_drop_fraction(:)  ! Abscission fraction of fine roots
-     real(r8), allocatable :: phen_stem_drop_fraction(:)  ! Abscission fraction of stems
+
+     real(r8), allocatable :: phen_fnrt_drop_fraction(:) ! Abscission fraction of fine roots
+     real(r8), allocatable :: phen_stem_drop_fraction(:) ! Abscission fraction of stems
+
+                                                          ! The three parameters below are for the growing degree days
+                                                          !    threshold function, which is modulated by the number of
+                                                          !    chilling days (NCD): GDD_Thresh = a + b * exp (c * NCD)
+     real(r8), allocatable :: phen_gddthresh_a(:)         !    - a parameter (intercept)
+     real(r8), allocatable :: phen_gddthresh_b(:)         !    - b parameter (multiplier)
+     real(r8), allocatable :: phen_gddthresh_c(:)         !    - c parameter (exponent)
+
+     real(r8), allocatable :: phen_gddtemp(:)             ! (Lower) Temperature threshold for accumulating
+                                                          !    growing degree days (used for leaf flushing)
+     real(r8), allocatable :: phen_chilltemp(:)           ! (Upper) Temperature threshold for accumulating
+                                                          !    number of chilling days (used for leaf flushing)
+     real(r8), allocatable :: phen_coldtemp(:)            ! (Upper) daily average temperature threshold below which the 
+                                                          !    day is considered cold and will count towards leaf abscission
+     real(r8), allocatable :: phen_mindayson(:)           ! Minimum number of days that plants must remain with leaves
+                                                          !    flushed before they can abscise leaves again.
+     real(r8), allocatable :: phen_mindaysoff(:)          ! Minimum number of days that plants must remain leafless
+                                                          !    before flushing leaves again.
+     real(r8), allocatable :: phen_ncolddayslim(:)        ! Minimum number of recent days below the temperature threshold
+                                                          !    that initiates temperature-driven leaf abscission.
      real(r8), allocatable :: phen_drought_threshold(:)   ! For obligate (hard) drought deciduous, this is the threshold
                                                           !    below which plants will abscise leaves, and 
                                                           !    above which plants will flush leaves. For semi-deciduous
@@ -36,8 +57,6 @@ module PRTParametersMod
                                                           !    are soil volumetric water content [m3/m3]. If
                                                           !    negative, the values are soil matric potential [mm].
                                                           !    Ignored for non-deciduous plants.
-     real(r8), allocatable :: phen_doff_time(:)           ! Minimum number of days that plants must remain leafless before
-                                                          !   flushing leaves again.
 
 
      ! Growth and Turnover Parameters
