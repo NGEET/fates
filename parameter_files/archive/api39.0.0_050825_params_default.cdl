@@ -486,54 +486,36 @@ variables:
 	double fates_nonhydro_smpso(fates_pft) ;
 		fates_nonhydro_smpso:units = "mm" ;
 		fates_nonhydro_smpso:long_name = "Soil water potential at full stomatal opening" ;
-	double fates_phen_chilltemp(fates_pft) ;
-		fates_phen_chilltemp:units = "degrees C" ;
-		fates_phen_chilltemp:long_name = "(Upper) Temperature threshold for accumulating number of chilling days (used for leaf flushing)" ;
 	double fates_phen_cold_size_threshold(fates_pft) ;
 		fates_phen_cold_size_threshold:units = "cm" ;
 		fates_phen_cold_size_threshold:long_name = "the dbh size above which will lead to phenology-related stem and leaf drop" ;
-	double fates_phen_coldtemp(fates_pft) ;
-		fates_phen_coldtemp:units = "degrees C" ;
-		fates_phen_coldtemp:long_name = "(Upper) daily average temperature threshold below which the day is considered cold and will count towards leaf abscission" ;
 	double fates_phen_drought_threshold(fates_pft) ;
 		fates_phen_drought_threshold:units = "m3/m3 or mm" ;
 		fates_phen_drought_threshold:long_name = "threshold for drought phenology (or lower threshold for semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
+	double fates_phen_evergreen(fates_pft) ;
+		fates_phen_evergreen:units = "logical flag" ;
+		fates_phen_evergreen:long_name = "Binary flag for evergreen leaf habit" ;
 	double fates_phen_flush_fraction(fates_pft) ;
 		fates_phen_flush_fraction:units = "fraction" ;
 		fates_phen_flush_fraction:long_name = "Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves" ;
 	double fates_phen_fnrt_drop_fraction(fates_pft) ;
 		fates_phen_fnrt_drop_fraction:units = "fraction" ;
 		fates_phen_fnrt_drop_fraction:long_name = "fraction of fine roots to drop during drought/cold" ;
-	double fates_phen_gddtemp(fates_pft) ;
-		fates_phen_gddtemp:units = "degrees C" ;
-		fates_phen_gddtemp:long_name = "(Lower) Temperature threshold for accumulating growing degree days (used for leaf flushing)" ;
-	double fates_phen_gddthresh_a(fates_pft) ;
-		fates_phen_gddthresh_a:units = "degrees C" ;
-		fates_phen_gddthresh_a:long_name = "Intercept (a) of the growing degree days (GDD) threshold modulated by number of chilling days (NCD), GDD = a + b * exp(c*NCD)" ;
-	double fates_phen_gddthresh_b(fates_pft) ;
-		fates_phen_gddthresh_b:units = "degrees C" ;
-		fates_phen_gddthresh_b:long_name = "Slope (b) of the growing degree days (GDD) threshold modulated by number of chilling days (NCD), GDD = a + b * exp(c*NCD)" ;
-	double fates_phen_gddthresh_c(fates_pft) ;
-		fates_phen_gddthresh_c:units = "1/days" ;
-		fates_phen_gddthresh_c:long_name = "Exponent slope (c) of the growing degree days (GDD) threshold modulated by number of chilling days (NCD), GDD = a + b * exp(c*NCD)" ;
-	double fates_phen_leaf_habit(fates_pft) ;
-		fates_phen_leaf_habit:units = "flag" ;
-		fates_phen_leaf_habit:long_name = "Flag for leaf phenology habit. 1 - evergreen; 2 - season (cold) deciduous; 3 - stress (hydro) deciduous; 4 - stress (hydro) semi-deciduous" ;
 	double fates_phen_mindaysoff(fates_pft) ;
 		fates_phen_mindaysoff:units = "days" ;
-		fates_phen_mindaysoff:long_name = "Minimum number of days that plants must remain leafless before flushing leaves again" ;
-	double fates_phen_mindayson(fates_pft) ;
-		fates_phen_mindayson:units = "days" ;
-		fates_phen_mindayson:long_name = "Minimum number of days that plants must remain with leaves flushed before they can abscise leaves again" ;
+		fates_phen_mindaysoff:long_name = "day threshold compared against days since leaves abscised (shed)" ;
 	double fates_phen_moist_threshold(fates_pft) ;
 		fates_phen_moist_threshold:units = "m3/m3 or mm" ;
 		fates_phen_moist_threshold:long_name = "upper threshold for drought phenology (only for drought semi-deciduous PFTs); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm)" ;
-	double fates_phen_ncolddayslim(fates_pft) ;
-		fates_phen_ncolddayslim:units = "days" ;
-		fates_phen_ncolddayslim:long_name = "Minimum number of recent days below the temperature threshold that initiates temperature-driven leaf abscission" ;
+	double fates_phen_season_decid(fates_pft) ;
+		fates_phen_season_decid:units = "logical flag" ;
+		fates_phen_season_decid:long_name = "Binary flag for seasonal-deciduous leaf habit" ;
 	double fates_phen_stem_drop_fraction(fates_pft) ;
 		fates_phen_stem_drop_fraction:units = "fraction" ;
 		fates_phen_stem_drop_fraction:long_name = "fraction of stems to drop for non-woody species during drought/cold" ;
+	double fates_phen_stress_decid(fates_pft) ;
+		fates_phen_stress_decid:units = "logical flag" ;
+		fates_phen_stress_decid:long_name = "Flag for stress/drought-deciduous leaf habit. 0 - not stress deciduous; 1 - default drought deciduous (two target states only, fully flushed or fully abscised); 2 - semi-deciduous" ;
 	double fates_prescribed_npp_canopy(fates_pft) ;
 		fates_prescribed_npp_canopy:units = "kgC / m^2 / yr" ;
 		fates_prescribed_npp_canopy:long_name = "NPP per unit crown area of canopy trees for prescribed physiology mode" ;
@@ -884,13 +866,34 @@ variables:
 		fates_maxcohort:long_name = "maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances" ;
 	double fates_mort_disturb_frac ;
 		fates_mort_disturb_frac:units = "fraction" ;
-		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from old to new patch)" ;
+		fates_mort_disturb_frac:long_name = "fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch)" ;
 	double fates_mort_understorey_death ;
 		fates_mort_understorey_death:units = "fraction" ;
 		fates_mort_understorey_death:long_name = "fraction of plants in understorey cohort impacted by overstorey tree-fall" ;
 	double fates_patch_fusion_tol ;
 		fates_patch_fusion_tol:units = "unitless" ;
 		fates_patch_fusion_tol:long_name = "minimum fraction in difference in profiles between patches" ;
+	double fates_phen_chilltemp ;
+		fates_phen_chilltemp:units = "degrees C" ;
+		fates_phen_chilltemp:long_name = "chilling day counting threshold for vegetation" ;
+	double fates_phen_coldtemp ;
+		fates_phen_coldtemp:units = "degrees C" ;
+		fates_phen_coldtemp:long_name = "vegetation temperature exceedance that flags a cold-day for leaf-drop" ;
+	double fates_phen_gddthresh_a ;
+		fates_phen_gddthresh_a:units = "none" ;
+		fates_phen_gddthresh_a:long_name = "GDD accumulation function, intercept parameter: gdd_thesh = a + b exp(c*ncd)" ;
+	double fates_phen_gddthresh_b ;
+		fates_phen_gddthresh_b:units = "none" ;
+		fates_phen_gddthresh_b:long_name = "GDD accumulation function, multiplier parameter: gdd_thesh = a + b exp(c*ncd)" ;
+	double fates_phen_gddthresh_c ;
+		fates_phen_gddthresh_c:units = "none" ;
+		fates_phen_gddthresh_c:long_name = "GDD accumulation function, exponent parameter: gdd_thesh = a + b exp(c*ncd)" ;
+	double fates_phen_mindayson ;
+		fates_phen_mindayson:units = "days" ;
+		fates_phen_mindayson:long_name = "day threshold compared against days since leaves became on-allometry" ;
+	double fates_phen_ncolddayslim ;
+		fates_phen_ncolddayslim:units = "days" ;
+		fates_phen_ncolddayslim:long_name = "day threshold exceedance for temperature leaf-drop" ;
 	double fates_q10_froz ;
 		fates_q10_froz:units = "unitless" ;
 		fates_q10_froz:long_name = "Q10 for frozen-soil respiration rates" ;
@@ -1462,50 +1465,31 @@ data:
  fates_nonhydro_smpso = -66000, -66000, -66000, -66000, -66000, -66000, 
     -66000, -66000, -66000, -66000, -66000, -66000, -66000, -66000 ;
 
- fates_phen_chilltemp = 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5 ;
-
  fates_phen_cold_size_threshold = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_phen_coldtemp = 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 
-    7.5, 7.5, 7.5, 7.5 ;
 
  fates_phen_drought_threshold = -152957.4, -152957.4, -152957.4, -152957.4, 
     -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, 
     -152957.4, -152957.4, -152957.4, -152957.4 ;
+
+ fates_phen_evergreen = 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0 ;
 
  fates_phen_flush_fraction = _, _, 0.5, _, 0.5, 0.5, _, 0.5, 0.5, _, 0.5, 
     0.5, 0.5, 0.5 ;
 
  fates_phen_fnrt_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
- fates_phen_gddtemp = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
-
- fates_phen_gddthresh_a = -68, -68, -68, -68, -68, -68, -68, -68, -68, -68, 
-    -68, -68, -68, -68 ;
-
- fates_phen_gddthresh_b = 638, 638, 638, 638, 638, 638, 638, 638, 638, 638, 
-    638, 638, 638, 638 ;
-
- fates_phen_gddthresh_c = -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, 
-    -0.01, -0.01, -0.01, -0.01, -0.01, -0.01, -0.01 ;
-
- fates_phen_leaf_habit = 1, 1, 2, 1, 3, 2, 1, 3, 2, 1, 2, 2, 3, 3 ;
-
- fates_phen_mindaysoff = 100, 100, 90, 100, 100, 90, 100, 100, 90, 100, 
-    90, 90, 100, 100 ;
-
- fates_phen_mindayson = 90, 90, 90, 90, 100, 90, 90, 100, 90, 90, 90, 90, 
-    100, 100 ;
+ fates_phen_mindaysoff = 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 
+    100, 100, 100, 100 ;
 
  fates_phen_moist_threshold = -122365.9, -122365.9, -122365.9, -122365.9, 
     -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, 
     -122365.9, -122365.9, -122365.9, -122365.9 ;
 
- fates_phen_ncolddayslim = 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5 ;
-
  fates_phen_season_decid = 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0 ;
 
  fates_phen_stem_drop_fraction = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
+
+ fates_phen_stress_decid = 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1 ;
 
  fates_prescribed_npp_canopy = 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 
     0.4, 0.4, 0.4, 0.4, 0.4 ;
@@ -1748,7 +1732,7 @@ data:
 
  fates_cohort_size_fusion_tol = 0.08 ;
 
- fates_comp_excln = -1 ;
+ fates_comp_excln = 3 ;
 
  fates_damage_canopy_layer_code = 1 ;
 
@@ -1800,23 +1784,23 @@ data:
 
  fates_landuse_grazing_phosphorus_use_eff = 0.5 ;
 
- fates_landuse_logging_coll_under_frac = 0. ;
+ fates_landuse_logging_coll_under_frac = 0.55983 ;
 
- fates_landuse_logging_collateral_frac = 0. ;
+ fates_landuse_logging_collateral_frac = 0.05 ;
 
  fates_landuse_logging_dbhmax = _ ;
 
- fates_landuse_logging_dbhmax_infra = 0 ;
+ fates_landuse_logging_dbhmax_infra = 35 ;
 
- fates_landuse_logging_dbhmin = 0 ;
+ fates_landuse_logging_dbhmin = 50 ;
 
- fates_landuse_logging_direct_frac = 1. ;
+ fates_landuse_logging_direct_frac = 0.15 ;
 
  fates_landuse_logging_event_code = -30 ;
 
  fates_landuse_logging_export_frac = 0.8 ;
 
- fates_landuse_logging_mechanical_frac = 0. ;
+ fates_landuse_logging_mechanical_frac = 0.05 ;
 
  fates_leaf_photo_temp_acclim_thome_time = 30 ;
 
@@ -1835,6 +1819,20 @@ data:
  fates_mort_understorey_death = 0.55983 ;
 
  fates_patch_fusion_tol = 0.05 ;
+
+ fates_phen_chilltemp = 5 ;
+
+ fates_phen_coldtemp = 7.5 ;
+
+ fates_phen_gddthresh_a = -68 ;
+
+ fates_phen_gddthresh_b = 638 ;
+
+ fates_phen_gddthresh_c = -0.01 ;
+
+ fates_phen_mindayson = 90 ;
+
+ fates_phen_ncolddayslim = 5 ;
 
  fates_q10_froz = 1.5 ;
 

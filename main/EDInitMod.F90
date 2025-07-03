@@ -41,6 +41,8 @@ module EDInitMod
   use EDTypesMod                , only : init_spread_inventory
   use FatesConstantsMod         , only : leaves_on
   use FatesConstantsMod         , only : leaves_off
+  use FatesConstantsMod         , only : ievergreen
+  use FatesConstantsMod         , only : ihard_season_decid
   use FatesConstantsMod         , only : ihard_stress_decid
   use FatesConstantsMod         , only : isemi_stress_decid
   use PRTGenericMod             , only : num_elements
@@ -1165,15 +1167,23 @@ contains
                efstem_coh = 1.0_r8 
                leaf_status = leaves_on
             else 
-               ! use built-in phenology 
-               if (prt_params%season_decid(pft) == itrue .and.                 &
-                  any(site_in%phen_status(pft) == [phen_cstat_nevercold, phen_cstat_iscold])) then 
-                  ! Cold deciduous, off season, assume complete abscission
-                  efleaf_coh = 0.0_r8
-                  effnrt_coh = 1.0_r8 - fnrt_drop_fraction 
-                  efstem_coh = 1.0_r8 - stem_drop_fraction
-                  leaf_status = leaves_off 
-               else if (any(prt_params%stress_decid(pft) == [ihard_stress_decid, isemi_stress_decid])) then 
+               ! use built-in phenology
+               phen_select: select case (prt_params%phen_leaf_habit(pft))
+               case (ihard_season_decid)
+                  if ( any(site_in%phen_status(pft) == [phen_cstat_nevercold, phen_cstat_iscold]) ) then 
+                     ! Cold deciduous, off season, assume complete abscission
+                     efleaf_coh = 0.0_r8
+                     effnrt_coh = 1.0_r8 - fnrt_drop_fraction 
+                     efstem_coh = 1.0_r8 - stem_drop_fraction
+                     leaf_status = leaves_off
+                  else
+                     ! Cold deciduous, growing season, assume leaves fully flushed
+                     efleaf_coh = 1.0_r8
+                     effnrt_coh = 1.0_r8
+                     efstem_coh = 1.0_r8
+                     leaf_status = leaves_on
+                  end if
+               case (ihard_stress_decid, isemi_stress_decid)
                   ! If the plant is drought deciduous, make sure leaf status is
                   ! always consistent with the leaf elongation factor.  For tissues
                   ! other than leaves, the actual drop fraction is a combination of the
@@ -1189,14 +1199,13 @@ contains
                   else 
                      leaf_status = leaves_off 
                   end if 
-               else 
-                  ! Evergreens, or deciduous during growing season 
-                  ! Assume leaves fully flushed 
-                  efleaf_coh = 1.0_r8 
-                  effnrt_coh = 1.0_r8 
-                  efstem_coh = 1.0_r8 
-                  leaf_status = leaves_on 
-               end if 
+               case (ievergreen)
+                  ! Evergreens, assume leaves fully flushed
+                  efleaf_coh = 1.0_r8
+                  effnrt_coh = 1.0_r8
+                  efstem_coh = 1.0_r8
+                  leaf_status = leaves_on
+               end select phen_select
             end if if_spmode 
 
             ! If positive EDPftvarcon_inst%initd is interpreted as initial recruit density.

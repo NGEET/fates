@@ -132,7 +132,6 @@ module EDTypesMod
                                                                           ! number densities of cohorts to prevent FPEs
 
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
-  logical, parameter, public :: homogenize_seed_pfts  = .false.
   character(len=*), parameter, private :: sourcefile = __FILE__
 
   !************************************
