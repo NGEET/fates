@@ -1145,9 +1145,6 @@ contains
          ! This portion is known as "trunk_product_site
          
          if(element_id .eq. carbon12_element) then
-            currentSite%resources_management%trunk_product_site  = &
-                  currentSite%resources_management%trunk_product_site + &
-                  trunk_product_site
             
             currentSite%resources_management%delta_litter_stock  = &
                   currentSite%resources_management%delta_litter_stock + &
