@@ -486,7 +486,7 @@ contains
     integer :: n_patches  ! Number of patches in site
     real(r8) :: area_forest_patches
     real(r8) :: area
-    real(r8) :: pct_nonforest
+    real(r8) :: frac_nonforest
     real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
 
     ! Skip sites with no forest patches
@@ -504,8 +504,8 @@ contains
     call rank_forest_edge_proximity(site, indices, index_forestpatches_to_allpatches)
 
     ! Get percentage of nonforest area in each bin
-    pct_nonforest = 100._r8 * (area - area_forest_patches) / area
-    call get_fraction_of_edgeforest_in_each_bin(pct_nonforest, nlevedgeforest, ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, fraction_forest_in_each_bin)
+    frac_nonforest = (area - area_forest_patches) / area
+    call get_fraction_of_edgeforest_in_each_bin(frac_nonforest, nlevedgeforest, ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, fraction_forest_in_each_bin)
 
     ! Assign patches to bins
     call assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
