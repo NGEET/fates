@@ -178,7 +178,7 @@ module SyntheticFuelModels
       end if
     end do
     write(*, '(a, i2, a)') "Cannot find the fuel model index ", fuel_model_index, "."
-    stop
+    call abort()
   
   end function FuelModelPosition
   
