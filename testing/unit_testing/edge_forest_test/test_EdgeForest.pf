@@ -143,7 +143,7 @@ module test_EdgeForest
            efb_params_nan, efb_params_nan, efb_params_nan, &
            fraction_forest_in_bin, norm)
 
-      @assertEqual(0.704130653528599, fraction_forest_in_bin(1), tol)
+      @assertEqual(0.3520653267642879_r8, fraction_forest_in_bin(1), tol)
 
     end subroutine test_get_fraction_of_edgeforest_in_each_bin_gaussian
 
@@ -358,7 +358,7 @@ module test_EdgeForest
       A = 2
       sigma = 3
       mu = 4
-      expected = 0.1773883645528331
+      expected = 0.1543278780068184
       lognorm = .false.
 
       actual = gffeb_norm(x, A, mu, sigma, lognorm)
@@ -368,7 +368,7 @@ module test_EdgeForest
     end subroutine test_gffeb_norm_gaussian
 
     @Test
-    subroutine test_gffeb_norm_denominator(this)
+    subroutine test_gffeb_lognorm_denominator(this)
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: x
       real(r8) :: A      ! Amplitude
@@ -376,17 +376,42 @@ module test_EdgeForest
       real(r8) :: sigma  ! Sigma
       real(r8) :: expected
       real(r8) :: actual
+      logical  :: lognorm
 
       x = 10._r8
       ! Bin 4
       sigma = 0.8465094354405984
       expected = 21.21884485617329
+      lognorm = .true.
 
-      actual = gffeb_norm_denominator(x, sigma)
+      actual = gffeb_norm_denominator(x, sigma, lognorm)
 
       @assertEqual(expected, actual, tolerance=tol)
 
-    end subroutine test_gffeb_norm_denominator
+    end subroutine test_gffeb_lognorm_denominator
+
+    @Test
+    subroutine test_gffeb_gaussian_denominator(this)
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: x
+      real(r8) :: A      ! Amplitude
+      real(r8) :: mu     ! Center
+      real(r8) :: sigma  ! Sigma
+      real(r8) :: expected
+      real(r8) :: actual
+      logical  :: lognorm
+
+      x = 0.5_r8
+      ! Bin 4
+      sigma = 0.8465094354405984
+      expected = 2.121884538742686
+      lognorm = .false.
+
+      actual = gffeb_norm_denominator(x, sigma, lognorm)
+
+      @assertEqual(expected, actual, tolerance=tol)
+
+    end subroutine test_gffeb_gaussian_denominator
 
     @Test
     subroutine test_gffeb_quadratic(this)

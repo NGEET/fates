@@ -198,13 +198,17 @@ contains
     gffeb_norm_numerator = A * exp(-(x - mu)**2 / (2*sigma**2))
   end function gffeb_norm_numerator
 
-  function gffeb_norm_denominator(x, sigma)
+  function gffeb_norm_denominator(x, sigma, lognorm)
     use FatesConstantsMod, only : pi => pi_const
     real(r8), intent(in) :: x
     real(r8), intent(in) :: sigma  ! Sigma
+    logical,  intent(in) :: lognorm  ! Whether to take log(x)
     real(r8) :: gffeb_norm_denominator
 
-    gffeb_norm_denominator = sigma * sqrt(2*pi) * x
+    gffeb_norm_denominator = sigma * sqrt(2*pi)
+    if (lognorm) then
+       gffeb_norm_denominator = gffeb_norm_denominator * x
+    end if
   end function gffeb_norm_denominator
 
   function gffeb_norm(x, A, mu, sigma, lognorm)
@@ -215,7 +219,7 @@ contains
     logical,  intent(in) :: lognorm  ! Whether to take log(x) in numerator
     real(r8) :: gffeb_norm
 
-    gffeb_norm = gffeb_norm_numerator(x, A, mu, sigma, lognorm) / gffeb_norm_denominator(x, sigma)
+    gffeb_norm = gffeb_norm_numerator(x, A, mu, sigma, lognorm) / gffeb_norm_denominator(x, sigma, lognorm)
   end function gffeb_norm
 
   function gffeb_quadratic(x, a, b, c)
