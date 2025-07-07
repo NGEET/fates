@@ -127,7 +127,7 @@ module test_EdgeForest
     @Test
     subroutine test_get_fraction_of_edgeforest_in_each_bin_gaussian(this)
       class(TestEdgeForest), intent(inout) :: this
-      real(r8) :: frac_nonforest = 0.5_r8
+      real(r8) :: frac_forest = 0.5_r8
       integer, parameter :: nlevedgeforest_tmp = 1
       real(r8), dimension(nlevedgeforest_tmp) :: efb_params_amplitude = (/ 1._r8 /)
       real(r8), dimension(nlevedgeforest_tmp) :: efb_params_sigma = (/ 1._r8 /)
@@ -137,7 +137,7 @@ module test_EdgeForest
       ! Output
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_nonforest, nlevedgeforest_tmp, &
+      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
            efb_params_amplitude, efb_params_sigma, efb_params_center, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
@@ -151,7 +151,7 @@ module test_EdgeForest
     @Test
     subroutine test_get_fraction_of_edgeforest_in_each_bin_lognorm(this)
       class(TestEdgeForest), intent(inout) :: this
-      real(r8) :: frac_nonforest = 0.5_r8
+      real(r8) :: frac_forest = 0.5_r8
       integer, parameter :: nlevedgeforest_tmp = 1
       real(r8), dimension(nlevedgeforest_tmp) :: efb_params_amplitude = (/ 1._r8 /)
       real(r8), dimension(nlevedgeforest_tmp) :: efb_params_sigma = (/ 1._r8 /)
@@ -161,7 +161,7 @@ module test_EdgeForest
       ! Output
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_nonforest, nlevedgeforest_tmp, &
+      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_amplitude, efb_params_sigma, efb_params_center, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
@@ -175,7 +175,7 @@ module test_EdgeForest
     @Test
     subroutine test_get_fraction_of_edgeforest_in_each_bin_quadratic(this)
       class(TestEdgeForest), intent(inout) :: this
-      real(r8) :: frac_nonforest = 0.5_r8
+      real(r8) :: frac_forest = 0.5_r8
       integer, parameter :: nlevedgeforest_tmp = 1
       real(r8), dimension(nlevedgeforest_tmp) :: efb_params_a = (/ 1._r8 /)
       real(r8), dimension(nlevedgeforest_tmp) :: efb_params_b = (/ 1._r8 /)
@@ -185,7 +185,7 @@ module test_EdgeForest
       ! Output
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_nonforest, nlevedgeforest_tmp, &
+      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_a, efb_params_b, efb_params_c, &
@@ -201,7 +201,7 @@ module test_EdgeForest
       ! Test that normalization works correctly: If all bins have the same parameters, they should
       ! get normalized to 1/nbins.
       class(TestEdgeForest), intent(inout) :: this
-      real(r8) :: frac_nonforest = 0.5_r8
+      real(r8) :: frac_forest = 0.5_r8
       integer, parameter :: nlevedgeforest_tmp = 3
       real(r8), dimension(nlevedgeforest_tmp) :: efb_params_a = (/ 1._r8, 1._r8, 1._r8 /)
       real(r8), dimension(nlevedgeforest_tmp) :: efb_params_b = (/ 1._r8, 1._r8, 1._r8 /)
@@ -212,7 +212,7 @@ module test_EdgeForest
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
       real(r8) :: expected = 1._r8 / real(nlevedgeforest_tmp, r8)
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_nonforest, nlevedgeforest_tmp, &
+      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_a, efb_params_b, efb_params_c, &
@@ -227,39 +227,60 @@ module test_EdgeForest
 
     @Test
     subroutine test_get_fraction_of_edgeforest_in_each_bin_x0(this)
-      ! If % nonforest is zero, all forest should be in last edge bin ("deep forest")
+      ! If frac forest is zero, all forest should be in first edge bin (closest to edge)
       class(TestEdgeForest), intent(inout) :: this
-      real(r8) :: frac_nonforest = 0._r8
+      real(r8) :: frac_forest = 0._r8
       integer, parameter :: nlevedgeforest_tmp = 3
       real(r8), dimension(nlevedgeforest_tmp) :: efb_params_dummy = (/ 1._r8, 2._r8, 3._r8 /)
       logical :: norm = .false.  ! Shouldn't matter for this test
       ! Output
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_nonforest, nlevedgeforest_tmp, &
+      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            fraction_forest_in_bin, norm)
 
-      @assertEqual( (/ 0._r8, 0._r8, 1._r8 /) , fraction_forest_in_bin)
+      @assertEqual( (/ 1._r8, 0._r8, 0._r8 /) , fraction_forest_in_bin)
 
     end subroutine test_get_fraction_of_edgeforest_in_each_bin_x0
 
     @Test
     subroutine test_get_fraction_of_edgeforest_in_each_bin_x0_norm(this)
-      ! If % nonforest is zero, all forest should be in last edge bin ("deep forest").
+      ! If frac forest is zero, all forest should be in first edge bin (closest to edge)
       ! Same test as test_get_fraction_of_edgeforest_in_each_bin_x0, except norm=.true.
       ! Shouldn't matter!
       class(TestEdgeForest), intent(inout) :: this
-      real(r8) :: frac_nonforest = 0._r8
+      real(r8) :: frac_forest = 0._r8
       integer, parameter :: nlevedgeforest_tmp = 3
       real(r8), dimension(nlevedgeforest_tmp) :: efb_params_dummy = (/ 1._r8, 2._r8, 3._r8 /)
       logical :: norm = .true.  ! Shouldn't matter for this test
       ! Output
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_nonforest, nlevedgeforest_tmp, &
+      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
+           efb_params_dummy, efb_params_dummy, efb_params_dummy, &
+           efb_params_dummy, efb_params_dummy, efb_params_dummy, &
+           efb_params_dummy, efb_params_dummy, efb_params_dummy, &
+           fraction_forest_in_bin, norm)
+
+      @assertEqual( (/ 1._r8, 0._r8, 0._r8 /) , fraction_forest_in_bin)
+
+    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x0_norm
+
+    @Test
+    subroutine test_get_fraction_of_edgeforest_in_each_bin_x1(this)
+      ! If frac forest is one, all forest should be in last edge bin ("deep forest")
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: frac_forest = 1._r8
+      integer, parameter :: nlevedgeforest_tmp = 3
+      real(r8), dimension(nlevedgeforest_tmp) :: efb_params_dummy = (/ 1._r8, 2._r8, 3._r8 /)
+      logical :: norm = .false.  ! Shouldn't matter for this test
+      ! Output
+      real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
+
+      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
@@ -267,7 +288,30 @@ module test_EdgeForest
 
       @assertEqual( (/ 0._r8, 0._r8, 1._r8 /) , fraction_forest_in_bin)
 
-    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x0_norm
+    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x1
+
+    @Test
+    subroutine test_get_fraction_of_edgeforest_in_each_bin_x1_norm(this)
+      ! If frac forest is one, all forest should be in last edge bin ("deep forest").
+      ! Same test as test_get_fraction_of_edgeforest_in_each_bin_x1, except norm=.true.
+      ! Shouldn't matter!
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: frac_forest = 1._r8
+      integer, parameter :: nlevedgeforest_tmp = 3
+      real(r8), dimension(nlevedgeforest_tmp) :: efb_params_dummy = (/ 1._r8, 2._r8, 3._r8 /)
+      logical :: norm = .true.  ! Shouldn't matter for this test
+      ! Output
+      real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
+
+      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
+           efb_params_dummy, efb_params_dummy, efb_params_dummy, &
+           efb_params_dummy, efb_params_dummy, efb_params_dummy, &
+           efb_params_dummy, efb_params_dummy, efb_params_dummy, &
+           fraction_forest_in_bin, norm)
+
+      @assertEqual( (/ 0._r8, 0._r8, 1._r8 /) , fraction_forest_in_bin)
+
+    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x1_norm
 
     @Test
     subroutine test_gffeb_lognorm_numerator(this)

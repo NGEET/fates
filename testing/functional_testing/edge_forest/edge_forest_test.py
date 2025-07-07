@@ -90,7 +90,7 @@ class EdgeForestTest(FunctionalTest):
             plot_dir (str): if saving figure, where to write to
         """
 
-        x = data["frac_nonforest"]
+        x = data["frac_forest"]
         max_x = x.max()
 
         y = data
@@ -110,7 +110,7 @@ class EdgeForestTest(FunctionalTest):
                 label=str(b),
             )
 
-        plt.xlabel("Frac. nonforest in site", fontsize=11)
+        plt.xlabel("Frac. forest in site", fontsize=11)
         plt.ylabel(f"{varname} ({units})", fontsize=11)
         plt.title(f"Simulated {varname} for input parameter file", fontsize=11)
         plt.legend(loc="best", title="Edge bin")
@@ -137,23 +137,23 @@ class EdgeForestTest(FunctionalTest):
         # This is left over from AllometryTest, which had two dimensions
         data_frame = pd.DataFrame(
             {
-                "frac_nonforest": np.tile(data.frac_nonforest, 1),
+                "frac_forest": np.tile(data.frac_forest, 1),
                 data.name: data.values.flatten(),
             }
         )
 
-        max_nonforest = data_frame["frac_nonforest"].max()
+        max_forest = data_frame["frac_forest"].max()
         max_var = round_up(data_frame[data.name].max())
 
-        blank_plot(max_nonforest, 0.0, max_var, 0.0, draw_horizontal_lines=True)
+        blank_plot(max_forest, 0.0, max_var, 0.0, draw_horizontal_lines=True)
 
         plt.plot(
-            data_frame.frac_nonforest.values,
+            data_frame.frac_forest.values,
             data_frame[data.name].values,
             lw=2,
         )
 
-        plt.xlabel("Frac. nonforest in site", fontsize=11)
+        plt.xlabel("Frac. forest in site", fontsize=11)
         plt.ylabel(f"{varname} ({units})", fontsize=11)
         plt.title(f"Simulated {varname} for input parameter file", fontsize=11)
 

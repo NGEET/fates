@@ -274,9 +274,17 @@ contains
     logical :: lognorm
     logical :: do_norm
 
-    ! If x is zero, the cell is 100% forest, and therefore it's all "deep forest"
+    ! Initialize
     fraction_forest_in_bin(:) = 0._r8
+
+    ! If the cell is nearly 0% forest, put any forest in the first edge bin (closest to edge)
     if (x < nearzero) then
+       fraction_forest_in_bin(1) = 1._r8
+       return
+    end if
+
+    ! If the cell is (nearly) 100% forest, it's all "deep forest"
+    if (1._r8 - x < nearzero) then
        fraction_forest_in_bin(nlevedgeforest) = 1._r8
        return
     end if
@@ -490,7 +498,7 @@ contains
     integer :: n_patches  ! Number of patches in site
     real(r8) :: area_forest_patches
     real(r8) :: area
-    real(r8) :: frac_nonforest
+    real(r8) :: frac_forest
     real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
 
     ! Skip sites with no forest patches
@@ -507,9 +515,9 @@ contains
     ! Get ranks
     call rank_forest_edge_proximity(site, indices, index_forestpatches_to_allpatches)
 
-    ! Get percentage of nonforest area in each bin
-    frac_nonforest = (area - area_forest_patches) / area
-    call get_fraction_of_edgeforest_in_each_bin(frac_nonforest, nlevedgeforest, ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, fraction_forest_in_each_bin)
+    ! Get fraction of forest area in each bin
+    frac_forest = area_forest_patches / area
+    call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest, ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, fraction_forest_in_each_bin)
 
     ! Assign patches to bins
     call assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
