@@ -2,6 +2,7 @@ program FatesTestEdgeForest
 
   use FatesConstantsMod,           only : r8 => fates_r8
   use FatesEdgeForestMod,          only : gffeb_norm, gffeb_quadratic, is_param_set
+  use FatesEdgeForestMod,          only : get_fraction_of_edgeforest_in_each_bin
   use EDParamsMod, only : ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma,ED_val_edgeforest_gaussian_center
   use EDParamsMod, only : ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma,ED_val_edgeforest_lognormal_center
   use EDParamsMod, only : ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b,ED_val_edgeforest_quadratic_c
@@ -22,6 +23,7 @@ program FatesTestEdgeForest
   real(r8), allocatable              :: frac_in_bin_gaussian(:)  ! output: fraction of forest in a bin with Gaussian fit
   real(r8), allocatable              :: frac_in_bin_lognormal(:) ! output: fraction of forest in a bin with lognormal fit
   real(r8), allocatable              :: frac_in_bin_quadratic(:) ! output: fraction of forest in a bin with quadratic fit
+  real(r8), allocatable              :: frac_in_every_bin(:,:) ! output: fraction of forest in each bin
   ! Edge bin parameters
   real(r8) :: amplitude, mu, sigma, a, b, c
   logical  :: bin_found
@@ -34,8 +36,8 @@ program FatesTestEdgeForest
 
   interface
 
-    subroutine WriteEdgeForestData(out_file, n_pct_nonforest, pct_nonforest, frac_in_bin_gaussian, &
-        frac_in_bin_lognormal, frac_in_bin_quadratic)
+    subroutine WriteEdgeForestData(out_file, n_pct_nonforest, n_bins, pct_nonforest, frac_in_bin_gaussian, &
+        frac_in_bin_lognormal, frac_in_bin_quadratic, frac_in_every_bin)
 
       use FatesUnitTestIOMod, only : OpenNCFile, RegisterNCDims, CloseNCFile
       use FatesUnitTestIOMod, only : WriteVar, RegisterVar
@@ -45,10 +47,12 @@ program FatesTestEdgeForest
 
       character(len=*), intent(in) :: out_file
       integer,          intent(in) :: n_pct_nonforest
+      integer,          intent(in) :: n_bins
       real(r8),         intent(in) :: pct_nonforest(:)
       real(r8),         intent(in) :: frac_in_bin_gaussian(:)
       real(r8),         intent(in) :: frac_in_bin_lognormal(:)
       real(r8),         intent(in) :: frac_in_bin_quadratic(:)
+      real(r8),         intent(in) :: frac_in_every_bin(:,:)
     end subroutine WriteEdgeForestData
 
   end interface
@@ -69,6 +73,7 @@ program FatesTestEdgeForest
   allocate(frac_in_bin_gaussian(n_pct_nonforest))
   allocate(frac_in_bin_lognormal(n_pct_nonforest))
   allocate(frac_in_bin_quadratic(n_pct_nonforest))
+  allocate(frac_in_every_bin(n_pct_nonforest, n_bins))
 
   ! initialize pct_nonforest array
   do i = 1, n_pct_nonforest
@@ -156,16 +161,25 @@ program FatesTestEdgeForest
     end if
   end do
 
+  ! calculate fraction in every bin
+  do i = 1, n_pct_nonforest
+    call get_fraction_of_edgeforest_in_each_bin(pct_nonforest(i), n_bins, &
+        ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, &
+        ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, &
+        ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, &
+        frac_in_every_bin(i,:), .false.)
+  end do
+
   ! write out data to netcdf file
-  call WriteEdgeForestData(out_file, n_pct_nonforest, pct_nonforest, frac_in_bin_gaussian, &
-    frac_in_bin_lognormal, frac_in_bin_quadratic)
+  call WriteEdgeForestData(out_file, n_pct_nonforest, n_bins, pct_nonforest, frac_in_bin_gaussian, &
+    frac_in_bin_lognormal, frac_in_bin_quadratic, frac_in_every_bin)
 
 end program FatesTestEdgeForest
 
 ! ----------------------------------------------------------------------------------------
 
-subroutine WriteEdgeForestData(out_file, n_pct_nonforest, pct_nonforest, frac_in_bin_gaussian, &
-        frac_in_bin_lognormal, frac_in_bin_quadratic)
+subroutine WriteEdgeForestData(out_file, n_pct_nonforest, n_bins, pct_nonforest, frac_in_bin_gaussian, &
+        frac_in_bin_lognormal, frac_in_bin_quadratic, frac_in_every_bin)
   !
   ! DESCRIPTION:
   ! Writes out data from the edge forest test
@@ -181,28 +195,31 @@ subroutine WriteEdgeForestData(out_file, n_pct_nonforest, pct_nonforest, frac_in
   ! ARGUMENTS
   character(len=*), intent(in) :: out_file
   integer,          intent(in) :: n_pct_nonforest
+  integer,          intent(in) :: n_bins
   real(r8),         intent(in) :: pct_nonforest(:)
   real(r8),         intent(in) :: frac_in_bin_gaussian(:)
   real(r8),         intent(in) :: frac_in_bin_lognormal(:)
   real(r8),         intent(in) :: frac_in_bin_quadratic(:)
+  real(r8),         intent(in) :: frac_in_every_bin(:,:)
 
   ! LOCALS:
-  ! TODO: Set a local parameter for number of dimensions (1 here; was 2 for Allometry)
+  ! TODO: Set a local parameter for number of dimensions (2)
   integer              :: i              ! looping index
   integer              :: ncid           ! netcdf file id
-  character(len=24)     :: dim_names(1)   ! dimension name(s)
-  integer              :: dimIDs(1)      ! dimension ID(s)
+  character(len=24)     :: dim_names(2)   ! dimension name(s)
+  integer              :: dimIDs(2)      ! dimension ID(s)
   integer              :: pctnonforestID ! variable ID(s) for dimensions
   integer              :: gaussianID, lognormalID, quadraticID
+  integer              :: everybinID
 
   ! dimension name(s)
-  dim_names = [character(len=24) :: 'pct_nonforest']
+  dim_names = [character(len=24) :: 'pct_nonforest', 'bin']
 
   ! open file
   call OpenNCFile(trim(out_file), ncid, 'readwrite')
 
   ! register dimensions
-  call RegisterNCDims(ncid, dim_names, (/n_pct_nonforest/), 1, dimIDs)
+  call RegisterNCDims(ncid, dim_names, (/n_pct_nonforest, n_bins/), 2, dimIDs)
 
   ! register percent nonforest
   call RegisterVar(ncid, dim_names(1), dimIDs(1:1), type_double,         &
@@ -227,6 +244,12 @@ subroutine WriteEdgeForestData(out_file, n_pct_nonforest, pct_nonforest, frac_in
     [character(len=150) :: 'pct_nonforest', 'unitless', 'Fraction of forest in first bin with quadratic fit'],  &
     3, quadraticID)
 
+  ! register frac_in_every_bin
+  call RegisterVar(ncid, 'frac_in_every_bin', dimIDs(1:2), type_double,   &
+    [character(len=20)  :: 'coordinates', 'units', 'long_name'], &
+    [character(len=150) :: 'pct_nonforest bin', 'unitless', 'Fraction of forest in every bin'],  &
+    3, everybinID)
+
   ! finish defining variables
   call EndNCDef(ncid)
 
@@ -235,6 +258,7 @@ subroutine WriteEdgeForestData(out_file, n_pct_nonforest, pct_nonforest, frac_in
   call WriteVar(ncid, gaussianID, frac_in_bin_gaussian(:))
   call WriteVar(ncid, lognormalID, frac_in_bin_lognormal(:))
   call WriteVar(ncid, quadraticID, frac_in_bin_quadratic(:))
+  call WriteVar(ncid, everybinID, frac_in_every_bin(:,:))
 
   ! close the file
   call CloseNCFile(ncid)
