@@ -3,7 +3,6 @@ module FatesEdgeForestMod
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nocomp_bareground
   use FatesConstantsMod, only : nearzero
-  use FatesConstantsMod, only : fates_check_param_set
   use FatesGlobals, only : fates_log
   use FatesGlobals, only : endrun => fates_endrun
   use shr_log_mod, only : errMsg => shr_log_errMsg
@@ -11,6 +10,7 @@ module FatesEdgeForestMod
   use EDTypesMod, only : AREA
   use FatesPatchMod, only : fates_patch_type
   use FatesEcotypesMod, only : is_patch_forest
+  use FatesUtilsMod,    only : is_param_set
 
   implicit none
   private  ! By default everything is private
@@ -26,7 +26,6 @@ module FatesEdgeForestMod
   public :: gffeb_norm
   public :: gffeb_quadratic
   public :: assign_patch_to_bins
-  public :: is_param_set
 
 contains
 
@@ -229,17 +228,6 @@ contains
 
     gffeb_quadratic = a*(x**2) + b*x + c
   end function gffeb_quadratic
-
-
-  function is_param_set(param)
-    real(r8), intent(in) :: param
-    logical :: is_param_set
-    is_param_set = .not. isnan(param)
-    if (is_param_set) then
-       is_param_set = param < fates_check_param_set
-    end if
-  end function is_param_set
-
 
   subroutine get_fraction_of_edgeforest_in_each_bin(x, nlevedgeforest, efb_gaussian_amplitudes, efb_gaussian_sigmas, efb_gaussian_centers, efb_lognormal_amplitudes, efb_lognormal_sigmas, efb_lognormal_centers, efb_quadratic_a, efb_quadratic_b, efb_quadratic_c, fraction_forest_in_bin, norm)
     ! DESCRIPTION:
@@ -483,10 +471,10 @@ contains
     !
     ! USES:
     use FatesInterfaceTypesMod, only : nlevedgeforest
-    use EDParamsMod, only : ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center
-    use EDParamsMod, only : ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center
-    use EDParamsMod, only : ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c
-    use EDParamsMod, only : ED_val_edgeforest_bin_edges
+    use FatesEdgeForestParamsMod, only : ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center
+    use FatesEdgeForestParamsMod, only : ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center
+    use FatesEdgeForestParamsMod, only : ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c
+    use FatesEdgeForestParamsMod, only : ED_val_edgeforest_bin_edges
     !
     ! ARGUMENTS:
     type(ed_site_type), pointer, intent(in) :: site

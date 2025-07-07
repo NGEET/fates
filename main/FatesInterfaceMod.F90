@@ -54,6 +54,7 @@ module FatesInterfaceMod
    use EDPftvarcon               , only : FatesCheckParams
    use EDPftvarcon               , only : EDPftvarcon_inst
    use SFParamsMod               , only : SpitFireCheckParams
+   use FatesEdgeForestParamsMod  , only : EdgeForestCheckParams
    use EDParamsMod               , only : FatesReportParams
    use EDParamsMod               , only : bgc_soil_salinity
    use FatesPlantHydraulicsMod   , only : InitHydroGlobals
@@ -65,13 +66,14 @@ module FatesInterfaceMod
    use EDParamsMod               , only : sdlng_mdd_timescale
    use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
-   use EDParamsMod               , only : ED_val_edgeforest_bin_edges
+   use FatesEdgeForestParamsMod  , only : ED_val_edgeforest_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
    use FatesParametersInterface  , only : fates_param_reader_type
    use FatesParametersInterface  , only : fates_parameters_type
    use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
    use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
+   use FatesEdgeForestParamsMod  , only : EdgeForestRegisterParams, EdgeForestReceiveParams
    use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
    use FatesLeafBiophysParamsMod , only : LeafBiophysRegisterParams, LeafBiophysReceiveParams,LeafBiophysReportParams
    use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
@@ -1162,7 +1164,7 @@ contains
        use EDParamsMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
-       use EDParamsMod, only : ED_val_edgeforest_bin_edges
+       use FatesEdgeForestParamsMod, only : ED_val_edgeforest_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges
        use EDParamsMod, only : ED_val_history_coageclass_bin_edges
 
@@ -2246,6 +2248,7 @@ contains
       call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
+      call EdgeForestCheckParams(masterproc)
       call TransferRadParams()
 
       
@@ -2682,6 +2685,7 @@ subroutine FatesReadParameters(param_reader)
   call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
   call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
   call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
+  call EdgeForestRegisterParams(fates_params) !EdgeForest Mod, only operates on fates_params class
   call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
   call LeafBiophysRegisterParams(fates_params)
   call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
@@ -2690,6 +2694,7 @@ subroutine FatesReadParameters(param_reader)
 
   call FatesReceiveParams(fates_params)
   call SpitFireReceiveParams(fates_params)
+  call EdgeForestReceiveParams(fates_params)
   call PRTReceiveParams(fates_params)
   call LeafBiophysReceiveParams(fates_params)
   call FatesSynchronizedParamsInst%ReceiveParams(fates_params)

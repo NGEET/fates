@@ -1,12 +1,13 @@
 program FatesTestEdgeForest
 
   use FatesConstantsMod,           only : r8 => fates_r8
-  use FatesEdgeForestMod,          only : gffeb_norm, gffeb_quadratic, is_param_set
+  use FatesUtilsMod,               only : is_param_set
+  use FatesEdgeForestMod,          only : gffeb_norm, gffeb_quadratic
   use FatesEdgeForestMod,          only : get_fraction_of_edgeforest_in_each_bin
-  use EDParamsMod, only : ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma,ED_val_edgeforest_gaussian_center
-  use EDParamsMod, only : ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma,ED_val_edgeforest_lognormal_center
-  use EDParamsMod, only : ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b,ED_val_edgeforest_quadratic_c
-  use EDParamsMod, only : ED_val_edgeforest_bin_edges
+  use FatesEdgeForestParamsMod, only : ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma,ED_val_edgeforest_gaussian_center
+  use FatesEdgeForestParamsMod, only : ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma,ED_val_edgeforest_lognormal_center
+  use FatesEdgeForestParamsMod, only : ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b,ED_val_edgeforest_quadratic_c
+  use FatesEdgeForestParamsMod, only : ED_val_edgeforest_bin_edges
   use FatesUnitTestParamReaderMod, only :fates_unit_test_param_reader
   use FatesArgumentUtils,          only : command_line_arg
   use shr_infnan_mod,              only : nan => shr_infnan_nan, assignment(=), isnan => shr_infnan_isnan
