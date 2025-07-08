@@ -50,6 +50,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3
   use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod        , only : hlm_use_tree_damage
+  use FatesInterfaceTypesMod        , only : hlm_use_edge_forest
   use FatesInterfaceTypesMod        , only : nlevdamage
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_freq_day
@@ -3451,7 +3452,7 @@ contains
                 hio_fracarea_si(io_si) = hio_fracarea_si(io_si) &
                      + cpatch%area * AREA_INV
                 ! area of forest in each edge bin
-                if (cpatch%is_forest) then
+                if (hlm_use_edge_forest .and. cpatch%is_forest) then
                    binloop: do b = 1, nlevedgeforest
                       hio_forest_edge_bin_area_si(io_si,b) = hio_forest_edge_bin_area_si(io_si,b) + &
                       cpatch%area_in_edgeforest_bins(b)

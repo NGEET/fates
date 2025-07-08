@@ -35,6 +35,7 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod     , only : hlm_use_sp
+  use FatesInterfaceTypesMod     , only : hlm_use_edge_forest
   use FatesInterfaceTypesMod     , only : numpft
   use FatesInterfaceTypesMod, only : bc_in_type
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
@@ -1455,7 +1456,9 @@ contains
           currentPatch => currentPatch%younger
        end do !patch loop
 
-       call calculate_edgeforest_area(sites(s))
+       if (hlm_use_edge_forest) then
+          call calculate_edgeforest_area(sites(s))
+       end if
 
        call leaf_area_profile(sites(s))
        

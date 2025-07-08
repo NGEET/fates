@@ -43,7 +43,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : n_crop_lu_types
    use FatesConstantsMod         , only : n_term_mort_types
    use FatesConstantsMod         , only : nocomp_bareground
-   use FatesInterfaceTypesMod    , only : nlevedgeforest
+   use FatesInterfaceTypesMod    , only : nlevedgeforest, hlm_use_tree_damage
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -965,7 +965,11 @@ contains
          ! Identify number of size and age class bins for history output
          ! assume these arrays are 1-indexed
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
-         nlevedgeforest = size(ED_val_edgeforest_bin_edges,dim=1)
+         if (hlm_use_edge_forest == itrue) then
+            nlevedgeforest = size(ED_val_edgeforest_bin_edges,dim=1)
+         else
+            nlevedgeforest = 1
+         end if
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
          nlevdamage = size(ED_val_history_damage_bin_edges, dim=1)
@@ -1498,6 +1502,7 @@ contains
          hlm_decomp      = 'unset'
          hlm_nitrogen_spec = unset_int
          hlm_use_tree_damage = unset_int
+         hlm_use_edge_forest = unset_int
          hlm_phosphorus_spec = unset_int
          hlm_use_ch4       = unset_int
          hlm_use_vertsoilc = unset_int
@@ -1698,6 +1703,11 @@ contains
                  (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp))then
             write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
             write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_use_edge_forest .eq. unset_int) then
+            write(fates_log(),*) 'FATES dimension/parameter unset: hlm_use_edge_forest, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -1919,6 +1929,12 @@ contains
                hlm_use_tree_damage = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_tree_damage = ',ival,' to FATES'
+               end if
+
+            case('use_edge_forest')
+               hlm_use_edge_forest = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_edge_forest = ',ival,' to FATES'
                end if
                
             case('nitrogen_spec')
