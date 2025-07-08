@@ -1694,15 +1694,11 @@ contains
          if(hlm_use_tree_damage .eq. unset_int) then
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_use_tree_damage, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
-         else
-            if((hlm_use_tree_damage .eq. itrue) .and. &
+         else if ((hlm_use_tree_damage .eq. itrue) .and. &
                  (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp))then
-               write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
-               write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-            
+            write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
+            write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_nitrogen_spec .eq. unset_int) then
