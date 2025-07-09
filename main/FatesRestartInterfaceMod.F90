@@ -2869,7 +2869,7 @@ contains
           io_idx_si  = this%restart_map(nc)%site_index(s)
           io_idx_co_1st  = this%restart_map(nc)%cohort1_index(s)
 
-          call init_site_vars( sites(s), bc_in(s), bc_out(s) )
+          call init_site_vars( sites(s), bc_in(s) )
           call zero_site( sites(s) )
 
           if ( rio_npatch_si(io_idx_si)<0 .or. rio_npatch_si(io_idx_si) > 10000 ) then
