@@ -302,8 +302,12 @@ contains
   end subroutine QuadraticRootsSridharachary
 
   function is_param_set(param)
+     use shr_infnan_mod, only : isnan => shr_infnan_isnan
+
      real(r8), intent(in) :: param
+
      logical :: is_param_set
+
      is_param_set = .not. isnan(param)
      if (is_param_set) then
         is_param_set = param < fates_check_param_set
