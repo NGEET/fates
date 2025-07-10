@@ -8,6 +8,7 @@ module FatesUnitTestParamReaderMod
   use FatesParametersInterface,   only : dimension_shape_scalar, dimension_shape_1d, dimension_shape_2d
   use EDParamsMod,                only : FatesRegisterParams, FatesReceiveParams
   use SFParamsMod,                only : SpitFireRegisterParams, SpitFireReceiveParams
+  use FatesEdgeForestParamsMod,   only : EdgeForestRegisterParams, EdgeForestReceiveParams
   use PRTInitParamsFatesMod,      only : PRTRegisterParams, PRTReceiveParams
   use PRTParametersMod,           only : prt_params
   use FatesInterfaceTypesMod,     only : nleafage
@@ -124,6 +125,7 @@ module FatesUnitTestParamReaderMod
     
     call FatesRegisterParams(fates_params)
     call SpitFireRegisterParams(fates_params) 
+    call EdgeForestRegisterParams(fates_params)
     call PRTRegisterParams(fates_params)
     call FatesSynchronizedParamsInst%RegisterParams(fates_params)
     call EDPftvarcon_inst%Register(fates_pft_params)
@@ -133,6 +135,7 @@ module FatesUnitTestParamReaderMod
 
     call FatesReceiveParams(fates_params)
     call SpitFireReceiveParams(fates_params)
+    call EdgeForestReceiveParams(fates_params)
     call PRTReceiveParams(fates_params)
     call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
     call EDPftvarcon_inst%Receive(fates_pft_params)

@@ -58,6 +58,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : hlm_use_inventory_init
   use FatesInterfaceTypesMod         , only : hlm_use_fixed_biogeog
   use FatesInterfaceTypesMod         , only : hlm_use_tree_damage
+  use FatesInterfaceTypesMod         , only : hlm_use_edge_forest
   use FatesInterfaceTypesMod         , only : hlm_use_sp
   use FatesInterfaceTypesMod         , only : hlm_use_luh
   use FatesInterfaceTypesMod         , only : numpft

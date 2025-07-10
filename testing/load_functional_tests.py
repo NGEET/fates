@@ -7,3 +7,4 @@ from functional_testing.fire.fuel.fuel_test import FuelTest
 from functional_testing.fire.ros.ros_test import ROSTest  
 from functional_testing.patch.patch_test import PatchTest
 from functional_testing.fire.mortality.fire_mortality_test import FireMortTest
+from functional_testing.edge_forest.edge_forest_test import EdgeForestTest
