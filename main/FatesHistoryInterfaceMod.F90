@@ -3452,7 +3452,7 @@ contains
                 hio_fracarea_si(io_si) = hio_fracarea_si(io_si) &
                      + cpatch%area * AREA_INV
                 ! area of forest in each edge bin
-                if (hlm_use_edge_forest .and. cpatch%is_forest) then
+                if (hlm_use_edge_forest == itrue .and. cpatch%is_forest) then
                    binloop: do b = 1, nlevedgeforest
                       hio_forest_edge_bin_area_si(io_si,b) = hio_forest_edge_bin_area_si(io_si,b) + &
                       cpatch%area_in_edgeforest_bins(b)

@@ -1456,7 +1456,7 @@ contains
           currentPatch => currentPatch%younger
        end do !patch loop
 
-       if (hlm_use_edge_forest) then
+       if (hlm_use_edge_forest == itrue) then
           call calculate_edgeforest_area(sites(s))
        end if
 
