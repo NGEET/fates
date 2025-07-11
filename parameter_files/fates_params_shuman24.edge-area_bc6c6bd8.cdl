@@ -8,7 +8,6 @@ dimensions:
 	fates_string_length = 60 ;
 	fates_history_height_bins = 6 ;
 	fates_landuseclass = 5 ;
-	fates_edgeforest_bins = 6 ;
 	fates_plant_organs = 4 ;
 	fates_hydr_organs = 4 ;
 	fates_NCWD = 4 ;
@@ -61,36 +60,6 @@ variables:
 	char fates_landuseclass_name(fates_landuseclass, fates_string_length) ;
 		fates_landuseclass_name:units = "unitless - string" ;
 		fates_landuseclass_name:long_name = "Name of the land use classes, for variables associated with dimension fates_landuseclass" ;
-	double fates_edgeforest_bin_edges(fates_edgeforest_bins) ;
-		fates_edgeforest_bin_edges:units = "m" ;
-		fates_edgeforest_bin_edges:long_name = "Boundaries of forest edge bins (for each bin, include value closest to zero)" ;
-	double fates_edgeforest_gaussian_amplitude(fates_edgeforest_bins) ;
-		fates_edgeforest_gaussian_amplitude:units = "unitless" ;
-		fates_edgeforest_gaussian_amplitude:long_name = "Amplitudes for calculating forest area in each edge bin (gaussian fit)" ;
-	double fates_edgeforest_gaussian_sigma(fates_edgeforest_bins) ;
-		fates_edgeforest_gaussian_sigma:units = "unitless" ;
-		fates_edgeforest_gaussian_sigma:long_name = "Sigmas for calculating forest area in each edge bin (gaussian fit)" ;
-	double fates_edgeforest_gaussian_center(fates_edgeforest_bins) ;
-		fates_edgeforest_gaussian_center:units = "unitless" ;
-		fates_edgeforest_gaussian_center:long_name = "Centers for calculating forest area in each edge bin (gaussian fit)" ;
-	double fates_edgeforest_lognormal_amplitude(fates_edgeforest_bins) ;
-		fates_edgeforest_lognormal_amplitude:units = "unitless" ;
-		fates_edgeforest_lognormal_amplitude:long_name = "Amplitudes for calculating forest area in each edge bin (lognormal fit)" ;
-	double fates_edgeforest_lognormal_sigma(fates_edgeforest_bins) ;
-		fates_edgeforest_lognormal_sigma:units = "unitless" ;
-		fates_edgeforest_lognormal_sigma:long_name = "Sigmas for calculating forest area in each edge bin (lognormal fit)" ;
-	double fates_edgeforest_lognormal_center(fates_edgeforest_bins) ;
-		fates_edgeforest_lognormal_center:units = "unitless" ;
-		fates_edgeforest_lognormal_center:long_name = "Centers for calculating forest area in each edge bin (lognormal fit)" ;
-	double fates_edgeforest_quadratic_a(fates_edgeforest_bins) ;
-		fates_edgeforest_quadratic_a:units = "unitless" ;
-		fates_edgeforest_quadratic_a:long_name = "x^2 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
-	double fates_edgeforest_quadratic_b(fates_edgeforest_bins) ;
-		fates_edgeforest_quadratic_b:units = "unitless" ;
-		fates_edgeforest_quadratic_b:long_name = "x^1 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
-	double fates_edgeforest_quadratic_c(fates_edgeforest_bins) ;
-		fates_edgeforest_quadratic_c:units = "unitless" ;
-		fates_edgeforest_quadratic_c:long_name = "x^0 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
 	double fates_landuse_crop_lu_pft_vector(fates_landuseclass) ;
 		fates_landuse_crop_lu_pft_vector:units = "NA" ;
 		fates_landuse_crop_lu_pft_vector:long_name = "the FATES PFT index to use on a given crop land-use type (dummy value of -999 for non-crop types)" ;
@@ -1009,26 +978,6 @@ data:
   "rangeland",
   "pastureland",
   "cropland" ;
-
- fates_edgeforest_gaussian_amplitude = 0.37033665947126704, 0.25548576693720165, _, _, _, _ ;
-
- fates_edgeforest_gaussian_sigma = 0.4329573815987602, 0.42239011110175917, _, _, _, _ ;
-
- fates_edgeforest_gaussian_center = -0.35596450526414164, -0.28183332150023604, _, _, _, _ ;
-
- fates_edgeforest_lognormal_amplitude = _, _, _, _, _, 14.283227336273354 ;
-
- fates_edgeforest_lognormal_sigma = _, _, _, _, _, 1.26210031507715 ;
-
- fates_edgeforest_lognormal_center = _, _, _, _, _, 2.1958393621871597 ;
-
- fates_edgeforest_quadratic_a = _, _, 0.2549551300197741, 0.07685044819893726, 0.035189070666016925, _ ;
-
- fates_edgeforest_quadratic_b = _, _, -0.5457222474679617, -0.19438641157435982, -0.300528731650077, _ ;
-
- fates_edgeforest_quadratic_c = _, _, 0.29299184857665717, 0.11825507562859365, 0.2669694066063096, _ ;
-
- fates_edgeforest_bin_edges = 0, 30, 60, 120, 150, 300 ;
 
  fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
 

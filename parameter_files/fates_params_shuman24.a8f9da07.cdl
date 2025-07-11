@@ -1,7 +1,6 @@
 netcdf fates_params_shuman24.a8f9da07 {
 dimensions:
 	fates_NCWD = 4 ;
-	fates_edgeforest_bins = 5 ;
 	fates_history_age_bins = 7 ;
 	fates_history_coage_bins = 2 ;
 	fates_history_damage_bins = 2 ;
@@ -61,18 +60,6 @@ variables:
 	char fates_landuseclass_name(fates_landuseclass, fates_string_length) ;
 		fates_landuseclass_name:units = "unitless - string" ;
 		fates_landuseclass_name:long_name = "Name of the land use classes, for variables associated with dimension fates_landuseclass" ;
-	double fates_edgeforest_amplitudes(fates_edgeforest_bins) ;
-		fates_edgeforest_amplitudes:units = "unitless" ;
-		fates_edgeforest_amplitudes:long_name = "Amplitudes for calculating forest area in each edge bin" ;
-	double fates_edgeforest_bin_edges(fates_edgeforest_bins) ;
-		fates_edgeforest_bin_edges:units = "m" ;
-		fates_edgeforest_bin_edges:long_name = "Boundaries of forest edge bins (for each bin, include value closest to zero)" ;
-	double fates_edgeforest_centers(fates_edgeforest_bins) ;
-		fates_edgeforest_centers:units = "unitless" ;
-		fates_edgeforest_centers:long_name = "Centers for calculating forest area in each edge bin (only used for lognormal-fit bins)" ;
-	double fates_edgeforest_sigmas(fates_edgeforest_bins) ;
-		fates_edgeforest_sigmas:units = "unitless" ;
-		fates_edgeforest_sigmas:long_name = "Sigmas for calculating forest area in each edge bin (only used for lognormal-fit bins)" ;
 	double fates_landuse_crop_lu_pft_vector(fates_landuseclass) ;
 		fates_landuse_crop_lu_pft_vector:units = "NA" ;
 		fates_landuse_crop_lu_pft_vector:long_name = "the FATES PFT index to use on a given crop land-use type (dummy value of -999 for non-crop types)" ;
@@ -751,9 +738,6 @@ variables:
 	double fates_dev_arbitrary ;
 		fates_dev_arbitrary:units = "unknown" ;
 		fates_dev_arbitrary:long_name = "Unassociated free parameter that developers can use for testing arbitrary new hypotheses" ;
-	double fates_edgeforest_decay ;
-		fates_edgeforest_decay:units = "unitless" ;
-		fates_edgeforest_decay:long_name = "Decay for calculating forest area in \'deep forest\' edge bin (the only one fit with an exponential function)" ;
 	double fates_fire_active_crown_fire ;
 		fates_fire_active_crown_fire:units = "0 or 1" ;
 		fates_fire_active_crown_fire:long_name = "flag, 1=active crown fire 0=no active crown fire" ;
@@ -996,17 +980,6 @@ data:
   "rangeland",
   "pastureland",
   "cropland" ;
-
- fates_edgeforest_amplitudes = 334.201188643696, 7.45360848809832, 
-    2.84501306070775, 1.6010642699112, 0.922713993209522 ;
-
- fates_edgeforest_bin_edges = 0, 1, 2, 3, 4 ;
-
- fates_edgeforest_centers = 5.41141164187707, 2.77884191921349, 
-    2.30201373048437, 1.97399613352381, -999.9 ;
-
- fates_edgeforest_sigmas = 1.18510221662206, 0.623034741403121, 
-    0.750005090144326, 0.846509435440598, -999.9 ;
 
  fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
 
@@ -1540,8 +1513,6 @@ data:
  fates_daylength_factor_switch = 1 ;
 
  fates_dev_arbitrary = _ ;
-
- fates_edgeforest_decay = 4.1516082087782 ;
 
  fates_fire_active_crown_fire = 0 ;
 
