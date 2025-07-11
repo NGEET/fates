@@ -84,7 +84,6 @@ module FatesHistoryInterfaceMod
   use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
   use FatesIOVariableKindMod, only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
   use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8, site_lupft_r8
-  use FatesIOVariableKindMod, only : site_edgebin_r8
   use FatesConstantsMod   , only : n_landuse_cats
   use FatesAllometryMod             , only : CrownDepth
   use FatesAllometryMod             , only : bstore_allom, bsap_allom
@@ -309,7 +308,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_is_forest_pct50_0grass_si
   integer :: ih_is_forest_pct75_0grass_si
   integer :: ih_is_forest_pct90_0grass_si
-  integer :: ih_forest_edge_bin_area_si
   integer :: ih_litter_in_elem
   integer :: ih_litter_out_elem
   integer :: ih_seed_bank_elem
@@ -1296,9 +1294,6 @@ contains
     call this%set_dim_indices(site_age_r8, 1, this%column_index())
     call this%set_dim_indices(site_age_r8, 2, this%levage_index())
 
-    call this%set_dim_indices(site_edgebin_r8, 1, this%column_index())
-    call this%set_dim_indices(site_edgebin_r8, 2, this%levedgeforest_index())
-
     call this%set_dim_indices(site_fuel_r8, 1, this%column_index())
     call this%set_dim_indices(site_fuel_r8, 2, this%levfuel_index())
 
@@ -2042,10 +2037,6 @@ contains
     ! site x patch-age class
     index = index + 1
     call this%dim_kinds(index)%Init(site_age_r8, 2)
-
-    ! site x forest-edge-bin class
-    index = index + 1
-    call this%dim_kinds(index)%Init(site_edgebin_r8, 2)
 
     ! site x fuel size class
     index = index + 1
@@ -3326,7 +3317,6 @@ contains
            hio_cwd_ag_out_si_cwdsc              => this%hvars(ih_cwd_ag_out_si_cwdsc)%r82d, &
            hio_cwd_bg_out_si_cwdsc              => this%hvars(ih_cwd_bg_out_si_cwdsc)%r82d, &
            hio_crownarea_si_cnlf                => this%hvars(ih_crownarea_si_cnlf)%r82d, &
-           hio_forest_edge_bin_area_si          => this%hvars(ih_forest_edge_bin_area_si)%r82d, &
            hio_crownarea_cl                     => this%hvars(ih_crownarea_cl)%r82d)
 
         ! Break up associates for NAG compilers
@@ -3439,13 +3429,6 @@ contains
 
                 hio_fracarea_si(io_si) = hio_fracarea_si(io_si) &
                      + cpatch%area * AREA_INV
-                ! area of forest in each edge bin
-                if (hlm_use_edge_forest == itrue .and. cpatch%is_forest) then
-                   binloop: do b = 1, nlevedgeforest
-                      hio_forest_edge_bin_area_si(io_si,b) = hio_forest_edge_bin_area_si(io_si,b) + &
-                      cpatch%area_in_edgeforest_bins(b)
-                   end do binloop
-                end if
 
                 ! ignore land use info on nocomp bareground (where landuse label = 0)
                 if (cpatch%land_use_label .gt. nocomp_bareground_land) then 
@@ -6295,7 +6278,6 @@ contains
     ! patch age                (site_age_r8)    : AP
     ! canopy layer             (site_can_r8)    : CL
     ! coarse woody debris size (site_cwdsc_r8)  : DC
-    ! forest edge bin          (site_edgebin_r8): EB
     ! element                  (site_elem_r8)   : EL
     ! leaf layer                                : LL
     ! fuel class               (site_fuel_r8)   : FC
@@ -6435,12 +6417,6 @@ contains
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
             index=ih_is_forest_pct90_0grass_si)
-
-       call this%set_history_var(vname='FATES_FOREST_AREA_EB', units='m2',  &
-            long='area of forest in each edge bin', use_default='inactive', &
-            avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM',             &
-            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
-            index=ih_forest_edge_bin_area_si)
 
        call this%set_history_var(vname='FATES_FRACTION', units='m2 m-2',          &
             long='total gridcell fraction which FATES is running over', use_default='active', &
