@@ -50,7 +50,6 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3
   use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod        , only : hlm_use_tree_damage
-  use FatesInterfaceTypesMod        , only : hlm_use_edge_forest
   use FatesInterfaceTypesMod        , only : nlevdamage
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_freq_day
@@ -70,7 +69,6 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : nlevcoage
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesInterfaceTypesMod        , only : hlm_use_fixed_biogeog
-  use FatesInterfaceTypesMod        , only : nlevedgeforest
   use FatesRadiationMemMod          , only : ivis,inir
   use FatesInterfaceTypesMod        , only : hlm_hist_level_hifrq,hlm_hist_level_dynam
   use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
@@ -936,7 +934,6 @@ contains
 
     use FatesIODimensionsMod, only : column, levsoil, levscpf
     use FatesIODimensionsMod, only : levscls, levpft, levage
-    use FatesIODimensionsMod, only : levedgeforest
     use FatesIODimensionsMod, only : levcacls, levcapf
     use FatesIODimensionsMod, only : levfuel, levcwdsc, levscag
     use FatesIODimensionsMod, only : levscagpft, levagepft
@@ -3030,7 +3027,6 @@ contains
     type(litter_type), pointer :: litt_c   ! Pointer to the carbon12 litter pool
     type(litter_type), pointer :: litt     ! Generic pointer to any litter pool
     integer  :: s                  ! site counter
-    integer  :: b                  ! edge bin counter
     integer  :: io_si              ! site's index in the history output array space
     integer  :: el                 ! element index
     integer  :: ft                 ! pft index
