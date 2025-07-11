@@ -297,7 +297,6 @@ module FatesInterfaceTypesMod
    integer , public, allocatable :: fates_hdim_pfmap_levscpf(:)    ! map of pfts into size-class x pft dimension
    integer , public, allocatable :: fates_hdim_scmap_levscpf(:)    ! map of size-class into size-class x pft dimension
    real(r8), public, allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
-   real(r8), public, allocatable :: fates_hdim_levedge(:)          ! edge forest bin lower bound dimension
    real(r8), public, allocatable :: fates_hdim_levheight(:)        ! height lower bound dimension
    integer , public, allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
    integer , public, allocatable :: fates_hdim_levlanduse(:)       ! land use label dimension
