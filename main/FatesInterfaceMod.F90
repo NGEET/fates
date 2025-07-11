@@ -43,7 +43,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : n_crop_lu_types
    use FatesConstantsMod         , only : n_term_mort_types
    use FatesConstantsMod         , only : nocomp_bareground
-   use FatesInterfaceTypesMod    , only : nlevedgeforest, hlm_use_tree_damage
+   use FatesInterfaceTypesMod    , only : hlm_use_tree_damage
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -962,7 +962,6 @@ contains
          ! Identify number of size and age class bins for history output
          ! assume these arrays are 1-indexed
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
-         nlevedgeforest = 1
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
          nlevdamage = size(ED_val_history_damage_bin_edges, dim=1)
@@ -994,12 +993,6 @@ contains
          do i = 2,nlevage
             if ( (ED_val_history_ageclass_bin_edges(i) - ED_val_history_ageclass_bin_edges(i-1)) .le. 0._r8) then
                write(fates_log(), *) 'age class bins specified in parameter file must be monotonically increasing'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
-         end do
-         do i = 2,nlevedgeforest
-            if ( 1._r8 .le. 0._r8) then
-               write(fates_log(), *) 'edge forest class bins specified in parameter file must be monotonically increasing'
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
@@ -1194,7 +1187,6 @@ contains
        allocate( fates_hdim_levfuel(1:num_fuel_classes   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
-       allocate( fates_hdim_levedge(1:nlevedgeforest   ))
        allocate( fates_hdim_levheight(1:nlevheight   ))
        allocate( fates_hdim_levcoage(1:nlevcoage ))
        allocate( fates_hdim_pfmap_levcapf(1:nlevcoage*numpft))
