@@ -1320,7 +1320,6 @@ contains
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod                , only : area
     use FatesConstantsMod         , only : itrue
-    use FatesEcotypesMod     , only : is_patch_forest
     use EDParamsMod          , only : forest_tree_fraction_threshold
 
     ! !ARGUMENTS
@@ -1449,8 +1448,6 @@ contains
              end if
              currentPatch%total_canopy_area = currentPatch%area
           endif
-
-          currentPatch%is_forest = is_patch_forest(currentPatch, forest_tree_fraction_threshold)
 
           currentPatch => currentPatch%younger
        end do !patch loop
