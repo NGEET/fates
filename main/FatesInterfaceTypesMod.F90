@@ -158,9 +158,6 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_use_tree_damage         ! This flag signals whether or not to turn on the
                                                   ! tree damage module
 
-   integer, public :: hlm_use_edge_forest         ! This flag signals whether or not to turn on the
-                                                  ! edge forest module
-
    integer, public :: hlm_hydr_solver             ! Switch that defines which hydraulic solver to use
                                                   ! 1 = Taylor solution that solves plant fluxes with 1 layer
                                                   !     sequentially placing solution on top of previous layer solves
