@@ -814,7 +814,6 @@ module FatesHistoryInterfaceMod
      !! THESE WERE EXPLICITLY PRIVATE WHEN TYPE WAS PUBLIC
      integer, private :: column_index_, levsoil_index_, levscpf_index_
      integer, private :: levscls_index_, levpft_index_, levage_index_
-     integer, private :: levedgeforest_index_
      integer, private :: levfuel_index_, levcwdsc_index_, levscag_index_
      integer, private :: levcan_index_, levcnlf_index_, levcnlfpft_index_
      integer, private :: levcdpf_index_, levcdsc_index_, levcdam_index_ 
@@ -856,7 +855,6 @@ module FatesHistoryInterfaceMod
      procedure :: levcacls_index
      procedure :: levpft_index
      procedure :: levage_index
-     procedure :: levedgeforest_index
      procedure :: levfuel_index
      procedure :: levcwdsc_index
      procedure :: levcan_index
@@ -893,7 +891,6 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levscls_index
      procedure, private :: set_levpft_index
      procedure, private :: set_levage_index
-     procedure, private :: set_levedgeforest_index
      procedure, private :: set_levfuel_index
      procedure, private :: set_levcwdsc_index
      procedure, private :: set_levcan_index
@@ -998,11 +995,6 @@ contains
     call this%set_levage_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levage, num_threads, &
          fates_bounds%age_class_begin, fates_bounds%age_class_end)
-
-    dim_count = dim_count + 1
-    call this%set_levedgeforest_index(dim_count)
-    call this%dim_bounds(dim_count)%Init(levedgeforest, num_threads, &
-         fates_bounds%edgeforest_class_begin, fates_bounds%edgeforest_class_end)
 
     dim_count = dim_count + 1
     call this%set_levfuel_index(dim_count)
@@ -1156,10 +1148,6 @@ contains
     index = this%levage_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%age_class_begin, thread_bounds%age_class_end)
-
-    index = this%levedgeforest_index()
-    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
-         thread_bounds%edgeforest_class_begin, thread_bounds%edgeforest_class_end)
 
     index = this%levfuel_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
@@ -1496,20 +1484,6 @@ contains
     class(fates_history_interface_type), intent(in) :: this
     levage_index = this%levage_index_
   end function levage_index
-
-  ! =======================================================================
-  subroutine set_levedgeforest_index(this, index)
-    implicit none
-    class(fates_history_interface_type), intent(inout) :: this
-    integer, intent(in) :: index
-    this%levedgeforest_index_ = index
-  end subroutine set_levedgeforest_index
-
-  integer function levedgeforest_index(this)
-    implicit none
-    class(fates_history_interface_type), intent(in) :: this
-    levedgeforest_index = this%levedgeforest_index_
-  end function levedgeforest_index
 
   ! =======================================================================
   subroutine set_levfuel_index(this, index)
