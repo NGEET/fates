@@ -60,7 +60,6 @@ module FatesHistoryInterfaceMod
   use EDParamsMod                   , only : nlevleaf
   use EDParamsMod               , only : ED_val_history_height_bin_edges
   use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
-  use EDParamsMod                   , only : ED_val_history_height_bin_edges
   use FatesInterfaceTypesMod        , only : nlevsclass, nlevage
   use FatesInterfaceTypesMod        , only : nlevheight
   use FatesInterfaceTypesMod        , only : bc_in_type
@@ -1236,6 +1235,8 @@ contains
   ! ===================================================================================
   subroutine assemble_history_output_types(this)
 
+
+
     implicit none
 
     class(fates_history_interface_type), intent(inout) :: this
@@ -2366,6 +2367,7 @@ contains
     ! updated here, but not FATES_VEGC_PF.
     ! ---------------------------------------------------------------------------------
 
+
     ! Arguments
     class(fates_history_interface_type)             :: this
     integer                 , intent(in)            :: nc   ! clump index
@@ -2415,7 +2417,7 @@ contains
          hio_zstar_si            => this%hvars(ih_zstar_si)%r81d, &
          hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
          hio_fracarea_plant_si   => this%hvars(ih_fracarea_plant_si)%r81d, &
-         hio_fracarea_trees_si   => this%hvars(ih_fracarea_trees_si)%r81d, &
+         hio_fracarea_trees_si  => this%hvars(ih_fracarea_trees_si)%r81d, &
          hio_fates_fraction_si   => this%hvars(ih_fates_fraction_si)%r81d, &
          hio_ba_weighted_height_si  => this%hvars(ih_ba_weighted_height_si)%r81d, &
          hio_ca_weighted_height_si  => this%hvars(ih_ca_weighted_height_si)%r81d, &
@@ -3027,6 +3029,7 @@ contains
     type(litter_type), pointer :: litt_c   ! Pointer to the carbon12 litter pool
     type(litter_type), pointer :: litt     ! Generic pointer to any litter pool
     integer  :: s                  ! site counter
+    integer  :: ipa2           ! patch index matching host model array space
     integer  :: io_si              ! site's index in the history output array space
     integer  :: el                 ! element index
     integer  :: ft                 ! pft index
@@ -5313,7 +5316,7 @@ contains
          hio_parsun_si_can                   => this%hvars(ih_parsun_si_can)%r82d, &
          hio_parsha_si_can                   => this%hvars(ih_parsha_si_can)%r82d, &
          hio_laisun_si_can                    => this%hvars(ih_laisun_si_can)%r82d, &
-         hio_laisha_si_can                    => this%hvars(ih_laisha_si_can)%r82d)
+         hio_laisha_si_can                    => this%hvars(ih_laisha_si_can)%r82d )
 
 
       ! THIS CAN BE REMOVED WHEN BOTH CTSM AND E3SM CALL FLUSH_ALL_HVARS
