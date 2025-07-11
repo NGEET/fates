@@ -65,9 +65,6 @@ module FatesIODimensionsMod
     ! levage = This is a structure that records the boundaries for the
     ! number of patch-age-class dimension
 
-    ! levedgeforest = This is a structure that records the boundaries for the
-    ! number of forest-edge-bin dimension
-
     ! levheight = This is a structure that records the boundaries for the
     ! number of height dimension
 

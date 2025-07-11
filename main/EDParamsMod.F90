@@ -100,8 +100,6 @@ module EDParamsMod
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
 
-   ! Edge forest bin parameters
-
    ! grazing parameters
    real(r8),protected,public :: landuse_grazing_carbon_use_eff
    real(r8),protected,public :: landuse_grazing_maxheight
@@ -214,6 +212,8 @@ module EDParamsMod
    integer, protected, public :: max_cohort_per_patch
    character(len=param_string_length), parameter, public :: maxcohort_name = "fates_maxcohort"
 
+   
+   
    ! Logging Control Parameters (ONLY RELEVANT WHEN USE_FATES_LOGGING = TRUE)
    ! ----------------------------------------------------------------------------------------------
 
@@ -517,7 +517,7 @@ module EDParamsMod
     
     call fates_params%RegisterParameter(name=damage_name_canopy_layer_code, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
-    
+
     call fates_params%RegisterParameter(name=name_landuse_grazing_carbon_use_eff, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 

@@ -716,10 +716,10 @@ contains
 
     ! LOCALS:
     type(fates_patch_type), pointer :: currentPatch ! patch object
-
+    
     tree_fraction = 0.0_r8
     grass_fraction = 0.0_r8
-
+    
     currentPatch => csite%oldest_patch
     do while(associated(currentPatch))
       if (currentPatch%nocomp_pft_label /= nocomp_bareground) then

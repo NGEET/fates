@@ -1015,7 +1015,7 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
-
+         
          ! Set the fates dispersal kernel mode if there are any seed dispersal parameters set.
          ! The validation of the parameter values is check in FatesCheckParams prior to this check.
          ! This is currently hard coded, but could be added as a fates parameter file option,
@@ -1915,7 +1915,7 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_tree_damage = ',ival,' to FATES'
                end if
-
+               
             case('nitrogen_spec')
                hlm_nitrogen_spec = ival
                if (fates_global_verbose()) then
