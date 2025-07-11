@@ -790,9 +790,6 @@ variables:
 	double fates_fire_threshold ;
 		fates_fire_threshold:units = "kW/m" ;
 		fates_fire_threshold:long_name = "spitfire parameter, fire intensity threshold for tracking fires that spread" ;
-	double fates_forest_tree_fraction_threshold ;
-		fates_forest_tree_fraction_threshold:units = "m2/m2" ;
-		fates_forest_tree_fraction_threshold:long_name = "Tree fraction above which patch is considered \'forest\'" ;
 	double fates_frag_cwd_fcel ;
 		fates_frag_cwd_fcel:units = "unitless" ;
 		fates_frag_cwd_fcel:long_name = "Cellulose fraction for CWD" ;
@@ -1569,8 +1566,6 @@ data:
  fates_fire_part_dens = 513 ;
 
  fates_fire_threshold = 50 ;
-
- fates_forest_tree_fraction_threshold = 0.5 ;
 
  fates_frag_cwd_fcel = 0.76 ;
 

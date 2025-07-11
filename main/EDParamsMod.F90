@@ -214,10 +214,6 @@ module EDParamsMod
    integer, protected, public :: max_cohort_per_patch
    character(len=param_string_length), parameter, public :: maxcohort_name = "fates_maxcohort"
 
-   ! Ecotypes parameters
-   real(r8),protected,public :: forest_tree_fraction_threshold  ! Tree fraction above which a patch is "forest"
-   character(len=param_string_length),parameter,public :: forest_tree_fraction_threshold_name = "fates_forest_tree_fraction_threshold"
-   
    ! Logging Control Parameters (ONLY RELEVANT WHEN USE_FATES_LOGGING = TRUE)
    ! ----------------------------------------------------------------------------------------------
 
@@ -345,7 +341,6 @@ module EDParamsMod
     dev_arbitrary                         = nan
     damage_event_code                     = -9
     damage_canopy_layer_code              = -9
-    forest_tree_fraction_threshold        = nan
     landuse_grazing_carbon_use_eff        = nan
     landuse_grazing_nitrogen_use_eff      = nan
     landuse_grazing_phosphorus_use_eff    = nan
@@ -523,9 +518,6 @@ module EDParamsMod
     call fates_params%RegisterParameter(name=damage_name_canopy_layer_code, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
-    call fates_params%RegisterParameter(name=forest_tree_fraction_threshold_name, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
     call fates_params%RegisterParameter(name=name_landuse_grazing_carbon_use_eff, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
@@ -746,9 +738,6 @@ module EDParamsMod
          data=tmpreal)
     damage_canopy_layer_code = nint(tmpreal)
     
-    call fates_params%RetrieveParameter(name=forest_tree_fraction_threshold_name, &
-         data=forest_tree_fraction_threshold)
-
     ! parameters that are arrays of size defined within the params file and thus need allocating as well
     call fates_params%RetrieveParameterAllocate(name=ED_name_history_sizeclass_bin_edges, &
           data=ED_val_history_sizeclass_bin_edges)
@@ -874,7 +863,6 @@ module EDParamsMod
         write(fates_log(),'(a,L2)') 'active_crown_fire = ',active_crown_fire
         write(fates_log(),fmt0) 'damage_event_code = ',damage_event_code
         write(fates_log(),fmt0) 'damage_canopy_layer_code = ', damage_canopy_layer_code
-        write(fates_log(),fmt0) 'forest_tree_fraction_threshold = ', forest_tree_fraction_threshold
 	write(fates_log(),fmt0) 'landuse_grazing_carbon_use_eff = ', landuse_grazing_carbon_use_eff
         write(fates_log(),fmt0) 'name_landuse_grazing_nitrogen_use_eff = ', name_landuse_grazing_nitrogen_use_eff
         write(fates_log(),fmt0) 'name_landuse_grazing_phosphorus_use_eff = ', name_landuse_grazing_phosphorus_use_eff
