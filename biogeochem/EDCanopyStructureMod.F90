@@ -35,7 +35,6 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod     , only : hlm_use_sp
-  use FatesInterfaceTypesMod     , only : hlm_use_edge_forest
   use FatesInterfaceTypesMod     , only : numpft
   use FatesInterfaceTypesMod, only : bc_in_type
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
@@ -1320,7 +1319,6 @@ contains
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod                , only : area
     use FatesConstantsMod         , only : itrue
-    use EDParamsMod          , only : forest_tree_fraction_threshold
 
     ! !ARGUMENTS
     integer                 , intent(in)            :: nsites
@@ -1451,10 +1449,6 @@ contains
 
           currentPatch => currentPatch%younger
        end do !patch loop
-
-       if (hlm_use_edge_forest == itrue) then
-          write(fates_log(),*) 'abc123'
-       end if
 
        call leaf_area_profile(sites(s))
        
