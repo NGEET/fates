@@ -78,7 +78,6 @@ contains
 
     use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
     use FatesConstantsMod, only : sec_per_day, sec_per_min
-    use FatesEdgeForestMod, only : CalculateTreeGrassAreaSite
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
@@ -119,9 +118,6 @@ contains
 
     ! update fire weather index
     call currentSite%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
-
-    ! calculate site-level tree, grass, and bare fraction
-    call CalculateTreeGrassAreaSite(currentSite, tree_fraction, grass_fraction, bare_fraction)
 
     ! update effective wind speed
     call currentSite%fireWeather%UpdateEffectiveWindSpeed(wind*sec_per_min, tree_fraction, &

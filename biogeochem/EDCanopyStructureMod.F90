@@ -1322,7 +1322,6 @@ contains
     use FatesConstantsMod         , only : itrue
     use FatesEcotypesMod     , only : is_patch_forest
     use EDParamsMod          , only : forest_tree_fraction_threshold
-    use FatesEdgeForestMod   , only : calculate_edgeforest_area
 
     ! !ARGUMENTS
     integer                 , intent(in)            :: nsites
@@ -1457,7 +1456,7 @@ contains
        end do !patch loop
 
        if (hlm_use_edge_forest == itrue) then
-          call calculate_edgeforest_area(sites(s))
+          write(fates_log(),*) 'abc123'
        end if
 
        call leaf_area_profile(sites(s))
