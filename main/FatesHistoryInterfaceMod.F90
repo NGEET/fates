@@ -654,8 +654,6 @@ module FatesHistoryInterfaceMod
 
   ! indices to (site x patch-age) variables
   integer :: ih_fracarea_si_age
-  integer :: ih_fracarea_plant_si_age
-  integer :: ih_fracarea_trees_si_age
   integer :: ih_lai_si_age
   integer :: ih_canopy_fracarea_si_age
   integer :: ih_gpp_si_age
@@ -4755,8 +4753,6 @@ contains
          hio_nplant_canopy_si_scag            => this%hvars(ih_nplant_canopy_si_scag)%r82d, &
          hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
          hio_fracarea_si_age                  => this%hvars(ih_fracarea_si_age)%r82d, &
-         hio_fracarea_plant_si_age            => this%hvars(ih_fracarea_plant_si_age)%r82d, &
-         hio_fracarea_trees_si_age            => this%hvars(ih_fracarea_trees_si_age)%r82d, &
          hio_agesince_anthrodist_si_age       => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
          hio_primarylands_fracarea_si_age     => this%hvars(ih_primarylands_fracarea_si_age)%r82d, &
          hio_secondarylands_fracarea_si_age   => this%hvars(ih_secondarylands_fracarea_si_age)%r82d, &
@@ -4842,16 +4838,6 @@ contains
               * cpatch%frac_burnt * patch_area_div_site_area
           ! hio_fire_rate_of_spread_front_si_age(io_si, cpatch%age_class) = hio_fire_rate_of_spread_si_age(io_si, cpatch%age_class) + &
           !     cpatch%ros_front * cpatch*frac_burnt * patch_area_div_site_area
-
-          ! Weighted by site-wide plant or tree canopy area
-          hio_fracarea_plant_si_age(io_si,cpatch%age_class) = &
-               hio_fracarea_plant_si_age(io_si,cpatch%age_class) + &
-               min(cpatch%total_canopy_area,cpatch%area) * &
-               AREA_INV
-          hio_fracarea_trees_si_age(io_si,cpatch%age_class) = &
-               hio_fracarea_trees_si_age(io_si,cpatch%age_class) + &
-               min(cpatch%total_tree_area,cpatch%area) * &
-               AREA_INV
 
           ! Weighted by cohort canopy area relative to site area
           ccohort => cpatch%shortest
@@ -6286,22 +6272,11 @@ contains
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,      &
             initialize=initialize_variables, index=ih_fracarea_plant_si)
 
-       call this%set_history_var(vname='FATES_AREA_PLANTS_AP', units='m2 m-2',   &
-            long='area occupied by all plants per m2 land area (by patch age)', use_default='active', &
-            avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, &
-            initialize=initialize_variables, index=ih_fracarea_plant_si_age)
-
        call this%set_history_var(vname='FATES_AREA_TREES', units='m2 m-2',        &
             long='area occupied by woody plants per m2 land area', use_default='active', &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_fracarea_trees_si)
-
-       call this%set_history_var(vname='FATES_AREA_TREES_AP', units='m2 m-2',    &
-            long='area occupied by woody plants per m2 land area (by patch age)', use_default='active', &
-            avgflag='A', vtype=site_age_r8, hlms='CLM:ALM',                       &
-            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
-            index=ih_fracarea_trees_si_age)
 
        call this%set_history_var(vname='FATES_FRACTION', units='m2 m-2',          &
             long='total gridcell fraction which FATES is running over', use_default='active', &
