@@ -50,24 +50,7 @@ contains
 
     tree_fraction = 0.0_r8
     grass_fraction = 0.0_r8
-
-    currentPatch => csite%oldest_patch
-    do while(associated(currentPatch))
-      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
-        call currentPatch%UpdateTreeGrassArea()
-        tree_fraction = tree_fraction + currentPatch%total_tree_area/AREA
-        grass_fraction = grass_fraction + currentPatch%total_grass_area/AREA
-        currentPatch%is_forest = is_patch_forest(currentPatch, forest_tree_fraction_threshold)
-      end if
-      currentPatch => currentPatch%younger
-    end do
-
-    ! if cover > 1.0, grasses are under the trees
-    grass_fraction = min(grass_fraction, 1.0_r8 - tree_fraction)
     bare_fraction = 1.0_r8 - tree_fraction - grass_fraction
-
-    ! Must come after patch loop with is_patch_forest() call
-    call calculate_edgeforest_area(csite)
 
   end subroutine CalculateTreeGrassAreaSite
 
@@ -88,16 +71,6 @@ contains
     n_forest_patches = 0
     area_forest_patches = 0._r8
     area = 0._r8
-    currentPatch => site%youngest_patch
-    do while(associated(currentPatch))
-       area = area + currentPatch%area
-       if (currentPatch%is_forest) then
-          n_forest_patches = n_forest_patches + 1
-          area_forest_patches = area_forest_patches + currentPatch%area
-       end if
-
-       currentPatch => currentPatch%older
-    enddo
 
   end subroutine get_number_of_forest_patches
 
@@ -116,11 +89,6 @@ contains
     type(fates_patch_type), pointer :: currentPatch
 
     n_patches = 0
-    currentPatch => site%youngest_patch
-    do while(associated(currentPatch))
-       n_patches = n_patches + 1
-       currentPatch => currentPatch%older
-    enddo
 
   end function get_number_of_patches
 
@@ -141,42 +109,7 @@ contains
     integer :: f  ! index of current forest patch
     integer :: p  ! index of patch
 
-    ! Skip sites with no forest patches
-    n_forest_patches = size(indices)
-    if (n_forest_patches == 0) then
-       return
-    end if
-
-    ! Allocate arrays
-    allocate(array(1:n_forest_patches))
-
-    ! Fill arrays
-    f = 0
-    p = 0
-    index_forestpatches_to_allpatches(:) = 0
-    currentPatch => site%oldest_patch
-    patchloop: do while(associated(currentPatch))
-       p = p + 1
-       if (.not. currentPatch%is_forest) then
-          currentPatch => currentPatch%younger
-          cycle
-       end if
-
-       f = f + 1
-       index_forestpatches_to_allpatches(p) = f
-
-       ! Fill with patch age.
-       ! TODO: Add other options. Biomass? Woody biomass?
-       array(f) = currentPatch%age
-
-       currentPatch => currentPatch%younger
-    end do patchloop
-
-    ! Get indices of sorted forest patches
-    call indexx(array, indices)
-
-    ! Clean up
-    deallocate(array)
+    return
   end subroutine rank_forest_edge_proximity
 
   function gffeb_norm_numerator(x_in, A, mu, sigma, lognorm)
@@ -188,13 +121,7 @@ contains
     real(r8) :: x
     real(r8) :: gffeb_norm_numerator
 
-    if (lognorm) then
-       x = log(x_in)
-    else
-       x = x_in
-    end if
-
-    gffeb_norm_numerator = A * exp(-(x - mu)**2 / (2*sigma**2))
+    gffeb_norm_numerator = 0._r8
   end function gffeb_norm_numerator
 
   function gffeb_norm_denominator(x, sigma, lognorm)
@@ -204,10 +131,7 @@ contains
     logical,  intent(in) :: lognorm  ! Whether to take log(x)
     real(r8) :: gffeb_norm_denominator
 
-    gffeb_norm_denominator = sigma * sqrt(2*pi)
-    if (lognorm) then
-       gffeb_norm_denominator = gffeb_norm_denominator * x
-    end if
+    gffeb_norm_denominator = 1._r8
   end function gffeb_norm_denominator
 
   function gffeb_norm(x, A, mu, sigma, lognorm)
@@ -218,7 +142,7 @@ contains
     logical,  intent(in) :: lognorm  ! Whether to take log(x) in numerator
     real(r8) :: gffeb_norm
 
-    gffeb_norm = gffeb_norm_numerator(x, A, mu, sigma, lognorm) / gffeb_norm_denominator(x, sigma, lognorm)
+    gffeb_norm = 0._r8
   end function gffeb_norm
 
   function gffeb_quadratic(x, a, b, c)
@@ -226,7 +150,7 @@ contains
     real(r8), intent(in) :: a, b, c  ! Parameters
     real(r8) :: gffeb_quadratic
 
-    gffeb_quadratic = a*(x**2) + b*x + c
+    gffeb_quadratic = 0._r8
   end function gffeb_quadratic
 
   subroutine get_fraction_of_edgeforest_in_each_bin(x, nlevedgeforest, efb_gaussian_amplitudes, efb_gaussian_sigmas, efb_gaussian_centers, efb_lognormal_amplitudes, efb_lognormal_sigmas, efb_lognormal_centers, efb_quadratic_a, efb_quadratic_b, efb_quadratic_c, fraction_forest_in_bin, norm)
@@ -262,63 +186,7 @@ contains
     logical :: lognorm
     logical :: do_norm
 
-    ! Initialize
     fraction_forest_in_bin(:) = 0._r8
-
-    ! If the cell is nearly 0% forest, put any forest in the first edge bin (closest to edge)
-    if (x < nearzero) then
-       fraction_forest_in_bin(1) = 1._r8
-       return
-    end if
-
-    ! If the cell is (nearly) 100% forest, it's all "deep forest"
-    if (1._r8 - x < nearzero) then
-       fraction_forest_in_bin(nlevedgeforest) = 1._r8
-       return
-    end if
-
-    if (present(norm)) then
-       do_norm = norm
-    else
-       do_norm = .true.
-    end if
-
-    binloop: do b = 1, nlevedgeforest
-
-       if (is_param_set(efb_gaussian_amplitudes(b)) .or. is_param_set(efb_lognormal_amplitudes(b))) then
-         ! Gaussian or Lognormal
-         lognorm = is_param_set(efb_lognormal_amplitudes(b))
-         if (lognorm) then
-            A = efb_lognormal_amplitudes(b)
-            mu = efb_lognormal_centers(b)
-            sigma = efb_lognormal_sigmas(b)
-         else
-            A = efb_gaussian_amplitudes(b)
-            mu = efb_gaussian_centers(b)
-            sigma = efb_gaussian_sigmas(b)
-         end if
-         fraction_forest_in_bin(b) = gffeb_norm(x, A, mu, sigma, lognorm)
-
-       else if (is_param_set(efb_quadratic_a(b))) then
-         ! Quadratic
-         fraction_forest_in_bin(b) = gffeb_quadratic(x, efb_quadratic_a(b), efb_quadratic_b(b), efb_quadratic_c(b))
-
-       else
-         call endrun("Unrecognized bin fit type")
-       end if
-    end do binloop
-
-    ! Account for fit errors by normalizing to 1
-    if (do_norm) then
-       fraction_forest_in_bin(:) = fraction_forest_in_bin(:) / sum(fraction_forest_in_bin)
-
-       err_chk = sum(fraction_forest_in_bin) - 1._r8
-       if (abs(err_chk) > tol) then
-          write(fates_log(),*) "ERROR: bin fractions don't sum to 1;    actual minus expected = ",err_chk
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-       end if
-    end if
-
 
   end subroutine get_fraction_of_edgeforest_in_each_bin
 
@@ -344,38 +212,7 @@ contains
     real(r8) :: err_chk
 
     area_in_edgeforest_bins(:) = 0._r8
-    remaining_to_assign_from_patch_m2 = patch_area
-    binloop: do b = 1, nlevedgeforest
-
-       ! How much area is left for this bin?
-       remaining_to_assign_to_bin_m2 = sum(fraction_forest_in_each_bin(1:b))*area_forest_patches - sum_forest_bins_so_far_m2
-       if (remaining_to_assign_to_bin_m2 <= 0) then
-          cycle
-       end if
-
-       ! Assign area
-       area_in_edgeforest_bins(b) = min(remaining_to_assign_from_patch_m2, remaining_to_assign_to_bin_m2)
-       remaining_to_assign_from_patch_m2 = remaining_to_assign_from_patch_m2 - area_in_edgeforest_bins(b)
-
-       ! Update accounting
-       sum_forest_bins_so_far_m2 = sum_forest_bins_so_far_m2 + area_in_edgeforest_bins(b)
-
-       if (remaining_to_assign_from_patch_m2 == 0._r8) then
-          exit
-       end if
-    end do binloop
-
-    ! Check that this patch's complete area was assigned (and no more)
-    err_chk = remaining_to_assign_from_patch_m2
-    if (abs(err_chk) > tol) then
-       write(fates_log(),*) "ERROR: not enough or too much patch area was assigned to bins (check 1); remainder = ",err_chk
-       call endrun(msg=errMsg(__FILE__, __LINE__))
-    end if
-    err_chk = patch_area - sum(area_in_edgeforest_bins)
-    if (abs(err_chk) > tol) then
-       write(fates_log(),*) "ERROR: not enough or too much patch area was assigned to bins (check 2); remainder = ",err_chk
-       call endrun(msg=errMsg(__FILE__, __LINE__))
-    end if
+    sum_forest_bins_so_far_m2 = 0._r8
   end subroutine assign_patch_to_bins
 
 
@@ -403,64 +240,10 @@ contains
     real(r8), dimension(nlevedgeforest) :: bin_area_sums
     real(r8), parameter :: tol = 1.e-9_r8  ! m2
     real(r8) :: err_chk
+    
+    return
 
-    sum_forest_bins_so_far_m2 = 0._r8
-    forestpatchloop: do f = 1, n_forest_patches
 
-       ! Get the i'th patch (which is the f'th forest patch)
-       i = indices(f)
-       currentPatch => site%oldest_patch
-       allpatchloop: do p = 1, n_patches
-          if (index_forestpatches_to_allpatches(p) == i) then
-             exit
-          end if
-          currentPatch => currentPatch%younger
-       end do allpatchloop
-       if ((.not. associated(currentPatch)) .and. (.not. p == n_patches)) then
-          write(fates_log(),*) "ERROR: i'th patch (f'th forest patch) not found."
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-       end if
-
-       ! Make sure this is a forest patch
-       if (.not. currentPatch%is_forest) then
-          write(fates_log(),*) "ERROR: unexpected non-forest patch in forestpatchloop"
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-       end if
-
-       ! Assign this patch's area
-       call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, currentPatch%area, nlevedgeforest, tol, sum_forest_bins_so_far_m2, currentPatch%area_in_edgeforest_bins)
-
-    end do forestpatchloop
-
-    ! More checks
-    bin_area_sums(:) = 0._r8
-    currentPatch => site%oldest_patch
-    allpatchloop_check: do while (associated(currentPatch))
-       if (currentPatch%is_forest) then
-
-          ! Check that all area of each forest patch is assigned
-          err_chk = sum(currentPatch%area_in_edgeforest_bins) - currentPatch%area
-          if (abs(err_chk) > tol) then
-             write(fates_log(),*) "ERROR: unexpected patch forest bin sum (check 3); actual minus expected = ",err_chk
-             call endrun(msg=errMsg(__FILE__, __LINE__))
-          end if
-
-          ! Accumulate site-wide area in each bin
-          binloop_check4a: do b = 1, nlevedgeforest
-             bin_area_sums(b) = bin_area_sums(b) + currentPatch%area_in_edgeforest_bins(b) / area_forest_patches
-          end do binloop_check4a
-
-       end if
-       currentPatch => currentPatch%younger
-    end do allpatchloop_check
-    ! Check that fraction in each bin is what was expected
-    binloop_check4b: do b = 1, nlevedgeforest
-       err_chk = bin_area_sums(b) - fraction_forest_in_each_bin(b)
-       if (abs(err_chk) > tol) then
-          write(fates_log(),*) "ERROR: unexpected bin sum (check 4); actual minus expected = ",err_chk
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-       end if
-    end do binloop_check4b
   end subroutine assign_patches_to_bins
 
 
@@ -489,30 +272,7 @@ contains
     real(r8) :: frac_forest
     real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
 
-    ! Skip sites with no forest patches
-    call get_number_of_forest_patches(site, n_forest_patches, area_forest_patches, area)
-    if (n_forest_patches == 0) then
-       return
-    end if
-
-    ! Allocate arrays
-    allocate(indices(1:n_forest_patches))
-    n_patches = get_number_of_patches(site)
-    allocate(index_forestpatches_to_allpatches(1:n_patches))
-
-    ! Get ranks
-    call rank_forest_edge_proximity(site, indices, index_forestpatches_to_allpatches)
-
-    ! Get fraction of forest area in each bin
-    frac_forest = area_forest_patches / area
-    call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest, ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, fraction_forest_in_each_bin)
-
-    ! Assign patches to bins
-    call assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
-
-    ! Clean up
-    deallocate(indices)
-    deallocate(index_forestpatches_to_allpatches)
+    return
   end subroutine calculate_edgeforest_area
 
 
@@ -544,84 +304,11 @@ contains
     integer, dimension(:) :: index ! Index of elements of patch_array
     integer :: i
 
-    if (size(array) /= size(index)) then
-       write(fates_log(),*) 'ERROR: INDEXX size mismatch.'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
-    else if (size(array) == 0) then
-       write(fates_log(),*) 'ERROR: INDEXX array size 0.'
-       call endrun(msg=errMsg(__FILE__, __LINE__))
-    endif
-
-    do i=1,size(index)
-       index(i)=i
-    enddo
-
-    call q_sort_index(array,index,1,size(array))
+    index = 1
 
   end subroutine indexx
 
 !==============================================================
-
-  recursive subroutine q_sort_index(numbers,index,left,right)
-
-    !> This is the recursive subroutine actually used by sort_patches.
-    !>
-    !> This is a GPL-licenced replacement for the Numerical Recipes routine indexx.
-    !> It is not derived from any NR code, but are based on a quicksort routine by
-    !> Michael Lamont (http://linux.wku.edu/~lamonml/kb.html), originally written
-    !> in C, and issued under the GNU General Public License. The conversion to
-    !> Fortran 90, and modification to do an index sort was done by Ian Rutt.
-
-    implicit none
-
-    real(r8), dimension(:) :: numbers !> Numbers being sorted
-    integer, dimension(:) :: index   !> Returned index
-    integer :: left, right           !> Limit of sort region
-
-    integer :: ll,rr
-    integer :: pv_int,l_hold, r_hold,pivpos
-    real(r8) :: pivot
-
-    ll=left
-    rr=right
-
-    l_hold = ll
-    r_hold = rr
-    pivot = numbers(index(ll))
-    pivpos=index(ll)
-
-    do
-       if (.not.(ll < rr)) exit
-
-       do
-          if  (.not.((numbers(index(rr)) >= pivot) .and. (ll < rr))) exit
-          rr=rr-1
-       enddo
-
-       if (ll /= rr) then
-          index(ll) = index(rr)
-          ll=ll+1
-       endif
-
-       do
-          if (.not.((numbers(index(ll)) <= pivot) .and. (ll < rr))) exit
-          ll=ll+1
-       enddo
-
-       if (ll /= rr) then
-          index(rr) = index(ll)
-          rr=rr-1
-       endif
-    enddo
-
-    index(ll) = pivpos
-    pv_int = ll
-    ll = l_hold
-    rr = r_hold
-    if (ll < pv_int)  call q_sort_index(numbers, index,ll, pv_int-1)
-    if (rr > pv_int)  call q_sort_index(numbers, index,pv_int+1, rr)
-
-  end subroutine q_sort_index
 
 
   end module FatesEdgeForestMod
