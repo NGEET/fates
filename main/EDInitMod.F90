@@ -1341,7 +1341,7 @@ contains
 
       if (hlm_use_sp == ifalse) then
         call fuse_cohorts(site_in, patch_in,bc_in)
-        call patch_in%SortCohorts(check_order=.false.)
+        call patch_in%SortCohorts()
       end if
       
       call patch_in%ValidateCohorts()
