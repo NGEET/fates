@@ -79,6 +79,8 @@ module EDMainMod
   use FatesConstantsMod        , only : n_landuse_cats  
   use FatesConstantsMod        , only : nearzero
   use FatesConstantsMod        , only : m2_per_ha
+  use FatesConstantsMod        , only : ha_per_m2
+  use FatesConstantsMod        , only : days_per_sec
   use FatesConstantsMod        , only : sec_per_day
   use FatesConstantsMod        , only : g_per_kg
   use FatesConstantsMod        , only : nocomp_bareground
@@ -300,7 +302,7 @@ contains
     ! make new patches from disturbed land
     if (do_patch_dynamics.eq.itrue ) then
 
-       call spawn_patches(currentSite, bc_in, bc_out)
+       call spawn_patches(currentSite, bc_in)
 
        call TotalBalanceCheck(currentSite,3)
 
@@ -790,7 +792,7 @@ contains
        
        call GenerateDamageAndLitterFluxes( currentSite, currentPatch, bc_in)
 
-       call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in, bc_out)
+       call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
 
        call PreDisturbanceIntegrateLitter(currentPatch )
 
