@@ -307,6 +307,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_seedling_pool_si        ! carbon only
   integer :: ih_ba_weighted_height_si
   integer :: ih_ca_weighted_height_si
+  integer :: ih_patch_weighted_95thpctile_height_si
   integer :: ih_seeds_in_local_elem
   integer :: ih_seeds_in_extern_elem
   integer :: ih_seed_decay_elem
@@ -2432,7 +2433,8 @@ contains
     real(r8) :: leaf_herbivory     ! mass of leaves eaten by herbivores [kg/yr]
     real(r8) :: n_perm2            ! abundance per m2
     real(r8) :: patch_fracarea  ! Fraction of area for this patch
-    
+    real(r8) :: crown_area_covered ! accumulator variable for patch crown area
+
     associate( hio_npatches_si         => this%hvars(ih_npatches_si)%r81d, &
          hio_ncohorts_si         => this%hvars(ih_ncohorts_si)%r81d, &
          hio_ncl_si              => this%hvars(ih_ncl_si)%r81d, &
@@ -2443,6 +2445,7 @@ contains
          hio_fates_fraction_si   => this%hvars(ih_fates_fraction_si)%r81d, &
          hio_ba_weighted_height_si  => this%hvars(ih_ba_weighted_height_si)%r81d, &
          hio_ca_weighted_height_si  => this%hvars(ih_ca_weighted_height_si)%r81d, &
+         hio_patch_weighted_95thpctile_height_si  => this%hvars(ih_patch_weighted_95thpctile_height_si)%r81d, &
          hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
          hio_nesterov_fire_danger_si => this%hvars(ih_nesterov_fire_danger_si)%r81d, &
          hio_rx_burn_window_si => this%hvars(ih_rx_burn_window_si)%r81d, &
@@ -3017,6 +3020,24 @@ contains
                
                ccohort => ccohort%taller
             enddo cohortloop ! cohort loop
+
+            ! mean 95th percentile height. loop through cohorts on patch again, this time from tallest to shortest
+            crown_area_covered = 0._r8
+            ccohort => cpatch%tallest
+            do while(associated(ccohort))
+               if (ccohort%canopy_layer .eq. 1) then ! ignore anything not in the canopy
+                  if (((ccohort%c_area + crown_area_covered)/cpatch%area) .ge. 0.05_r8 ) then
+                     hio_patch_weighted_95thpctile_height_si(io_si) = &
+                          hio_patch_weighted_95thpctile_height_si(io_si) + ccohort%height * cpatch%area/AREA
+                     ccohort => null() ! exit the cohort loop
+                  else
+                     crown_area_covered = crown_area_covered + ccohort%c_area
+                     ccohort => ccohort%shorter
+                  endif
+               else
+                  ccohort => ccohort%shorter
+               endif
+            enddo  ! cohort loop
 
             cpatch => cpatch%younger
          end do patchloop !patch loop
@@ -6413,6 +6434,12 @@ contains
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_ca_weighted_height_si)
+
+       call this%set_history_var(vname='FATES_MEAN_95PCTILE_HEIGHT', units='m',        &
+            long='The patch-area-weighted mean of 95th percentile height of canopy plants within a given patch', use_default='active', &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            index=ih_patch_weighted_95thpctile_height_si)
 
        call this%set_history_var(vname='FATES_COLD_STATUS', units='',             &
             long='site-level cold status, 0=not cold-dec, 1=too cold for leaves, 2=not too cold',  &
