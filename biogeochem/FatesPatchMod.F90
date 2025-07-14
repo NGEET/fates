@@ -1173,12 +1173,20 @@ module FatesPatchMod
       ! ARGUMENTS:
       class(fates_patch_type), intent(inout), target :: this ! patch
 
-      logical,intent(in) :: check_order
+      logical, optional, intent(in) :: check_order
       
       ! LOCALS:
       type(fates_cohort_type), pointer :: currentCohort
       type(fates_cohort_type), pointer :: nextCohort
+
+      logical :: check_order_present
       
+      if (present(check_order)) then
+        check_order_present = check_order
+      else
+        check_order_present = .false.
+      end if
+
       ! check for inconsistent list state
       if (.not. associated(this%shortest) .and. .not. associated(this%tallest)) then
           ! empty list
@@ -1192,7 +1200,7 @@ module FatesPatchMod
       ! hold on to current linked list so we don't lose it
       currentCohort => this%shortest
 
-      if(check_order)then
+      if(check_order_present)then
          do while (associated(currentCohort))
             if( associated(currentCohort%taller)) then
                if(currentCohort%height > currentCohort%taller%height)then
