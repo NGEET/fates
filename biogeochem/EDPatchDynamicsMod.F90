@@ -17,7 +17,6 @@ module EDPatchDynamicsMod
   use FatesLitterMod       , only : litter_type
   use FatesConstantsMod    , only : n_dbh_bins 
   use FatesLitterMod       , only : adjust_SF_CWD_frac
-  use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : area
   use FatesConstantsMod    , only : patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
@@ -3577,12 +3576,8 @@ contains
       do while(associated(currentPatch)) 
           litt => currentPatch%litter(el)
           
-          if(homogenize_seed_pfts) then
-              litt%seed(:) = litt%seed(:) + seed_mass/(area_site*real(numpft,r8))
-          else
-              litt%seed(pft) = litt%seed(pft) + seed_mass/area_site
-          end if
-          
+          litt%seed(pft) = litt%seed(pft) + seed_mass/area_site
+
           currentPatch => currentPatch%younger
       end do
           
