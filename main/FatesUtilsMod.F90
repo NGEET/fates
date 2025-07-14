@@ -314,5 +314,11 @@ contains
      end if
   end function is_param_set
 
+  function logical_to_real(logical_in) result(real_out)
+     logical, intent(in) :: logical_in
+     real(r8) :: real_out
+     real_out = merge(1._r8, 0._r8, logical_in)
+  end function logical_to_real
+
   ! ====================================================================================== 
 end module FatesUtilsMod

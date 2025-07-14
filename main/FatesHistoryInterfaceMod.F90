@@ -2409,6 +2409,7 @@ contains
     ! ---------------------------------------------------------------------------------
 
     use FatesEcotypesMod, only : is_patch_forest
+    use FatesUtilsMod,    only : logical_to_real
 
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -2741,25 +2742,25 @@ contains
                merge(1._r8, 0._r8, cpatch%is_forest) * cpatch%area * AREA_INV
             ! according to experimental definitions
             hio_is_forest_pct10_si(io_si) = hio_is_forest_pct10_si(io_si) + cpatch%area * AREA_INV * &
-               merge(1._r8, 0._r8, is_patch_forest(cpatch, 0.1_r8))
+               logical_to_real(is_patch_forest(cpatch, 0.1_r8))
             hio_is_forest_pct25_si(io_si) = hio_is_forest_pct25_si(io_si) + cpatch%area * AREA_INV * &
-               merge(1._r8, 0._r8, is_patch_forest(cpatch, 0.25_r8))
+               logical_to_real(is_patch_forest(cpatch, 0.25_r8))
             hio_is_forest_pct50_si(io_si) = hio_is_forest_pct50_si(io_si) + cpatch%area * AREA_INV * &
-               merge(1._r8, 0._r8, is_patch_forest(cpatch, 0.5_r8))
+               logical_to_real(is_patch_forest(cpatch, 0.5_r8))
             hio_is_forest_pct75_si(io_si) = hio_is_forest_pct75_si(io_si) + cpatch%area * AREA_INV * &
-               merge(1._r8, 0._r8, is_patch_forest(cpatch, 0.75_r8))
+               logical_to_real(is_patch_forest(cpatch, 0.75_r8))
             hio_is_forest_pct90_si(io_si) = hio_is_forest_pct90_si(io_si) + cpatch%area * AREA_INV * &
-               merge(1._r8, 0._r8, is_patch_forest(cpatch, 0.9_r8))
+               logical_to_real(is_patch_forest(cpatch, 0.9_r8))
             hio_is_forest_pct10_0grass_si(io_si) = hio_is_forest_pct10_0grass_si(io_si) + cpatch%area * AREA_INV * &
-               merge(1._r8, 0._r8, is_patch_forest(cpatch, 0.1_r8, grass_biomass_threshold=0._r8))
+               logical_to_real(is_patch_forest(cpatch, 0.1_r8, grass_biomass_threshold=0._r8))
             hio_is_forest_pct25_0grass_si(io_si) = hio_is_forest_pct25_0grass_si(io_si) + cpatch%area * AREA_INV * &
-               merge(1._r8, 0._r8, is_patch_forest(cpatch, 0.25_r8, grass_biomass_threshold=0._r8))
+               logical_to_real(is_patch_forest(cpatch, 0.25_r8, grass_biomass_threshold=0._r8))
             hio_is_forest_pct50_0grass_si(io_si) = hio_is_forest_pct50_0grass_si(io_si) + cpatch%area * AREA_INV * &
-               merge(1._r8, 0._r8, is_patch_forest(cpatch, 0.5_r8, grass_biomass_threshold=0._r8))
+               logical_to_real(is_patch_forest(cpatch, 0.5_r8, grass_biomass_threshold=0._r8))
             hio_is_forest_pct75_0grass_si(io_si) = hio_is_forest_pct75_0grass_si(io_si) + cpatch%area * AREA_INV * &
-               merge(1._r8, 0._r8, is_patch_forest(cpatch, 0.75_r8, grass_biomass_threshold=0._r8))
+               logical_to_real(is_patch_forest(cpatch, 0.75_r8, grass_biomass_threshold=0._r8))
             hio_is_forest_pct90_0grass_si(io_si) = hio_is_forest_pct90_0grass_si(io_si) + cpatch%area * AREA_INV * &
-               merge(1._r8, 0._r8, is_patch_forest(cpatch, 0.9_r8, grass_biomass_threshold=0._r8))
+               logical_to_real(is_patch_forest(cpatch, 0.9_r8, grass_biomass_threshold=0._r8))
 
             ! Patch specific variables that are already calculated
             ! These things are all duplicated. Should they all be converted to LL or array structures RF?
