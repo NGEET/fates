@@ -139,7 +139,7 @@ contains
     ! If we demote -all- the trees less than a given height, there is a massive advantage in being the cohort that is
     ! the biggest when the canopy is closed.
     ! In this implementation, the amount demoted, ('weight') is a function of the height weighted by the competitive exclusion
-    ! parameter (ED_val_comp_excln).
+    ! parameter (comp_excln_exp).
 
     ! Complexity in this routine results from a few things.
     ! Firstly, the complication of the demotion amount sometimes being larger than the cohort area (for a very small, short cohort)
