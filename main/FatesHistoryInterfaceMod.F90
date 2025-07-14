@@ -41,6 +41,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : dtype_ifall
   use FatesConstantsMod        , only : dtype_ifire
   use FatesConstantsMod        , only : dtype_ilog
+  use FatesConstantsMod        , only : dtype_ilandusechange
   use FatesIODimensionsMod     , only : fates_io_dimension_type
   use FatesIOVariableKindMod   , only : fates_io_variable_kind_type
   use FatesIOVariableKindMod   , only : site_int
@@ -406,6 +407,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_vis_rad_err_si
   integer :: ih_nir_rad_err_si
   integer :: ih_fire_c_to_atm_si
+  integer :: ih_fire_c_to_atm_landusechange_si
   integer :: ih_interr_liveveg_elem
   integer :: ih_interr_litter_elem
   integer :: ih_cbal_err_fates_si
@@ -2496,6 +2498,7 @@ contains
          hio_canopy_mortality_crownarea_si     => this%hvars(ih_canopy_mortality_crownarea_si)%r81d, &
          hio_ustory_mortality_crownarea_si => this%hvars(ih_understory_mortality_crownarea_si)%r81d, &
          hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
+         hio_fire_c_to_atm_landusechange_si  => this%hvars(ih_fire_c_to_atm_landusechange_si)%r81d, &
          hio_demotion_carbonflux_si        => this%hvars(ih_demotion_carbonflux_si)%r81d, &
          hio_promotion_carbonflux_si       => this%hvars(ih_promotion_carbonflux_si)%r81d, &
          hio_canopy_mortality_carbonflux_si     => this%hvars(ih_canopy_mortality_carbonflux_si)%r81d, &
@@ -2540,7 +2543,11 @@ contains
          
          ! Total carbon lost to atmosphere from burning (kgC/site/day -> kgC/m2/s)
          hio_fire_c_to_atm_si(io_si) = &
-              sites(s)%mass_balance(element_pos(carbon12_element))%burn_flux_to_atm * &
+              sum(sites(s)%mass_balance(element_pos(carbon12_element))%burn_flux_to_atm(:)) * &
+              ha_per_m2 * days_per_sec
+
+         hio_fire_c_to_atm_landusechange_si(io_si) = &
+              sites(s)%mass_balance(element_pos(carbon12_element))%burn_flux_to_atm(dtype_ilandusechange) * &
               ha_per_m2 * days_per_sec
 
          ! damage variables - site level - this needs to be OUT of the patch loop 
@@ -3395,7 +3402,7 @@ contains
                    
                 ! Total element lost to atmosphere from burning (kg/site/day -> kg/m2/s)
                 hio_burn_flux_elem(io_si,el) = &
-                     sites(s)%mass_balance(el)%burn_flux_to_atm * ha_per_m2 *           &
+                     sum(sites(s)%mass_balance(el)%burn_flux_to_atm(:)) * ha_per_m2 *  &
                      days_per_sec
 
              end do
@@ -7003,6 +7010,12 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_fire_c_to_atm_si)
+
+       call this%set_history_var(vname='FATES_FIRE_CLOSS_LANDUSECHANGE', units='kg m-2 s-1',    &
+            long='carbon loss to atmosphere from fire in kg carbon per m2 per second from land use change only', &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            index = ih_fire_c_to_atm_landusechange_si)
 
        call this%set_history_var(vname='FATES_CBALANCE_ERROR',                    &
             units='kg s-1',                                                       &

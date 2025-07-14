@@ -1006,7 +1006,7 @@ contains
 
        flux_out = sum(site_mass%wood_product_harvest(:)) + &
                   sum(site_mass%wood_product_landusechange(:)) + &
-                  site_mass%burn_flux_to_atm + &
+                  sum(site_mass%burn_flux_to_atm(:)) + &
                   site_mass%seed_out + &
                   site_mass%flux_generic_out + &
                   site_mass%frag_out + &
@@ -1039,7 +1039,7 @@ contains
           write(fates_log(),*) 'wood_product_harvest: ',site_mass%wood_product_harvest(:)
           write(fates_log(),*) 'wood_product_landusechange: ',site_mass%wood_product_landusechange(:)
           write(fates_log(),*) 'error from patch resizing: ',site_mass%patch_resize_err
-          write(fates_log(),*) 'burn_flux_to_atm: ',site_mass%burn_flux_to_atm
+          write(fates_log(),*) 'burn_flux_to_atm: ',site_mass%burn_flux_to_atm(:)
           write(fates_log(),*) 'seed_out: ',site_mass%seed_out
           write(fates_log(),*) 'flux_generic_out: ',site_mass%flux_generic_out
           write(fates_log(),*) 'frag_out: ',site_mass%frag_out
