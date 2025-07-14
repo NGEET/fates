@@ -23,6 +23,7 @@ module FatesUtilsMod
   public :: QuadraticRootsSridharachary
   public :: ArrayNint
   public :: is_param_set
+  public :: logical_to_real
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
