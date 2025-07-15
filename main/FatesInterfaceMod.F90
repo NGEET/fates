@@ -2720,7 +2720,7 @@ subroutine FatesReadParameters(param_reader)
 
    currentPatch => this%oldest_patch
 
-   do while associated(currentPatch)
+   do while (associated(currentPatch))
 
       p = this%patch_map(currentPatch%patchno)
 
@@ -2756,7 +2756,7 @@ subroutine FatesReadParameters(param_reader)
 
    currentPatch => this%oldest_patch
 
-   do while associated(currentPatch)
+   do while (associated(currentPatch))
 
       c = this%column_map(currentPatch%patchno)
 
