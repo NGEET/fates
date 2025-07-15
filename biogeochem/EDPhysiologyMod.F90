@@ -147,7 +147,8 @@ module EDPhysiologyMod
   use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
   use FatesInterfaceTypesMod, only : hlm_use_luh
   use FatesInterfaceTypesMod, only : hlm_regeneration_model
-
+  
+  
   implicit none
   private
 
@@ -158,7 +159,6 @@ module EDPhysiologyMod
   public :: calculate_SP_properties
   public :: recruitment
   public :: ZeroLitterFluxes
-
   public :: ZeroAllocationRates
   public :: PreDisturbanceLitterFluxes
   public :: PreDisturbanceIntegrateLitter
@@ -260,13 +260,12 @@ contains
 
   ! ============================================================================
   
-  subroutine GenerateDamageAndLitterFluxes( csite, cpatch, bc_in )
+  subroutine GenerateDamageAndLitterFluxes( csite, cpatch )
 
     ! Arguments
     type(ed_site_type)  :: csite
     type(fates_patch_type) :: cpatch
-    type(bc_in_type), intent(in) :: bc_in
-    
+
 
     ! Locals
     type(fates_cohort_type), pointer :: ccohort    ! Current cohort
@@ -440,8 +439,7 @@ contains
     ! associated with seed turnover, seed influx, litterfall from live and
     ! dead plants, germination, and fragmentation.
     !
-    ! At this time we do not have explicit herbivory, and burning losses to litter
-    ! are handled elsewhere.
+    ! Herbivory is handled here. burning losses to litter are handled elsewhere.
     !
     ! Note: The processes conducted here DO NOT handle litter fluxes associated
     !       with disturbance.  Those fluxes are handled elsewhere (EDPatchDynamcisMod)
@@ -474,12 +472,12 @@ contains
                   diag => currentSite%flux_diags%elem(el))
 
          ! Calculate loss rate of viable seeds to litter
-         call SeedDecay(litt, currentPatch, bc_in)
+         call SeedDecay(litt, currentPatch)
          
          ! Calculate seed germination rate, the status flags prevent
          ! germination from occuring when the site is in a drought
          ! (for drought deciduous) or too cold (for cold deciduous)
-         call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), bc_in, currentPatch)
+         call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), currentPatch)
          
          ! Send fluxes from newly created litter into the litter pools
          ! This litter flux is from non-disturbance inducing mortality, as well
@@ -2235,7 +2233,7 @@ contains
 
   ! ============================================================================
 
-  subroutine SeedDecay( litt , currentPatch, bc_in )
+  subroutine SeedDecay( litt , currentPatch )
     !
     ! !DESCRIPTION:
     ! 1. Flux from seed pool into leaf litter pool
@@ -2246,7 +2244,6 @@ contains
     ! !ARGUMENTS
     type(litter_type) :: litt
     type(fates_patch_type), intent(in) :: currentPatch ! ahb added this
-    type(bc_in_type), intent(in) :: bc_in ! ahb added this    
     !
     ! !LOCAL VARIABLES:
     integer  ::  pft
@@ -2352,7 +2349,7 @@ contains
   end subroutine SeedDecay
 
   ! ============================================================================
-  subroutine SeedGermination( litt, cold_stat, drought_stat, bc_in, currentPatch )
+  subroutine SeedGermination( litt, cold_stat, drought_stat, currentPatch )
     !
     ! !DESCRIPTION:
     !  Flux from seed bank into the seedling pool    
@@ -2364,7 +2361,6 @@ contains
     type(litter_type) :: litt
     integer                   , intent(in) :: cold_stat    ! Is the site in cold leaf-off status?
     integer, dimension(numpft), intent(in) :: drought_stat ! Is the site in drought leaf-off status?
-    type(bc_in_type),           intent(in) :: bc_in
     type(fates_patch_type),        intent(in) :: currentPatch
     !
     ! !LOCAL VARIABLES:
@@ -2978,7 +2974,7 @@ contains
             elflux_diags%root_litter_input(pft) +  &
             (fnrt_m_turnover + store_m_turnover ) * currentCohort%n
 
-       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere
+       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere (and also for tracking)
 
        site_mass%herbivory_flux_out = &
             site_mass%herbivory_flux_out + &
