@@ -188,17 +188,15 @@ module FatesInterfaceMod
 
    logical :: debug = .false.  ! for debugging this module
 
-
-contains
-
-  ! ====================================================================================
-   interface TransferBCIn(this, tag, data)
+   interface TransferBCIn
 
       module procedure TransferBCIn_1d
       module procedure TransferBCIn_2d
       module procedure TransferBCIn_3d
 
    end interface TransferBCIn
+
+contains
 
   ! ====================================================================================
   subroutine FatesInterfaceInit(log_unit,global_verbose)
