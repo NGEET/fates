@@ -147,7 +147,8 @@ module EDPhysiologyMod
   use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
   use FatesInterfaceTypesMod, only : hlm_use_luh
   use FatesInterfaceTypesMod, only : hlm_regeneration_model
-
+  
+  
   implicit none
   private
 
@@ -158,7 +159,6 @@ module EDPhysiologyMod
   public :: calculate_SP_properties
   public :: recruitment
   public :: ZeroLitterFluxes
-
   public :: ZeroAllocationRates
   public :: PreDisturbanceLitterFluxes
   public :: PreDisturbanceIntegrateLitter
@@ -439,8 +439,7 @@ contains
     ! associated with seed turnover, seed influx, litterfall from live and
     ! dead plants, germination, and fragmentation.
     !
-    ! At this time we do not have explicit herbivory, and burning losses to litter
-    ! are handled elsewhere.
+    ! Herbivory is handled here. burning losses to litter are handled elsewhere.
     !
     ! Note: The processes conducted here DO NOT handle litter fluxes associated
     !       with disturbance.  Those fluxes are handled elsewhere (EDPatchDynamcisMod)
@@ -821,7 +820,7 @@ contains
                 ! Check leaf cost against the yearly net uptake for that cohort leaf layer
                 if (currentCohort%year_net_uptake(z) < currentCohort%leaf_cost) then
                    ! Make sure the cohort trim fraction is great than the pft trim limit
-                   if (currentCohort%canopy_trim > EDPftvarcon_inst%trim_limit(ipft)) then
+                   if (currentCohort%canopy_trim > (EDPftvarcon_inst%trim_limit(ipft) + EDPftvarcon_inst%trim_inc(ipft))) then
 
                       ! keep trimming until none of the canopy is in negative carbon balance.
                       if (currentCohort%height > EDPftvarcon_inst%hgt_min(ipft)) then
@@ -870,11 +869,14 @@ contains
                 optimum_trim = (nnu_clai_b(1,1) / cumulative_lai_cohort) * initial_trim
 
                 ! Determine if the optimum trim value makes sense.  The smallest cohorts tend to have unrealistic fits.
-                if (optimum_trim > 0. .and. optimum_trim < 1.) then
+                if (optimum_trim > EDPftvarcon_inst%trim_limit(ipft) .and. optimum_trim < 1.) then
                    currentCohort%canopy_trim = optimum_trim
 
                    trimmed = .true.
 
+                else if (optimum_trim <= EDPftvarcon_inst%trim_limit(ipft)) then
+                   currentCohort%canopy_trim = EDPftvarcon_inst%trim_limit(ipft)
+                   trimmed = .true.
                 endif
              endif
           endif
@@ -2050,7 +2052,6 @@ contains
 
     ! !USES:
     use EDTypesMod, only : area
-    use EDTypesMod, only : homogenize_seed_pfts
     use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
     use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
     !
@@ -2074,6 +2075,11 @@ contains
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
 
+    logical, parameter  :: nocomp_seed_localization  = .true.  ! if nocomp is on, only send a given PFT's seeds to patches of that nocomp PFT
+    real(r8) :: nocomp_seed_scaling    ! scalar to handle case for nocomp_seed_localization
+    real(r8) :: seed_supply            ! external seed rain scalar to handle case for nocomp_seed_localization
+    real(r8) :: nocomp_patch_areas(0:numpft) ! vector of the total patch areas for each nocomp PFT
+
     ! If the dispersal kernel is not turned on, keep the dispersal fraction at zero
     site_disp_frac(:) = 0._r8
     if (hlm_seeddisp_cadence .ne. fates_dispersal_cadence_none) then
@@ -2086,6 +2092,19 @@ contains
        element_id = element_list(el)
 
        site_mass => currentSite%mass_balance(el)
+
+       ! If we are in nocomp configuration and we are restricting each PFT's seeds to all fall
+       ! only on patches that allow that PFT to grow, then we need to add up all the patch areas
+       ! for each nocomp PFT to normalize the seed fluxes with later.
+       if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue ) then
+          nocomp_patch_areas(0:numpft) = 0._r8
+          currentPatch => currentSite%oldest_patch
+          nocomp_patch_loop: do while (associated(currentPatch))
+             nocomp_patch_areas(currentPatch%nocomp_pft_label) = nocomp_patch_areas(currentPatch%nocomp_pft_label) &
+                  + currentPatch%area
+             currentPatch => currentPatch%younger
+          end do nocomp_patch_loop
+       endif
 
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
@@ -2128,13 +2147,6 @@ contains
           currentPatch => currentPatch%younger
        enddo seed_rain_loop
 
-       ! We can choose to homogenize seeds. This is simple, we just
-       ! add up all the seed from each pft at the site level, and then
-       ! equally distribute to the PFT pools
-       if ( homogenize_seed_pfts ) then
-          site_seed_rain(1:numpft) = sum(site_seed_rain(:))/real(numpft,r8)
-       end if
-
        ! Loop over all patches again and disperse the mixed seeds into the input flux
        ! arrays
        ! Loop over all patches and sum up the seed input for each PFT
@@ -2146,9 +2158,25 @@ contains
 
              if(currentSite%use_this_pft(pft).eq.itrue)then
 
+                ! special case: do we want to restrict each PFT's seeds to only go to patches with that nocomp PFT label?
+                ! If so, then use a normalization factor that is one over the nocomp patch fraction for all patches of
+                ! that PFT's nocomp label, and zero for all other patches.  If we don't do this, then just set scalar to one.
+                ! Similarly, only add external seed rain to a given PFT's nocomp patches
+                nocomp_seed_scaling = 1._r8
+                seed_supply = EDPftvarcon_inst%seed_suppl(pft)
+                if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue ) then
+                   if (currentPatch%nocomp_pft_label .eq. pft) then
+                      nocomp_seed_scaling = AREA/nocomp_patch_areas(pft)
+                   else
+                      nocomp_seed_scaling = 0._r8
+                      seed_supply = 0._r8
+                   endif
+                endif
+
                 ! Seed input from local sources (within site).  Note that a fraction of the
                 ! internal seed rain is sent out to neighboring gridcells.
-                litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1.0_r8-site_disp_frac(pft))/area ![kg/m2/day]
+                litt%seed_in_local(pft) = litt%seed_in_local(pft) + nocomp_seed_scaling * &
+                     (1.0_r8-site_disp_frac(pft)) * (site_seed_rain(pft)/area) ! site_seed_rain conversion from [kg/site/day -> kg/m2/day]
 
                 ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
                 if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
@@ -2180,7 +2208,7 @@ contains
                 
                 ! Seed input from external sources (user param seed rain, or dispersal model)
                 ! Include both prescribed seed_suppl and seed_in dispersed from neighbouring gridcells
-                seed_in_external = seed_stoich*(currentSite%seed_in(pft)/area + EDPftvarcon_inst%seed_suppl(pft)*years_per_day) ![kg/m2/day]
+                seed_in_external = seed_stoich * (seed_supply*years_per_day + currentSite%seed_in(pft)/area)  ![kg/m2/day]
                 litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
                 
                 ! Seeds entering externally [kg/site/day]
@@ -2946,7 +2974,7 @@ contains
             elflux_diags%root_litter_input(pft) +  &
             (fnrt_m_turnover + store_m_turnover ) * currentCohort%n
 
-       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere
+       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere (and also for tracking)
 
        site_mass%herbivory_flux_out = &
             site_mass%herbivory_flux_out + &
