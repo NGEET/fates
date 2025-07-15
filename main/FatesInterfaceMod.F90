@@ -192,7 +192,7 @@ module FatesInterfaceMod
 
       module procedure TransferBCIn_1d
       module procedure TransferBCIn_2d
-      module procedure TransferBCIn_3d
+      !module procedure TransferBCIn_3d
 
    end interface TransferBCIn
 
