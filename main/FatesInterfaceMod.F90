@@ -2707,8 +2707,6 @@ subroutine FatesReadParameters(param_reader)
 
  subroutine TransferBCIn_1d(this, tag, data)
 
-   ! TODO - make an interface and dimensional versions of this subroutine?
-
    type(ed_site_type), intent(inout) :: this
    character(len=*),   intent(in)    :: tag
    real(r8), pointer,  intent(in)    :: data(:)
@@ -2742,11 +2740,11 @@ subroutine FatesReadParameters(param_reader)
 
    end do
 
+ end subroutine TransferBCIn_1d
+
 ! ======================================================================================
 
  subroutine TransferBCIn_2d(this, tag, data)
-
-   ! TODO - make an interface and dimensional versions of this subroutine?
 
    type(ed_site_type), intent(inout) :: this
    character(len=*),   intent(in)    :: tag
@@ -2782,7 +2780,6 @@ subroutine FatesReadParameters(param_reader)
    end do
 
  end subroutine TransferBCIn_2d
-
 
 ! ======================================================================================
 end module FatesInterfaceMod
