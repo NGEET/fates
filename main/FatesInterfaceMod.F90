@@ -2736,7 +2736,10 @@ subroutine FatesReadParameters(param_reader)
       ! If these are not pointers then we really don't have a good way to avoid
       ! memory duplicity.
 
-      currentPatch => this%younger
+      end select
+
+      currentPatch => currentPatch%younger
+
    end do
 
 ! ======================================================================================
@@ -2772,7 +2775,10 @@ subroutine FatesReadParameters(param_reader)
       ! If these are not pointers then we really don't have a good way to avoid
       ! memory duplicity.
 
-      currentPatch => this%younger
+      end select
+
+      currentPatch => currentPatch%younger
+
    end do
 
  end subroutine TransferBCIn_2d
