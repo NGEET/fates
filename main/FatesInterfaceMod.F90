@@ -380,7 +380,14 @@ contains
        write(fates_log(), *) 'hlm_parteh_mode: ',hlm_parteh_mode
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
-    
+
+    ! carbon loss to atmosphere pathways
+    ! (these values are a unit conversion off of the
+    !  equivalent "site_mass%" diagnostics, so they are not
+    !  incremented but set during update_site())
+    fates%bc_out(s)%grazing_closs_to_atm_si = nan
+    fates%bc_out(s)%fire_closs_to_atm_si    = nan
+
     fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
     fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
     
@@ -422,6 +429,10 @@ contains
        fates%bc_in(s)%hlm_luh_states(:) = 0.0_r8
        fates%bc_in(s)%hlm_luh_transitions(:) = 0.0_r8
     end if
+
+    fates%bc_out(s)%veg_c_si        = 0.0_r8
+    fates%bc_out(s)%litter_cwd_c_si = 0.0_r8
+    fates%bc_out(s)%seed_c_si       = 0.0_r8
 
     return
   end subroutine zero_bcs
