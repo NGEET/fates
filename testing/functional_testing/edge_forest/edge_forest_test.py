@@ -107,13 +107,13 @@ class EdgeForestTest(FunctionalTest):
                 y.sel(bin=this_bin).values,
                 lw=2,
                 color=sample_colormap("jet_r", len(bins), b),
-                label=str(b),
+                label=str(this_bin),
             )
 
         plt.xlabel("Frac. forest in site", fontsize=11)
         plt.ylabel(f"{varname} ({units})", fontsize=11)
         plt.title(f"Simulated {varname} for input parameter file", fontsize=11)
-        plt.legend(loc="best", title="Edge bin")
+        plt.legend(loc="best", title="Bin distance to\nnonforest (m)", alignment="left")
 
         if save_fig:
             fig_name = os.path.join(plot_dir, f"edge_forest_plot_{data.name}.png")

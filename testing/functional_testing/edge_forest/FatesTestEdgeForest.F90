@@ -191,6 +191,7 @@ subroutine WriteEdgeForestData(out_file, n_frac_forest, n_bins, frac_forest, fra
   use FatesUnitTestIOMod, only : EndNCDef
   use FatesUnitTestIOMod, only : type_double, type_int
   use FatesConstantsMod,  only : r8 => fates_r8
+  use FatesEdgeForestParamsMod, only : ED_val_edgeforest_bin_edges
   implicit none
 
   ! ARGUMENTS
@@ -209,7 +210,7 @@ subroutine WriteEdgeForestData(out_file, n_frac_forest, n_bins, frac_forest, fra
   integer              :: ncid           ! netcdf file id
   character(len=24)     :: dim_names(2)   ! dimension name(s)
   integer              :: dimIDs(2)      ! dimension ID(s)
-  integer              :: fracforestID ! variable ID(s) for dimensions
+  integer              :: fracforestID, binID ! variable ID(s) for dimensions
   integer              :: gaussianID, lognormalID, quadraticID
   integer              :: everybinID
 
@@ -226,6 +227,11 @@ subroutine WriteEdgeForestData(out_file, n_frac_forest, n_bins, frac_forest, fra
   call RegisterVar(ncid, dim_names(1), dimIDs(1:1), type_double,         &
     [character(len=20)  :: 'units', 'long_name'],                        &
     [character(len=150) :: 'unitless', 'Fraction of site that is forest'], 2, fracforestID)
+
+  ! register bin
+  call RegisterVar(ncid, dim_names(2), dimIDs(2:2), type_double,         &
+    [character(len=20)  :: 'units', 'long_name'],                        &
+    [character(len=150) :: 'unitless', 'FATES edge number'], 2, binID)
 
   ! register frac_in_bin_gaussian
   call RegisterVar(ncid, 'frac_in_bin_gaussian', dimIDs(1:1), type_double,   &
@@ -256,6 +262,7 @@ subroutine WriteEdgeForestData(out_file, n_frac_forest, n_bins, frac_forest, fra
 
   ! write out data
   call WriteVar(ncid, fracforestID, frac_forest(:))
+  call WriteVar(ncid, binID, ED_val_edgeforest_bin_edges(:))
   call WriteVar(ncid, gaussianID, frac_in_bin_gaussian(:))
   call WriteVar(ncid, lognormalID, frac_in_bin_lognormal(:))
   call WriteVar(ncid, quadraticID, frac_in_bin_quadratic(:))
