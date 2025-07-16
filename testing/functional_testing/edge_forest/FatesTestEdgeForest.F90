@@ -240,7 +240,7 @@ subroutine WriteEdgeForestData(out_file, n_frac_forest, n_bins, frac_forest, fra
   ! register bin
   call RegisterVar(ncid, dim_names(2), dimIDs(2:2), type_double,         &
     [character(len=20)  :: 'units', 'long_name'],                        &
-    [character(len=150) :: 'unitless', 'FATES edge number'], 2, binID)
+    [character(len=150) :: 'unitless', 'FATES edge bin min. distance to nonforest'], 2, binID)
 
   ! register frac_in_bin_gaussian
   call RegisterVar(ncid, 'frac_in_bin_gaussian', dimIDs(1:1), type_double,   &
