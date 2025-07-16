@@ -2714,7 +2714,7 @@ subroutine FatesReadParameters(param_reader)
    type(fates_patch_type), pointer :: currentPatch
 
    ! LOCAL
-   integer :: ifc  ! HLM column index
+   integer :: p    ! patch index
 
    currentPatch => this%oldest_patch
 
