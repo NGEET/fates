@@ -43,9 +43,11 @@ class EdgeForestTest(FunctionalTest):
 
         # Plot all bins
         da = edge_forest_dat["frac_in_every_bin"]
+        da_norm = edge_forest_dat["frac_in_every_bin_norm"]
         print(da)
         self.plot_edge_forest_frac_allbins(
             da,
+            da_norm,
             "Fraction of forest in each edge bin",
             da.attrs["units"],
             save_figs,
@@ -78,12 +80,13 @@ class EdgeForestTest(FunctionalTest):
 
     @staticmethod
     def plot_edge_forest_frac_allbins(
-        data: xr.Dataset, varname: str, units: str, save_fig: bool, plot_dir: str = None
+        data: xr.Dataset, data_norm: xr.Dataset, varname: str, units: str, save_fig: bool, plot_dir: str = None
     ):
         """Plot the fraction of forest in all bins
 
         Args:
             data (xarray DataArray): the data array of the variable to plot
+            data_norm (xarray DataArray): the data array of the normalized variable to plot
             var (str): variable name (for data structure)
             varname (str): variable name for plot labels
             units (str): variable units for plot labels
@@ -95,6 +98,7 @@ class EdgeForestTest(FunctionalTest):
         max_x = x.max()
 
         y = data
+        y_norm = data_norm
         max_y = round_up(y.max())
 
         blank_plot(max_x, 0.0, max_y, 0.0, draw_horizontal_lines=True)
@@ -105,14 +109,22 @@ class EdgeForestTest(FunctionalTest):
             plt.plot(
                 x.values,
                 y.sel(bin=this_bin).values,
-                lw=2,
                 color=sample_colormap("jet_r", len(bins), b),
                 label=str(this_bin),
             )
 
+        for b, this_bin in enumerate(bins):
+            plt.plot(
+                x.values,
+                y_norm.sel(bin=this_bin).values,
+                color=sample_colormap("jet_r", len(bins), b),
+                label="__nolegend__",
+                linestyle="--",
+            )
+
         plt.xlabel("Frac. forest in site", fontsize=11)
         plt.ylabel(f"{varname} ({units})", fontsize=11)
-        plt.title(f"Simulated {varname} for input parameter file", fontsize=11)
+        plt.title(f"Simulated {varname} for input parameter file\n(dashed=adjusted)", fontsize=11)
         plt.legend(loc="best", title="Bin distance to\nnonforest (m)", alignment="left")
 
         if save_fig:

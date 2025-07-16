@@ -25,6 +25,7 @@ program FatesTestEdgeForest
   real(r8), allocatable              :: frac_in_bin_lognormal(:) ! output: fraction of forest in a bin with lognormal fit
   real(r8), allocatable              :: frac_in_bin_quadratic(:) ! output: fraction of forest in a bin with quadratic fit
   real(r8), allocatable              :: frac_in_every_bin(:,:) ! output: fraction of forest in each bin
+  real(r8), allocatable              :: frac_in_every_bin_norm(:,:) ! output: fraction of forest in each bin (normalized)
   ! Edge bin parameters
   real(r8) :: amplitude, mu, sigma, a, b, c
   logical  :: bin_found
@@ -38,7 +39,7 @@ program FatesTestEdgeForest
   interface
 
     subroutine WriteEdgeForestData(out_file, n_frac_forest, n_bins, frac_forest, frac_in_bin_gaussian, &
-        frac_in_bin_lognormal, frac_in_bin_quadratic, frac_in_every_bin)
+        frac_in_bin_lognormal, frac_in_bin_quadratic, frac_in_every_bin, frac_in_every_bin_norm)
 
       use FatesUnitTestIOMod, only : OpenNCFile, RegisterNCDims, CloseNCFile
       use FatesUnitTestIOMod, only : WriteVar, RegisterVar
@@ -54,6 +55,7 @@ program FatesTestEdgeForest
       real(r8),         intent(in) :: frac_in_bin_lognormal(:)
       real(r8),         intent(in) :: frac_in_bin_quadratic(:)
       real(r8),         intent(in) :: frac_in_every_bin(:,:)
+      real(r8),         intent(in) :: frac_in_every_bin_norm(:,:)
     end subroutine WriteEdgeForestData
 
   end interface
@@ -75,6 +77,7 @@ program FatesTestEdgeForest
   allocate(frac_in_bin_lognormal(n_frac_forest))
   allocate(frac_in_bin_quadratic(n_frac_forest))
   allocate(frac_in_every_bin(n_frac_forest, n_bins))
+  allocate(frac_in_every_bin_norm(n_frac_forest, n_bins))
 
   ! initialize frac_forest array
   do i = 1, n_frac_forest
@@ -169,18 +172,23 @@ program FatesTestEdgeForest
         ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, &
         ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, &
         frac_in_every_bin(i,:), .false.)
+    call get_fraction_of_edgeforest_in_each_bin(frac_forest(i), n_bins, &
+        ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, &
+        ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, &
+        ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, &
+        frac_in_every_bin_norm(i,:), .true.)
   end do
 
   ! write out data to netcdf file
   call WriteEdgeForestData(out_file, n_frac_forest, n_bins, frac_forest, frac_in_bin_gaussian, &
-    frac_in_bin_lognormal, frac_in_bin_quadratic, frac_in_every_bin)
+    frac_in_bin_lognormal, frac_in_bin_quadratic, frac_in_every_bin, frac_in_every_bin_norm)
 
 end program FatesTestEdgeForest
 
 ! ----------------------------------------------------------------------------------------
 
 subroutine WriteEdgeForestData(out_file, n_frac_forest, n_bins, frac_forest, frac_in_bin_gaussian, &
-        frac_in_bin_lognormal, frac_in_bin_quadratic, frac_in_every_bin)
+        frac_in_bin_lognormal, frac_in_bin_quadratic, frac_in_every_bin, frac_in_every_bin_norm)
   !
   ! DESCRIPTION:
   ! Writes out data from the edge forest test
@@ -203,6 +211,7 @@ subroutine WriteEdgeForestData(out_file, n_frac_forest, n_bins, frac_forest, fra
   real(r8),         intent(in) :: frac_in_bin_lognormal(:)
   real(r8),         intent(in) :: frac_in_bin_quadratic(:)
   real(r8),         intent(in) :: frac_in_every_bin(:,:)
+  real(r8),         intent(in) :: frac_in_every_bin_norm(:,:)
 
   ! LOCALS:
   ! TODO: Set a local parameter for number of dimensions (2)
@@ -212,7 +221,7 @@ subroutine WriteEdgeForestData(out_file, n_frac_forest, n_bins, frac_forest, fra
   integer              :: dimIDs(2)      ! dimension ID(s)
   integer              :: fracforestID, binID ! variable ID(s) for dimensions
   integer              :: gaussianID, lognormalID, quadraticID
-  integer              :: everybinID
+  integer              :: everybinID, everybinnormID
 
   ! dimension name(s)
   dim_names = [character(len=24) :: 'frac_forest', 'bin']
@@ -257,6 +266,12 @@ subroutine WriteEdgeForestData(out_file, n_frac_forest, n_bins, frac_forest, fra
     [character(len=150) :: 'frac_forest bin', 'unitless', 'Fraction of forest in every bin'],  &
     3, everybinID)
 
+  ! register frac_in_every_bin_norm
+  call RegisterVar(ncid, 'frac_in_every_bin_norm', dimIDs(1:2), type_double,   &
+    [character(len=20)  :: 'coordinates', 'units', 'long_name'], &
+    [character(len=150) :: 'frac_forest bin', 'unitless', 'Fraction of forest in every bin (normalized)'],  &
+    3, everybinnormID)
+
   ! finish defining variables
   call EndNCDef(ncid)
 
@@ -267,6 +282,7 @@ subroutine WriteEdgeForestData(out_file, n_frac_forest, n_bins, frac_forest, fra
   call WriteVar(ncid, lognormalID, frac_in_bin_lognormal(:))
   call WriteVar(ncid, quadraticID, frac_in_bin_quadratic(:))
   call WriteVar(ncid, everybinID, frac_in_every_bin(:,:))
+  call WriteVar(ncid, everybinnormID, frac_in_every_bin_norm(:,:))
 
   ! close the file
   call CloseNCFile(ncid)
