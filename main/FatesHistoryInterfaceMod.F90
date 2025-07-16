@@ -2853,11 +2853,15 @@ contains
                   end if
                end do elloop
 
-               ! FLUXES ---
+               ! Carbon FLUXES ---
                ! Flux Variables (cohorts must had experienced a day before any of these values
                ! have any meaning, otherwise they are just inialization values
-               notnew: if( .not.(ccohort%isnew) ) then
 
+               call ccohort%prt%GetBiomass(carbon12_element , &
+                    sapw_m, struct_m, leaf_m, fnrt_m, store_m, repro_m, alive_m, total_m)
+               
+               notnew: if( .not.(ccohort%isnew) ) then
+                  
                   hio_npp_si(io_si) = hio_npp_si(io_si) + &
                        ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
 
@@ -2917,16 +2921,16 @@ contains
 
                   end if
 
-                  ! THIS NEEDS TO BE NORMALIZED (RGK)
+                  ! THIS NEEDS TO BE NORMALIZED
                   hio_ca_weighted_height_si(io_si) = hio_ca_weighted_height_si(io_si) + &
                        ccohort%height * ccohort%c_area / m2_per_ha
 
                   site_ca = site_ca + ccohort%c_area / m2_per_ha
 
-                  ! RGK - CANOPY/USTORY BIOMASS IS NOT A FLUX, NEED NOT BE CONDITIONED BY isnew
+                  
+                  ! Mortality Carbon Flux by layer
                   ! ----------------------------------------------------------------------------------
                   if (ccohort%canopy_layer .eq. 1) then
-                     hio_canopy_biomass_si(io_si) = hio_canopy_biomass_si(io_si) + n_perm2 * total_m
 
                      hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                           ccohort%SumMortForHistory(per_year = .false.) * total_m * ccohort%n * ha_per_m2
@@ -2935,7 +2939,6 @@ contains
                           ccohort%SumMortForHistory(per_year = .true.) * ccohort%c_area
 
                   else
-                     hio_ustory_biomass_si(io_si) = hio_ustory_biomass_si(io_si) + n_perm2 * total_m
 
                      hio_ustory_mortality_carbonflux_si(io_si) = hio_ustory_mortality_carbonflux_si(io_si) + &
                           ccohort%SumMortForHistory(per_year = .false.) * total_m * ccohort%n * ha_per_m2
@@ -2944,9 +2947,15 @@ contains
                           ccohort%SumMortForHistory(per_year = .true.) * ccohort%c_area
 
                   end if
-
+                  
                end if notnew
 
+               if (ccohort%canopy_layer .eq. 1) then
+                  hio_canopy_biomass_si(io_si) = hio_canopy_biomass_si(io_si) + n_perm2 * total_m
+               else
+                  hio_ustory_biomass_si(io_si) = hio_ustory_biomass_si(io_si) + n_perm2 * total_m
+               end if
+               
                ccohort => ccohort%taller
             enddo cohortloop ! cohort loop
 
