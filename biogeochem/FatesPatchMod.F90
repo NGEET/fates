@@ -76,7 +76,7 @@ module FatesPatchMod
     !---------------------------------------------------------------------------
 
     ! FOREST INFO
-    logical  :: is_forest                    ! whether the patch is "forest" according to FATES param file % tree threshold
+    logical  :: is_forest                    ! whether the patch is "forest" according to FATES param file criteria
     real(r8), dimension(:), allocatable :: area_in_edgeforest_bins
 
     !---------------------------------------------------------------------------

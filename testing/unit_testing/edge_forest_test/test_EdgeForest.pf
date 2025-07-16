@@ -29,12 +29,6 @@ module test_EdgeForest
 
   integer, parameter :: n_to_sort = 5
 
-  integer, parameter :: nlevedgeforest = 5
-  real(r8), parameter, dimension(nlevedgeforest) :: efb_amplitudes = (/ 334.20118864369647, 7.453608488098321, 2.8450130607077506, 1.601064269911203, 0.9227139932095219 /)
-  real(r8), parameter, dimension(nlevedgeforest-1) :: efb_sigmas = (/ 1.185102216622059, 0.6230347414031212, 0.7500050901443256, 0.8465094354405984 /)
-  real(r8), parameter, dimension(nlevedgeforest-1) :: efb_centers = (/ 5.4114116418770735, 2.7788419192134937, 2.3020137304843664, 1.973996133523811 /)
-  real(r8), parameter :: efb_decay = 4.151608208778201
-
 
   contains
 

@@ -100,8 +100,6 @@ module EDParamsMod
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
 
-   ! Edge forest bin parameters
-
    ! grazing parameters
    real(r8),protected,public :: landuse_grazing_carbon_use_eff
    real(r8),protected,public :: landuse_grazing_maxheight

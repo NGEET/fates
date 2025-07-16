@@ -72,7 +72,7 @@ contains
   end subroutine CalculateTreeGrassAreaSite
 
 
-  subroutine get_number_of_forest_patches(site, n_forest_patches, area_forest_patches, area)
+  subroutine get_number_of_forest_patches(site, n_forest_patches, area_forest_patches, area_site)
     ! DESCRIPTION
     ! Returns number and area of forest patches at site
     !
@@ -80,17 +80,17 @@ contains
     type(ed_site_type), pointer, intent(in) :: site
     integer, intent(out) :: n_forest_patches
     real(r8), intent(out) :: area_forest_patches
-    real(r8), intent(out) :: area
+    real(r8), intent(out) :: area_site
     !
     ! LOCAL VARIABLES:
     type(fates_patch_type), pointer :: currentPatch
 
     n_forest_patches = 0
     area_forest_patches = 0._r8
-    area = 0._r8
+    area_site = 0._r8
     currentPatch => site%youngest_patch
     do while(associated(currentPatch))
-       area = area + currentPatch%area
+       area_site = area_site + currentPatch%area
        if (currentPatch%is_forest) then
           n_forest_patches = n_forest_patches + 1
           area_forest_patches = area_forest_patches + currentPatch%area
@@ -180,13 +180,21 @@ contains
   end subroutine rank_forest_edge_proximity
 
   function gffeb_norm_numerator(x_in, A, mu, sigma, lognorm)
+    ! DESCRIPTION
+    ! Gets numerator at xof normal-like function (Gaussian if lognorm==.true., lognormal otherwise)
+    !
+    ! ARGUMENTS:
     real(r8), intent(in) :: x_in
     real(r8), intent(in) :: A      ! Amplitude
     real(r8), intent(in) :: mu     ! Center
-    real(r8), intent(in) :: sigma  ! Sigma
-    logical,  intent(in) :: lognorm  ! Whether to take log(x)
-    real(r8) :: x
+    real(r8), intent(in) :: sigma  ! Width
+    logical,  intent(in) :: lognorm  ! Gaussian function if true, lognormal otherwise
+    !
+    ! RETURN VALUE:
     real(r8) :: gffeb_norm_numerator
+    !
+    ! LOCAL VARIABLES:
+    real(r8) :: x  ! either x_in or its log
 
     if (lognorm) then
        x = log(x_in)
@@ -198,10 +206,16 @@ contains
   end function gffeb_norm_numerator
 
   function gffeb_norm_denominator(x, sigma, lognorm)
+    ! DESCRIPTION
+    ! Gets denominator at x of normal-like function (Gaussian if lognorm==.true., lognormal otherwise)
+    !
+    ! ARGUMENTS:
     use FatesConstantsMod, only : pi => pi_const
     real(r8), intent(in) :: x
-    real(r8), intent(in) :: sigma  ! Sigma
-    logical,  intent(in) :: lognorm  ! Whether to take log(x)
+    real(r8), intent(in) :: sigma  ! Width
+    logical,  intent(in) :: lognorm  ! Gaussian function if true, lognormal otherwise
+    !
+    ! RETURN VALUE:
     real(r8) :: gffeb_norm_denominator
 
     gffeb_norm_denominator = sigma * sqrt(2*pi)
@@ -211,19 +225,31 @@ contains
   end function gffeb_norm_denominator
 
   function gffeb_norm(x, A, mu, sigma, lognorm)
+    ! DESCRIPTION
+    ! Gets value at x of normal-like function (Gaussian if lognorm==.true., lognormal otherwise)
+    !
+    ! ARGUMENTS:
     real(r8), intent(in) :: x
     real(r8), intent(in) :: A      ! Amplitude
     real(r8), intent(in) :: mu     ! Center
-    real(r8), intent(in) :: sigma  ! Sigma
-    logical,  intent(in) :: lognorm  ! Whether to take log(x) in numerator
+    real(r8), intent(in) :: sigma  ! Width
+    logical,  intent(in) :: lognorm  ! Gaussian function if true, lognormal otherwise
+    !
+    ! RETURN VALUE:
     real(r8) :: gffeb_norm
 
     gffeb_norm = gffeb_norm_numerator(x, A, mu, sigma, lognorm) / gffeb_norm_denominator(x, sigma, lognorm)
   end function gffeb_norm
 
   function gffeb_quadratic(x, a, b, c)
+    ! DESCRIPTION
+    ! Gets value at x of quadratic function
+    !
+    ! ARGUMENTS:
     real(r8), intent(in) :: x
     real(r8), intent(in) :: a, b, c  ! Parameters
+    !
+    ! RETURN VALUE:
     real(r8) :: gffeb_quadratic
 
     gffeb_quadratic = a*(x**2) + b*x + c
@@ -256,11 +282,11 @@ contains
     real(r8) :: A      ! Amplitude
     real(r8) :: mu     ! Center
     real(r8) :: sigma  ! Sigma
+    logical :: lognorm
+    logical :: do_norm
     ! Error checking
     real(r8), parameter :: tol = 1.e-9_r8  ! fraction of total forest area
     real(r8) :: err_chk
-    logical :: lognorm
-    logical :: do_norm
 
     ! Initialize
     fraction_forest_in_bin(:) = 0._r8
@@ -323,27 +349,27 @@ contains
   end subroutine get_fraction_of_edgeforest_in_each_bin
 
 
-  subroutine assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, nlevedgeforest, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
+  subroutine assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, nlevedgeforest, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins_m2)
     ! DESCRIPTION
     ! Given one patch in a site, assign its area to edge bin(s).
     !
     ! ARGUMENTS
-    real(r8), dimension(:), pointer, intent(in) :: fraction_forest_in_each_bin
-    real(r8), intent(in) :: area_forest_patches
-    real(r8), intent(in) :: patch_area
-    integer,  intent(in) :: nlevedgeforest
-    real(r8), intent(in) :: tol
-    real(r8), intent(inout) :: sum_forest_bins_so_far_m2
-    real(r8), dimension(:), intent(out) :: area_in_edgeforest_bins
+    real(r8), dimension(:), pointer, intent(in) :: fraction_forest_in_each_bin  ! Fraction of site's forest area in each edge bin
+    real(r8), intent(in) :: area_forest_patches  ! Total forest area in the site
+    real(r8), intent(in) :: patch_area  ! Area of this patch
+    integer,  intent(in) :: nlevedgeforest  ! Number of edge forest bins, including "deep forest"
+    real(r8), intent(in) :: tol  ! Tolerance for checking total area assigned to bins
+    real(r8), intent(inout) :: sum_forest_bins_so_far_m2  ! How much of the site's forest area has been assigned?
+    real(r8), dimension(:), intent(out) :: area_in_edgeforest_bins_m2  ! Area of this patch in each edge bin (m2)
     !
     ! LOCAL VARIABLES
-    real(r8) :: remaining_to_assign_from_patch_m2
-    real(r8) :: remaining_to_assign_to_bin_m2
+    real(r8) :: remaining_to_assign_from_patch_m2  ! How much of this patch's area still needs to be assigned
+    real(r8) :: remaining_to_assign_to_bin_m2  ! How much of a given bin's area still needs to be assigned
     integer  :: b
     ! For checks
     real(r8) :: err_chk
 
-    area_in_edgeforest_bins(:) = 0._r8
+    area_in_edgeforest_bins_m2(:) = 0._r8
     remaining_to_assign_from_patch_m2 = patch_area
     binloop: do b = 1, nlevedgeforest
 
@@ -354,11 +380,11 @@ contains
        end if
 
        ! Assign area
-       area_in_edgeforest_bins(b) = min(remaining_to_assign_from_patch_m2, remaining_to_assign_to_bin_m2)
-       remaining_to_assign_from_patch_m2 = remaining_to_assign_from_patch_m2 - area_in_edgeforest_bins(b)
+       area_in_edgeforest_bins_m2(b) = min(remaining_to_assign_from_patch_m2, remaining_to_assign_to_bin_m2)
+       remaining_to_assign_from_patch_m2 = remaining_to_assign_from_patch_m2 - area_in_edgeforest_bins_m2(b)
 
        ! Update accounting
-       sum_forest_bins_so_far_m2 = sum_forest_bins_so_far_m2 + area_in_edgeforest_bins(b)
+       sum_forest_bins_so_far_m2 = sum_forest_bins_so_far_m2 + area_in_edgeforest_bins_m2(b)
 
        if (remaining_to_assign_from_patch_m2 == 0._r8) then
           exit
@@ -371,7 +397,7 @@ contains
        write(fates_log(),*) "ERROR: not enough or too much patch area was assigned to bins (check 1); remainder = ",err_chk
        call endrun(msg=errMsg(__FILE__, __LINE__))
     end if
-    err_chk = patch_area - sum(area_in_edgeforest_bins)
+    err_chk = patch_area - sum(area_in_edgeforest_bins_m2)
     if (abs(err_chk) > tol) then
        write(fates_log(),*) "ERROR: not enough or too much patch area was assigned to bins (check 2); remainder = ",err_chk
        call endrun(msg=errMsg(__FILE__, __LINE__))
@@ -485,12 +511,12 @@ contains
     integer :: n_forest_patches  ! Number of forest patches
     integer :: n_patches  ! Number of patches in site
     real(r8) :: area_forest_patches
-    real(r8) :: area
+    real(r8) :: area_site
     real(r8) :: frac_forest
     real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
 
     ! Skip sites with no forest patches
-    call get_number_of_forest_patches(site, n_forest_patches, area_forest_patches, area)
+    call get_number_of_forest_patches(site, n_forest_patches, area_forest_patches, area_site)
     if (n_forest_patches == 0) then
        return
     end if
@@ -500,11 +526,11 @@ contains
     n_patches = get_number_of_patches(site)
     allocate(index_forestpatches_to_allpatches(1:n_patches))
 
-    ! Get ranks
+    ! Rank forest patches by their proximity to edge
     call rank_forest_edge_proximity(site, indices, index_forestpatches_to_allpatches)
 
     ! Get fraction of forest area in each bin
-    frac_forest = area_forest_patches / area
+    frac_forest = area_forest_patches / area_site
     call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest, ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, fraction_forest_in_each_bin)
 
     ! Assign patches to bins
