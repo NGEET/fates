@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from utils import round_up
-from utils_plotting import get_color_palette, blank_plot
+from utils_plotting import sample_colormap, blank_plot
 from functional_class import FunctionalTest
 
 
@@ -100,14 +100,13 @@ class EdgeForestTest(FunctionalTest):
         blank_plot(max_x, 0.0, max_y, 0.0, draw_horizontal_lines=True)
 
         bins = data["bin"].values
-        colors = get_color_palette(len(bins))
 
         for b, this_bin in enumerate(bins):
             plt.plot(
                 x.values,
                 y.sel(bin=this_bin).values,
                 lw=2,
-                color=colors[b],
+                color=sample_colormap("jet_r", len(bins), b),
                 label=str(b),
             )
 
