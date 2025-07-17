@@ -2343,10 +2343,10 @@ contains
     if (hlm_use_ed_st3.eq.itrue) return
 
     if(hlm_hist_level_dynam>0) then
-       call update_history_dyn_sitelevel(this,nc,nsites,sites,bc_in)
+       call update_history_dyn_sitelevel(this,nc,nsites,sites)
        if(hlm_hist_level_dynam>1) then
           call update_history_dyn_subsite(this,nc,nsites,sites,bc_in)
-          call update_history_dyn_subsite_ageclass(this,nc,nsites,sites,bc_in)
+          call update_history_dyn_subsite_ageclass(this,nc,nsites,sites)
           call reset_history_dyn_subsite(this, nsites, sites)
        end if
     end if
@@ -2358,7 +2358,7 @@ contains
 
   ! =========================================================================
 
-  subroutine update_history_dyn_sitelevel(this,nc,nsites,sites,bc_in)
+  subroutine update_history_dyn_sitelevel(this,nc,nsites,sites)
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine is intended to update all history variables with upfreq ==
@@ -2372,7 +2372,6 @@ contains
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
 
     type(fates_cohort_type), pointer :: ccohort
     type(fates_patch_type),  pointer :: cpatch
@@ -2848,11 +2847,15 @@ contains
                   end if
                end do elloop
 
-               ! FLUXES ---
+               ! Carbon FLUXES ---
                ! Flux Variables (cohorts must had experienced a day before any of these values
                ! have any meaning, otherwise they are just inialization values
-               notnew: if( .not.(ccohort%isnew) ) then
 
+               call ccohort%prt%GetBiomass(carbon12_element , &
+                    sapw_m, struct_m, leaf_m, fnrt_m, store_m, repro_m, alive_m, total_m)
+               
+               notnew: if( .not.(ccohort%isnew) ) then
+                  
                   hio_npp_si(io_si) = hio_npp_si(io_si) + &
                        ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
 
@@ -2912,16 +2915,16 @@ contains
 
                   end if
 
-                  ! THIS NEEDS TO BE NORMALIZED (RGK)
+                  ! THIS NEEDS TO BE NORMALIZED
                   hio_ca_weighted_height_si(io_si) = hio_ca_weighted_height_si(io_si) + &
                        ccohort%height * ccohort%c_area / m2_per_ha
 
                   site_ca = site_ca + ccohort%c_area / m2_per_ha
 
-                  ! RGK - CANOPY/USTORY BIOMASS IS NOT A FLUX, NEED NOT BE CONDITIONED BY isnew
+                  
+                  ! Mortality Carbon Flux by layer
                   ! ----------------------------------------------------------------------------------
                   if (ccohort%canopy_layer .eq. 1) then
-                     hio_canopy_biomass_si(io_si) = hio_canopy_biomass_si(io_si) + n_perm2 * total_m
 
                      hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                           ccohort%SumMortForHistory(per_year = .false.) * total_m * ccohort%n * ha_per_m2
@@ -2930,7 +2933,6 @@ contains
                           ccohort%SumMortForHistory(per_year = .true.) * ccohort%c_area
 
                   else
-                     hio_ustory_biomass_si(io_si) = hio_ustory_biomass_si(io_si) + n_perm2 * total_m
 
                      hio_ustory_mortality_carbonflux_si(io_si) = hio_ustory_mortality_carbonflux_si(io_si) + &
                           ccohort%SumMortForHistory(per_year = .false.) * total_m * ccohort%n * ha_per_m2
@@ -2939,9 +2941,15 @@ contains
                           ccohort%SumMortForHistory(per_year = .true.) * ccohort%c_area
 
                   end if
-
+                  
                end if notnew
 
+               if (ccohort%canopy_layer .eq. 1) then
+                  hio_canopy_biomass_si(io_si) = hio_canopy_biomass_si(io_si) + n_perm2 * total_m
+               else
+                  hio_ustory_biomass_si(io_si) = hio_ustory_biomass_si(io_si) + n_perm2 * total_m
+               end if
+               
                ccohort => ccohort%taller
             enddo cohortloop ! cohort loop
 
@@ -4672,7 +4680,7 @@ contains
 
   ! =========================================================================================
 
-  subroutine update_history_dyn_subsite_ageclass(this,nc,nsites,sites,bc_in)
+  subroutine update_history_dyn_subsite_ageclass(this,nc,nsites,sites)
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine is intended to update all history variables with upfreq ==
@@ -4686,7 +4694,6 @@ contains
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
 
     type(fates_cohort_type), pointer :: ccohort
     type(fates_patch_type),  pointer :: cpatch
@@ -5000,9 +5007,9 @@ contains
     real(r8)                , intent(in)            :: dt_tstep
     
     if(hlm_hist_level_hifrq>0) then
-       call update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+       call update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,dt_tstep)
        if(hlm_hist_level_hifrq>1) then
-          call update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+          call update_history_hifrq_subsite(this,nc,nsites,sites,dt_tstep)
           call update_history_hifrq_subsite_ageclass(this,nsites,sites,dt_tstep)
        end if
     end if
@@ -5011,7 +5018,7 @@ contains
     return
   end subroutine update_history_hifrq
 
-  subroutine update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+  subroutine update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,dt_tstep)
 
      ! ---------------------------------------------------------------------------------
      ! This subroutine is intended to update all history variables with upfreq ==
@@ -5026,7 +5033,6 @@ contains
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
-    type(bc_out_type)       , intent(in)            :: bc_out(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 
     ! Locals
@@ -5234,7 +5240,7 @@ contains
 
   ! ===============================================================================================
 
-  subroutine update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,bc_out,dt_tstep)
+  subroutine update_history_hifrq_subsite(this,nc,nsites,sites,dt_tstep)
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine is intended to update all history variables with upfreq ==
@@ -5250,8 +5256,6 @@ contains
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
-    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
-    type(bc_out_type)       , intent(in)            :: bc_out(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 
     ! Locals

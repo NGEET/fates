@@ -481,7 +481,7 @@ contains
 
     ! ============================================================================
 
-  subroutine spawn_patches( currentSite, bc_in)
+  subroutine spawn_patches( currentSite, bc_in )
     !
     ! !DESCRIPTION:
     ! In this subroutine, the following happens,
@@ -1067,14 +1067,16 @@ contains
                                           currentSite%mass_balance(el)%burn_flux_to_atm + &
                                           leaf_burn_frac * leaf_m * nc%n
 
-                                     ! This diagnostic only tracks
+                                     ! This term increments the loss flux from surviving trees
                                      currentSite%flux_diags%elem(el)%burned_liveveg = &
                                           currentSite%flux_diags%elem(el)%burned_liveveg + & 
                                           leaf_burn_frac * leaf_m * nc%n * area_inv
                                      
+                                     
                                   end do
 
-                                  ! Here the mass is removed from the plant
+                                  ! Add burned leaf carbon to the atmospheric carbon flux
+                                  ! for burning.
 
                                   if(int(prt_params%woody(currentCohort%pft)) == itrue)then
                                      call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
@@ -1865,7 +1867,6 @@ contains
                                                               ! by current patch
     integer,              intent(in)    :: dist_type          ! disturbance type
 
-    
     ! locals
     type(site_massbal_type), pointer :: site_mass
     type(litter_type),pointer :: curr_litt  ! litter object for current patch
@@ -1988,9 +1989,8 @@ contains
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
 
           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-             
+
           ! Transfer below ground CWD (none burns)
-          
           do sl = 1,currentSite%nlevsoil
              donatable_mass         = curr_litt%bg_cwd(c,sl) * patch_site_areadis
              new_litt%bg_cwd(c,sl)  = new_litt%bg_cwd(c,sl) + donatable_mass*donate_m2
@@ -2017,7 +2017,7 @@ contains
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
            
            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-           
+
            ! Transfer root fines (none burns)
            do sl = 1,currentSite%nlevsoil
                donatable_mass = curr_litt%root_fines(dcmpy,sl) * patch_site_areadis             
@@ -2087,7 +2087,7 @@ contains
     type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)    , intent(in)            :: bc_in
-    
+
     !
     ! !LOCAL VARIABLES:
 
@@ -2228,8 +2228,6 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-             
-             
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -2300,7 +2298,7 @@ contains
 
             currentCohort => currentCohort%taller
         enddo
-    end do
+     end do
     
     return
   end subroutine fire_litter_fluxes
@@ -2381,7 +2379,7 @@ contains
 
 
     do el = 1,num_elements
-       
+
        element_id = element_list(el)
        site_mass  => currentSite%mass_balance(el)
        elflux_diags => currentSite%flux_diags%elem(el)
@@ -2541,7 +2539,7 @@ contains
     ! ============================================================================
 
   subroutine landusechange_litter_fluxes(currentSite, currentPatch, &
-       newPatch, patch_site_areadis, bc_in, &
+       newPatch, patch_site_areadis, bc_in,  &
        clearing_matrix_element)
     !
     ! !DESCRIPTION:
@@ -2696,7 +2694,7 @@ contains
              end do
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-             
+
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -2756,6 +2754,7 @@ contains
                         EDPftvarcon_inst%landusechange_frac_burned(pft)
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+
                 else ! all other pools can end up as timber products or burn or go to litter
                    donatable_mass = donatable_mass * (1.0_r8-EDPftvarcon_inst%landusechange_frac_exported(pft)) * &
                         (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
