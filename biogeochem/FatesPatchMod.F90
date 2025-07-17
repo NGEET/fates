@@ -32,6 +32,8 @@ module FatesPatchMod
   use FatesRadiationMemMod,   only : num_rad_stream_types
   use FatesInterfaceTypesMod, only : hlm_hio_ignore_val
   use FatesInterfaceTypesMod, only : numpft
+  use FatesInterfaceTypesMod, only : bc_in_type
+  use FatesInterfaceTypesMod, only : bc_out_type
   use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,            only : errMsg => shr_log_errMsg
 
@@ -48,6 +50,11 @@ module FatesPatchMod
     type (fates_cohort_type), pointer :: shortest => null() ! pointer to patch's shortest cohort
     type (fates_patch_type),  pointer :: older => null()    ! pointer to next older patch   
     type (fates_patch_type),  pointer :: younger => null()  ! pointer to next younger patch
+
+    ! BC data
+    ! TODO change this to a specific bc type for incremental refactor purposes if this method is picked
+    type(bc_in_type)  :: bc_in
+    type(bc_out_type) :: bc_out
   
     !---------------------------------------------------------------------------
 

@@ -186,7 +186,7 @@ module FatesInterfaceMod
    public :: DetermineGridCellNeighbors
 
    logical :: debug = .false.  ! for debugging this module
-   
+
 contains
 
   ! ====================================================================================
