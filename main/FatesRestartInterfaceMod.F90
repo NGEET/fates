@@ -110,7 +110,6 @@ module FatesRestartInterfaceMod
   integer :: ir_landuse_vector_gt_min_si
   integer :: ir_area_bareground_si
   integer :: ir_snow_depth_si
-  integer :: ir_trunk_product_si
   integer :: ir_landuse_config_si
   integer :: ir_ncohort_pa
   integer :: ir_canopy_layer_co
@@ -2113,7 +2112,6 @@ contains
            rio_landuse_vector_gt_min_si  => this%rvars(ir_landuse_vector_gt_min_si)%int1d, &
            rio_area_bareground_si      => this%rvars(ir_area_bareground_si)%r81d, &
            rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
-           rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
            rio_landuse_config_s        => this%rvars(ir_landuse_config_si)%int1d, &
            rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
            rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
@@ -3108,7 +3106,6 @@ contains
           rio_landuse_vector_gt_min_si               => this%rvars(ir_landuse_vector_gt_min_si)%int1d, &
           rio_area_bareground_si                  => this%rvars(ir_area_bareground_si)%r81d, &
           rio_snow_depth_si           => this%rvars(ir_snow_depth_si)%r81d, &
-          rio_trunk_product_si        => this%rvars(ir_trunk_product_si)%r81d, &
           rio_landuse_config_si       => this%rvars(ir_landuse_config_si)%int1d, &
           rio_ncohort_pa              => this%rvars(ir_ncohort_pa)%int1d, &
           rio_fcansno_pa              => this%rvars(ir_fcansno_pa)%r81d, &
