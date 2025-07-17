@@ -569,12 +569,6 @@ module EDTypesMod
      logical, allocatable :: landuse_vector_gt_min(:)     ! is the land use state vector for each land use type greater than the minimum below which we ignore?
      logical :: transition_landuse_from_off_to_on         ! special flag to use only when reading restarts, which triggers procedure to initialize land use
 
-   !   interface TransferBCIn
-   !      module procedure TransferBCIn_1d
-   !      module procedure TransferBCIn_2d
-   !      !module procedure TransferBCIn_3d
-   !   end interface TransferBCIn
-
      contains
 
        procedure, public :: get_current_landuse_statevector
@@ -905,7 +899,6 @@ contains
 
          case('decomp_frac_moisture')
             currentPatch%bc_in%w_scalar_sisl = data(c,:)
-            ! currentPatch%bc_in%w_scalar_sisl => transfer_array(ifp,:)
 
       ! NOTE: should the patch level bc subtypes actually be pointers to the
       ! input values instead of copies of the pointer data?  Or is not a good idea
