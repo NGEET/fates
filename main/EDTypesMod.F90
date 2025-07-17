@@ -579,8 +579,10 @@ module EDTypesMod
 
        procedure, public :: get_current_landuse_statevector
        procedure, public :: get_secondary_young_fraction
-       procedure, public :: TransferBCIn_1d
-       procedure, public :: TransferBCIn_2d
+
+       procedure, private :: TransferBCIn_1d
+       procedure, private :: TransferBCIn_2d
+       generic, public :: TransferBCIn => TransferBCIn_1d, TransferBCIn_2d
 
   end type ed_site_type
   
