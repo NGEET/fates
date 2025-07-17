@@ -181,20 +181,11 @@ module FatesInterfaceMod
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
-   public :: TransferBCIn
 
    private :: FatesReadParameters
    public :: DetermineGridCellNeighbors
 
    logical :: debug = .false.  ! for debugging this module
-
-   interface TransferBCIn
-
-      module procedure TransferBCIn_1d
-      module procedure TransferBCIn_2d
-      !module procedure TransferBCIn_3d
-
-   end interface TransferBCIn
 
 contains
 
@@ -2714,83 +2705,4 @@ subroutine FatesReadParameters(param_reader)
 
  end subroutine FatesReadParameters
 
-! ======================================================================================
-
- subroutine TransferBCIn_1d(this, tag, data)
-
-   type(ed_site_type), intent(inout) :: this
-   character(len=*),   intent(in)    :: tag
-   real(r8), pointer,  intent(in)    :: data(:)
-
-   type(fates_patch_type), pointer :: currentPatch
-
-   ! LOCAL
-   integer :: p    ! patch index
-
-   currentPatch => this%oldest_patch
-
-   do while (associated(currentPatch))
-
-      p = this%patch_map(currentPatch%patchno)
-
-      select case(trim(tag))
-
-         case('leaf_area_index')
-            currentPatch%bc_in%hlm_sp_tlai = data(p)
-            ! currentPatch%bc_in%w_scalar_sisl => transfer_array(ifp,:)
-
-      ! NOTE: should the patch level bc subtypes actually be pointers to the
-      ! input values instead of copies of the pointer data?  Or is not a good idea
-      ! since the HLM runs on a different time step than fates?
-      ! If these are not pointers then we really don't have a good way to avoid
-      ! memory duplicity.
-
-      end select
-
-      currentPatch => currentPatch%younger
-
-   end do
-
- end subroutine TransferBCIn_1d
-
-! ======================================================================================
-
- subroutine TransferBCIn_2d(this, tag, data)
-
-   type(ed_site_type), intent(inout) :: this
-   character(len=*),   intent(in)    :: tag
-   real(r8), pointer,  intent(in)    :: data(:,:)
-
-   type(fates_patch_type), pointer :: currentPatch
-
-   ! LOCAL
-   integer :: c  ! HLM column index
-
-   currentPatch => this%oldest_patch
-
-   do while (associated(currentPatch))
-
-      c = this%column_map(currentPatch%patchno)
-
-      select case(trim(tag))
-
-         case('decomp_frac_moisture')
-            currentPatch%bc_in%w_scalar_sisl = data(c,:)
-            ! currentPatch%bc_in%w_scalar_sisl => transfer_array(ifp,:)
-
-      ! NOTE: should the patch level bc subtypes actually be pointers to the
-      ! input values instead of copies of the pointer data?  Or is not a good idea
-      ! since the HLM runs on a different time step than fates?
-      ! If these are not pointers then we really don't have a good way to avoid
-      ! memory duplicity.
-
-      end select
-
-      currentPatch => currentPatch%younger
-
-   end do
-
- end subroutine TransferBCIn_2d
-
-! ======================================================================================
 end module FatesInterfaceMod
