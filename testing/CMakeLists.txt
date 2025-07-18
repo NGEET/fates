@@ -11,6 +11,7 @@ add_subdirectory(functional_testing/edge_forest fates_edge_forest_ftest)
 
 ## Unit tests
 add_subdirectory(unit_testing/fire_weather_test fates_fire_weather_utest)
+add_subdirectory(unit_testing/ecotypes_test fates_ecotypes_utest)
 add_subdirectory(unit_testing/edge_forest_test fates_edge_forest_utest)
 add_subdirectory(unit_testing/fire_fuel_test fates_fire_fuel_utest)
 add_subdirectory(unit_testing/sort_cohorts_test fates_sort_cohorts_utest)

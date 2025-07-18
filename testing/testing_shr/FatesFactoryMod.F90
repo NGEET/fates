@@ -483,6 +483,10 @@ module FatesFactoryMod
     
     ! create the patch 
     call PatchFactory(patch, patch_age, patch_data%area, num_swb, numpft, num_levsoil)
+
+    ! Apply patch variables
+    patch%total_tree_area = patch_data%total_tree_area
+    patch%livegrass = patch_data%livegrass
     
     ! add cohorts
     do i = 1, patch_data%num_cohorts 

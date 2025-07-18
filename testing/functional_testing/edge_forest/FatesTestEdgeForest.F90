@@ -31,6 +31,7 @@ program FatesTestEdgeForest
   logical  :: bin_found
 
   ! CONSTANTS:
+  logical,          parameter :: debug = .false.
   character(len=*), parameter :: out_file = 'edge_forest_out.nc'    ! output file
   real(r8),         parameter :: min_frac_forest = 0._r8      ! minimum fraction forest to calculate
   real(r8),         parameter :: max_frac_forest = 1.0_r8   ! maximum fraction forest to calculate
@@ -84,94 +85,56 @@ program FatesTestEdgeForest
     frac_forest(i) = min_frac_forest + frac_forest_inc*(i-1)
   end do
 
-  ! calculate fraction using parameters of first Gaussian bin, if any
-  bin_found = .false.
-  do e = 1, n_bins
-    if (is_param_set(ED_val_edgeforest_gaussian_amplitude(e))) then
-      bin_found = .true.
-      amplitude = ED_val_edgeforest_gaussian_amplitude(e)
-      mu = ED_val_edgeforest_gaussian_center(e)
-      sigma = ED_val_edgeforest_gaussian_sigma(e)
-      write(*, '(a, i2, a)') "Gaussian (bin ",e,"):"
-      write(*, '(a, E15.6)') "   amplitude: ",amplitude
-      write(*, '(a, E15.6)') "          mu: ",mu
-      write(*, '(a, E15.6)') "       sigma: ",sigma
-      exit
-    end if
-  end do
-  do i = 1, n_frac_forest
-    if (bin_found) then
-      if (frac_forest(i) == 0._r8) then
-        frac_in_bin_gaussian(i) = 0._r8
-      else
-        frac_in_bin_gaussian(i) = gffeb_norm(frac_forest(i), amplitude, mu, sigma, lognorm=.false.)
-      end if
-    else
-      frac_in_bin_gaussian(i) = nan
-    end if
-  end do
+  ! if debugging, print read-in parameters for all bins
+  if (debug) then
+    do e = 1, n_bins
 
-  ! calculate fraction using parameters of first lognormal bin, if any
-  bin_found = .false.
-  do e = 1, n_bins
-    if (is_param_set(ED_val_edgeforest_lognormal_amplitude(e))) then
-      bin_found = .true.
-      amplitude = ED_val_edgeforest_lognormal_amplitude(e)
-      mu = ED_val_edgeforest_lognormal_center(e)
-      sigma = ED_val_edgeforest_lognormal_sigma(e)
-      write(*, '(a, i2, a)') "Lognormal (bin ",e,"):"
-      write(*, '(a, E15.6)') "   amplitude: ",amplitude
-      write(*, '(a, E15.6)') "          mu: ",mu
-      write(*, '(a, E15.6)') "       sigma: ",sigma
-      exit
-    end if
-  end do
-  do i = 1, n_frac_forest
-    if (bin_found) then
-      if (frac_forest(i) == 0._r8) then
-        frac_in_bin_lognormal(i) = 0._r8
-      else
-        frac_in_bin_lognormal(i) = gffeb_norm(frac_forest(i), amplitude, mu, sigma, lognorm=.true.)
-      end if
-    else
-      frac_in_bin_lognormal(i) = nan
-    end if
-  end do
+      ! Gaussian
+      if (is_param_set(ED_val_edgeforest_gaussian_amplitude(e))) then
+        amplitude = ED_val_edgeforest_gaussian_amplitude(e)
+        mu = ED_val_edgeforest_gaussian_center(e)
+        sigma = ED_val_edgeforest_gaussian_sigma(e)
+        write(*, '(a, i2, a)') "Gaussian (bin ",e,"):"
+        write(*, '(a, E15.6)') "   amplitude: ",amplitude
+        write(*, '(a, E15.6)') "          mu: ",mu
+        write(*, '(a, E15.6)') "       sigma: ",sigma
 
-  ! calculate fraction using parameters of first quadratic bin, if any
-  bin_found = .false.
-  do e = 1, n_bins
-    if (is_param_set(ED_val_edgeforest_quadratic_a(e))) then
-      bin_found = .true.
-      a = ED_val_edgeforest_quadratic_a(e)
-      b = ED_val_edgeforest_quadratic_b(e)
-      c = ED_val_edgeforest_quadratic_c(e)
-      write(*, '(a, i2, a)') "Quadratic (bin ",e,"):"
-      write(*, '(a, E15.6)') "   a: ",a
-      write(*, '(a, E15.6)') "   b: ",b
-      write(*, '(a, E15.6)') "   c: ",c
-      exit
-    end if
-  end do
-  do i = 1, n_frac_forest
-    if (bin_found) then
-      if (frac_forest(i) == 0._r8) then
-        frac_in_bin_quadratic(i) = 0._r8
-      else
-        frac_in_bin_quadratic(i) = gffeb_quadratic(frac_forest(i), a, b, c)
+      ! Lognormal
+      else if (is_param_set(ED_val_edgeforest_lognormal_amplitude(e))) then
+        bin_found = .true.
+        amplitude = ED_val_edgeforest_lognormal_amplitude(e)
+        mu = ED_val_edgeforest_lognormal_center(e)
+        sigma = ED_val_edgeforest_lognormal_sigma(e)
+        write(*, '(a, i2, a)') "Lognormal (bin ",e,"):"
+        write(*, '(a, E15.6)') "   amplitude: ",amplitude
+        write(*, '(a, E15.6)') "          mu: ",mu
+        write(*, '(a, E15.6)') "       sigma: ",sigma
+
+      ! Quadratic
+      else if (is_param_set(ED_val_edgeforest_quadratic_a(e))) then
+        bin_found = .true.
+        a = ED_val_edgeforest_quadratic_a(e)
+        b = ED_val_edgeforest_quadratic_b(e)
+        c = ED_val_edgeforest_quadratic_c(e)
+        write(*, '(a, i2, a)') "Quadratic (bin ",e,"):"
+        write(*, '(a, E15.6)') "   a: ",a
+        write(*, '(a, E15.6)') "   b: ",b
+        write(*, '(a, E15.6)') "   c: ",c
       end if
-    else
-      frac_in_bin_quadratic(i) = nan
-    end if
-  end do
+    end do
+  end if
 
   ! calculate fraction in every bin
   do i = 1, n_frac_forest
+
+    ! Pre-normalization
     call get_fraction_of_edgeforest_in_each_bin(frac_forest(i), n_bins, &
         ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, &
         ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, &
         ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, &
         frac_in_every_bin(i,:), .false.)
+
+    ! Normalized
     call get_fraction_of_edgeforest_in_each_bin(frac_forest(i), n_bins, &
         ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, &
         ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, &

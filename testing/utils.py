@@ -64,6 +64,9 @@ def create_nc_from_cdl(cdl_path: str, run_dir: str) -> str:
     file_basename = os.path.basename(cdl_path).split(".")[-2]
     file_nc_name = f"{file_basename}.nc"
 
+    if not os.path.exists(run_dir):
+        os.makedirs(run_dir)
+
     file_gen_command = ["ncgen -o", os.path.join(run_dir, file_nc_name), cdl_path]
     out = run_cmd_no_fail(" ".join(file_gen_command), combine_output=True)
     print(out)

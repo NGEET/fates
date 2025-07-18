@@ -44,7 +44,6 @@ class EdgeForestTest(FunctionalTest):
         # Plot all bins
         da = edge_forest_dat["frac_in_every_bin"]
         da_norm = edge_forest_dat["frac_in_every_bin_norm"]
-        print(da)
         self.plot_edge_forest_frac_allbins(
             da,
             da_norm,

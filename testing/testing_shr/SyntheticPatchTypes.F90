@@ -9,6 +9,8 @@ module SyntheticPatchTypes
   private
   
   integer, parameter :: chunk_size = 10
+  real(r8), public   :: forest_tree_fraction_threshold = 0.5
+  real(r8), public   :: grass_biomass_threshold = 0._r8
   
   ! patch data type to hold data about the synthetic patches
   type, public :: synthetic_patch_type
@@ -20,6 +22,8 @@ module SyntheticPatchTypes
     real(r8), allocatable         :: dbhs(:)           ! cohort dbhs [cm]
     real(r8), allocatable         :: densities(:)      ! cohort densities [/m2]
     integer,  allocatable         :: canopy_layers(:)  ! canopy layers
+    real(r8)                      :: total_tree_area   ! tree cover area [m2]
+    real(r8)                      :: livegrass         ! total aboveground grass biomass in patch [kgC/m2]
     integer,  allocatable         :: pft_ids(:)        ! pft ids
     
     contains 
@@ -49,7 +53,7 @@ module SyntheticPatchTypes
   contains 
   
   subroutine InitSyntheticPatchData(this, patch_id, patch_name, area, ages, dbhs,        &
-    densities, pft_ids, canopy_layers)
+    densities, pft_ids, canopy_layers, total_tree_area, livegrass)
     !
     ! DESCRIPTION:
     ! Initializes a synthetic patch with input characteristics
@@ -65,6 +69,8 @@ module SyntheticPatchTypes
     real(r8),                    intent(in)    :: densities(:)     ! cohort densities [/m2]
     integer,                     intent(in)    :: pft_ids(:)       ! pft ids
     integer,                     intent(in)    :: canopy_layers(:) ! canopy layers of cohorts
+    real(r8),                    intent(in)    :: total_tree_area  ! tree cover area [m2]
+    real(r8),                    intent(in)    :: livegrass        ! total aboveground grass biomass in patch [kgC/m2]
     
     ! LOCALS:
     integer :: num_cohorts ! number of cohorts on patch 
@@ -84,6 +90,8 @@ module SyntheticPatchTypes
     this%num_cohorts = num_cohorts
     this%patch_id = patch_id
     this%area = area
+    this%total_tree_area = total_tree_area
+    this%livegrass = livegrass
     
     do i = 1, num_cohorts 
       this%ages(i) = ages(i)
@@ -98,7 +106,7 @@ module SyntheticPatchTypes
   ! --------------------------------------------------------------------------------------
   
    subroutine AddPatch(this, patch_name, area, ages, dbhs, densities, pft_ids, &
-    canopy_layers)
+    canopy_layers, total_tree_area, livegrass)
     !
     ! DESCRIPTION:
     ! Adds a synthetic patch data to a dynamic array
@@ -113,6 +121,8 @@ module SyntheticPatchTypes
     real(r8),                          intent(in)    :: densities(:)      ! cohort densities [/m2]
     integer,                           intent(in)    :: pft_ids(:)        ! pft ids
     integer,                           intent(in)    :: canopy_layers(:)  ! canopy layers
+    real(r8),                          intent(in)    :: total_tree_area   ! tree cover area [m2]
+    real(r8),                          intent(in)    :: livegrass         ! total aboveground grass biomass in patch [kgC/m2]
     
     ! LOCALS:
     type(synthetic_patch_type)              :: patch_data         ! synthetic patch data
@@ -137,7 +147,7 @@ module SyntheticPatchTypes
     end if 
     
     call patch_data%InitSyntheticPatchData(this%num_patches, patch_name, area, ages, dbhs,       &
-      densities, pft_ids, canopy_layers)
+      densities, pft_ids, canopy_layers, total_tree_area, livegrass)
     
     this%patches(this%num_patches) = patch_data
       
@@ -201,52 +211,85 @@ module SyntheticPatchTypes
     !
     ! LOCALS:
     logical :: add_all
+    real(r8) :: patch_area = 500
 
     add_all = .not. present(patch_name_in)
 
     if (add_all .or. patch_name_in == 'tropical') then
-      call this%AddPatch(patch_name='tropical', area=500.0_r8,                             &
+      call this%AddPatch(patch_name='tropical', area=patch_area,                           &
         ages=(/100.0_r8, 80.0_r8, 40.0_r8, 20.0_r8/),                                      &
         dbhs=(/60.0_r8, 50.0_r8, 25.0_r8, 10.0_r8/),                                       &
         densities=(/0.005_r8, 0.008_r8, 0.02_r8, 0.017_r8/),                               &
         pft_ids=(/1, 1, 1, 1/),                                                            &
-        canopy_layers=(/1, 1, 2, 2/))
+        canopy_layers=(/1, 1, 2, 2/),                                                      &
+        total_tree_area=patch_area,                                                        &
+        livegrass=0._r8)
     end if
     
     if (add_all .or. patch_name_in == 'evergreen') then
-      call this%AddPatch(patch_name='evergreen', area=500.0_r8,                            &
+      call this%AddPatch(patch_name='evergreen', area=patch_area,                          &
         ages=(/50.0_r8, 50.0_r8/),                                                         &
         dbhs=(/30.0_r8, 25.0_r8/),                                                         &
         densities=(/0.015_r8, 0.015_r8/),                                                  &
         pft_ids=(/2, 2/),                                                                  &
-        canopy_layers=(/1, 1/))
+        canopy_layers=(/1, 1/),                                                            &
+        total_tree_area=patch_area,                                                        &
+        livegrass=0._r8)
     end if
       
     if (add_all .or. patch_name_in == 'savannah') then
-      call this%AddPatch(patch_name='savannah', area=500.0_r8,                             &
+      call this%AddPatch(patch_name='savannah', area=patch_area,                           &
         ages=(/20.0_r8, 1.0_r8/),                                                          &
         dbhs=(/15.0_r8, 1.0_r8/),                                                          &
         densities=(/0.015_r8, 0.015_r8/),                                                  &
         pft_ids=(/5, 14/),                                                                 &
-        canopy_layers=(/1, 2/))
+        canopy_layers=(/1, 2/),                                                            &
+        total_tree_area=patch_area * forest_tree_fraction_threshold,                       &
+        livegrass=grass_biomass_threshold)
+    end if
+      
+    if (add_all .or. patch_name_in == 'savannah_woody') then
+      call this%AddPatch(patch_name='savannah_woody', area=patch_area,                     &
+        ages=(/20.0_r8, 1.0_r8/),                                                          &
+        dbhs=(/15.0_r8, 1.0_r8/),                                                          &
+        densities=(/0.030_r8, 0.0075_r8/),                                                 &
+        pft_ids=(/5, 14/),                                                                 &
+        canopy_layers=(/1, 2/),                                                            &
+        total_tree_area=patch_area * (forest_tree_fraction_threshold + 0.1),               &
+        livegrass=grass_biomass_threshold - 1.0_r8)
+    end if
+      
+    if (add_all .or. patch_name_in == 'savannah_grassy') then
+      call this%AddPatch(patch_name='savannah_grassy', area=patch_area,                    &
+        ages=(/20.0_r8, 1.0_r8/),                                                          &
+        dbhs=(/15.0_r8, 1.0_r8/),                                                          &
+        densities=(/0.0075_r8, 0.030_r8/),                                                 &
+        pft_ids=(/5, 14/),                                                                 &
+        canopy_layers=(/1, 2/),                                                            &
+        total_tree_area=patch_area * forest_tree_fraction_threshold - 0.1,                 &
+        livegrass=grass_biomass_threshold + 1.0_r8)
     end if
       
     if (add_all .or. patch_name_in == 'grassland') then
-      call this%AddPatch(patch_name='grassland', area=500.0_r8,                            &
+      call this%AddPatch(patch_name='grassland', area=patch_area,                          &
         ages=(/1.0_r8, 2.0_r8/),                                                           &
         dbhs=(/1.0_r8, 1.0_r8/),                                                           &
         densities=(/0.015_r8, 0.015_r8/),                                                  &
         pft_ids=(/13, 13/),                                                                &
-        canopy_layers=(/1, 1/))
+        canopy_layers=(/1, 1/),                                                            &
+        total_tree_area=0._r8,                                                             &
+        livegrass=grass_biomass_threshold + 2.0_r8)
     end if
       
     if (add_all .or. patch_name_in == 'temperate') then
-      call this%AddPatch(patch_name='temperate', area=500.0_r8,                            &
+      call this%AddPatch(patch_name='temperate', area=patch_area,                          &
         ages=(/80.0_r8, 50.0_r8, 20.0_r8, 5.0_r8/),                                        &
         dbhs=(/50.0_r8, 30.0_r8, 15.0_r8, 3.0_r8/),                                        &
         densities=(/0.005_r8, 0.01_r8, 0.015_r8, 0.005_r8/),                               &
         pft_ids=(/6, 2, 2, 9/),                                                            &
-        canopy_layers=(/1, 1, 2, 2/))
+        canopy_layers=(/1, 1, 2, 2/),                                                      &
+        total_tree_area=patch_area,                                                        &
+        livegrass=0._r8)
     end if
     
   end subroutine GetSyntheticPatchData
