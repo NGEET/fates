@@ -34,7 +34,8 @@ import matplotlib.pyplot as plt
 from build_fortran_tests import build_tests, build_exists
 from functional_class_with_drivers import FunctionalTestWithDrivers
 from path_utils import add_cime_lib_to_path
-from utils import copy_file, create_nc_from_cdl, config_to_dict, parse_test_list
+from utils import copy_file, config_to_dict, parse_test_list
+from utils import check_param_file, create_param_file, _DEFAULT_CDL_PATH
 
 # load the functional test classes
 from load_functional_tests import *
@@ -46,14 +47,6 @@ from CIME.utils import run_cmd
 # constants for this script
 _FILE_DIR = os.path.dirname(__file__)
 _DEFAULT_CONFIG_FILE = os.path.join(_FILE_DIR, "functional_tests.cfg")
-_DEFAULT_CDL_PATH = os.path.abspath(
-    os.path.join(
-        _FILE_DIR,
-        os.pardir,
-        "parameter_files",
-        "fates_params_default.cdl",
-    )
-)
 _CMAKE_BASE_DIR = os.path.join(_FILE_DIR, os.pardir)
 _TEST_SUB_DIR = "testing"
 
@@ -203,25 +196,6 @@ def check_arg_validity(args):
         raise RuntimeError(f"config 'file' is a directory: '{args.config_file}'")
 
 
-def check_param_file(param_file):
-    """Checks to see if param_file exists and is of the correct form (.nc or .cdl)
-
-    Args:
-        param_file (str): path to parameter file
-
-    Raises:
-        argparse.ArgumentError: Parameter file is not of the correct form (.nc or .cdl)
-        argparse.ArgumentError: Can't find parameter file
-    """
-    file_suffix = os.path.basename(param_file).split(".")[-1]
-    if not file_suffix in ["cdl", "nc"]:
-        raise argparse.ArgumentError(
-            None, "Must supply parameter file with .cdl or .nc ending."
-        )
-    if not os.path.isfile(param_file):
-        raise FileNotFoundError(param_file)
-
-
 def check_build_dir(build_dir, test_dict):
     """Checks to see if all required build directories and executables are present
 
@@ -358,37 +332,6 @@ def make_plotdirs(run_dir, test_dict):
         sub_dir = os.path.join(plot_dir, test)
         if not os.path.isdir(sub_dir):
             os.mkdir(sub_dir)
-
-
-def create_param_file(param_file, run_dir):
-    """Creates and/or move the default or input parameter file to the run directory
-    Creates a netcdf file from a cdl file if a cdl file is supplied
-
-    Args:
-        param_file (str): path to parmaeter file
-        run_dir (str): full path to run directory
-
-    Raises:
-        RuntimeError: Supplied parameter file is not netcdf (.cd) or cdl (.cdl)
-
-    Returns:
-        str: full path to new parameter file name/location
-    """
-    if param_file is None:
-        print("Using default parameter file.")
-        param_file = _DEFAULT_CDL_PATH
-        param_file_update = create_nc_from_cdl(param_file, run_dir)
-    else:
-        print(f"Using parameter file {param_file}.")
-        file_suffix = os.path.basename(param_file).split(".")[-1]
-        if file_suffix == "cdl":
-            param_file_update = create_nc_from_cdl(param_file, run_dir)
-        elif file_suffix == "nc":
-            param_file_update = copy_file(param_file, run_dir)
-        else:
-            raise RuntimeError("Must supply parameter file with .cdl or .nc ending.")
-
-    return param_file_update
 
 
 def run_fortran_exectuables(build_dir, test_dir, test_exe, run_dir, args):
