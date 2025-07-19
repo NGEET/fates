@@ -72,7 +72,7 @@ contains
 
   is_patch_forest = does_patch_have_forest_tcthresh(patchptr, forest_tree_fraction_threshold)
   if (is_patch_forest .and. present(grass_biomass_threshold)) then
-     is_patch_forest = does_patch_have_grass_bmthresh(patchptr, grass_biomass_threshold)
+     is_patch_forest = .not. does_patch_have_grass_bmthresh(patchptr, grass_biomass_threshold)
   end if
 
   end function is_patch_forest
