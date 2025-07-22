@@ -69,6 +69,9 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_phosphorus_spec ! Signals if phosphorous is turned on in the HLM
                                                      ! 0: none
                                                      ! 1: p is on
+                                                     !
+   integer, public :: hlm_nitrogen_supl    ! HLM nitrogen supplementation status
+   integer, public :: hlm_phosphorus_supl  ! HLM phosphorus supplementation status
 
    real(r8), public :: hlm_stepsize        ! The step-size of the host land model (s)
                                            ! moreover, this is the shortest main-model timestep
