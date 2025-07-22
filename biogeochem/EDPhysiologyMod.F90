@@ -1578,7 +1578,6 @@ contains
 
     real(r8) :: fnrt_drop_fraction       ! Fine root relative drop fraction (0 = no drop, 1 = as much as leaves)
     real(r8) :: stem_drop_fraction       ! Stem drop relative fraction (0 = no drop, 1 = as much as leaves)
-    real(r8) :: l2fr                     ! Leaf to fineroot biomass multiplier
 
     integer  :: ipft                     ! Plant functional type index
     real(r8), parameter :: leaf_drop_fraction  = 1.0_r8
@@ -1605,9 +1604,6 @@ contains
 
           fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(ipft)
           stem_drop_fraction = prt_params%phen_stem_drop_fraction(ipft)
-          l2fr = currentCohort%l2fr ! Reading the L2FR from current cohort rather than parameter file
-          !l2fr               = prt_params%allom_l2fr(ipft)
-
 
           ! MLO. To avoid duplicating code for drought and cold deciduous PFTs, we first
           !      check whether or not it's time to flush or time to shed leaves, then
@@ -1660,7 +1656,7 @@ contains
           call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage, &
                currentCohort%canopy_trim,currentCohort%efleaf_coh,target_leaf_c)
           call bfineroot(currentCohort%dbh,currentCohort%pft, &
-               currentCohort%canopy_trim,l2fr,currentCohort%effnrt_coh,target_fnrt_c)
+               currentCohort%canopy_trim,currentCohort%l2fr,currentCohort%effnrt_coh,target_fnrt_c)
           call bsap_allom(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage, &
                currentCohort%canopy_trim,currentCohort%efstem_coh,sapw_area,target_sapw_c)
           call bagw_allom(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage,&
@@ -2493,7 +2489,7 @@ contains
       real(r8)                          :: height             ! new cohort height [m]
       real(r8)                          :: dbh                ! new cohort DBH [cm]
       real(r8)                          :: cohort_n           ! new cohort density
-      real(r8)                          :: l2fr               ! leaf to fineroot biomass ratio [0-1]
+      real(r8)                          :: l2fr               ! leaf to fineroot biomass ratio [-]
       real(r8)                          :: c_leaf             ! target leaf biomass [kgC]
       real(r8)                          :: c_fnrt             ! target fine root biomass [kgC]
       real(r8)                          :: c_sapw             ! target sapwood biomass [kgC]
