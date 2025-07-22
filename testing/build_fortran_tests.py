@@ -3,6 +3,7 @@ Builds/compiles any tests within the FATES repository
 """
 import os
 import shutil
+from socket import gethostname
 from path_utils import add_cime_lib_to_path
 
 add_cime_lib_to_path()
@@ -101,37 +102,48 @@ def get_extra_cmake_args(build_dir:str, mpilib:str) -> str:
     Returns:
         str: space-separated list of cmake arguments
     """
-    # get the machine objects file
-    machobj = Machines() 
+    # Check if the test is being run in a FATES testing container
+    if (gethostname() == "fatestestcontainer"):
+        machinename = "fatestestcontainer"
+        compiler = "gnu"
+        mplilib = "mpi-serial"
+        # build_dir
+    else:
+        # If not in a testing container, assume we are running on a machine
+        # that has a supported environment
 
-    # get compiler
-    compiler = machobj.get_default_compiler()
+        # get the machine objects file
+        machobj = Machines() 
 
-    # get operating system
-    os_ = machobj.get_value("OS")
+        # get compiler
+        compiler = machobj.get_default_compiler()
 
-    # create the environment, and the Macros.cmake file
-    configure(
-        machobj,
-        build_dir,
-        ["CMake"],
-        compiler,
-        mpilib,
-        True,
-        "nuopc",
-        os_,
-        unit_testing=True,
-    )
-    machspecific = EnvMachSpecific(build_dir, unit_testing=True)
+        # get operating system
+        os_ = machobj.get_value("OS")
 
-    # make a fake case
-    fake_case = FakeCase(compiler, mpilib, True, "nuopc", threading=False)
-    machspecific.load_env(fake_case)
+        # create the environment, and the Macros.cmake file
+        configure(
+            machobj,
+            build_dir,
+            ["CMake"],
+            compiler,
+            mpilib,
+            True,
+            "nuopc",
+            os_,
+            unit_testing=True,
+        )
+        machspecific = EnvMachSpecific(build_dir, unit_testing=True)
+
+        # make a fake case
+        fake_case = FakeCase(compiler, mpilib, True, "nuopc", threading=False)
+        machspecific.load_env(fake_case)
+        machinename = machobj.get_machine_name()
     
     # create cmake argument list with information from the fake case and machine object
     cmake_args_list = [
       f"-DOS={os_}",
-      f"-DMACH={machobj.get_machine_name()}",
+      f"-DMACH={machinename}",
       f"-DCOMPILER={compiler}",
       f"-DDEBUG={stringify_bool(True)}",
       f"-DMPILIB={mpilib}",

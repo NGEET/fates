@@ -39,6 +39,9 @@ def path_to_cime() -> str:
     cime_path = os.path.join(path_to_fates_root(), "../../cime")
     if os.path.isdir(cime_path):
         return cime_path
+    elif os.path.isdir("/cime"):
+        return "/cime"
+
     raise RuntimeError("Cannot find cime.")
 
 

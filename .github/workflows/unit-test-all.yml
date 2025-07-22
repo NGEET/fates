@@ -1,0 +1,52 @@
+name: Run Unit Tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/glemieux/containers/unit-testing:latest
+      options: --hostname fatestestcontainer
+
+    steps:
+     
+      - name: Preserve $HOME set in the container
+        run: echo HOME=/root/ >> "$GITHUB_ENV"
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+          
+      - name: Activate Spack environment and run tests
+        run: |
+          . /opt/spack-environment/activate.sh
+          python -m pip install matplotlib
+          echo "HOSTNAME: $HOSTNAME"
+          echo "HOME: $HOME"
+          echo "CIMEROOT: $CIMEROOT"
+          echo "NETCDF_FORTRAN_PATH: $NETCDF_FORTRAN_PATH"
+          echo "NETCDF_C_PATH: $NETCDF_C_PATH"
+          cd testing/
+          python run_unit_tests.py --make-j 2 --test-list all
+
+        # cd /cime/CIME
+        # echo "get cime root"
+        # python -c 'from utils import get_cime_root; print(get_cime_root())'
+        # echo "get config path"
+        # python -c 'from utils import get_config_path; print(get_config_path())'
+        # echo "get schema path"
+        # python -c 'from utils import get_schema_path; print(get_schema_path())'
+
+
+        # cd testing/
+        # echo "path_to_cime:"
+        # python -c 'from path_utils import path_to_cime; print(path_to_cime())'
+        # python run_unit_tests.py --make-j 2 --test-list all
+
+      # - name: Run FATES unit tests
+      #   working-directory: ./testing/
+      #   run: |
+      #     python run_unit_tests.py --make-j 2 --test-list all
