@@ -276,6 +276,9 @@ module FatesPatchMod
       allocate(this%sabs_dir(num_swb))
       allocate(this%sabs_dif(num_swb))
       allocate(this%fragmentation_scaler(num_levsoil))
+      allocate(this%bc_in%w_scalar_sisl(num_levsoil))
+      allocate(this%bc_in%t_scalar_sisl(num_levsoil))
+
 
       ! initialize all values to nan
       call this%NanValues()
@@ -514,6 +517,10 @@ module FatesPatchMod
       this%scorch_ht(:)                 = nan 
       this%tfc_ros                      = nan
       this%frac_burnt                   = nan
+
+      ! Boundary conditions
+      this%bc_in%w_scalar_sisl(:)       = nan
+      this%bc_in%t_scalar_sisl(:)       = nan
       
     end subroutine NanValues
 
@@ -600,6 +607,10 @@ module FatesPatchMod
       this%scorch_ht(:)                      = 0.0_r8  
       this%tfc_ros                           = 0.0_r8
       this%frac_burnt                        = 0.0_r8
+
+      ! Boundary conditions
+      this%bc_in%w_scalar_sisl(:)            = 0.0_r8
+      this%bc_in%t_scalar_sisl(:)            = 0.0_r8
 
     end subroutine ZeroValues
 
