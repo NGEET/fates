@@ -52,7 +52,7 @@ module PRTAllometricCNPMod
   use FatesIntegratorsMod , only : Euler
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : nearzero
-  use FatesConstantsMod   , only : itrue
+  use FatesConstantsMod   , only : ievergreen
   use FatesConstantsMod   , only : fates_unset_r8
   use FatesConstantsMod   , only : fates_unset_int
   use FatesConstantsMod   , only : sec_per_day
@@ -1042,7 +1042,7 @@ contains
        ! Also, dont allocate to replace turnover if this is not evergreen
        ! (this prevents accidental re-flushing on the day they drop)
        if( ( any(leaf_status == [leaves_off,leaves_shedding]) .or. &
-             (prt_params%evergreen(ipft) /= itrue) ) &
+             (prt_params%phen_leaf_habit(ipft) /= ievergreen) ) &
             .and. (i_org == leaf_organ)) cycle
 
        ! The priority code associated with this organ
@@ -1904,14 +1904,13 @@ contains
 
     ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
     ! It will also update the target
-
     ! turn on the dynamic L2FR post supplemental N period
     call get_curr_date(yr, mon, day, sec)
     if (spinup_state == 1 .and. yr .gt. nyears_ad_carbon_only) then
-      call this%CNPAdjustFRootTargets(target_c,target_dcdd)
+       call this%CNPAdjustFRootTargets(target_c,target_dcdd)
     else if (spinup_state /= 1) then
-      call this%CNPAdjustFRootTargets(target_c,target_dcdd)
-   end if
+       call this%CNPAdjustFRootTargets(target_c,target_dcdd)
+    end if
 
     ! -----------------------------------------------------------------------------------
     ! If carbon is still available, lets cram some into storage overflow
@@ -2100,12 +2099,16 @@ contains
 
     if(organ_id == store_organ) then
 
-       call bleaf(dbh,ipft,crown_damage,canopy_trim, elongf_leaf, leaf_c_target)
-       call bfineroot(dbh,ipft,canopy_trim,l2fr, elongf_fnrt, fnrt_c_target)
-       call bsap_allom(dbh,ipft,crown_damage,canopy_trim, elongf_stem, sapw_area,sapw_c_target)
-       call bagw_allom(dbh,ipft,crown_damage, elongf_stem, agw_c_target)
-       call bbgw_allom(dbh,ipft, elongf_stem, bgw_c_target)
-       call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target)
+      ! bug fix: Preventing decline in Carbon Flux During Leaf-Off Period in Deciduous PFTs
+      ! This call to organs' target biomass is independent of phenological stage 
+      ! more details: https://github.com/NGEET/fates/pull/1348
+
+      call bleaf(dbh,ipft,crown_damage,canopy_trim, 1.0_r8, leaf_c_target)
+      call bfineroot(dbh,ipft,canopy_trim,l2fr, 1.0_r8, fnrt_c_target)
+      call bsap_allom(dbh,ipft,crown_damage,canopy_trim, 1.0_r8, sapw_area,sapw_c_target)
+      call bagw_allom(dbh,ipft,crown_damage, 1.0_r8, agw_c_target)
+      call bbgw_allom(dbh,ipft, 1.0_r8, bgw_c_target)
+      call bdead_allom(agw_c_target,bgw_c_target, sapw_c_target, ipft, struct_c_target)
 
        ! Target for storage is a fraction of the sum target of all
        ! non-reproductive organs

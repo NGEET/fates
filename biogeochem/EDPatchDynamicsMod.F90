@@ -17,7 +17,6 @@ module EDPatchDynamicsMod
   use FatesLitterMod       , only : litter_type
   use FatesConstantsMod    , only : n_dbh_bins 
   use FatesLitterMod       , only : adjust_SF_CWD_frac
-  use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : area
   use FatesConstantsMod    , only : patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
@@ -411,8 +410,6 @@ contains
              else if (currentPatch%land_use_label .eq. primaryland .and. .not. &
                   site_in%landuse_vector_gt_min(secondaryland)) then
                 harvest_rate = state_vector(secondaryland) / sum(state_vector(:))
-             else
-                harvest_rate = 0._r8
              end if
           else
              call GetInitLanduseHarvestRate(bc_in, site_in%min_allowed_landuse_fraction, &
@@ -434,7 +431,8 @@ contains
        endif
 
        ! Fire Disturbance Rate
-       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
+       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt 
+
 
        ! Fires can't burn the whole patch, as this causes /0 errors. 
        if (currentPatch%disturbance_rates(dtype_ifire) > 0.98_r8)then
@@ -483,7 +481,7 @@ contains
 
     ! ============================================================================
 
-  subroutine spawn_patches( currentSite, bc_in)
+  subroutine spawn_patches( currentSite, bc_in )
     !
     ! !DESCRIPTION:
     ! In this subroutine, the following happens,
@@ -1069,14 +1067,16 @@ contains
                                           currentSite%mass_balance(el)%burn_flux_to_atm + &
                                           leaf_burn_frac * leaf_m * nc%n
 
-                                     ! This diagnostic only tracks
+                                     ! This term increments the loss flux from surviving trees
                                      currentSite%flux_diags%elem(el)%burned_liveveg = &
                                           currentSite%flux_diags%elem(el)%burned_liveveg + & 
                                           leaf_burn_frac * leaf_m * nc%n * area_inv
                                      
+                                     
                                   end do
 
-                                  ! Here the mass is removed from the plant
+                                  ! Add burned leaf carbon to the atmospheric carbon flux
+                                  ! for burning.
 
                                   if(int(prt_params%woody(currentCohort%pft)) == itrue)then
                                      call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
@@ -1867,7 +1867,6 @@ contains
                                                               ! by current patch
     integer,              intent(in)    :: dist_type          ! disturbance type
 
-    
     ! locals
     type(site_massbal_type), pointer :: site_mass
     type(litter_type),pointer :: curr_litt  ! litter object for current patch
@@ -1990,9 +1989,8 @@ contains
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
 
           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-             
+
           ! Transfer below ground CWD (none burns)
-          
           do sl = 1,currentSite%nlevsoil
              donatable_mass         = curr_litt%bg_cwd(c,sl) * patch_site_areadis
              new_litt%bg_cwd(c,sl)  = new_litt%bg_cwd(c,sl) + donatable_mass*donate_m2
@@ -2019,7 +2017,7 @@ contains
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
            
            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-           
+
            ! Transfer root fines (none burns)
            do sl = 1,currentSite%nlevsoil
                donatable_mass = curr_litt%root_fines(dcmpy,sl) * patch_site_areadis             
@@ -2089,7 +2087,7 @@ contains
     type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)    , intent(in)            :: bc_in
-    
+
     !
     ! !LOCAL VARIABLES:
 
@@ -2230,8 +2228,6 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-             
-             
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -2302,7 +2298,7 @@ contains
 
             currentCohort => currentCohort%taller
         enddo
-    end do
+     end do
     
     return
   end subroutine fire_litter_fluxes
@@ -2383,7 +2379,7 @@ contains
 
 
     do el = 1,num_elements
-       
+
        element_id = element_list(el)
        site_mass  => currentSite%mass_balance(el)
        elflux_diags => currentSite%flux_diags%elem(el)
@@ -2543,7 +2539,7 @@ contains
     ! ============================================================================
 
   subroutine landusechange_litter_fluxes(currentSite, currentPatch, &
-       newPatch, patch_site_areadis, bc_in, &
+       newPatch, patch_site_areadis, bc_in,  &
        clearing_matrix_element)
     !
     ! !DESCRIPTION:
@@ -2597,8 +2593,6 @@ contains
     integer  :: pft                  ! loop index for plant functional types
     integer  :: dcmpy                ! loop index for decomposability pool
     integer  :: element_id           ! parteh compatible global element index
-    real(r8) :: trunk_product_site   ! flux of carbon in trunk products exported off site      [ kgC/site ]
-                                     ! (note we are accumulating over the patch, but scale is site level)
     real(r8) :: woodproduct_mass     ! mass that ends up in wood products [kg]
 
     !---------------------------------------------------------------------
@@ -2640,9 +2634,6 @@ contains
        end if
 
        do el = 1,num_elements
-
-          ! Zero some site level accumulator diagnsotics
-          trunk_product_site  = 0.0_r8
 
           element_id = element_list(el)
           site_mass  => currentSite%mass_balance(el)
@@ -2703,7 +2694,7 @@ contains
              end do
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-             
+
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -2763,6 +2754,7 @@ contains
                         EDPftvarcon_inst%landusechange_frac_burned(pft)
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+
                 else ! all other pools can end up as timber products or burn or go to litter
                    donatable_mass = donatable_mass * (1.0_r8-EDPftvarcon_inst%landusechange_frac_exported(pft)) * &
                         (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
@@ -2775,9 +2767,6 @@ contains
                         EDPftvarcon_inst%landusechange_frac_exported(pft)
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
-                   trunk_product_site = trunk_product_site + &
-                        woodproduct_mass
 
                    ! Amount of trunk mass exported off site [kg/m2]
                    elflux_diags%exported_harvest = elflux_diags%exported_harvest + &
@@ -2794,15 +2783,6 @@ contains
 
              currentCohort => currentCohort%taller
           enddo
-
-          ! Update the amount of carbon exported from the site through logging.
-
-          if(element_id .eq. carbon12_element) then
-             currentSite%resources_management%trunk_product_site  = &
-                  currentSite%resources_management%trunk_product_site + &
-                  trunk_product_site
-          end if
-
 
        end do
 
@@ -3213,6 +3193,8 @@ contains
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
     rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
+
+    ! Radiation
     rp%rad_error(1)         = (dp%rad_error(1)*dp%area + rp%rad_error(1)*rp%area) * inv_sum_area
     rp%rad_error(2)         = (dp%rad_error(2)*dp%area + rp%rad_error(2)*rp%area) * inv_sum_area
     
@@ -3577,12 +3559,8 @@ contains
       do while(associated(currentPatch)) 
           litt => currentPatch%litter(el)
           
-          if(homogenize_seed_pfts) then
-              litt%seed(:) = litt%seed(:) + seed_mass/(area_site*real(numpft,r8))
-          else
-              litt%seed(pft) = litt%seed(pft) + seed_mass/area_site
-          end if
-          
+          litt%seed(pft) = litt%seed(pft) + seed_mass/area_site
+
           currentPatch => currentPatch%younger
       end do
           

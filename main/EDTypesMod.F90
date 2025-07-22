@@ -129,7 +129,6 @@ module EDTypesMod
                                                                           ! number densities of cohorts to prevent FPEs
 
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
-  logical, parameter, public :: homogenize_seed_pfts  = .false.
   character(len=*), parameter, private :: sourcefile = __FILE__
 
   !************************************
@@ -138,7 +137,6 @@ module EDTypesMod
   !************************************
   type, public :: ed_resources_management_type
     
-     real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
      real(r8) ::  harvest_debt                             ! the amount of kgC per site that did not successfully harvested 
      real(r8) ::  harvest_debt_sec                         ! the amount of kgC per site from secondary patches that did
                                                            ! not successfully harvested
@@ -357,6 +355,9 @@ module EDTypesMod
      ! Total area of patches in each age bin [m2]
      real(r8), allocatable :: area_by_age(:)
 
+     ! Cosine of the zenith angle of the sun
+     real(r8) :: coszen
+     
      
      ! Nutrient relevant 
      real(r8), allocatable :: rec_l2fr(:,:) ! A running mean of the l2fr's for the newly

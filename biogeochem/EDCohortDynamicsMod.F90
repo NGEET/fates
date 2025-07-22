@@ -39,6 +39,7 @@ Module EDCohortDynamicsMod
   use PRTGenericMod         , only : num_elements
   use FatesConstantsMod     , only : leaves_off
   use FatesConstantsMod     , only : leaves_shedding
+  use FatesConstantsMod     , only : ihard_season_decid
   use FatesConstantsMod     , only : ihard_stress_decid
   use FatesConstantsMod     , only : isemi_stress_decid
   use EDParamsMod           , only : ED_val_cohort_age_fusion_tol
@@ -940,7 +941,7 @@ contains
                                         currentCohort%size_class,currentCohort%size_by_pft_class)
 
                                    if(hlm_use_planthydro.eq.itrue) then
-                                      call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)
+                                      call FuseCohortHydraulics(currentSite,currentCohort,nextc,newn)
                                    endif
 
                                    ! recent canopy history
@@ -1117,7 +1118,7 @@ contains
                                    ! update hydraulics quantities that are functions of height & biomasses
                                    ! deallocate the hydro structure of nextc
                                    if (hlm_use_planthydro.eq.itrue) then
-                                      call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
+                                      call UpdateSizeDepPlantHydProps(currentSite,currentCohort)
                                    endif
 
                                    call nextc%FreeMemory()
@@ -1389,10 +1390,10 @@ contains
 
       !--- Set some logical flags to simplify "if" blocks
       is_hydecid_dormant = &
-         any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
+         any(prt_params%phen_leaf_habit(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
          .and. any(ccohort%status_coh == [leaves_off,leaves_shedding] )
       is_sedecid_dormant = &
-         ( prt_params%season_decid(ipft) == itrue ) &
+         ( prt_params%phen_leaf_habit(ipft) == ihard_season_decid ) &
          .and. any(ccohort%status_coh == [leaves_off,leaves_shedding] )
 
       ! If plants are drought deciduous and are losing or lost all leaves, they cannot
