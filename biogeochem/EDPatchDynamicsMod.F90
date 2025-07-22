@@ -2593,8 +2593,6 @@ contains
     integer  :: pft                  ! loop index for plant functional types
     integer  :: dcmpy                ! loop index for decomposability pool
     integer  :: element_id           ! parteh compatible global element index
-    real(r8) :: trunk_product_site   ! flux of carbon in trunk products exported off site      [ kgC/site ]
-                                     ! (note we are accumulating over the patch, but scale is site level)
     real(r8) :: woodproduct_mass     ! mass that ends up in wood products [kg]
 
     !---------------------------------------------------------------------
@@ -2636,9 +2634,6 @@ contains
        end if
 
        do el = 1,num_elements
-
-          ! Zero some site level accumulator diagnsotics
-          trunk_product_site  = 0.0_r8
 
           element_id = element_list(el)
           site_mass  => currentSite%mass_balance(el)
@@ -2773,9 +2768,6 @@ contains
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-                   trunk_product_site = trunk_product_site + &
-                        woodproduct_mass
-
                    ! Amount of trunk mass exported off site [kg/m2]
                    elflux_diags%exported_harvest = elflux_diags%exported_harvest + &
                         woodproduct_mass * area_inv
@@ -2791,15 +2783,6 @@ contains
 
              currentCohort => currentCohort%taller
           enddo
-
-          ! Update the amount of carbon exported from the site through logging.
-
-          if(element_id .eq. carbon12_element) then
-             currentSite%resources_management%trunk_product_site  = &
-                  currentSite%resources_management%trunk_product_site + &
-                  trunk_product_site
-          end if
-
 
        end do
 

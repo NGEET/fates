@@ -3149,10 +3149,6 @@ contains
                (leaf_m + fnrt_m + store_m ) * &
                (dead_n_ilogging+dead_n_dlogging) *currentPatch%area
 
-          currentSite%resources_management%trunk_product_site = &
-               currentSite%resources_management%trunk_product_site + &
-               trunk_wood * logging_export_frac * currentPatch%area
-
           do c = 1,ncwd
              currentSite%resources_management%delta_litter_stock  = &
                   currentSite%resources_management%delta_litter_stock + &

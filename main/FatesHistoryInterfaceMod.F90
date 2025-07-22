@@ -430,7 +430,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_froot_mr_si
   integer :: ih_livestem_mr_si
   integer :: ih_livecroot_mr_si
-  integer :: ih_woodproduct_si
   integer :: ih_h2oveg_si
   integer :: ih_h2oveg_dead_si
   integer :: ih_h2oveg_recruit_si
@@ -2470,7 +2469,6 @@ contains
          hio_promotion_carbonflux_si       => this%hvars(ih_promotion_carbonflux_si)%r81d, &
          hio_canopy_mortality_carbonflux_si     => this%hvars(ih_canopy_mortality_carbonflux_si)%r81d, &
          hio_ustory_mortality_carbonflux_si => this%hvars(ih_understory_mortality_carbonflux_si)%r81d, &
-         hio_woodproduct_si                 => this%hvars(ih_woodproduct_si)%r81d, &
          hio_gdd_si                           => this%hvars(ih_gdd_si)%r81d, &
          hio_site_ncolddays_si                => this%hvars(ih_site_ncolddays_si)%r81d, &
          hio_site_nchilldays_si               => this%hvars(ih_site_nchilldays_si)%r81d, &
@@ -2543,10 +2541,6 @@ contains
          ! Model days elapsed since leaf on/off for cold-deciduous
          hio_cleafoff_si(io_si) = real(sites(s)%phen_model_date - sites(s)%cleafoffdate,r8)
          hio_cleafon_si(io_si)  = real(sites(s)%phen_model_date - sites(s)%cleafondate,r8)
-
-         ! track total wood product accumulation at the site level
-         hio_woodproduct_si(io_si) = sites(s)%resources_management%trunk_product_site &
-              * AREA_INV
 
          ! site-level fire variables:
 
@@ -2853,11 +2847,15 @@ contains
                   end if
                end do elloop
 
-               ! FLUXES ---
+               ! Carbon FLUXES ---
                ! Flux Variables (cohorts must had experienced a day before any of these values
                ! have any meaning, otherwise they are just inialization values
-               notnew: if( .not.(ccohort%isnew) ) then
 
+               call ccohort%prt%GetBiomass(carbon12_element , &
+                    sapw_m, struct_m, leaf_m, fnrt_m, store_m, repro_m, alive_m, total_m)
+               
+               notnew: if( .not.(ccohort%isnew) ) then
+                  
                   hio_npp_si(io_si) = hio_npp_si(io_si) + &
                        ccohort%npp_acc_hold * n_perm2 / days_per_year / sec_per_day
 
@@ -2917,16 +2915,16 @@ contains
 
                   end if
 
-                  ! THIS NEEDS TO BE NORMALIZED (RGK)
+                  ! THIS NEEDS TO BE NORMALIZED
                   hio_ca_weighted_height_si(io_si) = hio_ca_weighted_height_si(io_si) + &
                        ccohort%height * ccohort%c_area / m2_per_ha
 
                   site_ca = site_ca + ccohort%c_area / m2_per_ha
 
-                  ! RGK - CANOPY/USTORY BIOMASS IS NOT A FLUX, NEED NOT BE CONDITIONED BY isnew
+                  
+                  ! Mortality Carbon Flux by layer
                   ! ----------------------------------------------------------------------------------
                   if (ccohort%canopy_layer .eq. 1) then
-                     hio_canopy_biomass_si(io_si) = hio_canopy_biomass_si(io_si) + n_perm2 * total_m
 
                      hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
                           ccohort%SumMortForHistory(per_year = .false.) * total_m * ccohort%n * ha_per_m2
@@ -2935,7 +2933,6 @@ contains
                           ccohort%SumMortForHistory(per_year = .true.) * ccohort%c_area
 
                   else
-                     hio_ustory_biomass_si(io_si) = hio_ustory_biomass_si(io_si) + n_perm2 * total_m
 
                      hio_ustory_mortality_carbonflux_si(io_si) = hio_ustory_mortality_carbonflux_si(io_si) + &
                           ccohort%SumMortForHistory(per_year = .false.) * total_m * ccohort%n * ha_per_m2
@@ -2944,9 +2941,15 @@ contains
                           ccohort%SumMortForHistory(per_year = .true.) * ccohort%c_area
 
                   end if
-
+                  
                end if notnew
 
+               if (ccohort%canopy_layer .eq. 1) then
+                  hio_canopy_biomass_si(io_si) = hio_canopy_biomass_si(io_si) + n_perm2 * total_m
+               else
+                  hio_ustory_biomass_si(io_si) = hio_ustory_biomass_si(io_si) + n_perm2 * total_m
+               end if
+               
                ccohort => ccohort%taller
             enddo cohortloop ! cohort loop
 
@@ -6338,12 +6341,6 @@ contains
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_elai_si)
        
-       call this%set_history_var(vname='FATES_WOOD_PRODUCT', units='kg m-2',      &
-            long='total wood product from logging in kg carbon per m2 land area', &
-            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',   &
-            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
-            index=ih_woodproduct_si)
-
        ! Fire Variables
 
        call this%set_history_var(vname='FATES_NESTEROV_INDEX', units='',          &
