@@ -20,8 +20,6 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_use_nocomp
   use EDParamsMod           , only    : crop_lu_pft_vector
   use EDParamsMod           , only    : GetNVegLayers
-  use FatesInterfaceTypesMod, only    : hlm_nitrogen_spec
-  use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
   use FatesInterfaceTypesMod, only    : hlm_use_tree_damage
   use FatesInterfaceTypesMod, only : hlm_use_ed_prescribed_phys
   use FatesConstantsMod, only    : r8 => fates_r8

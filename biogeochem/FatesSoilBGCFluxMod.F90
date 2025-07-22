@@ -54,6 +54,8 @@ module FatesSoilBGCFluxMod
   use FatesInterfaceTypesMod, only    : hlm_parteh_mode
   use FatesInterfaceTypesMod, only    : hlm_use_ch4
   use FatesInterfaceTypesMod, only    : hlm_decomp
+  use FatesInterfaceTypesMod, only    : hlm_phosphorus_suppl
+  use FatesInterfaceTypesMod, only    : hlm_nitrogen_suppl
   use FatesConstantsMod , only : prescribed_p_uptake
   use FatesConstantsMod , only : prescribed_n_uptake
   use FatesConstantsMod , only : coupled_p_uptake
@@ -68,7 +70,7 @@ module FatesSoilBGCFluxMod
   use FatesConstantsMod, only    : days_per_year
   use FatesConstantsMod, only    : sec_per_day
   use FatesConstantsMod, only    : years_per_day
-  use FatesConstantsMod, only    : itrue
+  use FatesConstantsMod, only    : itrue,ifalse
   use FatesConstantsMod, only    : nocomp_bareground
   use FatesLitterMod,        only : litter_type
   use FatesLitterMod    , only : ncwd
@@ -100,7 +102,7 @@ contains
   ! =====================================================================================
   
   
-  subroutine UnPackNutrientAquisitionBCs(sites, bc_in)
+  subroutine UnPackNutrientAquisitionBCs(sites, bc_in, nitr_suppl, phos_suppl)
 
     ! -----------------------------------------------------------------------------------
     ! The purpose of this routine is to recieve the nutrient uptake flux
@@ -118,8 +120,10 @@ contains
 
     ! !ARGUMENTS    
     type(ed_site_type), intent(inout) :: sites(:)
-    type(bc_in_type), intent(in)     :: bc_in(:)
-
+    type(bc_in_type), intent(in)      :: bc_in(:)
+    logical, intent(in)               :: nitr_suppl ! Is the HLM supplementing nitrogen?
+    logical, intent(in)               :: phos_suppl ! Is the HLM supplementing phosphorus?
+    
     ! Locals
     integer                       :: nsites        ! number of sites
     integer                       :: s             ! site loop index
@@ -129,6 +133,22 @@ contains
     type(fates_cohort_type), pointer :: ccohort       ! current cohort pointer
     real(r8) :: fnrt_c                             ! fine-root carbon [kg]
 
+    ! FATES needs to know the supplementation status of N and P in the soils
+    ! If both are supplemented, then FATES doesn't activate dynamic roots
+    ! even if we are in CNP mode.
+    
+    if(nitr_supp) then
+       hlm_nitrogen_suppl = itrue
+    else
+       hlm_nitrogen_suppl = ifalse
+    end if
+
+    if(phos_supp) then
+       hlm_phosphorus_suppl = itrue
+    else
+       hlm_phosphorus_suppl = ifalse
+    end if
+    
     nsites = size(sites,dim=1)
 
     ! We can exit if this is a c-only simulation

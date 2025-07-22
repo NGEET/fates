@@ -1489,10 +1489,6 @@ contains
          hlm_ipedof       = unset_int
          hlm_nu_com      = 'unset'
          hlm_decomp      = 'unset'
-         hlm_nitrogen_spec = unset_int
-         hlm_phosphorus_spec = unset_int
-         hlm_nitrogen_supl = unset_int
-         hlm_phosphorus_supl = unset_int
          hlm_use_tree_damage = unset_int
          hlm_use_ch4       = unset_int
          hlm_use_vertsoilc = unset_int
@@ -1695,29 +1691,6 @@ contains
                write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
                write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
                call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-            
-         end if
-
-         if(hlm_nitrogen_spec .eq. unset_int) then
-            write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-         if(hlm_phosphorus_spec .eq. unset_int) then
-            write(fates_log(),*) 'FATES parameters unset: hlm_phosphorus_spec, exiting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-         if(hlm_nitrogen_supl .eq. unset_int) then
-            write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_supl, exiting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-         if(hlm_phosphorus_supl .eq. unset_int) then
-            write(fates_log(),*) 'FATES parameters unset: hlm_phosphorus_supl, exiting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
@@ -1930,30 +1903,6 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_tree_damage = ',ival,' to FATES'
                end if
                
-            case('nitrogen_spec')
-               hlm_nitrogen_spec = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_nitrogen_spec = ',ival,' to FATES'
-               end if
-
-            case('phosphorus_spec')
-               hlm_phosphorus_spec = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_phosphorus_spec = ',ival,' to FATES'
-               end if
-
-            case('nitrogen_supl')
-               hlm_nitrogen_supl = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_nitrogen_supl = ',ival,' to FATES'
-               end if
-
-            case('phosphorus_supl')
-               hlm_phosphorus_supl = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_phosphorus_supl = ',ival,' to FATES'
-               end if
-
             case('use_ch4')
                hlm_use_ch4 = ival
                if (fates_global_verbose()) then

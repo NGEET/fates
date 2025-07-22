@@ -72,8 +72,8 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : prescribed_n_uptake
   use EDPftvarcon, only : EDPftvarcon_inst
   use FatesInterfaceTypesMod, only : hlm_regeneration_model
-  use FatesInterfaceTypesMod, only : hlm_nitrogen_supl
-  use FatesInterfaceTypesMod, only : hlm_phosphorus_supl
+  use FatesInterfaceTypesMod, only : hlm_nitrogen_suppl
+  use FatesInterfaceTypesMod, only : hlm_phosphorus_suppl
 
 
   implicit none
@@ -1906,8 +1906,8 @@ contains
     ! It will also update the target
 
     ! turn on the dynamic L2FR if either nutrient in not being supplemented
-    limiting_p = ((p_uptake_mode .eq. coupled_p_uptake) .and. (hlm_phosphorus_supl .eq. ifalse))
-    limiting_n = ((n_uptake_mode .eq. coupled_p_uptake) .and. (hlm_nitrogen_supl .eq. ifalse))
+    limiting_p = ((p_uptake_mode .eq. coupled_p_uptake) .and. (hlm_phosphorus_suppl .eq. ifalse))
+    limiting_n = ((n_uptake_mode .eq. coupled_p_uptake) .and. (hlm_nitrogen_suppl .eq. ifalse))
 
     if (limiting_p .or. limiting_n) then
       call this%CNPAdjustFRootTargets(target_c,target_dcdd)
