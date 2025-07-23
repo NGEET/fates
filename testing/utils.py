@@ -263,4 +263,6 @@ def create_param_file(param_file, run_dir):
         else:
             raise RuntimeError("Must supply parameter file with .cdl or .nc ending.")
 
+    print(f"Parameter file saved to {os.path.abspath(param_file_update)}")
+
     return param_file_update
