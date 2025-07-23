@@ -2085,7 +2085,7 @@ contains
     ! call during the fast timestep sequence
 
     if (hlm_use_planthydro.eq.itrue) then
-       call RecruitWaterStorage(nsites,sites,bc_out)
+       call RecruitWaterStorage(nsites,sites)
     end if
 
   end subroutine update_hlm_dynamics

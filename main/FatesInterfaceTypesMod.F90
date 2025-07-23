@@ -800,6 +800,15 @@ module FatesInterfaceTypesMod
       real(r8) :: gpp_site  ! Site level GPP, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
       real(r8) :: ar_site   ! Site level Autotrophic Resp, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
 
+      ! direct carbon loss to atm pathways
+      real(r8) :: grazing_closs_to_atm_si    ! Loss of carbon to atmosphere via grazing [Site-Level, gC m-2 s-1]
+      real(r8) :: fire_closs_to_atm_si       ! Loss of carbon to atmosphere via burning (includes burning from land use change) [Site-Level, gC m-2 s-1]
+
+      ! summary carbon stock variables
+      real(r8) :: veg_c_si                   ! Total vegetation carbon [Site-Level, gC m-2]
+      real(r8) :: litter_cwd_c_si            ! Total litter plus CWD carbon [Site-Level, gC m-2]
+      real(r8) :: seed_c_si                  ! Total seed carbon [Site-Level, gC m-2]
+
    end type bc_out_type
 
 
@@ -836,10 +845,25 @@ module FatesInterfaceTypesMod
                                                 ! increasing, or all 1s)
 
    end type bc_pconst_type
-  
+
+   public :: ZeroBCOutCarbonFluxes
+   
  contains
        
-    ! ======================================================================================
-      
+   ! ======================================================================================
+
+   subroutine ZeroBCOutCarbonFluxes(bc_out)
+
+    ! !ARGUMENTS
+    type(bc_out_type), intent(inout)   :: bc_out
+
+    bc_out%grazing_closs_to_atm_si = nan    ! set via site_mass%burn_flux
+    bc_out%fire_closs_to_atm_si    = nan    ! set via site_mass%herbivory_flux_out
+    bc_out%gpp_site                = 0._r8
+    bc_out%ar_site                 = 0._r8
+
+  end subroutine ZeroBCOutCarbonFluxes
+
+   
        
-  end module FatesInterfaceTypesMod
+end module FatesInterfaceTypesMod

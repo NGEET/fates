@@ -147,7 +147,8 @@ module EDPhysiologyMod
   use PRTInitParamsFatesMod, only : NewRecruitTotalStoichiometry
   use FatesInterfaceTypesMod, only : hlm_use_luh
   use FatesInterfaceTypesMod, only : hlm_regeneration_model
-
+  
+  
   implicit none
   private
 
@@ -158,7 +159,6 @@ module EDPhysiologyMod
   public :: calculate_SP_properties
   public :: recruitment
   public :: ZeroLitterFluxes
-
   public :: ZeroAllocationRates
   public :: PreDisturbanceLitterFluxes
   public :: PreDisturbanceIntegrateLitter
@@ -260,13 +260,12 @@ contains
 
   ! ============================================================================
   
-  subroutine GenerateDamageAndLitterFluxes( csite, cpatch, bc_in )
+  subroutine GenerateDamageAndLitterFluxes( csite, cpatch )
 
     ! Arguments
     type(ed_site_type)  :: csite
     type(fates_patch_type) :: cpatch
-    type(bc_in_type), intent(in) :: bc_in
-    
+
 
     ! Locals
     type(fates_cohort_type), pointer :: ccohort    ! Current cohort
@@ -440,8 +439,7 @@ contains
     ! associated with seed turnover, seed influx, litterfall from live and
     ! dead plants, germination, and fragmentation.
     !
-    ! At this time we do not have explicit herbivory, and burning losses to litter
-    ! are handled elsewhere.
+    ! Herbivory is handled here. burning losses to litter are handled elsewhere.
     !
     ! Note: The processes conducted here DO NOT handle litter fluxes associated
     !       with disturbance.  Those fluxes are handled elsewhere (EDPatchDynamcisMod)
@@ -474,12 +472,12 @@ contains
                   diag => currentSite%flux_diags%elem(el))
 
          ! Calculate loss rate of viable seeds to litter
-         call SeedDecay(litt, currentPatch, bc_in)
+         call SeedDecay(litt, currentPatch)
          
          ! Calculate seed germination rate, the status flags prevent
          ! germination from occuring when the site is in a drought
          ! (for drought deciduous) or too cold (for cold deciduous)
-         call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), bc_in, currentPatch)
+         call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), currentPatch)
          
          ! Send fluxes from newly created litter into the litter pools
          ! This litter flux is from non-disturbance inducing mortality, as well
@@ -2054,7 +2052,6 @@ contains
 
     ! !USES:
     use EDTypesMod, only : area
-    use EDTypesMod, only : homogenize_seed_pfts
     use FatesInterfaceTypesMod, only : hlm_seeddisp_cadence
     use FatesInterfaceTypesMod, only : fates_dispersal_cadence_none
     !
@@ -2078,6 +2075,11 @@ contains
     integer  :: el                     ! loop counter for litter element types
     integer  :: element_id             ! element id consistent with parteh/PRTGenericMod.F90
 
+    logical, parameter  :: nocomp_seed_localization  = .true.  ! if nocomp is on, only send a given PFT's seeds to patches of that nocomp PFT
+    real(r8) :: nocomp_seed_scaling    ! scalar to handle case for nocomp_seed_localization
+    real(r8) :: seed_supply            ! external seed rain scalar to handle case for nocomp_seed_localization
+    real(r8) :: nocomp_patch_areas(0:numpft) ! vector of the total patch areas for each nocomp PFT
+
     ! If the dispersal kernel is not turned on, keep the dispersal fraction at zero
     site_disp_frac(:) = 0._r8
     if (hlm_seeddisp_cadence .ne. fates_dispersal_cadence_none) then
@@ -2090,6 +2092,19 @@ contains
        element_id = element_list(el)
 
        site_mass => currentSite%mass_balance(el)
+
+       ! If we are in nocomp configuration and we are restricting each PFT's seeds to all fall
+       ! only on patches that allow that PFT to grow, then we need to add up all the patch areas
+       ! for each nocomp PFT to normalize the seed fluxes with later.
+       if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue ) then
+          nocomp_patch_areas(0:numpft) = 0._r8
+          currentPatch => currentSite%oldest_patch
+          nocomp_patch_loop: do while (associated(currentPatch))
+             nocomp_patch_areas(currentPatch%nocomp_pft_label) = nocomp_patch_areas(currentPatch%nocomp_pft_label) &
+                  + currentPatch%area
+             currentPatch => currentPatch%younger
+          end do nocomp_patch_loop
+       endif
 
        ! Loop over all patches and sum up the seed input for each PFT
        currentPatch => currentSite%oldest_patch
@@ -2132,13 +2147,6 @@ contains
           currentPatch => currentPatch%younger
        enddo seed_rain_loop
 
-       ! We can choose to homogenize seeds. This is simple, we just
-       ! add up all the seed from each pft at the site level, and then
-       ! equally distribute to the PFT pools
-       if ( homogenize_seed_pfts ) then
-          site_seed_rain(1:numpft) = sum(site_seed_rain(:))/real(numpft,r8)
-       end if
-
        ! Loop over all patches again and disperse the mixed seeds into the input flux
        ! arrays
        ! Loop over all patches and sum up the seed input for each PFT
@@ -2150,9 +2158,25 @@ contains
 
              if(currentSite%use_this_pft(pft).eq.itrue)then
 
+                ! special case: do we want to restrict each PFT's seeds to only go to patches with that nocomp PFT label?
+                ! If so, then use a normalization factor that is one over the nocomp patch fraction for all patches of
+                ! that PFT's nocomp label, and zero for all other patches.  If we don't do this, then just set scalar to one.
+                ! Similarly, only add external seed rain to a given PFT's nocomp patches
+                nocomp_seed_scaling = 1._r8
+                seed_supply = EDPftvarcon_inst%seed_suppl(pft)
+                if (nocomp_seed_localization .and. hlm_use_nocomp .eq. itrue ) then
+                   if (currentPatch%nocomp_pft_label .eq. pft) then
+                      nocomp_seed_scaling = AREA/nocomp_patch_areas(pft)
+                   else
+                      nocomp_seed_scaling = 0._r8
+                      seed_supply = 0._r8
+                   endif
+                endif
+
                 ! Seed input from local sources (within site).  Note that a fraction of the
                 ! internal seed rain is sent out to neighboring gridcells.
-                litt%seed_in_local(pft) = litt%seed_in_local(pft) + site_seed_rain(pft)*(1.0_r8-site_disp_frac(pft))/area ![kg/m2/day]
+                litt%seed_in_local(pft) = litt%seed_in_local(pft) + nocomp_seed_scaling * &
+                     (1.0_r8-site_disp_frac(pft)) * (site_seed_rain(pft)/area) ! site_seed_rain conversion from [kg/site/day -> kg/m2/day]
 
                 ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
                 if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
@@ -2184,7 +2208,7 @@ contains
                 
                 ! Seed input from external sources (user param seed rain, or dispersal model)
                 ! Include both prescribed seed_suppl and seed_in dispersed from neighbouring gridcells
-                seed_in_external = seed_stoich*(currentSite%seed_in(pft)/area + EDPftvarcon_inst%seed_suppl(pft)*years_per_day) ![kg/m2/day]
+                seed_in_external = seed_stoich * (seed_supply*years_per_day + currentSite%seed_in(pft)/area)  ![kg/m2/day]
                 litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
                 
                 ! Seeds entering externally [kg/site/day]
@@ -2209,7 +2233,7 @@ contains
 
   ! ============================================================================
 
-  subroutine SeedDecay( litt , currentPatch, bc_in )
+  subroutine SeedDecay( litt , currentPatch )
     !
     ! !DESCRIPTION:
     ! 1. Flux from seed pool into leaf litter pool
@@ -2220,7 +2244,6 @@ contains
     ! !ARGUMENTS
     type(litter_type) :: litt
     type(fates_patch_type), intent(in) :: currentPatch ! ahb added this
-    type(bc_in_type), intent(in) :: bc_in ! ahb added this    
     !
     ! !LOCAL VARIABLES:
     integer  ::  pft
@@ -2326,7 +2349,7 @@ contains
   end subroutine SeedDecay
 
   ! ============================================================================
-  subroutine SeedGermination( litt, cold_stat, drought_stat, bc_in, currentPatch )
+  subroutine SeedGermination( litt, cold_stat, drought_stat, currentPatch )
     !
     ! !DESCRIPTION:
     !  Flux from seed bank into the seedling pool    
@@ -2338,7 +2361,6 @@ contains
     type(litter_type) :: litt
     integer                   , intent(in) :: cold_stat    ! Is the site in cold leaf-off status?
     integer, dimension(numpft), intent(in) :: drought_stat ! Is the site in drought leaf-off status?
-    type(bc_in_type),           intent(in) :: bc_in
     type(fates_patch_type),        intent(in) :: currentPatch
     !
     ! !LOCAL VARIABLES:
@@ -2952,7 +2974,7 @@ contains
             elflux_diags%root_litter_input(pft) +  &
             (fnrt_m_turnover + store_m_turnover ) * currentCohort%n
 
-       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere
+       ! send the part of the herbivory flux that doesn't go to litter to the atmosphere (and also for tracking)
 
        site_mass%herbivory_flux_out = &
             site_mass%herbivory_flux_out + &
@@ -3126,10 +3148,6 @@ contains
                currentSite%resources_management%delta_biomass_stock + &
                (leaf_m + fnrt_m + store_m ) * &
                (dead_n_ilogging+dead_n_dlogging) *currentPatch%area
-
-          currentSite%resources_management%trunk_product_site = &
-               currentSite%resources_management%trunk_product_site + &
-               trunk_wood * logging_export_frac * currentPatch%area
 
           do c = 1,ncwd
              currentSite%resources_management%delta_litter_stock  = &
