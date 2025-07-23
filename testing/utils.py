@@ -120,6 +120,7 @@ def config_to_dict(config_file: str) -> dict:
 
     # Define list of config file options that we expect to be paths
     options_that_are_paths = ["datm_file"]
+    options_that_are_bools = ["use_param_file"]
 
     config = configparser.ConfigParser()
     config.read(config_file)
@@ -133,6 +134,10 @@ def config_to_dict(config_file: str) -> dict:
             # If the option is one that we expect to be a path, ensure it's an absolute path.
             if option in options_that_are_paths:
                 value = get_abspath_from_config_file(value, config_file)
+
+            # If the option is one that we expect to be a boolean, convert it from string.
+            if option in options_that_are_bools:
+                value = str_to_bool(value)
 
             # Save value to dictionary
             dictionary[section][option] = value
@@ -183,6 +188,8 @@ def str_to_bool(val: str) -> bool:
     Returns:
         bool: True or False
     """
+    if isinstance(val, bool):
+        return val
     if val.lower() in ("y", "yes", "t", "true", "on", "1"):
         return True
     if val.lower() in ("n", "no", "f", "false", "off", "0"):
