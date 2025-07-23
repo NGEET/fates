@@ -1,0 +1,172 @@
+module test_Ecotypes
+  !
+  ! DESCRIPTION:
+  !  Test the FATES ecotypes code
+  !
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesEcotypesMod, only : does_patch_have_forest_tcthresh
+  use FatesEcotypesMod, only : does_patch_have_grass_bmthresh
+  use FatesEcotypesMod, only : is_patch_forest
+  use FatesFactoryMod,  only : InitializeGlobals, GetSyntheticPatch
+  use FatesPatchMod,    only : fates_patch_type
+  use SyntheticPatchTypes, only : synthetic_patch_array_type
+  use SyntheticPatchTypes, only : forest_tree_fraction_threshold
+  use SyntheticPatchTypes, only : grass_biomass_threshold
+  use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
+  use FatesArgumentUtils,  only : command_line_arg
+  use funit
+
+  implicit none
+
+  ! LOCALS:
+  type(fates_unit_test_param_reader)             :: param_reader ! param reader instance
+  integer :: i
+  logical :: already_initialized = .false.
+
+  ! CONSTANTS:
+  integer,  parameter :: num_levsoil = 10      ! number of soil layers
+  real(r8), parameter :: step_size = 1800.0_r8 ! step-size [s]
+
+  @TestCase
+  type, extends(TestCase) :: TestEcotypes
+
+    type(synthetic_patch_array_type) :: patch_data
+    type(fates_patch_type), pointer  :: patch
+
+    contains
+      procedure :: setUp
+
+  end type TestEcotypes
+
+  real(r8), parameter :: tol = 1.e-7_r8
+  real(r8), parameter :: nan = 0._r8 / 0._r8
+
+  integer, parameter :: n_to_sort = 5
+
+
+  contains
+
+    subroutine setUp(this)
+      class(TestEcotypes), intent(inout) :: this
+
+      ! Only need to do this for the first test
+      if (.not. already_initialized) then
+
+        ! read in parameter file
+        call param_reader%Init('params.nc')
+        call param_reader%RetrieveParameters()
+
+        ! initialize some global data we need
+        call InitializeGlobals(step_size)
+
+        already_initialized = .true.
+      end if
+    end subroutine setUp
+
+    @Test
+    subroutine test_isforest_tropical(this)
+      ! Should have high tree cover and no grass, so true for all except grass check.
+      class(TestEcotypes), intent(inout) :: this
+
+      call this%patch_data%GetSyntheticPatchData('tropical')
+      call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
+
+      @assertTrue(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
+      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
+      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+
+    end subroutine test_isforest_tropical
+
+    @Test
+    subroutine test_isforest_evergreen(this)
+      ! Should have high tree cover and no grass, so true for all except grass check.
+      class(TestEcotypes), intent(inout) :: this
+
+      call this%patch_data%GetSyntheticPatchData('evergreen')
+      call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
+
+      @assertTrue(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
+      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
+      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+
+    end subroutine test_isforest_evergreen
+
+    @Test
+    subroutine test_isforest_savannah(this)
+      ! Exactly at the thresholds? All should be false.
+      class(TestEcotypes), intent(inout) :: this
+
+      call this%patch_data%GetSyntheticPatchData('savannah')
+      call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
+
+      @assertFalse(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(is_patch_forest(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
+      @assertFalse(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+
+    end subroutine test_isforest_savannah
+
+    @Test
+    subroutine test_isforest_savannah_woody(this)
+      ! Should have high tree cover and little grass, so true for all except grass check.
+      class(TestEcotypes), intent(inout) :: this
+
+      call this%patch_data%GetSyntheticPatchData('savannah_woody')
+      call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
+
+      @assertTrue(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
+      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
+      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+
+    end subroutine test_isforest_savannah_woody
+
+    @Test
+    subroutine test_isforest_savannah_grassy(this)
+      ! Should have low tree cover and plenty of grass, so false for all except grass check.
+      class(TestEcotypes), intent(inout) :: this
+
+      call this%patch_data%GetSyntheticPatchData('savannah_grassy')
+      call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
+
+      @assertFalse(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(is_patch_forest(this%patch, forest_tree_fraction_threshold))
+      @assertTrue(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
+      @assertFalse(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+
+    end subroutine test_isforest_savannah_grassy
+
+    @Test
+    subroutine test_isforest_grassland(this)
+      ! Should have no trees and plenty of grass, so false for all except grass check.
+      class(TestEcotypes), intent(inout) :: this
+
+      call this%patch_data%GetSyntheticPatchData('grassland')
+      call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
+
+      @assertFalse(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(is_patch_forest(this%patch, forest_tree_fraction_threshold))
+      @assertTrue(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
+      @assertFalse(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+
+    end subroutine test_isforest_grassland
+
+    @Test
+    subroutine test_isforest_temperate(this)
+      ! Should have high tree cover and no grass, so true for all except grass check.
+      class(TestEcotypes), intent(inout) :: this
+
+      call this%patch_data%GetSyntheticPatchData('temperate')
+      call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
+
+      @assertTrue(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
+      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
+      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+
+    end subroutine test_isforest_temperate
+
+
+  end module test_Ecotypes

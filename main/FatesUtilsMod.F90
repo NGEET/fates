@@ -6,6 +6,7 @@ module FatesUtilsMod
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesGlobals, only      : fates_log
   use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : fates_check_param_set
   use FatesGlobals,      only : endrun => fates_endrun
   
   use shr_log_mod , only      : errMsg => shr_log_errMsg
@@ -21,6 +22,8 @@ module FatesUtilsMod
   public :: QuadraticRootsNSWC
   public :: QuadraticRootsSridharachary
   public :: ArrayNint
+  public :: is_param_set
+  public :: logical_to_real
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -298,6 +301,25 @@ contains
     end if
     
   end subroutine QuadraticRootsSridharachary
+
+  function is_param_set(param)
+     use shr_infnan_mod, only : isnan => shr_infnan_isnan
+
+     real(r8), intent(in) :: param
+
+     logical :: is_param_set
+
+     is_param_set = .not. isnan(param)
+     if (is_param_set) then
+        is_param_set = param < fates_check_param_set
+     end if
+  end function is_param_set
+
+  function logical_to_real(logical_in) result(real_out)
+     logical, intent(in) :: logical_in
+     real(r8) :: real_out
+     real_out = merge(1._r8, 0._r8, logical_in)
+  end function logical_to_real
 
   ! ====================================================================================== 
 end module FatesUtilsMod

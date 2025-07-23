@@ -3,6 +3,7 @@
 
 import math
 import matplotlib.pyplot as plt
+from matplotlib import colormaps
 
 
 def blank_plot(
@@ -99,3 +100,11 @@ def get_color_palette(number: int) -> list:
     ]
 
     return colors[:number]
+
+
+def sample_colormap(this_colormap: str, n_colors: int, i: int) -> tuple:
+    """
+    Given a colormap and a number of desired colors evenly spaced along it, get the i'th color
+    """
+    color = colormaps[this_colormap](i / (n_colors - 1))
+    return color
