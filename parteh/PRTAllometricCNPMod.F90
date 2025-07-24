@@ -63,6 +63,7 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : default_regeneration
   use FatesConstantsMod   , only : TRS_no_seedling_dyn
   use FatesConstantsMod   , only : min_max_dbh_for_trees
+  use FatesConstantsMod   , only : ievergreen
   use PRTParametersMod    , only : prt_params
   use FatesConstantsMod   , only : leaves_on,leaves_off
   use FatesConstantsMod   , only : leaves_shedding

@@ -1691,8 +1691,9 @@ contains
                write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
                write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
                call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
          end if
-
+         
          if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
             write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
             call endrun(msg=errMsg(sourcefile, __LINE__))

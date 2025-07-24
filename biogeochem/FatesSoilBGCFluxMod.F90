@@ -137,13 +137,13 @@ contains
     ! If both are supplemented, then FATES doesn't activate dynamic roots
     ! even if we are in CNP mode.
     
-    if(nitr_supp) then
+    if(nitr_suppl) then
        hlm_nitrogen_suppl = itrue
     else
        hlm_nitrogen_suppl = ifalse
     end if
 
-    if(phos_supp) then
+    if(phos_suppl) then
        hlm_phosphorus_suppl = itrue
     else
        hlm_phosphorus_suppl = ifalse
