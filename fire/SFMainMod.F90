@@ -219,6 +219,7 @@ contains
     use FatesInterfaceTypesMod, only : hlm_use_planthydro
     use FatesConstantsMod,      only : denh2o => dens_fresh_liquid_water
     use FatesHydraulicsMemMod,  only : n_hypool_leaf
+    use FatesHydraulicsMemMod,  only : ed_cohort_hydr_type
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite  ! site object
@@ -248,11 +249,10 @@ contains
     integer :: h_idx                                     ! index 
 
     real(r8), parameter :: carbon_2_biomass = 0.45_r8
-    real(r8), parameter :: leaf_
     ! LFMC parameters for testing
-    real(r8), parameter :: min_lfmc = 70.0_r8
-    real(r8), parameter :: coeff_lfmc = 40.0_r8
-    real(r8), parameter :: smp_alpha = 3.0E-6_r8
+    real(r8), parameter :: min_lfmc = 80.0_r8
+    real(r8), parameter :: coeff_lfmc = 30.0_r8
+    real(r8), parameter :: smp_alpha = 4E-4_r8
     real(r8), parameter :: lai_beta = 0.15_r8
     real(r8), parameter :: gamma_int = 0.0_r8
 
