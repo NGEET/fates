@@ -43,7 +43,7 @@ module FatesFuelMod
       procedure :: CalculateCanopyBulkDensity
       procedure :: CalculateFuelBurnt
       procedure :: CalculateResidenceTime
-      procedure :: NonHydroCanopyWaterContent
+      procedure :: CanopyWaterContent
 
   end type fuel_type
   
@@ -485,21 +485,21 @@ module FatesFuelMod
 
  !---------------------------------------------------------------------------------------
 
-    subroutine NonHydroCanopyWaterContent(this, co_lfmc, co_fuel)
+    subroutine CanopyWaterContent(this, co_cwc, co_fuel)
       ! DESCRIPTION:
       ! Calculates live canopy water content  
       ! as sum of fuel load weighted cohort level live fuel moisture content
       !
       ! ARGUMENTS
       class(fuel_type), intent(inout) :: this                  ! fuel class
-      real(r8),         intent(in)    :: co_lfmc               ! coohort live fuel moisture content [%]
+      real(r8),         intent(in)    :: co_cwc               ! coohort live fuel moisture content [%]
       real(r8),         intent(in)    :: co_fuel               ! cohort canopy fuel, only 1 hour woody + leaf 
 
       this%canopy_water_content = this%canopy_water_content + &
-      co_lfmc * co_fuel/this%canopy_fuel_load
+      co_cwc * co_fuel/this%canopy_fuel_load
       
 
-    end subroutine NonHydroCanopyWaterContent
+    end subroutine CanopyWaterContent
 
  !---------------------------------------------------------------------------------------
 

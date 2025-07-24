@@ -216,15 +216,18 @@ contains
     use FatesLitterMod,         only : adjust_SF_CWD_frac
     use CrownFireEquationsMod,  only : LiveFuelMoistureContent
     use EDTypesMod,             only : numWaterMem
-  
+    use FatesInterfaceTypesMod, only : hlm_use_planthydro
+    use FatesConstantsMod,      only : denh2o => dens_fresh_liquid_water
+    use FatesHydraulicsMemMod,  only : n_hypool_leaf
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite  ! site object
     type(bc_in_type),   intent(in)            :: bc_in
 
    
-    type(fates_patch_type), pointer  :: currentPatch   ! FATES patch
-    type(fates_cohort_type), pointer :: currentCohort  ! FATES cohort
+    type(fates_patch_type),   pointer  :: currentPatch   ! FATES patch
+    type(fates_cohort_type),   pointer :: currentCohort  ! FATES cohort
+    type(ed_cohort_hydr_type), pointer :: ccohort_hydr   ! current cohort hyro-derived type
 
     ! Locals:
     real(r8) ::  crown_depth          ! depth of crown [m]
@@ -237,6 +240,7 @@ contains
     real(r8) ::  crown_fuel_per_m     ! crown fuel per 1m section in cohort
     real(r8) ::  SF_val_CWD_frac_adj(ncwd)  ! adjusted fractional allocation of woody biomass to coarse wood debris pool
     real(r8) ::  mean_10day_smp(numpft)       ! averaged 10 day soil matric potential for each PFT 
+    real(r8) ::  water_mass           ! canopy water mass per individual plant (kgH2O/plant)
     integer  ::  ipft                 ! pft index
     
 
@@ -244,6 +248,7 @@ contains
     integer :: h_idx                                     ! index 
 
     real(r8), parameter :: carbon_2_biomass = 0.45_r8
+    real(r8), parameter :: leaf_
     ! LFMC parameters for testing
     real(r8), parameter :: min_lfmc = 70.0_r8
     real(r8), parameter :: coeff_lfmc = 40.0_r8
@@ -332,12 +337,19 @@ contains
             do h_idx = int(cbh_co), int(currentCohort%height)
                     biom_matrix(h_idx) = biom_matrix(h_idx) + crown_fuel_per_m
             end do
-            ! calculate live fuel moisture content
-            currentCohort%lfmc = LiveFuelMoistureContent(currentCohort%treelai, &
-            mean_10day_smp(currentCohort%pft), &
-            min_lfmc, coeff_lfmc, smp_alpha, lai_beta, gamma_int)
-          
-            write(fates_log(),*) 'current cohort LFMC is ', currentCohort%lfmc
+            ! calculate live canopy water content for current cohort 
+            ! either using statistic model- or hydro-derived cwc 
+            if (hlm_use_planthydro == itrue) then
+               ccohort_hydr => currentCohort%co_hydr
+               water_mass = ccohort_hydr%th_ag(n_hypool_leaf) * ccohort_hydr%v_ag(n_hypool_leaf) * &
+                            denh2o * currentCohort%n
+               currentCohort%lfmc = water_mass * carbon_2_biomass / leaf_c * 100.0_r8 ! leaf water content in percent
+            else
+              currentCohort%lfmc = LiveFuelMoistureContent(currentCohort%treelai, &
+                       mean_10day_smp(currentCohort%pft), &
+                       min_lfmc, coeff_lfmc, smp_alpha, lai_beta, gamma_int)
+            end if
+            write(fates_log(),*) 'current cohort cwc is ', currentCohort%lfmc
 
           end if ! trees only
           currentCohort => currentCohort%shorter;
@@ -349,11 +361,11 @@ contains
 
         do while(associated(currentCohort))
          if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees
-            call currentPatch%fuel%NonHydroCanopyWaterContent(currentCohort%lfmc, &
+            call currentPatch%fuel%CanopyWaterContent(currentCohort%lfmc, &
             currentCohort%canopy_fuel_1h)
          end if
          currentCohort => currentCohort%shorter;
-      end do
+        end do
 
       
         biom_matrix(:) = biom_matrix(:) / currentPatch%area ! kg biomass / m3
