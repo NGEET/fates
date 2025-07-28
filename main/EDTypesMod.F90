@@ -934,6 +934,8 @@ contains
 
          case('decomp_frac_moisture')
             currentPatch%bc_in%w_scalar_sisl = data(c,:)
+         case('decomp_frac_temperature')
+            currentPatch%bc_in%t_scalar_sisl = data(c,:)
 
       ! NOTE: should the patch level bc subtypes actually be pointers to the
       ! input values instead of copies of the pointer data?  Or is not a good idea
