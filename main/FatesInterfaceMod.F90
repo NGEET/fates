@@ -302,8 +302,6 @@ contains
     fates%bc_in(s)%tot_litc            = 0.0_r8
     fates%bc_in(s)%snow_depth_si       = 0.0_r8
     fates%bc_in(s)%frac_sno_eff_si     = 0.0_r8
-    fates%bc_in(s)%w_scalar_sisl(:)    = 0.0_r8
-    fates%bc_in(s)%t_scalar_sisl(:)    = 0.0_r8
     
     if(do_fates_salinity)then
        fates%bc_in(s)%salinity_sl(:)   = 0.0_r8
@@ -500,8 +498,6 @@ contains
       allocate(bc_in%z_sisl(nlevsoil_in))
       allocate(bc_in%decomp_id(nlevsoil_in))
       allocate(bc_in%dz_decomp_sisl(nlevdecomp_in))
-      allocate(bc_in%w_scalar_sisl(nlevsoil_in))
-      allocate(bc_in%t_scalar_sisl(nlevsoil_in))
 
       ! Lightning (or successful ignitions) and population density
       ! Fire related variables
