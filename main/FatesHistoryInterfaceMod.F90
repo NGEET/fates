@@ -408,6 +408,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_nir_rad_err_si
   integer :: ih_fire_c_to_atm_si
   integer :: ih_fire_c_to_atm_landusechange_si
+  integer :: ih_fire_livec_to_atm_si
   integer :: ih_interr_liveveg_elem
   integer :: ih_interr_litter_elem
   integer :: ih_cbal_err_fates_si
@@ -2498,6 +2499,7 @@ contains
          hio_canopy_mortality_crownarea_si     => this%hvars(ih_canopy_mortality_crownarea_si)%r81d, &
          hio_ustory_mortality_crownarea_si => this%hvars(ih_understory_mortality_crownarea_si)%r81d, &
          hio_fire_c_to_atm_si  => this%hvars(ih_fire_c_to_atm_si)%r81d, &
+         hio_fire_livec_to_atm_si            => this%hvars(ih_fire_livec_to_atm_si)%r81d, &
          hio_fire_c_to_atm_landusechange_si  => this%hvars(ih_fire_c_to_atm_landusechange_si)%r81d, &
          hio_demotion_carbonflux_si        => this%hvars(ih_demotion_carbonflux_si)%r81d, &
          hio_promotion_carbonflux_si       => this%hvars(ih_promotion_carbonflux_si)%r81d, &
@@ -2683,6 +2685,9 @@ contains
               sum(elflux_diags_c%surf_fine_litter_input(:)) + &
               sum(elflux_diags_c%root_litter_input(:))) * &
               AREA_INV * days_per_sec
+
+         hio_fire_livec_to_atm_si(io_si) = &
+              elflux_diags_c%burned_liveveg * ha_per_m2 * days_per_sec
 
          ! Loop through patches to sum up diagonistics
          cpatch => sites(s)%oldest_patch
@@ -7010,6 +7015,12 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
             index = ih_fire_c_to_atm_si)
+
+       call this%set_history_var(vname='FATES_FIRE_CLOSS_LIVEFUELS', units='kg m-2 s-1',    &
+            long='carbon loss to atmosphere from live fuels only via fire in kg carbon per m2 per second', &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                &
+            index = ih_fire_livec_to_atm_si)
 
        call this%set_history_var(vname='FATES_FIRE_CLOSS_LANDUSECHANGE', units='kg m-2 s-1',    &
             long='carbon loss to atmosphere from fire in kg carbon per m2 per second from land use change only', &
