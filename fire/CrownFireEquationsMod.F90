@@ -104,7 +104,7 @@ module CrownFireEquationsMod
 
   !---------------------------------------------------------------------------------------
 
-  real(r8) function CrownFireIntensity(HPA, canopy_fuel, CFB, ROS_final)
+  real(r8) function CrownFireIntensity(HPA, canopy_fuel,patch_area, CFB, ROS_final)
   !
   ! Description
   ! Calculate fire intentisy for crown fire using
@@ -113,12 +113,13 @@ module CrownFireEquationsMod
   ! ARGUMENTS:
     real(r8), intent(in) :: HPA             ! heat release per unit area [kJ/m2]
     real(r8), intent(in) :: canopy_fuel     ! canopy fuel load [kg biomass] 
+    real(r8), intent(in) :: patch_area      ! current patch area, to calculate fuel load density in kg/m2
     real(r8), intent(in) :: CFB             ! crown fraction burnt [fraction]
     real(r8), intent(in) :: ROS_final       ! final rate of spread after a crown fire happens [m/min]
     ! Locals:
     real(r8), parameter  :: H_canopy = 18000.0_r8 ! heat yield for canopy fuels [kJ/kg biomass]
 
-    CrownFireIntensity = (HPA + (canopy_fuel * H_canopy * CFB)) * &
+    CrownFireIntensity = (HPA + (canopy_fuel / patch_area * H_canopy * CFB)) * &
                          ROS_final / 60.0_r8 
 
   end function CrownFireIntensity

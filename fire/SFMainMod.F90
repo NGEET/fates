@@ -821,7 +821,7 @@ contains
           ! calculate final fire intensity by accounting for burned canopy fuels
           ! EQ. 22 in Scott & Reinhardt 2001
           FI_final = CrownFireIntensity(HPA, currentPatch%fuel%canopy_fuel_load, &
-          currentPatch%canopy_frac_burnt, ROS_final)
+          currentPatch%area, currentPatch%canopy_frac_burnt, ROS_final)
 
           if(write_SF == itrue)then
             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'FI_final',FI_final
@@ -833,6 +833,7 @@ contains
          write(fates_log(),*) 'ROS final is  ', ROS_final 
          write(fates_log(),*) 'ROS_active is ', ROS_active
          write(fates_log(),*) 'ROS_active_min is ', ROS_active_min
+         write(fates_log(),*) 'HPA is ', HPA
 
 
           ! only update FI and ROS_front when CFB > 0
