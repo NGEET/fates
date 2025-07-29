@@ -926,8 +926,8 @@ contains
 
     ! Set boundary condition to HLM for carbon loss to atm from fires and grazing
     ! [kgC/ha/day]*[ha/m2]*[day/s] = [kg/m2/s] 
-    
-    bc_out%fire_closs_to_atm_si = site_cmass%burn_flux_to_atm * ha_per_m2 * days_per_sec
+
+    bc_out%fire_closs_to_atm_si = sum(site_cmass%burn_flux_to_atm(:)) * ha_per_m2 * days_per_sec
     bc_out%grazing_closs_to_atm_si = site_cmass%herbivory_flux_out * ha_per_m2 * days_per_sec
 
     
