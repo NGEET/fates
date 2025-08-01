@@ -120,13 +120,6 @@ class MossTest(FunctionalTest):
             }
         )
 
-        min_x = data_frame[dim0].min()
-        max_x = data_frame[dim0].max()
-        min_y = truncate(data_frame[data.name].min())
-        max_y = round_up(data_frame[data.name].max())
-
-        blank_plot(max_x, min_x, max_y, min_y, draw_horizontal_lines=False)
-
         legend_values = np.unique(data_frame[dim1].values)
         colors = get_color_palette(len(legend_values))
         for rank, legend_value in enumerate(legend_values):
@@ -152,3 +145,4 @@ class MossTest(FunctionalTest):
         if save_fig:
             fig_name = os.path.join(plot_dir, f"moss_plot_{data.name}.png")
             plt.savefig(fig_name)
+        plt.close()
