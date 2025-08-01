@@ -32,6 +32,8 @@ module FatesPatchMod
   use FatesRadiationMemMod,   only : num_rad_stream_types
   use FatesInterfaceTypesMod, only : hlm_hio_ignore_val
   use FatesInterfaceTypesMod, only : numpft
+  use FatesInterfaceTypesMod, only : bc_in_type
+  use FatesInterfaceTypesMod, only : bc_out_type
   use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,            only : errMsg => shr_log_errMsg
 
@@ -48,6 +50,11 @@ module FatesPatchMod
     type (fates_cohort_type), pointer :: shortest => null() ! pointer to patch's shortest cohort
     type (fates_patch_type),  pointer :: older => null()    ! pointer to next older patch   
     type (fates_patch_type),  pointer :: younger => null()  ! pointer to next younger patch
+
+    ! BC data
+    ! TODO change this to a specific bc type for incremental refactor purposes if this method is picked
+    type(bc_in_type)  :: bc_in
+    type(bc_out_type) :: bc_out
   
     !---------------------------------------------------------------------------
 
@@ -269,6 +276,9 @@ module FatesPatchMod
       allocate(this%sabs_dir(num_swb))
       allocate(this%sabs_dif(num_swb))
       allocate(this%fragmentation_scaler(num_levsoil))
+      allocate(this%bc_in%w_scalar_sisl(num_levsoil))
+      allocate(this%bc_in%t_scalar_sisl(num_levsoil))
+
 
       ! initialize all values to nan
       call this%NanValues()
@@ -507,6 +517,10 @@ module FatesPatchMod
       this%scorch_ht(:)                 = nan 
       this%tfc_ros                      = nan
       this%frac_burnt                   = nan
+
+      ! Boundary conditions
+      this%bc_in%w_scalar_sisl(:)       = nan
+      this%bc_in%t_scalar_sisl(:)       = nan
       
     end subroutine NanValues
 
@@ -593,6 +607,10 @@ module FatesPatchMod
       this%scorch_ht(:)                      = 0.0_r8  
       this%tfc_ros                           = 0.0_r8
       this%frac_burnt                        = 0.0_r8
+
+      ! Boundary conditions
+      this%bc_in%w_scalar_sisl(:)            = 0.0_r8
+      this%bc_in%t_scalar_sisl(:)            = 0.0_r8
 
     end subroutine ZeroValues
 
