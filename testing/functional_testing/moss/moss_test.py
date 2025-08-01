@@ -150,5 +150,5 @@ class MossTest(FunctionalTest):
         plt.legend(loc="upper left", title=legend_label)
 
         if save_fig:
-            fig_name = os.path.join(plot_dir, f"allometry_plot_{data.name}.png")
+            fig_name = os.path.join(plot_dir, f"moss_plot_{data.name}.png")
             plt.savefig(fig_name)
