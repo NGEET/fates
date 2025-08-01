@@ -12,7 +12,9 @@ module FatesRxFireMod
   private
   
   public :: is_prescribed_burn
-  public :: is_wildfire
+  !public :: is_wildfire
+
+  contains
   
   logical function is_prescribed_burn(wildfire_FI, wildfire_ignitions, rx_min_FI,         &
     rx_max_FI, wildfire_FI_thresh)
@@ -45,6 +47,6 @@ module FatesRxFireMod
 
     is_prescribed_burn = rx_man .or. rx_hyb
   
-  end logical function is_prescribed_burn
+  end function is_prescribed_burn
   
 end module FatesRxFireMod
