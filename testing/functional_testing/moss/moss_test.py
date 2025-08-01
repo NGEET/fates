@@ -41,32 +41,22 @@ class MossTest(FunctionalTest):
         moss_dat = xr.open_dataset(os.path.join(run_dir, self.out_file))
 
         # Make plots from variables with outputs dimensioned: cumulative leaf area x moss biomass
-        plot_dict = {
-            "out_al": {
-                "varname": "Available light under canopy and moss",
-                "units": "units?",
-            },
-        }
-        for plot, attributes in plot_dict.items():
+        var_list = ["out_al"]
+        for var in var_list:
             self.plot_moss_cla_x_mossbiomass(
-                moss_dat[plot],
-                attributes["varname"],
-                attributes["units"],
+                moss_dat[var],
                 save_figs,
                 plot_dir,
             )
 
     @staticmethod
     def plot_moss_cla_x_mossbiomass(
-        data: xr.Dataset, varname: str, units: str, save_fig: bool, plot_dir: str = None
+        data: xr.Dataset, save_fig: bool, plot_dir: str = None
     ):
         """Plot a variable with outputs dimensioned: cumulative leaf area x moss biomass
 
         Args:
             data (xarray DataArray): the data array of the variable to plot
-            var (str): variable name (for data structure)
-            varname (str): variable name for plot labels
-            units (str): variable units for plot labels
             save_fig (bool): whether or not to write out plot
             plot_dir (str): if saving figure, where to write to
         """
@@ -96,6 +86,8 @@ class MossTest(FunctionalTest):
             )
 
         plt.xlabel("Cumulative leaf area in plot (m2)", fontsize=11)
+        varname = data.attrs["long_name"]
+        units = data.attrs["units"]
         plt.ylabel(f"{varname} ({units})", fontsize=11)
         plt.title(f"Simulated {varname}", fontsize=11)
         plt.legend(loc="upper left", title="Moss biomass (kg/m2 plot)")
