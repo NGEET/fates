@@ -743,18 +743,15 @@ contains
           end select
 
           do ic = 1, ncwd
-
              do id = 1,nlev_eff_decomp
                 flux_cel_si(id) = flux_cel_si(id) + &
                      litt%ag_cwd_frag(ic) * ED_val_cwd_fcel * area_frac * surface_prof(id)
 
                 flux_lig_si(id) = flux_lig_si(id) + & 
                      litt%ag_cwd_frag(ic) * ED_val_cwd_flig * area_frac * surface_prof(id)
-                
              end do
 
              do j = 1, nlev_eff_soil
-
                 id = bc_in%decomp_id(j)  ! Map from soil layer to decomp layer
 
                 flux_cel_si(id) = flux_cel_si(id) + &
@@ -762,13 +759,11 @@ contains
 
                 flux_lig_si(id) = flux_lig_si(id) + &
                      litt%bg_cwd_frag(ic,j) * ED_val_cwd_flig * area_frac
-
              end do
           end do
           
           ! leaf and fine root fragmentation fluxes
           do id = 1,nlev_eff_decomp
-
              flux_lab_si(id) = flux_lab_si(id) + &
                   litt%leaf_fines_frag(ilabile) * area_frac* surface_prof(id)
 
@@ -777,9 +772,7 @@ contains
 
              flux_lig_si(id) = flux_lig_si(id) + &
                   litt%leaf_fines_frag(ilignin) * area_frac* surface_prof(id)
-
           end do
-
 
           ! decaying seeds from the litter pool
           do ipft = 1,numpft
@@ -830,7 +823,6 @@ contains
     
        if(trim(hlm_decomp).eq.'MIMICS') then
 
-
           ! If we track nitrogen (ie cnp or other) then
           ! we diagnose the c-lig/n ratio directly from the pools
           if(element_pos(nitrogen_element)>0) then
@@ -849,7 +841,6 @@ contains
 
              sum_N = 0._r8
              
-
                 tot_leaf_c = 0._r8
                 tot_leaf_n = 0._r8
                 tot_fnrt_c = 0._r8
@@ -911,10 +902,6 @@ contains
        currentPatch => currentPatch%younger
 
     end do fluxpatchloop
-
-
-
-
     
     return
   end subroutine FluxIntoLitterPools
