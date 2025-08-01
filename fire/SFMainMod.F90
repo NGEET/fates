@@ -1067,7 +1067,7 @@ contains
                    ! Equation 17 in Thonicke et al. 2010. 
                    ! flames over bottom of canopy, CFB depends on whether it's active or passive crown fire
                    if (currentPatch%active_crown_fire == 1) then 
-                    currentCohort%fraction_crown_burned == 1.0_r8
+                    currentCohort%fraction_crown_burned = 1.0_r8
                    else
                     currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
                              (currentCohort%height - crown_depth))/crown_depth
