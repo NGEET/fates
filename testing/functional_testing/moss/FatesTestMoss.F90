@@ -13,6 +13,7 @@ program FatesTestMoss
   real(r8), allocatable              :: cla(:)  ! cumulative leaf area in plot (m2)
   real(r8), allocatable              :: moss_biomass(:)  ! moss biomass (kg per m2 plot)
   real(r8), allocatable              :: out_al(:,:) ! output: available light
+  real(r8), allocatable              :: out_algf(:,:) ! output: light growth multiplier
 
 
   ! CONSTANTS:
@@ -24,7 +25,7 @@ program FatesTestMoss
 
   interface
 
-    subroutine WriteMossData(out_file, n_cla, n_moss_biomass, cla, moss_biomass, out_al)
+    subroutine WriteMossData(out_file, n_cla, n_moss_biomass, cla, moss_biomass, out_al, out_algf)
 
       use FatesUnitTestIOMod, only : OpenNCFile, RegisterNCDims, CloseNCFile
       use FatesUnitTestIOMod, only : WriteVar, RegisterVar
@@ -38,6 +39,7 @@ program FatesTestMoss
       real(r8),         intent(in) :: cla(:)
       real(r8),         intent(in) :: moss_biomass(:)
       real(r8),         intent(in) :: out_al(:,:)
+      real(r8),         intent(in) :: out_algf(:,:)
     end subroutine WriteMossData
 
   end interface
@@ -50,6 +52,7 @@ program FatesTestMoss
   allocate(cla(n_cla))
   allocate(moss_biomass(n_moss_biomass))
   allocate(out_al(n_cla, n_moss_biomass))
+  allocate(out_algf(n_cla, n_moss_biomass))
 
   ! initialize cla array
   do i = 1, n_cla
@@ -61,21 +64,22 @@ program FatesTestMoss
     moss_biomass(i) = 10._r8**(floor(-real(n_moss_biomass, r8) / 2) + i)
   end do
 
-  ! calculate available light under canopy and moss
+  ! calculate light-related functions
   do i = 1, n_cla
     do j = 1, n_moss_biomass
       out_al(i,j) = available_light_under_canopy_and_moss(cla(i), moss_biomass(j))
+      out_algf(i,j) = light_growth_multiplier(cla(i), moss_biomass(j))
     end do
   end do
 
   ! write out data to netcdf file
-  call WriteMossData(out_file, n_cla, n_moss_biomass, cla, moss_biomass, out_al)
+  call WriteMossData(out_file, n_cla, n_moss_biomass, cla, moss_biomass, out_al, out_algf)
 
 end program FatesTestMoss
 
 ! ----------------------------------------------------------------------------------------
 
-subroutine WriteMossData(out_file, n_cla, n_moss_biomass, cla, moss_biomass, out_al)
+subroutine WriteMossData(out_file, n_cla, n_moss_biomass, cla, moss_biomass, out_al, out_algf)
   !
   ! DESCRIPTION:
   ! Writes out data from the moss test
@@ -95,6 +99,7 @@ subroutine WriteMossData(out_file, n_cla, n_moss_biomass, cla, moss_biomass, out
   real(r8),         intent(in) :: cla(:)
   real(r8),         intent(in) :: moss_biomass(:)
   real(r8),         intent(in) :: out_al(:,:)
+  real(r8),         intent(in) :: out_algf(:,:)
 
   ! LOCALS:
   ! TODO: Set a local parameter for number of dimensions (2)
@@ -103,7 +108,7 @@ subroutine WriteMossData(out_file, n_cla, n_moss_biomass, cla, moss_biomass, out
   character(len=24)    :: dim_names(2)   ! dimension name(s)
   integer              :: dimIDs(2)      ! dimension ID(s)
   integer              :: claID, mossbiomassID ! variable ID(s) for dimensions
-  integer              :: alID
+  integer              :: alID, algfID
 
   ! dimension name(s)
   dim_names = [character(len=24) :: 'cla', 'moss_biomass']
@@ -130,6 +135,12 @@ subroutine WriteMossData(out_file, n_cla, n_moss_biomass, cla, moss_biomass, out
     [character(len=150) :: 'cla moss_biomass', 'units?', 'Available light under canopy and moss'],  &
     3, alID)
 
+  ! register out_algf
+  call RegisterVar(ncid, 'out_algf', dimIDs(1:2), type_double,   &
+    [character(len=20)  :: 'coordinates', 'units', 'long_name'], &
+    [character(len=150) :: 'cla moss_biomass', 'unitless?', 'Light growth multiplier'],  &
+    3, algfID)
+
   ! finish defining variables
   call EndNCDef(ncid)
 
@@ -137,6 +148,7 @@ subroutine WriteMossData(out_file, n_cla, n_moss_biomass, cla, moss_biomass, out
   call WriteVar(ncid, claID, cla(:))
   call WriteVar(ncid, mossbiomassID, moss_biomass(:))
   call WriteVar(ncid, alID, out_al(:,:))
+  call WriteVar(ncid, algfID, out_algf(:,:))
 
   ! close the file
   call CloseNCFile(ncid)

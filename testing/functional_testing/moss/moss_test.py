@@ -41,7 +41,7 @@ class MossTest(FunctionalTest):
         moss_dat = xr.open_dataset(os.path.join(run_dir, self.out_file))
 
         # Make plots from variables with outputs dimensioned: cumulative leaf area x moss biomass
-        var_list = ["out_al"]
+        var_list = ["out_al", "out_algf"]
         for var in var_list:
             self.plot_moss_cla_x_mossbiomass(
                 moss_dat[var],
