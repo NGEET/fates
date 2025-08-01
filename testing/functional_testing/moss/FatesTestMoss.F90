@@ -63,7 +63,7 @@ program FatesTestMoss
   ! determine sizes of arrays
   n_cla = int((max_cla - min_cla)/cla_inc + 1)
   n_assim = int((max_assim - min_assim)/assim_inc + 1)
-  n_moss_biomass = 9
+  n_moss_biomass = 7
 
   ! allocate arrays
   allocate(cla(n_cla))
@@ -85,10 +85,8 @@ program FatesTestMoss
     assim(i) = min_assim + assim_inc*(i-1)
   end do
 
-  ! initialize moss biomass array: Powers of 10 symmetrical around 10^0
-  do i = 1, n_moss_biomass
-    moss_biomass(i) = 10._r8**(floor(-real(n_moss_biomass, r8) / 2) + i)
-  end do
+  ! initialize moss biomass array
+  moss_biomass = (/ 0.1_r8, 1._r8, 3._r8, 6._r8, 9._r8, 12._r8, 15._r8 /)
 
   ! calculate light-related functions
   do i = 1, n_cla
