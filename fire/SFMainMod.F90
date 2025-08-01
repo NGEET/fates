@@ -707,6 +707,7 @@ contains
     real(r8)                        :: ROS_active        ! theoretical crown fire rate of spread using FM 10 fuels [m/min]
     real(r8)                        :: ROS_final         ! final ROS when a crown fire happens [m/min]
     real(r8)                        :: FI_final          ! final fireline intensity with crown consumption [kW/m or kJ/m/s]
+    real(r8)                        :: crown_frac_burnt  ! patch level crown fraction burnt to calculate final crown fire intensty [fraction]
 
     ! local variables for calculating ROS_SA based on current patch fuel condition
     real(r8)                        :: ROS_SA            ! surface ROS calculated at open wind speed of CI [m/min]
@@ -734,7 +735,6 @@ contains
       ! initialize patch level variables
       currentPatch%passive_crown_fire = 0
       currentPatch%active_crown_fire = 0
-      currentPatch%canopy_frac_burnt = 0.0_r8
 
       if (currentPatch%nocomp_pft_label /= nocomp_bareground .and.         &
       currentPatch%fire == itrue .and. crown_fire_switch) then
@@ -801,7 +801,7 @@ contains
             currentPatch%active_crown_fire = 1 
             currentPatch%passive_crown_fire = 0
             ! for active crown fire we set CFB to 1
-            currentPatch%canopy_frac_burnt = 1.0_r8
+            crown_frac_burnt = 1.0_r8
           else if (ROS_active < ROS_active_min .and. &  ! FI >= FI_init but ROS_active < ROS_active_min
             currentPatch%ROS_front > ROS_init .and. &   ! XLG: it seems redudant when FI > FI_init is true, but calculation of ROS_init is 
             currentPatch%ROS_front < ROS_SA) then       ! different from ROS_front, let's check to be safe. I'm uncomfortable when calculations
@@ -809,19 +809,19 @@ contains
               currentPatch%active_crown_fire = 0
 
               ! calculate crown fraction burnt EQ. 28 in Scott & Reinhardt 2001
-              currentPatch%canopy_frac_burnt = min(1.0_r8, (currentPatch%ROS_front - ROS_init) / &
+            crown_frac_burnt = min(1.0_r8, (currentPatch%ROS_front - ROS_init) / &
               (ROS_SA - ROS_init))
           else ! a condition where crown fire cessation happens??
-            currentPatch%canopy_frac_burnt = 0.0_r8 
+            crown_frac_burnt = 0.0_r8 
           end if
           ! calculate ROS_final EQ. 21 in Scott & Reinhardt 2001
-          ROS_final = currentPatch%ROS_front + currentPatch%canopy_frac_burnt * &
+          ROS_final = currentPatch%ROS_front + crown_frac_burnt * &
                       ( ROS_active - currentPatch%ROS_front)
           
           ! calculate final fire intensity by accounting for burned canopy fuels
           ! EQ. 22 in Scott & Reinhardt 2001
           FI_final = CrownFireIntensity(HPA, currentPatch%fuel%canopy_fuel_load, &
-          currentPatch%area, currentPatch%canopy_frac_burnt, ROS_final)
+          currentPatch%area, crown_frac_burnt, ROS_final)
 
           if(write_SF == itrue)then
             if ( hlm_masterproc == itrue ) write(fates_log(),*) 'FI_final',FI_final
@@ -837,7 +837,7 @@ contains
 
 
           ! only update FI and ROS_front when CFB > 0
-          if (currentPatch%canopy_frac_burnt > 0.0_r8) then
+          if (crown_frac_burnt > 0.0_r8) then
             currentPatch%ROS_front = ROS_final
             currentPatch%FI = FI_final
           end if
@@ -1066,16 +1066,12 @@ contains
                    ! Flames part of way up canopy. 
                    ! Equation 17 in Thonicke et al. 2010. 
                    ! flames over bottom of canopy, CFB depends on whether it's active or passive crown fire
-                   if ((currentCohort%height > 0.0_r8).and.(currentPatch%Scorch_ht(currentCohort%pft) >=  &
-                        (currentCohort%height-crown_depth))) then 
-                          if (currentPatch%active_crown_fire == 1 .or. &
-                          currentPatch%passive_crown_fire == 1) then
-                            currentCohort%fraction_crown_burned = currentPatch%canopy_frac_burnt
-                          else
-                            currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
+                   if (currentPatch%active_crown_fire == 1) then 
+                    currentCohort%fraction_crown_burned == 1.0_r8
+                   else
+                    currentCohort%fraction_crown_burned = (currentPatch%Scorch_ht(currentCohort%pft) - &
                              (currentCohort%height - crown_depth))/crown_depth
-                          end if
-                   endif
+                   end if
 
                 endif
                 ! Check for strange values. 
