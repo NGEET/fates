@@ -12,7 +12,6 @@ module FatesRxFireMod
   private
   
   public :: is_prescribed_burn
-  !public :: is_wildfire
 
   contains
   
