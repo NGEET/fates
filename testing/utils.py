@@ -231,7 +231,6 @@ def blank_plot(
 
     Args:
         x_max (float): maximum x value
-        x_min (float): minimum x value
         y_max (float): maximum y value
         y_min (float): minimum y value
         draw_horizontal_lines (bool, optional): whether or not to draw horizontal

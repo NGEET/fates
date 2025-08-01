@@ -7,7 +7,7 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import round_up, blank_plot, get_color_palette
+from utils import round_up, truncate, blank_plot, get_color_palette
 from functional_class import FunctionalTest
 
 
@@ -36,14 +36,24 @@ class MossTest(FunctionalTest):
             save_figs (bool): whether or not to save the figures
             plot_dir (str): plot directory to save the figures to
         """
+        print("Making plots")
 
         # read in moss data
         moss_dat = xr.open_dataset(os.path.join(run_dir, self.out_file))
 
-        # Make plots from variables with outputs dimensioned: cumulative leaf area x moss biomass
+        # Make plots from variables with outputs dimensioned: cumulative leaf area x moss biomass (before)
         var_list = ["out_al", "out_algf"]
         for var in var_list:
             self.plot_moss_cla_x_mossbiomass(
+                moss_dat[var],
+                save_figs,
+                plot_dir,
+            )
+
+        # Make plots from variables with outputs dimensioned: assimilation x moss biomass (before)
+        var_list = ["out_resp", "out_mort", "out_biomass_delta"]
+        for var in var_list:
+            self.plot_moss_assim_x_mossbiomass(
                 moss_dat[var],
                 save_figs,
                 plot_dir,
@@ -70,6 +80,27 @@ class MossTest(FunctionalTest):
         """
         self.plot_dim0x_dim1legend(*args, dim0="cla", dim1="moss_biomass")
 
+    def plot_moss_assim_x_mossbiomass(
+        self, *args,
+    ):
+        """
+        Plot a variable with outputs dimensioned: assimilation (assim) x moss biomass.
+
+        This method takes a variable (typically an xarray DataArray) that is dimensioned by
+        moss assimilation and moss biomass, and generates a plot where the X axis is cumulative
+        leaf area and the legend represents different moss biomass values.
+
+        Args:
+            *args: Arguments passed to plot_dim0x_dim1legend, typically including:
+                data (xarray.DataArray): The variable to plot.
+                save_fig (bool): Whether or not to save the figure.
+                plot_dir (str): Directory to save the figure to.
+
+        Returns:
+            None. Displays or saves the plot depending on the save_fig argument.
+        """
+        self.plot_dim0x_dim1legend(*args, dim0="assim", dim1="moss_biomass")
+
     @staticmethod
     def plot_dim0x_dim1legend(
         data: xr.DataArray, save_fig: bool, plot_dir: str, dim0: str, dim1: str
@@ -89,10 +120,12 @@ class MossTest(FunctionalTest):
             }
         )
 
+        min_x = data_frame[dim0].min()
         max_x = data_frame[dim0].max()
+        min_y = truncate(data_frame[data.name].min())
         max_y = round_up(data_frame[data.name].max())
 
-        blank_plot(max_x, 0.0, max_y, 0.0, draw_horizontal_lines=True)
+        blank_plot(max_x, min_x, max_y, min_y, draw_horizontal_lines=False)
 
         legend_values = np.unique(data_frame[dim1].values)
         colors = get_color_palette(len(legend_values))
