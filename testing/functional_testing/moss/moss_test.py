@@ -49,11 +49,32 @@ class MossTest(FunctionalTest):
                 plot_dir,
             )
 
-    @staticmethod
     def plot_moss_cla_x_mossbiomass(
-        data: xr.Dataset, save_fig: bool, plot_dir: str = None
+        self, *args,
     ):
-        """Plot a variable with outputs dimensioned: cumulative leaf area x moss biomass
+        """
+        Plot a variable with outputs dimensioned: cumulative leaf area (cla) x moss biomass.
+
+        This method takes a variable (typically an xarray DataArray) that is dimensioned by
+        cumulative leaf area and moss biomass, and generates a plot where the X axis is cumulative
+        leaf area and the legend represents different moss biomass values.
+
+        Args:
+            *args: Arguments passed to plot_dim0x_dim1legend, typically including:
+                data (xarray.DataArray): The variable to plot.
+                save_fig (bool): Whether or not to save the figure.
+                plot_dir (str): Directory to save the figure to.
+
+        Returns:
+            None. Displays or saves the plot depending on the save_fig argument.
+        """
+        self.plot_dim0x_dim1legend(*args, dim0="cla", dim1="moss_biomass")
+
+    @staticmethod
+    def plot_dim0x_dim1legend(
+        data: xr.DataArray, save_fig: bool, plot_dir: str, dim0: str, dim1: str
+    ):
+        """Plot a variable with outputs dimensioned: (X axis, legend item)
 
         Args:
             data (xarray DataArray): the data array of the variable to plot
@@ -62,35 +83,38 @@ class MossTest(FunctionalTest):
         """
         data_frame = pd.DataFrame(
             {
-                "cla": np.tile(data.cla, len(data.moss_biomass)),
-                "moss_biomass": np.repeat(data.moss_biomass, len(data.cla)),
+                dim0: np.tile(data[dim0], len(data[dim1])),
+                dim1: np.repeat(data[dim1], len(data[dim0])),
                 data.name: data.values.flatten(),
             }
         )
 
-        max_cla = data_frame["cla"].max()
-        max_var = round_up(data_frame[data.name].max())
+        max_x = data_frame[dim0].max()
+        max_y = round_up(data_frame[data.name].max())
 
-        blank_plot(max_cla, 0.0, max_var, 0.0, draw_horizontal_lines=True)
+        blank_plot(max_x, 0.0, max_y, 0.0, draw_horizontal_lines=True)
 
-        moss_biomasses = np.unique(data_frame.moss_biomass.values)
-        colors = get_color_palette(len(moss_biomasses))
-        for rank, moss_biomass in enumerate(moss_biomasses):
-            dat = data_frame[data_frame.moss_biomass == moss_biomass]
+        legend_values = np.unique(data_frame[dim1].values)
+        colors = get_color_palette(len(legend_values))
+        for rank, legend_value in enumerate(legend_values):
+            dat = data_frame[data_frame.moss_biomass == legend_value]
             plt.plot(
-                dat.cla.values,
+                dat[dim0].values,
                 dat[data.name].values,
                 lw=2,
                 color=colors[rank],
-                label=moss_biomass,
+                label=legend_value,
             )
 
-        plt.xlabel("Cumulative leaf area in plot (m2)", fontsize=11)
+        x_label = f"{data[dim0].attrs['long_name']} ({data[dim0].attrs['units']})"
+        legend_label = f"{data[dim1].attrs['long_name']} ({data[dim1].attrs['units']})"
         varname = data.attrs["long_name"]
-        units = data.attrs["units"]
-        plt.ylabel(f"{varname} ({units})", fontsize=11)
+        y_label = f"{varname} ({data.attrs['units']})"
+
+        plt.xlabel(x_label, fontsize=11)
+        plt.ylabel(y_label, fontsize=11)
         plt.title(f"Simulated {varname}", fontsize=11)
-        plt.legend(loc="upper left", title="Moss biomass (kg/m2 plot)")
+        plt.legend(loc="upper left", title=legend_label)
 
         if save_fig:
             fig_name = os.path.join(plot_dir, f"allometry_plot_{data.name}.png")
