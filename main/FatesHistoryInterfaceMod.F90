@@ -2462,9 +2462,9 @@ contains
          hio_rx_intensity_si     => this%hvars(ih_rx_intensity_si)%r81d, &
          hio_rx_intensity_fracarea_product_si => this%hvars(ih_rx_intensity_fracarea_product_si)%r81d, &
          hio_rx_fracarea_si          => this%hvars(ih_rx_fracarea_si)%r81d, &
-         hio_rx_area_fuel_si     => this%hvars(ih_rx_area_fuel_si)%r81d, &
-         hio_rx_area_fi_si       => this%hvars(ih_rx_area_fi_si)%r81d, &
-         hio_rx_area_final_si    => this%hvars(ih_rx_area_final_si)%r81d, &
+         hio_rx_fracarea_fuel_si     => this%hvars(ih_rx_fracarea_fuel_si)%r81d, &
+         hio_rx_fracarea_fi_si       => this%hvars(ih_rx_fracarea_fi_si)%r81d, &
+         hio_rx_fracarea_final_si    => this%hvars(ih_rx_fracarea_final_si)%r81d, &
          hio_litter_in_si        => this%hvars(ih_litter_in_si)%r81d, &
          hio_litter_out_si       => this%hvars(ih_litter_out_si)%r81d, &
          hio_npp_si              => this%hvars(ih_npp_si)%r81d, &
@@ -2591,13 +2591,13 @@ contains
          hio_fire_fdi_si(io_si) = sites(s)%FDI
 
          ! total rx burnable fraction when fuel condition met
-         hio_rx_area_fuel_si(io_si) = sites(s)%rxfire_area_fuel * AREA_INV
+         hio_rx_fracarea_fuel_si(io_si) = sites(s)%rxfire_area_fuel * AREA_INV
 
          ! total rx burnable fraction when fuel and FI conditions met
-         hio_rx_area_fi_si(io_si) = sites(s)%rxfire_area_fi * AREA_INV
+         hio_rx_fracarea_fi_si(io_si) = sites(s)%rxfire_area_fi * AREA_INV
 
          ! total rx burnable fraction when all conditions met
-         hio_rx_area_final_si(io_si) = sites(s)%rxfire_area_final * AREA_INV
+         hio_rx_fracarea_final_si(io_si) = sites(s)%rxfire_area_final * AREA_INV
 
          ! If hydraulics are turned on, track the error terms associated with
          ! dynamics [kg/m2]
