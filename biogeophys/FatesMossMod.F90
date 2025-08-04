@@ -48,28 +48,26 @@ module FatesMossMod
 contains
 
 !------------------------------------------------------------------------------
-function available_light_under_canopy_and_moss(cla_m2_per_plot, moss_biom_kg_per_m2plot_before) result(al)
-  real(r8), intent(in)    :: cla_m2_per_plot  ! Cumulative leaf area on forest floor (m2)
+function available_light_under_canopy_and_moss(canopy_lai, moss_biom_kg_per_m2plot_before) result(al)
+  real(r8), intent(in)    :: canopy_lai  ! Leaf area index of canopy (i.e., excluding moss) (m2 leaves / m2 plot)
   real(r8), intent(in)    :: moss_biom_kg_per_m2plot_before  ! Moss biomass (kg/m2) before this timestep
-  real(r8) :: canopy_lai  ! Leaf area index of canopy (i.e., excluding moss) (m2 leaves / m2 plot)
   real(r8) :: moss_lai  ! Leaf area index of moss (m2 leaves / m2 plot)
   real(r8) :: lai       ! Total leaf area index, canopy + moss (m2 leaves / m2 plot)
   real(r8) :: al        ! Available light
 
-  canopy_lai = cla_m2_per_plot / plotsize_m2
   moss_lai = moss_biom_kg_per_m2plot_before * SLA_M2LEAF_PER_KGMOSS
   lai = canopy_lai + moss_lai
   al = exp(-1.0*EXT*lai)
 end function available_light_under_canopy_and_moss
 
 !------------------------------------------------------------------------------
-function light_growth_multiplier(cla_m2_per_plot, moss_biom_kg_per_m2plot_before) result(algf)
-  real(r8), intent(in)    :: cla_m2_per_plot  ! Cumulative leaf area on forest floor (m2)
+function light_growth_multiplier(canopy_lai, moss_biom_kg_per_m2plot_before) result(algf)
+  real(r8), intent(in)    :: canopy_lai  ! Leaf area index of canopy (i.e., excluding moss) (m2 leaves / m2 plot)
   real(r8), intent(in)    :: moss_biom_kg_per_m2plot_before  ! Moss biomass (kg/m2) before this timestep
   real(r8) :: al        ! Available light
   real(r8) :: algf      ! Light growth multiplier
 
-  al = available_light_under_canopy_and_moss(cla_m2_per_plot, moss_biom_kg_per_m2plot_before)
+  al = available_light_under_canopy_and_moss(canopy_lai, moss_biom_kg_per_m2plot_before)
   algf = (al - LRMIN)/(LRMAX - LRMIN)
   algf = max(0.0, algf)
   algf = min(1.0, algf)
@@ -138,7 +136,7 @@ subroutine moss_biomass_change_kg_per_m2(q_kg_per_kg_moss_in, b_kg_per_kg_moss_i
 end subroutine moss_biomass_change_kg_per_m2
 
 !------------------------------------------------------------------------------
-subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plot_inout, moss_to_litter_flux_kg_per_m2plot, moss_to_atmos_flux_kg_per_m2plot, &
+subroutine moss(alff, canopy_lai, decLit_t_per_haplot, moss_biom_kg_per_plot_inout, moss_to_litter_flux_kg_per_m2plot, moss_to_atmos_flux_kg_per_m2plot, &
                 livemoss_depth_m)
   !
   !  Calculates annual moss growth and mortality
@@ -148,7 +146,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
 
   ! Arguments
   real(r8), intent(in)    :: alff    ! Available light on the forest floor (0-1)
-  real(r8), intent(in)    :: cla_m2_per_plot     ! Cumulative leaf area on forest floor (m2)
+  real(r8), intent(in)    :: canopy_lai  ! Leaf area index of canopy (i.e., excluding moss) (m2 leaves / m2 plot)
   real(r8), intent(in)    :: decLit_t_per_haplot  ! Fresh deciduous leaf litter (t/ha)
   real(r8), intent(inout) :: moss_biom_kg_per_plot_inout  ! Moss biomass (kg, not kg/m2)
   real(r8), intent(out)   :: moss_to_litter_flux_kg_per_m2plot  ! Flux from moss to litter (kg/m2)
@@ -181,7 +179,7 @@ subroutine moss(alff, cla_m2_per_plot, decLit_t_per_haplot, moss_biom_kg_per_plo
   moss_biom_kg_per_m2plot_before = moss_biom_kg_per_plot_before/plotsize_m2
 
   ! Light growth multiplier
-  algf = light_growth_multiplier(cla_m2_per_plot, moss_biom_kg_per_m2plot_before)
+  algf = light_growth_multiplier(canopy_lai, moss_biom_kg_per_m2plot_before)
 
   ! Forest cover growth multiplier
   fcgf = forest_cover_growth_multiplier(alff)
