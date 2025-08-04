@@ -38,6 +38,7 @@ class MossTest(FunctionalTest):
             plot_dir (str): plot directory to save the figures to
         """
         print("Making plots")
+        plt.close("all")
 
         # read in moss data
         moss_dat = xr.open_dataset(os.path.join(run_dir, self.out_file))
