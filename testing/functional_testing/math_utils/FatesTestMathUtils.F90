@@ -1,7 +1,7 @@
 program FatesTestQuadSolvers
 
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesUtilsMod,     only : QuadraticRootsNSWC, QuadraticRootsSridharachary
+  use FatesUtilsMod,     only : QuadraticRootsNSWC
   use FatesUtilsMod,     only : GetNeighborDistance
 
   implicit none
@@ -15,7 +15,7 @@ program FatesTestQuadSolvers
   real(r8) :: a(n), b(n), c(n) ! coefficients for quadratic solvers
   real(r8) :: root1(n)         ! real part of first root of quadratic solver
   real(r8) :: root2(n)         ! real part of second root of quadratic solver
-  logical  :: err              ! whether quadratic solver encountered an error
+  logical  :: err              ! error
 
   interface
 

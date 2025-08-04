@@ -112,7 +112,7 @@ module FatesFactoryMod
     do i = 2,nlevleaf
        dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
     end do
-    
+        
   end subroutine InitializeGlobals
   
   !---------------------------------------------------------------------------------------
@@ -521,7 +521,7 @@ module FatesFactoryMod
     if (present(dbhs)) then 
       if (size(heights) /= size(dbhs)) then 
         write(*, '(a)') "Size of heights array must match size of dbh array."
-        stop
+        call abort()
       end if 
     end if 
     

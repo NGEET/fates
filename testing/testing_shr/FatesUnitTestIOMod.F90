@@ -25,6 +25,7 @@ module FatesUnitTestIOMod
   interface WriteVar
     module procedure WriteVar1DReal
     module procedure WriteVar2DReal
+    module procedure WriteVar3DReal
     module procedure WriteVar1DInt
     module procedure WriteVar2DInt
     module procedure WriteVar1DChar
@@ -106,7 +107,7 @@ module FatesUnitTestIOMod
 
     if (status /= nf90_noerr) then
       write(*,*) trim(nf90_strerror(status))
-      stop
+      call abort()
     end if
 
   end subroutine Check
@@ -134,11 +135,11 @@ module FatesUnitTestIOMod
         call Check(nf90_create(trim(nc_file), NF90_CLOBBER, ncid))
       case DEFAULT
         write(*,*) 'Need to specify read, write, or readwrite'
-        stop
+        call abort()
       end select
     else
       write(*,*) 'Problem reading file'
-      stop
+      call abort()
     end if
 
   end subroutine OpenNCFile
@@ -480,7 +481,7 @@ module FatesUnitTestIOMod
       nc_type = NF90_CHAR
     else
       write(*, *) "Must pick correct type"
-      stop
+      call abort()
     end if
 
     call Check(nf90_def_var(ncid, var_name, nc_type, dimID, varID))
@@ -539,6 +540,24 @@ module FatesUnitTestIOMod
     call Check(nf90_put_var(ncid, varID, data(:,:)))
 
   end subroutine WriteVar2DReal
+  
+  
+  !  =====================================================================================
+
+  subroutine WriteVar3DReal(ncid, varID, data)
+    !
+    ! DESCRIPTION:
+    ! Write 2D real data
+    !
+
+    ! ARGUMENTS:
+    integer,  intent(in) :: ncid        ! netcdf file id
+    integer,  intent(in) :: varID       ! variable ID
+    real(r8), intent(in) :: data(:,:,:) ! data to write
+
+    call Check(nf90_put_var(ncid, varID, data(:,:,:)))
+
+  end subroutine WriteVar3DReal
 
   !  =====================================================================================
 

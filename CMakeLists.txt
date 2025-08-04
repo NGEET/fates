@@ -20,7 +20,6 @@ include(CIME_utils)
 
 set(HLM_ROOT "../../")
 
-# The following - for finding ESMF - is copied from the share CMakeLists.txt
 if (DEFINED ENV{ESMF_ROOT})
   list(APPEND CMAKE_MODULE_PATH $ENV{ESMF_ROOT}/cmake)
 endif()
@@ -109,7 +108,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # Directories and libraries to include in the link step
 link_directories(${CMAKE_CURRENT_BINARY_DIR})
-link_libraries( esmf )
+link_libraries(esmf)
               
 # Add the main test directory
 add_subdirectory(${HLM_ROOT}/src/fates/testing)
