@@ -41,6 +41,15 @@ class MossTest(FunctionalTest):
         # read in moss data
         moss_dat = xr.open_dataset(os.path.join(run_dir, self.out_file))
 
+        # Make plots from 1-d variables
+        var_list = ["out_dlgf"]
+        for var in var_list:
+            self.plot_1d(
+                moss_dat[var],
+                save_figs,
+                plot_dir,
+            )
+
         # Make plots from variables with outputs dimensioned: leaf area index x moss biomass (before)
         var_list = ["out_al", "out_algf"]
         for var in var_list:
@@ -58,6 +67,38 @@ class MossTest(FunctionalTest):
                 save_figs,
                 plot_dir,
             )
+
+    @staticmethod
+    def plot_1d(
+        data: xr.DataArray, save_fig: bool, plot_dir: str
+    ):
+        """Plot a 1-d variable
+
+        Args:
+            data (xarray DataArray): the data array of the variable to plot
+            save_fig (bool): whether or not to write out plot
+            plot_dir (str): if saving figure, where to write to
+        """
+        dim0 = data.dims[0]
+
+        plt.plot(
+            data[dim0].values,
+            data.values,
+            lw=2,
+        )
+
+        x_label = f"{data[dim0].attrs['long_name']} ({data[dim0].attrs['units']})"
+        varname = data.attrs["long_name"]
+        y_label = f"{varname} ({data.attrs['units']})"
+
+        plt.xlabel(x_label, fontsize=11)
+        plt.ylabel(y_label, fontsize=11)
+        plt.title(f"Simulated {varname}", fontsize=11)
+
+        if save_fig:
+            fig_name = os.path.join(plot_dir, f"moss_plot_{data.name}.png")
+            plt.savefig(fig_name)
+        plt.close()
 
     def plot_moss_lai_x_mossbiomass(
         self, *args,
