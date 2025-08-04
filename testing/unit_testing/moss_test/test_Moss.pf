@@ -116,6 +116,15 @@ module test_Moss
     end subroutine dlgf_max_1
 
     @Test
+    subroutine dlgf_onehalf(this)
+      ! test that litter growth multiplier is (about) 0.5 where we expect
+      class(TestMoss), intent(inout) :: this ! test object
+
+      @assertEqual(0.5000000162891882_r8, litter_growth_multiplier(2.3640763320598404_r8))
+
+    end subroutine dlgf_onehalf
+
+    @Test
     subroutine moss_biomass_change_test(this)
       ! test that moss biomass change and fluxes are what we expect given a timestep that doesn't kill the moss
       class(TestMoss), intent(inout) :: this ! test object
