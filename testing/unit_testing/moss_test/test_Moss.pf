@@ -213,12 +213,12 @@ module test_Moss
 
     @Test
     subroutine MossA(this)
-      ! temporary test to make sure refactoring has no effect
+      ! nonzero test of moss() subroutine
       class(TestMoss), intent(inout) :: this ! test object
       real(r8) :: alff    ! Available light on the forest floor (0-1)
       real(r8) :: cla     ! Cumulative leaf area on forest floor (m2)
       real(r8) :: decLit  ! Fresh deciduous leaf litter (kg/m2)
-      real(r8) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
+      real(r8) :: moss_biom_kg  ! Moss biomass (kg/m2)
       real(r8) :: moss_litter_flux  ! Moss biomass flux to litter (kg/m2)
       real(r8) :: moss_atmos_flux  ! Moss biomass flux to atmosphere (kg/m2)
       real(r8) :: livemoss_depth  ! Depth (m) of live moss layer
@@ -226,10 +226,10 @@ module test_Moss
       alff = 1.0_r8
       cla = 3.0_r8
       decLit = 0.1_r8
-      moss_biom_kg = 0.5_r8
+      moss_biom_kg = 0.001_r8
 
       call moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, moss_atmos_flux, livemoss_depth)
-      @assertEqual(0.4454218656020391_r8, moss_biom_kg, tolerance=tol)
+      @assertEqual(0.0008908437312040781_r8, moss_biom_kg, tolerance=tol)
       @assertEqual(0.0001360000073909760_r8, moss_litter_flux, tolerance=tol)
       @assertEqual(0.0001199999973177910_r8, moss_atmos_flux, tolerance=tol)
       @assertEqual(0.4949131844885193E-04_r8, livemoss_depth, tolerance=tol)

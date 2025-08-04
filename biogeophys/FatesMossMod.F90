@@ -35,9 +35,6 @@ module FatesMossMod
   real(r8), parameter :: DLGF_DECLIT_THRESH = 0  ! Above this level of deciduous litter (kg/m2 plot), moss assimilation starts to decrease
   real(r8), parameter :: DLGF_DECAY = 2.932  ! Decay parameter of moss assimilation with increasing deciduous leaf litter
 
-  ! TODO: Replace these with FATES versions (or delete)
-  real(r8), parameter :: plotsize_m2 = 500.0     ! Area of plots (m2)
-
 
   ! PUBLIC MEMBER FUNCTIONS:
   public :: light_growth_multiplier
@@ -136,7 +133,7 @@ subroutine moss_biomass_change_kg_per_m2(q_kg_per_kg_moss_in, b_kg_per_kg_moss_i
 end subroutine moss_biomass_change_kg_per_m2
 
 !------------------------------------------------------------------------------
-subroutine moss(alff, canopy_lai, decid_litter, moss_biom_kg_per_plot_inout, moss_to_litter_flux_kg_per_m2plot, moss_to_atmos_flux_kg_per_m2plot, &
+subroutine moss(alff, canopy_lai, decid_litter, moss_biom_kg_per_m2plot_inout, moss_to_litter_flux_kg_per_m2plot, moss_to_atmos_flux_kg_per_m2plot, &
                 livemoss_depth_m)
   !
   !  Calculates annual moss growth and mortality
@@ -148,7 +145,7 @@ subroutine moss(alff, canopy_lai, decid_litter, moss_biom_kg_per_plot_inout, mos
   real(r8), intent(in)    :: alff    ! Available light on the forest floor (0-1)
   real(r8), intent(in)    :: canopy_lai  ! Leaf area index of canopy (i.e., excluding moss) (m2 leaves / m2 plot)
   real(r8), intent(in)    :: decid_litter  ! Fresh deciduous leaf litter (kg/m2)
-  real(r8), intent(inout) :: moss_biom_kg_per_plot_inout  ! Moss biomass (kg, not kg/m2)
+  real(r8), intent(inout) :: moss_biom_kg_per_m2plot_inout  ! Moss biomass (kg/m2)
   real(r8), intent(out)   :: moss_to_litter_flux_kg_per_m2plot  ! Flux from moss to litter (kg/m2)
   real(r8), intent(out)   :: moss_to_atmos_flux_kg_per_m2plot  ! Flux from moss to atmosphere (kg/m2)
   real(r8), intent(out)   :: livemoss_depth_m  ! Depth (m) of live moss layer
@@ -173,10 +170,7 @@ subroutine moss(alff, canopy_lai, decid_litter, moss_biom_kg_per_plot_inout, mos
   real(r8) :: moss_respmort_kg_per_m2plot  ! Moss respiration and mortality (kg/m2) during this timestep
 
   ! Save this for later
-  moss_biom_kg_per_plot_before = moss_biom_kg_per_plot_inout
-
-  ! Convert moss biomass in kg to kg/m2
-  moss_biom_kg_per_m2plot_before = moss_biom_kg_per_plot_before/plotsize_m2
+  moss_biom_kg_per_m2plot_before = moss_biom_kg_per_m2plot_inout
 
   ! Light growth multiplier
   algf = light_growth_multiplier(canopy_lai, moss_biom_kg_per_m2plot_before)
@@ -208,7 +202,7 @@ subroutine moss(alff, canopy_lai, decid_litter, moss_biom_kg_per_plot_inout, mos
 
   ! Convert certain variables to their UVAFME outputs
   ! TODO: Change these to what FATES needs
-  moss_biom_kg_per_plot_inout = moss_biom_kg_per_m2plot_after * plotsize_m2
+  moss_biom_kg_per_m2plot_inout = moss_biom_kg_per_m2plot_after
 
 
 
