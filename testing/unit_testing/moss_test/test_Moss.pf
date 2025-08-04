@@ -120,7 +120,7 @@ module test_Moss
       ! test that litter growth multiplier is (about) 0.5 where we expect
       class(TestMoss), intent(inout) :: this ! test object
 
-      @assertEqual(0.5000000162891882_r8, litter_growth_multiplier(2.3640763320598404_r8))
+      @assertEqual(0.5000000092436915_r8, litter_growth_multiplier(0.23640763320598404_r8))
 
     end subroutine dlgf_onehalf
 
@@ -190,7 +190,7 @@ module test_Moss
       class(TestMoss), intent(inout) :: this ! test object
       real(r8) :: alff    ! Available light on the forest floor (0-1)
       real(r8) :: cla     ! Cumulative leaf area on forest floor (m2)
-      real(r8) :: decLit  ! Fresh deciduous leaf litter (t/ha)
+      real(r8) :: decLit  ! Fresh deciduous leaf litter (kg/m2)
       real(r8) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
       real(r8) :: moss_litter_flux  ! Moss biomass flux to litter (kg/m2)
       real(r8) :: moss_atmos_flux  ! Moss biomass flux to atmosphere (kg/m2)
@@ -217,7 +217,7 @@ module test_Moss
       class(TestMoss), intent(inout) :: this ! test object
       real(r8) :: alff    ! Available light on the forest floor (0-1)
       real(r8) :: cla     ! Cumulative leaf area on forest floor (m2)
-      real(r8) :: decLit  ! Fresh deciduous leaf litter (t/ha)
+      real(r8) :: decLit  ! Fresh deciduous leaf litter (kg/m2)
       real(r8) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
       real(r8) :: moss_litter_flux  ! Moss biomass flux to litter (kg/m2)
       real(r8) :: moss_atmos_flux  ! Moss biomass flux to atmosphere (kg/m2)
@@ -225,11 +225,11 @@ module test_Moss
 
       alff = 1.0_r8
       cla = 3.0_r8
-      decLit = 1.0_r8
+      decLit = 0.1_r8
       moss_biom_kg = 0.5_r8
 
       call moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, moss_atmos_flux, livemoss_depth)
-      @assertEqual(0.4454218660396674_r8, moss_biom_kg, tolerance=tol)
+      @assertEqual(0.4454218656020391_r8, moss_biom_kg, tolerance=tol)
       @assertEqual(0.0001360000073909760_r8, moss_litter_flux, tolerance=tol)
       @assertEqual(0.0001199999973177910_r8, moss_atmos_flux, tolerance=tol)
       @assertEqual(0.4949131844885193E-04_r8, livemoss_depth, tolerance=tol)

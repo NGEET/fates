@@ -17,7 +17,7 @@ program FatesTestMoss
   integer                            :: n_declit  ! number of deciduous litter levels to test
   real(r8), allocatable              :: lai(:)  ! leaf area index across plot (m2/m2)
   real(r8), allocatable              :: assim(:)  ! moss assimilation (kg/m2 plot)
-  real(r8), allocatable              :: declit(:)  ! deciduous litter in plot (t/ha)
+  real(r8), allocatable              :: declit(:)  ! deciduous litter in plot (kg/m2)
   real(r8), allocatable              :: moss_biomass(:)  ! moss biomass (kg per m2 plot)
   real(r8), allocatable              :: out_al(:,:) ! output: available light
   real(r8), allocatable              :: out_algf(:,:) ! output: light growth multiplier
@@ -38,8 +38,8 @@ program FatesTestMoss
   real(r8),         parameter :: max_assim = 5._r8     ! maximum assimilation to calculate
   real(r8),         parameter :: assim_inc = 0.001_r8    ! assimilation increment to use
   real(r8),         parameter :: min_declit = 0._r8      ! minimum deciduous litter to calculate
-  real(r8),         parameter :: max_declit = 20.0_r8     ! maximum deciduous litter to calculate
-  real(r8),         parameter :: declit_inc = 0.01_r8    ! deciduous litter increment to use
+  real(r8),         parameter :: max_declit = 2.0_r8     ! maximum deciduous litter to calculate
+  real(r8),         parameter :: declit_inc = 0.001_r8    ! deciduous litter increment to use
 
   interface
 
@@ -201,7 +201,7 @@ subroutine WriteMossData(out_file, n_lai, n_assim, n_declit, n_moss_biomass, lai
   ! register deciduous litter dimension
   call RegisterVar(ncid, dim_names(4), dimIDs(4:4), type_double,         &
     [character(len=20)  :: 'units', 'long_name'],                        &
-    [character(len=150) :: 't/ha', 'Deciduous litter'], n_dim_atts, declitID)
+    [character(len=150) :: 'kg/m2', 'Deciduous litter'], n_dim_atts, declitID)
 
   ! register out_al
   call RegisterVar(ncid, 'out_al', dimIDs(1:2), type_double,   &

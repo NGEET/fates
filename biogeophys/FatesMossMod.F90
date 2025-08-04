@@ -32,8 +32,8 @@ module FatesMossMod
   real(r8), parameter :: BULK_MOSS_KG_PER_M3 = 18       ! Moss bulk density (kg/m3)
   real(r8), parameter :: FCGF_ALFF_THRESH = 0.75  ! Above this level of light on forest floor, moss assimilation starts to decrease
   real(r8), parameter :: FCGF_INTERCEPT = 1.5625  ! Intercept parameter in fcgf equation
-  real(r8), parameter :: DLGF_DECLIT_THRESH = 0  ! Above this level of deciduous litter (t/ha plot), moss assimilation starts to decrease
-  real(r8), parameter :: DLGF_DECAY = 0.2932  ! Decay parameter of moss assimilation with increasing deciduous leaf litter
+  real(r8), parameter :: DLGF_DECLIT_THRESH = 0  ! Above this level of deciduous litter (kg/m2 plot), moss assimilation starts to decrease
+  real(r8), parameter :: DLGF_DECAY = 2.932  ! Decay parameter of moss assimilation with increasing deciduous leaf litter
 
   ! TODO: Replace these with FATES versions (or delete)
   real(r8), parameter :: plotsize_m2 = 500.0     ! Area of plots (m2)
@@ -88,7 +88,7 @@ end function forest_cover_growth_multiplier
 
 !------------------------------------------------------------------------------
 function litter_growth_multiplier(decid_litter) result(dlgf)
-  real(r8), intent(in)    :: decid_litter    ! Fresh deciduous leaf litter (t/ha)
+  real(r8), intent(in)    :: decid_litter    ! Fresh deciduous leaf litter (kg/m2)
   real(r8) :: dlgf      ! Deciduous leaf litter growth multiplier
   if (decid_litter > DLGF_DECLIT_THRESH) then
       dlgf = exp(-DLGF_DECAY * decid_litter)
@@ -147,7 +147,7 @@ subroutine moss(alff, canopy_lai, decid_litter, moss_biom_kg_per_plot_inout, mos
   ! Arguments
   real(r8), intent(in)    :: alff    ! Available light on the forest floor (0-1)
   real(r8), intent(in)    :: canopy_lai  ! Leaf area index of canopy (i.e., excluding moss) (m2 leaves / m2 plot)
-  real(r8), intent(in)    :: decid_litter  ! Fresh deciduous leaf litter (t/ha)
+  real(r8), intent(in)    :: decid_litter  ! Fresh deciduous leaf litter (kg/m2)
   real(r8), intent(inout) :: moss_biom_kg_per_plot_inout  ! Moss biomass (kg, not kg/m2)
   real(r8), intent(out)   :: moss_to_litter_flux_kg_per_m2plot  ! Flux from moss to litter (kg/m2)
   real(r8), intent(out)   :: moss_to_atmos_flux_kg_per_m2plot  ! Flux from moss to atmosphere (kg/m2)
