@@ -41,10 +41,10 @@ class MossTest(FunctionalTest):
         # read in moss data
         moss_dat = xr.open_dataset(os.path.join(run_dir, self.out_file))
 
-        # Make plots from variables with outputs dimensioned: cumulative leaf area x moss biomass (before)
+        # Make plots from variables with outputs dimensioned: leaf area index x moss biomass (before)
         var_list = ["out_al", "out_algf"]
         for var in var_list:
-            self.plot_moss_cla_x_mossbiomass(
+            self.plot_moss_lai_x_mossbiomass(
                 moss_dat[var],
                 save_figs,
                 plot_dir,
@@ -59,15 +59,15 @@ class MossTest(FunctionalTest):
                 plot_dir,
             )
 
-    def plot_moss_cla_x_mossbiomass(
+    def plot_moss_lai_x_mossbiomass(
         self, *args,
     ):
         """
-        Plot a variable with outputs dimensioned: cumulative leaf area (cla) x moss biomass.
+        Plot a variable with outputs dimensioned: leaf area index (lai) x moss biomass.
 
         This method takes a variable (typically an xarray DataArray) that is dimensioned by
-        cumulative leaf area and moss biomass, and generates a plot where the X axis is cumulative
-        leaf area and the legend represents different moss biomass values.
+        leaf area index and moss biomass, and generates a plot where the X axis is leaf area index
+        and the legend represents different moss biomass values.
 
         Args:
             *args: Arguments passed to plot_dim0x_dim1legend, typically including:
@@ -78,7 +78,7 @@ class MossTest(FunctionalTest):
         Returns:
             None. Displays or saves the plot depending on the save_fig argument.
         """
-        self.plot_dim0x_dim1legend(*args, dim0="cla", dim1="moss_biomass")
+        self.plot_dim0x_dim1legend(*args, dim0="lai", dim1="moss_biomass")
 
     def plot_moss_assim_x_mossbiomass(
         self, *args,
@@ -87,8 +87,8 @@ class MossTest(FunctionalTest):
         Plot a variable with outputs dimensioned: assimilation (assim) x moss biomass.
 
         This method takes a variable (typically an xarray DataArray) that is dimensioned by
-        moss assimilation and moss biomass, and generates a plot where the X axis is cumulative
-        leaf area and the legend represents different moss biomass values.
+        moss assimilation and moss biomass, and generates a plot where the X axis is assimilation
+        and the legend represents different moss biomass values.
 
         Args:
             *args: Arguments passed to plot_dim0x_dim1legend, typically including:
