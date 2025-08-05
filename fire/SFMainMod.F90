@@ -35,7 +35,7 @@ module SFMainMod
   
   implicit none
   private
-  
+
   public :: DailyFireModel
   public :: UpdateFuelCharacteristics
 
@@ -424,7 +424,7 @@ contains
               currentPatch%nonrx_fire = 1
             end if
               
-          else if (has_ignition .and. fi_check)  ! not a patch suitable for conducting prescribed fire or rxfire is not even turned on, but (potential) intensity is greater than kW/m energy threshold
+          else if (has_ignition .and. fi_check)  then ! not a patch suitable for conducting prescribed fire or rxfire is not even turned on, but (potential) intensity is greater than kW/m energy threshold
             currentPatch%nonrx_fire = 1
           end if
 
@@ -555,7 +555,7 @@ contains
           write(fates_log(),*) 'Both wildfire and management fire are happening at same patch'
           write(fates_log(),*) 'rxfire =', currentPatch%rx_fire
           write(fates_log(),*) 'wildfire =', currentPatch%nonrx_fire
-          call endrun(msg=errMsg(sourcefile, __LINE__))
+          call endrun(msg=errMsg(__FILE__, __LINE__))
         end if
       end if
       currentPatch => currentPatch%younger
