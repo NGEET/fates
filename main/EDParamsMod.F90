@@ -65,6 +65,7 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_canopy_closure_thresh         ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
 
    logical,protected, public :: active_crown_fire                     ! flag, 1=active crown fire 0=no active crown fire
+
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
 
    real(r8), protected, public :: cg_strikes                          ! fraction of cloud to ground lightning strikes (0-1)
