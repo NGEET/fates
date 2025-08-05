@@ -357,9 +357,9 @@ contains
     !
 
     use SFEquationsMod,    only : FireIntensity
-    use SFParamsMod,       only : SF_val_fire_threshold, SF_val_rxfire_minthreshold
-    use SFParamsMod,       only : SF_val_rxfire_maxthreshold, SF_val_rxfire_fuel_min
-    use SFParamsMod,       only : SF_val_rxfire_fuel_max
+    use SFParamsMod,       only : SF_val_fire_threshold
+    use SFParamsMod,       only : SF_val_rxfire_max_threshold, SF_val_rxfire_min_threshold
+    use SFParamsMod,       only : SF_val_rxfire_fuel_max, SF_val_rxfire_fuel_min 
     use FatesRxFireMod,    only : is_prescribed_burn
 
     ! ARGUMENTS:
