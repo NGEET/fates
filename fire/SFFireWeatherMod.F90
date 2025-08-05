@@ -1,6 +1,7 @@
 module SFFireWeatherMod
 
   use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : ifalse
 
   implicit none
   private 
@@ -75,7 +76,7 @@ module SFFireWeatherMod
     ! ARGUMENTS
     class(fire_weather), intent(inout) :: this           ! fire weather class
     real(r8),            intent(in)    :: temp_C         ! daily averaged temperature [degrees C]
-    logical,             intent(in)    :: rxfire_switch  ! whether prescribed fire is turned on  
+    integer,             intent(in)    :: rxfire_switch  ! whether prescribed fire is turned on  
     real(r8),            intent(in)    :: rh             ! daily relative humidity [%]
     real(r8),            intent(in)    :: wind           ! wind speed [m/min]
     real(r8),            intent(in)    :: temp_up        ! user defined upper bound for temp when define a burn window
@@ -90,7 +91,7 @@ module SFFireWeatherMod
     real(r8) :: rh_check ! intermediate value derived from RH condition check
     real(r8) :: ws_check ! intermediate value derived from wind speed condition check
 
-    if ( .not. rxfire_switch) return   
+    if (rxfire_switch .eq. ifalse) return   
     
     ! check if ambient temperature, relative humidity, and wind speed
     ! are within user defined ranges by comparing current weather

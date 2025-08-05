@@ -79,12 +79,12 @@ contains
     !  Currently we use tree and grass fraction averaged over whole grid (site) to 
     !  prevent extreme divergence
 
-    use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
-    use FatesConstantsMod, only : sec_per_day, sec_per_min
-    use EDTypesMod,        only : CalculateTreeGrassAreaSite
-    use EDParamsMod,       only : rxfire_switch
-    use SFParamsMod,       only : SF_val_rxfire_tpup, SF_val_rxfire_tplw, SF_val_rxfire_rhup, &
-                                  SF_val_rxfire_rhlw, SF_val_rxfire_wdup, SF_val_rxfire_wdlw
+    use FatesConstantsMod,      only : tfrz => t_water_freeze_k_1atm
+    use FatesConstantsMod,      only : sec_per_day, sec_per_min
+    use EDTypesMod,             only : CalculateTreeGrassAreaSite
+    use FatesInterfaceTypesMod, only : hlm_use_managed_fire
+    use SFParamsMod,            only : SF_val_rxfire_tpup, SF_val_rxfire_tplw, SF_val_rxfire_rhup, &
+                                       SF_val_rxfire_rhlw, SF_val_rxfire_wdup, SF_val_rxfire_wdlw
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
@@ -127,7 +127,7 @@ contains
     call currentSite%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
 
     ! update prescribed fire burn window
-    call currentSite%fireWeather%UpdateRxfireBurnWindow(rxfire_switch, temp_C, rh, wind, &
+    call currentSite%fireWeather%UpdateRxfireBurnWindow(hlm_use_managed_fire, temp_C, rh, wind, &
       SF_val_rxfire_tpup, SF_val_rxfire_tplw, SF_val_rxfire_rhup, SF_val_rxfire_rhlw,    &
       SF_val_rxfire_wdup, SF_val_rxfire_wdlw)
 
@@ -360,7 +360,6 @@ contains
     use SFParamsMod,       only : SF_val_fire_threshold, SF_val_rxfire_minthreshold
     use SFParamsMod,       only : SF_val_rxfire_maxthreshold, SF_val_rxfire_fuel_min
     use SFParamsMod,       only : SF_val_rxfire_fuel_max
-    use EDParamsMod,       only : rxfire_switch
     use FatesRxFireMod,    only : is_prescribed_burn
 
     ! ARGUMENTS:

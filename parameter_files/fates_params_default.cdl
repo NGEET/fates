@@ -894,9 +894,6 @@ variables:
 	double fates_q10_mr ;
 		fates_q10_mr:units = "unitless" ;
 		fates_q10_mr:long_name = "Q10 for maintenance respiration" ;
-	double fates_rxfire_switch ;
-	    fates_rxfire_switch:units = "unitless" ;
-		fates_rxfire_switch:long_name = "management fire mode, 1 = use management fire, 0 = turn off management fire" ;
 	double fates_rxfire_temp_upthreshold ;
 	    fates_rxfire_temp_upthreshold:units = "degree C";
 		fates_rxfire_temp_upthreshold:long_name= "maximum temprature threshold above which prescribed fire is disallowed";
@@ -1866,8 +1863,6 @@ data:
  fates_q10_froz = 1.5 ;
 
  fates_q10_mr = 1.5 ;
-
- fates_rxfire_switch = 0 ;
 
  fates_rxfire_temp_upthreshold = 30 ;
 
