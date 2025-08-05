@@ -414,7 +414,7 @@ contains
             ! determine fire type
             ! prescribed fire and wildfire cannot happen on the same patch
             is_rxfire = is_prescribed_burn(currentPatch%FI, currentSite%NF, &
-              SF_val_rxfire_minthreshold, SF_val_rxfire_maxthreshold, SF_val_fire_threshold)
+              SF_val_rxfire_min_threshold, SF_val_rxfire_max_threshold, SF_val_fire_threshold)
 
             if (is_rxfire) then
               currentSite%rxfire_area_fi = currentSite%rxfire_area_fi + currentPatch%area ! record burnable area after FI check
