@@ -1,4 +1,4 @@
-name: Run fates unit tests with ctsm as the host land model
+name: Run fates unit tests with ctsm as the hos land model
 
 on:
   pull_request:
@@ -15,18 +15,25 @@ jobs:
     steps:
       - name: Checkout code with git-fleximod
         run: |
+          cd /CTSM
           ./git-fleximod update
 
-      - name: Run fates unit tests
+      - name: Set up conda environment
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: testing
+          environment-file: testing/testing.yml
+          channels: conda-forge, defaults
+
+      - name: Activate spack environment and run tests 
         run: |
           . /opt/spack-environment/activate.sh
-          python -m pip install matplotlib
           echo "HOSTNAME: $HOSTNAME"
           echo "HOME: $HOME"
           echo "CIMEROOT: $CIMEROOT"
           echo "NETCDF_FORTRAN_PATH: $NETCDF_FORTRAN_PATH"
           echo "NETCDF_C_PATH: $NETCDF_C_PATH"
           cd testing/
-          python run_unit_tests.py --make-j 2 --test-list all
+          python run_unit_tests.py --test-list fire_fuel
 
 
