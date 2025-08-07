@@ -159,6 +159,10 @@ module FatesInterfaceMod
       ! instance is fine.
       
       type(bc_pconst_type) :: bc_pconst
+
+      contains
+
+        procedure :: RestartUpdateBCOut
       
 
    end type fates_interface_type
@@ -2693,5 +2697,42 @@ subroutine FatesReadParameters(param_reader)
   deallocate(fates_params)
 
  end subroutine FatesReadParameters
+
+! ======================================================================================
+
+subroutine RestartUpdateBCOut(this, s)
+
+  ! Arguments
+  class(fates_interface_type), intent(inout) :: this
+  integer, intent(in) :: s
+ 
+  ! Locals
+  type(fates_patch_type), pointer :: currentPatch
+  type(fates_cohort_type), pointer :: currentCohort
+
+  ! Zero gpp and ar as the update call does not zero
+  this%bc_out(s)%gpp_site = 0._r8
+  this%bc_out(s)%ar_site = 0._r8
+  
+  currentPatch => this%sites(s)%youngest_patch
+  do while(associated(currentPatch))
+    currentCohort => currentPatch%shortest
+    do while(associated(currentCohort))
+
+
+      call this%bc_out(s)%UpdateGPPAR(currentCohort%n, currentCohort%gpp_acc_hold, &
+                                      0.0_r8, 0.0_r8, &
+                                      0.0_r8, sec_per_day, area_inv)
+
+      !call this%bc_out(s)%UpdateGPPAR(currentCohort%n, currentCohort%gpp_acc_hold, &
+      !                                currentCohort%resp_g_acc_hold, currentCohort%resp_m_acc_hold, &
+      !                                currentCohort%resp_excess_hold, sec_per_day, area_inv)
+
+      currentCohort => currentCohort%taller
+    end do
+    currentPatch => currentPatch%older
+  end do
+
+end subroutine RestartUpdateBCOut
 
 end module FatesInterfaceMod

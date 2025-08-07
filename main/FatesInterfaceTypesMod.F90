@@ -804,6 +804,10 @@ module FatesInterfaceTypesMod
       real(r8) :: litter_cwd_c_si            ! Total litter plus CWD carbon [Site-Level, gC m-2]
       real(r8) :: seed_c_si                  ! Total seed carbon [Site-Level, gC m-2]
 
+      contains
+
+        procedure :: UpdateGPPAR
+
    end type bc_out_type
 
 
@@ -859,6 +863,26 @@ module FatesInterfaceTypesMod
 
   end subroutine ZeroBCOutCarbonFluxes
 
+   ! ======================================================================================
    
+   subroutine UpdateGPPAR(this, ncohorts, gpp_acc_hold, resp_g_acc_hold, resp_m_acc_hold, &
+                                resp_excess_hold, sec_per_day, AREA_INV)
+
+     class(bc_out_type), intent(inout) :: this
+     real(r8), intent(in) :: ncohorts
+     real(r8), intent(in) :: gpp_acc_hold
+     real(r8), intent(in) :: resp_g_acc_hold
+     real(r8), intent(in) :: resp_m_acc_hold
+     real(r8), intent(in) :: resp_excess_hold
+     real(r8), intent(in) :: sec_per_day
+     real(r8), intent(in) :: AREA_INV
+
+     this%gpp_site = this%gpp_site + gpp_acc_hold * &
+                       AREA_INV * ncohorts / sec_per_day
+     this%ar_site = this%ar_site + (resp_m_acc_hold + resp_g_acc_hold +  &
+                      resp_excess_hold*real( hlm_days_per_year,r8)) * &
+                      AREA_INV * ncohorts / sec_per_day
+
+   end subroutine UpdateGPPAR
        
 end module FatesInterfaceTypesMod
