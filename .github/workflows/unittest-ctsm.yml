@@ -17,7 +17,7 @@ jobs:
       - name: Checkout code with git-fleximod
         run: |
           cd /CTSM
-          ./bin/git-fleximod updateA
+          ./bin/git-fleximod update
 
       - name: Echo some output
         run: |
