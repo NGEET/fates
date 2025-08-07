@@ -1,0 +1,32 @@
+name: Run fates unit tests with ctsm as the host land model
+
+on:
+  pull_request:
+
+jobs:
+  ctsm-unit-test:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ngeet/unit-test-ctsm:latest
+      env:
+        BRANCH_NAME: ${{ github.head_ref }}
+        BRANCH_URL: ${{ github.event.pull_request.head.repo.html_url }}
+
+    steps:
+      - name: Checkout code with git-fleximod
+        run: |
+          ./git-fleximod --optional update
+
+      - name: Run fates unit tests
+        run: |
+          . /opt/spack-environment/activate.sh
+          python -m pip install matplotlib
+          echo "HOSTNAME: $HOSTNAME"
+          echo "HOME: $HOME"
+          echo "CIMEROOT: $CIMEROOT"
+          echo "NETCDF_FORTRAN_PATH: $NETCDF_FORTRAN_PATH"
+          echo "NETCDF_C_PATH: $NETCDF_C_PATH"
+          cd testing/
+          python run_unit_tests.py --make-j 2 --test-list all
+
+
