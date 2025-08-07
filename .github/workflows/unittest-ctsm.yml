@@ -9,6 +9,7 @@ jobs:
     container:
       image: ghcr.io/ngeet/containers/unit-test-ctsm:latest
       env:
+        TESTING_DIR: /CTSM/src/fates/testing/
         BRANCH_NAME: ${{ github.head_ref }}
         BRANCH_URL: ${{ github.event.pull_request.head.repo.html_url }}
 
@@ -16,25 +17,27 @@ jobs:
       - name: Checkout code with git-fleximod
         run: |
           cd /CTSM
-          ./bin/git-fleximod update
+          ./bin/git-fleximod updateA
+
+      - name: Echo some output
+        run: |
+          echo "HOSTNAME: $HOSTNAME"
+          echo "HOME: $HOME"
 
       - name: Set up conda environment
         uses: conda-incubator/setup-miniconda@v2
         with:
           miniconda-version: 'latest'
           activate-environment: testing
-          environment-file: testing/testing.yml
+          environment-file: ${{env.TESTING_DIR}}/testing.yml
           channels: conda-forge, defaults
 
       - name: Activate spack environment and run tests 
         run: |
           . /opt/spack-environment/activate.sh
-          echo "HOSTNAME: $HOSTNAME"
-          echo "HOME: $HOME"
-          echo "CIMEROOT: $CIMEROOT"
           echo "NETCDF_FORTRAN_PATH: $NETCDF_FORTRAN_PATH"
           echo "NETCDF_C_PATH: $NETCDF_C_PATH"
-          cd testing/
+          cd ${{env.TESTING_DIR}}
           python run_unit_tests.py --test-list fire_fuel
 
 
