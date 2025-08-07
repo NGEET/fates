@@ -1,4 +1,4 @@
-name: Run fates unit tests with ctsm as the hos land model
+name: Run unit tests with ctsm 
 
 on:
   pull_request:
@@ -21,6 +21,7 @@ jobs:
       - name: Set up conda environment
         uses: conda-incubator/setup-miniconda@v2
         with:
+          miniconda-version: 'latest'
           activate-environment: testing
           environment-file: testing/testing.yml
           channels: conda-forge, defaults
