@@ -7,7 +7,7 @@ jobs:
   ctsm-unit-test:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ngeet/unit-test-ctsm:latest
+      image: ghcr.io/ngeet/containers/unit-test-ctsm:latest
       env:
         BRANCH_NAME: ${{ github.head_ref }}
         BRANCH_URL: ${{ github.event.pull_request.head.repo.html_url }}
