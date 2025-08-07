@@ -16,7 +16,7 @@ jobs:
       - name: Checkout code with git-fleximod
         run: |
           cd /CTSM
-          ./git-fleximod update
+          ./bin/git-fleximod update
 
       - name: Set up conda environment
         uses: conda-incubator/setup-miniconda@v2
