@@ -19,19 +19,6 @@ jobs:
           cd /CTSM
           ./bin/git-fleximod update
 
-      - name: Echo some output
-        run: |
-          echo "HOSTNAME: $HOSTNAME"
-          echo "HOME: $HOME"
-
-      - name: Set up conda environment
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniconda-version: 'latest'
-          activate-environment: testing
-          environment-file: ${{env.TESTING_DIR}}/testing.yml
-          channels: conda-forge, defaults
-
       - name: Activate spack environment and run tests 
         run: |
           . /opt/spack-environment/activate.sh
