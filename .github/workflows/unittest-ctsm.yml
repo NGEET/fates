@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Checkout code with git-fleximod
         run: |
-          ./git-fleximod --optional update
+          ./git-fleximod update
 
       - name: Run fates unit tests
         run: |
