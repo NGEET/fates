@@ -22,7 +22,7 @@ jobs:
       # Install conda environment packages
       - name: Install conda environment
         run: |
-          conda env create --file -y ${{env.TESTING_DIR}}/testing.yml
+          conda env create --file ${{env.TESTING_DIR}}/testing.yml -y
 
       - name: Activate spack and conda environments and run tests 
         run: |
