@@ -6,10 +6,11 @@ on:
 jobs:
   ctsm-unit-test:
     runs-on: ubuntu-latest
+    env:
+      TESTING_DIR: /CTSM/src/fates/testing/
     container:
       image: ghcr.io/ngeet/containers/unit-test-ctsm:latest
       env:
-        TESTING_DIR: /CTSM/src/fates/testing/
         BRANCH_NAME: ${{ github.head_ref }}
         BRANCH_URL: ${{ github.event.pull_request.head.repo.html_url }}
 
