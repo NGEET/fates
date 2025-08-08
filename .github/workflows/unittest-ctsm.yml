@@ -29,7 +29,7 @@ jobs:
 
       - name: Activate spack and conda environments and run tests 
         run: |
-          conda init bash
+          source /opt/miniconda/etc/profile.d/conda.sh
           conda activate testing
           . /opt/spack-environment/activate.sh
           echo "CONDA_PREFIX: $CONDA_PREFIX"
