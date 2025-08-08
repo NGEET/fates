@@ -19,11 +19,16 @@ jobs:
           cd /CTSM
           ./bin/git-fleximod update
 
-      # Install conda environment
-
-      - name: Activate spack environment and run tests 
+      # Install conda environment packages
+      - name: Install conda environment
         run: |
+          conda env create --file -y ${{env.TESTING_DIR}}/testing.yml
+
+      - name: Activate spack and conda environments and run tests 
+        run: |
+          conda activate testing
           . /opt/spack-environment/activate.sh
+          echo "CONDA_PREFIX: $CONDA_PREFIX"
           echo "NETCDF_FORTRAN_PATH: $NETCDF_FORTRAN_PATH"
           echo "NETCDF_C_PATH: $NETCDF_C_PATH"
           cd ${{env.TESTING_DIR}}
