@@ -19,6 +19,8 @@ jobs:
           cd /CTSM
           ./bin/git-fleximod update
 
+      # Install conda environment
+
       - name: Activate spack environment and run tests 
         run: |
           . /opt/spack-environment/activate.sh
