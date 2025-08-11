@@ -387,7 +387,7 @@ contains
     !    layer for promotion or demotion into the adjacent
     !    layer
     ! 2) Calculate the combined crown area of those cohorts
-    !    that will be transferre to the adjacent layer
+    !    that will be transferred to the adjacent layer
     ! 3) Perform the transfer either by re-assignment (if whole)
     !    of by splitting the cohort
     ! 4) Track the abundance and mass flows when promoting/demoting
