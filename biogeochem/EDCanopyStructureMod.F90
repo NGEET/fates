@@ -462,10 +462,10 @@ contains
       ! area of the layer (can't take more than there is..)
       promdem_area = min(target_area,group_area)
 
-      
       ! Store the number of cohorts in the layer
       ! and zero out the array of area transfers
       n_layer = ic
+
       do ic = 1,n_layer
          layer_co(ic)%pd_area = 0._r8
       end do
@@ -477,51 +477,82 @@ contains
          ! Stochastic case
          ! ------------------------------------------------------------------
 
-         sumpd_area = 0._r8
-         do ic = 1,n_layer
-            cohort => layer_co(ic)%p
-            if(phase==demotion_phase) then
-               layer_co(ic)%pd_area = cohort%c_area/(cohort%height**comp_excln_exp)
-            elseif(phase==promotion_phase) then
-               layer_co(ic)%pd_area = cohort%c_area*cohort%height**comp_excln_exp
-            end if
-            sumpd_area = sumpd_area + layer_co(ic)%pd_area
-         end do
+         if_not_trivial: if(target_area >= group_area)then
 
-         ! Distribute areas in a first pass
-         ! For those cohorts where more area was to be donated
-         ! than it has, accumulate the excess. For those
-         ! cohorts that are not filled and still have area to
-         ! donate, accumulate remainder. We will use these in
-         ! the next step to portion out area.
-         
-         excess_area = 0._r8
-         remainder_area = 0._r8
-         do ic = 1,n_layer
-            cohort => layer_co(ic)%p
-            attempt_area = promdem_area*layer_co(ic)%pd_area/sumpd_area
-            if(attempt_area>cohort%c_area)then
-               excess_area  = excess_area + (attempt_area - cohort%c_area)
-            else
-               remainder_area = remainder_area + (cohort%c_area - attempt_area)
-            end if
-            layer_co(ic)%pd_area = min(cohort%c_area,attempt_area)
-         end do
+            ! If promotion/demotion is so large that it
+            ! is larger than available area in the layer,
+            ! the trivial solution is to just set the
+            ! promotion/demotion areas to the cohort areas
+            ! in the layer and move on. (We don't need to
+            ! do this for rank-ordered, that algorithm
+            ! handles this just fine and would just make
+            ! it less readable)"
+            
+            do ic = 1,n_layer
+               layer_co(ic)%pd_area = layer_co(ic)%c_area
+            end do
 
-         if(excess_area>nearzero)then
+         else
+
+            sumpd_area = 0._r8
             do ic = 1,n_layer
                cohort => layer_co(ic)%p
-               ! look at just the cohorts that still have space to give
-               ! remove from them the same fraction of their remaining space
-               if (abs(layer_co(ic)%pd_area-cohort%c_area) > nearzero) then
-                  layer_co(ic)%pd_area = layer_co(ic)%pd_area + &
-                       (excess_area/remainder_area) * &
-                       (cohort%c_area - layer_co(ic)%pd_area)
+               if(phase==demotion_phase) then
+                  layer_co(ic)%pd_area = cohort%c_area/(cohort%height**comp_excln_exp)
+               elseif(phase==promotion_phase) then
+                  layer_co(ic)%pd_area = cohort%c_area*cohort%height**comp_excln_exp
                end if
+               sumpd_area = sumpd_area + layer_co(ic)%pd_area
             end do
-         end if
-                  
 
+            ! Distribute areas in a first pass
+            ! For those cohorts where more area was to be donated
+            ! than it has, accumulate the excess. For those
+            ! cohorts that are not filled and still have area to
+            ! donate, accumulate remainder. We will use these in
+            ! the next step to portion out area.
+
+            excess_area = 0._r8
+            remainder_area = 0._r8
+            do ic = 1,n_layer
+               cohort => layer_co(ic)%p
+               attempt_area = promdem_area*layer_co(ic)%pd_area/sumpd_area
+               if(attempt_area>cohort%c_area)then
+                  excess_area  = excess_area + (attempt_area - cohort%c_area)
+               else
+                  remainder_area = remainder_area + (cohort%c_area - attempt_area)
+               end if
+               layer_co(ic)%pd_area = min(cohort%c_area,attempt_area)
+            end do
+
+            if(excess_area>nearzero)then
+
+               ! The "if_not_trivial" condition above should prevent
+               ! a situation at this point in the code where all
+               ! promotion/demotions are larger than the layer area
+               ! and thus remainder area is zero.
+               if(remainder_area<=0._r8)then
+                  write(fates_log(),*) 'prob. prom/dem has encountered a situation'
+                  write(fates_log(),*) 'where it thinks all weightings are greater'
+                  write(fates_log(),*) 'than the layer areas, but somehow'
+                  write(fates_log(),*) 'was not captured at the beginning of the'
+                  write(fates_log(),*) 'routine in the if_not_trivial clause.'
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if
+               
+               do ic = 1,n_layer
+                  cohort => layer_co(ic)%p
+                  ! look at just the cohorts that still have space to give
+                  ! remove from them the same fraction of their remaining space
+                  if (abs(layer_co(ic)%pd_area-cohort%c_area) > nearzero) then
+                     layer_co(ic)%pd_area = layer_co(ic)%pd_area + &
+                          (excess_area/remainder_area) * &
+                          (cohort%c_area - layer_co(ic)%pd_area)
+                  end if
+               end do
+            end if
+         end if if_not_trivial
+         
       else !comp_excl_exp < 0
 
          ! ------------------------------------------------------------------
@@ -563,7 +594,7 @@ contains
       do ic = 1,n_layer
          cohort => layer_co(ic)%p
          if( ((layer_co(ic)%pd_area - cohort%c_area) > co_area_target_precision ) .or. &
-             (layer_co(ic)%pd_area < 0._r8) ) then
+              (layer_co(ic)%pd_area < 0._r8) ) then
             write(fates_log(),*) 'negative,or more area than the cohort has is being promoted/demoted'
             write(fates_log(),*) 'change: ',layer_co(ic)%pd_area
             write(fates_log(),*) 'existing area:',cohort%c_area
@@ -571,7 +602,7 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
       end do
-      
+
       ! Part 3:
       ! Apply the area changes by splitting the cohort and re-assigning
       ! either all or part of it to a new layer
@@ -589,13 +620,13 @@ contains
          !    the cohort area within precision checks then FAIL
 
          whole_or_part: if ( abs(layer_co(ic)%pd_area - cohort%c_area) < &
-                             co_area_target_precision ) then
+              co_area_target_precision ) then
 
             ! Whole cohort promotion/demotion
             cohort%canopy_layer = cohort%canopy_layer + ilyr_change
 
          elseif( (layer_co(ic)%pd_area < cohort%c_area) .and. &
-                 (layer_co(ic)%pd_area > co_area_target_precision ) ) then
+              (layer_co(ic)%pd_area > co_area_target_precision ) ) then
 
             ! Partial cohort promotion/demotion
 
