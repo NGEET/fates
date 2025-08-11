@@ -309,7 +309,7 @@ contains
              do i_lyr = 1,z
                 write(fates_log(),*) '-----------------------------------------'
                 write(fates_log(),*) 'layer: ',i_lyr,' area: ',arealayer(i_lyr)
-                write(fates_log(),*) 'abs error (layer-patch): ',(arealayer(i_lyr)- &
+                write(fates_log(),*) 'bias [m2] (layer-patch): ',(arealayer(i_lyr)- &
                      (1._r8-imperfect_fraction)*currentPatch%area)
                 currentCohort => currentPatch%tallest
                 do while (associated(currentCohort))
