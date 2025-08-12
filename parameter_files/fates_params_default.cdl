@@ -1457,7 +1457,7 @@ data:
 
  fates_mort_scalar_coldstress = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_mort_scalar_cstarvation = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.6, 
+ fates_mort_scalar_cstarvation = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
     0.1, 0.1, 0.1, 0.1, 0.1 ;
 
  fates_mort_scalar_hydrfailure = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
