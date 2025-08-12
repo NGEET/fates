@@ -2719,14 +2719,13 @@ subroutine RestartUpdateBCOut(this, s)
     currentCohort => currentPatch%shortest
     do while(associated(currentCohort))
 
+      if (.not. currentCohort%isnew) then
 
-      call this%bc_out(s)%UpdateGPPAR(currentCohort%n, currentCohort%gpp_acc_hold, &
-                                      0.0_r8, 0.0_r8, &
-                                      0.0_r8, sec_per_day, area_inv)
-
-      !call this%bc_out(s)%UpdateGPPAR(currentCohort%n, currentCohort%gpp_acc_hold, &
-      !                                currentCohort%resp_g_acc_hold, currentCohort%resp_m_acc_hold, &
-      !                                currentCohort%resp_excess_hold, sec_per_day, area_inv)
+         call this%bc_out(s)%UpdateGPPAR(currentCohort%n, currentCohort%gpp_acc_hold, &
+                                     currentCohort%resp_g_acc_hold, currentCohort%resp_m_acc_hold, &
+                                     currentCohort%resp_excess_hold, sec_per_day, area_inv)
+                                     
+      end if
 
       currentCohort => currentCohort%taller
     end do
