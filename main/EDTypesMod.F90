@@ -916,5 +916,43 @@ contains
  end subroutine TransferBCIn_2d
 
 ! ======================================================================================
+ 
+ subroutine TransferBCOut(this, tag, data)
+   
+   class(ed_site_type), intent(inout) :: this
+   character(len=*),   intent(in)     :: tag
+   real(r8), pointer,  intent(inout)  :: data(:,:)
+
+   type(fates_patch_type), pointer :: currentPatch
+
+   ! LOCAL
+   integer :: c  ! HLM column index
+
+   currentPatch => this%oldest_patch
+
+   do while (associated(currentPatch))
+
+      c = this%column_map(currentPatch%patchno)
+      
+      select case(trim(tag))
+
+         ! For the decomposition carbon pools, the host land model uses
+         ! a 3D array, where the third dimension signifies the litter type.
+         ! The HLM sets up a pointer to a 2D slice of the variable so we
+         ! don't have to worry about that here
+         case('decomp_cpools_met')
+            data(c,:) = data(c,:) + currentPatch%bc_out%litt_flux_lab_c_si
+         case('decomp_cpools_cel')
+            data(c,:) = data(c,:) + currentPatch%bc_out%litt_flux_cel_c_si
+         case('decomp_cpools_lig')
+            data(c,:) = data(c,:) + currentPatch%bc_out%litt_flux_lig_c_si
+
+      end select
+
+      currentPatch => currentPatch%younger
+      
+   end do
+      
+ end subroutine TransferBCOut
 
 end module EDTypesMod
