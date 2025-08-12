@@ -953,11 +953,13 @@ contains
 
 ! ======================================================================================
  
- subroutine TransferBCOut(this, tag, data)
+ subroutine TransferBCOut(this, tag, data, dtime)
    
    class(ed_site_type), intent(inout) :: this
-   character(len=*),   intent(in)     :: tag
-   real(r8), pointer,  intent(inout)  :: data(:,:)
+
+   character(len=*),   intent(in)     :: tag        ! HLM-FATES common vocab string
+   real(r8), pointer,  intent(inout)  :: data(:,:)  ! data pointer associated with tag
+   real(r8), intent(in)               :: dtime      ! HLM timestep size in seconds
 
    type(fates_patch_type), pointer :: currentPatch
 
@@ -975,13 +977,14 @@ contains
          ! For the decomposition carbon pools, the host land model uses
          ! a 3D array, where the third dimension signifies the litter type.
          ! The HLM sets up a pointer to a 2D slice of the variable so we
-         ! don't have to worry about that here
+         ! don't have to worry about that here.
+         ! We convert the bc_out from per second to per timestep
          case('decomp_cpools_met')
-            data(c,:) = data(c,:) + currentPatch%bc_out%litt_flux_lab_c_si
+            data(c,:) = data(c,:) + currentPatch%bc_out%litt_flux_lab_c_si * dtime
          case('decomp_cpools_cel')
-            data(c,:) = data(c,:) + currentPatch%bc_out%litt_flux_cel_c_si
+            data(c,:) = data(c,:) + currentPatch%bc_out%litt_flux_cel_c_si * dtime
          case('decomp_cpools_lig')
-            data(c,:) = data(c,:) + currentPatch%bc_out%litt_flux_lig_c_si
+            data(c,:) = data(c,:) + currentPatch%bc_out%litt_flux_lig_c_si * dtime
 
       end select
 
