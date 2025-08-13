@@ -877,11 +877,14 @@ module FatesInterfaceTypesMod
      real(r8), intent(in) :: sec_per_day
      real(r8), intent(in) :: AREA_INV
 
-     this%gpp_site = this%gpp_site + gpp_acc_hold * &
-                       AREA_INV * ncohorts / sec_per_day
+     real(r8) :: conversion_factor
+
+     conversion_factor = AREA_INV * ncohorts / real(hlm_days_per_year,r8) / sec_per_day 
+
+     this%gpp_site = this%gpp_site + gpp_acc_hold * conversion_factor
+
      this%ar_site = this%ar_site + (resp_m_acc_hold + resp_g_acc_hold +  &
-                      resp_excess_hold*real( hlm_days_per_year,r8)) * &
-                      AREA_INV * ncohorts / sec_per_day
+                    resp_excess_hold*real( hlm_days_per_year,r8)) * conversion_factor
 
    end subroutine UpdateGPPAR
        
