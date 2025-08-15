@@ -489,7 +489,7 @@ contains
             ! it less readable)"
             
             do ic = 1,n_layer
-               layer_co(ic)%pd_area = layer_co(ic)%c_area
+               layer_co(ic)%pd_area = layer_co(ic)%p%c_area
             end do
 
          else
