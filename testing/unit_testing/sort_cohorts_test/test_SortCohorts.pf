@@ -24,7 +24,7 @@ module test_SortCohorts
       class(TestSortCohorts),  intent(inout) :: this  ! test object
       type(fates_patch_type)                 :: patch ! patch object
       
-      ! sort cohorts - should pass
+      ! sort cohorts - should pass - the argument
       call patch%SortCohorts()
               
     end subroutine EmptyList_SortCohorts_Passes
