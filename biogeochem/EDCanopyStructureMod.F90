@@ -617,7 +617,8 @@ contains
          !    and not trivialy small (larger than precision
          !    check), then split it and move part of it
          ! If the dem/prom area is less than zero or larger than
-         !    the cohort area within precision checks then FAIL
+         !    the cohort area within precision checks then
+         !    we would have failed in the previous checks
 
          whole_or_part: if ( abs(layer_co(ic)%pd_area - cohort%c_area) < &
               co_area_target_precision ) then
@@ -626,7 +627,7 @@ contains
             cohort%canopy_layer = cohort%canopy_layer + ilyr_change
 
          elseif( (layer_co(ic)%pd_area < cohort%c_area) .and. &
-              (layer_co(ic)%pd_area > co_area_target_precision ) ) then
+                 (layer_co(ic)%pd_area > 0 ) ) then
 
             ! Partial cohort promotion/demotion
 
