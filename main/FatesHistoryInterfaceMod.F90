@@ -6917,6 +6917,18 @@ contains
             use_default='inactive', avgflag='A', vtype=site_r8,               &
             hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
             index=ih_ncl_si)
+
+       if ( ED_val_comp_excln .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
+          tempstring = 'active'
+       else
+          tempstring = 'inactive'
+       endif
+       
+       call this%set_history_var(vname='FATES_ZSTAR', units='m',               &
+            long='product of zstar and patch area', &
+            use_default=tempstring, avgflag='A', vtype=site_r8,         &
+            hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_zstar_si)
        
        if_dyn1: if(hlm_hist_level_dynam>1) then
 
@@ -7179,12 +7191,6 @@ contains
                use_default=trim(tempstring), avgflag='A', vtype=site_age_r8,         &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_zstar_si_age)
-
-          call this%set_history_var(vname='FATES_ZSTAR', units='m',               &
-               long='product of zstar and patch area', &
-               use_default='inactive', avgflag='A', vtype=site_r8,         &
-               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
-               index=ih_zstar_si)
 
           call this%set_history_var(vname='FATES_CANOPYAREA_HT', units='m2 m-2',     &
                long='canopy area height distribution',                               &
