@@ -577,6 +577,10 @@ module EDTypesMod
        procedure, private :: TransferBCIn_2d
        generic, public :: TransferBCIn => TransferBCIn_1d, TransferBCIn_2d
 
+       procedure, private :: TransferBCOut_1d
+       procedure, private :: TransferBCOut_2d
+       generic, public :: TransferBCOut => TransferBCOut_1d, TransferBCOut_2d
+
   end type ed_site_type
   
   ! Make public necessary subroutines and functions
@@ -917,7 +921,46 @@ contains
 
 ! ======================================================================================
  
- subroutine TransferBCOut(this, tag, data, dtime)
+ subroutine TransferBCOut_1d(this, tag, data)
+   
+   class(ed_site_type), intent(inout) :: this
+
+   character(len=*),   intent(in)     :: tag        ! HLM-FATES common vocab string
+   real(r8), pointer,  intent(inout)  :: data(:,:)  ! data pointer associated with tag
+
+   type(fates_patch_type), pointer :: currentPatch
+
+   ! LOCAL
+   integer :: c  ! HLM column index
+
+   currentPatch => this%oldest_patch
+
+   do while (associated(currentPatch))
+
+      c = this%column_map(currentPatch%patchno)
+      
+      select case(trim(tag))
+
+         ! For the decomposition carbon pools, the host land model uses
+         ! a 3D array, where the third dimension signifies the litter type.
+         ! The HLM sets up a pointer to a 2D slice of the variable so we
+         ! don't have to worry about that here.
+         ! We convert the bc_out from per second to per timestep
+         case('litter_fall')
+            data(c) = data(c) + sum(currentPatch%bc_out%litt_flux_lab_c_si * currentPatch%bc_in%dz_decomp_sisl) &
+                              + sum(currentPatch%bc_out%litt_flux_cel_c_si * currentPatch%bc_in%dz_decomp_sisl) &
+                              + sum(currentPatch%bc_out%litt_flux_lig_c_si * currentPatch%bc_in%dz_decomp_sisl)
+
+      end select
+
+      currentPatch => currentPatch%younger
+      
+   end do
+      
+ end subroutine TransferBCOut_1d
+! ======================================================================================
+ 
+ subroutine TransferBCOut_2d(this, tag, data, dtime)
    
    class(ed_site_type), intent(inout) :: this
 
@@ -956,6 +999,7 @@ contains
       
    end do
       
- end subroutine TransferBCOut
+ end subroutine TransferBCOut_2d
+
 
 end module EDTypesMod
