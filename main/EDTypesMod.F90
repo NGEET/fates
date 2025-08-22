@@ -921,12 +921,13 @@ contains
 
 ! ======================================================================================
  
- subroutine TransferBCOut_1d(this, tag, data)
+ subroutine TransferBCOut_1d(this, tag, data, dtime)
    
    class(ed_site_type), intent(inout) :: this
 
-   character(len=*),   intent(in)     :: tag        ! HLM-FATES common vocab string
+   character(len=*),   intent(in)     :: tag      ! HLM-FATES common vocab string
    real(r8), pointer,  intent(inout)  :: data(:)  ! data pointer associated with tag
+   real(r8), intent(in)               :: dtime    ! HLM timestep size in seconds
 
    type(fates_patch_type), pointer :: currentPatch
 
