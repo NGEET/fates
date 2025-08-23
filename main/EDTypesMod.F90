@@ -573,10 +573,10 @@ module EDTypesMod
        procedure, public :: get_current_landuse_statevector
        procedure, public :: get_secondary_young_fraction
 
-       procedure, private :: TransferBCIn_0d
+       procedure, private :: TransferBCIn_0d_int
        procedure, private :: TransferBCIn_1d
        procedure, private :: TransferBCIn_2d
-       generic, public :: TransferBCIn => TransferBCIn_0d, TransferBCIn_1d, TransferBCIn_2d
+       generic, public :: TransferBCIn => TransferBCIn_0d_int, TransferBCIn_1d, TransferBCIn_2d
 
        procedure, private :: TransferBCOut_1d
        procedure, private :: TransferBCOut_2d
@@ -843,11 +843,11 @@ contains
 
  ! ======================================================================================
 
-  subroutine TransferBCIn_0D(this, tag, data)
+  subroutine TransferBCIn_0D_int(this, tag, data)
 
     class(ed_site_type), intent(inout) :: this
     character(len=*),   intent(in)    :: tag
-    real(r8), pointer,  intent(in)    :: data
+    integer, pointer,  intent(in)    :: data
 
     type(fates_patch_type), pointer :: currentPatch
 
@@ -877,7 +877,7 @@ contains
 
     end do
 
-  end subroutine TransferBCIn_0d
+  end subroutine TransferBCIn_0d_int
 
  ! ======================================================================================
 
