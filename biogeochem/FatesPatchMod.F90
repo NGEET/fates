@@ -279,6 +279,9 @@ module FatesPatchMod
       allocate(this%bc_in%w_scalar_sisl(num_levsoil))
       allocate(this%bc_in%t_scalar_sisl(num_levsoil))
 
+      allocate(this%bc_out%litt_flux_cel_c_si(this%bc_in%nlevdecomp))
+      allocate(this%bc_out%litt_flux_lig_c_si(this%bc_in%nlevdecomp))
+      allocate(this%bc_out%litt_flux_lab_c_si(this%bc_in%nlevdecomp))
 
       ! initialize all values to nan
       call this%NanValues()
@@ -521,6 +524,7 @@ module FatesPatchMod
       ! Boundary conditions
       this%bc_in%w_scalar_sisl(:)       = nan
       this%bc_in%t_scalar_sisl(:)       = nan
+      this%bc_in%nlevdecomp             = nan
       
     end subroutine NanValues
 
@@ -611,6 +615,7 @@ module FatesPatchMod
       ! Boundary conditions
       this%bc_in%w_scalar_sisl(:)            = 0.0_r8
       this%bc_in%t_scalar_sisl(:)            = 0.0_r8
+      this%bc_in%nlevdecomp                  = 0.0_r8
 
     end subroutine ZeroValues
 
