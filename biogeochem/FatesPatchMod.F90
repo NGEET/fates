@@ -524,7 +524,7 @@ module FatesPatchMod
       ! Boundary conditions
       this%bc_in%w_scalar_sisl(:)       = nan
       this%bc_in%t_scalar_sisl(:)       = nan
-      this%bc_in%nlevdecomp             = nan
+      this%bc_in%nlevdecomp             = fates_unset_int
       
     end subroutine NanValues
 
