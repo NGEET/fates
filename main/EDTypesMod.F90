@@ -609,9 +609,10 @@ module EDTypesMod
        procedure, public :: get_current_landuse_statevector
        procedure, public :: get_secondary_young_fraction
 
+       procedure, private :: TransferBCIn_0d
        procedure, private :: TransferBCIn_1d
        procedure, private :: TransferBCIn_2d
-       generic, public :: TransferBCIn => TransferBCIn_1d, TransferBCIn_2d
+       generic, public :: TransferBCIn => TransferBCIn_0d, TransferBCIn_1d, TransferBCIn_2d
 
        procedure, private :: TransferBCOut_1d
        procedure, private :: TransferBCOut_2d
@@ -878,6 +879,46 @@ contains
 
  ! ======================================================================================
 
+  subroutine TransferBCIn_0D(this, tag, data)
+
+    class(ed_site_type), intent(inout) :: this
+    character(len=*),   intent(in)    :: tag
+    real(r8), pointer,  intent(in)    :: data
+
+    type(fates_patch_type), pointer :: currentPatch
+
+    ! LOCAL
+    integer :: p    ! patch index
+
+    currentPatch => this%oldest_patch
+
+    do while (associated(currentPatch))
+
+       p = this%patch_map(currentPatch%patchno)
+
+       select case(trim(tag))
+
+          case('nlevdecomp')
+             currentPatch%bc_in%nlevdecomp = data
+
+       ! NOTE: should the patch level bc subtypes actually be pointers to the
+       ! input values instead of copies of the pointer data?  Or is not a good idea
+       ! since the HLM runs on a different time step than fates?
+       ! If these are not pointers then we really don't have a good way to avoid
+       ! memory duplicity.
+
+       end select
+
+       currentPatch => currentPatch%younger
+
+    end do
+
+  end subroutine TransferBCIn_0d
+
+ ! ======================================================================================
+
+ ! ======================================================================================
+
   subroutine TransferBCIn_1d(this, tag, data)
 
     class(ed_site_type), intent(inout) :: this
@@ -899,7 +940,6 @@ contains
 
           case('leaf_area_index')
              currentPatch%bc_in%hlm_sp_tlai = data(p)
-             ! currentPatch%bc_in%w_scalar_sisl => transfer_array(ifp,:)
 
        ! NOTE: should the patch level bc subtypes actually be pointers to the
        ! input values instead of copies of the pointer data?  Or is not a good idea
