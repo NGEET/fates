@@ -1,7 +1,6 @@
 netcdf fates_params_default {
 dimensions:
 	fates_NCWD = 4 ;
-	fates_edgeforest_bins = 6 ;
 	fates_history_age_bins = 7 ;
 	fates_history_coage_bins = 2 ;
 	fates_history_damage_bins = 2 ;
@@ -259,36 +258,6 @@ variables:
 	double fates_dev_arbitrary_pft(fates_pft) ;
 		fates_dev_arbitrary_pft:units = "unknown" ;
 		fates_dev_arbitrary_pft:long_name = "Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses" ;
-	double fates_edgeforest_bin_edges(fates_edgeforest_bins) ;
-		fates_edgeforest_bin_edges:units = "m" ;
-		fates_edgeforest_bin_edges:long_name = "Boundaries of forest edge bins (for each bin, include value closest to zero)" ;
-	double fates_edgeforest_gaussian_amplitude(fates_edgeforest_bins) ;
-		fates_edgeforest_gaussian_amplitude:units = "unitless" ;
-		fates_edgeforest_gaussian_amplitude:long_name = "Amplitudes for calculating forest area in each edge bin (gaussian fit)" ;
-	double fates_edgeforest_gaussian_sigma(fates_edgeforest_bins) ;
-		fates_edgeforest_gaussian_sigma:units = "unitless" ;
-		fates_edgeforest_gaussian_sigma:long_name = "Sigmas for calculating forest area in each edge bin (gaussian fit)" ;
-	double fates_edgeforest_gaussian_center(fates_edgeforest_bins) ;
-		fates_edgeforest_gaussian_center:units = "unitless" ;
-		fates_edgeforest_gaussian_center:long_name = "Centers for calculating forest area in each edge bin (gaussian fit)" ;
-	double fates_edgeforest_lognormal_amplitude(fates_edgeforest_bins) ;
-		fates_edgeforest_lognormal_amplitude:units = "unitless" ;
-		fates_edgeforest_lognormal_amplitude:long_name = "Amplitudes for calculating forest area in each edge bin (lognormal fit)" ;
-	double fates_edgeforest_lognormal_sigma(fates_edgeforest_bins) ;
-		fates_edgeforest_lognormal_sigma:units = "unitless" ;
-		fates_edgeforest_lognormal_sigma:long_name = "Sigmas for calculating forest area in each edge bin (lognormal fit)" ;
-	double fates_edgeforest_lognormal_center(fates_edgeforest_bins) ;
-		fates_edgeforest_lognormal_center:units = "unitless" ;
-		fates_edgeforest_lognormal_center:long_name = "Centers for calculating forest area in each edge bin (lognormal fit)" ;
-	double fates_edgeforest_quadratic_a(fates_edgeforest_bins) ;
-		fates_edgeforest_quadratic_a:units = "unitless" ;
-		fates_edgeforest_quadratic_a:long_name = "x^2 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
-	double fates_edgeforest_quadratic_b(fates_edgeforest_bins) ;
-		fates_edgeforest_quadratic_b:units = "unitless" ;
-		fates_edgeforest_quadratic_b:long_name = "x^1 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
-	double fates_edgeforest_quadratic_c(fates_edgeforest_bins) ;
-		fates_edgeforest_quadratic_c:units = "unitless" ;
-		fates_edgeforest_quadratic_c:long_name = "x^0 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
 	double fates_fire_alpha_SH(fates_pft) ;
 		fates_fire_alpha_SH:units = "m / (kw/m)**(2/3)" ;
 		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
@@ -814,9 +783,6 @@ variables:
 	double fates_fire_threshold ;
 		fates_fire_threshold:units = "kW/m" ;
 		fates_fire_threshold:long_name = "spitfire parameter, fire intensity threshold for tracking fires that spread" ;
-	double fates_forest_tree_fraction_threshold ;
-		fates_forest_tree_fraction_threshold:units = "m2/m2" ;
-		fates_forest_tree_fraction_threshold:long_name = "Tree fraction above which patch is considered 'forest'" ;
 	double fates_frag_cwd_fcel ;
 		fates_frag_cwd_fcel:units = "unitless" ;
 		fates_frag_cwd_fcel:long_name = "Cellulose fraction for CWD" ;
@@ -880,6 +846,12 @@ variables:
 	double fates_leaf_photo_temp_acclim_timescale ;
 		fates_leaf_photo_temp_acclim_timescale:units = "days" ;
 		fates_leaf_photo_temp_acclim_timescale:long_name = "Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_maintresp_leaf_model=2 or fates_leaf_photo_tempsens_model = 2)" ;
+	double fates_leaf_theta_cj_c3 ;
+		fates_leaf_theta_cj_c3:units = "unitless" ;
+		fates_leaf_theta_cj_c3:long_name = "SOON TO BE DEPRECATED, DO NOT USE" ;
+	double fates_leaf_theta_cj_c4 ;
+		fates_leaf_theta_cj_c4:units = "unitless" ;
+		fates_leaf_theta_cj_c4:long_name = "SOON TO BE DEPRECATED, DO NOT USE" ;
 	double fates_maintresp_nonleaf_baserate ;
 		fates_maintresp_nonleaf_baserate:units = "gC/gN/s" ;
 		fates_maintresp_nonleaf_baserate:long_name = "Base maintenance respiration rate for plant tissues, using Ryan 1991" ;
@@ -922,42 +894,6 @@ variables:
 	double fates_q10_mr ;
 		fates_q10_mr:units = "unitless" ;
 		fates_q10_mr:long_name = "Q10 for maintenance respiration" ;
-	double fates_rxfire_AB ;
-		fates_rxfire_AB:units = "fraction/day" ;
-		fates_rxfire_AB:long_name = "daily burn capacity of prescribed fire" ;
-	double fates_rxfire_fuel_max ;
-		fates_rxfire_fuel_max:units = "kgC/m2" ;
-		fates_rxfire_fuel_max:long_name = "maximum fuel load at or above which prescribed fire is disallowed" ;
-	double fates_rxfire_fuel_min ;
-		fates_rxfire_fuel_min:units = "kgC/m2" ;
-		fates_rxfire_fuel_min:long_name = "minimum fuel load at or below which prescribed fire is disallowed" ;
-	double fates_rxfire_max_threshold ;
-		fates_rxfire_max_threshold:units = "kJ/m/s or kW/m" ;
-		fates_rxfire_max_threshold:long_name = "maximum energy threshold at or above which prescribed fire is disallowed" ;
-	double fates_rxfire_min_frac ;
-		fates_rxfire_min_frac:units = "fraction" ;
-		fates_rxfire_min_frac:long_name = "minimum fraction of land needs to be burnable to allow rx fire" ;
-	double fates_rxfire_min_threshold ;
-		fates_rxfire_min_threshold:units = "kJ/m/s or kW/m" ;
-		fates_rxfire_min_threshold:long_name = "minimum energy threshold at or above which prescribed fire is disallowed" ;
-	double fates_rxfire_rh_lwthreshold ;
-		fates_rxfire_rh_lwthreshold:units = "%" ;
-		fates_rxfire_rh_lwthreshold:long_name = "minimum relative humidity threshold below which prescribed fire is disallowed" ;
-	double fates_rxfire_rh_upthreshold ;
-		fates_rxfire_rh_upthreshold:units = "%" ;
-		fates_rxfire_rh_upthreshold:long_name = "maximum relative humidity threshold above which prescribed fire is disallowed" ;
-	double fates_rxfire_temp_lwthreshold ;
-		fates_rxfire_temp_lwthreshold:units = "degree C" ;
-		fates_rxfire_temp_lwthreshold:long_name = "minimum temprature threshold below which prescribed fire is disallowed" ;
-	double fates_rxfire_temp_upthreshold ;
-		fates_rxfire_temp_upthreshold:units = "degree C" ;
-		fates_rxfire_temp_upthreshold:long_name = "maximum temprature threshold above which prescribed fire is disallowed" ;
-	double fates_rxfire_wind_lwthreshold ;
-		fates_rxfire_wind_lwthreshold:units = "%" ;
-		fates_rxfire_wind_lwthreshold:long_name = "minimum wind speed threshold below which prescribed fire is disallowed" ;
-	double fates_rxfire_wind_upthreshold ;
-		fates_rxfire_wind_upthreshold:units = "%" ;
-		fates_rxfire_wind_upthreshold:long_name = "maximum wind speed threshold above which prescribed fire is disallowed" ;
 	double fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
 		fates_soil_salinity:long_name = "soil salinity used for model when not coupled to dynamic soil salinity" ;
@@ -1238,26 +1174,6 @@ data:
  fates_damage_recovery_scalar = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_dev_arbitrary_pft = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
-
- fates_edgeforest_gaussian_amplitude = 0.37033665947126704, 0.25548576693720165, _, _, _, _ ;
-
- fates_edgeforest_gaussian_sigma = 0.4329573815987602, 0.42239011110175917, _, _, _, _ ;
-
- fates_edgeforest_gaussian_center = -0.35596450526414164, -0.28183332150023604, _, _, _, _ ;
-
- fates_edgeforest_lognormal_amplitude = _, _, _, _, _, 14.283227336273354 ;
-
- fates_edgeforest_lognormal_sigma = _, _, _, _, _, 1.26210031507715 ;
-
- fates_edgeforest_lognormal_center = _, _, _, _, _, 2.1958393621871597 ;
-
- fates_edgeforest_quadratic_a = _, _, 0.2549551300197741, 0.07685044819893726, 0.035189070666016925, _ ;
-
- fates_edgeforest_quadratic_b = _, _, -0.5457222474679617, -0.19438641157435982, -0.300528731650077, _ ;
-
- fates_edgeforest_quadratic_c = _, _, 0.29299184857665717, 0.11825507562859365, 0.2669694066063096, _ ;
-
- fates_edgeforest_bin_edges = 0, 30, 60, 120, 150, 300 ;
 
  fates_fire_alpha_SH = 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 
     0.2, 0.2, 0.2 ;
@@ -1790,7 +1706,7 @@ data:
 
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
 
- fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 13 ;
+ fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 11 ;
 
  fates_landuse_grazing_rate = 0, 0, 0, 0, 0 ;
 
@@ -1838,8 +1754,6 @@ data:
 
  fates_fire_threshold = 50 ;
 
- fates_forest_tree_fraction_threshold = 0.5 ;
-
  fates_frag_cwd_fcel = 0.76 ;
 
  fates_frag_cwd_flig = 0.24 ;
@@ -1860,9 +1774,9 @@ data:
 
  fates_landuse_grazing_phosphorus_use_eff = 0.5 ;
 
- fates_landuse_logging_coll_under_frac = 0 ;
+ fates_landuse_logging_coll_under_frac = 0. ;
 
- fates_landuse_logging_collateral_frac = 0 ;
+ fates_landuse_logging_collateral_frac = 0. ;
 
  fates_landuse_logging_dbhmax = _ ;
 
@@ -1870,17 +1784,21 @@ data:
 
  fates_landuse_logging_dbhmin = 0 ;
 
- fates_landuse_logging_direct_frac = 1 ;
+ fates_landuse_logging_direct_frac = 1. ;
 
  fates_landuse_logging_event_code = -30 ;
 
  fates_landuse_logging_export_frac = 0.8 ;
 
- fates_landuse_logging_mechanical_frac = 0 ;
+ fates_landuse_logging_mechanical_frac = 0. ;
 
  fates_leaf_photo_temp_acclim_thome_time = 30 ;
 
  fates_leaf_photo_temp_acclim_timescale = 30 ;
+
+ fates_leaf_theta_cj_c3 = 0.999 ;
+
+ fates_leaf_theta_cj_c4 = 0.999 ;
 
  fates_maintresp_nonleaf_baserate = 2.525e-06 ;
 
@@ -1909,30 +1827,6 @@ data:
  fates_q10_froz = 1.5 ;
 
  fates_q10_mr = 1.5 ;
-
- fates_rxfire_AB = 0.01 ;
-
- fates_rxfire_fuel_max = 1.5 ;
-
- fates_rxfire_fuel_min = 0.5 ;
-
- fates_rxfire_max_threshold = 500 ;
-
- fates_rxfire_min_frac = 0.1 ;
-
- fates_rxfire_min_threshold = 50 ;
-
- fates_rxfire_rh_lwthreshold = 30 ;
-
- fates_rxfire_rh_upthreshold = 55 ;
-
- fates_rxfire_temp_lwthreshold = 5 ;
-
- fates_rxfire_temp_upthreshold = 30 ;
-
- fates_rxfire_wind_lwthreshold = 2 ;
-
- fates_rxfire_wind_upthreshold = 10 ;
 
  fates_soil_salinity = 0.4 ;
 

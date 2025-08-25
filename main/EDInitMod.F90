@@ -153,6 +153,14 @@ contains
     allocate(site_in%fmort_rate_ustory(1:nlevsclass,1:numpft))
     allocate(site_in%fmort_rate_cambial(1:nlevsclass,1:numpft))
     allocate(site_in%fmort_rate_crown(1:nlevsclass,1:numpft))
+    allocate(site_in%nonrx_fmort_rate_canopy(1:nlevsclass,1:numpft))
+    allocate(site_in%nonrx_fmort_rate_ustory(1:nlevsclass,1:numpft))
+    allocate(site_in%nonrx_fmort_rate_cambial(1:nlevsclass,1:numpft))
+    allocate(site_in%nonrx_fmort_rate_crown(1:nlevsclass,1:numpft))
+    allocate(site_in%rx_fmort_rate_canopy(1:nlevsclass,1:numpft))
+    allocate(site_in%rx_fmort_rate_ustory(1:nlevsclass,1:numpft))
+    allocate(site_in%rx_fmort_rate_cambial(1:nlevsclass,1:numpft))
+    allocate(site_in%rx_fmort_rate_crown(nlevsclass,1:numpft))
     allocate(site_in%growthflux_fusion(1:nlevsclass,1:numpft))
     allocate(site_in%mass_balance(1:num_elements))
     allocate(site_in%iflux_balance(1:num_elements))
@@ -167,7 +175,15 @@ contains
        allocate(site_in%fmort_rate_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
        allocate(site_in%fmort_rate_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft)) 
        allocate(site_in%fmort_cflux_canopy_damage(1:nlevdamage, 1:nlevsclass))
-       allocate(site_in%fmort_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass)) 
+       allocate(site_in%fmort_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass))
+       allocate(site_in%nonrx_fmort_rate_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
+       allocate(site_in%nonrx_fmort_rate_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft)) 
+       allocate(site_in%nonrx_fmort_cflux_canopy_damage(1:nlevdamage, 1:nlevsclass))
+       allocate(site_in%nonrx_fmort_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass)) 
+       allocate(site_in%rx_fmort_rate_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
+       allocate(site_in%rx_fmort_rate_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
+       allocate(site_in%rx_fmort_cflux_canopy_damage(1:nlevdamage, 1:nlevsclass))
+       allocate(site_in%rx_fmort_cflux_ustory_damage(1:nlevdamage, 1:nlevsclass))
     else
        allocate(site_in%term_nindivs_canopy_damage(1,1,1))
        allocate(site_in%term_nindivs_ustory_damage(1,1,1))
@@ -179,6 +195,14 @@ contains
        allocate(site_in%fmort_rate_ustory_damage(1,1,1))
        allocate(site_in%fmort_cflux_canopy_damage(1,1))
        allocate(site_in%fmort_cflux_ustory_damage(1,1))
+       allocate(site_in%nonrx_fmort_rate_canopy_damage(1,1,1))
+       allocate(site_in%nonrx_fmort_rate_ustory_damage(1,1,1))
+       allocate(site_in%nonrx_fmort_cflux_canopy_damage(1,1))
+       allocate(site_in%nonrx_fmort_cflux_ustory_damage(1,1))
+       allocate(site_in%rx_fmort_rate_canopy_damage(1,1,1))
+       allocate(site_in%rx_fmort_rate_ustory_damage(1,1,1))
+       allocate(site_in%rx_fmort_cflux_canopy_damage(1,1))
+       allocate(site_in%rx_fmort_cflux_ustory_damage(1,1))
     end if
 
     allocate(site_in%term_carbonflux_canopy(1:n_term_mort_types,1:numpft))
@@ -186,10 +210,17 @@ contains
     allocate(site_in%imort_carbonflux(1:numpft))
     allocate(site_in%fmort_carbonflux_canopy(1:numpft))
     allocate(site_in%fmort_carbonflux_ustory(1:numpft))
+    allocate(site_in%nonrx_fmort_carbonflux_canopy(1:numpft))
+    allocate(site_in%nonrx_fmort_carbonflux_ustory(1:numpft))
+    allocate(site_in%rx_fmort_carbonflux_canopy(1:numpft))
+    allocate(site_in%rx_fmort_carbonflux_ustory(1:numpft))
 
     allocate(site_in%term_abg_flux(1:nlevsclass,1:numpft))
     allocate(site_in%imort_abg_flux(1:nlevsclass,1:numpft))
     allocate(site_in%fmort_abg_flux(1:nlevsclass,1:numpft))
+    allocate(site_in%nonrx_fmort_abg_flux(1:nlevsclass,1:numpft))
+    allocate(site_in%rx_fmort_abg_flux(1:nlevsclass,1:numpft))
+
 
     site_in%nlevsoil   = bc_in%nlevsoil
     allocate(site_in%rootfrac_scr(site_in%nlevsoil))
@@ -319,6 +350,10 @@ contains
     site_in%imort_crownarea = 0._r8
     site_in%fmort_crownarea_canopy = 0._r8
     site_in%fmort_crownarea_ustory = 0._r8
+    site_in%nonrx_fmort_crownarea_canopy = 0._r8
+    site_in%nonrx_fmort_crownarea_ustory = 0._r8
+    site_in%rx_fmort_crownarea_canopy = 0._r8
+    site_in%rx_fmort_crownarea_ustory = 0._r8
     site_in%term_carbonflux_canopy(:,:) = 0._r8
     site_in%term_carbonflux_ustory(:,:) = 0._r8
     site_in%recruitment_rate(:) = 0._r8
@@ -330,9 +365,23 @@ contains
     site_in%fmort_carbonflux_ustory(:) = 0._r8
     site_in%fmort_rate_cambial(:,:) = 0._r8
     site_in%fmort_rate_crown(:,:) = 0._r8
+    site_in%nonrx_fmort_rate_canopy(:,:) = 0._r8
+    site_in%nonrx_fmort_rate_ustory(:,:) = 0._r8
+    site_in%nonrx_fmort_carbonflux_canopy(:) = 0._r8
+    site_in%nonrx_fmort_carbonflux_ustory(:) = 0._r8
+    site_in%nonrx_fmort_rate_cambial(:,:) = 0._r8
+    site_in%nonrx_fmort_rate_crown(:,:) = 0._r8
+    site_in%rx_fmort_rate_canopy(:,:) = 0._r8
+    site_in%rx_fmort_rate_ustory(:,:) = 0._r8
+    site_in%rx_fmort_carbonflux_ustory(:) = 0._r8
+    site_in%rx_fmort_carbonflux_canopy(:) = 0._r8
+    site_in%rx_fmort_rate_cambial(:,:) = 0._r8
+    site_in%rx_fmort_rate_crown(:,:) = 0._r8
     site_in%term_abg_flux(:,:) = 0._r8
     site_in%imort_abg_flux(:,:) = 0._r8
     site_in%fmort_abg_flux(:,:) = 0._r8
+    site_in%nonrx_fmort_abg_flux(:,:) = 0._r8
+    site_in%rx_fmort_abg_flux(:,:) = 0._r8
 
     ! fusoin-induced growth flux of individuals
     site_in%growthflux_fusion(:,:) = 0._r8
@@ -356,6 +405,14 @@ contains
     site_in%fmort_rate_ustory_damage(:,:,:) = 0._r8
     site_in%fmort_cflux_canopy_damage(:,:) = 0._r8
     site_in%fmort_cflux_ustory_damage(:,:) = 0._r8
+    site_in%nonrx_fmort_rate_canopy_damage(:,:,:) = 0._r8
+    site_in%nonrx_fmort_rate_ustory_damage(:,:,:) = 0._r8
+    site_in%nonrx_fmort_cflux_canopy_damage(:,:) = 0._r8
+    site_in%nonrx_fmort_cflux_ustory_damage(:,:) = 0._r8
+    site_in%rx_fmort_rate_canopy_damage(:,:,:) = 0._r8
+    site_in%rx_fmort_rate_ustory_damage(:,:,:) = 0._r8
+    site_in%rx_fmort_cflux_canopy_damage(:,:) = 0._r8
+    site_in%rx_fmort_cflux_ustory_damage(:,:) = 0._r8
 
     ! Resources management (logging/harvesting, etc)
     site_in%resources_management%harvest_debt = 0.0_r8
@@ -1010,6 +1067,13 @@ contains
           currentPatch%ros_back                   = 0._r8
           currentPatch%scorch_ht(:)               = 0._r8
           currentPatch%frac_burnt                 = 0._r8
+          currentPatch%nonrx_fire                 = 0
+          currentPatch%nonrx_frac_burnt           = 0._r8
+          currentPatch%nonrx_fi                   = 0._r8
+          currentPatch%rx_fire                    = 0
+          currentPatch%rx_fi                      = 0._r8
+          currentPatch%rx_frac_burnt              = 0._r8
+          
           currentPatch => currentPatch%older
        enddo
     enddo
