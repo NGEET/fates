@@ -20,6 +20,7 @@ module FatesIODimensionsMod
     character(*), parameter, public  :: levscls = 'fates_levscls'      ! matches histFileMod
     character(*), parameter, public  :: levpft = 'fates_levpft'        ! matches histFileMod
     character(*), parameter, public  :: levage = 'fates_levage'        ! matches histFileMod
+    character(*), parameter, public  :: levedgeforest = 'fates_levedge'      ! matches histFileMod
     character(*), parameter, public  :: levheight = 'fates_levheight'  ! matches histFileMod
     character(*), parameter, public  :: levfuel = 'fates_levfuel'      ! matches histFileMod
     character(*), parameter, public  :: levcwdsc = 'fates_levcwdsc'    ! matches histFileMod
@@ -63,6 +64,9 @@ module FatesIODimensionsMod
 
     ! levage = This is a structure that records the boundaries for the
     ! number of patch-age-class dimension
+
+    ! levedgeforest = This is a structure that records the boundaries for the
+    ! number of forest-edge-bin dimension
 
     ! levheight = This is a structure that records the boundaries for the
     ! number of height dimension
@@ -153,6 +157,8 @@ module FatesIODimensionsMod
        integer :: pft_class_end
        integer :: age_class_begin
        integer :: age_class_end
+       integer :: edgeforest_class_begin
+       integer :: edgeforest_class_end
        integer :: height_begin
        integer :: height_end
        integer :: fuel_begin

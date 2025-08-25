@@ -14,6 +14,17 @@ from CIME.utils import (
     run_cmd_no_fail,
 )  # pylint: disable=wrong-import-position,import-error,wrong-import-order
 
+# constants for this script
+_FILE_DIR = os.path.dirname(__file__)
+_DEFAULT_CDL_PATH = os.path.abspath(
+    os.path.join(
+        _FILE_DIR,
+        os.pardir,
+        "parameter_files",
+        "fates_params_default.cdl",
+    )
+)
+
 
 def round_up(num: float, decimals: int = 0) -> float:
     """Rounds a number up
@@ -52,6 +63,9 @@ def create_nc_from_cdl(cdl_path: str, run_dir: str) -> str:
     """
     file_basename = os.path.basename(cdl_path).split(".")[-2]
     file_nc_name = f"{file_basename}.nc"
+
+    if not os.path.exists(run_dir):
+        os.makedirs(run_dir)
 
     file_gen_command = ["ncgen -o", os.path.join(run_dir, file_nc_name), cdl_path]
     out = run_cmd_no_fail(" ".join(file_gen_command), combine_output=True)
@@ -109,6 +123,7 @@ def config_to_dict(config_file: str) -> dict:
 
     # Define list of config file options that we expect to be paths
     options_that_are_paths = ["datm_file"]
+    options_that_are_bools = ["use_param_file"]
 
     config = configparser.ConfigParser()
     config.read(config_file)
@@ -122,6 +137,10 @@ def config_to_dict(config_file: str) -> dict:
             # If the option is one that we expect to be a path, ensure it's an absolute path.
             if option in options_that_are_paths:
                 value = get_abspath_from_config_file(value, config_file)
+
+            # If the option is one that we expect to be a boolean, convert it from string.
+            if option in options_that_are_bools:
+                value = str_to_bool(value)
 
             # Save value to dictionary
             dictionary[section][option] = value
@@ -172,6 +191,8 @@ def str_to_bool(val: str) -> bool:
     Returns:
         bool: True or False
     """
+    if isinstance(val, bool):
+        return val
     if val.lower() in ("y", "yes", "t", "true", "on", "1"):
         return True
     if val.lower() in ("n", "no", "f", "false", "off", "0"):
@@ -193,3 +214,55 @@ def str_to_list(val: str) -> list:
         return []
     res = val.strip("][").split(",")
     return [n.strip() for n in res]
+
+
+def check_param_file(param_file):
+    """Checks to see if param_file exists and is of the correct form (.nc or .cdl)
+
+    Args:
+        param_file (str): path to parameter file
+
+    Raises:
+        argparse.ArgumentError: Parameter file is not of the correct form (.nc or .cdl)
+        argparse.ArgumentError: Can't find parameter file
+    """
+    file_suffix = os.path.basename(param_file).split(".")[-1]
+    if not file_suffix in ["cdl", "nc"]:
+        raise argparse.ArgumentError(
+            None, "Must supply parameter file with .cdl or .nc ending."
+        )
+    if not os.path.isfile(param_file):
+        raise FileNotFoundError(param_file)
+
+
+def create_param_file(param_file, run_dir):
+    """Creates and/or move the default or input parameter file to the run directory
+    Creates a netcdf file from a cdl file if a cdl file is supplied
+
+    Args:
+        param_file (str): path to parmaeter file
+        run_dir (str): full path to run directory
+
+    Raises:
+        RuntimeError: Supplied parameter file is not netcdf (.cd) or cdl (.cdl)
+
+    Returns:
+        str: full path to new parameter file name/location
+    """
+    if param_file is None:
+        print("Using default parameter file.")
+        param_file = _DEFAULT_CDL_PATH
+        param_file_update = create_nc_from_cdl(param_file, run_dir)
+    else:
+        print(f"Using parameter file {param_file}.")
+        file_suffix = os.path.basename(param_file).split(".")[-1]
+        if file_suffix == "cdl":
+            param_file_update = create_nc_from_cdl(param_file, run_dir)
+        elif file_suffix == "nc":
+            param_file_update = copy_file(param_file, run_dir)
+        else:
+            raise RuntimeError("Must supply parameter file with .cdl or .nc ending.")
+
+    print(f"Parameter file saved to {os.path.abspath(param_file_update)}")
+
+    return param_file_update

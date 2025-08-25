@@ -43,6 +43,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : n_crop_lu_types
    use FatesConstantsMod         , only : n_term_mort_types
    use FatesConstantsMod         , only : nocomp_bareground
+   use FatesInterfaceTypesMod    , only : nlevedgeforest, hlm_use_tree_damage
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
@@ -53,6 +54,7 @@ module FatesInterfaceMod
    use EDPftvarcon               , only : FatesCheckParams
    use EDPftvarcon               , only : EDPftvarcon_inst
    use SFParamsMod               , only : SpitFireCheckParams
+   use FatesEdgeForestParamsMod  , only : EdgeForestCheckParams
    use EDParamsMod               , only : FatesReportParams
    use EDParamsMod               , only : bgc_soil_salinity
    use FatesPlantHydraulicsMod   , only : InitHydroGlobals
@@ -64,12 +66,14 @@ module FatesInterfaceMod
    use EDParamsMod               , only : sdlng_mdd_timescale
    use EDParamsMod               , only : ED_val_history_sizeclass_bin_edges
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
+   use FatesEdgeForestParamsMod  , only : ED_val_edgeforest_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
    use FatesParametersInterface  , only : fates_param_reader_type
    use FatesParametersInterface  , only : fates_parameters_type
    use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
    use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
+   use FatesEdgeForestParamsMod  , only : EdgeForestRegisterParams, EdgeForestReceiveParams
    use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
    use FatesLeafBiophysParamsMod , only : LeafBiophysRegisterParams, LeafBiophysReceiveParams,LeafBiophysReportParams
    use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
@@ -972,6 +976,11 @@ contains
          ! Identify number of size and age class bins for history output
          ! assume these arrays are 1-indexed
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
+         if (hlm_use_edge_forest == itrue) then
+            nlevedgeforest = size(ED_val_edgeforest_bin_edges,dim=1)
+         else
+            nlevedgeforest = 1
+         end if
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
          nlevdamage = size(ED_val_history_damage_bin_edges, dim=1)
@@ -984,6 +993,10 @@ contains
          endif
          if ( ED_val_history_ageclass_bin_edges(1) .ne. 0._r8 ) then
             write(fates_log(), *) 'age class bins specified in parameter file must start at zero'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         endif
+         if ( ED_val_edgeforest_bin_edges(1) .ne. 0._r8 ) then
+            write(fates_log(), *) 'edge forest class bins specified in parameter file must start at zero'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          endif
          if ( ED_val_history_height_bin_edges(1) .ne. 0._r8 ) then
@@ -1002,6 +1015,12 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
+         do i = 2,nlevedgeforest
+            if ( (ED_val_edgeforest_bin_edges(i) - ED_val_edgeforest_bin_edges(i-1)) .le. 0._r8) then
+               write(fates_log(), *) 'edge forest class bins specified in parameter file must be monotonically increasing'
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+         end do
          do i = 2,nlevheight
             if ( (ED_val_history_height_bin_edges(i) - ED_val_history_height_bin_edges(i-1)) .le. 0._r8) then
                write(fates_log(), *) 'height class bins specified in parameter file must be monotonically increasing'
@@ -1014,7 +1033,7 @@ contains
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end do
-         
+
          ! Set the fates dispersal kernel mode if there are any seed dispersal parameters set.
          ! The validation of the parameter values is check in FatesCheckParams prior to this check.
          ! This is currently hard coded, but could be added as a fates parameter file option,
@@ -1160,6 +1179,7 @@ contains
        use EDParamsMod, only : nlevleaf
        use EDParamsMod, only : ED_val_history_sizeclass_bin_edges
        use EDParamsMod, only : ED_val_history_ageclass_bin_edges
+       use FatesEdgeForestParamsMod, only : ED_val_edgeforest_bin_edges
        use EDParamsMod, only : ED_val_history_height_bin_edges
        use EDParamsMod, only : ED_val_history_coageclass_bin_edges
 
@@ -1193,6 +1213,7 @@ contains
        allocate( fates_hdim_levfuel(1:num_fuel_classes   ))
        allocate( fates_hdim_levcwdsc(1:NCWD   ))
        allocate( fates_hdim_levage(1:nlevage   ))
+       allocate( fates_hdim_levedge(1:nlevedgeforest   ))
        allocate( fates_hdim_levheight(1:nlevheight   ))
        allocate( fates_hdim_levcoage(1:nlevcoage ))
        allocate( fates_hdim_pfmap_levcapf(1:nlevcoage*numpft))
@@ -1233,6 +1254,7 @@ contains
        ! Fill the IO array of plant size classes
        fates_hdim_levsclass(:) = ED_val_history_sizeclass_bin_edges(:)
        fates_hdim_levage(:) = ED_val_history_ageclass_bin_edges(:)
+       fates_hdim_levedge(:) = ED_val_edgeforest_bin_edges(:)
        fates_hdim_levheight(:) = ED_val_history_height_bin_edges(:)
        fates_hdim_levcoage(:) = ED_val_history_coageclass_bin_edges(:)
        fates_hdim_levleaf(:) = dlower_vai(:)
@@ -1491,6 +1513,7 @@ contains
          hlm_decomp      = 'unset'
          hlm_nitrogen_spec = unset_int
          hlm_use_tree_damage = unset_int
+         hlm_use_edge_forest = unset_int
          hlm_phosphorus_spec = unset_int
          hlm_use_ch4       = unset_int
          hlm_use_vertsoilc = unset_int
@@ -1688,15 +1711,16 @@ contains
          if(hlm_use_tree_damage .eq. unset_int) then
             write(fates_log(),*) 'FATES dimension/parameter unset: hlm_use_tree_damage, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
-         else
-            if((hlm_use_tree_damage .eq. itrue) .and. &
+         else if ((hlm_use_tree_damage .eq. itrue) .and. &
                  (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp))then
-               write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
-               write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
-               call endrun(msg=errMsg(sourcefile, __LINE__))
+            write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
+            write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-            
+         if(hlm_use_edge_forest .eq. unset_int) then
+            write(fates_log(),*) 'FATES dimension/parameter unset: hlm_use_edge_forest, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
          if(hlm_nitrogen_spec .eq. unset_int) then
@@ -1922,6 +1946,12 @@ contains
                hlm_use_tree_damage = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_tree_damage = ',ival,' to FATES'
+               end if
+
+            case('use_edge_forest')
+               hlm_use_edge_forest = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_edge_forest = ',ival,' to FATES'
                end if
                
             case('nitrogen_spec')
@@ -2250,6 +2280,7 @@ contains
       call FatesCheckParams(masterproc)    ! Check general fates parameters
       call PRTCheckParams(masterproc)      ! Check PARTEH parameters
       call SpitFireCheckParams(masterproc)
+      call EdgeForestCheckParams(masterproc)
       call TransferRadParams()
 
       
@@ -2686,6 +2717,7 @@ subroutine FatesReadParameters(param_reader)
   call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
   call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
   call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
+  call EdgeForestRegisterParams(fates_params) !EdgeForest Mod, only operates on fates_params class
   call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
   call LeafBiophysRegisterParams(fates_params)
   call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
@@ -2694,6 +2726,7 @@ subroutine FatesReadParameters(param_reader)
 
   call FatesReceiveParams(fates_params)
   call SpitFireReceiveParams(fates_params)
+  call EdgeForestReceiveParams(fates_params)
   call PRTReceiveParams(fates_params)
   call LeafBiophysReceiveParams(fates_params)
   call FatesSynchronizedParamsInst%ReceiveParams(fates_params)

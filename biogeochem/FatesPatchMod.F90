@@ -32,6 +32,7 @@ module FatesPatchMod
   use FatesRadiationMemMod,   only : num_rad_stream_types
   use FatesInterfaceTypesMod, only : hlm_hio_ignore_val
   use FatesInterfaceTypesMod, only : numpft
+  use FatesInterfaceTypesMod, only : nlevedgeforest
   use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,            only : errMsg => shr_log_errMsg
 
@@ -71,6 +72,12 @@ module FatesPatchMod
     integer  :: land_use_label               ! patch label for land use classification (primaryland, secondaryland, etc)
     real(r8) :: age_since_anthro_disturbance ! average age for secondary forest since last anthropogenic disturbance [years]
     logical  :: changed_landuse_this_ts      ! logical flag to track patches that have just undergone land use change [only used with nocomp and land use change]
+
+    !---------------------------------------------------------------------------
+
+    ! FOREST INFO
+    logical  :: is_forest                    ! whether the patch is "forest" according to FATES param file criteria
+    real(r8), dimension(:), allocatable :: area_in_edgeforest_bins
 
     !---------------------------------------------------------------------------
 
@@ -279,6 +286,7 @@ module FatesPatchMod
       allocate(this%sabs_dir(num_swb))
       allocate(this%sabs_dif(num_swb))
       allocate(this%fragmentation_scaler(num_levsoil))
+      allocate(this%area_in_edgeforest_bins(nlevedgeforest))
 
       ! initialize all values to nan
       call this%NanValues()
@@ -453,6 +461,10 @@ module FatesPatchMod
       this%ncl_p                        = fates_unset_int
       this%land_use_label               = fates_unset_int
       this%age_since_anthro_disturbance = nan
+
+      ! FOREST INFO
+      this%is_forest                       = .false.
+      this%area_in_edgeforest_bins(:) = nan
       
       ! LEAF ORGANIZATION
       this%pft_agb_profile(:,:)         = nan
@@ -898,6 +910,7 @@ module FatesPatchMod
                  this%sabs_dir,                 &
                  this%sabs_dif,                 &
                  this%fragmentation_scaler,     &
+                 this%area_in_edgeforest_bins,  &
                  stat=istat, errmsg=smsg)
 
       ! These arrays are allocated via a call from EDCanopyStructureMod
@@ -1227,6 +1240,7 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%ncl_p              = ',this%ncl_p
       write(fates_log(),*) 'pa%total_canopy_area  = ',this%total_canopy_area
       write(fates_log(),*) 'pa%total_tree_area    = ',this%total_tree_area
+      write(fates_log(),*) 'pa%is_forest          = ',this%is_forest
       write(fates_log(),*) 'pa%total_grass_area   = ',this%total_grass_area
       write(fates_log(),*) 'pa%zstar              = ',this%zstar
       write(fates_log(),*) 'pa%gnd_alb_dif        = ',this%gnd_alb_dif(:)

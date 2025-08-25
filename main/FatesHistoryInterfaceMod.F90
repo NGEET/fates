@@ -50,6 +50,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : hlm_use_ed_st3
   use FatesInterfaceTypesMod        , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod        , only : hlm_use_tree_damage
+  use FatesInterfaceTypesMod        , only : hlm_use_edge_forest
   use FatesInterfaceTypesMod        , only : nlevdamage
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_freq_day
@@ -60,6 +61,7 @@ module FatesHistoryInterfaceMod
   use EDParamsMod                   , only : nlevleaf
   use EDParamsMod               , only : ED_val_history_height_bin_edges
   use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
+  use EDParamsMod                   , only : ED_val_history_height_bin_edges
   use FatesInterfaceTypesMod        , only : nlevsclass, nlevage
   use FatesInterfaceTypesMod        , only : nlevheight
   use FatesInterfaceTypesMod        , only : bc_in_type
@@ -68,6 +70,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : nlevcoage
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesInterfaceTypesMod        , only : hlm_use_fixed_biogeog
+  use FatesInterfaceTypesMod        , only : nlevedgeforest
   use FatesRadiationMemMod          , only : ivis,inir
   use FatesInterfaceTypesMod        , only : hlm_hist_level_hifrq,hlm_hist_level_dynam
   use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
@@ -81,6 +84,7 @@ module FatesHistoryInterfaceMod
   use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
   use FatesIOVariableKindMod, only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
   use FatesIOVariableKindMod, only : site_landuse_r8, site_lulu_r8, site_lupft_r8
+  use FatesIOVariableKindMod, only : site_edgebin_r8
   use FatesConstantsMod   , only : n_landuse_cats
   use FatesAllometryMod             , only : CrownDepth
   use FatesAllometryMod             , only : bstore_allom, bsap_allom
@@ -293,6 +297,19 @@ module FatesHistoryInterfaceMod
   integer :: ih_trimming_si
   integer :: ih_fracarea_plant_si
   integer :: ih_fracarea_trees_si
+  integer :: ih_is_forest_si
+  integer :: ih_is_forest_si_age
+  integer :: ih_is_forest_pct10_si
+  integer :: ih_is_forest_pct25_si
+  integer :: ih_is_forest_pct50_si
+  integer :: ih_is_forest_pct75_si
+  integer :: ih_is_forest_pct90_si
+  integer :: ih_is_forest_pct10_0grass_si
+  integer :: ih_is_forest_pct25_0grass_si
+  integer :: ih_is_forest_pct50_0grass_si
+  integer :: ih_is_forest_pct75_0grass_si
+  integer :: ih_is_forest_pct90_0grass_si
+  integer :: ih_forest_edge_bin_area_si
   integer :: ih_litter_in_elem
   integer :: ih_litter_out_elem
   integer :: ih_seed_bank_elem
@@ -664,6 +681,8 @@ module FatesHistoryInterfaceMod
 
   ! indices to (site x patch-age) variables
   integer :: ih_fracarea_si_age
+  integer :: ih_fracarea_plant_si_age
+  integer :: ih_fracarea_trees_si_age
   integer :: ih_lai_si_age
   integer :: ih_canopy_fracarea_si_age
   integer :: ih_gpp_si_age
@@ -831,6 +850,7 @@ module FatesHistoryInterfaceMod
      !! THESE WERE EXPLICITLY PRIVATE WHEN TYPE WAS PUBLIC
      integer, private :: column_index_, levsoil_index_, levscpf_index_
      integer, private :: levscls_index_, levpft_index_, levage_index_
+     integer, private :: levedgeforest_index_
      integer, private :: levfuel_index_, levcwdsc_index_, levscag_index_
      integer, private :: levcan_index_, levcnlf_index_, levcnlfpft_index_
      integer, private :: levcdpf_index_, levcdsc_index_, levcdam_index_ 
@@ -872,6 +892,7 @@ module FatesHistoryInterfaceMod
      procedure :: levcacls_index
      procedure :: levpft_index
      procedure :: levage_index
+     procedure :: levedgeforest_index
      procedure :: levfuel_index
      procedure :: levcwdsc_index
      procedure :: levcan_index
@@ -908,6 +929,7 @@ module FatesHistoryInterfaceMod
      procedure, private :: set_levscls_index
      procedure, private :: set_levpft_index
      procedure, private :: set_levage_index
+     procedure, private :: set_levedgeforest_index
      procedure, private :: set_levfuel_index
      procedure, private :: set_levcwdsc_index
      procedure, private :: set_levcan_index
@@ -953,6 +975,7 @@ contains
 
     use FatesIODimensionsMod, only : column, levsoil, levscpf
     use FatesIODimensionsMod, only : levscls, levpft, levage
+    use FatesIODimensionsMod, only : levedgeforest
     use FatesIODimensionsMod, only : levcacls, levcapf
     use FatesIODimensionsMod, only : levfuel, levcwdsc, levscag
     use FatesIODimensionsMod, only : levscagpft, levagepft
@@ -1011,6 +1034,11 @@ contains
     call this%set_levage_index(dim_count)
     call this%dim_bounds(dim_count)%Init(levage, num_threads, &
          fates_bounds%age_class_begin, fates_bounds%age_class_end)
+
+    dim_count = dim_count + 1
+    call this%set_levedgeforest_index(dim_count)
+    call this%dim_bounds(dim_count)%Init(levedgeforest, num_threads, &
+         fates_bounds%edgeforest_class_begin, fates_bounds%edgeforest_class_end)
 
     dim_count = dim_count + 1
     call this%set_levfuel_index(dim_count)
@@ -1165,6 +1193,10 @@ contains
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%age_class_begin, thread_bounds%age_class_end)
 
+    index = this%levedgeforest_index()
+    call this%dim_bounds(index)%SetThreadBounds(thread_index, &
+         thread_bounds%edgeforest_class_begin, thread_bounds%edgeforest_class_end)
+
     index = this%levfuel_index()
     call this%dim_bounds(index)%SetThreadBounds(thread_index, &
          thread_bounds%fuel_begin, thread_bounds%fuel_end)
@@ -1255,8 +1287,6 @@ contains
   ! ===================================================================================
   subroutine assemble_history_output_types(this)
 
-
-
     implicit none
 
     class(fates_history_interface_type), intent(inout) :: this
@@ -1285,6 +1315,9 @@ contains
 
     call this%set_dim_indices(site_age_r8, 1, this%column_index())
     call this%set_dim_indices(site_age_r8, 2, this%levage_index())
+
+    call this%set_dim_indices(site_edgebin_r8, 1, this%column_index())
+    call this%set_dim_indices(site_edgebin_r8, 2, this%levedgeforest_index())
 
     call this%set_dim_indices(site_fuel_r8, 1, this%column_index())
     call this%set_dim_indices(site_fuel_r8, 2, this%levfuel_index())
@@ -1502,6 +1535,20 @@ contains
     class(fates_history_interface_type), intent(in) :: this
     levage_index = this%levage_index_
   end function levage_index
+
+  ! =======================================================================
+  subroutine set_levedgeforest_index(this, index)
+    implicit none
+    class(fates_history_interface_type), intent(inout) :: this
+    integer, intent(in) :: index
+    this%levedgeforest_index_ = index
+  end subroutine set_levedgeforest_index
+
+  integer function levedgeforest_index(this)
+    implicit none
+    class(fates_history_interface_type), intent(in) :: this
+    levedgeforest_index = this%levedgeforest_index_
+  end function levedgeforest_index
 
   ! =======================================================================
   subroutine set_levfuel_index(this, index)
@@ -1975,16 +2022,6 @@ contains
     ! number of entries listed here.
     !
     ! ----------------------------------------------------------------------------------
-    use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
-    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
-    use FatesIOVariableKindMod, only : site_coage_r8, site_coage_pft_r8
-    use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
-    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
-    use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
-    use FatesIOVariableKindMod, only : site_height_r8, site_agefuel_r8
-    use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8
-    use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8, site_clscpf_r8
-    use FatesIOVariableKindMod, only : site_cdpf_r8, site_cdsc_r8, site_cdam_r8
 
     implicit none
 
@@ -2025,6 +2062,10 @@ contains
     ! site x patch-age class
     index = index + 1
     call this%dim_kinds(index)%Init(site_age_r8, 2)
+
+    ! site x forest-edge-bin class
+    index = index + 1
+    call this%dim_kinds(index)%Init(site_edgebin_r8, 2)
 
     ! site x fuel size class
     index = index + 1
@@ -2387,6 +2428,8 @@ contains
     ! updated here, but not FATES_VEGC_PF.
     ! ---------------------------------------------------------------------------------
 
+    use FatesEcotypesMod, only : is_patch_forest
+    use FatesUtilsMod,    only : logical_to_real
 
     ! Arguments
     class(fates_history_interface_type)             :: this
@@ -2436,7 +2479,18 @@ contains
          hio_zstar_si            => this%hvars(ih_zstar_si)%r81d, &
          hio_trimming_si         => this%hvars(ih_trimming_si)%r81d, &
          hio_fracarea_plant_si   => this%hvars(ih_fracarea_plant_si)%r81d, &
-         hio_fracarea_trees_si  => this%hvars(ih_fracarea_trees_si)%r81d, &
+         hio_fracarea_trees_si   => this%hvars(ih_fracarea_trees_si)%r81d, &
+         hio_is_forest_si        => this%hvars(ih_is_forest_si)%r81d, &
+         hio_is_forest_pct10_si  => this%hvars(ih_is_forest_pct10_si)%r81d, &
+         hio_is_forest_pct25_si  => this%hvars(ih_is_forest_pct25_si)%r81d, &
+         hio_is_forest_pct50_si  => this%hvars(ih_is_forest_pct50_si)%r81d, &
+         hio_is_forest_pct75_si  => this%hvars(ih_is_forest_pct75_si)%r81d, &
+         hio_is_forest_pct90_si  => this%hvars(ih_is_forest_pct90_si)%r81d, &
+         hio_is_forest_pct10_0grass_si  => this%hvars(ih_is_forest_pct10_0grass_si)%r81d, &
+         hio_is_forest_pct25_0grass_si  => this%hvars(ih_is_forest_pct25_0grass_si)%r81d, &
+         hio_is_forest_pct50_0grass_si  => this%hvars(ih_is_forest_pct50_0grass_si)%r81d, &
+         hio_is_forest_pct75_0grass_si  => this%hvars(ih_is_forest_pct75_0grass_si)%r81d, &
+         hio_is_forest_pct90_0grass_si  => this%hvars(ih_is_forest_pct90_0grass_si)%r81d, &
          hio_fates_fraction_si   => this%hvars(ih_fates_fraction_si)%r81d, &
          hio_ba_weighted_height_si  => this%hvars(ih_ba_weighted_height_si)%r81d, &
          hio_ca_weighted_height_si  => this%hvars(ih_ca_weighted_height_si)%r81d, &
@@ -2718,6 +2772,31 @@ contains
             ! fractional area occupied by plants and trees [m2/m2]
             hio_fracarea_plant_si(io_si) = hio_fracarea_plant_si(io_si) + min(cpatch%total_canopy_area,cpatch%area) * AREA_INV
             hio_fracarea_trees_si(io_si) = hio_fracarea_trees_si(io_si) + min(cpatch%total_tree_area,cpatch%area) * AREA_INV
+
+            ! whether patch is forest according to FATES parameter file threshold
+            hio_is_forest_si(io_si) = hio_is_forest_si(io_si) + &
+               merge(1._r8, 0._r8, cpatch%is_forest) * cpatch%area * AREA_INV
+            ! according to experimental definitions
+            hio_is_forest_pct10_si(io_si) = hio_is_forest_pct10_si(io_si) + cpatch%area * AREA_INV * &
+               logical_to_real(is_patch_forest(cpatch, 0.1_r8))
+            hio_is_forest_pct25_si(io_si) = hio_is_forest_pct25_si(io_si) + cpatch%area * AREA_INV * &
+               logical_to_real(is_patch_forest(cpatch, 0.25_r8))
+            hio_is_forest_pct50_si(io_si) = hio_is_forest_pct50_si(io_si) + cpatch%area * AREA_INV * &
+               logical_to_real(is_patch_forest(cpatch, 0.5_r8))
+            hio_is_forest_pct75_si(io_si) = hio_is_forest_pct75_si(io_si) + cpatch%area * AREA_INV * &
+               logical_to_real(is_patch_forest(cpatch, 0.75_r8))
+            hio_is_forest_pct90_si(io_si) = hio_is_forest_pct90_si(io_si) + cpatch%area * AREA_INV * &
+               logical_to_real(is_patch_forest(cpatch, 0.9_r8))
+            hio_is_forest_pct10_0grass_si(io_si) = hio_is_forest_pct10_0grass_si(io_si) + cpatch%area * AREA_INV * &
+               logical_to_real(is_patch_forest(cpatch, 0.1_r8, grass_biomass_threshold=0._r8))
+            hio_is_forest_pct25_0grass_si(io_si) = hio_is_forest_pct25_0grass_si(io_si) + cpatch%area * AREA_INV * &
+               logical_to_real(is_patch_forest(cpatch, 0.25_r8, grass_biomass_threshold=0._r8))
+            hio_is_forest_pct50_0grass_si(io_si) = hio_is_forest_pct50_0grass_si(io_si) + cpatch%area * AREA_INV * &
+               logical_to_real(is_patch_forest(cpatch, 0.5_r8, grass_biomass_threshold=0._r8))
+            hio_is_forest_pct75_0grass_si(io_si) = hio_is_forest_pct75_0grass_si(io_si) + cpatch%area * AREA_INV * &
+               logical_to_real(is_patch_forest(cpatch, 0.75_r8, grass_biomass_threshold=0._r8))
+            hio_is_forest_pct90_0grass_si(io_si) = hio_is_forest_pct90_0grass_si(io_si) + cpatch%area * AREA_INV * &
+               logical_to_real(is_patch_forest(cpatch, 0.9_r8, grass_biomass_threshold=0._r8))
 
             ! Patch specific variables that are already calculated
             ! These things are all duplicated. Should they all be converted to LL or array structures RF?
@@ -3084,7 +3163,7 @@ contains
     type(litter_type), pointer :: litt_c   ! Pointer to the carbon12 litter pool
     type(litter_type), pointer :: litt     ! Generic pointer to any litter pool
     integer  :: s                  ! site counter
-    integer  :: ipa2           ! patch index matching host model array space
+    integer  :: b                  ! edge bin counter
     integer  :: io_si              ! site's index in the history output array space
     integer  :: el                 ! element index
     integer  :: ft                 ! pft index
@@ -3319,6 +3398,7 @@ contains
            hio_cwd_ag_out_si_cwdsc              => this%hvars(ih_cwd_ag_out_si_cwdsc)%r82d, &
            hio_cwd_bg_out_si_cwdsc              => this%hvars(ih_cwd_bg_out_si_cwdsc)%r82d, &
            hio_crownarea_si_cnlf                => this%hvars(ih_crownarea_si_cnlf)%r82d, &
+           hio_forest_edge_bin_area_si          => this%hvars(ih_forest_edge_bin_area_si)%r82d, &
            hio_crownarea_cl                     => this%hvars(ih_crownarea_cl)%r82d)
 
         ! Break up associates for NAG compilers
@@ -3431,6 +3511,13 @@ contains
 
                 hio_fracarea_si(io_si) = hio_fracarea_si(io_si) &
                      + cpatch%area * AREA_INV
+                ! area of forest in each edge bin
+                if (hlm_use_edge_forest == itrue .and. cpatch%is_forest) then
+                   binloop: do b = 1, nlevedgeforest
+                      hio_forest_edge_bin_area_si(io_si,b) = hio_forest_edge_bin_area_si(io_si,b) + &
+                      cpatch%area_in_edgeforest_bins(b)
+                   end do binloop
+                end if
 
                 ! ignore land use info on nocomp bareground (where landuse label = 0)
                 if (cpatch%land_use_label .gt. nocomp_bareground_land) then 
@@ -4782,6 +4869,7 @@ contains
 
     associate( &
          hio_lai_si_age => this%hvars(ih_lai_si_age)%r82d, &
+         hio_is_forest_si_age => this%hvars(ih_is_forest_si_age)%r82d, &
          hio_ncl_si_age => this%hvars(ih_ncl_si_age)%r82d, &
          hio_scorch_height_si_agepft => this%hvars(ih_scorch_height_si_agepft)%r82d, &
          hio_zstar_si_age        => this%hvars(ih_zstar_si_age)%r82d, &
@@ -4808,6 +4896,8 @@ contains
          hio_nplant_canopy_si_scag            => this%hvars(ih_nplant_canopy_si_scag)%r82d, &
          hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
          hio_fracarea_si_age                  => this%hvars(ih_fracarea_si_age)%r82d, &
+         hio_fracarea_plant_si_age            => this%hvars(ih_fracarea_plant_si_age)%r82d, &
+         hio_fracarea_trees_si_age            => this%hvars(ih_fracarea_trees_si_age)%r82d, &
          hio_agesince_anthrodist_si_age       => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
          hio_primarylands_fracarea_si_age     => this%hvars(ih_primarylands_fracarea_si_age)%r82d, &
          hio_secondarylands_fracarea_si_age   => this%hvars(ih_secondarylands_fracarea_si_age)%r82d, &
@@ -4866,6 +4956,10 @@ contains
                   + cpatch%zstar * patch_area_div_site_area
           end if
 
+          ! whether patch is forest according to FATES parameter file threshold
+          hio_is_forest_si_age(io_si,cpatch%age_class) = hio_is_forest_si_age(io_si,cpatch%age_class) + &
+               merge(1._r8, 0._r8, cpatch%is_forest) * patch_area_div_site_area
+
           ! some diagnostics on secondary forest area and its age distribution
           if ( cpatch%land_use_label .eq. secondaryland ) then
 
@@ -4900,16 +4994,24 @@ contains
           hio_fire_intensity_si_age(io_si, cpatch%age_class) = hio_fire_intensity_si_age(io_si,cpatch%age_class) + &
               cpatch%FI * J_per_kJ &  ! [kJ/m/s] -> [J/m/s]
               * cpatch%frac_burnt * patch_area_div_site_area
-          ! hio_fire_rate_of_spread_front_si_age(io_si, cpatch%age_class) = hio_fire_rate_of_spread_si_age(io_si, cpatch%age_class) + &
-          !     cpatch%ros_front * cpatch*frac_burnt * patch_area_div_site_area
-
           hio_rx_intensity_si_age(io_si, cpatch%age_class) = hio_rx_intensity_si_age(io_si, cpatch%age_class) + &
                cpatch%rx_FI * J_per_kJ &  ! [kJ/m/s] -> [J/m/s]
                * cpatch%rx_frac_burnt * patch_area_div_site_area
-
           hio_nonrx_intensity_si_age(io_si, cpatch%age_class) = hio_nonrx_intensity_si_age(io_si, cpatch%age_class) + &
                cpatch%nonrx_FI * J_per_kJ &  ! [kJ/m/s] -> [J/m/s]
                * cpatch%nonrx_frac_burnt * patch_area_div_site_area
+          ! hio_fire_rate_of_spread_front_si_age(io_si, cpatch%age_class) = hio_fire_rate_of_spread_si_age(io_si, cpatch%age_class) + &
+          !     cpatch%ros_front * cpatch*frac_burnt * patch_area_div_site_area
+
+          ! Weighted by site-wide plant or tree canopy area
+          hio_fracarea_plant_si_age(io_si,cpatch%age_class) = &
+               hio_fracarea_plant_si_age(io_si,cpatch%age_class) + &
+               min(cpatch%total_canopy_area,cpatch%area) * &
+               AREA_INV
+          hio_fracarea_trees_si_age(io_si,cpatch%age_class) = &
+               hio_fracarea_trees_si_age(io_si,cpatch%age_class) + &
+               min(cpatch%total_tree_area,cpatch%area) * &
+               AREA_INV
 
           ! Weighted by cohort canopy area relative to site area
           ccohort => cpatch%shortest
@@ -5428,7 +5530,7 @@ contains
          hio_parsun_si_can                   => this%hvars(ih_parsun_si_can)%r82d, &
          hio_parsha_si_can                   => this%hvars(ih_parsha_si_can)%r82d, &
          hio_laisun_si_can                    => this%hvars(ih_laisun_si_can)%r82d, &
-         hio_laisha_si_can                    => this%hvars(ih_laisha_si_can)%r82d )
+         hio_laisha_si_can                    => this%hvars(ih_laisha_si_can)%r82d)
 
 
       ! THIS CAN BE REMOVED WHEN BOTH CTSM AND E3SM CALL FLUSH_ALL_HVARS
@@ -6296,18 +6398,7 @@ contains
     ! a real.  The applied flush value will use the NINT() intrinsic function
     ! ---------------------------------------------------------------------------------
 
-    use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
-    use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
-    use FatesIOVariableKindMod, only : site_coage_pft_r8, site_coage_r8
-    use FatesIOVariableKindMod, only : site_height_r8, site_agefuel_r8
     use FatesInterfaceTypesMod, only : hlm_use_planthydro
-
-    use FatesIOVariableKindMod, only : site_fuel_r8, site_cwdsc_r8, site_scag_r8
-    use FatesIOVariableKindMod, only : site_can_r8, site_cnlf_r8, site_cnlfpft_r8
-    use FatesIOVariableKindMod, only : site_cdsc_r8, site_cdpf_r8, site_cdam_r8
-    use FatesIOVariableKindMod, only : site_scagpft_r8, site_agepft_r8
-    use FatesIOVariableKindMod, only : site_elem_r8, site_elpft_r8, site_clscpf_r8
-    use FatesIOVariableKindMod, only : site_elcwd_r8, site_elage_r8
 
 
     implicit none
@@ -6327,6 +6418,7 @@ contains
     ! patch age                (site_age_r8)    : AP
     ! canopy layer             (site_can_r8)    : CL
     ! coarse woody debris size (site_cwdsc_r8)  : DC
+    ! forest edge bin          (site_edgebin_r8): EB
     ! element                  (site_elem_r8)   : EL
     ! leaf layer                                : LL
     ! fuel class               (site_fuel_r8)   : FC
@@ -6378,11 +6470,100 @@ contains
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,      &
             initialize=initialize_variables, index=ih_fracarea_plant_si)
 
+       call this%set_history_var(vname='FATES_AREA_PLANTS_AP', units='m2 m-2',   &
+            long='area occupied by all plants per m2 land area (by patch age)', use_default='active', &
+            avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, &
+            initialize=initialize_variables, index=ih_fracarea_plant_si_age)
+
        call this%set_history_var(vname='FATES_AREA_TREES', units='m2 m-2',        &
             long='area occupied by woody plants per m2 land area', use_default='active', &
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_fracarea_trees_si)
+
+       call this%set_history_var(vname='FATES_AREA_TREES_AP', units='m2 m-2',    &
+            long='area occupied by woody plants per m2 land area (by patch age)', use_default='active', &
+            avgflag='A', vtype=site_age_r8, hlms='CLM:ALM',                       &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
+            index=ih_fracarea_trees_si_age)
+
+       call this%set_history_var(vname='FATES_IS_FOREST', units='',               &
+            long='whether patch is forest', use_default='inactive',               &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_is_forest_si)
+
+       call this%set_history_var(vname='FATES_IS_FOREST_AP', units='',            &
+            long='whether patch is forest (by patch age)', use_default='inactive',&
+            avgflag='A', vtype=site_age_r8, hlms='CLM:ALM',                       &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
+            index=ih_is_forest_si_age)
+
+       call this%set_history_var(vname='FATES_IS_FOREST_PCT10', units='',        &
+            long='whether patch is forest (10% threshold)', use_default='inactive',&
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,        &
+            index=ih_is_forest_pct10_si)
+
+       call this%set_history_var(vname='FATES_IS_FOREST_PCT25', units='',        &
+            long='whether patch is forest (25% threshold)', use_default='inactive',&
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_is_forest_pct25_si)
+
+       call this%set_history_var(vname='FATES_IS_FOREST_PCT50', units='',        &
+            long='whether patch is forest (50% threshold)', use_default='inactive',&
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_is_forest_pct50_si)
+
+       call this%set_history_var(vname='FATES_IS_FOREST_PCT75', units='',        &
+            long='whether patch is forest (75% threshold)', use_default='inactive',&
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_is_forest_pct75_si)
+
+       call this%set_history_var(vname='FATES_IS_FOREST_PCT90', units='',        &
+            long='whether patch is forest (90% threshold)', use_default='inactive',&
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_is_forest_pct90_si)
+
+       call this%set_history_var(vname='FATES_IS_FOREST_PCT10_0GRASS', units='',        &
+            long='whether patch is forest (10% threshold, no grass)', use_default='inactive',&
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_is_forest_pct10_0grass_si)
+
+       call this%set_history_var(vname='FATES_IS_FOREST_PCT25_0GRASS', units='',        &
+            long='whether patch is forest (25% threshold, no grass)', use_default='inactive',&
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_is_forest_pct25_0grass_si)
+
+       call this%set_history_var(vname='FATES_IS_FOREST_PCT50_0GRASS', units='',        &
+            long='whether patch is forest (50% threshold, no grass)', use_default='inactive',&
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_is_forest_pct50_0grass_si)
+
+       call this%set_history_var(vname='FATES_IS_FOREST_PCT75_0GRASS', units='',        &
+            long='whether patch is forest (75% threshold, no grass)', use_default='inactive',&
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_is_forest_pct75_0grass_si)
+
+       call this%set_history_var(vname='FATES_IS_FOREST_PCT90_0GRASS', units='',        &
+            long='whether patch is forest (90% threshold, no grass)', use_default='inactive',&
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_is_forest_pct90_0grass_si)
+
+       call this%set_history_var(vname='FATES_FOREST_AREA_EB', units='m2',  &
+            long='area of forest in each edge bin', use_default='inactive', &
+            avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM',             &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
+            index=ih_forest_edge_bin_area_si)
 
        call this%set_history_var(vname='FATES_FRACTION', units='m2 m-2',          &
             long='total gridcell fraction which FATES is running over', use_default='active', &
