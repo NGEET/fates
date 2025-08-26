@@ -55,7 +55,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : hlm_freq_day
   use FatesInterfaceTypesMod        , only : hlm_parteh_mode
   use FatesInterfaceTypesMod        , only : hlm_use_sp
-  use EDParamsMod              , only : ED_val_comp_excln
+  use EDParamsMod              , only : comp_excln_exp
   use EDParamsMod              , only : ED_val_phen_coldtemp
   use EDParamsMod                   , only : nlevleaf
   use EDParamsMod               , only : ED_val_history_height_bin_edges
@@ -2693,7 +2693,7 @@ contains
             hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl_p * cpatch%area * AREA_INV
 
             ! only valid when "strict ppa" enabled
-            if ( ED_val_comp_excln .lt. 0._r8 ) then
+            if ( comp_excln_exp .lt. 0._r8 ) then
                hio_zstar_si(io_si) = hio_zstar_si(io_si) &
                     + cpatch%zstar * cpatch%area * AREA_INV
             end if
@@ -4861,7 +4861,7 @@ contains
           end do
 
           ! only valid when "strict ppa" enabled
-          if ( ED_val_comp_excln .lt. 0._r8 ) then
+          if ( comp_excln_exp .lt. 0._r8 ) then
              hio_zstar_si_age(io_si,cpatch%age_class) = hio_zstar_si_age(io_si,cpatch%age_class) &
                   + cpatch%zstar * patch_area_div_site_area
           end if
@@ -7347,7 +7347,7 @@ contains
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index=ih_npatches_si_age)
 
-          if ( ED_val_comp_excln .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
+          if ( comp_excln_exp .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
              tempstring = 'active'
           else
              tempstring = 'inactive'
