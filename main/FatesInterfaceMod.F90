@@ -114,6 +114,8 @@ module FatesInterfaceMod
    use FatesTwoStreamUtilsMod, only : TransferRadParams
    use LeafBiophysicsMod         , only : lb_params
    use LeafBiophysicsMod         , only : FvCB1980
+   use FatesInterfaceVariableTypeMod, only : fates_interface_variable_type
+
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -159,6 +161,9 @@ module FatesInterfaceMod
       ! instance is fine.
       
       type(bc_pconst_type) :: bc_pconst
+      
+      ! This is the 
+      type(fates_interface_variable_type) :: api_vars
       
 
    end type fates_interface_type
