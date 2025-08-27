@@ -162,9 +162,18 @@ module FatesInterfaceMod
       
       type(bc_pconst_type) :: bc_pconst
 
-      ! This is the 
-      type(fates_interface_variable_type) :: api_vars
+      ! This is the interface registry which associates variables with a common keyword
+      type(fates_interface_variable_type) :: api_vars(:)
+
+      ! The number of variables in the registry
+      integer :: num_api_vars
       
+      contains
+      
+         procedure :: InitializeInterfaceRegistry
+
+         procedure, private :: DefineInterfaceRegistry
+         procedure, private :: SetInterfaceVariable
 
    end type fates_interface_type
    
@@ -2703,7 +2712,77 @@ subroutine FatesReadParameters(param_reader)
 
   call fates_params%Destroy()
   deallocate(fates_params)
+  
+end subroutine FatesReadParameters
 
- end subroutine FatesReadParameters
+! ======================================================================================
+
+subroutine InitializeInterfaceRegistry(this)
+      
+  ! This initializes the interface registry
+
+  class(fates_interface_type) :: this
+  
+  logical :: initialize
+  
+  ! First count up the keys defined in the registry
+  call this%DefineInterfaceRegistry(initialize=.false.)
+  
+  ! Allocate the registry
+  allocate(this%api_vars(this%num_hlm_vars))
+  
+  ! Now set up the registry keys
+  call this%DefineInterfaceRegistry(initialize=.true.)
+
+end subroutine InitializeInterfaceRegistry
+
+! ======================================================================================
+ 
+subroutine DefineInterfaceRegistry(this, initialize)
+       
+  ! This procedure defines the list of common names to be associated with FATES and HLM
+  ! variables.
+
+  class(fates_interface_type) :: this
+   
+  logical, intent(in) :: initialize  ! false = count up the keys in the registry
+  
+  integer :: ivar  ! indices
+  
+  ! Set ivar to zero.  This will be incremented via each call to SetInterfaceVariable
+  ivar = 0
+  
+  ! Define the interface registry names and indices
+  call this%DefineInterfaceVariable(variable_name='decomp_frac_moisture', index=ivar, initialize=initialize)
+  call this%DefineInterfaceVariable(variable_name='decomp_frac_temperature', index=ivar, initialize=initialize)
+  
+  ! Set the registry size based on the final update of ivar
+  this%num_api_vars = ivar
+  
+    
+end subroutine DefineInterfaceRegistry
+
+! ======================================================================================
+
+subroutine DefineInterfaceVariable(this, variable_name, index, initialize)
+      
+  ! This procedure 
+  class(fates_interface_type) :: this
+
+  character(len=*), intent(in) :: variable_name  
+  integer, intent(inout)       :: index
+  logical, intent(in)          :: initialize
+  
+  ! Increment the index to return count
+  index = index + 1   
+
+  ! If we are initializing the 
+  if (initialize) then 
+    call this%api_vars(index)%Init(variable_name)
+  end if
+  
+end subroutine DefineInterfaceVariable
+
+! ======================================================================================
 
 end module FatesInterfaceMod
