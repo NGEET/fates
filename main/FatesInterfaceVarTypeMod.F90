@@ -13,23 +13,19 @@ module FatesInterfaceVariableTypeMod
 
   implicit none
   private
-  
 
+  ! Interface variable registry type
   type, public :: fates_interface_variable_type
     
-    character(len=48)                       :: variable_name  ! variable common reference name
-    character(len=fates_long_string_length) :: description    ! variable description
-    
-    logical :: active = .false.                               ! true if the variable is used by the host land model
-    integer :: update_frequency                               ! this should facilitate a check that the update is being called in the correct subroutine 
+    character(len=48) :: variable_name  ! variable common reference name
+    logical           :: active         ! true if the variable is used by the host land model
    
     ! pointers to data (only one of these to be allocated per variable)
-    ! TODO: make this polymorphic?
-    integer, pointer  :: intscalar 
+    integer, pointer  :: iscalar 
     integer, pointer  :: int1d(:)
     integer, pointer  :: int2d(:,:)
     integer, pointer  :: int3d(:,:,:)
-    real(r8), pointer :: r8scalar
+    real(r8), pointer :: rscalar
     real(r8), pointer :: r81d(:)
     real(r8), pointer :: r82d(:,:)
     real(r8), pointer :: r83d(:,:,:)
