@@ -35,26 +35,47 @@ module FatesInterfaceVariableTypeMod
     real(r8), pointer :: r83d(:,:,:)
     
     contains
-      procedure :: InitializeInterfaceVariables => Init
+      procedure :: InitializeInterfaceVariable => Init
+      procedure :: Register => RegisterInterfaceVariable_int_scalar
+      
   end type fates_interface_variable_type
   
   contains
   
-  subroutine InitializeInterfaceVariables(this, variable_name, description, active, &
-                                          update_frequency)
-                                          
-    class(fates_interface_variable_type) :: this
+  ! ====================================================================================
+  
+    subroutine InitializeInterfaceVariable(this, variable_name)
+                                            
+      class(fates_interface_variable_type) :: this
 
-    character(len=*), intent(in) :: variable_name  
-    character(len=*), intent(in) :: description    
-    logical, intent(in)          :: active
-    integer, intent(in)          :: update_frequency
+      character(len=*), intent(in) :: variable_name  
+      
+      nullify(this%iscalar)
+      nullify(this%int1d)
+      nullify(this%int2d)
+      nullify(this%int3d)
+      nullify(this%rscalar)
+      nullify(this%r81d)
+      nullify(this%r82d)
+      nullify(this%r83d)
+      
+      this%variable_name = variable_name
+      this%active = .false.
+      
+    end subroutine InitializeInterfaceVariable
+
+  ! ====================================================================================
     
-    this%variable_name = variable_name
-    this%description = description
-    this%active = active
-    this%update_frequency = update_frequency
-    
-  end subroutine InitializeInterfaceVariables
+    subroutine RegisterInterfaceVariable(this, data, active)
+      
+      class(fates_interface_variable_type) :: this
+
+      class(*), pointer, intent(in) :: data
+      logical, intent(in)           :: active
+      
+      this%data => data
+      this%active = active
+      
+    end subroutine RegisterInterfaceVariable
 
 end module FatesInterfaceVariableTypeMod
