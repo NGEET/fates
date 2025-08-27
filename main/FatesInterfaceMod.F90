@@ -171,9 +171,11 @@ module FatesInterfaceMod
       contains
       
          procedure :: InitializeInterfaceRegistry
+         procedure :: RegisterInterfaceVariables => Register
 
          procedure, private :: DefineInterfaceRegistry
          procedure, private :: SetInterfaceVariable
+         procedure, private :: GetRegistryIndex
 
    end type fates_interface_type
    
@@ -2772,6 +2774,44 @@ subroutine DefineInterfaceVariable(this, variable_name, index, initialize)
   
 end subroutine DefineInterfaceVariable
 
+! ======================================================================================
+  
+  subroutine RegisterInterfaceVariables(this, vname, data)
+   
+   ! This procedure is called by the host land model to associate a data variable
+   ! with a particular registry key
+   
+   class(fates_interface_type) :: this
+
+   character(len=*), intent(in)  :: vname  ! variable registry key 
+   class(*), pointer, intent(in) :: data   ! data to be associated with key
+   
+   this%api_vars(GetRegistryIndex(vname))%Register(data, active=.true.)
+   
+  end subroutine RegisterInterfaceVariables
+
+! ======================================================================================
+  
+integer function GetRegistryIndex(this, key) result(index)
+
+   ! This procedure returns the index associated with the key provided
+
+   class(fates_interface_type) :: this
+
+   integer, intent(in) :: key
+   
+   integer :: ivar  ! Iterator
+   
+   ! Iterate over the registry until the associated key is found
+   do ivar = 1, this%num_api_vars
+      if (this%api_vars(ivar)%variable_name == key) then
+         index = ivar
+         return
+      end if
+   end do
+
+end function GetRegistryIndex
+  
 ! ======================================================================================
 
 end module FatesInterfaceMod
