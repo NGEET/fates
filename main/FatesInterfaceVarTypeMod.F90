@@ -17,7 +17,7 @@ module FatesInterfaceVariableTypeMod
   ! Interface variable registry type
   type, public :: fates_interface_variable_type
     
-    character(len=48) :: variable_name  ! variable common reference name
+    character(len=48) :: variable_name  ! common registry key
     logical           :: active         ! true if the variable is used by the host land model
    
     ! pointers to data (only one of these to be allocated per variable)
