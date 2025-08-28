@@ -2776,17 +2776,18 @@ end subroutine DefineInterfaceVariable
 
 ! ======================================================================================
   
-  subroutine RegisterInterfaceVariables(this, vname, data)
+  subroutine RegisterInterfaceVariables(this, key, data)
    
    ! This procedure is called by the host land model to associate a data variable
    ! with a particular registry key
    
    class(fates_interface_type) :: this
 
-   character(len=*), intent(in)  :: vname  ! variable registry key 
-   class(*), pointer, intent(in) :: data   ! data to be associated with key
+   character(len=*), intent(in)  :: key   ! variable registry key 
+   class(*), pointer, intent(in) :: data  ! data to be associated with key
    
-   this%api_vars(GetRegistryIndex(vname))%Register(data, active=.true.)
+   ! Get index from registry key and associate the given data pointer
+   this%api_vars(GetRegistryIndex(key))%Register(data, active=.true.)
    
   end subroutine RegisterInterfaceVariables
 
