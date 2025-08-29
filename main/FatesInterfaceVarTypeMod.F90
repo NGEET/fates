@@ -31,7 +31,7 @@ module FatesInterfaceVariableTypeMod
     real(r8), pointer :: r83d(:,:,:)
     
     contains
-      procedure :: InitializeInterfaceVariable => Init
+      procedure :: Init => InitializeInterfaceVariable
       procedure :: Register => RegisterInterfaceVariable_int_scalar
       
   end type fates_interface_variable_type

@@ -171,7 +171,7 @@ module FatesInterfaceMod
       contains
       
          procedure :: InitializeInterfaceRegistry
-         procedure :: RegisterInterfaceVariables => Register
+         procedure :: Register => RegisterInterfaceVariables
 
          procedure, private :: DefineInterfaceRegistry
          procedure, private :: SetInterfaceVariable
