@@ -163,8 +163,8 @@ module FatesInterfaceMod
       type(bc_pconst_type) :: bc_pconst
 
       ! This is the interface registry which associates variables with a common keyword
-      type(fates_interface_variable_type) :: api_vars(:)
-
+      type(fates_interface_variable_type), allocatable :: api_vars(:)
+      
       ! The number of variables in the registry
       integer :: num_api_vars
       
@@ -174,7 +174,7 @@ module FatesInterfaceMod
          procedure :: Register => RegisterInterfaceVariables
 
          procedure, private :: DefineInterfaceRegistry
-         procedure, private :: SetInterfaceVariable
+         procedure, private :: DefineInterfaceVariable
          procedure, private :: GetRegistryIndex
 
    end type fates_interface_type
@@ -2731,7 +2731,7 @@ subroutine InitializeInterfaceRegistry(this)
   call this%DefineInterfaceRegistry(initialize=.false.)
   
   ! Allocate the registry
-  allocate(this%api_vars(this%num_hlm_vars))
+  allocate(this%api_vars(this%num_api_vars))
   
   ! Now set up the registry keys
   call this%DefineInterfaceRegistry(initialize=.true.)
@@ -2780,7 +2780,7 @@ subroutine DefineInterfaceVariable(this, key, index, initialize)
 
   ! If we are initializing the 
   if (initialize) then 
-    call this%api_vars(index)%Init(key)
+    call this%api_vars(index)%Initialize(key)
   end if
   
 end subroutine DefineInterfaceVariable
@@ -2798,7 +2798,7 @@ end subroutine DefineInterfaceVariable
    class(*), target, intent(in) :: data  ! data to be associated with key
    
    ! Get index from registry key and associate the given data pointer
-   this%api_vars(GetRegistryIndex(key))%Register(data, active=.true.)
+   call this%api_vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
    
   end subroutine RegisterInterfaceVariables
 
@@ -2810,13 +2810,13 @@ integer function GetRegistryIndex(this, key) result(index)
 
    class(fates_interface_type) :: this
 
-   integer, intent(in) :: key
+   character(len=*), intent(in) :: key    ! variable registry key to search
    
    integer :: ivar  ! Iterator
    
    ! Iterate over the registry until the associated key is found
    do ivar = 1, this%num_api_vars
-      if (this%api_vars(ivar)%variable_name == key) then
+      if (this%api_vars(ivar)%key == key) then
          index = ivar
          return
       end if
