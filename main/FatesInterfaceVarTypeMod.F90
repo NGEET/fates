@@ -22,8 +22,8 @@ module FatesInterfaceVariableTypeMod
     logical           :: active         ! true if the variable is used by the host land model
 
     contains
-      procedure :: Init => InitializeInterfaceVariable
-      procedure :: Register => RegisterInterfaceVariable_int_scalar
+      procedure :: Initialize => InitializeInterfaceVariable
+      procedure :: Register => RegisterInterfaceVariable
       
   end type fates_interface_variable_type
   
@@ -31,14 +31,14 @@ module FatesInterfaceVariableTypeMod
   
   ! ====================================================================================
   
-    subroutine InitializeInterfaceVariable(this, variable_name)
+    subroutine InitializeInterfaceVariable(this, key)
                                             
       class(fates_interface_variable_type) :: this
 
-      character(len=*), intent(in) :: variable_name  
+      character(len=*), intent(in) :: key
       
       this%data => null()
-      this%variable_name = variable_name
+      this%key = key 
       this%active = .false.
       
     end subroutine InitializeInterfaceVariable
@@ -56,5 +56,7 @@ module FatesInterfaceVariableTypeMod
       this%active = active
       
     end subroutine RegisterInterfaceVariable
+
+  ! ====================================================================================
 
 end module FatesInterfaceVariableTypeMod
