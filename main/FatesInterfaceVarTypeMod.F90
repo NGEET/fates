@@ -17,9 +17,9 @@ module FatesInterfaceVariableTypeMod
   ! Interface variable registry type
   type, public :: fates_interface_variable_type
     
-    character(len=48) :: variable_name  ! common registry key
-    class(*), pointer :: data           ! unlimited polymorphic data pointer
-    logical           :: active         ! true if the variable is used by the host land model
+    character(len=48) :: key      ! common registry key
+    class(*), pointer :: data     ! unlimited polymorphic data pointer
+    logical           :: active   ! true if the variable is used by the host land model
 
     contains
       procedure :: Initialize => InitializeInterfaceVariable
