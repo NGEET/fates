@@ -20,17 +20,7 @@ module FatesInterfaceVariableTypeMod
     character(len=48) :: variable_name  ! common registry key
     class(*), pointer :: data           ! unlimited polymorphic data pointer
     logical           :: active         ! true if the variable is used by the host land model
-   
-    ! pointers to data (only one of these to be allocated per variable)
-    integer, pointer  :: iscalar 
-    integer, pointer  :: int1d(:)
-    integer, pointer  :: int2d(:,:)
-    integer, pointer  :: int3d(:,:,:)
-    real(r8), pointer :: rscalar
-    real(r8), pointer :: r81d(:)
-    real(r8), pointer :: r82d(:,:)
-    real(r8), pointer :: r83d(:,:,:)
-    
+
     contains
       procedure :: Init => InitializeInterfaceVariable
       procedure :: Register => RegisterInterfaceVariable_int_scalar
@@ -47,15 +37,7 @@ module FatesInterfaceVariableTypeMod
 
       character(len=*), intent(in) :: variable_name  
       
-      nullify(this%iscalar)
-      nullify(this%int1d)
-      nullify(this%int2d)
-      nullify(this%int3d)
-      nullify(this%rscalar)
-      nullify(this%r81d)
-      nullify(this%r82d)
-      nullify(this%r83d)
-      
+      this%data => null()
       this%variable_name = variable_name
       this%active = .false.
       
