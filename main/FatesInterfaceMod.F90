@@ -2755,8 +2755,8 @@ subroutine DefineInterfaceRegistry(this, initialize)
   ivar = 0
   
   ! Define the interface registry names and indices
-  call this%DefineInterfaceVariable(variable_name='decomp_frac_moisture', index=ivar, initialize=initialize)
-  call this%DefineInterfaceVariable(variable_name='decomp_frac_temperature', index=ivar, initialize=initialize)
+  call this%DefineInterfaceVariable(key='decomp_frac_moisture', index=ivar, initialize=initialize)
+  call this%DefineInterfaceVariable(key='decomp_frac_temperature', index=ivar, initialize=initialize)
   
   ! Set the registry size based on the final update of ivar
   this%num_api_vars = ivar
@@ -2766,12 +2766,12 @@ end subroutine DefineInterfaceRegistry
 
 ! ======================================================================================
 
-subroutine DefineInterfaceVariable(this, variable_name, index, initialize)
+subroutine DefineInterfaceVariable(this, key, index, initialize)
       
   ! This procedure 
   class(fates_interface_type) :: this
 
-  character(len=*), intent(in) :: variable_name  
+  character(len=*), intent(in) :: key
   integer, intent(inout)       :: index
   logical, intent(in)          :: initialize
   
@@ -2780,7 +2780,7 @@ subroutine DefineInterfaceVariable(this, variable_name, index, initialize)
 
   ! If we are initializing the 
   if (initialize) then 
-    call this%api_vars(index)%Init(variable_name)
+    call this%api_vars(index)%Init(key)
   end if
   
 end subroutine DefineInterfaceVariable
