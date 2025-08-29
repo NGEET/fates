@@ -2783,8 +2783,8 @@ end subroutine DefineInterfaceVariable
    
    class(fates_interface_type) :: this
 
-   character(len=*), intent(in)  :: key   ! variable registry key 
-   class(*), pointer, intent(in) :: data  ! data to be associated with key
+   character(len=*), intent(in) :: key   ! variable registry key 
+   class(*), target, intent(in) :: data  ! data to be associated with key
    
    ! Get index from registry key and associate the given data pointer
    this%api_vars(GetRegistryIndex(key))%Register(data, active=.true.)
