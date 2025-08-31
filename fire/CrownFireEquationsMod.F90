@@ -272,7 +272,7 @@ module CrownFireEquationsMod
     eps_fm10 = EffectiveHeatingNumber(fuel_sav)
 
     midflame_wind = wind * 0.40_r8 ! Scott & Reinhardt 2001 use 40% of open wind speed as effective wind speed
-                                   ! XLG: should we scwitch to the way FATES calculateS effective wind speed?
+                                   
     phi_wind_fm10 = WindFactor(midflame_wind, beta_ratio_fm10, fuel_sav)
 
     xi_fm10 = PropagatingFlux(beta_fm10, fuel_sav)
@@ -280,6 +280,9 @@ module CrownFireEquationsMod
     ! Calculate ROS_active, used for determining whether there is active or passtive crown fire
     ROS_active = ForwardRateOfSpread(fuel_bd, eps_fm10, q_ig_fm10, i_r_fm10, &
                                         xi_fm10, phi_wind_fm10)
+   ! apply the multiplier of 3.34 for the correlation between durface ROS and active crown fire ROS 
+   ! EQ. 8 
+    ROS_active = ROS_active * 3.34_r8
 
     ! Calculate crowning index, which is used for calculating ROS_SA
     CI = CrowningIndex(eps_fm10, q_ig_fm10, i_r_fm10, &
