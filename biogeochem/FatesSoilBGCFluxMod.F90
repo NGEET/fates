@@ -586,7 +586,7 @@ contains
   
   ! =====================================================================================
 
-  subroutine FluxIntoLitterPools(csite, bc_in)
+  subroutine FluxIntoLitterPools(csite, bc_in, bc_out)
     
     ! -----------------------------------------------------------------------------------
     ! Created by Charlie Koven and Rosie Fisher, 2014-2015
@@ -822,96 +822,102 @@ contains
 
        end do elemloop
 
-       ! If we are coupled with MIMICS, then we need some assessment of litter quality
-       ! ie ligC/totalN.  If we are not tracking N in the litter flux (ie C-only model)
-       ! then we need to approximate this by estimating the mean C:N ratios of each
-       ! plant organ, and mulitplying that by the different C Fluxes to get a total
-       ! approximate N flux.  Note, in C-only, we will not capture any re-absorption.
-    
-       if(trim(hlm_decomp).eq.'MIMICS') then
-
-
-          ! If we track nitrogen (ie cnp or other) then
-          ! we diagnose the c-lig/n ratio directly from the pools
-          if(element_pos(nitrogen_element)>0) then
-
-             ! Sum totalN fluxes over depth [g/m2]
-             sum_N = sum((bc_out%litt_flux_cel_n_si(1:nlev_eff_soil) + &
-                  bc_out%litt_flux_lig_n_si(1:nlev_eff_soil) + &
-                  bc_out%litt_flux_lab_n_si(1:nlev_eff_soil)) * &
-                  bc_in%dz_sisl(1:nlev_eff_soil))
-             
-          else
-             
-             ! In this case (Carbon Only), we use the stoichiometry parameters to estimate
-             ! the C:N of live vegetation and the seedbank, and use that
-             ! as a proxy for the C:N of the litter flux
-
-             sum_N = 0._r8
-             
-
-                tot_leaf_c = 0._r8
-                tot_leaf_n = 0._r8
-                tot_fnrt_c = 0._r8
-                tot_fnrt_n = 0._r8
-                tot_wood_c = 0._r8
-                tot_wood_n = 0._r8
-
-                ccohort => currentPatch%tallest
-                do while (associated(ccohort))
-                   ipft = ccohort%pft
-                   leaf_c  = ccohort%n * area_inv * ccohort%prt%GetState(leaf_organ, carbon12_element)
-                   sapw_c  = ccohort%n * area_inv * ccohort%prt%GetState(sapw_organ, carbon12_element)
-                   fnrt_c  = ccohort%n * area_inv * ccohort%prt%GetState(fnrt_organ, carbon12_element)
-                   struct_c = ccohort%n * area_inv * ccohort%prt%GetState(struct_organ, carbon12_element)
-                   leaf_n = leaf_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ))
-                   sapw_n = sapw_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ))
-                   fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ))
-                   struct_n = struct_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(struct_organ))
-                   tot_leaf_c = tot_leaf_c + leaf_c
-                   tot_leaf_n = tot_leaf_n + leaf_n
-                   tot_fnrt_c = tot_fnrt_c + fnrt_c
-                   tot_fnrt_n = tot_fnrt_n + fnrt_n
-                   tot_wood_c = tot_wood_c + sapw_c + struct_c
-                   tot_wood_n = tot_wood_n + sapw_n + struct_n
-                   ccohort => ccohort%shorter
-                end do
-
-                if(tot_wood_c>nearzero) then
-                   sum_N = sum_N + area_frac*sum(litt%ag_cwd_frag)*(tot_wood_n/tot_wood_c)
-                   sum_N = sum_N + area_frac*sum(litt%bg_cwd_frag)*(tot_wood_n/tot_wood_c)
-                end if
-                if(tot_leaf_c>nearzero)then
-                   sum_N = sum_N + area_frac*sum(litt%leaf_fines_frag)*(tot_leaf_n / tot_leaf_c)
-                end if
-                if(tot_fnrt_c>nearzero)then
-                   sum_N = sum_N + area_frac*sum(litt%root_fines_frag)*(tot_fnrt_n / tot_fnrt_c)
-                end if
-                do ipft = 1,numpft
-                   sum_N = sum_N + area_frac * currentPatch%nitr_repro_stoich(ipft) * &
-                        (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft))
-                end do
-
-             ! Convert from kg/m2/day -> g/m2/s
-             sum_N = sum_N * days_per_sec * g_per_kg
-             
-          end if
-
-          ! Sum over layers and multiply by depth g/m3/s * m -> g/m2/s
-          sum_ligC = sum(bc_out%litt_flux_lig_c_si(1:nlev_eff_soil) * bc_in%dz_sisl(1:nlev_eff_soil))
-       
-          if(sum_N>nearzero)then
-             bc_out%litt_flux_ligc_per_n = sum_ligC / sum_N
-          else
-             bc_out%litt_flux_ligc_per_n = 0._r8
-          end if
-
-       end if ! MIMICS check
-
        currentPatch => currentPatch%younger
 
     end do fluxpatchloop
 
+    ! If we are coupled with MIMICS, then we need some assessment of litter quality
+    ! ie ligC/totalN.  If we are not tracking N in the litter flux (ie C-only model)
+    ! then we need to approximate this by estimating the mean C:N ratios of each
+    ! plant organ, and mulitplying that by the different C Fluxes to get a total
+    ! approximate N flux.  Note, in C-only, we will not capture any re-absorption.
+    
+    if(trim(hlm_decomp).eq.'MIMICS') then
+
+       ! If we track nitrogen (ie cnp or other) then
+       ! we diagnose the c-lig/n ratio directly from the pools
+       if(element_pos(nitrogen_element)>0) then
+
+          ! Sum totalN fluxes over depth [g/m2]
+          sum_N = sum((bc_out%litt_flux_cel_n_si(1:nlev_eff_soil) + &
+               bc_out%litt_flux_lig_n_si(1:nlev_eff_soil) + &
+               bc_out%litt_flux_lab_n_si(1:nlev_eff_soil)) * &
+               bc_in%dz_sisl(1:nlev_eff_soil))
+          
+       else
+          
+          ! In this case (Carbon Only), we use the stoichiometry parameters to estimate
+          ! the C:N of live vegetation and the seedbank, and use that
+          ! as a proxy for the C:N of the litter flux
+
+          sum_N = 0._r8
+          
+          currentPatch => csite%oldest_patch
+          do while (associated(currentPatch))
+             
+             litt       => currentPatch%litter(element_pos(carbon12_element))
+             area_frac  = currentPatch%area*area_inv
+
+             tot_leaf_c = 0._r8
+             tot_leaf_n = 0._r8
+             tot_fnrt_c = 0._r8
+             tot_fnrt_n = 0._r8
+             tot_wood_c = 0._r8
+             tot_wood_n = 0._r8
+
+             ccohort => currentPatch%tallest
+             do while (associated(ccohort))
+                ipft = ccohort%pft
+                leaf_c  = ccohort%n * area_inv * ccohort%prt%GetState(leaf_organ, carbon12_element)
+                sapw_c  = ccohort%n * area_inv * ccohort%prt%GetState(sapw_organ, carbon12_element)
+                fnrt_c  = ccohort%n * area_inv * ccohort%prt%GetState(fnrt_organ, carbon12_element)
+                struct_c = ccohort%n * area_inv * ccohort%prt%GetState(struct_organ, carbon12_element)
+                leaf_n = leaf_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(leaf_organ))
+                sapw_n = sapw_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(sapw_organ))
+                fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(fnrt_organ))
+                struct_n = struct_c * prt_params%nitr_stoich_p1(ipft,prt_params%organ_param_id(struct_organ))
+                tot_leaf_c = tot_leaf_c + leaf_c
+                tot_leaf_n = tot_leaf_n + leaf_n
+                tot_fnrt_c = tot_fnrt_c + fnrt_c
+                tot_fnrt_n = tot_fnrt_n + fnrt_n
+                tot_wood_c = tot_wood_c + sapw_c + struct_c
+                tot_wood_n = tot_wood_n + sapw_n + struct_n
+                ccohort => ccohort%shorter
+             end do
+
+             if(tot_wood_c>nearzero) then
+                sum_N = sum_N + area_frac*sum(litt%ag_cwd_frag)*(tot_wood_n/tot_wood_c)
+                sum_N = sum_N + area_frac*sum(litt%bg_cwd_frag)*(tot_wood_n/tot_wood_c)
+             end if
+             if(tot_leaf_c>nearzero)then
+                sum_N = sum_N + area_frac*sum(litt%leaf_fines_frag)*(tot_leaf_n / tot_leaf_c)
+             end if
+             if(tot_fnrt_c>nearzero)then
+                sum_N = sum_N + area_frac*sum(litt%root_fines_frag)*(tot_fnrt_n / tot_fnrt_c)
+             end if
+             do ipft = 1,numpft
+                sum_N = sum_N + area_frac * currentPatch%nitr_repro_stoich(ipft) * &
+                     (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft))
+             end do
+
+             currentPatch => currentPatch%younger
+          end do
+          
+          ! Convert from kg/m2/day -> g/m2/s
+          sum_N = sum_N * days_per_sec * g_per_kg
+          
+       end if
+
+       ! Sum over layers and multiply by depth g/m3/s * m -> g/m2/s
+       sum_ligC = sum(bc_out%litt_flux_lig_c_si(1:nlev_eff_soil) * bc_in%dz_sisl(1:nlev_eff_soil))
+       
+       if(sum_N>nearzero)then
+          bc_out%litt_flux_ligc_per_n = sum_ligC / sum_N
+       else
+          bc_out%litt_flux_ligc_per_n = 0._r8
+       end if
+
+    end if
 
 
 
