@@ -18,12 +18,12 @@ module FatesInterfaceVariableTypeMod
   type, public :: fates_interface_variable_type
     
     character(len=48) :: key      ! common registry key
-    class(*), pointer :: data     ! unlimited polymorphic data pointer
+    class(*), pointer :: data(:,:)     ! unlimited polymorphic data pointer
     logical           :: active   ! true if the variable is used by the host land model
 
     contains
       procedure :: Initialize => InitializeInterfaceVariable
-      procedure :: Register => RegisterInterfaceVariable
+      procedure :: Register => RegisterInterfaceVariable_2d
       
   end type fates_interface_variable_type
   
@@ -45,17 +45,20 @@ module FatesInterfaceVariableTypeMod
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable(this, data, active)
+    subroutine RegisterInterfaceVariable_2d(this, data, active)
       
       class(fates_interface_variable_type) :: this
 
-      class(*), target, intent(in) :: data
+      class(*), target, intent(in) :: data(:,:)
       logical, intent(in)          :: active
       
+      ! TODO: add type check here to validate acceptable types?
+      
       this%data => data
+      ! allocate(this%data, source=data)
       this%active = active
       
-    end subroutine RegisterInterfaceVariable
+    end subroutine RegisterInterfaceVariable_2d
 
   ! ====================================================================================
 

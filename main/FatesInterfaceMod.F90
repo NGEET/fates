@@ -171,7 +171,7 @@ module FatesInterfaceMod
       contains
       
          procedure :: InitializeInterfaceRegistry
-         procedure :: Register => RegisterInterfaceVariables
+         procedure :: Register => RegisterInterfaceVariables_2d
 
          procedure, private :: DefineInterfaceRegistry
          procedure, private :: DefineInterfaceVariable
@@ -2776,20 +2776,20 @@ end subroutine DefineInterfaceVariable
 
 ! ======================================================================================
   
-  subroutine RegisterInterfaceVariables(this, key, data)
+  subroutine RegisterInterfaceVariables_2d(this, key, data)
    
    ! This procedure is called by the host land model to associate a data variable
    ! with a particular registry key
    
    class(fates_interface_type) :: this
 
-   character(len=*), intent(in) :: key   ! variable registry key 
-   class(*), target, intent(in) :: data  ! data to be associated with key
+   character(len=*), intent(in) :: key        ! variable registry key 
+   class(*), target, intent(in) :: data(:,:)  ! data to be associated with key
    
    ! Get index from registry key and associate the given data pointer
    call this%api_vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
    
-  end subroutine RegisterInterfaceVariables
+  end subroutine RegisterInterfaceVariables_2d
 
 ! ======================================================================================
   
