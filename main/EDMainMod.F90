@@ -794,7 +794,7 @@ contains
     ! can remove it completely if/when this call is added in ELM to 
     ! subroutine UpdateLitterFluxes(this,bounds_clump) in elmfates_interfaceMod.F90
 
-    call FluxIntoLitterPools(currentsite, bc_in)
+    call FluxIntoLitterPools(currentsite, bc_in, bc_out)
 
 
     ! Update cohort number.
