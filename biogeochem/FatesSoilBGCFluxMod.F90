@@ -627,6 +627,7 @@ contains
     ! !ARGUMENTS    
     type(ed_site_type) , intent(inout)         :: csite
     type(bc_in_type)   , intent(in)            :: bc_in
+    type(bc_out_type)  , intent(inout),target  :: bc_out
 
     ! !LOCAL VARIABLES:
     type (fates_patch_type),  pointer :: currentPatch
@@ -635,7 +636,6 @@ contains
     real(r8), pointer              :: flux_lab_si(:)
     real(r8), pointer              :: flux_lig_si(:)
     type(litter_type), pointer     :: litt
-    type(bc_out_type), pointer     :: bc_out
      
     real(r8) :: surface_prof(bc_in%nlevsoil) ! this array is used to distribute
                                                ! fragmented litter on the surface
@@ -700,48 +700,46 @@ contains
        surface_prof(id) = surface_prof(id)/surface_prof_tot
     end do
 
-    currentPatch => csite%oldest_patch
-    fluxpatchloop: do while (associated(currentPatch))
-
-       ! Set a pointer to the litter object
-       ! for the current element on the current
-       ! patch
-       litt       => currentPatch%litter(el)
-       bc_out     =>  currentPatch%bc_out
-
-       area_frac  = currentPatch%area/area
-          
     ! Loop over the different elements. 
-       elemloop: do el = 1, num_elements
-          
-          ! Zero out the boundary flux arrays
-          ! Make a pointer to the cellulose, labile and lignin
-          ! flux partitions.
-          
-          select case (element_list(el))
-          case (carbon12_element)
-             bc_out%litt_flux_cel_c_si(:) = 0.0_r8
-             bc_out%litt_flux_lig_c_si(:) = 0.0_r8
-             bc_out%litt_flux_lab_c_si(:) = 0.0_r8
-             flux_cel_si => bc_out%litt_flux_cel_c_si(:)
-             flux_lab_si => bc_out%litt_flux_lab_c_si(:)
-             flux_lig_si => bc_out%litt_flux_lig_c_si(:)
-          case (nitrogen_element)
-             bc_out%litt_flux_cel_n_si(:) = 0._r8
-             bc_out%litt_flux_lig_n_si(:) = 0._r8
-             bc_out%litt_flux_lab_n_si(:) = 0._r8
-             flux_cel_si => bc_out%litt_flux_cel_n_si(:)
-             flux_lab_si => bc_out%litt_flux_lab_n_si(:)
-             flux_lig_si => bc_out%litt_flux_lig_n_si(:)
-          case (phosphorus_element)
-             bc_out%litt_flux_cel_p_si(:) = 0._r8
-             bc_out%litt_flux_lig_p_si(:) = 0._r8
-             bc_out%litt_flux_lab_p_si(:) = 0._r8
-             flux_cel_si => bc_out%litt_flux_cel_p_si(:)
-             flux_lab_si => bc_out%litt_flux_lab_p_si(:)
-             flux_lig_si => bc_out%litt_flux_lig_p_si(:)
-          end select
+    do el = 1, num_elements
+       
+       ! Zero out the boundary flux arrays
+       ! Make a pointer to the cellulose, labile and lignin
+       ! flux partitions.
+       
+       select case (element_list(el))
+       case (carbon12_element)
+          bc_out%litt_flux_cel_c_si(:) = 0.0_r8
+          bc_out%litt_flux_lig_c_si(:) = 0.0_r8
+          bc_out%litt_flux_lab_c_si(:) = 0.0_r8
+          flux_cel_si => bc_out%litt_flux_cel_c_si(:)
+          flux_lab_si => bc_out%litt_flux_lab_c_si(:)
+          flux_lig_si => bc_out%litt_flux_lig_c_si(:)
+       case (nitrogen_element)
+          bc_out%litt_flux_cel_n_si(:) = 0._r8
+          bc_out%litt_flux_lig_n_si(:) = 0._r8
+          bc_out%litt_flux_lab_n_si(:) = 0._r8
+          flux_cel_si => bc_out%litt_flux_cel_n_si(:)
+          flux_lab_si => bc_out%litt_flux_lab_n_si(:)
+          flux_lig_si => bc_out%litt_flux_lig_n_si(:)
+       case (phosphorus_element)
+          bc_out%litt_flux_cel_p_si(:) = 0._r8
+          bc_out%litt_flux_lig_p_si(:) = 0._r8
+          bc_out%litt_flux_lab_p_si(:) = 0._r8
+          flux_cel_si => bc_out%litt_flux_cel_p_si(:)
+          flux_lab_si => bc_out%litt_flux_lab_p_si(:)
+          flux_lig_si => bc_out%litt_flux_lig_p_si(:)
+       end select
 
+       currentPatch => csite%oldest_patch
+       do while (associated(currentPatch))
+
+          ! Set a pointer to the litter object
+          ! for the current element on the current
+          ! patch
+          litt       => currentPatch%litter(el)
+          area_frac  = currentPatch%area/area
+          
           do ic = 1, ncwd
 
              do id = 1,nlev_eff_decomp
@@ -765,8 +763,12 @@ contains
 
              end do
           end do
+
+
+
           
           ! leaf and fine root fragmentation fluxes
+
           do id = 1,nlev_eff_decomp
 
              flux_lab_si(id) = flux_lab_si(id) + &
@@ -808,23 +810,22 @@ contains
                   litt%root_fines_frag(ilignin,j) * area_frac
           enddo
 
-         ! Normalize all masses over the decomposition layer's depth
-         ! Convert from kg/m2/day -> g/m3/s
+          currentPatch => currentPatch%younger
+       end do
 
-         do id = 1,nlev_eff_decomp
-            flux_cel_si(id) = days_per_sec * g_per_kg * &
-                 flux_cel_si(id) / bc_in%dz_decomp_sisl(id)
-            flux_lig_si(id) = days_per_sec * g_per_kg * &
-                 flux_lig_si(id) / bc_in%dz_decomp_sisl(id)
-            flux_lab_si(id) = days_per_sec * g_per_kg * &
-                 flux_lab_si(id) / bc_in%dz_decomp_sisl(id)
-         end do
+       ! Normalize all masses over the decomposition layer's depth
+       ! Convert from kg/m2/day -> g/m3/s
 
-       end do elemloop
+       do id = 1,nlev_eff_decomp
+          flux_cel_si(id) = days_per_sec * g_per_kg * &
+               flux_cel_si(id) / bc_in%dz_decomp_sisl(id)
+          flux_lig_si(id) = days_per_sec * g_per_kg * &
+               flux_lig_si(id) / bc_in%dz_decomp_sisl(id)
+          flux_lab_si(id) = days_per_sec * g_per_kg * &
+               flux_lab_si(id) / bc_in%dz_decomp_sisl(id)
+       end do
 
-       currentPatch => currentPatch%younger
-
-    end do fluxpatchloop
+    end do  ! do elements
 
     ! If we are coupled with MIMICS, then we need some assessment of litter quality
     ! ie ligC/totalN.  If we are not tracking N in the litter flux (ie C-only model)
