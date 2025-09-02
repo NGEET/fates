@@ -703,18 +703,16 @@ contains
     currentPatch => csite%oldest_patch
     fluxpatchloop: do while (associated(currentPatch))
 
-    ! Set a pointer to the output boundary condition for the current patch
-    bc_out     =>  currentPatch%bc_out
+       ! Set a pointer to the litter object
+       ! for the current element on the current
+       ! patch
+       litt       => currentPatch%litter(el)
+       bc_out     =>  currentPatch%bc_out
 
        area_frac  = currentPatch%area/area
           
     ! Loop over the different elements. 
        elemloop: do el = 1, num_elements
-
-          ! Set a pointer to the litter object
-          ! for the current element on the current
-          ! patch
-          litt       => currentPatch%litter(el)
           
           ! Zero out the boundary flux arrays
           ! Make a pointer to the cellulose, labile and lignin
