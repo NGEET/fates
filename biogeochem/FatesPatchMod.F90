@@ -34,6 +34,7 @@ module FatesPatchMod
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : bc_in_type
   use FatesInterfaceTypesMod, only : bc_out_type
+  use FatesInterfaceTypesMod, only : fates_interface_registry_base_type
   use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,            only : errMsg => shr_log_errMsg
 
@@ -76,6 +77,9 @@ module FatesPatchMod
     ! TODO change this to a specific bc type for incremental refactor purposes if this method is picked
     type(bc_in_type)  :: bc_in
     type(bc_out_type) :: bc_out
+
+    ! API registry container
+    type(fates_interface_registry_base_type) :: api
   
     !---------------------------------------------------------------------------
 
@@ -275,6 +279,8 @@ module FatesPatchMod
       procedure :: Dump
       procedure :: CheckVars
 
+      procedure, private :: RegisterFatesInterfaceVariables
+
   end type fates_patch_type
 
   contains 
@@ -309,6 +315,9 @@ module FatesPatchMod
       allocate(this%bc_out%litt_flux_cel_c_si(this%bc_in%nlevdecomp))
       allocate(this%bc_out%litt_flux_lig_c_si(this%bc_in%nlevdecomp))
       allocate(this%bc_out%litt_flux_lab_c_si(this%bc_in%nlevdecomp))
+
+      ! Allocate API registry
+      call this%RegisterFatesInterfaceVariables()
 
       ! initialize all values to nan
       call this%NanValues()
@@ -1365,5 +1374,20 @@ module FatesPatchMod
     end subroutine CheckVars
 
     !===========================================================================  
+
+    subroutine RegisterFatesInterfaceVariables(this)
+
+      class(fates_patch_type) :: this
+
+      ! Initialize the HLM-FATES interface variable registry for the FATES-side
+      call this%api%InitializeInterfaceRegistry()
+
+      ! Register the FATES boundary condition data variables
+      call this%api%Register('decomp_frac_moisture', this%bc_in%w_scalar_sisl)
+      call this%api%Register('decomp_frac_temperature', this%bc_in%t_scalar_sisl)
+
+    end subroutine RegisterFatesInterfaceVariables
+ 
+! ======================================================================================
 
 end module FatesPatchMod
