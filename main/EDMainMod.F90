@@ -67,7 +67,7 @@ module EDMainMod
   use FatesPatchMod            , only : fates_patch_type
   use FatesCohortMod           , only : fates_cohort_type
   use EDTypesMod               , only : AREA
-  use EDTypesMod               , only : site_massbal_type
+  use EDTypesMod               , only : site_massbal_type, site_fluxdiags_type
   use PRTGenericMod            , only : num_elements
   use PRTGenericMod            , only : element_list
   use PRTGenericMod            , only : element_pos
@@ -862,6 +862,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type(site_massbal_type),pointer :: site_mass
+    type(site_fluxdiags_type), pointer :: flux_diags
     real(r8) :: biomass_stock   ! total biomass   in Kg/site
     real(r8) :: litter_stock    ! total litter    in Kg/site
     real(r8) :: seed_stock      ! total seed mass in Kg/site
@@ -905,6 +906,7 @@ contains
     do el = 1, num_elements
 
        site_mass => currentSite%mass_balance(el)
+       flux_diags => currentSite%flux_diags(element_pos(carbon12_element))
 
        call SiteMassStock(currentSite,el,total_stock,biomass_stock,litter_stock,seed_stock)
 
@@ -933,6 +935,9 @@ contains
           error_frac      = 0.0_r8
        end if
 
+       ! For debug
+       write(fates_log(),*) 'call index: ',call_index
+       write(fates_log(),*) 'wood_product: ',site_mass%wood_product
        if ( error_frac > 10e-3_r8 .or. (error /= error) ) then
           write(fates_log(),*) 'mass balance error detected'
           write(fates_log(),*) 'element type (see PRTGenericMod.F90): ',element_list(el)

@@ -58,7 +58,9 @@ module FatesHistoryInterfaceMod
   use FatesAllometryMod             , only : CrownDepth
   use FatesAllometryMod             , only : bstore_allom
   use FatesAllometryMod             , only : set_root_fraction
-  
+  use FatesLitterMod           , only : adjust_SF_CWD_frac
+  use SFParamsMod              , only : SF_val_cwd_frac
+
   use EDPftvarcon              , only : EDPftvarcon_inst
   use PRTParametersMod         , only : prt_params
 
@@ -468,6 +470,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_ar_frootm_si_scpf
 
   integer :: ih_c13disc_si_scpf
+  integer :: ih_harvest_carbonflux_si_scls
 
   ! indices to (site x scls [size class bins]) variables
   integer :: ih_ba_si_scls
@@ -2312,6 +2315,10 @@ end subroutine flush_hvars
     real(r8) :: storep_understory_scpf(numpft*nlevsclass)
     real(r8) :: storec_canopy_scpf(numpft*nlevsclass)
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
+
+    ! Updated wood partitioning to CWD based on dbh
+    real(r8) :: SF_val_CWD_frac_adj(ncwd)
+
     
     integer  :: return_code
     integer  :: i_dist, j_dist
@@ -2394,6 +2401,7 @@ end subroutine flush_hvars
                hio_logging_disturbance_rate_si   => this%hvars(ih_logging_disturbance_rate_si)%r81d, &
                hio_fall_disturbance_rate_si      => this%hvars(ih_fall_disturbance_rate_si)%r81d, &
                hio_harvest_carbonflux_si => this%hvars(ih_harvest_carbonflux_si)%r81d, &
+               hio_harvest_carbonflux_si_scls => this%hvars(ih_harvest_carbonflux_si_scls)%r82d, &
                hio_harvest_debt_si     => this%hvars(ih_harvest_debt_si)%r81d, &
                hio_harvest_debt_sec_m_si => this%hvars(ih_harvest_debt_sec_m_si)%r81d, &
                hio_harvest_debt_sec_y_si => this%hvars(ih_harvest_debt_sec_y_si)%r81d, &
@@ -3331,6 +3339,16 @@ end subroutine flush_hvars
                   hio_c13disc_si_scpf(io_si,scpf) = 0.0_r8
                endif
 
+               !Harvest C flux (must be calculated before since cohort/patch has been modified)
+               !call adjust_SF_CWD_frac(ccohort%dbh, ncwd, SF_val_CWD_frac, SF_val_CWD_frac_adj)
+               !hio_harvest_carbonflux_si_scpf(io_si,scpf) = hio_harvest_carbonflux_si_scpf(io_si,scpf) + &
+               !     ccohort%n * ccohort%lmort_direct * ( struct_m + sapw_m ) * &
+               !     prt_params%allom_agb_frac(ccohort%pft) * SF_val_CWD_frac_adj(ncwd) * &
+               !     AREA_INV * days_per_year
+               hio_harvest_carbonflux_si_scls(io_si,scls) = sites(s)%mass_balance(element_pos(carbon12_element))%wood_product_sz(scls) * AREA_INV * days_per_year
+               ! Reset to zero, Not sure why I need this but it will not be automatically reset which seems strange to me
+               ccohort%harv_c = 0._r8
+
                ! number density [/m2]
                hio_nplant_si_scpf(io_si,scpf) = hio_nplant_si_scpf(io_si,scpf) + ccohort%n / m2_per_ha
 
@@ -3512,7 +3530,7 @@ end subroutine flush_hvars
                      ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * &
                   total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
-                     ccohort%n * ha_per_m2
+                     ccohort%n * ha_per_m2 * days_per_sec * years_per_day 
 
                   hio_canopy_mortality_crownarea_si(io_si) = hio_canopy_mortality_crownarea_si(io_si) + &
                        (ccohort%bmort + ccohort%hmort + ccohort%cmort + & 
@@ -3662,7 +3680,7 @@ end subroutine flush_hvars
                      ccohort%frmort + ccohort%smort + ccohort%asmort + ccohort%dgmort) * &
                      total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2 + &
                      (ccohort%lmort_direct + ccohort%lmort_collateral + ccohort%lmort_infra) * total_m * &
-                     ccohort%n * ha_per_m2
+                     ccohort%n * ha_per_m2 * days_per_sec * years_per_day 
 
                   hio_understory_mortality_crownarea_si(io_si) = hio_understory_mortality_crownarea_si(io_si) + &
                        (ccohort%bmort + ccohort%hmort + ccohort%cmort + & 
@@ -3969,14 +3987,14 @@ end subroutine flush_hvars
       !
       ! carbon flux associated with mortality of trees dying by fire
       hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-           sum(sites(s)%fmort_carbonflux_canopy(:)) / g_per_kg
+           sum(sites(s)%fmort_carbonflux_canopy(:)) * years_per_day / g_per_kg
 
       hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-           sum(sites(s)%fmort_carbonflux_ustory(:)) / g_per_kg
+           sum(sites(s)%fmort_carbonflux_ustory(:)) * years_per_day / g_per_kg
       
       ! treat carbon flux from imort the same way
       hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-         sum(sites(s)%imort_carbonflux(:)) 
+         sum(sites(s)%imort_carbonflux(:)) * years_per_day 
 
       do i_pft = 1, numpft
          hio_mortality_carbonflux_si_pft(io_si,i_pft) = hio_mortality_carbonflux_si_pft(io_si,i_pft) + &
@@ -4449,10 +4467,10 @@ end subroutine flush_hvars
       ! mortality-associated carbon fluxes
 
       hio_canopy_mortality_carbonflux_si(io_si) = hio_canopy_mortality_carbonflux_si(io_si) + &
-         sum(sites(s)%term_carbonflux_canopy(:)) * days_per_sec * ha_per_m2
+         sum(sites(s)%term_carbonflux_canopy(:)) * days_per_sec * years_per_day * ha_per_m2
 
       hio_understory_mortality_carbonflux_si(io_si) = hio_understory_mortality_carbonflux_si(io_si) + &
-         sum(sites(s)%term_carbonflux_ustory(:)) * days_per_sec * ha_per_m2
+         sum(sites(s)%term_carbonflux_ustory(:)) * days_per_sec * years_per_day * ha_per_m2
 
       ! add site level mortality counting to crownarea diagnostic
       hio_canopy_mortality_crownarea_si(io_si) = hio_canopy_mortality_crownarea_si(io_si) + &
@@ -5946,7 +5964,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_SEED_BANK', units='kg m-2',         &
          long='total seed mass of all PFTs in kg carbon per m2 land area',     &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         use_default='active', avgflag='I', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_seed_bank_si)
    
@@ -6045,7 +6063,7 @@ end subroutine update_history_hifrq
     
     call this%set_history_var(vname='FATES_VEGC', units='kg m-2',              &
          long='total biomass in live plants in kg carbon per m2 land area',    &
-         use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+         use_default='active', avgflag='I', vtype=site_r8, hlms='CLM:ALM',     &
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_totvegc_si)
 
@@ -6459,6 +6477,14 @@ end subroutine update_history_hifrq
          upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
          index = ih_harvest_carbonflux_si)
 
+    call this%set_history_var(vname='FATES_HARVEST_CARBON_FLUX_SZ',          &
+         units='kg m-2 s-1',                                                   &
+         long='harvest carbon flux in kg carbon per m2 per second per size class',            &
+         use_default='active', avgflag='A',                                    &
+         vtype=site_size_r8, hlms='CLM:ALM',                               &
+         upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+         index = ih_harvest_carbonflux_si_scls)
+
     ! Canopy Resistance
 
     call this%set_history_var(vname='FATES_STOMATAL_COND',                     &
@@ -6504,10 +6530,10 @@ end subroutine update_history_hifrq
          avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,                 &
          ivar=ivar, initialize=initialize_variables, index = ih_rad_error_si)
 
-    call this%set_history_var(vname='FATES_AR', units='gC/m^2/s',                 &
-         long='autotrophic respiration', use_default='active',                  &
-         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
-         ivar=ivar, initialize=initialize_variables, index = ih_aresp_si )
+!    call this%set_history_var(vname='FATES_AR', units='gC/m^2/s',                 &
+!         long='autotrophic respiration', use_default='active',                  &
+!         avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=2,   &
+!         ivar=ivar, initialize=initialize_variables, index = ih_aresp_si )
 
     call this%set_history_var(vname='FATES_HARVEST_DEBT', units='kg C yr-1',                   &
          long='Accumulated carbon failed to be harvested',  use_default='active',     &
@@ -6998,7 +7024,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_GPP_SZPF', units='kg m-2 s-1',      &
           long='gross primary production by pft/size in kg carbon per m2 per second', &
-          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+          use_default='active', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_gpp_si_scpf)
 
@@ -7032,7 +7058,7 @@ end subroutine update_history_hifrq
 
     call this%set_history_var(vname='FATES_NPP_SZPF', units='kg m-2 s-1',      &
           long='total net primary production by pft/size in kg carbon per m2 per second', &
-          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+          use_default='active', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=1, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_npp_totl_si_scpf)
 
@@ -7375,7 +7401,7 @@ end subroutine update_history_hifrq
     call this%set_history_var(vname='FATES_AUTORESP_SZPF',                     &
           units = 'kg m-2 s-1',                                                &
           long='total autotrophic respiration in kg carbon per m2 per second by pft/size', &
-          use_default='inactive', avgflag='A', vtype=site_size_pft_r8,         &
+          use_default='active', avgflag='A', vtype=site_size_pft_r8,         &
           hlms='CLM:ALM', upfreq=2, ivar=ivar,                                 &
           initialize=initialize_variables, index = ih_ar_si_scpf)
 
@@ -8195,7 +8221,7 @@ end subroutine update_history_hifrq
     ! CARBON
     call this%set_history_var(vname='FATES_VEGC_SZPF', units='kg m-2',         &
          long='total vegetation biomass in live plants by size-class x pft in kg carbon per m2', &
-         use_default='inactive', avgflag='A', vtype=site_size_pft_r8,          &
+         use_default='active', avgflag='A', vtype=site_size_pft_r8,          &
          hlms='CLM:ALM', upfreq=1, ivar=ivar, initialize=initialize_variables, &
          index = ih_totvegc_scpf)
 
@@ -8266,7 +8292,6 @@ end subroutine update_history_hifrq
           use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
           upfreq=1, ivar=ivar, initialize=initialize_variables,                &
           index = ih_npp_stor_si)
-
 
     ! PLANT HYDRAULICS
 
@@ -8384,7 +8409,7 @@ end subroutine update_history_hifrq
 
        call this%set_history_var(vname='FATES_BTRAN_SZPF', units='1',          &
              long='mean individual level BTRAN by size class x pft',           &
-             use_default='inactive', avgflag='A', vtype=site_size_pft_r8,      &
+             use_default='active', avgflag='A', vtype=site_size_pft_r8,      &
              hlms='CLM:ALM', upfreq=4, ivar=ivar,                              &
              initialize=initialize_variables, index = ih_btran_scpf)
 

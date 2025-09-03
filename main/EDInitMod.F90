@@ -209,6 +209,11 @@ contains
        allocate(site_in%flux_diags(el)%root_litter_input(1:numpft))
     end do
 
+    ! Mass balance 
+    do el=1,num_elements
+       allocate(site_in%mass_balance(el)%wood_product_sz(1:nlevsclass))
+    end do
+
     ! Initialize the static soil
     ! arrays from the boundary (initial) condition
     site_in%zi_soil(:) = bc_in%zi_sisl(:)

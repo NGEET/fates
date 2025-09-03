@@ -239,6 +239,7 @@ module FatesCohortMod
     real(r8) :: l_degrad         ! rate of trees that are not killed but suffer from forest degradation
                                  !  (i.e. they are moved to newly-anthro-disturbed secondary 
                                  !  forest patch)  [fraction/logging activity]
+    real(r8) :: harv_c           ! harvested carbon [kgC/indiv]
 
     !---------------------------------------------------------------------------
 
@@ -434,6 +435,7 @@ module FatesCohortMod
       this%lmort_collateral        = nan
       this%lmort_infra             = nan
       this%l_degrad                = nan
+      this%harv_c                  = nan
    
       ! GROWTH DERIVATIVES
       this%dndt                    = nan 
@@ -530,6 +532,7 @@ module FatesCohortMod
       this%lmort_collateral        = 0._r8
       this%lmort_infra             = 0._r8
       this%l_degrad                = 0._r8
+      this%harv_c                  = 0._r8
       this%fraction_crown_burned   = 0._r8
       this%cambial_mort            = 0._r8
       this%crownfire_mort          = 0._r8
@@ -769,6 +772,7 @@ module FatesCohortMod
       copyCohort%lmort_collateral        = this%lmort_collateral
       copyCohort%lmort_infra             = this%lmort_infra
       copyCohort%l_degrad                = this%l_degrad
+      copyCohort%harv_c                  = this%harv_c
 
       ! GROWTH DERIVATIVES
       copyCohort%dndt                    = this%dndt
@@ -1074,6 +1078,7 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%lmort_direct           = ', this%lmort_direct
       write(fates_log(),*) 'cohort%lmort_collateral       = ', this%lmort_collateral
       write(fates_log(),*) 'cohort%lmort_infra            = ', this%lmort_infra
+      write(fates_log(),*) 'cohort%harv_c                 = ', this%harv_c
       write(fates_log(),*) 'cohort%isnew                  = ', this%isnew
       write(fates_log(),*) 'cohort%dndt                   = ', this%dndt
       write(fates_log(),*) 'cohort%dhdt                   = ', this%dhdt

@@ -488,6 +488,10 @@ contains
 
        site_mass => currentSite%mass_balance(el)
 
+       site_mass%frag_in = site_mass%frag_in + currentPatch%area * &
+            ( sum(litt%ag_cwd_in) + sum(litt%bg_cwd_in) + &
+            sum(litt%leaf_fines_in) + sum(litt%root_fines_in))
+
        ! Fragmentation flux to soil decomposition model [kg/site/day]
        site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
             ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
@@ -2877,7 +2881,7 @@ contains
 
        flux_diags%leaf_litter_input(pft) = &
             flux_diags%leaf_litter_input(pft) +  &
-            leaf_m_turnover * currentCohort%n
+            (leaf_m_turnover+repro_m_turnover) * currentCohort%n
 
        root_fines_tot = (fnrt_m_turnover + store_m_turnover ) * &
             plant_dens
@@ -2897,7 +2901,6 @@ contains
        flux_diags%root_litter_input(pft) = &
             flux_diags%root_litter_input(pft) +  &
             (fnrt_m_turnover + store_m_turnover ) * currentCohort%n
-
 
        ! Assumption: turnover from deadwood and sapwood are lumped together in CWD pool
 
@@ -2926,9 +2929,7 @@ contains
 
           flux_diags%cwd_bg_input(c)  = flux_diags%cwd_bg_input(c) + &
                bg_cwd_tot*currentPatch%area
-
        enddo
-
 
        ! ---------------------------------------------------------------------------------
        ! PART 2 Litter fluxes from non-disturbance inducing  mortality. Kg/m2/day
@@ -2963,8 +2964,7 @@ contains
 
        flux_diags%leaf_litter_input(pft) = &
             flux_diags%leaf_litter_input(pft) +  &
-            leaf_m * dead_n*currentPatch%area
-
+            (leaf_m+repro_m) * dead_n*currentPatch%area
 
        ! %n has not been updated due to mortality yet, thus
        ! the litter flux has already been counted since it captured
@@ -3022,6 +3022,13 @@ contains
              site_mass%wood_product = site_mass%wood_product + &
                   trunk_wood * currentPatch%area * logging_export_frac
 
+             site_mass%wood_product_sz(currentCohort%size_class) = &
+                 site_mass%wood_product_sz(currentCohort%size_class) + &
+                  trunk_wood * currentPatch%area * logging_export_frac
+
+             currentCohort%harv_c = currentCohort%harv_c + &
+                   (trunk_wood * currentPatch%area * logging_export_frac) / currentCohort%n
+
              ! Add AG wood to litter from the non-exported fraction of wood
              ! from direct anthro sources
 
@@ -3037,7 +3044,7 @@ contains
                   SF_val_CWD_frac_adj(c) * (dead_n_natural+dead_n_ilogging)  * &
                   prt_params%allom_agb_frac(pft)
 
-             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
+             flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + (struct_m + sapw_m) * &
                   SF_val_CWD_frac_adj(c) * (dead_n_natural+dead_n_ilogging) * &
                   currentPatch%area * prt_params%allom_agb_frac(pft)
 
@@ -3050,11 +3057,9 @@ contains
              flux_diags%cwd_ag_input(c)  = flux_diags%cwd_ag_input(c) + &
                   SF_val_CWD_frac_adj(c) * dead_n * (struct_m + sapw_m) * &
                   currentPatch%area * prt_params%allom_agb_frac(pft)
-
           end if
 
        end do
-
 
        ! Update diagnostics that track resource management
 
@@ -3096,7 +3101,6 @@ contains
 
        currentCohort => currentCohort%taller
     enddo  ! end loop over cohorts
-
 
     return
   end subroutine CWDInput

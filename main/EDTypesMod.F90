@@ -206,6 +206,7 @@ module EDTypesMod
      real(r8) :: seed_out         ! Total mass of seeds exported outside of fates site [kg/site/day]
                                   ! (this is not used currently, placeholder, rgk feb-2019)
 
+     real(r8) :: frag_in          ! Litter and coarse woody debris fragmentation flux [kg/site/day]
      real(r8) :: frag_out         ! Litter and coarse woody debris fragmentation flux [kg/site/day]
 
      real(r8) :: wood_product          ! Total mass exported as wood product [kg/site/day]
@@ -218,6 +219,7 @@ module EDTypesMod
      real(r8) :: patch_resize_err      ! This is the amount of mass gained (or loss when negative)
                                        ! due to re-sizing patches when area math starts to lose
                                        ! precision
+     real(r8), allocatable :: wood_product_sz(:) ! Mass exported as wood product from different size bins [kg/site/day]
 
    contains
 
@@ -492,8 +494,10 @@ module EDTypesMod
       this%net_root_uptake   = 0._r8
       this%seed_in           = 0._r8
       this%seed_out          = 0._r8
+      this%frag_in           = 0._r8
       this%frag_out          = 0._r8
       this%wood_product      = 0._r8
+      this%wood_product_sz(:)= 0._r8
       this%burn_flux_to_atm  = 0._r8
       this%flux_generic_in   = 0._r8
       this%flux_generic_out  = 0._r8

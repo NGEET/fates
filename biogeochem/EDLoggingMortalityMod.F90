@@ -104,6 +104,7 @@ module EDLoggingMortalityMod
    public :: get_harvest_rate_area
    public :: get_harvestable_carbon
    public :: get_harvestable_patch_carbon
+   public :: get_harvested_cohort_carbon
    public :: get_harvest_rate_carbon
    public :: get_harvest_debt
    public :: UpdateHarvestC
@@ -553,7 +554,7 @@ contains
                      SF_val_CWD_frac(ncwd) * logging_export_frac * &
                      currentCohort%n! * AREA_INV * site_area
 
-              ! No harvest for trees without canopy 
+              ! No harvest for trees without canopy (exclude 0)
               if (currentCohort%canopy_layer>=1) then
                  ! logging amount are based on dbh min and max criteria
                  if (currentCohort%dbh >= logging_dbhmin .and. .not. &
@@ -657,6 +658,43 @@ contains
      end do
 
    end subroutine get_harvestable_patch_carbon
+
+   ! ============================================================================
+
+   subroutine get_harvested_cohort_carbon ( currentCohort, lmort_direct, harvested_cohort_c )
+
+     !USES:
+     use SFParamsMod,  only : SF_val_cwd_frac
+
+
+     ! -------------------------------------------------------------------------------------------
+     !
+     !  DESCRIPTION:
+     !  get the harvested carbon in current Cohort through lmort_direct
+     !
+     !  this subroutine shall be called inside the cohort loop
+     !  output will be used for adjusting IFM wood harvest with size priority
+
+     ! Arguments
+     type(fates_cohort_type) , intent(in), target  :: currentCohort
+     real(r8), intent(in)  :: lmort_direct
+
+     real(r8), intent(out) :: harvested_cohort_c
+
+     ! Local Variables
+     real(r8) :: sapw_m      ! Biomass of sap wood
+     real(r8) :: struct_m    ! Biomass of structural organs
+
+     ! only account for cohorts matching the following conditions
+     sapw_m   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+     struct_m = currentCohort%prt%GetState(struct_organ, carbon12_element)
+
+     harvested_cohort_c = lmort_direct * ( sapw_m + struct_m ) * &
+            prt_params%allom_agb_frac(currentCohort%pft) * &
+            SF_val_CWD_frac(ncwd) * logging_export_frac * &
+            currentCohort%n
+
+   end subroutine get_harvested_cohort_carbon
 
    ! ============================================================================
 
@@ -912,6 +950,7 @@ contains
       end if
   
   
+      !write(fates_log(), *) 'Wood product before.', currentSite%mass_balance(1)%wood_product
       do el = 1,num_elements
          
          element_id = element_list(el)
@@ -996,7 +1035,7 @@ contains
 	    !adjust how wood is partitioned between the cwd classes based on cohort dbh
             call adjust_SF_CWD_frac(currentCohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj) 
             
-	    do c = 1,ncwd-1
+	        do c = 1,ncwd-1
                
                new_litt%ag_cwd(c)     = new_litt%ag_cwd(c) + &
                      ag_wood * SF_val_CWD_frac_adj(c) * donate_m2
@@ -1107,6 +1146,15 @@ contains
             ! This is for checking the total mass balance [kg/site/day]
             site_mass%wood_product = site_mass%wood_product + &
                   ag_wood * logging_export_frac
+
+            site_mass%wood_product_sz(currentCohort%size_class) = site_mass%wood_product_sz(currentCohort%size_class) + &
+                  ag_wood * logging_export_frac
+            ! Transfer to kg per indiv
+            !if(logging_time) then
+            currentCohort%harv_c = ag_wood / currentCohort%n * logging_export_frac
+            !else
+            !    currentCohort%harv_c = 0._r8
+            !end if
 
             new_litt%ag_cwd(ncwd) = new_litt%ag_cwd(ncwd) + ag_wood * &
                   (1._r8-logging_export_frac)*donate_m2

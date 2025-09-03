@@ -70,7 +70,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : get_harvest_rate_area
   use EDLoggingMortalityMod, only : get_harvest_rate_carbon
   use EDLoggingMortalityMod, only : get_harvestable_carbon, get_harvestable_patch_carbon
-  use EDLoggingMortalityMod, only : get_harvest_debt
+  use EDLoggingMortalityMod, only : get_harvested_cohort_carbon, get_harvest_debt
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
@@ -82,6 +82,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : primaryland, secondaryland, pastureland, rangeland, cropland
   use FatesConstantsMod    , only : secondary_age_threshold
   use FatesConstantsMod    , only : n_landuse_cats
+  use FatesConstantsMod    , only : min_harvest_rate, min_nocomp_pftfrac_perlanduse
   use FatesLandUseChangeMod, only : get_landuse_transition_rates
   use FatesConstantsMod    , only : fates_unset_r8
   use FatesConstantsMod    , only : fates_unset_int
@@ -234,13 +235,16 @@ contains
                                                    ! 1 - yes, maximize the oldest.
     real(r8), parameter :: target_harvest_wp_scale = 0.5  ! For Size-dependent IFM. The scale is a target fraction of wood product 
                                                           ! expected afer considering size-priority of IFM reduce the total harvest amount
+    real(r8), parameter :: max_iteration = 5       ! Maximum iterations to obtain target harvest wood product
     integer :: exchanged     ! used in bubble sorting
     integer :: temp_order    ! used in bubble sorting
     real(r8) :: temp_age     ! used in bubble sorting
     real(r8) :: temp_totc    ! for debug test
+    real(r8) :: harvested_cohort_c   ! used in IFM
     integer :: ipatch, jpatch ! used in bubble sorting
     integer, allocatable :: order_of_patches(:)  ! Record a copy of patch order for bubble sort
     real(r8), allocatable :: sec_age_patches(:)   ! Record a copy of secondary forest age for bubble sort
+    integer :: it            ! index of iteration
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -259,8 +263,6 @@ contains
     npatches = 0
     frac_site = 1._r8
     harvest_tag_csite = 2
-    target_wp = 0._r8
-    actual_wp = 0._r8
     remain_harvest_rate = fates_unset_r8  ! set to negative value to indicate uninitialized
     site_in%resources_management%harvest_wp_scale = 1._r8
 
@@ -357,7 +359,7 @@ contains
     ! Only calculate harvest rate scale when we have logging event
     ! to reduce computational cost
     if (logging_time .and. harvest_age_priority == 1) then
-       ! Maximize harvest rate (99%) for older patch first until harvest demand is fullfilled
+       ! Maximize harvest rate (99.99%) for older patch first until harvest demand is fullfilled
        ! ipatch is the rank of the secondary patch age
        target_loop: do ipatch = 1, npatches
 
@@ -396,31 +398,31 @@ contains
                        end if
                     end if
                     ! Only calculate harvest rate scale for non-zero harvest rate
-                    if (harvest_rate > 1e-7) then
+                    if (harvest_rate > min_harvest_rate) then
                        if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
                           ! Compare the patch level harvestable carbon and see if larger than remain_harvest_rate
                           ! Note the scaling factor applied on area fraction as harvest unit
                           call get_harvestable_patch_carbon(currentPatch, harvestable_patch_c)
                           if(harvestable_patch_c >= remain_harvest_rate(h_index)) then
                               currentPatch%harvest_rate_scale = remain_harvest_rate(h_index) / &
-                                  (harvestable_patch_c + 1e-7) / harvest_rate
+                                  (harvestable_patch_c + fates_tiny) / harvest_rate
                               remain_harvest_rate(h_index) = 0._r8
                           else
-                              ! harvest almost 100%, leave 1% to prevent removing the patch completely, which may cause
+                              ! harvest almost 100%, leave 0.01% to prevent removing the patch completely, which may cause
                               ! model crashing under nocomp mode
-                              currentPatch%harvest_rate_scale = 0.99_r8 / harvest_rate
-                              remain_harvest_rate(h_index) = remain_harvest_rate(h_index) - 0.99_r8 * harvestable_patch_c
+                              currentPatch%harvest_rate_scale = (1._r8 - min_nocomp_pftfrac_perlanduse) / harvest_rate
+                              remain_harvest_rate(h_index) = remain_harvest_rate(h_index) - (1._r8 - min_nocomp_pftfrac_perlanduse) * harvestable_patch_c
                           end if
                        else
                           ! Compare the patch area and see if larger than remain_harvest_rate
                           if((currentPatch%area/(AREA*frac_site)) >= remain_harvest_rate(h_index)) then
                               currentPatch%harvest_rate_scale = remain_harvest_rate(h_index) / &
-                                  (currentPatch%area/(AREA*frac_site)+1e-7) / harvest_rate
+                                  (currentPatch%area/(AREA*frac_site) + fates_tiny) / harvest_rate
                               remain_harvest_rate(h_index) = 0._r8
                           else
                               ! leave 1% to prevent removing the patch completely
-                              currentPatch%harvest_rate_scale = 0.99_r8 / harvest_rate
-                              remain_harvest_rate(h_index) = remain_harvest_rate(h_index) - 0.99_r8 * (currentPatch%area/(AREA*frac_site))
+                              currentPatch%harvest_rate_scale = (1._r8 - min_nocomp_pftfrac_perlanduse) / harvest_rate
+                              remain_harvest_rate(h_index) = remain_harvest_rate(h_index) - (1._r8 - min_nocomp_pftfrac_perlanduse) * (currentPatch%area/(AREA*frac_site))
                           end if
                        end if
                     end if
@@ -474,50 +476,66 @@ contains
     if (logging_time .and. logging_preference_options >= logging_logistic_size) then
        !Revise logging rate scale to match the target harvest demand after 
        !considering the logging size preference
-       currentPatch => site_in%oldest_patch
-       do while (associated(currentPatch))   
+       !Really need to add an iteration here to force the calculated harvested 
+       !carbon match the forcing
+       !Let's test 3 times
+       iteration_loop: do it = 1, max_iteration
 
-          currentCohort => currentPatch%shortest
-          do while(associated(currentCohort))
+          target_wp = 0._r8
+          actual_wp = 0._r8
 
-             ! Target harvest product  
-             call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
-                   lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
-                   bc_in%hlm_harvest_rates, &
-                   bc_in%hlm_harvest_catnames, &
-                   bc_in%hlm_harvest_units, &
-                   currentPatch%land_use_label, &
-                   currentPatch%age_since_anthro_disturbance, &
-                   frac_site_primary, &
-                   frac_site_secondary_mature, &
-                   harvestable_forest_c, &
-                   currentPatch%harvest_rate_scale, &
-                   harvest_tag, target_harvest_wp_scale, logging_uniform_size)
-             target_wp = target_wp + lmort_direct
+          currentPatch => site_in%oldest_patch
+          do while (associated(currentPatch))   
 
-             ! Actual harvest product  
-             call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
-                   lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
-                   bc_in%hlm_harvest_rates, &
-                   bc_in%hlm_harvest_catnames, &
-                   bc_in%hlm_harvest_units, &
-                   currentPatch%land_use_label, &
-                   currentPatch%age_since_anthro_disturbance, &
-                   frac_site_primary, &
-                   frac_site_secondary_mature, &
-                   harvestable_forest_c, &
-                   currentPatch%harvest_rate_scale, &
-                   harvest_tag, site_in%resources_management%harvest_wp_scale, logging_preference_options)
-             actual_wp = actual_wp + lmort_direct
+             currentCohort => currentPatch%shortest
+             do while(associated(currentCohort))
 
-             currentCohort => currentCohort%taller
+                ! Target harvest product  
+                call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
+                      lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
+                      bc_in%hlm_harvest_rates, &
+                      bc_in%hlm_harvest_catnames, &
+                      bc_in%hlm_harvest_units, &
+                      currentPatch%land_use_label, &
+                      currentPatch%age_since_anthro_disturbance, &
+                      frac_site_primary, &
+                      frac_site_secondary_mature, &
+                      harvestable_forest_c, &
+                      currentPatch%harvest_rate_scale, &
+                      harvest_tag, target_harvest_wp_scale, logging_uniform_size)
+
+                call get_harvested_cohort_carbon(currentCohort, lmort_direct, harvested_cohort_c)
+
+                target_wp = target_wp + harvested_cohort_c
+
+                ! Actual harvest product  
+                call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
+                      lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
+                      bc_in%hlm_harvest_rates, &
+                      bc_in%hlm_harvest_catnames, &
+                      bc_in%hlm_harvest_units, &
+                      currentPatch%land_use_label, &
+                      currentPatch%age_since_anthro_disturbance, &
+                      frac_site_primary, &
+                      frac_site_secondary_mature, &
+                      harvestable_forest_c, &
+                      currentPatch%harvest_rate_scale, &
+                      harvest_tag, site_in%resources_management%harvest_wp_scale, logging_preference_options)
+
+                call get_harvested_cohort_carbon(currentCohort, lmort_direct, harvested_cohort_c)
+
+                actual_wp = actual_wp + harvested_cohort_c
+
+                currentCohort => currentCohort%taller
+             end do
+
+             currentPatch => currentPatch%younger
           end do
-
-          currentPatch => currentPatch%younger
-       end do
-       ! adjustment ratio
-       site_in%resources_management%harvest_wp_scale = target_wp/(actual_wp+1e-7_r8)
-       write(fates_log(),*) 'See adjustment factor for harvest scale:', site_in%resources_management%harvest_wp_scale
+          ! adjustment ratio
+          if( target_wp / (actual_wp+1e-7_r8) < 1.01 .and. target_wp / (actual_wp+1e-7_r8) > 0.99 ) exit iteration_loop
+          site_in%resources_management%harvest_wp_scale = site_in%resources_management%harvest_wp_scale * target_wp/(actual_wp+1e-7_r8)
+          write(fates_log(),*) 'See adjustment factor for harvest scale:', site_in%resources_management%harvest_wp_scale
+       end do iteration_loop
     end if  ! logging_time
 
     !Loop through cohorts to get disturbance rates
@@ -1107,6 +1125,7 @@ contains
                                      nc%lmort_collateral = nan
                                      nc%lmort_infra      = nan
                                      nc%l_degrad         = nan
+                                     nc%harv_c           = nan
 
                                   else
                                      ! understory trees
@@ -1171,6 +1190,7 @@ contains
                                         nc%lmort_direct     = currentCohort%lmort_direct
                                         nc%lmort_collateral = currentCohort%lmort_collateral
                                         nc%lmort_infra      = currentCohort%lmort_infra
+                                        nc%harv_c           = currentCohort%harv_c
 
                                         ! understory trees that might potentially be knocked over in the disturbance.
                                         ! The existing (donor) patch should not have any impact mortality, it should
@@ -1195,9 +1215,10 @@ contains
                                         nc%asmort           = currentCohort%asmort
                                         nc%dgmort           = currentCohort%dgmort
                                         nc%dmort            = currentCohort%dmort
-                                        nc%lmort_direct    = currentCohort%lmort_direct
+                                        nc%lmort_direct     = currentCohort%lmort_direct
                                         nc%lmort_collateral = currentCohort%lmort_collateral
                                         nc%lmort_infra      = currentCohort%lmort_infra
+                                        nc%harv_c           = currentCohort%harv_c
 
                                      endif woody_if_falldtype
                                   endif in_canopy_if_falldtype
@@ -1267,6 +1288,7 @@ contains
                                   nc%lmort_direct     = currentCohort%lmort_direct
                                   nc%lmort_collateral = currentCohort%lmort_collateral
                                   nc%lmort_infra      = currentCohort%lmort_infra
+                                  nc%harv_c           = currentCohort%harv_c
 
 
                                   ! Some of of the leaf mass from living plants has been
@@ -1365,6 +1387,7 @@ contains
                                      nc%lmort_direct     = 0._r8
                                      nc%lmort_collateral = 0._r8
                                      nc%lmort_infra      = 0._r8
+                                     nc%harv_c           = 0._r8
 
                                   else
 
@@ -1431,6 +1454,7 @@ contains
                                         nc%lmort_direct     = currentCohort%lmort_direct
                                         nc%lmort_collateral = currentCohort%lmort_collateral
                                         nc%lmort_infra      = currentCohort%lmort_infra
+                                        nc%harv_c           = currentCohort%harv_c
 
                                      else
 
@@ -1454,6 +1478,7 @@ contains
                                         nc%lmort_direct     = currentCohort%lmort_direct
                                         nc%lmort_collateral = currentCohort%lmort_collateral
                                         nc%lmort_infra      = currentCohort%lmort_infra
+                                        nc%harv_c           = currentCohort%harv_c
 
                                      endif woody_if_logdtype  ! is/is-not woody
 
@@ -2671,6 +2696,11 @@ contains
 
                    site_mass%wood_product = site_mass%wood_product + &
                         woodproduct_mass
+
+                   site_mass%wood_product_sz(currentCohort%size_class) =  &
+                       site_mass%wood_product_sz(currentCohort%size_class) + woodproduct_mass
+
+                   currentCohort%harv_c = currentCohort%harv_c + woodproduct_mass / currentCohort%n
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2

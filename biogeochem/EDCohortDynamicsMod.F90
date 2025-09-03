@@ -1124,6 +1124,8 @@ end subroutine create_cohort
                                            nextc%n*nextc%lmort_infra)/newn
                                       currentCohort%l_degrad = (currentCohort%n*currentCohort%l_degrad + &
                                            nextc%n*nextc%l_degrad)/newn
+                                      currentCohort%harv_c = (currentCohort%n*currentCohort%harv_c + &
+                                           nextc%n*nextc%harv_c)/newn
 
                                       ! biomass and dbh tendencies
                                       currentCohort%ddbhdt     = (currentCohort%n*currentCohort%ddbhdt  + &

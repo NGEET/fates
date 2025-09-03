@@ -183,6 +183,12 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   ! precisions are preventing perfect zero in comparison
   real(fates_r8), parameter, public :: nearzero = 1.0e-30_fates_r8
 
+  ! in nocomp simulations, what is the minimum PFT fraction for any given land use type?
+  real(fates_r8), parameter, public :: min_nocomp_pftfrac_perlanduse = 0.01_fates_r8
+
+  ! The smallest harvest rate considered in calculation
+  real(fates_r8), parameter, public :: min_harvest_rate = 1.0e-7_fates_r8
+
   ! Unit conversion constants:
 
   ! Conversion factor umols of Carbon -> kg of Carbon (1 mol = 12g)
