@@ -8,6 +8,7 @@ module FatesInterfaceTypesMod
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
   
+  
   implicit none
 
    private        ! By default everything is private
@@ -841,9 +842,29 @@ module FatesInterfaceTypesMod
 
    end type bc_pconst_type
 
+   ! Base type to be extended for the API registry
+   type, public :: fates_interface_registry_base_type
+
+    integer :: num_api_vars
+
+    ! container array of interface variables
+    type(fates_interface_variable_type), allocatable :: vars(:) 
+
+    contains
+
+      procedure :: InitializeInterfaceRegistry
+      procedure :: Register => RegisterInterfaceVariables_1d, RegisterInterfaceVariables_2d
+
+      procedure, private :: DefineInterfaceRegistry
+      procedure, private :: DefineInterfaceVariable
+      procedure, private :: GetRegistryIndex
+
+   end type fates_interface_registry_base_type
+
    public :: ZeroBCOutCarbonFluxes
    
  contains
+  
        
    ! ======================================================================================
 
