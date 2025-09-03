@@ -7,7 +7,8 @@ module FatesInterfaceTypesMod
   use FatesGlobals        , only : endrun => fates_endrun
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
-  
+
+  use FatesInterfaceVariableTypeMod, only : fates_interface_variable_type
   
   implicit none
 
@@ -866,9 +867,9 @@ module FatesInterfaceTypesMod
  contains
   
        
-   ! ======================================================================================
+  ! ======================================================================================
 
-   subroutine ZeroBCOutCarbonFluxes(bc_out)
+  subroutine ZeroBCOutCarbonFluxes(bc_out)
 
     ! !ARGUMENTS
     type(bc_out_type), intent(inout)   :: bc_out
@@ -880,6 +881,129 @@ module FatesInterfaceTypesMod
 
   end subroutine ZeroBCOutCarbonFluxes
 
-   
+  ! ======================================================================================
+
+  subroutine InitializeInterfaceRegistry(this)
+
+    ! This initializes the interface registry
+
+    class(fates_interface_registry_base_type) :: this
+
+    logical :: initialize
+
+    ! First count up the keys defined in the registry
+    call this%DefineInterfaceRegistry(initialize=.false.)
+
+    ! Allocate the registry
+    allocate(this%vars(this%num_api_vars))
+
+    ! Now set up the registry keys
+    call this%DefineInterfaceRegistry(initialize=.true.)
+
+  end subroutine InitializeInterfaceRegistry
+
+  ! ======================================================================================
+  
+  subroutine DefineInterfaceRegistry(this, initialize)
+
+    ! This procedure defines the list of common names to be associated with FATES and HLM
+    ! variables.
+
+    class(fates_interface_registry_base_type) :: this
+
+    logical, intent(in) :: initialize  ! false = count up the keys in the registry
+
+    integer :: ivar  ! indices
+
+    ! Set ivar to zero.  This will be incremented via each call to SetInterfaceVariable
+    ivar = 0
+
+    ! Define the interface registry names and indices
+    call this%DefineInterfaceVariable(key='decomp_frac_moisture', index=ivar, initialize=initialize)
+    call this%DefineInterfaceVariable(key='decomp_frac_temperature', index=ivar, initialize=initialize)
+
+    ! Set the registry size based on the final update of ivar
+    this%num_api_vars = ivar
+
+
+  end subroutine DefineInterfaceRegistry
+
+  ! ======================================================================================
+
+  subroutine DefineInterfaceVariable(this, key, index, initialize)
+
+    class(fates_interface_registry_base_type) :: this
+
+    character(len=*), intent(in) :: key
+    integer, intent(inout)       :: index
+    logical, intent(in)          :: initialize
+
+    ! Increment the index to return count
+    index = index + 1   
+
+    ! If we are initializing the 
+    if (initialize) then 
+      call this%vars(index)%Initialize(key)
+    end if
+
+  end subroutine DefineInterfaceVariable
+
+  ! ======================================================================================
+
+  subroutine RegisterInterfaceVariables_1d(this, key, data)
+
+    ! This procedure is called by the to associate a data variable
+    ! with a particular registry key
+
+    class(fates_interface_registry_base_type) :: this
+
+    character(len=*), intent(in) :: key        ! variable registry key 
+    class(*), target, intent(in) :: data(:)  ! data to be associated with key
+
+    ! Get index from registry key and associate the given data pointer
+    call this%vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
+
+  end subroutine RegisterInterfaceVariables_1d
+
+  ! ======================================================================================
+
+  subroutine RegisterInterfaceVariables_2d(this, key, data)
+
+    ! This procedure is called by the to associate a data variable
+    ! with a particular registry key
+
+    class(fates_interface_registry_base_type) :: this
+
+    character(len=*), intent(in) :: key        ! variable registry key 
+    class(*), target, intent(in) :: data(:,:)  ! data to be associated with key
+
+    ! Get index from registry key and associate the given data pointer
+    call this%vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
+
+  end subroutine RegisterInterfaceVariables_2d
+
+  ! ======================================================================================
+
+  integer function GetRegistryIndex(this, key) result(index)
+
+    ! This procedure returns the index associated with the key provided
+
+    class(fates_interface_registry_base_type) :: this
+
+    character(len=*), intent(in) :: key    ! variable registry key to search
+
+    integer :: ivar  ! Iterator
+
+    ! Iterate over the registry until the associated key is found
+    do ivar = 1, this%num_api_vars
+       if (this%vars(ivar)%key == key) then
+          index = ivar
+          return
+       end if
+    end do
+
+  end function GetRegistryIndex
+
+  ! ======================================================================================
        
 end module FatesInterfaceTypesMod
