@@ -7089,8 +7089,25 @@ contains
                upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, index = ih_crownarea_ustory_damage_si )
 
        end if if_crowndamage1
-       
 
+       call this%set_history_var(vname='FATES_NCL', units='',                  &
+            long='number of canopy levels',                            &
+            use_default='inactive', avgflag='A', vtype=site_r8,               &
+            hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_ncl_si)
+
+       if ( comp_excln_exp .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
+          tempstring = 'active'
+       else
+          tempstring = 'inactive'
+       endif
+       
+       call this%set_history_var(vname='FATES_ZSTAR', units='m',               &
+            long='product of zstar and patch area', &
+            use_default=tempstring, avgflag='A', vtype=site_r8,         &
+            hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_zstar_si)
+       
        if_dyn1: if(hlm_hist_level_dynam>1) then
 
           call this%set_history_var(vname='FATES_NPP_LU', units='kg m-2 s-1',        &
@@ -7133,7 +7150,7 @@ contains
           call this%set_history_var(vname='FATES_RECRUITMENT_CFLUX_PF', units='kg m-2 yr-1',  &
                long='total PFT-level biomass of new recruits in kg of carbon per land area',         &
                use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
-               upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index=ih_recruitment_cflux_si_pft)
 
           call this%set_history_var(vname='FATES_LEAFC_PF', units='kg m-2',          &
@@ -7299,18 +7316,12 @@ contains
 
           call this%set_history_var(vname='FATES_CANOPYAREA', units='m2 m-2',     &
                long='canopy area per m2 land area', use_default='inactive', &
-               avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,  &
+               avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,  &
                initialize=initialize_variables, index=ih_canopy_fracarea_si)
-
-          call this%set_history_var(vname='FATES_NCL', units='',                  &
-               long='number of canopy levels',                            &
-               use_default='inactive', avgflag='A', vtype=site_r8,               &
-               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
-               index=ih_ncl_si)
 
           call this%set_history_var(vname='FATES_PATCHAREA', units='m2 m-2',      &
                long='patch area per m2 land area', use_default='inactive',  &
-               avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,  &
+               avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,  &
                initialize=initialize_variables, index=ih_fracarea_si)
 
           ! patch age class variables
@@ -7359,12 +7370,6 @@ contains
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_zstar_si_age)
 
-          call this%set_history_var(vname='FATES_ZSTAR', units='m',               &
-               long='product of zstar and patch area', &
-               use_default='inactive', avgflag='A', vtype=site_r8,         &
-               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
-               index=ih_zstar_si)
-
           call this%set_history_var(vname='FATES_CANOPYAREA_HT', units='m2 m-2',     &
                long='canopy area height distribution',                               &
                use_default='active', avgflag='A', vtype=site_height_r8,              &
@@ -7394,14 +7399,14 @@ contains
                units='m2 m-2',                                                       &
                long='secondary forest patch area since anthropgenic disturbance', &
                use_default='inactive', avgflag='A', vtype=site_r8,               &
-               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+               hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_agesince_anthrodist_si)
 
           call this%set_history_var(vname='FATES_SECONDARY_AREA',                &
                units='m2 m-2',                                                       &
                long='secondary forest patch area since any kind of disturbance', &
                use_default='inactive', avgflag='A', vtype=site_r8,               &
-               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+               hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_secondarylands_fracarea_si)
 
           call this%set_history_var(vname='FATES_SECONDARY_AREA_AP',                &
@@ -7415,7 +7420,7 @@ contains
                units='m2 m-2',                                                   &
                long='primary forest patch area since any kind of disturbance',   &
                use_default='inactive', avgflag='A', vtype=site_r8,               &
-               hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+               hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index=ih_primarylands_fracarea_si)
 
           call this%set_history_var(vname='FATES_PRIMARY_AREA_AP',                &
@@ -8940,8 +8945,6 @@ contains
 
        end if if_dyn1
     end if if_dyn0
-
-    !HERE
 
 
     if_hifrq0: if(hlm_hist_level_hifrq>0) then
