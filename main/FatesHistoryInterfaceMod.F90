@@ -7096,7 +7096,7 @@ contains
             hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
             index=ih_ncl_si)
 
-       if ( ED_val_comp_excln .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
+       if ( comp_excln_exp .lt. 0._r8 ) then ! only valid when "strict ppa" enabled
           tempstring = 'active'
        else
           tempstring = 'inactive'
