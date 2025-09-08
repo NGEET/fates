@@ -190,6 +190,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
+    type (fates_patch_type) , pointer :: referredPatch
     type (fates_cohort_type), pointer :: currentCohort
 
     real(r8) :: cmort
@@ -228,7 +229,7 @@ contains
     real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
     real(r8) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
 
-    ! Control vars, will be moved into parameter file once the test is done
+    ! Control vars, need to be moved into parameter file once the test is done
     integer, parameter :: harvest_age_priority = 1 ! Tag to determine if we give priority to the oldest
                                                    ! patch
                                                    ! 0 - no;
@@ -236,12 +237,11 @@ contains
     real(r8), parameter :: target_harvest_wp_scale = 0.5  ! For Size-dependent IFM. The scale is a target fraction of wood product 
                                                           ! expected afer considering size-priority of IFM reduce the total harvest amount
     real(r8), parameter :: max_iteration = 5       ! Maximum iterations to obtain target harvest wood product
-    integer :: exchanged     ! used in bubble sorting
-    integer :: temp_order    ! used in bubble sorting
-    real(r8) :: temp_age     ! used in bubble sorting
     real(r8) :: temp_totc    ! for debug test
     real(r8) :: harvested_cohort_c   ! used in IFM
-    integer :: ipatch, jpatch ! used in bubble sorting
+    integer :: ipatch, , ipft, curpft ! used in min-heap merge
+    integer, allocatable :: jpatch(:), pftlen(:)  ! used in min-heap merge
+    real(r8), allocatable :: minheap(:)    ! array recording minimum heap
     integer, allocatable :: order_of_patches(:)  ! Record a copy of patch order for bubble sort
     real(r8), allocatable :: sec_age_patches(:)   ! Record a copy of secondary forest age for bubble sort
     integer :: it            ! index of iteration
@@ -249,6 +249,12 @@ contains
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
+    !----------------------------------------------------------------------------------------------
+    ! Sep 5. 2025
+    ! New: improved forest management practies can be quantified as modifiers to change the 
+    ! logging disturbance rates at cohort-patch-site levels:
+    ! site_in%resources_management%harvest_wp_scale
+    ! 
     !----------------------------------------------------------------------------------------------
  
     ! first calculate the fraction of the site that is primary land and secondary mature land
@@ -258,7 +264,7 @@ contains
     ! get available biomass carbon for harvest for all patches
     call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
-    ! Initialize local variables
+    ! Initialize the rest of local variables
     exchanged = 1
     npatches = 0
     frac_site = 1._r8
@@ -266,6 +272,9 @@ contains
     remain_harvest_rate = fates_unset_r8  ! set to negative value to indicate uninitialized
     site_in%resources_management%harvest_wp_scale = 1._r8
 
+    ! =====================================================================
+    ! Age_prioritized forest management
+    ! =====================================================================
     ! The following code will calculate harvest_rate_scale for each secondary patch
     ! There're currently 2 options:
     ! 1) uniformly harvest each patch (harvest_rate_scale = 1._r8)
@@ -282,12 +291,25 @@ contains
     end do
 
 
-    ! We need to have an order based on age_since_anthro_disturbance
+    ! =====================================================================
+    ! "Sort" patch based on patch age since anthropegenic disturbance
+    ! =====================================================================
+    ! Patch sequence in the data list (patchno) follows pseudo-age defined in function GetPseudoPatchAge to simplify
+    ! LUC related calculation.
+    ! Here we don't actually modify the patch sequence but use another age tag called order_age_since_anthro to 
+    ! record patch age for age-prioritized wood harvest strategy. 
+    ! In FATES, PFT-patch relation can be different under diffrent modes. This can be separated into 2 cases:
+    ! Case 1: For most of FATES modes, we directly use pseudo-age since there's no paired 1 patch - 1 PFT relation
+    ! Case 2: For the more general case in global simulation that harvest all PFTs equally under 
+    ! no competition mode, we need to sort again using last 4 digits of pseudo-age, i.e., actual patch age. Since each PFT
+    ! the patch sequence is already sorted, here we need to loop through PFTs and merge these sorted sequences into one 
+    ! sorted array using min-heap merge
     if (logging_time) then
 
-       ! First loop to count number of patches and initialize order
+       ! First loop to count total number of patches and initialize order
        ! using patchno
        currentPatch => site_in%oldest_patch
+       npatches = 0
 
        do while (associated(currentPatch))
           npatches = npatches + 1
@@ -296,60 +318,89 @@ contains
           currentPatch => currentPatch%younger
        end do
 
-       ! Second loop to assign order of patches and age_since_anthro_disturbance
-       allocate(order_of_patches(1:npatches))
-       allocate(sec_age_patches(1:npatches))
+       ! For case 2, i.e., nocomp mode only
+       if (hlm_use_nocomp.eq.itrue) then
 
-       currentPatch => site_in%oldest_patch
-       ipatch = 0
-       do while (associated(currentPatch))
-          ipatch = ipatch + 1
-          order_of_patches(ipatch) = currentPatch%patchno 
-          sec_age_patches(ipatch) = currentPatch%age_since_anthro_disturbance
+          allocate(order_of_patches(1:npatches))
+          allocate(order_of_patches_per_pft(1:numpft,1:npatches))
+          allocate(sec_age_patches(1:npatches))
+          allocate(sec_age_patches_per_pft(1:numpft,1:npatches))
+          allocate(minheap(1:numpft))
+          allocate(jpatch(1:numpft))
+          allocate(pftlen(1:numpft))
 
-          currentPatch => currentPatch%younger
-       end do
-
-       ! Third loops to perform bubble sorting, since we have collected the order
-       ! and age and stored them into array, no need to have a patch loop
-       do ipatch = 1, npatches - 1
-          if(exchanged .eq. 1) then
-             exchanged = 0
-             do jpatch = 1, npatches - ipatch
-                if(sec_age_patches(jpatch) < sec_age_patches(jpatch+1)) then
-                   ! Swap order
-                   temp_order = order_of_patches(jpatch)
-                   order_of_patches(jpatch) = order_of_patches(jpatch + 1)
-                   order_of_patches(jpatch + 1) = temp_order
-                   ! Swap age
-                   temp_age = sec_age_patches(jpatch)
-                   sec_age_patches(jpatch) = sec_age_patches(jpatch + 1)
-                   sec_age_patches(jpatch + 1) = temp_age
-                   exchanged = 1
+          ! Second loop to assign patch sequence, age and number of pacthes in each PFT to array
+          ! thus can avoid for loop over data list
+          currentPatch => site_in%oldest_patch
+          ipatch = 0
+          pftlen(:) = 0
+          do while (associated(currentPatch))
+             ipatch = ipatch + 1
+             order_of_patches(ipatch) = currentPatch%order_age_since_anthro
+             sec_age_patches(ipatch) = mod(GetPseudoPatchAge(currentPatch), 1.e4)
+          
+             do ipft=1,numpft
+                if(currentPatch%nocomp_pft_label .eq. ipft)
+                   pftlen(ipft) = pftlen(ipft) + 1
+                   order_of_patches_per_pft(ipft,pftlen(ipft)) = currentPatch%order_age_since_anthro
+                   sec_age_patches_per_pft(ipft, pftlen(ipft)) = mod(GetPseudoPatchAge(currentPatch), 1.e4)
                 end if
              end do
-          end if
-       end do
-
-       ! Fourth loop to assign order back to patches
-       do ipatch = 1, npatches
-          currentPatch => site_in%oldest_patch
-
-          ! Look for the patch by usig patchno 
-          inner_loop: do while (associated(currentPatch))
-
-             if(order_of_patches(ipatch) .eq. currentPatch%patchno) then
-                currentPatch%order_age_since_anthro = ipatch
-                exit inner_loop
-             end if
 
              currentPatch => currentPatch%younger
-          end do inner_loop
-       end do
+          end do
 
-       ! Eliminate temperary variables
-       deallocate(order_of_patches)
-       deallocate(sec_age_patches)
+          ! Third loop to initailize min-heap, first element of each array
+          do ipft=1,numpft
+             if(pftlen(ipft) > 0) then
+                minheap(ipft) = sec_age_patches_per_pft(ipft, 0)
+             end if
+          end do
+
+          ! Fourth loop to get min from min-heap then insert 'sec_age_patches_per_pft' and record order in 'order_of_patches'
+          ! no need to loop over data list here
+          ipatch = 0
+          jpatch(:) = 1
+          do ipatch = 1, npacthes
+             ! Find the minimum and assign the order
+             curpft = minloc(minheap)
+             order_of_patches(ipatch) = order_of_patches_per_pft(curpft, jpatch(curpft))
+             ! Move to the next element and insert into minheap array
+             jpatch(curpft) = jpatch(curpft) + 1
+             if(jpatch(curpft) <= pftlen(curpft)) then
+                   minheap(curpft) = sec_age_patches_per_pft(ipft, jpatch(curpft))
+                else
+                   minheap(curpft) = 0._r8
+                end if
+             end if
+          end do
+
+          ! Fifthth loop to assign order back to patches
+          do ipatch = 1, npatches
+             currentPatch => site_in%oldest_patch
+
+             ! Look for the patch by usig patchno 
+             inner_loop: do while (associated(currentPatch))
+
+                if(order_of_patches(ipatch) .eq. currentPatch%patchno) then
+                   currentPatch%order_age_since_anthro = ipatch
+                   exit inner_loop
+                end if
+
+                currentPatch => currentPatch%younger
+             end do inner_loop
+          end do
+
+          ! Clean temperary variables
+          deallocate(order_of_patches)
+          deallocate(order_of_patches_per_pft)
+          deallocate(sec_age_patches)
+          deallocate(sec_age_patches_per_pft)
+          deallocate(minheap)
+          deallocate(jpatch)
+          deallocate(pftlen)
+
+       end if  ! nocomp
 
     end if  ! logging_time
  
@@ -368,7 +419,8 @@ contains
 
              found_patch: if(currentPatch%order_age_since_anthro .eq. ipatch) then
 
-                ! Right now we skip the calculation for the primary land
+                ! Here age priority is based on age since anthropogenic disturbance
+                ! thus we skip the primary land since they all have this age = 0
                 if_secondary: if(currentPatch%land_use_label .eq. secondaryland) then
                     if(currentPatch%age_since_anthro_disturbance >= secondary_age_threshold) then
                        h_index = 3
@@ -427,7 +479,8 @@ contains
                        end if
                     end if
 
-                    ! Shijie: For diagnosing the harvestable carbon
+                    ! For diagnosing the harvestable carbon
+                    ! These codes can be removed in released version
                     temp_totc = 0._r8
                     currentCohort => currentPatch%tallest
  
@@ -471,14 +524,19 @@ contains
 
     end if  ! logging_time
 
-    !Loop through cohorts to preview the harvest product assuming no harvest size priority and with size priority 
-    !Then calculate the ratio between these two cases to calculate adjustment ratio
+    !For size dependet harvest, cetain size class might have fewer or no harvest if the available inventory is less than the
+    !demand.
+    !We design the following algorithm to force the other nearby size class to fullfill these demands:
+
+    !Loop through cohorts to preview the summed harvested product C for both no harvest size priority, i.e., target wood product C
+    !(target_wp), and with size priority, i.e., actual harvested C  (actual_wp)
+    !Then calculate the ratio of target to actual cases as adjustment ratio
+    !The adjustment ratio will be applied as additional scaling factor to modify cohort-level harvest mortality
+    !One time adjustment might still not able to match the demand, we iterate this process no more than 5 times.
+
+    !Only run this part when considering size dependent priority
     if (logging_time .and. logging_preference_options >= logging_logistic_size) then
-       !Revise logging rate scale to match the target harvest demand after 
-       !considering the logging size preference
-       !Really need to add an iteration here to force the calculated harvested 
-       !carbon match the forcing
-       !Let's test 3 times
+
        iteration_loop: do it = 1, max_iteration
 
           target_wp = 0._r8
@@ -530,12 +588,18 @@ contains
              end do
 
              currentPatch => currentPatch%younger
+
           end do
+
           ! adjustment ratio
-          if( target_wp / (actual_wp+1e-7_r8) < 1.01 .and. target_wp / (actual_wp+1e-7_r8) > 0.99 ) exit iteration_loop
+          if( target_wp / (actual_wp + 1e-7_r8) < 1.01 .and. target_wp / (actual_wp + 1e-7_r8) > 0.99 ) exit iteration_loop
+
           site_in%resources_management%harvest_wp_scale = site_in%resources_management%harvest_wp_scale * target_wp/(actual_wp+1e-7_r8)
+
           write(fates_log(),*) 'See adjustment factor for harvest scale:', site_in%resources_management%harvest_wp_scale
+
        end do iteration_loop
+
     end if  ! logging_time
 
     !Loop through cohorts to get disturbance rates
@@ -3610,155 +3674,105 @@ contains
 
     ! !LOCAL VARIABLES:
     type (fates_patch_type), pointer :: currentPatch
-    integer                       :: insert_method   ! Temporary dev
-    logical                       :: found_landuselabel_match
-    integer, parameter            :: unordered_lul_groups= 1
-    integer, parameter            :: primaryland_oldest_group = 2
-    integer, parameter            :: numerical_order_lul_groups = 3
-    integer, parameter            :: age_order_only = 4
+    logical                       :: patch_inserted
 
-    ! Insert new patch case options:
-    ! Option 1: Group the landuse types together, but the group order doesn't matter
-    ! Option 2: Option 1, but primarylands are forced to be the oldest group
-    ! Option 3: Option 1, but groups are in numerical order according to land use label index integer
-    !           (i.e. primarylands=1, secondarylands=2, ..., croplands=5)
-    ! Option 4: Don't group the patches by land use label.  Simply add new patches to the youngest end.
+    ! The goal here is to have patches ordered in a specific way. That way is to have them
+    ! looped as the following, where LU refers to the land use label, PFT refers to the
+    ! nocomp PFT label, and Y and O refer to continuous patch ages.
+    !
+    !       LU1     ----     LU2       ----     LU3         --  etc
+    !    /       \         /       \        /        \
+    !  PFT1 --- PFT2  |  PFT1 --- PFT2  |  PFT1 --- PFT2    --  etc
+    !  / \      /  \     / \      /  \     / \      /  \  
+    ! O - Y    O -  Y   O - Y    O  - Y   O - Y    O -  Y   --  etc
 
-    ! Hardcode the default insertion method.  The options developed during FATES V1 land use are
-    ! currently being held for potential future usage.
-    insert_method = primaryland_oldest_group
+    ! I.e. to treat land use as the outermost loop element, then nocomp PFT as next loop element,
+    ! and then age as the innermost loop element.  Visualizing the above as a linked list patches:
 
-    ! Start from the youngest patch and work to oldest, regarless of insertion_method
-    currentPatch => currentSite%youngest_patch
+    ! LU1/PFT1/O <-> LU1/PFT1/Y <-> LU1/PFT2/O <- ... -> LU3/PFT2/O <-> LU3/PFT2/Y
 
-    ! For the three grouped cases, if the land use label of the youngest patch on the site
-    ! is a match to the new patch land use label, simply insert it as the new youngest.
-    ! This is applicable to the non-grouped option 4 method as well.
-    if (currentPatch%land_use_label .eq. newPatch%land_use_label ) then
-       newPatch%older    => currentPatch
-       newPatch%younger  => null()
-       currentPatch%younger       => newPatch
+    ! Mapping this setup onto the existing "older/younger" scheme means that lower number
+    ! land use and pft labels are considered "older".  Note that this matches the current
+    ! initialization scheme in which patches are created and linked in increasing pft
+    ! numerical order starting from 1.  This also aligns with the current set_patchno scheme
+    ! in which patches are given an indexable number for the API iteration loops.
+    
+    ! The way to accomplsh this most simply is to define a pseudo-age that includes all of the
+    ! above info and sort the patches based on the pseudo-age. i.e. take some number larger
+    ! than any patch will ever reach in actual age. Then take the LU, multiply it by the big
+    ! number squared, add it to the pft number multiplied by the big number, and add to the age.
+    ! And lastly to sort using that instead of the actual age.
+
+    ! If land use is turned off or nocomp is turned off, then this should devolve to the prior
+    ! behavior of just age sorting.
+
+    patch_inserted = .false.
+    
+    if (GetPseudoPatchAge(newPatch) .le. GetPseudoPatchAge(currentSite%youngest_patch)) then
+
+       ! insert new patch at the head of the linked list
+       newPatch%older   => currentSite%youngest_patch
+       newPatch%younger => null()
+       currentSite%youngest_patch%younger => newPatch
        currentSite%youngest_patch => newPatch
+
+       patch_inserted = .true.
+    else if (GetPseudoPatchAge(newPatch) .ge. GetPseudoPatchAge(currentSite%oldest_patch)) then
+
+       ! insert new patch at the end of the linked list
+       newPatch%younger   => currentSite%oldest_patch
+       newPatch%older     => null()
+       currentSite%oldest_patch%older => newPatch
+       currentSite%oldest_patch => newPatch
+
+       patch_inserted = .true.
     else
-
-       ! If the current site youngest patch land use label doesn't match the new patch
-       ! land use label then work through the list until you find the matching type.
-       ! Since we've just checked the youngest patch, move to the next patch and
-       ! initialize the match flag to false.
-       found_landuselabel_match = .false.
-       currentPatch => currentPatch%older
-       select case(insert_method)
-
-       ! Option 1 - order of land use label groups does not matter
-       case (unordered_lul_groups)
-
-          do while(associated(currentPatch) .and. .not. found_landuselabel_match)
-            if (currentPatch%land_use_label .eq. newPatch%land_use_label) then
-               found_landuselabel_match = .true.
-            else
-               currentPatch => currentPatch%older
-            end if
-          end do
-
-          ! In the case where we've found a land use label matching the new patch label,
-          ! insert the newPatch will as the youngest patch for that land use type.
-          if (associated(currentPatch)) then
-             newPatch%older             => currentPatch
-             newPatch%younger           => currentPatch%younger
+       ! new patch has a pseudo-age somewhere within the linked list. find the first patch which
+       ! has a pseudo age older than it, and put it ahead of that patch
+       currentPatch => currentSite%youngest_patch
+       do while (associated(currentPatch) .and. ( .not. patch_inserted) )   
+          if (GetPseudoPatchAge(newPatch) .lt. GetPseudoPatchAge(currentPatch)) then
+             newPatch%older => currentPatch
+             newPatch%younger => currentPatch%younger
              currentPatch%younger%older => newPatch
-             currentPatch%younger       => newPatch
-          else
-             ! In the case in which we get to the end of the list and haven't found
-             ! a landuse label match simply add the new patch to the youngest end.
-             newPatch%older                     => currentSite%youngest_patch
-             newPatch%younger                   => null()
-             currentSite%youngest_patch%younger => newPatch
-             currentSite%youngest_patch         => newPatch
+             currentPatch%younger => newPatch
+
+             patch_inserted = .true.
           endif
+          currentPatch => currentPatch%older
+       end do
+    end if
 
-       ! Option 2 - primaryland group must be on the oldest end
-       case (primaryland_oldest_group)
-
-          do while(associated(currentPatch) .and. .not. found_landuselabel_match)
-             if (currentPatch%land_use_label .eq. newPatch%land_use_label) then
-                found_landuselabel_match = .true.
-             else
-                currentPatch => currentPatch%older
-             end if
-          end do
-
-          ! In the case where we've found a land use label matching the new patch label,
-          ! insert the newPatch will as the youngest patch for that land use type.
-          if (associated(currentPatch)) then
-             newPatch%older             => currentPatch
-             newPatch%younger           => currentPatch%younger
-             currentPatch%younger%older => newPatch
-             currentPatch%younger       => newPatch
-          else
-             ! In the case in which we get to the end of the list and haven't found
-             ! a landuse label match.
-
-             ! If the new patch is primarylands add it to the oldest end of the list
-             if (newPatch%land_use_label .eq. primaryland) then
-                newPatch%older                 => null()
-                newPatch%younger               => currentSite%oldest_patch
-                currentSite%oldest_patch%older => newPatch
-                currentSite%oldest_patch       => newPatch
-             else
-                ! If the new patch land use type is not primaryland and we are at the
-                ! oldest end of the list, add it to the youngest end
-                newPatch%older                     => currentSite%youngest_patch
-                newPatch%younger                   => null()
-                currentSite%youngest_patch%younger => newPatch
-                currentSite%youngest_patch         => newPatch
-             endif
-          endif
-
-       ! Option 3 - groups are numerically ordered with primaryland group starting at oldest end.
-       case (numerical_order_lul_groups)
-
-          ! If the youngest patch landuse label number is greater than the new
-          ! patch land use label number, the new patch must be inserted somewhere
-          ! in between oldest and youngest
-          do while(associated(currentPatch) .and. .not. found_landuselabel_match)
-             if (currentPatch%land_use_label .eq. newPatch%land_use_label .or. &
-                 currentPatch%land_use_label .lt. newPatch%land_use_label) then
-                found_landuselabel_match = .true.
-             else
-                currentPatch => currentPatch%older
-             endif
-          end do
-
-          ! In the case where we've found a landuse label matching the new patch label
-          ! insert the newPatch will as the youngest patch for that land use type.
-          if (associated(currentPatch)) then
-
-             newPatch%older    => currentPatch
-             newPatch%younger  => currentPatch%younger
-             currentPatch%younger%older => newPatch
-             currentPatch%younger       => newPatch
-
-          else
-
-             ! In the case were we get to the end, the new patch
-             ! must be numerically the smallest, so put it at the oldest position
-             newPatch%older    => null()
-             newPatch%younger  => currentSite%oldest_patch
-             currentSite%oldest_patch%older   => newPatch
-             currentSite%oldest_patch   => newPatch
-
-          endif
-
-       ! Option 4 - always add the new patch as the youngest regardless of land use label
-       case (age_order_only)
-          ! Set the current patch to the youngest patch
-          newPatch%older                     => currentSite%youngest_patch
-          newPatch%younger                   => null()
-          currentSite%youngest_patch%younger => newPatch
-          currentSite%youngest_patch         => newPatch
-       end select
+    if ( .not. patch_inserted) then
+       ! something has gone wrong. abort.
+       write(fates_log(),*) 'something has gone wrong in the patch insertion, because no place to put the new patch was found' 
+          call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
  end subroutine InsertPatch
+
+ ! =====================================================================================
+
+ function GetPseudoPatchAge(CurrentPatch) result(pseudo_age)
+   
+   ! Purpose: we want to sort the patches in a way that takes into account both their
+   ! continuous and categorical variables. Calculate a pseudo age that does this, by taking
+   ! the integer labels, multiplying these by large numbers, and adding to the continuous age.
+   ! Note to ensure that lower integer land use label and pft label numbers are considered
+   ! "younger" (i.e higher index patchno) in the linked list, they are summed and multiplied by
+   ! negative one.  The patch age is still added normally to this negative pseudoage calculation
+   ! as a higher age will result in a less negative number correlating with an "older" patch.
+
+   type (fates_patch_type), intent(in), pointer :: CurrentPatch
+   real(r8)            :: pseudo_age    
+   real(r8), parameter :: max_actual_age = 1.e4  ! hard to imagine a patch older than 10,000 years
+   real(r8), parameter :: max_actual_age_squared = 1.e8
+
+   pseudo_age = -1.0_r8 * (real(CurrentPatch%land_use_label,r8) * max_actual_age_squared + &
+        real(CurrentPatch%nocomp_pft_label,r8) * max_actual_age) + CurrentPatch%age
+   
+ end function GetPseudoPatchAge
+
+ ! =====================================================================================
 
  end module EDPatchDynamicsMod
