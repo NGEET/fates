@@ -95,7 +95,7 @@ contains
     real(r8)                        :: temp_C         ! daily averaged temperature [deg C]
     real(r8)                        :: precip         ! daily precip [mm/day]
     real(r8)                        :: rh             ! daily relative humidity [%]
-    real(r8)                        :: wind           ! wind speed [m/s]
+    real(r8)                        :: wind           ! wind speed [m/min]
     real(r8)                        :: tree_fraction  ! site-level tree fraction [0-1]
     real(r8)                        :: grass_fraction ! site-level grass fraction [0-1]
     real(r8)                        :: bare_fraction  ! site-level bare ground fraction [0-1]
@@ -118,16 +118,13 @@ contains
     temp_C = currentPatch%tveg24%GetMean() - tfrz
     precip = bc_in%precip24_pa(iofp)*sec_per_day
     rh = bc_in%relhumid24_pa(iofp)
-    wind = bc_in%wind24_pa(iofp)
-
-    ! convert to m/min 
-    currentSite%wind = wind*sec_per_min
+    wind = bc_in%wind24_pa(iofp) * sec_per_min
 
     ! update fire weather index
     call currentSite%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
 
     ! update prescribed fire burn window
-    call currentSite%fireWeather%UpdateRxfireBurnWindow(hlm_use_managed_fire, temp_C, rh, wind, &
+    call currentSite%fireWeather%UpdateRxfireBurnWindow(hlm_use_managed_fire, &
       SF_val_rxfire_tpup, SF_val_rxfire_tplw, SF_val_rxfire_rhup, SF_val_rxfire_rhlw,    &
       SF_val_rxfire_wdup, SF_val_rxfire_wdlw)
 
@@ -135,7 +132,7 @@ contains
     call CalculateTreeGrassAreaSite(currentSite, tree_fraction, grass_fraction, bare_fraction)
 
     ! update effective wind speed
-    call currentSite%fireWeather%UpdateEffectiveWindSpeed(wind*sec_per_min, tree_fraction, &
+    call currentSite%fireWeather%UpdateEffectiveWindSpeed(tree_fraction, &
       grass_fraction, bare_fraction)
     
   end subroutine UpdateFireWeather
@@ -338,7 +335,7 @@ contains
         ! backwards rate of spread [m/min]
         !  backward ROS wind not changed by vegetation - so use wind, not effective_windspeed
         currentPatch%ROS_back = BackwardRateOfSpread(currentPatch%ROS_front,             &
-         currentSite%wind)
+         currentSite%fireWeather%wind)
 
       end if 
       currentPatch => currentPatch%younger

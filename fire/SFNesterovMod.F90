@@ -54,6 +54,12 @@ module SFNesterovMod
       ! LOCALS:
       real(r8) :: t_dew ! dewpoint temperature [degrees C]
 
+      ! Update these
+      this%temp_C = temp_C
+      this%precip = precip
+      this%rh = rh
+      this%wind = wind
+
       if (precip > min_precip_thresh) then ! rezero NI if it rains
         this%fire_weather_index = 0.0_r8
       else 

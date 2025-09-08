@@ -12,6 +12,11 @@ module SFFireWeatherMod
     real(r8) :: effective_windspeed  ! effective wind speed, corrected for by tree/grass cover [m/min]
     integer  :: rx_flag              ! prescribed fire burn window flag [1=burn window present; 0=no burn window]
 
+    real(r8) :: temp_C  ! daily averaged temperature [deg C]
+    real(r8) :: precip  ! daily precip [mm/day]
+    real(r8) :: rh      ! daily relative humidity [%]
+    real(r8) :: wind    ! wind speed [m/min]
+
     contains 
 
     procedure(initialize_fire_weather), public, deferred :: Init
@@ -48,7 +53,7 @@ module SFFireWeatherMod
 
   contains 
 
-  subroutine UpdateEffectiveWindSpeed(this, wind_speed, tree_fraction, grass_fraction,   &
+  subroutine UpdateEffectiveWindSpeed(this, tree_fraction, grass_fraction,   &
       bare_fraction)
     !
     !  DESCRIPTION:
@@ -60,25 +65,21 @@ module SFFireWeatherMod
       
     ! ARGUMENTS
     class(fire_weather), intent(inout) :: this           ! fire weather class
-    real(r8),            intent(in)    :: wind_speed     ! wind speed [m/min]
     real(r8),            intent(in)    :: tree_fraction  ! tree fraction [0-1]
     real(r8),            intent(in)    :: grass_fraction ! grass fraction [0-1]
     real(r8),            intent(in)    :: bare_fraction  ! bare ground fraction [0-1]
 
-    this%effective_windspeed = wind_speed*(tree_fraction*wind_atten_treed +              &
+    this%effective_windspeed = this%wind * (tree_fraction*wind_atten_treed +              &
       (grass_fraction + bare_fraction)*wind_atten_grass)
 
   end subroutine UpdateEffectiveWindSpeed
 
-  subroutine UpdateRxfireBurnWindow(this, rxfire_switch, temp_C, rh, wind, temp_up,      &
+  subroutine UpdateRxfireBurnWindow(this, rxfire_switch, temp_up, &
     temp_low,rh_up, rh_low, wind_up, wind_low)
 
     ! ARGUMENTS
     class(fire_weather), intent(inout) :: this           ! fire weather class
-    real(r8),            intent(in)    :: temp_C         ! daily averaged temperature [degrees C]
     integer,             intent(in)    :: rxfire_switch  ! whether prescribed fire is turned on  
-    real(r8),            intent(in)    :: rh             ! daily relative humidity [%]
-    real(r8),            intent(in)    :: wind           ! wind speed [m/min]
     real(r8),            intent(in)    :: temp_up        ! user defined upper bound for temp when define a burn window
     real(r8),            intent(in)    :: temp_low       ! user defined lower bound for temp when define a burn window
     real(r8),            intent(in)    :: rh_up          ! user defined upper bound for relative humidity
@@ -99,9 +100,9 @@ module SFFireWeatherMod
     ! it should result in negative value or zero (at the boundary condition)
     ! for each check below 
 
-    t_check = (temp_C - temp_low)*(temp_C - temp_up)
-    rh_check = (rh - rh_low)*(rh - rh_up)
-    ws_check = (wind - wind_low)*(wind - wind_up)
+    t_check = (this%temp_C - temp_low)*(this%temp_C - temp_up)
+    rh_check = (this%rh - rh_low)*(this%rh - rh_up)
+    ws_check = (this%wind - wind_low)*(this%wind - wind_up)
 
     if (t_check <= 0.0_r8 .and. rh_check <= 0.0_r8 .and. ws_check <= 0.0_r8) then
       this%rx_flag = 1
