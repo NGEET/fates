@@ -1009,13 +1009,14 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
 
-  character(len=*) function GetRegistryKey(this, index) result(key)
+  function GetRegistryKey(this, index) result(key)
 
     ! This procedure returns the index associated with the key provided
 
     class(fates_interface_registry_base_type) :: this
 
     integer, intent(in) :: index    ! variable registry index
+    character(len=:), allocatable :: key
 
     key = this%vars(index)%key
 
