@@ -976,11 +976,7 @@ contains
          ! Identify number of size and age class bins for history output
          ! assume these arrays are 1-indexed
          nlevage = size(ED_val_history_ageclass_bin_edges,dim=1)
-         if (hlm_use_edge_forest == itrue) then
-            nlevedgeforest = size(ED_val_edgeforest_bin_edges,dim=1)
-         else
-            nlevedgeforest = 1
-         end if
+         nlevedgeforest = size(ED_val_edgeforest_bin_edges,dim=1)
          nlevheight = size(ED_val_history_height_bin_edges,dim=1)
          nlevcoage = size(ED_val_history_coageclass_bin_edges,dim=1)
          nlevdamage = size(ED_val_history_damage_bin_edges, dim=1)
