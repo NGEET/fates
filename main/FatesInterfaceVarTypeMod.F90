@@ -67,7 +67,6 @@ module FatesInterfaceVariableTypeMod
     end subroutine RegisterInterfaceVariable_1d
 
   ! ====================================================================================
-
     
     subroutine RegisterInterfaceVariable_2d(this, data, active)
       
@@ -82,4 +81,5 @@ module FatesInterfaceVariableTypeMod
     end subroutine RegisterInterfaceVariable_2d
 
   ! ====================================================================================
+
 end module FatesInterfaceVariableTypeMod
