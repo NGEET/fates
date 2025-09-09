@@ -162,7 +162,6 @@ module FatesInterfaceMod
       type(bc_pconst_type) :: bc_pconst
       
       ! This is the interface registry which associates variables with a common keyword
-      ! type(fates_interface_variable_type), allocatable :: api_vars(:)
       type(fates_interface_registry_base_type) :: api
       
    end type fates_interface_type
@@ -185,6 +184,7 @@ module FatesInterfaceMod
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
+   public :: UpdateInterfaceVariables
 
    private :: FatesReadParameters
    public :: DetermineGridCellNeighbors
@@ -2693,6 +2693,41 @@ subroutine FatesReadParameters(param_reader)
   deallocate(fates_params)
   
 end subroutine FatesReadParameters
+
+! ======================================================================================
+
+subroutine UpdateFatesInterfaceVariables(this)
+   
+   class(fates_interface_type), intent(inout) :: this
+   
+   class(fates_registry_base_type), pointer :: patch_api
+   class(fates_patch_type), pointer         :: currentPatch
+
+   integer :: s   ! site index
+   integer :: i   ! HLM registry index
+   integer :: j   ! FATES registry index
+
+   do s = 1, this%nsites
+      currentPatch => this%sites(s)%oldest_patch
+      patch_api => currentPatch%api
+      do while (associated(currentPatch))
+         do i = 1, this%num_api_vars
+            
+            ! Don't assume the index in the registry is the same as in the interface
+            j = patch_api%GetRegistryIndex(patch_api%GetRegistryKey(i))
+
+            ! TODO: we need meta data here to correctly associate the right slice of data
+            
+            ! Update the patch boundary condition via the data pointer
+            patch_api%vars(j)%data = this%api%vars(i)%data(c,:)
+
+         end do
+         currentPatch => currentPatch%younger
+      end do
+   end do
+   
+end subroutine UpdateFatesInterfaceVariables
+
 
 ! ======================================================================================
 
