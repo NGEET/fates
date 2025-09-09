@@ -26,7 +26,7 @@ module FatesInterfaceVariableTypeMod
 
     contains
       procedure :: Initialize => InitializeInterfaceVariable
-      generic :: Register => RegisterInterfaceVariable_1d, RegisterInterfaceVariable_2d
+      generic   :: Register => RegisterInterfaceVariable_1d, RegisterInterfaceVariable_2d
 
       procedure, private :: RegisterInterfaceVariable_1d
       procedure, private :: RegisterInterfaceVariable_2d
