@@ -63,6 +63,7 @@ module EDLoggingMortalityMod
    use PRTGenericMod     , only : sapw_organ, struct_organ, leaf_organ
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
    use FatesAllometryMod , only : set_root_fraction
+   use FatesForestManagementMod, only : get_cohort_harvest_rate_scale
    use FatesConstantsMod , only : primaryland, secondaryland, secondary_age_threshold
    use FatesConstantsMod , only : fates_tiny
    use FatesConstantsMod , only : months_per_year, days_per_sec, years_per_day, g_per_kg
@@ -102,9 +103,6 @@ module EDLoggingMortalityMod
    public :: logging_time
    public :: IsItLoggingTime
    public :: get_harvest_rate_area
-   public :: get_harvestable_carbon
-   public :: get_harvestable_patch_carbon
-   public :: get_harvested_cohort_carbon
    public :: get_harvest_rate_carbon
    public :: get_harvest_debt
    public :: UpdateHarvestC
@@ -307,23 +305,9 @@ contains
             
          endif
 
+
          ! Logging size prefrence or change rotation length
-         if (logging_preference_options .eq. logging_uniform_size) then
-            harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale
-         else if(logging_preference_options .eq. logging_double_rotation) then
-            harvest_rate_scale_cohort = harvest_wp_scale * 0.5_r8 * harvest_rate_scale
-         else if(logging_preference_options .eq. logging_quadruple_rotation) then
-            harvest_rate_scale_cohort = harvest_wp_scale * 0.25_r8 * harvest_rate_scale
-         else if(logging_preference_options .eq. logging_logistic_size) then
-            harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale * &
-                1._r8/(1._r8 + exp(-0.1*(dbh-(logging_dbhmin+logging_dbhmax)/2._r8)))
-         else if(logging_preference_options .eq. logging_inv_logistic_size) then
-            harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale * &
-                1._r8/(1._r8 + exp(0.1*(dbh-(logging_dbhmin+logging_dbhmax)/2._r8)))
-         else if(logging_preference_options .eq. logging_gaussian_size) then
-            harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale * &
-                (1._r8/(5._r8*2.5_r8)) * exp(-(dbh - (logging_dbhmin+logging_dbhmax)/2._r8) ** 2._r8 / (2._r8 * 5._r8 ** 2._r8))
-         end if
+         call get_cohort_harvest_rate_scale (dbh, harvest_wp_scale, harvest_rate_scale, harvest_rate_scale_cohort)
 
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
          ! l_degrad accounts for the affected area between logged crowns
@@ -340,7 +324,7 @@ contains
                   ! truncate any lmort_direct beyond supply and maximize the lmort_direct first, so under this circumstance 
                   ! lmort_collateral and lmort_infra might not be the same value as settled in parameter file
                   ! Need further improvement for a more general case 
-                  lmort_direct = min(harvest_rate_scale_cohort * harvest_rate * logging_direct_frac, harvest_rate_scale*harvest_rate)
+                  lmort_direct = min(harvest_rate_scale_cohort * harvest_rate * logging_direct_frac, harvest_rate_scale * harvest_rate)
                else
                   lmort_direct = 0.0_r8
                end if
@@ -387,7 +371,6 @@ contains
       end if
 
    end subroutine LoggingMortality_frac
-
 
    ! ============================================================================
 
@@ -490,211 +473,6 @@ contains
      end if
 
    end subroutine get_harvest_rate_area
-
-
-   ! ============================================================================
-
-   subroutine get_harvestable_carbon (csite, site_area, hlm_harvest_catnames, harvestable_forest_c )
-
-     !USES:
-     use SFParamsMod,  only : SF_val_cwd_frac
-     use EDTypesMod,   only : AREA_INV
-
-
-     ! -------------------------------------------------------------------------------------------
-     !
-     !  DESCRIPTION:
-     !  get the total carbon availale for harvest for three different harvest categories:
-     !  primary forest, secondary mature forest and secondary young forest
-     !  under two different scenarios:
-     !  harvestable carbon: aggregate all cohorts matching the dbhmin harvest criteria
-     !
-     !  this subroutine shall be called outside the patch loop
-     !  output will be used to estimate the area-based harvest rate (get_harvest_rate_carbon)
-     !  for each cohort.
-
-     ! Arguments
-     type(ed_site_type), intent(in), target :: csite
-     real(r8), intent(in) :: site_area    ! The total site area
-     character(len=64), intent(in) :: hlm_harvest_catnames(:) ! names of hlm harvest categories
-
-     real(r8), intent(out) :: harvestable_forest_c(hlm_num_lu_harvest_cats)
-
-     ! Local Variables
-     type(fates_patch_type), pointer  :: currentPatch
-     type(fates_cohort_type), pointer :: currentCohort
-     real(r8) :: harvestable_patch_c     ! patch level total carbon available for harvest, kgC site-1
-     real(r8) :: harvestable_cohort_c    ! cohort level total carbon available for harvest, kgC site-1
-     real(r8) :: sapw_m      ! Biomass of sap wood
-     real(r8) :: struct_m    ! Biomass of structural organs
-     integer :: pft         ! Index of plant functional type
-     integer :: h_index     ! for looping over harvest categories
-
-     ! Initialization
-     harvestable_forest_c = 0._r8
-
-     ! loop over patches
-     currentPatch => csite%oldest_patch
-     do while (associated(currentPatch))
-        harvestable_patch_c = 0._r8
-        currentCohort => currentPatch%tallest
-
-        do while (associated(currentCohort))
-           pft = currentCohort%pft
-
-           ! only account for cohorts matching the following conditions
-           if(int(prt_params%woody(pft)) == 1) then ! only set logging rates for trees
-              sapw_m   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
-              struct_m = currentCohort%prt%GetState(struct_organ, carbon12_element)
-              ! logging_direct_frac shall be 1 for LUH2 driven simulation and global simulation
-              ! in site level study logging_direct_frac shall be surveyed
-              ! unit:  [kgC ] = [kgC/plant] * [plant/ha] * [ha/ 10k m2] * [ m2 area ]
-              harvestable_cohort_c = logging_direct_frac * ( sapw_m + struct_m ) * &
-                     prt_params%allom_agb_frac(currentCohort%pft) * &
-                     SF_val_CWD_frac(ncwd) * logging_export_frac * &
-                     currentCohort%n! * AREA_INV * site_area
-
-              ! No harvest for trees without canopy (exclude 0)
-              if (currentCohort%canopy_layer>=1) then
-                 ! logging amount are based on dbh min and max criteria
-                 if (currentCohort%dbh >= logging_dbhmin .and. .not. &
-                       ((logging_dbhmax < fates_check_param_set) .and. (currentCohort%dbh >= logging_dbhmax )) ) then
-                    ! Harvestable C: aggregate cohorts fit the criteria
-                    harvestable_patch_c = harvestable_patch_c + harvestable_cohort_c
-                 end if
-              end if
-           end if
-           currentCohort => currentCohort%shorter
-        end do
-
-        ! judge which category the current patch belong to
-        ! since we have not separated forest vs. non-forest
-        ! all carbon belongs to the forest categories
-        do h_index = 1,hlm_num_lu_harvest_cats
-           if (currentPatch%land_use_label .eq. primaryland) then
-              ! Primary
-              if(hlm_harvest_catnames(h_index) .eq. "HARVEST_VH1") then
-                 harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
-              end if
-           else if (currentPatch%land_use_label .eq. secondaryland .and. &
-                currentPatch%age_since_anthro_disturbance >= secondary_age_threshold) then
-              ! Secondary mature
-              if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH1") then
-                 harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
-              end if
-           else if (currentPatch%land_use_label .eq. secondaryland .and. &
-                currentPatch%age_since_anthro_disturbance < secondary_age_threshold) then
-              ! Secondary young
-              if(hlm_harvest_catnames(h_index) .eq. "HARVEST_SH2") then
-                 harvestable_forest_c(h_index) = harvestable_forest_c(h_index) + harvestable_patch_c
-              end if
-           end if
-        end do
-        currentPatch => currentPatch%younger
-     end do
-
-   end subroutine get_harvestable_carbon
-
-   ! ============================================================================
-
-   subroutine get_harvestable_patch_carbon ( currentPatch, harvestable_patch_c )
-
-     !USES:
-     use SFParamsMod,  only : SF_val_cwd_frac
-     use EDTypesMod,   only : AREA_INV
-
-
-     ! -------------------------------------------------------------------------------------------
-     !
-     !  DESCRIPTION:
-     !  get the total carbon (ha-1) availale for harvest in current Patch
-     !  harvestable carbon: aggregate all cohorts matching the dbhmin and dbhmax harvest criteria
-     !
-     !  this subroutine shall be called inside the patch loop
-     !  output will be used for diagnosis or for scaling patch level harvest rate
-
-     ! Arguments
-     type(fates_patch_type) , intent(in), target  :: currentPatch
-
-     real(r8), intent(out) :: harvestable_patch_c
-
-     ! Local Variables
-     type(fates_cohort_type), pointer :: currentCohort
-     real(r8) :: harvestable_cohort_c    ! cohort level total carbon available for harvest, kgC site-1
-     real(r8) :: sapw_m      ! Biomass of sap wood
-     real(r8) :: struct_m    ! Biomass of structural organs
-     integer :: pft         ! Index of plant functional type
-
-     ! loop over cohorts
-     harvestable_patch_c = 0._r8
-     currentCohort => currentPatch%tallest
-
-     do while (associated(currentCohort))
-        pft = currentCohort%pft
-
-        ! only account for cohorts matching the following conditions
-        if(int(prt_params%woody(pft)) == 1) then ! only set logging rates for trees
-           sapw_m   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
-           struct_m = currentCohort%prt%GetState(struct_organ, carbon12_element)
-           ! logging_direct_frac shall be 1 for LUH2 driven simulation and global simulation
-           ! in site level study logging_direct_frac shall be surveyed
-           ! unit:  [kgC ] = [kgC/plant] * [plant/ha] * [ha/ 10k m2] * [ m2 area ]
-           harvestable_cohort_c = logging_direct_frac * ( sapw_m + struct_m ) * &
-                  prt_params%allom_agb_frac(currentCohort%pft) * &
-                  SF_val_CWD_frac(ncwd) * logging_export_frac * &
-                  currentCohort%n! * AREA_INV * site_area
-
-           ! No harvest for trees without canopy 
-           if (currentCohort%canopy_layer>=1) then
-              ! logging amount are based on dbh min and max criteria
-              if (currentCohort%dbh >= logging_dbhmin .and. .not. &
-                    ((logging_dbhmax < fates_check_param_set) .and. (currentCohort%dbh >= logging_dbhmax )) ) then
-                 ! Harvestable C: aggregate cohorts fit the criteria
-                 harvestable_patch_c = harvestable_patch_c + harvestable_cohort_c
-              end if
-           end if
-        end if
-        currentCohort => currentCohort%shorter
-     end do
-
-   end subroutine get_harvestable_patch_carbon
-
-   ! ============================================================================
-
-   subroutine get_harvested_cohort_carbon ( currentCohort, lmort_direct, harvested_cohort_c )
-
-     !USES:
-     use SFParamsMod,  only : SF_val_cwd_frac
-
-
-     ! -------------------------------------------------------------------------------------------
-     !
-     !  DESCRIPTION:
-     !  get the harvested carbon in current Cohort through lmort_direct
-     !
-     !  this subroutine shall be called inside the cohort loop
-     !  output will be used for adjusting IFM wood harvest with size priority
-
-     ! Arguments
-     type(fates_cohort_type) , intent(in), target  :: currentCohort
-     real(r8), intent(in)  :: lmort_direct
-
-     real(r8), intent(out) :: harvested_cohort_c
-
-     ! Local Variables
-     real(r8) :: sapw_m      ! Biomass of sap wood
-     real(r8) :: struct_m    ! Biomass of structural organs
-
-     ! only account for cohorts matching the following conditions
-     sapw_m   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
-     struct_m = currentCohort%prt%GetState(struct_organ, carbon12_element)
-
-     harvested_cohort_c = lmort_direct * ( sapw_m + struct_m ) * &
-            prt_params%allom_agb_frac(currentCohort%pft) * &
-            SF_val_CWD_frac(ncwd) * logging_export_frac * &
-            currentCohort%n
-
-   end subroutine get_harvested_cohort_carbon
 
    ! ============================================================================
 
@@ -1304,6 +1082,8 @@ contains
       return
 
    end subroutine UpdateHarvestC
+
+  ! =====================================================================================
 
    subroutine get_harvest_debt(site_in, bc_in, harvest_tag)
 

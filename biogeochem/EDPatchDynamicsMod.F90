@@ -69,8 +69,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : logging_time
   use EDLoggingMortalityMod, only : get_harvest_rate_area
   use EDLoggingMortalityMod, only : get_harvest_rate_carbon
-  use EDLoggingMortalityMod, only : get_harvestable_carbon, get_harvestable_patch_carbon
-  use EDLoggingMortalityMod, only : get_harvested_cohort_carbon, get_harvest_debt
+  use EDLoggingMortalityMod, only : get_harvest_debt
   use EDParamsMod          , only : fates_mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
@@ -184,15 +183,16 @@ contains
     use EDMortalityFunctionsMod , only : ExemptTreefallDist
     ! loging flux
     use EDLoggingMortalityMod , only : LoggingMortality_frac
+    ! IFM related
+    use FatesForestManagementMod, only : get_site_harvest_rate_scale, get_patch_harvest_rate_scale
+    use FatesForestManagementMod, only : get_harvestable_carbon
 
-  
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout) :: site_in
     type(bc_in_type) , intent(in) :: bc_in
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
-    type (fates_patch_type) , pointer :: referredPatch
     type (fates_cohort_type), pointer :: currentCohort
 
     real(r8) :: cmort
@@ -209,9 +209,6 @@ contains
     real(r8) :: l_degrad         ! fraction of trees that are not killed but suffer from forest 
                                  ! degradation (i.e. they are moved to newly-anthro-disturbed 
                                  ! secondary forest patch)
-    real(r8) :: target_wp        ! For size-dependent IFM: target harvest wood product for adjustment ratio calculation
-    real(r8) :: actual_wp        ! For size-dependent IFM: actual harvest wood product after considering size priority 
-                                 ! for adjustment ratio calculation
     real(r8) :: dist_rate_ldist_notharvested
     integer  :: threshold_sizeclass
     integer  :: i_dist
@@ -231,29 +228,13 @@ contains
     real(r8) :: landuse_transition_matrix(n_landuse_cats, n_landuse_cats)  ! [m2/m2/day]
     real(r8) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
 
-    ! Control vars, need to be moved into parameter file once the test is done
-    real(r8), parameter :: max_iteration = 5       ! Maximum iterations to obtain target harvest wood product. Currently I don't 
-                                                   ! plan to move it into parameter files
-    real(r8) :: temp_totc    ! for debug test, can be removed in released version
     real(r8) :: harvested_cohort_c   ! used in IFM
-    integer :: ipatch, , ipft, curpft ! used in min-heap merge
-    integer, allocatable :: jpatch(:), pftlen(:)  ! used in min-heap merge
-    real(r8), allocatable :: minheap(:)    ! array recording minimum heap
-    integer, allocatable :: order_of_patches(:)  ! Record a copy of patch order for bubble sort
-    real(r8), allocatable :: sec_age_patches(:)   ! Record a copy of secondary forest age for bubble sort
-    integer :: it            ! iteration index
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
     !----------------------------------------------------------------------------------------------
-    ! Sep 5. 2025
-    ! New: improved forest management practies can be quantified as modifiers to change the 
-    ! logging disturbance rates at cohort-patch-site levels:
-    ! site_in%resources_management%harvest_wp_scale
-    ! 
-    !----------------------------------------------------------------------------------------------
- 
+
     ! first calculate the fraction of the site that is primary land and secondary mature land
     call get_frac_site_primary(site_in, frac_site_primary)
     call get_frac_site_secondary_mature(site_in, frac_site_secondary_mature)
@@ -261,343 +242,11 @@ contains
     ! get available biomass carbon for harvest for all patches
     call get_harvestable_carbon(site_in, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
  
-    ! Initialize the rest of local variables
-    exchanged = 1
-    npatches = 0
-    frac_site = 1._r8
-    harvest_tag_csite = 2
-    remain_harvest_rate = fates_unset_r8  ! set to negative value to indicate uninitialized
-    site_in%resources_management%harvest_wp_scale = 1._r8
+    ! get patch level scaling factor for harvest rate (currentPatch%harvest_rate_scale)
+    call get_patch_harvest_rate_scale(site_in, bc_in, harvestable_forest_c, frac_site_primary, frac_site_secondary_mature)
 
-    ! =====================================================================
-    ! Age_prioritized forest management
-    ! =====================================================================
-    ! The following code will calculate harvest_rate_scale for each secondary patch
-    ! There're currently 2 options:
-    ! 1) uniformly harvest each patch (harvest_rate_scale = 1._r8)
-    ! 2) harvest the oldest patch first
-
-    ! Initialize harvest_rate_scale
-    currentPatch => site_in%oldest_patch
-
-    do while (associated(currentPatch))
-       ! Initialize harvest rate scale to 1.0 first
-       currentPatch%harvest_rate_scale = 1._r8
-
-       currentPatch => currentPatch%younger
-    end do
-
-
-    ! =====================================================================
-    ! "Sort" patch based on patch age since anthropegenic disturbance
-    ! =====================================================================
-    ! Patch sequence in the data list (patchno) follows pseudo-age defined in function GetPseudoPatchAge to simplify
-    ! LUC related calculation.
-    ! Here we don't actually modify the patch sequence but use another age tag called order_age_since_anthro to 
-    ! record patch age for age-prioritized wood harvest strategy. 
-    ! In FATES, PFT-patch relation can be different under diffrent modes. This can be separated into 2 cases:
-    ! Case 1: For most of FATES modes, we directly use pseudo-age since there's no paired 1 patch - 1 PFT relation
-    ! Case 2: For the more general case in global simulation that harvest all PFTs equally under 
-    ! no competition mode, we need to sort again using last 4 digits of pseudo-age, i.e., actual patch age. Since each PFT
-    ! the patch sequence is already sorted, here we need to loop through PFTs and merge these sorted sequences into one 
-    ! sorted array using min-heap merge
-    if (logging_time) then
-
-       ! First loop to count total number of patches and initialize order
-       ! using patchno
-       currentPatch => site_in%oldest_patch
-       npatches = 0
-
-       do while (associated(currentPatch))
-          npatches = npatches + 1
-          currentPatch%order_age_since_anthro = currentPatch%patchno
-
-          currentPatch => currentPatch%younger
-       end do
-
-       ! For case 2, i.e., nocomp mode only
-       if (hlm_use_nocomp.eq.itrue) then
-
-          allocate(order_of_patches(1:npatches))
-          allocate(order_of_patches_per_pft(1:numpft,1:npatches))
-          allocate(sec_age_patches(1:npatches))
-          allocate(sec_age_patches_per_pft(1:numpft,1:npatches))
-          allocate(minheap(1:numpft))
-          allocate(jpatch(1:numpft))
-          allocate(pftlen(1:numpft))
-
-          ! Second loop to assign patch sequence, age and number of pacthes in each PFT to array
-          ! thus can avoid for loop over data list
-          currentPatch => site_in%oldest_patch
-          ipatch = 0
-          pftlen(:) = 0
-          do while (associated(currentPatch))
-             ipatch = ipatch + 1
-             order_of_patches(ipatch) = currentPatch%order_age_since_anthro
-             sec_age_patches(ipatch) = mod(GetPseudoPatchAge(currentPatch), 1.e4)
-          
-             do ipft=1,numpft
-                if(currentPatch%nocomp_pft_label .eq. ipft)
-                   pftlen(ipft) = pftlen(ipft) + 1
-                   order_of_patches_per_pft(ipft,pftlen(ipft)) = currentPatch%order_age_since_anthro
-                   sec_age_patches_per_pft(ipft, pftlen(ipft)) = mod(GetPseudoPatchAge(currentPatch), 1.e4)
-                end if
-             end do
-
-             currentPatch => currentPatch%younger
-          end do
-
-          ! Third loop to initailize min-heap, first element of each array
-          do ipft=1,numpft
-             if(pftlen(ipft) > 0) then
-                minheap(ipft) = sec_age_patches_per_pft(ipft, 0)
-             end if
-          end do
-
-          ! Fourth loop to get min from min-heap then insert 'sec_age_patches_per_pft' and record order in 'order_of_patches'
-          ! no need to loop over data list here
-          ipatch = 0
-          jpatch(:) = 1
-          do ipatch = 1, npacthes
-             ! Find the minimum and assign the order
-             curpft = minloc(minheap)
-             order_of_patches(ipatch) = order_of_patches_per_pft(curpft, jpatch(curpft))
-             ! Move to the next element and insert into minheap array
-             jpatch(curpft) = jpatch(curpft) + 1
-             if(jpatch(curpft) <= pftlen(curpft)) then
-                   minheap(curpft) = sec_age_patches_per_pft(ipft, jpatch(curpft))
-                else
-                   minheap(curpft) = 0._r8
-                end if
-             end if
-          end do
-
-          ! Fifthth loop to assign order back to patches
-          do ipatch = 1, npatches
-             currentPatch => site_in%oldest_patch
-
-             ! Look for the patch by usig patchno 
-             inner_loop: do while (associated(currentPatch))
-
-                if(order_of_patches(ipatch) .eq. currentPatch%patchno) then
-                   currentPatch%order_age_since_anthro = ipatch
-                   exit inner_loop
-                end if
-
-                currentPatch => currentPatch%younger
-             end do inner_loop
-          end do
-
-          ! Clean temperary variables
-          deallocate(order_of_patches)
-          deallocate(order_of_patches_per_pft)
-          deallocate(sec_age_patches)
-          deallocate(sec_age_patches_per_pft)
-          deallocate(minheap)
-          deallocate(jpatch)
-          deallocate(pftlen)
-
-       end if  ! nocomp
-
-    end if  ! logging_time
- 
-    ! Loop through all patches and calculate the harvest rate scale based 
-    ! on pre-defined age priority strategy
-    ! Calculate the harvest rate scale based on pre-defined age priority strategy
-    ! Only calculate harvest rate scale when we have logging event
-    ! to reduce computational cost
-    if (logging_time .and. logging_age_preference == logging_oldest_first) then
-       ! Maximize harvest rate (99.99%) for older patch first until harvest demand is fullfilled
-       ! ipatch is the rank of the secondary patch age
-       target_loop: do ipatch = 1, npatches
-
-          currentPatch => site_in%oldest_patch
-          search_loop: do while (associated(currentPatch))
-
-             found_patch: if(currentPatch%order_age_since_anthro .eq. ipatch) then
-
-                ! Here age priority is based on age since anthropogenic disturbance
-                ! thus we skip the primary land since they all have this age = 0
-                if_secondary: if(currentPatch%land_use_label .eq. secondaryland) then
-                    if(currentPatch%age_since_anthro_disturbance >= secondary_age_threshold) then
-                       h_index = 3
-                       frac_site = frac_site_secondary_mature
-                    else
-                       h_index = 4
-                       frac_site = 1._r8 - frac_site_primary - frac_site_secondary_mature
-                    end if
-                    ! Obtain uniform harvest rate (area fraction) of the corresponding patch
-                    if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
-                        call get_harvest_rate_carbon (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                             bc_in%hlm_harvest_rates, currentPatch%age_since_anthro_disturbance, harvestable_forest_c, &
-                             harvest_rate, harvest_tag)
-                    else
-                        call get_harvest_rate_area (currentPatch%land_use_label, bc_in%hlm_harvest_catnames, &
-                             bc_in%hlm_harvest_rates, frac_site_primary, frac_site_secondary_mature, &
-                             currentPatch%age_since_anthro_disturbance, harvest_rate)
-                    end if
-                    ! For the first time, initialize remain_harvest_rate
-                    if(remain_harvest_rate(h_index) < 0) then
-                       if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
-                          ! In kgC ha-1, no need to scale
-                          remain_harvest_rate(h_index) = bc_in%hlm_harvest_rates(h_index)
-                       else
-                          ! In area fraction (0 - 1) after scaling to the area of per patch land use type
-                          remain_harvest_rate(h_index) = harvest_rate
-                       end if
-                    end if
-                    ! Only calculate harvest rate scale for non-zero harvest rate
-                    if (harvest_rate > min_harvest_rate) then
-                       if(bc_in%hlm_harvest_units == hlm_harvest_carbon) then
-                          ! Compare the patch level harvestable carbon and see if larger than remain_harvest_rate
-                          ! Note the scaling factor applied on area fraction as harvest unit
-                          call get_harvestable_patch_carbon(currentPatch, harvestable_patch_c)
-                          if(harvestable_patch_c >= remain_harvest_rate(h_index)) then
-                              currentPatch%harvest_rate_scale = remain_harvest_rate(h_index) / &
-                                  (harvestable_patch_c + fates_tiny) / harvest_rate
-                              remain_harvest_rate(h_index) = 0._r8
-                          else
-                              ! harvest almost 100%, leave 0.01% to prevent removing the patch completely, which may cause
-                              ! model crashing under nocomp mode
-                              currentPatch%harvest_rate_scale = (1._r8 - min_nocomp_pftfrac_perlanduse) / harvest_rate
-                              remain_harvest_rate(h_index) = remain_harvest_rate(h_index) - (1._r8 - min_nocomp_pftfrac_perlanduse) * harvestable_patch_c
-                          end if
-                       else
-                          ! Compare the patch area and see if larger than remain_harvest_rate
-                          if((currentPatch%area/(AREA*frac_site)) >= remain_harvest_rate(h_index)) then
-                              currentPatch%harvest_rate_scale = remain_harvest_rate(h_index) / &
-                                  (currentPatch%area/(AREA*frac_site) + fates_tiny) / harvest_rate
-                              remain_harvest_rate(h_index) = 0._r8
-                          else
-                              ! leave 1% to prevent removing the patch completely
-                              currentPatch%harvest_rate_scale = (1._r8 - min_nocomp_pftfrac_perlanduse) / harvest_rate
-                              remain_harvest_rate(h_index) = remain_harvest_rate(h_index) - (1._r8 - min_nocomp_pftfrac_perlanduse) * (currentPatch%area/(AREA*frac_site))
-                          end if
-                       end if
-                    end if
-
-                    ! For diagnosing the harvestable carbon
-                    ! These codes can be removed in released version
-                    temp_totc = 0._r8
-                    currentCohort => currentPatch%tallest
- 
-                    do while (associated(currentCohort))
-
-                       if (currentCohort%canopy_layer>=1) then
-                          temp_totc = temp_totc + (currentCohort%prt%GetState(sapw_organ, carbon12_element) + &
-                              currentCohort%prt%GetState(struct_organ, carbon12_element)) * currentCohort%n * AREA_INV
-                       end if
-                       currentCohort => currentCohort%shorter
-
-                    end do
-
-       write(fates_log(),*) 'See patch number:', currentPatch%patchno
-       write(fates_log(),*) 'See patch age:', currentPatch%age
-       write(fates_log(),*) 'See patch total carbon (kgc m-2):', temp_totc
-       write(fates_log(),*) 'See patch age sec:', currentPatch%age_since_anthro_disturbance
-       write(fates_log(),*) 'See patch order sec:', currentPatch%order_age_since_anthro
-       write(fates_log(),*) 'See harvest index:', h_index
-       write(fates_log(),*) 'See harvest rate scale:', currentPatch%harvest_rate_scale
-       write(fates_log(),*) 'See original harvest rate:', bc_in%hlm_harvest_rates(h_index)
-       write(fates_log(),*) 'See harvest rate:', harvest_rate
-       write(fates_log(),*) 'See harvestable_forest_c:', harvestable_forest_c
-       write(fates_log(),*) 'See site fraction:', frac_site
-       write(fates_log(),*) 'See sec mature fraction:', frac_site_secondary_mature
-       write(fates_log(),*) 'See sec young fraction:', 1 - frac_site_primary - frac_site_secondary_mature
-       write(fates_log(),*) 'See area:', currentPatch%area/AREA
-       write(fates_log(),*) '==================== Next patch ================'
-
-                end if if_secondary
-
-                ! Exit current inner loop to find the next old ipatch
-                exit search_loop
-
-             end if found_patch
-
-             currentPatch => currentPatch%younger
-          end do search_loop
-
-       end do target_loop
-
-    end if  ! logging_time
-
-    !For size dependet harvest, cetain size class might have fewer or no harvest if the available inventory is less than the
-    !demand.
-    !We design the following algorithm to force the other nearby size class to fullfill these demands:
-
-    !Loop through cohorts to preview the summed harvested product C for both no harvest size priority, i.e., target wood product C
-    !(target_wp), and with size priority, i.e., actual harvested C  (actual_wp)
-    !Then calculate the ratio of target to actual cases as adjustment ratio
-    !The adjustment ratio will be applied as additional scaling factor to modify cohort-level harvest mortality
-    !One time adjustment might still not able to match the demand, we iterate this process no more than 5 times.
-
-    !Only run this part when considering size dependent priority
-    if (logging_time .and. logging_preference_options >= logging_logistic_size) then
-
-       iteration_loop: do it = 1, max_iteration
-
-          target_wp = 0._r8
-          actual_wp = 0._r8
-
-          currentPatch => site_in%oldest_patch
-          do while (associated(currentPatch))   
-
-             currentCohort => currentPatch%shortest
-             do while(associated(currentCohort))
-
-                ! Target harvest product  
-                call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
-                      lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
-                      bc_in%hlm_harvest_rates, &
-                      bc_in%hlm_harvest_catnames, &
-                      bc_in%hlm_harvest_units, &
-                      currentPatch%land_use_label, &
-                      currentPatch%age_since_anthro_disturbance, &
-                      frac_site_primary, &
-                      frac_site_secondary_mature, &
-                      harvestable_forest_c, &
-                      currentPatch%harvest_rate_scale, &
-                      harvest_tag, logging_ifm_harvest_scale, logging_uniform_size)
-
-                call get_harvested_cohort_carbon(currentCohort, lmort_direct, harvested_cohort_c)
-
-                target_wp = target_wp + harvested_cohort_c
-
-                ! Actual harvest product  
-                call LoggingMortality_frac(currentCohort%pft, currentCohort%dbh, currentCohort%canopy_layer, &
-                      lmort_direct,lmort_collateral,lmort_infra,l_degrad,&
-                      bc_in%hlm_harvest_rates, &
-                      bc_in%hlm_harvest_catnames, &
-                      bc_in%hlm_harvest_units, &
-                      currentPatch%land_use_label, &
-                      currentPatch%age_since_anthro_disturbance, &
-                      frac_site_primary, &
-                      frac_site_secondary_mature, &
-                      harvestable_forest_c, &
-                      currentPatch%harvest_rate_scale, &
-                      harvest_tag, site_in%resources_management%harvest_wp_scale, logging_preference_options)
-
-                call get_harvested_cohort_carbon(currentCohort, lmort_direct, harvested_cohort_c)
-
-                actual_wp = actual_wp + harvested_cohort_c
-
-                currentCohort => currentCohort%taller
-             end do
-
-             currentPatch => currentPatch%younger
-
-          end do
-
-          ! adjustment ratio
-          if( target_wp / (actual_wp + 1e-7_r8) < 1.01 .and. target_wp / (actual_wp + 1e-7_r8) > 0.99 ) exit iteration_loop
-
-          site_in%resources_management%harvest_wp_scale = site_in%resources_management%harvest_wp_scale * target_wp/(actual_wp+1e-7_r8)
-
-          write(fates_log(),*) 'See adjustment factor for harvest scale:', site_in%resources_management%harvest_wp_scale
-
-       end do iteration_loop
-
-    end if  ! logging_time
+    ! get site level scaling factor for harvest rate (site_in%resources_management%harvest_wp_scale)
+    call get_site_harvest_rate_scale(site_in, bc_in, harvestable_forest_c, frac_site_primary, frac_site_secondary_mature)
 
     !Loop through cohorts to get disturbance rates
     currentPatch => site_in%oldest_patch
