@@ -17,13 +17,19 @@ module FatesInterfaceVariableTypeMod
   ! Interface variable registry type
   type, public :: fates_interface_variable_type
     
-    character(len=48) :: key      ! common registry key
-    class(*), pointer :: data     ! unlimited polymorphic data pointer
-    logical           :: active   ! true if the variable is used by the host land model
+    character(len=48) :: key            ! common registry key
+    class(*), pointer :: data0d         ! scalar polymorphic data pointer
+    class(*), pointer :: data1d(:)      ! 1D polymorphic data pointer
+    class(*), pointer :: data2d(:,:)    ! 2D polymorphic data pointer
+    class(*), pointer :: data3d(:,:,:)  ! 3D polymorphic data pointer
+    logical           :: active         ! true if the variable is used by the host land model
 
     contains
       procedure :: Initialize => InitializeInterfaceVariable
-      procedure :: Register => RegisterInterfaceVariable_1d, RegisterInterfaceVariable_2d
+      generic :: Register => RegisterInterfaceVariable_1d, RegisterInterfaceVariable_2d
+
+      procedure, private :: RegisterInterfaceVariable_1d
+      procedure, private :: RegisterInterfaceVariable_2d
       
   end type fates_interface_variable_type
   
@@ -37,7 +43,10 @@ module FatesInterfaceVariableTypeMod
 
       character(len=*), intent(in) :: key
       
-      this%data => null()
+      this%data0d  => null()
+      this%data1d  => null()
+      this%data2d  => null()
+      this%data3d  => null()
       this%key = key 
       this%active = .false.
       
@@ -52,7 +61,7 @@ module FatesInterfaceVariableTypeMod
       class(*), target, intent(in) :: data(:)
       logical, intent(in)          :: active
       
-      this%data => data
+      this%data1d => data(:)
       this%active = active
       
     end subroutine RegisterInterfaceVariable_1d
@@ -67,7 +76,7 @@ module FatesInterfaceVariableTypeMod
       class(*), target, intent(in) :: data(:,:)
       logical, intent(in)          :: active
       
-      this%data => data
+      this%data2d => data(:,:)
       this%active = active
       
     end subroutine RegisterInterfaceVariable_2d
