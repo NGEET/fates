@@ -26,7 +26,9 @@ module FatesInterfaceVariableTypeMod
 
     contains
       procedure :: Initialize => InitializeInterfaceVariable
-      generic   :: Register => RegisterInterfaceVariable_1d, RegisterInterfaceVariable_2d
+      procedure :: Update     => UpdateInterfaceVariable
+
+      generic :: Register => RegisterInterfaceVariable_1d, RegisterInterfaceVariable_2d
 
       procedure, private :: RegisterInterfaceVariable_1d
       procedure, private :: RegisterInterfaceVariable_2d
@@ -79,6 +81,33 @@ module FatesInterfaceVariableTypeMod
       this%active = active
       
     end subroutine RegisterInterfaceVariable_2d
+
+  ! ====================================================================================
+    
+    subroutine UpdateInterfaceVariable(this, var)
+      
+      class(fates_interface_variable_type) :: this
+
+      class(fates_interface_variable_type), intent(in) :: var
+
+      ! TODO: add column index to the interface variable type to allow
+      ! for appropriate slicing of input pointer array
+      ! e.g.
+      ! if (this%rank == 1)) then
+      !   data_this => this%data1d
+      ! else if (this%rank == 2) then
+      !   data_this => this%data2d
+      ! end if
+      ! if (var%rank == 1)) then
+      !   data_var => var%data1d
+      ! else if (this%rank == 2) then
+      !   data_var => var%data2d(this%col,:)
+      ! end if
+      ! data_this = data_var
+      ! This isn't exactly right, but you get the idea
+
+
+    end subroutine UpdateInterfaceVariable
 
   ! ====================================================================================
 
