@@ -2711,28 +2711,23 @@ subroutine UpdateFatesInterfaceVariables(this)
    
    class(fates_interface_type), intent(inout) :: this
    
-   class(fates_registry_base_type), pointer :: patch_api
+   class(fates_interface_registry_base_type), pointer :: patch_api
    class(fates_patch_type), pointer         :: currentPatch
 
    integer :: s   ! site index
    integer :: i   ! HLM registry index
    integer :: j   ! FATES registry index
+   integer :: c = 1  ! column index, TODO: update
 
    do s = 1, this%nsites
       currentPatch => this%sites(s)%oldest_patch
       patch_api => currentPatch%api
       do while (associated(currentPatch))
-         do i = 1, this%num_api_vars
-            
-            ! Don't assume the index in the registry is the same as in the interface
-            j = patch_api%GetRegistryIndex(patch_api%GetRegistryKey(i))
 
-            ! TODO: we need meta data here to correctly associate the right slice of data
-            
-            ! Update the patch boundary condition via the data pointer
-            patch_api%vars(j)%data = this%api%vars(i)%data(c,:)
+         ! TODO: we need meta data here to correctly associate the right slice of data
+         ! Update the patch boundary condition via the data pointer
+         call patch_api%Update(this%api)
 
-         end do
          currentPatch => currentPatch%younger
       end do
    end do
