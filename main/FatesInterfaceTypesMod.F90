@@ -856,14 +856,16 @@ module FatesInterfaceTypesMod
     contains
 
       procedure :: InitializeInterfaceRegistry
+      procedure :: Update => UpdateInterfaceVariables
+
       generic   :: Register => RegisterInterfaceVariables_1d, RegisterInterfaceVariables_2d
 
       procedure, private :: DefineInterfaceRegistry
       procedure, private :: DefineInterfaceVariable
-      procedure, private :: GetRegistryIndex
-      procedure, private :: GetRegistryKey
       procedure, private :: RegisterInterfaceVariables_1d
       procedure, private :: RegisterInterfaceVariables_2d
+      procedure, private :: GetRegistryIndex
+      procedure, private :: GetRegistryKey
 
    end type fates_interface_registry_base_type
 
@@ -986,6 +988,27 @@ module FatesInterfaceTypesMod
     call this%vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true.)
 
   end subroutine RegisterInterfaceVariables_2d
+
+  ! ======================================================================================
+
+  subroutine UpdateInterfaceVariables(this, api)
+
+    class(fates_interface_registry_base_type) :: this
+
+    class(fates_interface_registry_base_type), intent(in) pointer :: api
+
+    integer :: i
+    integer :: j
+
+    do i = 1, this%num_api_vars
+
+       ! Don't assume the index in the registry is the same as in the interface
+       j = api%GetRegistryIndex(api%GetRegistryKey(i))
+
+       call this%vars(i)%Update(api%vars(j))
+    end do
+
+  end subroutine UpdateInterfaceVariables
 
   ! ======================================================================================
 
