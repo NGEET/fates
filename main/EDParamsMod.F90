@@ -237,9 +237,16 @@ module EDParamsMod
    
    ! Logging Control Parameters (ONLY RELEVANT WHEN USE_FATES_LOGGING = TRUE)
    ! ----------------------------------------------------------------------------------------------
+   integer,protected, public :: logging_age_preference      ! switch for choosing patch age preference for logging
+   ! 1 - uniform, 2 - from oldest
+   character(len=param_string_length),parameter,public :: logging_name_age_preference = "fates_landuse_logging_age_preference"
+
    integer,protected, public :: logging_preference_options  ! switch for choosing size or rotation preference for logging
    ! 1 for uniform, 2 for double rotation, 3 for quadruple rotation, 4 for logistic, 5 for inverse logistic, 6 for gaussian
    character(len=param_string_length),parameter,public :: logging_name_preference_options = "fates_landuse_logging_preference_options"
+
+   real(r8),protected, public :: logging_ifm_harvest_scale   ! scaling factor of harvest rate under improved forest management
+   character(len=param_string_length),parameter,public :: logging_name_ifm_harvest_scale = "fates_landuse_logging_ifm_harvest_scale"
 
    real(r8),protected,public :: logging_dbhmin              ! Minimum dbh at which logging is applied (cm)
                                                             ! Typically associated with harvesting
@@ -342,7 +349,9 @@ contains
     hydr_psicap                           = nan
     hydr_solver                           = -9
     bgc_soil_salinity                     = nan
+    logging_age_preference                = -9
     logging_preference_options            = -9
+    logging_ifm_harvest_scale             = nan
     logging_dbhmin                        = nan
     logging_dbhmax                        = nan
     logging_collateral_frac               = nan
@@ -735,9 +744,16 @@ contains
     call fates_params%RetrieveParameter(name=bgc_name_soil_salinity, &
           data=bgc_soil_salinity)	  
 
+    call fates_params%RetrieveParameter(name=logging_name_age_preference, &
+          data=tmpreal)
+    logging_age_preference = nint(tmpreal)
+
     call fates_params%RetrieveParameter(name=logging_name_preference_options, &
           data=tmpreal)
     logging_preference_options = nint(tmpreal)
+
+    call fates_params%RetrieveParameter(name=logging_name_ifm_harvest_scale, &
+          data=logging_ifm_harvest_scale)
 
     call fates_params%RetrieveParameter(name=logging_name_dbhmin, &
           data=logging_dbhmin)
@@ -884,7 +900,9 @@ contains
         write(fates_log(),fmt0) 'hydro_psicap = ',hydr_psicap
         write(fates_log(),fmt0) 'hydro_solver = ',hydr_solver
         write(fates_log(),fmt0) 'bgc_soil_salinity = ', bgc_soil_salinity
+        write(fates_log(),fmt0) 'logging_age_preference = ',logging_age_preference
         write(fates_log(),fmt0) 'logging_preference_options = ',logging_preference_options
+        write(fates_log(),fmt0) 'logging_ifm_harvest_scale = ',logging_ifm_harvest_scale
         write(fates_log(),fmt0) 'logging_dbhmin = ',logging_dbhmin
         write(fates_log(),fmt0) 'logging_dbhmax = ',logging_dbhmax
         write(fates_log(),fmt0) 'logging_collateral_frac = ',logging_collateral_frac

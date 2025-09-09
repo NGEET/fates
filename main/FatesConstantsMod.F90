@@ -143,6 +143,10 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   integer, parameter, public :: lmrmodel_ryan_1991         = 1
   integer, parameter, public :: lmrmodel_atkin_etal_2017   = 2
 
+  ! integer labels for logging age preference
+  integer, parameter, public :: logging_no_age_preference  = 1
+  integer, parameter, public :: logging_oldest_first       = 2
+
   ! integer labels for logging size preference and rotation length options
   integer, parameter, public :: logging_uniform_size       = 1
   integer, parameter, public :: logging_double_rotation    = 2

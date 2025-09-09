@@ -87,6 +87,7 @@ module EDPatchDynamicsMod
   use FatesConstantsMod    , only : fates_unset_r8
   use FatesConstantsMod    , only : fates_unset_int
   use FatesConstantsMod    , only : hlm_harvest_carbon
+  use FatesConstantsMod    , only : logging_no_age_preference, logging_oldest_first
   use FatesConstantsMod    , only : logging_uniform_size, logging_double_rotation, logging_quadruple_rotation
   use FatesConstantsMod    , only : logging_logistic_size, logging_inv_logistic_size, logging_gaussian_size
   use EDCohortDynamicsMod  , only : InitPRTObject
@@ -105,7 +106,8 @@ module EDPatchDynamicsMod
   use SFParamsMod,            only : SF_VAL_CWD_FRAC
   use EDParamsMod,            only : logging_event_code
   use EDParamsMod,            only : logging_export_frac
-  use EDParamsMod,            only : logging_preference_options
+  use EDParamsMod,            only : logging_age_preference, logging_preference_options
+  use EDParamsMod,            only : logging_ifm_harvest_scale
   use EDParamsMod,            only : maxpatches_by_landuse
   use FatesRunningMeanMod,    only : ema_sdlng_mdd
   use FatesRunningMeanMod,    only : ema_sdlng_emerg_h2o, ema_sdlng_mort_par, ema_sdlng2sap_par
@@ -230,21 +232,16 @@ contains
     real(r8) :: current_fates_landuse_state_vector(n_landuse_cats)  ! [m2/m2]
 
     ! Control vars, need to be moved into parameter file once the test is done
-    integer, parameter :: harvest_age_priority = 1 ! Tag to determine if we give priority to the oldest
-                                                   ! patch
-                                                   ! 0 - no;
-                                                   ! 1 - yes, maximize the oldest.
-    real(r8), parameter :: target_harvest_wp_scale = 0.5  ! For Size-dependent IFM. The scale is a target fraction of wood product 
-                                                          ! expected afer considering size-priority of IFM reduce the total harvest amount
-    real(r8), parameter :: max_iteration = 5       ! Maximum iterations to obtain target harvest wood product
-    real(r8) :: temp_totc    ! for debug test
+    real(r8), parameter :: max_iteration = 5       ! Maximum iterations to obtain target harvest wood product. Currently I don't 
+                                                   ! plan to move it into parameter files
+    real(r8) :: temp_totc    ! for debug test, can be removed in released version
     real(r8) :: harvested_cohort_c   ! used in IFM
     integer :: ipatch, , ipft, curpft ! used in min-heap merge
     integer, allocatable :: jpatch(:), pftlen(:)  ! used in min-heap merge
     real(r8), allocatable :: minheap(:)    ! array recording minimum heap
     integer, allocatable :: order_of_patches(:)  ! Record a copy of patch order for bubble sort
     real(r8), allocatable :: sec_age_patches(:)   ! Record a copy of secondary forest age for bubble sort
-    integer :: it            ! index of iteration
+    integer :: it            ! iteration index
 
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
@@ -409,7 +406,7 @@ contains
     ! Calculate the harvest rate scale based on pre-defined age priority strategy
     ! Only calculate harvest rate scale when we have logging event
     ! to reduce computational cost
-    if (logging_time .and. harvest_age_priority == 1) then
+    if (logging_time .and. logging_age_preference == logging_oldest_first) then
        ! Maximize harvest rate (99.99%) for older patch first until harvest demand is fullfilled
        ! ipatch is the rank of the secondary patch age
        target_loop: do ipatch = 1, npatches
@@ -560,7 +557,7 @@ contains
                       frac_site_secondary_mature, &
                       harvestable_forest_c, &
                       currentPatch%harvest_rate_scale, &
-                      harvest_tag, target_harvest_wp_scale, logging_uniform_size)
+                      harvest_tag, logging_ifm_harvest_scale, logging_uniform_size)
 
                 call get_harvested_cohort_carbon(currentCohort, lmort_direct, harvested_cohort_c)
 

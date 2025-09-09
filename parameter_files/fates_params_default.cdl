@@ -762,6 +762,15 @@ variables:
 	double fates_hydro_solver ;
 		fates_hydro_solver:units = "unitless" ;
 		fates_hydro_solver:long_name = "switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard, 3 = 2D Newton (deprecated)" ;
+    double fates_landuse_logging_age_preference ;
+        fates_landuse_logging_age_preference:units = "index" ;
+        fates_landuse_logging_age_preference:long_name = "Integer code of logging age preference options, 1 = no preference, 2 = oldest first" ;
+    double fates_landuse_logging_preference_options ;
+        fates_landuse_logging_preference_options:units = "index" ;
+        fates_landuse_logging_preference_options:long_name = "Integer code of logging size and rotation length preference options, see codes for detail (1-6)" ;
+    double fates_landuse_logging_ifm_harvest_scale ;
+        fates_landuse_logging_ifm_harvest_scale:units = "fraction" ;
+        fates_landuse_logging_ifm_harvest_scale:long_name = "Scaling factor of target harvest rate under improved forest management, normally shall be 0 - 1" ;
 	double fates_landuse_logging_coll_under_frac ;
 		fates_landuse_logging_coll_under_frac:units = "fraction" ;
 		fates_landuse_logging_coll_under_frac:long_name = "Fraction of stems killed in the understory when logging generates disturbance" ;
@@ -1656,6 +1665,12 @@ data:
  fates_hydro_psicap = -0.6 ;
 
  fates_hydro_solver = 1 ;
+
+ fates_landuse_logging_age_preference = 1 ;
+
+ fates_landuse_logging_preference_options = 1 ;
+
+ fates_landuse_logging_ifm_harvest_scale = 1.0 ;
 
  fates_landuse_logging_coll_under_frac = 0.55983 ;
 
