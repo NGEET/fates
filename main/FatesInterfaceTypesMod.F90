@@ -1025,21 +1025,4 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
   
-  subroutine UpdateInterfaceVariables(this)
-
-    class(fates_interface_registry_base_type) :: this
-
-    integer :: ivar  ! Iterator
-
-    ! Iterate over the registry and update all active variables
-    do ivar = 1, this%num_api_vars
-       if (this%vars(ivar)%active) then
-          call this%vars(ivar)%Update()
-       end if
-    end do
-    
-  end subroutine UpdateInterfaceVariables
-  
-  ! ======================================================================================
-       
 end module FatesInterfaceTypesMod
