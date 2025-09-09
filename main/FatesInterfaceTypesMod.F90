@@ -856,11 +856,11 @@ module FatesInterfaceTypesMod
       procedure :: InitializeInterfaceRegistry
       generic   :: Register => RegisterInterfaceVariables_1d, RegisterInterfaceVariables_2d
 
-      procedure, private :: RegisterInterfaceVariables_1d
-      procedure, private :: RegisterInterfaceVariables_2d
       procedure, private :: DefineInterfaceRegistry
       procedure, private :: DefineInterfaceVariable
       procedure, private :: GetRegistryIndex
+      procedure, private :: RegisterInterfaceVariables_1d
+      procedure, private :: RegisterInterfaceVariables_2d
 
    end type fates_interface_registry_base_type
 
