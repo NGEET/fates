@@ -854,8 +854,10 @@ module FatesInterfaceTypesMod
     contains
 
       procedure :: InitializeInterfaceRegistry
-      procedure :: Register => RegisterInterfaceVariables_1d, RegisterInterfaceVariables_2d
+      generic   :: Register => RegisterInterfaceVariables_1d, RegisterInterfaceVariables_2d
 
+      procedure, private :: RegisterInterfaceVariables_1d
+      procedure, private :: RegisterInterfaceVariables_2d
       procedure, private :: DefineInterfaceRegistry
       procedure, private :: DefineInterfaceVariable
       procedure, private :: GetRegistryIndex
@@ -961,7 +963,7 @@ module FatesInterfaceTypesMod
     class(*), target, intent(in) :: data(:)  ! data to be associated with key
 
     ! Get index from registry key and associate the given data pointer
-    call this%vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
+    call this%vars(this%GetRegistryIndex(key))%Register(data(:), active=.true.)
 
   end subroutine RegisterInterfaceVariables_1d
 
@@ -978,7 +980,7 @@ module FatesInterfaceTypesMod
     class(*), target, intent(in) :: data(:,:)  ! data to be associated with key
 
     ! Get index from registry key and associate the given data pointer
-    call this%vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
+    call this%vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true.)
 
   end subroutine RegisterInterfaceVariables_2d
 
