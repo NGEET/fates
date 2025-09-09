@@ -859,6 +859,7 @@ module FatesInterfaceTypesMod
       procedure, private :: DefineInterfaceRegistry
       procedure, private :: DefineInterfaceVariable
       procedure, private :: GetRegistryIndex
+      procedure, private :: GetRegistryKey
       procedure, private :: RegisterInterfaceVariables_1d
       procedure, private :: RegisterInterfaceVariables_2d
 
@@ -1006,6 +1007,37 @@ module FatesInterfaceTypesMod
 
   end function GetRegistryIndex
 
+  ! ======================================================================================
+
+  character(len=*) function GetRegistryKey(this, index) result(key)
+
+    ! This procedure returns the index associated with the key provided
+
+    class(fates_interface_registry_base_type) :: this
+
+    integer, intent(in) :: index    ! variable registry index
+
+    key = this%vars(index)%key
+
+  end function GetRegistryIndex
+
+  ! ======================================================================================
+  
+  subroutine UpdateInterfaceVariables(this)
+
+    class(fates_interface_registry_base_type) :: this
+
+    integer :: ivar  ! Iterator
+
+    ! Iterate over the registry and update all active variables
+    do ivar = 1, this%num_api_vars
+       if (this%vars(ivar)%active) then
+          call this%vars(ivar)%Update()
+       end if
+    end do
+    
+  end subroutine UpdateInterfaceVariables
+  
   ! ======================================================================================
        
 end module FatesInterfaceTypesMod
