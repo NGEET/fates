@@ -1021,7 +1021,7 @@ module FatesInterfaceTypesMod
 
     key = this%vars(index)%key
 
-  end function GetRegistryIndex
+  end function GetRegistryKey
 
   ! ======================================================================================
   
