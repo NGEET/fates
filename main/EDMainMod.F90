@@ -426,9 +426,7 @@ contains
 
     current_fates_landuse_state_vector = currentSite%get_current_landuse_statevector()
 
-    ! Clear site GPP and AR passing to HLM
-    bc_out%gpp_site = 0._r8
-    bc_out%ar_site = 0._r8
+    
 
     ! Patch level biomass are required for C-based harvest
     call get_harvestable_carbon(currentSite, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
@@ -645,19 +643,9 @@ contains
           
           currentCohort%npp_acc_hold  = currentCohort%npp_acc_hold - &
                currentCohort%resp_excess_hold*real( hlm_days_per_year,r8)
-
-          ! Passing gpp_acc_hold to HLM 
-          bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
-               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
-          bc_out%ar_site = bc_out%ar_site + (currentCohort%resp_m_acc_hold + &
-               currentCohort%resp_g_acc_hold + currentCohort%resp_excess_hold*real(hlm_days_per_year,r8) ) * & 
-               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
           
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
-
-          ! -----------------------------------------------------------------------------
-
 
           
           call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in )
@@ -693,7 +681,9 @@ contains
                currentCohort%resp_m_acc*currentCohort%n + &
                currentCohort%resp_excess_hold*currentCohort%n + &
                currentCohort%resp_g_acc_hold*currentCohort%n/real( hlm_days_per_year,r8)
-
+          
+          
+          
           call currentCohort%prt%CheckMassConservation(ft,5)
 
           ! Update the leaf biophysical rates based on proportion of leaf
@@ -925,10 +915,15 @@ contains
     bc_out%seed_c_si = bc_out%seed_c_si * g_per_kg * AREA_INV
 
     ! Set boundary condition to HLM for carbon loss to atm from fires and grazing
-    ! [kgC/ha/day]*[m2/ha]*[day/s] = [kg/m2/s] 
+    ! [kgC/ha/day]*[ha/m2]*[day/s] = [kg/m2/s] 
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
     bc_out%fire_closs_to_atm_si = site_cmass%burn_flux_to_atm * ha_per_m2 * days_per_sec
     bc_out%grazing_closs_to_atm_si = site_cmass%herbivory_flux_out * ha_per_m2 * days_per_sec
+
+    ! Pass site-level mass fluxes to output boundary conditions
+    ! [kg/site/day] * [site/m2 day/sec] = [kgC/m2/s]
+    bc_out%gpp_site = site_cmass%gpp_acc * area_inv / sec_per_day
+    bc_out%ar_site  = site_cmass%aresp_acc * area_inv / sec_per_day
 
   end subroutine ed_update_site
 
@@ -1178,14 +1173,6 @@ contains
           ! Shouldn't need to zero any nutrient fluxes
           ! as they should just be zero, no uptake
           ! in ST3 mode.
-
-          ! Passing 
-          bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
-               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
-          bc_out%ar_site = bc_out%ar_site + (currentCohort%resp_m_acc_hold + &
-               currentCohort%resp_g_acc_hold +  &
-               currentCohort%resp_excess_hold*real( hlm_days_per_year,r8)) * & 
-               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
           
           currentCohort => currentCohort%taller
        enddo

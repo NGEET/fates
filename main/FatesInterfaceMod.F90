@@ -2698,40 +2698,4 @@ subroutine FatesReadParameters(param_reader)
 
  end subroutine FatesReadParameters
 
-! ======================================================================================
-
-subroutine RestartUpdateBCOut(this, s)
-
-  ! Arguments
-  class(fates_interface_type), intent(inout) :: this
-  integer, intent(in) :: s
- 
-  ! Locals
-  type(fates_patch_type), pointer :: currentPatch
-  type(fates_cohort_type), pointer :: currentCohort
-
-  ! Zero gpp and ar as the update call does not zero
-  this%bc_out(s)%gpp_site = 0._r8
-  this%bc_out(s)%ar_site = 0._r8
-  
-  currentPatch => this%sites(s)%youngest_patch
-  do while(associated(currentPatch))
-    currentCohort => currentPatch%shortest
-    do while(associated(currentCohort))
-
-      if (.not. currentCohort%isnew) then
-
-         call this%bc_out(s)%UpdateGPPAR(currentCohort%n, currentCohort%gpp_acc_hold, &
-                                     currentCohort%resp_g_acc_hold, currentCohort%resp_m_acc_hold, &
-                                     currentCohort%resp_excess_hold, sec_per_day, area_inv)
-                                     
-      end if
-
-      currentCohort => currentCohort%taller
-    end do
-    currentPatch => currentPatch%older
-  end do
-
-end subroutine RestartUpdateBCOut
-
 end module FatesInterfaceMod
