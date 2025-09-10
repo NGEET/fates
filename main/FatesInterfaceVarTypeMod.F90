@@ -14,6 +14,11 @@ module FatesInterfaceVariableTypeMod
   implicit none
   private
 
+  integer, parameter :: subgrid_gridcell = 0
+  integer, parameter :: subgrid_landunit = 1
+  integer, parameter :: subgrid_column   = 2
+  integer, parameter :: subgrid_patch    = 3
+
   ! Interface variable registry type
   type, public :: fates_interface_variable_type
     
@@ -23,6 +28,9 @@ module FatesInterfaceVariableTypeMod
     class(*), pointer :: data2d(:,:)    ! 2D polymorphic data pointer
     class(*), pointer :: data3d(:,:,:)  ! 3D polymorphic data pointer
     logical           :: active         ! true if the variable is used by the host land model
+    integer           :: rank           ! rank of the variable (0, 1, 2, or 3)
+    integer           :: rank_dimension ! index of the rank dimension for the given subgrid 
+    integer           :: subgrid        ! subgrid level (0 = gridcell, 1 = landunit, 2 = column, 3 = patch)
 
     contains
       procedure :: Initialize => InitializeInterfaceVariable
@@ -103,7 +111,7 @@ module FatesInterfaceVariableTypeMod
       ! else if (this%rank == 2) then
       !   data_var => var%data2d(this%col,:)
       ! end if
-      ! data_this = data_var
+      ! data_this = data_var()
       ! This isn't exactly right, but you get the idea
 
 
