@@ -846,7 +846,11 @@ module FatesInterfaceTypesMod
    ! Base type to be extended for the API registry
    type, public :: fates_interface_registry_base_type
 
-    integer :: num_api_vars
+    integer :: num_api_vars   ! number of variables in the registry
+
+    integer :: patch_id       ! HLM patch ID associated with this patch
+    integer :: column_id      ! HLM column ID associated with this patch
+    integer :: landunit_id    ! HLM landunit ID associated with this patch
 
     ! container array of interface variables
     type(fates_interface_variable_type), allocatable :: vars(:) 
@@ -895,6 +899,12 @@ module FatesInterfaceTypesMod
     class(fates_interface_registry_base_type) :: this
 
     logical :: initialize
+
+    ! unset registry integers
+    this%num_api_vars = unset_int
+    this%patch_id     = unset_int
+    this%column_id    = unset_int
+    this%landunit_id  = unset_int
 
     ! First count up the keys defined in the registry
     call this%DefineInterfaceRegistry(initialize=.false.)
