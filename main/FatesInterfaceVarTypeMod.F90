@@ -29,7 +29,6 @@ module FatesInterfaceVariableTypeMod
     class(*), pointer :: data3d(:,:,:)  ! 3D polymorphic data pointer
     logical           :: active         ! true if the variable is used by the host land model
     integer           :: rank           ! rank of the variable (0, 1, 2, or 3)
-    integer           :: rank_dimension ! index of the rank dimension for the given subgrid 
     integer           :: subgrid        ! subgrid level (0 = gridcell, 1 = landunit, 2 = column, 3 = patch)
 
     contains
@@ -97,6 +96,13 @@ module FatesInterfaceVariableTypeMod
       class(fates_interface_variable_type) :: this
 
       class(fates_interface_variable_type), intent(in) :: var
+      
+      ! This update method assumes that the first rank of the HLM data arrays
+      ! corresponds to the subgrid level of the interface variable type.
+      ! E.g. col_cf%w_scalar(c,1:nlevsoil) shows that the first rank is the column index.
+      ! TODO: This should be held in an interface requirements document.
+      
+      
 
       ! TODO: add column index to the interface variable type to allow
       ! for appropriate slicing of input pointer array
