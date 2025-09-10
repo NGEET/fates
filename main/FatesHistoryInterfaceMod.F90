@@ -2629,21 +2629,6 @@ contains
 
          ! site-level fire variables:
 
-         ! Nesterov index (unitless)
-         hio_nesterov_fire_danger_si(io_si) = sites(s)%fireWeather%fire_weather_index
-         
-         hio_effect_wspeed_si(io_si) = sites(s)%fireWeather%effective_windspeed/sec_per_min
-
-         ! Prescribed fire burn window
-         hio_rx_burn_window_si(io_si) = hio_rx_burn_window_si(io_si) + sites(s)%fireWeather%rx_flag
-
-         ! number of ignitions [#/km2/day -> #/m2/s]
-         hio_fire_nignitions_si(io_si) = sites(s)%NF_successful / m2_per_km2 /  &
-              sec_per_day
-
-         ! Fire danger index (FDI) (0-1)
-         hio_fire_fdi_si(io_si) = sites(s)%FDI
-
          ! total rx burnable fraction when fuel condition met
          hio_rx_fracarea_fuel_si(io_si) = sites(s)%rxfire_area_fuel * AREA_INV
 
@@ -2825,6 +2810,27 @@ contains
 
             hio_fire_intensity_fracarea_product_si(io_si) = hio_fire_intensity_fracarea_product_si(io_si) + &
                  cpatch%FI * cpatch%frac_burnt * cpatch%area * AREA_INV * J_per_kJ
+
+           if (cpatch%nocomp_pft_label /= nocomp_bareground) then
+              hio_fire_fdi_si(io_si) = hio_fire_fdi_si(io_si) + &
+                 cpatch%FDI * cpatch%area * AREA_INV
+
+              ! number of ignitions [#/km2/day -> #/m2/s]
+              hio_fire_nignitions_si(io_si) =  hio_fire_nignitions_si(io_si) + \
+                   cpatch%NF_successful / m2_per_km2 / sec_per_day * \
+                   cpatch%area * AREA_INV
+
+              ! Nesterov index (unitless)
+              hio_nesterov_fire_danger_si(io_si) = hio_nesterov_fire_danger_si(io_si) + &
+                   cpatch%fireWeather%fire_weather_index * cpatch%area * AREA_INV
+
+              hio_effect_wspeed_si(io_si) = hio_effect_wspeed_si(io_si) + &
+                   cpatch%fireWeather%effective_windspeed/sec_per_min * cpatch%area * AREA_INV
+
+              ! Prescribed fire burn window
+              hio_rx_burn_window_si(io_si) = hio_rx_burn_window_si(io_si) + &
+                   cpatch%fireWeather%rx_flag * cpatch%area * AREA_INV
+           end if
 
             litt => cpatch%litter(element_pos(carbon12_element))
 
@@ -6645,7 +6651,7 @@ contains
             index=ih_nesterov_fire_danger_si)
      
        call this%set_history_var(vname='FATES_RX_BURN_WINDOW', units='',           &
-            long='fraction of time when prescribed fire burn window presents',     &
+            long='fraction of time and area in prescribed fire burn window',       &
             use_default='active',avgflag='A', vtype=site_r8, hlms='CLM:ALM',       &
             upfreq=1, ivar=ivar, initialize=initialize_variables,                  &
             index=ih_rx_burn_window_si)

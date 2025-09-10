@@ -36,7 +36,6 @@ module EDTypesMod
   use EDParamsMod,           only : nclmax, nlevleaf, maxpft
   use FatesConstantsMod,     only : n_dbh_bins, n_dist_types
   use shr_log_mod,           only : errMsg => shr_log_errMsg
-  use SFFireWeatherMod,      only : fire_weather
 
   implicit none
   private               ! By default everything is private
@@ -449,11 +448,6 @@ module EDTypesMod
 
 
      ! FIRE
-     real(r8) ::  fdi                                          ! daily probability an ignition event will start a fire
-     real(r8) ::  NF                                           ! daily ignitions in km2
-     real(r8) ::  NF_successful                                ! daily ignitions in km2 that actually lead to fire
-     class(fire_weather), pointer :: fireWeather               ! fire weather object
-     integer  ::  rx_flag                                      ! daily burn window flag
      real(r8) ::  rxfire_area_fuel                             ! daily total burnable area [m2] when burn window present and fuel condition met 
      real(r8) ::  rxfire_area_fi                               ! daily total burnable area [m2] when burn window present, fuel and fire intensity condition met
      real(r8) ::  rxfire_area_final                            ! daily total burnable area [m2] when all conditions met  

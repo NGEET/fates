@@ -33,6 +33,8 @@ module FatesPatchMod
   use FatesInterfaceTypesMod, only : hlm_hio_ignore_val
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : nlevedgeforest
+  use SFFireWeatherMod,       only : fire_weather
+  use SFNesterovMod,          only : nesterov_index
   use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,            only : errMsg => shr_log_errMsg
 
@@ -208,8 +210,16 @@ module FatesPatchMod
     !---------------------------------------------------------------------------
 
     ! FUELS AND FIRE
+    ! fire weather
+    class(fire_weather), pointer :: fireWeather      ! fire weather object
+
     ! fuel characteristics
     real(r8)              :: livegrass               ! total aboveground grass biomass in patch [kgC/m2]
+
+    ! number of fires
+    real(r8) ::  fdi                                 ! daily probability an ignition event will start a fire
+    real(r8) ::  NF                                  ! daily ignitions in km2
+    real(r8) ::  NF_successful                       ! daily ignitions in km2 that actually lead to fire
 
     ! fire spread
     real(r8)              :: ros_front               ! rate of forward  spread of fire [m/min]
@@ -287,6 +297,10 @@ module FatesPatchMod
       allocate(this%sabs_dif(num_swb))
       allocate(this%fragmentation_scaler(num_levsoil))
       allocate(this%area_in_edgeforest_bins(nlevedgeforest))
+
+      ! allocate fire weather
+      allocate(nesterov_index :: this%fireWeather)
+      call this%fireWeather%Init()
 
       ! initialize all values to nan
       call this%NanValues()
@@ -773,6 +787,11 @@ module FatesPatchMod
       this%NCL_p          = 1
 
       this%changed_landuse_this_ts = .false.
+
+      ! FIRE
+      this%FDI              = 0.0_r8     ! daily fire danger index (0-1)
+      this%NF               = 0.0_r8     ! daily lightning strikes per km2
+      this%NF_successful    = 0.0_r8     ! daily successful iginitions per km2
 
     end subroutine Create
 

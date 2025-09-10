@@ -100,7 +100,6 @@ module EDInitMod
   use FatesConstantsMod,      only : nocomp_bareground_land, nocomp_bareground
   use FatesConstantsMod,      only : min_nocomp_pftfrac_perlanduse
   use EdTypesMod,             only : dump_site
-  use SFNesterovMod,          only : nesterov_index
 
 
   ! CIME GLOBALS
@@ -270,9 +269,6 @@ contains
     allocate(site_in%seed_in(1:numpft))
     allocate(site_in%seed_out(1:numpft))
 
-    allocate(nesterov_index :: site_in%fireWeather)
-    call site_in%fireWeather%Init()
-
   end subroutine init_site_vars
 
   ! ============================================================================
@@ -323,11 +319,6 @@ contains
     site_in%primary_land_patchfusion_error = 0.0_r8
     site_in%disturbance_rates(:,:,:) = 0.0_r8
     site_in%landuse_transition_matrix(:,:) = 0.0_r8
-
-    ! FIRE
-    site_in%FDI              = 0.0_r8     ! daily fire danger index (0-1)
-    site_in%NF               = 0.0_r8     ! daily lightning strikes per km2
-    site_in%NF_successful    = 0.0_r8     ! daily successful iginitions per km2
 
     do el=1,num_elements
        ! Zero the state variables used for checking mass conservation
@@ -524,8 +515,6 @@ contains
           sites(s)%dstatus(1:numpft) = dstat
           sites(s)%elong_factor(1:numpft) = elong_factor
 
-          sites(s)%NF         = 0.0_r8
-          sites(s)%NF_successful  = 0.0_r8
           sites(s)%area_pft(:,:) = 0.0_r8
 
           do ft =  1,numpft

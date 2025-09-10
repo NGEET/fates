@@ -89,7 +89,13 @@ module test_FireWeather
       real(r8)                              :: grass_fraction = 0.5_r8 ! grass fraction [0-1]
       real(r8)                              :: bare_fraction = 0.0_r8  ! bare fraction [0-1]
 
-      call this%fireWeatherNesterov%UpdateEffectiveWindSpeed(wind_speed, tree_fraction,  &
+      call this%fireWeatherNesterov%UpdateIndex( &
+         this%fireWeatherNesterov%temp_C, &
+         this%fireWeatherNesterov%precip, &
+         this%fireWeatherNesterov%rh, &
+         wind_speed)
+
+      call this%fireWeatherNesterov%UpdateEffectiveWindSpeed(tree_fraction,  &
         grass_fraction, bare_fraction)
       @assertEqual(this%fireWeatherNesterov%effective_windspeed, 0.0_r8, tolerance=tol)
   
@@ -104,7 +110,13 @@ module test_FireWeather
       real(r8)                              :: grass_fraction = 0.5_r8 ! grass fraction [0-1]
       real(r8)                              :: bare_fraction = 0.0_r8  ! bare fraction [0-1]
 
-      call this%fireWeatherNesterov%UpdateEffectiveWindSpeed(wind_speed, tree_fraction,  &
+      call this%fireWeatherNesterov%UpdateIndex( &
+         this%fireWeatherNesterov%temp_C, &
+         this%fireWeatherNesterov%precip, &
+         this%fireWeatherNesterov%rh, &
+         wind_speed)
+
+      call this%fireWeatherNesterov%UpdateEffectiveWindSpeed(tree_fraction,  &
         grass_fraction, bare_fraction)
         
       @assertLessThan(this%fireWeatherNesterov%effective_windspeed, wind_speed, tolerance=tol)

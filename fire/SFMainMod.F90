@@ -106,35 +106,39 @@ contains
     ! is simply using the values associated with the first patch.
     ! which probably won't have much impact, unless we decide to ever calculated fire weather for each patch.  
 
-    currentPatch => currentSite%oldest_patch
-
-    ! If the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
-    ! for the iofp index (i.e. the next younger patch)
-    if (currentPatch%nocomp_pft_label == nocomp_bareground) then
-      currentPatch => currentPatch%younger
-    endif
-
-    iofp = currentPatch%patchno
-    temp_C = currentPatch%tveg24%GetMean() - tfrz
-    precip = bc_in%precip24_pa(iofp)*sec_per_day
-    rh = bc_in%relhumid24_pa(iofp)
-    wind = bc_in%wind24_pa(iofp) * sec_per_min
-
-    ! update fire weather index
-    call currentSite%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
-
-    ! update prescribed fire burn window
-    call currentSite%fireWeather%UpdateRxfireBurnWindow(hlm_use_managed_fire, &
-      SF_val_rxfire_tpup, SF_val_rxfire_tplw, SF_val_rxfire_rhup, SF_val_rxfire_rhlw,    &
-      SF_val_rxfire_wdup, SF_val_rxfire_wdlw)
-
-    ! calculate site-level tree, grass, and bare fraction
+    ! Calculate site-level tree, grass, and bare fraction.
+    ! This should remain at site level to allow wind speed enhancement based on edge distance.
     call CalculateTreeGrassAreaSite(currentSite, tree_fraction, grass_fraction, bare_fraction)
 
-    ! update effective wind speed
-    call currentSite%fireWeather%UpdateEffectiveWindSpeed(tree_fraction, &
-      grass_fraction, bare_fraction)
-    
+    currentPatch => currentSite%oldest_patch
+    patchloop: do while(associated(currentPatch))
+
+      ! If bareground, skip
+      if (currentPatch%nocomp_pft_label == nocomp_bareground) then
+        currentPatch => currentPatch%younger
+        cycle
+      endif
+
+      iofp = currentPatch%patchno
+      temp_C = currentPatch%tveg24%GetMean() - tfrz
+      precip = bc_in%precip24_pa(iofp)*sec_per_day
+      rh = bc_in%relhumid24_pa(iofp)
+      wind = bc_in%wind24_pa(iofp) * sec_per_min
+
+      ! update fire weather index
+      call currentPatch%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
+
+      ! update prescribed fire burn window
+      call currentPatch%fireWeather%UpdateRxfireBurnWindow(hlm_use_managed_fire, &
+        SF_val_rxfire_tpup, SF_val_rxfire_tplw, SF_val_rxfire_rhup, SF_val_rxfire_rhlw,    &
+        SF_val_rxfire_wdup, SF_val_rxfire_wdlw)
+
+      ! update effective wind speed
+      call currentPatch%fireWeather%UpdateEffectiveWindSpeed(tree_fraction, &
+        grass_fraction, bare_fraction)
+
+      currentPatch => currentPatch%younger
+    end do patchloop
   end subroutine UpdateFireWeather
 
   !---------------------------------------------------------------------------------------
@@ -175,7 +179,7 @@ contains
           
         ! calculate fuel moisture [m3/m3]
         call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,       &
-          currentSite%fireWeather)
+          currentPatch%fireWeather)
         
         ! calculate geometric properties
         call currentPatch%fuel%AverageBulkDensity_NoTrunks(SF_val_FBD)
@@ -215,47 +219,53 @@ contains
     real(r8), parameter :: igns_per_person_month = 0.0035_r8  ! potential human ignition counts (alpha in Li et al. 2012) (#/person/month)
     real(r8), parameter :: approx_days_per_month = 30.0_r8    ! approximate days per month [days]
 
-    ! initialize site parameters to zero
-    currentSite%NF_successful = 0.0_r8
-
-    ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
-    ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
-    if (hlm_spitfire_mode == hlm_sf_successful_ignitions_def) then
-      ! READING "SUCCESSFUL IGNITION" DATA
-      ! force ignition potential to be extreme
-      ! cloud_to_ground_strikes = 1 means using 100% of incoming observed ignitions
-      currentSite%FDI = 1.0_r8  
-      cloud_to_ground_strikes = 1.0_r8   
-    else  
-      ! USING LIGHTNING STRIKE DATA
-      currentSite%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentSite%fireWeather%fire_weather_index)
-      cloud_to_ground_strikes = cg_strikes
-    end if
-
-    ! if the oldest patch is a bareground patch (i.e. nocomp mode is on) use the first vegetated patch
-    ! for the iofp index (i.e. the next younger patch)
     currentPatch => currentSite%oldest_patch
-    if (currentPatch%nocomp_pft_label == nocomp_bareground)then
+    patchloop: do while(associated(currentPatch))
+
+      ! initialize patch parameters to zero
+      currentPatch%NF_successful = 0.0_r8
+
+      ! if bareground, skip
+      if (currentPatch%nocomp_pft_label == nocomp_bareground)then
+        currentPatch => currentPatch%younger
+        cycle
+      endif
+
+      ! Equation 7 from Venevsky et al GCB 2002 (modification of equation 8 in Thonicke et al. 2010) 
+      ! FDI 0.1 = low, 0.3 moderate, 0.75 high, and 1 = extreme ignition potential for alpha 0.000337
+      if (hlm_spitfire_mode == hlm_sf_successful_ignitions_def) then
+        ! READING "SUCCESSFUL IGNITION" DATA
+        ! force ignition potential to be extreme
+        ! cloud_to_ground_strikes = 1 means using 100% of incoming observed ignitions
+        currentPatch%FDI = 1.0_r8
+        cloud_to_ground_strikes = 1.0_r8
+      else
+        ! USING LIGHTNING STRIKE DATA
+        currentPatch%FDI  = 1.0_r8 - exp(-SF_val_fdi_alpha*currentPatch%fireWeather%fire_weather_index)
+        cloud_to_ground_strikes = cg_strikes
+      end if
+
+      iofp = currentPatch%patchno
+
+      ! NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
+      if (hlm_spitfire_mode == hlm_sf_scalar_lightning_def) then
+        currentPatch%NF = ED_val_nignitions*years_per_day*cloud_to_ground_strikes
+      else
+        ! use external daily lightning ignition data
+        currentPatch%NF = bc_in%lightning24(iofp)*cloud_to_ground_strikes
+      end if
+
+      ! calculate anthropogenic ignitions according to Li et al. (2012)
+      ! add to ignitions by lightning
+      if (hlm_spitfire_mode == hlm_sf_anthro_ignitions_def) then
+        ! anthropogenic ignitions (count/km2/day)
+        !           =  (ignitions/person/month)*6.8*population_density**0.43/approximate days per month
+        anthro_ignitions = igns_per_person_month*6.8_r8*bc_in%pop_density(iofp)**0.43_r8/approx_days_per_month
+        currentPatch%NF = currentPatch%NF + anthro_ignitions
+      end if
+
       currentPatch => currentPatch%younger
-    endif
-    iofp = currentPatch%patchno
-
-    ! NF = number of lighting strikes per day per km2 scaled by cloud to ground strikes
-    if (hlm_spitfire_mode == hlm_sf_scalar_lightning_def) then
-      currentSite%NF = ED_val_nignitions*years_per_day*cloud_to_ground_strikes
-    else    
-      ! use external daily lightning ignition data
-      currentSite%NF = bc_in%lightning24(iofp)*cloud_to_ground_strikes
-    end if
-
-    ! calculate anthropogenic ignitions according to Li et al. (2012)
-    ! add to ignitions by lightning
-    if (hlm_spitfire_mode == hlm_sf_anthro_ignitions_def) then
-      ! anthropogenic ignitions (count/km2/day)
-      !           =  (ignitions/person/month)*6.8*population_density**0.43/approximate days per month
-      anthro_ignitions = igns_per_person_month*6.8_r8*bc_in%pop_density(iofp)**0.43_r8/approx_days_per_month
-      currentSite%NF = currentSite%NF + anthro_ignitions
-    end if
+    end do patchloop !patch loop
 
   end subroutine CalculateIgnitionsandFDI
   
@@ -322,7 +332,7 @@ contains
         eps = EffectiveHeatingNumber(currentPatch%fuel%SAV_notrunks)
         
         ! wind factor [unitless]
-        phi_wind = WindFactor(currentSite%fireWeather%effective_windspeed, beta_ratio,      &
+        phi_wind = WindFactor(currentPatch%fireWeather%effective_windspeed, beta_ratio,      &
          currentPatch%fuel%SAV_notrunks)
 
         ! propagating flux [unitless]       
@@ -335,7 +345,7 @@ contains
         ! backwards rate of spread [m/min]
         !  backward ROS wind not changed by vegetation - so use wind, not effective_windspeed
         currentPatch%ROS_back = BackwardRateOfSpread(currentPatch%ROS_front,             &
-         currentSite%fireWeather%wind)
+         currentPatch%fireWeather%wind)
 
       end if 
       currentPatch => currentPatch%younger
@@ -391,9 +401,9 @@ contains
         currentPatch%rx_FI = 0.0_r8
         currentPatch%nonrx_FI = 0.0_r8
 
-        has_ignition = currentSite%NF > 0.0_r8
+        has_ignition = currentPatch%NF > 0.0_r8
         
-        if (has_ignition .or. currentSite%fireWeather%rx_flag == itrue) then
+        if (has_ignition .or. currentPatch%fireWeather%rx_flag == itrue) then
           
           ! fire intensity [kW/m]
           currentPatch%FI = FireIntensity(currentPatch%TFC_ROS/0.45_r8, currentPatch%ROS_front/60.0_r8)
@@ -403,14 +413,11 @@ contains
           rxfire_fuel_check = currentPatch%fuel%non_trunk_loading > SF_val_rxfire_fuel_min .and. & 
             currentPatch%fuel%non_trunk_loading < SF_val_rxfire_fuel_max
 
-          if (currentSite%fireWeather%rx_flag == itrue .and. rxfire_fuel_check) then
-            
-            ! record burnable area after fuel load check
-            currentSite%rxfire_area_fuel = currentSite%rxfire_area_fuel + currentPatch%area 
-              
+          if (currentPatch%fireWeather%rx_flag == itrue .and. rxfire_fuel_check) then
+
             ! determine fire type
             ! prescribed fire and wildfire cannot happen on the same patch
-            is_rxfire = is_prescribed_burn(currentPatch%FI, currentSite%NF, &
+            is_rxfire = is_prescribed_burn(currentPatch%FI, currentPatch%NF, &
               SF_val_rxfire_min_threshold, SF_val_rxfire_max_threshold, SF_val_fire_threshold)
 
             if (is_rxfire) then
@@ -427,8 +434,8 @@ contains
 
           ! assign fire intensities and ignitions based on fire type
           if (currentPatch%nonrx_fire == itrue) then
-            currentSite%NF_successful = currentSite%NF_successful + &
-            currentSite%NF*currentSite%FDI*currentPatch%area/area
+            currentPatch%NF_successful = currentPatch%NF_successful + &
+            currentPatch%NF*currentPatch%FDI*currentPatch%area/area
             currentPatch%nonrx_FI = currentPatch%FI
           else if (currentPatch%rx_fire == itrue) then
             currentPatch%rx_FI = currentPatch%FI
@@ -476,18 +483,18 @@ contains
         if (currentPatch%nonrx_fire == 1) then
 
           ! fire duration [min]
-          currentPatch%FD = FireDuration(currentSite%FDI)
+          currentPatch%FD = FireDuration(currentPatch%FDI)
           
           ! length-to-breadth ratio of fire ellipse [unitless]
           tree_fraction_patch  = currentPatch%total_tree_area/currentPatch%area
-          length_to_breadth = LengthToBreadth(currentSite%fireWeather%effective_windspeed, tree_fraction_patch)
+          length_to_breadth = LengthToBreadth(currentPatch%fireWeather%effective_windspeed, tree_fraction_patch)
 
           ! fire size [m2]
           fire_size = FireSize(length_to_breadth, currentPatch%ROS_back, &
               currentPatch%ROS_front, currentPatch%FD)
 
           ! area burnt [m2/km2]
-          area_burnt = AreaBurnt(fire_size, currentSite%NF, currentSite%FDI)
+          area_burnt = AreaBurnt(fire_size, currentPatch%NF, currentPatch%FDI)
           
           ! convert to area burned per area patch per day
           ! i.e., fraction of the patch burned on that day

@@ -442,10 +442,6 @@ module SFEquationsMod
       ! daily area burnt = size fires in m2 * num ignitions per day per km2 * prob ignition starts fire
       ! Thonicke 2010 Eq. 1
       !
-      ! the denominator in the units of currentSite%NF is total gridcell area, but since we assume that ignitions 
-      ! are equally probable across patches, currentSite%NF is equivalently per area of a given patch
-      ! thus AreaBurnt has units of m2 burned area per km2 patch area per day
-      !
       ! TO DO: Connect here with the Li & Levis GDP fire suppression algorithm. 
       !     Equation 16 in arora and boer model JGR 2005
       !
