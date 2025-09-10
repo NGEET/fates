@@ -2713,6 +2713,11 @@ subroutine UpdateFatesInterfaceVariables(this)
       patch_api => currentPatch%api
       do while (associated(currentPatch))
 
+         ! Transfer the column index to the patch registry
+         ! While this may be duplicative for older patches, we need
+         ! to ensure that the new patches are provided with the column index
+         patch_api%column_id = this%sites(s)%column_map(currentPatch%patchno)
+
          ! TODO: we need meta data here to correctly associate the right slice of data
          ! Update the patch boundary condition via the data pointer
          call patch_api%Update(this%api)
@@ -2723,9 +2728,6 @@ subroutine UpdateFatesInterfaceVariables(this)
    
 end subroutine UpdateFatesInterfaceVariables
 
-
 ! ======================================================================================
-
-
 
 end module FatesInterfaceMod
