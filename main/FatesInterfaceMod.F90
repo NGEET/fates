@@ -164,6 +164,10 @@ module FatesInterfaceMod
       ! This is the interface registry which associates variables with a common keyword
       type(fates_interface_registry_base_type) :: api
       
+      contains 
+
+         procedure, public :: UpdateInterfaceVariables
+      
    end type fates_interface_type
    
    character(len=*), parameter :: sourcefile = &
@@ -184,7 +188,6 @@ module FatesInterfaceMod
    public :: set_bcs
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
-   public :: UpdateInterfaceVariables
 
    private :: FatesReadParameters
    public :: DetermineGridCellNeighbors
@@ -2696,7 +2699,7 @@ end subroutine FatesReadParameters
 
 ! ======================================================================================
 
-subroutine UpdateFatesInterfaceVariables(this)
+subroutine UpdateInterfaceVariables(this)
    
    class(fates_interface_type), intent(inout) :: this
    
@@ -2726,7 +2729,7 @@ subroutine UpdateFatesInterfaceVariables(this)
       end do
    end do
    
-end subroutine UpdateFatesInterfaceVariables
+end subroutine UpdateInterfaceVariables
 
 ! ======================================================================================
 
