@@ -2,6 +2,7 @@ module FatesInterfaceTypesMod
   
   use FatesConstantsMod   , only : r8 => fates_r8
   use FatesConstantsMod   , only : itrue,ifalse
+  use FatesConstantsMod   , only : fates_unset_int
   use FatesGlobals        , only : fates_global_verbose
   use FatesGlobals        , only : fates_log
   use FatesGlobals        , only : endrun => fates_endrun
@@ -903,10 +904,10 @@ module FatesInterfaceTypesMod
     logical :: initialize
 
     ! unset registry integers
-    this%num_api_vars = unset_int
-    this%patch_id     = unset_int
-    this%column_id    = unset_int
-    this%landunit_id  = unset_int
+    this%num_api_vars = fates_unset_int
+    this%patch_id     = fates_unset_int
+    this%column_id    = fates_unset_int
+    this%landunit_id  = fates_unset_int
 
     ! First count up the keys defined in the registry
     call this%DefineInterfaceRegistry(initialize=.false.)
@@ -1004,8 +1005,7 @@ module FatesInterfaceTypesMod
   subroutine UpdateInterfaceVariables(this, api)
 
     class(fates_interface_registry_base_type) :: this
-
-    class(fates_interface_registry_base_type), intent(in) pointer :: api
+    class(fates_interface_registry_base_type), intent(in) :: api
 
     integer :: i
     integer :: j
