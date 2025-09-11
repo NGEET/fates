@@ -14,10 +14,11 @@ module FatesInterfaceVariableTypeMod
   implicit none
   private
 
-  integer, parameter :: subgrid_gridcell = 0
-  integer, parameter :: subgrid_landunit = 1
-  integer, parameter :: subgrid_column   = 2
-  integer, parameter :: subgrid_patch    = 3
+  integer, parameter, public :: subgrid_gridcell = 5
+  integer, parameter, public :: subgrid_topounit = 4
+  integer, parameter, public :: subgrid_landunit = 3
+  integer, parameter, public :: subgrid_column   = 2
+  integer, parameter, public :: subgrid_patch    = 1
 
   ! Interface variable registry type
   type, public :: fates_interface_variable_type
@@ -63,45 +64,49 @@ module FatesInterfaceVariableTypeMod
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_1d(this, data, active)
+    subroutine RegisterInterfaceVariable_1d(this, data, active, subgrid_index)
       
       class(fates_interface_variable_type) :: this
 
       class(*), target, intent(in) :: data(:)
       logical, intent(in)          :: active
-      
+      integer, intent(in)          :: subgrid_index
+
       this%data1d => data(:)
       this%active = active
-      
+      this%subgrid = subgrid_index
+
     end subroutine RegisterInterfaceVariable_1d
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_2d(this, data, active)
+    subroutine RegisterInterfaceVariable_2d(this, data, active, subgrid_index)
       
       class(fates_interface_variable_type) :: this
 
-      class(*), target, intent(in) :: data(:,:)
-      logical, intent(in)          :: active
-      
+      class(*), target, intent(in)  :: data(:,:)
+      logical, intent(in)           :: active
+      integer, intent(in)           :: subgrid_index
+
       this%data2d => data(:,:)
       this%active = active
+      this%subgrid = subgrid_index
       
     end subroutine RegisterInterfaceVariable_2d
 
   ! ====================================================================================
     
-    subroutine UpdateInterfaceVariable(this, var)
+    subroutine UpdateInterfaceVariable(this, var, subgrid_indices)
       
       class(fates_interface_variable_type) :: this
 
       class(fates_interface_variable_type), intent(in) :: var
-      
+      integer, intent(in) :: subgrid_indices(:)
+
       ! This update method assumes that the first rank of the HLM data arrays
       ! corresponds to the subgrid level of the interface variable type.
       ! E.g. col_cf%w_scalar(c,1:nlevsoil) shows that the first rank is the column index.
       ! TODO: This should be held in an interface requirements document.
-      
       
 
       ! TODO: add column index to the interface variable type to allow
