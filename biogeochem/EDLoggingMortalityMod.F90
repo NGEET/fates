@@ -63,7 +63,6 @@ module EDLoggingMortalityMod
    use PRTGenericMod     , only : sapw_organ, struct_organ, leaf_organ
    use PRTGenericMod     , only : fnrt_organ, store_organ, repro_organ
    use FatesAllometryMod , only : set_root_fraction
-   use FatesForestManagementMod, only : get_cohort_harvest_rate_scale
    use FatesConstantsMod , only : primaryland, secondaryland, secondary_age_threshold
    use FatesConstantsMod , only : fates_tiny
    use FatesConstantsMod , only : months_per_year, days_per_sec, years_per_day, g_per_kg
@@ -106,7 +105,8 @@ module EDLoggingMortalityMod
    public :: get_harvest_rate_carbon
    public :: get_harvest_debt
    public :: UpdateHarvestC
-
+   private :: get_cohort_harvest_rate_scale
+ 
 contains
 
    subroutine IsItLoggingTime(is_master,currentSite)
@@ -307,7 +307,8 @@ contains
 
 
          ! Logging size prefrence or change rotation length
-         call get_cohort_harvest_rate_scale (dbh, harvest_wp_scale, harvest_rate_scale, harvest_rate_scale_cohort)
+         call get_cohort_harvest_rate_scale (logging_preference_options, dbh, harvest_wp_scale, harvest_rate_scale, &
+             harvest_rate_scale_cohort)
 
          ! transfer of area to secondary land is based on overall area affected, not just logged crown area
          ! l_degrad accounts for the affected area between logged crowns
@@ -1158,5 +1159,58 @@ contains
       end if
 
    end subroutine get_harvest_debt
+
+   ! ============================================================================
+
+   subroutine get_cohort_harvest_rate_scale (logging_preference_options, dbh, &
+           harvest_wp_scale, harvest_rate_scale_patch, harvest_rate_scale_cohort)
+
+      ! !USES:
+
+      ! !ARGUMENTS:
+      integer, intent(in) :: logging_preference_options
+      real(r8), intent(in) :: dbh
+      real(r8), intent(in) :: harvest_wp_scale
+      real(r8), intent(in) :: harvest_rate_scale_patch
+      real(r8), intent(out) :: harvest_rate_scale_cohort
+
+      ! [Cohort level] Logging size prefrence or change rotation length
+      select case (logging_preference_options)
+
+      case (logging_uniform_size)
+
+         harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale_patch
+
+      case (logging_double_rotation)
+
+         harvest_rate_scale_cohort = harvest_wp_scale * 0.5_r8 * harvest_rate_scale_patch
+
+      case (logging_quadruple_rotation)
+
+          harvest_rate_scale_cohort = harvest_wp_scale * 0.25_r8 * harvest_rate_scale_patch
+
+      case (logging_logistic_size)
+
+          harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale_patch * &
+              1._r8/(1._r8 + exp(-0.1*(dbh-(logging_dbhmin+logging_dbhmax)/2._r8)))
+
+      case (logging_inv_logistic_size)
+
+          harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale_patch * &
+              1._r8/(1._r8 + exp(0.1*(dbh-(logging_dbhmin+logging_dbhmax)/2._r8)))
+
+      case (logging_gaussian_size)
+
+          harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale_patch * &
+              (1._r8/(5._r8*2.5_r8)) * exp(-(dbh - (logging_dbhmin+logging_dbhmax)/2._r8) ** &
+              2._r8 / (2._r8 * 5._r8 ** 2._r8))
+
+      case DEFAULT
+
+      end select
+
+   end subroutine get_cohort_harvest_rate_scale
+
+   ! ============================================================================
 
 end module EDLoggingMortalityMod

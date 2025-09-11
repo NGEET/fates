@@ -86,7 +86,7 @@ module EDMainMod
   use FatesPlantHydraulicsMod  , only : AccumulateMortalityWaterStorage
   use FatesAllometryMod        , only : h_allom,tree_sai,tree_lai
   use EDLoggingMortalityMod    , only : IsItLoggingTime
-  use EDLoggingMortalityMod    , only : get_harvestable_carbon
+  use FatesForestManagementMod , only : get_harvestable_carbon
   use DamageMainMod            , only : IsItDamageTime
   use EDPatchDynamicsMod       , only : get_frac_site_primary
   use EDPatchDynamicsMod       , only : get_frac_site_secondary_mature

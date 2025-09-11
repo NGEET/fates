@@ -15,11 +15,14 @@ module FatesForestManagementMod
    ! ============================================================================
 
    ! Uses
-   use EDLoggingMortalityMod  , only : logging_time
    use EDParamsMod            , only : logging_age_preference, logging_preference_options
    use EDParamsMod            , only : logging_ifm_harvest_scale
    use EDTypesMod             , only : AREA, AREA_INV
+   use EDTypesMod             , only : ed_site_type
+   use FatesPatchMod          , only : fates_patch_type
+   use FatesCohortMod         , only : fates_cohort_type
    use FatesGlobals           , only : fates_log
+   use FatesConstantsMod      , only : r8 => fates_r8
    use FatesConstantsMod      , only : logging_no_age_preference, logging_oldest_first
    use FatesConstantsMod      , only : logging_uniform_size, logging_double_rotation, logging_quadruple_rotation
    use FatesConstantsMod      , only : logging_logistic_size, logging_inv_logistic_size, logging_gaussian_size
@@ -28,6 +31,7 @@ module FatesForestManagementMod
    use FatesConstantsMod      , only : min_harvest_rate, min_nocomp_pftfrac_perlanduse
    use FatesConstantsMod      , only : hlm_harvest_carbon
    use FatesLitterMod         , only : ncwd
+   use FatesInterfaceTypesMod , only : bc_in_type
    use FatesInterfaceTypesMod , only : hlm_num_lu_harvest_cats, numpft
    use PRTParametersMod       , only : prt_params
    use PRTGenericMod          , only : carbon12_element
@@ -41,7 +45,6 @@ module FatesForestManagementMod
    ! Subroutines
    public :: get_site_harvest_rate_scale
    public :: get_patch_harvest_rate_scale
-   public :: get_cohort_harvest_rate_scale
    public :: get_harvestable_carbon
    private :: get_harvestable_patch_carbon
    private :: get_harvested_cohort_carbon
@@ -53,7 +56,7 @@ module FatesForestManagementMod
    subroutine get_site_harvest_rate_scale(site_in, bc_in, harvestable_forest_c, frac_site_primary, frac_site_secondary_mature)
 
       ! !USES:
-      use EDLoggingMortalityMod , only : LoggingMortality_frac
+      use EDLoggingMortalityMod , only : logging_time, LoggingMortality_frac
 
       ! !ARGUMENTS:
       type(ed_site_type) , intent(inout) :: site_in
@@ -174,7 +177,6 @@ module FatesForestManagementMod
    subroutine get_patch_harvest_rate_scale(site_in, bc_in, harvestable_forest_c, frac_site_primary, frac_site_secondary_mature)
 
       ! !USES:
-      use EDPatchDynamicsMod , only : GetPseudoPatchAge, countPatches
 
       ! !ARGUMENTS:
       type(ed_site_type) , intent(inout) :: site_in
@@ -188,14 +190,14 @@ module FatesForestManagementMod
       type (fates_cohort_type), pointer :: currentCohort
 
       integer :: npatches        ! Number of patches
-      integer :: ipatch, , curpft ! index, used in min-heap merge
+      integer :: ipatch, curpft ! index, used in min-heap merge
       integer, allocatable :: jpatch(:)   ! index array, used in min-heap merge
       integer, allocatable :: pftlen(:)   ! array length, used in min-heap merge
       real(r8), allocatable :: minheap(:)            ! minimum heap array, used in min-heap merge
       integer, allocatable :: order_of_patches(:)    ! Record a copy of patch order 
-      integer, allocatable :: order_of_patches_per_pft(:)  ! Record a copy of patch order for each pft
+      integer, allocatable :: order_of_patches_per_pft(:,:)  ! Record a copy of patch order for each pft
       real(r8), allocatable :: age_patches(:)   ! Record a copy of patch age
-      real(r8), allocatable :: age_patches_per_pft(:)   ! Record a copy of patch age for each pft
+      real(r8), allocatable :: age_patches_per_pft(:,:)   ! Record a copy of patch age for each pft
 
       real(r8) :: frac_site      ! Temporary variable
       real(r8) :: harvest_rate     ! Temporary variable
@@ -247,10 +249,9 @@ module FatesForestManagementMod
       ! there's no paired 1 patch - 1 PFT relation
       ! Case 2: For the more general case in global simulation that harvest 
       ! all PFTs equally under no competition mode, we need to sort again 
-      ! using last 4 digits of pseudo-age, i.e., actual patch age. Since for 
-      ! each PFT the patch sequence is already sorted, here we need to 
-      ! loop over PFTs and merge these sorted sequences into one sorted 
-      ! array through min-heap merge
+      ! using, actual patch age. For each PFT the patch sequence is already 
+      ! sorted, here we need to loop over PFTs and merge these sorted 
+      ! sequences into one sorted array through min-heap merge
 
       if (logging_time .and. logging_age_preference == logging_oldest_first) then
 
@@ -286,13 +287,13 @@ module FatesForestManagementMod
             do while (associated(currentPatch))
                ipatch = ipatch + 1
                order_of_patches(ipatch) = currentPatch%order_age_since_anthro
-               age_patches(ipatch) = mod(GetPseudoPatchAge(currentPatch), 1.e4)
+               age_patches(ipatch) = currentPatch%age
 
                do curpft=1,numpft
-                  if(currentPatch%nocomp_pft_label .eq. curpft)
+                  if(currentPatch%nocomp_pft_label .eq. curpft) then
                      pftlen(curpft) = pftlen(curpft) + 1
-                     order_of_patches_per_pft(curpft, pftlen(curpftpft)) = currentPatch%order_age_since_anthro
-                     age_patches_per_pft(curpft, pftlen(curpftpft)) = mod(GetPseudoPatchAge(currentPatch), 1.e4)
+                     order_of_patches_per_pft(curpft, pftlen(curpft)) = currentPatch%order_age_since_anthro
+                     age_patches_per_pft(curpft, pftlen(curpft)) = currentPatch%age
                   end if
                end do
 
@@ -312,15 +313,14 @@ module FatesForestManagementMod
             jpatch(:) = 1
             do ipatch = 1, npacthes
                ! Find the minimum and assign the order
-               curpft = minloc(minheap)
+               curpft = minloc(minheap, dim=1)
                order_of_patches(ipatch) = order_of_patches_per_pft(curpft, jpatch(curpft))
                ! Move to the next element and insert into minheap array
                jpatch(curpft) = jpatch(curpft) + 1
                if(jpatch(curpft) <= pftlen(curpft)) then
-                     minheap(curpft) = age_patches_per_pft(ipft, jpatch(curpft))
-                  else
-                     minheap(curpft) = 0._r8
-                  end if
+                  minheap(curpft) = age_patches_per_pft(ipft, jpatch(curpft))
+               else
+                  minheap(curpft) = 0._r8
                end if
             end do
 
@@ -466,57 +466,6 @@ module FatesForestManagementMod
       end if  ! logging_time
 
    end subroutine get_patch_harvest_rate_scale
-
-   ! ============================================================================
-
-   subroutine get_cohort_harvest_rate_scale (dbh, harvest_wp_scale, harvest_rate_scale_patch, harvest_rate_scale_cohort)
-
-      ! !USES:
-      use EDParamsMod            , only : logging_dbhmin
-      use EDParamsMod            , only : logging_dbhmax
-
-      ! !ARGUMENTS:
-      real(r8), intent(in) :: dbh
-      real(r8), intent(in) :: harvest_wp_scale
-      real(r8), intent(in) :: harvest_rate_scale_patch
-      real(r8), intent(out) :: harvest_rate_scale_cohort
-
-      ! [Cohort level] Logging size prefrence or change rotation length
-      select case (logging_preference_options)
-
-      case (logging_uniform_size)
-
-         harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale_patch
-
-      case (logging_double_rotation)
-
-         harvest_rate_scale_cohort = csite%harvest_wp_scale * 0.5_r8 * harvest_rate_scale_patch
-
-      case (logging_quadruple_rotation)
-
-          harvest_rate_scale_cohort = harvest_wp_scale * 0.25_r8 * harvest_rate_scale_patch
-
-      case (logging_logistic_size)
-
-          harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale_patch * &
-              1._r8/(1._r8 + exp(-0.1*(dbh-(logging_dbhmin+logging_dbhmax)/2._r8)))
-
-      case (logging_inv_logistic_size)
-
-          harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale_patch * &
-              1._r8/(1._r8 + exp(0.1*(dbh-(logging_dbhmin+logging_dbhmax)/2._r8)))
-
-      case (logging_gaussian_size)
-
-          harvest_rate_scale_cohort = harvest_wp_scale * harvest_rate_scale_patch * &
-              (1._r8/(5._r8*2.5_r8)) * exp(-(dbh - (logging_dbhmin+logging_dbhmax)/2._r8) ** & 
-              2._r8 / (2._r8 * 5._r8 ** 2._r8))
-
-      case DEFAULT
-
-      end select
-
-   end subroutine get_cohort_harvest_rate_scale
 
    ! ============================================================================
 
