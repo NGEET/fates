@@ -75,6 +75,7 @@ module FatesInterfaceVariableTypeMod
       this%data1d => data(:)
       this%active = active
       this%subgrid = subgrid_index
+      this%rank = rank(data)
 
     end subroutine RegisterInterfaceVariable_1d
 
@@ -91,6 +92,7 @@ module FatesInterfaceVariableTypeMod
       this%data2d => data(:,:)
       this%active = active
       this%subgrid = subgrid_index
+      this%rank = rank(data) 
       
     end subroutine RegisterInterfaceVariable_2d
 
