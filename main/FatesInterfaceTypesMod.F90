@@ -1000,6 +1000,8 @@ module FatesInterfaceTypesMod
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
+    use FatesInterfaceVariableTypeMod, only : subgrid_patch
+
     class(fates_interface_registry_base_type) :: this
 
     character(len=*), intent(in)  :: key        ! variable registry key 
@@ -1023,18 +1025,19 @@ module FatesInterfaceTypesMod
 
   subroutine UpdateInterfaceVariables(this, api)
 
-    class(fates_interface_registry_base_type) :: this
-    class(fates_interface_registry_base_type), intent(in) :: api
+    class(fates_interface_registry_base_type) :: this            ! registry being updated
+    class(fates_interface_registry_base_type), intent(in) :: api ! registry update source
 
     integer :: i
     integer :: j
 
     do i = 1, this%num_api_vars
 
-       ! Don't assume the index in the registry is the same as in the interface
-       j = api%GetRegistryIndex(api%GetRegistryKey(i))
+      ! Don't assume the index in the registry is the same as in the interface
+      j = api%GetRegistryIndex(api%GetRegistryKey(i))
 
-       call this%vars(i)%Update(api%vars(j), api%subgrid_indices)
+      ! Update the registered variable and pass the subgrid indices information
+      call this%vars(i)%Update(api%vars(j), api%subgrid_indices)
     end do
 
   end subroutine UpdateInterfaceVariables
@@ -1053,10 +1056,10 @@ module FatesInterfaceTypesMod
 
     ! Iterate over the registry until the associated key is found
     do ivar = 1, this%num_api_vars
-       if (this%vars(ivar)%key == key) then
-          index = ivar
-          return
-       end if
+      if (this%vars(ivar)%key == key) then
+        index = ivar
+        return
+      end if
     end do
 
   end function GetRegistryIndex
