@@ -20,7 +20,7 @@ module FatesInterfaceVariableTypeMod
   integer, parameter, public :: subgrid_column   = 2
   integer, parameter, public :: subgrid_patch    = 1
 
-  ! Interface variable registry type
+  ! Interface registry variable type
   type, public :: fates_interface_variable_type
     
     character(len=48) :: key            ! common registry key
@@ -108,6 +108,7 @@ module FatesInterfaceVariableTypeMod
       ! E.g. col_cf%w_scalar(c,1:nlevsoil) shows that the first rank is the column index.
       ! TODO: This should be held in an interface requirements document.
       
+
 
       ! TODO: add column index to the interface variable type to allow
       ! for appropriate slicing of input pointer array
