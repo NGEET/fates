@@ -286,6 +286,9 @@ module FatesInterfaceTypesMod
    integer, parameter, public :: fates_dispersal_cadence_monthly = 2  ! Disperse seeds monthly
    integer, parameter, public :: fates_dispersal_cadence_yearly = 3   ! Disperse seeds yearly
    
+   integer, parameter :: hlm_subgrid_levels = 5  ! The number of subgrid hierarchy levels that the HLM
+                                                 ! Including the gridcell level, ELM = 5, CLM = 4
+   
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
    ! CLM/ALM have limited support for multi-dimensional history output arrays.
@@ -849,11 +852,9 @@ module FatesInterfaceTypesMod
    ! Base type to be extended for the API registry
    type, public :: fates_interface_registry_base_type
 
-    integer :: num_api_vars   ! number of variables in the registry
-
-    integer :: patch_id       ! HLM patch ID associated with this patch
-    integer :: column_id      ! HLM column ID associated with this patch
-    integer :: landunit_id    ! HLM landunit ID associated with this patch
+    integer :: num_api_vars                        ! number of variables in the registry
+    integer :: subgrid_indices(hlm_subgrid_levels) ! HLM patch ID associated with this patch
+                                                   ! 1 = patch, 2 = column, 3 = landunit, 4 = topounit, 5 = gridcell
 
     ! container array of interface variables
     type(fates_interface_variable_type), allocatable :: vars(:) 
@@ -968,35 +969,55 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_1d(this, key, data)
+  subroutine RegisterInterfaceVariables_1d(this, key, data, subgrid_index)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
-    class(fates_interface_registry_base_type) :: this
+    use FatesInterfaceVariableTypeMod, only : subgrid_patch
+    
+    class(fates_interface_registry_base_type) :: thisA
 
-    character(len=*), intent(in) :: key        ! variable registry key 
-    class(*), target, intent(in) :: data(:)  ! data to be associated with key
+    character(len=*), intent(in)  :: key        ! variable registry key 
+    class(*), target, intent(in)  :: data(:)  ! data to be associated with key
+    integer, intent(in), optional :: subgrid_index ! HLM subgrid index to associate with this variable
+    
+    integer :: subgrid_index_use
+    
+    if (present(subgrid_index)) then
+      subgrid_index_use = subgrid_index
+    else
+      subgrid_index_use = subgrid_patch
+    end if
 
     ! Get index from registry key and associate the given data pointer
-    call this%vars(this%GetRegistryIndex(key))%Register(data(:), active=.true.)
+    call this%vars(this%GetRegistryIndex(key))%Register(data(:), active=.true., subgrid_index_use)
 
   end subroutine RegisterInterfaceVariables_1d
 
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_2d(this, key, data)
+  subroutine RegisterInterfaceVariables_2d(this, key, data, subgrid_index)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
     class(fates_interface_registry_base_type) :: this
 
-    character(len=*), intent(in) :: key        ! variable registry key 
-    class(*), target, intent(in) :: data(:,:)  ! data to be associated with key
+    character(len=*), intent(in)  :: key        ! variable registry key 
+    class(*), target, intent(in)  :: data(:,:)  ! data to be associated with key
+    integer, intent(in), optional :: subgrid_index ! HLM subgrid index to associate with this variable
+
+    integer :: subgrid_index_use
+    
+    if (present(subgrid_index)) then
+      subgrid_index_use = subgrid_index
+    else
+      subgrid_index_use = subgrid_patch
+    end if
 
     ! Get index from registry key and associate the given data pointer
-    call this%vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true.)
+    call this%vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true., subgrid_index_use)
 
   end subroutine RegisterInterfaceVariables_2d
 
@@ -1015,7 +1036,7 @@ module FatesInterfaceTypesMod
        ! Don't assume the index in the registry is the same as in the interface
        j = api%GetRegistryIndex(api%GetRegistryKey(i))
 
-       call this%vars(i)%Update(api%vars(j))
+       call this%vars(i)%Update(api%vars(j), api%subgrid_indices)
     end do
 
   end subroutine UpdateInterfaceVariables
