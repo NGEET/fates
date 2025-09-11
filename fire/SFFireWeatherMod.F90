@@ -93,6 +93,8 @@ module SFFireWeatherMod
   subroutine UpdateRxfireBurnWindow(this, rxfire_switch, temp_up, &
     temp_low,rh_up, rh_low, wind_up, wind_low)
 
+    use FatesConstantsMod, only : sec_per_min
+
     ! ARGUMENTS
     class(fire_weather), intent(inout) :: this           ! fire weather class
     integer,             intent(in)    :: rxfire_switch  ! whether prescribed fire is turned on  
@@ -104,11 +106,15 @@ module SFFireWeatherMod
     real(r8),            intent(in)    :: wind_low       ! user defined lower bound for wind speed
 
     ! LOCAL VARIABLES
+    real(r8) :: wind_m_per_s  ! wind speed (m/s)
     real(r8) :: t_check  ! intermediate value derived from temp condition check
     real(r8) :: rh_check ! intermediate value derived from RH condition check
     real(r8) :: ws_check ! intermediate value derived from wind speed condition check
 
     if (rxfire_switch .eq. ifalse) return   
+
+    ! Convert from m/min to m/s
+    wind_m_per_s = this%wind / sec_per_min
     
     ! check if ambient temperature, relative humidity, and wind speed
     ! are within user defined ranges by comparing current weather
@@ -118,7 +124,7 @@ module SFFireWeatherMod
 
     t_check = (this%temp_C - temp_low)*(this%temp_C - temp_up)
     rh_check = (this%rh - rh_low)*(this%rh - rh_up)
-    ws_check = (this%wind - wind_low)*(this%wind - wind_up)
+    ws_check = (wind_m_per_s - wind_low)*(wind_m_per_s - wind_up)
 
     if (t_check <= 0.0_r8 .and. rh_check <= 0.0_r8 .and. ws_check <= 0.0_r8) then
       this%rx_flag = 1
