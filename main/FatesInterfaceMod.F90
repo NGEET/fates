@@ -2712,6 +2712,8 @@ end subroutine FatesReadParameters
 
 subroutine UpdateInterfaceVariables(this)
    
+   use FatesInterfaceVariableTypeMod, only : subgrid_column
+   
    class(fates_interface_type), intent(inout) :: this
    
    class(fates_interface_registry_base_type), pointer :: patch_api
@@ -2730,7 +2732,7 @@ subroutine UpdateInterfaceVariables(this)
          ! Transfer the column index to the patch registry
          ! While this may be duplicative for older patches, we need
          ! to ensure that the new patches are provided with the column index
-         patch_api%column_id = this%sites(s)%column_map(currentPatch%patchno)
+         patch_api%subgrid_indices(subgrid_column) = this%sites(s)%column_map(currentPatch%patchno)
 
          ! TODO: we need meta data here to correctly associate the right slice of data
          ! Update the patch boundary condition via the data pointer
