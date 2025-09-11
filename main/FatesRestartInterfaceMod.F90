@@ -49,8 +49,9 @@ module FatesRestartInterfaceMod
   use EDTypesMod,              only : area
   use EDTypesMod,              only : set_patchno
   use EDParamsMod,             only : nlevleaf
-  use PRTGenericMod,           only : prt_global
+  use PRTGenericMod,           only : carbon12_element
   use PRTGenericMod,           only : num_elements
+  use PRTGenericMod,           only : element_pos
   use FatesRunningMeanMod,     only : rmean_type
   use FatesRunningMeanMod,     only : ema_lpa
   use FatesRadiationMemMod,    only : num_swb,norman_solver,twostr_solver
@@ -112,6 +113,9 @@ module FatesRestartInterfaceMod
   integer :: ir_snow_depth_si
   integer :: ir_trunk_product_si
   integer :: ir_landuse_config_si
+  integer :: ir_gpp_acc_si
+  integer :: ir_aresp_acc_si
+  
   integer :: ir_ncohort_pa
   integer :: ir_canopy_layer_co
   integer :: ir_canopy_layer_yesterday_co
@@ -316,7 +320,8 @@ module FatesRestartInterfaceMod
 
   ! The number of variable dim/kind types we have defined (static)
   integer, parameter, public :: fates_restart_num_dimensions = 2   !(cohort,column)
-  integer, parameter, public :: fates_restart_num_dim_kinds = 4    !(cohort-int,cohort-r8,site-int,site-r8)
+  integer, parameter, public :: fates_restart_num_dim_kinds = 4    !(cohort-int,cohort-r8,
+                                                                   ! site-int,site-r8)
 
   ! integer constants for storing logical data
   integer, parameter, public :: old_cohort = 0
@@ -749,6 +754,16 @@ contains
          units='kgC/m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_landuse_config_si )
 
+    call this%set_restart_var(vname='fates_massbal_gpp', vtype=site_r8, &
+         long_name='accumulated gpp over previous day cycle', &
+         units='kgC/m2/s', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_gpp_acc_si )
+
+    call this%set_restart_var(vname='fates_massbal_ar', vtype=site_r8, &
+         long_name='accumulated autotrophic respiration over previous day cycle', &
+         units='kgC/m2/s', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_aresp_acc_si )
+    
     ! -----------------------------------------------------------------------------------
     ! Variables stored within cohort vectors
     ! Note: Some of these are multi-dimensional variables in the patch/site dimension
@@ -2080,6 +2095,7 @@ contains
 
     integer  :: ft               ! functional type index
     integer  :: el               ! element loop index
+    integer  :: c_el             ! element loop index for carbon12
     integer  :: ilyr             ! soil layer index
     integer  :: nlevsoil         ! total soil layers in patch of interest
     integer  :: k,j,i            ! indices to the radiation matrix
@@ -2378,7 +2394,9 @@ contains
              end do
           end if
 
-
+          c_el = element_pos(carbon12_element)
+          this%rvars(ir_gpp_acc_si)%r81d(io_idx_si) = sites(s)%mass_balance(c_el)%gpp_acc
+          this%rvars(ir_aresp_acc_si)%r81d(io_idx_si) = sites(s)%mass_balance(c_el)%aresp_acc
 
           ! canopy spread term
           rio_spread_si(io_idx_si)   = sites(s)%spread
@@ -3084,6 +3102,7 @@ contains
      integer  :: patchespersite   ! number of patches per site
      integer  :: cohortsperpatch  ! number of cohorts per patch
      integer  :: el               ! loop counter for elements
+     integer  :: c_el             ! loop counter for carbon12
      integer  :: nlevsoil         ! number of soil layers
      integer  :: ilyr             ! soil layer loop counter
      integer  :: iscpf            ! multiplex loop counter for size x pft
@@ -3363,6 +3382,11 @@ contains
                 
              end do
           end if
+
+          c_el = element_pos(carbon12_element)
+          sites(s)%mass_balance(c_el)%gpp_acc   = this%rvars(ir_gpp_acc_si)%r81d(io_idx_si)
+          sites(s)%mass_balance(c_el)%aresp_acc = this%rvars(ir_aresp_acc_si)%r81d(io_idx_si)
+          
           
           sites(s)%spread = rio_spread_si(io_idx_si)
 
