@@ -49,8 +49,9 @@ module FatesRestartInterfaceMod
   use EDTypesMod,              only : area
   use EDTypesMod,              only : set_patchno
   use EDParamsMod,             only : nlevleaf
-  use PRTGenericMod,           only : prt_global
+  use PRTGenericMod,           only : carbon12_element
   use PRTGenericMod,           only : num_elements
+  use PRTGenericMod,           only : element_pos
   use FatesRunningMeanMod,     only : rmean_type
   use FatesRunningMeanMod,     only : ema_lpa
   use FatesRadiationMemMod,    only : num_swb,norman_solver,twostr_solver
@@ -113,7 +114,7 @@ module FatesRestartInterfaceMod
   integer :: ir_trunk_product_si
   integer :: ir_landuse_config_si
   integer :: ir_gpp_acc_si
-  integer :: ir_ar_acc_si
+  integer :: ir_aresp_acc_si
   
   integer :: ir_ncohort_pa
   integer :: ir_canopy_layer_co
@@ -761,7 +762,7 @@ contains
     call this%set_restart_var(vname='fates_massbal_ar', vtype=site_r8, &
          long_name='accumulated autotrophic respiration over previous day cycle', &
          units='kgC/m2/s', flushval = flushzero, &
-         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_ar_acc_si )
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_aresp_acc_si )
     
     ! -----------------------------------------------------------------------------------
     ! Variables stored within cohort vectors

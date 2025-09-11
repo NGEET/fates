@@ -160,10 +160,6 @@ module FatesInterfaceMod
       
       type(bc_pconst_type) :: bc_pconst
 
-      contains
-
-        procedure :: RestartUpdateBCOut
-      
 
    end type fates_interface_type
    
