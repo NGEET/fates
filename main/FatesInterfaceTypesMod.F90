@@ -904,9 +904,7 @@ module FatesInterfaceTypesMod
 
     ! unset registry integers
     this%num_api_vars = fates_unset_int
-    this%patch_id     = fates_unset_int
-    this%column_id    = fates_unset_int
-    this%landunit_id  = fates_unset_int
+    this%subgrid_indices = fates_unset_int
 
     ! First count up the keys defined in the registry
     call this%DefineInterfaceRegistry(initialize=.false.)
