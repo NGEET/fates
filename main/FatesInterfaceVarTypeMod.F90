@@ -4,7 +4,9 @@ module FatesInterfaceVariableTypeMod
   ! used to create an indexed list of associated HLM and FATES variables that are
   ! related across the application programming interface.
   ! This method is largely inspired by the FATES history infrastructure
-  
+
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
+ 
   use FatesGlobals, only : fates_log
   use FatesGlobals, only : endrun => fates_endrun
 
@@ -110,6 +112,7 @@ module FatesInterfaceVariableTypeMod
       class(*), pointer :: data_var3d(:,:,:) => null()
 
       integer :: index  ! index for the subgrid level of the input interface variable 
+      character(len=fates_long_string_length) :: msg_mismatch = 'FATES ERROR: Mismatched interface variable types'
 
       ! This update method assumes that the first rank of the HLM data arrays
       ! corresponds to the subgrid level of the interface variable type.
@@ -117,7 +120,7 @@ module FatesInterfaceVariableTypeMod
       ! TODO: This should be held in an interface requirements document.
 
       ! Get the subgrid index for the updating variable 
-      index = subgrid_indices(var%subgrid_index)
+      index = subgrid_indices(var%subgrid)
 
       ! Update the data pointer based on the rank of the source variable while indexing
       ! into the appropriate subgrid level
@@ -132,19 +135,87 @@ module FatesInterfaceVariableTypeMod
         case(3)
           data_var2d => var%data3d(index,:,:)
         case default
-          call endrun(fates_log, 'FATES ERROR: Unsupported interface variable source rank in UpdateInterfaceVariable')
+          write(fates_log(),*) 'FATES ERROR: Unsupported interface variable input rank in UpdateInterfaceVariable'
+          call endrun(msg=errMsg(__FILE__, __LINE__))
       end select
 
-      ! Update the data pointer of the target variable based on its rank
+      ! Update the data of the target variable using the source variable data pointer
+      ! Make sure the types match for the polymorphic data to allow for copying from the 
+      ! source to the target.
+      ! Note that due to the use of polymorphic pointers, we must use select type constructs
+      ! to determine the actual type of the data being pointed to allowing for type-safe assignment.
+      ! This currently only supports real and integer types and no conversion between types 
+      ! should be performed
       select case (this%rank)
         case(0)
-          this%data0d = data_var0d
+          select type(dest => this%data0d)
+            type is (real(r8))
+              select type(source => data_var0d)
+                type is (real(r8))
+                  dest = source
+                class default
+                  write(fates_log(),*), msg_mismatch 
+                  call endrun(msg=errMsg(__FILE__, __LINE__))
+              end select
+            type is (integer)
+              select type(source => data_var0d)
+                type is (integer)
+                  dest = source
+                class default
+                  write(fates_log(),*), msg_mismatch 
+                  call endrun(msg=errMsg(__FILE__, __LINE__))
+              end select
+            class default
+              write(fates_log(),*), 'FATES ERROR: Unsupported interface variable type'
+              call endrun(msg=errMsg(__FILE__, __LINE__))
+          end select
         case(1)
-          this%data1d = data_var1d
+          select type(dest => this%data1d)
+            type is (real(r8))
+              select type(source => data_var1d)
+                type is (real(r8))
+                  dest = source
+                class default
+                  write(fates_log(),*), msg_mismatch 
+                  call endrun(msg=errMsg(__FILE__, __LINE__))
+              end select
+            type is (integer)
+              select type(source => data_var1d)
+                type is (integer)
+                  dest = source
+                class default
+                  write(fates_log(),*), msg_mismatch 
+                  call endrun(msg=errMsg(__FILE__, __LINE__))
+              end select
+            class default
+              write(fates_log(),*), 'FATES ERROR: Unsupported interface variable type'
+              call endrun(msg=errMsg(__FILE__, __LINE__))
+          end select
         case(2)
-          this%data2d = data_var2d
+          select type(dest => this%data2d)
+            type is (real(r8))
+              select type(source => data_var2d)
+                type is (real(r8))
+                  dest = source
+                class default
+                  write(fates_log(),*), msg_mismatch 
+                  call endrun(msg=errMsg(__FILE__, __LINE__))
+              end select
+            type is (integer)
+              select type(source => data_var2d)
+                type is (integer)
+                  dest = source
+                class default
+                  write(fates_log(),*), msg_mismatch 
+                  call endrun(msg=errMsg(__FILE__, __LINE__))
+               end select
+            class default
+              write(fates_log(),*), 'FATES ERROR: Unsupported interface variable type'
+              call endrun(msg=errMsg(__FILE__, __LINE__))
+          end select
         case default
-          call endrun(fates_log, 'FATES ERROR: Unsupported interface variable input rank in UpdateInterfaceVariable')
+          write(fates_log(),*) 'FATES ERROR: Unsupported interface variable target rank in UpdateInterfaceVariable'
+          call endrun(msg=errMsg(__FILE__, __LINE__))
       end select
 
     end subroutine UpdateInterfaceVariable
