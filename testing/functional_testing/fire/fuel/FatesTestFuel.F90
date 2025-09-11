@@ -107,7 +107,8 @@ program FatesTestFuel
   
   ! run on time steps
   do i = 1, n_days
-    call fireWeather%UpdateIndex(temp_degC(i), precip(i), rh(i), wind(i))
+    call fireWeather%UpdateFireWeatherData(temp_degC(i), precip(i), rh(i), wind(i))
+    call fireWeather%UpdateIndex()
     NI(i) = fireWeather%fire_weather_index
     
     ! calculate fuel moisture [m3/m3]

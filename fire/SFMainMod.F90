@@ -139,7 +139,8 @@ contains
 
 
       ! update fire weather index
-      call currentPatch%fireWeather%UpdateIndex(temp_C, precip, rh, wind)
+      call currentPatch%fireWeather%UpdateFireWeatherData(temp_C, precip, rh, wind)
+      call currentPatch%fireWeather%UpdateIndex()
 
       ! update prescribed fire burn window
       call currentPatch%fireWeather%UpdateRxfireBurnWindow(hlm_use_managed_fire, &

@@ -20,7 +20,8 @@ module SFFireWeatherMod
     contains 
 
     procedure(initialize_fire_weather), public, deferred :: Init
-    procedure(update_fire_weather),     public, deferred :: UpdateIndex
+    procedure(update_fire_weather_index), public, deferred :: UpdateIndex
+    procedure,                          public           :: UpdateFireWeatherData
     procedure,                          public           :: UpdateEffectiveWindSpeed
     procedure,                          public           :: UpdateRxfireBurnWindow
 
@@ -35,23 +36,38 @@ module SFFireWeatherMod
 
     end subroutine initialize_fire_weather
 
-    subroutine update_fire_weather(this, temp_C, precip, rh, wind)
+    subroutine update_fire_weather_index(this)
 
       use FatesConstantsMod, only : r8 => fates_r8
 
       import :: fire_weather 
 
       class(fire_weather), intent(inout) :: this
-      real(r8),            intent(in)    :: temp_C
-      real(r8),            intent(in)    :: precip
-      real(r8),            intent(in)    :: rh
-      real(r8),            intent(in)    :: wind
       
-    end subroutine update_fire_weather
+    end subroutine update_fire_weather_index
     
    end interface
 
   contains 
+
+  subroutine UpdateFireWeatherData(this, temp_C, precip, rh, wind)
+    !
+    !  DESCRIPTION:
+    !  Updates fire weather variables
+
+    ! ARGUMENTS
+    class(fire_weather), intent(inout) :: this   ! fire weather class
+    real(r8),            intent(in)    :: temp_C ! daily averaged temperature [degrees C]
+    real(r8),            intent(in)    :: precip ! daily precipitation [mm]
+    real(r8),            intent(in)    :: rh     ! daily relative humidity [%]
+    real(r8),            intent(in)    :: wind   ! daily wind speed [m/min]
+
+    this%temp_C = temp_C
+    this%precip = precip
+    this%rh = rh
+    this%wind = wind
+
+  end subroutine UpdateFireWeatherData
 
   subroutine UpdateEffectiveWindSpeed(this, tree_fraction, grass_fraction,   &
       bare_fraction)
