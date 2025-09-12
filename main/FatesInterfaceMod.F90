@@ -2715,10 +2715,11 @@ subroutine UpdateInterfaceVariables(this)
 
    do s = 1, this%nsites
       currentPatch => this%sites(s)%oldest_patch
-      patch_api => currentPatch%api
       do while (associated(currentPatch))
 
-         ! Transfer the column index to the patch registry
+         patch_api => currentPatch%api
+
+         ! Transfer the column index to the HLM interface registry
          ! While this may be duplicative for older patches, we need
          ! to ensure that the new patches are provided with the column index
          patch_api%subgrid_indices(subgrid_column_index) = this%sites(s)%column_map(currentPatch%patchno)
