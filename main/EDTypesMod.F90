@@ -609,15 +609,6 @@ module EDTypesMod
        procedure, public :: get_current_landuse_statevector
        procedure, public :: get_secondary_young_fraction
 
-       procedure, private :: TransferBCIn_0d_int
-       procedure, private :: TransferBCIn_1d
-       procedure, private :: TransferBCIn_2d
-       generic, public :: TransferBCIn => TransferBCIn_0d_int, TransferBCIn_1d, TransferBCIn_2d
-
-       procedure, private :: TransferBCOut_1d
-       procedure, private :: TransferBCOut_2d
-       generic, public :: TransferBCOut => TransferBCOut_1d, TransferBCOut_2d
-
   end type ed_site_type
   
   ! Make public necessary subroutines and functions
