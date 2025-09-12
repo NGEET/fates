@@ -2709,9 +2709,6 @@ subroutine UpdateInterfaceVariables(this)
    class(fates_patch_type), pointer         :: currentPatch
 
    integer :: s   ! site index
-   integer :: i   ! HLM registry index
-   integer :: j   ! FATES registry index
-   integer :: c = 1  ! column index, TODO: update
 
    do s = 1, this%nsites
       currentPatch => this%sites(s)%oldest_patch
