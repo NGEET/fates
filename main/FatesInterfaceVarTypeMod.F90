@@ -17,12 +17,6 @@ module FatesInterfaceVariableTypeMod
   implicit none
   private
 
-  integer, parameter, public :: subgrid_gridcell = 5
-  integer, parameter, public :: subgrid_topounit = 4
-  integer, parameter, public :: subgrid_landunit = 3
-  integer, parameter, public :: subgrid_column   = 2
-  integer, parameter, public :: subgrid_patch    = 1
-
   ! Interface registry variable type
   type, public :: fates_interface_variable_type
     
@@ -32,8 +26,8 @@ module FatesInterfaceVariableTypeMod
     class(*), pointer :: data2d(:,:)    ! 2D polymorphic data pointer
     class(*), pointer :: data3d(:,:,:)  ! 3D polymorphic data pointer
     logical           :: active         ! true if the variable is used by the host land model
-    integer           :: data_rank      ! rank of the variable (0, 1, 2, or 3)
     integer           :: subgrid        ! subgrid level (0 = gridcell, 1 = landunit, 2 = column, 3 = patch)
+    integer           :: data_rank      ! rank of the variable (0, 1, 2, or 3)
     integer, allocatable :: data_size(:)   ! size of the first dimension of the variable
 
     contains
@@ -151,6 +145,14 @@ module FatesInterfaceVariableTypeMod
 
       ! Get the subgrid index for the updating variable 
       index = subgrid_indices(var%subgrid)
+      
+      ! Check that the index is valid
+      if (index == fates_unset_int) then
+        write(fates_log(),*) 'FATES ERROR: Unset subgrid index in UpdateInterfaceVariable'
+        write(fates_log(),*) '  Variable key, subgrid level: ', var%key, var%subgrid
+        write(fates_log(),*) '  API subgrid indices: ', subgrid_indices
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
 
       ! Update the data pointer based on the rank of the source variable while indexing
       ! into the appropriate subgrid level
