@@ -309,15 +309,24 @@ module FatesPatchMod
       allocate(this%sabs_dif(num_swb))
       allocate(this%fragmentation_scaler(num_levsoil))
       allocate(this%co_scr(max_cohort_per_patch))
+
+      ! Allocate API registry
+      call this%RegisterFatesInterfaceVariables()
+      
+      ! TODO: Create subroutine to update a subset of interface variables here
+      ! Problem: How do we get the HLM interface registry pointer?
+      ! Possible solution: move the boundary condition initialization into a different
+      ! procedure?  Also have a separate registry for the scalars that are used for
+      ! allocations?
+      ! call this%InitializeInterfaceVariables()
+
+      ! Allocate BC arrays.  This must be done after the API registry is updated.
       allocate(this%bc_in%w_scalar_sisl(num_levsoil))
       allocate(this%bc_in%t_scalar_sisl(num_levsoil))
 
       allocate(this%bc_out%litt_flux_cel_c_si(this%bc_in%nlevdecomp))
       allocate(this%bc_out%litt_flux_lig_c_si(this%bc_in%nlevdecomp))
       allocate(this%bc_out%litt_flux_lab_c_si(this%bc_in%nlevdecomp))
-
-      ! Allocate API registry
-      call this%RegisterFatesInterfaceVariables()
 
       ! initialize all values to nan
       call this%NanValues()
