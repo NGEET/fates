@@ -286,6 +286,14 @@ module FatesInterfaceTypesMod
    
    integer, parameter :: hlm_subgrid_levels = 5  ! The number of subgrid hierarchy levels that the HLM
                                                  ! Including the gridcell level, ELM = 5, CLM = 4
+
+   ! Subgrid levels for HLM-FATES interface variable
+   integer, parameter, public :: subgrid_gridcell = 5
+   integer, parameter, public :: subgrid_topounit = 4
+   integer, parameter, public :: subgrid_landunit = 3
+   integer, parameter, public :: subgrid_column = 2
+   integer, parameter, public :: subgrid_patch = 1
+   
    
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
@@ -972,7 +980,7 @@ module FatesInterfaceTypesMod
 
     use FatesInterfaceVariableTypeMod, only : subgrid_patch
     
-    class(fates_interface_registry_base_type) :: thisA
+    class(fates_interface_registry_base_type) :: this
 
     character(len=*), intent(in)  :: key        ! variable registry key 
     class(*), target, intent(in)  :: data(:)  ! data to be associated with key
@@ -987,7 +995,7 @@ module FatesInterfaceTypesMod
     end if
 
     ! Get index from registry key and associate the given data pointer
-    call this%vars(this%GetRegistryIndex(key))%Register(data(:), active=.true., subgrid_index_use)
+    call this%vars(this%GetRegistryIndex(key))%Register(data(:), active=.true., subgrid_index=subgrid_index_use)
 
   end subroutine RegisterInterfaceVariables_1d
 
@@ -1015,7 +1023,7 @@ module FatesInterfaceTypesMod
     end if
 
     ! Get index from registry key and associate the given data pointer
-    call this%vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true., subgrid_index_use)
+    call this%vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true., subgrid_index=subgrid_index_use)
 
   end subroutine RegisterInterfaceVariables_2d
 

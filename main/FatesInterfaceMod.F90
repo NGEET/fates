@@ -2723,7 +2723,6 @@ subroutine UpdateInterfaceVariables(this)
          ! to ensure that the new patches are provided with the column index
          patch_api%subgrid_indices(subgrid_column) = this%sites(s)%column_map(currentPatch%patchno)
 
-         ! TODO: we need meta data here to correctly associate the right slice of data
          ! Update the patch boundary condition via the data pointer
          call patch_api%Update(this%api)
 
