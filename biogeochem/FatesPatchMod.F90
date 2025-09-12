@@ -1379,15 +1379,19 @@ module FatesPatchMod
 
     subroutine RegisterFatesInterfaceVariables(this)
 
+      use FatesInterfaceTypesMod, only: hlm_fates_soil_level
+      use FatesInterfaceTypesMod, only: hlm_fates_decomp_frac_moisture
+      use FatesInterfaceTypesMod, only: hlm_fates_decomp_frac_temperature
+
       class(fates_patch_type), intent(inout) :: this
       
       ! Initialize the HLM-FATES interface variable registry for the FATES-side
       call this%api%InitializeInterfaceRegistry()
 
       ! Register the FATES boundary condition data variables
-      call this%api%Register('soil_level_number', this%bc_in%nlevsoil)
-      call this%api%Register('decomp_frac_moisture', this%bc_in%w_scalar_sisl)
-      call this%api%Register('decomp_frac_temperature', this%bc_in%t_scalar_sisl)
+      call this%api%Register(hlm_fates_soil_level, this%bc_in%nlevsoil)
+      call this%api%Register(hlm_fates_decomp_frac_moisture, this%bc_in%w_scalar_sisl)
+      call this%api%Register(hlm_fates_decomp_frac_temperature, this%bc_in%t_scalar_sisl)
 
     end subroutine RegisterFatesInterfaceVariables
  

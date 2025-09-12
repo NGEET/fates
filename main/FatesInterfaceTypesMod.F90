@@ -290,12 +290,10 @@ module FatesInterfaceTypesMod
                                                  ! Including the gridcell level, ELM = 5, CLM = 4
 
    ! Subgrid levels for HLM-FATES interface variable
-   integer, parameter, public :: subgrid_gridcell = 5
-   integer, parameter, public :: subgrid_topounit = 4
-   integer, parameter, public :: subgrid_landunit = 3
-   integer, parameter, public :: subgrid_column = 2
-   integer, parameter, public :: subgrid_patch = 1
-   
+    ! Registry keys parameters
+    character(len=*), parameter, public :: hlm_fates_soil_level = 'soil_level_number'
+    character(len=*), parameter, public :: hlm_fates_decomp_frac_moisture = 'decomp_frac_moisture'
+    character(len=*), parameter, public :: hlm_fates_decomp_frac_temperature = 'decomp_frac_temperature'
    
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
@@ -947,8 +945,9 @@ module FatesInterfaceTypesMod
     ivar = 0
 
     ! Define the interface registry names and indices
-    call this%DefineInterfaceVariable(key='decomp_frac_moisture', index=ivar, initialize=initialize)
-    call this%DefineInterfaceVariable(key='decomp_frac_temperature', index=ivar, initialize=initialize)
+    call this%DefineInterfaceVariable(key=hlm_fates_soil_level, index=ivar, initialize=initialize)
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_moisture, index=ivar, initialize=initialize)
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_temperature, index=ivar, initialize=initialize)
 
     ! Set the registry size based on the final update of ivar
     this%num_api_vars = ivar
