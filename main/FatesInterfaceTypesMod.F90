@@ -908,7 +908,7 @@ module FatesInterfaceTypesMod
 
     ! This initializes the interface registry
 
-    class(fates_interface_registry_base_type) :: this
+    class(fates_interface_registry_base_type), intent(inout) :: this
 
     logical :: initialize
 
@@ -934,7 +934,7 @@ module FatesInterfaceTypesMod
     ! This procedure defines the list of common names to be associated with FATES and HLM
     ! variables.
 
-    class(fates_interface_registry_base_type) :: this
+    class(fates_interface_registry_base_type), intent(inout) :: this
 
     logical, intent(in) :: initialize  ! false = count up the keys in the registry
 
@@ -957,7 +957,7 @@ module FatesInterfaceTypesMod
 
   subroutine DefineInterfaceVariable(this, key, index, initialize)
 
-    class(fates_interface_registry_base_type) :: this
+    class(fates_interface_registry_base_type), intent(inout) :: this
 
     character(len=*), intent(in) :: key
     integer, intent(inout)       :: index
@@ -982,7 +982,7 @@ module FatesInterfaceTypesMod
 
     use FatesInterfaceVariableTypeMod, only : subgrid_patch
     
-    class(fates_interface_registry_base_type) :: this
+    class(fates_interface_registry_base_type), intent(inout) :: this
 
     character(len=*), intent(in)  :: key        ! variable registry key 
     class(*), target, intent(in)  :: data(:)  ! data to be associated with key
@@ -1010,7 +1010,7 @@ module FatesInterfaceTypesMod
 
     use FatesInterfaceVariableTypeMod, only : subgrid_patch
 
-    class(fates_interface_registry_base_type) :: this
+    class(fates_interface_registry_base_type), intent(inout) :: this
 
     character(len=*), intent(in)  :: key        ! variable registry key 
     class(*), target, intent(in)  :: data(:,:)  ! data to be associated with key
@@ -1033,8 +1033,8 @@ module FatesInterfaceTypesMod
 
   subroutine UpdateInterfaceVariables(this, api)
 
-    class(fates_interface_registry_base_type) :: this            ! registry being updated
-    class(fates_interface_registry_base_type), intent(in) :: api ! registry update source
+    class(fates_interface_registry_base_type), intent(inout) :: this  ! registry being updated
+    class(fates_interface_registry_base_type), intent(in)    :: api   ! registry update source
 
     integer :: i
     integer :: j
@@ -1056,7 +1056,7 @@ module FatesInterfaceTypesMod
 
     ! This procedure returns the index associated with the key provided
 
-    class(fates_interface_registry_base_type) :: this
+    class(fates_interface_registry_base_type), intent(in) :: this
 
     character(len=*), intent(in) :: key    ! variable registry key to search
 
@@ -1078,7 +1078,7 @@ module FatesInterfaceTypesMod
 
     ! This procedure returns the index associated with the key provided
 
-    class(fates_interface_registry_base_type) :: this
+    class(fates_interface_registry_base_type), intent(in) :: this
 
     integer, intent(in) :: index    ! variable registry index
     character(len=:), allocatable :: key

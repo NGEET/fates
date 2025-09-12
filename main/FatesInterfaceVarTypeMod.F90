@@ -51,7 +51,7 @@ module FatesInterfaceVariableTypeMod
   
     subroutine InitializeInterfaceVariable(this, key)
                                             
-      class(fates_interface_variable_type) :: this
+      class(fates_interface_variable_type), intent(inout) :: this
 
       character(len=*), intent(in) :: key
       
@@ -67,8 +67,8 @@ module FatesInterfaceVariableTypeMod
   ! ====================================================================================
     
     subroutine RegisterInterfaceVariable_1d(this, data, active, subgrid_index)
-      
-      class(fates_interface_variable_type) :: this
+
+      class(fates_interface_variable_type), intent(inout) :: this
 
       class(*), target, intent(in) :: data(:)
       logical, intent(in)          :: active
@@ -84,8 +84,8 @@ module FatesInterfaceVariableTypeMod
   ! ====================================================================================
     
     subroutine RegisterInterfaceVariable_2d(this, data, active, subgrid_index)
-      
-      class(fates_interface_variable_type) :: this
+
+      class(fates_interface_variable_type), intent(inout) :: this
 
       class(*), target, intent(in)  :: data(:,:)
       logical, intent(in)           :: active
@@ -101,10 +101,10 @@ module FatesInterfaceVariableTypeMod
   ! ====================================================================================
     
     subroutine UpdateInterfaceVariable(this, var, subgrid_indices)
-      
-      class(fates_interface_variable_type) :: this             ! variable being updated
-      class(fates_interface_variable_type), intent(in) :: var  ! variable update source
-      integer, intent(in) :: subgrid_indices(:)                ! subgrid indices for the update source
+
+      class(fates_interface_variable_type), intent(inout) :: this ! variable being updated
+      class(fates_interface_variable_type), intent(in)    :: var  ! variable update source
+      integer, intent(in) :: subgrid_indices(:)                   ! subgrid indices for the update source
 
       class(*), pointer :: data_var0d        => null()
       class(*), pointer :: data_var1d(:)     => null()
