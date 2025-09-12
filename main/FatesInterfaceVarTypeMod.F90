@@ -178,7 +178,17 @@ module FatesInterfaceVariableTypeMod
               write(fates_log(),*), 'FATES ERROR: Unsupported interface variable type'
               call endrun(msg=errMsg(__FILE__, __LINE__))
           end select
+
         case(1)
+
+          ! Check that the dimensions of the source and target match
+          if (this%data_size(1) /= size(data_var1d)) then
+            write(fates_log(),*) 'FATES ERROR: Mismatched interface variable sizes in UpdateInterfaceVariable'
+            write(fates_log(),*) '  Target, size: ', this%key, this%data_size(1)
+            write(fates_log(),*) '  Source, size: ', var%key, var%data_size(1)
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+          end if
+          
           select type(dest => this%data1d)
             type is (real(r8))
               select type(source => data_var1d)
@@ -201,6 +211,16 @@ module FatesInterfaceVariableTypeMod
               call endrun(msg=errMsg(__FILE__, __LINE__))
           end select
         case(2)
+          
+          ! Check that the dimensions of the source and target match
+          if (this%data_size(1) /= size(data_var2d) .or. & 
+              this%data_size(2) /= size(data_var2d, 2)) then
+            write(fates_log(),*) 'FATES ERROR: Mismatched interface variable sizes in UpdateInterfaceVariable'
+            write(fates_log(),*) '  Target, size: ', this%key, this%data_size(1), this%data_size(2)
+            write(fates_log(),*) '  Source, size: ', var%key, var%data_size(1), var%data_size(2)
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+          end if
+
           select type(dest => this%data2d)
             type is (real(r8))
               select type(source => data_var2d)
