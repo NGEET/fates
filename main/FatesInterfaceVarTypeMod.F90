@@ -40,7 +40,10 @@ module FatesInterfaceVariableTypeMod
       procedure :: Initialize => InitializeInterfaceVariable
       procedure :: Update     => UpdateInterfaceVariable
 
-      generic :: Register => RegisterInterfaceVariable_1d, RegisterInterfaceVariable_2d
+      generic :: Register => RegisterInterfaceVariable_0d, &
+                             RegisterInterfaceVariable_1d, &
+                             RegisterInterfaceVariable_2d
+      procedure, private :: RegisterInterfaceVariable_0d
       procedure, private :: RegisterInterfaceVariable_1d
       procedure, private :: RegisterInterfaceVariable_2d
 
@@ -70,6 +73,23 @@ module FatesInterfaceVariableTypeMod
       this%active = .false.
 
     end subroutine InitializeInterfaceVariable
+
+  ! ====================================================================================
+    
+    subroutine RegisterInterfaceVariable_0d(this, data, active, subgrid_index)
+
+      class(fates_interface_variable_type), intent(inout) :: this
+
+      class(*), target, intent(in) :: data
+      logical, intent(in)          :: active
+      integer, intent(in)          :: subgrid_index
+
+      this%data0d => data
+      this%active = active
+      this%subgrid = subgrid_index
+      this%data_rank = rank(data)
+
+    end subroutine RegisterInterfaceVariable_0d
 
   ! ====================================================================================
     
