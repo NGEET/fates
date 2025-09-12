@@ -288,6 +288,12 @@ module FatesInterfaceTypesMod
                                                  ! Including the gridcell level, ELM = 5, CLM = 4
 
    ! Subgrid levels for HLM-FATES interface variable
+   integer, parameter, public :: subgrid_gridcell_index = 5
+   integer, parameter, public :: subgrid_topounit_index = 4
+   integer, parameter, public :: subgrid_landunit_index = 3
+   integer, parameter, public :: subgrid_column_index = 2
+   integer, parameter, public :: subgrid_patch_index = 1
+
     ! Registry keys parameters
     character(len=*), parameter, public :: hlm_fates_soil_level = 'soil_level_number'
     character(len=*), parameter, public :: hlm_fates_decomp_frac_moisture = 'decomp_frac_moisture'
@@ -856,12 +862,14 @@ module FatesInterfaceTypesMod
    ! Base type to be extended for the API registry
    type, public :: fates_interface_registry_base_type
 
+    ! container array of interface variables
+    type(fates_interface_variable_type), allocatable :: vars(:) 
+
+    ! registry metadata
     integer :: num_api_vars                        ! number of variables in the registry
     integer :: subgrid_indices(hlm_subgrid_levels) ! HLM patch ID associated with this patch
                                                    ! 1 = patch, 2 = column, 3 = landunit, 4 = topounit, 5 = gridcell
 
-    ! container array of interface variables
-    type(fates_interface_variable_type), allocatable :: vars(:) 
 
     contains
 
@@ -980,12 +988,10 @@ module FatesInterfaceTypesMod
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
-    use FatesInterfaceVariableTypeMod, only : subgrid_patch
-    
     class(fates_interface_registry_base_type), intent(inout) :: this
 
-    character(len=*), intent(in)  :: key           ! variable registry key 
     class(*), target, intent(in)  :: data          ! data to be associated with key
+    character(len=*), intent(in)  :: key           ! variable registry key 
     integer, intent(in), optional :: subgrid_index ! HLM subgrid index to associate with this variable
     
     integer :: subgrid_index_use
@@ -993,7 +999,7 @@ module FatesInterfaceTypesMod
     if (present(subgrid_index)) then
       subgrid_index_use = subgrid_index
     else
-      subgrid_index_use = subgrid_patch
+      subgrid_index_use = subgrid_patch_index
     end if
 
     ! Get index from registry key and associate the given data pointer
@@ -1008,12 +1014,10 @@ module FatesInterfaceTypesMod
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
-    use FatesInterfaceVariableTypeMod, only : subgrid_patch
-    
     class(fates_interface_registry_base_type), intent(inout) :: this
 
-    character(len=*), intent(in)  :: key        ! variable registry key 
     class(*), target, intent(in)  :: data(:)  ! data to be associated with key
+    character(len=*), intent(in)  :: key        ! variable registry key 
     integer, intent(in), optional :: subgrid_index ! HLM subgrid index to associate with this variable
     
     integer :: subgrid_index_use
@@ -1021,7 +1025,7 @@ module FatesInterfaceTypesMod
     if (present(subgrid_index)) then
       subgrid_index_use = subgrid_index
     else
-      subgrid_index_use = subgrid_patch
+      subgrid_index_use = subgrid_patch_index
     end if
 
     ! Get index from registry key and associate the given data pointer
@@ -1036,12 +1040,10 @@ module FatesInterfaceTypesMod
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
-    use FatesInterfaceVariableTypeMod, only : subgrid_patch
-
     class(fates_interface_registry_base_type), intent(inout) :: this
 
-    character(len=*), intent(in)  :: key        ! variable registry key 
     class(*), target, intent(in)  :: data(:,:)  ! data to be associated with key
+    character(len=*), intent(in)  :: key        ! variable registry key 
     integer, intent(in), optional :: subgrid_index ! HLM subgrid index to associate with this variable
 
     integer :: subgrid_index_use
@@ -1049,7 +1051,7 @@ module FatesInterfaceTypesMod
     if (present(subgrid_index)) then
       subgrid_index_use = subgrid_index
     else
-      subgrid_index_use = subgrid_patch
+      subgrid_index_use = subgrid_patch_index
     end if
 
     ! Get index from registry key and associate the given data pointer
@@ -1067,9 +1069,10 @@ module FatesInterfaceTypesMod
     integer :: i
     integer :: j
 
+    ! Iterate over all registered variables
     do i = 1, this%num_api_vars
 
-      ! Don't assume the index in the registry is the same as in the interface
+      ! Don't assume the index in the calling registry is the same as in the input registry
       j = api%GetRegistryIndex(api%GetRegistryKey(i))
 
       ! Update the registered variable and pass the subgrid indices information
