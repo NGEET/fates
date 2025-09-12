@@ -41,9 +41,10 @@ module FatesInterfaceVariableTypeMod
       procedure :: Update     => UpdateInterfaceVariable
 
       generic :: Register => RegisterInterfaceVariable_1d, RegisterInterfaceVariable_2d
-
       procedure, private :: RegisterInterfaceVariable_1d
       procedure, private :: RegisterInterfaceVariable_2d
+
+      procedure, private :: CompareRegistryVariableSizes
       
   end type fates_interface_variable_type
   
@@ -182,12 +183,7 @@ module FatesInterfaceVariableTypeMod
         case(1)
 
           ! Check that the dimensions of the source and target match
-          if (this%data_size(1) /= size(data_var1d)) then
-            write(fates_log(),*) 'FATES ERROR: Mismatched interface variable sizes in UpdateInterfaceVariable'
-            write(fates_log(),*) '  Target, size: ', this%key, this%data_size(1)
-            write(fates_log(),*) '  Source, size: ', var%key, var%data_size(1)
-            call endrun(msg=errMsg(__FILE__, __LINE__))
-          end if
+          call this%CompareRegistryVariableSizes(var)
           
           select type(dest => this%data1d)
             type is (real(r8))
@@ -213,13 +209,7 @@ module FatesInterfaceVariableTypeMod
         case(2)
           
           ! Check that the dimensions of the source and target match
-          if (this%data_size(1) /= size(data_var2d) .or. & 
-              this%data_size(2) /= size(data_var2d, 2)) then
-            write(fates_log(),*) 'FATES ERROR: Mismatched interface variable sizes in UpdateInterfaceVariable'
-            write(fates_log(),*) '  Target, size: ', this%key, this%data_size(1), this%data_size(2)
-            write(fates_log(),*) '  Source, size: ', var%key, var%data_size(1), var%data_size(2)
-            call endrun(msg=errMsg(__FILE__, __LINE__))
-          end if
+          call this%CompareRegistryVariableSizes(var)
 
           select type(dest => this%data2d)
             type is (real(r8))
@@ -249,6 +239,37 @@ module FatesInterfaceVariableTypeMod
 
     end subroutine UpdateInterfaceVariable
 
+  ! ====================================================================================
+    
+    subroutine CompareRegistryVariableSizes(this, var) 
+      
+      class(fates_interface_variable_type), intent(in) :: this ! variable being updated
+      class(fates_interface_variable_type), intent(in) :: var  ! variable update source
+
+      if (this%data_size(1) /= var%data_size(1) .or. & 
+          this%data_size(2) /= var%data_size(2) .or. &
+          this%data_size(3) /= var%data_size(3)) then
+
+        write(fates_log(),*) 'FATES ERROR: Mismatched interface variable sizes in UpdateInterfaceVariable'
+
+        if (this%data_rank == 1) then
+          write(fates_log(),*) '  Target, size: ', this%key, this%data_size(1)
+          write(fates_log(),*) '  Source, size: ', var%key, var%data_size(1)
+        else if (this%data_rank == 2) then
+          write(fates_log(),*) '  Target, size: ', this%key, this%data_size(1), this%data_size(2)
+          write(fates_log(),*) '  Source, size: ', var%key, var%data_size(1), var%data_size(2)
+        else if (this%data_rank == 3) then
+          write(fates_log(),*) '  Target, size: ', this%key, this%data_size(1), this%data_size(2), this%data_size(3)
+          write(fates_log(),*) '  Source, size: ', var%key, var%data_size(1), var%data_size(2), var%data_size(3)
+        else 
+          write(fates_log(),*) '  Unsupported interface variable rank in UpdateErrorMessage'
+        end if
+
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
+
+    end subroutine CompareRegistryVariableSizes
+    
   ! ====================================================================================
 
 end module FatesInterfaceVariableTypeMod
