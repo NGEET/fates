@@ -868,6 +868,7 @@ module FatesInterfaceTypesMod
     type(fates_interface_variable_type), allocatable :: vars(:) 
 
     ! registry metadata
+    ! TODO: make an extended type for the HLM interface that holds the subgrid info
     integer :: num_api_vars                        ! number of variables in the registry
     integer :: subgrid_indices(hlm_subgrid_levels) ! HLM patch ID associated with this patch
                                                    ! 1 = patch, 2 = column, 3 = landunit, 4 = topounit, 5 = gridcell

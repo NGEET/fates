@@ -2735,9 +2735,11 @@ subroutine UpdateInterfaceVariables(this)
          ! to ensure that the new patches are provided with the column index
          patch_api%subgrid_indices(subgrid_column_index) = this%sites(s)%column_map(currentPatch%patchno)
 
-         ! Update the patch boundary condition via the data pointer
+         ! Update the patch boundary condition via the HLM Interface data pointer
          call patch_api%Update(this%api)
-
+         
+         ! TODO: Update the HLM interface variables with the patch variables here
+         
          currentPatch => currentPatch%younger
       end do
    end do
