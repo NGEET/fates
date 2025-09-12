@@ -1895,9 +1895,13 @@ contains
        curr_litt  => currentPatch%litter(el)
        new_litt  => newPatch%litter(el)
 
-       ! Distribute the fragmentation litter flux rates. This is only used for diagnostics
-       ! at this point.  Litter fragmentation has already been passed to the output
-       ! boundary flux arrays.
+       ! Distribute the fragmentation litter flux rates. The mean site-level
+       ! flux rate must be preserved, so when we create new patches
+       ! from disturbance, we must area weight the contributions of the
+       ! donor patches.  This is because the host model will call
+       ! FatesSoilBGCFluxMod:FluxIntoLitterPools() which uses these
+       ! litt%<>_frac() arrays to fill site level output fluxes, and
+       ! this is called over the next day on the model timestep.       
 
        do c = 1,ncwd 
           new_litt%ag_cwd_frag(c) = new_litt%ag_cwd_frag(c) + &
