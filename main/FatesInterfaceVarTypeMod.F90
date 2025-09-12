@@ -12,6 +12,7 @@ module FatesInterfaceVariableTypeMod
 
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : fates_long_string_length
+  use FatesConstantsMod, only : fates_unset_int
 
   implicit none
   private
@@ -31,8 +32,9 @@ module FatesInterfaceVariableTypeMod
     class(*), pointer :: data2d(:,:)    ! 2D polymorphic data pointer
     class(*), pointer :: data3d(:,:,:)  ! 3D polymorphic data pointer
     logical           :: active         ! true if the variable is used by the host land model
-    integer           :: rank           ! rank of the variable (0, 1, 2, or 3)
+    integer           :: data_rank      ! rank of the variable (0, 1, 2, or 3)
     integer           :: subgrid        ! subgrid level (0 = gridcell, 1 = landunit, 2 = column, 3 = patch)
+    integer, allocatable :: data_size(:)   ! size of the first dimension of the variable
 
     contains
       procedure :: Initialize => InitializeInterfaceVariable
@@ -55,13 +57,17 @@ module FatesInterfaceVariableTypeMod
 
       character(len=*), intent(in) :: key
       
+      allocate(this%data_size(3))
+
+      this%data_size = fates_unset_int
+      this%data_rank = fates_unset_int
       this%data0d  => null()
       this%data1d  => null()
       this%data2d  => null()
       this%data3d  => null()
       this%key = key 
       this%active = .false.
-      
+
     end subroutine InitializeInterfaceVariable
 
   ! ====================================================================================
@@ -77,7 +83,8 @@ module FatesInterfaceVariableTypeMod
       this%data1d => data(:)
       this%active = active
       this%subgrid = subgrid_index
-      this%rank = rank(data)
+      this%data_rank = rank(data)
+      this%data_size(1) = size(data, dim=1)
 
     end subroutine RegisterInterfaceVariable_1d
 
@@ -94,8 +101,10 @@ module FatesInterfaceVariableTypeMod
       this%data2d => data(:,:)
       this%active = active
       this%subgrid = subgrid_index
-      this%rank = rank(data) 
-      
+      this%data_rank = rank(data) 
+      this%data_size(1) = size(data, dim=1)
+      this%data_size(2) = size(data, dim=2)
+
     end subroutine RegisterInterfaceVariable_2d
 
   ! ====================================================================================
@@ -116,7 +125,7 @@ module FatesInterfaceVariableTypeMod
 
       ! This update method assumes that the first rank of the HLM data arrays
       ! corresponds to the subgrid level of the interface variable type.
-      ! E.g. col_cf%w_scalar(c,1:nlevsoil) shows that the first rank is the column index.
+      ! E.g. col_cf%w_scalar(c,1:nlevsoil) shows that the first dimension is the column index.
       ! TODO: This should be held in an interface requirements document.
 
       ! Get the subgrid index for the updating variable 
@@ -125,7 +134,7 @@ module FatesInterfaceVariableTypeMod
       ! Update the data pointer based on the rank of the source variable while indexing
       ! into the appropriate subgrid level
       ! TODO: This assumes HLM->FATES direction; Validate this for FATES->HLM direction
-      select case (var%rank)
+      select case (var%data_rank)
         case(0)
           data_var0d => var%data0d
         case(1)
@@ -146,7 +155,7 @@ module FatesInterfaceVariableTypeMod
       ! to determine the actual type of the data being pointed to allowing for type-safe assignment.
       ! This currently only supports real and integer types and no conversion between types 
       ! should be performed
-      select case (this%rank)
+      select case (this%data_rank)
         case(0)
           select type(dest => this%data0d)
             type is (real(r8))
