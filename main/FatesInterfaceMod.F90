@@ -2730,7 +2730,7 @@ subroutine UpdateInterfaceVariables(this)
          ! Transfer the column index to the HLM interface registry
          ! While this may be duplicative for older patches, we need
          ! to ensure that the new patches are provided with the column index
-         patch_api%subgrid_indices(subgrid_column_index) = this%sites(s)%column_map(currentPatch%patchno)
+         this%api%subgrid_indices(subgrid_column_index) = this%sites(s)%column_map(currentPatch%patchno)
 
          ! Update the patch boundary condition via the HLM Interface data pointer
          call patch_api%Update(this%api)
