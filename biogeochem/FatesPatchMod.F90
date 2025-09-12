@@ -282,6 +282,7 @@ module FatesPatchMod
       allocate(this%sabs_dir(num_swb))
       allocate(this%sabs_dif(num_swb))
       allocate(this%fragmentation_scaler(num_levsoil))
+
       allocate(this%bc_in%w_scalar_sisl(num_levsoil))
       allocate(this%bc_in%t_scalar_sisl(num_levsoil))
 
@@ -534,6 +535,7 @@ module FatesPatchMod
       this%bc_in%w_scalar_sisl(:)       = nan
       this%bc_in%t_scalar_sisl(:)       = nan
       this%bc_in%nlevdecomp             = fates_unset_int
+      this%bc_in%nlevsoil               = fates_unset_int
       
     end subroutine NanValues
 
@@ -625,6 +627,7 @@ module FatesPatchMod
       this%bc_in%w_scalar_sisl(:)            = 0.0_r8
       this%bc_in%t_scalar_sisl(:)            = 0.0_r8
       this%bc_in%nlevdecomp                  = 0.0_r8
+      this%bc_in%nlevsoil                    = 0.0_r8
 
     end subroutine ZeroValues
 
@@ -1328,6 +1331,7 @@ module FatesPatchMod
       call this%api%InitializeInterfaceRegistry()
 
       ! Register the FATES boundary condition data variables
+      call this%api%Register('soil_level_number', this%bc_in%nlevsoil)
       call this%api%Register('decomp_frac_moisture', this%bc_in%w_scalar_sisl)
       call this%api%Register('decomp_frac_temperature', this%bc_in%t_scalar_sisl)
 
