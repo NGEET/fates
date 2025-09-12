@@ -92,7 +92,7 @@ contains
 
     ! LOCALS:  
     type(fates_patch_type), pointer :: currentPatch   ! patch object
-    real(r8)                        :: temp_K         ! daily averaged temperature [K]
+    type(fates_patch_type), pointer :: oldestvegPatch ! object for oldest vegetated patch
     real(r8)                        :: temp_C         ! daily averaged temperature [deg C]
     real(r8)                        :: precip         ! daily precip [mm/day]
     real(r8)                        :: rh             ! daily relative humidity [%]
@@ -111,32 +111,23 @@ contains
     ! This should remain at site level to allow wind speed enhancement based on edge distance.
     call CalculateTreeGrassAreaSite(currentSite, tree_fraction, grass_fraction, bare_fraction)
 
+    ! TODO SSR: Before my edge-flammability work, the temperature used here across the site was
+    ! taken from the oldest vegetated patch. Using patch-level temperatures should thus be expected
+    ! to introduce diffs. This TEMPORARY code block is designed to test whether the diffs I've seen
+    ! are indeed due to that.
+    ! TODO SSR: Also using that patch's other fire weather variables, just to be extra safe.
+    oldestvegPatch => currentSite%oldest_patch
+    if (oldestvegPatch%nocomp_pft_label == nocomp_bareground) then
+      oldestvegPatch => oldestvegPatch%younger
+    end if
+    temp_C = oldestvegPatch%tveg24%GetMean() - tfrz  ! Convert K to °C
+    iofp = oldestvegPatch%patchno
+    precip = bc_in%precip24_pa(iofp)*sec_per_day
+    rh = bc_in%relhumid24_pa(iofp)
+    wind = bc_in%wind24_pa(iofp) * sec_per_min
+
     currentPatch => currentSite%oldest_patch
     patchloop: do while(associated(currentPatch))
-      iofp = currentPatch%patchno
-
-      ! Get temperature
-      if (currentPatch%nocomp_pft_label == nocomp_bareground) then
-        ! Bare ground: Vegetation temperature of next-younger or next-older patch.
-        ! TODO SSR: I chose this to match the previous behavior for testing purposes. I think it would be simpler and more scientifically justified to just use soil temperature as I do in the fallback case. That will change answers, though.
-        if (associated(currentPatch%younger)) then
-          temp_K = currentPatch%younger%tveg24%GetMean()
-        else if (associated(currentPatch%older)) then
-          temp_K = currentPatch%older%tveg24%GetMean()
-        else
-          temp_K = bc_in%t_soisno_sl(iofp)
-        end if
-      else
-        ! Vegetated: Use vegetation temperature
-        temp_K = currentPatch%tveg24%GetMean()
-      end if
-      temp_C = temp_K - tfrz  ! Convert K to °C
-
-      ! Get other fire weather variables
-      precip = bc_in%precip24_pa(iofp)*sec_per_day
-      rh = bc_in%relhumid24_pa(iofp)
-      wind = bc_in%wind24_pa(iofp) * sec_per_min
-
 
       ! update fire weather index
       call currentPatch%fireWeather%UpdateFireWeatherData(temp_C, precip, rh, wind)
