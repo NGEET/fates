@@ -872,12 +872,15 @@ module FatesInterfaceTypesMod
       procedure :: InitializeInterfaceRegistry
       procedure :: Update => UpdateInterfaceVariables
 
-      generic   :: Register => RegisterInterfaceVariables_1d, RegisterInterfaceVariables_2d
+      generic   :: Register => RegisterInterfaceVariables_0d, & 
+                               RegisterInterfaceVariables_1d, &
+                               RegisterInterfaceVariables_2d
+      procedure, private :: RegisterInterfaceVariables_0d
+      procedure, private :: RegisterInterfaceVariables_1d
+      procedure, private :: RegisterInterfaceVariables_2d
 
       procedure, private :: DefineInterfaceRegistry
       procedure, private :: DefineInterfaceVariable
-      procedure, private :: RegisterInterfaceVariables_1d
-      procedure, private :: RegisterInterfaceVariables_2d
       procedure, private :: GetRegistryIndex
       procedure, private :: GetRegistryKey
 
@@ -972,6 +975,34 @@ module FatesInterfaceTypesMod
     end if
 
   end subroutine DefineInterfaceVariable
+
+  ! ======================================================================================
+
+  subroutine RegisterInterfaceVariables_0d(this, key, data, subgrid_index)
+
+    ! This procedure is called by the to associate a data variable
+    ! with a particular registry key
+
+    use FatesInterfaceVariableTypeMod, only : subgrid_patch
+    
+    class(fates_interface_registry_base_type), intent(inout) :: this
+
+    character(len=*), intent(in)  :: key           ! variable registry key 
+    class(*), target, intent(in)  :: data          ! data to be associated with key
+    integer, intent(in), optional :: subgrid_index ! HLM subgrid index to associate with this variable
+    
+    integer :: subgrid_index_use
+    
+    if (present(subgrid_index)) then
+      subgrid_index_use = subgrid_index
+    else
+      subgrid_index_use = subgrid_patch
+    end if
+
+    ! Get index from registry key and associate the given data pointer
+    call this%vars(this%GetRegistryIndex(key))%Register(data, active=.true., subgrid_index=subgrid_index_use)
+
+  end subroutine RegisterInterfaceVariables_0d
 
   ! ======================================================================================
 
