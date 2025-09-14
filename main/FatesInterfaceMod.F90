@@ -160,10 +160,6 @@ module FatesInterfaceMod
       
       type(bc_pconst_type) :: bc_pconst
 
-      contains
-
-        procedure :: RestartUpdateBCOut
-      
 
    end type fates_interface_type
    
@@ -1505,6 +1501,7 @@ contains
          hlm_sf_scalar_lightning_def = unset_int
          hlm_sf_successful_ignitions_def = unset_int
          hlm_sf_anthro_ignitions_def = unset_int
+         hlm_use_managed_fire = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
@@ -1773,6 +1770,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_managed_fire .eq. unset_int) then
+            write(fates_log(), *) 'switch for managed fire mode unset: hlm_use_managed_fire, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(trim(hlm_name).eq.'CLM' .and. hlm_parteh_mode .eq. 2) then
             if( sum(abs(EDPftvarcon_inst%prescribed_puptake(:)))<nearzero .and. &
                 sum(abs(EDPftvarcon_inst%prescribed_nuptake(:)))<nearzero) then
@@ -1957,9 +1959,6 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_seeddisp_cadence= ',ival,' to FATES'
                end if
-
-           
-               
                
             case('spitfire_mode')
                hlm_spitfire_mode = ival
@@ -1991,6 +1990,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_sf_anthro_ignition_def =',ival,' to FATES'
                end if
 
+            case('use_managed_fire')
+               hlm_use_managed_fire = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_managed_fire =',ival,' to FATES'
+              end if
+              
                
             case('use_fixed_biogeog')
                 hlm_use_fixed_biogeog = ival
