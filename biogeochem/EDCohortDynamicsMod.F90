@@ -340,12 +340,13 @@ contains
           terminate = itrue
           termination_type = i_term_mort_type_numdens
           if ( debug ) then
-             write(fates_log(),*) 'terminating cohorts 0',currentCohort%n/currentPatch%area,currentCohort%dbh,currentCohort%pft,call_index
+             write(fates_log(),*) 'terminating cohorts 0',currentCohort%n/currentPatch%area, &
+                  currentCohort%dbh,currentCohort%pft,call_index
           endif
        endif
 
        ! The rest of these are only allowed if we are not dealing with a recruit (level 2)
-       if (.not.currentCohort%isnew .and. level == 2) then
+       if_level_2: if (.not.currentCohort%isnew .and. level == 2) then
 
          ! Not enough n or dbh
          if  (currentCohort%n/currentPatch%area <= min_npm2 .or.	&  !
@@ -354,18 +355,13 @@ contains
             terminate = itrue
             termination_type = i_term_mort_type_numdens
             if ( debug ) then
-               write(fates_log(),*) 'terminating cohorts 1',currentCohort%n/currentPatch%area,currentCohort%dbh,currentCohort%pft,call_index
+               write(fates_log(),*) 'terminating cohorts 1', &
+                    currentCohort%n/currentPatch%area,currentCohort%dbh, &
+                    currentCohort%pft,call_index
             endif
          endif
 
-         ! Outside the maximum canopy layer
-         if (currentCohort%canopy_layer > nclmax ) then
-           terminate = itrue
-           termination_type = i_term_mort_type_canlev
-           if ( debug ) then
-             write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer,currentCohort%pft,call_index
-           endif
-         endif
+        
 
          ! live biomass pools are terminally depleted
          if ( ( sapw_c+leaf_c+fnrt_c ) < 1e-10_r8  .or.  &
@@ -387,8 +383,18 @@ contains
                     struct_c,sapw_c,leaf_c,fnrt_c,store_c,currentCohort%pft,call_index
             endif
 
-        endif
-      endif    !  if (.not.currentCohort%isnew .and. level == 2) then
+         endif
+
+      end if if_level_2
+      
+      ! Outside the maximum canopy layer
+      if (currentCohort%canopy_layer > nclmax .and. level == 3) then
+         terminate = itrue
+         termination_type = i_term_mort_type_canlev
+         if ( debug ) then
+            write(fates_log(),*) 'terminating cohorts 2', currentCohort%canopy_layer,currentCohort%pft,call_index
+         endif
+      endif
 
       if (terminate == itrue) then
          call terminate_cohort(currentSite, currentPatch, currentCohort, bc_in, termination_type)
@@ -941,7 +947,7 @@ contains
                                         currentCohort%size_class,currentCohort%size_by_pft_class)
 
                                    if(hlm_use_planthydro.eq.itrue) then
-                                      call FuseCohortHydraulics(currentSite,currentCohort,nextc,bc_in,newn)
+                                      call FuseCohortHydraulics(currentSite,currentCohort,nextc,newn)
                                    endif
 
                                    ! recent canopy history
@@ -1020,6 +1026,12 @@ contains
 
                                       currentCohort%fire_mort      = (currentCohort%n*currentCohort%fire_mort   + &
                                            nextc%n*nextc%fire_mort)/newn
+                                      
+                                      currentCohort%nonrx_fire_mort     = (currentCohort%n*currentCohort%nonrx_fire_mort + &
+                                           nextc%n*nextc%nonrx_fire_mort)/newn
+                                      
+                                      currentCohort%rx_fire_mort        = (currentCohort%n*currentCohort%rx_fire_mort + &
+                                           nextc%n*nextc%rx_fire_mort)/newn
 
                                       ! mortality diagnostics
                                       currentCohort%cmort = (currentCohort%n*currentCohort%cmort + nextc%n*nextc%cmort)/newn
@@ -1118,7 +1130,7 @@ contains
                                    ! update hydraulics quantities that are functions of height & biomasses
                                    ! deallocate the hydro structure of nextc
                                    if (hlm_use_planthydro.eq.itrue) then
-                                      call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
+                                      call UpdateSizeDepPlantHydProps(currentSite,currentCohort)
                                    endif
 
                                    call nextc%FreeMemory()
