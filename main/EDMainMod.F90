@@ -841,13 +841,23 @@ contains
     real(r8) :: total_stock  ! dummy variable for receiving from sitemassstock
     !-----------------------------------------------------------------------
 
+    site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
+    
     ! check patch order (set second argument to true)
     if (debug) then
        call set_patchno(currentSite,.true.,1)
     end if
+
+    ! Pass site-level mass fluxes to output boundary conditions
+    ! [kg/site/day] * [site/m2 day/sec] = [kgC/m2/s]
+    bc_out%gpp_site = site_cmass%gpp_acc * area_inv / sec_per_day
+    bc_out%ar_site  = site_cmass%aresp_acc * area_inv / sec_per_day
     
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting))then
-      call canopy_spread(currentSite)
+       call canopy_spread(currentSite)
+    else
+       site_cmass%gpp_acc = 0._r8
+       site_cmass%aresp_acc = 0._r8
     end if
 
     call TotalBalanceCheck(currentSite,6)
@@ -916,14 +926,11 @@ contains
 
     ! Set boundary condition to HLM for carbon loss to atm from fires and grazing
     ! [kgC/ha/day]*[ha/m2]*[day/s] = [kg/m2/s] 
-    site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
+    
     bc_out%fire_closs_to_atm_si = site_cmass%burn_flux_to_atm * ha_per_m2 * days_per_sec
     bc_out%grazing_closs_to_atm_si = site_cmass%herbivory_flux_out * ha_per_m2 * days_per_sec
 
-    ! Pass site-level mass fluxes to output boundary conditions
-    ! [kg/site/day] * [site/m2 day/sec] = [kgC/m2/s]
-    bc_out%gpp_site = site_cmass%gpp_acc * area_inv / sec_per_day
-    bc_out%ar_site  = site_cmass%aresp_acc * area_inv / sec_per_day
+    
 
   end subroutine ed_update_site
 
