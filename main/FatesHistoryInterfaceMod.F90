@@ -2815,8 +2815,8 @@ contains
                cpatch%FDI * cpatch%area * AREA_INV
 
             ! number of ignitions [#/km2/day -> #/m2/s]
-            hio_fire_nignitions_si(io_si) =  hio_fire_nignitions_si(io_si) + \
-                 cpatch%NF_successful / m2_per_km2 / sec_per_day * \
+            hio_fire_nignitions_si(io_si) =  hio_fire_nignitions_si(io_si) + &
+                 cpatch%NF_successful / m2_per_km2 / sec_per_day * &
                  cpatch%area * AREA_INV
 
             ! Nesterov index (unitless)
