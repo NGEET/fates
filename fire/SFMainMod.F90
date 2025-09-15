@@ -434,7 +434,7 @@ contains
           ! assign fire intensities and ignitions based on fire type
           if (currentPatch%nonrx_fire == itrue) then
             currentPatch%NF_successful = currentPatch%NF_successful + &
-            currentPatch%NF*currentPatch%FDI*currentPatch%area/area
+            currentPatch%NF*currentPatch%FDI
             currentPatch%nonrx_FI = currentPatch%FI
           else if (currentPatch%rx_fire == itrue) then
             currentPatch%rx_FI = currentPatch%FI
