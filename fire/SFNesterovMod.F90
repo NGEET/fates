@@ -14,6 +14,7 @@ module SFNesterovMod
     contains 
 
       procedure, public :: Init => init_nesterov_fire_weather
+      procedure, public :: CopyFrom => copy_nesterov_fire_weather
       procedure, public :: UpdateIndex => update_nesterov_index
             
   end type nesterov_index
@@ -36,6 +37,27 @@ module SFNesterovMod
       this%rx_flag = 0
 
     end subroutine init_nesterov_fire_weather
+
+    !-------------------------------------------------------------------------------------
+
+    subroutine copy_nesterov_fire_weather(this, from)
+      !
+      !  DESCRIPTION:
+      !  Copies class attributes from one instance to another
+      
+      ! ARGUMENTS
+      class(nesterov_index), intent(inout) :: this
+      class(fire_weather),   intent(in)    :: from
+
+      this%temp_C = from%temp_C
+      this%precip = from%precip
+      this%rh = from%rh
+      this%wind = from%wind
+      this%fire_weather_index   = from%fire_weather_index
+      this%effective_windspeed  = from%effective_windspeed
+      this%rx_flag = from%rx_flag
+
+    end subroutine copy_nesterov_fire_weather
 
     !-------------------------------------------------------------------------------------
 

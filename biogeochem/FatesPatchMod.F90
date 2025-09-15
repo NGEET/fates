@@ -275,7 +275,7 @@ module FatesPatchMod
 
     !===========================================================================
 
-    subroutine Init(this, num_swb, num_levsoil)
+    subroutine Init(this, num_swb, num_levsoil, from_patch_for_fire)
       !
       !  DESCRIPTION:
       !  Initialize a new patch - allocate arrays and set values to nan and/or 0.0
@@ -285,6 +285,7 @@ module FatesPatchMod
       class(fates_patch_type), intent(inout) :: this        ! patch object
       integer,                 intent(in)    :: num_swb     ! number of shortwave broad-bands to track
       integer,                 intent(in)    :: num_levsoil ! number of soil layers
+      class(fates_patch_type), intent(in), optional :: from_patch_for_fire  ! patch to take fire info from
 
       ! allocate arrays 
       allocate(this%tr_soil_dir(num_swb))
@@ -298,9 +299,19 @@ module FatesPatchMod
       allocate(this%fragmentation_scaler(num_levsoil))
       allocate(this%area_in_edgeforest_bins(nlevedgeforest))
 
-      ! allocate fire weather
+      ! allocate and copy or initialize patch-level fire info
       allocate(nesterov_index :: this%fireWeather)
-      call this%fireWeather%Init()
+      if (present(from_patch_for_fire)) then
+        call this%fireWeather%CopyFrom(from_patch_for_fire%fireWeather)
+        this%FDI              = from_patch_for_fire%FDI
+        this%NF               = from_patch_for_fire%NF
+        this%NF_successful    = from_patch_for_fire%NF_successful
+      else
+        call this%fireWeather%Init()
+        this%FDI              = 0.0_r8
+        this%NF               = 0.0_r8
+        this%NF_successful    = 0.0_r8
+      end if
 
       ! initialize all values to nan
       call this%NanValues()
@@ -732,7 +743,7 @@ module FatesPatchMod
     !===========================================================================
 
     subroutine Create(this, age, area, land_use_label, nocomp_pft, num_swb, num_pft,    &
-      num_levsoil, current_tod, regeneration_model)
+      num_levsoil, current_tod, regeneration_model, from_patch_for_fire)
       !
       ! DESCRIPTION:
       ! create a new patch with input and default values
@@ -749,10 +760,15 @@ module FatesPatchMod
       integer,                 intent(in)    :: num_levsoil        ! number of soil layers
       integer,                 intent(in)    :: current_tod        ! time of day [seconds past 0Z]
       integer,                 intent(in)    :: regeneration_model ! regeneration model version
+      class(fates_patch_type), intent(in), optional :: from_patch_for_fire  ! patch to take fire info from
       
       ! initialize patch
       ! sets all values to nan, then some values to zero
-      call this%Init(num_swb, num_levsoil)
+      if (present(from_patch_for_fire)) then
+        call this%Init(num_swb, num_levsoil, from_patch_for_fire)
+      else
+        call this%Init(num_swb, num_levsoil)
+      end if
 
       ! initialize running means for patch
       call this%InitRunningMeans(current_tod, regeneration_model, num_pft)
@@ -787,11 +803,6 @@ module FatesPatchMod
       this%NCL_p          = 1
 
       this%changed_landuse_this_ts = .false.
-
-      ! FIRE
-      this%FDI              = 0.0_r8     ! daily fire danger index (0-1)
-      this%NF               = 0.0_r8     ! daily lightning strikes per km2
-      this%NF_successful    = 0.0_r8     ! daily successful iginitions per km2
 
     end subroutine Create
 

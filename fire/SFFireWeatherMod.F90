@@ -20,6 +20,7 @@ module SFFireWeatherMod
     contains 
 
     procedure(initialize_fire_weather), public, deferred :: Init
+    procedure(copy_fire_weather),       public, deferred :: CopyFrom
     procedure(update_fire_weather_index), public, deferred :: UpdateIndex
     procedure,                          public           :: UpdateFireWeatherData
     procedure,                          public           :: UpdateEffectiveWindSpeed
@@ -35,6 +36,15 @@ module SFFireWeatherMod
       class(fire_weather), intent(inout) :: this
 
     end subroutine initialize_fire_weather
+
+    subroutine copy_fire_weather(this, from)
+
+      import :: fire_weather
+
+      class(fire_weather), intent(inout) :: this
+      class(fire_weather), intent(in)    :: from
+
+    end subroutine copy_fire_weather
 
     subroutine update_fire_weather_index(this)
 
