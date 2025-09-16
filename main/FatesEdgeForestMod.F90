@@ -72,28 +72,27 @@ contains
   end subroutine CalculateTreeGrassAreaSite
 
 
-  subroutine get_number_of_forest_patches(site, n_forest_patches, area_forest_patches, area_site)
+  subroutine get_number_of_forest_patches(site, n_forest_patches, area_site)
     ! DESCRIPTION
     ! Returns number and area of forest patches at site
     !
     ! ARGUMENTS:
     type(ed_site_type), pointer, intent(in) :: site
     integer, intent(out) :: n_forest_patches
-    real(r8), intent(out) :: area_forest_patches
     real(r8), intent(out) :: area_site
     !
     ! LOCAL VARIABLES:
     type(fates_patch_type), pointer :: currentPatch
 
     n_forest_patches = 0
-    area_forest_patches = 0._r8
+    site%area_forest_patches = 0._r8
     area_site = 0._r8
     currentPatch => site%youngest_patch
     do while(associated(currentPatch))
        area_site = area_site + currentPatch%area
        if (currentPatch%is_forest) then
           n_forest_patches = n_forest_patches + 1
-          area_forest_patches = area_forest_patches + currentPatch%area
+          site%area_forest_patches = site%area_forest_patches + currentPatch%area
        end if
 
        currentPatch => currentPatch%older
@@ -405,7 +404,7 @@ contains
   end subroutine assign_patch_to_bins
 
 
-  subroutine assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
+  subroutine assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, n_forest_patches, n_patches)
     ! DESCRIPTION
     ! Loops through forest patches from nearest to farthest from edge, assigning their
     ! area to edge bin(s).
@@ -416,10 +415,8 @@ contains
     type(ed_site_type), pointer, intent(in) :: site
     integer, dimension(:), intent(in) :: indices  ! Indices to use if you want to sort patches
     integer, dimension(:), intent(in) :: index_forestpatches_to_allpatches  ! Array with length (number of patches in gridcell), values 0 if not forest and otherwise an index corresponding to which number forest patch this is
-    real(r8), dimension(:), pointer, intent(in) :: fraction_forest_in_each_bin
     integer, intent(in) :: n_forest_patches  ! Number of forest patches
     integer, intent(in) :: n_patches  ! Number of patches in site
-    real(r8), intent(in) :: area_forest_patches
     !
     ! LOCAL VARIABLES
     integer :: f, i, p, b
@@ -454,7 +451,7 @@ contains
        end if
 
        ! Assign this patch's area
-       call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, currentPatch%area, nlevedgeforest, tol, sum_forest_bins_so_far_m2, currentPatch%area_in_edgeforest_bins)
+       call assign_patch_to_bins(site%fraction_forest_in_each_bin, site%area_forest_patches, currentPatch%area, nlevedgeforest, tol, sum_forest_bins_so_far_m2, currentPatch%area_in_edgeforest_bins)
 
     end do forestpatchloop
 
@@ -473,7 +470,7 @@ contains
 
           ! Accumulate site-wide area in each bin
           binloop_check4a: do b = 1, nlevedgeforest
-             bin_area_sums(b) = bin_area_sums(b) + currentPatch%area_in_edgeforest_bins(b) / area_forest_patches
+             bin_area_sums(b) = bin_area_sums(b) + currentPatch%area_in_edgeforest_bins(b) / site%area_forest_patches
           end do binloop_check4a
 
        end if
@@ -481,12 +478,18 @@ contains
     end do allpatchloop_check
     ! Check that fraction in each bin is what was expected
     binloop_check4b: do b = 1, nlevedgeforest
-       err_chk = bin_area_sums(b) - fraction_forest_in_each_bin(b)
+       err_chk = bin_area_sums(b) - site%fraction_forest_in_each_bin(b)
        if (abs(err_chk) > tol) then
           write(fates_log(),*) "ERROR: unexpected bin sum (check 4); actual minus expected = ",err_chk
           call endrun(msg=errMsg(__FILE__, __LINE__))
        end if
     end do binloop_check4b
+    ! Check that sum of all bin fractions is 1
+    err_chk = 1._r8 - sum(site%fraction_forest_in_each_bin(:))
+    if (abs(err_chk) > tol) then
+       write(fates_log(),*) "ERROR: unexpected bin sum (check 5); actual minus expected = ",err_chk
+       call endrun(msg=errMsg(__FILE__, __LINE__))
+    end if
   end subroutine assign_patches_to_bins
 
 
@@ -506,17 +509,24 @@ contains
     type(ed_site_type), pointer, intent(in) :: site
     !
     ! LOCAL VARIABLES:
+    type(fates_patch_type), pointer  :: currentPatch
     integer, dimension(:), allocatable :: indices ! Indices to use if you want to sort patches
     integer, dimension(:), allocatable :: index_forestpatches_to_allpatches  ! Array with length (number of patches in gridcell), values 0 if not forest and otherwise an index corresponding to which number forest patch this is
     integer :: n_forest_patches  ! Number of forest patches
     integer :: n_patches  ! Number of patches in site
-    real(r8) :: area_forest_patches
     real(r8) :: area_site
     real(r8) :: frac_forest
     real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
 
+    ! Zero out all fractions
+    currentPatch => site%oldest_patch
+    do while (associated(currentPatch))
+      currentPatch%area_in_edgeforest_bins(:) = 0._r8
+      currentPatch => currentPatch%younger
+    end do
+
     ! Skip sites with no forest patches
-    call get_number_of_forest_patches(site, n_forest_patches, area_forest_patches, area_site)
+    call get_number_of_forest_patches(site, n_forest_patches, area_site)
     if (n_forest_patches == 0) then
        return
     end if
@@ -530,11 +540,12 @@ contains
     call rank_forest_edge_proximity(site, indices, index_forestpatches_to_allpatches)
 
     ! Get fraction of forest area in each bin
-    frac_forest = area_forest_patches / area_site
+    frac_forest = site%area_forest_patches / area_site
     call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest, ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, fraction_forest_in_each_bin)
+    site%fraction_forest_in_each_bin = fraction_forest_in_each_bin
 
     ! Assign patches to bins
-    call assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
+    call assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, n_forest_patches, n_patches)
 
     ! Clean up
     deallocate(indices)

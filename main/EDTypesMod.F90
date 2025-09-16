@@ -594,6 +594,10 @@ module EDTypesMod
      logical, allocatable :: landuse_vector_gt_min(:)     ! is the land use state vector for each land use type greater than the minimum below which we ignore?
      logical :: transition_landuse_from_off_to_on         ! special flag to use only when reading restarts, which triggers procedure to initialize land use
 
+     ! Variables related to forest edge
+     real(r8) :: area_forest_patches  ! total area (m2) of all forest patches in site
+     real(r8), allocatable :: fraction_forest_in_each_bin(:) ! fraction of site forest in each bin of distance from edge
+
      contains
 
        procedure, public :: get_current_landuse_statevector

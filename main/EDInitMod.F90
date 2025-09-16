@@ -22,6 +22,7 @@ module EDInitMod
   use FatesInterfaceTypesMod    , only : hlm_is_restart
   use FatesInterfaceTypesMod    , only : hlm_current_tod
   use FatesInterfaceTypesMod    , only : hlm_regeneration_model
+  use FatesInterfaceTypesMod    , only : nlevedgeforest
   use EDPftvarcon               , only : EDPftvarcon_inst
   use PRTParametersMod          , only : prt_params
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts
@@ -237,6 +238,8 @@ contains
     ! for different pfts and canopy positions
     allocate(site_in%rec_l2fr(1:numpft,nclmax))
 
+    ! Forest edge
+    allocate(site_in%fraction_forest_in_each_bin(1:nlevedgeforest))
 
     ! SP mode
     allocate(site_in%sp_tlai(1:numpft))

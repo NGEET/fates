@@ -310,6 +310,10 @@ module FatesHistoryInterfaceMod
   integer :: ih_is_forest_pct75_0grass_si
   integer :: ih_is_forest_pct90_0grass_si
   integer :: ih_forest_edge_bin_area_si_edge
+  integer :: ih_fireweather_temp_si_edge
+  integer :: ih_fireweather_precip_si_edge
+  integer :: ih_fireweather_rh_si_edge
+  integer :: ih_fireweather_wind_si_edge
   integer :: ih_litter_in_elem
   integer :: ih_litter_out_elem
   integer :: ih_seed_bank_elem
@@ -463,23 +467,34 @@ module FatesHistoryInterfaceMod
   integer :: ih_cleafon_si
 
   integer :: ih_nesterov_fire_danger_si
+  integer :: ih_nesterov_fire_danger_si_edge
   integer :: ih_fire_nignitions_si
+  integer :: ih_fire_nignitions_si_edge
   integer :: ih_fire_fdi_si
+  integer :: ih_fire_fdi_si_edge
   integer :: ih_fire_intensity_fracarea_product_si
+  integer :: ih_fire_intensity_fracarea_product_si_edge
   integer :: ih_nonrx_intensity_fracarea_product_si
   integer :: ih_rx_intensity_fracarea_product_si
   integer :: ih_spitfire_ros_si
+  integer :: ih_spitfire_ros_si_edge
   integer :: ih_effect_wspeed_si
+  integer :: ih_effect_wspeed_si_edge
   integer :: ih_tfc_ros_si
+  integer :: ih_tfc_ros_si_edge
   integer :: ih_fire_intensity_si
+  integer :: ih_fire_intensity_si_edge
   integer :: ih_nonrx_intensity_si
   integer :: ih_fire_fracarea_si
+  integer :: ih_fire_fracarea_si_edge
   integer :: ih_nonrx_fracarea_si
   integer :: ih_fire_fuel_bulkd_si
   integer :: ih_fire_fuel_eff_moist_si
+  integer :: ih_fire_fuel_eff_moist_si_edge
   integer :: ih_fire_fuel_sav_si
   integer :: ih_fire_fuel_mef_si
   integer :: ih_sum_fuel_si
+  integer :: ih_sum_fuel_si_edge
   integer :: ih_rx_burn_window_si
   integer :: ih_rx_intensity_si
   integer :: ih_rx_fracarea_si
@@ -3198,6 +3213,11 @@ contains
                                   ! time-since-anthropogenic-disturbance of secondary forest
     real(r8) :: patch_fracarea  ! Fraction of area for this patch
     real(r8) :: frac_canopy_in_bin  ! fraction of a leaf's canopy that is within a given height bin
+    real(r8) :: patch_area_in_this_bin  ! amount of patch area in a given forest edge bin (mw)
+    real(r8) :: site_area_in_this_bin   ! amount of site area in a given forest edge bin (m2)
+    real(r8) :: patch_weight_of_this_bin  ! contribution of (part of) this patch to total site area of a given forest edge bin
+    real(r8) :: sum_bin_weight_of_all_patches  ! TODO: Remove. Temporary to check that patch bin weights are correct
+    real(r8) :: area_burned_this_bin  ! area (m2) burned in a given forest edge bin
     real(r8) :: binbottom,bintop    ! edges of height bins
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
     integer  :: ican, ileaf, cnlf_indx  ! iterators for leaf and canopy level
@@ -3402,7 +3422,22 @@ contains
            hio_cwd_ag_out_si_cwdsc              => this%hvars(ih_cwd_ag_out_si_cwdsc)%r82d, &
            hio_cwd_bg_out_si_cwdsc              => this%hvars(ih_cwd_bg_out_si_cwdsc)%r82d, &
            hio_crownarea_si_cnlf                => this%hvars(ih_crownarea_si_cnlf)%r82d, &
-           hio_forest_edge_bin_area_si_edge          => this%hvars(ih_forest_edge_bin_area_si_edge)%r82d, &
+           hio_forest_edge_bin_area_si_edge     => this%hvars(ih_forest_edge_bin_area_si_edge)%r82d, &
+           hio_fireweather_precip_si_edge       => this%hvars(ih_fireweather_precip_si_edge)%r82d, &
+           hio_fireweather_rh_si_edge           => this%hvars(ih_fireweather_rh_si_edge)%r82d, &
+           hio_fireweather_temp_si_edge         => this%hvars(ih_fireweather_temp_si_edge)%r82d, &
+           hio_fireweather_wind_si_edge         => this%hvars(ih_fireweather_wind_si_edge)%r82d, &
+           hio_nesterov_fire_danger_si_edge     => this%hvars(ih_nesterov_fire_danger_si_edge)%r82d, &
+           hio_fire_nignitions_si_edge          => this%hvars(ih_fire_nignitions_si_edge)%r82d, &
+           hio_fire_fdi_si_edge                 => this%hvars(ih_fire_fdi_si_edge)%r82d, &
+           hio_fire_intensity_fracarea_product_si_edge => this%hvars(ih_fire_intensity_fracarea_product_si_edge)%r82d, &
+           hio_spitfire_ros_si_edge             => this%hvars(ih_spitfire_ros_si_edge)%r82d, &
+           hio_effect_wspeed_si_edge            => this%hvars(ih_effect_wspeed_si_edge)%r82d, &
+           hio_tfc_ros_si_edge                  => this%hvars(ih_tfc_ros_si_edge)%r82d, &
+           hio_fire_intensity_si_edge           => this%hvars(ih_fire_intensity_si_edge)%r82d, &
+           hio_fire_fracarea_si_edge            => this%hvars(ih_fire_fracarea_si_edge)%r82d, &
+           hio_fire_fuel_eff_moist_si_edge      => this%hvars(ih_fire_fuel_eff_moist_si_edge)%r82d, &
+           hio_sum_fuel_si_edge                 => this%hvars(ih_sum_fuel_si_edge)%r82d, &
            hio_crownarea_cl                     => this%hvars(ih_crownarea_cl)%r82d)
 
         ! Break up associates for NAG compilers
@@ -3508,6 +3543,88 @@ contains
                         * dens_fresh_liquid_water * grav_earth * m_per_mm
                 end if
              end do
+
+             ! TODO: Move "area of forest in each edge bin" from below into here
+             if (hlm_use_edge_forest == itrue .and. sites(s)%area_forest_patches > 0._r8) then
+               do b = 1, nlevedgeforest
+
+                  ! Skip this bin if site has no forest area in it
+                  site_area_in_this_bin = sites(s)%area_forest_patches * sites(s)%fraction_forest_in_each_bin(b)
+                  if (site_area_in_this_bin == 0._r8) then
+                     cycle
+                  end if
+
+                  ! Calculate area of this bin that burned
+                  area_burned_this_bin = 0._r8
+                  cpatch => sites(s)%oldest_patch
+                  do while(associated(cpatch))
+                     area_burned_this_bin = area_burned_this_bin + cpatch%frac_burnt * cpatch%area
+                     cpatch => cpatch%younger
+                  end do
+
+                  ! Calculate (weighted) means across all patches in this bin
+                  sum_bin_weight_of_all_patches = 0._r8
+                  cpatch => sites(s)%oldest_patch
+                  do while(associated(cpatch))
+
+                     ! Skip this patch if it has no area in this bin
+                     patch_area_in_this_bin = cpatch%area_in_edgeforest_bins(b)
+                     if (patch_area_in_this_bin == 0._r8) then
+                        cpatch => cpatch%younger
+                        cycle
+                     end if
+
+                     ! Calculate weight of this patch
+                     patch_weight_of_this_bin = patch_area_in_this_bin / site_area_in_this_bin
+
+                     ! For checking that weighting is correct
+                     sum_bin_weight_of_all_patches = sum_bin_weight_of_all_patches + patch_weight_of_this_bin
+
+                     ! fire weather in each edge bin
+                     hio_fireweather_precip_si_edge(io_si,b) = hio_fireweather_precip_si_edge(io_si,b) + &
+                          cpatch%fireWeather%precip * patch_weight_of_this_bin
+                     hio_fireweather_rh_si_edge(io_si,b) = hio_fireweather_rh_si_edge(io_si,b) + &
+                          cpatch%fireWeather%rh * patch_weight_of_this_bin
+                     hio_fireweather_temp_si_edge(io_si,b) = hio_fireweather_temp_si_edge(io_si,b) + &
+                          cpatch%fireWeather%temp_C * patch_weight_of_this_bin
+                     hio_fireweather_wind_si_edge(io_si,b) = hio_fireweather_wind_si_edge(io_si,b) + &
+                          cpatch%fireWeather%wind * patch_weight_of_this_bin
+                     hio_nesterov_fire_danger_si_edge(io_si,b) = hio_nesterov_fire_danger_si_edge(io_si,b) + &
+                          cpatch%fireWeather%fire_weather_index * patch_weight_of_this_bin
+                     hio_effect_wspeed_si_edge(io_si,b) = hio_effect_wspeed_si_edge(io_si,b) + &
+                          cpatch%fireWeather%effective_windspeed/sec_per_min * patch_weight_of_this_bin
+                     hio_fire_fdi_si_edge(io_si,b) = hio_fire_fdi_si_edge(io_si,b) + &
+                          cpatch%FDI * patch_weight_of_this_bin
+
+                     ! fuel state in each edge bin
+                     hio_fire_fuel_eff_moist_si_edge(io_si,b) = hio_fire_fuel_eff_moist_si_edge(io_si,b) + &
+                          cpatch%fuel%average_moisture_notrunks * patch_weight_of_this_bin
+                     hio_sum_fuel_si_edge(io_si,b) = hio_sum_fuel_si_edge(io_si,b) + &
+                          cpatch%fuel%non_trunk_loading * patch_weight_of_this_bin
+
+                     ! fire in each edge bin
+                     hio_fire_nignitions_si_edge(io_si,b) = hio_fire_nignitions_si_edge(io_si,b) + &
+                          cpatch%NF_successful / m2_per_km2 / sec_per_day * patch_weight_of_this_bin
+                     hio_fire_intensity_fracarea_product_si_edge(io_si,b) =hio_fire_intensity_fracarea_product_si_edge(io_si,b) + &
+                          cpatch%FI * cpatch%frac_burnt * patch_weight_of_this_bin * J_per_kJ
+                     hio_spitfire_ros_si_edge(io_si,b) = hio_spitfire_ros_si_edge(io_si,b) + &
+                          cpatch%ROS_front * patch_weight_of_this_bin / sec_per_min
+                     hio_tfc_ros_si_edge(io_si,b) = hio_tfc_ros_si_edge(io_si,b) + &
+                          cpatch%TFC_ROS * patch_weight_of_this_bin
+                     hio_fire_fracarea_si_edge(io_si,b) = hio_fire_fracarea_si_edge(io_si,b) + &
+                          cpatch%frac_burnt * patch_weight_of_this_bin / sec_per_day
+
+                     cpatch => cpatch%younger
+                  end do
+
+                  ! Check that weighting is correct
+                  if (abs(1._r8 - sum_bin_weight_of_all_patches) > 1e-9_r8) then
+                     write(fates_log(),*) 'sum of patch bin weights not 1: ',sum_bin_weight_of_all_patches
+                     call endrun(msg=errMsg(sourcefile, __LINE__))
+                  end if
+
+               end do
+             end if
 
              ! Loop through patches to sum up diagonistics
              cpatch => sites(s)%oldest_patch
@@ -6647,6 +6764,12 @@ contains
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_nesterov_fire_danger_si)
+
+       call this%set_history_var(vname='FATES_NESTEROV_INDEX_EB', units='',        &
+            long='nesterov fire danger index by edge bin', use_default='active',   &
+            avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM',                    &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,  &
+            index=ih_nesterov_fire_danger_si_edge)
      
        call this%set_history_var(vname='FATES_RX_BURN_WINDOW', units='',           &
             long='fraction of time and area in prescribed fire burn window',       &
@@ -6661,11 +6784,24 @@ contains
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_fire_nignitions_si)
 
+       call this%set_history_var(vname='FATES_IGNITIONS_EB',                          &
+            units='m-2 s-1',                                                          &
+            long='number of successful fire ignitions per m2 land area per second in each forest edge bin',  &
+            use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM', &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,     &
+            index=ih_fire_nignitions_si_edge)
+
        call this%set_history_var(vname='FATES_FDI', units='1',                    &
             long='Fire Danger Index (probability that an ignition will lead to a fire)', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_fire_fdi_si)
+
+       call this%set_history_var(vname='FATES_FDI_EB', units='1',                     &
+            long='Fire Danger Index (probability that an ignition will lead to a fire) in each forest edge bin', &
+            use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM', &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,     &
+            index=ih_fire_fdi_si_edge)
 
        call this%set_history_var(vname='FATES_ROS', units='m s-1',                &
             long='fire rate of spread in meters per second',                      &
@@ -6673,17 +6809,35 @@ contains
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_spitfire_ros_si)
 
+       call this%set_history_var(vname='FATES_ROS_EB', units='m s-1',                 &
+            long='fire rate of spread in meters per second in each forest edge bin',  &
+            use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM', &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,     &
+            index=ih_spitfire_ros_si_edge)
+
        call this%set_history_var(vname='FATES_EFFECT_WSPEED', units='m s-1',      &
             long ='effective wind speed for fire spread in meters per second',    &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_effect_wspeed_si)
 
+       call this%set_history_var(vname='FATES_EFFECT_WSPEED_EB', units='m s-1',       &
+            long ='effective wind speed for fire spread in meters per second',        &
+            use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM', &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,     &
+            index=ih_effect_wspeed_si_edge)
+
        call this%set_history_var(vname='FATES_FUELCONSUMED', units='kg m-2',      &
             long ='total fuel consumed in kg carbon per m2 land area',            &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_tfc_ros_si)
+
+       call this%set_history_var(vname='FATES_FUELCONSUMED_EB', units='kg m-2',                &
+            long ='total fuel consumed in kg carbon per m2 land area in each forest edge bin', &
+            use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM',          &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,              &
+            index=ih_tfc_ros_si_edge)
 
        call this%set_history_var(vname='FATES_FIRE_INTENSITY',                    &
             units='J m-1 s-1',                                                    &
@@ -6692,12 +6846,26 @@ contains
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_fire_intensity_si)
 
+       call this%set_history_var(vname='FATES_FIRE_INTENSITY_EB',                    &
+            units='J m-1 s-1',                                                    &
+            long='spitfire surface fireline intensity per forest edge bin in J per m per second, sum of rx and wildfire',     &
+            use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM',     &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+            index=ih_fire_intensity_si_edge)
+
        call this%set_history_var(vname='FATES_FIRE_INTENSITY_BURNFRAC',           &
             units='J m-1 s-1',                                                    &
             long='product of surface fire intensity and burned area fraction, sum of rx and wildfire-- divide by FATES_BURNFRAC to get area-weighted mean intensity', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_fire_intensity_fracarea_product_si)
+
+       call this%set_history_var(vname='FATES_FIRE_INTENSITY_BURNFRAC_EB',        &
+            units='J m-1 s-1',                                                    &
+            long='product of surface fire intensity and burned area fraction per forest edge bin, sum of rx and wildfire-- divide by FATES_BURNFRAC_EB to get area-weighted mean intensity', &
+            use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM',     &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
+            index=ih_fire_intensity_fracarea_product_si_edge)
 
        call this%set_history_var(vname='FATES_WILDFIRE_INTENSITY',                &
             units='J m-1 s-1',                                                    &
@@ -6732,6 +6900,12 @@ contains
             avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_fire_fracarea_si)
+
+       call this%set_history_var(vname='FATES_BURNFRAC_EB', units='s-1',          &
+            long='totaL burned area fraction per second in each forest edge bin -- sum of rxfire and wildfire burnt frac', use_default='active',         &
+            avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM',                   &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
+            index=ih_fire_fracarea_si_edge)
 
        call this%set_history_var(vname='FATES_WILDFIRE_BURNFRAC', units='s-1',    &
             long='burned area fraction per second by wildfire',                   &
@@ -6780,6 +6954,11 @@ contains
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,      &
             initialize=initialize_variables, index = ih_fire_fuel_eff_moist_si)
 
+       call this%set_history_var(vname='FATES_FUEL_EFF_MOIST_EB', units='m3 m-3',    &
+            long='spitfire fuel moisture (volumetric) in each forest edge bin', use_default='active', &
+            avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, &
+            initialize=initialize_variables, index = ih_fire_fuel_eff_moist_si_edge)
+
        call this%set_history_var(vname='FATES_FUEL_SAV', units='m-1',             &
             long='spitfire fuel surface area to volume ratio',                    &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
@@ -6791,6 +6970,38 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_sum_fuel_si)
+
+       call this%set_history_var(vname='FATES_FUEL_AMOUNT_EB', units='kg m-2',        &
+            long='total ground fuel related to FATES_ROS (omits 1000hr fuels) in kg C per m2 land area, in each edge bin', &
+            use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM', &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,     &
+            index = ih_sum_fuel_si_edge)
+
+       call this%set_history_var(vname='FATES_FIREWEATHER_PRECIP_EB', units='mm/day', &
+            long='mean precipitation for fire weather in each edge bin',              &
+            use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM', &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,     &
+            index = ih_fireweather_precip_si_edge)
+
+       call this%set_history_var(vname='FATES_FIREWEATHER_RH_EB', units='%',          &
+            long='mean relative humidity for fire weather in each edge bin',          &
+            use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM', &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,     &
+            index = ih_fireweather_rh_si_edge)
+
+       call this%set_history_var(vname='FATES_FIREWEATHER_TEMP_EB', units='deg C',    &
+            long='mean temperature for fire weather in each edge bin',                &
+            use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM', &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,     &
+            index = ih_fireweather_temp_si_edge)
+
+       call this%set_history_var(vname='FATES_FIREWEATHER_WIND_EB', units='m/min',    &
+            long='mean wind speed for fire weather in each edge bin',                 &
+            use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM', &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,     &
+            index = ih_fireweather_wind_si_edge)
+
+
        ! Litter Variables
 
        call this%set_history_var(vname='FATES_LITTER_IN', units='kg m-2 s-1',     &
