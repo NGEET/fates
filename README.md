@@ -18,7 +18,7 @@ To receive email updates about forthcoming release tags, regular meeting notific
 
 [How to Contribute](https://github.com/NGEET/fates/blob/master/CONTRIBUTING.md)
 
-[Table of FATES and Host Land Model API compatability](https://fates-users-guide.readthedocs.io/en/latest/user/Table-of-FATES-API-and-HLM-STATUS.html)
+[Table of FATES and Host Land Model API compatability](https://fates-users-guide.readthedocs.io/en/latest/user/release-tags-compat-table.html)
 
 [List of Unsupported or Broken Features](https://fates-users-guide.readthedocs.io/en/latest/user/Current-Unsupported-or-Broken-Features.html)
 
