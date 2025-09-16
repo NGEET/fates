@@ -309,7 +309,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_is_forest_pct50_0grass_si
   integer :: ih_is_forest_pct75_0grass_si
   integer :: ih_is_forest_pct90_0grass_si
-  integer :: ih_forest_edge_bin_area_si
+  integer :: ih_forest_edge_bin_area_si_edge
   integer :: ih_litter_in_elem
   integer :: ih_litter_out_elem
   integer :: ih_seed_bank_elem
@@ -3402,7 +3402,7 @@ contains
            hio_cwd_ag_out_si_cwdsc              => this%hvars(ih_cwd_ag_out_si_cwdsc)%r82d, &
            hio_cwd_bg_out_si_cwdsc              => this%hvars(ih_cwd_bg_out_si_cwdsc)%r82d, &
            hio_crownarea_si_cnlf                => this%hvars(ih_crownarea_si_cnlf)%r82d, &
-           hio_forest_edge_bin_area_si          => this%hvars(ih_forest_edge_bin_area_si)%r82d, &
+           hio_forest_edge_bin_area_si_edge          => this%hvars(ih_forest_edge_bin_area_si_edge)%r82d, &
            hio_crownarea_cl                     => this%hvars(ih_crownarea_cl)%r82d)
 
         ! Break up associates for NAG compilers
@@ -3518,7 +3518,7 @@ contains
                 ! area of forest in each edge bin
                 if (hlm_use_edge_forest == itrue .and. cpatch%is_forest) then
                    binloop: do b = 1, nlevedgeforest
-                      hio_forest_edge_bin_area_si(io_si,b) = hio_forest_edge_bin_area_si(io_si,b) + &
+                      hio_forest_edge_bin_area_si_edge(io_si,b) = hio_forest_edge_bin_area_si_edge(io_si,b) + &
                       cpatch%area_in_edgeforest_bins(b)
                    end do binloop
                 end if
@@ -6567,7 +6567,7 @@ contains
             long='area of forest in each edge bin', use_default='inactive', &
             avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM',             &
             upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
-            index=ih_forest_edge_bin_area_si)
+            index=ih_forest_edge_bin_area_si_edge)
 
        call this%set_history_var(vname='FATES_FRACTION', units='m2 m-2',          &
             long='total gridcell fraction which FATES is running over', use_default='active', &
