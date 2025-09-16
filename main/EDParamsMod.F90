@@ -522,7 +522,13 @@ contains
     call fates_params%RegisterParameter(name=bgc_name_soil_salinity, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar) 
 
+    call fates_params%RegisterParameter(name=logging_name_age_preference, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
     call fates_params%RegisterParameter(name=logging_name_preference_options, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+
+    call fates_params%RegisterParameter(name=logging_name_ifm_harvest_scale, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
 
     call fates_params%RegisterParameter(name=logging_name_dbhmin, dimension_shape=dimension_shape_scalar, &

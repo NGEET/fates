@@ -19,6 +19,7 @@ module FatesForestManagementMod
    use EDParamsMod            , only : logging_ifm_harvest_scale
    use EDTypesMod             , only : AREA, AREA_INV
    use EDTypesMod             , only : ed_site_type
+   use EDLoggingMortalityMod  , only : get_harvest_rate_area, get_harvest_rate_carbon
    use FatesPatchMod          , only : fates_patch_type
    use FatesCohortMod         , only : fates_cohort_type
    use FatesGlobals           , only : fates_log
@@ -56,7 +57,7 @@ module FatesForestManagementMod
    subroutine get_site_harvest_rate_scale(site_in, bc_in, harvestable_forest_c, frac_site_primary, frac_site_secondary_mature)
 
       ! !USES:
-      use EDLoggingMortalityMod , only : logging_time, LoggingMortality_frac
+      use EDLoggingMortalityMod  , only : logging_time, LoggingMortality_frac
 
       ! !ARGUMENTS:
       type(ed_site_type) , intent(inout) :: site_in
@@ -100,6 +101,7 @@ module FatesForestManagementMod
 
       !Initialize
       site_in%resources_management%harvest_wp_scale = 1._r8
+      write(fates_log(),*) 'See flag2'
 
       !Only run this part when considering size dependent priority
       if (logging_time .and. logging_preference_options >= logging_logistic_size) then
@@ -177,6 +179,7 @@ module FatesForestManagementMod
    subroutine get_patch_harvest_rate_scale(site_in, bc_in, harvestable_forest_c, frac_site_primary, frac_site_secondary_mature)
 
       ! !USES:
+      use EDLoggingMortalityMod  , only : logging_time
 
       ! !ARGUMENTS:
       type(ed_site_type) , intent(inout) :: site_in
@@ -225,6 +228,7 @@ module FatesForestManagementMod
       !  2) harvest the oldest patch first
 
       ! Initialize harvest_rate_scale
+      write(fates_log(),*) 'See flag1'
       currentPatch => site_in%oldest_patch
 
       do while (associated(currentPatch))
@@ -252,8 +256,14 @@ module FatesForestManagementMod
       ! using, actual patch age. For each PFT the patch sequence is already 
       ! sorted, here we need to loop over PFTs and merge these sorted 
       ! sequences into one sorted array through min-heap merge
+      write(fates_log(),*) 'logging_preference_options:', logging_preference_options
+      write(fates_log(),*) 'logging_age_preference:', logging_age_preference
+      write(fates_log(),*) 'logging_time:', logging_time
+      write(fates_log(),*) 'logging_oldest_first:', logging_oldest_first
+      write(fates_log(),*) 'hlm_use_nocomp:', hlm_use_nocomp
 
       if (logging_time .and. logging_age_preference == logging_oldest_first) then
+         write(fates_log(),*) 'See flag3'
 
          ! First loop to count total number of patches and initialize order
          ! using patchno
@@ -270,6 +280,7 @@ module FatesForestManagementMod
 
          ! For case 2, i.e., nocomp mode only
          if (hlm_use_nocomp.eq.itrue) then
+            write(fates_log(),*) 'See flag4'
 
             allocate(order_of_patches(1:npatches))
             allocate(order_of_patches_per_pft(1:numpft,1:npatches))
