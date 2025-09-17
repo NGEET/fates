@@ -893,9 +893,9 @@ module FatesInterfaceTypesMod
       procedure :: InitializeInterfaceRegistry
       procedure :: Update => UpdateInterfaceVariables
 
-      generic   :: Register => RegisterInterfaceVariables_0d, & 
-                               RegisterInterfaceVariables_1d, &
-                               RegisterInterfaceVariables_2d
+      generic :: Register => RegisterInterfaceVariables_0d, & 
+                             RegisterInterfaceVariables_1d, &
+                             RegisterInterfaceVariables_2d
       procedure, private :: RegisterInterfaceVariables_0d
       procedure, private :: RegisterInterfaceVariables_1d
       procedure, private :: RegisterInterfaceVariables_2d
@@ -972,10 +972,7 @@ module FatesInterfaceTypesMod
 
     logical, intent(in) :: initialize  ! false = count up the keys in the registry
 
-    integer :: ivar  ! indices
-
-    ! Set ivar to zero.  This will be incremented via each call to SetInterfaceVariable
-    ivar = 0
+    integer :: ivar = 0  ! Index to be incremented for each call to DefineInterfaceVariable()
 
     ! Define the interface registry names and indices
     ! Variables that only need to be updated during initialization, such as dimensions
@@ -1133,7 +1130,7 @@ module FatesInterfaceTypesMod
     class(*), target, intent(in)  :: data(:)  ! data to be associated with key
     character(len=*), intent(in)  :: key        ! variable registry key 
     integer, intent(in), optional :: subgrid_index ! HLM subgrid index to associate with this variable
-    
+
     integer :: subgrid_index_use
     
     if (present(subgrid_index)) then
@@ -1141,7 +1138,7 @@ module FatesInterfaceTypesMod
     else
       subgrid_index_use = subgrid_patch_index
     end if
-
+    
     ! Get index from registry key and associate the given data pointer
     call this%vars(this%GetRegistryIndex(key))%Register(data(:), active=.true., subgrid_index=subgrid_index_use)
 
