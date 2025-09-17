@@ -834,7 +834,7 @@ contains
 
                 call newp%Create(age, newparea, nocomp_bareground_land, nocomp_bareground,     &
                      num_swb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
-                     hlm_regeneration_model, sites(s)%youngest_patch)
+                     hlm_regeneration_model)
 
                 ! set pointers for first patch (or only patch, if nocomp is false)
                 newp%patchno = 1
