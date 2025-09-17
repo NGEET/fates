@@ -881,6 +881,11 @@ module FatesInterfaceTypesMod
 
     integer :: subgrid_indices(hlm_subgrid_levels) ! HLM patch ID associated with this patch
                                                    ! 1 = patch, 2 = column, 3 = landunit, 4 = topounit, 5 = gridcell
+    
+    ! Arrays that hold the indices of variables based on update frequency
+    integer, allocatable :: index_filter_init(:)       ! index of variables that update only at initialization
+    integer, allocatable :: index_filter_daily(:)      ! index of variables that update daily
+    ! integer, allocatable :: index_filter_timestep(:)   ! index of variables that update at each timestep
 
 
     contains
@@ -897,6 +902,7 @@ module FatesInterfaceTypesMod
 
       procedure, private :: DefineInterfaceRegistry
       procedure, private :: DefineInterfaceVariable
+      procedure, private :: SetFilterMapArrays
       procedure, private :: GetRegistryIndex
       procedure, private :: GetRegistryKey
 
@@ -949,6 +955,9 @@ module FatesInterfaceTypesMod
 
     ! Now initialize the registry keys
     call this%DefineInterfaceRegistry(initialize=.true.)
+    
+    ! Set filter map arrays
+    call this%SetFilterMapArrays()
 
   end subroutine InitializeInterfaceRegistry
 
@@ -1044,6 +1053,47 @@ module FatesInterfaceTypesMod
 
   end subroutine DefineInterfaceVariable
 
+  ! ======================================================================================
+  
+  subroutine SetFilterMapArrays(this)
+
+    class(fates_interface_registry_base_type), intent(inout) :: this
+
+    integer :: index
+    integer :: count_init
+    integer :: count_daily
+
+    ! Initialize counters
+    count_init = 0
+    count_daily = 0
+    
+    ! Iterate over all registered variables and populate the filter maps accordingly
+    do index = 1, this%num_api_vars
+      if (this%vars(index)%update_frequency == registry_update_init) then
+        count_init = count_init + 1
+        this%index_filter_init(count_init) = index
+      else if (this%vars(index)%update_frequency == registry_update_daily) then
+        count_daily = count_daily + 1
+        this%index_filter_daily(count_daily) = index
+      else
+        write(fates_log(),*) 'ERROR: Unrecognized update frequency in SetFilterMapArrays(): ', this%vars(index)%update_frequency
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
+    end do
+    
+    ! Check that the counts match the expected sizes
+    if (count_init /= this%num_api_vars_update_init .or. &
+        count_daily /= this%num_api_vars_update_daily) then
+          
+      write(fates_log(),*) 'ERROR: Mismatch in initialization counts in SetFilterMapArrays(): '
+      write(fates_log(),*) '  count_init = ', count_init, ' expected = ', this%num_api_vars_update_init
+      write(fates_log(),*) '  count_daily = ', count_daily, ' expected = ', this%num_api_vars_update_daily  
+      call endrun(msg=errMsg(__FILE__, __LINE__))
+
+    end if
+
+  end subroutine SetFilterMapArrays
+  
   ! ======================================================================================
 
   subroutine RegisterInterfaceVariables_0d(this, key, data, subgrid_index)
