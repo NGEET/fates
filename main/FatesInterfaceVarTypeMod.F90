@@ -28,6 +28,7 @@ module FatesInterfaceVariableTypeMod
     logical           :: active         ! true if the variable is used by the host land model
     integer           :: subgrid        ! subgrid level (0 = gridcell, 1 = landunit, 2 = column, 3 = patch)
     integer           :: data_rank      ! rank of the variable (0, 1, 2, or 3)
+    integer           :: update_frequency ! frequency of updates 
     integer, allocatable :: data_size(:)   ! size of the first dimension of the variable
 
     contains
@@ -49,22 +50,27 @@ module FatesInterfaceVariableTypeMod
   
   ! ====================================================================================
   
-    subroutine InitializeInterfaceVariable(this, key)
+    subroutine InitializeInterfaceVariable(this, key, update_frequency)
                                             
       class(fates_interface_variable_type), intent(inout) :: this
-
       character(len=*), intent(in) :: key
+      integer, intent(in)          :: update_frequency
+
       
       allocate(this%data_size(3))
 
+      ! Initialize components that are set later
       this%data_size = fates_unset_int
       this%data_rank = fates_unset_int
       this%data0d  => null()
       this%data1d  => null()
       this%data2d  => null()
       this%data3d  => null()
-      this%key = key 
       this%active = .false.
+
+      ! Initialize registry variable components that are updated at initialization
+      this%key = key 
+      this%update_frequency = update_frequency
 
     end subroutine InitializeInterfaceVariable
 
