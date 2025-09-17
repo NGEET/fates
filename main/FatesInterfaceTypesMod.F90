@@ -976,13 +976,14 @@ module FatesInterfaceTypesMod
     ivar = 0
 
     ! Define the interface registry names and indices
-    call this%DefineInterfaceVariable(key=hlm_fates_soil_level, index=ivar, initialize=initialize)
-    call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_moisture, index=ivar, initialize=initialize)
-    call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_temperature, index=ivar, initialize=initialize)
-
-    ! Set the registry size based on the final update of ivar
-    this%num_api_vars = ivar
-
+    ! Variables that only need to be updated during initialization, such as dimensions
+    call this%DefineInterfaceVariable(key=hlm_fates_soil_level, initialize=initialize, index = ivar, &
+                                      update_frequency=registry_update_init)
+                                      
+    
+    ! Variables that need to be updated daily
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_moisture, initialize=initialize, index = ivar)
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_temperature, initialize=initialize, index = ivar)
 
   end subroutine DefineInterfaceRegistry
 
