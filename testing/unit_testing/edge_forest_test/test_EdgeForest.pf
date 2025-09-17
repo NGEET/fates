@@ -3,7 +3,7 @@ module test_EdgeForest
   ! DESCRIPTION:
   !  Test the FATES edge forest code
   !
-  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesConstantsMod, only : r8 => fates_r8, nearzero
   use FatesEdgeForestMod, only : indexx
   use FatesEdgeForestMod, only : get_fraction_of_edgeforest_in_each_bin
   use FatesEdgeForestMod, only : gffeb_norm_numerator, gffeb_norm_denominator, gffeb_quadratic
@@ -220,10 +220,10 @@ module test_EdgeForest
 
 
     @Test
-    subroutine test_get_fraction_of_edgeforest_in_each_bin_x0(this)
-      ! If frac forest is zero, all forest should be in first edge bin (closest to edge)
+    subroutine test_get_fraction_of_edgeforest_in_each_bin_x_near0(this)
+      ! If frac forest is near zero, all forest should be in first edge bin (closest to edge)
       class(TestEdgeForest), intent(inout) :: this
-      real(r8) :: frac_forest = 0._r8
+      real(r8) :: frac_forest = nearzero / 2._r8
       integer, parameter :: nlevedgeforest_tmp = 3
       real(r8), dimension(nlevedgeforest_tmp) :: efb_params_dummy = (/ 1._r8, 2._r8, 3._r8 /)
       logical :: norm = .false.  ! Shouldn't matter for this test
@@ -238,15 +238,15 @@ module test_EdgeForest
 
       @assertEqual( (/ 1._r8, 0._r8, 0._r8 /) , fraction_forest_in_bin)
 
-    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x0
+    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x_near0
 
     @Test
-    subroutine test_get_fraction_of_edgeforest_in_each_bin_x0_norm(this)
-      ! If frac forest is zero, all forest should be in first edge bin (closest to edge)
-      ! Same test as test_get_fraction_of_edgeforest_in_each_bin_x0, except norm=.true.
+    subroutine test_get_fraction_of_edgeforest_in_each_bin_x_near0_norm(this)
+      ! If frac forest is near zero, all forest should be in first edge bin (closest to edge)
+      ! Same test as test_get_fraction_of_edgeforest_in_each_bin_x_near0, except norm=.true.
       ! Shouldn't matter!
       class(TestEdgeForest), intent(inout) :: this
-      real(r8) :: frac_forest = 0._r8
+      real(r8) :: frac_forest = nearzero / 2._r8
       integer, parameter :: nlevedgeforest_tmp = 3
       real(r8), dimension(nlevedgeforest_tmp) :: efb_params_dummy = (/ 1._r8, 2._r8, 3._r8 /)
       logical :: norm = .true.  ! Shouldn't matter for this test
@@ -261,7 +261,7 @@ module test_EdgeForest
 
       @assertEqual( (/ 1._r8, 0._r8, 0._r8 /) , fraction_forest_in_bin)
 
-    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x0_norm
+    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x_near0_norm
 
     @Test
     subroutine test_get_fraction_of_edgeforest_in_each_bin_x1(this)
