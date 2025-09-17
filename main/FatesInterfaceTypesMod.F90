@@ -972,17 +972,20 @@ module FatesInterfaceTypesMod
 
     logical, intent(in) :: initialize  ! false = count up the keys in the registry
 
-    integer :: ivar = 0  ! Index to be incremented for each call to DefineInterfaceVariable()
+    integer :: index   ! Index to be incremented for each call to DefineInterfaceVariable()
+    
+    ! Initialize the index
+    index = 0
 
     ! Define the interface registry names and indices
     ! Variables that only need to be updated during initialization, such as dimensions
-    call this%DefineInterfaceVariable(key=hlm_fates_soil_level, initialize=initialize, index = ivar, &
+    call this%DefineInterfaceVariable(key=hlm_fates_soil_level, initialize=initialize, index=index, &
                                       update_frequency=registry_update_init)
                                       
     
     ! Variables that need to be updated daily
-    call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_moisture, initialize=initialize, index = ivar)
-    call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_temperature, initialize=initialize, index = ivar)
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_moisture, initialize=initialize, index=index)
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_temperature, initialize=initialize, index=index)
 
   end subroutine DefineInterfaceRegistry
 
