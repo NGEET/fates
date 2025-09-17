@@ -891,6 +891,7 @@ module FatesInterfaceTypesMod
     contains
 
       procedure :: InitializeInterfaceRegistry
+      procedure :: InitializeInterfaceVariables
       procedure :: Update => UpdateInterfaceVariables
 
       generic :: Register => RegisterInterfaceVariables_0d, & 
@@ -1172,6 +1173,33 @@ module FatesInterfaceTypesMod
     call this%vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true., subgrid_index=subgrid_index_use)
 
   end subroutine RegisterInterfaceVariables_2d
+
+  ! ======================================================================================
+  
+  subroutine InitializeInterfaceVariables(this, api)
+    
+    class(fates_interface_registry_base_type), intent(inout) :: this  ! registry being initialized
+    class(fates_interface_registry_base_type), intent(in)    :: api   ! registry updates source
+    
+    integer :: i, j
+    integer :: index_i, index_j
+
+    ! Update the interface variables that are dimensions for fates boundary conditions
+    do i = 1, this%num_api_vars_update_init
+      
+      ! Get the index for the key associated with the current registry variable
+      j = api%GetRegistryIndex(api%GetRegistryKey(i))
+
+      ! Get the index for initialization-only variables
+      index_i = this%index_filter_init(i)
+      index_j = api%index_filter_init(j)
+
+      ! Set the registry variables updated at initialization
+      call this%vars(index_i)%Update(api%vars(index_j), api%subgrid_indices)
+
+    end do
+
+  end subroutine InitializeInterfaceVariables
 
   ! ======================================================================================
 
