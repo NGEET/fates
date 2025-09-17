@@ -300,7 +300,13 @@ module FatesInterfaceTypesMod
     character(len=*), parameter, public :: hlm_fates_soil_level = 'soil_level_number'
     character(len=*), parameter, public :: hlm_fates_decomp_frac_moisture = 'decomp_frac_moisture'
     character(len=*), parameter, public :: hlm_fates_decomp_frac_temperature = 'decomp_frac_temperature'
-   
+    
+    ! Registry update frequency parameters
+    integer, parameter :: registry_update_init = 1       ! variable only needs to be updated during initialization
+    integer, parameter :: registry_update_daily = 2      ! variable needs to be updated daily
+    integer, parameter :: registry_update_timestep = 3   ! variable needs to be updated at each timestep
+    integer, parameter :: registry_update_types_num = 3  ! number of update frequency types
+
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
    ! CLM/ALM have limited support for multi-dimensional history output arrays.
@@ -870,6 +876,9 @@ module FatesInterfaceTypesMod
     ! registry metadata
     ! TODO: make an extended type for the HLM interface that holds the subgrid info
     integer :: num_api_vars                        ! number of variables in the registry
+    integer :: num_api_vars_update_init           ! number of variables that update only at initialization
+    integer :: num_api_vars_update_daily          ! number of variables that update daily
+
     integer :: subgrid_indices(hlm_subgrid_levels) ! HLM patch ID associated with this patch
                                                    ! 1 = patch, 2 = column, 3 = landunit, 4 = topounit, 5 = gridcell
 
@@ -922,17 +931,23 @@ module FatesInterfaceTypesMod
 
     logical :: initialize
 
-    ! unset registry integers
-    this%num_api_vars = fates_unset_int
+    ! initial registry integers
+    this%num_api_vars = 0
+    this%num_api_vars_update_init = 0
+    this%num_api_vars_update_daily = 0
     this%subgrid_indices = fates_unset_int
 
     ! First count up the keys defined in the registry
     call this%DefineInterfaceRegistry(initialize=.false.)
 
-    ! Allocate the registry
+    ! Allocate the registry variables array
     allocate(this%vars(this%num_api_vars))
+    
+    ! Allocate the index maps
+    allocate(this%index_filter_init(this%num_api_vars_update_init))
+    allocate(this%index_filter_daily(this%num_api_vars_update_daily))
 
-    ! Now set up the registry keys
+    ! Now initialize the registry keys
     call this%DefineInterfaceRegistry(initialize=.true.)
 
   end subroutine InitializeInterfaceRegistry
@@ -966,20 +981,65 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
 
-  subroutine DefineInterfaceVariable(this, key, index, initialize)
+  subroutine DefineInterfaceVariable(this, key, initialize, index, update_frequency)
 
     class(fates_interface_registry_base_type), intent(inout) :: this
 
-    character(len=*), intent(in) :: key
-    integer, intent(inout)       :: index
-    logical, intent(in)          :: initialize
+    character(len=*), intent(in)  :: key
+    logical, intent(in)           :: initialize
+    integer, intent(inout)        :: index
+    integer, intent(in), optional :: update_frequency
 
-    ! Increment the index to return count
-    index = index + 1   
+    ! Local variables
+    integer :: index_type
+    integer :: update_frequency_local
+    
+    ! Increment the index
+    index = index + 1  
 
-    ! If we are initializing the 
+    ! If not initializing, increment the registry count variables, otherwise initialize the variable at the correct index
     if (initialize) then 
-      call this%vars(index)%Initialize(key)
+
+      ! Initialize the variable
+      if (present(update_frequency)) then
+        select case (update_frequency)
+        case (registry_update_init)
+          update_frequency_local = registry_update_init
+        case (registry_update_daily)
+          update_frequency_local = registry_update_daily
+        case default
+          write(fates_log(),*) 'ERROR: Unrecognized update frequency in DefineInterfaceVariable(): ', update_frequency
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+      else
+        ! Default to daily update frequency
+        update_frequency_local = registry_update_daily
+      end if
+
+      call this%vars(index)%Initialize(key, update_frequency_local)
+
+    ! Not initializing, just counting the variables
+    else 
+
+      ! Increment the total API count
+      this%num_api_vars = this%num_api_vars + 1
+
+      ! Increment the count for the update frequency counts, defaulting to daily if not specified
+      if (present(update_frequency)) then
+        select case (update_frequency)
+        case (registry_update_init)
+          this%num_api_vars_update_init = this%num_api_vars_update_init + 1
+        case (registry_update_daily)
+          this%num_api_vars_update_daily = this%num_api_vars_update_daily + 1
+        case default
+          write(fates_log(),*) 'ERROR: Unrecognized update frequency in DefineInterfaceVariable(): ', update_frequency
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+      else
+        ! Default to daily update frequency
+        this%num_api_vars_update_daily = this%num_api_vars_update_daily + 1
+      end if
+      
     end if
 
   end subroutine DefineInterfaceVariable
