@@ -284,7 +284,7 @@ contains
             allocate(newpatch)
             call newpatch%Create(age_init, area_init, primaryland,           &
                fates_unset_int, num_swb, numpft, sites(s)%nlevsoil,         &
-               hlm_current_tod, hlm_regeneration_model)
+               hlm_current_tod, hlm_regeneration_model, sites(s)%api)
 
             newpatch%patchno = ipa
             newpatch%younger => null()

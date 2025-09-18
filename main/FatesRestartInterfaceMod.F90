@@ -2886,7 +2886,7 @@ contains
              ! make new patch
              call newp%Create(fates_unset_r8, fates_unset_r8, primaryland,   &
                nocomp_pft, num_swb, numpft, sites(s)%nlevsoil,              &
-               hlm_current_tod, hlm_regeneration_model)
+               hlm_current_tod, hlm_regeneration_model, sites(s)%api)
 
              ! Initialize the litter pools to zero, these
              ! pools will be populated by looping over the existing patches

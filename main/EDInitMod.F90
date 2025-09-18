@@ -783,7 +783,7 @@ contains
 
                 call newp%Create(age, newparea, nocomp_bareground_land, nocomp_bareground,     &
                      num_swb, numpft, sites(s)%nlevsoil, hlm_current_tod,      &
-                     hlm_regeneration_model)
+                     hlm_regeneration_model, sites(s)%api)
 
                 ! set pointers for first patch (or only patch, if nocomp is false)
                 newp%patchno = 1
@@ -862,7 +862,7 @@ contains
 
                          call newp%Create(age, newparea, i_lu_state, nocomp_pft, &
                               num_swb, numpft, sites(s)%nlevsoil, hlm_current_tod, &
-                              hlm_regeneration_model)
+                              hlm_regeneration_model, sites(s)%api)
 
                          if (is_first_patch) then !is this the first patch?
                             ! set pointers for first patch (or only patch, if nocomp is false)
