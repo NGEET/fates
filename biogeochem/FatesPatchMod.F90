@@ -253,7 +253,7 @@ module FatesPatchMod
       procedure :: Dump
       procedure :: CheckVars
 
-      procedure, private :: RegisterFatesInterfaceVariables
+      procedure, private :: InitializeInterfaceRegistry
 
   end type fates_patch_type
 
@@ -1331,7 +1331,7 @@ module FatesPatchMod
 
     !===========================================================================  
 
-    subroutine RegisterFatesInterfaceVariables(this)
+    subroutine InitializeInterfaceRegistry(this)
 
       use FatesInterfaceTypesMod, only: hlm_fates_soil_level
       use FatesInterfaceTypesMod, only: hlm_fates_decomp_frac_moisture
@@ -1344,6 +1344,7 @@ module FatesPatchMod
 
       ! Register the FATES boundary condition data variables
       call this%api%Register(hlm_fates_soil_level, this%bc_in%nlevsoil)
+    end subroutine InitializeInterfaceRegistry
       call this%api%Register(hlm_fates_decomp_frac_moisture, this%bc_in%w_scalar_sisl)
       call this%api%Register(hlm_fates_decomp_frac_temperature, this%bc_in%t_scalar_sisl)
 
