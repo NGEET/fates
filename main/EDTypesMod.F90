@@ -31,6 +31,7 @@ module EDTypesMod
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
   use FatesInterfaceTypesMod,only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,only : fates_interface_registry_base_type
   use FatesCohortMod,        only : fates_cohort_type
   use FatesPatchMod,         only : fates_patch_type
   use EDParamsMod,           only : nclmax, nlevleaf, maxpft
@@ -327,9 +328,14 @@ module EDTypesMod
 
   type, public :: ed_site_type
      
-     ! POINTERS  
+     !! POINTERS  
+     
+     ! patch pointers
      type (fates_patch_type), pointer :: oldest_patch => null()   ! pointer to oldest patch at the site  
      type (fates_patch_type), pointer :: youngest_patch => null() ! pointer to yngest patch at the site
+     
+     ! interface pointer
+     type(fates_interface_registry_base_type), pointer :: api => null() ! pointer to the fates interface type api
      
      ! Resource management
      type (ed_resources_management_type) :: resources_management ! resources_management at the site 
@@ -339,6 +345,7 @@ module EDTypesMod
      ! position in history output fields
      !integer :: clump_id 
 
+     ! Arrays that map the HLM subgrid index for each patch in this site
      integer, allocatable :: column_map(:)
      integer, allocatable :: patch_map(:)
 
