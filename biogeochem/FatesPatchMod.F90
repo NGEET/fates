@@ -288,7 +288,7 @@ module FatesPatchMod
 
     !===========================================================================
 
-    subroutine Init(this, num_swb, num_levsoil)
+    subroutine Init(this, num_swb, num_levsoil, api_pointer)
       !
       !  DESCRIPTION:
       !  Initialize a new patch - allocate arrays and set values to nan and/or 0.0
@@ -298,6 +298,7 @@ module FatesPatchMod
       class(fates_patch_type), intent(inout) :: this        ! patch object
       integer,                 intent(in)    :: num_swb     ! number of shortwave broad-bands to track
       integer,                 intent(in)    :: num_levsoil ! number of soil layers
+      class(fates_interface_registry_base_type), pointer, intent(in) :: api_pointer
 
       ! allocate arrays 
       allocate(this%tr_soil_dir(num_swb))
@@ -311,24 +312,13 @@ module FatesPatchMod
       allocate(this%fragmentation_scaler(num_levsoil))
       allocate(this%co_scr(max_cohort_per_patch))
 
-      ! Allocate API registry
-      call this%RegisterFatesInterfaceVariables()
+      ! Initialize the patch-level API registry
+      call this%InitializeInterfaceRegistry()
+
+      ! Initialize and register the variables in the API registry
+      ! This also allocates the boundary conditions
+      call this%InitializeInterfaceVariables(api_pointer)
       
-      ! TODO: Create subroutine to update a subset of interface variables here
-      ! Problem: How do we get the HLM interface registry pointer?
-      ! Possible solution: move the boundary condition initialization into a different
-      ! procedure?  Also have a separate registry for the scalars that are used for
-      ! allocations?
-      ! call this%InitializeInterfaceVariables()
-
-      ! Allocate BC arrays.  This must be done after the API registry is updated.
-      allocate(this%bc_in%w_scalar_sisl(num_levsoil))
-      allocate(this%bc_in%t_scalar_sisl(num_levsoil))
-
-      allocate(this%bc_out%litt_flux_cel_c_si(this%bc_in%nlevdecomp))
-      allocate(this%bc_out%litt_flux_lig_c_si(this%bc_in%nlevdecomp))
-      allocate(this%bc_out%litt_flux_lab_c_si(this%bc_in%nlevdecomp))
-
       ! initialize all values to nan
       call this%NanValues()
 
@@ -759,7 +749,7 @@ module FatesPatchMod
     !===========================================================================
 
     subroutine Create(this, age, area, land_use_label, nocomp_pft, num_swb, num_pft,    &
-      num_levsoil, current_tod, regeneration_model)
+      num_levsoil, current_tod, regeneration_model, api_pointer)
       !
       ! DESCRIPTION:
       ! create a new patch with input and default values
@@ -776,11 +766,13 @@ module FatesPatchMod
       integer,                 intent(in)    :: num_levsoil        ! number of soil layers
       integer,                 intent(in)    :: current_tod        ! time of day [seconds past 0Z]
       integer,                 intent(in)    :: regeneration_model ! regeneration model version
+
+      class(fates_interface_registry_base_type), pointer, intent(in) :: api_pointer
       
       ! initialize patch
-      ! sets all values to nan, then some values to zero
-      call this%Init(num_swb, num_levsoil)
-
+      ! sets all values to nan, then some values to zero, and initialize interface registry
+      call this%Init(num_swb, num_levsoil, api_pointer)
+      
       ! initialize running means for patch
       call this%InitRunningMeans(current_tod, regeneration_model, num_pft)
       
