@@ -254,6 +254,7 @@ module FatesPatchMod
       procedure :: CheckVars
 
       procedure, private :: InitializeInterfaceRegistry
+      procedure, private :: InitializeInterfaceVariables
 
   end type fates_patch_type
 
@@ -1334,22 +1335,41 @@ module FatesPatchMod
     subroutine InitializeInterfaceRegistry(this)
 
       use FatesInterfaceTypesMod, only: hlm_fates_soil_level
-      use FatesInterfaceTypesMod, only: hlm_fates_decomp_frac_moisture
-      use FatesInterfaceTypesMod, only: hlm_fates_decomp_frac_temperature
 
       class(fates_patch_type), intent(inout) :: this
       
-      ! Initialize the HLM-FATES interface variable registry for the FATES-side
+      ! Initialize the patch-level interface variable registry for the FATES-side
       call this%api%InitializeInterfaceRegistry()
 
-      ! Register the FATES boundary condition data variables
+      ! Register the boundary condition data variables that are set during initialization only
+      ! See RegisterInterfaceVariables patch-type bound procedure for remaining variables registrations
       call this%api%Register(hlm_fates_soil_level, this%bc_in%nlevsoil)
+      
     end subroutine InitializeInterfaceRegistry
+ 
+! ======================================================================================
+    
+    subroutine InitializeInterfaceVariables(this, input_api)
+
+      use FatesInterfaceTypesMod, only : hlm_fates_decomp_frac_moisture
+      use FatesInterfaceTypesMod, only : hlm_fates_decomp_frac_temperature
+      
+      class(fates_patch_type), intent(inout) :: this
+      class(fates_interface_registry_base_type), intent(in) :: input_api
+      
+      ! Initialize interface variables
+      call this%api%InitializeInterfaceVariables(input_api)
+      
+      ! Allocate the boundary conditions array using the BCs set during initialization
+      allocate(this%bc_in%w_scalar_sisl(this%bc_in%nlevsoil))
+      allocate(this%bc_in%t_scalar_sisl(this%bc_in%nlevsoil))
+      
+      ! Register the boundary condintion variables not exclusively updated during initialization
       call this%api%Register(hlm_fates_decomp_frac_moisture, this%bc_in%w_scalar_sisl)
       call this%api%Register(hlm_fates_decomp_frac_temperature, this%bc_in%t_scalar_sisl)
+      
+    end subroutine InitializeInterfaceVariables
 
-    end subroutine RegisterFatesInterfaceVariables
- 
 ! ======================================================================================
 
 end module FatesPatchMod
