@@ -414,6 +414,9 @@ contains
 
           if (currentPatch%fireWeather%rx_flag == itrue .and. rxfire_fuel_check) then
 
+            ! record burnable area after fuel load check
+            currentSite%rxfire_area_fuel = currentSite%rxfire_area_fuel + currentPatch%area
+
             ! determine fire type
             ! prescribed fire and wildfire cannot happen on the same patch
             is_rxfire = is_prescribed_burn(currentPatch%FI, currentPatch%NF, &
