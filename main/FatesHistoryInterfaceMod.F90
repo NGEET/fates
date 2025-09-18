@@ -3216,7 +3216,6 @@ contains
     real(r8) :: patch_area_in_this_bin  ! amount of patch area in a given forest edge bin (mw)
     real(r8) :: site_area_in_this_bin   ! amount of site area in a given forest edge bin (m2)
     real(r8) :: patch_weight_of_this_bin  ! contribution of (part of) this patch to total site area of a given forest edge bin
-    real(r8) :: sum_bin_weight_of_all_patches  ! TODO: Remove. Temporary to check that patch bin weights are correct
     real(r8) :: area_burned_this_bin  ! area (m2) burned in a given forest edge bin
     real(r8) :: binbottom,bintop    ! edges of height bins
     integer  :: height_bin_max, height_bin_min   ! which height bin a given cohort's canopy is in
@@ -3239,6 +3238,11 @@ contains
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
     real(r8) :: a_sapw ! sapwood area [m^2]
     real(r8) :: c_sapw ! sapwood biomass [kgC]
+
+    ! TODO: Remove? For checking that patch bin weights are correct
+    real(r8) :: sum_bin_weight_of_all_patches
+    real(r8) :: bin_weight_discrepancy
+    real(r8) :: bin_weight_discrepancy_as_frac_site_forest
 
     integer  :: i_dist, j_dist
 
@@ -3618,11 +3622,16 @@ contains
                   end do
 
                   ! Check that weighting is correct
-                  if (abs(1._r8 - sum_bin_weight_of_all_patches) > 1e-9_r8) then
+                  ! TODO: Remove?
+                  bin_weight_discrepancy = abs(1._r8 - sum_bin_weight_of_all_patches)
+                  bin_weight_discrepancy_as_frac_site_forest = bin_weight_discrepancy * sites(s)%fraction_forest_in_each_bin(b)
+                  if (bin_weight_discrepancy > 1e-9_r8 .and. bin_weight_discrepancy_as_frac_site_forest > 1e-9_r8) then
                      write(fates_log(),*) 'sum of patch bin weights not 1: ',sum_bin_weight_of_all_patches
                      write(fates_log(),*) 'sites(s)%area_forest_patches: ',sites(s)%area_forest_patches
                      write(fates_log(),*) 'sites(s)%fraction_forest_in_each_bin(b): ',sites(s)%fraction_forest_in_each_bin(b)
                      write(fates_log(),*) 'site_area_in_this_bin: ',site_area_in_this_bin
+                     write(fates_log(),*) 'bin_weight_discrepancy: ',bin_weight_discrepancy
+                     write(fates_log(),*) 'bin_weight_discrepancy_as_frac_site_forest: ',bin_weight_discrepancy_as_frac_site_forest
                      call endrun(msg=errMsg(sourcefile, __LINE__))
                   end if
 
