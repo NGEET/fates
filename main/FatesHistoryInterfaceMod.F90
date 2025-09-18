@@ -3620,6 +3620,9 @@ contains
                   ! Check that weighting is correct
                   if (abs(1._r8 - sum_bin_weight_of_all_patches) > 1e-9_r8) then
                      write(fates_log(),*) 'sum of patch bin weights not 1: ',sum_bin_weight_of_all_patches
+                     write(fates_log(),*) 'sites(s)%area_forest_patches: ',sites(s)%area_forest_patches
+                     write(fates_log(),*) 'sites(s)%fraction_forest_in_each_bin(b): ',sites(s)%fraction_forest_in_each_bin(b)
+                     write(fates_log(),*) 'site_area_in_this_bin: ',site_area_in_this_bin
                      call endrun(msg=errMsg(sourcefile, __LINE__))
                   end if
 
