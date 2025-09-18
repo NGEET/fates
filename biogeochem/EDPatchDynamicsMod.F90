@@ -680,7 +680,7 @@ contains
 
                    call newPatch%Create(age, site_areadis, i_landusechange_receiverpatchlabel, i_nocomp_pft, &
                                          num_swb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
-                                         hlm_regeneration_model)
+                                         hlm_regeneration_model, currentSite%api)
 
                    ! Initialize the litter pools to zero, these
                    ! pools will be populated by looping over the existing patches
@@ -1442,7 +1442,7 @@ contains
 
                 call buffer_patch%Create(0._r8, 0._r8, i_land_use_label, 0, &
                      num_swb, numpft, currentSite%nlevsoil, hlm_current_tod,              &
-                     hlm_regeneration_model)
+                     hlm_regeneration_model, currentSite%api)
 
                 ! Initialize the litter pools to zero
                 do el=1,num_elements
@@ -1735,7 +1735,7 @@ contains
     call new_patch%Create(0._r8, temp_area, &
          currentPatch%land_use_label, currentPatch%nocomp_pft_label, &
          num_swb, numpft, currentSite%nlevsoil, hlm_current_tod, &
-         hlm_regeneration_model)
+         hlm_regeneration_model, currentSite%api)
 
     ! Initialize the litter pools to zero, these
     ! pools will be populated shortly
