@@ -323,6 +323,12 @@ contains
     site_in%disturbance_rates(:,:,:) = 0.0_r8
     site_in%landuse_transition_matrix(:,:) = 0.0_r8
 
+    ! FIRE
+    ! TODO: Not sure why this is necessary now but it wasn't in edge area branch this branched from
+    site_in%rxfire_area_fuel = 0._r8
+    site_in%rxfire_area_fi = 0._r8
+    site_in%rxfire_area_final = 0._r8
+
     do el=1,num_elements
        ! Zero the state variables used for checking mass conservation
        call site_in%mass_balance(el)%ZeroMassBalState()
