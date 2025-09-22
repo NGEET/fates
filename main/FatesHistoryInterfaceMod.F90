@@ -310,6 +310,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_is_forest_pct75_0grass_si
   integer :: ih_is_forest_pct90_0grass_si
   integer :: ih_forest_edge_bin_area_si_edge
+  integer :: ih_forest_edge_bin_anyarea_si_edge
   integer :: ih_fireweather_temp_si_edge
   integer :: ih_fireweather_precip_si_edge
   integer :: ih_fireweather_rh_si_edge
@@ -3427,6 +3428,7 @@ contains
            hio_cwd_bg_out_si_cwdsc              => this%hvars(ih_cwd_bg_out_si_cwdsc)%r82d, &
            hio_crownarea_si_cnlf                => this%hvars(ih_crownarea_si_cnlf)%r82d, &
            hio_forest_edge_bin_area_si_edge     => this%hvars(ih_forest_edge_bin_area_si_edge)%r82d, &
+           hio_forest_edge_bin_anyarea_si_edge     => this%hvars(ih_forest_edge_bin_anyarea_si_edge)%r82d, &
            hio_fireweather_precip_si_edge       => this%hvars(ih_fireweather_precip_si_edge)%r82d, &
            hio_fireweather_rh_si_edge           => this%hvars(ih_fireweather_rh_si_edge)%r82d, &
            hio_fireweather_temp_si_edge         => this%hvars(ih_fireweather_temp_si_edge)%r82d, &
@@ -3649,6 +3651,9 @@ contains
                    binloop: do b = 1, nlevedgeforest
                       hio_forest_edge_bin_area_si_edge(io_si,b) = hio_forest_edge_bin_area_si_edge(io_si,b) + &
                       cpatch%area_in_edgeforest_bins(b)
+                      if (cpatch%area_in_edgeforest_bins(b) > 0._r8) then
+                         hio_forest_edge_bin_anyarea_si_edge(io_si,b) = 1._r8
+                      end if
                    end do binloop
                 end if
 
@@ -6697,6 +6702,12 @@ contains
             avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM',             &
             upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
             index=ih_forest_edge_bin_area_si_edge)
+
+       call this%set_history_var(vname='FATES_FOREST_ANYAREA_EB', units='',  &
+            long='whether edge bin has any forest in it', use_default='inactive', &
+            avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM',             &
+            upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
+            index=ih_forest_edge_bin_anyarea_si_edge)
 
        call this%set_history_var(vname='FATES_FRACTION', units='m2 m-2',          &
             long='total gridcell fraction which FATES is running over', use_default='active', &
