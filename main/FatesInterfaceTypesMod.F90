@@ -861,6 +861,4 @@ module FatesInterfaceTypesMod
 
   end subroutine ZeroBCOutCarbonFluxes
 
-   
-       
 end module FatesInterfaceTypesMod
