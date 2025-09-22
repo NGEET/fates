@@ -15,8 +15,8 @@ module FatesSoilBGCFluxMod
   use PRTGenericMod     , only : num_elements
   use PRTGenericMod     , only : element_list
   use PRTGenericMod     , only : element_pos
-  use PRTGenericMod     , only : prt_carbon_allom_hyp
-  use PRTGenericMod     , only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod     , only : fates_c_only
+  use PRTGenericMod     , only : fates_cn
   use PRTGenericMod     , only : prt_vartypes
   use PRTGenericMod     , only : leaf_organ
   use PRTGenericMod     , only : sapw_organ, struct_organ
@@ -133,7 +133,7 @@ contains
 
     ! We can exit if this is a c-only simulation
     select case (hlm_parteh_mode)
-    case (prt_carbon_allom_hyp)
+    case (fates_c_only)
        ! These can now be zero'd
        do s = 1, nsites
           bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
@@ -269,7 +269,7 @@ contains
     
 
     ! Exit if we need not communicate with the hlm's ch4 module
-   ! if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) ) return
+   ! if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==fates_cn) ) return
     
     ! Initialize to zero
     bc_out%annavg_agnpp_pa(:) = 0._r8
@@ -282,7 +282,7 @@ contains
     bc_out%ema_npp = 0._r8
 
     ! Process CH4 variables first
-    !if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==prt_cnp_flex_allom_hyp) )
+    !if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==fates_cn) )
 
     cpatch => csite%oldest_patch
     do while (associated(cpatch))

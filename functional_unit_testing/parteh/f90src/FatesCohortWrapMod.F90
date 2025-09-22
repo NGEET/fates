@@ -35,8 +35,8 @@ module FatesCohortWrapMod
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : SetState
   use PRTGenericMod,          only : prt_global
-  use PRTGenericMod,          only : prt_carbon_allom_hyp   
-  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,          only : fates_c_only
+  use PRTGenericMod,          only : fates_cn
 
   use PRTAllometricCarbonMod, only : callom_prt_vartypes
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
@@ -257,12 +257,12 @@ contains
     ! -----------------------------------------------------
     
     select case(ccohort%parteh_mode)
-    case (prt_carbon_allom_hyp)
+    case (fates_c_only)
        prt_global => prt_global_ac
        allocate(callom_prt)
        ccohort%prt => callom_prt
 
-    case(prt_cnp_flex_allom_hyp)
+    case(fates_cn)
        prt_global => prt_global_acnp
        allocate(cnpallom_prt)
        ccohort%prt => cnpallom_prt
@@ -276,7 +276,7 @@ contains
     call ccohort%prt%InitPRTVartype()
 
     select case(ccohort%parteh_mode)
-    case (prt_carbon_allom_hyp)
+    case (fates_c_only)
 
        call SetState(ccohort%prt,leaf_organ, carbon12_element, leaf_c)
        call SetState(ccohort%prt,fnrt_organ, carbon12_element, fnrt_c)
@@ -291,7 +291,7 @@ contains
        call ccohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = ccohort%pft)
        call ccohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = ccohort%canopy_trim)
 
-    case (prt_cnp_flex_allom_hyp)
+    case (fates_cn)
 
        ! Initializing with the target stoichiometric ratios
        ! (OR you can initialize with the minimum ratios too.... p2)
@@ -394,7 +394,7 @@ contains
     call PRTMaintTurnover(ccohort%prt, ipft, is_drought)
 
     select case(ccohort%parteh_mode)
-    case (prt_carbon_allom_hyp)
+    case (fates_c_only)
        prt_global => prt_global_ac
        ccohort%daily_carbon_gain = daily_carbon_gain
 
@@ -403,7 +403,7 @@ contains
        ccohort%daily_r_grow = 0.0_r8
        ccohort%carbon_root_efflux = 0.0_r8
 
-    case (prt_cnp_flex_allom_hyp)
+    case (fates_cn)
 
        prt_global => prt_global_acnp
        ccohort%daily_carbon_gain     = daily_carbon_gain
@@ -457,9 +457,9 @@ contains
     canopy_lai(:) = 0._r8
 
     select case(ccohort%parteh_mode)
-    case (prt_carbon_allom_hyp)
+    case (fates_c_only)
        prt_global => prt_global_ac
-    case (prt_cnp_flex_allom_hyp)
+    case (fates_cn)
        prt_global => prt_global_acnp
     end select
     
@@ -547,9 +547,9 @@ contains
     ccohort => cohort_array(ipft)   
     
     select case(ccohort%parteh_mode)
-    case (prt_carbon_allom_hyp )
+    case (fates_c_only )
        prt_global => prt_global_ac
-    case (prt_cnp_flex_allom_hyp)
+    case (fates_cn)
        prt_global => prt_global_acnp
     end select
     

@@ -79,8 +79,8 @@ module EDInitMod
   use FatesAllometryMod         , only : carea_allom
   use PRTGenericMod             , only : StorageNutrientTarget
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
-  use PRTGenericMod,          only : prt_carbon_allom_hyp
-  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,          only : fates_c_only
+  use PRTGenericMod,          only : fates_cn
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
@@ -1310,7 +1310,7 @@ contains
                end select
 
                select case(hlm_parteh_mode)
-               case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp )
+               case (fates_c_only, fates_cn )
                   ! Put all of the leaf mass into the first bin
                   call SetState(prt, leaf_organ, element_id, m_leaf, 1)
                   do iage = 2,nleafage
