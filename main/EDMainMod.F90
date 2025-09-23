@@ -198,7 +198,7 @@ contains
     call ZeroBCOutCarbonFluxes(bc_out)
 
     ! Zero mass balance
-    call TotalBalanceCheck(currentSite, 0)
+    call TotalBalanceCheck(currentSite, 0, is_restarting=.false.)
 
     ! We do not allow phenology while in ST3 mode either, it is hypothetically
     ! possible to allow this, but we have not plugged in the litter fluxes
@@ -263,7 +263,7 @@ contains
           currentPatch => currentPatch%younger
        enddo
 
-       call TotalBalanceCheck(currentSite,1)
+       call TotalBalanceCheck(currentSite,1,is_restarting=.false.)
 
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
@@ -286,7 +286,7 @@ contains
          
     end if
 
-    call TotalBalanceCheck(currentSite,2)
+    call TotalBalanceCheck(currentSite,2,is_restarting=.false.)
 
     !*********************************************************************************
     ! Patch dynamics sub-routines: fusion, new patch creation (spwaning), termination.
@@ -304,7 +304,7 @@ contains
 
        call spawn_patches(currentSite, bc_in)
 
-       call TotalBalanceCheck(currentSite,3)
+       call TotalBalanceCheck(currentSite,3,is_restarting=.false.)
 
        ! fuse on the spawned patches.
        call fuse_patches(currentSite, bc_in )
@@ -319,14 +319,14 @@ contains
        end if
 
        ! SP has changes in leaf carbon but we don't expect them to be in balance.
-       call TotalBalanceCheck(currentSite,4)
+       call TotalBalanceCheck(currentSite,4,is_restarting=.false.)
 
        ! kill patches that are too small
        call terminate_patches(currentSite, bc_in)
     end if
 
     ! Final instantaneous mass balance check
-    call TotalBalanceCheck(currentSite,5)
+    call TotalBalanceCheck(currentSite,5,is_restarting=.false.)
 
     
   end subroutine ed_ecosystem_dynamics
@@ -860,13 +860,13 @@ contains
        site_cmass%aresp_acc = 0._r8
     end if
 
-    call TotalBalanceCheck(currentSite,6)
+    call TotalBalanceCheck(currentSite,6,is_restarting=is_restarting)
 
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting) )then
        call canopy_structure(currentSite, bc_in)
     endif
 
-    call TotalBalanceCheck(currentSite,final_check_id)
+    call TotalBalanceCheck(currentSite,final_check_id,is_restarting=is_restarting)
 
     ! Update recruit L2FRs based on new canopy position
     call SetRecruitL2FR(currentSite)
@@ -936,17 +936,25 @@ contains
 
   !-------------------------------------------------------------------------------!
 
-  subroutine TotalBalanceCheck (currentSite, call_index )
+  subroutine TotalBalanceCheck (currentSite, call_index, is_restarting )
 
     !
     ! !DESCRIPTION:
     ! This routine looks at the mass flux in and out of the FATES and compares it to
     ! the change in total stocks (states).
     ! Fluxes in are NPP. Fluxes out are decay of CWD and litter into SOM pools.
+    ! Note: If the model is restarting, it is assumed that the mass stocks
+    ! that were saved in the restart file are the "old" stocks, and they
+    ! should equal the stocks that are currently in the sites. However,
+    ! the fluxes on a restart are saved so that they can inform the HLM
+    ! on the next day, so we have to modify our mass balance check to ignore
+    ! fluxes on restarts.
     !
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout) :: currentSite
     integer            , intent(in)    :: call_index
+    logical            , intent(in)    :: is_restarting
+    
     !
     ! !LOCAL VARIABLES:
     type(site_massbal_type),pointer :: site_mass
@@ -987,7 +995,6 @@ contains
 
     change_in_stock = 0.0_r8
 
-
     ! Loop through the number of elements in the system
 
     do el = 1, num_elements
@@ -997,22 +1004,26 @@ contains
        call SiteMassStock(currentSite,el,total_stock,biomass_stock,litter_stock,seed_stock)
 
        change_in_stock = total_stock - site_mass%old_stock
+       if(is_restarting) then
+          flux_in  = 0._r8
+          flux_out = 0._r8
+       else
+          flux_in  = site_mass%seed_in + &
+               site_mass%net_root_uptake + &
+               site_mass%gpp_acc + &
+               site_mass%flux_generic_in + &
+               site_mass%patch_resize_err
 
-       flux_in  = site_mass%seed_in + &
-                  site_mass%net_root_uptake + &
-                  site_mass%gpp_acc + &
-                  site_mass%flux_generic_in + &
-                  site_mass%patch_resize_err
-
-       flux_out = sum(site_mass%wood_product_harvest(:)) + &
-                  sum(site_mass%wood_product_landusechange(:)) + &
-                  site_mass%burn_flux_to_atm + &
-                  site_mass%seed_out + &
-                  site_mass%flux_generic_out + &
-                  site_mass%frag_out + &
-                  site_mass%aresp_acc + &
-                  site_mass%herbivory_flux_out
-
+          flux_out = sum(site_mass%wood_product_harvest(:)) + &
+               sum(site_mass%wood_product_landusechange(:)) + &
+               site_mass%burn_flux_to_atm + &
+               site_mass%seed_out + &
+               site_mass%flux_generic_out + &
+               site_mass%frag_out + &
+               site_mass%aresp_acc + &
+               site_mass%herbivory_flux_out
+       end if
+       
        net_flux        = flux_in - flux_out
        error           = abs(net_flux - change_in_stock)
 
