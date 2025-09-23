@@ -668,11 +668,6 @@ contains
                currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake - &
                currentCohort%daily_c_efflux*currentCohort%n
 
-          ! Save NPP diagnostic for flux accounting [kg/m2/day]
-
-          currentSite%flux_diags%npp = currentSite%flux_diags%npp + &
-               currentCohort%npp_acc_hold/real( hlm_days_per_year,r8) * currentCohort%n * area_inv
-          
           ! And simultaneously add the input fluxes to mass balance accounting
           site_cmass%gpp_acc   = site_cmass%gpp_acc + &
                 currentCohort%gpp_acc * currentCohort%n
@@ -681,8 +676,6 @@ contains
                currentCohort%resp_m_acc*currentCohort%n + &
                currentCohort%resp_excess_hold*currentCohort%n + &
                currentCohort%resp_g_acc_hold*currentCohort%n/real( hlm_days_per_year,r8)
-          
-          
           
           call currentCohort%prt%CheckMassConservation(ft,5)
 
@@ -848,10 +841,7 @@ contains
        call set_patchno(currentSite,.true.,1)
     end if
 
-    ! Pass site-level mass fluxes to output boundary conditions
-    ! [kg/site/day] * [site/m2 day/sec] = [kgC/m2/s]
-    bc_out%gpp_site = site_cmass%gpp_acc * area_inv / sec_per_day
-    bc_out%ar_site  = site_cmass%aresp_acc * area_inv / sec_per_day
+   
     
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting))then
        call canopy_spread(currentSite)
@@ -927,10 +917,10 @@ contains
     ! Set boundary condition to HLM for carbon loss to atm from fires and grazing
     ! [kgC/ha/day]*[ha/m2]*[day/s] = [kg/m2/s] 
     
-    bc_out%fire_closs_to_atm_si = site_cmass%burn_flux_to_atm * ha_per_m2 * days_per_sec
-    bc_out%grazing_closs_to_atm_si = site_cmass%herbivory_flux_out * ha_per_m2 * days_per_sec
-
-    
+    bc_out%fire_closs_to_atm_si = site_cmass%burn_flux_to_atm * area_inv * days_per_sec
+    bc_out%grazing_closs_to_atm_si = site_cmass%herbivory_flux_out * area_inv * days_per_sec
+    bc_out%gpp_site = site_cmass%gpp_acc * area_inv * days_per_sec
+    bc_out%ar_site  = site_cmass%aresp_acc * area_inv * days_per_sec
 
   end subroutine ed_update_site
 
@@ -997,7 +987,7 @@ contains
 
     ! Loop through the number of elements in the system
 
-    do el = 1, num_elements
+    do_elem_loop: do el = 1, num_elements
 
        site_mass => currentSite%mass_balance(el)
 
@@ -1121,12 +1111,13 @@ contains
 
       ! This is the last check of the sequence, where we update our total
       ! error check and the final fates stock
-      if(call_index == final_check_id) then
-          site_mass%old_stock = total_stock
-          site_mass%err_fates = net_flux - change_in_stock
+      if(call_index == final_check_id .and. .not.is_restarting) then
+         site_mass%old_stock = total_stock
+         site_mass%err_fates = net_flux - change_in_stock
       end if
 
-   end do
+   end do do_elem_loop
+   
   end if ! not SP mode
   end subroutine TotalBalanceCheck
 
