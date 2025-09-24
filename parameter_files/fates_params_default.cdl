@@ -289,6 +289,36 @@ variables:
 	double fates_edgeforest_quadratic_c(fates_edgeforest_bins) ;
 		fates_edgeforest_quadratic_c:units = "unitless" ;
 		fates_edgeforest_quadratic_c:long_name = "x^0 coefficient for calculating forest area in each edge bin (quadratic fit)" ;
+	double fates_edgeforest_fireweather_rh_mult(fates_edgeforest_bins) ;
+		fates_edgeforest_fireweather_rh_mult:units = "unitless" ;
+		fates_edgeforest_fireweather_rh_mult:long_name = "Factor multiplied onto
+		relative humidity (for fire weather only) in each edge forest bin. Applied before additive factor
+		fates_edgeforest_fireweather_rh_add." ;
+	double fates_edgeforest_fireweather_temp_C_mult(fates_edgeforest_bins) ;
+		fates_edgeforest_fireweather_temp_C_mult:units = "unitless" ;
+		fates_edgeforest_fireweather_temp_C_mult:long_name = "Factor multiplied onto
+		temperature (for fire weather only) in each edge forest bin. Applied before additive factor
+		fates_edgeforest_fireweather_temp_C_add." ;
+	double fates_edgeforest_fireweather_wind_mult(fates_edgeforest_bins) ;
+		fates_edgeforest_fireweather_wind_mult:units = "unitless" ;
+		fates_edgeforest_fireweather_wind_mult:long_name = "Factor multiplied onto
+		wind speed (for fire weather only) in each edge forest bin. Applied before additive factor
+		fates_edgeforest_fireweather_wind_add." ;
+	double fates_edgeforest_fireweather_rh_add(fates_edgeforest_bins) ;
+		fates_edgeforest_fireweather_rh_add:units = "%" ;
+		fates_edgeforest_fireweather_rh_add:long_name = "Factor added to
+		relative humidity (for fire weather only) in each edge forest bin. Applied after multiplicative
+		factor fates_edgeforest_fireweather_rh_mult." ;
+	double fates_edgeforest_fireweather_temp_C_add(fates_edgeforest_bins) ;
+		fates_edgeforest_fireweather_temp_C_add:units = "degrees C" ;
+		fates_edgeforest_fireweather_temp_C_add:long_name = "Factor added to
+		temperature (for fire weather only) in each edge forest bin. Applied after multiplicative
+		factor fates_edgeforest_fireweather_temp_C_mult." ;
+	double fates_edgeforest_fireweather_wind_add(fates_edgeforest_bins) ;
+		fates_edgeforest_fireweather_wind_add:units = "m/min" ;
+		fates_edgeforest_fireweather_wind_add:long_name = "Factor added to
+		wind speed (for fire weather only) in each edge forest bin. Applied after multiplicative
+		factor fates_edgeforest_fireweather_wind_mult." ;
 	double fates_fire_alpha_SH(fates_pft) ;
 		fates_fire_alpha_SH:units = "m / (kw/m)**(2/3)" ;
 		fates_fire_alpha_SH:long_name = "spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010" ;
@@ -1256,6 +1286,18 @@ data:
  fates_edgeforest_quadratic_b = _, _, -0.5457222474679617, -0.19438641157435982, -0.300528731650077, _ ;
 
  fates_edgeforest_quadratic_c = _, _, 0.29299184857665717, 0.11825507562859365, 0.2669694066063096, _ ;
+
+ fates_edgeforest_fireweather_rh_mult = 1, 1, 1, 1, 1, 1 ;
+
+ fates_edgeforest_fireweather_temp_C_mult = 1, 1, 1, 1, 1, 1 ;
+
+ fates_edgeforest_fireweather_wind_mult = 1, 1, 1, 1, 1, 1 ;
+
+ fates_edgeforest_fireweather_rh_add = 0, 0, 0, 0, 0, 0 ;
+
+ fates_edgeforest_fireweather_temp_C_add = 0, 0, 0, 0, 0, 0 ;
+
+ fates_edgeforest_fireweather_wind_add = 0, 0, 0, 0, 0, 0 ;
 
  fates_edgeforest_bin_edges = 0, 30, 60, 120, 150, 300 ;
 
