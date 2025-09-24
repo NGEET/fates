@@ -611,6 +611,9 @@ contains
     real(r8), allocatable :: patch_weight_each_edge_bin(:)  ! Area weighting of each edge bin in patch
 
     ! If patch has no or little forest, return early to avoid divide-by-zero
+    ! TODO: Or should such patches get the same flammability as nearest edge? It doesn't make much
+    ! sense for grassland to have, e.g., lower wind speed than nearest-edge forest just because the
+    ! grassland isn't getting the flammability enhancement.
     patch_forest_area = sum(patch_area_each_edge_bin)
     if (patch_forest_area < nearzero) then
       return
