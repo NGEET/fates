@@ -26,6 +26,8 @@ module FatesEdgeForestMod
   public :: gffeb_norm
   public :: gffeb_quadratic
   public :: assign_patch_to_bins
+  public :: calculate_edgeforest_flammability_onevar_onebin
+  public :: calculate_edgeforest_flammability_onevar
 
 contains
 
@@ -553,6 +555,42 @@ contains
   end subroutine calculate_edgeforest_area
 
 
+  elemental function calculate_edgeforest_flammability_onevar_onebin(mult_factor, add_factor, weather_in) result(weather_out)
+    ! DESCRIPTION:
+    ! Apply flammability enhancements to one fireWeather variable for one edge bin
+    !
+    ! USES:
+    !
+    ! ARGUMENTS:
+    real(r8), intent(in) :: mult_factor  ! Multiplicative factor
+    real(r8), intent(in) :: add_factor   ! Additive factor
+    real(r8), intent(in) :: weather_in   ! Value of weather variable before applying factors
+    !
+    ! LOCAL VARIABLES:
+    real(r8) :: weather_out   ! Value of weather variable after applying factors
+
+    weather_out = (weather_in * mult_factor) + add_factor
+
+  end function calculate_edgeforest_flammability_onevar_onebin
+
+
+  subroutine calculate_edgeforest_flammability_onevar(mult_factors, add_factors, weather_in, weather_out)
+    ! DESCRIPTION:
+    ! Calculate one fireWeather variable for all edge bins after applying flammability enhancements
+    !
+    ! USES:
+    !
+    ! ARGUMENTS:
+    real(r8), intent(in) :: mult_factors(:)  ! Multiplicative factors
+    real(r8), intent(in) :: add_factors(:)   ! Additive factors
+    real(r8), intent(in) :: weather_in   ! Value of weather variable before applying factors
+    real(r8), intent(out) :: weather_out(:)  ! Value of weather variable in each bin after applying factors
+    !
+    ! LOCAL VARIABLES:
+
+    weather_out = calculate_edgeforest_flammability_onevar_onebin(mult_factors, add_factors, weather_in)
+
+  end subroutine calculate_edgeforest_flammability_onevar
 
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

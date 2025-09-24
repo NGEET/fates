@@ -9,6 +9,8 @@ module test_EdgeForest
   use FatesEdgeForestMod, only : gffeb_norm_numerator, gffeb_norm_denominator, gffeb_quadratic
   use FatesEdgeForestMod, only : gffeb_norm
   use FatesEdgeForestMod, only : assign_patch_to_bins
+  use FatesEdgeForestMod, only : calculate_edgeforest_flammability_onevar_onebin
+  use FatesEdgeForestMod, only : calculate_edgeforest_flammability_onevar
   use funit
 
   implicit none
@@ -633,5 +635,34 @@ module test_EdgeForest
       @assertEqual(20._r8, area_in_edgeforest_bins(2), tolerance=tol)
       @assertEqual(30._r8, area_in_edgeforest_bins(3), tolerance=tol)
     end subroutine test_assign_patch_to_bins_05
+
+    @Test
+    subroutine test_calculate_edgeforest_flammability_onevar_onebin(this)
+      ! Test applying a flammability enhancement to one variable for one edge bin
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: mult_factor = 2._r8
+      real(r8) :: add_factor = 3._r8
+      real(r8) :: weather_in = 5._r8
+      real(r8) :: weather_out
+
+      weather_out = calculate_edgeforest_flammability_onevar_onebin(mult_factor, add_factor, weather_in)
+
+      @assertEqual(13._r8, weather_out, tolerance=tol)
+    end subroutine test_calculate_edgeforest_flammability_onevar_onebin
+
+    @Test
+    subroutine test_calculate_edgeforest_flammability_onevar(this)
+      ! Test applying a flammability enhancement to one variable for multiple edge bins
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: mult_factors(2) = [2._r8, 0.4_r8]
+      real(r8) :: add_factors(2) = [3._r8, -1._r8]
+      real(r8) :: weather_in = 5._r8
+      real(r8) :: weather_out(2)
+
+      call calculate_edgeforest_flammability_onevar(mult_factors, add_factors, weather_in, weather_out)
+
+      @assertEqual(13._r8, weather_out(1), tolerance=tol)
+      @assertEqual(1._r8, weather_out(2), tolerance=tol)
+    end subroutine test_calculate_edgeforest_flammability_onevar
 
   end module test_EdgeForest
