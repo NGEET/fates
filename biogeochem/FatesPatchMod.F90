@@ -32,9 +32,6 @@ module FatesPatchMod
   use FatesRadiationMemMod,   only : num_rad_stream_types
   use FatesInterfaceTypesMod, only : hlm_hio_ignore_val
   use FatesInterfaceTypesMod, only : numpft
-  use FatesInterfaceTypesMod, only : bc_in_type
-  use FatesInterfaceTypesMod, only : bc_out_type
-  use FatesInterfaceTypesMod, only : fates_interface_registry_base_type
   use shr_infnan_mod,         only : nan => shr_infnan_nan, assignment(=)
   use shr_log_mod,            only : errMsg => shr_log_errMsg
 
@@ -279,16 +276,13 @@ module FatesPatchMod
       procedure :: Dump
       procedure :: CheckVars
 
-      procedure, private :: InitializeInterfaceRegistry
-      procedure, private :: InitializeInterfaceVariables
-
   end type fates_patch_type
 
   contains 
 
     !===========================================================================
 
-    subroutine Init(this, num_swb, num_levsoil, api_pointer)
+    subroutine Init(this, num_swb, num_levsoil)
       !
       !  DESCRIPTION:
       !  Initialize a new patch - allocate arrays and set values to nan and/or 0.0
@@ -298,7 +292,6 @@ module FatesPatchMod
       class(fates_patch_type), intent(inout) :: this        ! patch object
       integer,                 intent(in)    :: num_swb     ! number of shortwave broad-bands to track
       integer,                 intent(in)    :: num_levsoil ! number of soil layers
-      class(fates_interface_registry_base_type), pointer, intent(in) :: api_pointer
 
       ! allocate arrays 
       allocate(this%tr_soil_dir(num_swb))
@@ -312,13 +305,6 @@ module FatesPatchMod
       allocate(this%fragmentation_scaler(num_levsoil))
       allocate(this%co_scr(max_cohort_per_patch))
 
-      ! Initialize the patch-level API registry
-      call this%InitializeInterfaceRegistry()
-
-      ! Initialize and register the variables in the API registry
-      ! This also allocates the boundary conditions
-      call this%InitializeInterfaceVariables(api_pointer)
-      
       ! initialize all values to nan
       call this%NanValues()
 
@@ -557,12 +543,6 @@ module FatesPatchMod
       this%tfc_ros                      = nan
       this%frac_burnt                   = nan
 
-      ! Boundary conditions
-      this%bc_in%w_scalar_sisl(:)       = nan
-      this%bc_in%t_scalar_sisl(:)       = nan
-      this%bc_in%nlevdecomp             = fates_unset_int
-      this%bc_in%nlevsoil               = fates_unset_int
-      
     end subroutine NanValues
 
     !===========================================================================
@@ -650,12 +630,6 @@ module FatesPatchMod
       this%nonrx_frac_burnt                  = 0.0_r8
       this%rx_fi                             = 0.0_r8
       this%rx_frac_burnt                     = 0.0_r8
-
-      ! Boundary conditions
-      this%bc_in%w_scalar_sisl(:)            = 0.0_r8
-      this%bc_in%t_scalar_sisl(:)            = 0.0_r8
-      this%bc_in%nlevdecomp                  = 0.0_r8
-      this%bc_in%nlevsoil                    = 0.0_r8
 
     end subroutine ZeroValues
 
@@ -749,7 +723,7 @@ module FatesPatchMod
     !===========================================================================
 
     subroutine Create(this, age, area, land_use_label, nocomp_pft, num_swb, num_pft,    &
-      num_levsoil, current_tod, regeneration_model, api_pointer)
+      num_levsoil, current_tod, regeneration_model)
       !
       ! DESCRIPTION:
       ! create a new patch with input and default values
@@ -767,11 +741,9 @@ module FatesPatchMod
       integer,                 intent(in)    :: current_tod        ! time of day [seconds past 0Z]
       integer,                 intent(in)    :: regeneration_model ! regeneration model version
 
-      class(fates_interface_registry_base_type), pointer, intent(in) :: api_pointer
-      
       ! initialize patch
-      ! sets all values to nan, then some values to zero, and initialize interface registry
-      call this%Init(num_swb, num_levsoil, api_pointer)
+      ! sets all values to nan, then some values to zero
+      call this%Init(num_swb, num_levsoil)
       
       ! initialize running means for patch
       call this%InitRunningMeans(current_tod, regeneration_model, num_pft)
@@ -1376,46 +1348,6 @@ module FatesPatchMod
       end if
 
     end subroutine CheckVars
-
-    !===========================================================================  
-
-    subroutine InitializeInterfaceRegistry(this)
-
-      use FatesInterfaceTypesMod, only: hlm_fates_soil_level
-
-      class(fates_patch_type), intent(inout) :: this
-      
-      ! Initialize the patch-level interface variable registry for the FATES-side
-      call this%api%InitializeInterfaceRegistry()
-
-      ! Register the boundary condition data variables that are set during initialization only
-      ! See RegisterInterfaceVariables patch-type bound procedure for remaining variables registrations
-      call this%api%Register(hlm_fates_soil_level, this%bc_in%nlevsoil)
-      
-    end subroutine InitializeInterfaceRegistry
- 
-! ======================================================================================
-    
-    subroutine InitializeInterfaceVariables(this, input_api)
-
-      use FatesInterfaceTypesMod, only : hlm_fates_decomp_frac_moisture
-      use FatesInterfaceTypesMod, only : hlm_fates_decomp_frac_temperature
-      
-      class(fates_patch_type), intent(inout) :: this
-      class(fates_interface_registry_base_type), intent(in) :: input_api
-      
-      ! Initialize interface variables
-      call this%api%InitializeInterfaceVariables(input_api)
-      
-      ! Allocate the boundary conditions array using the BCs set during initialization
-      allocate(this%bc_in%w_scalar_sisl(this%bc_in%nlevsoil))
-      allocate(this%bc_in%t_scalar_sisl(this%bc_in%nlevsoil))
-      
-      ! Register the boundary condintion variables not exclusively updated during initialization
-      call this%api%Register(hlm_fates_decomp_frac_moisture, this%bc_in%w_scalar_sisl)
-      call this%api%Register(hlm_fates_decomp_frac_temperature, this%bc_in%t_scalar_sisl)
-      
-    end subroutine InitializeInterfaceVariables
 
 ! ======================================================================================
 
