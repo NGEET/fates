@@ -18,6 +18,7 @@ module FatesEdgeForestMod
   ! Make public necessary subroutines and functions
   public :: CalculateTreeGrassAreaSite
   public :: calculate_edgeforest_area
+  public :: apply_edgeforest_flammability_to_site
   ! Public for unit testing
   public :: indexx
   public :: get_fraction_of_edgeforest_in_each_bin
@@ -629,6 +630,71 @@ contains
     deallocate(patch_weight_each_edge_bin)
 
   end subroutine apply_edgeforest_flammability_to_patch_onevar
+
+
+  subroutine apply_edgeforest_flammability_to_site(site)
+    ! DESCRIPTION:
+    ! Apply enhancements to one fireWeather variable in a patch based on how much of its area is in
+    ! each edge bin
+    !
+    ! USES:
+    use FatesInterfaceTypesMod, only : nlevedgeforest
+    use FatesEdgeForestParamsMod, only : ED_val_edgeforest_fireweather_rh_mult, ED_val_edgeforest_fireweather_rh_add
+    use FatesEdgeForestParamsMod, only : ED_val_edgeforest_fireweather_temp_C_mult, ED_val_edgeforest_fireweather_temp_C_add
+    use FatesEdgeForestParamsMod, only : ED_val_edgeforest_fireweather_wind_mult, ED_val_edgeforest_fireweather_wind_add
+    !
+    ! ARGUMENTS:
+    type(ed_site_type), pointer, intent(in) :: site
+    !
+    ! LOCAL VARIABLES:
+    real(r8) :: rh, temp_C, wind
+    real(r8) :: rh_by_edge_bin(nlevedgeforest)  ! rh value in each edge bin
+    real(r8) :: temp_C_by_edge_bin(nlevedgeforest)  ! temp_C value in each edge bin
+    real(r8) :: wind_by_edge_bin(nlevedgeforest)  ! wind value in each edge bin
+    type(fates_patch_type), pointer :: currentPatch
+
+    ! Get site-level weather values, assuming youngest patch has the same values as all others
+    rh = site%youngest_patch%fireWeather%rh
+    temp_C = site%youngest_patch%fireWeather%temp_C
+    wind = site%youngest_patch%fireWeather%wind
+
+    ! Calculate weather values for each edge bin
+    call calculate_edgeforest_flammability_onevar( &
+         ED_val_edgeforest_fireweather_rh_mult, &
+         ED_val_edgeforest_fireweather_rh_add, &
+         rh, &
+         rh_by_edge_bin)
+    call calculate_edgeforest_flammability_onevar( &
+         ED_val_edgeforest_fireweather_temp_C_mult, &
+         ED_val_edgeforest_fireweather_temp_C_add, &
+         temp_C, &
+         temp_C_by_edge_bin)
+    call calculate_edgeforest_flammability_onevar( &
+         ED_val_edgeforest_fireweather_wind_mult, &
+         ED_val_edgeforest_fireweather_wind_add, &
+         wind, &
+         wind_by_edge_bin)
+
+    ! Update patch values
+    currentPatch => site%oldest_patch
+    do while(associated(currentPatch))
+      call apply_edgeforest_flammability_to_patch_onevar( &
+           rh_by_edge_bin, &
+           currentPatch%area_in_edgeforest_bins, &
+           currentPatch%fireWeather%rh)
+      call apply_edgeforest_flammability_to_patch_onevar( &
+           temp_C_by_edge_bin, &
+           currentPatch%area_in_edgeforest_bins, &
+           currentPatch%fireWeather%temp_C)
+      call apply_edgeforest_flammability_to_patch_onevar( &
+           wind_by_edge_bin, &
+           currentPatch%area_in_edgeforest_bins, &
+           currentPatch%fireWeather%wind)
+
+      currentPatch => currentPatch%younger
+    end do
+
+  end subroutine apply_edgeforest_flammability_to_site
 
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

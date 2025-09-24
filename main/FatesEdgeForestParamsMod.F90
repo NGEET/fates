@@ -27,6 +27,12 @@ module FatesEdgeForestParamsMod
    real(r8),protected,allocatable,public :: ED_val_edgeforest_quadratic_b(:)
    real(r8),protected,allocatable,public :: ED_val_edgeforest_quadratic_c(:)
    real(r8),protected,allocatable,public :: ED_val_edgeforest_bin_edges(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_fireweather_rh_mult(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_fireweather_temp_C_mult(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_fireweather_wind_mult(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_fireweather_rh_add(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_fireweather_temp_C_add(:)
+   real(r8),protected,allocatable,public :: ED_val_edgeforest_fireweather_wind_add(:)
 
    character(len=param_string_length),parameter,public :: ED_name_edgeforest_gaussian_amplitude = "fates_edgeforest_gaussian_amplitude"
    character(len=param_string_length),parameter,public :: ED_name_edgeforest_gaussian_sigma = "fates_edgeforest_gaussian_sigma"
@@ -38,6 +44,12 @@ module FatesEdgeForestParamsMod
    character(len=param_string_length),parameter,public :: ED_name_edgeforest_quadratic_b = "fates_edgeforest_quadratic_b"
    character(len=param_string_length),parameter,public :: ED_name_edgeforest_quadratic_c = "fates_edgeforest_quadratic_c"
    character(len=param_string_length),parameter,public :: ED_name_edgeforest_bin_edges = "fates_edgeforest_bin_edges"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_fireweather_rh_mult = "fates_edgeforest_fireweather_rh_mult"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_fireweather_temp_C_mult = "fates_edgeforest_fireweather_temp_C_mult"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_fireweather_wind_mult = "fates_edgeforest_fireweather_wind_mult"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_fireweather_rh_add = "fates_edgeforest_fireweather_rh_add"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_fireweather_temp_C_add = "fates_edgeforest_fireweather_temp_C_add"
+   character(len=param_string_length),parameter,public :: ED_name_edgeforest_fireweather_wind_add = "fates_edgeforest_fireweather_wind_add"
 
    character(len=*), parameter, private :: sourcefile =  __FILE__
 
@@ -177,6 +189,24 @@ contains
     call fates_params%RegisterParameter(name=ED_name_edgeforest_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_edgeforest)
 
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_fireweather_rh_mult, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_fireweather_temp_C_mult, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_fireweather_wind_mult, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_fireweather_rh_add, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_fireweather_temp_C_add, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
+    call fates_params%RegisterParameter(name=ED_name_edgeforest_fireweather_wind_add, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names_edgeforest)
+
  end subroutine EdgeForestRegisterParams
 
  !-----------------------------------------------------------------------
@@ -217,6 +247,24 @@ contains
 
     call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_bin_edges, &
          data=ED_val_edgeforest_bin_edges)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_fireweather_rh_mult, &
+         data=ED_val_edgeforest_fireweather_rh_mult)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_fireweather_temp_C_mult, &
+         data=ED_val_edgeforest_fireweather_temp_C_mult)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_fireweather_wind_mult, &
+         data=ED_val_edgeforest_fireweather_wind_mult)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_fireweather_rh_add, &
+         data=ED_val_edgeforest_fireweather_rh_add)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_fireweather_temp_C_add, &
+         data=ED_val_edgeforest_fireweather_temp_C_add)
+
+    call fates_params%RetrieveParameterAllocate(name=ED_name_edgeforest_fireweather_wind_add, &
+         data=ED_val_edgeforest_fireweather_wind_add)
 
   end subroutine EdgeForestReceiveParams
 

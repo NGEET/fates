@@ -18,6 +18,7 @@ module SFMainMod
   use FatesInterfaceTypesMod, only : hlm_sf_scalar_lightning_def
   use FatesInterfaceTypesMod, only : hlm_sf_successful_ignitions_def
   use FatesInterfaceTypesMod, only : hlm_sf_anthro_ignitions_def
+  use FatesInterfaceTypesMod, only : hlm_use_edge_forest
   use FatesInterfaceTypesMod, only : bc_in_type
   use EDPftvarcon,            only : EDPftvarcon_inst
   use PRTParametersMod,       only : prt_params
@@ -32,6 +33,7 @@ module SFMainMod
   use FatesInterfaceTypesMod, only : numpft
   use FatesAllometryMod,      only : CrownDepth
   use FatesFuelClassesMod,    only : fuel_classes
+  use FatesEdgeForestMod,     only : apply_edgeforest_flammability_to_site
   
   implicit none
   private
@@ -130,11 +132,25 @@ contains
     currentSite%ovp_relhumid24 = rh
     currentSite%ovp_wind24 = wind
 
+    ! Save site-level fire weather (i.e., before considering edge forest flammability enhancements)
+    ! to patch%fireWeather
     currentPatch => currentSite%oldest_patch
-    patchloop: do while(associated(currentPatch))
+    patchloop1: do while(associated(currentPatch))
+      call currentPatch%fireWeather%UpdateFireWeatherData(temp_C, precip, rh, wind)
+      call currentPatch%fireWeather%UpdateEffectiveWindSpeed(tree_fraction, &
+        grass_fraction, bare_fraction)
+      currentPatch => currentPatch%younger
+    end do patchloop1
+
+    ! Apply edge forest flammability enhancements to patch%fireWeather
+    if (hlm_use_edge_forest) then
+      call apply_edgeforest_flammability_to_site(currentSite)
+    end if
+
+    currentPatch => currentSite%oldest_patch
+    patchloop2: do while(associated(currentPatch))
 
       ! update fire weather index
-      call currentPatch%fireWeather%UpdateFireWeatherData(temp_C, precip, rh, wind)
       call currentPatch%fireWeather%UpdateIndex()
 
       ! update prescribed fire burn window
@@ -142,12 +158,8 @@ contains
         SF_val_rxfire_tpup, SF_val_rxfire_tplw, SF_val_rxfire_rhup, SF_val_rxfire_rhlw,    &
         SF_val_rxfire_wdup, SF_val_rxfire_wdlw)
 
-      ! update effective wind speed
-      call currentPatch%fireWeather%UpdateEffectiveWindSpeed(tree_fraction, &
-        grass_fraction, bare_fraction)
-
       currentPatch => currentPatch%younger
-    end do patchloop
+    end do patchloop2
   end subroutine UpdateFireWeather
 
   !---------------------------------------------------------------------------------------
