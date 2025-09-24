@@ -28,6 +28,7 @@ module FatesEdgeForestMod
   public :: assign_patch_to_bins
   public :: calculate_edgeforest_flammability_onevar_onebin
   public :: calculate_edgeforest_flammability_onevar
+  public :: apply_edgeforest_flammability_to_patch_onevar
 
 contains
 
@@ -591,6 +592,40 @@ contains
     weather_out = calculate_edgeforest_flammability_onevar_onebin(mult_factors, add_factors, weather_in)
 
   end subroutine calculate_edgeforest_flammability_onevar
+
+
+  subroutine apply_edgeforest_flammability_to_patch_onevar(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
+    ! DESCRIPTION:
+    ! Apply enhancements to one fireWeather variable in a patch based on how much of its area is in
+    ! each edge bin
+    !
+    ! USES:
+    !
+    ! ARGUMENTS:
+    real(r8), intent(in) :: weather_by_edge_bin(:)  ! Weather value in each edge bin
+    real(r8), intent(in) :: patch_area_each_edge_bin(:)  ! Patch area in each edge bin (unit doesn't matter)
+    real(r8), intent(inout) :: weather_inout  ! Value of fireWeather variable in this patch
+    !
+    ! LOCAL VARIABLES:
+    real(r8) :: patch_forest_area  ! Forest area in patch (unit doesn't matter)
+    real(r8), allocatable :: patch_weight_each_edge_bin(:)  ! Area weighting of each edge bin in patch
+
+    ! If patch has no or little forest, return early to avoid divide-by-zero
+    patch_forest_area = sum(patch_area_each_edge_bin)
+    if (patch_forest_area < nearzero) then
+      return
+    end if
+
+    ! Calculate weight of each edge bin for this patch
+    allocate(patch_weight_each_edge_bin(size(patch_area_each_edge_bin)))
+    patch_weight_each_edge_bin = patch_area_each_edge_bin(:) / patch_forest_area
+
+    weather_inout = sum(weather_by_edge_bin * patch_weight_each_edge_bin)
+
+    ! Clean up
+    deallocate(patch_weight_each_edge_bin)
+
+  end subroutine apply_edgeforest_flammability_to_patch_onevar
 
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

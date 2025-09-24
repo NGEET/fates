@@ -11,6 +11,7 @@ module test_EdgeForest
   use FatesEdgeForestMod, only : assign_patch_to_bins
   use FatesEdgeForestMod, only : calculate_edgeforest_flammability_onevar_onebin
   use FatesEdgeForestMod, only : calculate_edgeforest_flammability_onevar
+  use FatesEdgeForestMod, only : apply_edgeforest_flammability_to_patch_onevar
   use funit
 
   implicit none
@@ -664,5 +665,44 @@ module test_EdgeForest
       @assertEqual(13._r8, weather_out(1), tolerance=tol)
       @assertEqual(1._r8, weather_out(2), tolerance=tol)
     end subroutine test_calculate_edgeforest_flammability_onevar
+
+    @Test
+    subroutine test_apply_edgeforest_flammability_to_patch_onevar_noforest(this)
+      ! Test applying a flammability enhancement to one patch with no forest
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: weather_by_edge_bin(3) = [2._r8, 2._r8, 10._r8]
+      real(r8) :: patch_area_each_edge_bin(3) = [0._r8, 0._r8, 0._r8]
+      real(r8) :: weather_inout = 5._r8
+
+      call apply_edgeforest_flammability_to_patch_onevar(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
+
+      @assertEqual(5._r8, weather_inout, tolerance=0._r8)
+    end subroutine test_apply_edgeforest_flammability_to_patch_onevar_noforest
+
+    @Test
+    subroutine test_apply_edgeforest_flammability_to_patch_onevar_1bin(this)
+      ! Test applying a flammability enhancement to one patch with forest in 1 bin
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: weather_by_edge_bin(3) = [2._r8, 2._r8, 5._r8]
+      real(r8) :: patch_area_each_edge_bin(3) = [16._r8, 0._r8, 0._r8]
+      real(r8) :: weather_inout = 5._r8
+
+      call apply_edgeforest_flammability_to_patch_onevar(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
+
+      @assertEqual(2._r8, weather_inout, tolerance=tol)
+    end subroutine test_apply_edgeforest_flammability_to_patch_onevar_1bin
+
+    @Test
+    subroutine test_apply_edgeforest_flammability_to_patch_onevar_allbins(this)
+      ! Test applying a flammability enhancement to one patch with forest in all bins
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: weather_by_edge_bin(3) = [2._r8, 2._r8, 9._r8]
+      real(r8) :: patch_area_each_edge_bin(3) = [16._r8, 32._r8, 64._r8]
+      real(r8) :: weather_inout = 9._r8
+
+      call apply_edgeforest_flammability_to_patch_onevar(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
+
+      @assertEqual(6._r8, weather_inout, tolerance=tol)
+    end subroutine test_apply_edgeforest_flammability_to_patch_onevar_allbins
 
   end module test_EdgeForest
