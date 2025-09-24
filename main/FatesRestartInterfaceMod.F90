@@ -114,6 +114,8 @@ module FatesRestartInterfaceMod
   integer :: ir_landuse_config_si
   integer :: ir_gpp_acc_si
   integer :: ir_aresp_acc_si
+  integer :: ir_herbivory_flux_out_si
+  integer :: ir_burn_flux_to_atm_si
   
   integer :: ir_ncohort_pa
   integer :: ir_canopy_layer_co
@@ -1199,6 +1201,15 @@ contains
             units='kg/ha', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_errfates_mbal)
 
+       call this%RegisterCohortVector(symbol_base='herbivory_flux_out', vtype=site_r8, &
+            long_name_base='Mass flux of herbivory losses at the site level', &
+            units='kg/ha/day', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_herbivory_flux_out_si)
+       
+       call this%RegisterCohortVector(symbol_base='burn_flux_to_atm', vtype=site_r8, &
+            long_name_base='Mass flux of burn loss to the atmosphere at site level', &
+            units='kg/ha/day', veclength=num_elements, flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_burn_flux_to_atm_si)
 
        ! Time integrated mass balance accounting [kg/m2]
        call this%RegisterCohortVector(symbol_base='fates_liveveg_intflux', vtype=site_r8, &
@@ -2543,7 +2554,8 @@ contains
           do i_lu_donor = 1, n_landuse_cats
              do i_lu_receiver = 1, n_landuse_cats
                 do i_dist = 1, n_dist_types
-                   rio_disturbance_rates_siluludi(io_idx_si_luludi) = sites(s)%disturbance_rates(i_dist,i_lu_donor, i_lu_receiver)
+                   rio_disturbance_rates_siluludi(io_idx_si_luludi) = &
+                        sites(s)%disturbance_rates(i_dist,i_lu_donor, i_lu_receiver)
                    io_idx_si_luludi = io_idx_si_luludi + 1
                 end do
              end do
@@ -2557,18 +2569,29 @@ contains
                 io_idx_si_scpf = io_idx_co_1st
 
                 do i_cwd=1,ncwd
-                   this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags%elem(el)%cwd_ag_input(i_cwd)
-                   this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd) = sites(s)%flux_diags%elem(el)%cwd_bg_input(i_cwd)
+                   this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = &
+                        sites(s)%flux_diags%elem(el)%cwd_ag_input(i_cwd)
+                   this%rvars(ir_cwdbgin_flxdg+el-1)%r81d(io_idx_si_cwd) = &
+                        sites(s)%flux_diags%elem(el)%cwd_bg_input(i_cwd)
                    io_idx_si_cwd = io_idx_si_cwd + 1
                 end do
 
                 do i_pft=1,numpft
-                   this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags%elem(el)%surf_fine_litter_input(i_pft)
-                   this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft) = sites(s)%flux_diags%elem(el)%root_litter_input(i_pft)
-                   this%rvars(ir_woodprod_harvest_mbal+el-1)%r81d(io_idx_si_pft) = sites(s)%mass_balance(el)%wood_product_harvest(i_pft)
-                   this%rvars(ir_woodprod_landusechange_mbal+el-1)%r81d(io_idx_si_pft) = sites(s)%mass_balance(el)%wood_product_landusechange(i_pft)
+                   this%rvars(ir_leaflittin_flxdg+el-1)%r81d(io_idx_si_pft) = &
+                        sites(s)%flux_diags%elem(el)%surf_fine_litter_input(i_pft)
+                   this%rvars(ir_rootlittin_flxdg+el-1)%r81d(io_idx_si_pft) = &
+                        sites(s)%flux_diags%elem(el)%root_litter_input(i_pft)
+                   this%rvars(ir_woodprod_harvest_mbal+el-1)%r81d(io_idx_si_pft) = &
+                        sites(s)%mass_balance(el)%wood_product_harvest(i_pft)
+                   this%rvars(ir_woodprod_landusechange_mbal+el-1)%r81d(io_idx_si_pft) = &
+                        sites(s)%mass_balance(el)%wood_product_landusechange(i_pft)
                    io_idx_si_pft = io_idx_si_pft + 1
                 end do
+
+                this%rvars(ir_herbivory_flux_out_si+el-1)%r81d(io_idx_si) = &
+                     sites(s)%mass_balance(el)%herbivory_flux_out
+                this%rvars(ir_burn_flux_to_atm_si+el-1)%r81d(io_idx_si) = &
+                     sites(s)%mass_balance(el)%burn_flux_to_atm
 
                 this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
                 this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
@@ -3606,6 +3629,11 @@ contains
                    sites(s)%mass_balance(el)%wood_product_landusechange(i_pft) = this%rvars(ir_woodprod_landusechange_mbal+el-1)%r81d(io_idx_si_pft)
                    io_idx_si_pft = io_idx_si_pft + 1
                 end do
+
+                sites(s)%mass_balance(el)%herbivory_flux_out = &
+                     this%rvars(ir_herbivory_flux_out_si+el-1)%r81d(io_idx_si)
+                sites(s)%mass_balance(el)%burn_flux_to_atm   = &
+                     this%rvars(ir_burn_flux_to_atm_si+el-1)%r81d(io_idx_si)
 
                 sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
                 sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
