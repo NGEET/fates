@@ -451,6 +451,9 @@ module EDTypesMod
      real(r8) ::  rxfire_area_fuel                             ! daily total burnable area [m2] when burn window present and fuel condition met 
      real(r8) ::  rxfire_area_fi                               ! daily total burnable area [m2] when burn window present, fuel and fire intensity condition met
      real(r8) ::  rxfire_area_final                            ! daily total burnable area [m2] when all conditions met  
+     ! TODO: Remove. Useful during development but probably not needed in production.
+     real(r8) ::  ovp_relhumid24  ! bc_in%relhumid24_pa of oldest vegetated patch
+     real(r8) ::  ovp_wind24      ! bc_in%wind24_pa of oldest vegetated patch
 
 
 

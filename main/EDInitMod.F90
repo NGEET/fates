@@ -328,6 +328,9 @@ contains
     site_in%rxfire_area_fuel = 0._r8
     site_in%rxfire_area_fi = 0._r8
     site_in%rxfire_area_final = 0._r8
+    ! TODO: Remove. Useful during development but probably not needed in production.
+    site_in%ovp_relhumid24 = fates_unset_r8
+    site_in%ovp_wind24 = fates_unset_r8
 
     do el=1,num_elements
        ! Zero the state variables used for checking mass conservation

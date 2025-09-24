@@ -504,6 +504,9 @@ module FatesHistoryInterfaceMod
   integer :: ih_rx_fracarea_final_si
   integer :: ih_fragmentation_scaler_sl
 
+  integer :: ih_ovp_relhumid24_si  ! TODO: Remove. Useful during development but probably not needed in production.
+  integer :: ih_ovp_wind24_si  ! TODO: Remove. Useful during development but probably not needed in production.
+
   integer :: ih_nplant_si_scpf
   integer :: ih_gpp_si_scpf
   integer :: ih_npp_totl_si_scpf
@@ -2526,6 +2529,11 @@ contains
          hio_fire_fuel_sav_si    => this%hvars(ih_fire_fuel_sav_si)%r81d, &
          hio_fire_fuel_mef_si    => this%hvars(ih_fire_fuel_mef_si)%r81d, &
          hio_sum_fuel_si         => this%hvars(ih_sum_fuel_si)%r81d,  &
+
+         ! TODO: Remove. Useful during development but probably not needed in production.
+         hio_ovp_relhumid24_si   => this%hvars(ih_ovp_relhumid24_si)%r81d,  &
+         hio_ovp_wind24_si      => this%hvars(ih_ovp_wind24_si)%r81d,  &
+
          hio_nonrx_intensity_si  => this%hvars(ih_nonrx_intensity_si)%r81d, &
          hio_nonrx_intensity_fracarea_product_si => this%hvars(ih_nonrx_intensity_fracarea_product_si)%r81d, &
          hio_nonrx_fracarea_si       => this%hvars(ih_nonrx_fracarea_si)%r81d, &
@@ -2731,6 +2739,10 @@ contains
               sum(elflux_diags_c%surf_fine_litter_input(:)) + &
               sum(elflux_diags_c%root_litter_input(:))) * &
               AREA_INV * days_per_sec
+
+         ! TODO: Remove. Useful during development but probably not needed in production.
+         hio_ovp_relhumid24_si(io_si) = sites(s)%ovp_relhumid24
+         hio_ovp_wind24_si(io_si) = sites(s)%ovp_wind24
 
          ! Loop through patches to sum up diagonistics
          cpatch => sites(s)%oldest_patch
@@ -6999,6 +7011,20 @@ contains
             use_default='active', avgflag='A', vtype=site_edgebin_r8, hlms='CLM:ALM', &
             upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,     &
             index = ih_sum_fuel_si_edge)
+
+       ! TODO: Remove. Useful during development but probably not needed in production.
+       call this%set_history_var(vname='FATES_OVP_RELHUMID24', units='%',       &
+            long='24-hour running mean relative humidity passed in from HLM, in oldest vegetated patch',   &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            index = ih_ovp_relhumid24_si)
+
+       ! TODO: Remove. Useful during development but probably not needed in production.
+       call this%set_history_var(vname='FATES_OVP_WIND24', units='m/min',       &
+            long='24-hour running mean wind speed passed in from HLM, in oldest vegetated patch',   &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
+            index = ih_ovp_wind24_si)
 
        call this%set_history_var(vname='FATES_FIREWEATHER_PRECIP_EB', units='mm/day', &
             long='mean precipitation for fire weather in each edge bin',              &

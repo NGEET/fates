@@ -126,6 +126,10 @@ contains
     rh = bc_in%relhumid24_pa(iofp)
     wind = bc_in%wind24_pa(iofp) * sec_per_min
 
+    ! TODO: Remove. Useful during development but probably not needed in production.
+    currentSite%ovp_relhumid24 = rh
+    currentSite%ovp_wind24 = wind
+
     currentPatch => currentSite%oldest_patch
     patchloop: do while(associated(currentPatch))
 
