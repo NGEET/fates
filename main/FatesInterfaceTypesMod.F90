@@ -628,6 +628,15 @@ module FatesInterfaceTypesMod
      real(r8),allocatable :: hlm_sp_tlai(:)  ! Interpolated daily total LAI (leaf area index) input from HLM per patch/pft 
      real(r8),allocatable :: hlm_sp_tsai(:)  ! Interpolated sailt total SAI (stem area index) input from HLM per patch/pft
      real(r8),allocatable :: hlm_sp_htop(:)  ! Interpolated daily canopy vegetation height    input from HLM per patch/pft
+     
+     type(fates_interface_registry_base_type) :: API
+     
+     contains
+     
+      procedure :: Initialize => InitializeBCIn
+     
+      procedure, private :: IntializeDimensionVariables
+      procedure, private :: InitializeVariables => InitializeVariables_bcin
 
    end type bc_in_type
 
@@ -914,6 +923,49 @@ module FatesInterfaceTypesMod
  contains
   
        
+  ! ======================================================================================
+ 
+  subroutine InitializeBCIn(this, nlevsoil)
+    
+    class(bc_in_type), intent(inout) :: this
+    integer, intent(in)              :: nlevsoil
+    
+    ! Initialize the variables that act as dimensions for other boundary conditions
+    call this%IntializeDimensionVariables(nlevsoil)
+    
+    ! Initialize all remaining boundary condition input variables
+    call this%InitializeVariables()
+    
+    
+  end subroutine InitializeBCIn
+ 
+  ! ======================================================================================
+ 
+  subroutine InitializeDimensionVariables(this, nlevsoil)
+    
+    class(bc_in_type), intent(inout) :: this
+    integer, intent(in)              :: nlevsoil
+    
+    this%nlevsoil = nlevsoil
+    
+  end subroutine InitializeDimensionVariables
+ 
+  ! ======================================================================================
+ 
+  subroutine InitializeVariables_bcin(this)
+    
+    class(bc_in_type), intent(inout) :: this
+    
+    ! Allocate the boundary condition variables
+    allocate(this%w_scalar_sisl(this%nlevsoil))
+    allocate(this%t_scalar_sisl(this%nlevsoil))
+    
+    ! Unset the values
+    this%w_scalar_sisl = nan
+    this%t_scalar_sisl = nan
+    
+  end subroutine InitializeVariables_bcin
+ 
   ! ======================================================================================
 
   subroutine ZeroBCOutCarbonFluxes(bc_out)
