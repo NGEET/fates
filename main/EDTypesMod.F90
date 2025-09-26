@@ -311,7 +311,7 @@ module EDTypesMod
                                        ! due to re-sizing patches when area math starts to lose
                                        ! precision
 
-     real(r8) :: herbivory_flux_out    ! loss of element due to grazing (and/or browsing) by herbivores
+     real(r8) :: herbivory_flux_out    ! loss of element due to grazing (and/or browsing) by herbivores [kg/site/day]
      
    contains
 
