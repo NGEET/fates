@@ -879,11 +879,11 @@ module FatesInterfaceTypesMod
    ! Base type to be extended for the API registry
    type, public :: fates_interface_registry_base_type
 
-    ! container array of interface variables
-    type(fates_interface_variable_type), allocatable :: vars(:) 
+    ! Container array of interface variables indexed by key
+    type(fates_interface_variable_type), allocatable :: hlm_vars(:) 
+    type(fates_interface_variable_type), allocatable :: fates_vars(:) 
 
-    ! registry metadata
-    ! TODO: make an extended type for the HLM interface that holds the subgrid info
+    ! Variable regsitry metadata
     integer :: num_api_vars                        ! number of variables in the registry
     integer :: num_api_vars_update_init           ! number of variables that update only at initialization
     integer :: num_api_vars_update_daily          ! number of variables that update daily
@@ -947,6 +947,9 @@ module FatesInterfaceTypesMod
  
   subroutine InitializeDimensionVariables(this, nlevsoil)
     
+    ! Initialize input boundary conditions that are used as dimensions
+    ! for allocation of other boundary conditions
+    
     class(bc_in_type), intent(inout) :: this
     integer, intent(in)              :: nlevsoil
     
@@ -1002,8 +1005,9 @@ module FatesInterfaceTypesMod
     ! First count up the keys defined in the registry
     call this%DefineInterfaceRegistry(initialize=.false.)
 
-    ! Allocate the registry variables array
-    allocate(this%vars(this%num_api_vars))
+    ! Allocate the registry variables arrays
+    allocate(this%fates_vars(this%num_api_vars))
+    allocate(this%hlm_vars(this%num_api_vars))
     
     ! Allocate the index maps
     allocate(this%index_filter_init(this%num_api_vars_update_init))
