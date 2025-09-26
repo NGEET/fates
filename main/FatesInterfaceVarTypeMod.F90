@@ -76,34 +76,29 @@ module FatesInterfaceVariableTypeMod
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_0d(this, data, active, subgrid_index)
+    subroutine RegisterInterfaceVariable_0d(this, data, active)
 
       class(fates_interface_variable_type), intent(inout) :: this
-
       class(*), target, intent(in) :: data
       logical, intent(in)          :: active
-      integer, intent(in)          :: subgrid_index
 
       this%data0d => data
       this%active = active
-      this%subgrid = subgrid_index
       this%data_rank = rank(data)
 
     end subroutine RegisterInterfaceVariable_0d
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_1d(this, data, active, subgrid_index)
+    subroutine RegisterInterfaceVariable_1d(this, data, active)
 
       class(fates_interface_variable_type), intent(inout) :: this
 
       class(*), target, intent(in) :: data(:)
       logical, intent(in)          :: active
-      integer, intent(in)          :: subgrid_index
 
       this%data1d => data(:)
       this%active = active
-      this%subgrid = subgrid_index
       this%data_rank = rank(data)
       this%data_size(1) = size(data, dim=1)
 
@@ -111,17 +106,14 @@ module FatesInterfaceVariableTypeMod
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_2d(this, data, active, subgrid_index)
+    subroutine RegisterInterfaceVariable_2d(this, data, active)
 
       class(fates_interface_variable_type), intent(inout) :: this
-
       class(*), target, intent(in)  :: data(:,:)
       logical, intent(in)           :: active
-      integer, intent(in)           :: subgrid_index
 
       this%data2d => data(:,:)
       this%active = active
-      this%subgrid = subgrid_index
       this%data_rank = rank(data) 
       this%data_size(1) = size(data, dim=1)
       this%data_size(2) = size(data, dim=2)

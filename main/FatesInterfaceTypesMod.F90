@@ -888,14 +888,10 @@ module FatesInterfaceTypesMod
     integer :: num_api_vars_update_init           ! number of variables that update only at initialization
     integer :: num_api_vars_update_daily          ! number of variables that update daily
 
-    integer :: subgrid_indices(hlm_subgrid_levels) ! HLM patch ID associated with this patch
-                                                   ! 1 = patch, 2 = column, 3 = landunit, 4 = topounit, 5 = gridcell
-    
     ! Arrays that hold the indices of variables based on update frequency
     integer, allocatable :: index_filter_init(:)       ! index of variables that update only at initialization
     integer, allocatable :: index_filter_daily(:)      ! index of variables that update daily
     ! integer, allocatable :: index_filter_timestep(:)   ! index of variables that update at each timestep
-
 
     contains
 
@@ -994,8 +990,7 @@ module FatesInterfaceTypesMod
     this%num_api_vars = 0
     this%num_api_vars_update_init = 0
     this%num_api_vars_update_daily = 0
-    this%subgrid_indices = fates_unset_int
-
+    
     ! First count up the keys defined in the registry
     call this%DefineInterfaceRegistry(initialize=.false.)
 
@@ -1150,79 +1145,49 @@ module FatesInterfaceTypesMod
   
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_0d(this, key, data, subgrid_index)
+  subroutine RegisterInterfaceVariables_0d(this, key, data)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
     class(fates_interface_registry_base_type), intent(inout) :: this
-
     class(*), target, intent(in)  :: data          ! data to be associated with key
     character(len=*), intent(in)  :: key           ! variable registry key 
-    integer, intent(in), optional :: subgrid_index ! HLM subgrid index to associate with this variable
     
-    integer :: subgrid_index_use
-    
-    if (present(subgrid_index)) then
-      subgrid_index_use = subgrid_index
-    else
-      subgrid_index_use = subgrid_patch_index
-    end if
-
     ! Get index from registry key and associate the given data pointer
-    call this%vars(this%GetRegistryIndex(key))%Register(data, active=.true., subgrid_index=subgrid_index_use)
+    call this%vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
 
   end subroutine RegisterInterfaceVariables_0d
 
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_1d(this, key, data, subgrid_index)
+  subroutine RegisterInterfaceVariables_1d(this, key, data)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
     class(fates_interface_registry_base_type), intent(inout) :: this
-
     class(*), target, intent(in)  :: data(:)  ! data to be associated with key
     character(len=*), intent(in)  :: key        ! variable registry key 
-    integer, intent(in), optional :: subgrid_index ! HLM subgrid index to associate with this variable
 
-    integer :: subgrid_index_use
-    
-    if (present(subgrid_index)) then
-      subgrid_index_use = subgrid_index
-    else
-      subgrid_index_use = subgrid_patch_index
-    end if
-    
     ! Get index from registry key and associate the given data pointer
-    call this%vars(this%GetRegistryIndex(key))%Register(data(:), active=.true., subgrid_index=subgrid_index_use)
+    call this%vars(this%GetRegistryIndex(key))%Register(data(:), active=.true.)
 
   end subroutine RegisterInterfaceVariables_1d
 
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_2d(this, key, data, subgrid_index)
+  subroutine RegisterInterfaceVariables_2d(this, key, data)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
     class(fates_interface_registry_base_type), intent(inout) :: this
-
     class(*), target, intent(in)  :: data(:,:)  ! data to be associated with key
     character(len=*), intent(in)  :: key        ! variable registry key 
-    integer, intent(in), optional :: subgrid_index ! HLM subgrid index to associate with this variable
-
-    integer :: subgrid_index_use
-    
-    if (present(subgrid_index)) then
-      subgrid_index_use = subgrid_index
-    else
-      subgrid_index_use = subgrid_patch_index
-    end if
 
     ! Get index from registry key and associate the given data pointer
-    call this%vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true., subgrid_index=subgrid_index_use)
+    call this%vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true.)
 
   end subroutine RegisterInterfaceVariables_2d
 
