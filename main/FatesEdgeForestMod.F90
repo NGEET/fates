@@ -652,6 +652,10 @@ contains
     real(r8) :: temp_C_by_edge_bin(nlevedgeforest)  ! temp_C value in each edge bin
     real(r8) :: wind_by_edge_bin(nlevedgeforest)  ! wind value in each edge bin
     type(fates_patch_type), pointer :: currentPatch
+    real(r8) :: weather_inout
+    logical  :: no_change_intended
+    real(r8) :: tol = 1.e-9_r8
+    real(r8) :: weather_diff
 
     ! Get site-level weather values, assuming youngest patch has the same values as all others
     rh = site%youngest_patch%fireWeather%rh
@@ -678,18 +682,59 @@ contains
     ! Update patch values
     currentPatch => site%oldest_patch
     do while(associated(currentPatch))
+      ! RH
+      weather_inout = currentPatch%fireWeather%rh
       call apply_edgeforest_flammability_to_patch_onevar( &
            rh_by_edge_bin, &
            currentPatch%area_in_edgeforest_bins, &
-           currentPatch%fireWeather%rh)
+           weather_inout)
+      no_change_intended = all(abs(ED_val_edgeforest_fireweather_rh_mult - 1._r8) < tol) .and. &
+                           all(abs(ED_val_edgeforest_fireweather_rh_add) < tol)
+      if (no_change_intended) then
+        weather_diff = weather_inout - currentPatch%fireWeather%rh
+        if (abs(weather_diff) > tol) then
+          write(fates_log(),*) 'No change intended but RH diff ',weather_diff
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+        end if
+      else
+        currentPatch%fireWeather%rh = weather_inout
+      end if
+
+      ! Temp
+      weather_inout = currentPatch%fireWeather%temp_C
       call apply_edgeforest_flammability_to_patch_onevar( &
            temp_C_by_edge_bin, &
            currentPatch%area_in_edgeforest_bins, &
-           currentPatch%fireWeather%temp_C)
+           weather_inout)
+      no_change_intended = all(abs(ED_val_edgeforest_fireweather_temp_C_mult - 1._r8) < tol) .and. &
+                           all(abs(ED_val_edgeforest_fireweather_temp_C_add) < tol)
+      if (no_change_intended) then
+        weather_diff = weather_inout - currentPatch%fireWeather%temp_C
+        if (abs(weather_diff) > tol) then
+          write(fates_log(),*) 'No change intended but temp diff ',weather_diff
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+        end if
+      else
+        currentPatch%fireWeather%temp_C = weather_inout
+      end if
+
+      ! Wind
+      weather_inout = currentPatch%fireWeather%wind
       call apply_edgeforest_flammability_to_patch_onevar( &
            wind_by_edge_bin, &
            currentPatch%area_in_edgeforest_bins, &
-           currentPatch%fireWeather%wind)
+           weather_inout)
+      no_change_intended = all(abs(ED_val_edgeforest_fireweather_wind_mult - 1._r8) < tol) .and. &
+                           all(abs(ED_val_edgeforest_fireweather_wind_add) < tol)
+      if (no_change_intended) then
+        weather_diff = weather_inout - currentPatch%fireWeather%wind
+        if (abs(weather_diff) > tol) then
+          write(fates_log(),*) 'No change intended but wind diff ',weather_diff
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+        end if
+      else
+        currentPatch%fireWeather%wind = weather_inout
+      end if
 
       currentPatch => currentPatch%younger
     end do
