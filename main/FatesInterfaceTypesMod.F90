@@ -893,6 +893,14 @@ module FatesInterfaceTypesMod
     integer, allocatable :: index_filter_daily(:)      ! index of variables that update daily
     ! integer, allocatable :: index_filter_timestep(:)   ! index of variables that update at each timestep
 
+    ! Subgrid index data
+    integer, private :: gidx
+    integer, private :: lidx
+    integer, private :: cidx
+    integer, private :: sidx
+    integer, private :: hpidx
+    integer, private :: fpidx
+
     contains
 
       procedure :: InitializeInterfaceRegistry
