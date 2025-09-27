@@ -1291,11 +1291,11 @@ data:
 
  fates_edgeforest_fireweather_temp_C_mult = 1, 1, 1, 1, 1, 1 ;
 
- fates_edgeforest_fireweather_wind_mult = 1.11, 1.11, 1.11, 1.11, 1.11, 1.11 ;
+ fates_edgeforest_fireweather_wind_mult = 1.11, 1.11, 1.11, 1.11, 1.11, 1 ;
 
- fates_edgeforest_fireweather_rh_add = -30, -30, -30, -30, -30, -30 ;
+ fates_edgeforest_fireweather_rh_add = -30, -30, -30, -30, -30, 0 ;
 
- fates_edgeforest_fireweather_temp_C_add = 2, 2, 2, 2, 2, 2 ;
+ fates_edgeforest_fireweather_temp_C_add = 2, 2, 2, 2, 2, 0 ;
 
  fates_edgeforest_fireweather_wind_add = 0, 0, 0, 0, 0, 0 ;
 
