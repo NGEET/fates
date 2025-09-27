@@ -15,6 +15,7 @@ module EDLoggingMortalityMod
 
    use FatesConstantsMod , only : r8 => fates_r8
    use FatesConstantsMod , only : rsnbl_math_prec
+   use FatesConstantsMod , only : fates_unset_int
    use FatesCohortMod    , only : fates_cohort_type
    use FatesPatchMod     , only : fates_patch_type
    use EDTypesMod        , only : site_massbal_type
@@ -251,6 +252,10 @@ contains
       ! todo: eventually set up distinct harvest practices, each with a set of input paramaeters
       ! todo: implement harvested carbon inputs
 
+
+      ! Valid values are  0,1,2  so initialize to a different value
+      cur_harvest_tag = fates_unset_int
+      
       ! The transition_landuse_from_off_to_on is for handling the special case of the first timestep after leaving potential
       ! vegetation mode. In this case, all prior historical land-use, including harvest, needs to be applied on that first day.
       ! So logging rates on that day are what is required to deforest exactly the amount of primary lands that will give the
@@ -288,6 +293,7 @@ contains
                ! 0=use fates logging parameters directly when logging_time == .true.
                ! this means harvest the whole cohort area
                harvest_rate = 1._r8
+               cur_harvest_tag = fates_bypass_harvest_debt
 
             else if (hlm_use_lu_harvest == itrue .and. hlm_harvest_units == hlm_harvest_area_fraction) then
                ! We are harvesting based on areal fraction, not carbon/biomass terms. 
