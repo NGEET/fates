@@ -162,8 +162,7 @@ module FatesInterfaceMod
       type(bc_pconst_type) :: bc_pconst
 
       ! This is the interface registry which associates variables with a common keyword
-      ! FATES sites have a pointer to this, hence the "target"  attribute
-      type(fates_interface_registry_base_type), pointer :: api
+      type(fates_interface_registry_base_type), allocatable :: BC(:)
       
       contains 
 
