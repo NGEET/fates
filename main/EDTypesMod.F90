@@ -349,10 +349,6 @@ module EDTypesMod
      ! position in history output fields
      !integer :: clump_id 
 
-     ! Arrays that map the HLM subgrid index for each patch in this site
-     integer, allocatable :: column_map(:)
-     integer, allocatable :: patch_map(:)
-
      ! Global index of this site in the history output file
      integer :: h_gid
      
