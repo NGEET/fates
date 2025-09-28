@@ -162,7 +162,7 @@ module FatesInterfaceMod
       type(bc_pconst_type) :: bc_pconst
 
       ! This is the interface registry which associates variables with a common keyword
-      type(fates_interface_registry_base_type), allocatable :: BC(:)
+      type(fates_interface_registry_base_type), allocatable :: register(:)
       
       contains 
 
@@ -2707,6 +2707,31 @@ subroutine FatesReadParameters(param_reader)
   deallocate(fates_params)
   
 end subroutine FatesReadParameters
+
+! ======================================================================================
+
+subroutine InitializeInterfaceRegistry(this, number_clump_patches)
+
+   ! This procedure intializes an interface registry for each patch index on the clump
+
+   ! Arguments
+   class(fates_interface_type), intent(inout) :: this                  ! fates interface
+   integer, intent(in)                        :: number_clump_patches  ! number of patches in this clump
+
+   ! Locals
+   integer :: i
+
+   ! Allocate interface registries for each patch on the clump
+   allocate(this%register(number_clump_patches)) 
+
+   ! Initialize each registry with a dictionary of keys to register fates and hlm variables against
+   ! The keys are defined in the registry type-bound procedures
+   do i = 1, number_clump_patches
+      call this%register(i)%InitializeInterfaceRegistry()
+   end do
+
+end subroutine InitializeInterfaceRegistry
+
 
 ! ======================================================================================
 
