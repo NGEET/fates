@@ -334,12 +334,9 @@ module EDTypesMod
      type (fates_patch_type), pointer :: oldest_patch => null()   ! pointer to oldest patch at the site  
      type (fates_patch_type), pointer :: youngest_patch => null() ! pointer to yngest patch at the site
      
-     ! interface pointer
-   !   type(fates_interface_registry_base_type), pointer :: api => null() ! pointer to the fates interface type api
-     
      ! Boundary conditions
-    type(bc_in_type)  :: bc_in
-    type(bc_out_type) :: bc_out
+     type(bc_in_type), allocatable  :: bc_in(:)
+     type(bc_out_type), allocatable :: bc_out(:)
      
      ! Resource management
      type (ed_resources_management_type) :: resources_management ! resources_management at the site 
