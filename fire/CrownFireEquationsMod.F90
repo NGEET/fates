@@ -18,7 +18,10 @@ module CrownFireEquationsMod
   public :: CrowningIndex
   public :: CrownFireIntensity
   public :: LiveFuelMoistureContent
+  public :: MaxHeight
   public :: CrownFireBehaveFM10
+  public :: BiomassBin
+  public :: CrownFractionBurnt
 
   contains
 
@@ -158,6 +161,23 @@ module CrownFireEquationsMod
   end function LiveFuelMoistureContent
 
   !---------------------------------------------------------------------------------------
+  subroutine MaxHeight(height, max_height)
+  !
+  ! DESCRIPTION
+  ! Search for max height across cohorts on patch
+  !
+  ! ARGUMENTS:
+  real(r8),           intent(in)     :: height             ! cohort height [m]
+  real(r8),           intent(inout)  :: max_height         ! max height of all cohorts [m]
+
+  if(height > max_height)then
+    max_height = height
+  end if
+
+  end subroutine MaxHeight
+
+
+  !---------------------------------------------------------------------------------------
 
 
   subroutine CrownFireBehaveFM10(drying_ratio, fire_weather_index, miner_total, part_dens, wind, &
@@ -180,7 +200,7 @@ module CrownFireEquationsMod
     real(r8), intent(in)  :: wind                ! Site wind speed [m/s]
     real(r8), intent(in)  :: canopy_bulk_density ! Canopy fuel bulk density [kg biomass / m3]               ! 
     real(r8), intent(out) :: ROS_active          ! Theoretical rate of spread a fully active crown fire using fuel model 10  [m/min]
-    real(r8), intent(out) :: CI                  ! Open wind speed to sustain an active crown fire using fuel model 10 [km/hr]
+    real(r8), intent(out) :: CI                  ! Open wind speed to sustain an active crown fire using fuel model 10 [m/min]
 
     ! Local variables:
 
@@ -291,6 +311,74 @@ module CrownFireEquationsMod
 
   end subroutine CrownFireBehaveFM10
 
+  !---------------------------------------------------------------------------------------
+
+
+  subroutine BiomassBin(cbh, height, crown_depth, canopy_fuel_1h, biom_matrix)
+    !
+    ! DESCRIPTION:
+    ! accumulate biomass at 1 m interval across cohorts and return 
+    ! the biomass array
+    !
+    ! ARGUMENTS:
+    real(r8), intent(in)                 :: cbh                 ! canopy base height [m]
+    real(r8), intent(in)                 :: height              ! cohort height [m]
+    real(r8), intent(in)                 :: crown_depth         ! crown length of a cohort [m]
+    real(r8), intent(in)                 :: canopy_fuel_1h     ! leaf + 1-hour woody biomass of a cohort [kg biomass]
+    real(r8), intent(inout)              :: biom_matrix(:)      ! array that holds biomass by 1m interval across all cohorts on a patch [kg biomass]
+
+    ! LOCALS:
+    integer           :: h_idx                ! looping index
+    real(r8)          :: crown_fuel_per_m     ! biomass by 1m interval [kg biomass]
+
+    ! calculate biomass by 1m interval 
+    crown_fuel_per_m = canopy_fuel_1h / crown_depth
+
+    do h_idx = int(cbh), int(height)
+      biom_matrix(h_idx) = biom_matrix(h_idx) + crown_fuel_per_m
+    end do
+
+
+  end subroutine BiomassBin
+
+  !---------------------------------------------------------------------------------------
+
+  subroutine CrownFractionBurnt(ROS_active, ROS_critical, ROS_front, &
+    ROS_init, ROS_SA, active_crownfire, passive_crownfire, crown_frac_burnt)
+    !
+    ! DESCRIPTION:
+    ! Determine if it is passive or active crown fire and
+    ! return crown fraction burned EQ. 28 in Scott & Reinhardt 2001
+    !
+    ! ARGUMENTS:
+    real(r8),  intent(in)          :: ROS_active             ! active crown fire ROS using FM10 [m/min]
+    real(r8),  intent(in)          :: ROS_critical           ! critical ROS for sustaining active crown fire [m/min]
+    real(r8),  intent(in)          :: ROS_front              ! surface ROS [m/min]
+    real(r8),  intent(in)          :: ROS_init               ! ROS to initiate a crown fire [m/min]
+    real(r8),  intent(in)          :: ROS_SA                 ! ROS at crowning index wind speed when ROS_active = ROS_SA [m/min]
+    integer,   intent(out)         :: active_crownfire       ! active crown fire = 1
+    integer,   intent(out)         :: passive_crownfire      ! passive crown fire = 1
+    real(r8),  intent(out)         :: crown_frac_burnt       ! crown fraction burnt [0-1]
+    !
+    if(ROS_active >= ROS_critical)then
+      active_crownfire = 1
+      passive_crownfire = 0
+      ! for active crown fire we set CFB to 1
+      crown_frac_burnt = 1.0_r8
+    else if(ROS_active < ROS_critical .and. &
+    ROS_front > ROS_init .and. ROS_front < ROS_SA)then ! calculation of ROSs are disconnected so check to make sure these are true
+      active_crownfire = 0
+      passive_crownfire = 1
+      ! calculate crown fraction burnt EQ. 28 in Scott & Reinhardt 2001
+      crown_frac_burnt = min(1.0_r8, (ROS_front - ROS_init) / (ROS_SA - ROS_init))
+    else
+      active_crownfire = 0
+      passive_crownfire = 0
+      crown_frac_burnt = 0.0_r8
+    end if
+
+
+  end subroutine CrownFractionBurnt
 
 
 end module CrownFireEquationsMod

@@ -214,6 +214,8 @@ contains
     use FatesLitterMod,         only : ncwd
     use SFParamsMod,            only : SF_val_CWD_frac
     use FatesLitterMod,         only : adjust_SF_CWD_frac
+    use CrownFireEquationsMod,  only : MaxHeight
+    use CrownFireEquationsMod,  only : BiomassBin
     use CrownFireEquationsMod,  only : LiveFuelMoistureContent
     use EDTypesMod,             only : numWaterMem
     use FatesInterfaceTypesMod, only : hlm_use_planthydro
@@ -238,16 +240,14 @@ contains
     real(r8) ::  leaf_c               ! leaf carbon (kgC)
     real(r8) ::  sapw_c               ! sapwood carbon (kgC)
     real(r8) ::  struct_c             ! structure carbon (kgC)
-    real(r8) ::  crown_fuel_per_m     ! crown fuel per 1m section in cohort
-    real(r8) ::  SF_val_CWD_frac_adj(ncwd)  ! adjusted fractional allocation of woody biomass to coarse wood debris pool
+    real(r8) ::  canopy_fuel_1h               ! leaf + 1-hour woody fuel [kg biomass]
+    real(r8) ::  SF_val_CWD_frac_adj(ncwd)    ! adjusted fractional allocation of woody biomass to coarse wood debris pool
     real(r8) ::  mean_10day_smp(numpft)       ! averaged 10 day soil matric potential for each PFT 
-    real(r8) ::  water_mass           ! canopy water mass per individual plant (kgH2O/plant)
-    integer  ::  ipft                 ! pft index
-    
+    real(r8) ::  water_mass                   ! canopy water mass per individual plant (kgH2O/plant)
+    integer  ::  ipft                         ! pft index
+    real(r8), allocatable :: biom_matrix(:)   ! matrix to track biomass from bottom to top
 
-    real(r8), dimension(:), allocatable :: biom_matrix   ! matrix to track biomass from bottom to top
-    integer :: h_idx                                     ! index 
-
+    ! Parameters
     real(r8), parameter :: carbon_2_biomass = 0.45_r8
     ! LFMC parameters for testing
     real(r8), parameter :: min_lfmc = 80.0_r8
@@ -277,23 +277,22 @@ contains
         currentPatch%fuel%canopy_bulk_density = 0.0_r8
         currentPatch%fuel%canopy_base_height  = 0.0_r8
         currentPatch%fuel%canopy_water_content = 0.0_r8
-    
       
         ! find the max cohort height to set the upper bounds of biom_matrix
         currentCohort=>currentPatch%tallest
         do while(associated(currentCohort))
 
           if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees
-            if (currentCohort%height > max_height) then
-              max_height = currentCohort%height
-            end if
+
+            call MaxHeight(currentCohort%height, max_height)         
           end if ! trees only
           currentCohort => currentCohort%shorter;
         end do ! end cohort loop
-  
+
         !allocate and initialize biom_matrix
         allocate(biom_matrix(0:int(max_height)))
         biom_matrix(:) = 0.0_r8
+    
 
         !loop across cohorts to calculate canopy fuel load by 1m height bin
         currentCohort => currentPatch%tallest
@@ -312,7 +311,7 @@ contains
       
           ! Calculate crown 1hr fuel biomass (leaf, twig sapwood, twig structural biomass)
           if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees
-            ! calculate canopy base height for cohort
+            ! calculate canopy base height for cohort, this is a different concept than the canopy fuel bed base height
             call CrownDepth(currentCohort%height,currentCohort%pft,crown_depth)
             cbh_co = currentCohort%height - crown_depth
         
@@ -321,29 +320,25 @@ contains
             struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
   
             woody_c  = currentCohort%n * (prt_params%allom_agb_frac(currentCohort%pft)* &
-                        (sapw_c + struct_c))
-            leaf_c   = currentCohort%n * leaf_c
+                        (sapw_c + struct_c)) / carbon_2_biomass
+            leaf_c   = currentCohort%n * leaf_c / carbon_2_biomass
             
             call adjust_SF_CWD_frac(currentCohort%dbh, ncwd, SF_val_CWD_frac, SF_val_CWD_frac_adj)
-            woody_c = woody_c*SF_val_CWD_frac_adj(1)
-            currentCohort%canopy_fuel_1h = (leaf_c + woody_c)/carbon_2_biomass
-            ! update canopy fuel load
-            call currentPatch%fuel%CalculateCanopyFuelLoad(currentCohort%canopy_fuel_1h)
-            
+
+            ! update canopy fuel load 
+            call currentPatch%fuel%CalculateCanopyFuelLoad(leaf_c, woody_c, currentCohort%height, &
+            SF_val_CWD_frac_adj, canopy_fuel_1h)
+            currentCohort%canopy_fuel_1h = canopy_fuel_1h
             ! 1m biomass bin
-            crown_fuel_per_m = (leaf_c + woody_c) / (carbon_2_biomass * crown_depth) !kg biomass / m
-            ! sort crown fuel into bins from bottom to top of crown
-            ! accumulate across cohorts to find density within canopy 1m sections
-            do h_idx = int(cbh_co), int(currentCohort%height)
-                    biom_matrix(h_idx) = biom_matrix(h_idx) + crown_fuel_per_m
-            end do
+            call BiomassBin(cbh_co, currentCohort%height, crown_depth, canopy_fuel_1h, biom_matrix)
+
             ! calculate live canopy water content for current cohort 
             ! either using statistic model- or hydro-derived cwc 
             if (hlm_use_planthydro == itrue) then
                ccohort_hydr => currentCohort%co_hydr
                water_mass = ccohort_hydr%th_ag(n_hypool_leaf) * ccohort_hydr%v_ag(n_hypool_leaf) * &
                             denh2o * currentCohort%n
-               currentCohort%lfmc = water_mass * carbon_2_biomass / leaf_c * 100.0_r8 ! leaf water content in percent
+               currentCohort%lfmc = water_mass / leaf_c * 100.0_r8 ! leaf water content in percent
             else
               currentCohort%lfmc = LiveFuelMoistureContent(currentCohort%treelai, &
                        mean_10day_smp(currentCohort%pft), &
@@ -367,9 +362,8 @@ contains
          currentCohort => currentCohort%shorter;
         end do
 
-      
         biom_matrix(:) = biom_matrix(:) / currentPatch%area ! kg biomass / m3
-        ! update canopy fuel bulk density
+        ! update canopy fuel bulk density and canopy base height
         call currentPatch%fuel%CalculateCanopyBulkDensity(biom_matrix, max_height)
         write(fates_log(),*) 'current patch CBD is ', currentPatch%fuel%canopy_bulk_density
         write(fates_log(),*) 'current patch canopy base height is ', currentPatch%fuel%canopy_base_height
@@ -708,6 +702,9 @@ contains
     real(r8)                        :: ROS_final         ! final ROS when a crown fire happens [m/min]
     real(r8)                        :: FI_final          ! final fireline intensity with crown consumption [kW/m or kJ/m/s]
     real(r8)                        :: crown_frac_burnt  ! patch level crown fraction burnt to calculate final crown fire intensty [fraction]
+    integer                         :: active_crownfire  ! 1 = active crown fire
+    integer                         :: passive_crownfire ! 1 = passive crown fire
+
 
     ! local variables for calculating ROS_SA based on current patch fuel condition
     real(r8)                        :: ROS_SA            ! surface ROS calculated at open wind speed of CI [m/min]
@@ -796,24 +793,12 @@ contains
 
           ! Now check if there is passive or active crown fire and calculate crown fraction burnt (CFB)
           ! XLG: there are alternative ways to calculate CFB, see pg 39-41 in Scott & Reinhardt 2001
+          call CrownFractionBurnt(ROS_active, ROS_acitive_min, currentPatch%ROS_front, &
+          ROS_init, ROS_SA, active_crownfire, passive_crownfire, crown_frac_burnt)
 
-          if (ROS_active >= ROS_active_min) then ! FI >= FI_init and ROS_active >= ROS_active_min
-            currentPatch%active_crown_fire = 1 
-            currentPatch%passive_crown_fire = 0
-            ! for active crown fire we set CFB to 1
-            crown_frac_burnt = 1.0_r8
-          else if (ROS_active < ROS_active_min .and. &  ! FI >= FI_init but ROS_active < ROS_active_min
-            currentPatch%ROS_front > ROS_init .and. &   ! XLG: it seems redudant when FI > FI_init is true, but calculation of ROS_init is 
-            currentPatch%ROS_front < ROS_SA) then       ! different from ROS_front, let's check to be safe. I'm uncomfortable when calculations
-              currentPatch%passive_crown_fire = 1       ! of all kinds of ROS are so disconnected from each other
-              currentPatch%active_crown_fire = 0
-
-              ! calculate crown fraction burnt EQ. 28 in Scott & Reinhardt 2001
-            crown_frac_burnt = min(1.0_r8, (currentPatch%ROS_front - ROS_init) / &
-              (ROS_SA - ROS_init))
-          else ! a condition where crown fire cessation happens??
-            crown_frac_burnt = 0.0_r8 
-          end if
+          currentPatch%active_crown_fire = active_crownfire
+          currentPatch%passive_crown_fire = passive_crownfire
+          
           ! calculate ROS_final EQ. 21 in Scott & Reinhardt 2001
           ROS_final = currentPatch%ROS_front + crown_frac_burnt * &
                       ( ROS_active - currentPatch%ROS_front)

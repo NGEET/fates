@@ -5,6 +5,7 @@ module FatesFuelMod
   use FatesConstantsMod,   only : nearzero
   use SFNesterovMod,       only : nesterov_index
   use SFFireWeatherMod,    only : fire_weather
+  use FatesLitterMod,      only : ncwd
   use FatesGlobals,        only : fates_log
   use FatesGlobals,        only : endrun => fates_endrun
   use shr_log_mod,         only : errMsg => shr_log_errMsg
@@ -398,7 +399,8 @@ module FatesFuelMod
     
   !---------------------------------------------------------------------------------------
 
-    subroutine CalculateCanopyFuelLoad(this, fuel_1h)
+    subroutine CalculateCanopyFuelLoad(this, leaf_c, woody_c, height, &
+      cwd_frac_adj, canopy_fuel_1h)
       ! DESCRIPTION:
       ! Calculate canopy fuel load by summing up leaf biomass and 1 hour woody biomass
       ! XLG: I did not change how Sam L. calculate canopy fuel load here except 
@@ -407,12 +409,16 @@ module FatesFuelMod
       ! https://www.sierraforestlegacy.org/Resources/Conservation/FireForestEcology/FireScienceResearch/FireEcology/FireEcology-Cruz03.pdf 
 
       ! ARGUMENTS:
-      class(fuel_type), intent(inout) :: this                     ! fuel class
-      real(r8),         intent(in)    :: fuel_1h                  ! leaf + 1 hour woody fuels of each cohort [kg biomass]
+      class(fuel_type), intent(inout) :: this                    ! fuel class
+      real(r8),         intent(in)    :: leaf_c                  ! leaf biomass of each cohort [kg biomass]
+      real(r8),         intent(in)    :: woody_c                 ! 1-hour woody fuels [kg biomass]
+      real(r8),         intent(in)    :: height                  ! cohort height to determine if a cohort should be included in calculating fuel_sapling [m]
+      real(r8),         intent(in)    :: cwd_frac_adj(ncwd)      ! adjusted coarse woody debris fraction [fraction]
+      real(r8),         intent(out)   :: canopy_fuel_1h          ! leaf + 1-hour woody biomass of current cohort [kg biomass]
 
-
-       ! this is the summed canopy fuel load at site level, not scaled by land area
-       this%canopy_fuel_load = this%canopy_fuel_load + fuel_1h
+      ! calculate canopy fuel load for FATES crown fire
+      canopy_fuel_1h = woody_c * cwd_frac_adj(1) + leaf_c
+      this%canopy_fuel_load = this%canopy_fuel_load + canopy_fuel_1h
 
       
     end subroutine CalculateCanopyFuelLoad
