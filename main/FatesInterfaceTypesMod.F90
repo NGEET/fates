@@ -905,6 +905,7 @@ module FatesInterfaceTypesMod
 
       procedure :: InitializeInterfaceRegistry
       procedure :: InitializeInterfaceVariables
+      procedure :: SetSubgridIndices
       procedure :: Update => UpdateInterfaceVariables
 
       generic :: Register => RegisterInterfaceVariables_0d, & 
@@ -1114,6 +1115,25 @@ module FatesInterfaceTypesMod
 
   end subroutine DefineInterfaceVariable
 
+  ! ======================================================================================
+  
+  subroutine SetSubgridIndices(this, gridcell, topounit, landunit, column, hlmpatch)
+    
+    class(fates_interface_registry_base_type), intent(inout) :: this
+    integer, intent(in) :: gridcell
+    integer, intent(in) :: topounit
+    integer, intent(in) :: landunit
+    integer, intent(in) :: column
+    integer, intent(in) :: hlmpatch
+    
+    this%gidx = gridcell
+    this%tidx = topounit
+    this%lidx = landunit
+    this%cidx = column
+    this%hpidx = hlmpatch
+    
+  end subroutine SetSubgridIndices
+  
   ! ======================================================================================
   
   subroutine SetFilterMapArrays(this)
