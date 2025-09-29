@@ -3273,6 +3273,14 @@ contains
     ! Radiation
     rp%rad_error(1)         = (dp%rad_error(1)*dp%area + rp%rad_error(1)*rp%area) * inv_sum_area
     rp%rad_error(2)         = (dp%rad_error(2)*dp%area + rp%rad_error(2)*rp%area) * inv_sum_area
+
+    ! Fire weather
+    rp%fireWeather%precip = (dp%fireWeather%precip*dp%area + rp%fireWeather%precip*rp%area) * inv_sum_area
+    rp%fireWeather%rh = (dp%fireWeather%rh*dp%area + rp%fireWeather%rh*rp%area) * inv_sum_area
+    rp%fireWeather%temp_C = (dp%fireWeather%temp_C*dp%area + rp%fireWeather%temp_C*rp%area) * inv_sum_area
+    rp%fireWeather%wind = (dp%fireWeather%wind*dp%area + rp%fireWeather%wind*rp%area) * inv_sum_area
+    rp%fireWeather%fire_weather_index = (dp%fireWeather%fire_weather_index*dp%area + rp%fireWeather%fire_weather_index*rp%area) * inv_sum_area
+    rp%fireWeather%effective_windspeed = (dp%fireWeather%effective_windspeed*dp%area + rp%fireWeather%effective_windspeed*rp%area) * inv_sum_area
     
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
