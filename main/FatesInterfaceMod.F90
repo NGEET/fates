@@ -2740,6 +2740,10 @@ end subroutine InitializeInterfaceRegistry
 
 subroutine InitializeBoundaryConditions(this, patches_per_site)
    
+   use FatesInterfaceTypesMod, only : hlm_fates_soil_level
+   use FatesInterfaceTypesMod, only : hlm_fates_decomp_frac_moisture
+   use FatesInterfaceTypesMod, only : hlm_fates_decomp_frac_temperature
+
    ! Arguments
    class(fates_interface_type), intent(inout) :: this                ! fates interface type
    integer, intent(in)                        :: patches_per_site    ! number of patches per site
@@ -2762,12 +2766,33 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       s = this%register(r)%GetSiteIndex()
       ifp = this%register(r)%GetFatesPatchIndex()
 
+      ! Register the boundary conditions that are necessary for allocating other boundary conditions first
       call this%register(r)%Register(key=hlm_fates_soil_level, data=this%sites(s)%bc_in(ifp)%nlevsoil, hlm_flag=.false.)
 
-      ! Initialize the input boundary condition - this will call Update
-      call this%register(r)%InitializeBoundaryConditions()
+      ! Initialize the interface variables necessary for allocating boundary conditions
+      call this%register(r)%InitializeInterfaceVariables()
+      
+   end do
+   
+   ! Initialize the Boundary conditions
+   do s = 1, this%nsites
+      call this%sites(s)%InitializeBoundaryConditions(patches_per_site)
+   end do
+   
+   ! Register the boundary conditions
+   do r = 1, this%npatches
+
+      ! Get the site and BC patch index associated with this registry index
+      s = this%register(r)%GetSiteIndex()
+      ifp = this%register(r)%GetFatesPatchIndex()
+
+      ! Register the boundary conditions that are necessary for allocating other boundary conditions first
+      call this%register(r)%Register(key=hlm_fates_decomp_frac_moisture, data=this%sites(s)%bc_in(ifp)%w_scalar_sisl, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_decomp_frac_temperature, data=this%sites(s)%bc_in(ifp)%t_scalar_sisl, hlm_flag=.false.)
 
    end do
+
+
    
 end subroutine InitializeBoundaryConditions
 
