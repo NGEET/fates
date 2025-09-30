@@ -543,6 +543,10 @@ module FatesPatchMod
       this%tfc_ros                      = nan
       this%frac_burnt                   = nan
 
+      ! Boundary conditions
+      this%bc_in%w_scalar_sisl(:)       = nan
+      this%bc_in%t_scalar_sisl(:)       = nan
+      
     end subroutine NanValues
 
     !===========================================================================
