@@ -28,33 +28,33 @@ specify anything, the script will use the default FATES parameter cdl file.
 """
 import os
 import argparse
+import subprocess
 import matplotlib.pyplot as plt
 
 from build_fortran_tests import build_tests, build_exists
+from functional_class_with_drivers import FunctionalTestWithDrivers
 from path_utils import add_cime_lib_to_path
 from utils import copy_file, create_nc_from_cdl, config_to_dict, parse_test_list
 
-# add testing subclasses here
-from functional_class import FunctionalTest
-from functional_testing.allometry.allometry_test import (
-    AllometryTest,
-)  # pylint: disable=unused-import
-from functional_testing.math_utils.math_utils_test import (
-    QuadraticTest,
-)  # pylint: disable=unused-import
-from functional_testing.fire.fuel.fuel_test import FuelTest  # pylint: disable=unused-import
-from functional_testing.fire.ros.ros_test import ROSTest  # pylint: disable=unused-import
+# load the functional test classes
+from load_functional_tests import *
 
 add_cime_lib_to_path()
 
-from CIME.utils import (
-    run_cmd_no_fail,
-)  # pylint: disable=wrong-import-position,import-error,wrong-import-order
+from CIME.utils import run_cmd
 
 # constants for this script
-_DEFAULT_CONFIG_FILE = "functional_tests.cfg"
-_DEFAULT_CDL_PATH = os.path.abspath("../parameter_files/fates_params_default.cdl")
-_CMAKE_BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")
+_FILE_DIR = os.path.dirname(__file__)
+_DEFAULT_CONFIG_FILE = os.path.join(_FILE_DIR, "functional_tests.cfg")
+_DEFAULT_CDL_PATH = os.path.abspath(
+    os.path.join(
+        _FILE_DIR,
+        os.pardir,
+        "parameter_files",
+        "fates_params_default.cdl",
+    )
+)
+_CMAKE_BASE_DIR = os.path.join(_FILE_DIR, os.pardir)
 _TEST_SUB_DIR = "testing"
 
 
@@ -82,6 +82,13 @@ def commandline_args():
         "Can be a netcdf (.nc) or cdl (.cdl) file.\n"
         "If no file is specified the script will use the default .cdl file in the\n"
         "parameter_files directory.\n",
+    )
+
+    parser.add_argument(
+        "--config-file",
+        type=str,
+        default=_DEFAULT_CONFIG_FILE,
+        help=f"Configuration file where test list is defined. Default: '{_DEFAULT_CONFIG_FILE}'",
     )
 
     parser.add_argument(
@@ -189,6 +196,12 @@ def check_arg_validity(args):
             )
         check_build_dir(args.build_dir, args.test_dict)
 
+    # Check that config file exists and is a file
+    if not os.path.exists(args.config_file):
+        raise FileNotFoundError(args.config_file)
+    if not os.path.isfile(args.config_file):
+        raise RuntimeError(f"config 'file' is a directory: '{args.config_file}'")
+
 
 def check_param_file(param_file):
     """Checks to see if param_file exists and is of the correct form (.nc or .cdl)
@@ -206,7 +219,7 @@ def check_param_file(param_file):
             None, "Must supply parameter file with .cdl or .nc ending."
         )
     if not os.path.isfile(param_file):
-        raise argparse.ArgumentError(None, f"Cannot find file {param_file}.")
+        raise FileNotFoundError(param_file)
 
 
 def check_build_dir(build_dir, test_dict):
@@ -305,8 +318,11 @@ def run_functional_tests(
     if run_executables:
         print("Running executables")
         for _, test in test_dict.items():
-            # prepend parameter file (if required) to argument list
             args = test.other_args
+            # prepend datm file (if required) to argument list
+            if isinstance(test, FunctionalTestWithDrivers) and test.datm_file:
+                args.insert(0, test.datm_file)
+            # prepend parameter file (if required) to argument list
             if test.use_param_file:
                 args.insert(0, param_file)
             # run
@@ -396,8 +412,23 @@ def run_fortran_exectuables(build_dir, test_dir, test_exe, run_dir, args):
     run_command.extend(args)
 
     os.chdir(run_dir)
-    out = run_cmd_no_fail(" ".join(run_command), combine_output=True)
+    cmd = " ".join(run_command)
+    stat, out, _ = run_cmd(cmd, combine_output=True)
+    if stat:
+        print(out)
+        raise subprocess.CalledProcessError(stat, cmd, out)
     print(out)
+
+
+def get_test_subclasses(*argv):
+    """
+    Given a FunctionalTest* class, find all its test subclasses. Do not include child
+    FunctionalTest* classes.
+    """
+    test_subclasses = []
+    for ftest_class in argv:
+        test_subclasses += [x for x in ftest_class.__subclasses__() if hasattr(x, "name")]
+    return test_subclasses
 
 
 def main():
@@ -405,13 +436,17 @@ def main():
     Reads in command-line arguments and then runs the tests.
     """
 
-    full_test_dict = config_to_dict(_DEFAULT_CONFIG_FILE)
-    subclasses = FunctionalTest.__subclasses__()
-
     args = commandline_args()
+
+    full_test_dict = config_to_dict(args.config_file)
     config_dict = parse_test_list(full_test_dict, args.test_list)
 
     test_dict = {}
+
+    # Get all the possible test subclasses.
+    subclasses = get_test_subclasses(FunctionalTest, FunctionalTestWithDrivers)
+
+    # Associate each test in the config file with the appropriate test subclass
     for name in config_dict.keys():
         test_class = list(filter(lambda subclass: subclass.name == name, subclasses))[
             0

@@ -5,6 +5,7 @@ module test_FireEquations
   !
   use FatesConstantsMod,   only : r8 => fates_r8
   use FatesConstantsMod,   only : nearzero
+  use FatesUnitTestUtils,  only : endrun_msg
   use SFEquationsMod
   use funit
 
@@ -37,7 +38,7 @@ module test_FireEquations
     
     @Test 
     subroutine OptimumPackingRatio_ReturnsReasonableValues(this)
-      ! test that when SAV is some reasonable value, OptimumPackingRatio is correclty output
+      ! test that when SAV is some reasonable value, OptimumPackingRatio is correctly output
       class(TestFireEquations), intent(inout) :: this ! test object
       real(r8)                                :: beta ! optimum packing ratio returned
     
@@ -317,7 +318,7 @@ module test_FireEquations
       class(TestFireEquations), intent(inout) :: this                ! test object
       real(r8)                                :: I_r(5)              ! result
       integer                                 :: i                   ! looping index
-      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moiture
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
       real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
       real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
       real(r8),                 parameter     :: MEF = 0.5_r8        ! value for MEF
@@ -341,7 +342,7 @@ module test_FireEquations
       class(TestFireEquations), intent(inout) :: this                ! test object
       real(r8)                                :: I_r(5)              ! result
       integer                                 :: i                   ! looping index
-      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moiture
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
       real(r8),                 parameter     :: fuel = 10.0_r8      ! value for fuel
       real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
       real(r8),                 parameter     :: MEF = 0.5_r8        ! value for MEF
@@ -365,11 +366,11 @@ module test_FireEquations
       class(TestFireEquations), intent(inout) :: this                ! test object
       real(r8)                                :: I_r(5)              ! result
       integer                                 :: i                   ! looping index
-      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moiture
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
       real(r8),                 parameter     :: fuel = 10.0_r8      ! value for fuel
       real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
       real(r8),                 parameter     :: MEF = 0.5_r8        ! value for MEF
-      ! hard-coded beta ratio values
+      ! hard-coded beta ratio (relative packing ratio [unitless]) values
       real(r8), parameter :: beta_ratio(5) = [0.0_r8, 0.25_r8, 0.5_r8, 0.75_r8, 1.0_r8]
      
       do i = 1, size(beta_ratio)
@@ -383,14 +384,13 @@ module test_FireEquations
             
     end subroutine ReactionIntensity_IncreasesWithIncreasingBeta
     
-    
     @Test 
     subroutine ReactionIntensity_IncreasesWithIncreasingMEF(this)
       ! test that reaction intensity increases with increasing MEF
       class(TestFireEquations), intent(inout) :: this                ! test object
       real(r8)                                :: I_r(4)              ! result
       integer                                 :: i                   ! looping index
-      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moiture
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
       real(r8),                 parameter     :: fuel = 10.0_r8      ! value for fuel
       real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
       real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
@@ -414,7 +414,7 @@ module test_FireEquations
       class(TestFireEquations), intent(inout) :: this                ! test object
       real(r8)                                :: I_r                 ! result
       integer                                 :: i                   ! looping index
-      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moiture
+      real(r8),                 parameter     :: moist = 0.2_r8      ! value for moisture
       real(r8),                 parameter     :: beta_ratio = 0.5_r8 ! value for beta ratio
       real(r8),                 parameter     :: SAV = 50.0_r8       ! value for SAV
       real(r8),                 parameter     :: MEF = 0.5_r8        ! value for beta MEF
@@ -621,7 +621,7 @@ module test_FireEquations
       real(r8),                 parameter     :: eps = 0.35_r8     ! value for effective heating number
       real(r8),                 parameter     :: q_ig = 1200.0_r8  ! value for heat of preignition
       real(r8),                 parameter     :: i_r = 5000.0_r8   ! value for reaction intensity
-      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propogating flux
+      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propagating flux
       real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
       
       ! first test 0.0
@@ -642,7 +642,7 @@ module test_FireEquations
       real(r8),                 parameter     :: bd = 0.5_r8       ! value for bulk density
       real(r8),                 parameter     :: q_ig = 1200.0_r8  ! value for heat of preignition
       real(r8),                 parameter     :: i_r = 5000.0_r8   ! value for reaction intensity
-      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propogating flux
+      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propagating flux
       real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
       
       ! first test 0.0
@@ -663,7 +663,7 @@ module test_FireEquations
       real(r8),                 parameter     :: bd = 0.5_r8       ! value for bulk density
       real(r8),                 parameter     :: eps = 0.35_r8     ! value for effective heating number
       real(r8),                 parameter     :: i_r = 5000.0_r8   ! value for reaction intensity
-      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propogating flux
+      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propagating flux
       real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
       
       ! first test 0.0
@@ -684,7 +684,7 @@ module test_FireEquations
       real(r8),                 parameter     :: bd = 0.5_r8       ! value for bulk density
       real(r8),                 parameter     :: eps = 0.35_r8     ! value for effective heating number
       real(r8),                 parameter     :: q_ig = 1200.0_r8  ! value for heat of preignition
-      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propogating flux
+      real(r8),                 parameter     :: xi = 0.3_r8       ! value for propagating flux
       real(r8),                 parameter     :: phi_wind = 1.0_r8 ! value for wind factor
 
       ros = ForwardRateOfSpread(bd, eps, q_ig, 0.0_r8, xi, phi_wind)
@@ -694,7 +694,7 @@ module test_FireEquations
     
     @Test 
     subroutine ForwardRateOfSpread_ZeroPropFlux_ReturnsZero(this)
-      ! test that if the propogating flux is zero, the function returns zero
+      ! test that if the propagating flux is zero, the function returns zero
       class(TestFireEquations), intent(inout) :: this              ! test object
       real(r8)                                :: ros               ! result
       real(r8),                 parameter     :: bd = 0.5_r8       ! value for bulk density
@@ -876,5 +876,275 @@ module test_FireEquations
       @assertEqual(fire_size, 0.0_r8)
 
     end subroutine FireSize_ZeroROS_ReturnsZero
+    
+    @Test 
+    subroutine ScorchHeight_FIZero_ReturnsZero(this)
+      ! test that if fire intensity is zero, scorch height is zero
+      class(TestFireEquations), intent(inout) :: this              ! test object
+      real(r8)                                :: SH                ! sorch height [m]
+      real(r8),                 parameter     :: alpha_SH = 0.5_r8 ! input alpha_SH parameter
+      real(r8),                 parameter     :: FI = 0.0_r8       ! input fire intensity [kW/m]
+      
+      SH = ScorchHeight(alpha_SH, FI)
+      @assertEqual(SH, 0.0_r8)
+      
+    end subroutine ScorchHeight_FIZero_ReturnsZero
+    
+    @Test 
+    subroutine ScorchHeight_AlphaZero_ReturnsZero(this)
+      ! test that if the alpha parameter is zero, scorch height is zero
+      class(TestFireEquations), intent(inout) :: this              ! test object
+      real(r8)                                :: SH                ! sorch height [m]
+      real(r8),                 parameter     :: alpha_SH = 0.0_r8 ! input alpha_SH parameter
+      real(r8),                 parameter     :: FI = 1000.0_r8    ! input fire intensity [kW/m]
+      
+      SH = ScorchHeight(alpha_SH, FI)
+      @assertEqual(SH, 0.0_r8)
+      
+    end subroutine ScorchHeight_AlphaZero_ReturnsZero
+    
+    @Test 
+    subroutine ScorchHeight_FINegative_ReturnsZero(this)
+      ! test that if fire intensity is negative, scorch height is zero
+      class(TestFireEquations), intent(inout) :: this              ! test object
+      real(r8)                                :: SH                ! sorch height [m]
+      real(r8),                 parameter     :: alpha_SH = 0.5_r8 ! input alpha_SH parameter
+      real(r8),                 parameter     :: FI = -1000.0_r8   ! input fire intensity [kW/m]
+      
+      SH = ScorchHeight(alpha_SH, FI)
+      @assertEqual(SH, 0.0_r8)
+      
+    end subroutine ScorchHeight_FINegative_ReturnsZero
+    
+    @Test 
+    subroutine CrownFractionBurnt_BasicInputs_CapsAtOne(this)
+      ! test that the function correctly caps crown fraction burnt at 1.0
+      class(TestFireEquations), intent(inout) :: this                 ! test object
+      real(r8)                                :: CF                   ! crown fraction burnt [0-1]
+      real(r8),                 parameter     :: SH = 10.0_r8         ! input scorch height [m]
+      real(r8),                 parameter     :: height = 4.0_r8      ! input tree height [m]
+      real(r8),                 parameter     :: crown_depth = 2.0_r8 ! input crown depth [m]
+      
+      CF = CrownFractionBurnt(SH, height, crown_depth)
+      @assertEqual(CF, 1.0_r8)
+      
+    end subroutine CrownFractionBurnt_BasicInputs_CapsAtOne
+    
+    @Test 
+    subroutine CrownFractionBurnt_CrownDepthZero_ReturnsZero(this)
+      ! test that the function sets crown fraction to zero if the crown depth is zero
+      class(TestFireEquations), intent(inout) :: this                 ! test object
+      real(r8)                                :: CF                   ! crown fraction burnt [0-1]
+      real(r8),                 parameter     :: SH = 10.0_r8         ! input scorch height [m]
+      real(r8),                 parameter     :: height = 4.0_r8      ! input tree height [m]
+      real(r8),                 parameter     :: crown_depth = 0.0_r8 ! input crown depth [m]
+      
+      CF = CrownFractionBurnt(SH, height, crown_depth)
+      @assertEqual(CF, 0.0_r8)
+      
+    end subroutine CrownFractionBurnt_CrownDepthZero_ReturnsZero
+    
+    @Test 
+    subroutine CrownFractionBurnt_ScorchHeightBelowCrownHeight_ReturnsZero(this)
+      ! test that the function sets crown fraction to zero if the scorch height is below crown height
+      class(TestFireEquations), intent(inout) :: this                 ! test object
+      real(r8)                                :: CF                   ! crown fraction burnt [0-1]
+      real(r8),                 parameter     :: SH = 2.0_r8          ! input scorch height [m]
+      real(r8),                 parameter     :: height = 4.0_r8      ! input tree height [m]
+      real(r8),                 parameter     :: crown_depth = 2.0_r8 ! input crown depth [m]
+      
+      CF = CrownFractionBurnt(SH, height, crown_depth)
+      @assertEqual(CF, 0.0_r8)
+      
+    end subroutine CrownFractionBurnt_ScorchHeightBelowCrownHeight_ReturnsZero
+    
+    @Test 
+    subroutine CrownFractionBurnt_ScorchHeightLow_ReturnsLessThanOne(this)
+      ! test that the function correctly calculates crownfraction burnt for SH below tree height but within the crown
+      class(TestFireEquations), intent(inout) :: this                 ! test object
+      real(r8)                                :: CF                   ! crown fraction burnt [0-1]
+      real(r8),                 parameter     :: SH = 3.0_r8          ! input scorch height [m]
+      real(r8),                 parameter     :: height = 4.0_r8      ! input tree height [m]
+      real(r8),                 parameter     :: crown_depth = 2.0_r8 ! input crown depth [m]
+      
+      CF = CrownFractionBurnt(SH, height, crown_depth)
+      @assertGreaterThanOrEqual(CF, 0.0_r8)
+      @assertLessThanOrEqual(CF, 1.0_r8)
+      
+    end subroutine CrownFractionBurnt_ScorchHeightLow_ReturnsLessThanOne
+    
+    @Test 
+    subroutine BarkThickness_NegativeBT_Errors(this)
+      ! test that if the bark thickness is negative, the function errors
+      class(TestFireEquations), intent(inout) :: this                  ! test object
+      real(r8)                                :: BT                    ! bark thickness [cm]
+      real(r8),                 parameter     :: bark_scalar = 0.01_r8 ! input bark scalar parameter
+      real(r8),                 parameter     :: dbh = -10.0_r8        ! diameter at breast height [cm]
+      character(len=:),         allocatable   :: expected_msg          ! expected error message for failure
+      
+      expected_msg = endrun_msg("bark thickness is negative")
+      
+      BT = BarkThickness(bark_scalar, dbh)
+      @assertExceptionRaised(expected_msg)
+      
+    end subroutine BarkThickness_NegativeBT_Errors
+    
+    @Test 
+    subroutine CambialMortality_TauRGreaterThanTwo_ReturnsOne(this)
+      ! test that the function returns 1.0 if tau_r >= 2.0
+      class(TestFireEquations), intent(inout) :: this                  ! test object
+      real(r8)                                :: CM                    ! cambial mortality [0-1]
+      real(r8),                 parameter     :: bark_scalar = 0.01_r8 ! input bark scalar parameter
+      real(r8),                 parameter     :: dbh = 10.0_r8         ! input tree diameter at breast height [cm]
+      real(r8),                 parameter     :: tau_l = 5.0_r8        ! input fire residence time [min]
+      
+      CM = CambialMortality(bark_scalar, dbh, tau_l)
+      @assertEqual(CM, 1.0_r8)
+      
+    end subroutine CambialMortality_TauRGreaterThanTwo_ReturnsOne
+      
+    @Test 
+    subroutine CambialMortality_TaulZero_ReturnsZero(this)
+      ! test that the function returns 0.0 if tau_l is zero
+      class(TestFireEquations), intent(inout) :: this                  ! test object
+      real(r8)                                :: CM                    ! cambial mortality [0-1]
+      real(r8),                 parameter     :: bark_scalar = 0.1_r8  ! input bark scalar parameter
+      real(r8),                 parameter     :: dbh = 10.0_r8         ! input tree diameter at breast height [cm]
+      real(r8),                 parameter     :: tau_l = 0.0_r8        ! input fire residence time [min]
+      
+      CM = CambialMortality(bark_scalar, dbh, tau_l)
+      @assertEqual(CM, 0.0_r8)
+      
+    end subroutine CambialMortality_TaulZero_ReturnsZero
+    
+    @Test 
+    subroutine CrownFireMortality_ZeroFractionBurned_ReturnsZero(this)
+      ! test that the function returns 0.0 if fraction_crown_burned is 0.0
+      class(TestFireEquations), intent(inout) :: this                        ! test object
+      real(r8)                                :: CM                          ! crown fire mortality [0-1]
+      real(r8),                 parameter     :: crown_kill = 0.1_r8         ! input crown kill parameter
+      real(r8),                 parameter     :: fraction_crown_burned = 0.0 ! input fraction burned [0-1]
+      
+      CM = CrownFireMortality(crown_kill, fraction_crown_burned)
+      @assertEqual(CM, 0.0_r8)
+      
+    end subroutine CrownFireMortality_ZeroFractionBurned_ReturnsZero
+    
+    @Test 
+    subroutine CrownFireMortality_FractionBurnedOne_ReturnsCrownKill(this)
+      ! test that the function returns crown_kill if fraction_crown_burned is 1.0
+      class(TestFireEquations), intent(inout) :: this                        ! test object
+      real(r8)                                :: CM                          ! crown fire mortality [0-1]
+      real(r8),                 parameter     :: crown_kill = 0.1_r8         ! input crown kill parameter
+      real(r8),                 parameter     :: fraction_crown_burned = 1.0 ! input fraction burned [0-1]
+      
+      CM = CrownFireMortality(crown_kill, fraction_crown_burned)
+      @assertEqual(CM, crown_kill)
+      
+    end subroutine CrownFireMortality_FractionBurnedOne_ReturnsCrownKill
+    
+    @Test 
+    subroutine CrownFireMortality_HighCrownKill_ReturnsOne(this)
+      ! test that the function returns 1.0 even if crown_kill is very high
+      class(TestFireEquations), intent(inout) :: this                           ! test object
+      real(r8)                                :: CM                             ! crown fire mortality [0-1]
+      real(r8),                 parameter     :: crown_kill = 10.0_r8           ! input crown kill parameter
+      real(r8),                 parameter     :: fraction_crown_burned = 0.5_r8 ! input fraction burned [0-1]
+      
+      CM = CrownFireMortality(crown_kill, fraction_crown_burned)
+      @assertEqual(CM, 1.0_r8)
+      
+    end subroutine CrownFireMortality_HighCrownKill_ReturnsOne
+    
+    @Test 
+    subroutine TotalFireMortality_ReasonableValues_ReturnsReasonable(this)
+      ! test that the function returns correct values given reasonable inputs
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: TM                           ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = 0.4_r8      ! crown fire mortality [0-1]
+      real(r8),                 parameter     :: cambial_damage_mort = 0.3_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(TM, 0.58_r8)
+      
+    end subroutine TotalFireMortality_ReasonableValues_ReturnsReasonable
+    
+    @Test 
+    subroutine TotalFireMortality_ZeroInputs_ReturnsZero(this)
+      ! test that the function returns zero if both input mortality rates are 0.0
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: TM                           ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = 0.0_r8      ! crown fire mortality [0-1]
+      real(r8),                 parameter     :: cambial_damage_mort = 0.0_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(TM, 0.0_r8)
+      
+    end subroutine TotalFireMortality_ZeroInputs_ReturnsZero
+    
+    @Test 
+    subroutine TotalFireMortality_OneInputs_ReturnsOne(this)
+      ! test that the function returns one if both input mortality rates are 1.0
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: TM                           ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = 1.0_r8      ! crown fire mortality [0-1]
+      real(r8),                 parameter     :: cambial_damage_mort = 1.0_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(TM, 1.0_r8)
+      
+    end subroutine TotalFireMortality_OneInputs_ReturnsOne
+    
+    @Test 
+    subroutine TotalFireMortality_ZeroCrownFire_ReturnsCambial(this)
+      ! test that the function returns cambial_damage_mort if crownfire_mort = 0.0
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: TM                           ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = 0.0_r8      ! crown fire mortality [0-1]
+      real(r8),                 parameter     :: cambial_damage_mort = 0.3_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(TM, cambial_damage_mort)
+      
+    end subroutine TotalFireMortality_ZeroCrownFire_ReturnsCambial
+    
+    @Test 
+    subroutine TotalFireMortality_ZeroCambial_ReturnsCrownFire(this)
+      ! test that the function returns crownfire_mort if cambial_damage_mort = 0.0
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: TM                           ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = 0.4_r8      ! crown fire mortality [0-1]
+      real(r8),                 parameter     :: cambial_damage_mort = 0.0_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(TM, crownfire_mort)
+      
+    end subroutine TotalFireMortality_ZeroCambial_ReturnsCrownFire
+    
+    @Test 
+    subroutine TotalFireMortality_OverOneMort_ReturnsOne(this)
+      ! test that the function correctly caps mortality rate at 1.0
+      class(TestFireEquations), intent(inout) :: this                         ! test object
+      real(r8)                                :: TM                           ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = 1.4_r8      ! crown fire mortality [0-1]
+      real(r8),                 parameter     :: cambial_damage_mort = 1.4_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(TM, 1.0_r8)
+      
+    end subroutine TotalFireMortality_OverOneMort_ReturnsOne
+    
+    @Test 
+    subroutine TotalFireMortality_NegativeMortality_ReturnsZero(this)
+      ! test that the function correctly gives zero if somehow mortality rates are negative
+      class(TestFireEquations), intent(inout) :: this                          ! test object
+      real(r8)                                :: TM                            ! total fire mortality [0-1]
+      real(r8),                 parameter     :: crownfire_mort = -1.4_r8      ! input crown kill parameter
+      real(r8),                 parameter     :: cambial_damage_mort = -1.4_r8 ! input fraction burned [0-1]
+      
+      TM = TotalFireMortality(crownfire_mort, cambial_damage_mort)
+      @assertEqual(TM, 0.0_r8)
+      
+    end subroutine TotalFireMortality_NegativeMortality_ReturnsZero
     
 end module test_FireEquations

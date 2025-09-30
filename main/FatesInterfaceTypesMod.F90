@@ -90,7 +90,7 @@ module FatesInterfaceTypesMod
                                                  ! between the pedotransfer functions of the HLM
                                                  ! and how it moves and stores water in its
                                                  ! rhizosphere shells
-   
+
    integer, public :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
                                                    ! Transport (exensible) Hypothesis (PARTEH) to use
 
@@ -110,6 +110,8 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_spitfire_mode  ! Flag to signal SPITFIRE mode
                                          ! See namelist_definition_clm4_5.xml
                                          ! ignitions: 1=constant, >1=external data sources (lightning and/or anthropogenic)
+
+   integer, public :: hlm_use_managed_fire    ! Flag to enable managed fire mode.  Requires spitfire to be on.
 
    integer, public :: hlm_use_lu_harvest      ! This flag signals whether or not to use
                                                          ! harvest data from the hlm
@@ -157,7 +159,30 @@ module FatesInterfaceTypesMod
 
    integer, public :: hlm_use_tree_damage         ! This flag signals whether or not to turn on the
                                                   ! tree damage module
-   
+
+   integer, public :: hlm_hydr_solver             ! Switch that defines which hydraulic solver to use
+                                                  ! 1 = Taylor solution that solves plant fluxes with 1 layer
+                                                  !     sequentially placing solution on top of previous layer solves
+                                                  ! 2 = Picard solution that solves all fluxes in a plant and
+                                                  !     the soil simultaneously, 2D: soil x (root + shell)
+                                                  ! 3 = Newton-Raphson (Deprecated) solution that solves all fluxes in a plant and
+                                                  !     the soil simultaneously, 2D: soil x (root + shell)
+
+   integer, public :: hlm_maintresp_leaf_model    ! switch for choosing between leaf maintenance
+                                                  ! respiration model. 1=Ryan (1991), 2=Atkin et al (2017)
+
+   integer, public :: hlm_mort_cstarvation_model  ! Switch for carbon starvation mortality:
+                                                  ! 1 -- Linear model
+                                                  ! 2 -- Exponential model
+
+   integer, public :: hlm_radiation_model         ! Switch for radiation model
+                                                  ! Norman (1) and Two-stream (2)
+
+   integer, public :: hlm_regeneration_model      ! Switch for choosing between regeneration models:
+                                                  ! (1) for Fates default
+                                                  ! (2) for the Tree Recruitment Scheme (Hanbury-Brown et al., 2022)
+                                                  ! (3) for the Tree Recruitment Scheme without seedling dynamics
+
    integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
                                                   ! (ST)atic (ST)and (ST)ructure mode (ST3)
                                                   ! Essentially, this gives us the ability
@@ -481,17 +506,10 @@ module FatesInterfaceTypesMod
 
       ! Canopy Radiation Boundaries
       ! ---------------------------------------------------------------------------------
+
+      ! Cosine of the zenith angle (0-1) - site level
+      real(r8) :: coszen
       
-      ! Filter for vegetation patches with a positive zenith angle (daylight)
-      logical, allocatable :: filter_vegzen_pa(:)
-
-      ! Cosine of the zenith angle (0-1), by patch
-      ! Note RGK: It does not seem like the code would currently generate
-      !           different zenith angles for different patches (nor should it)
-      !           I am leaving it at this scale for simplicity.  Patches should
-      !           have no spacially variable information
-      real(r8), allocatable :: coszen_pa(:)
-
       ! fraction of canopy that is covered in snow
       real(r8), allocatable :: fcansno_pa(:)
        
@@ -629,6 +647,9 @@ module FatesInterfaceTypesMod
 
       ! Canopy Radiation Boundaries
       ! ---------------------------------------------------------------------------------
+
+      ! Note: We initialize and default the radiatioon balance to assume that the
+      ! canopy is invisible, and the soil absorbs all radiation.
       
       ! Surface albedo (direct) (HLMs use this for atm coupling and balance checks)
       real(r8), allocatable :: albd_parb(:,:)
@@ -776,6 +797,15 @@ module FatesInterfaceTypesMod
       real(r8) :: gpp_site  ! Site level GPP, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
       real(r8) :: ar_site   ! Site level Autotrophic Resp, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
 
+      ! direct carbon loss to atm pathways
+      real(r8) :: grazing_closs_to_atm_si    ! Loss of carbon to atmosphere via grazing [Site-Level, gC m-2 s-1]
+      real(r8) :: fire_closs_to_atm_si       ! Loss of carbon to atmosphere via burning (includes burning from land use change) [Site-Level, gC m-2 s-1]
+
+      ! summary carbon stock variables
+      real(r8) :: veg_c_si                   ! Total vegetation carbon [Site-Level, gC m-2]
+      real(r8) :: litter_cwd_c_si            ! Total litter plus CWD carbon [Site-Level, gC m-2]
+      real(r8) :: seed_c_si                  ! Total seed carbon [Site-Level, gC m-2]
+
    end type bc_out_type
 
 
@@ -812,10 +842,23 @@ module FatesInterfaceTypesMod
                                                 ! increasing, or all 1s)
 
    end type bc_pconst_type
-  
+
+   public :: ZeroBCOutCarbonFluxes
+   
  contains
        
-    ! ======================================================================================
-      
-       
-  end module FatesInterfaceTypesMod
+   ! ======================================================================================
+
+   subroutine ZeroBCOutCarbonFluxes(bc_out)
+
+    ! !ARGUMENTS
+    type(bc_out_type), intent(inout)   :: bc_out
+
+    bc_out%grazing_closs_to_atm_si = nan    ! set via site_mass%burn_flux
+    bc_out%fire_closs_to_atm_si    = nan    ! set via site_mass%herbivory_flux_out
+    bc_out%gpp_site                = 0._r8
+    bc_out%ar_site                 = 0._r8
+
+  end subroutine ZeroBCOutCarbonFluxes
+
+end module FatesInterfaceTypesMod

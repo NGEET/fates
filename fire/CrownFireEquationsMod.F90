@@ -21,7 +21,7 @@ module CrownFireEquationsMod
   public :: MaxHeight
   public :: CrownFireBehaveFM10
   public :: BiomassBin
-  public :: CrownFractionBurnt
+  public ::CrownFireCFB
 
   contains
 
@@ -343,7 +343,7 @@ module CrownFireEquationsMod
 
   !---------------------------------------------------------------------------------------
 
-  subroutine CrownFractionBurnt(ROS_active, ROS_critical, ROS_front, &
+  subroutine CrownFireCFB(ROS_active, ROS_critical, ROS_front, &
     ROS_init, ROS_SA, active_crownfire, passive_crownfire, crown_frac_burnt)
     !
     ! DESCRIPTION:
@@ -378,7 +378,7 @@ module CrownFireEquationsMod
     end if
 
 
-  end subroutine CrownFractionBurnt
+  end subroutine CrownFireCFB
 
 
 end module CrownFireEquationsMod

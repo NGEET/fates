@@ -591,7 +591,7 @@ module FatesFuelMod
         if (i /= fuel_classes%trunks()) then 
           ! don't include 1000-hr fuels
           ! convert loading from kgC/m2 to g/cm2
-          tau_l = tau_l + 39.4_r8*(this%frac_loading(i)*this%non_trunk_loading/0.45_r8/10.0_r8)*                     &
+          tau_l = tau_l + 39.4_r8*(this%frac_loading(i)*this%non_trunk_loading/0.45_r8/10.0_r8)* &
             (1.0_r8 - ((1.0_r8 - this%frac_burnt(i))**0.5_r8))
         end if 
       end do

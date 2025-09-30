@@ -72,21 +72,37 @@ module FatesConstantsMod
                                                      ! but is shedding them (partial shedding). This plant
                                                      ! should not allocate carbon towards growth or 
                                                      ! reproduction.
-integer, parameter, public :: ihard_stress_decid = 1 ! If the PFT is stress (drought) deciduous,
-                                                     !  this flag is used to tell that the PFT
-                                                     !  is a "hard" deciduous (i.e., the plant
-                                                     !  has only two statuses, the plant either
-                                                     !  sheds all leaves when it's time, or seeks
-                                                     !  to flush the leaves back to allometry 
-                                                     !  when conditions improve.
-integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (drought) deciduous,
-                                                     !  this flag is used to tell that the PFT
-                                                     !  is a semi-deciduous (i.e., the plant
-                                                     !  can downregulate the amount of leaves
-                                                     !  relative to the allometry based on 
-                                                     !  soil moisture conditions. It can still
-                                                     !  shed all leaves if conditions are very
-                                                     !  dry.
+integer, parameter, public :: ievergreen         = 1 ! Flag that indicates that the leaf phenology
+                                                     !    habit for a PFT is evergreen. This means
+                                                     !    that seasonal environmental conditions do
+                                                     !    not directly impact leaf biomass, although
+                                                     !    the total leaf biomass can fall below 
+                                                     !    allometry if the plant's NPP is negative 
+                                                     !    and causes a significant depletion of the
+                                                     !    storage pool.
+integer, parameter, public :: ihard_season_decid = 2 ! Flag that indicates that the leaf phenology
+                                                     !    habit for a PFT is a "hard" season (cold)
+                                                     !    deciduous. This means that the plant
+                                                     !    has only two statuses, the plant either
+                                                     !    abscises all leaves when conditions
+                                                     !    deteriorate, or flushes leaves to bring it
+                                                     !    back to allometry when conditions improve.
+integer, parameter, public :: ihard_stress_decid = 3 ! Flag that indicates that the leaf phenology
+                                                     !    habit for a PFT is a "hard" stress
+                                                     !    (drought) deciduous. This means that the
+                                                     !    plant has only two statuses, the plant
+                                                     !    either abscises all leaves when conditions
+                                                     !    deteriorate, or flushes leaves to bring it
+                                                     !    back to allometry when conditions improve
+integer, parameter, public :: isemi_stress_decid = 4 ! Flag that indicates that the leaf phenology
+                                                     !    habit for a PFT is a stress (hydro)
+                                                     !    semi-deciduous. This means that the plant
+                                                     !    can partially abscise or flush leaves
+                                                     !    based on water availability, and 
+                                                     !    conditions. It can still abscise all leaves
+                                                     !    when conditions are very dry, and flush all
+                                                     !    leaves back to allometry when water is not
+                                                     !    limiting.
 
   integer, parameter, public :: ican_upper = 1  ! nominal index for the upper canopy
   integer, parameter, public :: ican_ustory = 2 ! nominal index for diagnostics that refer to understory layers 
@@ -134,10 +150,6 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   real(fates_r8), parameter, public :: secondary_age_threshold = 94._fates_r8 ! less than this value is young secondary land
                                                             ! based on average age of global
                                                             ! secondary 1900s land in hurtt-2011
-
-  ! integer labels for specifying harvest units
-  integer, parameter, public :: photosynth_acclim_model_none = 1
-  integer, parameter, public :: photosynth_acclim_model_kumarathunge_etal_2019 = 2
 
   ! integer labels for specifying harvest units
   integer, parameter, public :: hlm_harvest_area_fraction = 1 ! Code for harvesting by area
@@ -326,6 +338,9 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   ! Approximate molar mass of water vapor to dry air (-)
   real(fates_r8), parameter, public :: molar_mass_ratio_vapdry= 0.622_fates_r8
   
+  ! unit conversion of W/m2 to umol photons/m^2/s
+  real(fates_r8), parameter, public :: wm2_to_umolm2s = 4.6_fates_r8
+  
   ! Gravity constant on earth [m/s]
   real(fates_r8), parameter, public :: grav_earth = 9.8_fates_r8
 
@@ -335,10 +350,15 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   ! Pascals to megapascals
   real(fates_r8), parameter, public :: mpa_per_pa = 1.e-6_fates_r8
 
+  ! Pascals to kilopascals
+  real(fates_r8), parameter, public :: kpa_per_pa = 1.e-3_fates_r8
+  
   ! Conversion: megapascals per mm H2O suction
   real(fates_r8), parameter, public :: mpa_per_mm_suction = dens_fresh_liquid_water * &
                                        grav_earth * 1.0E-9_fates_r8
 
+  
+  
   ! For numerical inquiry
   real(fates_r8), parameter, public :: fates_huge = huge(g_per_kg)
 
@@ -355,17 +375,7 @@ integer, parameter, public :: isemi_stress_decid = 2 ! If the PFT is stress (dro
   real(fates_r8), parameter, public :: pi_const = 3.14159265359_fates_r8
   real(fates_r8), parameter, public :: rad_per_deg = pi_const/180.0_fates_r8
 
-  ! Rdark constants from Atkin et al., 2017 https://doi.org/10.1007/978-3-319-68703-2_6
-  ! and Heskel et al., 2016 https://doi.org/10.1073/pnas.1520282113
-  real(fates_r8), parameter, public :: lmr_b = 0.1012_fates_r8       ! (degrees C**-1)
 
-  real(fates_r8), parameter, public :: lmr_c = -0.0005_fates_r8      ! (degrees C**-2)
-
-  real(fates_r8), parameter, public :: lmr_TrefC = 25._fates_r8      ! (degrees C)
-
-  real(fates_r8), parameter, public :: lmr_r_1 = 0.2061_fates_r8     ! (umol CO2/m**2/s / (gN/(m2 leaf))) 
-
-  real(fates_r8), parameter, public :: lmr_r_2 = -0.0402_fates_r8    ! (umol CO2/m**2/s/degree C)
   
   ! some integers related to termination mortality
   integer, parameter, public :: n_term_mort_types = 3

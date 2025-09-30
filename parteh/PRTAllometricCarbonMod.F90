@@ -52,15 +52,15 @@ module PRTAllometricCarbonMod
   use FatesConstantsMod   , only : nearzero
   use FatesConstantsMod   , only : itrue
   use FatesConstantsMod   , only : years_per_day
-  use FatesInterfaceTypesMod, only    : hlm_day_of_year
-
+  use FatesInterfaceTypesMod, only : hlm_day_of_year
+  use FatesInterfaceTypesMod, only : hlm_regeneration_model
 
   use PRTParametersMod    , only : prt_params
-  use EDParamsMod         , only : regeneration_model
 
   use FatesConstantsMod   , only : leaves_on
   use FatesConstantsMod   , only : leaves_off
   use FatesConstantsMod   , only : leaves_shedding
+  use FatesConstantsMod   , only : ihard_season_decid
   use FatesConstantsMod   , only : ihard_stress_decid
   use FatesConstantsMod   , only : isemi_stress_decid
 
@@ -434,10 +434,10 @@ module PRTAllometricCarbonMod
     elongf_fnrt  = this%bc_in(ac_bc_in_id_effnrt)%rval
     elongf_stem  = this%bc_in(ac_bc_in_id_efstem)%rval
     !--- Set some logical flags to simplify "if" blocks
-    is_hydecid_dormant = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
+    is_hydecid_dormant = any( prt_params%phen_leaf_habit(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
                          .and. any(leaf_status == [leaves_off,leaves_shedding] )
-    is_deciduous       = any(prt_params%stress_decid(ipft) == [ihard_stress_decid,isemi_stress_decid] ) &
-                         .or. ( prt_params%season_decid(ipft) == itrue )
+    is_deciduous       = &
+       any( prt_params%phen_leaf_habit(ipft) == [ihard_season_decid,ihard_stress_decid,isemi_stress_decid] )
 
     nleafage = prt_global%state_descriptor(leaf_c_id)%num_pos ! Number of leaf age class
 
@@ -1066,7 +1066,7 @@ module PRTAllometricCarbonMod
         ! We designate a plant a shrub or grass if its dbh at maximum height
         ! is less than 15 cm
         
-        if ( regeneration_model == default_regeneration .or. &
+        if ( hlm_regeneration_model == default_regeneration .or. &
              prt_params%allom_dbh_maxheight(ipft) < min_max_dbh_for_trees ) then
 
            ! TRS is only for tree pfts
@@ -1080,7 +1080,7 @@ module PRTAllometricCarbonMod
            ! If the TRS is switched on (with or w/o seedling dynamics) then reproductive allocation is
            ! a pft-specific function of dbh. This allows for the representation of different
            ! reproductive schedules (Wenk and Falster, 2015)
-        else if ( any(regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
+        else if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
              prt_params%allom_dbh_maxheight(ipft) > min_max_dbh_for_trees ) then
 
            repro_fraction = prt_params%seed_alloc(ipft) * &
@@ -1088,7 +1088,7 @@ module PRTAllometricCarbonMod
                 (1 + exp(prt_params%repro_alloc_b(ipft) + prt_params%repro_alloc_a(ipft)*dbh*mm_per_cm)))
         else
            write(fates_log(),*) 'unknown seed allocation and regeneration model, exiting'
-           write(fates_log(),*) 'regeneration_model: ',regeneration_model
+           write(fates_log(),*) 'hlm_regeneration_model: ',hlm_regeneration_model
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if ! TRS switch 
 

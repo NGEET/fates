@@ -5,6 +5,7 @@ module EDTypesMod
   use FatesConstantsMod,     only : ifalse
   use FatesConstantsMod,     only : itrue
   use FatesConstantsMod,     only : nocomp_bareground_land
+  use FatesConstantsMod,     only : nocomp_bareground
   use FatesConstantsMod,     only : secondaryland
   use FatesConstantsMod,     only : secondary_age_threshold
   use FatesConstantsMod,     only : nearzero
@@ -128,7 +129,6 @@ module EDTypesMod
                                                                           ! number densities of cohorts to prevent FPEs
 
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
-  logical, parameter, public :: homogenize_seed_pfts  = .false.
   character(len=*), parameter, private :: sourcefile = __FILE__
 
   !************************************
@@ -137,7 +137,6 @@ module EDTypesMod
   !************************************
   type, public :: ed_resources_management_type
     
-     real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
      real(r8) ::  harvest_debt                             ! the amount of kgC per site that did not successfully harvested 
      real(r8) ::  harvest_debt_sec                         ! the amount of kgC per site from secondary patches that did
                                                            ! not successfully harvested
@@ -258,6 +257,7 @@ module EDTypesMod
    contains
 
      procedure :: ZeroFluxDiags
+
      
   end type site_fluxdiags_type
 
@@ -311,6 +311,8 @@ module EDTypesMod
                                        ! due to re-sizing patches when area math starts to lose
                                        ! precision
 
+     real(r8) :: herbivory_flux_out    ! loss of element due to grazing (and/or browsing) by herbivores
+     
    contains
 
      procedure :: ZeroMassBalState
@@ -353,6 +355,9 @@ module EDTypesMod
      ! Total area of patches in each age bin [m2]
      real(r8), allocatable :: area_by_age(:)
 
+     ! Cosine of the zenith angle of the sun
+     real(r8) :: coszen
+     
      
      ! Nutrient relevant 
      real(r8), allocatable :: rec_l2fr(:,:) ! A running mean of the l2fr's for the newly
@@ -495,9 +500,12 @@ module EDTypesMod
 
      real(r8) :: fmort_crownarea_canopy                ! crownarea of canopy indivs killed due to fire per year. [m2/sec]
      real(r8) :: fmort_crownarea_ustory                ! crownarea of understory indivs killed due to fire per year [m2/sec] 
+     real(r8) :: rx_fmort_crownarea_canopy             ! crownarea of canopy indivs killed due to precribed fire per year [m2/sec]
+     real(r8) :: rx_fmort_crownarea_ustory             ! crownarea of undertsory indivs killed due to prescribed fire per year [m2/sec]
+     real(r8) :: nonrx_fmort_crownarea_canopy          ! crownarea of canopy indivs killed due to wildfire per year [m2/sec]
+     real(r8) :: nonrx_fmort_crownarea_ustory          ! crownarea of understory indivs killed due to wildfire per year [m2/sec]
 
-     real(r8) :: rxfmort_crownarea_canopy              ! crownarea of canopy indivs killed due to precribed fire per year [m2/sec]
-     real(r8) :: rxfmort_crownarea_ustory              ! crownarea of undertsory indivs killed due to prescribed fire per year [m2/sec]
+     
 
      real(r8), allocatable :: term_nindivs_canopy(:,:,:)   ! number of canopy individuals that were in cohorts which 
                                                            ! were terminated this timestep, by termination type, size x pft
@@ -511,13 +519,16 @@ module EDTypesMod
      real(r8), allocatable :: imort_carbonflux(:)        ! biomass of individuals killed due to impact mortality per year, by pft. [kgC/m2/sec]
      real(r8), allocatable :: fmort_carbonflux_canopy(:) ! biomass of canopy indivs killed due to fire per year, by pft. [gC/m2/sec]
      real(r8), allocatable :: fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to fire per year, by pft [gC/m2/sec] 
-     real(r8), allocatable :: rxfmort_carbonflux_canopy(:) ! biomass of cnaopy indivs killed due to prescribed fire per year [gC/m2/sec]
-     real(r8), allocatable :: rxfmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to prescribed fire per year [gC/m2/sec]
+     real(r8), allocatable :: rx_fmort_carbonflux_canopy(:) ! biomass of cnaopy indivs killed due to prescribed fire per year [gC/m2/sec]
+     real(r8), allocatable :: rx_fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to prescribed fire per year [gC/m2/sec]
+     real(r8), allocatable :: nonrx_fmort_carbonflux_canopy(:) ! biomass of canopy indivs killed due to wildfire per year [gC/m2/sec]
+     real(r8), allocatable :: nonrx_fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to wildfire per year [gC/m2/sec]
 
-     real(r8), allocatable :: term_abg_flux(:,:)          ! aboveground biomass lost due to termination mortality x size x pft
-     real(r8), allocatable :: imort_abg_flux(:,:)         ! aboveground biomass lost due to impact mortality x size x pft [kgC/m2/sec]
-     real(r8), allocatable :: fmort_abg_flux(:,:)         ! aboveground biomass lost due to fire mortality x size x pft
-     real(r8), allocatable :: rxfmort_abg_flux(:,:)       ! aboveground biomass loss due to precribed fire mortality x size x pft
+     real(r8), allocatable :: term_abg_flux(:,:)           ! aboveground biomass lost due to termination mortality x size x pft
+     real(r8), allocatable :: imort_abg_flux(:,:)          ! aboveground biomass lost due to impact mortality x size x pft [kgC/m2/sec]
+     real(r8), allocatable :: fmort_abg_flux(:,:)          ! aboveground biomass lost due to total fire mortality x size x pft
+     real(r8), allocatable :: rx_fmort_abg_flux(:,:)       ! aboveground biomass loss due to precribed fire mortality x size x pft
+     real(r8), allocatable :: nonrx_fmort_abg_flux(:,:)    ! aboveground biomass loss due to wildfire mortality x size x pft
 
 
      real(r8) :: demotion_carbonflux                     ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
@@ -538,10 +549,15 @@ module EDTypesMod
      real(r8), allocatable :: fmort_rate_crown(:,:)      ! rate of individuals killed due to fire mortality 
                                                          ! from crown damage per year.  on size x pft array
 
-     real(r8), allocatable :: rxfmort_rate_canopy(:,:)   ! rate of canopy individuals killed due to prescribed fire per year
-     real(r8), allocatable :: rxfmort_rate_ustory(:,:)   ! rate of understory individuals killed due to precribed fire per yr
-     real(r8), allocatable :: rxfmort_rate_cambial(:,:)  ! cambial mortality rate due to prescribed fire
-     real(r8), allocatable :: rxfmort_rate_crown(:,:)    ! crown damage mortality due to prescribed fire
+     real(r8), allocatable :: rx_fmort_rate_canopy(:,:)   ! rate of canopy individuals killed due to prescribed fire per year
+     real(r8), allocatable :: rx_fmort_rate_ustory(:,:)   ! rate of understory individuals killed due to precribed fire per yr
+     real(r8), allocatable :: rx_fmort_rate_cambial(:,:)  ! cambial mortality rate due to prescribed fire
+     real(r8), allocatable :: rx_fmort_rate_crown(:,:)    ! crown damage mortality due to prescribed fire
+
+     real(r8), allocatable :: nonrx_fmort_rate_canopy(:,:)   ! rate of canopy indivs killed due to wildfire per year
+     real(r8), allocatable :: nonrx_fmort_rate_ustory(:,:)   ! rate of understory indivs killed due to wildfire per year
+     real(r8), allocatable :: nonrx_fmort_rate_cambial(:,:)  ! cambial mortality rate due to wildfire 
+     real(r8), allocatable :: nonrx_fmort_rate_crown(:,:)    ! crown damage mortality due to wildfire 
 
      real(r8), allocatable :: imort_rate_damage(:,:,:)     ! number of individuals per damage class that die from impact mortality
      real(r8), allocatable :: term_nindivs_canopy_damage(:,:,:) ! number of individuals per damage class that die from termination mortality - canopy
@@ -550,10 +566,14 @@ module EDTypesMod
      real(r8), allocatable :: fmort_rate_ustory_damage(:,:,:) ! number of individuals per damage class that die from fire - ustory
      real(r8), allocatable :: fmort_cflux_canopy_damage(:,:) ! cflux per damage class that die from fire - canopy
      real(r8), allocatable :: fmort_cflux_ustory_damage(:,:) ! cflux per damage class that die from fire - ustory
-     real(r8), allocatable :: rxfmort_rate_canopy_damage(:,:,:) ! number of indivs per damage class that die from precribed fire -canopy
-     real(r8), allocatable :: rxfmort_rate_ustory_damage(:,:,:) ! number of indivs per damage class that die from precribed fire -understory
-     real(r8), allocatable :: rxfmort_cflux_canopy_damage(:,:) ! cflux per damage class that die from prescribed fire -canopy
-     real(r8), allocatable :: rxfmort_cflux_ustory_damage(:,:) ! cflux per damage class that die from precribed fire - understory
+     real(r8), allocatable :: rx_fmort_rate_canopy_damage(:,:,:) ! number of indivs per damage class that die from precribed fire -canopy
+     real(r8), allocatable :: rx_fmort_rate_ustory_damage(:,:,:) ! number of indivs per damage class that die from precribed fire -understory
+     real(r8), allocatable :: rx_fmort_cflux_canopy_damage(:,:) ! cflux per damage class that die from prescribed fire -canopy
+     real(r8), allocatable :: rx_fmort_cflux_ustory_damage(:,:) ! cflux per damage class that die from precribed fire - understory
+     real(r8), allocatable :: nonrx_fmort_rate_canopy_damage(:,:,:) !number of indivs per damage class that die from wildfire -canopy
+     real(r8), allocatable :: nonrx_fmort_rate_ustory_damage(:,:,:) !number of indivs per damage class that die from wildfire -understory
+     real(r8), allocatable :: nonrx_fmort_cflux_canopy_damage(:,:)  !cflux per damage class that die from wildfire - canopy
+     real(r8), allocatable :: nonrx_fmort_cflux_ustory_damage(:,:)  !cflux per damage class that die from wildfire - understory
      real(r8), allocatable :: imort_cflux_damage(:,:)         ! carbon flux from impact mortality by damage class [kgC/m2/sec]
      real(r8), allocatable :: term_cflux_canopy_damage(:,:)          ! carbon flux from termination mortality by damage class
      real(r8), allocatable :: term_cflux_ustory_damage(:,:)          ! carbon flux from termination mortality by damage class
@@ -587,14 +607,58 @@ module EDTypesMod
        procedure, public :: get_secondary_young_fraction
 
   end type ed_site_type
-
+  
   ! Make public necessary subroutines and functions
   public :: dump_site
   public :: CalculateTreeGrassAreaSite
+  public :: set_patchno
+  
+contains
 
-  contains
-      
-    ! =====================================================================================
+  ! ============================================================================
+
+  subroutine set_patchno( currentSite, check , call_id)
+
+    !
+    ! !DESCRIPTION:
+    ! Give patches an order number from the oldest to youngest. 
+    ! Oldest patches start with an index of 1.
+    ! Special case: For no-comp runs, we treat the bare-ground
+    ! patch as index 0.
+    
+    type(ed_site_type),intent(in) :: currentSite
+    logical,intent(in) :: check     ! If true, we are checking order, not setting
+    integer,intent(in) :: call_id   ! An index used for testing
+    type(fates_patch_type), pointer :: currentPatch
+    integer patchno
+
+    !---------------------------------------------------------------------
+    
+    patchno = 1
+    currentPatch => currentSite%oldest_patch
+    do while(associated(currentPatch))
+       if(currentPatch%nocomp_pft_label.eq.nocomp_bareground)then
+          ! for bareground patch, we make the patch number 0
+          if(check .and. currentPatch%patchno.ne.0)then
+             write(fates_log(),*)'nocomp patch numbering is not correct:',currentPatch%patchno,'call_id:',call_id
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          currentPatch%patchno = 0
+       else
+          if(check .and. currentPatch%patchno.ne.patchno) then
+             write(fates_log(),*)'patch numbering is not correct:',currentPatch%patchno,patchno,'call_id:',call_id
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+          currentPatch%patchno = patchno
+          patchno = patchno + 1
+       endif
+       currentPatch => currentPatch%younger
+    enddo
+    
+    return
+  end subroutine set_patchno
+    
+  ! =====================================================================================
 
     subroutine ZeroFluxDiags(this)
       
@@ -666,6 +730,7 @@ module EDTypesMod
       this%flux_generic_in   = 0._r8
       this%flux_generic_out  = 0._r8
       this%patch_resize_err  = 0._r8
+      this%herbivory_flux_out= 0._r8
 
       return
   end subroutine ZeroMassBalFlux
@@ -676,8 +741,6 @@ module EDTypesMod
     !
     !  DESCRIPTION:
     !  Calculates total grass, tree, and bare fractions for a site
-
-    use FatesConstantsMod, only : nocomp_bareground
 
     ! ARGUMENTS:
     type(ed_site_type), intent(inout) :: csite          ! site object

@@ -38,17 +38,18 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_mid_moisture_Coeff(num_fuel_classes)
    real(r8),protected, public :: SF_val_mid_moisture_Slope(num_fuel_classes)
     ! Prescribed fire relevant parameters
-   real(r8),protected, public :: SF_val_rxfire_tpup   ! temprature upper threshold for conducting RX fire
-   real(r8),protected, public :: SF_val_rxfire_tplw   ! temprature lower threshold
-   real(r8),protected, public :: SF_val_rxfire_rhup   ! relative humidity upper threshold
-   real(r8),protected, public :: SF_val_rxfire_rhlw   ! relative humidity lower threshold
-   real(r8),protected, public :: SF_val_rxfire_wdup   ! wind speed upper threshold
-   real(r8),protected, public :: SF_val_rxfire_wdlw   ! wind speed lower threshold
+   real(r8),protected, public :: SF_val_rxfire_tpup   ! temperature upper threshold above which rx fire is disallowed
+   real(r8),protected, public :: SF_val_rxfire_tplw   ! temperature lower threshold below which rx fire is disallowed
+   real(r8),protected, public :: SF_val_rxfire_rhup   ! relative humidity upper threshold above which rx fire is disallowed
+   real(r8),protected, public :: SF_val_rxfire_rhlw   ! relative humidity lower threshold below which rx fire is disallowed
+   real(r8),protected, public :: SF_val_rxfire_wdup   ! wind speed upper threshold above which rx fire is disallowed
+   real(r8),protected, public :: SF_val_rxfire_wdlw   ! wind speed lower threshold below which rx fire is disallowed
    real(r8),protected, public :: SF_val_rxfire_AB     ! prescribed fire burned fraction per day
-   real(r8),protected, public :: SF_val_rxfire_minthreshold ! minimum fire energy of rx fire, for management outcomes really
-   real(r8),protected, public :: SF_val_rxfire_maxthreshold ! maximum fire energy
-   real(r8),protected, public :: SF_val_rxfire_fuel_min     ! minimum fuel load at the patch for the need of rx fire management
-   real(r8),protected, public :: SF_val_rxfire_fuel_max     ! maximum fuel load, above which might be risky for conducting rx fire
+   real(r8),protected, public :: SF_val_rxfire_min_threshold ! minimum fire energy at or below which rx fire is disallowed
+   real(r8),protected, public :: SF_val_rxfire_max_threshold ! maximum fire energy at or above which rx fire is disallowed
+   real(r8),protected, public :: SF_val_rxfire_fuel_min      ! minimum fuel load at or below which rx fire is disallowed
+   real(r8),protected, public :: SF_val_rxfire_fuel_max      ! maximum fuel load at or above which rx fire is disallowed
+   real(r8),protected, public :: SF_val_rxfire_min_frac      ! minimum burnable fraction at site level at or above which rx fire is allowed
 
    character(len=param_string_length),parameter :: SF_name_fdi_alpha = "fates_fire_fdi_alpha"
    character(len=param_string_length),parameter :: SF_name_miner_total = "fates_fire_miner_total"
@@ -80,6 +81,8 @@ module SFParamsMod
    character(len=param_string_length),parameter :: SF_name_rxfire_max_threshold = "fates_rxfire_max_threshold"
    character(len=param_string_length),parameter :: SF_name_rxfire_fuel_min = "fates_rxfire_fuel_min"
    character(len=param_string_length),parameter :: SF_name_rxfire_fuel_max = "fates_rxfire_fuel_max"
+   character(len=param_string_length),parameter :: SF_name_rxfire_min_frac = "fates_rxfire_min_frac"
+   
   
 
    character(len=*), parameter, private :: sourcefile =  __FILE__
@@ -188,10 +191,11 @@ contains
     SF_val_rxfire_wdup = nan
     SF_val_rxfire_wdlw = nan
     SF_val_rxfire_AB   = nan
-    SF_val_rxfire_minthreshold = nan
-    SF_val_rxfire_maxthreshold = nan
+    SF_val_rxfire_min_threshold = nan
+    SF_val_rxfire_max_threshold = nan
     SF_val_rxfire_fuel_min = nan
     SF_val_rxfire_fuel_max = nan
+    SF_val_rxfire_min_frac = nan
 
   end subroutine SpitFireParamsInit
 
@@ -296,6 +300,11 @@ contains
 
     call fates_params%RegisterParameter(name=SF_name_rxfire_fuel_max, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
+     
+    call fates_params%RegisterParameter(name=SF_name_rxfire_min_frac, dimension_shape=dimension_shape_scalar, &
+         dimension_names=dim_names_scalar)
+     
+     
 
 
   end subroutine SpitFireRegisterScalars
@@ -359,16 +368,19 @@ contains
          data=SF_val_rxfire_AB)
 
     call fates_params%RetrieveParameter(name=SF_name_rxfire_min_threshold, &
-         data=SF_val_rxfire_minthreshold)
+         data=SF_val_rxfire_min_threshold)
 
     call fates_params%RetrieveParameter(name=SF_name_rxfire_max_threshold, &
-         data=SF_val_rxfire_maxthreshold)
+         data=SF_val_rxfire_max_threshold)
 
     call fates_params%RetrieveParameter(name=SF_name_rxfire_fuel_min, &
          data=SF_val_rxfire_fuel_min)
 
     call fates_params%RetrieveParameter(name=SF_name_rxfire_fuel_max, &
          data=SF_val_rxfire_fuel_max)
+     
+    call fates_params%RetrieveParameter(name=SF_name_rxfire_min_frac, &
+         data=SF_val_rxfire_min_frac)
 
 
 
