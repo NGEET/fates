@@ -167,6 +167,7 @@ module FatesInterfaceMod
       
       contains 
 
+         procedure, public :: InitializeBoundaryConditions
          procedure, public :: UpdateInterfaceVariables
       
    end type fates_interface_type
@@ -2733,6 +2734,41 @@ subroutine InitializeInterfaceRegistry(this, number_clump_patches)
 
 end subroutine InitializeInterfaceRegistry
 
+
+! ======================================================================================
+
+subroutine InitializeBoundaryConditions(this, patches_per_site)
+   
+   ! Arguments
+   class(fates_interface_type), intent(inout) :: this                ! fates interface type
+   integer, intent(in)                        :: patches_per_site    ! number of patches per site
+   
+   ! Locals
+   integer :: r      ! registery iterator
+   integer :: s      ! site iterator
+   integer :: ifp    ! boundary condition iterator
+   
+   ! Allocate boundary conditions for all sites with the maximum number of patches per site
+   do s = 1, this%nsites
+      allocate(this%sites(s)%bc_in(patches_per_site))
+      allocate(this%sites(s)%bc_out(patches_per_site))
+   end do
+   
+   ! Register the input boundary conditions use for BC allocations
+   do r = 1, this%npatches
+      
+      ! TODO: when and how to update the registry metadata for the site index?
+      s = this%register(r)%GetSiteIndex()
+      ifp = this%register(r)%GetFatesPatchIndex()
+
+      call this%register(r)%Register(key=hlm_fates_soil_level, data=this%sites(s)%bc_in(ifp)%nlevsoil, hlm_flag=.false.)
+
+      ! Initialize the input boundary condition - this will call Update
+      call this%register(r)%InitializeBoundaryConditions()
+
+   end do
+   
+end subroutine InitializeBoundaryConditions
 
 ! ======================================================================================
 
