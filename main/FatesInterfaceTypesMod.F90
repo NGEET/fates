@@ -1220,29 +1220,27 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
   
   subroutine InitializeInterfaceVariables(this)
-    
+
+    ! Arguments
     class(fates_interface_registry_base_type), intent(inout) :: this  ! registry being initialized
+
+    ! Locals
+    integer :: i  ! initialization iterator
+    integer :: j  ! variable index
     
-    integer :: i, j
-    integer :: index_i, index_j
-    
-    ! Update the interface variables that are dimensions for fates boundary conditions
+    ! Update the boundary conditions necessary during initialization only
     do i = 1, this%num_api_vars_update_init
       
-      ! Get the index for the key associated with the current registry variable
-      j = api%GetRegistryIndex(api%GetRegistryKey(i))
-
-      ! Get the index for initialization-only variables
-      index_i = this%index_filter_init(i)
-      index_j = api%index_filter_init(j)
-
-      ! Set the registry variables updated at initialization
-      call this%vars(index_i)%Update(api%vars(index_j), api%subgrid_indices)
+      ! Get the variable index from the init filter
+      j = this%index_filter_init(i)
+      
+      ! Update the variables
+      call this%fates_vars(j)%Update(hlm_vars(j))
 
     end do
-
-  end subroutine InitializeInterfaceVariables
-
+    
+  end subroutine
+  
   ! ======================================================================================
 
   subroutine UpdateInterfaceVariables(this)
