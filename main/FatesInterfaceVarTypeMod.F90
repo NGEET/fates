@@ -122,11 +122,10 @@ module FatesInterfaceVariableTypeMod
 
   ! ====================================================================================
     
-    subroutine UpdateInterfaceVariable(this, var, subgrid_indices)
+    subroutine UpdateInterfaceVariable(this, var)
 
       class(fates_interface_variable_type), intent(inout) :: this ! variable being updated
       class(fates_interface_variable_type), intent(in)    :: var  ! variable update source
-      integer, intent(in) :: subgrid_indices(:)                   ! subgrid indices for the update source
 
       class(*), pointer :: data_var0d        => null()
       class(*), pointer :: data_var1d(:)     => null()
@@ -136,39 +135,9 @@ module FatesInterfaceVariableTypeMod
       integer :: index  ! index for the subgrid level of the input interface variable 
       character(len=fates_long_string_length) :: msg_mismatch = 'FATES ERROR: Mismatched interface variable types'
 
-      ! This update method assumes that the first rank of the HLM data arrays
-      ! corresponds to the subgrid level of the interface variable type.
-      ! E.g. col_cf%w_scalar(c,1:nlevsoil) shows that the first dimension is the column index.
-      ! TODO: This should be held in an interface requirements document.
-
-      ! Get the subgrid index for the updating variable 
-      index = subgrid_indices(var%subgrid)
-      
-      ! Check that the index is valid
-      if (index == fates_unset_int) then
-        write(fates_log(),*) 'FATES ERROR: Unset subgrid index in UpdateInterfaceVariable'
-        write(fates_log(),*) '  Variable key, subgrid level: ', var%key, var%subgrid
-        write(fates_log(),*) '  API subgrid indices: ', subgrid_indices
-        call endrun(msg=errMsg(__FILE__, __LINE__))
-      end if
-
-      ! Update the data pointer based on the rank of the source variable while indexing
-      ! into the appropriate subgrid level
-      ! TODO: This assumes HLM->FATES direction; Validate this for FATES->HLM direction
-      select case (var%data_rank)
-        case(0)
-          data_var0d => var%data0d
-        case(1)
-          data_var0d => var%data1d(index)
-        case(2)
-          data_var1d => var%data2d(index,:)
-        case(3)
-          data_var2d => var%data3d(index,:,:)
-        case default
-          write(fates_log(),*) 'FATES ERROR: Unsupported interface variable input rank in UpdateInterfaceVariable'
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-      end select
-
+      ! Check that the dimensions of the source and target match
+      call this%CompareRegistryVariableSizes(var)
+          
       ! Update the data of the target variable using the source variable data pointer
       ! Make sure the types match for the polymorphic data to allow for copying from the 
       ! source to the target.
@@ -180,7 +149,7 @@ module FatesInterfaceVariableTypeMod
         case(0)
           select type(dest => this%data0d)
             type is (real(r8))
-              select type(source => data_var0d)
+              select type(source => var%data0d)
                 type is (real(r8))
                   dest = source
                 class default
@@ -188,7 +157,7 @@ module FatesInterfaceVariableTypeMod
                   call endrun(msg=errMsg(__FILE__, __LINE__))
               end select
             type is (integer)
-              select type(source => data_var0d)
+              select type(source => var%data0d)
                 type is (integer)
                   dest = source
                 class default
@@ -202,12 +171,9 @@ module FatesInterfaceVariableTypeMod
 
         case(1)
 
-          ! Check that the dimensions of the source and target match
-          call this%CompareRegistryVariableSizes(var)
-          
           select type(dest => this%data1d)
             type is (real(r8))
-              select type(source => data_var1d)
+              select type(source => var%data1d)
                 type is (real(r8))
                   dest = source
                 class default
@@ -215,7 +181,7 @@ module FatesInterfaceVariableTypeMod
                   call endrun(msg=errMsg(__FILE__, __LINE__))
               end select
             type is (integer)
-              select type(source => data_var1d)
+              select type(source => var%data1d)
                 type is (integer)
                   dest = source
                 class default
@@ -226,14 +192,12 @@ module FatesInterfaceVariableTypeMod
               write(fates_log(),*), 'FATES ERROR: Unsupported interface variable type'
               call endrun(msg=errMsg(__FILE__, __LINE__))
           end select
+
         case(2)
           
-          ! Check that the dimensions of the source and target match
-          call this%CompareRegistryVariableSizes(var)
-
           select type(dest => this%data2d)
             type is (real(r8))
-              select type(source => data_var2d)
+              select type(source => var%data2d)
                 type is (real(r8))
                   dest = source
                 class default
@@ -241,7 +205,7 @@ module FatesInterfaceVariableTypeMod
                   call endrun(msg=errMsg(__FILE__, __LINE__))
               end select
             type is (integer)
-              select type(source => data_var2d)
+              select type(source => var%data2d)
                 type is (integer)
                   dest = source
                 class default

@@ -1252,22 +1252,15 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
 
-  subroutine UpdateInterfaceVariables(this, api)
+  subroutine UpdateInterfaceVariables(this)
 
-    class(fates_interface_registry_base_type), intent(inout) :: this  ! registry being updated
-    class(fates_interface_registry_base_type), intent(in)    :: api   ! registry update source
+    class(fates_interface_registry_base_type), intent(inout) :: this
 
     integer :: i
-    integer :: j
 
     ! Iterate over all registered variables
     do i = 1, this%num_api_vars
-
-      ! Don't assume the index in the calling registry is the same as in the input registry
-      j = api%GetRegistryIndex(api%GetRegistryKey(i))
-
-      ! Update the registered variable and pass the subgrid indices information
-      call this%vars(i)%Update(api%vars(j), api%subgrid_indices)
+      this%fates_vars(i)%Update(hlm_vars(i))
     end do
 
   end subroutine UpdateInterfaceVariables
