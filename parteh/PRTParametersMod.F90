@@ -120,6 +120,7 @@ module PRTParametersMod
      real(r8), allocatable :: wood_density(:)               ! wood density  g cm^-3  ...
      integer , allocatable :: woody(:)                      ! Does the plant have wood?      (1=yes, 0=no)
                                                             ! that is occupied by crown
+     integer , allocatable :: moss(:)                       ! Is the plant moss? (1=yes, 0=no)
      real(r8), allocatable :: slamax(:)                     ! Maximum specific leaf area of plant (at bottom) [m2/gC]
      real(r8), allocatable :: slatop(:)                     ! Specific leaf area at canopy top [m2/gC]
      real(r8), allocatable :: allom_sai_scaler(:)           ! 

@@ -678,6 +678,9 @@ variables:
 	double fates_woody(fates_pft) ;
 		fates_woody:units = "logical flag" ;
 		fates_woody:long_name = "Binary woody lifeform flag" ;
+	double fates_moss(fates_pft) ;
+		fates_moss:units = "logical flag" ;
+		fates_moss:long_name = "Binary moss lifeform flag" ;
 	double fates_hlm_pft_map(fates_hlm_pftno, fates_pft) ;
 		fates_hlm_pft_map:units = "area fraction" ;
 		fates_hlm_pft_map:long_name = "In fixed biogeog mode, fraction of HLM area associated with each FATES PFT" ;
@@ -1669,6 +1672,8 @@ data:
     0.566452, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7 ;
 
  fates_woody = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0 ;
+
+ fates_moss = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ;
 
  fates_hlm_pft_map =
   0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

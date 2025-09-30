@@ -194,6 +194,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+    name = 'fates_moss'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_wood_density'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -502,7 +506,14 @@ contains
     allocate(prt_params%woody(size(tmpreal,dim=1)))
     call ArrayNint(tmpreal,prt_params%woody)
     deallocate(tmpreal)
-    
+
+    name = 'fates_moss'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=tmpreal)
+    allocate(prt_params%moss(size(tmpreal,dim=1)))
+    call ArrayNint(tmpreal,prt_params%moss)
+    deallocate(tmpreal)
+
     name = 'fates_wood_density'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=prt_params%wood_density)
