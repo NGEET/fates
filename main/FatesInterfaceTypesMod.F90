@@ -1187,39 +1187,51 @@ module FatesInterfaceTypesMod
   
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_0d(this, key, data)
+  subroutine RegisterInterfaceVariables_0d(this, key, data, hlm_flag)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
+    ! Arguments
     class(fates_interface_registry_base_type), intent(inout) :: this
     class(*), target, intent(in)  :: data          ! data to be associated with key
     character(len=*), intent(in)  :: key           ! variable registry key 
+    logical, intent(in)           :: hlm_flag      ! Is the variable being register from the HLM?
     
     ! Get index from registry key and associate the given data pointer
-    call this%vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
+    if (hlm_flag) then
+      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
+    else
+      call this%fates_vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
+    end if
+
 
   end subroutine RegisterInterfaceVariables_0d
 
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_1d(this, key, data)
+  subroutine RegisterInterfaceVariables_1d(this, key, data, hlm_flag)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
     class(fates_interface_registry_base_type), intent(inout) :: this
-    class(*), target, intent(in)  :: data(:)  ! data to be associated with key
+    class(*), target, intent(in)  :: data(:)    ! data to be associated with key
     character(len=*), intent(in)  :: key        ! variable registry key 
+    logical, intent(in)           :: hlm_flag   ! Is the variable being register from the HLM?
 
     ! Get index from registry key and associate the given data pointer
-    call this%vars(this%GetRegistryIndex(key))%Register(data(:), active=.true.)
+    if (hlm_flag) then
+      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data(:), active=.true.)
+    else
+      call this%fates_vars(this%GetRegistryIndex(key))%Register(data(:), active=.true.)
+    end if
 
   end subroutine RegisterInterfaceVariables_1d
 
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_2d(this, key, data)
+  subroutine RegisterInterfaceVariables_2d(this, key, data, hlm_flag)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
@@ -1227,18 +1239,22 @@ module FatesInterfaceTypesMod
     class(fates_interface_registry_base_type), intent(inout) :: this
     class(*), target, intent(in)  :: data(:,:)  ! data to be associated with key
     character(len=*), intent(in)  :: key        ! variable registry key 
+    logical, intent(in)           :: hlm_flag   ! Is the variable being register from the HLM?
 
     ! Get index from registry key and associate the given data pointer
-    call this%vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true.)
+    if (hlm_flag) then
+      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true.)
+    else
+      call this%fates_vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true.)
+    end if
 
   end subroutine RegisterInterfaceVariables_2d
 
   ! ======================================================================================
   
-  subroutine InitializeInterfaceVariables(this, api)
+  subroutine InitializeInterfaceVariables(this)
     
     class(fates_interface_registry_base_type), intent(inout) :: this  ! registry being initialized
-    class(fates_interface_registry_base_type), intent(in)    :: api   ! registry updates source
     
     integer :: i, j
     integer :: index_i, index_j
