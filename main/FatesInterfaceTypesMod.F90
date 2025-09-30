@@ -634,9 +634,6 @@ module FatesInterfaceTypesMod
      contains
      
       procedure :: Initialize => InitializeBCIn
-     
-      procedure, private :: IntializeDimensionVariables
-      procedure, private :: InitializeVariables => InitializeVariables_bcin
 
    end type bc_in_type
 
@@ -930,37 +927,7 @@ module FatesInterfaceTypesMod
        
   ! ======================================================================================
  
-  subroutine InitializeBCIn(this, nlevsoil)
-    
-    class(bc_in_type), intent(inout) :: this
-    integer, intent(in)              :: nlevsoil
-    
-    ! Initialize the variables that act as dimensions for other boundary conditions
-    call this%IntializeDimensionVariables(nlevsoil)
-    
-    ! Initialize all remaining boundary condition input variables
-    call this%InitializeVariables()
-    
-    
-  end subroutine InitializeBCIn
- 
-  ! ======================================================================================
- 
-  subroutine InitializeDimensionVariables(this, nlevsoil)
-    
-    ! Initialize input boundary conditions that are used as dimensions
-    ! for allocation of other boundary conditions
-    
-    class(bc_in_type), intent(inout) :: this
-    integer, intent(in)              :: nlevsoil
-    
-    this%nlevsoil = nlevsoil
-    
-  end subroutine InitializeDimensionVariables
- 
-  ! ======================================================================================
- 
-  subroutine InitializeVariables_bcin(this)
+  subroutine InitializeBCIn(this)
     
     class(bc_in_type), intent(inout) :: this
     
@@ -972,7 +939,7 @@ module FatesInterfaceTypesMod
     this%w_scalar_sisl = nan
     this%t_scalar_sisl = nan
     
-  end subroutine InitializeVariables_bcin
+  end subroutine InitializeBCIn
  
   ! ======================================================================================
 
