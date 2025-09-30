@@ -135,6 +135,7 @@ module FatesInterfaceMod
       ! grid-cell, this is intended to be migrated to columns 
 
       integer                         :: nsites
+      integer                         :: npatches
 
       type(ed_site_type), pointer :: sites(:)
 
