@@ -1136,6 +1136,16 @@ module FatesInterfaceTypesMod
   
   ! ======================================================================================
   
+  integer function GetColumnIndex(this) result(cidx)
+  
+    class(fates_interface_registry_base_type), intent(inout) :: this
+    
+    cidx = this%cidx
+    
+  end function GetColumnIndex
+  
+  ! ======================================================================================
+  
   subroutine SetFilterMapArrays(this)
 
     class(fates_interface_registry_base_type), intent(inout) :: this
