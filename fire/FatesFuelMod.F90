@@ -399,7 +399,7 @@ module FatesFuelMod
     
   !---------------------------------------------------------------------------------------
 
-    subroutine CalculateCanopyFuelLoad(this, leaf_c, woody_c, height, &
+    subroutine CalculateCanopyFuelLoad(this, leaf_c, woody_c, &
       cwd_frac_adj, canopy_fuel_1h)
       ! DESCRIPTION:
       ! Calculate canopy fuel load by summing up leaf biomass and 1 hour woody biomass
@@ -412,7 +412,6 @@ module FatesFuelMod
       class(fuel_type), intent(inout) :: this                    ! fuel class
       real(r8),         intent(in)    :: leaf_c                  ! leaf biomass of each cohort [kg biomass]
       real(r8),         intent(in)    :: woody_c                 ! 1-hour woody fuels [kg biomass]
-      real(r8),         intent(in)    :: height                  ! cohort height to determine if a cohort should be included in calculating fuel_sapling [m]
       real(r8),         intent(in)    :: cwd_frac_adj(ncwd)      ! adjusted coarse woody debris fraction [fraction]
       real(r8),         intent(out)   :: canopy_fuel_1h          ! leaf + 1-hour woody biomass of current cohort [kg biomass]
 
@@ -439,7 +438,7 @@ module FatesFuelMod
 
       ! ARGUMENTS:
       class(fuel_type), intent(inout) :: this                  ! fuel class
-      real(r8),         intent(in)    :: biom_matrix(:)        ! 1m biomass bin (kg/m3) in the vertical space to sort the canopy fule 
+      real(r8),         intent(in)    :: biom_matrix(0:)        ! 1m biomass bin (kg/m3) in the vertical space to sort the canopy fule 
                                                                ! across cohorts, used to search for CBH
       real(r8),         intent(in)    :: max_height            ! the max. cohort height at current patch [m]
 

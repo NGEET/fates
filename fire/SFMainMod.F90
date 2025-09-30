@@ -326,7 +326,7 @@ contains
             call adjust_SF_CWD_frac(currentCohort%dbh, ncwd, SF_val_CWD_frac, SF_val_CWD_frac_adj)
 
             ! update canopy fuel load 
-            call currentPatch%fuel%CalculateCanopyFuelLoad(leaf_c, woody_c, currentCohort%height, &
+            call currentPatch%fuel%CalculateCanopyFuelLoad(leaf_c, woody_c,  &
             SF_val_CWD_frac_adj, canopy_fuel_1h)
             currentCohort%canopy_fuel_1h = canopy_fuel_1h
             ! 1m biomass bin

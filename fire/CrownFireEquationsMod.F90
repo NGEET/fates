@@ -324,8 +324,8 @@ module CrownFireEquationsMod
     real(r8), intent(in)                 :: cbh                 ! canopy base height [m]
     real(r8), intent(in)                 :: height              ! cohort height [m]
     real(r8), intent(in)                 :: crown_depth         ! crown length of a cohort [m]
-    real(r8), intent(in)                 :: canopy_fuel_1h     ! leaf + 1-hour woody biomass of a cohort [kg biomass]
-    real(r8), intent(inout)              :: biom_matrix(:)      ! array that holds biomass by 1m interval across all cohorts on a patch [kg biomass]
+    real(r8), intent(in)                 :: canopy_fuel_1h      ! leaf + 1-hour woody biomass of a cohort [kg biomass]
+    real(r8), intent(inout)              :: biom_matrix(0:)     ! array that holds biomass by 1m interval across all cohorts on a patch [kg biomass]
 
     ! LOCALS:
     integer           :: h_idx                ! looping index
