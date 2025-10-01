@@ -103,12 +103,6 @@ program FatesTestCrownFire
   ! calculate active crown fire spread rate and crowning index using fuel model 10
   call TestCrownFireFM10(CBD, wind, drying_ratio, ROS_active_FM10, CI_FM10)
 
-  print *, 'CBD(mid)=', CBD((size(CBD)+1)/2)
-  print *, 'wind(1:6)[m/min]=', wind(1:min(6,size(wind)))
-  print *, 'drying_ratio(1:6)=', drying_ratio(1:min(6,size(drying_ratio)))
-  print *, 'ROS(1:6,1)=', ROS_active_FM10(1:min(6,size(ROS_active_FM10)),1)
-  print *, 'CI (1:6,1)=', CI_FM10(1:min(6,size(CI_FM10)),1)
-
 
   ! write out data
   call WriteCrownFireData(out_file, CBH, CWC, passive_crown_fi, &

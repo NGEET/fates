@@ -292,18 +292,6 @@ program FatesTestCanopyFuel
 
     end do
 
-  print *, 'CBD(mid)=', CBD(1:2)
-  print *, 'ROS_actfm10(1:2,1)=', ROS_actfm10(1:min(2,size(ROS_actfm10)),1)
-  print *, 'ROS_critical (1:2)=', ROS_critical(1:min(2,size(ROS_critical)))
-  print *, 'ROS_front size: ', size(ROS_front)
-  print *, 'ROS_front (1:2,1)=', ROS_front(1:min(2,size(ROS_front)),1)
-  print *, 'FI (1:2,1)=', FI(1:min(2,size(FI)),1)
-  print *, 'FI_init (1:2)=', FI_init(1:min(2,size(FI_init)))
-  print *, 'CFB (1:2,1)=', CFB(1:min(2,size(CFB)),1)
-  print *, 'ROS_final (1:2,1)=', ROS_final(1:min(2,size(ROS_final)),1)
-  print *, 'FI_final (1:2,1)=', FI_final(1:min(2,size(FI_final)),1)
-
-
   ! write out data
   call WriteCanopyFuelData(out_file, num_fuel_models, num_patch_types, CBD, CBH, &
   canopy_fuel_load, ROS_front, FI, FI_init, ROS_actfm10, ROS_critical, CFB,      &
