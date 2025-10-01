@@ -24,7 +24,7 @@ module FATESPlantRespPhotosynthMod
   use FatesGlobals,      only : fates_log
   use FatesGlobals,      only : FatesWarn,N2S,A2S,I2S
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesConstantsMod, only : itrue
+  use FatesConstantsMod, only : itrue, ifalse
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : fates_unset_r8
   use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
@@ -114,6 +114,7 @@ contains
     use EDCanopyStructureMod, only : calc_areaindex
     use FatesConstantsMod, only : umolC_to_kgC
     use FatesConstantsMod, only : umol_per_mmol
+    use FatesConstantsMod, only : m2_per_ha
    
     use FatesParameterDerivedMod, only : param_derived
     use FatesAllometryMod, only : bleaf, bstore_allom
@@ -121,6 +122,7 @@ contains
     use FatesAllometryMod, only : set_root_fraction
     use DamageMainMod, only : GetCrownReduction
     use FatesInterfaceTypesMod, only : hlm_use_tree_damage
+    use FatesMossMod, only : moss
 
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
@@ -209,7 +211,7 @@ contains
     real(r8) :: r_stomata                        ! Mean stomatal resistance across all leaves in the patch [s/m]
     real(r8) :: maintresp_reduction_factor       ! factor by which to reduce maintenance
                                                  ! respiration when storage pools are low
-    real(r8) :: b_leaf                           ! leaf biomass kgC
+    real(r8) :: b_leaf                           ! leaf biomass kgC/m2 plot
     real(r8) :: frac                             ! storage pool as a fraction of target leaf biomass
                                                  ! over each cohort x layer.
     real(r8) :: cohort_eleaf_area                ! This is the effective leaf area [m2] reported by each cohort
@@ -288,7 +290,14 @@ contains
     integer  :: NCL_p               ! number of canopy layers in patch
     integer  :: iage                ! loop counter for leaf age classes
     integer  :: solve_iter          ! number of iterations required for photosynthesis solve
-    
+
+    ! Variables for moss: Call of moss()
+    real(r8) :: alff = 1._r8  ! available light on forest floor. TODO: Change from 1?
+    real(r8) :: decid_litter = 0._r8  ! Fresh deciduous leaf litter (kg/m2). TODO: Change from 0.
+    real(r8) :: dummy_moss_to_litter_flux_kg_per_m2plot
+    real(r8) :: dummy_moss_to_atmos_flux_kg_per_m2plot
+    real(r8) :: dummy_livemoss_depth_m
+
     ! Parameters
     ! Absolute convergence tolerance on solving intracellular CO2 concentration [Pa]
 
@@ -532,8 +541,17 @@ contains
                                     !     vascular plants isn't applied anywhere in this subroutine. This will make it so that
                                     !     you can use ScaleLeafLayerFluxToCohort and its leaf area scaling with no adjustments.
 
-                                    write (fates_log(),*) 'Moss not yet implemented in FatesPlantRespPhotosynthDrive'
-                                    call endrun(msg=errMsg(sourcefile, __LINE__))
+                                    ! Moss has no stomatal resistance because it has no stomata
+                                    rs_z(iv,ft,cl) = 0._r8
+
+                                    ! Get leaf biomass
+                                    leaf_c = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+                                    ! Convert kg/plant to kg/m2 plot
+                                    b_leaf = leaf_c * currentCohort%n / m2_per_ha
+
+                                    call moss(alff, lai_canopy_above, decid_litter, dtime, b_leaf, &
+                                         dummy_moss_to_litter_flux_kg_per_m2plot, dummy_moss_to_atmos_flux_kg_per_m2plot, &
+                                         dummy_livemoss_depth_m, psn_z(iv,ft,cl), anet_av_z(iv,ft,cl), lmr_z(iv,ft,cl))
                                  else
 
                                     if (hlm_use_planthydro.eq.itrue ) then

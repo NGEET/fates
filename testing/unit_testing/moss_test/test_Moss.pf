@@ -16,6 +16,7 @@ module test_Moss
   end type TestMoss
 
   real(r8), parameter :: tol = 1.e-13_r8
+  real(r8), parameter :: dtime = 60 * 30  ! model timestep (s). Doesn't actually matter when testing
 
   contains
 
@@ -186,7 +187,7 @@ module test_Moss
 
     @Test
     subroutine ZeroMoss(this)
-      ! test that all outputs are zero if input moss biomass is zero
+      ! test that most outputs are zero if input moss biomass is zero
       class(TestMoss), intent(inout) :: this ! test object
       real(r8) :: alff    ! Available light on the forest floor (0-1)
       real(r8) :: cla     ! Cumulative leaf area on forest floor (m2)
@@ -195,6 +196,9 @@ module test_Moss
       real(r8) :: moss_litter_flux  ! Moss biomass flux to litter (kg/m2)
       real(r8) :: moss_atmos_flux  ! Moss biomass flux to atmosphere (kg/m2)
       real(r8) :: livemoss_depth  ! Depth (m) of live moss layer
+      real(r8) :: psn_z  ! GPP [umolC/m2leaf/s]
+      real(r8) :: anet_av_z  ! "net leaf photosynthesis" [umol C/m2leaf/timestep]
+      real(r8) :: lmr_z  ! leaf maintenance (dark) respiration [umolC/m2leaf/s]
 
       ! All inputs good for moss except zero biomass
       alff = 1.0_r8
@@ -202,12 +206,17 @@ module test_Moss
       decLit = 0.0_r8
       moss_biom_kg = 0.0_r8
 
-      ! Outputs should all be zero
-      call moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, moss_atmos_flux, livemoss_depth)
+      ! Outputs should all be zero, except for per-area-leaf photosynthesis, which is independent
+      ! of moss biomass.
+      call moss(alff, cla, decLit, dtime, moss_biom_kg, moss_litter_flux, moss_atmos_flux, &
+           livemoss_depth, psn_z, anet_av_z, lmr_z)
       @assertEqual(0.0_r8, moss_biom_kg)
       @assertEqual(0.0_r8, moss_litter_flux)
       @assertEqual(0.0_r8, moss_atmos_flux)
       @assertEqual(0.0_r8, livemoss_depth)
+      @assertGreaterThan(anet_av_z, 0._r8)
+      @assertGreaterThan(psn_z, 0._r8)
+      @assertEqual(0.0_r8, lmr_z)
 
     end subroutine ZeroMoss
 
@@ -222,17 +231,24 @@ module test_Moss
       real(r8) :: moss_litter_flux  ! Moss biomass flux to litter (kg/m2)
       real(r8) :: moss_atmos_flux  ! Moss biomass flux to atmosphere (kg/m2)
       real(r8) :: livemoss_depth  ! Depth (m) of live moss layer
+      real(r8) :: psn_z  ! GPP [umolC/m2leaf/s]
+      real(r8) :: anet_av_z  ! "net leaf photosynthesis" [umol C/m2leaf/timestep]
+      real(r8) :: lmr_z  ! leaf maintenance (dark) respiration [umolC/m2leaf/s]
 
       alff = 1.0_r8
       cla = 3.0_r8
       decLit = 0.1_r8
       moss_biom_kg = 0.001_r8
 
-      call moss(alff, cla, decLit, moss_biom_kg, moss_litter_flux, moss_atmos_flux, livemoss_depth)
+      call moss(alff, cla, decLit, dtime, moss_biom_kg, moss_litter_flux, moss_atmos_flux, &
+           livemoss_depth, psn_z, anet_av_z, lmr_z)
       @assertEqual(0.0008908437312040781_r8, moss_biom_kg, tolerance=tol)
       @assertEqual(0.0001360000073909760_r8, moss_litter_flux, tolerance=tol)
       @assertEqual(0.0001199999973177910_r8, moss_atmos_flux, tolerance=tol)
       @assertEqual(0.4949131844885193E-04_r8, livemoss_depth, tolerance=tol)
+      @assertEqual(698.4576479872762_r8, anet_av_z, tolerance=tol)
+      @assertEqual(anet_av_z * dtime, psn_z, tolerance=tol)
+      @assertEqual(0.3170979127499550_r8, lmr_z, tolerance=tol)
 
     end subroutine MossA
 
