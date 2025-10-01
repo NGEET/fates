@@ -2800,33 +2800,12 @@ end subroutine InitializeBoundaryConditions
 
 subroutine UpdateInterfaceVariables(this)
    
-   use FatesInterfaceTypesMod, only : subgrid_column_index
-   
    class(fates_interface_type), intent(inout) :: this
-   
-   class(fates_interface_registry_base_type), pointer :: patch_api
-   class(fates_patch_type), pointer         :: currentPatch
 
-   integer :: s   ! site index
+   integer :: r   ! site index
 
-   do s = 1, this%nsites
-      currentPatch => this%sites(s)%oldest_patch
-      do while (associated(currentPatch))
-
-         patch_api => currentPatch%api
-
-         ! Transfer the column index to the HLM interface registry
-         ! While this may be duplicative for older patches, we need
-         ! to ensure that the new patches are provided with the column index
-         this%api%subgrid_indices(subgrid_column_index) = this%sites(s)%column_map(currentPatch%patchno)
-
-         ! Update the patch boundary condition via the HLM Interface data pointer
-         call patch_api%Update(this%api)
-         
-         ! TODO: Update the HLM interface variables with the patch variables here
-         
-         currentPatch => currentPatch%younger
-      end do
+   do r = 1, this%npatches
+      call this%register(r)%Update()
    end do
    
 end subroutine UpdateInterfaceVariables
