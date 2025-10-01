@@ -234,6 +234,20 @@ module SyntheticPatchTypes
       pft_ids=(/6, 2, 2, 9/),                                                            &
       canopy_layers=(/1, 1, 2, 2/))
     
+    call this%AddPatch(patch_id=6, patch_name='low density', area=500.0_r8,              &
+    ages=(/100.0_r8, 80.0_r8, 80.0_r8, 50.0_r8, 50.0_r8, 20.0_r8, 20.0_r8, 5.0_r8/),     &
+    dbhs=(/90.0_r8, 70.0_r8, 70.0_r8, 40.0_r8, 30.0_r8, 20.0_r8, 15.0_r8, 10.0_r8/),     &
+    densities=(/0.0001_r8, 0.002_r8, 0.002_r8, 0.005_r8, 0.01_r8, 0.0001_r8, 0.0001_r8, 0.0001_r8/), &
+    pft_ids=(/1, 1, 2, 3, 2, 3, 4, 4/),                                                  &
+    canopy_layers=(/1, 1, 1, 1, 1, 2, 2, 2/))
+
+    call this%AddPatch(patch_id=7, patch_name='high density', area=500.0_r8,               &
+    ages=(/100.0_r8, 80.0_r8, 80.0_r8, 50.0_r8, 50.0_r8, 20.0_r8, 20.0_r8, 5.0_r8/),       &
+    dbhs=(/90.0_r8, 70.0_r8, 70.0_r8, 40.0_r8, 30.0_r8, 20.0_r8, 15.0_r8, 10.0_r8/),       &
+    densities=(/0.0001_r8, 0.002_r8, 0.002_r8, 0.005_r8, 0.01_r8, 0.01_r8, 0.01_r8, 0.01_r8/), &
+    pft_ids=(/1, 1, 2, 3, 2, 3, 4, 4/),                                                    &
+    canopy_layers=(/1, 1, 1, 1, 1, 2, 2, 2/))
+
   end subroutine GetSyntheticPatchData
   
   ! --------------------------------------------------------------------------------------
