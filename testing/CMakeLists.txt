@@ -7,6 +7,7 @@ add_subdirectory(functional_testing/fire/fuel fates_fuel_ftest)
 add_subdirectory(functional_testing/fire/ros fates_ros_ftest)
 add_subdirectory(functional_testing/patch fates_patch_ftest)
 add_subdirectory(functional_testing/fire/mortality fates_firemort_ftest)
+add_subdirectory(functional_testing/moss fates_moss_ftest)
 
 ## Unit tests
 add_subdirectory(unit_testing/fire_weather_test fates_fire_weather_utest)
@@ -16,3 +17,4 @@ add_subdirectory(unit_testing/insert_cohort_test fates_insert_cohort_utest)
 add_subdirectory(unit_testing/validate_cohorts_test fates_validate_cohorts_utest)
 add_subdirectory(unit_testing/count_cohorts_test fates_count_cohorts_utest)
 add_subdirectory(unit_testing/fire_equations_test fates_fire_equations_utest)
+add_subdirectory(unit_testing/moss_test fates_moss_utest)

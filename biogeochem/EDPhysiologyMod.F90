@@ -702,7 +702,12 @@ contains
                currentCohort%dbh, currentCohort%crowndamage, currentCohort%canopy_trim, &
                currentCohort%efstem_coh, 0, currentCohort%treelai, currentCohort%treesai )
 
-          currentCohort%nv = GetNVegLayers(currentCohort%treelai+currentCohort%treesai)
+          ! TODO: Would be safer to add this handling to GetNVegLayers()
+          if (prt_params%moss(ipft) == itrue) then
+             currentCohort%nv = 1
+          else
+             currentCohort%nv = GetNVegLayers(currentCohort%treelai+currentCohort%treesai)
+          end if
 
           leaf_veg_frac = currentCohort%treelai/(currentCohort%treelai+currentCohort%treesai)
           
@@ -1882,6 +1887,11 @@ contains
 
           if(fates_pft.eq.0)then
              write(fates_log(),*) 'PFT0 in SP mode'
+             call endrun(msg=errMsg(sourcefile, __LINE__))
+          end if
+
+          if (prt_params%moss(fates_pft) == itrue) then
+             write(fates_log(),*) 'Moss in SP mode'
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
 

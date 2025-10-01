@@ -1,0 +1,256 @@
+module test_Moss
+  !
+  ! DESCRIPTION:
+  !		Test the moss functionality
+  !
+  use ESMF
+  use FatesConstantsMod,   only : r8 => fates_r8
+  use FatesConstantsMod,   only : nearzero
+  use FatesMossMod
+  use funit
+
+  implicit none
+
+  @TestCase
+  type, extends(TestCase) :: TestMoss
+  end type TestMoss
+
+  real(r8), parameter :: tol = 1.e-13_r8
+  real(r8), parameter :: dtime = 60 * 30  ! model timestep (s). Doesn't actually matter when testing
+
+  contains
+
+    @Test
+    subroutine al_test(this)
+      ! test to make sure refactoring has no effect
+      class(TestMoss), intent(inout) :: this ! test object
+      real(r8) :: canopy_lai  ! Leaf area index of canopy (i.e., excluding moss) (m2 leaves / m2 plot)
+      real(r8) :: moss_biomass  ! kg/m2 plot
+
+      canopy_lai = 0.03_r8
+      moss_biomass = 1._r8
+
+      @assertEqual(0.5975005946182375_r8, available_light_under_canopy_and_moss(canopy_lai, moss_biomass))
+
+    end subroutine al_test
+
+    @Test
+    subroutine algf_min_0(this)
+      ! test that light growth multiplier is never < 0
+      class(TestMoss), intent(inout) :: this ! test object
+      real(r8) :: canopy_lai  ! Leaf area index of canopy (i.e., excluding moss) (m2 leaves / m2 plot)
+      real(r8) :: moss_biomass  ! kg/m2 plot
+
+      canopy_lai = 999._r8
+      moss_biomass = 999._r8
+
+      @assertEqual(0.0_r8, light_growth_multiplier(canopy_lai, moss_biomass))
+
+    end subroutine algf_min_0
+
+    @Test
+    subroutine algf_max_1(this)
+      ! test that light growth multiplier is never > 1
+      class(TestMoss), intent(inout) :: this ! test object
+      real(r8) :: canopy_lai  ! Leaf area index of canopy (i.e., excluding moss) (m2 leaves / m2 plot)
+      real(r8) :: moss_biomass  ! kg/m2 plot
+
+      canopy_lai = -99._r8
+      moss_biomass = -999._r8
+
+      @assertEqual(1.0_r8, light_growth_multiplier(canopy_lai, moss_biomass))
+
+    end subroutine algf_max_1
+
+    @Test
+    subroutine fcgf_smooth(this)
+      ! test that there's a smooth transition from fcgf=1 at the point where alff starts to affect it
+      class(TestMoss), intent(inout) :: this ! test object
+
+      @assertEqual(1.0_r8, FCGF_INTERCEPT - FCGF_ALFF_THRESH**2)
+
+    end subroutine fcgf_smooth
+
+    @Test
+    subroutine fcgf_min_0(this)
+      ! test that forest cover growth multiplier is never < 0
+      class(TestMoss), intent(inout) :: this ! test object
+
+      @assertEqual(0.0_r8, forest_cover_growth_multiplier(999._r8))
+
+    end subroutine fcgf_min_0
+
+    @Test
+    subroutine fcgf_max_1(this)
+      ! test that forest cover growth multiplier is never > 1
+      class(TestMoss), intent(inout) :: this ! test object
+
+      @assertEqual(1.0_r8, forest_cover_growth_multiplier(-999._r8))
+
+    end subroutine fcgf_max_1
+
+    @Test
+    subroutine dlgf_smooth(this)
+      ! test that there's a smooth transition from dlgf=1 at the point where deciduous leaf litter starts to affect it
+      class(TestMoss), intent(inout) :: this ! test object
+
+      @assertEqual(1.0_r8, exp(-DLGF_DECAY * DLGF_DECLIT_THRESH))
+
+    end subroutine dlgf_smooth
+
+    @Test
+    subroutine dlgf_min_0(this)
+      ! test that litter growth multiplier is never < 0
+      class(TestMoss), intent(inout) :: this ! test object
+
+      @assertEqual(0.0_r8, litter_growth_multiplier(999._r8), tolerance=tol)
+
+    end subroutine dlgf_min_0
+
+    @Test
+    subroutine dlgf_max_1(this)
+      ! test that litter growth multiplier is never > 1
+      class(TestMoss), intent(inout) :: this ! test object
+
+      @assertEqual(1.0_r8, litter_growth_multiplier(-999._r8))
+
+    end subroutine dlgf_max_1
+
+    @Test
+    subroutine dlgf_onehalf(this)
+      ! test that litter growth multiplier is (about) 0.5 where we expect
+      class(TestMoss), intent(inout) :: this ! test object
+
+      @assertEqual(0.5000000092436915_r8, litter_growth_multiplier(0.23640763320598404_r8))
+
+    end subroutine dlgf_onehalf
+
+    @Test
+    subroutine moss_biomass_change_test(this)
+      ! test that moss biomass change and fluxes are what we expect given a timestep that doesn't kill the moss
+      class(TestMoss), intent(inout) :: this ! test object
+
+      ! ALL UNITS KG / M2 PLOT
+      ! Inputs
+      real(r8) :: assim_eff ! Assimilation (kg/m2)
+      real(r8) :: q_kg_per_kg_moss  ! Respiration? parameter
+      real(r8) :: b_kg_per_kg_moss  ! Mortality? parameter
+      real(r8) :: moss_biom_before   ! Moss biomass (kg/m2) before this timestep
+      ! Outputs
+      real(r8) :: moss_resp  ! Moss respiration (kg/m2) during this timestep
+      real(r8) :: moss_mort  ! Moss mortality (kg/m2) during this timestep
+      real(r8) :: moss_biom_after   ! Moss biomass (kg/m2) after this timestep
+
+      assim_eff = 15
+      q_kg_per_kg_moss = 0.06
+      b_kg_per_kg_moss = 0.02
+      moss_biom_before = 50
+
+      call moss_biomass_change_kg_per_m2(q_kg_per_kg_moss, b_kg_per_kg_moss, assim_eff, moss_biom_before, moss_resp, moss_mort, moss_biom_after)
+      @assertEqual(4.0_r8, moss_resp + moss_mort, tolerance=1e-6_r8)
+      @assertEqual(61.0_r8, moss_biom_after, tolerance=1e-6_r8)
+
+    end subroutine moss_biomass_change_test
+
+    @Test
+    subroutine moss_biomass_change_to_zero(this)
+      ! test that moss biomass drops to zero if assimilation is less than respiration + mortality
+      class(TestMoss), intent(inout) :: this ! test object
+
+      ! ALL UNITS KG / M2 PLOT
+      ! Inputs
+      real(r8) :: assim_eff ! Assimilation (kg/m2)
+      real(r8) :: q_kg_per_kg_moss  ! Respiration? parameter
+      real(r8) :: b_kg_per_kg_moss  ! Mortality? parameter
+      real(r8) :: moss_biom_before   ! Moss biomass (kg/m2) before this timestep
+      ! Outputs
+      real(r8) :: moss_resp  ! Moss respiration (kg/m2) during this timestep
+      real(r8) :: moss_mort  ! Moss mortality (kg/m2) during this timestep
+      real(r8) :: moss_biom_after   ! Moss biomass (kg/m2) after this timestep
+
+      moss_biom_before = 50
+      ! For this test, ensure that q+b > 1 and assim_eff==0
+      assim_eff = 0
+      q_kg_per_kg_moss = 1.1
+      b_kg_per_kg_moss = 0.9
+
+      call moss_biomass_change_kg_per_m2(q_kg_per_kg_moss, b_kg_per_kg_moss, assim_eff, moss_biom_before, moss_resp, moss_mort, moss_biom_after)
+
+      ! Total biomass should now be zero
+      @assertEqual(0.0_r8, moss_biom_after, tolerance=0._r8)
+
+      ! Respiration and mortality should be proportional to their relative values and should sum to start-of-timestep biomass
+      @assertEqual(27.5_r8, moss_resp, tolerance=1e-6_r8)
+      @assertEqual(22.5_r8, moss_mort, tolerance=1e-6_r8)
+
+    end subroutine moss_biomass_change_to_zero
+
+    @Test
+    subroutine ZeroMoss(this)
+      ! test that most outputs are zero if input moss biomass is zero
+      class(TestMoss), intent(inout) :: this ! test object
+      real(r8) :: alff    ! Available light on the forest floor (0-1)
+      real(r8) :: cla     ! Cumulative leaf area on forest floor (m2)
+      real(r8) :: decLit  ! Fresh deciduous leaf litter (kg/m2)
+      real(r8) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
+      real(r8) :: moss_litter_flux  ! Moss biomass flux to litter (kg/m2)
+      real(r8) :: moss_atmos_flux  ! Moss biomass flux to atmosphere (kg/m2)
+      real(r8) :: livemoss_depth  ! Depth (m) of live moss layer
+      real(r8) :: psn_z  ! GPP [umolC/m2leaf/s]
+      real(r8) :: anet_av_z  ! "net leaf photosynthesis" [umol C/m2leaf/timestep]
+      real(r8) :: lmr_z  ! leaf maintenance (dark) respiration [umolC/m2leaf/s]
+
+      ! All inputs good for moss except zero biomass
+      alff = 1.0_r8
+      cla = 0.0_r8
+      decLit = 0.0_r8
+      moss_biom_kg = 0.0_r8
+
+      ! Outputs should all be zero, except for per-area-leaf photosynthesis, which is independent
+      ! of moss biomass.
+      call moss(alff, cla, decLit, dtime, moss_biom_kg, moss_litter_flux, moss_atmos_flux, &
+           livemoss_depth, psn_z, anet_av_z, lmr_z)
+      @assertEqual(0.0_r8, moss_biom_kg)
+      @assertEqual(0.0_r8, moss_litter_flux)
+      @assertEqual(0.0_r8, moss_atmos_flux)
+      @assertEqual(0.0_r8, livemoss_depth)
+      @assertGreaterThan(anet_av_z, 0._r8)
+      @assertGreaterThan(psn_z, 0._r8)
+      @assertEqual(0.0_r8, lmr_z)
+
+    end subroutine ZeroMoss
+
+    @Test
+    subroutine MossA(this)
+      ! nonzero test of moss() subroutine
+      class(TestMoss), intent(inout) :: this ! test object
+      real(r8) :: alff    ! Available light on the forest floor (0-1)
+      real(r8) :: cla     ! Cumulative leaf area on forest floor (m2)
+      real(r8) :: decLit  ! Fresh deciduous leaf litter (kg/m2)
+      real(r8) :: moss_biom_kg  ! Moss biomass (kg/m2)
+      real(r8) :: moss_litter_flux  ! Moss biomass flux to litter (kg/m2)
+      real(r8) :: moss_atmos_flux  ! Moss biomass flux to atmosphere (kg/m2)
+      real(r8) :: livemoss_depth  ! Depth (m) of live moss layer
+      real(r8) :: psn_z  ! GPP [umolC/m2leaf/s]
+      real(r8) :: anet_av_z  ! "net leaf photosynthesis" [umol C/m2leaf/timestep]
+      real(r8) :: lmr_z  ! leaf maintenance (dark) respiration [umolC/m2leaf/s]
+
+      alff = 1.0_r8
+      cla = 3.0_r8
+      decLit = 0.1_r8
+      moss_biom_kg = 0.001_r8
+
+      call moss(alff, cla, decLit, dtime, moss_biom_kg, moss_litter_flux, moss_atmos_flux, &
+           livemoss_depth, psn_z, anet_av_z, lmr_z)
+      @assertEqual(0.0008908437312040781_r8, moss_biom_kg, tolerance=tol)
+      @assertEqual(0.0001360000073909760_r8, moss_litter_flux, tolerance=tol)
+      @assertEqual(0.0001199999973177910_r8, moss_atmos_flux, tolerance=tol)
+      @assertEqual(0.4949131844885193E-04_r8, livemoss_depth, tolerance=tol)
+      @assertEqual(698.4576479872762_r8, anet_av_z, tolerance=tol)
+      @assertEqual(anet_av_z * dtime, psn_z, tolerance=tol)
+      @assertEqual(0.3170979127499550_r8, lmr_z, tolerance=tol)
+
+    end subroutine MossA
+
+
+end module test_Moss

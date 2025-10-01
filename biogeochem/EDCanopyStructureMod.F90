@@ -12,6 +12,7 @@ module EDCanopyStructureMod
   use FatesConstantsMod     , only : rsnbl_math_prec
   use FatesConstantsMod     , only : nocomp_bareground
   use FatesConstantsMod,      only : i_term_mort_type_canlev
+  use FatesConstantsMod,      only : m2_per_ha
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
   use PRTParametersMod      , only : prt_params
@@ -1702,7 +1703,9 @@ contains
   subroutine UpdateCohortLAI(currentCohort, canopy_layer_tlai, total_canopy_area)
    
    ! Update LAI and related variables for a given cohort
-   
+
+   use FatesMossMod, only : SLA_M2LEAF_PER_KGMOSS
+
    ! Arguments
    type(fates_cohort_type),intent(inout), target   :: currentCohort
    real(r8), intent(in) :: canopy_layer_tlai(nclmax)  ! total leaf area index of each canopy layer
@@ -1714,20 +1717,26 @@ contains
    
    ! Obtain the leaf carbon
    leaf_c = currentCohort%prt%GetState(leaf_organ,carbon12_element)
+   
+   if (prt_params%moss(currentCohort%pft) == itrue) then
+      currentCohort%treelai = leaf_c * currentCohort%n / m2_per_ha * SLA_M2LEAF_PER_KGMOSS
+      currentCohort%treesai = 0._r8
+      currentCohort%nv = 1
+   else
 
-   ! Note that tree_lai has an internal check on the canopy location
-   call  tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n,           &
-          currentCohort%canopy_layer, canopy_layer_tlai, currentCohort%vcmax25top, currentCohort%dbh, currentCohort%crowndamage,          &
-          currentCohort%canopy_trim, currentCohort%efstem_coh, 4, currentCohort%treelai, treesai )
+      ! Note that tree_lai has an internal check on the canopy location
+      call  tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n,           &
+             currentCohort%canopy_layer, canopy_layer_tlai, currentCohort%vcmax25top, currentCohort%dbh,    currentCohort%crowndamage,          &
+             currentCohort%canopy_trim, currentCohort%efstem_coh, 4, currentCohort%treelai, treesai )
 
-   ! Do not update stem area index of SP vegetation
-   if (hlm_use_sp .eq. ifalse) then
-      currentCohort%treesai = treesai
+      ! Do not update stem area index of SP vegetation
+      if (hlm_use_sp .eq. ifalse) then
+         currentCohort%treesai = treesai
+      end if
+   
+      ! Number of actual vegetation layers in this cohort's crown
+      currentCohort%nv = GetNVegLayers(currentCohort%treelai+currentCohort%treesai)
    end if
-   
-   ! Number of actual vegetation layers in this cohort's crown
-   currentCohort%nv = GetNVegLayers(currentCohort%treelai+currentCohort%treesai)
-   
   end subroutine UpdateCohortLAI
   
   ! ===============================================================================================

@@ -2026,6 +2026,17 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
+
+        ! Check that mosses are not woody
+        if ( ( prt_params%moss(ipft)==itrue ) .and. (prt_params%woody(ipft)==itrue) ) then
+           write(fates_log(),*) 'Mosses can not be woody.'
+           write(fates_log(),*) 'Current settings in parameter file for pft number: ',ipft
+           write(fates_log(),*) 'fates_woody: true'
+           write(fates_log(),*) 'fates_moss : true'
+           write(fates_log(),*) 'Please correct this discrepancy before re-running. Aborting.'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
         ! Check if fraction of storage to reproduction is between 0-1
         ! ----------------------------------------------------------------------------------
 
