@@ -214,7 +214,7 @@ program FatesTestCanopyFuel
                 ! update canopy fuel load, this has nothing to do with fuel model
                 ! but we save it for each fuel model for later use
                 do f = 1, num_fuel_models
-                    call fuel(f)%CalculateCanopyFuelLoad(leaf_c, woody_c, cohort%height, &
+                    call fuel(f)%CalculateCanopyFuelLoad(leaf_c, woody_c,   &
                     cwd_frac_adj, canopy_fuel_1h)
                 end do
 
