@@ -21,7 +21,7 @@ module CrownFireEquationsMod
   public :: MaxHeight
   public :: CrownFireBehaveFM10
   public :: BiomassBin
-  public ::CrownFireCFB
+  public :: CrownFireCFB
 
   contains
 
