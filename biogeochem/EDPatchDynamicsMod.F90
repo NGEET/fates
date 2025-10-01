@@ -3191,7 +3191,28 @@ contains
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
     rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area) * inv_sum_area
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
-    rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
+    if (dp%IsAllMoss() .or. rp%IsAllMoss()) then
+       ! We set c_stomata to the unset real value in FatesPlantRespPhotosynthDrive() because mosses
+       ! are expected to have zero resistance. If exactly one fusing patch is all moss, take
+       ! c_stomata from that. This is not accurate, but it's only a diagnostic and for
+       ! one timestep at most (until the next call of FatesPlantRespPhotosynthDrive).
+       ! TODO:
+       !    * If keeping fates_unset_r8 kludge in FatesPlantRespPhotosynthDrive(), code up a way
+       !      to quickly recalculate c_stomata without having to call FatesPlantRespPhotosynthDrive()
+       !      again.
+       !    * Otherwise, c_stomata should always have meaningful values, so remove this special
+       !      handling and just calculate the new value as the area-weighted mean of the donor and
+       !      recipient patches.
+       if (.not. dp%IsAllMoss()) then
+          rp%c_stomata      = dp%c_stomata
+       else if (.not. rp%IsAllMoss()) then
+          rp%c_stomata      = rp%c_stomata
+       else
+          rp%c_stomata      = fates_unset_r8
+       end if
+    else
+       rp%c_stomata         = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
+    end if
     rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
 
     ! Radiation

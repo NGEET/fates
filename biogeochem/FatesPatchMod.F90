@@ -241,6 +241,7 @@ module FatesPatchMod
       procedure :: FreeMemory
       procedure :: Dump
       procedure :: CheckVars
+      procedure :: IsAllMoss
 
   end type fates_patch_type
 
@@ -1285,6 +1286,33 @@ module FatesPatchMod
       end if
 
     end subroutine CheckVars
+
+    !===========================================================================
+
+    function IsAllMoss(this)
+      !
+      ! DESCRIPTION:
+      !  Checks whether all cohorts on patch are moss
+
+      ! ARGUMENTS:
+      class(fates_patch_type), intent(inout) :: this
+
+      ! LOCALS:
+      type(fates_cohort_type), pointer :: currentCohort ! cohort object
+
+      ! RESULT:
+      logical :: IsAllMoss
+
+      currentCohort => this%tallest
+      IsAllMoss = associated(currentCohort)  ! If patch has no cohorts, it's not all moss
+      do while(associated(currentCohort) .and. IsAllMoss)
+        if (prt_params%moss(currentCohort%pft) == ifalse) then
+          IsAllMoss = .false.
+        end if
+        currentCohort => currentCohort%shorter
+      end do
+
+    end function IsAllMoss
 
     !===========================================================================  
 

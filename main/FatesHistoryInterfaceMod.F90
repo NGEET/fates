@@ -645,13 +645,17 @@ module FatesHistoryInterfaceMod
 
   ! Non-per-ageclass equivalents of per-ageclass variables
   integer :: ih_canopy_fracarea_si
+  integer :: ih_canopy_fracarea_nopuremosspatches_si  ! TODO: After removing "mosses get unset c_stomata" kludge, delete
   integer :: ih_ncl_si
   integer :: ih_fracarea_si
+  integer :: ih_fracarea_nopuremosspatches_si  ! TODO: After removing "mosses get unset c_stomata" kludge, delete
 
   ! indices to (site x patch-age) variables
   integer :: ih_fracarea_si_age
+  integer :: ih_fracarea_nopuremosspatches_si_age  ! TODO: After removing "mosses get unset c_stomata" kludge, delete
   integer :: ih_lai_si_age
   integer :: ih_canopy_fracarea_si_age
+  integer :: ih_canopy_fracarea_nopuremosspatches_si_age  ! TODO: After removing "mosses get unset c_stomata" kludge, delete
   integer :: ih_gpp_si_age
   integer :: ih_npp_si_age
   integer :: ih_ncl_si_age
@@ -3242,7 +3246,9 @@ contains
            hio_yesterdaycanopylevel_canopy_si_scls     => this%hvars(ih_yesterdaycanopylevel_canopy_si_scls)%r82d, &
            hio_yesterdaycanopylevel_understory_si_scls => this%hvars(ih_yesterdaycanopylevel_understory_si_scls)%r82d, &
            hio_fracarea_si         => this%hvars(ih_fracarea_si)%r81d, &
+           hio_fracarea_nopuremosspatches_si => this%hvars(ih_fracarea_nopuremosspatches_si)%r81d, &
            hio_canopy_fracarea_si  => this%hvars(ih_canopy_fracarea_si)%r81d, &
+           hio_canopy_fracarea_nopuremosspatches_si => this%hvars(ih_canopy_fracarea_nopuremosspatches_si)%r81d, &
            hio_agesince_anthrodist_si     => this%hvars(ih_agesince_anthrodist_si)%r81d, &
            hio_primarylands_fracarea_si => this%hvars(ih_primarylands_fracarea_si)%r81d, &
            hio_secondarylands_fracarea_si => this%hvars(ih_secondarylands_fracarea_si)%r81d, &
@@ -3374,6 +3380,10 @@ contains
 
                 hio_fracarea_si(io_si) = hio_fracarea_si(io_si) &
                      + cpatch%area * AREA_INV
+                if (.not. cpatch%IsAllMoss()) then
+                   hio_fracarea_nopuremosspatches_si(io_si) = hio_fracarea_nopuremosspatches_si(io_si) &
+                        + cpatch%area * AREA_INV
+                end if
 
                 ! ignore land use info on nocomp bareground (where landuse label = 0)
                 if (cpatch%land_use_label .gt. nocomp_bareground_land) then 
@@ -3443,6 +3453,10 @@ contains
                    n_perm2 = ccohort%n * AREA_INV
 
                    hio_canopy_fracarea_si(io_si) = hio_canopy_fracarea_si(io_si) + ccohort%c_area * AREA_INV
+                   if (.not. cpatch%IsAllMoss()) then
+                      hio_canopy_fracarea_nopuremosspatches_si(io_si) = hio_canopy_fracarea_nopuremosspatches_si(io_si) + &
+                           ccohort%c_area * AREA_INV
+                   end if
 
                    ! calculate leaf height distribution, assuming leaf area is evenly distributed thru crown depth
                    call CrownDepth(ccohort%height,ft,crown_depth)
@@ -4732,11 +4746,13 @@ contains
          hio_fire_intensity_si_age          => this%hvars(ih_fire_intensity_si_age)%r82d, &
          hio_npatches_si_age                  => this%hvars(ih_npatches_si_age)%r82d, &
          hio_canopy_fracarea_si_age           => this%hvars(ih_canopy_fracarea_si_age)%r82d, &
+         hio_canopy_fracarea_nopuremosspatches_si_age => this%hvars(ih_canopy_fracarea_nopuremosspatches_si_age)%r82d, &
          hio_nplant_si_scag                   => this%hvars(ih_nplant_si_scag)%r82d, &
          hio_nplant_si_scagpft                => this%hvars(ih_nplant_si_scagpft)%r82d, &
          hio_nplant_canopy_si_scag            => this%hvars(ih_nplant_canopy_si_scag)%r82d, &
          hio_nplant_understory_si_scag        => this%hvars(ih_nplant_understory_si_scag)%r82d, &
          hio_fracarea_si_age                  => this%hvars(ih_fracarea_si_age)%r82d, &
+         hio_fracarea_nopuremosspatches_si_age => this%hvars(ih_fracarea_nopuremosspatches_si_age)%r82d, &
          hio_agesince_anthrodist_si_age       => this%hvars(ih_agesince_anthrodist_si_age)%r82d, &
          hio_primarylands_fracarea_si_age     => this%hvars(ih_primarylands_fracarea_si_age)%r82d, &
          hio_secondarylands_fracarea_si_age   => this%hvars(ih_secondarylands_fracarea_si_age)%r82d, &
@@ -4759,6 +4775,11 @@ contains
           ! Increment the fractional area in each age class bin
           hio_fracarea_si_age(io_si,cpatch%age_class) = hio_fracarea_si_age(io_si,cpatch%age_class) &
           + cpatch%area * AREA_INV
+          if (.not. cpatch%IsAllMoss()) then
+             hio_fracarea_nopuremosspatches_si_age(io_si,cpatch%age_class) = &
+                  hio_fracarea_nopuremosspatches_si_age(io_si,cpatch%age_class) &
+                  + cpatch%area * AREA_INV
+          end if
 
           do ft = 1,numpft
              iagepft = get_agepft_class_index(cpatch%age,ft)
@@ -4830,6 +4851,11 @@ contains
 
              hio_canopy_fracarea_si_age(io_si,cpatch%age_class) = hio_canopy_fracarea_si_age(io_si,cpatch%age_class) &
                   + ccohort%c_area * AREA_INV
+             if (.not. cpatch%IsAllMoss()) then
+                hio_canopy_fracarea_nopuremosspatches_si_age(io_si,cpatch%age_class) = &
+                     hio_canopy_fracarea_nopuremosspatches_si_age(io_si,cpatch%age_class) &
+                     + ccohort%c_area * AREA_INV
+             end if
 
              notnew: if( .not.(ccohort%isnew) ) then
                 hio_npp_si_age(io_si,cpatch%age_class) = hio_npp_si_age(io_si,cpatch%age_class) &
@@ -5039,7 +5065,13 @@ contains
     integer  :: s        ! The local site index
     integer  :: io_si     ! The site index of the IO array
     integer  :: age_class  ! class age index
+    real(r8) :: site_area_veg  ! canopy area of the site (m2)
     real(r8) :: site_area_veg_inv  ! inverse canopy area of the site (1/m2)
+
+    ! TODO: After removing "mosses get unset c_stomata" kludge, delete
+    real(r8) :: site_area_veg_nopuremosspatches  ! canopy area of the site, excluding patches that are only moss (m2)
+    real(r8) :: site_area_veg_nopuremosspatches_inv  ! inverse canopy area of the site, excluding patches that are only moss (1/m2)
+
     real(r8) :: site_area_rad_inv   ! inverse canopy area of site for only
     ! patches that called the solver
     real(r8) :: dt_tstep_inv        ! inverse timestep (1/sec)
@@ -5138,17 +5170,27 @@ contains
          ! ie, non-zero canopy area
 
          if (hlm_use_nocomp .eq. itrue .and. hlm_use_fixed_biogeog .eq. itrue) then
-            site_area_veg_inv = area - sites(s)%area_bareground * area
+            site_area_veg = area - sites(s)%area_bareground * area
          else
-            site_area_veg_inv = 0._r8
+            site_area_veg = 0._r8
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
-               site_area_veg_inv = site_area_veg_inv + cpatch%total_canopy_area
+               site_area_veg = site_area_veg + cpatch%total_canopy_area
                cpatch => cpatch%younger
             end do !patch loop
          end if
-         
-         if_veg_area: if(site_area_veg_inv < nearzero) then
+
+         ! TODO: After removing "mosses get unset c_stomata" kludge, delete
+         site_area_veg_nopuremosspatches = 0._r8
+         cpatch => sites(s)%oldest_patch
+         do while(associated(cpatch))
+            if (.not. cpatch%IsAllMoss()) then
+               site_area_veg_nopuremosspatches = site_area_veg_nopuremosspatches + cpatch%total_canopy_area
+            end if
+            cpatch => cpatch%younger
+         end do !patch loop
+
+         if_veg_area: if(site_area_veg < nearzero) then
 
             hio_c_stomata_si(io_si) = hlm_hio_ignore_val
             hio_c_lblayer_si(io_si) = hlm_hio_ignore_val
@@ -5158,13 +5200,24 @@ contains
 
          else
 
-            site_area_veg_inv = 1._r8/site_area_veg_inv
+            site_area_veg_inv = 1._r8/site_area_veg
+            ! TODO: After removing "mosses get unset c_stomata" kludge, delete
+            if (site_area_veg_nopuremosspatches >= nearzero) then
+               site_area_veg_nopuremosspatches_inv = 1._r8/site_area_veg_nopuremosspatches
+            end if
 
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
 
-               hio_c_stomata_si(io_si) = hio_c_stomata_si(io_si) + &
-                    cpatch%c_stomata * cpatch%total_canopy_area * mol_per_umol * site_area_veg_inv
+               ! Mosses have no stomatal resistance, so patches with only moss get their c_stomata
+               ! (which has stomatal resistance in the denominator) set to fates_unset_r8. We ignore
+               ! such patches in these outputs.
+               ! TODO: After removing "mosses get unset c_stomata" kludge, remove conditional
+               if (site_area_veg_nopuremosspatches >= nearzero .and. .not. cpatch%IsAllMoss()) then
+                  hio_c_stomata_si(io_si) = hio_c_stomata_si(io_si) + &
+                       cpatch%c_stomata * cpatch%total_canopy_area * mol_per_umol * &
+                       site_area_veg_nopuremosspatches_inv
+               end if
 
                hio_c_lblayer_si(io_si) = hio_c_lblayer_si(io_si) + &
                     cpatch%c_lblayer * cpatch%total_canopy_area * mol_per_umol * site_area_veg_inv
@@ -5646,8 +5699,10 @@ contains
     type(fates_patch_type),  pointer :: cpatch
     integer :: s, io_si
     real(r8) :: site_canopy_area
+    real(r8) :: site_canopy_area_nopuremosspatches  ! TODO: After removing "mosses get unset c_stomata" kludge, delete
     real(r8) :: dt_tstep_inv          ! Time step in frequency units (/s)
     real(r8) :: patch_canarea_div_site_canarea  ! Weighting based on patch canopy area relative to site canopy area
+    real(r8) :: patch_canarea_div_site_canarea_nopuremosspatches  ! Weighting based on patch canopy area relative to site canopy area, excluding patches that are pure moss
     real(r8) :: cohort_n_div_site_area          ! Weighting based on cohort density relative to site area
 
     associate( &
@@ -5662,9 +5717,14 @@ contains
 
        ! Get site-wide canopy area
        site_canopy_area = 0._r8
+       site_canopy_area_nopuremosspatches = 0._r8
        cpatch => sites(s)%oldest_patch
        do while(associated(cpatch))
           site_canopy_area = site_canopy_area + cpatch%total_canopy_area
+          if (.not. cpatch%IsAllMoss()) then
+             site_canopy_area_nopuremosspatches = site_canopy_area_nopuremosspatches + &
+                  cpatch%total_canopy_area
+          end if
           cpatch => cpatch%younger
        end do
 
@@ -5678,10 +5738,19 @@ contains
           ! Canopy resistance terms
           if (site_canopy_area .gt. nearzero) then
              patch_canarea_div_site_canarea = cpatch%total_canopy_area / site_canopy_area
-             hio_c_stomata_si_age(io_si,cpatch%age_class) = &
-                  hio_c_stomata_si_age(io_si,cpatch%age_class) + &
-                  cpatch%c_stomata * mol_per_umol &
-                  * patch_canarea_div_site_canarea
+
+             ! Mosses have no stomatal resistance, so patches with only moss get their c_stomata
+             ! (which has stomatal resistance in the denominator) set to fates_unset_r8. We ignore
+             ! such patches in these outputs.
+             ! TODO: After removing "mosses get unset c_stomata" kludge, remove conditional
+             if (.not. cpatch%IsAllMoss() .and. site_canopy_area_nopuremosspatches > nearzero) then
+               patch_canarea_div_site_canarea_nopuremosspatches = cpatch%total_canopy_area / &
+                    site_canopy_area_nopuremosspatches
+                hio_c_stomata_si_age(io_si,cpatch%age_class) = &
+                     hio_c_stomata_si_age(io_si,cpatch%age_class) + &
+                     cpatch%c_stomata * mol_per_umol &
+                     * patch_canarea_div_site_canarea_nopuremosspatches
+             end if
 
              hio_c_lblayer_si_age(io_si,cpatch%age_class) = &
                   hio_c_lblayer_si_age(io_si,cpatch%age_class) + &
@@ -7124,6 +7193,11 @@ contains
                avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,  &
                initialize=initialize_variables, index=ih_canopy_fracarea_si)
 
+          call this%set_history_var(vname='FATES_CANOPYAREA_NOPUREMOSSPATCHES', units='m2 m-2',     &
+               long='canopy area (excluding pure-moss patches) per m2 land area', use_default='inactive', &
+               avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,  &
+               initialize=initialize_variables, index=ih_canopy_fracarea_nopuremosspatches_si)
+
           call this%set_history_var(vname='FATES_NCL', units='',                  &
                long='number of canopy levels',                            &
                use_default='inactive', avgflag='A', vtype=site_r8,               &
@@ -7135,12 +7209,24 @@ contains
                avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,  &
                initialize=initialize_variables, index=ih_fracarea_si)
 
+          call this%set_history_var(vname='FATES_PATCHAREA_NOPUREMOSSPATCHES', units='m2 m-2',      &
+               long='patch area (excluding pure moss patches) per m2 land area', use_default='inactive',  &
+               avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,  &
+               initialize=initialize_variables, index=ih_fracarea_nopuremosspatches_si)
+
           ! patch age class variables
           call this%set_history_var(vname='FATES_PATCHAREA_AP', units='m2 m-2',      &
                long='patch area by age bin per m2 land area',                        &
                use_default='active',                                                 &
                avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,  &
                initialize=initialize_variables, index=ih_fracarea_si_age)
+
+          ! TODO: After removing "mosses get unset c_stomata" kludge, delete
+          call this%set_history_var(vname='FATES_PATCHAREA_NOPUREMOSSPATCHES_AP', units='m2 m-2',    &
+               long='patch area (excluding pure moss patches) by age bin per m2 land area',          &
+               use_default='active',                                                 &
+               avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,  &
+               initialize=initialize_variables, index=ih_fracarea_nopuremosspatches_si_age)
 
           call this%set_history_var(vname='FATES_LAI_AP', units='m2 m-2',            &
                long='total leaf area index by age bin per m2 land area'//          &
@@ -7155,6 +7241,14 @@ contains
                use_default='active', &
                avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,  &
                initialize=initialize_variables, index=ih_canopy_fracarea_si_age)
+
+          ! TODO: After removing "mosses get unset c_stomata" kludge, delete
+          call this%set_history_var(vname='FATES_CANOPYAREA_NOPUREMOSSPATCHES_AP', units='m2 m-2',     &
+               long='canopy area (excluding pure moss patches) by age bin per m2 land area'// &
+               this%per_ageclass_norm_info('FATES_PATCHAREA_NOPUREMOSSPATCHES/FATES_PATCHAREA_NOPUREMOSSPATCHES_AP'),    &
+               use_default='active', &
+               avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,  &
+               initialize=initialize_variables, index=ih_canopy_fracarea_nopuremosspatches_si_age)
 
           call this%set_history_var(vname='FATES_NCL_AP', units='',                  &
                long='number of canopy levels by age bin' //                          &
@@ -8716,8 +8810,9 @@ contains
 
        ! Canopy Resistance
 
+       ! TODO: After removing "mosses get unset c_stomata" kludge, remove parenthetical from long name
        call this%set_history_var(vname='FATES_STOMATAL_COND',                     &
-            units='mol m-2 s-1', long='mean stomatal conductance',                &
+            units='mol m-2 s-1', long='mean stomatal conductance (excluding mosses)', &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_c_stomata_si)
@@ -9159,8 +9254,9 @@ contains
                initialize=initialize_variables, index = ih_c_lblayer_si_age)
 
           ! Canopy resistance
+          ! TODO: After removing "mosses get unset c_stomata" kludge, remove parenthetical from long name
           call this%set_history_var(vname='FATES_STOMATAL_COND_AP',                  &
-               units='mol m-2 s-1', long='mean stomatal conductance - by patch age'//&
+               units='mol m-2 s-1', long='mean stomatal conductance (excluding mosses) - by patch age'//&
                this%per_ageclass_norm_info('FATES_CANOPYAREA/FATES_CANOPYAREA_AP'),  &
                use_default='inactive', avgflag='A', vtype=site_age_r8,               &
                hlms='CLM:ALM', upfreq=group_hifr_complx, ivar=ivar, initialize=initialize_variables, &

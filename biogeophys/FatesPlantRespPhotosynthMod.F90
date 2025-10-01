@@ -1137,7 +1137,9 @@ contains
                         ! the inverse of mean leaf conductance
                         r_sb_leaves  = 1.0_r8/g_sb_leaves
                         
-                        if (r_sb_leaves<bc_in(s)%rb_pa(ifp)) then
+                        ! Mosses have 0 stomatal resistance, so we actually do expect it to be less
+                        ! than boundary layer resistance
+                        if (r_sb_leaves<bc_in(s)%rb_pa(ifp) .and. .not. currentPatch%IsAllMoss()) then
                            write(fates_log(),*) 'Combined canopy resistance was somehow smaller than'
                            write(fates_log(),*) 'its boundary layer resistance component'
                            write(fates_log(),*) 'r_sb_leaves [s/m]: ',r_sb_leaves
@@ -1165,7 +1167,16 @@ contains
                      ! is what is used in the field usually, so we track that form
                      ! vmol_cf :  s m**2/umol -> s/m (ideal gas conversion) [umol/m3]
 
-                     currentPatch%c_stomata  = vmol_cf / r_stomata
+                     if (currentPatch%IsAllMoss()) then
+                        ! Mosses have 0 stomatal resistance, so 1/r_stomata would be infinite
+                        ! and cause floating-point errors.
+                        ! TODO: Is there a better way to handle this? Conductance has units
+                        ! mol (H2O?) m-2 s-1, so can we just do the stoichiometry to get this based 
+                        ! on GPP and respiration?
+                        currentPatch%c_stomata = fates_unset_r8
+                     else
+                        currentPatch%c_stomata  = vmol_cf / r_stomata
+                     end if
                      
                   else !if_any_lai
                      
