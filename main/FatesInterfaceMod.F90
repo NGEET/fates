@@ -2753,12 +2753,6 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
    integer :: s      ! site iterator
    integer :: ifp    ! boundary condition iterator
    
-   ! Allocate boundary conditions for all sites with the maximum number of patches per site
-   do s = 1, this%nsites
-      allocate(this%sites(s)%bc_in(patches_per_site))
-      allocate(this%sites(s)%bc_out(patches_per_site))
-   end do
-   
    ! Register the input boundary conditions use for BC allocations
    do r = 1, this%npatches
       
@@ -2766,33 +2760,24 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       s = this%register(r)%GetSiteIndex()
       ifp = this%register(r)%GetFatesPatchIndex()
 
+      ! Allocate boundary conditions for all sites with the maximum number of patches per site
+      allocate(this%sites(s)%bc_in(patches_per_site))
+      allocate(this%sites(s)%bc_out(patches_per_site))
+
       ! Register the boundary conditions that are necessary for allocating other boundary conditions first
       call this%register(r)%Register(key=hlm_fates_soil_level, data=this%sites(s)%bc_in(ifp)%nlevsoil, hlm_flag=.false.)
 
       ! Initialize the interface variables necessary for allocating boundary conditions
       call this%register(r)%InitializeInterfaceVariables()
       
-   end do
-   
-   ! Initialize the Boundary conditions
-   do s = 1, this%nsites
+      ! Initialize the Boundary conditions
       call this%sites(s)%InitializeBoundaryConditions(patches_per_site)
-   end do
-   
-   ! Register the boundary conditions
-   do r = 1, this%npatches
-
-      ! Get the site and BC patch index associated with this registry index
-      s = this%register(r)%GetSiteIndex()
-      ifp = this%register(r)%GetFatesPatchIndex()
 
       ! Register the boundary conditions that are necessary for allocating other boundary conditions first
       call this%register(r)%Register(key=hlm_fates_decomp_frac_moisture, data=this%sites(s)%bc_in(ifp)%w_scalar_sisl, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_decomp_frac_temperature, data=this%sites(s)%bc_in(ifp)%t_scalar_sisl, hlm_flag=.false.)
 
    end do
-
-
    
 end subroutine InitializeBoundaryConditions
 
