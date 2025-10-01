@@ -2756,11 +2756,8 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
    ! Register the input boundary conditions use for BC allocations
    do r = 1, this%npatches
       
-      ! TODO: when and how to update the registry metadata for the site index?
-      s = this%register(r)%GetSiteIndex()
-      ifp = this%register(r)%GetFatesPatchIndex()
-
       ! Allocate boundary conditions for all sites with the maximum number of patches per site
+      s = this%register(r)%GetSiteIndex()
       allocate(this%sites(s)%bc_in(patches_per_site))
       allocate(this%sites(s)%bc_out(patches_per_site))
 
@@ -2774,6 +2771,7 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       call this%sites(s)%InitializeBoundaryConditions(patches_per_site)
 
       ! Register the boundary conditions that are necessary for allocating other boundary conditions first
+      ifp = this%register(r)%GetFatesPatchIndex()
       call this%register(r)%Register(key=hlm_fates_decomp_frac_moisture, data=this%sites(s)%bc_in(ifp)%w_scalar_sisl, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_decomp_frac_temperature, data=this%sites(s)%bc_in(ifp)%t_scalar_sisl, hlm_flag=.false.)
 
