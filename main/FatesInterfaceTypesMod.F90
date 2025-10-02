@@ -970,7 +970,7 @@ module FatesInterfaceTypesMod
 
     logical :: initialize
 
-    ! initial registry counters
+    ! Initialize registry counters
     this%num_api_vars = 0
     this%num_api_vars_update_init = 0
     this%num_api_vars_update_daily = 0
