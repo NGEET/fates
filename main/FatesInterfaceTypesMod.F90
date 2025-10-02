@@ -890,6 +890,7 @@ module FatesInterfaceTypesMod
 
     ! Subgrid index data
     integer, private :: gidx
+    integer, private :: tidx
     integer, private :: lidx
     integer, private :: cidx
     integer, private :: sidx
