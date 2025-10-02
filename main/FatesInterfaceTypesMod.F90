@@ -1278,7 +1278,7 @@ module FatesInterfaceTypesMod
 
     ! Iterate over the registry until the associated key is found
     do ivar = 1, this%num_api_vars
-      if (this%vars(ivar)%key == key) then
+      if (this%key(ivar) == key) then
         index = ivar
         return
       end if
@@ -1297,7 +1297,7 @@ module FatesInterfaceTypesMod
     integer, intent(in) :: index    ! variable registry index
     character(len=:), allocatable :: key
 
-    key = this%vars(index)%key
+    key = this%key(index)
 
   end function GetRegistryKey
 
