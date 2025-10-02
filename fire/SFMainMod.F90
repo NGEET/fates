@@ -40,6 +40,7 @@ module SFMainMod
 
   public :: DailyFireModel
   public :: UpdateFuelCharacteristics
+  public :: UpdateFireWeather  ! TROUBLESHOOTING
 
   ! ======================================================================================
 
@@ -72,7 +73,7 @@ contains
 
   !---------------------------------------------------------------------------------------
  
-  subroutine UpdateFireWeather(currentSite, bc_in)
+  subroutine UpdateFireWeather(currentSite, bc_in, update_weather_only)
     !
     !  DESCRIPTION:
     !  Updates the site's fire weather index, burn window for prescribed fire, and calculates effective windspeed based on 
@@ -91,6 +92,7 @@ contains
     ! ARGUMENTS:
     type(ed_site_type), intent(inout), target :: currentSite
     type(bc_in_type),   intent(in)            :: bc_in
+    logical, optional,  intent(in)            :: update_weather_only
 
     ! LOCALS:  
     type(fates_patch_type), pointer :: currentPatch   ! patch object
@@ -103,6 +105,7 @@ contains
     real(r8)                        :: grass_fraction ! site-level grass fraction [0-1]
     real(r8)                        :: bare_fraction  ! site-level bare ground fraction [0-1]
     integer                         :: iofp           ! index of oldest the fates patch
+    logical                         :: do_update_weather_only
 
     ! NOTE that the boundary conditions of temperature, precipitation and relative humidity
     ! are available at the patch level. We are currently using a simplification where the whole site
@@ -145,6 +148,16 @@ contains
     ! Apply edge forest flammability enhancements to patch%fireWeather
     if (hlm_use_edge_forest) then
       call apply_edgeforest_flammability_to_site(currentSite)
+    end if
+
+    ! If we only wanted to update fire weather data, we're done
+    if (.not. present(update_weather_only)) then
+      do_update_weather_only = .false.
+    else
+      do_update_weather_only = update_weather_only
+    end if
+    if (do_update_weather_only) then
+      return
     end if
 
     currentPatch => currentSite%oldest_patch

@@ -59,6 +59,7 @@ module EDMainMod
   use FatesSoilBGCFluxMod      , only : PrepNutrientAquisitionBCs
   use FatesSoilBGCFluxMod      , only : PrepCH4BCs
   use SFMainMod                , only : DailyFireModel
+  use SFMainMod                , only : UpdateFireWeather  ! TROUBLESHOOTING
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
   use FatesLitterMod           , only : litter_type
@@ -323,6 +324,11 @@ contains
 
        ! kill patches that are too small
        call terminate_patches(currentSite, bc_in)
+
+       ! TROUBLESHOOTING: Does calling this here resolve unexpected identical fire weather between
+       ! deep forest and other forest?
+       call UpdateFireWeather(currentSite, bc_in, .true.)
+
     end if
 
     ! Final instantaneous mass balance check
