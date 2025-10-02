@@ -970,12 +970,12 @@ module FatesInterfaceTypesMod
 
     logical :: initialize
 
-    ! initial registry integers
+    ! initial registry counters
     this%num_api_vars = 0
     this%num_api_vars_update_init = 0
     this%num_api_vars_update_daily = 0
     
-    ! First count up the keys defined in the registry
+    ! First count up the keys defined in the registry and the registry counters
     call this%DefineInterfaceRegistry(initialize=.false.)
 
     ! Allocate the registry variables arrays
