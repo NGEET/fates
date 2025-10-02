@@ -982,6 +982,7 @@ module FatesInterfaceTypesMod
     allocate(this%fates_vars(this%num_api_vars))
     allocate(this%hlm_vars(this%num_api_vars))
     allocate(this%key(this%num_api_vars))
+    allocate(this%update_frequency(this%num_api_vars))
     
     ! Allocate the index maps
     allocate(this%index_filter_init(this%num_api_vars_update_init))
