@@ -987,6 +987,12 @@ module FatesInterfaceTypesMod
     ! Allocate the index maps
     allocate(this%index_filter_init(this%num_api_vars_update_init))
     allocate(this%index_filter_daily(this%num_api_vars_update_daily))
+    
+    ! Unset the allocatables not including the interface variables
+    this%key(:) = fates_unset_int
+    this%update_frequency(:) = fates_unset_int
+    this%index_filter_init(:) = fates_unset_int
+    this%index_filter_daily(:) = fates_unset_int
 
     ! Now initialize the registry keys
     call this%DefineInterfaceRegistry(initialize=.true.)
