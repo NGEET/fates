@@ -251,13 +251,6 @@ program FatesTestCanopyFuel
             tfc_ros = sum(fuel_consumed) - fuel_consumed(fuel_classes%trunks())
             FI(p,f) = FireIntensity(tfc_ros/0.45_r8, ROS_front(p,f)/60.0_r8)
 
-            write(*,*) 'CBD is', fuel(f)%canopy_bulk_density
-            write(*,*) 'wind is', wind
-            write(*,*) 'drying ratio is', drying_ratio
-            write(*,*) 'NI is', NI
-            write(*,*) 'miner total is', SF_val_miner_total
-            write(*,*) 'part dens is', SF_val_part_dens
-
             if(FI(p,f) > SF_val_fire_threshold .and. FI(p,f) > FI_init(p))then
                 call CrownFireBehaveFM10(drying_ratio, NI, &
                 SF_val_miner_total, SF_val_part_dens, wind, &
@@ -276,10 +269,6 @@ program FatesTestCanopyFuel
                 HPA = HeatReleasePerArea(fuel(f)%SAV_notrunks, i_r)
                 ROS_init = (60.0_r8 * FI_init(p)) / HPA
 
-                write (*,*) 'ROS_SA now is: ', ROS
-                write (*,*) 'ROS_front now is: ', ROS_front(p,f)
-                write(*,*) 'ROS_init is:', ROS_init
-                
                 ! calculate crown fraction burnt
                 call CrownFireCFB(ROS_active, ROS_critical(p), ROS_front(p,f), &
                 ROS_init, ROS, active_crownfire, passive_crownfire, crown_frac_burnt)
