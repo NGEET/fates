@@ -1052,7 +1052,8 @@ module FatesInterfaceTypesMod
         update_frequency_local = registry_update_daily
       end if
 
-      call this%vars(index)%Initialize(key, update_frequency_local)
+      call this%hlm_vars(index)%Initialize(key, update_frequency_local)
+      call this%fates_vars(index)%Initialize(key, update_frequency_local)
 
     ! Not initializing, just counting the variables
     else 
