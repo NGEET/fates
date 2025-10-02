@@ -42,6 +42,7 @@ module FatesMossMod
   public :: light_growth_multiplier
   public :: forest_cover_growth_multiplier
   public :: litter_growth_multiplier
+  public :: moss_photosynth_resp
   public :: moss
 
 contains
@@ -135,10 +136,10 @@ subroutine moss_biomass_change_kg_per_m2(q_kg_per_kg_moss_in, b_kg_per_kg_moss_i
 end subroutine moss_biomass_change_kg_per_m2
 
 !------------------------------------------------------------------------------
-subroutine moss(alff, canopy_lai, decid_litter, dtime, moss_biom_kg_per_m2plot_inout, moss_to_litter_flux_kg_per_m2plot, moss_to_atmos_flux_kg_per_m2plot, &
-                livemoss_depth_m, psn_z, anet_av_z, lmr_z)
+subroutine moss_photosynth_resp(alff, canopy_lai, decid_litter, dtime, moss_biom_kg_per_m2plot_before, &
+                assim_eff_kg_per_m2plot, psn_z, anet_av_z, lmr_z)
   !
-  !  Calculates annual moss growth and mortality
+  !  Calculates annual moss photosynthesis and respiration
   !  Adapted from Bonan and Korzukhin 1989 Vegetatio 84:31-44
   !  Further adapted from Foster et al. (2019, Ecol. Mod., doi: 10.1016/j.ecolmodel.2019.108765)
   !
@@ -148,10 +149,8 @@ subroutine moss(alff, canopy_lai, decid_litter, dtime, moss_biom_kg_per_m2plot_i
   real(r8), intent(in)    :: canopy_lai  ! Leaf area index of canopy (i.e., excluding moss) (m2 leaves / m2 plot)
   real(r8), intent(in)    :: decid_litter  ! Fresh deciduous leaf litter (kg/m2)
   real(r8), intent(in)    :: dtime  ! Time step length (s/timestep)
-  real(r8), intent(inout) :: moss_biom_kg_per_m2plot_inout  ! Moss biomass (kg/m2)
-  real(r8), intent(out)   :: moss_to_litter_flux_kg_per_m2plot  ! Flux from moss to litter (kg/m2)
-  real(r8), intent(out)   :: moss_to_atmos_flux_kg_per_m2plot  ! Flux from moss to atmosphere (kg/m2)
-  real(r8), intent(out)   :: livemoss_depth_m  ! Depth (m) of live moss layer
+  real(r8), intent(in)    :: moss_biom_kg_per_m2plot_before  ! Moss biomass before this timestep (kg/m2)
+  real(r8), intent(out)   :: assim_eff_kg_per_m2plot ! Assimilation (kg/m2)
   ! Outputs for FatesPlantRespPhotosynthDrive()
   real(r8), intent(out)   :: psn_z  ! GPP [umolC/m2leaf/s]
   real(r8), intent(out)   :: anet_av_z  ! "net leaf photosynthesis" [umol C/m2leaf/timestep]
@@ -160,26 +159,16 @@ subroutine moss(alff, canopy_lai, decid_litter, dtime, moss_biom_kg_per_m2plot_i
   ! Local variables
   real(r8) :: per_year_to_per_sec
   real(r8) :: per_year_to_per_timestep
-  real(r8) :: moss_biom_kg_per_plot_before    ! Moss biomass (kg per plot) before this timestep
-  real(r8) :: moss_biom_kg_per_m2plot_before  ! Moss biomass (kg/m2) before this timestep
-  real(r8) :: moss_biom_kg_per_m2plot_after   ! Moss biomass (kg/m2) after this timestep
+  real(r8) :: dummy_moss_biom_kg_per_m2plot_after
   real(r8) :: algf      ! Available light growth factor
   real(r8) :: fcgf      ! Forest cover growth factor
   real(r8) :: dlgf      ! Deciduous leaf litter growth factor
   real(r8) :: ddgf      ! Moisture growth factor
   real(r8) :: assim_kg_per_m2leaf     ! Moss assimilation rate (kg/m2)
   real(r8) :: assim_eff_kg_per_kgmoss ! Effective assimilation (kg/kg)
-  real(r8) :: assim_eff_kg_per_m2plot ! Assimilation (kg/m2)
   real(r8) :: moss_biom_change_kg_per_m2plot     ! Change in moss biomass (kg/m2) during this timestep
   real(r8) :: moss_resp  ! Moss respiration (kg/m2) during this timestep
-  real(r8) :: moss_mort  ! Moss mortality (kg/m2) during this timestep
-
-  real(r8) :: moss_to_litter_flux_kg_per_plot    ! Flux from moss to litter (kg)
-  real(r8) :: moss_respmort_kg_per_kgmoss  ! Moss respiration and mortality (kg / kg moss) during this timestep
-  real(r8) :: moss_respmort_kg_per_m2plot  ! Moss respiration and mortality (kg/m2) during this timestep
-
-  ! Save this for later
-  moss_biom_kg_per_m2plot_before = moss_biom_kg_per_m2plot_inout
+  real(r8) :: dummy_moss_mort
 
   ! Light growth multiplier
   algf = light_growth_multiplier(canopy_lai, moss_biom_kg_per_m2plot_before)
@@ -200,6 +189,67 @@ subroutine moss(alff, canopy_lai, decid_litter, dtime, moss_biom_kg_per_m2plot_i
   assim_eff_kg_per_m2plot = (assim_eff_kg_per_kgmoss * moss_biom_kg_per_m2plot_before)
 
   ! Get fluxes from moss and change in moss biomass
+  call moss_biomass_change_kg_per_m2(Q_KG_PER_KGMOSS, B_KG_PER_KGMOSS, assim_eff_kg_per_m2plot, moss_biom_kg_per_m2plot_before, moss_resp, dummy_moss_mort, dummy_moss_biom_kg_per_m2plot_after)
+
+  ! Outputs for FatesPlantRespPhotosynthDrive()
+  per_year_to_per_sec = days_per_sec / days_per_year
+  per_year_to_per_timestep = per_year_to_per_sec * dtime
+  anet_av_z = assim_kg_per_m2leaf / umolC_to_kgC * per_year_to_per_timestep ! "net leaf photosynthesis" [umol C/m2leaf/timestep]
+  psn_z = anet_av_z * dtime ! GPP [umolC/m2leaf/s]. Moss model doesn't calculate, so assume GPP = NPP.
+  if (moss_biom_kg_per_m2plot_before < nearzero) then
+     lmr_z = 0._r8
+  else
+     lmr_z = moss_resp / umolC_to_kgC / moss_biom_kg_per_m2plot_before / SLA_M2LEAF_PER_KGMOSS * per_year_to_per_sec ! leaf maintenance (dark) respiration [umolC/m2leaf/s]
+  end if
+
+end subroutine moss_photosynth_resp
+
+!------------------------------------------------------------------------------
+subroutine moss(alff, canopy_lai, decid_litter, dtime, moss_biom_kg_per_m2plot_inout, moss_to_litter_flux_kg_per_m2plot, moss_to_atmos_flux_kg_per_m2plot, &
+                livemoss_depth_m, psn_z, anet_av_z, lmr_z)
+  !
+  !  Calculates annual moss growth and mortality
+  !  Adapted from Bonan and Korzukhin 1989 Vegetatio 84:31-44
+  !  Further adapted from Foster et al. (2019, Ecol. Mod., doi: 10.1016/j.ecolmodel.2019.108765)
+  !
+
+  ! Arguments
+  real(r8), intent(in)    :: alff    ! Available light on the forest floor (0-1)
+  real(r8), intent(in)    :: canopy_lai  ! Leaf area index of canopy (i.e., excluding moss) (m2 leaves / m2 plot)
+  real(r8), intent(in)    :: decid_litter  ! Fresh deciduous leaf litter (kg/m2)
+  real(r8), intent(in)    :: dtime  ! Time step length (s/timestep)
+  real(r8), intent(inout) :: moss_biom_kg_per_m2plot_inout  ! Moss biomass (kg/m2)
+  real(r8), intent(out)   :: moss_to_litter_flux_kg_per_m2plot  ! Flux from moss to litter (kg/m2)
+  real(r8), intent(out)   :: moss_to_atmos_flux_kg_per_m2plot  ! Flux from moss to atmosphere (kg/m2)
+  real(r8), intent(out)   :: livemoss_depth_m  ! Depth (m) of live moss layer
+  real(r8), intent(out)   :: psn_z
+  real(r8), intent(out)   :: anet_av_z
+  real(r8), intent(out)   :: lmr_z
+
+  ! Local variables
+  real(r8) :: per_year_to_per_sec
+  real(r8) :: per_year_to_per_timestep
+  real(r8) :: moss_biom_kg_per_plot_before    ! Moss biomass (kg per plot) before this timestep
+  real(r8) :: moss_biom_kg_per_m2plot_before  ! Moss biomass (kg/m2) before this timestep
+  real(r8) :: moss_biom_kg_per_m2plot_after   ! Moss biomass (kg/m2) after this timestep
+  real(r8) :: assim_kg_per_m2leaf     ! Moss assimilation rate (kg/m2)
+  real(r8) :: assim_eff_kg_per_kgmoss ! Effective assimilation (kg/kg)
+  real(r8) :: assim_eff_kg_per_m2plot ! Assimilation (kg/m2)
+  real(r8) :: moss_biom_change_kg_per_m2plot     ! Change in moss biomass (kg/m2) during this timestep
+  real(r8) :: moss_resp  ! Moss respiration (kg/m2) during this timestep
+  real(r8) :: moss_mort  ! Moss mortality (kg/m2) during this timestep
+
+  real(r8) :: moss_to_litter_flux_kg_per_plot    ! Flux from moss to litter (kg)
+  real(r8) :: moss_respmort_kg_per_kgmoss  ! Moss respiration and mortality (kg / kg moss) during this timestep
+  real(r8) :: moss_respmort_kg_per_m2plot  ! Moss respiration and mortality (kg/m2) during this timestep
+
+  ! Save this for later
+  moss_biom_kg_per_m2plot_before = moss_biom_kg_per_m2plot_inout
+
+  call moss_photosynth_resp(alff, canopy_lai, decid_litter, dtime, moss_biom_kg_per_m2plot_before, &
+       assim_eff_kg_per_m2plot, psn_z, anet_av_z, lmr_z)
+
+  ! Get fluxes from moss and change in moss biomass
   call moss_biomass_change_kg_per_m2(Q_KG_PER_KGMOSS, B_KG_PER_KGMOSS, assim_eff_kg_per_m2plot, moss_biom_kg_per_m2plot_before, moss_resp, moss_mort, moss_biom_kg_per_m2plot_after)
 
   ! Get flux from live moss to litter and atmosphere
@@ -212,17 +262,6 @@ subroutine moss(alff, canopy_lai, decid_litter, dtime, moss_biom_kg_per_m2plot_i
   ! Convert certain variables to their UVAFME outputs
   ! TODO: Change these to what FATES needs
   moss_biom_kg_per_m2plot_inout = moss_biom_kg_per_m2plot_after
-
-  ! Outputs for FatesPlantRespPhotosynthDrive()
-  per_year_to_per_sec = days_per_sec / days_per_year
-  per_year_to_per_timestep = per_year_to_per_sec * dtime
-  anet_av_z = assim_kg_per_m2leaf / umolC_to_kgC * per_year_to_per_timestep ! "net leaf photosynthesis" [umol C/m2leaf/timestep]
-  psn_z = anet_av_z * dtime ! GPP [umolC/m2leaf/s]. Moss model doesn't calculate, so assume GPP = NPP.
-  if (moss_biom_kg_per_m2plot_before < nearzero) then
-     lmr_z = 0._r8
-  else
-     lmr_z = moss_resp / umolC_to_kgC / moss_biom_kg_per_m2plot_before / SLA_M2LEAF_PER_KGMOSS * per_year_to_per_sec ! leaf maintenance (dark) respiration [umolC/m2leaf/s]
-  end if
 
 end subroutine moss
 

@@ -221,6 +221,36 @@ module test_Moss
     end subroutine ZeroMoss
 
     @Test
+    subroutine ZeroMoss_photosynth_resp(this)
+      ! test that most outputs are zero if input moss biomass is zero
+      class(TestMoss), intent(inout) :: this ! test object
+      real(r8) :: alff    ! Available light on the forest floor (0-1)
+      real(r8) :: cla     ! Cumulative leaf area on forest floor (m2)
+      real(r8) :: decLit  ! Fresh deciduous leaf litter (kg/m2)
+      real(r8) :: moss_biom_kg  ! Moss biomass (kg, not kg/m2)
+      real(r8) :: assim_eff_kg_per_m2plot  ! Moss biomass flux to atmosphere (kg/m2)
+      real(r8) :: psn_z  ! GPP [umolC/m2leaf/s]
+      real(r8) :: anet_av_z  ! "net leaf photosynthesis" [umol C/m2leaf/timestep]
+      real(r8) :: lmr_z  ! leaf maintenance (dark) respiration [umolC/m2leaf/s]
+
+      ! All inputs good for moss except zero biomass
+      alff = 1.0_r8
+      cla = 0.0_r8
+      decLit = 0.0_r8
+      moss_biom_kg = 0.0_r8
+
+      ! Outputs should all be zero, except for per-area-leaf photosynthesis, which is independent
+      ! of moss biomass.
+      call moss_photosynth_resp(alff, cla, decLit, dtime, moss_biom_kg, &
+           assim_eff_kg_per_m2plot, psn_z, anet_av_z, lmr_z)
+      @assertEqual(0.0_r8, assim_eff_kg_per_m2plot)
+      @assertGreaterThan(anet_av_z, 0._r8)
+      @assertGreaterThan(psn_z, 0._r8)
+      @assertEqual(0.0_r8, lmr_z)
+
+    end subroutine ZeroMoss_photosynth_resp
+
+    @Test
     subroutine MossA(this)
       ! nonzero test of moss() subroutine
       class(TestMoss), intent(inout) :: this ! test object
@@ -251,6 +281,34 @@ module test_Moss
       @assertEqual(0.3170979127499550_r8, lmr_z, tolerance=tol)
 
     end subroutine MossA
+
+    @Test
+    subroutine MossA_photosynth_resp(this)
+      ! nonzero test of moss() subroutine
+      class(TestMoss), intent(inout) :: this ! test object
+      real(r8) :: alff    ! Available light on the forest floor (0-1)
+      real(r8) :: cla     ! Cumulative leaf area on forest floor (m2)
+      real(r8) :: decLit  ! Fresh deciduous leaf litter (kg/m2)
+      real(r8) :: moss_biom_kg  ! Moss biomass (kg/m2)
+      real(r8) :: assim_eff_kg_per_m2plot  ! Moss biomass flux to atmosphere (kg/m2)
+      real(r8) :: psn_z  ! GPP [umolC/m2leaf/s]
+      real(r8) :: anet_av_z  ! "net leaf photosynthesis" [umol C/m2leaf/timestep]
+      real(r8) :: lmr_z  ! leaf maintenance (dark) respiration [umolC/m2leaf/s]
+
+      alff = 1.0_r8
+      cla = 3.0_r8
+      decLit = 0.1_r8
+      moss_biom_kg = 0.001_r8
+
+      call moss_photosynth_resp(alff, cla, decLit, dtime, moss_biom_kg, assim_eff_kg_per_m2plot, &
+           psn_z, anet_av_z, lmr_z)
+      @assertEqual(0.001_r8, moss_biom_kg, tolerance=tol)
+      @assertEqual(0.1468437359128449E-03_r8, assim_eff_kg_per_m2plot, tolerance=tol)
+      @assertEqual(698.4576479872762_r8, anet_av_z, tolerance=tol)
+      @assertEqual(anet_av_z * dtime, psn_z, tolerance=tol)
+      @assertEqual(0.3170979127499550_r8, lmr_z, tolerance=tol)
+
+    end subroutine MossA_photosynth_resp
 
 
 end module test_Moss

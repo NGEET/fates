@@ -122,7 +122,7 @@ contains
     use FatesAllometryMod, only : set_root_fraction
     use DamageMainMod, only : GetCrownReduction
     use FatesInterfaceTypesMod, only : hlm_use_tree_damage
-    use FatesMossMod, only : moss
+    use FatesMossMod, only : moss_photosynth_resp
 
     ! ARGUMENTS:
     ! -----------------------------------------------------------------------------------
@@ -294,9 +294,7 @@ contains
     ! Variables for moss: Call of moss()
     real(r8) :: alff = 1._r8  ! available light on forest floor. TODO: Change from 1?
     real(r8) :: decid_litter = 0._r8  ! Fresh deciduous leaf litter (kg/m2). TODO: Change from 0.
-    real(r8) :: dummy_moss_to_litter_flux_kg_per_m2plot
-    real(r8) :: dummy_moss_to_atmos_flux_kg_per_m2plot
-    real(r8) :: dummy_livemoss_depth_m
+    real(r8) :: dummy_assim_eff_kg_per_m2plot
 
     ! Parameters
     ! Absolute convergence tolerance on solving intracellular CO2 concentration [Pa]
@@ -549,9 +547,8 @@ contains
                                     ! Convert kg/plant to kg/m2 plot
                                     b_leaf = leaf_c * currentCohort%n / m2_per_ha
 
-                                    call moss(alff, lai_canopy_above, decid_litter, dtime, b_leaf, &
-                                         dummy_moss_to_litter_flux_kg_per_m2plot, dummy_moss_to_atmos_flux_kg_per_m2plot, &
-                                         dummy_livemoss_depth_m, psn_z(iv,ft,cl), anet_av_z(iv,ft,cl), lmr_z(iv,ft,cl))
+                                    call moss_photosynth_resp(alff, lai_canopy_above, decid_litter, dtime, b_leaf, &
+                                         dummy_assim_eff_kg_per_m2plot, psn_z(iv,ft,cl), anet_av_z(iv,ft,cl), lmr_z(iv,ft,cl))
                                  else
 
                                     if (hlm_use_planthydro.eq.itrue ) then
