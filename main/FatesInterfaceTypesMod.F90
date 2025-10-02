@@ -985,7 +985,6 @@ module FatesInterfaceTypesMod
     allocate(this%update_frequency(this%num_api_vars))
     
     ! Unset the allocatables not including the interface variables
-    this%key(:) = fates_unset_int
     this%update_frequency(:) = fates_unset_int
     this%filter_init(:) = fates_unset_int
     this%filter_daily(:) = fates_unset_int
