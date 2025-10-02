@@ -890,9 +890,9 @@ module FatesInterfaceTypesMod
     integer, allocatable :: update_frequency(:)
 
     ! Arrays that hold the indices of variables based on update frequency
-    integer, allocatable :: index_filter_init(:)       ! index of variables that update only at initialization
-    integer, allocatable :: index_filter_daily(:)      ! index of variables that update daily
-    ! integer, allocatable :: index_filter_timestep(:)   ! index of variables that update at each timestep
+    integer, allocatable :: filter_init(:)       ! index of variables that update only at initialization
+    integer, allocatable :: filter_daily(:)      ! index of variables that update daily
+    ! integer, allocatable :: filter_timestep(:)   ! index of variables that update at each timestep
 
     ! Subgrid index data
     integer, private :: gidx
@@ -987,8 +987,8 @@ module FatesInterfaceTypesMod
     ! Unset the allocatables not including the interface variables
     this%key(:) = fates_unset_int
     this%update_frequency(:) = fates_unset_int
-    this%index_filter_init(:) = fates_unset_int
-    this%index_filter_daily(:) = fates_unset_int
+    this%filter_init(:) = fates_unset_int
+    this%filter_daily(:) = fates_unset_int
 
     ! Now initialize the registry keys
     call this%DefineInterfaceRegistry(initialize=.true.)
@@ -1150,10 +1150,10 @@ module FatesInterfaceTypesMod
     do index = 1, this%num_api_vars
       if (this%update_frequency(index) == registry_update_init) then
         count_init = count_init + 1
-        this%index_filter_init(count_init) = index
+        this%filter_init(count_init) = index
       else if (this%update_frequency(index) == registry_update_daily) then
         count_daily = count_daily + 1
-        this%index_filter_daily(count_daily) = index
+        this%filter_daily(count_daily) = index
       else
         write(fates_log(),*) 'ERROR: Unrecognized update frequency in SetFilterMapArrays(): ', this%update_frequency(index)
         call endrun(msg=errMsg(__FILE__, __LINE__))
