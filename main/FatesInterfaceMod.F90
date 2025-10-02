@@ -2751,7 +2751,7 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
    ! Locals
    integer :: r      ! registery iterator
    integer :: s      ! site iterator
-   integer :: ifp    ! boundary condition iterator
+   integer :: ifp    ! boundary condition index
    
    ! Register the input boundary conditions use for BC allocations
    do r = 1, this%npatches
