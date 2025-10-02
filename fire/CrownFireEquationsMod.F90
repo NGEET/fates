@@ -222,6 +222,11 @@ module CrownFireEquationsMod
     real(r8)                        :: fuel_moist10h     ! FMC of 10 hour fuel for FM 10 [fraction]
     real(r8)                        :: fuel_moist100h    ! FMC of 100 hour fuel for FM 10 [fraction]
     real(r8)                        :: fuel_moist_live   ! FMC of live fuels for FM 10 [fraction]
+    real(r8)                        :: fuel_mef1h        ! moisture of extinction of 1 hour fuel for FM 10 [fraction]
+    real(r8)                        :: fuel_mef10h       ! moisture of extinction of 10 hour fuel for FM 10 [fraction]
+    real(r8)                        :: fuel_mef100h      ! moisture of extinction of 100 hour fuel for FM 10 [fraction]
+    real(r8)                        :: fuel_mef_live     ! moisture of extinction of live fuels for FM 10 [fraction]
+    real(r8)                        :: fuel_mef          ! average moisture of extinction [fraction]
     real(r8)                        :: midflame_wind     ! 40% of open wind speed 
     real(r8)                        :: beta_fm10         ! packing ratio derived for fuel model 10 [unitless]
     real(r8)                        :: beta_op_fm10      ! optimum packing ratio for FM 10 [unitless]
@@ -241,7 +246,7 @@ module CrownFireEquationsMod
     real(r8),parameter  :: fuel_10h_ton    = 2.0_r8                    ! FM 10 10-hr fuel loading (US tons/acre)             
     real(r8),parameter  :: fuel_100h_ton   = 5.01_r8                   ! FM 10 100-hr fuel loading (US tons/acre)
     real(r8),parameter  :: fuel_live_ton = 2.0_r8                      ! FM 10 live fuel loading (US tons/acre)
-    real(r8),parameter  :: fuel_mef     = 0.25_r8                      ! FM 10 moisture of extinction (volumetric), XLG: should we use this from FM 10??
+   ! real(r8),parameter  :: fuel_mef     = 0.25_r8                      ! FM 10 moisture of extinction (volumetric), XLG: should we use this from FM 10??
     real(r8),parameter  :: fuel_depth_ft= 1.0_r8                       ! FM 10 fuel depth (ft)
     real(r8),parameter  :: sav_1h_ft   = 2000.0_r8                     ! BEHAVE model 1-hr SAV (ft2/ft3)
     real(r8),parameter  :: sav_10h_ft  = 109.0_r8                      ! BEHAVE model 10-hr SAV (ft2/ft3)             
@@ -251,6 +256,8 @@ module CrownFireEquationsMod
     real(r8),parameter  :: sqft_cubicft_to_sqm_cubicm = 0.03280844_r8  ! convert ft2/ft3 to m2/m3
     real(r8),parameter  :: ft_to_meter = 0.3048_r8                     ! convert ft to meter
     real(r8),parameter  :: km_per_hr_to_m_per_min = 16.6667_r8         ! convert km/hour to m/min for wind speed
+    real(r8),parameter  :: mef_a = 0.524_r8
+    real(r8),parameter  :: mef_b = 0.066_r8
 
     fuel_1h     = fuel_1h_ton * tonnes_acre_to_kg_m2
     fuel_10h    = fuel_10h_ton * tonnes_acre_to_kg_m2
@@ -265,6 +272,10 @@ module CrownFireEquationsMod
     fuel_moist10h    = exp(-1.0_r8 * ((fuel_sav10h/drying_ratio) * fire_weather_index))
     fuel_moist100h   = exp(-1.0_r8 * ((fuel_sav100h/drying_ratio) * fire_weather_index))
     fuel_moist_live  = exp(-1.0_r8 * ((fuel_savlive/drying_ratio) * fire_weather_index))
+    fuel_mef1h       = mef_a - mef_b*log(fuel_sav1h)
+    fuel_mef10h      = mef_a - mef_b*log(fuel_sav10h)
+    fuel_mef100h     = mef_a - mef_b*log(fuel_sav100h)
+    fuel_mef_live    = mef_a - mef_b*log(fuel_savlive)
     fuel_depth       = fuel_depth_ft * ft_to_meter           !convert to meters
     fuel_bd          = total_fuel/fuel_depth                 !fuel bulk density (kg biomass/m3)
 
@@ -273,6 +284,9 @@ module CrownFireEquationsMod
 
     fuel_eff_moist   = fuel_moist1h *(fuel_1h/total_fuel) + fuel_moist10h*(fuel_10h/total_fuel) + & 
                        fuel_moist100h*(fuel_100h/total_fuel) + fuel_moist_live*(fuel_live/total_fuel)
+    
+    fuel_mef = fuel_mef1h * (fuel_1h/total_fuel) + fuel_mef10h*(fuel_10h/total_fuel)  + &
+    fuel_mef100h*(fuel_100h/total_fuel) + fuel_mef_live*(fuel_live/total_fuel)
 
     net_fuel  = total_fuel * (1.0_r8 - miner_total)
 
