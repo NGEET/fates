@@ -908,6 +908,7 @@ module FatesInterfaceTypesMod
       procedure :: InitializeInterfaceRegistry
       procedure :: InitializeInterfaceVariables
       procedure :: SetSubgridIndices
+      procedure :: GetColumnIndex
       procedure :: Update => UpdateInterfaceVariables
 
       generic :: Register => RegisterInterfaceVariables_0d, & 
