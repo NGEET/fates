@@ -1115,7 +1115,6 @@ module FatesInterfaceTypesMod
     integer, intent(in) :: landunit
     integer, intent(in) :: column
     integer, intent(in) :: hlmpatch
-    integer, intent(in) :: hlmpatch
     
     this%gidx = gridcell
     this%tidx = topounit
