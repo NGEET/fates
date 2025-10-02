@@ -100,7 +100,7 @@ program FatesTestCanopyFuel
   
   ! fuel models and patch types to test
   integer, parameter, dimension(2) :: fuel_models = (/10, 11/)
-  integer, parameter, dimension(4) :: patch_ids = (/1, 5, 6, 7/)
+  integer, parameter, dimension(4) :: patch_ids = (/1, 6, 7, 8/)
   
   ! number of fuel models  and patch types to test
   num_fuel_models = size(fuel_models)
@@ -266,6 +266,9 @@ program FatesTestCanopyFuel
                 fuel(f)%non_trunk_loading, fuel(f)%average_moisture_notrunks,   &
                 fuel(f)%MEF_notrunks, NI, effect_wind, ROS, i_r)
 
+                write (*,*) 'ROS_SA now is: ', ROS
+                write (*,*) 'ROS_front now is: ', ROS_front(p,f)
+
                 HPA = HeatReleasePerArea(fuel(f)%SAV_notrunks, i_r)
                 ROS_init = (60.0_r8 * FI_init(p)) / HPA
                 ! calculate crown fraction burnt
@@ -284,7 +287,7 @@ program FatesTestCanopyFuel
                 FI_final(p,f) = CrownFireIntensity(HPA, fuel(f)%canopy_fuel_load, &
                 patch%area, crown_frac_burnt, ROS_final(p,f))
             else 
-                 ROS_final(p,f) = ROS_front(p,f)
+                ROS_final(p,f) = ROS_front(p,f)
                 FI_final(p,f) = FI(p,f)
             end if
 
