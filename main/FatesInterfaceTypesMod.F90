@@ -1271,7 +1271,7 @@ module FatesInterfaceTypesMod
 
     ! Iterate over all registered variables
     do i = 1, this%num_api_vars
-      this%fates_vars(i)%Update(this%hlm_vars(i))
+      call this%fates_vars(i)%Update(this%hlm_vars(i))
     end do
 
   end subroutine UpdateInterfaceVariables
