@@ -877,6 +877,9 @@ module FatesInterfaceTypesMod
     ! Container array of interface variables indexed by key
     type(fates_interface_variable_type), allocatable :: hlm_vars(:) 
     type(fates_interface_variable_type), allocatable :: fates_vars(:) 
+    
+    ! Arra of keys associated with the interface variables
+    character(len=48), allocatable :: key(:)
 
     ! Variable regsitry metadata
     integer :: num_api_vars                        ! number of variables in the registry
@@ -975,6 +978,7 @@ module FatesInterfaceTypesMod
     ! Allocate the registry variables arrays
     allocate(this%fates_vars(this%num_api_vars))
     allocate(this%hlm_vars(this%num_api_vars))
+    allocate(this%key(this%num_api_vars))
     
     ! Allocate the index maps
     allocate(this%index_filter_init(this%num_api_vars_update_init))
@@ -1053,6 +1057,10 @@ module FatesInterfaceTypesMod
         update_frequency_local = registry_update_daily
       end if
 
+      ! Update the key array
+      this%key(index) = key
+      
+      ! Initialize the interface variables
       call this%hlm_vars(index)%Initialize(key, update_frequency_local)
       call this%fates_vars(index)%Initialize(key, update_frequency_local)
 
