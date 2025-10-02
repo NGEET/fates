@@ -886,6 +886,9 @@ module FatesInterfaceTypesMod
     integer :: num_api_vars_update_init           ! number of variables that update only at initialization
     integer :: num_api_vars_update_daily          ! number of variables that update daily
 
+    ! Array of update frequency values for each variable index
+    integer, allocatable :: update_frequency(:)
+
     ! Arrays that hold the indices of variables based on update frequency
     integer, allocatable :: index_filter_init(:)       ! index of variables that update only at initialization
     integer, allocatable :: index_filter_daily(:)      ! index of variables that update daily
@@ -1057,10 +1060,13 @@ module FatesInterfaceTypesMod
         update_frequency_local = registry_update_daily
       end if
 
-      ! Update the key array
+      ! Set the key for each index
       this%key(index) = key
       
-      ! Initialize the interface variables
+      ! Set the update frequency array values
+      this%update_frequency(index) = update_frequency_local
+      
+      ! Initialize the interface variables and pass the key and update frequency to each for metadata
       call this%hlm_vars(index)%Initialize(key, update_frequency_local)
       call this%fates_vars(index)%Initialize(key, update_frequency_local)
 
@@ -1135,14 +1141,14 @@ module FatesInterfaceTypesMod
     
     ! Iterate over all registered variables and populate the filter maps accordingly
     do index = 1, this%num_api_vars
-      if (this%vars(index)%update_frequency == registry_update_init) then
+      if (this%update_frequency(index) == registry_update_init) then
         count_init = count_init + 1
         this%index_filter_init(count_init) = index
-      else if (this%vars(index)%update_frequency == registry_update_daily) then
+      else if (this%update_frequency(index) == registry_update_daily) then
         count_daily = count_daily + 1
         this%index_filter_daily(count_daily) = index
       else
-        write(fates_log(),*) 'ERROR: Unrecognized update frequency in SetFilterMapArrays(): ', this%vars(index)%update_frequency
+        write(fates_log(),*) 'ERROR: Unrecognized update frequency in SetFilterMapArrays(): ', this%update_frequency(index)
         call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
     end do
