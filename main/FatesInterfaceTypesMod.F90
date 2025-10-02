@@ -629,8 +629,6 @@ module FatesInterfaceTypesMod
      real(r8),allocatable :: hlm_sp_tsai(:)  ! Interpolated sailt total SAI (stem area index) input from HLM per patch/pft
      real(r8),allocatable :: hlm_sp_htop(:)  ! Interpolated daily canopy vegetation height    input from HLM per patch/pft
      
-     type(fates_interface_registry_base_type) :: API
-     
      contains
      
       procedure :: Initialize => InitializeBCIn
