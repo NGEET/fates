@@ -994,8 +994,8 @@ module FatesInterfaceTypesMod
     call this%DefineInterfaceRegistry(initialize=.true.)
 
     ! Allocate the index filter maps
-    allocate(this%index_filter_init(this%num_api_vars_update_init))
-    allocate(this%index_filter_daily(this%num_api_vars_update_daily))
+    allocate(this%filter_init(this%num_api_vars_update_init))
+    allocate(this%filter_daily(this%num_api_vars_update_daily))
     
     ! Set filter map arrays
     call this%SetFilterMapArrays()
@@ -1253,7 +1253,7 @@ module FatesInterfaceTypesMod
     do i = 1, this%num_api_vars_update_init
       
       ! Get the variable index from the init filter
-      j = this%index_filter_init(i)
+      j = this%filter_init(i)
       
       ! Update the variables
       call this%fates_vars(j)%Update(hlm_vars(j))
