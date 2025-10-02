@@ -1175,9 +1175,9 @@ module FatesInterfaceTypesMod
     
     ! Get index from registry key and associate the given data pointer
     if (hlm_flag) then
-      call this%hlm_vars(this%GetRegistryIndex(key, hlm_vars))%Register(data, active=.true.)
+      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
     else
-      call this%fates_vars(this%GetRegistryIndex(key, fates_vars))%Register(data, active=.true.)
+      call this%fates_vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
     end if
 
 
@@ -1197,9 +1197,9 @@ module FatesInterfaceTypesMod
 
     ! Get index from registry key and associate the given data pointer
     if (hlm_flag) then
-      call this%hlm_vars(this%GetRegistryIndex(key, hlm_vars))%Register(data(:), active=.true.)
+      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data(:), active=.true.)
     else
-      call this%fates_vars(this%GetRegistryIndex(key, fates_vars))%Register(data(:), active=.true.)
+      call this%fates_vars(this%GetRegistryIndex(key))%Register(data(:), active=.true.)
     end if
 
   end subroutine RegisterInterfaceVariables_1d
@@ -1218,9 +1218,9 @@ module FatesInterfaceTypesMod
 
     ! Get index from registry key and associate the given data pointer
     if (hlm_flag) then
-      call this%hlm_vars(this%GetRegistryIndex(key, hlm_vars))%Register(data(:,:), active=.true.)
+      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true.)
     else
-      call this%fates_vars(this%GetRegistryIndex(key, fates_vars))%Register(data(:,:), active=.true.)
+      call this%fates_vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true.)
     end if
 
   end subroutine RegisterInterfaceVariables_2d
@@ -1266,12 +1266,12 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
 
-  integer function GetRegistryIndex(this, vars, key) result(index)
+  integer function GetRegistryIndex(this, key) result(index)
 
     ! This procedure returns the index associated with the key provided
 
     class(fates_interface_registry_base_type), intent(in) :: this
-    class(fates_interface_variable_type), intent(in) :: vars
+
     character(len=*), intent(in) :: key    ! variable registry key to search
 
     integer :: ivar  ! Iterator
@@ -1288,12 +1288,12 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
 
-  function GetRegistryKey(this, vars, index) result(key)
+  function GetRegistryKey(this, index) result(key)
 
     ! This procedure returns the index associated with the key provided
 
     class(fates_interface_registry_base_type), intent(in) :: this
-    class(fates_interface_variable_type), intent(in) :: vars
+
     integer, intent(in) :: index    ! variable registry index
     character(len=:), allocatable :: key
 
