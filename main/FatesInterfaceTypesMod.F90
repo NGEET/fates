@@ -878,7 +878,7 @@ module FatesInterfaceTypesMod
     type(fates_interface_variable_type), allocatable :: hlm_vars(:) 
     type(fates_interface_variable_type), allocatable :: fates_vars(:) 
     
-    ! Arra of keys associated with the interface variables
+    ! Array of keys associated with the interface variables
     character(len=48), allocatable :: key(:)
 
     ! Variable regsitry metadata
