@@ -610,6 +610,7 @@ module EDTypesMod
 
      contains
 
+       procedure, public :: InitializeBoundaryConditions
        procedure, public :: get_current_landuse_statevector
        procedure, public :: get_secondary_young_fraction
 
