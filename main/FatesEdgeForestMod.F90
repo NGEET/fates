@@ -668,6 +668,7 @@ contains
     ! each edge bin
     !
     ! USES:
+    use FatesConstantsMod, only: t_water_freeze_k_1atm
     use FatesInterfaceTypesMod, only : nlevedgeforest
     use FatesEdgeForestParamsMod, only : ED_val_edgeforest_fireweather_rh_mult, ED_val_edgeforest_fireweather_rh_add
     use FatesEdgeForestParamsMod, only : ED_val_edgeforest_fireweather_temp_C_mult, ED_val_edgeforest_fireweather_temp_C_add
@@ -721,7 +722,8 @@ contains
       change_intended = check_change_intended(ED_val_edgeforest_fireweather_rh_mult, &
            ED_val_edgeforest_fireweather_rh_add, currentPatch%fireWeather%rh, weather_inout, tol)
       if (change_intended) then
-        currentPatch%fireWeather%rh = weather_inout
+        ! RH can't be negative. In rare cases it can be supersaturated (>100%), so don't check that.
+        currentPatch%fireWeather%rh = max(weather_inout, 0._r8)
       end if
 
       ! Temp
@@ -733,7 +735,8 @@ contains
       change_intended = check_change_intended(ED_val_edgeforest_fireweather_temp_C_mult, &
            ED_val_edgeforest_fireweather_temp_C_add, currentPatch%fireWeather%temp_C, weather_inout, tol)
       if (change_intended) then
-        currentPatch%fireWeather%temp_C = weather_inout
+        ! Temperature can't be below absolute zero
+        currentPatch%fireWeather%temp_C = max(weather_inout, -t_water_freeze_k_1atm)
       end if
 
       ! Wind
@@ -745,7 +748,8 @@ contains
       change_intended = check_change_intended(ED_val_edgeforest_fireweather_wind_mult, &
            ED_val_edgeforest_fireweather_wind_add, currentPatch%fireWeather%wind, weather_inout, tol)
       if (change_intended) then
-        currentPatch%fireWeather%wind = weather_inout
+        ! Wind speed can't be negative
+        currentPatch%fireWeather%wind = max(weather_inout, 0._r8)
       end if
 
       currentPatch => currentPatch%younger
