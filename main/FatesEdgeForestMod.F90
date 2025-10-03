@@ -30,6 +30,7 @@ module FatesEdgeForestMod
   public :: calculate_edgeforest_flammability_onevar_onebin
   public :: calculate_edgeforest_flammability_onevar
   public :: apply_edgeforest_flammability_to_patch_onevar
+  public :: check_change_intended
 
 contains
 
@@ -632,6 +633,35 @@ contains
   end subroutine apply_edgeforest_flammability_to_patch_onevar
 
 
+  function check_change_intended(params_mult, params_add, weather_before, weather_after, tol) result(change_intended)
+    ! DESCRIPTION:
+    ! Check whether fire weather change was intended. If not but one was found, throw error.
+    !
+    !
+    ! ARGUMENTS:
+    real(r8), intent(in) :: params_mult(:)
+    real(r8), intent(in) :: params_add(:)
+    real(r8), intent(in) :: weather_before
+    real(r8), intent(in) :: weather_after
+    real(r8), intent(in) :: tol
+    !
+    ! LOCAL VARIABLES
+    real(r8) :: weather_diff
+    !
+    ! RESULT:
+    logical :: change_intended
+
+    change_intended = any(abs(params_mult - 1._r8) > tol) .or. any(abs(params_add) > tol)
+    if (.not. change_intended) then
+      weather_diff = weather_after - weather_before
+      if (abs(weather_diff) > tol) then
+        write(fates_log(),*) 'No fire weather change intended but diff ',weather_diff
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
+    end if
+  end function check_change_intended
+
+
   subroutine apply_edgeforest_flammability_to_site(site)
     ! DESCRIPTION:
     ! Apply enhancements to one fireWeather variable in a patch based on how much of its area is in
@@ -653,7 +683,7 @@ contains
     real(r8) :: wind_by_edge_bin(nlevedgeforest)  ! wind value in each edge bin
     type(fates_patch_type), pointer :: currentPatch
     real(r8) :: weather_inout
-    logical  :: no_change_intended
+    logical  :: change_intended
     real(r8) :: tol = 1.e-9_r8
     real(r8) :: weather_diff
 
@@ -688,15 +718,9 @@ contains
            rh_by_edge_bin, &
            currentPatch%area_in_edgeforest_bins, &
            weather_inout)
-      no_change_intended = all(abs(ED_val_edgeforest_fireweather_rh_mult - 1._r8) < tol) .and. &
-                           all(abs(ED_val_edgeforest_fireweather_rh_add) < tol)
-      if (no_change_intended) then
-        weather_diff = weather_inout - currentPatch%fireWeather%rh
-        if (abs(weather_diff) > tol) then
-          write(fates_log(),*) 'No change intended but RH diff ',weather_diff
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-        end if
-      else
+      change_intended = check_change_intended(ED_val_edgeforest_fireweather_rh_mult, &
+           ED_val_edgeforest_fireweather_rh_add, currentPatch%fireWeather%rh, weather_inout, tol)
+      if (change_intended) then
         currentPatch%fireWeather%rh = weather_inout
       end if
 
@@ -706,15 +730,9 @@ contains
            temp_C_by_edge_bin, &
            currentPatch%area_in_edgeforest_bins, &
            weather_inout)
-      no_change_intended = all(abs(ED_val_edgeforest_fireweather_temp_C_mult - 1._r8) < tol) .and. &
-                           all(abs(ED_val_edgeforest_fireweather_temp_C_add) < tol)
-      if (no_change_intended) then
-        weather_diff = weather_inout - currentPatch%fireWeather%temp_C
-        if (abs(weather_diff) > tol) then
-          write(fates_log(),*) 'No change intended but temp diff ',weather_diff
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-        end if
-      else
+      change_intended = check_change_intended(ED_val_edgeforest_fireweather_temp_C_mult, &
+           ED_val_edgeforest_fireweather_temp_C_add, currentPatch%fireWeather%temp_C, weather_inout, tol)
+      if (change_intended) then
         currentPatch%fireWeather%temp_C = weather_inout
       end if
 
@@ -724,15 +742,9 @@ contains
            wind_by_edge_bin, &
            currentPatch%area_in_edgeforest_bins, &
            weather_inout)
-      no_change_intended = all(abs(ED_val_edgeforest_fireweather_wind_mult - 1._r8) < tol) .and. &
-                           all(abs(ED_val_edgeforest_fireweather_wind_add) < tol)
-      if (no_change_intended) then
-        weather_diff = weather_inout - currentPatch%fireWeather%wind
-        if (abs(weather_diff) > tol) then
-          write(fates_log(),*) 'No change intended but wind diff ',weather_diff
-          call endrun(msg=errMsg(__FILE__, __LINE__))
-        end if
-      else
+      change_intended = check_change_intended(ED_val_edgeforest_fireweather_wind_mult, &
+           ED_val_edgeforest_fireweather_wind_add, currentPatch%fireWeather%wind, weather_inout, tol)
+      if (change_intended) then
         currentPatch%fireWeather%wind = weather_inout
       end if
 

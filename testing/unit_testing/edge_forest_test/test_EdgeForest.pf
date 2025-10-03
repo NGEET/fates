@@ -12,6 +12,7 @@ module test_EdgeForest
   use FatesEdgeForestMod, only : calculate_edgeforest_flammability_onevar_onebin
   use FatesEdgeForestMod, only : calculate_edgeforest_flammability_onevar
   use FatesEdgeForestMod, only : apply_edgeforest_flammability_to_patch_onevar
+  use FatesEdgeForestMod, only : check_change_intended
   use funit
 
   implicit none
@@ -748,5 +749,95 @@ module test_EdgeForest
       
       @assertTrue(all([9._r8, 9._r8, 9._r8] == 9._r8))
     end subroutine test_apply_ef_flam_2patch_onevar_allbins_nochange
+
+    @Test
+    subroutine test_check_change_intended_true_justadd(this)
+      ! Test check_change_intended() returning false with only additive changes
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: params_mult(3) = [1._r8, 1._r8, 1._r8]
+      real(r8) :: params_add(3) = [1.e-30_r8, 32._r8, 64._r8]
+      real(r8) :: weather_before = 9._r8
+      real(r8) :: weather_after = 10._r8
+      real(r8) :: tol2 = 1.e-9_r8
+
+      @assertTrue(check_change_intended(params_mult, params_add, weather_before, weather_after, tol2))
+
+    end subroutine test_check_change_intended_true_justadd
+
+    @Test
+    subroutine test_check_change_intended_true_justadd_neg(this)
+      ! Test check_change_intended() returning false with only negative additive changes
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: params_mult(3) = [1._r8, 1._r8, 1._r8]
+      real(r8) :: params_add(3) = [-1.e-30_r8, -32._r8, -64._r8]
+      real(r8) :: weather_before = 9._r8
+      real(r8) :: weather_after = 10._r8
+      real(r8) :: tol2 = 1.e-9_r8
+
+      @assertTrue(check_change_intended(params_mult, params_add, weather_before, weather_after, tol2))
+
+    end subroutine test_check_change_intended_true_justadd_neg
+
+    @Test
+    subroutine test_check_change_intended_true_justmult(this)
+      ! Test check_change_intended() returning false with only multiplicative changes
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: params_mult(3) = [1.2_r8, 1.3_r8, 1.4_r8]
+      real(r8) :: params_add(3) = [0._r8, 0._r8, 0._r8]
+      real(r8) :: weather_before = 9._r8
+      real(r8) :: weather_after = 10._r8
+      real(r8) :: tol2 = 1.e-9_r8
+
+      @assertTrue(check_change_intended(params_mult, params_add, weather_before, weather_after, tol2))
+
+    end subroutine test_check_change_intended_true_justmult
+
+    @Test
+    subroutine test_check_change_intended_true_justmult_neg(this)
+      ! Test check_change_intended() returning false with only negative multiplicative changes
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: params_mult(3) = [-1.2_r8, -1.3_r8, -1.4_r8]
+      real(r8) :: params_add(3) = [0._r8, 0._r8, 0._r8]
+      real(r8) :: weather_before = 9._r8
+      real(r8) :: weather_after = 10._r8
+      real(r8) :: tol2 = 1.e-9_r8
+
+      @assertTrue(check_change_intended(params_mult, params_add, weather_before, weather_after, tol2))
+
+    end subroutine test_check_change_intended_true_justmult_neg
+
+    @Test
+    subroutine test_check_change_intended_true_both(this)
+      ! Test check_change_intended() returning false with both additive and multiplicative changes
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: params_mult(3) = [1.2_r8, 1.3_r8, 1.4_r8]
+      real(r8) :: params_add(3) = [0._r8, 2._r8, 22._r8]
+      real(r8) :: weather_before = 9._r8
+      real(r8) :: weather_after
+      real(r8) :: tol2 = 1.e-9_r8
+
+      ! Check that tolerance works
+      weather_after = weather_before + tol * (1._r8 + tol * 1.e-3_r8)
+
+      @assertTrue(check_change_intended(params_mult, params_add, weather_before, weather_after, tol2))
+
+    end subroutine test_check_change_intended_true_both
+
+    @Test
+    subroutine test_check_change_intended_false(this)
+      ! Test check_change_intended() returning false with neither additive nor multiplicative changes
+      class(TestEdgeForest), intent(inout) :: this
+      real(r8) :: params_mult(3) = [1._r8, 1._r8, 1._r8]
+      real(r8) :: params_add(3) = [0._r8, 0._r8, 0._r8]
+      real(r8) :: weather_before = 9._r8
+      real(r8) :: weather_after
+      real(r8) :: tol2 = 1.e-9_r8
+
+      ! Check that tolerance works
+      weather_after = weather_before + tol * 1.e-3_r8
+
+      @assertFalse(check_change_intended(params_mult, params_add, weather_before, weather_after, tol2))
+
+    end subroutine test_check_change_intended_false
 
   end module test_EdgeForest
