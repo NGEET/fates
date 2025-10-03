@@ -7,19 +7,17 @@ module test_Ecotypes
   use FatesEcotypesMod, only : DoesPatchHaveForest_TreeCover
   use FatesEcotypesMod, only : DoesPatchHaveForest_GrassBiomass
   use FatesEcotypesMod, only : IsPatchForest
-  use FatesFactoryMod,  only : InitializeGlobals, GetSyntheticPatch
+  use FatesFactoryMod,  only : InitializeParams, InitializeGlobals, GetSyntheticPatch
   use FatesPatchMod,    only : fates_patch_type
   use SyntheticPatchTypes, only : synthetic_patch_array_type
   use SyntheticPatchTypes, only : forest_tree_fraction_threshold
   use SyntheticPatchTypes, only : grass_biomass_threshold
-  use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
   use FatesArgumentUtils,  only : command_line_arg
   use funit
 
   implicit none
 
   ! LOCALS:
-  type(fates_unit_test_param_reader)             :: param_reader ! param reader instance
   integer :: i
   logical :: already_initialized = .false.
 
@@ -52,11 +50,8 @@ module test_Ecotypes
       ! Only need to do this for the first test
       if (.not. already_initialized) then
 
-        ! read in parameter file
-        call param_reader%Init('params.nc')
-        call param_reader%RetrieveParameters()
-
         ! initialize some global data we need
+        call InitializeParams()
         call InitializeGlobals(step_size)
 
         already_initialized = .true.

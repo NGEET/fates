@@ -24,7 +24,6 @@ import argparse
 from build_fortran_tests import build_tests
 from path_utils import add_cime_lib_to_path
 from utils import config_to_dict, parse_test_list
-from utils import check_param_file, create_param_file, _DEFAULT_CDL_PATH
 
 add_cime_lib_to_path()
 
@@ -100,26 +99,12 @@ def commandline_args():
         "for all tests. If not supplied, will run all tests.",
     )
 
-    parser.add_argument(
-        "-f",
-        "--parameter-file",
-        type=str,
-        default=_DEFAULT_CDL_PATH,
-        help="Parameter file to run the FATES tests with.\n"
-        "Can be a netcdf (.nc) or cdl (.cdl) file.\n"
-        "If no file is specified the script will use the default .cdl file in the\n"
-        "parameter_files directory.\n",
-    )
-
     args = parser.parse_args()
-
-    # check to make sure parameter file exists and is one of the correct forms
-    check_param_file(args.parameter_file)
 
     return args
 
 
-def run_unit_tests(clean, verbose_make, build_dir, make_j, test_dict, param_file):
+def run_unit_tests(clean, verbose_make, build_dir, make_j, test_dict):
     """Builds and runs the fates unit tests
 
     Args:
@@ -133,12 +118,6 @@ def run_unit_tests(clean, verbose_make, build_dir, make_j, test_dict, param_file
     # absolute path to desired build directory
     build_dir_path = os.path.abspath(build_dir)
 
-    # create parameter file, if needed
-    for _, attributes in test_dict.items():
-        if attributes["use_param_file"]:
-            param_file = create_param_file(param_file, build_dir_path)
-            break
-
     # compile code
     build_tests(
         build_dir_path, _CMAKE_BASE_DIR, make_j, clean=clean, verbose=verbose_make
@@ -150,11 +129,6 @@ def run_unit_tests(clean, verbose_make, build_dir, make_j, test_dict, param_file
 
         test_dir = os.path.join(build_dir_path, _TEST_SUB_DIR, attributes["test_dir"])
         ctest_command = ["ctest", "--output-on-failure"]
-
-        # Copy parameter file to test directory, if needed
-        if attributes["use_param_file"]:
-            test_param_file = os.path.join(test_dir, "params.nc")
-            copyfile(param_file, test_param_file)
 
         output = run_cmd_no_fail(
             " ".join(ctest_command), from_dir=test_dir, combine_output=True
@@ -177,7 +151,6 @@ def main():
         args.build_dir,
         args.make_j,
         test_dict,
-        args.parameter_file,
     )
 
 

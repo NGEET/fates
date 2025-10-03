@@ -268,6 +268,7 @@ module EDParamsMod
    character(len=param_string_length),parameter,public :: eca_name_plant_escalar = "fates_cnp_eca_plant_escalar"
 
    public :: FatesParamsInit
+   public :: FatesParamsInitForFactory
    public :: FatesRegisterParams
    public :: FatesReceiveParams
    public :: FatesReportParams
@@ -352,6 +353,21 @@ module EDParamsMod
     landuse_grazing_rate(:)               = nan
 
   end subroutine FatesParamsInit
+
+  !-----------------------------------------------------------------------
+
+  subroutine FatesParamsInitForFactory()
+    ! Initialize some parameters that are needed for unit-testing factories
+
+    allocate(ED_val_history_ageclass_bin_edges(7))
+    ED_val_history_ageclass_bin_edges = [0, 1, 2, 5, 10, 20, 50]
+
+    allocate(ED_val_history_sizeclass_bin_edges(13))
+    ED_val_history_sizeclass_bin_edges = [0, 5, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+
+    allocate(ED_val_history_coageclass_bin_edges(13))
+    ED_val_history_coageclass_bin_edges = [0, 5]
+  end subroutine FatesParamsInitForFactory
 
   !-----------------------------------------------------------------------
   subroutine FatesRegisterParams(fates_params)
