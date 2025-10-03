@@ -102,29 +102,6 @@ contains
   end subroutine GetNumberOfForestPatches
 
 
-  function GetNumberOfPatches(site) result(n_patches)
-    ! DESCRIPTION
-    ! Returns number of patches at site
-    !
-    ! ARGUMENTS:
-    type(ed_site_type), pointer, intent(in) :: site
-    !
-    ! RETURN VALUE:
-    integer :: n_patches
-    !
-    ! LOCAL VARIABLES:
-    type(fates_patch_type), pointer :: currentPatch
-
-    n_patches = 0
-    currentPatch => site%youngest_patch
-    do while(associated(currentPatch))
-       n_patches = n_patches + 1
-       currentPatch => currentPatch%older
-    enddo
-
-  end function GetNumberOfPatches
-
-
   subroutine RankForestEdgeProximity(site, indices, index_forestpatches_to_allpatches)
     ! DESCRIPTION:
     ! Rank forest patches by their proximity to edge.
@@ -523,7 +500,7 @@ contains
 
     ! Allocate arrays
     allocate(indices(1:n_forest_patches))
-    n_patches = GetNumberOfPatches(site)
+    n_patches = site%GetNumberOfPatches()
     allocate(index_forestpatches_to_allpatches(1:n_patches))
 
     ! Rank forest patches by their proximity to edge
