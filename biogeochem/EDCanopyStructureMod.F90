@@ -1320,9 +1320,9 @@ contains
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod                , only : area
     use FatesConstantsMod         , only : itrue
-    use FatesEcotypesMod     , only : is_patch_forest
+    use FatesEcotypesMod     , only : IsPatchForest
     use EDParamsMod          , only : forest_tree_fraction_threshold
-    use FatesEdgeForestMod   , only : calculate_edgeforest_area
+    use FatesEdgeForestMod   , only : CalculateEdgeForestArea
 
     ! !ARGUMENTS
     integer                 , intent(in)            :: nsites
@@ -1451,13 +1451,13 @@ contains
              currentPatch%total_canopy_area = currentPatch%area
           endif
 
-          currentPatch%is_forest = is_patch_forest(currentPatch, forest_tree_fraction_threshold)
+          currentPatch%is_forest = IsPatchForest(currentPatch, forest_tree_fraction_threshold)
 
           currentPatch => currentPatch%younger
        end do !patch loop
 
        if (hlm_use_edge_forest == itrue) then
-          call calculate_edgeforest_area(sites(s))
+          call CalculateEdgeForestArea(sites(s))
        end if
 
        call leaf_area_profile(sites(s))

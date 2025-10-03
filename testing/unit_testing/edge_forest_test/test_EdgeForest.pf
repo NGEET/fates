@@ -5,10 +5,10 @@ module test_EdgeForest
   !
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesEdgeForestMod, only : indexx
-  use FatesEdgeForestMod, only : get_fraction_of_edgeforest_in_each_bin
-  use FatesEdgeForestMod, only : gffeb_norm_numerator, gffeb_norm_denominator, gffeb_quadratic
-  use FatesEdgeForestMod, only : gffeb_norm
-  use FatesEdgeForestMod, only : assign_patch_to_bins
+  use FatesEdgeForestMod, only : GetFracEdgeForestInEachBin
+  use FatesEdgeForestMod, only : GetFracEdgeForestInEachBin_norm_numerator, GetFracEdgeForestInEachBin_norm_denominator, GetFracEdgeForestInEachBin_quadratic
+  use FatesEdgeForestMod, only : GetFracEdgeForestInEachBin_norm
+  use FatesEdgeForestMod, only : AssignPatchToBins
   use funit
 
   implicit none
@@ -119,7 +119,7 @@ module test_EdgeForest
 
 
     @Test
-    subroutine test_get_fraction_of_edgeforest_in_each_bin_gaussian(this)
+    subroutine test_GetFracEdgeForestInEachBin_gaussian(this)
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: frac_forest = 0.5_r8
       integer, parameter :: nlevedgeforest_tmp = 1
@@ -131,7 +131,7 @@ module test_EdgeForest
       ! Output
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
+      call GetFracEdgeForestInEachBin(frac_forest, nlevedgeforest_tmp, &
            efb_params_amplitude, efb_params_sigma, efb_params_center, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
@@ -139,11 +139,11 @@ module test_EdgeForest
 
       @assertEqual(0.3520653267642879_r8, fraction_forest_in_bin(1), tol)
 
-    end subroutine test_get_fraction_of_edgeforest_in_each_bin_gaussian
+    end subroutine test_GetFracEdgeForestInEachBin_gaussian
 
 
     @Test
-    subroutine test_get_fraction_of_edgeforest_in_each_bin_lognorm(this)
+    subroutine test_GetFracEdgeForestInEachBin_lognorm(this)
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: frac_forest = 0.5_r8
       integer, parameter :: nlevedgeforest_tmp = 1
@@ -155,7 +155,7 @@ module test_EdgeForest
       ! Output
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
+      call GetFracEdgeForestInEachBin(frac_forest, nlevedgeforest_tmp, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_amplitude, efb_params_sigma, efb_params_center, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
@@ -163,11 +163,11 @@ module test_EdgeForest
 
       @assertEqual(0.19029780481010555, fraction_forest_in_bin(1), tol)
 
-    end subroutine test_get_fraction_of_edgeforest_in_each_bin_lognorm
+    end subroutine test_GetFracEdgeForestInEachBin_lognorm
 
 
     @Test
-    subroutine test_get_fraction_of_edgeforest_in_each_bin_quadratic(this)
+    subroutine test_GetFracEdgeForestInEachBin_quadratic(this)
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: frac_forest = 0.5_r8
       integer, parameter :: nlevedgeforest_tmp = 1
@@ -179,7 +179,7 @@ module test_EdgeForest
       ! Output
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
+      call GetFracEdgeForestInEachBin(frac_forest, nlevedgeforest_tmp, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_a, efb_params_b, efb_params_c, &
@@ -187,11 +187,11 @@ module test_EdgeForest
 
       @assertEqual(1.75, fraction_forest_in_bin(1), tol)
 
-    end subroutine test_get_fraction_of_edgeforest_in_each_bin_quadratic
+    end subroutine test_GetFracEdgeForestInEachBin_quadratic
 
 
     @Test
-    subroutine test_get_fraction_of_edgeforest_in_each_bin_norm(this)
+    subroutine test_GetFracEdgeForestInEachBin_norm(this)
       ! Test that normalization works correctly: If all bins have the same parameters, they should
       ! get normalized to 1/nbins.
       class(TestEdgeForest), intent(inout) :: this
@@ -206,7 +206,7 @@ module test_EdgeForest
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
       real(r8) :: expected = 1._r8 / real(nlevedgeforest_tmp, r8)
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
+      call GetFracEdgeForestInEachBin(frac_forest, nlevedgeforest_tmp, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_nan, efb_params_nan, efb_params_nan, &
            efb_params_a, efb_params_b, efb_params_c, &
@@ -216,11 +216,11 @@ module test_EdgeForest
       @assertEqual(expected, fraction_forest_in_bin(2), tol)
       @assertEqual(expected, fraction_forest_in_bin(3), tol)
 
-    end subroutine test_get_fraction_of_edgeforest_in_each_bin_norm
+    end subroutine test_GetFracEdgeForestInEachBin_norm
 
 
     @Test
-    subroutine test_get_fraction_of_edgeforest_in_each_bin_x0(this)
+    subroutine test_GetFracEdgeForestInEachBin_x0(this)
       ! If frac forest is zero, all forest should be in first edge bin (closest to edge)
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: frac_forest = 0._r8
@@ -230,7 +230,7 @@ module test_EdgeForest
       ! Output
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
+      call GetFracEdgeForestInEachBin(frac_forest, nlevedgeforest_tmp, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
@@ -238,12 +238,12 @@ module test_EdgeForest
 
       @assertEqual( (/ 1._r8, 0._r8, 0._r8 /) , fraction_forest_in_bin)
 
-    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x0
+    end subroutine test_GetFracEdgeForestInEachBin_x0
 
     @Test
-    subroutine test_get_fraction_of_edgeforest_in_each_bin_x0_norm(this)
+    subroutine test_GetFracEdgeForestInEachBin_x0_norm(this)
       ! If frac forest is zero, all forest should be in first edge bin (closest to edge)
-      ! Same test as test_get_fraction_of_edgeforest_in_each_bin_x0, except norm=.true.
+      ! Same test as test_GetFracEdgeForestInEachBin_x0, except norm=.true.
       ! Shouldn't matter!
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: frac_forest = 0._r8
@@ -253,7 +253,7 @@ module test_EdgeForest
       ! Output
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
+      call GetFracEdgeForestInEachBin(frac_forest, nlevedgeforest_tmp, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
@@ -261,10 +261,10 @@ module test_EdgeForest
 
       @assertEqual( (/ 1._r8, 0._r8, 0._r8 /) , fraction_forest_in_bin)
 
-    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x0_norm
+    end subroutine test_GetFracEdgeForestInEachBin_x0_norm
 
     @Test
-    subroutine test_get_fraction_of_edgeforest_in_each_bin_x1(this)
+    subroutine test_GetFracEdgeForestInEachBin_x1(this)
       ! If frac forest is one, all forest should be in last edge bin ("deep forest")
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: frac_forest = 1._r8
@@ -274,7 +274,7 @@ module test_EdgeForest
       ! Output
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
+      call GetFracEdgeForestInEachBin(frac_forest, nlevedgeforest_tmp, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
@@ -282,12 +282,12 @@ module test_EdgeForest
 
       @assertEqual( (/ 0._r8, 0._r8, 1._r8 /) , fraction_forest_in_bin)
 
-    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x1
+    end subroutine test_GetFracEdgeForestInEachBin_x1
 
     @Test
-    subroutine test_get_fraction_of_edgeforest_in_each_bin_x1_norm(this)
+    subroutine test_GetFracEdgeForestInEachBin_x1_norm(this)
       ! If frac forest is one, all forest should be in last edge bin ("deep forest").
-      ! Same test as test_get_fraction_of_edgeforest_in_each_bin_x1, except norm=.true.
+      ! Same test as test_GetFracEdgeForestInEachBin_x1, except norm=.true.
       ! Shouldn't matter!
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: frac_forest = 1._r8
@@ -297,7 +297,7 @@ module test_EdgeForest
       ! Output
       real(r8), dimension(nlevedgeforest_tmp) :: fraction_forest_in_bin
 
-      call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest_tmp, &
+      call GetFracEdgeForestInEachBin(frac_forest, nlevedgeforest_tmp, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
            efb_params_dummy, efb_params_dummy, efb_params_dummy, &
@@ -305,7 +305,7 @@ module test_EdgeForest
 
       @assertEqual( (/ 0._r8, 0._r8, 1._r8 /) , fraction_forest_in_bin)
 
-    end subroutine test_get_fraction_of_edgeforest_in_each_bin_x1_norm
+    end subroutine test_GetFracEdgeForestInEachBin_x1_norm
 
     @Test
     subroutine test_gffeb_lognorm_numerator(this)
@@ -326,7 +326,7 @@ module test_EdgeForest
       expected = 1.4848754270133655
       lognorm = .true.
 
-      actual = gffeb_norm_numerator(x, A, mu, sigma, lognorm)
+      actual = GetFracEdgeForestInEachBin_norm_numerator(x, A, mu, sigma, lognorm)
 
       @assertEqual(expected, actual, tolerance=tol)
 
@@ -350,14 +350,14 @@ module test_EdgeForest
       expected = 1.160527865802580
       lognorm = .false.
 
-      actual = gffeb_norm_numerator(x, A, mu, sigma, lognorm)
+      actual = GetFracEdgeForestInEachBin_norm_numerator(x, A, mu, sigma, lognorm)
 
       @assertEqual(expected, actual, tolerance=tol)
 
     end subroutine test_gffeb_gaussian_numerator
 
     @Test
-    subroutine test_gffeb_norm_lognorm(this)
+    subroutine test_GetFracEdgeForestInEachBin_norm_lognorm(this)
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: x
       real(r8) :: A      ! Amplitude
@@ -374,14 +374,14 @@ module test_EdgeForest
       expected = 0.11800808319557105
       lognorm = .true.
 
-      actual = gffeb_norm(x, A, mu, sigma, lognorm)
+      actual = GetFracEdgeForestInEachBin_norm(x, A, mu, sigma, lognorm)
 
       @assertEqual(expected, actual, tolerance=tol)
 
-    end subroutine test_gffeb_norm_lognorm
+    end subroutine test_GetFracEdgeForestInEachBin_norm_lognorm
 
     @Test
-    subroutine test_gffeb_norm_gaussian(this)
+    subroutine test_GetFracEdgeForestInEachBin_norm_gaussian(this)
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: x
       real(r8) :: A      ! Amplitude
@@ -398,11 +398,11 @@ module test_EdgeForest
       expected = 0.1543278780068184
       lognorm = .false.
 
-      actual = gffeb_norm(x, A, mu, sigma, lognorm)
+      actual = GetFracEdgeForestInEachBin_norm(x, A, mu, sigma, lognorm)
 
       @assertEqual(expected, actual, tolerance=tol)
 
-    end subroutine test_gffeb_norm_gaussian
+    end subroutine test_GetFracEdgeForestInEachBin_norm_gaussian
 
     @Test
     subroutine test_gffeb_lognorm_denominator(this)
@@ -421,7 +421,7 @@ module test_EdgeForest
       expected = 21.21884485617329
       lognorm = .true.
 
-      actual = gffeb_norm_denominator(x, sigma, lognorm)
+      actual = GetFracEdgeForestInEachBin_norm_denominator(x, sigma, lognorm)
 
       @assertEqual(expected, actual, tolerance=tol)
 
@@ -444,14 +444,14 @@ module test_EdgeForest
       expected = 2.121884538742686
       lognorm = .false.
 
-      actual = gffeb_norm_denominator(x, sigma, lognorm)
+      actual = GetFracEdgeForestInEachBin_norm_denominator(x, sigma, lognorm)
 
       @assertEqual(expected, actual, tolerance=tol)
 
     end subroutine test_gffeb_gaussian_denominator
 
     @Test
-    subroutine test_gffeb_quadratic(this)
+    subroutine test_GetFracEdgeForestInEachBin_quadratic(this)
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: x = 0.4_r8
       real(r8) :: a = 1987._r8
@@ -460,14 +460,14 @@ module test_EdgeForest
       real(r8) :: expected = 3111.92_r8
       real(r8) :: actual
 
-      actual = gffeb_quadratic(x, a, b, c)
+      actual = GetFracEdgeForestInEachBin_quadratic(x, a, b, c)
 
       @assertEqual(expected, actual, tolerance=tol)
 
-    end subroutine test_gffeb_quadratic
+    end subroutine test_GetFracEdgeForestInEachBin_quadratic
 
     @Test
-    subroutine test_assign_patch_to_bins_01(this)
+    subroutine test_AssignPatchToBins_01(this)
       ! The site has just one forest patch. All of the site's forest area is in the bin closest to edge.
       class(TestEdgeForest), intent(inout) :: this
       integer, parameter :: nlevedgeforest_tmp = 3
@@ -488,7 +488,7 @@ module test_EdgeForest
       real(r8), dimension(nlevedgeforest_tmp), target :: fraction_forest_in_each_bin
       fraction_forest_in_each_bin = (/ 1._r8, 0._r8, 0._r8 /)
 
-      call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
+      call AssignPatchToBins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
            nlevedgeforest_tmp, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
 
       ! 0+100=100 area of the site's forest has been assigned after this call
@@ -496,10 +496,10 @@ module test_EdgeForest
 
       ! All of the patch's area was assigned to the first edge bin
       @assertEqual(100._r8, area_in_edgeforest_bins(1), tolerance=tol)
-    end subroutine test_assign_patch_to_bins_01
+    end subroutine test_AssignPatchToBins_01
 
     @Test
-    subroutine test_assign_patch_to_bins_02(this)
+    subroutine test_AssignPatchToBins_02(this)
       ! The site has multiple forest patches. All of the site's forest area is in the bin closest to edge.
       class(TestEdgeForest), intent(inout) :: this
       integer, parameter :: nlevedgeforest_tmp = 3
@@ -520,7 +520,7 @@ module test_EdgeForest
       real(r8), dimension(nlevedgeforest_tmp), target :: fraction_forest_in_each_bin
       fraction_forest_in_each_bin = (/ 1._r8, 0._r8, 0._r8 /)
 
-      call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
+      call AssignPatchToBins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
            nlevedgeforest_tmp, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
 
       ! 0+100=100 area of the site's forest has been assigned after this call
@@ -530,10 +530,10 @@ module test_EdgeForest
       @assertEqual(100._r8, area_in_edgeforest_bins(1), tolerance=tol)
       @assertEqual(0._r8, area_in_edgeforest_bins(2), tolerance=tol)
       @assertEqual(0._r8, area_in_edgeforest_bins(3), tolerance=tol)
-    end subroutine test_assign_patch_to_bins_02
+    end subroutine test_AssignPatchToBins_02
 
     @Test
-    subroutine test_assign_patch_to_bins_03(this)
+    subroutine test_AssignPatchToBins_03(this)
       ! The site has just one forest patch. The site's forest split evenly across the two bins closest to edge.
       class(TestEdgeForest), intent(inout) :: this
       integer, parameter :: nlevedgeforest_tmp = 3
@@ -554,7 +554,7 @@ module test_EdgeForest
       real(r8), dimension(nlevedgeforest_tmp), target :: fraction_forest_in_each_bin
       fraction_forest_in_each_bin = (/ 0.5_r8, 0.5_r8, 0._r8 /)
 
-      call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
+      call AssignPatchToBins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
            nlevedgeforest_tmp, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
 
       ! 0+100=100 area of the site's forest has been assigned after this call
@@ -564,10 +564,10 @@ module test_EdgeForest
       @assertEqual(50._r8, area_in_edgeforest_bins(1), tolerance=tol)
       @assertEqual(50._r8, area_in_edgeforest_bins(2), tolerance=tol)
       @assertEqual(0._r8, area_in_edgeforest_bins(3), tolerance=tol)
-    end subroutine test_assign_patch_to_bins_03
+    end subroutine test_AssignPatchToBins_03
 
     @Test
-    subroutine test_assign_patch_to_bins_04(this)
+    subroutine test_AssignPatchToBins_04(this)
       ! The site has just one forest patch. The site's forest is split evenly across the two bins farthest from edge.
       class(TestEdgeForest), intent(inout) :: this
       integer, parameter :: nlevedgeforest_tmp = 3
@@ -588,7 +588,7 @@ module test_EdgeForest
       real(r8), dimension(nlevedgeforest_tmp), target :: fraction_forest_in_each_bin
       fraction_forest_in_each_bin = (/ 0._r8, 0.5_r8, 0.5_r8 /)
 
-      call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
+      call AssignPatchToBins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
            nlevedgeforest_tmp, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
 
       ! 0+100=100 area of the site's forest has been assigned after this call
@@ -598,10 +598,10 @@ module test_EdgeForest
       @assertEqual(0._r8, area_in_edgeforest_bins(1), tolerance=tol)
       @assertEqual(50._r8, area_in_edgeforest_bins(2), tolerance=tol)
       @assertEqual(50._r8, area_in_edgeforest_bins(3), tolerance=tol)
-    end subroutine test_assign_patch_to_bins_04
+    end subroutine test_AssignPatchToBins_04
 
     @Test
-    subroutine test_assign_patch_to_bins_05(this)
+    subroutine test_AssignPatchToBins_05(this)
       ! The site has multiple forest patches. Some of the site's forest area has already been assigned. The patch isn't big enough to take the rest of the site's forest area.
       class(TestEdgeForest), intent(inout) :: this
       integer, parameter :: nlevedgeforest_tmp = 3
@@ -622,7 +622,7 @@ module test_EdgeForest
       real(r8), dimension(nlevedgeforest_tmp), target :: fraction_forest_in_each_bin
       fraction_forest_in_each_bin = (/ 0._r8, 0.5_r8, 0.5_r8 /)
 
-      call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
+      call AssignPatchToBins(fraction_forest_in_each_bin, area_forest_patches, patch_area, &
            nlevedgeforest_tmp, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins)
 
       ! 30+50=80 area of the site's forest has been assigned after this call
@@ -632,6 +632,6 @@ module test_EdgeForest
       @assertEqual(0._r8, area_in_edgeforest_bins(1), tolerance=tol)
       @assertEqual(20._r8, area_in_edgeforest_bins(2), tolerance=tol)
       @assertEqual(30._r8, area_in_edgeforest_bins(3), tolerance=tol)
-    end subroutine test_assign_patch_to_bins_05
+    end subroutine test_AssignPatchToBins_05
 
   end module test_EdgeForest

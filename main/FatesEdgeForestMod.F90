@@ -9,7 +9,7 @@ module FatesEdgeForestMod
   use EDTypesMod, only : ed_site_type
   use EDTypesMod, only : AREA
   use FatesPatchMod, only : fates_patch_type
-  use FatesEcotypesMod, only : is_patch_forest
+  use FatesEcotypesMod, only : IsPatchForest
   use FatesUtilsMod,    only : is_param_set
 
   implicit none
@@ -17,15 +17,15 @@ module FatesEdgeForestMod
 
   ! Make public necessary subroutines and functions
   public :: CalculateTreeGrassAreaSite
-  public :: calculate_edgeforest_area
+  public :: CalculateEdgeForestArea
   ! Public for unit testing
   public :: indexx
-  public :: get_fraction_of_edgeforest_in_each_bin
-  public :: gffeb_norm_numerator
-  public :: gffeb_norm_denominator
-  public :: gffeb_norm
-  public :: gffeb_quadratic
-  public :: assign_patch_to_bins
+  public :: GetFracEdgeForestInEachBin
+  public :: GetFracEdgeForestInEachBin_norm_numerator
+  public :: GetFracEdgeForestInEachBin_norm_denominator
+  public :: GetFracEdgeForestInEachBin_norm
+  public :: GetFracEdgeForestInEachBin_quadratic
+  public :: AssignPatchToBins
 
 contains
 
@@ -36,7 +36,7 @@ contains
     !  DESCRIPTION:
     !  Calculates total grass, tree, and bare fractions for a site
 
-    use FatesEcotypesMod,   only : is_patch_forest
+    use FatesEcotypesMod,   only : IsPatchForest
     use EDParamsMod,        only : forest_tree_fraction_threshold
 
     ! ARGUMENTS:
@@ -57,7 +57,7 @@ contains
         call currentPatch%UpdateTreeGrassArea()
         tree_fraction = tree_fraction + currentPatch%total_tree_area/AREA
         grass_fraction = grass_fraction + currentPatch%total_grass_area/AREA
-        currentPatch%is_forest = is_patch_forest(currentPatch, forest_tree_fraction_threshold)
+        currentPatch%is_forest = IsPatchForest(currentPatch, forest_tree_fraction_threshold)
       end if
       currentPatch => currentPatch%younger
     end do
@@ -66,13 +66,13 @@ contains
     grass_fraction = min(grass_fraction, 1.0_r8 - tree_fraction)
     bare_fraction = 1.0_r8 - tree_fraction - grass_fraction
 
-    ! Must come after patch loop with is_patch_forest() call
-    call calculate_edgeforest_area(csite)
+    ! Must come after patch loop with IsPatchForest() call
+    call CalculateEdgeForestArea(csite)
 
   end subroutine CalculateTreeGrassAreaSite
 
 
-  subroutine get_number_of_forest_patches(site, n_forest_patches, area_forest_patches, area_site)
+  subroutine GetNumberOfForestPatches(site, n_forest_patches, area_forest_patches, area_site)
     ! DESCRIPTION
     ! Returns number and area of forest patches at site
     !
@@ -99,10 +99,10 @@ contains
        currentPatch => currentPatch%older
     enddo
 
-  end subroutine get_number_of_forest_patches
+  end subroutine GetNumberOfForestPatches
 
 
-  function get_number_of_patches(site) result(n_patches)
+  function GetNumberOfPatches(site) result(n_patches)
     ! DESCRIPTION
     ! Returns number of patches at site
     !
@@ -122,10 +122,10 @@ contains
        currentPatch => currentPatch%older
     enddo
 
-  end function get_number_of_patches
+  end function GetNumberOfPatches
 
 
-  subroutine rank_forest_edge_proximity(site, indices, index_forestpatches_to_allpatches)
+  subroutine RankForestEdgeProximity(site, indices, index_forestpatches_to_allpatches)
     ! DESCRIPTION:
     ! Rank forest patches by their proximity to edge.
     !
@@ -177,9 +177,9 @@ contains
 
     ! Clean up
     deallocate(array)
-  end subroutine rank_forest_edge_proximity
+  end subroutine RankForestEdgeProximity
 
-  function gffeb_norm_numerator(x_in, A, mu, sigma, lognorm)
+  function GetFracEdgeForestInEachBin_norm_numerator(x_in, A, mu, sigma, lognorm)
     ! DESCRIPTION
     ! Gets numerator at xof normal-like function (Gaussian if lognorm==.true., lognormal otherwise)
     !
@@ -191,7 +191,7 @@ contains
     logical,  intent(in) :: lognorm  ! Gaussian function if true, lognormal otherwise
     !
     ! RETURN VALUE:
-    real(r8) :: gffeb_norm_numerator
+    real(r8) :: GetFracEdgeForestInEachBin_norm_numerator
     !
     ! LOCAL VARIABLES:
     real(r8) :: x  ! either x_in or its log
@@ -202,10 +202,10 @@ contains
        x = x_in
     end if
 
-    gffeb_norm_numerator = A * exp(-(x - mu)**2 / (2*sigma**2))
-  end function gffeb_norm_numerator
+    GetFracEdgeForestInEachBin_norm_numerator = A * exp(-(x - mu)**2 / (2*sigma**2))
+  end function GetFracEdgeForestInEachBin_norm_numerator
 
-  function gffeb_norm_denominator(x, sigma, lognorm)
+  function GetFracEdgeForestInEachBin_norm_denominator(x, sigma, lognorm)
     ! DESCRIPTION
     ! Gets denominator at x of normal-like function (Gaussian if lognorm==.true., lognormal otherwise)
     !
@@ -216,15 +216,15 @@ contains
     logical,  intent(in) :: lognorm  ! Gaussian function if true, lognormal otherwise
     !
     ! RETURN VALUE:
-    real(r8) :: gffeb_norm_denominator
+    real(r8) :: GetFracEdgeForestInEachBin_norm_denominator
 
-    gffeb_norm_denominator = sigma * sqrt(2*pi)
+    GetFracEdgeForestInEachBin_norm_denominator = sigma * sqrt(2*pi)
     if (lognorm) then
-       gffeb_norm_denominator = gffeb_norm_denominator * x
+       GetFracEdgeForestInEachBin_norm_denominator = GetFracEdgeForestInEachBin_norm_denominator * x
     end if
-  end function gffeb_norm_denominator
+  end function GetFracEdgeForestInEachBin_norm_denominator
 
-  function gffeb_norm(x, A, mu, sigma, lognorm)
+  function GetFracEdgeForestInEachBin_norm(x, A, mu, sigma, lognorm)
     ! DESCRIPTION
     ! Gets value at x of normal-like function (Gaussian if lognorm==.true., lognormal otherwise)
     !
@@ -236,12 +236,12 @@ contains
     logical,  intent(in) :: lognorm  ! Gaussian function if true, lognormal otherwise
     !
     ! RETURN VALUE:
-    real(r8) :: gffeb_norm
+    real(r8) :: GetFracEdgeForestInEachBin_norm
 
-    gffeb_norm = gffeb_norm_numerator(x, A, mu, sigma, lognorm) / gffeb_norm_denominator(x, sigma, lognorm)
-  end function gffeb_norm
+    GetFracEdgeForestInEachBin_norm = GetFracEdgeForestInEachBin_norm_numerator(x, A, mu, sigma, lognorm) / GetFracEdgeForestInEachBin_norm_denominator(x, sigma, lognorm)
+  end function GetFracEdgeForestInEachBin_norm
 
-  function gffeb_quadratic(x, a, b, c)
+  function GetFracEdgeForestInEachBin_quadratic(x, a, b, c)
     ! DESCRIPTION
     ! Gets value at x of quadratic function
     !
@@ -250,12 +250,12 @@ contains
     real(r8), intent(in) :: a, b, c  ! Parameters
     !
     ! RETURN VALUE:
-    real(r8) :: gffeb_quadratic
+    real(r8) :: GetFracEdgeForestInEachBin_quadratic
 
-    gffeb_quadratic = a*(x**2) + b*x + c
-  end function gffeb_quadratic
+    GetFracEdgeForestInEachBin_quadratic = a*(x**2) + b*x + c
+  end function GetFracEdgeForestInEachBin_quadratic
 
-  subroutine get_fraction_of_edgeforest_in_each_bin(x, nlevedgeforest, efb_gaussian_amplitudes, efb_gaussian_sigmas, efb_gaussian_centers, efb_lognormal_amplitudes, efb_lognormal_sigmas, efb_lognormal_centers, efb_quadratic_a, efb_quadratic_b, efb_quadratic_c, fraction_forest_in_bin, norm)
+  subroutine GetFracEdgeForestInEachBin(x, nlevedgeforest, efb_gaussian_amplitudes, efb_gaussian_sigmas, efb_gaussian_centers, efb_lognormal_amplitudes, efb_lognormal_sigmas, efb_lognormal_centers, efb_quadratic_a, efb_quadratic_b, efb_quadratic_c, fraction_forest_in_bin, norm)
     ! DESCRIPTION:
     ! Get the fraction of forest in each bin.
     !
@@ -323,11 +323,11 @@ contains
             mu = efb_gaussian_centers(b)
             sigma = efb_gaussian_sigmas(b)
          end if
-         fraction_forest_in_bin(b) = gffeb_norm(x, A, mu, sigma, lognorm)
+         fraction_forest_in_bin(b) = GetFracEdgeForestInEachBin_norm(x, A, mu, sigma, lognorm)
 
        else if (is_param_set(efb_quadratic_a(b))) then
          ! Quadratic
-         fraction_forest_in_bin(b) = gffeb_quadratic(x, efb_quadratic_a(b), efb_quadratic_b(b), efb_quadratic_c(b))
+         fraction_forest_in_bin(b) = GetFracEdgeForestInEachBin_quadratic(x, efb_quadratic_a(b), efb_quadratic_b(b), efb_quadratic_c(b))
 
        else
          call endrun("Unrecognized bin fit type")
@@ -346,10 +346,10 @@ contains
     end if
 
 
-  end subroutine get_fraction_of_edgeforest_in_each_bin
+  end subroutine GetFracEdgeForestInEachBin
 
 
-  subroutine assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, patch_area, nlevedgeforest, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins_m2)
+  subroutine AssignPatchToBins(fraction_forest_in_each_bin, area_forest_patches, patch_area, nlevedgeforest, tol, sum_forest_bins_so_far_m2, area_in_edgeforest_bins_m2)
     ! DESCRIPTION
     ! Given one patch in a site, assign its area to edge bin(s).
     !
@@ -402,10 +402,10 @@ contains
        write(fates_log(),*) "ERROR: not enough or too much patch area was assigned to bins (check 2); remainder = ",err_chk
        call endrun(msg=errMsg(__FILE__, __LINE__))
     end if
-  end subroutine assign_patch_to_bins
+  end subroutine AssignPatchToBins
 
 
-  subroutine assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
+  subroutine AssignPatchesToBins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
     ! DESCRIPTION
     ! Loops through forest patches from nearest to farthest from edge, assigning their
     ! area to edge bin(s).
@@ -454,7 +454,7 @@ contains
        end if
 
        ! Assign this patch's area
-       call assign_patch_to_bins(fraction_forest_in_each_bin, area_forest_patches, currentPatch%area, nlevedgeforest, tol, sum_forest_bins_so_far_m2, currentPatch%area_in_edgeforest_bins)
+       call AssignPatchToBins(fraction_forest_in_each_bin, area_forest_patches, currentPatch%area, nlevedgeforest, tol, sum_forest_bins_so_far_m2, currentPatch%area_in_edgeforest_bins)
 
     end do forestpatchloop
 
@@ -487,10 +487,10 @@ contains
           call endrun(msg=errMsg(__FILE__, __LINE__))
        end if
     end do binloop_check4b
-  end subroutine assign_patches_to_bins
+  end subroutine AssignPatchesToBins
 
 
-  subroutine calculate_edgeforest_area(site)
+  subroutine CalculateEdgeForestArea(site)
     ! DESCRIPTION:
     ! Loop through forest patches in decreasing order of proximity, calculating the
     ! area of each patch that is in each edge bin.
@@ -516,30 +516,30 @@ contains
     real(r8), dimension(nlevedgeforest), target :: fraction_forest_in_each_bin
 
     ! Skip sites with no forest patches
-    call get_number_of_forest_patches(site, n_forest_patches, area_forest_patches, area_site)
+    call GetNumberOfForestPatches(site, n_forest_patches, area_forest_patches, area_site)
     if (n_forest_patches == 0) then
        return
     end if
 
     ! Allocate arrays
     allocate(indices(1:n_forest_patches))
-    n_patches = get_number_of_patches(site)
+    n_patches = GetNumberOfPatches(site)
     allocate(index_forestpatches_to_allpatches(1:n_patches))
 
     ! Rank forest patches by their proximity to edge
-    call rank_forest_edge_proximity(site, indices, index_forestpatches_to_allpatches)
+    call RankForestEdgeProximity(site, indices, index_forestpatches_to_allpatches)
 
     ! Get fraction of forest area in each bin
     frac_forest = area_forest_patches / area_site
-    call get_fraction_of_edgeforest_in_each_bin(frac_forest, nlevedgeforest, ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, fraction_forest_in_each_bin)
+    call GetFracEdgeForestInEachBin(frac_forest, nlevedgeforest, ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, fraction_forest_in_each_bin)
 
     ! Assign patches to bins
-    call assign_patches_to_bins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
+    call AssignPatchesToBins(site, indices, index_forestpatches_to_allpatches, fraction_forest_in_each_bin, n_forest_patches, n_patches, area_forest_patches)
 
     ! Clean up
     deallocate(indices)
     deallocate(index_forestpatches_to_allpatches)
-  end subroutine calculate_edgeforest_area
+  end subroutine CalculateEdgeForestArea
 
 
 

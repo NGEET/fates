@@ -2,8 +2,8 @@ program FatesTestEdgeForest
 
   use FatesConstantsMod,           only : r8 => fates_r8
   use FatesUtilsMod,               only : is_param_set
-  use FatesEdgeForestMod,          only : gffeb_norm, gffeb_quadratic
-  use FatesEdgeForestMod,          only : get_fraction_of_edgeforest_in_each_bin
+  use FatesEdgeForestMod,          only : GetFracEdgeForestInEachBin_norm, GetFracEdgeForestInEachBin_quadratic
+  use FatesEdgeForestMod,          only : GetFracEdgeForestInEachBin
   use FatesEdgeForestParamsMod, only : ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma,ED_val_edgeforest_gaussian_center
   use FatesEdgeForestParamsMod, only : ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma,ED_val_edgeforest_lognormal_center
   use FatesEdgeForestParamsMod, only : ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b,ED_val_edgeforest_quadratic_c
@@ -128,14 +128,14 @@ program FatesTestEdgeForest
   do i = 1, n_frac_forest
 
     ! Pre-normalization
-    call get_fraction_of_edgeforest_in_each_bin(frac_forest(i), n_bins, &
+    call GetFracEdgeForestInEachBin(frac_forest(i), n_bins, &
         ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, &
         ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, &
         ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, &
         frac_in_every_bin(i,:), .false.)
 
     ! Normalized
-    call get_fraction_of_edgeforest_in_each_bin(frac_forest(i), n_bins, &
+    call GetFracEdgeForestInEachBin(frac_forest(i), n_bins, &
         ED_val_edgeforest_gaussian_amplitude, ED_val_edgeforest_gaussian_sigma, ED_val_edgeforest_gaussian_center, &
         ED_val_edgeforest_lognormal_amplitude, ED_val_edgeforest_lognormal_sigma, ED_val_edgeforest_lognormal_center, &
         ED_val_edgeforest_quadratic_a, ED_val_edgeforest_quadratic_b, ED_val_edgeforest_quadratic_c, &
