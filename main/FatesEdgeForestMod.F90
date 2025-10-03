@@ -104,7 +104,7 @@ contains
 
   subroutine RankForestEdgeProximity(site, indices, index_forestpatches_to_allpatches)
     ! DESCRIPTION:
-    ! Rank forest patches by their proximity to edge.
+    ! Rank forest patches by their proximity to edge, using age as a proxy.
     !
     ! ARGUMENTS:
     type(ed_site_type), pointer, intent(in) :: site
