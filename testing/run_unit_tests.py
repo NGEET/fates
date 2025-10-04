@@ -18,7 +18,6 @@ This script builds and runs FATES units tests.
 
 """
 import os
-from shutil import copyfile
 import argparse
 
 from build_fortran_tests import build_tests
@@ -27,9 +26,7 @@ from utils import config_to_dict, parse_test_list
 
 add_cime_lib_to_path()
 
-from CIME.utils import (
-    run_cmd_no_fail,
-)  # pylint: disable=wrong-import-position,import-error,wrong-import-order
+from CIME.utils import run_cmd_no_fail  # pylint: disable=wrong-import-position,import-error,wrong-import-order
 
 # constants for this script
 _FILE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -129,7 +126,6 @@ def run_unit_tests(clean, verbose_make, build_dir, make_j, test_dict):
 
         test_dir = os.path.join(build_dir_path, _TEST_SUB_DIR, attributes["test_dir"])
         ctest_command = ["ctest", "--output-on-failure"]
-
         output = run_cmd_no_fail(
             " ".join(ctest_command), from_dir=test_dir, combine_output=True
         )
@@ -146,11 +142,7 @@ def main():
     test_dict = parse_test_list(full_test_dict, args.test_list)
 
     run_unit_tests(
-        args.clean,
-        args.verbose_make,
-        args.build_dir,
-        args.make_j,
-        test_dict,
+        args.clean, args.verbose_make, args.build_dir, args.make_j, test_dict
     )
 
 
