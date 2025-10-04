@@ -14,17 +14,6 @@ from CIME.utils import (
     run_cmd_no_fail,
 )  # pylint: disable=wrong-import-position,import-error,wrong-import-order
 
-# constants for this script
-_FILE_DIR = os.path.dirname(__file__)
-_DEFAULT_CDL_PATH = os.path.abspath(
-    os.path.join(
-        _FILE_DIR,
-        os.pardir,
-        "parameter_files",
-        "fates_params_default.cdl",
-    )
-)
-
 
 def round_up(num: float, decimals: int = 0) -> float:
     """Rounds a number up
@@ -214,55 +203,3 @@ def str_to_list(val: str) -> list:
         return []
     res = val.strip("][").split(",")
     return [n.strip() for n in res]
-
-
-def check_param_file(param_file):
-    """Checks to see if param_file exists and is of the correct form (.nc or .cdl)
-
-    Args:
-        param_file (str): path to parameter file
-
-    Raises:
-        argparse.ArgumentError: Parameter file is not of the correct form (.nc or .cdl)
-        argparse.ArgumentError: Can't find parameter file
-    """
-    file_suffix = os.path.basename(param_file).split(".")[-1]
-    if not file_suffix in ["cdl", "nc"]:
-        raise argparse.ArgumentError(
-            None, "Must supply parameter file with .cdl or .nc ending."
-        )
-    if not os.path.isfile(param_file):
-        raise FileNotFoundError(param_file)
-
-
-def create_param_file(param_file, run_dir):
-    """Creates and/or move the default or input parameter file to the run directory
-    Creates a netcdf file from a cdl file if a cdl file is supplied
-
-    Args:
-        param_file (str): path to parmaeter file
-        run_dir (str): full path to run directory
-
-    Raises:
-        RuntimeError: Supplied parameter file is not netcdf (.cd) or cdl (.cdl)
-
-    Returns:
-        str: full path to new parameter file name/location
-    """
-    if param_file is None:
-        print("Using default parameter file.")
-        param_file = _DEFAULT_CDL_PATH
-        param_file_update = create_nc_from_cdl(param_file, run_dir)
-    else:
-        print(f"Using parameter file {param_file}.")
-        file_suffix = os.path.basename(param_file).split(".")[-1]
-        if file_suffix == "cdl":
-            param_file_update = create_nc_from_cdl(param_file, run_dir)
-        elif file_suffix == "nc":
-            param_file_update = copy_file(param_file, run_dir)
-        else:
-            raise RuntimeError("Must supply parameter file with .cdl or .nc ending.")
-
-    print(f"Parameter file saved to {os.path.abspath(param_file_update)}")
-
-    return param_file_update

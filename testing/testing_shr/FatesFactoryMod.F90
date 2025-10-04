@@ -23,10 +23,13 @@ module FatesFactoryMod
   use EDParamsMod,                 only : nclmax
   use EDParamsMod,                 only : photo_temp_acclim_timescale
   use EDParamsMod,                 only : photo_temp_acclim_thome_time
+  use EDParamsMod,                 only : FatesParamsInitForFactory
   use FatesRunningMeanMod,         only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
   use FatesRunningMeanMod,         only : moving_ema_window, fixed_window
   use EDCohortDynamicsMod,         only : InitPRTObject
   use PRTParametersMod,            only : prt_params
+  use EDPftvarcon,                 only : EDPftvarcon_inst
+  use FatesParameterDerivedMod,    only : param_derived
   use PRTGenericMod,               only : element_pos
   use PRTGenericMod,               only : num_elements
   use PRTGenericMod,               only : element_list
@@ -64,12 +67,74 @@ module FatesFactoryMod
   implicit none
   
   public :: GetSyntheticPatch
+  public :: InitializeParams
   public :: InitializeGlobals
   
   contains
   
   !---------------------------------------------------------------------------------------
   
+  subroutine InitializeParams()
+    !
+    ! DESCRIPTION:
+    ! Initialize parameters needed for running factory that usually come from the parameter file
+
+    ! LOCALS:
+    integer, parameter :: n_pfts = 14
+    integer, parameter :: n_leafage_class = 1
+
+    ! Things from parameter file for prt_params
+    call FatesParamsInitForFactory()
+    allocate(prt_params%allom_agb_frac(n_pfts)); prt_params%allom_agb_frac = [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 1., 1., 1.]
+    allocate(prt_params%allom_agb1(n_pfts)); prt_params%allom_agb1 = [0.0673, 0.1364012, 0.0393057, 0.2653695, 0.0673, 0.0728698, 0.06896, 0.06896, 0.06896, 0.06896, 0.06896, 0.001, 0.001, 0.003]
+    allocate(prt_params%allom_agb2(n_pfts)); prt_params%allom_agb2 = [0.976, 0.9449041, 1.087335, 0.8321321, 0.976, 1.0373211, 0.572, 0.572, 0.572, 0.5289883, 0.6853945, 1.6592, 1.6592, 1.3456]
+    allocate(prt_params%allom_agb3(n_pfts)); prt_params%allom_agb3 = [1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 2.1010352, 1.7628613, 1.248, 1.248, 1.869]
+    allocate(prt_params%allom_agb4(n_pfts)); prt_params%allom_agb4 = [0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, -999.9, -999.9, -999.9]
+    allocate(prt_params%allom_amode(n_pfts)); prt_params%allom_amode = [3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 5, 5, 5]
+    allocate(prt_params%allom_blca_expnt_diff(n_pfts)); prt_params%allom_blca_expnt_diff = [-0.12, -0.34, -0.32, -0.22, -0.12, -0.35, 0., 0., 0., 0., 0., -0.487, -0.487, -0.259]
+    allocate(prt_params%allom_cmode(n_pfts)); prt_params%allom_cmode(:) = 1
+    allocate(prt_params%allom_d2bl1(n_pfts)); prt_params%allom_d2bl1 = [0.04, 0.07, 0.07, 0.01, 0.04, 0.07, 0.07, 0.07, 0.07, 0.0481934, 0.0481934, 0.0004, 0.0004, 0.0012]
+    allocate(prt_params%allom_d2bl2(n_pfts)); prt_params%allom_d2bl2 = [1.6019679, 1.5234373, 1.3051237, 1.9621397, 1.6019679, 1.3998939, 1.3, 1.3, 1.3, 1.0600586, 1.7176758, 1.7092, 1.7092, 1.5879]
+    allocate(prt_params%allom_d2bl3(n_pfts)); prt_params%allom_d2bl3 = [0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.3417, 0.3417, 0.9948]
+    allocate(prt_params%allom_d2ca_coefficient_max(n_pfts)); prt_params%allom_d2ca_coefficient_max = [0.2715891, 0.3693718, 1.0787259, 0.0579297, 0.2715891, 1.1553612, 0.6568464, 0.6568464, 0.6568464, 0.4363427, 0.3166497, 0.0408, 0.0408, 0.0862]
+    allocate(prt_params%allom_d2ca_coefficient_min(n_pfts)); prt_params%allom_d2ca_coefficient_min = prt_params%allom_d2ca_coefficient_max
+    allocate(prt_params%allom_d2h1(n_pfts)); prt_params%allom_d2h1 = [78.4087704, 306.842667, 106.8745821, 104.3586841, 78.4087704, 31.4557047, 0.64, 0.64, 0.64, 0.8165625, 0.778125, 0.1812, 0.1812, 0.3353]
+    allocate(prt_params%allom_d2h2(n_pfts)); prt_params%allom_d2h2 = [0.8124383, 0.752377, 0.9471302, 1.1146973, 0.8124383, 0.9734088, 0.37, 0.37, 0.37, 0.2316113, 0.4027002, 0.6384, 0.6384, 0.4235]
+    allocate(prt_params%allom_d2h3(n_pfts)); prt_params%allom_d2h3 = [47.6666164, 196.6865691, 93.9790461, 160.6835089, 47.6666164, 16.5928174, -999.9, -999.9, -999.9, -999.9, -999.9, -999.9, -999.9, -999.9]
+    allocate(prt_params%allom_dbh_maxheight(n_pfts)); prt_params%allom_dbh_maxheight = [1000., 1000., 1000., 1000., 1000., 1000., 3., 3., 2., 2.4, 1.9, 20., 20., 30.]
+    allocate(prt_params%allom_fmode(n_pfts)); prt_params%allom_fmode(:) = 1
+    allocate(prt_params%allom_hmode(n_pfts)); prt_params%allom_hmode = [5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1, 3, 3, 3]
+    allocate(prt_params%allom_l2fr(n_pfts)); prt_params%allom_l2fr = [1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 0.67, 0.67, 1.41]
+    allocate(prt_params%allom_la_per_sa_int(n_pfts)); prt_params%allom_la_per_sa_int(:) = 0.8
+    allocate(prt_params%allom_la_per_sa_slp(n_pfts)); prt_params%allom_la_per_sa_slp(:) = 0.
+    allocate(prt_params%allom_lmode(n_pfts)); prt_params%allom_lmode = [2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 5, 5, 5]
+    allocate(prt_params%allom_sai_scaler(n_pfts)); prt_params%allom_sai_scaler(:) = 0.1
+    allocate(prt_params%allom_smode(n_pfts)); prt_params%allom_smode = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2]
+    allocate(prt_params%allom_stmode(n_pfts)); prt_params%allom_stmode(:) = 1
+    allocate(prt_params%c2b(n_pfts)); prt_params%c2b(:) = 2
+    allocate(prt_params%cushion(n_pfts)); prt_params%cushion = [1.2, 1.2, 1.2, 1.2, 2.4, 1.2, 1.2, 2.4, 1.2, 1.5, 1.4, 1.2, 1.2, 1.2]
+    allocate(prt_params%leaf_long(n_pfts,n_leafage_class)); prt_params%leaf_long = reshape([1.5, 4., 1., 1.5, 1., 1., 1.5, 1., 1., 1.5, 1., 1., 1., 1.], shape(prt_params%leaf_long))
+    allocate(prt_params%leafn_vert_scaler_coeff1(n_pfts)); prt_params%leafn_vert_scaler_coeff1(:) = 0.00963
+    allocate(prt_params%leafn_vert_scaler_coeff2(n_pfts)); prt_params%leafn_vert_scaler_coeff2(:) = 2.43
+    allocate(prt_params%phen_fnrt_drop_fraction(n_pfts)); prt_params%phen_fnrt_drop_fraction(:) = 0.
+    allocate(prt_params%phen_leaf_habit(n_pfts)); prt_params%phen_leaf_habit = [1, 1, 2, 1, 3, 2, 1, 3, 2, 1, 2, 2, 3, 3]
+    allocate(prt_params%phen_stem_drop_fraction(n_pfts)); prt_params%phen_stem_drop_fraction(:) = 0.
+    allocate(prt_params%slamax(n_pfts)); prt_params%slamax = [0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.012, 0.03, 0.03, 0.012, 0.032, 0.05, 0.05, 0.05]
+    allocate(prt_params%slatop(n_pfts)); prt_params%slatop = [0.012, 0.005, 0.024, 0.009, 0.03, 0.03, 0.012, 0.03, 0.03, 0.01, 0.032, 0.027, 0.05, 0.05]
+    allocate(prt_params%wood_density(n_pfts)); prt_params%wood_density = [0.548327, 0.44235, 0.454845, 0.754336, 0.548327, 0.566452, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7]
+
+    ! Things from parameter file for EDPftvarcon_inst
+    allocate(EDPftvarcon_inst%damage_frac(n_pfts))
+    EDPftvarcon_inst%damage_frac = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, &
+         0.01, 0.01, 0.01, 0.01]
+
+    ! Derived parameters
+    call param_derived%Init(n_pfts)
+
+  end subroutine InitializeParams
+
+  !---------------------------------------------------------------------------------------
+
   subroutine InitializeGlobals(step_size)
     !
     ! DESCRIPTION:

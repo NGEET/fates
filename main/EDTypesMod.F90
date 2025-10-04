@@ -605,6 +605,7 @@ module EDTypesMod
 
        procedure, public :: get_current_landuse_statevector
        procedure, public :: get_secondary_young_fraction
+       procedure, public :: GetNumberOfPatches
 
   end type ed_site_type
   
@@ -830,5 +831,27 @@ contains
      endif
 
    end function get_secondary_young_fraction
+
+   function GetNumberOfPatches(this) result(n_patches)
+     ! DESCRIPTION
+     ! Returns number of patches at site
+     !
+     ! ARGUMENTS:
+     class(ed_site_type) :: this
+     !
+     ! RETURN VALUE:
+     integer :: n_patches
+     !
+     ! LOCAL VARIABLES:
+     type(fates_patch_type), pointer :: currentPatch
+
+     n_patches = 0
+     currentPatch => this%youngest_patch
+     do while(associated(currentPatch))
+        n_patches = n_patches + 1
+        currentPatch => currentPatch%older
+     enddo
+
+  end function GetNumberOfPatches
 
 end module EDTypesMod

@@ -4,22 +4,20 @@ module test_Ecotypes
   !  Test the FATES ecotypes code
   !
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesEcotypesMod, only : does_patch_have_forest_tcthresh
-  use FatesEcotypesMod, only : does_patch_have_grass_bmthresh
-  use FatesEcotypesMod, only : is_patch_forest
-  use FatesFactoryMod,  only : InitializeGlobals, GetSyntheticPatch
+  use FatesEcotypesMod, only : DoesPatchHaveForest_TreeCover
+  use FatesEcotypesMod, only : DoesPatchHaveForest_GrassBiomass
+  use FatesEcotypesMod, only : IsPatchForest
+  use FatesFactoryMod,  only : InitializeParams, InitializeGlobals, GetSyntheticPatch
   use FatesPatchMod,    only : fates_patch_type
   use SyntheticPatchTypes, only : synthetic_patch_array_type
   use SyntheticPatchTypes, only : forest_tree_fraction_threshold
   use SyntheticPatchTypes, only : grass_biomass_threshold
-  use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
   use FatesArgumentUtils,  only : command_line_arg
   use funit
 
   implicit none
 
   ! LOCALS:
-  type(fates_unit_test_param_reader)             :: param_reader ! param reader instance
   integer :: i
   logical :: already_initialized = .false.
 
@@ -52,11 +50,8 @@ module test_Ecotypes
       ! Only need to do this for the first test
       if (.not. already_initialized) then
 
-        ! read in parameter file
-        call param_reader%Init('params.nc')
-        call param_reader%RetrieveParameters()
-
         ! initialize some global data we need
+        call InitializeParams()
         call InitializeGlobals(step_size)
 
         already_initialized = .true.
@@ -71,10 +66,10 @@ module test_Ecotypes
       call this%patch_data%GetSyntheticPatchData('tropical')
       call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
 
-      @assertTrue(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
-      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold))
-      @assertFalse(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
-      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+      @assertTrue(DoesPatchHaveForest_TreeCover(this%patch, forest_tree_fraction_threshold))
+      @assertTrue(IsPatchForest(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(DoesPatchHaveForest_GrassBiomass(this%patch, grass_biomass_threshold))
+      @assertTrue(IsPatchForest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
 
     end subroutine test_isforest_tropical
 
@@ -86,10 +81,10 @@ module test_Ecotypes
       call this%patch_data%GetSyntheticPatchData('evergreen')
       call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
 
-      @assertTrue(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
-      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold))
-      @assertFalse(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
-      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+      @assertTrue(DoesPatchHaveForest_TreeCover(this%patch, forest_tree_fraction_threshold))
+      @assertTrue(IsPatchForest(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(DoesPatchHaveForest_GrassBiomass(this%patch, grass_biomass_threshold))
+      @assertTrue(IsPatchForest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
 
     end subroutine test_isforest_evergreen
 
@@ -101,10 +96,10 @@ module test_Ecotypes
       call this%patch_data%GetSyntheticPatchData('savannah')
       call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
 
-      @assertFalse(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
-      @assertFalse(is_patch_forest(this%patch, forest_tree_fraction_threshold))
-      @assertFalse(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
-      @assertFalse(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+      @assertFalse(DoesPatchHaveForest_TreeCover(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(IsPatchForest(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(DoesPatchHaveForest_GrassBiomass(this%patch, grass_biomass_threshold))
+      @assertFalse(IsPatchForest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
 
     end subroutine test_isforest_savannah
 
@@ -116,10 +111,10 @@ module test_Ecotypes
       call this%patch_data%GetSyntheticPatchData('savannah_woody')
       call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
 
-      @assertTrue(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
-      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold))
-      @assertFalse(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
-      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+      @assertTrue(DoesPatchHaveForest_TreeCover(this%patch, forest_tree_fraction_threshold))
+      @assertTrue(IsPatchForest(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(DoesPatchHaveForest_GrassBiomass(this%patch, grass_biomass_threshold))
+      @assertTrue(IsPatchForest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
 
     end subroutine test_isforest_savannah_woody
 
@@ -131,10 +126,10 @@ module test_Ecotypes
       call this%patch_data%GetSyntheticPatchData('savannah_grassy')
       call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
 
-      @assertFalse(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
-      @assertFalse(is_patch_forest(this%patch, forest_tree_fraction_threshold))
-      @assertTrue(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
-      @assertFalse(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+      @assertFalse(DoesPatchHaveForest_TreeCover(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(IsPatchForest(this%patch, forest_tree_fraction_threshold))
+      @assertTrue(DoesPatchHaveForest_GrassBiomass(this%patch, grass_biomass_threshold))
+      @assertFalse(IsPatchForest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
 
     end subroutine test_isforest_savannah_grassy
 
@@ -146,10 +141,10 @@ module test_Ecotypes
       call this%patch_data%GetSyntheticPatchData('grassland')
       call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
 
-      @assertFalse(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
-      @assertFalse(is_patch_forest(this%patch, forest_tree_fraction_threshold))
-      @assertTrue(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
-      @assertFalse(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+      @assertFalse(DoesPatchHaveForest_TreeCover(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(IsPatchForest(this%patch, forest_tree_fraction_threshold))
+      @assertTrue(DoesPatchHaveForest_GrassBiomass(this%patch, grass_biomass_threshold))
+      @assertFalse(IsPatchForest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
 
     end subroutine test_isforest_grassland
 
@@ -161,10 +156,10 @@ module test_Ecotypes
       call this%patch_data%GetSyntheticPatchData('temperate')
       call GetSyntheticPatch(this%patch_data%patches(1), num_levsoil, this%patch)
 
-      @assertTrue(does_patch_have_forest_tcthresh(this%patch, forest_tree_fraction_threshold))
-      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold))
-      @assertFalse(does_patch_have_grass_bmthresh(this%patch, grass_biomass_threshold))
-      @assertTrue(is_patch_forest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
+      @assertTrue(DoesPatchHaveForest_TreeCover(this%patch, forest_tree_fraction_threshold))
+      @assertTrue(IsPatchForest(this%patch, forest_tree_fraction_threshold))
+      @assertFalse(DoesPatchHaveForest_GrassBiomass(this%patch, grass_biomass_threshold))
+      @assertTrue(IsPatchForest(this%patch, forest_tree_fraction_threshold, grass_biomass_threshold))
 
     end subroutine test_isforest_temperate
 

@@ -8,16 +8,16 @@ module FatesEcotypesMod
   private  ! By default everything is private
 
   ! Make public necessary subroutines and functions
-  public :: is_patch_forest
+  public :: IsPatchForest
   ! For unit testing
-  public :: does_patch_have_forest_tcthresh
-  public :: does_patch_have_grass_bmthresh
+  public :: DoesPatchHaveForest_TreeCover
+  public :: DoesPatchHaveForest_GrassBiomass
 
 contains
 
   ! =====================================================================================
 
-  function does_patch_have_forest_tcthresh(patchptr, forest_tree_fraction_threshold)
+  function DoesPatchHaveForest_TreeCover(patchptr, forest_tree_fraction_threshold)
   ! DESCRIPTION:
   ! Return boolean: Is this patch "forest"?
   !
@@ -26,7 +26,7 @@ contains
   real(r8), intent(in) :: forest_tree_fraction_threshold ! Tree fraction above which a patch is "forest"
   !
   ! RETURN VALUE
-  logical :: does_patch_have_forest_tcthresh
+  logical :: DoesPatchHaveForest_TreeCover
   !
   ! LOCAL VARIABLES
   real(r8) :: tree_fraction = 0._r8
@@ -37,12 +37,12 @@ contains
       tree_fraction = 0._r8
   end if
 
-  does_patch_have_forest_tcthresh = tree_fraction > forest_tree_fraction_threshold
+  DoesPatchHaveForest_TreeCover = tree_fraction > forest_tree_fraction_threshold
 
-  end function does_patch_have_forest_tcthresh
+  end function DoesPatchHaveForest_TreeCover
 
 
-  function does_patch_have_grass_bmthresh(patchptr, grass_biomass_threshold)
+  function DoesPatchHaveForest_GrassBiomass(patchptr, grass_biomass_threshold)
   ! DESCRIPTION:
   ! Return boolean: Does this patch have grass biomass above a threshold?
   !
@@ -51,14 +51,14 @@ contains
   real(r8), intent(in) :: grass_biomass_threshold ! Live grass biomass (kgC/m2) above which a patch is considered to "have grass"
   !
   ! RETURN VALUE
-  logical :: does_patch_have_grass_bmthresh
+  logical :: DoesPatchHaveForest_GrassBiomass
 
-  does_patch_have_grass_bmthresh = patchptr%livegrass > grass_biomass_threshold
+  DoesPatchHaveForest_GrassBiomass = patchptr%livegrass > grass_biomass_threshold
 
-  end function does_patch_have_grass_bmthresh
+  end function DoesPatchHaveForest_GrassBiomass
 
 
-  function is_patch_forest(patchptr, forest_tree_fraction_threshold, grass_biomass_threshold)
+  function IsPatchForest(patchptr, forest_tree_fraction_threshold, grass_biomass_threshold)
   ! DESCRIPTION:
   ! Return boolean: Is this patch forest according to tree cover and, optionally, grass biomass?
   !
@@ -68,14 +68,14 @@ contains
   real(r8), intent(in), optional :: grass_biomass_threshold ! Live grass biomass (kgC/m2) above which a patch is considered to "have grass"
   !
   ! RETURN VALUE
-  logical :: is_patch_forest
+  logical :: IsPatchForest
 
-  is_patch_forest = does_patch_have_forest_tcthresh(patchptr, forest_tree_fraction_threshold)
-  if (is_patch_forest .and. present(grass_biomass_threshold)) then
-     is_patch_forest = .not. does_patch_have_grass_bmthresh(patchptr, grass_biomass_threshold)
+  IsPatchForest = DoesPatchHaveForest_TreeCover(patchptr, forest_tree_fraction_threshold)
+  if (IsPatchForest .and. present(grass_biomass_threshold)) then
+     IsPatchForest = .not. DoesPatchHaveForest_GrassBiomass(patchptr, grass_biomass_threshold)
   end if
 
-  end function is_patch_forest
+  end function IsPatchForest
 
 
 end module FatesEcotypesMod

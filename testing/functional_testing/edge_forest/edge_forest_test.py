@@ -1,5 +1,5 @@
 """
-Concrete class for running the allometry functional tests for FATES.
+Concrete class for running the edge forest functional tests for FATES.
 """
 
 import os
