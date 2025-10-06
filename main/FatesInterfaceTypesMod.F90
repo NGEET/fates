@@ -987,6 +987,10 @@ module FatesInterfaceTypesMod
     allocate(this%key(this%num_api_vars))
     allocate(this%update_frequency(this%num_api_vars))
     
+    ! Allocate the index filter maps
+    allocate(this%filter_init(this%num_api_vars_update_init))
+    allocate(this%filter_daily(this%num_api_vars_update_daily))
+    
     ! Unset the allocatables not including the interface variables
     this%update_frequency(:) = fates_unset_int
     this%filter_init(:) = fates_unset_int
@@ -995,10 +999,6 @@ module FatesInterfaceTypesMod
     ! Now initialize the registry keys
     call this%DefineInterfaceRegistry(initialize=.true.)
 
-    ! Allocate the index filter maps
-    allocate(this%filter_init(this%num_api_vars_update_init))
-    allocate(this%filter_daily(this%num_api_vars_update_daily))
-    
     ! Set filter map arrays
     call this%SetFilterMapArrays()
 
