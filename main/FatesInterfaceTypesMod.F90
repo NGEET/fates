@@ -1129,6 +1129,26 @@ module FatesInterfaceTypesMod
   
   ! ======================================================================================
   
+  integer function GetGridcellIndex(this) result(gidx)
+  
+    class(fates_interface_registry_base_type), intent(inout) :: this
+    
+    gidx = this%gidx
+    
+  end function GetGridcellIndex
+  
+  ! ======================================================================================
+  
+  integer function GetLandunitIndex(this) result(lidx)
+  
+    class(fates_interface_registry_base_type), intent(inout) :: this
+    
+    lidx = this%lidx
+    
+  end function GetLandunitIndex
+  
+  ! ======================================================================================
+  
   integer function GetColumnIndex(this) result(cidx)
   
     class(fates_interface_registry_base_type), intent(inout) :: this
@@ -1136,6 +1156,16 @@ module FatesInterfaceTypesMod
     cidx = this%cidx
     
   end function GetColumnIndex
+  
+  ! ======================================================================================
+  
+  integer function GetHLMPatchIndex(this) result(hpidx)
+  
+    class(fates_interface_registry_base_type), intent(inout) :: this
+    
+    hpidx = this%hpidx
+    
+  end function GetHLMPatchIndex
   
   ! ======================================================================================
   
