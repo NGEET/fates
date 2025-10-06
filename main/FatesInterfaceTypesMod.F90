@@ -1113,17 +1113,21 @@ module FatesInterfaceTypesMod
   subroutine SetSubgridIndices(this, gridcell, topounit, landunit, column, hlmpatch)
     
     class(fates_interface_registry_base_type), intent(inout) :: this
-    integer, intent(in) :: gridcell
-    integer, intent(in) :: topounit
-    integer, intent(in) :: landunit
-    integer, intent(in) :: column
-    integer, intent(in) :: hlmpatch
+    integer, intent(in), optional :: gridcell
+    integer, intent(in), optional :: topounit
+    integer, intent(in), optional :: landunit
+    integer, intent(in), optional :: column
+    integer, intent(in), optional :: hlmpatch
+    integer, intent(in), optional :: fatespatch
+    integer, intent(in), optional :: site
     
-    this%gidx = gridcell
-    this%tidx = topounit
-    this%lidx = landunit
-    this%cidx = column
-    this%hpidx = hlmpatch
+    if (present(gridcell))   this%gidx = gridcell
+    if (present(topounit))   this%tidx = topounit
+    if (present(landunit))   this%lidx = landunit
+    if (present(column))     this%cidx = column
+    if (present(hlmpatch))   this%hpidx = hlmpatch
+    if (present(fatespatch)) this%fpidx = fatespatch
+    if (present(site))       this%sidx = site
     
   end subroutine SetSubgridIndices
   
