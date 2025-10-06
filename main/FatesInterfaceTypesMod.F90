@@ -1110,7 +1110,7 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
   
-  subroutine SetSubgridIndices(this, gridcell, topounit, landunit, column, hlmpatch)
+  subroutine SetSubgridIndices(this, gridcell, topounit, landunit, column, hlmpatch, fatespatch, site)
     
     class(fates_interface_registry_base_type), intent(inout) :: this
     integer, intent(in), optional :: gridcell
