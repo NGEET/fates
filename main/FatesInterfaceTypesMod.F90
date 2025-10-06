@@ -905,12 +905,15 @@ module FatesInterfaceTypesMod
 
     contains
 
+      procedure :: GetGridcellIndex
+      procedure :: GetLandunitIndex
+      procedure :: GetColumnIndex
       procedure :: GetSiteIndex
+      procedure :: GetHLMPatchIndex
       procedure :: GetFatesPatchIndex
       procedure :: InitializeInterfaceRegistry
       procedure :: InitializeInterfaceVariables
       procedure :: SetSubgridIndices
-      procedure :: GetColumnIndex
       procedure :: Update => UpdateInterfaceVariables
 
       generic :: Register => RegisterInterfaceVariables_0d, & 
