@@ -2761,6 +2761,9 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       allocate(this%sites(s)%bc_in(patches_per_site))
       allocate(this%sites(s)%bc_out(patches_per_site))
 
+      ! Get the fates boundary condition index
+      ifp = this%register(r)%GetFatesPatchIndex()
+
       ! Register the boundary conditions that are necessary for allocating other boundary conditions first
       call this%register(r)%Register(key=hlm_fates_soil_level, data=this%sites(s)%bc_in(ifp)%nlevsoil, hlm_flag=.false.)
 
@@ -2771,7 +2774,6 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       call this%sites(s)%InitializeBoundaryConditions(patches_per_site)
 
       ! Register the boundary conditions that are necessary for allocating other boundary conditions first
-      ifp = this%register(r)%GetFatesPatchIndex()
       call this%register(r)%Register(key=hlm_fates_decomp_frac_moisture, data=this%sites(s)%bc_in(ifp)%w_scalar_sisl, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_decomp_frac_temperature, data=this%sites(s)%bc_in(ifp)%t_scalar_sisl, hlm_flag=.false.)
 
