@@ -2745,6 +2745,46 @@ subroutine InitializeInterfaceRegistry(this, number_clump_patches, patchlist)
 
 end subroutine InitializeInterfaceRegistry
 
+! ======================================================================================
+
+subroutine InitializeFatesSites(this)
+   
+   class(fates_interface_type), intent(inout) :: this                  ! fates interface
+   
+   ! Local
+   integer :: r   ! interface registry index
+   integer :: g   ! gridcell index
+   integer :: gc  ! current gridcell index
+   integer :: s   ! site counter/index
+   integer :: ifp ! fates patch counter/index
+   
+   ! Initialize the current gridcell index and the fates site counter
+   gc = fates_unset_int
+   s = 0
+   ifp = 0
+   
+   ! Iterate over the number of vegetated patches and determine 
+   do r = 1, this%npatches
+      
+      ! Get the gridcell index
+      g = this%register(r)%GetGridcellIndex()
+      
+      ! Update the fates counter
+      ifp = ifp + 1
+      
+      ! Iterate the fates site and reset the fates patch counter for each new gridcell index
+      if (gc /= g) then
+         gc = g
+         s = s + 1
+         ifp = 1
+      end if
+      
+      ! Set the site index for the current registry
+      this%register(r)%SetSubgridIndices(fatespatch=ifp, site=s)
+
+   end do
+
+end subroutine InitializeFatesSites
 
 ! ======================================================================================
 
