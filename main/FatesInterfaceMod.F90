@@ -2733,11 +2733,11 @@ subroutine InitializeInterfaceRegistry(this, num_veg_patches, patchlist)
    ! Set the number of vegetated patches to the interface type level
    this%npatches = num_veg_patches
 
-   ! Initialize each registry with a dictionary of keys to register fates and hlm variables against
-   ! The keys are defined in the registry type-bound procedures
+   ! Initialize and set patch index for each registry which is associated with a vegetated patch
    do r = 1, num_veg_patches
       
-      ! Initialize registry
+      ! Initialize each registry with a dictionary of keys to register fates and hlm variables against
+      ! The keys are defined in the registry type-bound procedures
       call this%register(r)%InitializeInterfaceRegistry()
 
       ! Set the HLM patch index with the current registry
