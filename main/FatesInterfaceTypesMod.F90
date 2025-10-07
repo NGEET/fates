@@ -297,6 +297,7 @@ module FatesInterfaceTypesMod
    integer, parameter, public :: subgrid_patch_index = 1
 
     ! Registry keys parameters
+    character(len=*), parameter, public :: hlm_fates_decomp_max = 'max_layers_decomp'
     character(len=*), parameter, public :: hlm_fates_soil_level = 'soil_level_number'
     character(len=*), parameter, public :: hlm_fates_decomp_frac_moisture = 'decomp_frac_moisture'
     character(len=*), parameter, public :: hlm_fates_decomp_frac_temperature = 'decomp_frac_temperature'
@@ -422,7 +423,8 @@ module FatesInterfaceTypesMod
       ! Soil layer structure
 
       integer              :: nlevsoil           ! the number of soil layers in this column
-      integer              :: nlevdecomp         ! the number of soil layers in the column
+      integer              :: nlevdecomp         ! the number of active soil layers in the column
+      integer              :: nlevdecomp_full    ! the maximum possible soil layers for any column
                                                  ! that are biogeochemically active
       real(r8),allocatable :: zi_sisl(:)         ! interface level below a "z" level (m)
                                                  ! this contains a zero index for surface.
@@ -943,8 +945,8 @@ module FatesInterfaceTypesMod
     class(bc_in_type), intent(inout) :: this
     
     ! Allocate the boundary condition variables
-    allocate(this%w_scalar_sisl(this%nlevsoil))
-    allocate(this%t_scalar_sisl(this%nlevsoil))
+    allocate(this%w_scalar_sisl(this%nlevdecomp_full))
+    allocate(this%t_scalar_sisl(this%nlevdecomp_full))
     
     ! Unset the values
     this%w_scalar_sisl = nan
@@ -1025,11 +1027,12 @@ module FatesInterfaceTypesMod
 
     ! Define the interface registry names and indices
     ! Variables that only need to be updated during initialization, such as dimensions
-    call this%DefineInterfaceVariable(key=hlm_fates_soil_level, initialize=initialize, index=index, &
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp_max, initialize=initialize, index=index, &
                                       update_frequency=registry_update_init)
                                       
     
     ! Variables that need to be updated daily
+    call this%DefineInterfaceVariable(key=hlm_fates_soil_level, initialize=initialize, index=index)
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_moisture, initialize=initialize, index=index)
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_temperature, initialize=initialize, index=index)
 

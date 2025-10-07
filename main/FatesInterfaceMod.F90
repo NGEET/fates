@@ -2798,6 +2798,7 @@ end subroutine InitializeFatesSites
 
 subroutine InitializeBoundaryConditions(this, patches_per_site)
    
+   use FatesInterfaceTypesMod, only : hlm_fates_decomp_max
    use FatesInterfaceTypesMod, only : hlm_fates_soil_level
    use FatesInterfaceTypesMod, only : hlm_fates_decomp_frac_moisture
    use FatesInterfaceTypesMod, only : hlm_fates_decomp_frac_temperature
@@ -2829,7 +2830,7 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       ifp = this%register(r)%GetFatesPatchIndex()
 
       ! Register the boundary conditions that are necessary for allocating other boundary conditions first
-      call this%register(r)%Register(key=hlm_fates_soil_level, data=this%sites(s)%bc_in(ifp)%nlevsoil, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_decomp_max, data=this%sites(s)%bc_in(ifp)%nlevdecomp_full, hlm_flag=.false.)
 
       ! Initialize the interface variables necessary for allocating boundary conditions
       call this%register(r)%InitializeInterfaceVariables()
@@ -2838,6 +2839,7 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       call this%sites(s)%bc_in(ifp)%Initialize()
 
       ! Register the boundary conditions that are necessary for allocating other boundary conditions first
+      call this%register(r)%Register(key=hlm_fates_soil_level, data=this%sites(s)%bc_in(ifp)%nlevsoil, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_decomp_frac_moisture, data=this%sites(s)%bc_in(ifp)%w_scalar_sisl, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_decomp_frac_temperature, data=this%sites(s)%bc_in(ifp)%t_scalar_sisl, hlm_flag=.false.)
 
