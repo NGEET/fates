@@ -2814,10 +2814,16 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
    ! Register the input boundary conditions use for BC allocations
    do r = 1, this%npatches
       
-      ! Allocate boundary conditions for all sites with the maximum number of patches per site
+      ! Get the site associated with this registry
       s = this%register(r)%GetSiteIndex()
-      allocate(this%sites(s)%bc_in(patches_per_site))
-      allocate(this%sites(s)%bc_out(patches_per_site))
+
+      ! Since the registry is indexed by vegetated patch, check that the site for this registry
+      ! hasn't already been allocated
+      if (.not.(allocated(this%sites(s)%bc_in))) then
+         ! Allocate boundary conditions for all sites with the maximum number of patches per site
+         allocate(this%sites(s)%bc_in(patches_per_site))
+         allocate(this%sites(s)%bc_out(patches_per_site))
+      end if
 
       ! Get the fates boundary condition index
       ifp = this%register(r)%GetFatesPatchIndex()
