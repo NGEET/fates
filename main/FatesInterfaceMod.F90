@@ -2714,27 +2714,27 @@ end subroutine FatesReadParameters
 
 ! ======================================================================================
 
-subroutine InitializeInterfaceRegistry(this, number_clump_patches, patchlist)
+subroutine InitializeInterfaceRegistry(this, num_veg_patches, patchlist)
 
    ! This procedure intializes an interface registry for each patch index on the clump
 
    ! Arguments
-   class(fates_interface_type), intent(inout) :: this                  ! fates interface
-   integer, intent(in)                        :: number_clump_patches  ! number of patches in this clump
-   integer, intent(in)                        :: patchlist(:)          ! list of hlm patches for registry index
+   class(fates_interface_type), intent(inout) :: this                ! fates interface
+   integer, intent(in)                        :: num_veg_patches  ! number of veg patches in this clump
+   integer, intent(in)                        :: patchlist(:)        ! list of hlm patches for registry index
 
    ! Locals
    integer :: r   ! registry index
 
-   ! Allocate interface registries for each patch on the clump
-   allocate(this%register(number_clump_patches)) 
+   ! Allocate interface registries for each vegetated patch on the clump
+   allocate(this%register(num_veg_patches)) 
    
    ! Set the number of vegetated patches to the interface type level
    this%npatches = num_veg_patches
 
    ! Initialize each registry with a dictionary of keys to register fates and hlm variables against
    ! The keys are defined in the registry type-bound procedures
-   do r = 1, number_clump_patches
+   do r = 1, num_veg_patches
       
       ! Initialize registry
       call this%register(r)%InitializeInterfaceRegistry()
