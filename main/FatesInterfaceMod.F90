@@ -46,7 +46,8 @@ module FatesInterfaceMod
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
-   use FatesConstantsMod             , only : fates_unset_r8
+   use FatesConstantsMod         , only : fates_unset_r8
+   use FatesConstantsMod         , only : fates_unset_int
    use FatesLitterMod            , only : ncwd
    use FatesLitterMod            , only : ndcmpy
    use EDPftvarcon               , only : FatesReportPFTParams
