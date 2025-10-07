@@ -610,7 +610,6 @@ module EDTypesMod
 
      contains
 
-       procedure, public :: InitializeBoundaryConditions
        procedure, public :: get_current_landuse_statevector
        procedure, public :: get_secondary_young_fraction
 
@@ -622,31 +621,6 @@ module EDTypesMod
   public :: set_patchno
   
 contains
-
-  ! ============================================================================
-   
-   subroutine InitializeBoundaryConditions(this, number_patches)  
-      
-      ! This subroutine intializes an array of each of the boundary condition
-      ! types where the length of the boundary condition is the maximum number of 
-      ! patches on a given site.
-      
-      ! Inputs
-      class(ed_site_type), intent(inout) :: this
-      integer, intent(in) :: number_patches
-      
-      integer :: ifp, c
-      integer :: begc, endc
-      
-      ! Initialize the interface registry
-      do ifp = 1, number_patches
-
-         ! Initialize the input boundary conditions
-         call this%bc_in(ifp)%Initialize()
-
-      end do
-      
-   end subroutine InitializeBoundaryConditions
 
   ! ============================================================================
 

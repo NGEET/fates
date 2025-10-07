@@ -2829,7 +2829,7 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       call this%register(r)%InitializeInterfaceVariables()
       
       ! Initialize the Boundary conditions
-      call this%sites(s)%InitializeBoundaryConditions(patches_per_site)
+      call this%sites(s)%bc_in(ifp)%Initialize()
 
       ! Register the boundary conditions that are necessary for allocating other boundary conditions first
       call this%register(r)%Register(key=hlm_fates_decomp_frac_moisture, data=this%sites(s)%bc_in(ifp)%w_scalar_sisl, hlm_flag=.false.)
