@@ -2740,7 +2740,7 @@ subroutine InitializeInterfaceRegistry(this, number_clump_patches, patchlist)
       call this%register(r)%InitializeInterfaceRegistry()
 
       ! Set the HLM patch index with the current registry
-      this%register(r)%SetSubgridIndices(hlmpatch=patchlist(r))
+      call this%register(r)%SetSubgridIndices(hlmpatch=patchlist(r))
       
    end do
 
@@ -2781,7 +2781,7 @@ subroutine InitializeFatesSites(this)
       end if
       
       ! Set the site and fates patch index for the current registry
-      this%register(r)%SetSubgridIndices(fatespatch=ifp, site=s)
+      call this%register(r)%SetSubgridIndices(fatespatch=ifp, site=s)
 
    end do
    
