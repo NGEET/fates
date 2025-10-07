@@ -2779,7 +2779,7 @@ subroutine InitializeFatesSites(this)
          ifp = 1
       end if
       
-      ! Set the site index for the current registry
+      ! Set the site and fates patch index for the current registry
       this%register(r)%SetSubgridIndices(fatespatch=ifp, site=s)
 
    end do
