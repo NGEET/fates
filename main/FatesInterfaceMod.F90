@@ -2783,6 +2783,12 @@ subroutine InitializeFatesSites(this)
       this%register(r)%SetSubgridIndices(fatespatch=ifp, site=s)
 
    end do
+   
+   ! Set the number of fates sites for the interface
+   ! this%nsites = s
+   
+   ! Allocate the sites
+   ! allocate(this%sites(this%nsites))
 
 end subroutine InitializeFatesSites
 
