@@ -1237,7 +1237,7 @@ module FatesInterfaceTypesMod
   
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_0d(this, key, data, hlm_flag)
+  subroutine RegisterInterfaceVariables_0d(this, key, data, hlm_flag, accumulate)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
@@ -1247,12 +1247,23 @@ module FatesInterfaceTypesMod
     class(*), target, intent(in)  :: data          ! data to be associated with key
     character(len=*), intent(in)  :: key           ! variable registry key 
     logical, intent(in)           :: hlm_flag      ! Is the variable being register from the HLM?
+    logical, intent(in), optional :: accumulate    ! Should the variable accumulate during the update?
+    
+    ! Local
+    logical :: accumulate_local
+    
+    ! Default accumulate to false
+    if (present(accumulate)) then
+      accumulate_local = accumulate
+    else
+      accumulate_local = .false.
+    end if
     
     ! Get index from registry key and associate the given data pointer
     if (hlm_flag) then
-      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
+      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data, active=.true., accumulate=accumulate_local)
     else
-      call this%fates_vars(this%GetRegistryIndex(key))%Register(data, active=.true.)
+      call this%fates_vars(this%GetRegistryIndex(key))%Register(data, active=.true., accumulate=accumulate_local)
     end if
 
 
@@ -1260,7 +1271,7 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_1d(this, key, data, hlm_flag)
+  subroutine RegisterInterfaceVariables_1d(this, key, data, hlm_flag, accumulate)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
@@ -1269,19 +1280,30 @@ module FatesInterfaceTypesMod
     class(*), target, intent(in)  :: data(:)    ! data to be associated with key
     character(len=*), intent(in)  :: key        ! variable registry key 
     logical, intent(in)           :: hlm_flag   ! Is the variable being register from the HLM?
+    logical, intent(in), optional :: accumulate    ! Should the variable accumulate during the update?
 
+    ! Local
+    logical :: accumulate_local
+    
+    ! Default accumulate to false
+    if (present(accumulate)) then
+      accumulate_local = accumulate
+    else
+      accumulate_local = .false.
+    end if
+    
     ! Get index from registry key and associate the given data pointer
     if (hlm_flag) then
-      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data(:), active=.true.)
+      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data(:), active=.true., accumulate=accumulate_local)
     else
-      call this%fates_vars(this%GetRegistryIndex(key))%Register(data(:), active=.true.)
+      call this%fates_vars(this%GetRegistryIndex(key))%Register(data(:), active=.true., accumulate=accumulate_local)
     end if
 
   end subroutine RegisterInterfaceVariables_1d
 
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_2d(this, key, data, hlm_flag)
+  subroutine RegisterInterfaceVariables_2d(this, key, data, hlm_flag, accumulate)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
@@ -1290,12 +1312,23 @@ module FatesInterfaceTypesMod
     class(*), target, intent(in)  :: data(:,:)  ! data to be associated with key
     character(len=*), intent(in)  :: key        ! variable registry key 
     logical, intent(in)           :: hlm_flag   ! Is the variable being register from the HLM?
+    logical, intent(in), optional :: accumulate    ! Should the variable accumulate during the update?
 
+    ! Local
+    logical :: accumulate_local
+    
+    ! Default accumulate to false
+    if (present(accumulate)) then
+      accumulate_local = accumulate
+    else
+      accumulate_local = .false.
+    end if
+    
     ! Get index from registry key and associate the given data pointer
     if (hlm_flag) then
-      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true.)
+      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true., accumulate=accumulate_local)
     else
-      call this%fates_vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true.)
+      call this%fates_vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true., accumulate=accumulate_local)
     end if
 
   end subroutine RegisterInterfaceVariables_2d
