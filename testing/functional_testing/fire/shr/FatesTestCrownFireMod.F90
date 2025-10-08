@@ -123,8 +123,9 @@ module FatesTestCrownFireMod
 
   ! ======================================================================================
 
-  subroutine WriteCanopyFuelData(out_file, nfuelmods, nstands, CBD, CBH, canopy_fuel_load, ROS_front, FI, &
-    FI_init, ROS_actfm10, ROS_critical, CFB, ROS_final, FI_final, fuel_models,  patch_types)
+  subroutine WriteCanopyFuelData(out_file, nfuelmods, nstands, nwind, nni, ncwc, Wind, NI, CWC, &
+    CBD, CBH, canopy_fuel_load, ROS_front, FI, FI_init, ROS_actfm10, ROS_critical, CFB, ROS_final, &
+    FI_final, fuel_models,  patch_types)
     !
     ! DESCRIPTION:
     ! write out data from canopy fuel functional test
@@ -134,120 +135,148 @@ module FatesTestCrownFireMod
     character(len=*),   intent(in) :: out_file
     integer,            intent(in) :: nfuelmods
     integer,            intent(in) :: nstands
+    integer,            intent(in) :: nwind
+    integer,            intent(in) :: nni
+    integer,            intent(in) :: ncwc
+    real(r8),           intent(in) :: Wind(:)
+    real(r8),           intent(in) :: NI(:)
+    real(r8),           intent(in) :: CWC(:)
     real(r8),           intent(in) :: CBD(:)
     real(r8),           intent(in) :: CBH(:)
     real(r8),           intent(in) :: canopy_fuel_load(:)
-    real(r8),           intent(in) :: ROS_front(:,:)
-    real(r8),           intent(in) :: FI(:,:)
-    real(r8),           intent(in) :: FI_init(:)
-    real(r8),           intent(in) :: ROS_actfm10(:,:)
+    real(r8),           intent(in) :: ROS_front(:,:,:,:)
+    real(r8),           intent(in) :: FI(:,:,:,:)
+    real(r8),           intent(in) :: FI_init(:,:)
+    real(r8),           intent(in) :: ROS_actfm10(:,:,:,:,:)
     real(r8),           intent(in) :: ROS_critical(:)
-    real(r8),           intent(in) :: CFB(:,:)
-    real(r8),           intent(in) :: ROS_final(:,:)
-    real(r8),           intent(in) :: FI_final(:,:)
+    real(r8),           intent(in) :: CFB(:,:,:,:,:)
+    real(r8),           intent(in) :: ROS_final(:,:,:,:,:)
+    real(r8),           intent(in) :: FI_final(:,:,:,:,:)
     integer,            intent(in) :: fuel_models(:)
     integer,            intent(in) :: patch_types(:)
 
     ! LOCALS:
     integer           :: ncid         ! netcdf id
-    character(len=20) :: dim_names(2) ! dimension names
-    integer           :: dimIDs(2)    ! dimension IDs
-    integer           :: modID, patchID
+    character(len=20) :: dim_names(5) ! dimension names
+    integer           :: dimIDs(5)    ! dimension IDs
+    integer           :: modID, patchID, windID, niID, cwcID
     integer           :: CBDID, CBHID, cflID
     integer           :: ROS_frontID, ROS_actID, ROS_minID, ROS_finID
     integer           :: FIID, FI_initID, FI_finID
     integer           :: CFBID
 
     ! dimension names
-    dim_names = [character(len=20) :: 'patch_type', 'fuel_model']
-
+    dim_names = [character(len=20) :: 'wind','fire_weather','canopy_water', &
+    'patch_type', 'fuel_model']
     ! open file
     call OpenNCFile(trim(out_file), ncid, 'readwrite')
 
     ! register dimensions
-    call RegisterNCDims(ncid, dim_names, (/size(patch_types), size(fuel_models)/), &
-    2, dimIDs)
+    call RegisterNCDims(ncid, dim_names, (/nwind, nni, ncwc, &
+    nstands, nfuelmods/), 5, dimIDs)
 
     ! first register dimension variables
 
+    ! register wind speed
+    call RegisterVar(ncid, 'wind', dimIDs(1:1), type_int,    &
+    [character(len=20) :: 'units', 'long_name' ],    &
+    [character(len=150) :: 'm min-1', 'wind speed index'], 2, windID)
+
+    ! register fire weather index
+    call RegisterVar(ncid, 'fire_weather', dimIDs(2:2), type_int,    &
+    [character(len=20) :: 'units', 'long_name' ],    &
+    [character(len=150) :: '', 'fire weather index'], 2, niID)
+
+    ! register canopy water content
+    call RegisterVar(ncid, 'canopy_water', dimIDs(3:3), type_int,    &
+    [character(len=20) :: 'units', 'long_name' ],    &
+    [character(len=150) :: '%', 'canopy water index'], 2, cwcID)
+
     ! register patch types
-    call RegisterVar(ncid, 'patch_type', dimIDs(1:1), type_int,     &
+    call RegisterVar(ncid, 'patch_type', dimIDs(4:4), type_int,     &
     [character(len=20) :: 'units', 'long_name' ],     &
     [character(len=150) :: '', 'patch type index'], 2, patchID) 
 
     ! register fuel models
-    call RegisterVar(ncid, 'fuel_model', dimIDs(2:2), type_int,     &
+    call RegisterVar(ncid, 'fuel_model', dimIDs(5:5), type_int,     &
     [character(len=20) :: 'units', 'long_name' ],     &
     [character(len=150) :: '', 'fuel model index'], 2, modID)
 
     ! register variables
 
     ! register actual variables
+
     ! register CBD
-    call RegisterVar(ncid, 'CBD', dimIDs(1:1), type_double,        &
+    call RegisterVar(ncid, 'CBD', dimIDs(4:4), type_double,        &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
     [character(len=150) :: 'patch_type', 'kg m-3', 'canopy bulk density'],  &
     3, CBDID)
 
     ! register CBH
-    call RegisterVar(ncid, 'CBH', dimIDs(1:1), type_double,        &
+    call RegisterVar(ncid, 'CBH', dimIDs(4:4), type_double,        &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
     [character(len=150) :: 'patch_type', 'm', 'canopy base height'],  &
     3, CBHID)
 
     ! register canopy fuel load
-    call RegisterVar(ncid, 'Canopy_fuel', dimIDs(1:1), type_double,        &
+    call RegisterVar(ncid, 'Canopy_fuel', dimIDs(4:4), type_double,        &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
     [character(len=150) :: 'patch_type', 'kg m-2', 'canopy fuel density'],  &
     3, cflID)
 
     ! register surface fire spread rate
-    call RegisterVar(ncid, 'ROS_front', dimIDs(1:2), type_double,        &
+    call RegisterVar(ncid, 'ROS_front', (/dimIDs(1), dimIDs(2), dimIDs(4), dimIDs(5)/), & 
+    type_double,        &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
-    [character(len=150) :: 'patch_type fuel_model', 'm min-1', 'surface forward rate of spread'],  &
-    3, ROS_frontID)
+    [character(len=150) :: 'wind fire_weather patch_type fuel_model', 'm min-1', &
+     'surface forward rate of spread'], 3, ROS_frontID)
 
     ! register surface fire intensity
-    call RegisterVar(ncid, 'FI', dimIDs(1:2), type_double,        &
+    call RegisterVar(ncid, 'FI', (/dimIDs(1), dimIDs(2), dimIDs(4), dimIDs(5)/), & 
+    type_double,        &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
-    [character(len=150) :: 'patch_type fuel_model', 'kW m-1', 'surface fire intensity'],  &
-    3, FIID)
+    [character(len=150) :: 'wind fire_weather patch_type fuel_model', 'kW m-1',  &
+    'surface fire intensity'], 3, FIID)
 
     ! register min FI to initiate crown fire
-    call RegisterVar(ncid, 'FI_init', dimIDs(1:1), type_double,        &
+    call RegisterVar(ncid, 'FI_init', (/dimIDs(4), dimIDs(3)/), type_double,        &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
-    [character(len=150) :: 'patch_type', 'kW m-1', 'fire intensity to ignite crown fuel'],  &
-    3, FI_initID)
+    [character(len=150) :: 'patch_type canopy_water', 'kW m-1',         &
+    'fire intensity to ignite crown fuel'], 3, FI_initID)
 
     ! register active crown fire ROS
-    call RegisterVar(ncid, 'ROS_active', dimIDs(1:2), type_double,        &
+    call RegisterVar(ncid, 'ROS_active', (/dimIDs(1), dimIDs(2), dimIDs(4), dimIDs(3), dimIDs(5)/), & 
+    type_double,        &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
-    [character(len=150) :: 'patch_type fuel_model', 'm min-1', 'active crown fire ROS assuming FM10'],  &
-    3, ROS_actID)
+    [character(len=150) :: 'wind fire_weather patch_type canopy_water fuel_model',  &
+    'm min-1', 'active crown fire ROS assuming FM10'], 3, ROS_actID)
 
     ! register critical ROS to sustain active crown fire
-    call RegisterVar(ncid, 'ROS_min', dimIDs(1:1), type_double,        &
+    call RegisterVar(ncid, 'ROS_min', dimIDs(4:4), type_double,        &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
     [character(len=150) :: 'patch_type', 'm min-1', 'min ROS to sustain active crown fire'],  &
     3, ROS_minID)
 
     ! register crown fraction burnt
-    call RegisterVar(ncid, 'CFB', dimIDs(1:2), type_double,        &
+    call RegisterVar(ncid, 'CFB', (/dimIDs(1), dimIDs(2), dimIDs(4), dimIDs(3), dimIDs(5)/), & 
+    type_double,        &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
-    [character(len=150) :: 'patch_type fuel_model', '', 'crown fraction burnt by crown fire'],  &
-    3, CFBID)
+    [character(len=150) :: 'wind fire_weather patch_type canopy_water fuel_model', '', &
+    'crown fraction burnt by crown fire'], 3, CFBID)
 
     ! register final ROS
-    call RegisterVar(ncid, 'ROS_final', dimIDs(1:2), type_double,        &
+    call RegisterVar(ncid, 'ROS_final', (/dimIDs(1), dimIDs(2), dimIDs(4), dimIDs(3), dimIDs(5)/), & 
+    type_double,        &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
-    [character(len=150) :: 'patch_type fuel_model', 'm min-1', 'ROS after crown fire update'],  &
-    3, ROS_finID)
+    [character(len=150) :: 'wind fire_weather patch_type canopy_water fuel_model', 'm min-1', &
+    'ROS after crown fire update'], 3, ROS_finID)
 
     ! register final FI
-    call RegisterVar(ncid, 'FI_final', dimIDs(1:2), type_double,        &
+    call RegisterVar(ncid, 'FI_final', (/dimIDs(1), dimIDs(2), dimIDs(4), dimIDs(3), dimIDs(5)/), & 
+    type_double,        &
     [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
-    [character(len=150) :: 'patch_type fuel_model', 'kW m-1', 'FI after crown fire update'],  &
-    3, FI_finID)
+    [character(len=150) :: 'wind fire_weather patch_type canopy_water fuel_model',  &
+    'kW m-1', 'FI after crown fire update'],  3, FI_finID)
 
     ! finish defining variables
     call EndNCDef(ncid)
@@ -255,17 +284,20 @@ module FatesTestCrownFireMod
     ! write out data
     call WriteVar(ncid, patchID, patch_types(:))
     call WriteVar(ncid, modID, fuel_models(:))
+    call WriteVar(ncid, windID, Wind(:))
+    call WriteVar(ncid, niID, NI(:))
+    call WriteVar(ncid, cwcID, CWC(:))
     call WriteVar(ncid, CBDID, CBD(:))
     call WriteVar(ncid, CBHID, CBH(:))
     call WriteVar(ncid, cflID, canopy_fuel_load(:))
-    call WriteVar(ncid, ROS_frontID, ROS_front(:,:))
-    call WriteVar(ncid, FIID, FI(:,:))
-    call WriteVar(ncid, FI_initID, FI_init(:))
-    call WriteVar(ncid, ROS_actID, ROS_actfm10(:,:))
+    call WriteVar(ncid, ROS_frontID, ROS_front(:,:,:,:))
+    call WriteVar(ncid, FIID, FI(:,:,:,:))
+    call WriteVar(ncid, FI_initID, FI_init(:,:))
+    call WriteVar(ncid, ROS_actID, ROS_actfm10(:,:,:,:,:))
     call WriteVar(ncid, ROS_minID, ROS_critical(:))
-    call WriteVar(ncid, CFBID, CFB(:,:))
-    call WriteVar(ncid, ROS_finID, ROS_final(:,:))
-    call WriteVar(ncid, FI_finID, FI_final(:,:))
+    call WriteVar(ncid, CFBID, CFB(:,:,:,:,:))
+    call WriteVar(ncid, ROS_finID, ROS_final(:,:,:,:,:))
+    call WriteVar(ncid, FI_finID, FI_final(:,:,:,:,:))
 
     call CloseNCFile(ncid)
 
