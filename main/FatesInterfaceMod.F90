@@ -2838,10 +2838,23 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       ! Initialize the Boundary conditions
       call this%sites(s)%bc_in(ifp)%Initialize()
 
-      ! Register the boundary conditions that are necessary for allocating other boundary conditions first
+      ! Register the remaining boundary conditions
+      ! bc_in
       call this%register(r)%Register(key=hlm_fates_soil_level, data=this%sites(s)%bc_in(ifp)%nlevsoil, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_decomp_frac_moisture, data=this%sites(s)%bc_in(ifp)%w_scalar_sisl, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_decomp_frac_temperature, data=this%sites(s)%bc_in(ifp)%t_scalar_sisl, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_decomp_frac_moisture, 
+                                     data=this%sites(s)%bc_in(ifp)%w_scalar_sisl, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_decomp_frac_temperature, 
+                                     data=this%sites(s)%bc_in(ifp)%t_scalar_sisl, hlm_flag=.false.)
+      
+      ! bc_out
+      call this%register(r)%Register(key=hlm_fates_litter_carbon_cellulose, 
+                                     data=this%sites(s)%bc_out(ifp)%litt_flux_cel_c_si, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_litter_carbon_lignin, 
+                                     data=this%sites(s)%bc_out(ifp)%litt_flux_lig_c_si, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_litter_carbon_labile, 
+                                     data=this%sites(s)%bc_out(ifp)%litt_flux_lab_c_si, hlm_flag=.false.)
+
+      
 
    end do
    
