@@ -10,6 +10,7 @@ module FatesInterfaceTypesMod
   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
 
   use FatesInterfaceVariableTypeMod, only : fates_interface_variable_type
+  use FatesInterfaceParametersMod
   
   implicit none
 
@@ -295,18 +296,6 @@ module FatesInterfaceTypesMod
    integer, parameter, public :: subgrid_landunit_index = 3
    integer, parameter, public :: subgrid_column_index = 2
    integer, parameter, public :: subgrid_patch_index = 1
-
-    ! Registry keys parameters
-    character(len=*), parameter, public :: hlm_fates_decomp_max = 'max_layers_decomp'
-    character(len=*), parameter, public :: hlm_fates_soil_level = 'soil_level_number'
-    character(len=*), parameter, public :: hlm_fates_decomp_frac_moisture = 'decomp_frac_moisture'
-    character(len=*), parameter, public :: hlm_fates_decomp_frac_temperature = 'decomp_frac_temperature'
-    
-    ! Registry update frequency parameters
-    integer, parameter :: registry_update_init = 1       ! variable only needs to be updated during initialization
-    integer, parameter :: registry_update_daily = 2      ! variable needs to be updated daily
-    integer, parameter :: registry_update_timestep = 3   ! variable needs to be updated at each timestep
-    integer, parameter :: registry_update_types_num = 3  ! number of update frequency types
 
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
