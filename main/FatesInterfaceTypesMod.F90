@@ -944,7 +944,7 @@ module FatesInterfaceTypesMod
     
     class(bc_in_type), intent(inout) :: this
     
-    ! Allocate the boundary condition variables
+    ! Allocate the boundary condition arrays
     allocate(this%w_scalar_sisl(this%nlevdecomp_full))
     allocate(this%t_scalar_sisl(this%nlevdecomp_full))
     
