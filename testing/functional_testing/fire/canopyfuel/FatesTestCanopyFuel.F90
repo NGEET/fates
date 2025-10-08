@@ -69,42 +69,47 @@ program FatesTestCanopyFuel
   real(r8)                                       :: HPA                 ! heat release per area [kW/m2]
   real(r8)                                       :: ROS_init            ! ROS for initiating crown fire [m/min]
   real(r8)                                       :: crown_frac_burnt    ! crown fraction burnt by crown fire [0-1]
-  real(r8),               allocatable            :: FI(:,:)             ! fire intensity by each fuel model and stand type [kW/m]
-  real(r8),               allocatable            :: FI_init(:)          ! initiation fire intensity by stand type [kW/m]
+  real(r8),               allocatable            :: FI(:,:,:,:)         ! surface fire intensity  [kW/m]
+  real(r8),               allocatable            :: FI_init(:,:)        ! initiation fire intensity by stand type [kW/m]
   real(r8),               allocatable            :: canopy_fuel_load(:) ! patch level canopy fuel load by stand type [kg biomass]
   real(r8),               allocatable            :: CBD(:)              ! patch level canopy bulk density [kg biomass / m3]
   real(r8),               allocatable            :: CBH(:)              ! patch level canopy base height [m]
-  real(r8),               allocatable            :: ROS_front(:,:)      ! surface fire forward rate of spread by fuel model and stand type [m/min]
-  real(r8),               allocatable            :: ROS_actfm10(:,:)    ! active crown fire ROS by drying ratio and wind speed [m/min]
+  real(r8),               allocatable            :: ROS_front(:,:,:,:)  ! surface fire forward rate of spread [m/min]
+  real(r8),               allocatable            :: ROS_actfm10(:,:,:,:) ! active crown fire ROS [m/min]
   real(r8),               allocatable            :: ROS_critical(:)     ! critical ROS for active crown fire to occur, by stand type [m/min]
   real(r8),               allocatable            :: ROS_final(:,:)      ! final ROS by stand type and surface fuel model [m/min]
   real(r8),               allocatable            :: FI_final(:,:)       ! final fire intensity by stand type and surface fuel model [kW/m]
   real(r8),               allocatable            :: CFB(:,:)            ! crown fraction burned by stand type and surface fuel model [fraction]
   integer                                        :: p, f, i             ! looping indices
-  integer                                        :: num_fuel_models      ! number of fuel models to test
-  integer                                        :: num_patch_types      ! number of patch types to test
-  integer                                        :: active_crownfire     ! 1 = active crown fire
-  integer                                        :: passive_crownfire    ! 1 = passive crown fire
-
+  integer                                        :: num_fuel_models     ! number of fuel models to test
+  integer                                        :: num_patch_types     ! number of patch types to test
+  integer                                        :: num_wind            ! size of wind speed 
+  integer                                        :: active_crownfire    ! 1 = active crown fire
+  integer                                        :: passive_crownfire   ! 1 = passive crown fire
+ 
   ! CONSTANTS:
-  integer,  parameter :: num_levsoil = 10      ! number of soil layers
-  real(r8), parameter :: step_size = 1800.0_r8 ! step-size [s]
-  real(r8), parameter :: biomass_2_carbon = 0.45_r8  ! biomass to carbon multiplier
-  real(r8), parameter :: NI = 5000.0_r8        ! fire weather index to use
-  real(r8), parameter :: wind = 500.0_r8       ! wind speed to use [m/min]
-  real(r8), parameter :: CWC = 70.0_r8         ! canopy water content [%]
+  integer,  parameter               :: num_levsoil = 10      ! number of soil layers
+  real(r8), parameter               :: step_size = 1800.0_r8 ! step-size [s]
+  real(r8), parameter               :: biomass_2_carbon = 0.45_r8  ! biomass to carbon multiplier
+  real(r8), parameter, dimension(4) :: NI = (/300.0_r8, 1000.0_r8, 3000.0_r8, 5000.0_r8/)       ! fire weather index to use
+  real(r8), parameter, dimension(5) :: CWC = (/120.0_r8, 100.0_r8, 90.0_r8, 79.0_r8, 69.0_r8/)  ! canopy water content [%]
+  real(r8), parameter               :: wind_max = 800.0_r8       ! max. wind speed to use [m/min]
+  real(r8), parameter               :: wind_min = 100.0_r8       ! min. wind speed to use [m/min]
+  real(r8), parameter               :: wind_inc = 25.0_r8        ! wind speed increment to scale [m/min]
   real(r8), parameter :: drying_ratio = 3000.0_r8
   real(r8), parameter :: wind_atten_tree = 0.4_r8               ! wind attenuation factor for tree fraction
   real(r8), parameter :: wind_atten_grass = 0.6_r8              ! wind attenuation factor for grass fraction
   character(len=*), parameter :: out_file = 'canopyfuel_out.nc' ! output file
+
   
   ! fuel models and patch types to test
-  integer, parameter, dimension(2) :: fuel_models = (/10, 11/)
-  integer, parameter, dimension(3) :: patch_ids = (/1, 6, 7/)
+  integer, parameter, dimension(1) :: fuel_models = (/10/)
+  integer, parameter, dimension(4) :: patch_ids = (/9, 10, 11, 12/)
   
-  ! number of fuel models  and patch types to test
+  ! number of fuel models, patch types, and wind speed to test
   num_fuel_models = size(fuel_models)
   num_patch_types = size(patch_ids)
+  num_wind = int((wind_max - wind_min) / wind_inc + 1)
 
   ! read in parameter file name from command line
   param_file = command_line_arg(1)
@@ -113,7 +118,7 @@ program FatesTestCanopyFuel
   allocate(fuel_names(num_fuel_models))
   allocate(carriers(num_fuel_models))
   allocate(patch_names(num_patch_types))
-  allocate(FI(num_patch_types, num_fuel_models))
+  allocate(FI(num_wind, num_patch_types, num_fuel_models))
   allocate(FI_init(num_patch_types))
   allocate(canopy_fuel_load(num_patch_types))
   allocate(CBD(num_patch_types))
