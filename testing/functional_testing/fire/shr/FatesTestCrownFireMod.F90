@@ -123,7 +123,7 @@ module FatesTestCrownFireMod
 
   ! ======================================================================================
 
-  subroutine WriteCanopyFuelData(out_file, nfuelmods, nstands, nwind, nni, ncwc, Wind, NI, CWC, &
+  subroutine WriteCanopyFuelData(out_file, nfuelmods, nstands, nwind, Wind, NI, CWC, &
     CBD, CBH, canopy_fuel_load, ROS_front, FI, FI_init, ROS_actfm10, ROS_critical, CFB, ROS_final, &
     FI_final, fuel_models,  patch_types)
     !
@@ -136,8 +136,6 @@ module FatesTestCrownFireMod
     integer,            intent(in) :: nfuelmods
     integer,            intent(in) :: nstands
     integer,            intent(in) :: nwind
-    integer,            intent(in) :: nni
-    integer,            intent(in) :: ncwc
     real(r8),           intent(in) :: Wind(:)
     real(r8),           intent(in) :: NI(:)
     real(r8),           intent(in) :: CWC(:)
@@ -172,7 +170,7 @@ module FatesTestCrownFireMod
     call OpenNCFile(trim(out_file), ncid, 'readwrite')
 
     ! register dimensions
-    call RegisterNCDims(ncid, dim_names, (/nwind, nni, ncwc, &
+    call RegisterNCDims(ncid, dim_names, (/nwind, size(NI), size(CWC), &
     nstands, nfuelmods/), 5, dimIDs)
 
     ! first register dimension variables

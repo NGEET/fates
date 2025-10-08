@@ -121,6 +121,9 @@ program FatesTestCanopyFuel
   allocate(fuel_names(num_fuel_models))
   allocate(carriers(num_fuel_models))
   allocate(patch_names(num_patch_types))
+  allocate(Wind(num_wind))
+  allocate(NI(size(NI_vals)))
+  allocate(CWC(size(CWC_vals)))
   allocate(FI(num_wind, size(NI_vals), num_patch_types, num_fuel_models))
   allocate(FI_init(num_patch_types, size(CWC_vals)))
   allocate(canopy_fuel_load(num_patch_types))
@@ -320,9 +323,9 @@ program FatesTestCanopyFuel
   end do
 
   ! write out data
-  call WriteCanopyFuelData(out_file, num_fuel_models, num_patch_types, CBD, CBH, &
-  canopy_fuel_load, ROS_front, FI, FI_init, ROS_actfm10, ROS_critical, CFB,      &
-  ROS_final, FI_final, fuel_models, patch_ids)
+  call WriteCanopyFuelData(out_file, num_fuel_models, num_patch_types, num_wind, Wind, &
+  NI, CWC, CBD, CBH, canopy_fuel_load, ROS_front, FI, FI_init, ROS_actfm10, ROS_critical, & 
+  CFB, ROS_final, FI_final, fuel_models, patch_ids)
 
 
 end program FatesTestCanopyFuel
