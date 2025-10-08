@@ -130,19 +130,32 @@ module FatesInterfaceVariableTypeMod
 
   ! ====================================================================================
     
-    subroutine UpdateInterfaceVariable(this, var)
+    subroutine UpdateInterfaceVariable(this, var, scalar)
 
+      ! Arguments
       class(fates_interface_variable_type), intent(inout) :: this ! variable being updated
       class(fates_interface_variable_type), intent(in)    :: var  ! variable update source
+      real(r8), intent(in), optional                      :: scalar ! value to scale variable update 
 
+      ! Locals
       class(*), pointer :: data_var0d        => null()
       class(*), pointer :: data_var1d(:)     => null()
       class(*), pointer :: data_var2d(:,:)   => null()
       class(*), pointer :: data_var3d(:,:,:) => null()
 
-      integer :: index  ! index for the subgrid level of the input interface variable 
+      real(r8) :: scalar_local
+      integer  :: index  ! index for the subgrid level of the input interface variable 
+      
       character(len=fates_long_string_length) :: msg_mismatch = 'FATES ERROR: Mismatched interface variable types'
 
+      ! Check if scalar is present and set default value to one
+      ! Currently this assumes that the only real values are to be scaled
+      if (present(scalar)) then
+        scalar_local = scalar
+      else
+        scalar_local = 1.0_r8
+      end if
+      
       ! Check that the dimensions of the source and target match
       call this%CompareRegistryVariableSizes(var)
           
@@ -160,9 +173,9 @@ module FatesInterfaceVariableTypeMod
               select type(source => var%data0d)
                 type is (real(r8))
                   if (dest%accumulate) then
-                    dest = dest + source
+                    dest = dest + source * scalar_local
                   else
-                    dest = source
+                    dest = source * scalar_local
                   end if
                 class default
                   write(fates_log(),*), msg_mismatch 
@@ -172,9 +185,9 @@ module FatesInterfaceVariableTypeMod
               select type(source => var%data0d)
                 type is (integer)
                   if (dest%accumulate) then
-                    dest = dest + source
+                    dest = dest + source 
                   else
-                    dest = source
+                    dest = source 
                   end if
                 class default
                   write(fates_log(),*), msg_mismatch 
@@ -192,9 +205,9 @@ module FatesInterfaceVariableTypeMod
               select type(source => var%data1d)
                 type is (real(r8))
                   if (dest%accumulate) then
-                    dest = dest + source
+                    dest = dest + source * scalar_local
                   else
-                    dest = source
+                    dest = source * scalar_local
                   end if
                 class default
                   write(fates_log(),*), msg_mismatch 
@@ -224,9 +237,9 @@ module FatesInterfaceVariableTypeMod
               select type(source => var%data2d)
                 type is (real(r8))
                   if (dest%accumulate) then
-                    dest = dest + source
+                    dest = dest + source * scalar_local
                   else
-                    dest = source
+                    dest = source * scalar_local
                   end if
                 class default
                   write(fates_log(),*), msg_mismatch 
