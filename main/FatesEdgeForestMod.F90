@@ -18,7 +18,7 @@ module FatesEdgeForestMod
   ! Make public necessary subroutines and functions
   public :: CalculateTreeGrassAreaSite
   public :: CalculateEdgeForestArea
-  public :: apply_edgeforest_flammability_to_site
+  public :: ApplyEdgeForestFlamToSite
   ! Public for unit testing
   public :: indexx
   public :: GetFracEdgeForestInEachBin
@@ -27,10 +27,10 @@ module FatesEdgeForestMod
   public :: GetFracEdgeForestInEachBin_norm
   public :: GetFracEdgeForestInEachBin_quadratic
   public :: AssignPatchToBins
-  public :: calculate_edgeforest_flammability_onevar_onebin
-  public :: calculate_edgeforest_flammability_onevar
-  public :: apply_edgeforest_flammability_to_patch_onevar
-  public :: check_change_intended
+  public :: CalcEdgeForestFlam_1var_1bin
+  public :: CalcEdgeForestFlam_1var
+  public :: ApplyEdgeForestFlamToPatch_1var
+  public :: CheckFlamChangeIntended
 
 contains
 
@@ -535,7 +535,7 @@ contains
   end subroutine CalculateEdgeForestArea
 
 
-  elemental function calculate_edgeforest_flammability_onevar_onebin(mult_factor, add_factor, weather_in) result(weather_out)
+  elemental function CalcEdgeForestFlam_1var_1bin(mult_factor, add_factor, weather_in) result(weather_out)
     ! DESCRIPTION:
     ! Apply flammability enhancements to one fireWeather variable for one edge bin
     !
@@ -551,10 +551,10 @@ contains
 
     weather_out = (weather_in * mult_factor) + add_factor
 
-  end function calculate_edgeforest_flammability_onevar_onebin
+  end function CalcEdgeForestFlam_1var_1bin
 
 
-  subroutine calculate_edgeforest_flammability_onevar(mult_factors, add_factors, weather_in, weather_out)
+  subroutine CalcEdgeForestFlam_1var(mult_factors, add_factors, weather_in, weather_out)
     ! DESCRIPTION:
     ! Calculate one fireWeather variable for all edge bins after applying flammability enhancements
     !
@@ -568,12 +568,12 @@ contains
     !
     ! LOCAL VARIABLES:
 
-    weather_out = calculate_edgeforest_flammability_onevar_onebin(mult_factors, add_factors, weather_in)
+    weather_out = CalcEdgeForestFlam_1var_1bin(mult_factors, add_factors, weather_in)
 
-  end subroutine calculate_edgeforest_flammability_onevar
+  end subroutine CalcEdgeForestFlam_1var
 
 
-  subroutine apply_edgeforest_flammability_to_patch_onevar(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
+  subroutine ApplyEdgeForestFlamToPatch_1var(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
     ! DESCRIPTION:
     ! Apply enhancements to one fireWeather variable in a patch based on how much of its area is in
     ! each edge bin
@@ -607,10 +607,10 @@ contains
     ! Clean up
     deallocate(patch_weight_each_edge_bin)
 
-  end subroutine apply_edgeforest_flammability_to_patch_onevar
+  end subroutine ApplyEdgeForestFlamToPatch_1var
 
 
-  function check_change_intended(params_mult, params_add, weather_before, weather_after, tol) result(change_intended)
+  function CheckFlamChangeIntended(params_mult, params_add, weather_before, weather_after, tol) result(change_intended)
     ! DESCRIPTION:
     ! Check whether fire weather change was intended. If not but one was found, throw error.
     !
@@ -636,10 +636,10 @@ contains
         call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
     end if
-  end function check_change_intended
+  end function CheckFlamChangeIntended
 
 
-  subroutine apply_edgeforest_flammability_to_site(site)
+  subroutine ApplyEdgeForestFlamToSite(site)
     ! DESCRIPTION:
     ! Apply enhancements to one fireWeather variable in a patch based on how much of its area is in
     ! each edge bin
@@ -671,17 +671,17 @@ contains
     wind = site%youngest_patch%fireWeather%wind
 
     ! Calculate weather values for each edge bin
-    call calculate_edgeforest_flammability_onevar( &
+    call CalcEdgeForestFlam_1var( &
          ED_val_edgeforest_fireweather_rh_mult, &
          ED_val_edgeforest_fireweather_rh_add, &
          rh, &
          rh_by_edge_bin)
-    call calculate_edgeforest_flammability_onevar( &
+    call CalcEdgeForestFlam_1var( &
          ED_val_edgeforest_fireweather_temp_C_mult, &
          ED_val_edgeforest_fireweather_temp_C_add, &
          temp_C, &
          temp_C_by_edge_bin)
-    call calculate_edgeforest_flammability_onevar( &
+    call CalcEdgeForestFlam_1var( &
          ED_val_edgeforest_fireweather_wind_mult, &
          ED_val_edgeforest_fireweather_wind_add, &
          wind, &
@@ -692,11 +692,11 @@ contains
     do while(associated(currentPatch))
       ! RH
       weather_inout = currentPatch%fireWeather%rh
-      call apply_edgeforest_flammability_to_patch_onevar( &
+      call ApplyEdgeForestFlamToPatch_1var( &
            rh_by_edge_bin, &
            currentPatch%area_in_edgeforest_bins, &
            weather_inout)
-      change_intended = check_change_intended(ED_val_edgeforest_fireweather_rh_mult, &
+      change_intended = CheckFlamChangeIntended(ED_val_edgeforest_fireweather_rh_mult, &
            ED_val_edgeforest_fireweather_rh_add, currentPatch%fireWeather%rh, weather_inout, tol)
       if (change_intended) then
         ! RH can't be negative. In rare cases it can be supersaturated (>100%), so don't check that.
@@ -705,11 +705,11 @@ contains
 
       ! Temp
       weather_inout = currentPatch%fireWeather%temp_C
-      call apply_edgeforest_flammability_to_patch_onevar( &
+      call ApplyEdgeForestFlamToPatch_1var( &
            temp_C_by_edge_bin, &
            currentPatch%area_in_edgeforest_bins, &
            weather_inout)
-      change_intended = check_change_intended(ED_val_edgeforest_fireweather_temp_C_mult, &
+      change_intended = CheckFlamChangeIntended(ED_val_edgeforest_fireweather_temp_C_mult, &
            ED_val_edgeforest_fireweather_temp_C_add, currentPatch%fireWeather%temp_C, weather_inout, tol)
       if (change_intended) then
         ! Temperature can't be below absolute zero
@@ -718,11 +718,11 @@ contains
 
       ! Wind
       weather_inout = currentPatch%fireWeather%wind
-      call apply_edgeforest_flammability_to_patch_onevar( &
+      call ApplyEdgeForestFlamToPatch_1var( &
            wind_by_edge_bin, &
            currentPatch%area_in_edgeforest_bins, &
            weather_inout)
-      change_intended = check_change_intended(ED_val_edgeforest_fireweather_wind_mult, &
+      change_intended = CheckFlamChangeIntended(ED_val_edgeforest_fireweather_wind_mult, &
            ED_val_edgeforest_fireweather_wind_add, currentPatch%fireWeather%wind, weather_inout, tol)
       if (change_intended) then
         ! Wind speed can't be negative
@@ -732,7 +732,7 @@ contains
       currentPatch => currentPatch%younger
     end do
 
-  end subroutine apply_edgeforest_flammability_to_site
+  end subroutine ApplyEdgeForestFlamToSite
 
 
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -33,7 +33,7 @@ module SFMainMod
   use FatesInterfaceTypesMod, only : numpft
   use FatesAllometryMod,      only : CrownDepth
   use FatesFuelClassesMod,    only : fuel_classes
-  use FatesEdgeForestMod,     only : apply_edgeforest_flammability_to_site
+  use FatesEdgeForestMod,     only : ApplyEdgeForestFlamToSite
   
   implicit none
   private
@@ -147,7 +147,7 @@ contains
 
     ! Apply edge forest flammability enhancements to patch%fireWeather
     if (hlm_use_edge_forest) then
-      call apply_edgeforest_flammability_to_site(currentSite)
+      call ApplyEdgeForestFlamToSite(currentSite)
     end if
 
     ! If we only wanted to update fire weather data, we're done

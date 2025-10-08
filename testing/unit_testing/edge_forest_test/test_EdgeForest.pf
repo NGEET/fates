@@ -9,10 +9,10 @@ module test_EdgeForest
   use FatesEdgeForestMod, only : GetFracEdgeForestInEachBin_norm_numerator, GetFracEdgeForestInEachBin_norm_denominator, GetFracEdgeForestInEachBin_quadratic
   use FatesEdgeForestMod, only : GetFracEdgeForestInEachBin_norm
   use FatesEdgeForestMod, only : AssignPatchToBins
-  use FatesEdgeForestMod, only : calculate_edgeforest_flammability_onevar_onebin
-  use FatesEdgeForestMod, only : calculate_edgeforest_flammability_onevar
-  use FatesEdgeForestMod, only : apply_edgeforest_flammability_to_patch_onevar
-  use FatesEdgeForestMod, only : check_change_intended
+  use FatesEdgeForestMod, only : CalcEdgeForestFlam_1var_1bin
+  use FatesEdgeForestMod, only : CalcEdgeForestFlam_1var
+  use FatesEdgeForestMod, only : ApplyEdgeForestFlamToPatch_1var
+  use FatesEdgeForestMod, only : CheckFlamChangeIntended
   use funit
 
   implicit none
@@ -647,7 +647,7 @@ module test_EdgeForest
       real(r8) :: weather_in = 5._r8
       real(r8) :: weather_out
 
-      weather_out = calculate_edgeforest_flammability_onevar_onebin(mult_factor, add_factor, weather_in)
+      weather_out = CalcEdgeForestFlam_1var_1bin(mult_factor, add_factor, weather_in)
 
       @assertEqual(13._r8, weather_out, tolerance=tol)
     end subroutine test_calculate_edgeforest_flammability_onevar_onebin
@@ -661,7 +661,7 @@ module test_EdgeForest
       real(r8) :: weather_in = 5._r8
       real(r8) :: weather_out
 
-      weather_out = calculate_edgeforest_flammability_onevar_onebin(mult_factor, add_factor, weather_in)
+      weather_out = CalcEdgeForestFlam_1var_1bin(mult_factor, add_factor, weather_in)
 
       @assertEqual(5._r8, weather_out, tolerance=0._r8)
     end subroutine test_calculate_edgeforest_flammability_onevar_onebin_nochange
@@ -675,7 +675,7 @@ module test_EdgeForest
       real(r8) :: weather_in = 5._r8
       real(r8) :: weather_out(2)
 
-      call calculate_edgeforest_flammability_onevar(mult_factors, add_factors, weather_in, weather_out)
+      call CalcEdgeForestFlam_1var(mult_factors, add_factors, weather_in, weather_out)
 
       @assertEqual(13._r8, weather_out(1), tolerance=tol)
       @assertEqual(1._r8, weather_out(2), tolerance=tol)
@@ -690,7 +690,7 @@ module test_EdgeForest
       real(r8) :: weather_in = 5._r8
       real(r8) :: weather_out(2)
 
-      call calculate_edgeforest_flammability_onevar(mult_factors, add_factors, weather_in, weather_out)
+      call CalcEdgeForestFlam_1var(mult_factors, add_factors, weather_in, weather_out)
 
       @assertEqual(5._r8, weather_out(1), tolerance=tol)
       @assertEqual(5._r8, weather_out(2), tolerance=tol)
@@ -704,7 +704,7 @@ module test_EdgeForest
       real(r8) :: patch_area_each_edge_bin(3) = [0._r8, 0._r8, 0._r8]
       real(r8) :: weather_inout = 5._r8
 
-      call apply_edgeforest_flammability_to_patch_onevar(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
+      call ApplyEdgeForestFlamToPatch_1var(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
 
       @assertEqual(5._r8, weather_inout, tolerance=0._r8)
     end subroutine test_apply_ef_flam_2patch_onevar_noforest
@@ -717,7 +717,7 @@ module test_EdgeForest
       real(r8) :: patch_area_each_edge_bin(3) = [16._r8, 0._r8, 0._r8]
       real(r8) :: weather_inout = 5._r8
 
-      call apply_edgeforest_flammability_to_patch_onevar(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
+      call ApplyEdgeForestFlamToPatch_1var(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
 
       @assertEqual(2._r8, weather_inout, tolerance=tol)
     end subroutine test_apply_ef_flam_2patch_onevar_1bin
@@ -730,7 +730,7 @@ module test_EdgeForest
       real(r8) :: patch_area_each_edge_bin(3) = [16._r8, 32._r8, 64._r8]
       real(r8) :: weather_inout = 9._r8
 
-      call apply_edgeforest_flammability_to_patch_onevar(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
+      call ApplyEdgeForestFlamToPatch_1var(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
 
       @assertEqual(6._r8, weather_inout, tolerance=tol)
     end subroutine test_apply_ef_flam_2patch_onevar_allbins
@@ -743,7 +743,7 @@ module test_EdgeForest
       real(r8) :: patch_area_each_edge_bin(3) = [1.e-30_r8, 32._r8, 64._r8]
       real(r8) :: weather_inout = 9._r8
 
-      call apply_edgeforest_flammability_to_patch_onevar(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
+      call ApplyEdgeForestFlamToPatch_1var(weather_by_edge_bin, patch_area_each_edge_bin, weather_inout)
 
       @assertEqual(9._r8, weather_inout, tolerance=0._r8)
       
@@ -752,7 +752,7 @@ module test_EdgeForest
 
     @Test
     subroutine test_check_change_intended_true_justadd(this)
-      ! Test check_change_intended() returning false with only additive changes
+      ! Test CheckFlamChangeIntended() returning false with only additive changes
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: params_mult(3) = [1._r8, 1._r8, 1._r8]
       real(r8) :: params_add(3) = [1.e-30_r8, 32._r8, 64._r8]
@@ -760,13 +760,13 @@ module test_EdgeForest
       real(r8) :: weather_after = 10._r8
       real(r8) :: tol2 = 1.e-9_r8
 
-      @assertTrue(check_change_intended(params_mult, params_add, weather_before, weather_after, tol2))
+      @assertTrue(CheckFlamChangeIntended(params_mult, params_add, weather_before, weather_after, tol2))
 
     end subroutine test_check_change_intended_true_justadd
 
     @Test
     subroutine test_check_change_intended_true_justadd_neg(this)
-      ! Test check_change_intended() returning false with only negative additive changes
+      ! Test CheckFlamChangeIntended() returning false with only negative additive changes
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: params_mult(3) = [1._r8, 1._r8, 1._r8]
       real(r8) :: params_add(3) = [-1.e-30_r8, -32._r8, -64._r8]
@@ -774,13 +774,13 @@ module test_EdgeForest
       real(r8) :: weather_after = 10._r8
       real(r8) :: tol2 = 1.e-9_r8
 
-      @assertTrue(check_change_intended(params_mult, params_add, weather_before, weather_after, tol2))
+      @assertTrue(CheckFlamChangeIntended(params_mult, params_add, weather_before, weather_after, tol2))
 
     end subroutine test_check_change_intended_true_justadd_neg
 
     @Test
     subroutine test_check_change_intended_true_justmult(this)
-      ! Test check_change_intended() returning false with only multiplicative changes
+      ! Test CheckFlamChangeIntended() returning false with only multiplicative changes
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: params_mult(3) = [1.2_r8, 1.3_r8, 1.4_r8]
       real(r8) :: params_add(3) = [0._r8, 0._r8, 0._r8]
@@ -788,13 +788,13 @@ module test_EdgeForest
       real(r8) :: weather_after = 10._r8
       real(r8) :: tol2 = 1.e-9_r8
 
-      @assertTrue(check_change_intended(params_mult, params_add, weather_before, weather_after, tol2))
+      @assertTrue(CheckFlamChangeIntended(params_mult, params_add, weather_before, weather_after, tol2))
 
     end subroutine test_check_change_intended_true_justmult
 
     @Test
     subroutine test_check_change_intended_true_justmult_neg(this)
-      ! Test check_change_intended() returning false with only negative multiplicative changes
+      ! Test CheckFlamChangeIntended() returning false with only negative multiplicative changes
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: params_mult(3) = [-1.2_r8, -1.3_r8, -1.4_r8]
       real(r8) :: params_add(3) = [0._r8, 0._r8, 0._r8]
@@ -802,13 +802,13 @@ module test_EdgeForest
       real(r8) :: weather_after = 10._r8
       real(r8) :: tol2 = 1.e-9_r8
 
-      @assertTrue(check_change_intended(params_mult, params_add, weather_before, weather_after, tol2))
+      @assertTrue(CheckFlamChangeIntended(params_mult, params_add, weather_before, weather_after, tol2))
 
     end subroutine test_check_change_intended_true_justmult_neg
 
     @Test
     subroutine test_check_change_intended_true_both(this)
-      ! Test check_change_intended() returning false with both additive and multiplicative changes
+      ! Test CheckFlamChangeIntended() returning false with both additive and multiplicative changes
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: params_mult(3) = [1.2_r8, 1.3_r8, 1.4_r8]
       real(r8) :: params_add(3) = [0._r8, 2._r8, 22._r8]
@@ -819,13 +819,13 @@ module test_EdgeForest
       ! Check that tolerance works
       weather_after = weather_before + tol * (1._r8 + tol * 1.e-3_r8)
 
-      @assertTrue(check_change_intended(params_mult, params_add, weather_before, weather_after, tol2))
+      @assertTrue(CheckFlamChangeIntended(params_mult, params_add, weather_before, weather_after, tol2))
 
     end subroutine test_check_change_intended_true_both
 
     @Test
     subroutine test_check_change_intended_false(this)
-      ! Test check_change_intended() returning false with neither additive nor multiplicative changes
+      ! Test CheckFlamChangeIntended() returning false with neither additive nor multiplicative changes
       class(TestEdgeForest), intent(inout) :: this
       real(r8) :: params_mult(3) = [1._r8, 1._r8, 1._r8]
       real(r8) :: params_add(3) = [0._r8, 0._r8, 0._r8]
@@ -836,7 +836,7 @@ module test_EdgeForest
       ! Check that tolerance works
       weather_after = weather_before + tol * 1.e-3_r8
 
-      @assertFalse(check_change_intended(params_mult, params_add, weather_before, weather_after, tol2))
+      @assertFalse(CheckFlamChangeIntended(params_mult, params_add, weather_before, weather_after, tol2))
 
     end subroutine test_check_change_intended_false
 
