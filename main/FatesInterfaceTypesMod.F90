@@ -883,7 +883,7 @@ module FatesInterfaceTypesMod
     ! Arrays that hold the indices of variables based on update frequency
     integer, allocatable :: filter_init(:)       ! index of variables that update only at initialization
     integer, allocatable :: filter_daily(:)      ! index of variables that update daily
-    ! integer, allocatable :: filter_timestep(:)   ! index of variables that update at each timestep
+    integer, allocatable :: filter_timestep(:)   ! index of variables that update at each timestep
 
     ! Subgrid index data
     integer, private :: gidx
@@ -1024,6 +1024,14 @@ module FatesInterfaceTypesMod
     call this%DefineInterfaceVariable(key=hlm_fates_soil_level, initialize=initialize, index=index)
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_moisture, initialize=initialize, index=index)
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_temperature, initialize=initialize, index=index)
+    
+    ! Variables that need to be updated with each timestep
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_cellulose, initialize=initialize, index=index, 
+                                      update_frequency=registry_update_timestep)
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_lignin, initialize=initialize, index=index, 
+                                      update_frequency=registry_update_timestep)
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_labile, initialize=initialize, index=index, 
+                                      update_frequency=registry_update_timestep)
 
   end subroutine DefineInterfaceRegistry
 
@@ -1087,6 +1095,8 @@ module FatesInterfaceTypesMod
           this%num_api_vars_update_init = this%num_api_vars_update_init + 1
         case (registry_update_daily)
           this%num_api_vars_update_daily = this%num_api_vars_update_daily + 1
+        case (registry_update_timestep)
+          this%num_api_vars_update_init = this%num_api_vars_update_timestep + 1
         case default
           write(fates_log(),*) 'ERROR: Unrecognized update frequency in DefineInterfaceVariable(): ', update_frequency
           call endrun(msg=errMsg(__FILE__, __LINE__))
@@ -1192,10 +1202,12 @@ module FatesInterfaceTypesMod
     integer :: index
     integer :: count_init
     integer :: count_daily
+    integer :: count_timestep
 
     ! Initialize counters
     count_init = 0
     count_daily = 0
+    count_timestep = 0
     
     ! Iterate over all registered variables and populate the filter maps accordingly
     do index = 1, this%num_api_vars
@@ -1205,6 +1217,9 @@ module FatesInterfaceTypesMod
       else if (this%update_frequency(index) == registry_update_daily) then
         count_daily = count_daily + 1
         this%filter_daily(count_daily) = index
+      else if (this%update_frequency(index) == registry_update_timestep) then
+        count_timestep = count_timestep + 1
+        this%filter_timestep(count_timestep) = index
       else
         write(fates_log(),*) 'ERROR: Unrecognized update frequency in SetFilterMapArrays(): ', this%update_frequency(index)
         call endrun(msg=errMsg(__FILE__, __LINE__))
@@ -1213,7 +1228,8 @@ module FatesInterfaceTypesMod
     
     ! Check that the counts match the expected sizes
     if (count_init /= this%num_api_vars_update_init .or. &
-        count_daily /= this%num_api_vars_update_daily) then
+        count_daily /= this%num_api_vars_update_daily .or. 
+        count_timestep /= this%num_api_vars_update_timestep) then
           
       write(fates_log(),*) 'ERROR: Mismatch in initialization counts in SetFilterMapArrays(): '
       write(fates_log(),*) '  count_init = ', count_init, ' expected = ', this%num_api_vars_update_init
