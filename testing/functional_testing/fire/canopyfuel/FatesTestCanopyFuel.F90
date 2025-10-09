@@ -268,7 +268,7 @@ program FatesTestCanopyFuel
             do c = 1, size(CWC_vals)
                 CWC(c) = CWC_vals(c)
                 ! calculate initiation surface fire intensity 
-                FI_init(w,n,p,c) = PassiveCrownFireIntensity(CBH(p), CWC(c))
+                FI_init(p,c) = PassiveCrownFireIntensity(CBH(p), CWC(c))
 
                 do f = 1, num_fuel_models
                     call fuel(f)%CalculateFuelBurnt(fuel_consumed)
@@ -276,7 +276,7 @@ program FatesTestCanopyFuel
                     FI(w,n,p,f) = FireIntensity(tfc_ros/0.45_r8, ROS_front(w,n,p,f)/60.0_r8)
                     
                     if(FI(w,n,p,f) > SF_val_fire_threshold .and. &
-                    FI(w,n,p,f) > FI_init(w,n,p,c))then
+                    FI(w,n,p,f) > FI_init(p,c))then
                         call CrownFireBehaveFM10(drying_ratio, NI(n), &
                         SF_val_miner_total, SF_val_part_dens, Wind(w), &
                         CBD(p), ROS_active, CI)
@@ -292,7 +292,7 @@ program FatesTestCanopyFuel
                         fuel(f)%MEF_notrunks, NI(n), effect_wind, ROS, i_r)
 
                         HPA = HeatReleasePerArea(fuel(f)%SAV_notrunks, i_r)
-                        ROS_init = (60.0_r8 * FI_init(w,n,p,c)) / HPA
+                        ROS_init = (60.0_r8 * FI_init(p,c)) / HPA
 
                         ! calculate crown fraction burnt
                         call CrownFireCFB(ROS_active, ROS_critical(p), ROS_front(w,n,p,f), &

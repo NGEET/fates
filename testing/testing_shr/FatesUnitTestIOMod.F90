@@ -26,6 +26,8 @@ module FatesUnitTestIOMod
     module procedure WriteVar1DReal
     module procedure WriteVar2DReal
     module procedure WriteVar3DReal
+    module procedure WriteVar4DReal
+    module procedure WriteVar5DReal
     module procedure WriteVar1DInt
     module procedure WriteVar2DInt
     module procedure WriteVar1DChar
@@ -561,6 +563,40 @@ module FatesUnitTestIOMod
 
   !  =====================================================================================
 
+  subroutine WriteVar4DReal(ncid, varID, data)
+    !
+    ! DESCRIPTION:
+    ! Write 3D real data
+    !
+
+    ! ARGUMENTS:
+    integer,  intent(in) :: ncid           ! netcdf file id
+    integer,  intent(in) :: varID          ! variable ID
+    real(r8), intent(in) :: data(:,:,:,:)  ! data to write
+
+    call Check(nf90_put_var(ncid, varID, data(:,:,:,:)))
+
+  end subroutine WriteVar4DReal
+
+  !  =====================================================================================
+
+  subroutine WriteVar5DReal(ncid, varID, data)
+    !
+    ! DESCRIPTION:
+    ! Write 5d real data
+
+    ! ARGUMENTS:
+    integer,  intent(in)  :: ncid             ! netcdf file id
+    integer,  intent(in)  :: varID            ! variable ID
+    real(r8), intent(in)  :: data(:,:,:,:,:)  ! data to write 
+
+    call Check(nf90_put_var(ncid, varID, data(:,:,:,:,:)))
+
+  end subroutine WriteVar5DReal
+
+  !  =====================================================================================
+
+  
   subroutine WriteVar1DInt(ncid, varID, data)
     !
     ! DESCRIPTION:
