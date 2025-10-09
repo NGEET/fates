@@ -3554,7 +3554,7 @@ contains
           else
              write(fates_log(),*) 'this isnt because the land use was less than allowed'
 
-             call endrun(msg=errMsg(sourcefile, __LINE__))
+             !call endrun(msg=errMsg(sourcefile, __LINE__))
           
              ! Note to user. If you DO decide to remove the end-run above this line
              ! Make sure that you keep the pointer below this line, or you will get

@@ -809,8 +809,8 @@ module FatesInterfaceTypesMod
       real(r8) :: fates_total_carbon_site ! Site level total carbon in FATES (g/m2) for  HLM balance check
       
       ! direct carbon loss to atm pathways
-      real(r8) :: grazing_closs_to_atm_si    ! Loss of carbon to atmosphere via grazing [Site-Level, gC m-2 s-1]
-      real(r8) :: fire_closs_to_atm_si       ! Loss of carbon to atmosphere via burning (includes burning from land use change) [Site-Level, gC m-2 s-1]
+      real(r8) :: grazing_closs_to_atm_si    ! Loss of carbon to atmosphere via grazing [Site-Level, kgC m-2 s-1]
+      real(r8) :: fire_closs_to_atm_si       ! Loss of carbon to atmosphere via burning (includes burning from land use change) [Site-Level, kgC m-2 s-1]
 
    end type bc_out_type
 
