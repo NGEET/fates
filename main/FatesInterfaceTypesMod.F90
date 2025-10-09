@@ -905,6 +905,7 @@ module FatesInterfaceTypesMod
       procedure :: InitializeInterfaceRegistry
       procedure :: InitializeInterfaceVariables
       procedure :: SetSubgridIndices
+      procedure :: UpdateLitterFluxes
       procedure :: Update => UpdateInterfaceVariables
 
       generic :: Register => RegisterInterfaceVariables_0d, & 
@@ -1376,6 +1377,29 @@ module FatesInterfaceTypesMod
     end do
 
   end subroutine UpdateInterfaceVariables
+
+  ! ======================================================================================
+  
+  subroutine UpdateLitterFluxes(this, dtime)
+
+    ! Arguments
+    class(fates_interface_registry_base_type), intent(inout) :: this
+    real(r8), intent(in)                                     :: dtime
+    
+    ! Locals
+    integer :: i
+    integer :: j
+    
+    ! Iterate over the litter flux filter
+    do i = 1, num_litter_fluxes
+      j = this%filter_litter_flux
+      
+      ! Update the hlm variables with the fates variables
+      call this%hlm_vars(j)%Update(fates_vars(j), scalar=dtime)
+
+    end do
+    
+  end subroutine UpdateLitterFluxes
 
   ! ======================================================================================
 

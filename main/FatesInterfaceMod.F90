@@ -2866,13 +2866,29 @@ subroutine UpdateInterfaceVariables(this)
    
    class(fates_interface_type), intent(inout) :: this
 
-   integer :: r   ! site index
+   integer :: r   ! registry interface index
 
    do r = 1, this%npatches
       call this%register(r)%Update()
    end do
    
 end subroutine UpdateInterfaceVariables
+
+! ======================================================================================
+
+subroutine UpdateLitterFluxes(this, dtime)
+   
+   class(fates_interface_type), intent(inout) :: this
+   real(r8), intent(in)                       :: dtime   ! HLM timestep
+   
+   ! Locals
+   integer :: r
+   
+   do r = 1, this%npatches
+      call this%register(r)%UpdateLitterFluxes(dtime)
+   end do
+
+end subroutine UpdateLitterFluxes
 
 ! ======================================================================================
 
