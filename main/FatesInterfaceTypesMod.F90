@@ -876,14 +876,15 @@ module FatesInterfaceTypesMod
     integer :: num_api_vars                        ! number of variables in the registry
     integer :: num_api_vars_update_init           ! number of variables that update only at initialization
     integer :: num_api_vars_update_daily          ! number of variables that update daily
+    integer :: num_api_vars_update_timestep       ! number of variables that update on the model timestep
 
     ! Array of update frequency values for each variable index
     integer, allocatable :: update_frequency(:)
 
-    ! Arrays that hold the indices of variables based on update frequency
-    integer, allocatable :: filter_init(:)       ! index of variables that update only at initialization
-    integer, allocatable :: filter_daily(:)      ! index of variables that update daily
-    integer, allocatable :: filter_timestep(:)   ! index of variables that update at each timestep
+    ! Arrays that hold the registry indices of variables based on update frequency
+    integer, allocatable :: filter_init(:)      ! registry index of variables that update only at initialization
+    integer, allocatable :: filter_daily(:)     ! registry index of variables that update daily
+    integer, allocatable :: filter_timestep(:)  ! registry index of variables that update at each timestep
 
     ! Subgrid index data
     integer, private :: gidx
@@ -985,11 +986,13 @@ module FatesInterfaceTypesMod
     ! Allocate the index filter maps
     allocate(this%filter_init(this%num_api_vars_update_init))
     allocate(this%filter_daily(this%num_api_vars_update_daily))
+    allocate(this%filter_timestep(this%num_api_vars_update_timestep))
     
     ! Unset the allocatables not including the interface variables
     this%update_frequency(:) = fates_unset_int
     this%filter_init(:) = fates_unset_int
     this%filter_daily(:) = fates_unset_int
+    this%filter_timestep(:) = fates_unset_int
 
     ! Now initialize the registry keys
     call this%DefineInterfaceRegistry(initialize=.true.)
@@ -1064,6 +1067,8 @@ module FatesInterfaceTypesMod
           update_frequency_local = registry_update_init
         case (registry_update_daily)
           update_frequency_local = registry_update_daily
+        case (registry_update_timestep)
+          update_frequency_local = registry_update_timestep
         case default
           write(fates_log(),*) 'ERROR: Unrecognized update frequency in DefineInterfaceVariable(): ', update_frequency
           call endrun(msg=errMsg(__FILE__, __LINE__))
