@@ -5240,7 +5240,6 @@ contains
             hio_nir_rad_err_si(io_si)          = 0._r8
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
-
                if( abs(cpatch%rad_error(ivis)-hlm_hio_ignore_val)>nearzero ) then
 
                   hio_vis_rad_err_si(io_si) = hio_vis_rad_err_si(io_si) + &
@@ -5545,6 +5544,7 @@ contains
                   end associate
                endif
                ! canopy leaf carbon balance
+
                ican = ccohort%canopy_layer
                do ileaf=1,ccohort%nv
                   cnlf_indx = ileaf + (ican-1) * nlevleaf
@@ -5742,7 +5742,6 @@ contains
                   hio_laisun_si_can(io_si,ican) = hio_laisun_si_can(io_si,ican) * site_area_veg_inv
                   hio_laisha_si_can(io_si,ican) = hio_laisha_si_can(io_si,ican) * site_area_veg_inv
                end if
-               
             end do do_ican2
          end if if_zenith2
       enddo do_sites ! site loop
