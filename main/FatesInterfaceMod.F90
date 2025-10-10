@@ -113,7 +113,7 @@ module FatesInterfaceMod
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
    use FatesTwoStreamUtilsMod, only : TransferRadParams
    use LeafBiophysicsMod         , only : lb_params
-   
+   use LeafBiophysicsMod         , only : FvCB1980
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -159,7 +159,7 @@ module FatesInterfaceMod
       ! instance is fine.
       
       type(bc_pconst_type) :: bc_pconst
-      
+
 
    end type fates_interface_type
    
@@ -369,7 +369,14 @@ contains
        write(fates_log(), *) 'hlm_parteh_mode: ',hlm_parteh_mode
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
-    
+
+    ! carbon loss to atmosphere pathways
+    ! (these values are a unit conversion off of the
+    !  equivalent "site_mass%" diagnostics, so they are not
+    !  incremented but set during update_site())
+    fates%bc_out(s)%grazing_closs_to_atm_si = nan
+    fates%bc_out(s)%fire_closs_to_atm_si    = nan
+
     fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
     fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
     
@@ -411,6 +418,10 @@ contains
        fates%bc_in(s)%hlm_luh_states(:) = 0.0_r8
        fates%bc_in(s)%hlm_luh_transitions(:) = 0.0_r8
     end if
+
+    fates%bc_out(s)%veg_c_si        = 0.0_r8
+    fates%bc_out(s)%litter_cwd_c_si = 0.0_r8
+    fates%bc_out(s)%seed_c_si       = 0.0_r8
 
     return
   end subroutine zero_bcs
@@ -952,9 +963,10 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
          
-         ! lower edges of VAI bins       
-         do i = 1,nlevleaf
-            dlower_vai(i) = sum(dinc_vai(1:i))
+         ! lower edges of VAI bins
+         dlower_vai(1) = 0._r8
+         do i = 2,nlevleaf
+            dlower_vai(i) =  dlower_vai(i-1) + dinc_vai(i-1)
          end do
 
          ! Identify number of size and age class bins for history output
@@ -1489,21 +1501,22 @@ contains
          hlm_sf_scalar_lightning_def = unset_int
          hlm_sf_successful_ignitions_def = unset_int
          hlm_sf_anthro_ignitions_def = unset_int
+         hlm_use_managed_fire = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
          hlm_num_luh2_states       = unset_int
          hlm_num_luh2_transitions  = unset_int
          hlm_use_cohort_age_tracking = unset_int
-         hlm_daylength_factor_switch = unset_int
-         hlm_photo_tempsens_model = unset_int
-         hlm_stomatal_assim_model = unset_int
-         hlm_stomatal_model = unset_int
+         lb_params%dayl_switch = unset_int
+         lb_params%photo_tempsens_model = unset_int
+         lb_params%stomatal_assim_model = unset_int
+         lb_params%stomatal_model = unset_int
          hlm_hydr_solver = unset_int
          hlm_maintresp_leaf_model = unset_int
          hlm_mort_cstarvation_model = unset_int
          hlm_radiation_model = unset_int
-         hlm_electron_transport_model = unset_int
+         lb_params%electron_transport_model = unset_int !FvCB1980 ! Temporary until API Has this switch
          hlm_regeneration_model = unset_int
          hlm_use_logging   = unset_int
          hlm_use_ed_st3    = unset_int
@@ -1757,6 +1770,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_managed_fire .eq. unset_int) then
+            write(fates_log(), *) 'switch for managed fire mode unset: hlm_use_managed_fire, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(trim(hlm_name).eq.'CLM' .and. hlm_parteh_mode .eq. 2) then
             if( sum(abs(EDPftvarcon_inst%prescribed_puptake(:)))<nearzero .and. &
                 sum(abs(EDPftvarcon_inst%prescribed_nuptake(:)))<nearzero) then
@@ -1789,23 +1807,23 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_daylength_factor_switch .eq. unset_int) then
-            write(fates_log(), *) 'use daylength factor switch is unset: hlm_daylength_factor_switch, exiting'
+         if(lb_params%dayl_switch .eq. unset_int) then
+            write(fates_log(), *) 'use daylength factor switch is unset: lb_params%dayl_switch, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_photo_tempsens_model .eq. unset_int) then
-            write(fates_log(), *) 'photosynthetic acclimation model is unset: hlm_photo_tempsens_model exiting'
+         if(lb_params%photo_tempsens_model .eq. unset_int) then
+            write(fates_log(), *) 'photosynthetic acclimation model is unset: lb_params%photo_tempsens_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_stomatal_assim_model .eq. unset_int) then
-            write(fates_log(), *) 'stomatal model assimilation mode is unset: hlm_stomatal_assim_model exiting'
+         if(lb_params%stomatal_assim_model .eq. unset_int) then
+            write(fates_log(), *) 'stomatal model assimilation mode is unset: lb_params%stomatal_assim_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_stomatal_model .eq. unset_int) then
-            write(fates_log(), *) 'stomatal model conductance is unset: hlm_stomatal_model exiting'
+         if(lb_params%stomatal_model .eq. unset_int) then
+            write(fates_log(), *) 'stomatal model conductance is unset: lb_params%stomatal_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -1829,11 +1847,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(hlm_electron_transport_model .eq. unset_int) then
-            write(fates_log(), *) 'electron transport model is unset: hlm_electron_transport_model exiting'
+         if(lb_params%electron_transport_model .eq. unset_int) then
+            write(fates_log(), *) 'electron transport model is unset: lb_params%electron_transport_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
-         
+                  
          if(hlm_regeneration_model .eq. unset_int) then
             write(fates_log(), *) 'seed regeneration model is unset: hlm_regeneration_model exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1941,9 +1959,6 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_seeddisp_cadence= ',ival,' to FATES'
                end if
-
-           
-               
                
             case('spitfire_mode')
                hlm_spitfire_mode = ival
@@ -1975,6 +1990,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_sf_anthro_ignition_def =',ival,' to FATES'
                end if
 
+            case('use_managed_fire')
+               hlm_use_managed_fire = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_managed_fire =',ival,' to FATES'
+              end if
+              
                
             case('use_fixed_biogeog')
                 hlm_use_fixed_biogeog = ival
@@ -2043,31 +2064,45 @@ contains
                end if
 
             case('use_daylength_factor_switch')
-               hlm_daylength_factor_switch = ival
-               lb_params%dayl_switch    = hlm_daylength_factor_switch
+               ! This switch enables the use of the daylength factor from the HLM
+               ! 1 = TRUE, 0 = FALSE
+               lb_params%dayl_switch    = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_daylength_factor_switch= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering lb_params%dayl_switch= ',ival,' to FATES'
                end if
 
             case('photosynth_acclimation')
-               hlm_photo_tempsens_model = ival
-               lb_params%photo_tempsens_model = hlm_photo_tempsens_model
+               ! switch for choosing the model that defines the temperature
+               ! sensitivity of photosynthetic parameters (vcmax, jmax).
+               ! 0=non-acclimating, 1=Kumarathunge et al., 2019
+               lb_params%photo_tempsens_model = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_photo_tempsens_model= ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering lb_params%photo_tempsens_model= ',ival,' to FATES'
                end if
 
             case('stomatal_assim_model')
-               hlm_stomatal_assim_model = ival
-               lb_params%stomatal_assim_model = hlm_stomatal_assim_model
+               ! Switch designating whether to use net or gross
+               ! assimilation in the stomata model, 1 for net, 2 for gross
+               lb_params%stomatal_assim_model = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_stomatal_assim_model ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering lb_params%stomatal_assim_model ',ival,' to FATES'
                end if
 
             case('stomatal_model')
-               hlm_stomatal_model = ival
-               lb_params%stomatal_model = hlm_stomatal_model
+               ! switch for choosing between stomatal conductance models
+               ! 1 for Ball-Berry, 2 for Medlyn
+               lb_params%stomatal_model = ival
                if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_stomatal_model ',ival,' to FATES'
+                  write(fates_log(),*) 'Transfering lb_params%stomatal_model ',ival,' to FATES'
+               end if
+
+            case('electron_transport_model')
+               ! Switch for electron transport model
+               ! (1) for Farquhar von Caemmerer & Berry  (FvCB)
+               ! (2) for Johnson & Berry (2021) (JB)
+               lb_params%electron_transport_model = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering lb_params%electron_transport_model ',ival,' to FATES'
                end if
 
             case('hydr_solver')
@@ -2093,13 +2128,7 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_radiation_model ',ival,' to FATES'
                end if
-
-            case('electron_transport_model')
-               hlm_electron_transport_model = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_electron_transport_model ',ival,' to FATES'
-               end if
-
+               
             case('regeneration_model')
                hlm_regeneration_model = ival
                if (fates_global_verbose()) then

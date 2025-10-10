@@ -21,7 +21,7 @@ module FatesPatchMod
   use PRTGenericMod,          only : struct_organ, leaf_organ, sapw_organ
   use PRTParametersMod,       only : prt_params
   use FatesConstantsMod,      only : nocomp_bareground
-  use EDParamsMod,            only : nlevleaf, nclmax, maxpft
+  use EDParamsMod,            only : nlevleaf, nclmax, maxpft,max_cohort_per_patch
   use FatesConstantsMod,      only : n_dbh_bins, n_dist_types
   use FatesConstantsMod,      only : t_water_freeze_k_1atm
   use FatesRunningMeanMod,    only : ema_24hr, fixed_24hr, ema_lpa, ema_longterm
@@ -41,6 +41,26 @@ module FatesPatchMod
   ! for error message writing
   character(len=*), parameter :: sourcefile = __FILE__
 
+  type :: fates_cohort_vec_type
+
+     ! This is a scratch array for cohort pointers
+     ! this is useful if you want to loop over a sparse subset
+     ! of fates cohorts over and over again, allowing
+     ! you to iterate them in a do loop
+     
+     type(fates_cohort_type), pointer :: p => null()
+
+     ! This is the area of the cohort (less than or equal to cohort%carea)
+     ! that will be promoted or demoted, ie promoted/demoted crown area
+     ! units [m2/site] or [m2/ha] (same as the patch area and crown area)
+     ! We track it here because we construct the cohort list for specific
+     ! canopy layers
+     
+     real(r8) :: pd_area
+     
+  end type fates_cohort_vec_type
+
+  
   type, public :: fates_patch_type
 
     ! POINTERS
@@ -48,7 +68,8 @@ module FatesPatchMod
     type (fates_cohort_type), pointer :: shortest => null() ! pointer to patch's shortest cohort
     type (fates_patch_type),  pointer :: older => null()    ! pointer to next older patch   
     type (fates_patch_type),  pointer :: younger => null()  ! pointer to next younger patch
-  
+    type (fates_cohort_vec_type), pointer :: co_scr(:)      ! Scratch vector of cohort properties
+    
     !---------------------------------------------------------------------------
 
     ! INDICES
@@ -209,9 +230,19 @@ module FatesPatchMod
     real(r8)              :: ros_back                ! rate of backward spread of fire [m/min]
     real(r8)              :: tau_l                   ! duration of lethal heating [min]
     real(r8)              :: fi                      ! average fire intensity of flaming front [kJ/m/s] or [kW/m]
-    integer               :: fire                    ! is there a fire? [1=yes; 0=no]
+    integer               :: fire                    ! is there a fire (rx + nonrx)? [1=yes; 0=no]
     real(r8)              :: fd                      ! fire duration [min]
-    real(r8)              :: frac_burnt              ! fraction of patch burnt by fire
+    real(r8)              :: frac_burnt              ! total fraction of patch burnt by fire (rx + nonrx)
+
+    ! wildfire
+    real(r8)              :: nonrx_fire              ! is there a wildfire [1=yes; 0=no]
+    real(r8)              :: nonrx_fi                ! average fire intensity of wildfire flaming front
+    real(r8)              :: nonrx_frac_burnt        ! fraction burnt by wildfire          
+
+    ! prescribed fire 
+    integer               :: rx_fire                 ! is there a prescribed fire? [1=yes; 0=no]
+    real(r8)              :: rx_fi                   ! average fire intensity of prescribed fire flaming front
+    real(r8)              :: rx_frac_burnt           ! fraction burnt by prescribed fire, it's user defined at patch level per fire event
 
     ! fire effects      
     real(r8)              :: scorch_ht(maxpft)       ! scorch height [m] 
@@ -269,7 +300,8 @@ module FatesPatchMod
       allocate(this%sabs_dir(num_swb))
       allocate(this%sabs_dif(num_swb))
       allocate(this%fragmentation_scaler(num_levsoil))
-
+      allocate(this%co_scr(max_cohort_per_patch))
+      
       ! initialize all values to nan
       call this%NanValues()
 
@@ -503,6 +535,12 @@ module FatesPatchMod
       this%tau_l                        = nan
       this%fi                           = nan 
       this%fire                         = fates_unset_int
+      this%nonrx_fire                   = fates_unset_int
+      this%rx_fire                      = fates_unset_int
+      this%nonrx_fi                     = nan
+      this%nonrx_frac_burnt             = nan
+      this%rx_fi                        = nan
+      this%rx_frac_burnt                = nan
       this%fd                           = nan 
       this%scorch_ht(:)                 = nan 
       this%tfc_ros                      = nan
@@ -593,6 +631,10 @@ module FatesPatchMod
       this%scorch_ht(:)                      = 0.0_r8  
       this%tfc_ros                           = 0.0_r8
       this%frac_burnt                        = 0.0_r8
+      this%nonrx_fi                          = 0.0_r8
+      this%nonrx_frac_burnt                  = 0.0_r8
+      this%rx_fi                             = 0.0_r8
+      this%rx_frac_burnt                     = 0.0_r8
 
     end subroutine ZeroValues
 
@@ -878,6 +920,7 @@ module FatesPatchMod
                  this%sabs_dir,                 &
                  this%sabs_dif,                 &
                  this%fragmentation_scaler,     &
+                 this%co_scr,                   &
                  stat=istat, errmsg=smsg)
 
       ! These arrays are allocated via a call from EDCanopyStructureMod
@@ -1141,7 +1184,7 @@ module FatesPatchMod
     
     !===========================================================================
     
-    subroutine SortCohorts(this)
+    subroutine SortCohorts(this,check_order)
       !
       ! DESCRIPTION: sort cohorts in patch's linked list
       ! uses insertion sort to build a new list
@@ -1149,11 +1192,21 @@ module FatesPatchMod
     
       ! ARGUMENTS:
       class(fates_patch_type), intent(inout), target :: this ! patch
+
+      logical, optional, intent(in) :: check_order
       
       ! LOCALS:
       type(fates_cohort_type), pointer :: currentCohort
       type(fates_cohort_type), pointer :: nextCohort
+
+      logical :: check_order_present
       
+      if (present(check_order)) then
+        check_order_present = check_order
+      else
+        check_order_present = .false.
+      end if
+
       ! check for inconsistent list state
       if (.not. associated(this%shortest) .and. .not. associated(this%tallest)) then
           ! empty list
@@ -1166,6 +1219,23 @@ module FatesPatchMod
       
       ! hold on to current linked list so we don't lose it
       currentCohort => this%shortest
+
+      if(check_order_present)then
+         do while (associated(currentCohort))
+            if( associated(currentCohort%taller)) then
+               if(currentCohort%height > currentCohort%taller%height)then
+                  write(fates_log(),*) 'Cohort sort checking has failed,'
+                  write(fates_log(),*) 'they are not in height order:'
+                  write(fates_log(),*) 'current: ',currentCohort%height
+                  write(fates_log(),*) 'taller: ',currentCohort%taller%height
+                  call endrun(msg=errMsg(sourcefile, __LINE__))
+               end if
+            end if
+            currentCohort => currentCohort%taller
+         end do
+         return
+      end if
+
       
       ! reset the current list: we'll build it incrementally
       this%shortest => null()

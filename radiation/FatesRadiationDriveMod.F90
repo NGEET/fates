@@ -13,6 +13,7 @@ module FatesRadiationDriveMod
   use EDTypesMod        , only : ed_site_type
   use FatesPatchMod,      only : fates_patch_type
   use EDParamsMod,        only : maxpft
+  use EDParamsMod       , only : GetNVegLayers
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : fates_unset_r8
   use FatesConstantsMod , only : itrue
@@ -373,11 +374,18 @@ contains
                            if_notair: if (ft>0) then
                               area_frac = twostr%scelg(cl,icol)%area
                               vai = twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai
-                              nv = minloc(dlower_vai, DIM=1, MASK=(dlower_vai>vai))
+
+                              nv = GetNVegLayers(vai)
+
                               do iv = 1, nv
                                  
-                                 vai_top = dlower_vai(iv)-dinc_vai(iv)
-                                 vai_bot = min(dlower_vai(iv),twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai)
+                                 vai_top = dlower_vai(iv)
+
+                                 if(iv == nv) then
+                                    vai_bot = twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai
+                                 else
+                                    vai_bot = dlower_vai(iv+1)
+                                 end if
                                  
                                  call twostr%GetAbsRad(cl,icol,ipar,vai_top,vai_bot, &
                                       Rb_abs,Rd_abs,Rd_abs_leaf,Rb_abs_leaf,R_abs_stem,R_abs_snow,leaf_sun_frac,call_fail)

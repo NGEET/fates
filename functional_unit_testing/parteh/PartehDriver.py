@@ -176,35 +176,9 @@ def main():
     for iplnt in range(num_plants):
 
         ipft = use_pfts[iplnt]
-        evergreen        = np.int(fates_params['evergreen'].data[ipft])
-        cold_deciduous   = np.int(fates_params['season_decid'].data[ipft])
-        stress_deciduous = np.int(fates_params['stress_decid'].data[ipft])
-        if(evergreen==1):
-            if(cold_deciduous==1):
-                print("Poorly defined phenology mode 0")
-                exit(2)
-            if(stress_deciduous==1):
-                print("Poorly defined phenology mode 1")
-                exit(2)
-            phen_type.append(1)
-        elif(cold_deciduous==1):
-            if(evergreen==1):
-                print("Poorly defined phenology mode 2")
-                exit(2)
-            if(stress_deciduous==1):
-                print("Poorly defined phenology mode 3")
-                exit(2)
-            phen_type.append(2)
-        elif(stress_deciduous==1):
-            if(evergreen==1):
-                print("Poorly defined phenology mode 4")
-                exit(2)
-            if(cold_deciduous==1):
-                print("Poorly defined phenology mode 5")
-                exit(2)
-            phen_type.append(3)
-        else:
-            print("Unknown phenology mode ? {} {} {}".format(evergreen,cold_deciduous,stress_deciduous))
+        phen_leaf_habit  = np.int(fates_params['phen_leaf_habit'].data[ipft])
+        if(phen_leaf_habit < 1 or phen_leaf_habit > 4):
+            print("Unknown phenology mode ? {}".format(phen_leaf_habit))
             exit(2)
 
 
