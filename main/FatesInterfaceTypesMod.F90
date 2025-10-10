@@ -877,14 +877,18 @@ module FatesInterfaceTypesMod
     integer :: num_api_vars_update_init           ! number of variables that update only at initialization
     integer :: num_api_vars_update_daily          ! number of variables that update daily
     integer :: num_api_vars_update_timestep       ! number of variables that update on the model timestep
+    integer :: num_api_vars_litter_carbon         ! number of variables that deal with litter, carbon
 
-    ! Array of update frequency values for each variable index
+    ! Array of update frequency values for each regsitry index
     integer, allocatable :: update_frequency(:)
 
     ! Arrays that hold the registry indices of variables based on update frequency
     integer, allocatable :: filter_init(:)      ! registry index of variables that update only at initialization
     integer, allocatable :: filter_daily(:)     ! registry index of variables that update daily
     integer, allocatable :: filter_timestep(:)  ! registry index of variables that update at each timestep
+    
+    ! Filter arrays that hold the registry indices for litter fluxes
+    integer, allocatable :: filter_litter_carbon(:)
 
     ! Subgrid index data
     integer, private :: gidx
@@ -973,6 +977,7 @@ module FatesInterfaceTypesMod
     this%num_api_vars = 0
     this%num_api_vars_update_init = 0
     this%num_api_vars_update_daily = 0
+    this%num_api_vars_litter_carbon = 0
     
     ! First count up the keys defined in the registry and the registry counters
     call this%DefineInterfaceRegistry(initialize=.false.)
@@ -988,11 +993,15 @@ module FatesInterfaceTypesMod
     allocate(this%filter_daily(this%num_api_vars_update_daily))
     allocate(this%filter_timestep(this%num_api_vars_update_timestep))
     
+    ! Allocate the litter flux filter
+    allocate(this%filter_litter_carbon(this%num_api_vars_litter_carbon))
+    
     ! Unset the allocatables not including the interface variables
     this%update_frequency(:) = fates_unset_int
     this%filter_init(:) = fates_unset_int
     this%filter_daily(:) = fates_unset_int
     this%filter_timestep(:) = fates_unset_int
+    this%filter_litter_carbon(:) = fates_unset_int
 
     ! Now initialize the registry keys
     call this%DefineInterfaceRegistry(initialize=.true.)
@@ -1112,6 +1121,13 @@ module FatesInterfaceTypesMod
         this%num_api_vars_update_daily = this%num_api_vars_update_daily + 1
       end if
       
+      ! Update the litter flux counters
+      if (key == hlm_fates_litter_carbon_cellulose .or. &
+          key == hlm_fates_litter_carbon_labile .or. &
+          key == hlm_fates_litter_carbon_lignin) then
+            this%num_api_vars_litter_carbon = this%num_api_vars_litter_carbon + 1
+      end if
+      
     end if
 
   end subroutine DefineInterfaceVariable
@@ -1209,14 +1225,18 @@ module FatesInterfaceTypesMod
     integer :: count_init
     integer :: count_daily
     integer :: count_timestep
+    integer :: count_litter_carbon
 
     ! Initialize counters
     count_init = 0
     count_daily = 0
     count_timestep = 0
+    count_litter_carbon = 0
     
     ! Iterate over all registered variables and populate the filter maps accordingly
     do index = 1, this%num_api_vars
+      
+      ! Frequency update
       if (this%update_frequency(index) == registry_update_init) then
         count_init = count_init + 1
         this%filter_init(count_init) = index
@@ -1230,6 +1250,16 @@ module FatesInterfaceTypesMod
         write(fates_log(),*) 'ERROR: Unrecognized update frequency in SetFilterMapArrays(): ', this%update_frequency(index)
         call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
+      
+      ! Litter flux update
+      if (this%key(index) == hlm_fates_litter_carbon_cellulose .or. &
+          this%key(index) == hlm_fates_litter_carbon_labile .or. &
+          this%key(index) == hlm_fates_litter_carbon_lignin) then
+            count_litter_carbon = count_litter_carbon + 1
+            this%filter_litter_carbon(count_litter_carbon) = index
+      end if
+      
+      
     end do
     
     ! Check that the counts match the expected sizes
@@ -1397,7 +1427,7 @@ module FatesInterfaceTypesMod
     
     ! Iterate over the litter flux filter
     do i = 1, num_litter_fluxes
-      j = this%filter_litter_flux
+      j = this%filter_litter_flux(i)
       
       ! Update the hlm variables with the fates variables
       call this%hlm_vars(j)%Update(fates_vars(j), scalar=dtime)
