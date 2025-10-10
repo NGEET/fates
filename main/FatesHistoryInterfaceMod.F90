@@ -5275,6 +5275,7 @@ contains
     type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
     real(r8) :: dt_tstep_inv          ! Time step in frequency units (/s)
+    real(r8) :: vegarea_per_patcharea ! temporary weighting variable (unitless)
 
     associate( hio_tveg_si_landuse    => this%hvars(ih_tveg_si_landuse)%r82d,&
          hio_gpp_si_landuse           => this%hvars(ih_gpp_si_landuse)%r82d, &
@@ -5312,25 +5313,27 @@ contains
                     bc_in(s)%t_veg_pa(cpatch%patchno) * cpatch%total_canopy_area/canopy_area_bylanduse(cpatch%land_use_label)
 
                ! for the rest of these, first weight by the vegetated area of each patch over the total patch area for each land use type
+               vegarea_per_patcharea = cpatch%total_canopy_area/landuse_statevector(cpatch%land_use_label)
+
                hio_tsa_si_landuse(io_si,cpatch%land_use_label) = hio_tsa_si_landuse(io_si,cpatch%land_use_label) + &
-                    bc_in(s)%t2m_pa(cpatch%patchno) * cpatch%total_canopy_area/landuse_statevector(cpatch%land_use_label)
+                    bc_in(s)%t2m_pa(cpatch%patchno) * vegarea_per_patcharea
 
                hio_sw_abs_si_landuse(io_si,cpatch%land_use_label) = hio_sw_abs_si_landuse(io_si,cpatch%land_use_label) + &
-                    bc_in(s)%swabs_pa(cpatch%patchno) * cpatch%total_canopy_area/landuse_statevector(cpatch%land_use_label)
+                    bc_in(s)%swabs_pa(cpatch%patchno) * vegarea_per_patcharea
 
                hio_lw_net_si_landuse(io_si,cpatch%land_use_label) = hio_lw_net_si_landuse(io_si,cpatch%land_use_label) + &
-                    bc_in(s)%netlw_pa(cpatch%patchno) * cpatch%total_canopy_area/landuse_statevector(cpatch%land_use_label)
+                    bc_in(s)%netlw_pa(cpatch%patchno) * vegarea_per_patcharea
 
                hio_shflux_si_landuse(io_si,cpatch%land_use_label) = hio_shflux_si_landuse(io_si,cpatch%land_use_label) + &
-                    bc_in(s)%shflux_pa(cpatch%patchno) * cpatch%total_canopy_area/landuse_statevector(cpatch%land_use_label)
+                    bc_in(s)%shflux_pa(cpatch%patchno) * vegarea_per_patcharea
 
                hio_lhflux_si_landuse(io_si,cpatch%land_use_label) = hio_lhflux_si_landuse(io_si,cpatch%land_use_label) + &
-                    bc_in(s)%lhflux_pa(cpatch%patchno) * cpatch%total_canopy_area/landuse_statevector(cpatch%land_use_label)
+                    bc_in(s)%lhflux_pa(cpatch%patchno) * vegarea_per_patcharea
             endif
             cpatch => cpatch%younger
          end do
 
-         ! for all the land-use indexed variables, excpet for TVEG, also add in the component for the unvegetated area of each land use
+         ! for all the land-use indexed variables, except for TVEG, also add in the component for the unvegetated area of each land use
          foundbaregroundpatch = .false.
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -5382,16 +5385,14 @@ contains
 
          end do
 
-
+         ! for GPP by land use, we need to loop over both patches and cohorts
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
             ccohort => cpatch%shortest
             do while(associated(ccohort))
-               if ( .not. ccohort%isnew ) then
-                  if (cpatch%land_use_label .gt. nocomp_bareground_land) then
-                     hio_gpp_si_landuse(io_si,cpatch%land_use_label) = hio_gpp_si_landuse(io_si,cpatch%land_use_label) &
-                          + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv
-                  end if
+               if ( (.not. ccohort%isnew) .and. (cpatch%land_use_label .gt. nocomp_bareground_land) ) then
+                  hio_gpp_si_landuse(io_si,cpatch%land_use_label) = hio_gpp_si_landuse(io_si,cpatch%land_use_label) &
+                       + ccohort%gpp_tstep * ccohort%n * dt_tstep_inv
                end if
                ccohort => ccohort%taller
             end do
@@ -8942,7 +8943,7 @@ contains
                ivar=ivar, initialize=initialize_variables, index = ih_lhflux_si_landuse )
 
           call this%set_history_var(vname='FATES_GPP_LU', units='kg m-2 s-1',        &
-               long='gross primary productivity by age bin in kg carbon per m2 per second', &
+               long='gross primary productivity by land use type in kg carbon per m2 per second', &
                use_default='inactive', avgflag='A', vtype=site_landuse_r8,               &
                hlms='CLM:ALM', upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, &
                index = ih_gpp_si_landuse)
