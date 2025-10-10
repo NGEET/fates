@@ -2964,7 +2964,7 @@ contains
                   hio_npp_stor_si(io_si) = hio_npp_stor_si(io_si) +               &
                        store_m_net_alloc * n_perm2 / days_per_year / sec_per_day
 
-                  leaf_herbivory   = ccohort%prt%GetHerbivory(leaf_organ, carbon12_element) * days_per_year  !cdkcdk
+                  leaf_herbivory   = ccohort%prt%GetHerbivory(leaf_organ, carbon12_element) * days_per_year
                   hio_grazing_si(io_si) = hio_grazing_si(io_si) + leaf_herbivory * n_perm2 / days_per_year / sec_per_day
 
                   ! Woody State Variables (basal area growth increment)
@@ -3898,7 +3898,7 @@ contains
                         hio_biomass_si_scls(io_si,scls) = hio_biomass_si_scls(io_si,scls) + &
                              total_m * ccohort%n * AREA_INV
 
-                        ! cdkcdk agb by patch age since anthropogenic disturbance
+                        ! agb by patch age since anthropogenic disturbance
                         if ( cpatch%land_use_label .eq. secondaryland ) then
 
                            iscag_anthrodist = get_age_class_index(cpatch%age_since_anthro_disturbance)
