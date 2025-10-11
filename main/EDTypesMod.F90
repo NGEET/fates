@@ -634,19 +634,22 @@ contains
       
       class(ed_site_type), intent(inout) :: this
       integer, intent(in) :: ifp
+      integer :: nlevdecomp
+
+      nlevdecomp = this%bc_in(ifp)%nlevdecomp_full
       
       ! bc_in
-      allocate(this%bc_in(ifp)%w_scalar_sisl(this%bc_in(ifp)%nlevdecomp_full))
-      allocate(this%bc_in(ifp)%t_scalar_sisl(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_in(ifp)%w_scalar_sisl(nlevdecomp))
+      allocate(this%bc_in(ifp)%t_scalar_sisl(nlevdecomp))
 
       this%bc_in(ifp)%w_scalar_sisl = nan
       this%bc_in(ifp)%t_scalar_sisl = nan
 
       ! Litter fluxes, carbon
-      allocate(this%bc_out(ifp)%litt_flux_all_c(this%bc_in(ifp)%nlevdecomp_full))
-      allocate(this%bc_out(ifp)%litt_flux_cel_c_si(this%bc_in(ifp)%nlevdecomp_full))
-      allocate(this%bc_out(ifp)%litt_flux_lig_c_si(this%bc_in(ifp)%nlevdecomp_full))
-      allocate(this%bc_out(ifp)%litt_flux_lab_c_si(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_out(ifp)%litt_flux_all_c(nlevdecomp))
+      allocate(this%bc_out(ifp)%litt_flux_cel_c_si(nlevdecomp))
+      allocate(this%bc_out(ifp)%litt_flux_lig_c_si(nlevdecomp))
+      allocate(this%bc_out(ifp)%litt_flux_lab_c_si(nlevdecomp))
 
       this%bc_out(ifp)%litt_flux_all_c = nan
       this%bc_out(ifp)%litt_flux_cel_c_si = nan
@@ -654,10 +657,10 @@ contains
       this%bc_out(ifp)%litt_flux_lab_c_si = nan
 
       ! Litter fluxes, nitrogen
-      allocate(this%bc_out(ifp)%litt_flux_all_n(this%bc_in(ifp)%nlevdecomp_full))
-      allocate(this%bc_out(ifp)%litt_flux_cel_n_si(this%bc_in(ifp)%nlevdecomp_full))
-      allocate(this%bc_out(ifp)%litt_flux_lig_n_si(this%bc_in(ifp)%nlevdecomp_full))
-      allocate(this%bc_out(ifp)%litt_flux_lab_n_si(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_out(ifp)%litt_flux_all_n(nlevdecomp))
+      allocate(this%bc_out(ifp)%litt_flux_cel_n_si(nlevdecomp))
+      allocate(this%bc_out(ifp)%litt_flux_lig_n_si(nlevdecomp))
+      allocate(this%bc_out(ifp)%litt_flux_lab_n_si(nlevdecomp))
 
       this%bc_out(ifp)%litt_flux_all_n = nan
       this%bc_out(ifp)%litt_flux_cel_n_si = nan
@@ -665,10 +668,10 @@ contains
       this%bc_out(ifp)%litt_flux_lab_n_si = nan
     
       ! Litter fluxes, phosphorus
-      allocate(this%bc_out(ifp)%litt_flux_all_p(this%bc_in(ifp)%nlevdecomp_full))
-      allocate(this%bc_out(ifp)%litt_flux_cel_p_si(this%bc_in(ifp)%nlevdecomp_full))
-      allocate(this%bc_out(ifp)%litt_flux_lig_p_si(this%bc_in(ifp)%nlevdecomp_full))
-      allocate(this%bc_out(ifp)%litt_flux_lab_p_si(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_out(ifp)%litt_flux_all_p(nlevdecomp))
+      allocate(this%bc_out(ifp)%litt_flux_cel_p_si(nlevdecomp))
+      allocate(this%bc_out(ifp)%litt_flux_lig_p_si(nlevdecomp))
+      allocate(this%bc_out(ifp)%litt_flux_lab_p_si(nlevdecomp))
 
       this%bc_out(ifp)%litt_flux_all_p = nan
       this%bc_out(ifp)%litt_flux_cel_p_si = nan
