@@ -723,6 +723,7 @@ contains
     real(r8) :: newparea, newparea_withlanduse
     real(r8) :: total !check on area
     real(r8) :: litt_init  !invalid for satphen, 0 otherwise
+    real(r8) :: seed_init ! start seedbank at this value for each PFT. 
     real(r8) :: old_carea
     logical  :: is_first_patch
     ! integer  :: n_luh_states
@@ -858,13 +859,14 @@ contains
                    litt_init = fates_unset_r8
                 else
                    litt_init = 0._r8
+                   seed_init = 0.01_r8  ! This should maybe be a parameter ultimately. Leaving here to avoid changing the api. 
                 end if
                 do el=1,num_elements
                    call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
                         init_root_fines=litt_init, &
                         init_ag_cwd=litt_init, &
                         init_bg_cwd=litt_init, &
-                        init_seed=litt_init,   &
+                        init_seed=seed_init,   &
                         init_seed_germ=litt_init)
                 end do
 
