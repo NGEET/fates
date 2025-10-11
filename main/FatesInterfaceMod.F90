@@ -2835,8 +2835,8 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       ! Initialize the interface variables necessary for allocating boundary conditions
       call this%register(r)%InitializeInterfaceVariables()
       
-      ! Initialize the Boundary conditions
-      call this%sites(s)%bc_in(ifp)%Initialize()
+      ! Initialize the currently registered boundary conditions
+      call this%sites(s)%InitializeBoundaryConditions(ifp)
 
       ! Register the remaining boundary conditions
       ! bc_in

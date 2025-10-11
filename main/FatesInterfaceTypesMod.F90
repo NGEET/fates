@@ -620,10 +620,6 @@ module FatesInterfaceTypesMod
      real(r8),allocatable :: hlm_sp_tsai(:)  ! Interpolated sailt total SAI (stem area index) input from HLM per patch/pft
      real(r8),allocatable :: hlm_sp_htop(:)  ! Interpolated daily canopy vegetation height    input from HLM per patch/pft
      
-     contains
-     
-      procedure :: Initialize => InitializeBCIn
-
    end type bc_in_type
 
 
@@ -932,23 +928,6 @@ module FatesInterfaceTypesMod
    
  contains
   
-       
-  ! ======================================================================================
- 
-  subroutine InitializeBCIn(this)
-    
-    class(bc_in_type), intent(inout) :: this
-    
-    ! Allocate the boundary condition arrays
-    allocate(this%w_scalar_sisl(this%nlevdecomp_full))
-    allocate(this%t_scalar_sisl(this%nlevdecomp_full))
-    
-    ! Unset the values
-    this%w_scalar_sisl = nan
-    this%t_scalar_sisl = nan
-    
-  end subroutine InitializeBCIn
- 
   ! ======================================================================================
 
   subroutine ZeroBCOutCarbonFluxes(bc_out)

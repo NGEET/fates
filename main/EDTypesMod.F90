@@ -610,6 +610,7 @@ module EDTypesMod
 
      contains
 
+       procedure, public :: InitializeBoundaryConditions
        procedure, public :: get_current_landuse_statevector
        procedure, public :: get_secondary_young_fraction
 
@@ -621,6 +622,60 @@ module EDTypesMod
   public :: set_patchno
   
 contains
+
+  ! ============================================================================
+
+   subroutine InitializeBoundaryConditions(this, ifp)
+      
+      ! Allocate and initialize boundary condition arrays to NaN.
+      ! Note that we use the full nlevdecomp size to match the HLM array sizes.
+      ! This may need to be setup with a more sophisticated approach if the HLMs
+      ! diverge in the dimensionality of the matching arrays.
+      
+      class(ed_site_type), intent(inout) :: this
+      integer, intent(in) :: ifp
+      
+      ! bc_in
+      allocate(this%bc_in(ifp)%w_scalar_sisl(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_in(ifp)%t_scalar_sisl(this%bc_in(ifp)%nlevdecomp_full))
+
+      this%bc_in(ifp)%w_scalar_sisl = nan
+      this%bc_in(ifp)%t_scalar_sisl = nan
+
+      ! Litter fluxes, carbon
+      allocate(this%bc_out(ifp)%litt_flux_all_c(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_out(ifp)%litt_flux_cel_c_si(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_out(ifp)%litt_flux_lig_c_si(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_out(ifp)%litt_flux_lab_c_si(this%bc_in(ifp)%nlevdecomp_full))
+
+      this%bc_out(ifp)%litt_flux_all_c = nan
+      this%bc_out(ifp)%litt_flux_cel_c_si = nan
+      this%bc_out(ifp)%litt_flux_lig_c_si = nan
+      this%bc_out(ifp)%litt_flux_lab_c_si = nan
+
+      ! Litter fluxes, nitrogen
+      allocate(this%bc_out(ifp)%litt_flux_all_n(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_out(ifp)%litt_flux_cel_n_si(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_out(ifp)%litt_flux_lig_n_si(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_out(ifp)%litt_flux_lab_n_si(this%bc_in(ifp)%nlevdecomp_full))
+
+      this%bc_out(ifp)%litt_flux_all_n = nan
+      this%bc_out(ifp)%litt_flux_cel_n_si = nan
+      this%bc_out(ifp)%litt_flux_lig_n_si = nan
+      this%bc_out(ifp)%litt_flux_lab_n_si = nan
+    
+      ! Litter fluxes, phosphorus
+      allocate(this%bc_out(ifp)%litt_flux_all_p(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_out(ifp)%litt_flux_cel_p_si(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_out(ifp)%litt_flux_lig_p_si(this%bc_in(ifp)%nlevdecomp_full))
+      allocate(this%bc_out(ifp)%litt_flux_lab_p_si(this%bc_in(ifp)%nlevdecomp_full))
+
+      this%bc_out(ifp)%litt_flux_all_p = nan
+      this%bc_out(ifp)%litt_flux_cel_p_si = nan
+      this%bc_out(ifp)%litt_flux_lig_p_si = nan
+      this%bc_out(ifp)%litt_flux_lab_p_si = nan
+
+   end subroutine InitializeBoundaryConditions
 
   ! ============================================================================
 
