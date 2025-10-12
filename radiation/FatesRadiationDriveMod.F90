@@ -83,8 +83,13 @@ contains
     integer :: nsites                              ! number of sites
     integer :: ifp                                 ! patch loop counter
     integer :: ib                                  ! radiation broad band counter
-    integer :: cl, icol, ft                        ! indices for canopy layer,
+    integer :: cl, iv, icol, ft                    ! indices for canopy layer,leaf layer,
                                                    ! rad column and functional type
+    integer :: nv                                  ! number of veg layers
+    real(r8) :: area_frac                          ! area fraction for layer of interest
+    real(r8) :: vai_top                            ! integrated (top-down) vegetation area
+                                                   ! index at lop of layer
+    real(r8) :: vai                                ! total VAI of the scattering element
     type(fates_patch_type), pointer :: currentPatch   ! patch pointer
 
     !-----------------------------------------------------------------------
@@ -128,8 +133,8 @@ contains
              currentPatch%fabi_sha_z (:,:,:) = 0._r8
              currentPatch%fabd       (:)     = 0._r8
              currentPatch%fabi       (:)     = 0._r8
-             currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
-             currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+             currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:) = 0._r8
+             currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:) = 0._r8
              currentPatch%gnd_alb_dif(1:num_swb) = bc_in(s)%albgr_dif_rb(1:num_swb)
              currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
              currentPatch%fcansno                = bc_in(s)%fcansno_pa(ifp)
@@ -198,17 +203,19 @@ contains
                      do_cl: do cl = 1,twostr%n_lyr
                         do_icol: do icol = 1,twostr%n_col(cl)
                            ft = twostr%scelg(cl,icol)%pft
-                           nv = minloc(dlower_vai, DIM=1, MASK=(dlower_vai>vai))
-                           area_frac = twostr%scelg(cl,icol)%area
-                           ! WAIT FOR THE BIN INDEXING PR TO GO IN ...
-                           do iv = 1, nv
-                              vai_top = dlower_vai(iv)
-                              cpatch%nrmlzd_parprof_pft_dir_z(cl,ft,iv) = cpatch%nrmlzd_parprof_pft_dir_z(cl,ft,iv) + &
-                                   area_frac*twostr%GetRb(cl,icol,ivis,vai_top)
-                              cpatch%nrmlzd_parprof_pft_dif_z(cl,ft,iv) = cpatch%nrmlzd_parprof_pft_dif_z(cl,ft,iv) + &
-                                   area_frac*twostr%GetRdDn(cl,icol,ivis,vai_top) + &
-                                   area_frac*twostr%GetRdUp(cl,icol,ivis,vai_top)
-                           end do
+                           if_notair: if (ft>0) then
+                              area_frac = twostr%scelg(cl,icol)%area
+                              vai = twostr%scelg(cl,icol)%sai+twostr%scelg(cl,icol)%lai
+                              nv = GetNVegLayers(vai)
+                              do iv = 1, nv
+                                 vai_top = dlower_vai(iv)
+                                 currentPatch%nrmlzd_parprof_pft_dir_z(cl,ft,iv) = currentPatch%nrmlzd_parprof_pft_dir_z(cl,ft,iv) + &
+                                      area_frac*twostr%GetRb(cl,icol,ivis,vai_top)
+                                 currentPatch%nrmlzd_parprof_pft_dif_z(cl,ft,iv) = currentPatch%nrmlzd_parprof_pft_dif_z(cl,ft,iv) + &
+                                      area_frac*twostr%GetRdDn(cl,icol,ivis,vai_top) + &
+                                      area_frac*twostr%GetRdUp(cl,icol,ivis,vai_top)
+                              end do
+                           end if if_notair
                         end do do_icol
                      end do do_cl
                      

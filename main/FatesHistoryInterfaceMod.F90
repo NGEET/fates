@@ -68,7 +68,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : nlevcoage
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesInterfaceTypesMod        , only : hlm_use_fixed_biogeog
-  use FatesRadiationMemMod          , only : ivis,inir
+  use FatesRadiationMemMod          , only : ivis,inir,ipar
   use FatesInterfaceTypesMod        , only : hlm_hist_level_hifrq,hlm_hist_level_dynam
   use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
   use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
@@ -5123,7 +5123,7 @@ contains
     if(hlm_hist_level_hifrq>0) then
        call update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,dt_tstep)
        if(hlm_hist_level_hifrq>1) then
-          call update_history_hifrq_subsite(this,nc,nsites,sites,dt_tstep)
+          call update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,dt_tstep)
           call update_history_hifrq_subsite_ageclass(this,nsites,sites,dt_tstep)
        end if
     end if
@@ -5358,7 +5358,7 @@ contains
 
   ! ===============================================================================================
 
-  subroutine update_history_hifrq_subsite(this,nc,nsites,sites,dt_tstep)
+  subroutine update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,dt_tstep)
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine is intended to update all history variables with upfreq ==
@@ -5373,7 +5373,8 @@ contains
     class(fates_history_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    type(ed_site_type)      , intent(inout)         :: sites(nsites)
+    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 
     ! Locals
@@ -5461,8 +5462,10 @@ contains
          io_si  = sites(s)%h_gid
 
          cpatch => sites(s)%oldest_patch
-         do while(associated(cpatch))
-
+         patch_loop1: do while(associated(cpatch))
+            
+            nocomp_bare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
+            
             ccohort => cpatch%shortest
             do while(associated(ccohort))
 
@@ -5590,10 +5593,10 @@ contains
                         hio_laisha_clllpf(io_si,clllpf_indx) = hio_laisha_clllpf(io_si,clllpf_indx) + &
                              cpatch%elai_profile(ican,ipft,ileaf)*(1._r8-cpatch%f_sun(ican,ipft,ileaf))*clllpf_area
 
-                        parprof_pft_dir_z = bc_in(s)%solad_parb(ifp,ipar) * &
+                        parprof_pft_dir_z = bc_in(s)%solad_parb(cpatch%patchno,ipar) * &
                              cpatch%nrmlzd_parprof_pft_dir_z(ican,ipft,ileaf)
 
-                        parprof_pft_dif_z = bc_in(s)%solai_parb(ifp,ipar) * &
+                        parprof_pft_dif_z = bc_in(s)%solai_parb(cpatch%patchno,ipar) * &
                              cpatch%nrmlzd_parprof_pft_dif_z(ican,ipft,ileaf)
 
                         hio_parprof_dir_si_cnlfpft(io_si,clllpf_indx) = hio_parprof_dir_si_cnlfpft(io_si,clllpf_indx) + &
@@ -5646,9 +5649,9 @@ contains
                   end do do_canlev1
                end do do_pft1
             end if if_zenith1
-
+            end if nocomp_bare
             cpatch => cpatch%younger
-         end do !patch loop
+         end do patch_loop1 !patch loop
 
          ! Normalize the radiation multiplexed diagnostics
          ! Set values that dont have canopy elements to ignore

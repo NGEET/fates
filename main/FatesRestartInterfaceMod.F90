@@ -4145,8 +4145,8 @@ contains
            currentPatch%fabi       (:)     = 0._r8
 
            ! zero diagnostic radiation profiles
-           currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
-           currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+           currentPatch%nrmlzd_parprof_pft_dir_z(:,:,:) = 0._r8
+           currentPatch%nrmlzd_parprof_pft_dif_z(:,:,:) = 0._r8
            currentPatch%rad_error(:) = hlm_hio_ignore_val
 
            if_notbareground: if(currentPatch%nocomp_pft_label.ne.nocomp_bareground) then

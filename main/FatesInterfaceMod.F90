@@ -2409,7 +2409,7 @@ subroutine SeedlingParPatch(cpatch, &
   integer  :: iv         ! lower-most leaf layer index for the cl & pft combo
 
   ! Start with the assumption that there is a single canopy layer
-  seedling_par_high = atm_par_dir+arm_par_dif
+  seedling_par_high = atm_par_dir+atm_par_dif
   par_high_frac     = 1._r8-cpatch%total_canopy_area
   par_low_frac      = cpatch%total_canopy_area
 
