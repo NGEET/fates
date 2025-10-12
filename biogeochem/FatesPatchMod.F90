@@ -606,7 +606,7 @@ module FatesPatchMod
       this%fabd(:)                           = 0.0_r8
       this%sabs_dir(:)                       = 0.0_r8
       this%sabs_dif(:)                       = 0.0_r8
-      this%rad_error(:)                      = hlm_hio_ignore_value
+      this%rad_error(:)                      = hlm_hio_ignore_val
       
       ! ROOTS
       this%btran_ft(:)                       = 0.0_r8
