@@ -919,10 +919,10 @@ variables:
 		fates_rxfire_temp_upthreshold:units = "degree C" ;
 		fates_rxfire_temp_upthreshold:long_name = "maximum temprature threshold above which prescribed fire is disallowed" ;
 	double fates_rxfire_wind_lwthreshold ;
-		fates_rxfire_wind_lwthreshold:units = "%" ;
+		fates_rxfire_wind_lwthreshold:units = "m/s" ;
 		fates_rxfire_wind_lwthreshold:long_name = "minimum wind speed threshold below which prescribed fire is disallowed" ;
 	double fates_rxfire_wind_upthreshold ;
-		fates_rxfire_wind_upthreshold:units = "%" ;
+		fates_rxfire_wind_upthreshold:units = "m/s" ;
 		fates_rxfire_wind_upthreshold:long_name = "maximum wind speed threshold above which prescribed fire is disallowed" ;
 	double fates_soil_salinity ;
 		fates_soil_salinity:units = "ppt" ;
