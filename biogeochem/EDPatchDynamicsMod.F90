@@ -1317,7 +1317,7 @@ contains
                                         nc%n = 0._r8
                                      else
                                         ! Otherwise kill some proportion of the PFT based on the PFT-level clearing mortality parameter
-                                        nc%n = nc%n * EDPftvarcon_inst%landuse_clearing_mortality(currentCohort%pft)
+                                        nc%n = nc%n * (1.0_r8 - EDPftvarcon_inst%landuse_clearing_mortality(currentCohort%pft) )
                                      end if
 
                                   end if
