@@ -350,7 +350,10 @@ variables:
 		fates_hydro_vg_n_node:long_name = "(used if hydr_htftype_node = 2),n in van Genuchten 1980 model, pore size distribution parameter" ;
 	double fates_landuse_grazing_palatability(fates_pft) ;
 		fates_landuse_grazing_palatability:units = "unitless 0-1" ;
-		fates_landuse_grazing_palatability:long_name = "Relative intensity of leaf grazing/browsing per PFT" ;
+		fates_landuse_grazing_palatability:long_name = "Relative intensity of leaf grazing/browsing per PFT" ;	
+	double fates_landuse_clearing_mortality(fates_pft) ;
+		fates_landuse_clearing_mortality:units = "fraction" ;
+		fates_landuse_clearing_mortality:long_name = "Fraction of cohort killed during land use clearing" ;
 	double fates_landuse_harvest_pprod10(fates_pft) ;
 		fates_landuse_harvest_pprod10:units = "fraction" ;
 		fates_landuse_harvest_pprod10:long_name = "fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
@@ -1361,6 +1364,8 @@ data:
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
  fates_landuse_grazing_palatability = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 ;
+
+ fates_landuse_clearing_mortality = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 1, 1, 1, 1, 1, 1, 1, 1 ;	
 
  fates_landuse_harvest_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 
     1, 1, 1 ;

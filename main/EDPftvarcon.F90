@@ -266,6 +266,9 @@ module EDPftvarcon
      ! Grazing
      real(r8), allocatable :: landuse_grazing_palatability(:) ! Relative intensity of leaf grazing/browsing per PFT (unitless 0-1)
 
+     ! Clearing mortality rate
+     real(r8), allocatable :: landuse_clearing_mortality(:) ! Fraction of cohort killed when patch is cleared during land use transitions
+     
    contains
      procedure, public :: Init => EDpftconInit
      procedure, public :: Register
@@ -741,6 +744,10 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
+        name = 'fates_landuse_clearing_mortality'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
     name = 'fates_dev_arbitrary_pft'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
@@ -1168,6 +1175,10 @@ contains
     name = 'fates_landuse_grazing_palatability'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%landuse_grazing_palatability)
+
+    name = 'fates_landuse_clearing_mortality'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%landuse_clearing_mortality)
 
   end subroutine Receive_PFT
 

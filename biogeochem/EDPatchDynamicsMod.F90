@@ -554,6 +554,7 @@ contains
     integer  :: n_pfts_by_landuse
     integer  :: which_pft_allowed
     logical  :: buffer_patch_used
+    logical  :: clear_all
     !---------------------------------------------------------------------
 
     if (hlm_use_nocomp .eq. itrue) then
@@ -772,9 +773,17 @@ contains
                                call mortality_litter_fluxes(currentSite, currentPatch, &
                                     newPatch, patch_site_areadis,bc_in)
                             case (dtype_ilandusechange)
+                               ! If we are clearing to make crops, then kill everything
+                               if (i_landusechange_receiverpatchlabel .eq. end_receiver_lulabel) then
+                                  clear_all = itrue
+                               else ! otherwise kill a fraction of the cohort determined by the clearing mortality param
+                                  clear_all = ifalse
+                               end if
+                               
                                call landusechange_litter_fluxes(currentSite, currentPatch, &
                                     newPatch, patch_site_areadis,bc_in, &
-                                    clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel))
+                                    clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel), &
+                                    clear_all)
 
                                ! if land use change, then may need to change nocomp pft, so tag as having transitioned LU
                                newPatch%changed_landuse_this_ts = .true.
@@ -1300,8 +1309,17 @@ contains
 
                                   ! now apply survivorship based on the type of landuse transition
                                   if ( clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel) ) then
-                                     ! kill everything
-                                     nc%n = 0._r8
+
+
+                                     ! If we are clearing for crops then kill everything
+                                     ! Note crops needs to be last lu class for this logic to work 
+                                     if (i_landusechange_receiverpatchlabel == end_receiver_lulabel ) then
+                                        nc%n = 0._r8
+                                     else
+                                        ! Otherwise kill some proportion of the PFT based on the PFT-level clearing mortality parameter
+                                        nc%n = nc%n * EDPftvarcon_inst%landuse_clearing_mortality(currentCohort%pft)
+                                     end if
+
                                   end if
 
                                case default
@@ -2615,12 +2633,15 @@ contains
 
   subroutine landusechange_litter_fluxes(currentSite, currentPatch, &
        newPatch, patch_site_areadis, bc_in,  &
-       clearing_matrix_element)
+       clearing_matrix_element, clear_all)
     !
     ! !DESCRIPTION:
     !  CWD pool from land use change.
     !  Carbon going from felled trees into CWD pool
-    !  Either kill everything or nothing on disturbed land, depending on clearing matrix
+    !  Whether or not to clear PFTs during transition from one land use class
+    !  to another is based on the clearing logic matrix. 
+    !  If clearing occurs, the fraction of the PFT killed depends on the
+    !  pft-level clearing mortality parameter
     !
     ! !USES:
     use SFParamsMod,          only : SF_VAL_CWD_FRAC
@@ -2632,7 +2653,8 @@ contains
     real(r8)               , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)       , intent(in)            :: bc_in
     logical                , intent(in)            :: clearing_matrix_element ! whether or not to clear vegetation
-
+    logical                , intent(in)            :: clear_all ! should all vegetation be killed - applies to crops
+    
     !
     ! !LOCAL VARIABLES:
 
@@ -2679,7 +2701,13 @@ contains
        if (hlm_use_planthydro == itrue) then
           currentCohort => currentPatch%shortest
           do while(associated(currentCohort))
-             num_dead_trees  = (currentCohort%n*patch_site_areadis/currentPatch%area)
+
+             if (clear_all) then
+                num_dead_trees = (currentCohort%n * patch_site_areadis/currentPatch%area)
+             else
+                num_dead_trees  = (currentCohort%n*patch_site_areadis/currentPatch%area) * &
+                     EDPftvarcon_inst%landuse_clearing_mortality(currentCohort%pft)
+             end if
              call AccumulateMortalityWaterStorage(currentSite,currentCohort,num_dead_trees)
              currentCohort => currentCohort%taller
           end do
@@ -2750,8 +2778,15 @@ contains
 
 
              ! Absolute number of dead trees being transfered in with the donated area
-             num_dead_trees = (currentCohort%n * &
-                  patch_site_areadis/currentPatch%area)
+
+             if (clear_all) then
+                num_dead_trees = (currentCohort%n * &
+                     patch_site_areadis/currentPatch%area)
+             else
+                num_dead_trees = (currentCohort%n * &
+                     patch_site_areadis/currentPatch%area) * &
+                     EDPftvarcon_inst%landuse_clearing_mortality(pft)
+             end if
 
              ! Contribution of dead trees to leaf litter
              donatable_mass = num_dead_trees * (leaf_m+repro_m) * &
