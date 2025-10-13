@@ -3134,8 +3134,6 @@ contains
     real(r8) :: storep_understory_scpf(numpft*nlevsclass)
     real(r8) :: storec_canopy_scpf(numpft*nlevsclass)
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
-    real(r8) :: a_sapw ! sapwood area [m^2]
-    real(r8) :: c_sapw ! sapwood biomass [kgC]
 
     integer  :: i_dist, j_dist
 
@@ -9137,6 +9135,13 @@ contains
           ! This next group are multidimensional variables that are updated
           ! over the short timestep. We turn off these variables when we want
           ! to save time (and some space)
+
+          call this%set_history_var(vname='FATES_NPP_AP', units='kg m-2 s-1',        &
+               long='net primary productivity by age bin in kg carbon per m2 per second'// &
+               this%per_ageclass_norm_info('FATES_PATCHAREA/FATES_PATCHAREA_AP'),    &
+               use_default='inactive', avgflag='A', vtype=site_age_r8,               &
+               hlms='CLM:ALM', upfreq=group_hifr_complx, ivar=ivar, initialize=initialize_variables, &
+               index = ih_npp_si_age)
 
           call this%set_history_var(vname='FATES_GPP_AP', units='kg m-2 s-1',        &
                long='gross primary productivity by age bin in kg carbon per m2 per second'// &
