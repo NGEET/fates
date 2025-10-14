@@ -383,6 +383,7 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_recruit_init_nocomp'
+
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -2017,6 +2018,19 @@ contains
            
         end if
 
+        if ( hlm_use_nocomp .eq. ifalse .and. EDPftvarcon_inst%initd(ipft) < -nearzero ) then
+           write(fates_log(),*) ' When not in a noncomp configuration, FATES does not'
+           write(fates_log(),*) ' know how to interpret a negative %initd (number density)'
+           write(fates_log(),*) ' on a cold-start. In nocomp with a negative, we assume the absolute'
+           write(fates_log(),*) ' value of the %inidt parameter is the initial plant size.'
+           write(fates_log(),*) ' And since the fractional area of each PFT is known from'
+           write(fates_log(),*) ' the surface file, we can derive a number density from this'
+           write(fates_log(),*) ' However, we do not have a hypothesis to do this in full FATES.'
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+        
         if ( EDPftvarcon_inst%init_seed(ipft) .lt. 0.0_r8) then
            write(fates_log(),*) ' Initial seed pool fates_init_seed can not be negative.'
            call endrun(msg=errMsg(sourcefile, __LINE__))
