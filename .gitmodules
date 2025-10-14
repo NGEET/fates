@@ -16,3 +16,4 @@
 	url = https://github.com/NGEET/tools-fates-xarray.git
 	fxtag = v0.0.0
 	fxrequired = AlwaysRequired
+	fxDONOTUSEurl = https://github.com/NGEET/tools-fates-xarray
