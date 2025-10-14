@@ -133,6 +133,7 @@ program FatesTestCanopyFuel
    allocate(CBH(num_patch_types))
    allocate(ROS_front(num_wind, size(NI), num_patch_types, num_fuel_models))
    allocate(ROS_actfm10(num_wind, size(NI), num_patch_types, size(CWC),num_fuel_models))
+   allocate(ROS_actCI(num_wind, size(NI), num_patch_types, size(CWC),num_fuel_models))
    allocate(ROS_critical(num_patch_types))
    allocate(ROS_final(num_wind, size(NI), num_patch_types, size(CWC), num_fuel_models))
    allocate(FI_final(num_wind, size(NI), num_patch_types, size(CWC), num_fuel_models))
