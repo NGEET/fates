@@ -12,11 +12,11 @@ https://github.com/NGEET/fates/blob/master/CODE_OF_CONDUCT.md
 
 ## Getting Started
 
-Those who wish to contribute code to FATES must have those changes integrated through the developer repository NGEET/fates.  Changes that make it to public releases must go through this repository first, as well.  Here are some basic first steps.
+Those who wish to contribute code to FATES must have those changes integrated through the developer repository NGEET/fates.  Changes that make it to public releases must go through this repository first, as well.  Please refer to the [developer section](hhttps://fates-users-guide.readthedocs.io/en/latest/developer/developer-guide.html) of the [User's Guide](https://fates-users-guide.readthedocs.io/en/latest/index.html) for more details.  Here are some basic first steps:
 
 * All developers should create a fork of the NGEET/fates repository into their personal space on github
-* Follow the developer work-flow described here: https://github.com/NGEET/fates/wiki/FATES-Development-Workflow
-* Each set of changes should have its own feature branch that encapsulates your desired changes, following the conventions outlined here: https://github.com/NGEET/fates/wiki/Feature-Branch-Naming-Convention
+* Follow the [developer work-flow](https://fates-users-guide.readthedocs.io/en/latest/developer/FATES-Development-Workflow.html) 
+* Each set of changes should have its own [feature branch](https://fates-users-guide.readthedocs.io/en/latest/developer/Feature-Branch-Naming-Convention.html) that encapsulates your desired changes.
 * The work-flow will lead you eventually to submit a Pull-Request to NGEET/fates:master, please follow the template in the Pull Request and communicate as best you can if you are unsure how to fill out the text
 * It is best to create an issue to describe the work you are undertaking prior to starting.  This helps the community sync with your efforts, prevents duplication of efforts, and science is not done in a vaccuum!
 * Expect peers to interact, help, discuss and eventually approve your submission (pull-request)
@@ -31,11 +31,11 @@ In addition to the github discussions, we hold a roughly biweekly call, which co
 * Changes that are submitted should be limited to 1 single feature (i.e. don't submit changes to the radiation code and the nutrient cycle simultaneous, pick one thing)
 * Check for unnecessary whitespace with `git diff --check` before committing
 * We have no standard protocol for commit messages, but try to make them meaningful, concise and succinct.
-* You will most likely have to test (see workflow above), see: https://github.com/NGEET/fates/wiki/Testing-Protocols
+* You will most likely have to test (see workflow above), see the [testing protocols](https://fates-users-guide.readthedocs.io/en/latest/developer/Testing-Protocols.html) for more details.
 
 ## Coding Practices and Style
 
-Please refer to the FATES style guide: https://github.com/NGEET/fates/wiki/Coding-Practices-and-Style-Guide
+Please refer to the FATES [style guide](https://fates-users-guide.readthedocs.io/en/latest/developer/style.html)
 
 ## Trivial Changes
 

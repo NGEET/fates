@@ -5,6 +5,8 @@ module FatesCohortMod
   use FatesConstantsMod,          only : ifalse, itrue
   use FatesConstantsMod,          only : nearzero
   use FatesConstantsMod,          only : ican_upper, ican_ustory
+  use FatesConstantsMod,          only : sec_per_day, days_per_year
+  use FatesConstantsMod,          only : days_per_sec, years_per_day
   use EDParamsMod,                only : nlevleaf
   use FatesGlobals,               only : endrun => fates_endrun
   use FatesGlobals,               only : fates_log
@@ -142,7 +144,7 @@ module FatesCohortMod
     real(r8) :: gpp_tstep                 ! Gross Primary Production (see above *)
     real(r8) :: gpp_acc
     real(r8) :: gpp_acc_hold
-
+    
     real(r8) :: npp_acc
     real(r8) :: npp_acc_hold
 
@@ -154,7 +156,7 @@ module FatesCohortMod
     real(r8) :: c13disc_clm               ! carbon 13 discrimination in new synthesized carbon at each indiv/timestep [ppm]
     real(r8) :: c13disc_acc               ! carbon 13 discrimination in new synthesized carbon at each indiv/day
                                           !   at the end of a day [ppm]
-
+    
     ! The following four biophysical rates are assumed to be at the canopy top, at reference temp 25degC, 
     ! and based on the leaf age weighted average of the PFT parameterized values. 
     ! The last condition is why it is dynamic and tied to the cohort
@@ -204,7 +206,7 @@ module FatesCohortMod
     integer :: twostr_col  ! The column index in the two-stream solution that this cohort is part of
     
     ! RESPIRATION COMPONENTS
-    real(r8) :: resp_excess_hold ! respiration of excess carbon [kgC/indiv/yr]
+    real(r8) :: resp_excess_hold ! respiration of excess carbon [kgC/indiv/day]
                                  ! note: this is flagged "hold" because it is calculated
                                  ! at the end of the day (dynamics) but is used
                                  ! on the following day (like growth respiration)
@@ -271,6 +273,12 @@ module FatesCohortMod
     real(r8) ::  crownfire_mort        ! probability of tree post-fire mortality from crown scorch [0-1]
                                        !  (conditional on the tree being subjected to the fire)
     real(r8) ::  fire_mort             ! post-fire mortality from cambial and crown damage assuming two are independent [0-1]
+    real(r8) ::  nonrx_cambial_mort    ! cambial kill mortality due to wildfire
+    real(r8) ::  nonrx_crown_mort      ! crown fire mortality due to wildfire
+    real(r8) ::  nonrx_fire_mort       ! post-fire mortality due to wildfire 
+    real(r8) ::  rx_cambial_mort       ! cambial kill mortality due to prescribed fire
+    real(r8) ::  rx_crown_mort         ! crown fire mortality due to prescribed fire
+    real(r8) ::  rx_fire_mort          ! post-fire mortality due to prescribed fire
 
     !---------------------------------------------------------------------------
 
@@ -286,6 +294,7 @@ module FatesCohortMod
     procedure :: Copy
     procedure :: FreeMemory
     procedure :: CanUpperUnder
+    procedure, public :: SumMortForHistory
     procedure :: InitPRTBoundaryConditions
     procedure :: UpdateCohortBioPhysRates
     procedure :: Dump
@@ -449,7 +458,13 @@ module FatesCohortMod
       this%cambial_mort            = nan 
       this%crownfire_mort          = nan 
       this%fire_mort               = nan 
-      
+      this%nonrx_cambial_mort      = nan
+      this%nonrx_crown_mort        = nan
+      this%nonrx_fire_mort         = nan
+      this%rx_cambial_mort         = nan
+      this%rx_crown_mort           = nan
+      this%rx_fire_mort            = nan
+
     end subroutine NanValues
    
     !===========================================================================
@@ -496,7 +511,7 @@ module FatesCohortMod
       
       this%c13disc_clm             = 0._r8
       this%c13disc_acc             = 0._r8
-   
+
       this%ts_net_uptake(:)        = 0._r8
       this%year_net_uptake(:)      = 999._r8 ! this needs to be 999, or trimming of new cohorts will break.
    
@@ -535,6 +550,12 @@ module FatesCohortMod
       this%cambial_mort            = 0._r8
       this%crownfire_mort          = 0._r8
       this%fire_mort               = 0._r8
+      this%nonrx_cambial_mort      = 0._r8
+      this%nonrx_crown_mort        = 0._r8
+      this%nonrx_fire_mort         = 0._r8
+      this%rx_cambial_mort         = 0._r8
+      this%rx_crown_mort           = 0._r8
+      this%rx_fire_mort            = 0._r8
     
     end subroutine ZeroValues
    
@@ -780,6 +801,12 @@ module FatesCohortMod
       copyCohort%cambial_mort            = this%cambial_mort
       copyCohort%crownfire_mort          = this%crownfire_mort
       copyCohort%fire_mort               = this%fire_mort
+      copyCohort%nonrx_cambial_mort      = this%nonrx_cambial_mort
+      copyCohort%nonrx_crown_mort        = this%nonrx_crown_mort
+      copyCohort%nonrx_fire_mort         = this%nonrx_fire_mort
+      copyCohort%rx_cambial_mort         = this%rx_cambial_mort
+      copyCohort%rx_crown_mort           = this%rx_crown_mort
+      copyCohort%rx_fire_mort            = this%rx_fire_mort
 
       ! HYDRAULICS
       if (hlm_use_planthydro .eq. itrue) then
@@ -1001,6 +1028,44 @@ module FatesCohortMod
    
     !===========================================================================
 
+    function SumMortForHistory(this, per_year) result(mort_sum)
+      !
+      ! DESCRIPTION:
+      ! Sum the various cohort-level mortality variables for saving to history.
+      ! Units depend on per_year:
+      !    per_year  true: kg m-2 yr-1
+      !    per_year false: kg m-2 s-1
+
+      ! ARGUMENTS:
+      class(fates_cohort_type) :: this ! current cohort of interest
+      logical                  :: per_year
+      !
+      ! VARIABLES
+      ! Units depend on per_year; see description above.
+      real(r8) :: mort_natural
+      real(r8) :: mort_logging
+      real(r8) :: mort_sum
+
+      ! "Natural" mortality
+      mort_natural = this%bmort + this%hmort + this%cmort + this%frmort + this%smort + this%asmort + this%dgmort
+      if (.not. per_year) then
+         ! Convert kg m-2 yr-1 to kg m-2 s-1
+         mort_natural = mort_natural * days_per_sec * years_per_day
+      end if
+
+      ! Logging mortality
+      mort_logging = this%lmort_direct + this%lmort_collateral + this%lmort_infra
+      if (per_year) then
+         ! Convert kg m-2 s-1 to kg m-2 yr-1
+         mort_logging = mort_logging * sec_per_day * days_per_year
+      end if
+
+      mort_sum = mort_natural + mort_logging
+
+    end function SumMortForHistory
+
+    !===========================================================================
+
     subroutine Dump(this)
       !
       !  DESCRIPTION:
@@ -1080,6 +1145,12 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%fire_mort              = ', this%fire_mort
       write(fates_log(),*) 'cohort%crownfire_mort         = ', this%crownfire_mort
       write(fates_log(),*) 'cohort%cambial_mort           = ', this%cambial_mort
+      write(fates_log(),*) 'cohort%nonrx_cambial_mort     = ', this%nonrx_cambial_mort
+      write(fates_log(),*) 'cohort%nonrx_crown_mort       = ', this%nonrx_crown_mort
+      write(fates_log(),*) 'cohort%nonrx_fire_mort        = ', this%nonrx_fire_mort
+      write(fates_log(),*) 'cohort%rx_crown_mort          = ', this%rx_crown_mort
+      write(fates_log(),*) 'cohort%rx_cambial_mort        = ', this%rx_cambial_mort
+      write(fates_log(),*) 'cohort%rx_fire_mort           = ', this%rx_fire_mort
       write(fates_log(),*) 'cohort%size_class             = ', this%size_class
       write(fates_log(),*) 'cohort%size_by_pft_class      = ', this%size_by_pft_class
    
