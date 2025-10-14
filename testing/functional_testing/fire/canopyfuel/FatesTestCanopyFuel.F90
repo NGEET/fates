@@ -286,8 +286,8 @@ program FatesTestCanopyFuel
                      CI_cp = CI
                      call CrownFireBehaveFM10(drying_ratio, NI(n), &
                         SF_val_miner_total, SF_val_part_dens, CI_cp, &
-                        CBD(p), ROS_acitive, CI)
-                     ROS_actCI(w,n,p,c,f) = ROS_acitive
+                        CBD(p), ROS_active, CI)
+                     ROS_actCI(w,n,p,c,f) = ROS_active
 
                      ! calculate effective wind speed using CI
                      call EffectiveWindWrapper(patch%total_tree_area, patch%total_grass_area, &
