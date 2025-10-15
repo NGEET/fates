@@ -586,7 +586,7 @@ contains
   
   ! =====================================================================================
 
-  subroutine FluxIntoLitterPools(csite, bc_in, bc_out)
+  subroutine FluxIntoLitterPools(csite)
     
     ! -----------------------------------------------------------------------------------
     ! Created by Charlie Koven and Rosie Fisher, 2014-2015
@@ -619,22 +619,21 @@ contains
     use FatesConstantsMod, only : itrue
     use FatesGlobals, only : endrun => fates_endrun
     use EDParamsMod , only : ED_val_cwd_flig, ED_val_cwd_fcel
-   
-    
 
     implicit none   
 
     ! !ARGUMENTS    
     type(ed_site_type) , intent(inout)         :: csite
-    type(bc_in_type)   , intent(in)            :: bc_in
-    type(bc_out_type)  , intent(inout),target  :: bc_out
 
     ! !LOCAL VARIABLES:
     type (fates_patch_type),  pointer :: currentPatch
     type (fates_cohort_type), pointer :: ccohort
+    type(bc_out_type), pointer        :: bc_out
+    type(bc_in_type), pointer         :: bc_in
     real(r8), pointer              :: flux_cel_si(:)
     real(r8), pointer              :: flux_lab_si(:)
     real(r8), pointer              :: flux_lig_si(:)
+    real(r8), pointer              :: flux_all_si(:)
     type(litter_type), pointer     :: litt
      
     real(r8) :: surface_prof(bc_in%nlevsoil) ! this array is used to distribute
@@ -651,6 +650,7 @@ contains
     integer  :: id               ! Decomposition layer index
     integer  :: ic               ! CWD type index
     integer  :: ipft             ! PFT index
+
 
     ! The following are used for the MIMICS ligC/N boundary condition
     real(r8) :: leaf_c, sapw_c   ! leaf and sapwood carbon, per plant [kg]
@@ -707,51 +707,49 @@ contains
          surface_prof(id) = surface_prof(id)/surface_prof_tot
       end do
 
-    ! Loop over the different elements. 
-    do el = 1, num_elements
-       
-       ! Zero out the boundary flux arrays
-       ! Make a pointer to the cellulose, labile and lignin
-       ! flux partitions.
-       
-       select case (element_list(el))
-       case (carbon12_element)
-          bc_out%litt_flux_cel_c_si(:) = 0.0_r8
-          bc_out%litt_flux_lig_c_si(:) = 0.0_r8
-          bc_out%litt_flux_lab_c_si(:) = 0.0_r8
-          flux_cel_si => bc_out%litt_flux_cel_c_si(:)
-          flux_lab_si => bc_out%litt_flux_lab_c_si(:)
-          flux_lig_si => bc_out%litt_flux_lig_c_si(:)
-       case (nitrogen_element)
-          bc_out%litt_flux_cel_n_si(:) = 0._r8
-          bc_out%litt_flux_lig_n_si(:) = 0._r8
-          bc_out%litt_flux_lab_n_si(:) = 0._r8
-          flux_cel_si => bc_out%litt_flux_cel_n_si(:)
-          flux_lab_si => bc_out%litt_flux_lab_n_si(:)
-          flux_lig_si => bc_out%litt_flux_lig_n_si(:)
-       case (phosphorus_element)
-          bc_out%litt_flux_cel_p_si(:) = 0._r8
-          bc_out%litt_flux_lig_p_si(:) = 0._r8
-          bc_out%litt_flux_lab_p_si(:) = 0._r8
-          flux_cel_si => bc_out%litt_flux_cel_p_si(:)
-          flux_lab_si => bc_out%litt_flux_lab_p_si(:)
-          flux_lig_si => bc_out%litt_flux_lig_p_si(:)
-       end select
-
-       currentPatch => csite%oldest_patch
-       do while (associated(currentPatch))
+      ! Loop over the different elements. 
+      flux_elem_loop: do el = 1, num_elements
+         
+         ! Zero out the boundary flux arrays
+         ! Make a pointer to the cellulose, labile and lignin
+         ! flux partitions.
+         
+         select case (element_list(el))
+         case (carbon12_element)
+            bc_out%litt_flux_cel_c_si(:) = 0.0_r8
+            bc_out%litt_flux_lig_c_si(:) = 0.0_r8
+            bc_out%litt_flux_lab_c_si(:) = 0.0_r8
+            bc_out%litt_flux_all_c(:) = 0.0_r8
+            flux_cel_si => bc_out%litt_flux_cel_c_si(:)
+            flux_lab_si => bc_out%litt_flux_lab_c_si(:)
+            flux_lig_si => bc_out%litt_flux_lig_c_si(:)
+            flux_all_si => bc_out%litt_flux_all_c(:)
+         case (nitrogen_element)
+            bc_out%litt_flux_cel_n_si(:) = 0._r8
+            bc_out%litt_flux_lig_n_si(:) = 0._r8
+            bc_out%litt_flux_lab_n_si(:) = 0._r8
+            flux_cel_si => bc_out%litt_flux_cel_n_si(:)
+            flux_lab_si => bc_out%litt_flux_lab_n_si(:)
+            flux_lig_si => bc_out%litt_flux_lig_n_si(:)
+         case (phosphorus_element)
+            bc_out%litt_flux_cel_p_si(:) = 0._r8
+            bc_out%litt_flux_lig_p_si(:) = 0._r8
+            bc_out%litt_flux_lab_p_si(:) = 0._r8
+            flux_cel_si => bc_out%litt_flux_cel_p_si(:)
+            flux_lab_si => bc_out%litt_flux_lab_p_si(:)
+            flux_lig_si => bc_out%litt_flux_lig_p_si(:)
+         end select
 
           ! Set a pointer to the litter object
           ! for the current element on the current
           ! patch
           litt       => currentPatch%litter(el)
-          area_frac  = currentPatch%area/area
           
           do ic = 1, ncwd
 
              do id = 1,nlev_eff_decomp
                 flux_cel_si(id) = flux_cel_si(id) + &
-                     litt%ag_cwd_frag(ic) * ED_val_cwd_fcel * area_frac * surface_prof(id)
+                     litt%ag_cwd_frag(ic) * ED_val_cwd_fcel * surface_prof(id)
 
                 flux_lig_si(id) = flux_lig_si(id) + & 
                      litt%ag_cwd_frag(ic) * ED_val_cwd_flig * surface_prof(id)
@@ -760,7 +758,7 @@ contains
 
              do j = 1, nlev_eff_soil
 
-                id = bc_in%decomp_id(j)  ! Map from soil layer to decomp layer
+                id = csite%bc_in(ifp)%decomp_id(j)  ! Map from soil layer to decomp layer
 
                 flux_cel_si(id) = flux_cel_si(id) + &
                      litt%bg_cwd_frag(ic,j) * ED_val_cwd_fcel
@@ -808,7 +806,7 @@ contains
           end do
 
           do j = 1, nlev_eff_soil
-             id = bc_in%decomp_id(j)
+             id = csite%bc_in(ifp)%decomp_id(j)
              flux_lab_si(id) = flux_lab_si(id) + &
                   litt%root_fines_frag(ilabile,j)
              flux_cel_si(id) = flux_cel_si(id) + &
@@ -817,17 +815,17 @@ contains
                   litt%root_fines_frag(ilignin,j)
           enddo
 
-       ! Normalize all masses over the decomposition layer's depth
-       ! Convert from kg/m2/day -> g/m3/s
+          ! Normalize all masses over the decomposition layer's depth
+          ! Convert from kg/m2/day -> g/m3/s
 
-       do id = 1,nlev_eff_decomp
-          flux_cel_si(id) = days_per_sec * g_per_kg * &
-               flux_cel_si(id) / bc_in%dz_decomp_sisl(id)
-          flux_lig_si(id) = days_per_sec * g_per_kg * &
-               flux_lig_si(id) / bc_in%dz_decomp_sisl(id)
-          flux_lab_si(id) = days_per_sec * g_per_kg * &
-               flux_lab_si(id) / bc_in%dz_decomp_sisl(id)
-       end do
+          do id = 1,nlev_eff_decomp
+             flux_cel_si(id) = days_per_sec * g_per_kg * &
+                  flux_cel_si(id) / bc_in%dz_decomp_sisl(id)
+             flux_lig_si(id) = days_per_sec * g_per_kg * &
+                  flux_lig_si(id) / bc_in%dz_decomp_sisl(id)
+             flux_lab_si(id) = days_per_sec * g_per_kg * &
+                  flux_lab_si(id) / bc_in%dz_decomp_sisl(id)
+          end do
 
       end do flux_elem_loop
 
