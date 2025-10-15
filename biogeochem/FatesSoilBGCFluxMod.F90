@@ -671,34 +671,41 @@ contains
     ! how steep profile is for surface components (1/ e_folding depth) (1/m) 
     real(r8),  parameter :: surfprof_exp  = 10.
 
-    ! This is the number of effective soil layers to transfer from
-    nlev_eff_soil   = max(bc_in%max_rooting_depth_index_col, 1)
+    ! Loop over patches
+    currentPatch => csite%oldest_patch
+    flux_patch_loop: do while (associated(currentPatch))
     
-    ! The decomposition layers are most likely the exact same layers
-    ! as the soil layers (same depths also), unless it is a simplified
-    ! single layer case, where nlevdecomp = 1
+      bc_out => csite%bc_out(currentPatch%patchno)
+      bc_in => csite%bc_in(currentPatch%patchno)
+
+      ! This is the number of effective soil layers to transfer from
+      nlev_eff_soil   = max(bc_in%max_rooting_depth_index_col, 1)
     
-    nlev_eff_decomp = min(bc_in%nlevdecomp,nlev_eff_soil)
+      ! The decomposition layers are most likely the exact same layers
+      ! as the soil layers (same depths also), unless it is a simplified
+      ! single layer case, where nlevdecomp = 1
     
-    ! define a single shallow surface profile for surface additions 
-    ! (leaves, stems, and N deposition). This sends the above ground
-    ! mass into the soil pools using an exponential depth decay function.
-    ! Since it is sending an absolute mass [kg] into variable layer
-    ! widths, we multiply the profile by the layer width, so that
-    ! wider layers get proportionally more.  After the masses
-    ! are sent, each layer will normalize by depth.
+      nlev_eff_decomp = min(bc_in%nlevdecomp,nlev_eff_soil)
     
-    surface_prof(:) = 0._r8
-    z_decomp = 0._r8
-    do id = 1,nlev_eff_decomp
-       z_decomp = z_decomp+0.5*bc_in%dz_decomp_sisl(id)
-       surface_prof(id) = exp(-surfprof_exp * z_decomp) *  bc_in%dz_decomp_sisl(id)
-       z_decomp = z_decomp+0.5*bc_in%dz_decomp_sisl(id)
-    end do
-    surface_prof_tot = sum(surface_prof)
-    do id = 1,nlev_eff_decomp
-       surface_prof(id) = surface_prof(id)/surface_prof_tot
-    end do
+      ! define a single shallow surface profile for surface additions 
+      ! (leaves, stems, and N deposition). This sends the above ground
+      ! mass into the soil pools using an exponential depth decay function.
+      ! Since it is sending an absolute mass [kg] into variable layer
+      ! widths, we multiply the profile by the layer width, so that
+      ! wider layers get proportionally more.  After the masses
+      ! are sent, each layer will normalize by depth.
+    
+      surface_prof(:) = 0._r8
+      z_decomp = 0._r8
+      do id = 1,nlev_eff_decomp
+         z_decomp = z_decomp+0.5*bc_in%dz_decomp_sisl(id)
+         surface_prof(id) = exp(-surfprof_exp * z_decomp) *  bc_in%dz_decomp_sisl(id)
+         z_decomp = z_decomp+0.5*bc_in%dz_decomp_sisl(id)
+      end do
+      surface_prof_tot = sum(surface_prof)
+      do id = 1,nlev_eff_decomp
+         surface_prof(id) = surface_prof(id)/surface_prof_tot
+      end do
 
     ! Loop over the different elements. 
     do el = 1, num_elements
@@ -810,9 +817,6 @@ contains
                   litt%root_fines_frag(ilignin,j) * area_frac
           enddo
 
-          currentPatch => currentPatch%younger
-       end do
-
        ! Normalize all masses over the decomposition layer's depth
        ! Convert from kg/m2/day -> g/m3/s
 
@@ -825,7 +829,11 @@ contains
                flux_lab_si(id) / bc_in%dz_decomp_sisl(id)
        end do
 
-    end do  ! do elements
+      end do flux_elem_loop
+
+      ! Move to the next
+      currentPatch => currentPatch%younger
+    end do flux_patch_loop 
 
     ! If we are coupled with MIMICS, then we need some assessment of litter quality
     ! ie ligC/totalN.  If we are not tracking N in the litter flux (ie C-only model)
