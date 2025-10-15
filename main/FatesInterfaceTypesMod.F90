@@ -699,8 +699,10 @@ module FatesInterfaceTypesMod
       real(r8), allocatable :: litt_flux_cel_p_si(:) ! cellulose phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lig_p_si(:) ! lignin phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lab_p_si(:) ! labile phosphorus litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_all_c(:)      ! total litterfall carbon
+      real(r8), allocatable :: litt_flux_all_n(:)      ! total litterfall nitrogen
+      real(r8), allocatable :: litt_flux_all_p(:)      ! total litterfall phosphorus
 
-      
       ! MIMICS Boundary Conditions
       ! -----------------------------------------------------------------------------------
       real(r8) :: litt_flux_ligc_per_n  ! lignin carbon per total nitrogen
@@ -1023,6 +1025,26 @@ module FatesInterfaceTypesMod
     call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_lignin, initialize=initialize, index=index, 
                                       update_frequency=registry_update_timestep)
     call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_labile, initialize=initialize, index=index, 
+                                      update_frequency=registry_update_timestep)
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_total, initialize=initialize, index=index, 
+                                      update_frequency=registry_update_timestep)
+
+    call this%defineinterfacevariable(key=hlm_fates_litter_phosphorus_cellulose, initialize=initialize, index=index, 
+                                      update_frequency=registry_update_timestep)
+    call this%defineinterfacevariable(key=hlm_fates_litter_phosphorus_lignin, initialize=initialize, index=index, 
+                                      update_frequency=registry_update_timestep)
+    call this%defineinterfacevariable(key=hlm_fates_litter_phosphorus_labile, initialize=initialize, index=index, 
+                                      update_frequency=registry_update_timestep)
+    call this%defineinterfacevariable(key=hlm_fates_litter_phosphorus_total, initialize=initialize, index=index, 
+                                      update_frequency=registry_update_timestep)
+
+    call this%defineinterfacevariable(key=hlm_fates_litter_nitrogen_cellulose, initialize=initialize, index=index, 
+                                      update_frequency=registry_update_timestep)
+    call this%defineinterfacevariable(key=hlm_fates_litter_nitrogen_lignin, initialize=initialize, index=index, 
+                                      update_frequency=registry_update_timestep)
+    call this%defineinterfacevariable(key=hlm_fates_litter_nitrogen_labile, initialize=initialize, index=index, 
+                                      update_frequency=registry_update_timestep)
+    call this%defineinterfacevariable(key=hlm_fates_litter_nitrogen_total, initialize=initialize, index=index, 
                                       update_frequency=registry_update_timestep)
 
   end subroutine DefineInterfaceRegistry
