@@ -1029,22 +1029,22 @@ module FatesInterfaceTypesMod
     call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_total, initialize=initialize, index=index, 
                                       update_frequency=registry_update_timestep)
 
-    call this%defineinterfacevariable(key=hlm_fates_litter_phosphorus_cellulose, initialize=initialize, index=index, 
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_phosphorus_cellulose, initialize=initialize, index=index, 
                                       update_frequency=registry_update_timestep)
-    call this%defineinterfacevariable(key=hlm_fates_litter_phosphorus_lignin, initialize=initialize, index=index, 
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_phosphorus_lignin, initialize=initialize, index=index, 
                                       update_frequency=registry_update_timestep)
-    call this%defineinterfacevariable(key=hlm_fates_litter_phosphorus_labile, initialize=initialize, index=index, 
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_phosphorus_labile, initialize=initialize, index=index, 
                                       update_frequency=registry_update_timestep)
-    call this%defineinterfacevariable(key=hlm_fates_litter_phosphorus_total, initialize=initialize, index=index, 
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_phosphorus_total, initialize=initialize, index=index, 
                                       update_frequency=registry_update_timestep)
 
-    call this%defineinterfacevariable(key=hlm_fates_litter_nitrogen_cellulose, initialize=initialize, index=index, 
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_cellulose, initialize=initialize, index=index, 
                                       update_frequency=registry_update_timestep)
-    call this%defineinterfacevariable(key=hlm_fates_litter_nitrogen_lignin, initialize=initialize, index=index, 
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_lignin, initialize=initialize, index=index, 
                                       update_frequency=registry_update_timestep)
-    call this%defineinterfacevariable(key=hlm_fates_litter_nitrogen_labile, initialize=initialize, index=index, 
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_labile, initialize=initialize, index=index, 
                                       update_frequency=registry_update_timestep)
-    call this%defineinterfacevariable(key=hlm_fates_litter_nitrogen_total, initialize=initialize, index=index, 
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_total, initialize=initialize, index=index, 
                                       update_frequency=registry_update_timestep)
 
   end subroutine DefineInterfaceRegistry
