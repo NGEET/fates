@@ -2831,6 +2831,7 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
 
       ! Register the boundary conditions that are necessary for allocating other boundary conditions first
       call this%register(r)%Register(key=hlm_fates_decomp_max, data=this%sites(s)%bc_in(ifp)%nlevdecomp_full, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_decomp, data=this%sites(s)%bc_in(ifp)%nlevdecomp, hlm_flag=.false.)
 
       ! Initialize the interface variables necessary for allocating boundary conditions
       call this%register(r)%InitializeInterfaceVariables()
@@ -2840,7 +2841,11 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
 
       ! Register the remaining boundary conditions
       ! bc_in
+      call this%register(r)%Register(key=hlm_fates_decomp_thickness, data=this%sites(s)%bc_in(ifp)%dz_decomp_sisl, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_decomp_id, data=this%sites(s)%bc_in(ifp)%decomp_id, hlm_flag=.false.)
+
       call this%register(r)%Register(key=hlm_fates_soil_level, data=this%sites(s)%bc_in(ifp)%nlevsoil, hlm_flag=.false.)
+
       call this%register(r)%Register(key=hlm_fates_decomp_frac_moisture, 
                                      data=this%sites(s)%bc_in(ifp)%w_scalar_sisl, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_decomp_frac_temperature, 
@@ -2853,6 +2858,8 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
                                      data=this%sites(s)%bc_out(ifp)%litt_flux_lig_c_si, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_litter_carbon_labile, 
                                      data=this%sites(s)%bc_out(ifp)%litt_flux_lab_c_si, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_litter_carbon_total, 
+                                     data=this%sites(s)%bc_out(ifp)%litt_flux_all_c, hlm_flag=.false.)
 
       
 
