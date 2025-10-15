@@ -868,7 +868,7 @@ module FatesInterfaceTypesMod
     type(fates_interface_variable_type), allocatable :: fates_vars(:) 
     
     ! Array of keys associated with the interface variables
-    character(len=48), allocatable :: key(:)
+    character(len=48), allocatable, private :: key(:)
 
     ! Variable regsitry metadata
     integer :: num_api_vars                        ! number of variables in the registry
