@@ -2844,10 +2844,8 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
 
       ! Register the remaining boundary conditions
       ! bc_in
-      call this%register(r)%Register(key=hlm_fates_decomp_thickness, data=this%sites(s)%bc_in(ifp)%dz_decomp_sisl, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_decomp_id, data=this%sites(s)%bc_in(ifp)%decomp_id, hlm_flag=.false.)
-
-      call this%register(r)%Register(key=hlm_fates_soil_level, data=this%sites(s)%bc_in(ifp)%nlevsoil, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_rooting_max_depth, &
+                                     data=bc_in%max_rooting_depth_index_col, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_decomp_thickness, &
                                      data=bc_in%dz_decomp_sisl, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_decomp_id, &
