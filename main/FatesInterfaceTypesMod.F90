@@ -1427,14 +1427,19 @@ module FatesInterfaceTypesMod
     integer :: i
     integer :: j
     
-    ! Iterate over the litter flux filter
+    ! Iterate over the litter flux filter to update the individual litter types
     do i = 1, num_litter_fluxes
       j = this%filter_litter_flux(i)
       
       ! Update the hlm variables with the fates variables
-      call this%hlm_vars(j)%Update(fates_vars(j), scalar=dtime)
+      call this%hlm_vars(j)%Update(this%fates_vars(j), scalar=dtime)
 
     end do
+    
+    ! Update the HLM variable with the total litterfall
+    j = this%GetRegistryIndex(hlm_fates_litter_carbon_total)
+    call this%hlm_vars(j)%Update(this%fates_vars(j))
+
     
   end subroutine UpdateLitterFluxes
 
