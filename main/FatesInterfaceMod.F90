@@ -2811,12 +2811,18 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
    integer :: r      ! registery iterator
    integer :: s      ! site iterator
    integer :: ifp    ! boundary condition index
+   type(bc_in_type),  pointer :: bc_in
+   type(bc_out_type), pointer :: bc_out
    
    ! Register the input boundary conditions use for BC allocations
    do r = 1, this%npatches
       
       ! Get the site associated with this registry
       s = this%register(r)%GetSiteIndex()
+      ifp = this%register(r)%GetFatesPatchIndex()
+
+      bc_in  => this%sites(s)%bc_in(ifp)
+      bc_out => this%sites(s)%bc_out(ifp)
 
       ! Since the registry is indexed by vegetated patch, check that the site for this registry
       ! hasn't already been allocated
@@ -2826,12 +2832,9 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
          allocate(this%sites(s)%bc_out(patches_per_site))
       end if
 
-      ! Get the fates boundary condition index
-      ifp = this%register(r)%GetFatesPatchIndex()
-
       ! Register the boundary conditions that are necessary for allocating other boundary conditions first
-      call this%register(r)%Register(key=hlm_fates_decomp_max, data=this%sites(s)%bc_in(ifp)%nlevdecomp_full, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_decomp, data=this%sites(s)%bc_in(ifp)%nlevdecomp, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_decomp_max, data=bc_in%nlevdecomp_full, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_decomp, data=bc_in%nlevdecomp, hlm_flag=.false.)
 
       ! Initialize the interface variables necessary for allocating boundary conditions
       call this%register(r)%InitializeInterfaceVariables()
@@ -2845,21 +2848,27 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       call this%register(r)%Register(key=hlm_fates_decomp_id, data=this%sites(s)%bc_in(ifp)%decomp_id, hlm_flag=.false.)
 
       call this%register(r)%Register(key=hlm_fates_soil_level, data=this%sites(s)%bc_in(ifp)%nlevsoil, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_decomp_thickness, &
+                                     data=bc_in%dz_decomp_sisl, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_decomp_id, &
+                                     data=bc_in%decomp_id, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_soil_level, &
+                                     data=bc_in%nlevsoil, hlm_flag=.false.)
 
-      call this%register(r)%Register(key=hlm_fates_decomp_frac_moisture, 
-                                     data=this%sites(s)%bc_in(ifp)%w_scalar_sisl, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_decomp_frac_temperature, 
-                                     data=this%sites(s)%bc_in(ifp)%t_scalar_sisl, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_decomp_frac_moisture, &                                     
+                                     data=bc_in%w_scalar_sisl, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_decomp_frac_temperature, &                               
+                                     data=bc_in%t_scalar_sisl, hlm_flag=.false.)
       
       ! bc_out
       call this%register(r)%Register(key=hlm_fates_litter_carbon_cellulose, 
-                                     data=this%sites(s)%bc_out(ifp)%litt_flux_cel_c_si, hlm_flag=.false.)
+                                     data=bc_out%litt_flux_cel_c_si, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_litter_carbon_lignin, 
-                                     data=this%sites(s)%bc_out(ifp)%litt_flux_lig_c_si, hlm_flag=.false.)
+                                     data=bc_out%litt_flux_lig_c_si, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_litter_carbon_labile, 
-                                     data=this%sites(s)%bc_out(ifp)%litt_flux_lab_c_si, hlm_flag=.false.)
+                                     data=bc_out   %litt_flux_lab_c_si, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_litter_carbon_total, 
-                                     data=this%sites(s)%bc_out(ifp)%litt_flux_all_c, hlm_flag=.false.)
+                                     data=bc_out`%litt_flux_all_c, hlm_flag=.false.)
 
       
 
