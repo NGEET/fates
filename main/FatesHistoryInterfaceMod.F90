@@ -7123,7 +7123,7 @@ contains
           call this%set_history_var(vname='FATES_ELONG_FACTOR_PF',                      &
                units='1',                                                               &
                long='PFT-level mean elongation factor (partial flushing/abscission)',   &
-               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
+               use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                    &
                index=ih_elong_factor_si_pft)
 
@@ -7277,7 +7277,7 @@ contains
 
           call this%set_history_var(vname='FATES_FRAGMENTATION_SCALER_SL', units='', &
                long='factor (0-1) by which litter/cwd fragmentation proceeds relative to max rate by soil layer',  &
-               use_default='active', avgflag='A', vtype=site_soil_r8,              &
+               use_default='inactive', avgflag='A', vtype=site_soil_r8,              &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index = ih_fragmentation_scaler_sl)
 
@@ -7301,7 +7301,7 @@ contains
 
           call this%set_history_var(vname='FATES_BURNFRAC_AP', units='s-1',          &
                long='spitfire fraction area burnt (per second) by patch age',        &
-               use_default='active', avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', &
+               use_default='inactive', avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index = ih_fracarea_burnt_si_age)
 
@@ -7320,7 +7320,7 @@ contains
 
           call this%set_history_var(vname='FATES_FUEL_BURNT_BURNFRAC_FC', units='1', &
                long='product of fraction (0-1) of fuel burnt and burnt fraction (divide by FATES_BURNFRAC to get burned-area-weighted mean fraction fuel burnt)', &
-               use_default='active', avgflag='A', vtype=site_fuel_r8,                &
+               use_default='inactive', avgflag='A', vtype=site_fuel_r8,                &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index = ih_burnt_frac_litter_si_fuel)
 
@@ -7390,13 +7390,13 @@ contains
           ! Output specific to the chemical species dynamics used (parteh)
           call this%set_history_var(vname='FATES_L2FR_CANOPY_REC_PF', units='kg kg-1', &
                long='The leaf to fineroot biomass multiplier for recruits (canopy)',   & 
-               use_default='active', &
+               use_default='inactive', &
                avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,    &
                ivar=ivar, initialize=initialize_variables, index = ih_recl2fr_canopy_pf)
           
           call this%set_history_var(vname='FATES_L2FR_USTORY_REC_PF', units='kg kg-1',                   &
                long='The leaf to fineroot biomass multiplier for recruits (understory)', & 
-               use_default='active', &
+               use_default='inactive', &
                avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,    &
                ivar=ivar, initialize=initialize_variables, index = ih_recl2fr_ustory_pf)
           
@@ -8262,7 +8262,7 @@ contains
 
           call this%set_history_var(vname='FATES_NPLANT_AC', units = 'm-2',          &
                long='number of plants per m2 by cohort age class',                   &
-               use_default='active', avgflag='A', vtype=site_coage_r8,               &
+               use_default='inactive', avgflag='A', vtype=site_coage_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                  &
                initialize=initialize_variables, index = ih_nplant_si_cacls)
 
@@ -8332,14 +8332,14 @@ contains
           call this%set_history_var(vname='FATES_MORTALITY_AGESCEN_SZ',              &
                units = 'm-2 yr-1',                                                  &
                long='age senescence mortality by size in number of plants per m2 per year', &
-               use_default='active', avgflag='A', vtype=site_size_r8,               &
+               use_default='inactive', avgflag='A', vtype=site_size_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_m10_si_scls)
 
           call this%set_history_var(vname='FATES_MORTALITY_AGESCEN_AC',              &
                units = 'm-2 yr-1',                                                  &
                long='age senescence mortality by cohort age in number of plants per m2 per year', &
-               use_default='active', avgflag='A', vtype=site_coage_r8,              &
+               use_default='inactive', avgflag='A', vtype=site_coage_r8,              &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_m10_si_cacls)
 
@@ -8702,7 +8702,7 @@ contains
 
           call this%set_history_var(vname='FATES_LITTER_CWD_ELDC', units='kg m-2',   &
                long='total mass of litter in coarse woody debris by element and coarse woody debris size', &
-               use_default='active', avgflag='A', vtype=site_elcwd_r8,              &
+               use_default='inactive', avgflag='A', vtype=site_elcwd_r8,              &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_cwd_elcwd)
 
