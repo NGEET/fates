@@ -719,25 +719,29 @@ contains
             bc_out%litt_flux_cel_c_si(:) = 0.0_r8
             bc_out%litt_flux_lig_c_si(:) = 0.0_r8
             bc_out%litt_flux_lab_c_si(:) = 0.0_r8
-            bc_out%litt_flux_all_c(:) = 0.0_r8
+            bc_out%litt_flux_all_c = 0.0_r8
             flux_cel_si => bc_out%litt_flux_cel_c_si(:)
             flux_lab_si => bc_out%litt_flux_lab_c_si(:)
             flux_lig_si => bc_out%litt_flux_lig_c_si(:)
-            flux_all_si => bc_out%litt_flux_all_c(:)
+            flux_all_si => bc_out%litt_flux_all_c
          case (nitrogen_element)
             bc_out%litt_flux_cel_n_si(:) = 0._r8
             bc_out%litt_flux_lig_n_si(:) = 0._r8
             bc_out%litt_flux_lab_n_si(:) = 0._r8
+            bc_out%litt_flux_all_n = 0.0_r8
             flux_cel_si => bc_out%litt_flux_cel_n_si(:)
             flux_lab_si => bc_out%litt_flux_lab_n_si(:)
             flux_lig_si => bc_out%litt_flux_lig_n_si(:)
+            flux_all_si => bc_out%litt_flux_all_n
          case (phosphorus_element)
             bc_out%litt_flux_cel_p_si(:) = 0._r8
             bc_out%litt_flux_lig_p_si(:) = 0._r8
             bc_out%litt_flux_lab_p_si(:) = 0._r8
+            bc_out%litt_flux_all_p = 0.0_r8
             flux_cel_si => bc_out%litt_flux_cel_p_si(:)
             flux_lab_si => bc_out%litt_flux_lab_p_si(:)
             flux_lig_si => bc_out%litt_flux_lig_p_si(:)
+            flux_all_si => bc_out%litt_flux_all_p
          end select
 
           ! Set a pointer to the litter object

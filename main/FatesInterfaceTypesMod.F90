@@ -703,9 +703,9 @@ module FatesInterfaceTypesMod
       real(r8), allocatable :: litt_flux_cel_p_si(:) ! cellulose phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lig_p_si(:) ! lignin phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lab_p_si(:) ! labile phosphorus litter, fates->BGC g/m3/s
-      real(r8), allocatable :: litt_flux_all_c(:)      ! total litterfall carbon
-      real(r8), allocatable :: litt_flux_all_n(:)      ! total litterfall nitrogen
-      real(r8), allocatable :: litt_flux_all_p(:)      ! total litterfall phosphorus
+      real(r8)              :: litt_flux_all_c      ! total litterfall carbon
+      real(r8)              :: litt_flux_all_n      ! total litterfall nitrogen
+      real(r8)              :: litt_flux_all_p      ! total litterfall phosphorus
 
       ! MIMICS Boundary Conditions
       ! -----------------------------------------------------------------------------------

@@ -674,7 +674,6 @@ contains
       bc_in_ptr%t_scalar_sisl = nan
 
       ! Litter fluxes, carbon
-      allocate(bc_out_ptr%litt_flux_all_c(nlevdecomp))
       allocate(bc_out_ptr%litt_flux_cel_c_si(nlevdecomp))
       allocate(bc_out_ptr%litt_flux_lig_c_si(nlevdecomp))
       allocate(bc_out_ptr%litt_flux_lab_c_si(nlevdecomp))
@@ -685,7 +684,6 @@ contains
       bc_out_ptr%litt_flux_lab_c_si = nan
 
       ! Litter fluxes, nitrogen
-      allocate(bc_out_ptr%litt_flux_all_n(nlevdecomp))
       allocate(bc_out_ptr%litt_flux_cel_n_si(nlevdecomp))
       allocate(bc_out_ptr%litt_flux_lig_n_si(nlevdecomp))
       allocate(bc_out_ptr%litt_flux_lab_n_si(nlevdecomp))
@@ -696,7 +694,6 @@ contains
       bc_out_ptr%litt_flux_lab_n_si = nan
 
       ! Litter fluxes, phosphorus
-      allocate(bc_out_ptr%litt_flux_all_p(nlevdecomp))
       allocate(bc_out_ptr%litt_flux_cel_p_si(nlevdecomp))
       allocate(bc_out_ptr%litt_flux_lig_p_si(nlevdecomp))
       allocate(bc_out_ptr%litt_flux_lab_p_si(nlevdecomp))
