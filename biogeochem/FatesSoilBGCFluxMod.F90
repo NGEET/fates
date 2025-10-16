@@ -827,9 +827,14 @@ contains
                   flux_lab_si(id) / bc_in%dz_decomp_sisl(id)
           end do
 
-      end do flux_elem_loop
+         ! Calculate the total flux of C into the litter pools
+          flux_all_si = sum(flux_cel_si(:) * bc_in%dz_decomp_sisl(:)) + &
+                        sum(flux_lig_si(:) * bc_in%dz_decomp_sisl(:)) + &
+                        sum(flux_lab_si(:) * bc_in%dz_decomp_sisl(:))
 
-      ! Move to the next
+      end do flux_elem_loop
+      
+      ! Move to the next patch
       currentPatch => currentPatch%younger
     end do flux_patch_loop 
 
