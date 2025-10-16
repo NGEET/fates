@@ -9,6 +9,7 @@ module FatesInterfaceParametersMod
   character(len=*), parameter, public :: hlm_fates_decomp_thickness= 'decomp_thickness'
   character(len=*), parameter, public :: hlm_fates_decomp_id = 'decomp_id'
   character(len=*), parameter, public :: hlm_fates_rooting_max_depth = 'rooting_max_depth'
+  character(len=*), parameter, public :: hlm_fates_thaw_max_depth_index = 'prioryear_thaw_max_depth_index'
   character(len=*), parameter, public :: hlm_fates_soil_level = 'soil_level_number'
   character(len=*), parameter, public :: hlm_fates_decomp_frac_moisture = 'decomp_frac_moisture'
   character(len=*), parameter, public :: hlm_fates_decomp_frac_temperature = 'decomp_frac_temperature'

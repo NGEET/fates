@@ -2844,8 +2844,8 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
 
       ! Register the remaining boundary conditions
       ! bc_in
-      call this%register(r)%Register(key=hlm_fates_rooting_max_depth, &
-                                     data=bc_in%max_rooting_depth_index_col, hlm_flag=.false.)
+      call this%register(r)%Register(key=hlm_fates_thaw_max_depth_index, &
+                                     data=bc_in%max_thaw_depth_index_col, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_decomp_thickness, &
                                      data=bc_in%dz_decomp_sisl, hlm_flag=.false.)
       call this%register(r)%Register(key=hlm_fates_decomp_id, &
@@ -2876,15 +2876,48 @@ end subroutine InitializeBoundaryConditions
 
 ! ======================================================================================
 
-subroutine UpdateInterfaceVariables(this)
+subroutine UpdateInterfaceVariables(this, initialize)
    
+   ! Arguments
    class(fates_interface_type), intent(inout) :: this
+   logical, intent(in), optional              :: initialize 
+
+   ! Locals
+   type(bc_in_type),  pointer :: bc_in
+   type(bc_out_type), pointer :: bc_out
+
+   logical :: initialize_local
 
    integer :: r   ! registry interface index
 
+   ! Set the default initialize flag to false
+   if (present(initialize)) then
+      initialize_local = initialize
+   else
+      initialize_local = .false.
+   end if
+
    do r = 1, this%npatches
+
+      ! Update the interface variables for the current registry
       call this%register(r)%Update()
+
+      ! Get the site associated with this registry
+      s = this%register(r)%GetSiteIndex()
+      ifp = this%register(r)%GetFatesPatchIndex()
+
+      bc_in  => this%sites(s)%bc_in(ifp)
+
+      ! Calculate the maximum rooting depth index
+      if (initialize) then
+         bc_in%max_rooting_depth_index_col = bc_in%nlevdecomp
+      else
+         bc_in%max_rooting_depth_index_col = min(bc_in%nlevsoil, bc_in%max_thaw_depth_index)
+      end if
+
+
    end do
+
    
 end subroutine UpdateInterfaceVariables
 

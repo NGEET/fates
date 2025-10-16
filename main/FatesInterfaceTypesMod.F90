@@ -539,6 +539,10 @@ module FatesInterfaceTypesMod
       ! due to permafrost or bedrock constraints
       integer  :: max_rooting_depth_index_col
 
+      ! The prior year maximum thaw depth index
+      ! Used to determine max_rooting_depth_index_col
+      integer  :: max_thaw_depth_index
+
       ! BGC Accounting
 
       real(r8) :: tot_het_resp  ! total heterotrophic respiration  (gC/m2/s)
