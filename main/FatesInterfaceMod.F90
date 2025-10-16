@@ -2749,7 +2749,7 @@ end subroutine InitializeInterfaceRegistry
 
 ! ======================================================================================
 
-subroutine InitializeFatesSites(this)
+subroutine InitializeFatesSites(this, patches_per_site)
    
    class(fates_interface_type), intent(inout) :: this             ! fates interface
    integer, intent(in)                        :: patches_per_site ! number of patches per site
@@ -2832,22 +2832,21 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
    type(bc_out_type), pointer :: bc_out
    
    ! Register the input boundary conditions use for BC allocations
-   do r = 1, this%npatches
-      
-      ! Get the site associated with this registry
-      s = this%registry(r)%GetSiteIndex()
-      ifp = this%registry(r)%GetFatesPatchIndex()
+   do s = 1, this%nsites
 
+      ! Allocate boundary conditions for all sites with the maximum number of patches per site
+      allocate(this%sites(s)%bc_in(patches_per_site))
+      allocate(this%sites(s)%bc_out(patches_per_site))
+
+      ! Iterate over the maximum number of patches for the current site
+      do ifp = 1, patches_per_site
+      
+      ! Create convenience pointers to the current boundary conditions    
       bc_in  => this%sites(s)%bc_in(ifp)
       bc_out => this%sites(s)%bc_out(ifp)
 
-      ! Since the registry is indexed by vegetated patch, check that the site for this registry
-      ! hasn't already been allocated
-      if (.not.(allocated(this%sites(s)%bc_in))) then
-         ! Allocate boundary conditions for all sites with the maximum number of patches per site
-         allocate(this%sites(s)%bc_in(patches_per_site))
-         allocate(this%sites(s)%bc_out(patches_per_site))
-      end if
+      ! Get the site associated with this registry
+      r = this%sites(s)%GetRegistryIndex(ifp)
 
       ! Register the boundary conditions that are necessary for allocating other boundary conditions first
       call this%registry(r)%Register(key=hlm_fates_decomp_max, data=bc_in%nlevdecomp_full, hlm_flag=.false.)
@@ -2885,8 +2884,7 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       call this%registry(r)%Register(key=hlm_fates_litter_carbon_total, 
                                      data=bc_out`%litt_flux_all_c, hlm_flag=.false.)
 
-      
-
+      end do
    end do
    
 end subroutine InitializeBoundaryConditions
