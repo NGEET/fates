@@ -2793,7 +2793,7 @@ subroutine InitializeFatesSites(this, patches_per_site)
    ! Allocate the sites
    allocate(this%sites(this%nsites))
    
-   ! Iterator through the registries again and store the registry indices for each site
+   ! Iterate through the registries again and store the registry indices for each site
    do r = 1, this%npatches
       
       ! Get the site index for the current registry
