@@ -2751,7 +2751,8 @@ end subroutine InitializeInterfaceRegistry
 
 subroutine InitializeFatesSites(this)
    
-   class(fates_interface_type), intent(inout) :: this                  ! fates interface
+   class(fates_interface_type), intent(inout) :: this             ! fates interface
+   integer, intent(in)                        :: patches_per_site ! number of patches per site
    
    ! Local
    integer :: r   ! interface registry index
@@ -2791,6 +2792,22 @@ subroutine InitializeFatesSites(this)
    
    ! Allocate the sites
    allocate(this%sites(this%nsites))
+   
+   ! Iterator through the registries again and store the registry indices for each site
+   do r = 1, this%npatches
+      
+      ! Get the site index for the current registry
+      s = this%registry(r)%GetSiteIndex()
+      ifp = this%registry(r)%GetFatesPatchIndex()
+      
+      ! Allocate the registry index array for the current site if it hasn't already been allocated
+      if (.not.(allocated(this%sites(s)%ridx))) call this%sites(s)%AllocateRegistryIndexArray(patches_per_site)
+
+      ! Store the registry index for the current site and fates patch index
+      this%sites(s)%SetRegisteryIndex(ifp, r)
+      
+   end do
+   
 
 end subroutine InitializeFatesSites
 
