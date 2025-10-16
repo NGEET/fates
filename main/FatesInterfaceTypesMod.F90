@@ -1446,6 +1446,14 @@ module FatesInterfaceTypesMod
     j = this%GetRegistryIndex(hlm_fates_litter_carbon_total)
     call this%hlm_vars(j)%Update(this%fates_vars(j))
 
+    if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
+      j = this%GetRegistryIndex(hlm_fates_litter_phosphorus_total)
+      call this%hlm_vars(j)%Update(this%fates_vars(j))
+
+      j = this%GetRegistryIndex(hlm_fates_nitrogen_total)
+      call this%hlm_vars(j)%Update(this%fates_vars(j))
+    end if
+
     
   end subroutine UpdateLitterFluxes
 
