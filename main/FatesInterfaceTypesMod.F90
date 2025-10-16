@@ -865,7 +865,7 @@ module FatesInterfaceTypesMod
    end type bc_pconst_type
 
    ! Base type to be extended for the API registry
-   type, public :: fates_interface_registry_base_type
+   type, public :: fates_interface_registry_type
 
     ! Container array of interface variables indexed by key
     type(fates_interface_variable_type), allocatable :: hlm_vars(:) 
@@ -928,7 +928,7 @@ module FatesInterfaceTypesMod
       procedure, private :: GetRegistryIndex
       procedure, private :: GetRegistryKey
 
-   end type fates_interface_registry_base_type
+   end type fates_interface_registry_type
 
    public :: ZeroBCOutCarbonFluxes
    
@@ -954,7 +954,7 @@ module FatesInterfaceTypesMod
 
     ! This initializes the interface registry
 
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
 
     logical :: initialize
 
@@ -1003,7 +1003,7 @@ module FatesInterfaceTypesMod
     ! This procedure defines the list of common names to be associated with FATES and HLM
     ! variables.
 
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
 
     logical, intent(in) :: initialize  ! false = count up the keys in the registry
 
@@ -1060,7 +1060,7 @@ module FatesInterfaceTypesMod
 
   subroutine DefineInterfaceVariable(this, key, initialize, index, update_frequency)
 
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
 
     character(len=*), intent(in)  :: key
     logical, intent(in)           :: initialize
@@ -1144,7 +1144,7 @@ module FatesInterfaceTypesMod
   
   subroutine SetSubgridIndices(this, gridcell, topounit, landunit, column, hlmpatch, fatespatch, site)
     
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
     integer, intent(in), optional :: gridcell
     integer, intent(in), optional :: topounit
     integer, intent(in), optional :: landunit
@@ -1167,7 +1167,7 @@ module FatesInterfaceTypesMod
   
   integer function GetGridcellIndex(this) result(gidx)
   
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
     
     gidx = this%gidx
     
@@ -1177,7 +1177,7 @@ module FatesInterfaceTypesMod
   
   integer function GetLandunitIndex(this) result(lidx)
   
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
     
     lidx = this%lidx
     
@@ -1187,7 +1187,7 @@ module FatesInterfaceTypesMod
   
   integer function GetColumnIndex(this) result(cidx)
   
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
     
     cidx = this%cidx
     
@@ -1197,7 +1197,7 @@ module FatesInterfaceTypesMod
   
   integer function GetHLMPatchIndex(this) result(hpidx)
   
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
     
     hpidx = this%hpidx
     
@@ -1207,7 +1207,7 @@ module FatesInterfaceTypesMod
   
   integer function GetSiteIndex(this) result(sidx)
   
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
     
     sidx = this%sidx
     
@@ -1217,7 +1217,7 @@ module FatesInterfaceTypesMod
   
   integer function GetFatesPatchIndex(this) result(fpidx)
   
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
     
     fpidx = this%fpidx
     
@@ -1227,7 +1227,7 @@ module FatesInterfaceTypesMod
   
   subroutine SetFilterMapArrays(this)
 
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
 
     integer :: index
     integer :: count_init
@@ -1292,7 +1292,7 @@ module FatesInterfaceTypesMod
     ! with a particular registry key
 
     ! Arguments
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
     class(*), target, intent(in)  :: data          ! data to be associated with key
     character(len=*), intent(in)  :: key           ! variable registry key 
     logical, intent(in)           :: hlm_flag      ! Is the variable being register from the HLM?
@@ -1325,7 +1325,7 @@ module FatesInterfaceTypesMod
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
     class(*), target, intent(in)  :: data(:)    ! data to be associated with key
     character(len=*), intent(in)  :: key        ! variable registry key 
     logical, intent(in)           :: hlm_flag   ! Is the variable being register from the HLM?
@@ -1357,7 +1357,7 @@ module FatesInterfaceTypesMod
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
     class(*), target, intent(in)  :: data(:,:)  ! data to be associated with key
     character(len=*), intent(in)  :: key        ! variable registry key 
     logical, intent(in)           :: hlm_flag   ! Is the variable being register from the HLM?
@@ -1387,7 +1387,7 @@ module FatesInterfaceTypesMod
   subroutine InitializeInterfaceVariables(this)
 
     ! Arguments
-    class(fates_interface_registry_base_type), intent(inout) :: this  ! registry being initialized
+    class(fates_interface_registry_type), intent(inout) :: this  ! registry being initialized
 
     ! Locals
     integer :: i  ! initialization iterator
@@ -1410,7 +1410,7 @@ module FatesInterfaceTypesMod
 
   subroutine UpdateInterfaceVariables(this)
 
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
 
     integer :: i
 
@@ -1426,7 +1426,7 @@ module FatesInterfaceTypesMod
   subroutine UpdateLitterFluxes(this, dtime)
 
     ! Arguments
-    class(fates_interface_registry_base_type), intent(inout) :: this
+    class(fates_interface_registry_type), intent(inout) :: this
     real(r8), intent(in)                                     :: dtime
     
     ! Locals
@@ -1455,7 +1455,7 @@ module FatesInterfaceTypesMod
 
     ! This procedure returns the index associated with the key provided
 
-    class(fates_interface_registry_base_type), intent(in) :: this
+    class(fates_interface_registry_type), intent(in) :: this
 
     character(len=*), intent(in) :: key    ! variable registry key to search
 
@@ -1477,7 +1477,7 @@ module FatesInterfaceTypesMod
 
     ! This procedure returns the index associated with the key provided
 
-    class(fates_interface_registry_base_type), intent(in) :: this
+    class(fates_interface_registry_type), intent(in) :: this
 
     integer, intent(in) :: index    ! variable registry index
     character(len=:), allocatable :: key

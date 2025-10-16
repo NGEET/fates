@@ -31,7 +31,7 @@ module EDTypesMod
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
   use FatesInterfaceTypesMod,only : hlm_parteh_mode
-  use FatesInterfaceTypesMod,only : fates_interface_registry_base_type
+  use FatesInterfaceTypesMod,only : fates_interface_registry_type
   use FatesCohortMod,        only : fates_cohort_type
   use FatesPatchMod,         only : fates_patch_type
   use EDParamsMod,           only : nclmax, nlevleaf, maxpft

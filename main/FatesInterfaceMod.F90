@@ -164,7 +164,7 @@ module FatesInterfaceMod
       type(bc_pconst_type) :: bc_pconst
 
       ! This is the interface registry which associates variables with a common keyword
-      type(fates_interface_registry_base_type), allocatable :: register(:)
+      type(fates_interface_registry_type), allocatable :: register(:)
       
       contains 
 
