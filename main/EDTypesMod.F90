@@ -28,6 +28,7 @@ module EDTypesMod
   use FatesConstantsMod,     only : days_per_year
   use FatesRunningMeanMod,   only : rmean_type,rmean_arr_type
   use FatesConstantsMod,     only : fates_unset_r8
+  use FatesConstantsMod,     only : fates_unset_int
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
   use FatesInterfaceTypesMod,only : hlm_parteh_mode
@@ -338,6 +339,9 @@ module EDTypesMod
      type(bc_in_type), allocatable  :: bc_in(:)
      type(bc_out_type), allocatable :: bc_out(:)
      
+     ! Registry index array
+     integer, allocatable, private :: ridx(:)
+     
      ! Resource management
      type (ed_resources_management_type) :: resources_management ! resources_management at the site 
 
@@ -610,9 +614,12 @@ module EDTypesMod
 
      contains
 
+       procedure, public :: AllocateRegistryIndexArray
        procedure, public :: InitializeBoundaryConditions
        procedure, public :: get_current_landuse_statevector
        procedure, public :: get_secondary_young_fraction
+       procedure, public :: GetRegistryIndex
+       procedure, public :: SetRegistryIndex
 
   end type ed_site_type
   
@@ -622,6 +629,20 @@ module EDTypesMod
   public :: set_patchno
   
 contains
+
+  ! ============================================================================
+
+   subroutine AllocateRegistryIndexArray(this, patches_per_site)
+
+      ! Arguments
+      class(ed_site_type), intent(inout) :: this
+      integer, intent(in) :: patches_per_site
+
+      ! Allocate the registry index array
+      allocate(this%ridx(patches_per_site))
+      this%ridx = fates_unset_int
+
+    end subroutine AllocateRegistryIndexArray
 
   ! ============================================================================
 
@@ -686,6 +707,31 @@ contains
       bc_out_ptr%litt_flux_lab_p_si = nan
 
    end subroutine InitializeBoundaryConditions
+
+  ! ============================================================================
+
+   integer function GetRegistryIndex(this, ifp) return(ridx)
+
+      ! Arguments
+      class(ed_site_type), intent(in) :: this
+      integer, intent(in)             :: ifp
+      
+      ridx = this%ridx(ifp)
+      
+   end function GetRegistryIndex
+   
+  ! ============================================================================
+   
+   integer function SetRegistryIndex(this, ifp, ridx)
+
+      ! Arguments
+      class(ed_site_type), intent(inout) :: this
+      integer, intent(in)                :: ifp
+      integer, intent(in)                :: ridx
+      
+      this%ridx(ifp) = ridx
+
+   end function SetRegistryIndex
 
   ! ============================================================================
 
