@@ -2728,7 +2728,7 @@ subroutine InitializeInterfaceRegistry(this, num_veg_patches, patchlist)
    integer :: r   ! registry index
 
    ! Allocate interface registries for each vegetated patch on the clump
-   allocate(this%register(num_veg_patches)) 
+   allocate(this%registry(num_veg_patches))
    
    ! Set the number of vegetated patches to the interface type level
    this%npatches = num_veg_patches
@@ -2738,10 +2738,10 @@ subroutine InitializeInterfaceRegistry(this, num_veg_patches, patchlist)
       
       ! Initialize each registry with a dictionary of keys to register fates and hlm variables against
       ! The keys are defined in the registry type-bound procedures
-      call this%register(r)%InitializeInterfaceRegistry()
+      call this%registry(r)%InitializeInterfaceRegistry()
 
       ! Set the HLM patch index with the current registry
-      call this%register(r)%SetSubgridIndices(hlmpatch=patchlist(r))
+      call this%registry(r)%SetSubgridIndices(hlmpatch=patchlist(r))
       
    end do
 
@@ -2769,7 +2769,7 @@ subroutine InitializeFatesSites(this)
    do r = 1, this%npatches
       
       ! Get the gridcell index
-      g = this%register(r)%GetGridcellIndex()
+      g = this%registry(r)%GetGridcellIndex()
       
       ! Update the fates counter
       ifp = ifp + 1
@@ -2782,7 +2782,7 @@ subroutine InitializeFatesSites(this)
       end if
       
       ! Set the site and fates patch index for the current registry
-      call this%register(r)%SetSubgridIndices(fatespatch=ifp, site=s)
+      call this%registry(r)%SetSubgridIndices(fatespatch=ifp, site=s)
 
    end do
    
@@ -2818,8 +2818,8 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
    do r = 1, this%npatches
       
       ! Get the site associated with this registry
-      s = this%register(r)%GetSiteIndex()
-      ifp = this%register(r)%GetFatesPatchIndex()
+      s = this%registry(r)%GetSiteIndex()
+      ifp = this%registry(r)%GetFatesPatchIndex()
 
       bc_in  => this%sites(s)%bc_in(ifp)
       bc_out => this%sites(s)%bc_out(ifp)
@@ -2833,39 +2833,39 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       end if
 
       ! Register the boundary conditions that are necessary for allocating other boundary conditions first
-      call this%register(r)%Register(key=hlm_fates_decomp_max, data=bc_in%nlevdecomp_full, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_decomp, data=bc_in%nlevdecomp, hlm_flag=.false.)
+      call this%registry(r)%Register(key=hlm_fates_decomp_max, data=bc_in%nlevdecomp_full, hlm_flag=.false.)
+      call this%registry(r)%Register(key=hlm_fates_decomp, data=bc_in%nlevdecomp, hlm_flag=.false.)
 
       ! Initialize the interface variables necessary for allocating boundary conditions
-      call this%register(r)%InitializeInterfaceVariables()
+      call this%registry(r)%InitializeInterfaceVariables()
       
       ! Initialize the currently registered boundary conditions
       call this%sites(s)%InitializeBoundaryConditions(ifp)
 
       ! Register the remaining boundary conditions
       ! bc_in
-      call this%register(r)%Register(key=hlm_fates_thaw_max_depth_index, &
+      call this%registry(r)%Register(key=hlm_fates_thaw_max_depth_index, &
                                      data=bc_in%max_thaw_depth_index_col, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_decomp_thickness, &
+      call this%registry(r)%Register(key=hlm_fates_decomp_thickness, &
                                      data=bc_in%dz_decomp_sisl, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_decomp_id, &
+      call this%registry(r)%Register(key=hlm_fates_decomp_id, &
                                      data=bc_in%decomp_id, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_soil_level, &
+      call this%registry(r)%Register(key=hlm_fates_soil_level, &
                                      data=bc_in%nlevsoil, hlm_flag=.false.)
 
-      call this%register(r)%Register(key=hlm_fates_decomp_frac_moisture, &                                     
+      call this%registry(r)%Register(key=hlm_fates_decomp_frac_moisture, &                                     
                                      data=bc_in%w_scalar_sisl, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_decomp_frac_temperature, &                               
+      call this%registry(r)%Register(key=hlm_fates_decomp_frac_temperature, &                               
                                      data=bc_in%t_scalar_sisl, hlm_flag=.false.)
       
       ! bc_out
-      call this%register(r)%Register(key=hlm_fates_litter_carbon_cellulose, 
+      call this%registry(r)%Register(key=hlm_fates_litter_carbon_cellulose, 
                                      data=bc_out%litt_flux_cel_c_si, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_litter_carbon_lignin, 
+      call this%registry(r)%Register(key=hlm_fates_litter_carbon_lignin, 
                                      data=bc_out%litt_flux_lig_c_si, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_litter_carbon_labile, 
+      call this%registry(r)%Register(key=hlm_fates_litter_carbon_labile, 
                                      data=bc_out   %litt_flux_lab_c_si, hlm_flag=.false.)
-      call this%register(r)%Register(key=hlm_fates_litter_carbon_total, 
+      call this%registry(r)%Register(key=hlm_fates_litter_carbon_total, 
                                      data=bc_out`%litt_flux_all_c, hlm_flag=.false.)
 
       
@@ -2900,11 +2900,11 @@ subroutine UpdateInterfaceVariables(this, initialize)
    do r = 1, this%npatches
 
       ! Update the interface variables for the current registry
-      call this%register(r)%Update()
+      call this%registry(r)%Update()
 
       ! Get the site associated with this registry
-      s = this%register(r)%GetSiteIndex()
-      ifp = this%register(r)%GetFatesPatchIndex()
+      s = this%registry(r)%GetSiteIndex()
+      ifp = this%registry(r)%GetFatesPatchIndex()
 
       bc_in  => this%sites(s)%bc_in(ifp)
 
@@ -2932,7 +2932,7 @@ subroutine UpdateLitterFluxes(this, dtime)
    integer :: r
    
    do r = 1, this%npatches
-      call this%register(r)%UpdateLitterFluxes(dtime)
+      call this%registry(r)%UpdateLitterFluxes(dtime)
    end do
 
 end subroutine UpdateLitterFluxes
