@@ -1,0 +1,1857 @@
+<xml version="1.0" encoding="us-ascii" >
+  <history>03/03/25 : First instantation, copied from: ../parameter_files/fates_params_default.cdl.</history>
+  <dimensions>
+    <dim name="fates_NCWD"> 4 </dim>
+    <dim name="fates_history_age_bins"> 7 </dim>
+    <dim name="fates_history_coage_bins"> 2 </dim>
+    <dim name="fates_history_damage_bins"> 2 </dim>
+    <dim name="fates_history_height_bins"> 6 </dim>
+    <dim name="fates_history_size_bins"> 13 </dim>
+    <dim name="fates_hlm_pftno"> 14 </dim>
+    <dim name="fates_hydr_organs"> 4 </dim>
+    <dim name="fates_landuseclass"> 5 </dim>
+    <dim name="fates_leafage_class"> 1 </dim>
+    <dim name="fates_litterclass"> 6 </dim>
+    <dim name="fates_pft"> 14 </dim>
+    <dim name="fates_plant_organs"> 4 </dim>
+    <dim name="fates_string_length"> 60 </dim>
+  </dimensions>
+  <parameters>
+    <par name="fates_history_ageclass_bin_edges">
+      <dims> fates_history_age_bins </dims>
+      <long> Lower edges for age class bins used in age-resolved patch history output </long>
+      <units> yr </units>
+      <data> 0.0, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0 </data>
+    </par>
+    <par name="fates_history_coageclass_bin_edges">
+      <dims> fates_history_coage_bins </dims>
+      <long> Lower edges for cohort age class bins used in cohort age resolved history output </long>
+      <units> years </units>
+      <data> 0.0, 5.0 </data>
+    </par>
+    <par name="fates_history_height_bin_edges">
+      <dims> fates_history_height_bins </dims>
+      <long> Lower edges for height bins used in height-resolved history output </long>
+      <units> m </units>
+      <data> 0.0, 0.1, 0.3, 1.0, 3.0, 10.0 </data>
+    </par>
+    <par name="fates_history_damage_bin_edges">
+      <dims> fates_history_damage_bins </dims>
+      <long> Lower edges for damage class bins used in cohort history output </long>
+      <units> % crown loss </units>
+      <data> 0.0, 80.0 </data>
+    </par>
+    <par name="fates_history_sizeclass_bin_edges">
+      <dims> fates_history_size_bins </dims>
+      <long> Lower edges for DBH size class bins used in size-resolved cohort history output </long>
+      <units> cm </units>
+      <data> 0.0, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0 </data>
+    </par>
+    <par name="fates_alloc_organ_id">
+      <dims> fates_plant_organs </dims>
+      <long> This is the global index that the organ in this file is associated with, values match those in parteh/PRTGenericMod.F90 </long>
+      <units> unitless </units>
+      <data> 1.0, 2.0, 3.0, 6.0 </data>
+    </par>
+    <par name="fates_hydro_htftype_node">
+      <dims> fates_hydr_organs </dims>
+      <long> Switch that defines the hydraulic transfer functions for each organ. </long>
+      <units> unitless </units>
+      <data> 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_pftname">
+      <dims> fates_pft, fates_string_length </dims>
+      <long> Description of plant type </long>
+      <units> unitless - string </units>
+      <data> "broadleaf_evergreen_tropical_tree ", "needleleaf_evergreen_extratrop_tree ", "needleleaf_colddecid_extratrop_tree ", "broadleaf_evergreen_extratrop_tree ", "broadleaf_hydrodecid_tropical_tree ", "broadleaf_colddecid_extratrop_tree ", "broadleaf_evergreen_extratrop_shrub ", "broadleaf_hydrodecid_extratrop_shrub ", "broadleaf_colddecid_extratrop_shrub ", " broadleaf_evergreen_arctic_shrub ", " broadleaf_colddecid_arctic_shrub ", "arctic_c3_grass ", "cool_c3_grass ", "c4_grass "  </data>
+    </par>
+    <par name="fates_hydro_organ_name">
+      <dims> fates_hydr_organs, fates_string_length </dims>
+      <long> Name of plant hydraulics organs (DONT CHANGE, order matches media list in FatesHydraulicsMemMod.F90) </long>
+      <units> unitless - string </units>
+      <data> "leaf ", "stem ", "transporting root ", "absorbing root "  </data>
+    </par>
+    <par name="fates_alloc_organ_name">
+      <dims> fates_plant_organs, fates_string_length </dims>
+      <long> Name of plant organs (with alloc_organ_id, must match PRTGenericMod.F90) </long>
+      <units> unitless - string </units>
+      <data> "leaf", "fine root", "sapwood", "structure"  </data>
+    </par>
+    <par name="fates_landuseclass_name">
+      <dims> fates_landuseclass, fates_string_length </dims>
+      <long> Name of the land use classes, for variables associated with dimension fates_landuseclass </long>
+      <units> unitless - string </units>
+      <data> "primaryland", "secondaryland", "rangeland", "pastureland", "cropland"  </data>
+    </par>
+    <par name="fates_litterclass_name">
+      <dims> fates_litterclass, fates_string_length </dims>
+      <long> Name of the litter classes, for variables associated with dimension fates_litterclass </long>
+      <units> unitless - string </units>
+      <data> "twig ", "small branch ", "large branch ", "trunk ", "dead leaves ", "live grass "  </data>
+    </par>
+    <par name="fates_alloc_organ_priority">
+      <dims> fates_plant_organs, fates_pft </dims>
+      <long> Priority level for allocation, 1 </long>
+      <units> index </units>
+      <data> [1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1. 1.], [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.], [3. 3. 3. 3. 3. 3. 3. 3. 3. 3. 3. 3. 3. 3.], [4. 4. 4. 4. 4. 4. 4. 4. 4. 4. 4. 4. 4. 4.] </data>
+    </par>
+    <par name="fates_alloc_storage_cushion">
+      <dims> fates_pft </dims>
+      <long> maximum size of storage C pool, relative to maximum size of leaf C pool </long>
+      <units> fraction </units>
+      <data> 1.2, 1.2, 1.2, 1.2, 2.4, 1.2, 1.2, 2.4, 1.2, 1.5, 1.4, 1.2, 1.2, 1.2 </data>
+    </par>
+    <par name="fates_alloc_store_priority_frac">
+      <dims> fates_pft </dims>
+      <long> for high-priority organs, the fraction of their turnover demand that is gauranteed to be replaced, and if need-be by storage </long>
+      <units> unitless </units>
+      <data> 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.7, 0.6, 0.6, 0.8, 0.8 </data>
+    </par>
+    <par name="fates_allom_agb1">
+      <dims> fates_pft </dims>
+      <long> Parameter 1 for agb allometry </long>
+      <units> variable </units>
+      <data> 0.0673, 0.1364012, 0.0393057, 0.2653695, 0.0673, 0.0728698, 0.06896, 0.06896, 0.06896, 0.06896, 0.06896, 0.001, 0.001, 0.003 </data>
+    </par>
+    <par name="fates_allom_agb2">
+      <dims> fates_pft </dims>
+      <long> Parameter 2 for agb allometry </long>
+      <units> variable </units>
+      <data> 0.976, 0.9449041, 1.087335, 0.8321321, 0.976, 1.0373211, 0.572, 0.572, 0.572, 0.5289883, 0.6853945, 1.6592, 1.6592, 1.3456 </data>
+    </par>
+    <par name="fates_allom_agb3">
+      <dims> fates_pft </dims>
+      <long> Parameter 3 for agb allometry </long>
+      <units> variable </units>
+      <data> 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 1.94, 2.1010352, 1.7628613, 1.248, 1.248, 1.869 </data>
+    </par>
+    <par name="fates_allom_agb4">
+      <dims> fates_pft </dims>
+      <long> Parameter 4 for agb allometry </long>
+      <units> variable </units>
+      <data> 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, -999.9, -999.9, -999.9 </data>
+    </par>
+    <par name="fates_allom_agb_frac">
+      <dims> fates_pft </dims>
+      <long> Fraction of woody biomass that is above ground </long>
+      <units> fraction </units>
+      <data> 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_allom_amode">
+      <dims> fates_pft </dims>
+      <long> AGB allometry function index. </long>
+      <units> index </units>
+      <data> 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 1.0, 1.0, 1.0, 1.0, 1.0, 5.0, 5.0, 5.0 </data>
+    </par>
+    <par name="fates_allom_blca_expnt_diff">
+      <dims> fates_pft </dims>
+      <long> difference between allometric DBH </long>
+      <units> unitless </units>
+      <data> -0.12, -0.34, -0.32, -0.22, -0.12, -0.35, 0.0, 0.0, 0.0, 0.0, 0.0, -0.487, -0.487, -0.259 </data>
+    </par>
+    <par name="fates_allom_cmode">
+      <dims> fates_pft </dims>
+      <long> coarse root biomass allometry function index. </long>
+      <units> index </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_allom_d2bl1">
+      <dims> fates_pft </dims>
+      <long> Parameter 1 for d2bl allometry </long>
+      <units> variable </units>
+      <data> 0.04, 0.07, 0.07, 0.01, 0.04, 0.07, 0.07, 0.07, 0.07, 0.0481934, 0.0481934, 0.0004, 0.0004, 0.0012 </data>
+    </par>
+    <par name="fates_allom_d2bl2">
+      <dims> fates_pft </dims>
+      <long> Parameter 2 for d2bl allometry </long>
+      <units> variable </units>
+      <data> 1.6019679, 1.5234373, 1.3051237, 1.9621397, 1.6019679, 1.3998939, 1.3, 1.3, 1.3, 1.0600586, 1.7176758, 1.7092, 1.7092, 1.5879 </data>
+    </par>
+    <par name="fates_allom_d2bl3">
+      <dims> fates_pft </dims>
+      <long> Parameter 3 for d2bl allometry </long>
+      <units> unitless </units>
+      <data> 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.3417, 0.3417, 0.9948 </data>
+    </par>
+    <par name="fates_allom_d2ca_coefficient_max">
+      <dims> fates_pft </dims>
+      <long> max (savanna) dbh to area multiplier factor where </long>
+      <units> m2 cm^(-1/beta) </units>
+      <data> 0.2715891, 0.3693718, 1.0787259, 0.0579297, 0.2715891, 1.1553612, 0.6568464, 0.6568464, 0.6568464, 0.4363427, 0.3166497, 0.0408, 0.0408, 0.0862 </data>
+    </par>
+    <par name="fates_allom_d2ca_coefficient_min">
+      <dims> fates_pft </dims>
+      <long> min (forest) dbh to area multiplier factor where </long>
+      <units> m2 cm^(-1/beta) </units>
+      <data> 0.2715891, 0.3693718, 1.0787259, 0.0579297, 0.2715891, 1.1553612, 0.6568464, 0.6568464, 0.6568464, 0.4363427, 0.3166497, 0.0408, 0.0408, 0.0862 </data>
+    </par>
+    <par name="fates_allom_d2h1">
+      <dims> fates_pft </dims>
+      <long> Parameter 1 for d2h allometry (intercept, or c) </long>
+      <units> variable </units>
+      <data> 78.4087704, 306.842667, 106.8745821, 104.3586841, 78.4087704, 31.4557047, 0.64, 0.64, 0.64, 0.8165625, 0.778125, 0.1812, 0.1812, 0.3353 </data>
+    </par>
+    <par name="fates_allom_d2h2">
+      <dims> fates_pft </dims>
+      <long> Parameter 2 for d2h allometry (slope, or m) </long>
+      <units> variable </units>
+      <data> 0.8124383, 0.752377, 0.9471302, 1.1146973, 0.8124383, 0.9734088, 0.37, 0.37, 0.37, 0.2316113, 0.4027002, 0.6384, 0.6384, 0.4235 </data>
+    </par>
+    <par name="fates_allom_d2h3">
+      <dims> fates_pft </dims>
+      <long> Parameter 3 for d2h allometry (optional) </long>
+      <units> variable </units>
+      <data> 47.6666164, 196.6865691, 93.9790461, 160.6835089, 47.6666164, 16.5928174, -999.9, -999.9, -999.9, -999.9, -999.9, -999.9, -999.9, -999.9 </data>
+    </par>
+    <par name="fates_allom_dbh_maxheight">
+      <dims> fates_pft </dims>
+      <long> the diameter (if any) corresponding to maximum height, diameters may increase beyond this </long>
+      <units> cm </units>
+      <data> 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 3.0, 3.0, 2.0, 2.4, 1.9, 20.0, 20.0, 30.0 </data>
+    </par>
+    <par name="fates_allom_dmode">
+      <dims> fates_pft </dims>
+      <long> crown depth allometry function index </long>
+      <units> index </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_allom_fmode">
+      <dims> fates_pft </dims>
+      <long> fine root biomass allometry function index. </long>
+      <units> index </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_allom_fnrt_prof_a">
+      <dims> fates_pft </dims>
+      <long> Fine root profile function, parameter a </long>
+      <units> unitless </units>
+      <data> 7.0, 7.0, 7.0, 7.0, 6.0, 6.0, 7.0, 7.0, 7.0, 7.0, 7.0, 11.0, 11.0, 11.0 </data>
+    </par>
+    <par name="fates_allom_fnrt_prof_b">
+      <dims> fates_pft </dims>
+      <long> Fine root profile function, parameter b </long>
+      <units> unitless </units>
+      <data> 1.0, 2.0, 2.0, 1.0, 2.0, 2.0, 1.5, 1.5, 1.5, 1.5, 1.5, 2.0, 2.0, 2.0 </data>
+    </par>
+    <par name="fates_allom_fnrt_prof_mode">
+      <dims> fates_pft </dims>
+      <long> Index to select fine root profile function </long>
+      <units> index </units>
+      <data> 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 </data>
+    </par>
+    <par name="fates_allom_frbstor_repro">
+      <dims> fates_pft </dims>
+      <long> fraction of bstore goes to reproduction after plant dies </long>
+      <units> fraction </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_allom_h2cd1">
+      <dims> fates_pft </dims>
+      <long> Parameter 1 for h2cd allometry (exp(log-intercept) or scaling). If allom_dmode1 this is the same as former crown_depth_frac parameter </long>
+      <units> variable </units>
+      <data> 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.95, 0.95, 0.95, 0.95, 0.95, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_allom_h2cd2">
+      <dims> fates_pft </dims>
+      <long> Parameter 2 for h2cd allometry (log-slope or exponent). If allom_dmode1 this is not needed (as exponent is assumed 1) </long>
+      <units> variable </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_allom_hmode">
+      <dims> fates_pft </dims>
+      <long> height allometry function index. </long>
+      <units> index </units>
+      <data> 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 3.0, 3.0, 3.0 </data>
+    </par>
+    <par name="fates_allom_l2fr">
+      <dims> fates_pft </dims>
+      <long> Allocation parameter </long>
+      <units> gC/gC </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.67, 0.67, 1.41 </data>
+    </par>
+    <par name="fates_allom_la_per_sa_int">
+      <dims> fates_pft </dims>
+      <long> Leaf area per sapwood area, intercept </long>
+      <units> m2/cm2 </units>
+      <data> 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8 </data>
+    </par>
+    <par name="fates_allom_la_per_sa_slp">
+      <dims> fates_pft </dims>
+      <long> Leaf area per sapwood area rate of change with height, slope (optional) </long>
+      <units> m2/cm2/m </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_allom_lmode">
+      <dims> fates_pft </dims>
+      <long> leaf biomass allometry function index. </long>
+      <units> index </units>
+      <data> 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 5.0, 5.0, 5.0 </data>
+    </par>
+    <par name="fates_allom_sai_scaler">
+      <dims> fates_pft </dims>
+      <long> allometric ratio of SAI per LAI </long>
+      <units> m2/m2 </units>
+      <data> 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 </data>
+    </par>
+    <par name="fates_allom_smode">
+      <dims> fates_pft </dims>
+      <long> sapwood allometry function index. </long>
+      <units> index </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0 </data>
+    </par>
+    <par name="fates_allom_stmode">
+      <dims> fates_pft </dims>
+      <long> storage allometry function index </long>
+      <units> index </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_allom_zroot_k">
+      <dims> fates_pft </dims>
+      <long> scale coefficient of logistic rooting depth model </long>
+      <units> unitless </units>
+      <data> 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0 </data>
+    </par>
+    <par name="fates_allom_zroot_max_dbh">
+      <dims> fates_pft </dims>
+      <long> dbh at which a plant reaches the maximum value for its maximum rooting depth </long>
+      <units> cm </units>
+      <data> 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 </data>
+    </par>
+    <par name="fates_allom_zroot_max_z">
+      <dims> fates_pft </dims>
+      <long> the maximum rooting depth defined at dbh  fates_allom_zroot_max_dbh. note </long>
+      <units> m </units>
+      <data> 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 </data>
+    </par>
+    <par name="fates_allom_zroot_min_dbh">
+      <dims> fates_pft </dims>
+      <long> dbh at which the maximum rooting depth for a recruit is defined </long>
+      <units> cm </units>
+      <data> 1.0, 1.0, 1.0, 2.5, 2.5, 2.5, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 </data>
+    </par>
+    <par name="fates_allom_zroot_min_z">
+      <dims> fates_pft </dims>
+      <long> the maximum rooting depth defined at dbh  fates_allom_zroot_min_dbh. note </long>
+      <units> m </units>
+      <data> 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 </data>
+    </par>
+    <par name="fates_c2b">
+      <dims> fates_pft </dims>
+      <long> Carbon to biomass multiplier of bulk structural tissues </long>
+      <units> ratio </units>
+      <data> 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 </data>
+    </par>
+    <par name="fates_cnp_eca_alpha_ptase">
+      <dims> fates_pft </dims>
+      <long> (INACTIVE, KEEP AT 0) fraction of P from ptase activity sent directly to plant (ECA) </long>
+      <units> g/m3 </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_cnp_eca_decompmicc">
+      <dims> fates_pft </dims>
+      <long> maximum soil microbial decomposer biomass found over depth (will be applied at a reference depth w/ exponential attenuation) (ECA) </long>
+      <units> gC/m3 </units>
+      <data> 280.0, 280.0, 280.0, 280.0, 280.0, 280.0, 280.0, 280.0, 280.0, 280.0, 280.0, 280.0, 280.0, 280.0 </data>
+    </par>
+    <par name="fates_cnp_eca_km_nh4">
+      <dims> fates_pft </dims>
+      <long> half-saturation constant for plant nh4 uptake (ECA) </long>
+      <units> gN/m3 </units>
+      <data> 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14, 0.14 </data>
+    </par>
+    <par name="fates_cnp_eca_km_no3">
+      <dims> fates_pft </dims>
+      <long> half-saturation constant for plant no3 uptake (ECA) </long>
+      <units> gN/m3 </units>
+      <data> 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27, 0.27 </data>
+    </par>
+    <par name="fates_cnp_eca_km_p">
+      <dims> fates_pft </dims>
+      <long> half-saturation constant for plant p uptake (ECA) </long>
+      <units> gP/m3 </units>
+      <data> 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 </data>
+    </par>
+    <par name="fates_cnp_eca_km_ptase">
+      <dims> fates_pft </dims>
+      <long> half-saturation constant for biochemical P (ECA) </long>
+      <units> gP/m3 </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_cnp_eca_lambda_ptase">
+      <dims> fates_pft </dims>
+      <long> (INACTIVE, KEEP AT 0) critical value for biochemical production (ECA) </long>
+      <units> g/m3 </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_cnp_eca_vmax_ptase">
+      <dims> fates_pft </dims>
+      <long> maximum production rate for biochemical P (per m2) (ECA) </long>
+      <units> gP/m2/s </units>
+      <data> 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09, 5e-09 </data>
+    </par>
+    <par name="fates_cnp_nfix1">
+      <dims> fates_pft </dims>
+      <long> fractional surcharge added to maintenance respiration that drives symbiotic fixation </long>
+      <units> fraction </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_cnp_nitr_store_ratio">
+      <dims> fates_pft </dims>
+      <long> storeable (labile) N, as a ratio compared to the N bound in cell structures of other organs (see code) </long>
+      <units> (gN/gN) </units>
+      <data> 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5 </data>
+    </par>
+    <par name="fates_cnp_phos_store_ratio">
+      <dims> fates_pft </dims>
+      <long> storeable (labile) P, as a ratio compared to the P bound in cell structures of other organs (see code) </long>
+      <units> (gP/gP) </units>
+      <data> 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5 </data>
+    </par>
+    <par name="fates_cnp_pid_kd">
+      <dims> fates_pft </dims>
+      <long> derivative constant of the PID controller on adaptive fine-root biomass </long>
+      <units> unknown </units>
+      <data> 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 </data>
+    </par>
+    <par name="fates_cnp_pid_ki">
+      <dims> fates_pft </dims>
+      <long> integral constant of the PID controller on adaptive fine-root biomass </long>
+      <units> unknown </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_cnp_pid_kp">
+      <dims> fates_pft </dims>
+      <long> proportional constant of the PID controller on adaptive fine-root biomass </long>
+      <units> unknown </units>
+      <data> 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005, 0.0005 </data>
+    </par>
+    <par name="fates_cnp_prescribed_nuptake">
+      <dims> fates_pft </dims>
+      <long> Prescribed N uptake flux. 0fully coupled simulation >0prescribed (experimental) </long>
+      <units> fraction </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_cnp_prescribed_puptake">
+      <dims> fates_pft </dims>
+      <long> Prescribed P uptake flux. 0fully coupled simulation, >0prescribed (experimental) </long>
+      <units> fraction </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_cnp_store_ovrflw_frac">
+      <dims> fates_pft </dims>
+      <long> size of overflow storage (for excess C,N or P) as a fraction of storage target </long>
+      <units> fraction </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_cnp_turnover_nitr_retrans">
+      <dims> fates_plant_organs, fates_pft </dims>
+      <long> retranslocation (reabsorbtion) fraction of nitrogen in turnover of scenescing tissues </long>
+      <units> fraction </units>
+      <data> [0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25], [0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25], [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.], [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.] </data>
+    </par>
+    <par name="fates_cnp_turnover_phos_retrans">
+      <dims> fates_plant_organs, fates_pft </dims>
+      <long> retranslocation (reabsorbtion) fraction of phosphorus in turnover of scenescing tissues </long>
+      <units> fraction </units>
+      <data> [0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25], [0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25 0.25], [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.], [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.] </data>
+    </par>
+    <par name="fates_cnp_vmax_nh4">
+      <dims> fates_pft </dims>
+      <long> maximum (potential) uptake rate of NH4 per gC of fineroot biomass (see main/EDPftvarcon.F90 vmax_nh4 for usage) </long>
+      <units> gN/gC/s </units>
+      <data> 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09 </data>
+    </par>
+    <par name="fates_cnp_vmax_no3">
+      <dims> fates_pft </dims>
+      <long> maximum (potential) uptake rate of NO3 per gC of fineroot biomass (see main/EDPftvarcon.F90 vmax_no3 for usage) </long>
+      <units> gN/gC/s </units>
+      <data> 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09, 2.5e-09 </data>
+    </par>
+    <par name="fates_cnp_vmax_p">
+      <dims> fates_pft </dims>
+      <long> maximum production rate for phosphorus (ECA and RD) </long>
+      <units> gP/gC/s </units>
+      <data> 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10, 5e-10 </data>
+    </par>
+    <par name="fates_damage_frac">
+      <dims> fates_pft </dims>
+      <long> fraction of cohort damaged in each damage event (event frequency specified in the is_it_damage_time subroutine) </long>
+      <units> fraction </units>
+      <data> 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 </data>
+    </par>
+    <par name="fates_damage_mort_p1">
+      <dims> fates_pft </dims>
+      <long> inflection point of damage mortality function, a value of 0.8 means 50% mortality with 80% loss of crown, turn off with a large number </long>
+      <units> fraction </units>
+      <data> 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0 </data>
+    </par>
+    <par name="fates_damage_mort_p2">
+      <dims> fates_pft </dims>
+      <long> rate of mortality increase with damage </long>
+      <units> unitless </units>
+      <data> 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5 </data>
+    </par>
+    <par name="fates_damage_recovery_scalar">
+      <dims> fates_pft </dims>
+      <long> fraction of the cohort that recovers from damage </long>
+      <units> unitless </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_dev_arbitrary_pft">
+      <dims> fates_pft </dims>
+      <long> Unassociated pft dimensioned free parameter that developers can use for testing arbitrary new hypotheses </long>
+      <units> unknown </units>
+      <data> nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan </data>
+    </par>
+    <par name="fates_fire_alpha_SH">
+      <dims> fates_pft </dims>
+      <long> spitfire parameter, alpha scorch height, Equation 16 Thonicke et al 2010 </long>
+      <units> m / (kw/m)**(2/3) </units>
+      <data> 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 </data>
+    </par>
+    <par name="fates_fire_bark_scaler">
+      <dims> fates_pft </dims>
+      <long> the thickness of a cohorts bark as a fraction of its dbh </long>
+      <units> fraction </units>
+      <data> 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07 </data>
+    </par>
+    <par name="fates_fire_crown_kill">
+      <dims> fates_pft </dims>
+      <long> fire parameter, see equation 22 in Thonicke et al 2010 </long>
+      <units> NA </units>
+      <data> 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775, 0.775 </data>
+    </par>
+    <par name="fates_frag_fnrt_fcel">
+      <dims> fates_pft </dims>
+      <long> Fine root litter cellulose fraction </long>
+      <units> fraction </units>
+      <data> 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 </data>
+    </par>
+    <par name="fates_frag_fnrt_flab">
+      <dims> fates_pft </dims>
+      <long> Fine root litter labile fraction </long>
+      <units> fraction </units>
+      <data> 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25 </data>
+    </par>
+    <par name="fates_frag_fnrt_flig">
+      <dims> fates_pft </dims>
+      <long> Fine root litter lignin fraction </long>
+      <units> fraction </units>
+      <data> 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25 </data>
+    </par>
+    <par name="fates_frag_leaf_fcel">
+      <dims> fates_pft </dims>
+      <long> Leaf litter cellulose fraction </long>
+      <units> fraction </units>
+      <data> 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 </data>
+    </par>
+    <par name="fates_frag_leaf_flab">
+      <dims> fates_pft </dims>
+      <long> Leaf litter labile fraction </long>
+      <units> fraction </units>
+      <data> 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25 </data>
+    </par>
+    <par name="fates_frag_leaf_flig">
+      <dims> fates_pft </dims>
+      <long> Leaf litter lignin fraction </long>
+      <units> fraction </units>
+      <data> 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25 </data>
+    </par>
+    <par name="fates_frag_seed_decay_rate">
+      <dims> fates_pft </dims>
+      <long> fraction of seeds that decay per year </long>
+      <units> yr-1 </units>
+      <data> 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.51, 0.74, 0.46, 0.35, 0.51, 0.51 </data>
+    </par>
+    <par name="fates_grperc">
+      <dims> fates_pft </dims>
+      <long> Growth respiration factor </long>
+      <units> unitless </units>
+      <data> 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.11, 0.12, 0.11, 0.16, 0.11, 0.11 </data>
+    </par>
+    <par name="fates_hydro_avuln_gs">
+      <dims> fates_pft </dims>
+      <long> shape parameter for stomatal control of water vapor exiting leaf </long>
+      <units> unitless </units>
+      <data> 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5 </data>
+    </par>
+    <par name="fates_hydro_avuln_node">
+      <dims> fates_hydr_organs, fates_pft </dims>
+      <long> xylem vulnerability curve shape parameter </long>
+      <units> unitless </units>
+      <data> [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.], [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.], [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.], [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.] </data>
+    </par>
+    <par name="fates_hydro_epsil_node">
+      <dims> fates_hydr_organs, fates_pft </dims>
+      <long> bulk elastic modulus </long>
+      <units> MPa </units>
+      <data> [12. 12. 12. 12. 12. 12. 12. 12. 12. 12. 12. 12. 12. 12.], [10. 10. 10. 10. 10. 10. 10. 10. 10. 10. 10. 10. 10. 10.], [10. 10. 10. 10. 10. 10. 10. 10. 10. 10. 10. 10. 10. 10.], [8. 8. 8. 8. 8. 8. 8. 8. 8. 8. 8. 8. 8. 8.] </data>
+    </par>
+    <par name="fates_hydro_fcap_node">
+      <dims> fates_hydr_organs, fates_pft </dims>
+      <long> fraction of non-residual water that is capillary in source </long>
+      <units> unitless </units>
+      <data> [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.], [0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08], [0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08 0.08], [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.] </data>
+    </par>
+    <par name="fates_hydro_k_lwp">
+      <dims> fates_pft </dims>
+      <long> inner leaf humidity scaling coefficient </long>
+      <units> unitless </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_hydro_kmax_node">
+      <dims> fates_hydr_organs, fates_pft </dims>
+      <long> maximum xylem conductivity per unit conducting xylem area </long>
+      <units> kg/MPa/m/s </units>
+      <data> [-999. -999. -999. -999. -999. -999. -999. -999. -999. -999. -999. -999.
+ -999. -999.], [3. 3. 3. 3. 3. 3. 3. 3. 3. 3. 3. 3. 3. 3.], [-999. -999. -999. -999. -999. -999. -999. -999. -999. -999. -999. -999.
+ -999. -999.], [-999. -999. -999. -999. -999. -999. -999. -999. -999. -999. -999. -999.
+ -999. -999.] </data>
+    </par>
+    <par name="fates_hydro_p50_gs">
+      <dims> fates_pft </dims>
+      <long> water potential at 50% loss of stomatal conductance </long>
+      <units> MPa </units>
+      <data> -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5, -1.5 </data>
+    </par>
+    <par name="fates_hydro_p50_node">
+      <dims> fates_hydr_organs, fates_pft </dims>
+      <long> xylem water potential at 50% loss of conductivity </long>
+      <units> MPa </units>
+      <data> [-2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25
+ -2.25 -2.25], [-2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25
+ -2.25 -2.25], [-2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25
+ -2.25 -2.25], [-2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25 -2.25
+ -2.25 -2.25] </data>
+    </par>
+    <par name="fates_hydro_p_taper">
+      <dims> fates_pft </dims>
+      <long> xylem taper exponent </long>
+      <units> unitless </units>
+      <data> 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333, 0.333 </data>
+    </par>
+    <par name="fates_hydro_pinot_node">
+      <dims> fates_hydr_organs, fates_pft </dims>
+      <long> osmotic potential at full turgor </long>
+      <units> MPa </units>
+      <data> [-1.465984 -1.465984 -1.465984 -1.465984 -1.465984 -1.465984 -1.465984
+ -1.465984 -1.465984 -1.465984 -1.465984 -1.465984 -1.465984 -1.465984], [-1.22807 -1.22807 -1.22807 -1.22807 -1.22807 -1.22807 -1.22807 -1.22807
+ -1.22807 -1.22807 -1.22807 -1.22807 -1.22807 -1.22807], [-1.22807 -1.22807 -1.22807 -1.22807 -1.22807 -1.22807 -1.22807 -1.22807
+ -1.22807 -1.22807 -1.22807 -1.22807 -1.22807 -1.22807], [-1.043478 -1.043478 -1.043478 -1.043478 -1.043478 -1.043478 -1.043478
+ -1.043478 -1.043478 -1.043478 -1.043478 -1.043478 -1.043478 -1.043478] </data>
+    </par>
+    <par name="fates_hydro_pitlp_node">
+      <dims> fates_hydr_organs, fates_pft </dims>
+      <long> turgor loss point </long>
+      <units> MPa </units>
+      <data> [-1.67 -1.67 -1.67 -1.67 -1.67 -1.67 -1.67 -1.67 -1.67 -1.67 -1.67 -1.67
+ -1.67 -1.67], [-1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4], [-1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4 -1.4], [-1.2 -1.2 -1.2 -1.2 -1.2 -1.2 -1.2 -1.2 -1.2 -1.2 -1.2 -1.2 -1.2 -1.2] </data>
+    </par>
+    <par name="fates_hydro_resid_node">
+      <dims> fates_hydr_organs, fates_pft </dims>
+      <long> residual water conent </long>
+      <units> cm3/cm3 </units>
+      <data> [0.16 0.16 0.16 0.16 0.16 0.16 0.16 0.16 0.16 0.16 0.16 0.16 0.16 0.16], [0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21], [0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21 0.21], [0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11] </data>
+    </par>
+    <par name="fates_hydro_rfrac_stem">
+      <dims> fates_pft </dims>
+      <long> fraction of total tree resistance from troot to canopy </long>
+      <units> fraction </units>
+      <data> 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625, 0.625 </data>
+    </par>
+    <par name="fates_hydro_rs2">
+      <dims> fates_pft </dims>
+      <long> absorbing root radius </long>
+      <units> m </units>
+      <data> 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001 </data>
+    </par>
+    <par name="fates_hydro_srl">
+      <dims> fates_pft </dims>
+      <long> specific root length </long>
+      <units> m g-1 </units>
+      <data> 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0 </data>
+    </par>
+    <par name="fates_hydro_thetas_node">
+      <dims> fates_hydr_organs, fates_pft </dims>
+      <long> saturated water content </long>
+      <units> cm3/cm3 </units>
+      <data> [0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65], [0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65], [0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65 0.65], [0.75 0.75 0.75 0.75 0.75 0.75 0.75 0.75 0.75 0.75 0.75 0.75 0.75 0.75] </data>
+    </par>
+    <par name="fates_hydro_vg_alpha_node">
+      <dims> fates_hydr_organs, fates_pft </dims>
+      <long> (used if hydr_htftype_node  2), capillary length parameter in van Genuchten model </long>
+      <units> MPa-1 </units>
+      <data> [0.0005 0.0005 0.0005 0.0005 0.0005 0.005  0.005  0.005  0.005  0.005
+ 0.005  0.005  0.005  0.005 ], [0.0005 0.0005 0.0005 0.0005 0.0005 0.005  0.005  0.005  0.005  0.005
+ 0.005  0.005  0.005  0.005 ], [0.0005 0.0005 0.0005 0.0005 0.0005 0.005  0.005  0.005  0.005  0.005
+ 0.005  0.005  0.005  0.005 ], [0.0005 0.0005 0.0005 0.0005 0.0005 0.005  0.005  0.005  0.005  0.005
+ 0.005  0.005  0.005  0.005 ] </data>
+    </par>
+    <par name="fates_hydro_vg_m_node">
+      <dims> fates_hydr_organs, fates_pft </dims>
+      <long> (used if hydr_htftype_node  2),m in van Genuchten 1980 model, 2nd pore size distribution parameter </long>
+      <units> unitless </units>
+      <data> [0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5], [0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5], [0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5], [0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5 0.5] </data>
+    </par>
+    <par name="fates_hydro_vg_n_node">
+      <dims> fates_hydr_organs, fates_pft </dims>
+      <long> (used if hydr_htftype_node  2),n in van Genuchten 1980 model, pore size distribution parameter </long>
+      <units> unitless </units>
+      <data> [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.], [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.], [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.], [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.] </data>
+    </par>
+    <par name="fates_landuse_harvest_pprod10">
+      <dims> fates_pft </dims>
+      <long> fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool) </long>
+      <units> fraction </units>
+      <data> 1.0, 0.75, 0.75, 0.75, 1.0, 0.75, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_landuse_luc_frac_burned">
+      <dims> fates_pft </dims>
+      <long> fraction of land use change-generated and not-exported material that is burned (the remainder goes to litter) </long>
+      <units> fraction </units>
+      <data> 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 </data>
+    </par>
+    <par name="fates_landuse_luc_frac_exported">
+      <dims> fates_pft </dims>
+      <long> fraction of land use change-generated wood material that is exported to wood product (the remainder is either burned or goes to litter) </long>
+      <units> fraction </units>
+      <data> 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.2, 0.2, 0.2, 0.2, 0.2, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_landuse_luc_pprod10">
+      <dims> fates_pft </dims>
+      <long> fraction of land use change wood product that goes to 10-year product pool (remainder goes to 100-year pool) </long>
+      <units> fraction </units>
+      <data> 1.0, 0.75, 0.75, 0.75, 1.0, 0.75, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_leaf_c3psn">
+      <dims> fates_pft </dims>
+      <long> Photosynthetic pathway (1c3, 0c4) </long>
+      <units> flag </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0 </data>
+    </par>
+    <par name="fates_leaf_jmaxha">
+      <dims> fates_pft </dims>
+      <long> activation energy for jmax. NOTE </long>
+      <units> J/mol </units>
+      <data> 43540.0, 43540.0, 43540.0, 43540.0, 43540.0, 43540.0, 43540.0, 43540.0, 43540.0, 43540.0, 43540.0, 43540.0, 43540.0, 43540.0 </data>
+    </par>
+    <par name="fates_leaf_jmaxhd">
+      <dims> fates_pft </dims>
+      <long> deactivation energy for jmax. NOTE </long>
+      <units> J/mol </units>
+      <data> 152040.0, 152040.0, 152040.0, 152040.0, 152040.0, 152040.0, 152040.0, 152040.0, 152040.0, 152040.0, 152040.0, 152040.0, 152040.0, 152040.0 </data>
+    </par>
+    <par name="fates_leaf_jmaxse">
+      <dims> fates_pft </dims>
+      <long> entropy term for jmax. NOTE </long>
+      <units> J/mol/K </units>
+      <data> 495.0, 495.0, 495.0, 495.0, 495.0, 495.0, 495.0, 495.0, 495.0, 495.0, 495.0, 495.0, 495.0, 495.0 </data>
+    </par>
+    <par name="fates_leaf_slamax">
+      <dims> fates_pft </dims>
+      <long> Maximum Specific Leaf Area (SLA), even if under a dense canopy </long>
+      <units> m^2/gC </units>
+      <data> 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.0954, 0.012, 0.03, 0.03, 0.012, 0.032, 0.05, 0.05, 0.05 </data>
+    </par>
+    <par name="fates_leaf_slatop">
+      <dims> fates_pft </dims>
+      <long> Specific Leaf Area (SLA) at top of canopy, projected area basis </long>
+      <units> m^2/gC </units>
+      <data> 0.012, 0.005, 0.024, 0.009, 0.03, 0.03, 0.012, 0.03, 0.03, 0.01, 0.032, 0.027, 0.05, 0.05 </data>
+    </par>
+    <par name="fates_leaf_stomatal_intercept">
+      <dims> fates_pft </dims>
+      <long> Minimum unstressed stomatal conductance for Ball-Berry model and Medlyn model </long>
+      <units> umol H2O/m**2/s </units>
+      <data> 10000.0, 10000.0, 10000.0, 10000.0, 10000.0, 10000.0, 10000.0, 10000.0, 10000.0, 10000.0, 10000.0, 10000.0, 10000.0, 40000.0 </data>
+    </par>
+    <par name="fates_leaf_stomatal_slope_ballberry">
+      <dims> fates_pft </dims>
+      <long> stomatal slope parameter, as per Ball-Berry </long>
+      <units> unitless </units>
+      <data> 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0 </data>
+    </par>
+    <par name="fates_leaf_stomatal_slope_medlyn">
+      <dims> fates_pft </dims>
+      <long> stomatal slope parameter, as per Medlyn </long>
+      <units> KPa**0.5 </units>
+      <data> 4.1, 2.3, 2.3, 4.1, 4.4, 4.4, 4.7, 4.7, 4.7, 4.7, 4.7, 2.2, 5.3, 1.6 </data>
+    </par>
+    <par name="fates_leaf_vcmax25top">
+      <dims> fates_leafage_class, fates_pft </dims>
+      <long> maximum carboxylation rate of Rub. at 25C, canopy top </long>
+      <units> umol CO2/m^2/s </units>
+      <data> [50. 62. 39. 61. 58. 58. 62. 54. 54. 38. 54. 86. 78. 78.] </data>
+    </par>
+    <par name="fates_leaf_vcmaxha">
+      <dims> fates_pft </dims>
+      <long> activation energy for vcmax. NOTE </long>
+      <units> J/mol </units>
+      <data> 65330.0, 65330.0, 65330.0, 65330.0, 65330.0, 65330.0, 65330.0, 65330.0, 65330.0, 65330.0, 65330.0, 65330.0, 65330.0, 65330.0 </data>
+    </par>
+    <par name="fates_leaf_vcmaxhd">
+      <dims> fates_pft </dims>
+      <long> deactivation energy for vcmax. NOTE </long>
+      <units> J/mol </units>
+      <data> 149250.0, 149250.0, 149250.0, 149250.0, 149250.0, 149250.0, 149250.0, 149250.0, 149250.0, 149250.0, 149250.0, 149250.0, 149250.0, 149250.0 </data>
+    </par>
+    <par name="fates_leaf_vcmaxse">
+      <dims> fates_pft </dims>
+      <long> entropy term for vcmax. NOTE </long>
+      <units> J/mol/K </units>
+      <data> 485.0, 485.0, 485.0, 485.0, 485.0, 485.0, 485.0, 485.0, 485.0, 485.0, 485.0, 485.0, 485.0, 485.0 </data>
+    </par>
+    <par name="fates_leafn_vert_scaler_coeff1">
+      <dims> fates_pft </dims>
+      <long> Coefficient one for decrease in leaf nitrogen through the canopy, from Lloyd et al. 2010. </long>
+      <units> unitless </units>
+      <data> 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963 </data>
+    </par>
+    <par name="fates_leafn_vert_scaler_coeff2">
+      <dims> fates_pft </dims>
+      <long> Coefficient two for decrease in leaf nitrogen through the canopy, from Lloyd et al. 2010. </long>
+      <units> unitless </units>
+      <data> 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43 </data>
+    </par>
+    <par name="fates_maintresp_leaf_atkin2017_baserate">
+      <dims> fates_pft </dims>
+      <long> Leaf maintenance respiration base rate parameter (r0) per Atkin et al 2017 </long>
+      <units> umol CO2/m^2/s </units>
+      <data> 1.756, 1.4995, 1.4995, 1.756, 1.756, 1.756, 2.0749, 2.0749, 2.0749, 2.0749, 2.0749, 2.1956, 2.1956, 2.1956 </data>
+    </par>
+    <par name="fates_maintresp_leaf_ryan1991_baserate">
+      <dims> fates_pft </dims>
+      <long> Leaf maintenance respiration base rate per Ryan et al 1991 </long>
+      <units> gC/gN/s </units>
+      <data> 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06 </data>
+    </par>
+    <par name="fates_maintresp_leaf_vert_scaler_coeff1">
+      <dims> fates_pft </dims>
+      <long> Leaf maintenance respiration decrease through the canopy. Only applies to Atkin et al. 2017. For proportionality between photosynthesis and respiration through the canopy, match with fates_leafn_vert_scaler_coeff1. </long>
+      <units> unitless </units>
+      <data> 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963 </data>
+    </par>
+    <par name="fates_maintresp_leaf_vert_scaler_coeff2">
+      <dims> fates_pft </dims>
+      <long> Leaf maintenance respiration decrease through the canopy. Only applies to Atkin et al. 2017. For proportionality between photosynthesis and respiration through the canopy, match with fates_leafn_vert_scaler_coeff2. </long>
+      <units> unitless </units>
+      <data> 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43, 2.43 </data>
+    </par>
+    <par name="fates_maintresp_reduction_curvature">
+      <dims> fates_pft </dims>
+      <long> curvature of MR reduction as f(carbon storage), 1linear, 0very curved </long>
+      <units> unitless (0-1) </units>
+      <data> 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 </data>
+    </par>
+    <par name="fates_maintresp_reduction_intercept">
+      <dims> fates_pft </dims>
+      <long> intercept of MR reduction as f(carbon storage), 0no throttling, 1max throttling </long>
+      <units> unitless (0-1) </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_maintresp_reduction_upthresh">
+      <dims> fates_pft </dims>
+      <long> upper threshold for storage biomass (relative to leaf biomass) above which MR is not reduced </long>
+      <units> unitless (0-1) </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_mort_bmort">
+      <dims> fates_pft </dims>
+      <long> background mortality rate </long>
+      <units> 1/yr </units>
+      <data> 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.016, 0.01, 0.014, 0.014, 0.014 </data>
+    </par>
+    <par name="fates_mort_freezetol">
+      <dims> fates_pft </dims>
+      <long> minimum temperature tolerance </long>
+      <units> degrees C </units>
+      <data> 2.5, -55.0, -80.0, -30.0, 2.5, -80.0, -60.0, -10.0, -80.0, -71.0, -95.0, -89.0, -20.0, 2.5 </data>
+    </par>
+    <par name="fates_mort_hf_flc_threshold">
+      <dims> fates_pft </dims>
+      <long> plant fractional loss of conductivity at which drought mortality begins for hydraulic model </long>
+      <units> fraction </units>
+      <data> 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5 </data>
+    </par>
+    <par name="fates_mort_hf_sm_threshold">
+      <dims> fates_pft </dims>
+      <long> soil moisture (btran units) at which drought mortality begins for non-hydraulic model </long>
+      <units> unitless </units>
+      <data> 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06, 1e-06 </data>
+    </par>
+    <par name="fates_mort_ip_age_senescence">
+      <dims> fates_pft </dims>
+      <long> Mortality cohort age senescence inflection point. If _ this mortality term is off. Setting this value turns on age dependent mortality. </long>
+      <units> years </units>
+      <data> nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan </data>
+    </par>
+    <par name="fates_mort_ip_size_senescence">
+      <dims> fates_pft </dims>
+      <long> Mortality dbh senescence inflection point. If _ this mortality term is off. Setting this value turns on size dependent mortality </long>
+      <units> dbh cm </units>
+      <data> nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan </data>
+    </par>
+    <par name="fates_mort_prescribed_canopy">
+      <dims> fates_pft </dims>
+      <long> mortality rate of canopy trees for prescribed physiology mode </long>
+      <units> 1/yr </units>
+      <data> 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 0.0194 </data>
+    </par>
+    <par name="fates_mort_prescribed_understory">
+      <dims> fates_pft </dims>
+      <long> mortality rate of understory trees for prescribed physiology mode </long>
+      <units> 1/yr </units>
+      <data> 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025 </data>
+    </par>
+    <par name="fates_mort_r_age_senescence">
+      <dims> fates_pft </dims>
+      <long> Mortality age senescence rate of change. Sensible range is around 0.03-0.06. Larger values givesteeper mortality curves. </long>
+      <units> mortality rate year^-1 </units>
+      <data> nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan </data>
+    </par>
+    <par name="fates_mort_r_size_senescence">
+      <dims> fates_pft </dims>
+      <long> Mortality dbh senescence rate of change. Sensible range is around 0.03-0.06. Larger values give steeper mortality curves. </long>
+      <units> mortality rate dbh^-1 </units>
+      <data> nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan </data>
+    </par>
+    <par name="fates_mort_scalar_coldstress">
+      <dims> fates_pft </dims>
+      <long> maximum mortality rate from cold stress </long>
+      <units> 1/yr </units>
+      <data> 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.5, 2.3, 3.0, 3.0 </data>
+    </par>
+    <par name="fates_mort_scalar_cstarvation">
+      <dims> fates_pft </dims>
+      <long> maximum mortality rate from carbon starvation </long>
+      <units> 1/yr </units>
+      <data> 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.57, 0.6, 0.6, 0.6 </data>
+    </par>
+    <par name="fates_mort_scalar_hydrfailure">
+      <dims> fates_pft </dims>
+      <long> maximum mortality rate from hydraulic failure </long>
+      <units> 1/yr </units>
+      <data> 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.8, 0.6, 0.6, 0.6 </data>
+    </par>
+    <par name="fates_mort_upthresh_cstarvation">
+      <dims> fates_pft </dims>
+      <long> threshold for storage biomass (relative to target leaf biomass) above which carbon starvation is zero </long>
+      <units> unitless </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_nonhydro_smpsc">
+      <dims> fates_pft </dims>
+      <long> Soil water potential at full stomatal closure </long>
+      <units> mm </units>
+      <data> -255000.0, -255000.0, -255000.0, -255000.0, -255000.0, -255000.0, -255000.0, -255000.0, -255000.0, -255000.0, -255000.0, -255000.0, -255000.0, -255000.0 </data>
+    </par>
+    <par name="fates_nonhydro_smpso">
+      <dims> fates_pft </dims>
+      <long> Soil water potential at full stomatal opening </long>
+      <units> mm </units>
+      <data> -66000.0, -66000.0, -66000.0, -66000.0, -66000.0, -66000.0, -66000.0, -66000.0, -66000.0, -66000.0, -66000.0, -66000.0, -66000.0, -66000.0 </data>
+    </par>
+    <par name="fates_phen_cold_size_threshold">
+      <dims> fates_pft </dims>
+      <long> the dbh size above which will lead to phenology-related stem and leaf drop </long>
+      <units> cm </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_phen_drought_threshold">
+      <dims> fates_pft </dims>
+      <long> threshold for drought phenology (or lower threshold for semi-deciduous PFTs) the quantity depends on the sign </long>
+      <units> m3/m3 or mm </units>
+      <data> -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4 </data>
+    </par>
+    <par name="fates_phen_evergreen">
+      <dims> fates_pft </dims>
+      <long> Binary flag for evergreen leaf habit </long>
+      <units> logical flag </units>
+      <data> 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_phen_flush_fraction">
+      <dims> fates_pft </dims>
+      <long> Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves </long>
+      <units> fraction </units>
+      <data> nan, nan, 0.5, nan, 0.5, 0.5, nan, 0.5, 0.5, nan, 0.5, 0.5, 0.5, 0.5 </data>
+    </par>
+    <par name="fates_phen_fnrt_drop_fraction">
+      <dims> fates_pft </dims>
+      <long> fraction of fine roots to drop during drought/cold </long>
+      <units> fraction </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_phen_mindaysoff">
+      <dims> fates_pft </dims>
+      <long> day threshold compared against days since leaves abscised (shed) </long>
+      <units> days </units>
+      <data> 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0 </data>
+    </par>
+    <par name="fates_phen_moist_threshold">
+      <dims> fates_pft </dims>
+      <long> upper threshold for drought phenology (only for drought semi-deciduous PFTs) the quantity depends on the sign </long>
+      <units> m3/m3 or mm </units>
+      <data> -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9 </data>
+    </par>
+    <par name="fates_phen_season_decid">
+      <dims> fates_pft </dims>
+      <long> Binary flag for seasonal-deciduous leaf habit </long>
+      <units> logical flag </units>
+      <data> 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_phen_stem_drop_fraction">
+      <dims> fates_pft </dims>
+      <long> fraction of stems to drop for non-woody species during drought/cold </long>
+      <units> fraction </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_phen_stress_decid">
+      <dims> fates_pft </dims>
+      <long> Flag for stress/drought-deciduous leaf habit. 0 - not stress deciduous 1 - default drought deciduous (two target states only, fully flushed or fully abscised) 2 - semi-deciduous </long>
+      <units> logical flag </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_prescribed_npp_canopy">
+      <dims> fates_pft </dims>
+      <long> NPP per unit crown area of canopy trees for prescribed physiology mode </long>
+      <units> kgC / m^2 / yr </units>
+      <data> 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4 </data>
+    </par>
+    <par name="fates_prescribed_npp_understory">
+      <dims> fates_pft </dims>
+      <long> NPP per unit crown area of understory trees for prescribed physiology mode </long>
+      <units> kgC / m^2 / yr </units>
+      <data> 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125 </data>
+    </par>
+    <par name="fates_rad_leaf_clumping_index">
+      <dims> fates_pft </dims>
+      <long> factor describing how much self-occlusion of leaf scattering elements decreases light interception </long>
+      <units> fraction (0-1) </units>
+      <data> 0.85, 0.85, 0.8, 0.85, 0.85, 0.9, 0.85, 0.9, 0.9, 0.85, 0.9, 0.75, 0.75, 0.75 </data>
+    </par>
+    <par name="fates_rad_leaf_rhonir">
+      <dims> fates_pft </dims>
+      <long> Leaf reflectance </long>
+      <units> fraction </units>
+      <data> 0.46, 0.41, 0.39, 0.46, 0.41, 0.41, 0.46, 0.41, 0.41, 0.46, 0.41, 0.28, 0.28, 0.28 </data>
+    </par>
+    <par name="fates_rad_leaf_rhovis">
+      <dims> fates_pft </dims>
+      <long> Leaf reflectance </long>
+      <units> fraction </units>
+      <data> 0.11, 0.09, 0.08, 0.11, 0.08, 0.08, 0.11, 0.08, 0.08, 0.11, 0.08, 0.05, 0.05, 0.05 </data>
+    </par>
+    <par name="fates_rad_leaf_taunir">
+      <dims> fates_pft </dims>
+      <long> Leaf transmittance </long>
+      <units> fraction </units>
+      <data> 0.33, 0.32, 0.42, 0.33, 0.43, 0.43, 0.33, 0.43, 0.43, 0.33, 0.43, 0.4, 0.4, 0.4 </data>
+    </par>
+    <par name="fates_rad_leaf_tauvis">
+      <dims> fates_pft </dims>
+      <long> Leaf transmittance </long>
+      <units> fraction </units>
+      <data> 0.06, 0.04, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.05, 0.05, 0.05 </data>
+    </par>
+    <par name="fates_rad_leaf_xl">
+      <dims> fates_pft </dims>
+      <long> Leaf/stem orientation index </long>
+      <units> unitless </units>
+      <data> 0.32, 0.01, 0.01, 0.32, 0.2, 0.59, 0.32, 0.59, 0.59, 0.32, 0.59, -0.23, -0.23, -0.23 </data>
+    </par>
+    <par name="fates_rad_stem_rhonir">
+      <dims> fates_pft </dims>
+      <long> Stem reflectance </long>
+      <units> fraction </units>
+      <data> 0.49, 0.36, 0.36, 0.49, 0.49, 0.49, 0.49, 0.49, 0.49, 0.49, 0.49, 0.53, 0.53, 0.53 </data>
+    </par>
+    <par name="fates_rad_stem_rhovis">
+      <dims> fates_pft </dims>
+      <long> Stem reflectance </long>
+      <units> fraction </units>
+      <data> 0.21, 0.12, 0.12, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.21, 0.31, 0.31, 0.31 </data>
+    </par>
+    <par name="fates_rad_stem_taunir">
+      <dims> fates_pft </dims>
+      <long> Stem transmittance </long>
+      <units> fraction </units>
+      <data> 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.25, 0.25, 0.25 </data>
+    </par>
+    <par name="fates_rad_stem_tauvis">
+      <dims> fates_pft </dims>
+      <long> Stem transmittance </long>
+      <units> fraction </units>
+      <data> 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.12, 0.12, 0.12 </data>
+    </par>
+    <par name="fates_recruit_height_min">
+      <dims> fates_pft </dims>
+      <long> the minimum height (ie starting height) of a newly recruited plant </long>
+      <units> m </units>
+      <data> 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.2, 0.2, 0.2, 0.8, 0.8, 0.11, 0.2, 0.2 </data>
+    </par>
+    <par name="fates_recruit_init_density">
+      <dims> fates_pft </dims>
+      <long> initial seedling density for a cold-start near-bare-ground simulation. If negative sets initial tree dbh - only to be used in nocomp mode </long>
+      <units> stems/m2 </units>
+      <data> 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.16, 0.2, 0.2, 0.2, 0.2 </data>
+    </par>
+    <par name="fates_recruit_prescribed_rate">
+      <dims> fates_pft </dims>
+      <long> recruitment rate for prescribed physiology mode </long>
+      <units> n/yr </units>
+      <data> 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02 </data>
+    </par>
+    <par name="fates_recruit_seed_alloc">
+      <dims> fates_pft </dims>
+      <long> fraction of available carbon balance allocated to seeds </long>
+      <units> fraction </units>
+      <data> 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.07, 0.1, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_recruit_seed_alloc_mature">
+      <dims> fates_pft </dims>
+      <long> fraction of available carbon balance allocated to seeds in mature plants (adds to fates_seed_alloc) </long>
+      <units> fraction </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.9, 0.9, 0.9, 0.9, 0.9, 0.25, 0.25, 0.2 </data>
+    </par>
+    <par name="fates_recruit_seed_dbh_repro_threshold">
+      <dims> fates_pft </dims>
+      <long> the diameter where the plant will increase allocation to the seed pool by fraction </long>
+      <units> cm </units>
+      <data> 90.0, 80.0, 80.0, 80.0, 90.0, 80.0, 3.0, 3.0, 2.0, 2.4, 1.9, 3.0, 3.0, 3.0 </data>
+    </par>
+    <par name="fates_recruit_seed_germination_rate">
+      <dims> fates_pft </dims>
+      <long> fraction of seeds that germinate per year </long>
+      <units> yr-1 </units>
+      <data> 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.4, 0.49, 0.29, 0.5, 0.5 </data>
+    </par>
+    <par name="fates_recruit_seed_supplement">
+      <dims> fates_pft </dims>
+      <long> Supplemental external seed rain source term (non-mass conserving) </long>
+      <units> KgC/m2/yr </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_seed_dispersal_fraction">
+      <dims> fates_pft </dims>
+      <long> fraction of seed rain to be dispersed to other grid cells </long>
+      <units> fraction </units>
+      <data> nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan </data>
+    </par>
+    <par name="fates_seed_dispersal_max_dist">
+      <dims> fates_pft </dims>
+      <long> maximum seed dispersal distance for a given pft </long>
+      <units> m </units>
+      <data> nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan </data>
+    </par>
+    <par name="fates_seed_dispersal_pdf_scale">
+      <dims> fates_pft </dims>
+      <long> seed dispersal probability density function scale parameter, A, Table 1 Bullock et al 2016 </long>
+      <units> unitless </units>
+      <data> nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan </data>
+    </par>
+    <par name="fates_seed_dispersal_pdf_shape">
+      <dims> fates_pft </dims>
+      <long> seed dispersal probability density function shape parameter, B, Table 1 Bullock et al 2016 </long>
+      <units> unitless </units>
+      <data> nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan, nan </data>
+    </par>
+    <par name="fates_stoich_nitr">
+      <dims> fates_plant_organs, fates_pft </dims>
+      <long> target nitrogen concentration (ratio with carbon) of organs </long>
+      <units> gN/gC </units>
+      <data> [0.033 0.029 0.04  0.033 0.04  0.04  0.033 0.04  0.04  0.033 0.04  0.04
+ 0.04  0.04 ], [0.024 0.024 0.024 0.024 0.024 0.024 0.024 0.024 0.024 0.024 0.024 0.024
+ 0.024 0.024], [1.e-08 1.e-08 1.e-08 1.e-08 1.e-08 1.e-08 1.e-08 1.e-08 1.e-08 1.e-08
+ 1.e-08 1.e-08 1.e-08 1.e-08], [0.0047 0.0047 0.0047 0.0047 0.0047 0.0047 0.0047 0.0047 0.0047 0.0047
+ 0.0047 0.0047 0.0047 0.0047] </data>
+    </par>
+    <par name="fates_stoich_phos">
+      <dims> fates_plant_organs, fates_pft </dims>
+      <long> target phosphorus concentration (ratio with carbon) of organs </long>
+      <units> gP/gC </units>
+      <data> [0.0033 0.0029 0.004  0.0033 0.004  0.004  0.0033 0.004  0.004  0.0033
+ 0.004  0.004  0.004  0.004 ], [0.0024 0.0024 0.0024 0.0024 0.0024 0.0024 0.0024 0.0024 0.0024 0.0024
+ 0.0024 0.0024 0.0024 0.0024], [1.e-09 1.e-09 1.e-09 1.e-09 1.e-09 1.e-09 1.e-09 1.e-09 1.e-09 1.e-09
+ 1.e-09 1.e-09 1.e-09 1.e-09], [0.00047 0.00047 0.00047 0.00047 0.00047 0.00047 0.00047 0.00047 0.00047
+ 0.00047 0.00047 0.00047 0.00047 0.00047] </data>
+    </par>
+    <par name="fates_trim_inc">
+      <dims> fates_pft </dims>
+      <long> Arbitrary incremental change in trimming function. </long>
+      <units> m2/m2 </units>
+      <data> 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03 </data>
+    </par>
+    <par name="fates_trim_limit">
+      <dims> fates_pft </dims>
+      <long> Arbitrary limit to reductions in leaf area with stress </long>
+      <units> m2/m2 </units>
+      <data> 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3 </data>
+    </par>
+    <par name="fates_trs_repro_alloc_a">
+      <dims> fates_pft </dims>
+      <long> shape parameter for sigmoidal function relating dbh to reproductive allocation </long>
+      <units> fraction </units>
+      <data> 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049, 0.0049 </data>
+    </par>
+    <par name="fates_trs_repro_alloc_b">
+      <dims> fates_pft </dims>
+      <long> intercept parameter for sigmoidal function relating dbh to reproductive allocation </long>
+      <units> fraction </units>
+      <data> -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171, -2.6171 </data>
+    </par>
+    <par name="fates_trs_repro_frac_seed">
+      <dims> fates_pft </dims>
+      <long> fraction of reproductive mass that is seed </long>
+      <units> fraction </units>
+      <data> 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24, 0.24 </data>
+    </par>
+    <par name="fates_trs_seedling_a_emerg">
+      <dims> fates_pft </dims>
+      <long> mean fraction of seed bank emerging </long>
+      <units> day -1 </units>
+      <data> 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003, 0.0003 </data>
+    </par>
+    <par name="fates_trs_seedling_b_emerg">
+      <dims> fates_pft </dims>
+      <long> seedling emergence sensitivity to soil moisture </long>
+      <units> day -1 </units>
+      <data> 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2 </data>
+    </par>
+    <par name="fates_trs_seedling_background_mort">
+      <dims> fates_pft </dims>
+      <long> background seedling mortality rate </long>
+      <units> yr-1 </units>
+      <data> 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371, 0.1085371 </data>
+    </par>
+    <par name="fates_trs_seedling_h2o_mort_a">
+      <dims> fates_pft </dims>
+      <long> coefficient in moisture-based seedling mortality </long>
+      <units> - </units>
+      <data> 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17, 4.070565e-17 </data>
+    </par>
+    <par name="fates_trs_seedling_h2o_mort_b">
+      <dims> fates_pft </dims>
+      <long> coefficient in moisture-based seedling mortality </long>
+      <units> - </units>
+      <data> -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11, -6.390757e-11 </data>
+    </par>
+    <par name="fates_trs_seedling_h2o_mort_c">
+      <dims> fates_pft </dims>
+      <long> coefficient in moisture-based seedling mortality </long>
+      <units> - </units>
+      <data> 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05, 1.268992e-05 </data>
+    </par>
+    <par name="fates_trs_seedling_light_mort_a">
+      <dims> fates_pft </dims>
+      <long> light-based seedling mortality coefficient </long>
+      <units> - </units>
+      <data> -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694, -0.009897694 </data>
+    </par>
+    <par name="fates_trs_seedling_light_mort_b">
+      <dims> fates_pft </dims>
+      <long> light-based seedling mortality coefficient </long>
+      <units> - </units>
+      <data> -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063, -7.154063 </data>
+    </par>
+    <par name="fates_trs_seedling_light_rec_a">
+      <dims> fates_pft </dims>
+      <long> coefficient in light-based seedling to sapling transition </long>
+      <units> - </units>
+      <data> 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007, 0.007 </data>
+    </par>
+    <par name="fates_trs_seedling_light_rec_b">
+      <dims> fates_pft </dims>
+      <long> coefficient in light-based seedling to sapling transition </long>
+      <units> - </units>
+      <data> 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615, 0.8615 </data>
+    </par>
+    <par name="fates_trs_seedling_mdd_crit">
+      <dims> fates_pft </dims>
+      <long> critical moisture deficit (suction) day accumulation for seedling moisture-based seedling mortality to begin </long>
+      <units> mm H2O day </units>
+      <data> 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0, 1400000.0 </data>
+    </par>
+    <par name="fates_trs_seedling_par_crit_germ">
+      <dims> fates_pft </dims>
+      <long> critical light level for germination </long>
+      <units> MJ m-2 day-1 </units>
+      <data> 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656, 0.656 </data>
+    </par>
+    <par name="fates_trs_seedling_psi_crit">
+      <dims> fates_pft </dims>
+      <long> critical soil moisture (suction) for seedling stress </long>
+      <units> mm H2O </units>
+      <data> -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7, -251995.7 </data>
+    </par>
+    <par name="fates_trs_seedling_psi_emerg">
+      <dims> fates_pft </dims>
+      <long> critical soil moisture for seedling emergence </long>
+      <units> mm h20 suction </units>
+      <data> -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65, -15744.65 </data>
+    </par>
+    <par name="fates_trs_seedling_root_depth">
+      <dims> fates_pft </dims>
+      <long> rooting depth of seedlings </long>
+      <units> m </units>
+      <data> 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.06 </data>
+    </par>
+    <par name="fates_turb_displar">
+      <dims> fates_pft </dims>
+      <long> Ratio of displacement height to canopy top height </long>
+      <units> unitless </units>
+      <data> 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67 </data>
+    </par>
+    <par name="fates_turb_leaf_diameter">
+      <dims> fates_pft </dims>
+      <long> Characteristic leaf dimension </long>
+      <units> m </units>
+      <data> 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04 </data>
+    </par>
+    <par name="fates_turb_z0mr">
+      <dims> fates_pft </dims>
+      <long> Ratio of momentum roughness length to canopy top height </long>
+      <units> unitless </units>
+      <data> 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055 </data>
+    </par>
+    <par name="fates_turnover_branch">
+      <dims> fates_pft </dims>
+      <long> turnover time of branches </long>
+      <units> yr </units>
+      <data> 150.0, 150.0, 150.0, 150.0, 150.0, 150.0, 150.0, 150.0, 150.0, 150.0, 150.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_turnover_fnrt">
+      <dims> fates_pft </dims>
+      <long> root longevity (alternatively, turnover time) </long>
+      <units> yr </units>
+      <data> 1.0, 2.0, 1.0, 1.5, 1.0, 1.0, 1.5, 1.0, 1.0, 1.5, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_turnover_leaf_canopy">
+      <dims> fates_leafage_class, fates_pft </dims>
+      <long> Leaf longevity (ie turnover timescale) of canopy plants. For drought-deciduous PFTs, this also indicates the maximum length of the growing (i.e., leaves on) season. </long>
+      <units> yr </units>
+      <data> [1.5 4.  1.  1.5 1.  1.  1.5 1.  1.  1.5 1.  1.  1.  1. ] </data>
+    </par>
+    <par name="fates_turnover_leaf_ustory">
+      <dims> fates_leafage_class, fates_pft </dims>
+      <long> Leaf longevity (ie turnover timescale) of understory plants. </long>
+      <units> yr </units>
+      <data> [1.5 4.  1.  1.5 1.  1.  1.5 1.  1.  1.5 1.  1.  1.  1. ] </data>
+    </par>
+    <par name="fates_turnover_senleaf_fdrought">
+      <dims> fates_pft </dims>
+      <long> multiplication factor for leaf longevity of senescent leaves during drought </long>
+      <units> unitless[0-1] </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_wood_density">
+      <dims> fates_pft </dims>
+      <long> mean density of woody tissue in plant </long>
+      <units> g/cm3 </units>
+      <data> 0.548327, 0.44235, 0.454845, 0.754336, 0.548327, 0.566452, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7 </data>
+    </par>
+    <par name="fates_woody">
+      <dims> fates_pft </dims>
+      <long> Binary woody lifeform flag </long>
+      <units> logical flag </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_hlm_pft_map">
+      <dims> fates_hlm_pftno, fates_pft </dims>
+      <long> In fixed biogeog mode, fraction of HLM area associated with each FATES PFT </long>
+      <units> area fraction </units>
+      <data> [0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.], [0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.], [0. 0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.], [1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.], [0. 0. 0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.], [0. 0. 0. 0. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0.], [0. 0. 0. 0. 0. 1. 0. 0. 0. 0. 0. 0. 0. 0.], [0. 0. 0. 0. 0. 1. 0. 0. 0. 0. 0. 0. 0. 0.], [0. 0. 0. 0. 0. 0. 1. 0. 0. 0. 0. 0. 0. 0.], [0. 0. 0. 0. 0. 0. 0. 0. 1. 0. 0. 0. 0. 0.], [0.  0.  0.  0.  0.  0.  0.  0.  0.1 0.1 0.8 0.  0.  0. ], [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 1. 0. 0.], [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 1. 0.], [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 1.] </data>
+    </par>
+    <par name="fates_fire_FBD">
+      <dims> fates_litterclass </dims>
+      <long> fuel bulk density </long>
+      <units> kg Biomass/m3 </units>
+      <data> 15.4, 16.8, 19.6, 999.0, 4.0, 4.0 </data>
+    </par>
+    <par name="fates_fire_low_moisture_Coeff">
+      <dims> fates_litterclass </dims>
+      <long> spitfire parameter, equation B1 Thonicke et al 2010 </long>
+      <units> NA </units>
+      <data> 1.12, 1.09, 0.98, 0.8, 1.15, 1.15 </data>
+    </par>
+    <par name="fates_fire_low_moisture_Slope">
+      <dims> fates_litterclass </dims>
+      <long> spitfire parameter, equation B1 Thonicke et al 2010 </long>
+      <units> NA </units>
+      <data> 0.62, 0.72, 0.85, 0.8, 0.62, 0.62 </data>
+    </par>
+    <par name="fates_fire_mid_moisture">
+      <dims> fates_litterclass </dims>
+      <long> spitfire litter moisture threshold to be considered medium dry </long>
+      <units> NA </units>
+      <data> 0.72, 0.51, 0.38, 1.0, 0.8, 0.8 </data>
+    </par>
+    <par name="fates_fire_mid_moisture_Coeff">
+      <dims> fates_litterclass </dims>
+      <long> spitfire parameter, equation B1 Thonicke et al 2010 </long>
+      <units> NA </units>
+      <data> 2.35, 1.47, 1.06, 0.8, 3.2, 3.2 </data>
+    </par>
+    <par name="fates_fire_mid_moisture_Slope">
+      <dims> fates_litterclass </dims>
+      <long> spitfire parameter, equation B1 Thonicke et al 2010 </long>
+      <units> NA </units>
+      <data> 2.35, 1.47, 1.06, 0.8, 3.2, 3.2 </data>
+    </par>
+    <par name="fates_fire_min_moisture">
+      <dims> fates_litterclass </dims>
+      <long> spitfire litter moisture threshold to be considered very dry </long>
+      <units> NA </units>
+      <data> 0.18, 0.12, 0.0, 0.0, 0.24, 0.24 </data>
+    </par>
+    <par name="fates_fire_SAV">
+      <dims> fates_litterclass </dims>
+      <long> fuel surface area to volume ratio </long>
+      <units> cm-1 </units>
+      <data> 13.0, 3.58, 0.98, 0.2, 66.0, 66.0 </data>
+    </par>
+    <par name="fates_frag_maxdecomp">
+      <dims> fates_litterclass </dims>
+      <long> maximum rate of litter and CWD transfer from non-decomposing class into decomposing class </long>
+      <units> yr-1 </units>
+      <data> 0.52, 0.383, 0.383, 0.19, 1.0, 999.0 </data>
+    </par>
+    <par name="fates_frag_cwd_frac">
+      <dims> fates_NCWD </dims>
+      <long> fraction of woody (bdead+bsw) biomass destined for CWD pool </long>
+      <units> fraction </units>
+      <data> 0.045, 0.075, 0.21, 0.67 </data>
+    </par>
+    <par name="fates_landuse_crop_lu_pft_vector">
+      <dims> fates_landuseclass </dims>
+      <long> the FATES PFT index to use on a given crop land-use type (dummy value of -999 for non-crop types) </long>
+      <units> NA </units>
+      <data> -999.0, -999.0, -999.0, -999.0, 11.0 </data>
+    </par>
+    <par name="fates_max_nocomp_pfts_by_landuse">
+      <dims> fates_landuseclass </dims>
+      <long> maximum number of nocomp PFTs on each land use type (only used in nocomp mode) </long>
+      <units> count </units>
+      <data> 4.0, 4.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_maxpatches_by_landuse">
+      <dims> fates_landuseclass </dims>
+      <long> maximum number of patches per site on each land use type </long>
+      <units> count </units>
+      <data> 9.0, 4.0, 1.0, 1.0, 1.0 </data>
+    </par>
+    <par name="fates_canopy_closure_thresh">
+      <dims> scalar </dims>
+      <long> tree canopy coverage at which crown area allometry changes from savanna to forest value </long>
+      <units> unitless </units>
+      <data> 0.8 </data>
+    </par>
+    <par name="fates_cnp_eca_plant_escalar">
+      <dims> scalar </dims>
+      <long> scaling factor for plant fine root biomass to calculate nutrient carrier enzyme abundance (ECA) </long>
+      <units>  </units>
+      <data> 1.25e-05 </data>
+    </par>
+    <par name="fates_cohort_age_fusion_tol">
+      <dims> scalar </dims>
+      <long> minimum fraction in differece in cohort age between cohorts. </long>
+      <units> unitless </units>
+      <data> 0.08 </data>
+    </par>
+    <par name="fates_cohort_size_fusion_tol">
+      <dims> scalar </dims>
+      <long> minimum fraction in difference in dbh between cohorts </long>
+      <units> unitless </units>
+      <data> 0.08 </data>
+    </par>
+    <par name="fates_comp_excln">
+      <dims> scalar </dims>
+      <long> IF POSITIVE </long>
+      <units> none </units>
+      <data> 3.0 </data>
+    </par>
+    <par name="fates_damage_canopy_layer_code">
+      <dims> scalar </dims>
+      <long> Integer code that decides whether damage affects canopy trees (1), understory trees (2) </long>
+      <units> unitless </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_damage_event_code">
+      <dims> scalar </dims>
+      <long> Integer code that options how damage events are structured </long>
+      <units> unitless </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_daylength_factor_switch">
+      <dims> scalar </dims>
+      <long> user switch for turning on (1) or off (0) the day length factor scaling for photosynthetic parameters (ie scale vcmax and jmax) </long>
+      <units> unitless </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_dev_arbitrary">
+      <dims> scalar </dims>
+      <long> Unassociated free parameter that developers can use for testing arbitrary new hypotheses </long>
+      <units> unknown </units>
+      <data> nan </data>
+    </par>
+    <par name="fates_fire_active_crown_fire">
+      <dims> scalar </dims>
+      <long> flag, 1active crown fire 0no active crown fire </long>
+      <units> 0 or 1 </units>
+      <data> 0.0 </data>
+    </par>
+    <par name="fates_fire_cg_strikes">
+      <dims> scalar </dims>
+      <long> fraction of cloud to ground lightning strikes </long>
+      <units> fraction (0-1) </units>
+      <data> 0.2 </data>
+    </par>
+    <par name="fates_fire_drying_ratio">
+      <dims> scalar </dims>
+      <long> spitfire parameter, fire drying ratio for fuel moisture, alpha_FMC EQ 6 Thonicke et al 2010 </long>
+      <units> NA </units>
+      <data> 66000.0 </data>
+    </par>
+    <par name="fates_fire_durat_slope">
+      <dims> scalar </dims>
+      <long> spitfire parameter, fire max duration slope, Equation 14 Thonicke et al 2010 </long>
+      <units> NA </units>
+      <data> -11.06 </data>
+    </par>
+    <par name="fates_fire_fdi_alpha">
+      <dims> scalar </dims>
+      <long> spitfire parameter, EQ 7 Venevsky et al. GCB 2002,(modified EQ 8 Thonicke et al. 2010) </long>
+      <units> NA </units>
+      <data> 0.00037 </data>
+    </par>
+    <par name="fates_fire_fuel_energy">
+      <dims> scalar </dims>
+      <long> spitfire parameter, heat content of fuel </long>
+      <units> kJ/kg </units>
+      <data> 18000.0 </data>
+    </par>
+    <par name="fates_fire_max_durat">
+      <dims> scalar </dims>
+      <long> spitfire parameter, fire maximum duration, Equation 14 Thonicke et al 2010 </long>
+      <units> minutes </units>
+      <data> 240.0 </data>
+    </par>
+    <par name="fates_fire_miner_damp">
+      <dims> scalar </dims>
+      <long> spitfire parameter, mineral-dampening coefficient EQ A1 Thonicke et al 2010 </long>
+      <units> NA </units>
+      <data> 0.41739 </data>
+    </par>
+    <par name="fates_fire_miner_total">
+      <dims> scalar </dims>
+      <long> spitfire parameter, total mineral content, Table A1 Thonicke et al 2010 </long>
+      <units> fraction </units>
+      <data> 0.055 </data>
+    </par>
+    <par name="fates_fire_nignitions">
+      <dims> scalar </dims>
+      <long> number of annual ignitions per square km </long>
+      <units> ignitions per year per km2 </units>
+      <data> 15.0 </data>
+    </par>
+    <par name="fates_fire_part_dens">
+      <dims> scalar </dims>
+      <long> spitfire parameter, oven dry particle density, Table A1 Thonicke et al 2010 </long>
+      <units> kg/m2 </units>
+      <data> 513.0 </data>
+    </par>
+    <par name="fates_fire_threshold">
+      <dims> scalar </dims>
+      <long> spitfire parameter, fire intensity threshold for tracking fires that spread </long>
+      <units> kW/m </units>
+      <data> 50.0 </data>
+    </par>
+    <par name="fates_frag_cwd_fcel">
+      <dims> scalar </dims>
+      <long> Cellulose fraction for CWD </long>
+      <units> unitless </units>
+      <data> 0.76 </data>
+    </par>
+    <par name="fates_frag_cwd_flig">
+      <dims> scalar </dims>
+      <long> Lignin fraction of coarse woody debris </long>
+      <units> unitless </units>
+      <data> 0.24 </data>
+    </par>
+    <par name="fates_hydro_kmax_rsurf1">
+      <dims> scalar </dims>
+      <long> maximum conducitivity for unit root surface (into root) </long>
+      <units> kg water/m2 root area/Mpa/s </units>
+      <data> 20.0 </data>
+    </par>
+    <par name="fates_hydro_kmax_rsurf2">
+      <dims> scalar </dims>
+      <long> maximum conducitivity for unit root surface (out of root) </long>
+      <units> kg water/m2 root area/Mpa/s </units>
+      <data> 0.0001 </data>
+    </par>
+    <par name="fates_hydro_psi0">
+      <dims> scalar </dims>
+      <long> sapwood water potential at saturation </long>
+      <units> MPa </units>
+      <data> 0.0 </data>
+    </par>
+    <par name="fates_hydro_psicap">
+      <dims> scalar </dims>
+      <long> sapwood water potential at which capillary reserves exhausted </long>
+      <units> MPa </units>
+      <data> -0.6 </data>
+    </par>
+    <par name="fates_hydro_solver">
+      <dims> scalar </dims>
+      <long> switch designating which numerical solver for plant hydraulics, 1  1D taylor, 2  2D Picard, 3  2D Newton (deprecated) </long>
+      <units> unitless </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_landuse_logging_coll_under_frac">
+      <dims> scalar </dims>
+      <long> Fraction of stems killed in the understory when logging generates disturbance </long>
+      <units> fraction </units>
+      <data> 0.55983 </data>
+    </par>
+    <par name="fates_landuse_logging_collateral_frac">
+      <dims> scalar </dims>
+      <long> Fraction of large stems in upperstory that die from logging collateral damage </long>
+      <units> fraction </units>
+      <data> 0.05 </data>
+    </par>
+    <par name="fates_landuse_logging_dbhmax">
+      <dims> scalar </dims>
+      <long> Maximum dbh below which logging is applied (unset values flag this to be unused) </long>
+      <units> cm </units>
+      <data> nan </data>
+    </par>
+    <par name="fates_landuse_logging_dbhmax_infra">
+      <dims> scalar </dims>
+      <long> Tree diameter, above which infrastructure from logging does not impact damage or mortality. </long>
+      <units> cm </units>
+      <data> 35.0 </data>
+    </par>
+    <par name="fates_landuse_logging_dbhmin">
+      <dims> scalar </dims>
+      <long> Minimum dbh at which logging is applied </long>
+      <units> cm </units>
+      <data> 50.0 </data>
+    </par>
+    <par name="fates_landuse_logging_direct_frac">
+      <dims> scalar </dims>
+      <long> Fraction of stems logged directly per event </long>
+      <units> fraction </units>
+      <data> 0.15 </data>
+    </par>
+    <par name="fates_landuse_logging_event_code">
+      <dims> scalar </dims>
+      <long> Integer code that options how logging events are structured </long>
+      <units> unitless </units>
+      <data> -30.0 </data>
+    </par>
+    <par name="fates_landuse_logging_export_frac">
+      <dims> scalar </dims>
+      <long> fraction of trunk product being shipped offsite, the leftovers will be left onsite as large CWD </long>
+      <units> fraction </units>
+      <data> 0.8 </data>
+    </par>
+    <par name="fates_landuse_logging_mechanical_frac">
+      <dims> scalar </dims>
+      <long> Fraction of stems killed due infrastructure an other mechanical means </long>
+      <units> fraction </units>
+      <data> 0.05 </data>
+    </par>
+    <par name="fates_leaf_photo_temp_acclim_thome_time">
+      <dims> scalar </dims>
+      <long> Length of the window for the long-term (i.e. T_home in Kumarathunge et al 2019) exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_leaf_photo_tempsens_model  2) </long>
+      <units> years </units>
+      <data> 30.0 </data>
+    </par>
+    <par name="fates_leaf_photo_temp_acclim_timescale">
+      <dims> scalar </dims>
+      <long> Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_maintresp_leaf_model2 or fates_leaf_photo_tempsens_model  2) </long>
+      <units> days </units>
+      <data> 30.0 </data>
+    </par>
+    <par name="fates_leaf_photo_tempsens_model">
+      <dims> scalar </dims>
+      <long> switch for choosing the model that defines the temperature sensitivity of photosynthetic parameters (vcmax, jmax). 1non-acclimating 2Kumarathunge et al 2019 </long>
+      <units> unitless </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_leaf_stomatal_assim_model">
+      <dims> scalar </dims>
+      <long> a switch designating whether to use net (1) or gross (2) assimilation in the stomatal model </long>
+      <units> unitless </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_leaf_stomatal_model">
+      <dims> scalar </dims>
+      <long> switch for choosing between Ball-Berry (1) stomatal conductance model and Medlyn (2) model </long>
+      <units> unitless </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_leaf_theta_cj_c3">
+      <dims> scalar </dims>
+      <long> Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants </long>
+      <units> unitless </units>
+      <data> 0.999 </data>
+    </par>
+    <par name="fates_leaf_theta_cj_c4">
+      <dims> scalar </dims>
+      <long> Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants </long>
+      <units> unitless </units>
+      <data> 0.999 </data>
+    </par>
+    <par name="fates_maintresp_leaf_model">
+      <dims> scalar </dims>
+      <long> switch for choosing between maintenance respiration models. 1Ryan (1991), 2Atkin et al., (2017) </long>
+      <units> unitless </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_maintresp_nonleaf_baserate">
+      <dims> scalar </dims>
+      <long> Base maintenance respiration rate for plant tissues, using Ryan 1991 </long>
+      <units> gC/gN/s </units>
+      <data> 2.525e-06 </data>
+    </par>
+    <par name="fates_maxcohort">
+      <dims> scalar </dims>
+      <long> maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances </long>
+      <units> count </units>
+      <data> 100.0 </data>
+    </par>
+    <par name="fates_mort_cstarvation_model">
+      <dims> scalar </dims>
+      <long> switch defining the carbon starvation model ( 1) Linear or 2) Exponential) in the mortality_rates function. </long>
+      <units> unitless </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_mort_disturb_frac">
+      <dims> scalar </dims>
+      <long> fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch) </long>
+      <units> fraction </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_mort_understorey_death">
+      <dims> scalar </dims>
+      <long> fraction of plants in understorey cohort impacted by overstorey tree-fall </long>
+      <units> fraction </units>
+      <data> 0.55983 </data>
+    </par>
+    <par name="fates_patch_fusion_tol">
+      <dims> scalar </dims>
+      <long> minimum fraction in difference in profiles between patches </long>
+      <units> unitless </units>
+      <data> 0.05 </data>
+    </par>
+    <par name="fates_phen_chilltemp">
+      <dims> scalar </dims>
+      <long> chilling day counting threshold for vegetation </long>
+      <units> degrees C </units>
+      <data> 5.0 </data>
+    </par>
+    <par name="fates_phen_coldtemp">
+      <dims> scalar </dims>
+      <long> vegetation temperature exceedance that flags a cold-day for leaf-drop </long>
+      <units> degrees C </units>
+      <data> 7.5 </data>
+    </par>
+    <par name="fates_phen_gddthresh_a">
+      <dims> scalar </dims>
+      <long> GDD accumulation function, intercept parameter </long>
+      <units> none </units>
+      <data> -68.0 </data>
+    </par>
+    <par name="fates_phen_gddthresh_b">
+      <dims> scalar </dims>
+      <long> GDD accumulation function, multiplier parameter </long>
+      <units> none </units>
+      <data> 638.0 </data>
+    </par>
+    <par name="fates_phen_gddthresh_c">
+      <dims> scalar </dims>
+      <long> GDD accumulation function, exponent parameter </long>
+      <units> none </units>
+      <data> -0.01 </data>
+    </par>
+    <par name="fates_phen_mindayson">
+      <dims> scalar </dims>
+      <long> day threshold compared against days since leaves became on-allometry </long>
+      <units> days </units>
+      <data> 90.0 </data>
+    </par>
+    <par name="fates_phen_ncolddayslim">
+      <dims> scalar </dims>
+      <long> day threshold exceedance for temperature leaf-drop </long>
+      <units> days </units>
+      <data> 5.0 </data>
+    </par>
+    <par name="fates_q10_froz">
+      <dims> scalar </dims>
+      <long> Q10 for frozen-soil respiration rates </long>
+      <units> unitless </units>
+      <data> 1.5 </data>
+    </par>
+    <par name="fates_q10_mr">
+      <dims> scalar </dims>
+      <long> Q10 for maintenance respiration </long>
+      <units> unitless </units>
+      <data> 1.5 </data>
+    </par>
+    <par name="fates_rad_model">
+      <dims> scalar </dims>
+      <long> switch designating the model for canopy radiation, 1  Norman, 2  Two-stream (experimental) </long>
+      <units> unitless </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_regeneration_model">
+      <dims> scalar </dims>
+      <long> switch for choosing between FATES\'s </long>
+      <units> - </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_soil_salinity">
+      <dims> scalar </dims>
+      <long> soil salinity used for model when not coupled to dynamic soil salinity </long>
+      <units> ppt </units>
+      <data> 0.4 </data>
+    </par>
+    <par name="fates_trs_seedling2sap_par_timescale">
+      <dims> scalar </dims>
+      <long> Length of the window for the exponential moving average of par at the seedling layer used to calculate seedling to sapling transition rates </long>
+      <units> days </units>
+      <data> 32.0 </data>
+    </par>
+    <par name="fates_trs_seedling_emerg_h2o_timescale">
+      <dims> scalar </dims>
+      <long> Length of the window for the exponential moving average of smp used to calculate seedling emergence </long>
+      <units> days </units>
+      <data> 7.0 </data>
+    </par>
+    <par name="fates_trs_seedling_mdd_timescale">
+      <dims> scalar </dims>
+      <long> Length of the window for the exponential moving average of moisture deficit days used to calculate seedling mortality </long>
+      <units> days </units>
+      <data> 126.0 </data>
+    </par>
+    <par name="fates_trs_seedling_mort_par_timescale">
+      <dims> scalar </dims>
+      <long> Length of the window for the exponential moving average of par at the seedling layer used to calculate seedling mortality </long>
+      <units> days </units>
+      <data> 32.0 </data>
+    </par>
+    <par name="fates_vai_top_bin_width">
+      <dims> scalar </dims>
+      <long> width in VAI units of uppermost leaf+stem layer scattering element in each canopy layer </long>
+      <units> m2/m2 </units>
+      <data> 1.0 </data>
+    </par>
+    <par name="fates_vai_width_increase_factor">
+      <dims> scalar </dims>
+      <long> factor by which each leaf+stem scattering element increases in VAI width (1  uniform spacing) </long>
+      <units> unitless </units>
+      <data> 1.0 </data>
+    </par>
+  </parameters>
+</xml>
