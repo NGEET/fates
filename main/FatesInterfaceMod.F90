@@ -914,6 +914,10 @@ contains
          if (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
             p_uptake_mode = prescribed_p_uptake
          else
+            if (trim(hlm_name) == 'CLM') then
+               write(fates_log(), *) 'hlm_name cannot be CLM while prescribed_puptake == 0, because the CLM does not do prognostic phosphorus. Exiting. '
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
             p_uptake_mode = coupled_p_uptake
          end if
          
