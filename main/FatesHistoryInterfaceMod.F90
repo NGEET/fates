@@ -612,6 +612,7 @@ module FatesHistoryInterfaceMod
   ! indices to (site x pft) variables
   integer :: ih_biomass_si_pft
   integer :: ih_leafbiomass_si_pft
+  integer :: ih_lai_si_pft
   integer :: ih_storebiomass_si_pft
   integer :: ih_nindivs_si_pft
   integer :: ih_recruitment_si_pft
@@ -621,6 +622,8 @@ module FatesHistoryInterfaceMod
   integer :: ih_hydraulicmortality_carbonflux_si_pft
   integer :: ih_cstarvmortality_carbonflux_si_pft
   integer :: ih_firemortality_carbonflux_si_pft
+  integer :: ih_backgroundmortality_carbonflux_si_pft
+  integer :: ih_senescencemortality_carbonflux_si_pft
   integer :: ih_cstarvmortality_continuous_carbonflux_si_pft
   integer :: ih_crownarea_si_pft
   integer :: ih_canopycrownarea_si_pft
@@ -3092,6 +3095,7 @@ contains
 
     associate( hio_biomass_si_pft      => this%hvars(ih_biomass_si_pft)%r82d, &
          hio_leafbiomass_si_pft  => this%hvars(ih_leafbiomass_si_pft)%r82d, &
+         hio_lai_si_pft  => this%hvars(ih_lai_si_pft)%r82d, &         
          hio_storebiomass_si_pft => this%hvars(ih_storebiomass_si_pft)%r82d, &
          hio_nindivs_si_pft      => this%hvars(ih_nindivs_si_pft)%r82d, &
          hio_recruitment_si_pft  => this%hvars(ih_recruitment_si_pft)%r82d, &
@@ -3103,6 +3107,8 @@ contains
          hio_cstarvmortality_carbonflux_si_pft  => this%hvars(ih_cstarvmortality_carbonflux_si_pft)%r82d, &
          hio_hydraulicmortality_carbonflux_si_pft  => this%hvars(ih_hydraulicmortality_carbonflux_si_pft)%r82d, &
          hio_firemortality_carbonflux_si_pft  => this%hvars(ih_firemortality_carbonflux_si_pft)%r82d, &
+         hio_backgroundmortality_carbonflux_si_pft  => this%hvars(ih_backgroundmortality_carbonflux_si_pft)%r82d, &
+         hio_senescencemortality_carbonflux_si_pft  => this%hvars(ih_senescencemortality_carbonflux_si_pft)%r82d, &
          hio_crownarea_si_pft    => this%hvars(ih_crownarea_si_pft)%r82d, &
          hio_canopycrownarea_si_pft  => this%hvars(ih_canopycrownarea_si_pft)%r82d, &
          hio_gpp_si_pft  => this%hvars(ih_gpp_si_pft)%r82d, &
@@ -3505,6 +3511,8 @@ contains
                          hio_leafbiomass_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) + &
                               (ccohort%n * AREA_INV) * leaf_m
 
+                        hio_lai_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) * prt_params%slatop(ft)*g_per_kg 
+                         
                          hio_storebiomass_si_pft(io_si,ft) = hio_storebiomass_si_pft(io_si,ft) + &
                               (ccohort%n * AREA_INV) * store_m
 
@@ -3800,9 +3808,15 @@ contains
                              hio_cstarvmortality_carbonflux_si_pft(io_si,ccohort%pft) + &
                              ccohort%cmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
 
-                        hio_cstarvmortality_continuous_carbonflux_si_pft(io_si,ccohort%pft) = &
-                             hio_cstarvmortality_continuous_carbonflux_si_pft(io_si,ccohort%pft) + &
-                             ccohort%cmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+                        hio_backgroundmortality_carbonflux_si_pft(io_si,ccohort%pft) = &
+                             hio_backgroundmortality_carbonflux_si_pft(io_si,ccohort%pft) + &
+                             ccohort%bmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+
+			hio_senescencemortality_carbonflux_si_pft(io_si,ccohort%pft) = &
+                             hio_senescencemortality_carbonflux_si_pft(io_si,ccohort%pft) + &
+                             ccohort%smort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
+
+                        
                         
                         ! Aboveground mortality
                         hio_abg_mortality_cflux_si_scpf(io_si,scpf) = hio_abg_mortality_cflux_si_scpf(io_si,scpf) + &
@@ -6972,6 +6986,12 @@ contains
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index=ih_leafbiomass_si_pft)
 
+           call this%set_history_var(vname='FATES_LAI_PF', units='kg m-2',          &
+               long='total PFT-level leaf area index in m2 carbon per m2 land area',    &
+               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+               index=ih_lai_si_pft)
+
           call this%set_history_var(vname='FATES_STOREC_PF', units='kg m-2',         &
                long='total PFT-level stored biomass in kg carbon per m2 land area',  &
                use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
@@ -7103,7 +7123,7 @@ contains
           call this%set_history_var(vname='FATES_ELONG_FACTOR_PF',                      &
                units='1',                                                               &
                long='PFT-level mean elongation factor (partial flushing/abscission)',   &
-               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
+               use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',    &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                    &
                index=ih_elong_factor_si_pft)
 
@@ -7257,7 +7277,7 @@ contains
 
           call this%set_history_var(vname='FATES_FRAGMENTATION_SCALER_SL', units='', &
                long='factor (0-1) by which litter/cwd fragmentation proceeds relative to max rate by soil layer',  &
-               use_default='active', avgflag='A', vtype=site_soil_r8,              &
+               use_default='inactive', avgflag='A', vtype=site_soil_r8,              &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index = ih_fragmentation_scaler_sl)
 
@@ -7281,7 +7301,7 @@ contains
 
           call this%set_history_var(vname='FATES_BURNFRAC_AP', units='s-1',          &
                long='spitfire fraction area burnt (per second) by patch age',        &
-               use_default='active', avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', &
+               use_default='inactive', avgflag='A', vtype=site_age_r8, hlms='CLM:ALM', &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index = ih_fracarea_burnt_si_age)
 
@@ -7300,7 +7320,7 @@ contains
 
           call this%set_history_var(vname='FATES_FUEL_BURNT_BURNFRAC_FC', units='1', &
                long='product of fraction (0-1) of fuel burnt and burnt fraction (divide by FATES_BURNFRAC to get burned-area-weighted mean fraction fuel burnt)', &
-               use_default='active', avgflag='A', vtype=site_fuel_r8,                &
+               use_default='inactive', avgflag='A', vtype=site_fuel_r8,                &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables, &
                index = ih_burnt_frac_litter_si_fuel)
 
@@ -7370,13 +7390,13 @@ contains
           ! Output specific to the chemical species dynamics used (parteh)
           call this%set_history_var(vname='FATES_L2FR_CANOPY_REC_PF', units='kg kg-1', &
                long='The leaf to fineroot biomass multiplier for recruits (canopy)',   & 
-               use_default='active', &
+               use_default='inactive', &
                avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,    &
                ivar=ivar, initialize=initialize_variables, index = ih_recl2fr_canopy_pf)
           
           call this%set_history_var(vname='FATES_L2FR_USTORY_REC_PF', units='kg kg-1',                   &
                long='The leaf to fineroot biomass multiplier for recruits (understory)', & 
-               use_default='active', &
+               use_default='inactive', &
                avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx,    &
                ivar=ivar, initialize=initialize_variables, index = ih_recl2fr_ustory_pf)
           
@@ -7565,17 +7585,29 @@ contains
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index=ih_mortality_carbonflux_si_pft)
 
+          call this%set_history_var(vname='FATES_MORTALITY_HYDRAULIC_CFLUX_PF', units='kg m-2 s-1',    &
+               long='PFT-level flux of biomass carbon from live to dead pool from hydraulic failure mortalityy', &
+               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+               index=ih_hydraulicmortality_carbonflux_si_pft)
+          
           call this%set_history_var(vname='FATES_MORTALITY_FIRE_CFLUX_PF', units='kg m-2 s-1',    &
                long='PFT-level flux of biomass carbon from live to dead pool from fire mortality', &
                use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index=ih_firemortality_carbonflux_si_pft)
 
-          call this%set_history_var(vname='FATES_MORTALITY_HYDRO_CFLUX_PF', units='kg m-2 s-1',    &
-               long='PFT-level flux of biomass carbon from live to dead pool from hydraulic failure mortality', &
+         call this%set_history_var(vname='FATES_MORTALITY_BACKGROUND_CFLUX_PF', units='kg m-2 s-1',    &
+	       long='PFT-level flux of biomass carbon from live to dead pool from background mortality', &
+	       use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
+	       upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+               index=ih_backgroundmortality_carbonflux_si_pft)
+
+          call this%set_history_var(vname='FATES_MORTALITY_SENESCENCE_CFLUX_PF', units='kg m-2 s-1',    &
+               long='PFT-level flux of biomass carbon from live to dead pool from size-related mortality', &
                use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
-               index=ih_hydraulicmortality_carbonflux_si_pft)
+               index=ih_senescencemortality_carbonflux_si_pft)
 
           call this%set_history_var(vname='FATES_MORTALITY_CSTARV_CFLUX_PF', units='kg m-2 s-1',    &
                long='PFT-level flux of biomass carbon from live to dead pool from carbon starvation mortality (both continuous and termination)', &
@@ -8230,7 +8262,7 @@ contains
 
           call this%set_history_var(vname='FATES_NPLANT_AC', units = 'm-2',          &
                long='number of plants per m2 by cohort age class',                   &
-               use_default='active', avgflag='A', vtype=site_coage_r8,               &
+               use_default='inactive', avgflag='A', vtype=site_coage_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                  &
                initialize=initialize_variables, index = ih_nplant_si_cacls)
 
@@ -8300,14 +8332,14 @@ contains
           call this%set_history_var(vname='FATES_MORTALITY_AGESCEN_SZ',              &
                units = 'm-2 yr-1',                                                  &
                long='age senescence mortality by size in number of plants per m2 per year', &
-               use_default='active', avgflag='A', vtype=site_size_r8,               &
+               use_default='inactive', avgflag='A', vtype=site_size_r8,               &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_m10_si_scls)
 
           call this%set_history_var(vname='FATES_MORTALITY_AGESCEN_AC',              &
                units = 'm-2 yr-1',                                                  &
                long='age senescence mortality by cohort age in number of plants per m2 per year', &
-               use_default='active', avgflag='A', vtype=site_coage_r8,              &
+               use_default='inactive', avgflag='A', vtype=site_coage_r8,              &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_m10_si_cacls)
 
@@ -8670,7 +8702,7 @@ contains
 
           call this%set_history_var(vname='FATES_LITTER_CWD_ELDC', units='kg m-2',   &
                long='total mass of litter in coarse woody debris by element and coarse woody debris size', &
-               use_default='active', avgflag='A', vtype=site_elcwd_r8,              &
+               use_default='inactive', avgflag='A', vtype=site_elcwd_r8,              &
                hlms='CLM:ALM', upfreq=group_dyna_complx, ivar=ivar,                                 &
                initialize=initialize_variables, index = ih_cwd_elcwd)
 

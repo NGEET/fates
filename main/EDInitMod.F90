@@ -1048,7 +1048,8 @@ contains
       ! DESCRIPTION:
       ! initialize new cohorts on bare ground
       !
-
+      ! USES
+      use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
       ! ARGUMENTS
       type(ed_site_type),     intent(inout),  pointer  :: site_in
       type(fates_patch_type), intent(inout),  pointer  :: patch_in
@@ -1091,14 +1092,22 @@ contains
       real(r8)                         :: fnrt_drop_fraction    ! fraction of fine roots to absciss when leaves absciss
       integer, parameter               :: recruitstatus = 0     ! whether the newly created cohorts are recruited or initialized
       real(r8),parameter               :: zero_co_age = 0._r8   ! The age of a newly recruited cohort is zero
+      real(r8), dimension(numpft)      :: l_initd              ! local copy of init_density parameter
       !-------------------------------------------------------------------------------------
 
       patch_in%tallest  => null()
       patch_in%shortest => null()
 
+      l_initd(1:numpft) = nan
       ! if any pfts are starting with large  size  then the whole  site needs a spread of 0
       do pft = 1, numpft
-         if (EDPftvarcon_inst%initd(pft) < 0.0_r8) then   
+         ! check for the mode and set the initd
+         if (hlm_use_nocomp .eq. itrue) then
+            l_initd(pft) = EDPftvarcon_inst%initd_nocomp(pft)
+         else 
+            l_initd(pft) = EDPftvarcon_inst%initd_fullfates(pft)
+         endif
+         if (l_initd(pft) < 0.0_r8) then   
             site_in%spread = init_spread_inventory
          end if
       end do
@@ -1188,20 +1197,20 @@ contains
                end select phen_select
             end if if_spmode 
 
-            ! If positive EDPftvarcon_inst%initd is interpreted as initial recruit density.
-            ! If negative EDPftvarcon_inst%initd is interpreted as initial dbh. 
+            ! If positive l_initd is interpreted as initial recruit density.
+            ! If negative l_initd is interpreted as initial dbh. 
             ! Dbh-initialization can only be used in nocomp mode.
             ! In the dbh-initialization case, we calculate crown area for a single tree and then calculate
             ! the density of plants  needed for a full canopy. 
-            if_init_dens: if (EDPftvarcon_inst%initd(pft) > nearzero) then  ! interpret as initial density and calculate diameter
+            if_init_dens: if (l_initd(pft) > nearzero) then  ! interpret as initial density and calculate diameter
 
-               cohort_n = EDPftvarcon_inst%initd(pft)*patch_in%area
+               cohort_n = l_initd(pft)*patch_in%area
                if (hlm_use_nocomp .eq. itrue) then !in nocomp mode we only have one PFT per patch
                   ! as opposed to numpft's. So we should up the initial density
                   ! to compensate (otherwise runs are very hard to compare)
                   ! this multiplies it by the number of PFTs there would have been in
                   ! the single shared patch in competition mode.
-                  ! n.b. that this is the same as currentcohort%n = %initd(pft) &AREA
+                  ! n.b. that this is the same as currentcohort%n = l_initd(pft) &AREA
                   cohort_n = cohort_n*sum(site_in%use_this_pft)
                endif
                height = EDPftvarcon_inst%hgt_min(pft)
@@ -1228,7 +1237,7 @@ contains
             else ! interpret as initial diameter and calculate density 
                if (hlm_use_nocomp .eq. itrue) then
                   
-                  dbh = abs(EDPftvarcon_inst%initd(pft))
+                  dbh = abs(l_initd(pft))
 
                   ! calculate crown area of a single plant
                   call carea_allom(dbh, 1.0_r8, init_spread_inventory, pft, crown_damage,       &
@@ -1248,9 +1257,9 @@ contains
 
                   ! calculate height from diameter
                   call h_allom(dbh, pft, height)
- 
                else
-                  write(fates_log(),*) 'Negative fates_recruit_init_density can only be used in no comp mode'
+                  write(fates_log(),*) ' Only fates_recruit_init_density_nocomp can be negative'
+                  write(fates_log(),*) ' Either switch to nocomp mode, or change fates_recruit_init_density_fullfates to a positive value'
                   call endrun(msg=errMsg(sourcefile, __LINE__))
                endif
             endif if_init_dens 
