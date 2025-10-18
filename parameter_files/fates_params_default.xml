@@ -1,5 +1,5 @@
 <xml version="1.0" encoding="us-ascii" >
-  <history>03/03/25 : First instantation, copied from: ../parameter_files/fates_params_default.cdl.</history>
+  <history>18/10/25 : First instantation, copied from: parameter_files/fates_params_default.cdl.</history>
   <dimensions>
     <dim name="fates_NCWD"> 4 </dim>
     <dim name="fates_history_age_bins"> 7 </dim>
@@ -681,11 +681,7 @@
       <dims> fates_hydr_organs, fates_pft </dims>
       <long> (used if hydr_htftype_node  2), capillary length parameter in van Genuchten model </long>
       <units> MPa-1 </units>
-      <data> [0.0005 0.0005 0.0005 0.0005 0.0005 0.005  0.005  0.005  0.005  0.005
- 0.005  0.005  0.005  0.005 ], [0.0005 0.0005 0.0005 0.0005 0.0005 0.005  0.005  0.005  0.005  0.005
- 0.005  0.005  0.005  0.005 ], [0.0005 0.0005 0.0005 0.0005 0.0005 0.005  0.005  0.005  0.005  0.005
- 0.005  0.005  0.005  0.005 ], [0.0005 0.0005 0.0005 0.0005 0.0005 0.005  0.005  0.005  0.005  0.005
- 0.005  0.005  0.005  0.005 ] </data>
+      <data> [0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12], [0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12], [0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12], [0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12 0.12] </data>
     </par>
     <par name="fates_hydro_vg_m_node">
       <dims> fates_hydr_organs, fates_pft </dims>
@@ -698,6 +694,12 @@
       <long> (used if hydr_htftype_node  2),n in van Genuchten 1980 model, pore size distribution parameter </long>
       <units> unitless </units>
       <data> [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.], [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.], [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.], [2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2. 2.] </data>
+    </par>
+    <par name="fates_landuse_grazing_palatability">
+      <dims> fates_pft </dims>
+      <long> Relative intensity of leaf grazing/browsing per PFT </long>
+      <units> unitless 0-1 </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 </data>
     </par>
     <par name="fates_landuse_harvest_pprod10">
       <dims> fates_pft </dims>
@@ -723,11 +725,23 @@
       <units> fraction </units>
       <data> 1.0, 0.75, 0.75, 0.75, 1.0, 0.75, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
     </par>
+    <par name="fates_leaf_agross_btran_model">
+      <dims> fates_pft </dims>
+      <long> model switch for how gross assimilation affects conductance. See LeafBiophysicsMod.F90, integer constants </long>
+      <units> index </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
+    </par>
     <par name="fates_leaf_c3psn">
       <dims> fates_pft </dims>
       <long> Photosynthetic pathway (1c3, 0c4) </long>
       <units> flag </units>
       <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0 </data>
+    </par>
+    <par name="fates_leaf_fnps">
+      <dims> fates_pft </dims>
+      <long> fraction of light absorbed by non-photosynthetic pigments </long>
+      <units> fraction </units>
+      <data> 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15 </data>
     </par>
     <par name="fates_leaf_jmaxha">
       <dims> fates_pft </dims>
@@ -758,6 +772,12 @@
       <long> Specific Leaf Area (SLA) at top of canopy, projected area basis </long>
       <units> m^2/gC </units>
       <data> 0.012, 0.005, 0.024, 0.009, 0.03, 0.03, 0.012, 0.03, 0.03, 0.01, 0.032, 0.027, 0.05, 0.05 </data>
+    </par>
+    <par name="fates_leaf_stomatal_btran_model">
+      <dims> fates_pft </dims>
+      <long> model switch for how btran affects conductance. See LeafBiophysicsMod.F90, integer constants </long>
+      <units> index </units>
+      <data> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 </data>
     </par>
     <par name="fates_leaf_stomatal_intercept">
       <dims> fates_pft </dims>
@@ -963,12 +983,6 @@
       <units> m3/m3 or mm </units>
       <data> -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4, -152957.4 </data>
     </par>
-    <par name="fates_phen_evergreen">
-      <dims> fates_pft </dims>
-      <long> Binary flag for evergreen leaf habit </long>
-      <units> logical flag </units>
-      <data> 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0 </data>
-    </par>
     <par name="fates_phen_flush_fraction">
       <dims> fates_pft </dims>
       <long> Upon bud-burst, the maximum fraction of storage carbon used for flushing leaves </long>
@@ -980,6 +994,12 @@
       <long> fraction of fine roots to drop during drought/cold </long>
       <units> fraction </units>
       <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
+    </par>
+    <par name="fates_phen_leaf_habit">
+      <dims> fates_pft </dims>
+      <long> Flag for leaf phenology habit. 1 - evergreen 2 - season (cold) deciduous 3 - stress (hydro) deciduous 4 - stress (hydro) semi-deciduous </long>
+      <units> flag </units>
+      <data> 1.0, 1.0, 2.0, 1.0, 3.0, 2.0, 1.0, 3.0, 2.0, 1.0, 2.0, 2.0, 3.0, 3.0 </data>
     </par>
     <par name="fates_phen_mindaysoff">
       <dims> fates_pft </dims>
@@ -993,23 +1013,11 @@
       <units> m3/m3 or mm </units>
       <data> -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9, -122365.9 </data>
     </par>
-    <par name="fates_phen_season_decid">
-      <dims> fates_pft </dims>
-      <long> Binary flag for seasonal-deciduous leaf habit </long>
-      <units> logical flag </units>
-      <data> 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0 </data>
-    </par>
     <par name="fates_phen_stem_drop_fraction">
       <dims> fates_pft </dims>
       <long> fraction of stems to drop for non-woody species during drought/cold </long>
       <units> fraction </units>
       <data> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </data>
-    </par>
-    <par name="fates_phen_stress_decid">
-      <dims> fates_pft </dims>
-      <long> Flag for stress/drought-deciduous leaf habit. 0 - not stress deciduous 1 - default drought deciduous (two target states only, fully flushed or fully abscised) 2 - semi-deciduous </long>
-      <units> logical flag </units>
-      <data> 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0 </data>
     </par>
     <par name="fates_prescribed_npp_canopy">
       <dims> fates_pft </dims>
@@ -1311,7 +1319,7 @@
       <dims> fates_pft </dims>
       <long> Ratio of momentum roughness length to canopy top height </long>
       <units> unitless </units>
-      <data> 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055, 0.055 </data>
+      <data> 0.075, 0.055, 0.055, 0.075, 0.055, 0.055, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12 </data>
     </par>
     <par name="fates_turnover_branch">
       <dims> fates_pft </dims>
@@ -1425,7 +1433,13 @@
       <dims> fates_landuseclass </dims>
       <long> the FATES PFT index to use on a given crop land-use type (dummy value of -999 for non-crop types) </long>
       <units> NA </units>
-      <data> -999.0, -999.0, -999.0, -999.0, 11.0 </data>
+      <data> -999.0, -999.0, -999.0, -999.0, 13.0 </data>
+    </par>
+    <par name="fates_landuse_grazing_rate">
+      <dims> fates_landuseclass </dims>
+      <long> fraction of leaf biomass consumed by grazers per day </long>
+      <units> 1/day </units>
+      <data> 0.0, 0.0, 0.0, 0.0, 0.0 </data>
     </par>
     <par name="fates_max_nocomp_pfts_by_landuse">
       <dims> fates_landuseclass </dims>
@@ -1467,7 +1481,7 @@
       <dims> scalar </dims>
       <long> IF POSITIVE </long>
       <units> none </units>
-      <data> 3.0 </data>
+      <data> -1.0 </data>
     </par>
     <par name="fates_damage_canopy_layer_code">
       <dims> scalar </dims>
@@ -1478,12 +1492,6 @@
     <par name="fates_damage_event_code">
       <dims> scalar </dims>
       <long> Integer code that options how damage events are structured </long>
-      <units> unitless </units>
-      <data> 1.0 </data>
-    </par>
-    <par name="fates_daylength_factor_switch">
-      <dims> scalar </dims>
-      <long> user switch for turning on (1) or off (0) the day length factor scaling for photosynthetic parameters (ie scale vcmax and jmax) </long>
       <units> unitless </units>
       <data> 1.0 </data>
     </par>
@@ -1601,23 +1609,41 @@
       <units> MPa </units>
       <data> -0.6 </data>
     </par>
-    <par name="fates_hydro_solver">
+    <par name="fates_landuse_grazing_carbon_use_eff">
       <dims> scalar </dims>
-      <long> switch designating which numerical solver for plant hydraulics, 1  1D taylor, 2  2D Picard, 3  2D Newton (deprecated) </long>
+      <long> carbon use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed) </long>
       <units> unitless </units>
+      <data> 0.0 </data>
+    </par>
+    <par name="fates_landuse_grazing_maxheight">
+      <dims> scalar </dims>
+      <long> maximum height that grazers (browsers, actually) can reach </long>
+      <units> m </units>
       <data> 1.0 </data>
+    </par>
+    <par name="fates_landuse_grazing_nitrogen_use_eff">
+      <dims> scalar </dims>
+      <long> nitrogen use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed) </long>
+      <units> unitless </units>
+      <data> 0.25 </data>
+    </par>
+    <par name="fates_landuse_grazing_phosphorus_use_eff">
+      <dims> scalar </dims>
+      <long> phosphorus use efficiency of material eaten by grazers/browsers (i.e. amount in manure / amount consumed) </long>
+      <units> unitless </units>
+      <data> 0.5 </data>
     </par>
     <par name="fates_landuse_logging_coll_under_frac">
       <dims> scalar </dims>
       <long> Fraction of stems killed in the understory when logging generates disturbance </long>
       <units> fraction </units>
-      <data> 0.55983 </data>
+      <data> 0.0 </data>
     </par>
     <par name="fates_landuse_logging_collateral_frac">
       <dims> scalar </dims>
       <long> Fraction of large stems in upperstory that die from logging collateral damage </long>
       <units> fraction </units>
-      <data> 0.05 </data>
+      <data> 0.0 </data>
     </par>
     <par name="fates_landuse_logging_dbhmax">
       <dims> scalar </dims>
@@ -1629,19 +1655,19 @@
       <dims> scalar </dims>
       <long> Tree diameter, above which infrastructure from logging does not impact damage or mortality. </long>
       <units> cm </units>
-      <data> 35.0 </data>
+      <data> 0.0 </data>
     </par>
     <par name="fates_landuse_logging_dbhmin">
       <dims> scalar </dims>
       <long> Minimum dbh at which logging is applied </long>
       <units> cm </units>
-      <data> 50.0 </data>
+      <data> 0.0 </data>
     </par>
     <par name="fates_landuse_logging_direct_frac">
       <dims> scalar </dims>
       <long> Fraction of stems logged directly per event </long>
       <units> fraction </units>
-      <data> 0.15 </data>
+      <data> 1.0 </data>
     </par>
     <par name="fates_landuse_logging_event_code">
       <dims> scalar </dims>
@@ -1659,7 +1685,7 @@
       <dims> scalar </dims>
       <long> Fraction of stems killed due infrastructure an other mechanical means </long>
       <units> fraction </units>
-      <data> 0.05 </data>
+      <data> 0.0 </data>
     </par>
     <par name="fates_leaf_photo_temp_acclim_thome_time">
       <dims> scalar </dims>
@@ -1673,42 +1699,6 @@
       <units> days </units>
       <data> 30.0 </data>
     </par>
-    <par name="fates_leaf_photo_tempsens_model">
-      <dims> scalar </dims>
-      <long> switch for choosing the model that defines the temperature sensitivity of photosynthetic parameters (vcmax, jmax). 1non-acclimating 2Kumarathunge et al 2019 </long>
-      <units> unitless </units>
-      <data> 1.0 </data>
-    </par>
-    <par name="fates_leaf_stomatal_assim_model">
-      <dims> scalar </dims>
-      <long> a switch designating whether to use net (1) or gross (2) assimilation in the stomatal model </long>
-      <units> unitless </units>
-      <data> 1.0 </data>
-    </par>
-    <par name="fates_leaf_stomatal_model">
-      <dims> scalar </dims>
-      <long> switch for choosing between Ball-Berry (1) stomatal conductance model and Medlyn (2) model </long>
-      <units> unitless </units>
-      <data> 1.0 </data>
-    </par>
-    <par name="fates_leaf_theta_cj_c3">
-      <dims> scalar </dims>
-      <long> Empirical curvature parameter for ac, aj photosynthesis co-limitation in c3 plants </long>
-      <units> unitless </units>
-      <data> 0.999 </data>
-    </par>
-    <par name="fates_leaf_theta_cj_c4">
-      <dims> scalar </dims>
-      <long> Empirical curvature parameter for ac, aj photosynthesis co-limitation in c4 plants </long>
-      <units> unitless </units>
-      <data> 0.999 </data>
-    </par>
-    <par name="fates_maintresp_leaf_model">
-      <dims> scalar </dims>
-      <long> switch for choosing between maintenance respiration models. 1Ryan (1991), 2Atkin et al., (2017) </long>
-      <units> unitless </units>
-      <data> 1.0 </data>
-    </par>
     <par name="fates_maintresp_nonleaf_baserate">
       <dims> scalar </dims>
       <long> Base maintenance respiration rate for plant tissues, using Ryan 1991 </long>
@@ -1721,15 +1711,9 @@
       <units> count </units>
       <data> 100.0 </data>
     </par>
-    <par name="fates_mort_cstarvation_model">
-      <dims> scalar </dims>
-      <long> switch defining the carbon starvation model ( 1) Linear or 2) Exponential) in the mortality_rates function. </long>
-      <units> unitless </units>
-      <data> 1.0 </data>
-    </par>
     <par name="fates_mort_disturb_frac">
       <dims> scalar </dims>
-      <long> fraction of canopy mortality that results in disturbance (i.e. transfer of area from new to old patch) </long>
+      <long> fraction of canopy mortality that results in disturbance (i.e. transfer of area from old to new patch) </long>
       <units> fraction </units>
       <data> 1.0 </data>
     </par>
@@ -1799,17 +1783,77 @@
       <units> unitless </units>
       <data> 1.5 </data>
     </par>
-    <par name="fates_rad_model">
+    <par name="fates_rxfire_AB">
       <dims> scalar </dims>
-      <long> switch designating the model for canopy radiation, 1  Norman, 2  Two-stream (experimental) </long>
-      <units> unitless </units>
-      <data> 1.0 </data>
+      <long> daily burn capacity of prescribed fire </long>
+      <units> fraction/day </units>
+      <data> 0.01 </data>
     </par>
-    <par name="fates_regeneration_model">
+    <par name="fates_rxfire_fuel_max">
       <dims> scalar </dims>
-      <long> switch for choosing between FATES\'s </long>
-      <units> - </units>
-      <data> 1.0 </data>
+      <long> maximum fuel load at or above which prescribed fire is disallowed </long>
+      <units> kgC/m2 </units>
+      <data> 1.5 </data>
+    </par>
+    <par name="fates_rxfire_fuel_min">
+      <dims> scalar </dims>
+      <long> minimum fuel load at or below which prescribed fire is disallowed </long>
+      <units> kgC/m2 </units>
+      <data> 0.5 </data>
+    </par>
+    <par name="fates_rxfire_max_threshold">
+      <dims> scalar </dims>
+      <long> maximum energy threshold at or above which prescribed fire is disallowed </long>
+      <units> kJ/m/s or kW/m </units>
+      <data> 500.0 </data>
+    </par>
+    <par name="fates_rxfire_min_frac">
+      <dims> scalar </dims>
+      <long> minimum fraction of land needs to be burnable to allow rx fire </long>
+      <units> fraction </units>
+      <data> 0.1 </data>
+    </par>
+    <par name="fates_rxfire_min_threshold">
+      <dims> scalar </dims>
+      <long> minimum energy threshold at or above which prescribed fire is disallowed </long>
+      <units> kJ/m/s or kW/m </units>
+      <data> 50.0 </data>
+    </par>
+    <par name="fates_rxfire_rh_lwthreshold">
+      <dims> scalar </dims>
+      <long> minimum relative humidity threshold below which prescribed fire is disallowed </long>
+      <units> % </units>
+      <data> 30.0 </data>
+    </par>
+    <par name="fates_rxfire_rh_upthreshold">
+      <dims> scalar </dims>
+      <long> maximum relative humidity threshold above which prescribed fire is disallowed </long>
+      <units> % </units>
+      <data> 55.0 </data>
+    </par>
+    <par name="fates_rxfire_temp_lwthreshold">
+      <dims> scalar </dims>
+      <long> minimum temprature threshold below which prescribed fire is disallowed </long>
+      <units> degree C </units>
+      <data> 5.0 </data>
+    </par>
+    <par name="fates_rxfire_temp_upthreshold">
+      <dims> scalar </dims>
+      <long> maximum temprature threshold above which prescribed fire is disallowed </long>
+      <units> degree C </units>
+      <data> 30.0 </data>
+    </par>
+    <par name="fates_rxfire_wind_lwthreshold">
+      <dims> scalar </dims>
+      <long> minimum wind speed threshold below which prescribed fire is disallowed </long>
+      <units> % </units>
+      <data> 2.0 </data>
+    </par>
+    <par name="fates_rxfire_wind_upthreshold">
+      <dims> scalar </dims>
+      <long> maximum wind speed threshold above which prescribed fire is disallowed </long>
+      <units> % </units>
+      <data> 10.0 </data>
     </par>
     <par name="fates_soil_salinity">
       <dims> scalar </dims>
