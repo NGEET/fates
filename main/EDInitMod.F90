@@ -857,6 +857,7 @@ contains
                 ! and transfering in mass
                 if(hlm_use_sp.eq.itrue)then
                    litt_init = fates_unset_r8
+                   seed_init = fates_unset_r8
                 else
                    litt_init = 0._r8
                    seed_init = 0.01_r8  ! This should maybe be a parameter ultimately. Leaving here to avoid changing the api. 
