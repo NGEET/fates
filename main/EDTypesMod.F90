@@ -707,7 +707,7 @@ contains
 
   ! ============================================================================
 
-   integer function GetRegistryIndex(this, ifp) return(ridx)
+   integer function GetRegistryIndex(this, ifp) result(ridx)
 
       ! Arguments
       class(ed_site_type), intent(in) :: this
@@ -719,7 +719,7 @@ contains
    
   ! ============================================================================
    
-   integer function SetRegistryIndex(this, ifp, ridx)
+   subroutine SetRegistryIndex(this, ifp, ridx)
 
       ! Arguments
       class(ed_site_type), intent(inout) :: this
@@ -728,7 +728,7 @@ contains
       
       this%ridx(ifp) = ridx
 
-   end function SetRegistryIndex
+   end subroutine SetRegistryIndex
 
   ! ============================================================================
 
