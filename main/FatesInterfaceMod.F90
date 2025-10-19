@@ -2804,7 +2804,7 @@ subroutine InitializeFatesSites(this, patches_per_site)
       if (.not.(allocated(this%sites(s)%ridx))) call this%sites(s)%AllocateRegistryIndexArray(patches_per_site)
 
       ! Store the registry index for the current site and fates patch index
-      this%sites(s)%SetRegisteryIndex(ifp, r)
+      call this%sites(s)%SetRegistryIndex(ifp, r)
       
    end do
    
