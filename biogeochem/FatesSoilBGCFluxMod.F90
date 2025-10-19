@@ -633,7 +633,7 @@ contains
     real(r8), pointer              :: flux_cel_si(:)
     real(r8), pointer              :: flux_lab_si(:)
     real(r8), pointer              :: flux_lig_si(:)
-    real(r8), pointer              :: flux_all_si(:)
+    real(r8), pointer              :: flux_all_si
     type(litter_type), pointer     :: litt
      
     real(r8) :: surface_prof(bc_in%nlevsoil) ! this array is used to distribute
