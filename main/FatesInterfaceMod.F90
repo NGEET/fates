@@ -2925,6 +2925,8 @@ subroutine UpdateInterfaceVariables(this, initialize)
    logical :: initialize_local
 
    integer :: r   ! registry interface index
+   integer :: s   ! site index
+   integer :: ifp ! fates patch index
 
    ! Set the default initialize flag to false
    if (present(initialize)) then
