@@ -1089,13 +1089,13 @@ module FatesInterfaceTypesMod
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_temperature, initialize=initialize, index=index)
     
     ! Variables that need to be updated with each timestep
-    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_cellulose, initialize=initialize, index=index, 
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_cellulose, initialize=initialize, index=index, &
                                       update_frequency=registry_update_timestep)
-    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_lignin, initialize=initialize, index=index, 
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_lignin, initialize=initialize, index=index, &
                                       update_frequency=registry_update_timestep)
-    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_labile, initialize=initialize, index=index, 
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_labile, initialize=initialize, index=index, & 
                                       update_frequency=registry_update_timestep)
-    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_total, initialize=initialize, index=index, 
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_total, initialize=initialize, index=index, &
                                       update_frequency=registry_update_timestep)
 
     ! Define the N and P litter fluxes if in CNP mode
