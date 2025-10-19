@@ -2863,7 +2863,7 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       ! Register the remaining boundary conditions
       ! bc_in
       call this%registry(r)%Register(key=hlm_fates_thaw_max_depth_index, &
-                                     data=bc_in%max_thaw_depth_index_col, hlm_flag=.false.)
+                                     data=bc_in%max_thaw_depth_index, hlm_flag=.false.)
       call this%registry(r)%Register(key=hlm_fates_decomp_thickness, &
                                      data=bc_in%dz_decomp_sisl, hlm_flag=.false.)
       call this%registry(r)%Register(key=hlm_fates_decomp_id, &
