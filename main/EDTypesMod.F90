@@ -38,6 +38,7 @@ module EDTypesMod
   use EDParamsMod,           only : nclmax, nlevleaf, maxpft
   use FatesConstantsMod,     only : n_dbh_bins, n_dist_types
   use shr_log_mod,           only : errMsg => shr_log_errMsg
+  use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
   use SFFireWeatherMod,      only : fire_weather
 
   implicit none
