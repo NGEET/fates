@@ -616,7 +616,6 @@ module EDTypesMod
      contains
 
        procedure, public :: AllocateRegistryIndexArray
-       procedure, public :: InitializeBoundaryConditions
        procedure, public :: get_current_landuse_statevector
        procedure, public :: get_secondary_young_fraction
        procedure, public :: GetRegistryIndex
@@ -646,68 +645,6 @@ contains
     end subroutine AllocateRegistryIndexArray
 
   ! ============================================================================
-
-   subroutine InitializeBoundaryConditions(this, ifp)
-      
-      ! Allocate and initialize boundary condition arrays to NaN.
-      ! Note that we use the full nlevdecomp size to match the HLM array sizes.
-      ! This may need to be setup with a more sophisticated approach if the HLMs
-      ! diverge in the dimensionality of the matching arrays.
-      
-      class(ed_site_type), intent(inout) :: this
-      integer, intent(in) :: ifp
-      
-      ! Locals
-      integer :: nlevdecomp
-      type(bc_in_type), pointer :: bc_in_ptr
-      type(bc_out_type), pointer :: bc_out_ptr
-
-      ! Use locals for convenience
-      nlevdecomp = this%bc_in(ifp)%nlevdecomp_full
-      bc_in_ptr => this%bc_in(ifp)
-      bc_out_ptr => this%bc_out(ifp)
-
-      ! bc_in
-      allocate(bc_in_ptr%w_scalar_sisl(nlevdecomp))
-      allocate(bc_in_ptr%t_scalar_sisl(nlevdecomp))
-
-      bc_in_ptr%w_scalar_sisl = nan
-      bc_in_ptr%t_scalar_sisl = nan
-
-      ! Litter fluxes, carbon
-      allocate(bc_out_ptr%litt_flux_cel_c_si(nlevdecomp))
-      allocate(bc_out_ptr%litt_flux_lig_c_si(nlevdecomp))
-      allocate(bc_out_ptr%litt_flux_lab_c_si(nlevdecomp))
-
-      bc_out_ptr%litt_flux_all_c = nan
-      bc_out_ptr%litt_flux_cel_c_si = nan
-      bc_out_ptr%litt_flux_lig_c_si = nan
-      bc_out_ptr%litt_flux_lab_c_si = nan
-
-      ! Litter fluxes, nitrogen
-      allocate(bc_out_ptr%litt_flux_cel_n_si(nlevdecomp))
-      allocate(bc_out_ptr%litt_flux_lig_n_si(nlevdecomp))
-      allocate(bc_out_ptr%litt_flux_lab_n_si(nlevdecomp))
-
-      bc_out_ptr%litt_flux_all_n = nan
-      bc_out_ptr%litt_flux_cel_n_si = nan
-      bc_out_ptr%litt_flux_lig_n_si = nan
-      bc_out_ptr%litt_flux_lab_n_si = nan
-
-      ! Litter fluxes, phosphorus
-      allocate(bc_out_ptr%litt_flux_cel_p_si(nlevdecomp))
-      allocate(bc_out_ptr%litt_flux_lig_p_si(nlevdecomp))
-      allocate(bc_out_ptr%litt_flux_lab_p_si(nlevdecomp))
-
-      bc_out_ptr%litt_flux_all_p = nan
-      bc_out_ptr%litt_flux_cel_p_si = nan
-      bc_out_ptr%litt_flux_lig_p_si = nan
-      bc_out_ptr%litt_flux_lab_p_si = nan
-
-   end subroutine InitializeBoundaryConditions
-
-  ! ============================================================================
-
    integer function GetRegistryIndex(this, ifp) result(ridx)
 
       ! Arguments
