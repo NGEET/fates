@@ -2951,7 +2951,6 @@ subroutine UpdateInterfaceVariables(this, initialize)
          bc_in%max_rooting_depth_index_col = min(bc_in%nlevsoil, bc_in%max_thaw_depth_index)
       end if
 
-
    end do
 
    
