@@ -25,7 +25,8 @@ module FatesJSONMod
 
   integer, parameter :: max_ll = 256    ! Maximum allowable line-length
   integer, parameter :: max_sl = 128    ! Maximum allowable symbol-length
-
+  integer,parameter :: too_many_iter = 1000
+  
   type dim_type
      character(len=60) :: name
      integer           :: size
@@ -75,9 +76,6 @@ contains
     ! All variables must be scalar or associated with a known dimension.
     !
     ! Each section is started with an open bracket '{' and closed with a closed bracket '}'
-
-
-
     
     character(len=*),intent(in) :: filename
     integer,intent(in)          :: file_unit
@@ -90,22 +88,26 @@ contains
     character(len=max_ll) :: data_str
     character(len=max_sl) :: symb_str
     integer :: data_str_len
-    logical :: finished_scan = .false.
+    logical :: finished_scan
     integer :: line_num
     integer :: dim_line0 = -1
-    logical :: dimensions_found = .false.
-    logical :: variables_found = .false.
-    logical :: finished_dims = .false.
+    integer :: var_line0 = -1
+    logical :: finished_dims
+    logical :: finished_vars
+    logical :: read_complete
     integer :: sep_id
     integer :: tmp_int
     integer :: n_dim
+    integer :: n_var
     integer :: iter   ! Used for checking against infinite loops
     integer :: ii
     integer :: n_vec_out
     character(len=max_ll), dimension(200) :: string_scr ! scratch space for storing data before its converted
     character(len=30) :: word_vector(1)
-
-    integer,parameter :: too_many_iter = 1000
+    
+    finished_dims = .false.
+    finished_vars = .false.
+    finished_scan = .false.
     
     ! Flush the scratch string
     do i = 1,200
@@ -146,7 +148,6 @@ contains
           ! to this position, so remember it
           
           dim_line0 = line_num     
-          dimensions_found = .true.
           if(debug) write(*, *) 'dimension section found on line ', line_num, ': ', trim(line)
 
           ! Loop through lines within the dimensions bracket just to get a count
@@ -185,8 +186,9 @@ contains
           ! Going back to top of the dimensions section
           ! (this sets the position in the file to have
           ! just finished reading the line with "dimensions:"
-          call GotoLine(file_unit,dim_line0)
           line_num = dim_line0
+          call GotoLine(file_unit,line_num)
+          write(*,*) 'RESET LINE NUMBER: ',line_num
           
           ! Loop through lines within the dimensions bracket and
           ! transfer dimension info to data structure
@@ -210,7 +212,6 @@ contains
                    exit scan_dimensions2
                 end if
                 
-                line_num = line_num+1
                 n_dim = n_dim + 1
 
                 ! lines should have this format:   '   "fates_NCWD": 4,   '
@@ -239,7 +240,6 @@ contains
              end if
                 
              if(index(line,'}')>0) then
-                line_num = line_num+1
                 exit scan_dimensions2
              end if
              if(iter>too_many_iter)then
@@ -259,10 +259,28 @@ contains
           
           finished_dims = .true.
        end if if_dims
+
+       write(*,*) 'FINISHED DIMS: ',line_num
        
-       if (index(line, '"variables":') > 0) then
-          variables_found = .true.
+       if (.not.finished_vars .and.index(line, '"variables":') > 0) then
+          
           if(debug) write(*, *) 'variables found on line ', line_num, ': ', trim(line)
+          var_line0 = line_num     
+          
+          ! Loop through lines within the dimensions bracket just to get a count
+          n_var = 0
+          iter  = 0
+          read_complete = .false.
+          scan_vars1: do while(.not.read_complete)
+
+             ! This will read everything within the next level of {brackets}
+             call ReadVar(file_unit,line_num,n_var,read_complete)
+             
+          end do scan_vars1
+
+          write(*,*) 'Found ',n_var,' variables in the file'
+          finished_vars = .true.
+          finished_scan = .true.
        end if
           
     end do do_scan
@@ -279,9 +297,151 @@ contains
     
   end subroutine ScanJSonGroups
   
-  !function GetIntScalar(string) result(scalarint)
-  ! Convert a sting to an integer and clean off any special characters
-  ! end function GetIntScalar
+
+  subroutine ReadVar(file_unit,line_num,var_num,read_complete)
+
+    integer, intent(in) :: file_unit
+    integer, intent(inout) :: line_num
+    integer, intent(inout) :: var_num
+    logical, intent(inout) :: read_complete
+
+    ! Read file information for one variable. Either
+    ! store information in a data structure, or
+    ! make a count and simply move the linepointer
+    ! in the file forward.
+    !
+    ! We keep reading until we first
+    ! 1) identify a variable which both a colon ":"
+    !    and an open bracket "{"
+    ! 2) and then continue reading until that bracket closes.
+    ! We update the line number for each read as well.
+    ! If the closing bracket is contained in the same line as the
+    ! next variable (ie a colon is found after the closing bracket)
+    ! then we subtract a line number and call the GoTo function
+    !
+    ! Example:
+    ! ----------------------------------------------------------------
+    !
+    ! "fates_allom_d2bl3": {
+    !  "dims": ["fates_pft"],
+    !  "long_name": "Parameter 3 for d2bl allometry",
+    !  "units": "unitless",
+    !  "data": [0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55,
+    !           0.55, 0.55, 0.3417, 0.3417, 0.9948]
+    !  },
+    !
+    ! ---------------------------------------------------------------- 
+
+    logical :: var_open = .true.
+    logical :: found_var = .false.
+    logical :: found_ob = .false.
+    logical :: found_cb = .false.
+    character(len=max_ll) :: line
+    character(len=max_sl) :: symb_str
+    integer :: sep_id  ! separator (:) character index
+    integer :: ob_id   ! opening bracket character index
+    integer :: cb_id   ! closing bracket character index
+    integer :: cb2_id  ! duplicate closing bracket if two present
+    integer :: pc_id   ! previous comma character index
+    integer :: io_status
+    integer :: iter
+    integer :: line_num0
+    integer :: line_num_ob,line_num_cb
+    integer, parameter :: too_many_var_iter = 20 
+
+    ! First lets just find the open and closed brackets, and
+    ! record the line numbers...
+
+    write(*,*) 'READING NEW VAR'
+
+    found_cb = .false.
+    found_ob = .false.
+    
+    line_num0=line_num
+    iter = 0
+    do_var0: do while((.not.found_cb) .or. (.not.found_ob))
+       
+       read(unit=file_unit, fmt='(A)',iostat=io_status) line
+       write(*,*)'FIRST: ',trim(line)
+       line_num = line_num+1
+       
+       ob_id = scan(line,'{')  ! open bracket index
+       cb_id = scan(line,'}')  ! closed bracket index
+       sep_id = scan(line,':', .TRUE.) ! seperator index (right most)
+
+       write(*,*) line_num,'---',trim(line),ob_id,cb_id,sep_id
+
+       ! If this is really just a closed bracket with no separator
+       ! then there is no more variables to read...
+       if(cb_id>0 .and. sep_id==0 .and.(.not.found_ob) )then
+          read_complete = .true.
+          return
+       end if
+
+       
+       ! The variable (symbol name) will be before the bracket
+       if(sep_id>0.and. .not.found_ob)then
+          ! if the variable is sharing a line with another,
+          ! the last character to prune will be the comma
+          ! following the closing bracket. Should only be one...
+          pc_id = scan(line,',',.TRUE.)
+          symb_str = trim(CleanSymbol(line(pc_id+1:sep_id-1)))
+          var_num = var_num + 1
+          write(*,*)'FOUND:',trim(symb_str),' ',var_num
+       end if
+       if(cb_id>0 .and. .not.found_cb .and. found_ob)then
+          line_num_cb = line_num
+          found_cb = .true.
+          !write(*,*)'found ob at: ',ob_id
+       end if
+       if(ob_id>0 .and. .not.found_ob)then
+          line_num_ob = line_num
+          found_ob = .true.
+          !write(*,*)'found ob at: ',ob_id
+       end if
+       
+       !write(*,*)found_cb,found_ob,(.not.found_cb) .or. (.not.found_ob)
+       iter = iter+1
+       if(iter>too_many_var_iter)then
+          write(*,*)'couldnt resolve variable'
+          stop
+       end if
+    end do do_var0
+    
+    ! Rewind to the line before the opening bracket
+    ! so its the next one
+    line_num = line_num_ob-1
+    call GotoLine(file_unit,line_num)
+
+    write(*,*)'line_num_ob:',line_num_ob,' line_num_cb:',line_num_cb
+    
+    do line_num = line_num_ob,line_num_cb
+       read(unit=file_unit, fmt='(A)',iostat=io_status) line
+       write(*,*) line_num,'---',trim(line)
+    end do
+
+    ! check to see if the next variable's symbol is found in the
+    ! current line "line_num_cb", and reverse a line if so..
+    cb_id = scan(line,'}')  ! closed bracket index
+    sep_id = scan(line,':', .TRUE.) ! seperator index (right most)
+    cb2_id = scan(line,'}',.TRUE.) ! if this has two closed brackets, cb_id DNE cb2_id
+
+    ! In this scenario, two closing brackets were detected. Signal
+    ! that there are no more variables to read
+    if(cb_id.ne.cb2_id)then
+       read_complete = .true.
+    end if
+    
+    if(sep_id>cb_id)then
+       line_num=line_num_cb-1
+       write(*,*)'finished reverting to line_num:',line_num
+       call GotoLine(file_unit,line_num)
+    end if
+    
+
+    return
+  end subroutine ReadVar
+  
 
   subroutine GetStringVec(string_in,string_len,string_vec_out,n_vec_out)
 
@@ -409,7 +569,7 @@ contains
           end if
        end do
 
-       if(debug) write(*,*) 'gotoline: ',trim(dummy_line)
+       if(debug) write(*,*) 'gotoline last read: ',trim(dummy_line)
        
     end if
     
