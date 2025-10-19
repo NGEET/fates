@@ -831,6 +831,10 @@ module FatesInterfaceTypesMod
       real(r8) :: litter_cwd_c_si            ! Total litter plus CWD carbon [Site-Level, gC m-2]
       real(r8) :: seed_c_si                  ! Total seed carbon [Site-Level, gC m-2]
 
+     contains
+
+      procedure, public :: Initialize => InitializeBCOut
+     
    end type bc_out_type
 
 
@@ -968,6 +972,42 @@ module FatesInterfaceTypesMod
 
 
   end subroutine InitializeBCIn
+
+  ! ======================================================================================
+
+  subroutine InitializeBCOut(this, bc_in)
+
+    ! Arguments
+    class(bc_out_type), intent(inout) :: this
+    type(bc_in_type), intent(in)      :: bc_in
+
+    ! Allocate boundary condition arrays
+    allocate(this%litt_flux_cel_c_si(bc_in%nlevdecomp_full))
+    allocate(this%litt_flux_lig_c_si(bc_in%nlevdecomp_full))
+    allocate(this%litt_flux_lab_c_si(bc_in%nlevdecomp_full))
+
+    ! Nan the arrays
+    this%litt_flux_cel_c_si = nan
+    this%litt_flux_lig_c_si = nan 
+    this%litt_flux_lab_c_si = nan 
+
+    if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
+      allocate(this%litt_flux_cel_n_si(bc_in%nlevdecomp_full))
+      allocate(this%litt_flux_lig_n_si(bc_in%nlevdecomp_full))
+      allocate(this%litt_flux_lab_n_si(bc_in%nlevdecomp_full))
+      allocate(this%litt_flux_cel_p_si(bc_in%nlevdecomp_full))
+      allocate(this%litt_flux_lig_p_si(bc_in%nlevdecomp_full))
+      allocate(this%litt_flux_lab_p_si(bc_in%nlevdecomp_full))
+
+      this%litt_flux_cel_n_si = nan 
+      this%litt_flux_lig_n_si = nan 
+      this%litt_flux_lab_n_si = nan 
+      this%litt_flux_cel_p_si = nan 
+      this%litt_flux_lig_p_si = nan 
+      this%litt_flux_lab_p_si = nan
+    end if
+
+  end subroutine InitializeBCOut
 
   ! ======================================================================================
 
