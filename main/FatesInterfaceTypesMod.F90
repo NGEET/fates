@@ -887,7 +887,7 @@ module FatesInterfaceTypesMod
     integer :: num_api_vars_update_init           ! number of variables that update only at initialization
     integer :: num_api_vars_update_daily          ! number of variables that update daily
     integer :: num_api_vars_update_timestep       ! number of variables that update on the model timestep
-    integer :: num_api_vars_litter_carbon         ! number of variables that deal with litter, carbon
+    integer :: num_api_vars_litter_flux           ! number of variables that deal with all litter fluxes
 
     ! Array of update frequency values for each regsitry index
     integer, allocatable :: update_frequency(:)
@@ -898,7 +898,7 @@ module FatesInterfaceTypesMod
     integer, allocatable :: filter_timestep(:)  ! registry index of variables that update at each timestep
     
     ! Filter arrays that hold the registry indices for litter fluxes
-    integer, allocatable :: filter_litter_carbon(:)
+    integer, allocatable :: filter_litter_flux(:)
 
     ! Subgrid index data
     integer, private :: gidx
@@ -1023,7 +1023,7 @@ module FatesInterfaceTypesMod
     this%num_api_vars = 0
     this%num_api_vars_update_init = 0
     this%num_api_vars_update_daily = 0
-    this%num_api_vars_litter_carbon = 0
+    this%num_api_vars_litter_flux = 0
     
     ! First count up the keys defined in the registry and the registry counters
     call this%DefineInterfaceRegistry(initialize=.false.)
@@ -1040,14 +1040,14 @@ module FatesInterfaceTypesMod
     allocate(this%filter_timestep(this%num_api_vars_update_timestep))
     
     ! Allocate the litter flux filter
-    allocate(this%filter_litter_carbon(this%num_api_vars_litter_carbon))
+    allocate(this%filter_litter_flux(this%num_api_vars_litter_flux))
     
     ! Unset the allocatables not including the interface variables
     this%update_frequency(:) = fates_unset_int
     this%filter_init(:) = fates_unset_int
     this%filter_daily(:) = fates_unset_int
     this%filter_timestep(:) = fates_unset_int
-    this%filter_litter_carbon(:) = fates_unset_int
+    this%filter_litter_flux(:) = fates_unset_int
 
     ! Now initialize the registry keys
     call this%DefineInterfaceRegistry(initialize=.true.)
@@ -1190,11 +1190,11 @@ module FatesInterfaceTypesMod
         this%num_api_vars_update_daily = this%num_api_vars_update_daily + 1
       end if
       
-      ! Update the litter flux counters
+      ! Update the litter flux counters not including the total flux counter
       if (key == hlm_fates_litter_carbon_cellulose .or. &
           key == hlm_fates_litter_carbon_labile .or. &
           key == hlm_fates_litter_carbon_lignin) then
-            this%num_api_vars_litter_carbon = this%num_api_vars_litter_carbon + 1
+            this%num_api_vars_litter_flux= this%num_api_vars_litter_flux + 1
       end if
       
     end if
@@ -1294,13 +1294,13 @@ module FatesInterfaceTypesMod
     integer :: count_init
     integer :: count_daily
     integer :: count_timestep
-    integer :: count_litter_carbon
+    integer :: count_litter_flux
 
     ! Initialize counters
     count_init = 0
     count_daily = 0
     count_timestep = 0
-    count_litter_carbon = 0
+    count_litter_flux= 0
     
     ! Iterate over all registered variables and populate the filter maps accordingly
     do index = 1, this%num_api_vars
@@ -1322,10 +1322,16 @@ module FatesInterfaceTypesMod
       
       ! Litter flux update
       if (this%key(index) == hlm_fates_litter_carbon_cellulose .or. &
+          this%key(index) == hlm_fates_litter_nitrogen_cellulose .or. &
+          this%key(index) == hlm_fates_litter_phosphorus_cellulose .or. &
           this%key(index) == hlm_fates_litter_carbon_labile .or. &
-          this%key(index) == hlm_fates_litter_carbon_lignin) then
-            count_litter_carbon = count_litter_carbon + 1
-            this%filter_litter_carbon(count_litter_carbon) = index
+          this%key(index) == hlm_fates_litter_nitrogen_labile .or. &
+          this%key(index) == hlm_fates_litter_phosphorus_labile .or. &
+          this%key(index) == hlm_fates_litter_carbon_lignin .or. &
+          this%key(index) == hlm_fates_litter_nitrogen_lignin .or. &
+          this%key(index) == hlm_fates_litter_phosphorus_lignin) then
+            count_litter_flux = count_litter_flux + 1
+            this%filter_litter_flux(count_litter_flux) = index
       end if
       
       
