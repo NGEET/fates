@@ -172,7 +172,7 @@ module FatesInterfaceVariableTypeMod
             type is (real(r8))
               select type(source => var%data0d)
                 type is (real(r8))
-                  if (dest%accumulate) then
+                  if (this%accumulate) then
                     dest = dest + source * scalar_local
                   else
                     dest = source * scalar_local
@@ -184,7 +184,7 @@ module FatesInterfaceVariableTypeMod
             type is (integer)
               select type(source => var%data0d)
                 type is (integer)
-                  if (dest%accumulate) then
+                  if (this%accumulate) then
                     dest = dest + source 
                   else
                     dest = source 
@@ -204,7 +204,7 @@ module FatesInterfaceVariableTypeMod
             type is (real(r8))
               select type(source => var%data1d)
                 type is (real(r8))
-                  if (dest%accumulate) then
+                  if (this%accumulate) then
                     dest = dest + source * scalar_local
                   else
                     dest = source * scalar_local
@@ -216,7 +216,7 @@ module FatesInterfaceVariableTypeMod
             type is (integer)
               select type(source => var%data1d)
                 type is (integer)
-                  if (dest%accumulate) then
+                  if (this%accumulate) then
                     dest = dest + source
                   else
                     dest = source
@@ -236,7 +236,7 @@ module FatesInterfaceVariableTypeMod
             type is (real(r8))
               select type(source => var%data2d)
                 type is (real(r8))
-                  if (dest%accumulate) then
+                  if (this%accumulate) then
                     dest = dest + source * scalar_local
                   else
                     dest = source * scalar_local
@@ -248,7 +248,7 @@ module FatesInterfaceVariableTypeMod
             type is (integer)
               select type(source => var%data2d)
                 type is (integer)
-                  if (dest%accumulate) then
+                  if (this%accumulate) then
                     dest = dest + source
                   else
                     dest = source
