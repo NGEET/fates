@@ -38,11 +38,28 @@ class FuelTest(FunctionalTestWithDrivers):
         fuel_dat = xr.open_dataset(os.path.join(run_dir, self.out_file))
 
         self.plot_NI_dat(fuel_dat, save_figs, plot_dir)
-        self.plot_moisture_dat(fuel_dat, save_figs, plot_dir)
+        self.plot_moisture_dead_dat(fuel_dat, save_figs, plot_dir)
+        self.plot_moisture_live_dat(fuel_dat, save_figs, plot_dir)
         self.plot_barchart(
             fuel_dat,
             "fuel_loading",
             "Fuel loading",
+            "kgC m$^{-2}$",
+            save_figs,
+            plot_dir,
+        )
+        self.plot_barchart(
+            fuel_dat,
+            "weighted_loading_dead",
+            "Weighted dead fuel loading",
+            "kgC m$^{-2}$",
+            save_figs,
+            plot_dir,
+        )
+        self.plot_barchart(
+            fuel_dat,
+            "weighted_loading_live",
+            "Weighted live fuel loading",
             "kgC m$^{-2}$",
             save_figs,
             plot_dir,
@@ -169,7 +186,7 @@ class FuelTest(FunctionalTestWithDrivers):
             plt.savefig(fig_name)
 
     @staticmethod
-    def plot_moisture_dat(fuel_dat: xr.Dataset, save_figs: bool, plot_dir: str):
+    def plot_moisture_live_dat(fuel_dat: xr.Dataset, save_figs: bool, plot_dir: str):
         """Plot output for fuel moisture
 
         Args:
@@ -179,10 +196,12 @@ class FuelTest(FunctionalTestWithDrivers):
         """
 
         plt.figure()
-        fuel_dat.fuel_moisture.plot(hue="fuel_model")
+        fuel_dat.fuel_moisture_live.plot(hue="fuel_model")
         plt.xlabel("Time", fontsize=11)
-        plt.ylabel("Fuel Moisture", fontsize=11)
+        plt.ylabel("Live fuel Moisture", fontsize=11)
 
         if save_figs:
-            fig_name = os.path.join(plot_dir, "fuel_moisture_plot.png")
+            fig_name = os.path.join(plot_dir, "fuel_moisture_live_plot.png")
             plt.savefig(fig_name)
+
+            
