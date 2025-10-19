@@ -2792,6 +2792,11 @@ subroutine InitializeFatesSites(this, patches_per_site)
    
    ! Allocate the sites
    allocate(this%sites(this%nsites))
+
+   ! Allocate the registry index array for the the sites
+   do s = 1, this%nsites
+      call this%sites(s)%AllocateRegistryIndexArray(patches_per_site)
+   end do
    
    ! Iterate through the registries again and store the registry indices for each site
    do r = 1, this%npatches
@@ -2799,9 +2804,6 @@ subroutine InitializeFatesSites(this, patches_per_site)
       ! Get the site index for the current registry
       s = this%registry(r)%GetSiteIndex()
       ifp = this%registry(r)%GetFatesPatchIndex()
-      
-      ! Allocate the registry index array for the current site if it hasn't already been allocated
-      if (.not.(allocated(this%sites(s)%ridx))) call this%sites(s)%AllocateRegistryIndexArray(patches_per_site)
 
       ! Store the registry index for the current site and fates patch index
       call this%sites(s)%SetRegistryIndex(ifp, r)
