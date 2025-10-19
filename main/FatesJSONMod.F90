@@ -11,21 +11,26 @@ module FatesJSONMod
   implicit none
   
   public
-  
-  integer, parameter :: i_scalar_type = 0
-  integer, parameter :: i_1d_type = 1
-  integer, parameter :: i_2d_type = 2
-  integer, parameter :: r_scalar_type = 3
-  integer, parameter :: r_1d_type = 4
-  integer, parameter :: r_2d_type = 5
-  integer, parameter :: c_scalar_type = 6
-  integer, parameter :: c_1d_type = 7
 
-  logical, parameter :: debug = .true.
+  ! Data types
+  integer, parameter :: i_scalar_type = 0
+  integer, parameter :: i_1d_type     = 1
+  integer, parameter :: i_2d_type     = 2
+  integer, parameter :: r_scalar_type = 3
+  integer, parameter :: r_1d_type     = 4
+  integer, parameter :: r_2d_type     = 5
+  integer, parameter :: c_scalar_type = 6
+  integer, parameter :: c_1d_type     = 7
+
+  logical, parameter :: debug = .false.
 
   integer, parameter :: max_ll = 256    ! Maximum allowable line-length
   integer, parameter :: max_sl = 128    ! Maximum allowable symbol-length
-  integer,parameter :: too_many_iter = 1000
+  integer, parameter :: max_ul = 64     ! Maximum characters for units
+  integer,parameter  :: too_many_iter = 1000
+
+  integer, parameter :: count_phase = 1 ! We read variables twice so that we can allocate
+  integer, parameter :: fill_phase = 2  
   
   type dim_type
      character(len=60) :: name
@@ -35,14 +40,12 @@ module FatesJSONMod
   type param_type
 
      ! Metadata/Key-words
-     character(len=60) :: name        ! The variable symbol (the dictionary key)
-     character(len=60) :: units
-     character(len=120) :: long_name
-     
+     character(len=max_sl) :: name        ! The variable symbol (the dictionary key)
+     character(len=max_ul) :: units
+     character(len=max_ll) :: long_name
      integer :: data_type
-
-     integer, allocatable :: dim_ids(:)  ! These are the indices of the dimensions
-                                         ! associated with this variable
+     character(len=max_sl), allocatable :: dim_names(:)  ! These are the indices of the dimensions
+                                                         ! associated with this variable
 
     ! Data Storage (using separate arrays for heterogeneous types)
     real(r8) :: r_scalar
@@ -55,14 +58,9 @@ module FatesJSONMod
     
  end type param_type
 
- type param_group_type
-    character(len=64) :: name   ! Group name
-    character(len=64), allocatable :: member_names(:)
-    type(param_type), allocatable :: members(:)
- end type param_group_type
  
+ type(param_type), pointer :: fates_params(:)
  type(dim_type),pointer :: param_dimensions(:)
- type(param_group_type), pointer :: group_list(:)
 
 contains
  
@@ -102,7 +100,7 @@ contains
     integer :: iter   ! Used for checking against infinite loops
     integer :: ii
     integer :: n_vec_out
-    character(len=max_ll), dimension(200) :: string_scr ! scratch space for storing data before its converted
+    character(len=max_ll), dimension(500) :: string_scr ! scratch space for storing data before its converted
     character(len=30) :: word_vector(1)
     
     finished_dims = .false.
@@ -221,7 +219,7 @@ contains
                 data_str = line(sep_id+1:max_ll)
                 data_str_len = max_ll-sep_id
 
-                call GetStringVec(data_str,data_str_len,string_scr,n_vec_out)
+                call GetStringVec(data_str,string_scr,n_vec_out)
 
                 read (unit=string_scr(1), fmt=*, iostat=io_status) tmp_int
                 
@@ -248,19 +246,19 @@ contains
              end if
           end do scan_dimensions2
 
-          if(debug) then
+          !if(debug) then
              write(*,*)''
              write(*,*)'--- Reporting dimensions ---'
              do ii=1,n_dim
                 write(*,*) param_dimensions(ii)%name,param_dimensions(ii)%size
              end do
              write(*,*)''
-          end if
+          !end if
           
           finished_dims = .true.
        end if if_dims
 
-       write(*,*) 'FINISHED DIMS: ',line_num
+       !stop
        
        if (.not.finished_vars .and.index(line, '"variables":') > 0) then
           
@@ -272,12 +270,26 @@ contains
           iter  = 0
           read_complete = .false.
           scan_vars1: do while(.not.read_complete)
-
              ! This will read everything within the next level of {brackets}
-             call ReadVar(file_unit,line_num,n_var,read_complete)
-             
+             call ReadVar(file_unit,count_phase,line_num,n_var,read_complete,string_scr)
           end do scan_vars1
+          
+          allocate(fates_params(n_var))
+          n_var =0
 
+          ! rewind so that "variables":{ was the last read
+          line_num = var_line0
+          call GotoLine(file_unit,line_num)  
+          read_complete = .false.
+          scan_vars2: do while(.not.read_complete)
+             ! This will read everything within the next level of {brackets}
+             call ReadVar(file_unit,fill_phase,line_num,n_var,read_complete,string_scr,fates_params(n_var+1))
+          end do scan_vars2
+          
+          
+          
+
+          
           write(*,*) 'Found ',n_var,' variables in the file'
           finished_vars = .true.
           finished_scan = .true.
@@ -298,12 +310,15 @@ contains
   end subroutine ScanJSonGroups
   
 
-  subroutine ReadVar(file_unit,line_num,var_num,read_complete)
+  subroutine ReadVar(file_unit,read_phase,line_num,var_num,read_complete,string_scr,fates_param)
 
     integer, intent(in) :: file_unit
+    integer, intent(in) :: read_phase  !1=counting, 2=filling
     integer, intent(inout) :: line_num
     integer, intent(inout) :: var_num
     logical, intent(inout) :: read_complete
+    character(len=max_ll), dimension(*) :: string_scr ! Internal scratch space
+    type(param_type),intent(inout),optional :: fates_param
 
     ! Read file information for one variable. Either
     ! store information in a data structure, or
@@ -337,6 +352,7 @@ contains
     logical :: found_ob = .false.
     logical :: found_cb = .false.
     character(len=max_ll) :: line
+    character(len=max_ll) :: data_str
     character(len=max_sl) :: symb_str
     integer :: sep_id  ! separator (:) character index
     integer :: ob_id   ! opening bracket character index
@@ -347,12 +363,15 @@ contains
     integer :: iter
     integer :: line_num0
     integer :: line_num_ob,line_num_cb
+    integer :: i
+    integer :: n_vec_out
     integer, parameter :: too_many_var_iter = 20 
-
+    
+    
     ! First lets just find the open and closed brackets, and
     ! record the line numbers...
 
-    write(*,*) 'READING NEW VAR'
+    if(debug) write(*,*) 'Starting variable read, phase:',read_phase
 
     found_cb = .false.
     found_ob = .false.
@@ -362,14 +381,11 @@ contains
     do_var0: do while((.not.found_cb) .or. (.not.found_ob))
        
        read(unit=file_unit, fmt='(A)',iostat=io_status) line
-       write(*,*)'FIRST: ',trim(line)
        line_num = line_num+1
        
        ob_id = scan(line,'{')  ! open bracket index
        cb_id = scan(line,'}')  ! closed bracket index
        sep_id = scan(line,':', .TRUE.) ! seperator index (right most)
-
-       write(*,*) line_num,'---',trim(line),ob_id,cb_id,sep_id
 
        ! If this is really just a closed bracket with no separator
        ! then there is no more variables to read...
@@ -378,7 +394,6 @@ contains
           return
        end if
 
-       
        ! The variable (symbol name) will be before the bracket
        if(sep_id>0.and. .not.found_ob)then
           ! if the variable is sharing a line with another,
@@ -387,20 +402,16 @@ contains
           pc_id = scan(line,',',.TRUE.)
           symb_str = trim(CleanSymbol(line(pc_id+1:sep_id-1)))
           var_num = var_num + 1
-          write(*,*)'FOUND:',trim(symb_str),' ',var_num
        end if
        if(cb_id>0 .and. .not.found_cb .and. found_ob)then
           line_num_cb = line_num
           found_cb = .true.
-          !write(*,*)'found ob at: ',ob_id
        end if
        if(ob_id>0 .and. .not.found_ob)then
           line_num_ob = line_num
           found_ob = .true.
-          !write(*,*)'found ob at: ',ob_id
        end if
        
-       !write(*,*)found_cb,found_ob,(.not.found_cb) .or. (.not.found_ob)
        iter = iter+1
        if(iter>too_many_var_iter)then
           write(*,*)'couldnt resolve variable'
@@ -413,11 +424,64 @@ contains
     line_num = line_num_ob-1
     call GotoLine(file_unit,line_num)
 
-    write(*,*)'line_num_ob:',line_num_ob,' line_num_cb:',line_num_cb
-    
     do line_num = line_num_ob,line_num_cb
        read(unit=file_unit, fmt='(A)',iostat=io_status) line
-       write(*,*) line_num,'---',trim(line)
+
+       if(read_phase==fill_phase)then
+          ! Metadata/Key-words
+          !character(len=max_sl) :: name        ! The variable symbol (the dictionary key)
+          !character(len=max_ul) :: units
+          !character(len=max_ll) :: long_name
+          !integer :: data_type
+          !character(len=max_sl), allocatable :: dim_names(:)  ! These are the indices of the dimensions
+          ! associated with this variable
+          
+          ! Data Storage (using separate arrays for heterogeneous types)
+          !real(r8) :: r_scalar
+          !integer  :: i_scalar
+          !real(r8), allocatable :: r_data_1d(:)
+          !real(r8), allocatable :: r_data_2d(:,:)
+          !integer,  allocatable :: i_data_1d(:)
+          !integer,  allocatable :: i_data_2d(:)
+          !character(len=128), allocatable :: c_data_1d(:)
+
+          ! Keywords: "dims": ["fates_history_size_bins"]
+          !           "long_name": "Lower edges for DBH size class bins used in size-resolved cohort history output"
+          !           "units": "cm",
+          !           "data": [ ]
+
+          if( index(line,'"dims"')>0 ) then
+             sep_id = scan(line,':')
+             if(sep_id>0)then
+                data_str = line(sep_id+1:max_ll)
+                call GetStringVec(data_str,string_scr,n_vec_out)
+             else
+                write(*,*) 'dims should have a separator :'
+                stop
+             end if
+             allocate(fates_param%dim_names(n_vec_out))
+             write(*,*) "dims for: ",trim(symb_str)
+             do i = 1,n_vec_out
+                fates_param%dim_names(i) = trim(CleanSymbol(string_scr(i)))
+                write(*,*) trim(fates_param%dim_names(i))
+             end do
+             write(*,*) "------"
+             call ClearStringScratch(string_scr)
+             stop
+          end if
+          if( index(line,'"long_name"')>0 ) then
+             
+          end if
+          if( index(line,'"units"')>0 ) then
+             
+          end if
+          if( index(line,'"data"')>0 ) then
+             
+          end if
+          
+          
+          
+       end if
     end do
 
     ! check to see if the next variable's symbol is found in the
@@ -434,7 +498,6 @@ contains
     
     if(sep_id>cb_id)then
        line_num=line_num_cb-1
-       write(*,*)'finished reverting to line_num:',line_num
        call GotoLine(file_unit,line_num)
     end if
     
@@ -443,20 +506,21 @@ contains
   end subroutine ReadVar
   
 
-  subroutine GetStringVec(string_in,string_len,string_vec_out,n_vec_out)
+  subroutine GetStringVec(string_in,string_vec_out,n_vec_out)
 
     ! This routine parses a string, does some cleaning of extra charachters
     ! and generally uses commas as separators to fill in a vector of
-    ! cleaned strings
+    ! cleaned strings. It is assumed that the sting passed in contains
+    ! the data, not the symbol.
     !
     ! Essentially this is everything in a JSON file after a ":"
     ! If its a vector, it probably looks like this:  [0, 1, 2, 5, 10, 20, 50],
     ! If its a scalar, it probably looks like this:  5,
+    ! It should also parse vectors of length 1 just fine...
     ! First step is to look for a "["
     
-    character(len=max_ll),intent(in)                  :: string_in
-    integer                                           :: string_len
-    character(len=max_ll), dimension(:),intent(inout) :: string_vec_out 
+    character(len=*),intent(in)                  :: string_in
+    character(len=max_ll), dimension(*),intent(inout) :: string_vec_out 
     integer,intent(out)                               :: n_vec_out
 
     !character(len=2)                                :: unwanted_chars  = (/!#/)
@@ -465,7 +529,7 @@ contains
 
     ! Determine if this is a vector or not
     ! (ie iv=0 is scalar, iv>0 is vector)
-    iv = index(string_in(1:string_len),'[')
+    iv = index(trim(string_in),'[')
 
     k = 0 ! Counter for the cleaned string position
     l = 1 ! Counter for the output vector
@@ -541,7 +605,14 @@ contains
     
   end function CleanSymbol
 
-  
+  subroutine ClearStringScratch(string_scr)
+    character(len=max_ll), dimension(*),intent(inout) :: string_scr
+    integer :: i
+    do i = 1,len(string_scr)
+       string_scr(i) = ''
+    end do
+    return
+  end subroutine ClearStringScratch
   
   subroutine GotoLine(file_unit,line_number)
 
