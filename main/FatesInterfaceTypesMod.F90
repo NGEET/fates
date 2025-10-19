@@ -1118,6 +1118,7 @@ module FatesInterfaceTypesMod
                                         update_frequency=registry_update_timestep)
       call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_total, initialize=initialize, index=index, &
                                       update_frequency=registry_update_timestep)
+    end if
 
   end subroutine DefineInterfaceRegistry
 
