@@ -635,8 +635,8 @@ contains
     real(r8), pointer              :: flux_lig_si(:)
     real(r8), pointer              :: flux_all_si
     type(litter_type), pointer     :: litt
-     
-    real(r8) :: surface_prof(bc_in%nlevsoil) ! this array is used to distribute
+
+    real(r8), allocatable :: surface_prof(:)   ! this array is used to distribute
                                                ! fragmented litter on the surface
                                                ! into the soil/decomposition
                                                ! layers. It exponentially decays
@@ -695,6 +695,7 @@ contains
       ! wider layers get proportionally more.  After the masses
       ! are sent, each layer will normalize by depth.
     
+      allocate(surface_prof(bc_in%nlevsoil))
       surface_prof(:) = 0._r8
       z_decomp = 0._r8
       do id = 1,nlev_eff_decomp
@@ -838,6 +839,8 @@ contains
 
       end do flux_elem_loop
       
+      ! Deallocate temporary array
+      deallocate(surface_prof)
       ! Move to the next patch
       currentPatch => currentPatch%younger
     end do flux_patch_loop 
