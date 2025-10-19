@@ -1495,7 +1495,7 @@ module FatesInterfaceTypesMod
     integer :: j
     
     ! Iterate over the litter flux filter to update the individual litter types
-    do i = 1, num_litter_fluxes
+    do i = 1, this%num_api_vars_litter_flux 
       j = this%filter_litter_flux(i)
       
       ! Update the hlm variables with the fates variables
