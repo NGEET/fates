@@ -172,6 +172,7 @@ module FatesInterfaceMod
          procedure, public :: InitializeFatesSites
          procedure, public :: InitializeBoundaryConditions
          procedure, public :: UpdateInterfaceVariables
+         procedure, public :: UpdateLitterFluxes
       
    end type fates_interface_type
    
