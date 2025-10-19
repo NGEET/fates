@@ -2877,16 +2877,33 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
                                      data=bc_in%t_scalar_sisl, hlm_flag=.false.)
       
       ! bc_out
-      call this%registry(r)%Register(key=hlm_fates_litter_carbon_cellulose, 
+      call this%registry(r)%Register(key=hlm_fates_litter_carbon_cellulose, &
                                      data=bc_out%litt_flux_cel_c_si, hlm_flag=.false.)
-      call this%registry(r)%Register(key=hlm_fates_litter_carbon_lignin, 
+      call this%registry(r)%Register(key=hlm_fates_litter_carbon_lignin, &
                                      data=bc_out%litt_flux_lig_c_si, hlm_flag=.false.)
-      call this%registry(r)%Register(key=hlm_fates_litter_carbon_labile, 
+      call this%registry(r)%Register(key=hlm_fates_litter_carbon_labile, &
                                      data=bc_out   %litt_flux_lab_c_si, hlm_flag=.false.)
-      call this%registry(r)%Register(key=hlm_fates_litter_carbon_total, 
+      call this%registry(r)%Register(key=hlm_fates_litter_carbon_total, &
                                      data=bc_out%litt_flux_all_c, hlm_flag=.false.)
 
       if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
+         call this%registry(r)%Register(key=hlm_fates_litter_phosphorus_cellulose, &
+                                        data=bc_out%litt_flux_cel_p_si, hlm_flag=.false.)
+         call this%registry(r)%Register(key=hlm_fates_litter_phosphorus_lignin, &
+                                        data=bc_out%litt_flux_lig_p_si, hlm_flag=.false.)
+         call this%registry(r)%Register(key=hlm_fates_litter_phosphorus_labile, &   
+                                        data=bc_out   %litt_flux_lab_p_si, hlm_flag=.false.)
+         call this%registry(r)%Register(key=hlm_fates_litter_phosphorus_total, &
+                                        data=bc_out%litt_flux_all_p, hlm_flag=.false.)
+
+         call this%registry(r)%Register(key=hlm_fates_litter_nitrogen_cellulose, &
+                                        data=bc_out%litt_flux_cel_n_si, hlm_flag=.false.)
+         call this%registry(r)%Register(key=hlm_fates_litter_nitrogen_lignin, &
+                                        data=bc_out%litt_flux_lig_n_si, hlm_flag=.false.)
+         call this%registry(r)%Register(key=hlm_fates_litter_nitrogen_labile, &
+                                        data=bc_out   %litt_flux_lab_n_si, hlm_flag=.false.)
+         call this%registry(r)%Register(key=hlm_fates_litter_nitrogen_total, &
+                                        data=bc_out%litt_flux_all_n, hlm_flag=.false.)
          end if
       end do
    end do
