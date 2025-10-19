@@ -623,13 +623,11 @@ contains
     implicit none   
 
     ! !ARGUMENTS    
-    type(ed_site_type) , intent(inout)         :: csite
+    type(ed_site_type), target, intent(inout) :: csite
 
     ! !LOCAL VARIABLES:
     type (fates_patch_type),  pointer :: currentPatch
     type (fates_cohort_type), pointer :: ccohort
-    type(bc_out_type), pointer        :: bc_out
-    type(bc_in_type), pointer         :: bc_in
     real(r8), pointer              :: flux_cel_si(:)
     real(r8), pointer              :: flux_lab_si(:)
     real(r8), pointer              :: flux_lig_si(:)
@@ -674,10 +672,11 @@ contains
     ! Loop over patches
     currentPatch => csite%oldest_patch
     flux_patch_loop: do while (associated(currentPatch))
-    
-      bc_out => csite%bc_out(currentPatch%patchno)
-      bc_in => csite%bc_in(currentPatch%patchno)
 
+      associate( &
+        bc_out => csite%bc_out(currentPatch%patchno), &
+        bc_in => csite%bc_in(currentPatch%patchno) &
+      )
       ! This is the number of effective soil layers to transfer from
       nlev_eff_soil   = max(bc_in%max_rooting_depth_index_col, 1)
     
@@ -763,7 +762,7 @@ contains
 
              do j = 1, nlev_eff_soil
 
-                id = csite%bc_in(ifp)%decomp_id(j)  ! Map from soil layer to decomp layer
+                id = bc_in%decomp_id(j)  ! Map from soil layer to decomp layer
 
                 flux_cel_si(id) = flux_cel_si(id) + &
                      litt%bg_cwd_frag(ic,j) * ED_val_cwd_fcel
@@ -811,7 +810,7 @@ contains
           end do
 
           do j = 1, nlev_eff_soil
-             id = csite%bc_in(ifp)%decomp_id(j)
+             id = bc_in%decomp_id(j)
              flux_lab_si(id) = flux_lab_si(id) + &
                   litt%root_fines_frag(ilabile,j)
              flux_cel_si(id) = flux_cel_si(id) + &
@@ -929,6 +928,7 @@ contains
 
       end if
 
+      end associate
 
       currentPatch => currentPatch%younger
     end do flux_patch_loop 
