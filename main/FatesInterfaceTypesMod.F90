@@ -1023,6 +1023,7 @@ module FatesInterfaceTypesMod
     this%num_api_vars = 0
     this%num_api_vars_update_init = 0
     this%num_api_vars_update_daily = 0
+    this%num_api_vars_update_timestep = 0
     this%num_api_vars_litter_flux = 0
     
     ! First count up the keys defined in the registry and the registry counters
@@ -1180,7 +1181,7 @@ module FatesInterfaceTypesMod
         case (registry_update_daily)
           this%num_api_vars_update_daily = this%num_api_vars_update_daily + 1
         case (registry_update_timestep)
-          this%num_api_vars_update_init = this%num_api_vars_update_timestep + 1
+          this%num_api_vars_update_timestep = this%num_api_vars_update_timestep + 1
         case default
           write(fates_log(),*) 'ERROR: Unrecognized update frequency in DefineInterfaceVariable(): ', update_frequency
           call endrun(msg=errMsg(__FILE__, __LINE__))
@@ -1339,12 +1340,13 @@ module FatesInterfaceTypesMod
     
     ! Check that the counts match the expected sizes
     if (count_init /= this%num_api_vars_update_init .or. &
-        count_daily /= this%num_api_vars_update_daily .or. 
+        count_daily /= this%num_api_vars_update_daily .or. &
         count_timestep /= this%num_api_vars_update_timestep) then
           
       write(fates_log(),*) 'ERROR: Mismatch in initialization counts in SetFilterMapArrays(): '
       write(fates_log(),*) '  count_init = ', count_init, ' expected = ', this%num_api_vars_update_init
       write(fates_log(),*) '  count_daily = ', count_daily, ' expected = ', this%num_api_vars_update_daily  
+      write(fates_log(),*) '  count_timestep = ', count_timestep, ' expected = ', this%num_api_vars_update_timestep
       call endrun(msg=errMsg(__FILE__, __LINE__))
 
     end if
