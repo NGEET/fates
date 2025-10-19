@@ -27,8 +27,8 @@ module FatesInterfaceParametersMod
   character(len=*), parameter, public :: hlm_fates_litter_nitrogen_total= 'litter_nitrogen_total'
 
   ! Registry update frequency parameters
-  integer, parameter :: registry_update_init = 1       ! variable only needs to be updated during initialization
-  integer, parameter :: registry_update_daily = 2      ! variable needs to be updated daily
-  integer, parameter :: registry_update_timestep = 3   ! variable needs to be updated at each timestep
+  integer, parameter, public :: registry_update_init = 1       ! variable only needs to be updated during initialization
+  integer, parameter, public :: registry_update_daily = 2      ! variable needs to be updated daily
+  integer, parameter, public :: registry_update_timestep = 3   ! variable needs to be updated at each timestep
   
 end module FatesInterfaceParametersMod
