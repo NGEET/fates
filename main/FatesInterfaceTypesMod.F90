@@ -925,8 +925,8 @@ module FatesInterfaceTypesMod
       procedure, private :: DefineInterfaceRegistry
       procedure, private :: DefineInterfaceVariable
       procedure, private :: SetFilterMapArrays
-      procedure, private :: GetRegistryIndex
-      procedure, private :: GetRegistryKey
+      procedure, private :: GetRegistryVariableIndex
+      procedure, private :: GetRegistryVariableKey
 
    end type fates_interface_registry_type
 
@@ -1310,9 +1310,9 @@ module FatesInterfaceTypesMod
     
     ! Get index from registry key and associate the given data pointer
     if (hlm_flag) then
-      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data, active=.true., accumulate=accumulate_local)
+      call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data, active=.true., accumulate=accumulate_local)
     else
-      call this%fates_vars(this%GetRegistryIndex(key))%Register(data, active=.true., accumulate=accumulate_local)
+      call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data, active=.true., accumulate=accumulate_local)
     end if
 
 
@@ -1343,9 +1343,9 @@ module FatesInterfaceTypesMod
     
     ! Get index from registry key and associate the given data pointer
     if (hlm_flag) then
-      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data(:), active=.true., accumulate=accumulate_local)
+      call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data(:), active=.true., accumulate=accumulate_local)
     else
-      call this%fates_vars(this%GetRegistryIndex(key))%Register(data(:), active=.true., accumulate=accumulate_local)
+      call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data(:), active=.true., accumulate=accumulate_local)
     end if
 
   end subroutine RegisterInterfaceVariables_1d
@@ -1375,9 +1375,9 @@ module FatesInterfaceTypesMod
     
     ! Get index from registry key and associate the given data pointer
     if (hlm_flag) then
-      call this%hlm_vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true., accumulate=accumulate_local)
+      call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data(:,:), active=.true., accumulate=accumulate_local)
     else
-      call this%fates_vars(this%GetRegistryIndex(key))%Register(data(:,:), active=.true., accumulate=accumulate_local)
+      call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data(:,:), active=.true., accumulate=accumulate_local)
     end if
 
   end subroutine RegisterInterfaceVariables_2d
@@ -1443,14 +1443,14 @@ module FatesInterfaceTypesMod
     end do
     
     ! Update the HLM variable with the total litterfall
-    j = this%GetRegistryIndex(hlm_fates_litter_carbon_total)
+    j = this%GetRegistryVariableIndex(hlm_fates_litter_carbon_total)
     call this%hlm_vars(j)%Update(this%fates_vars(j))
 
     if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
-      j = this%GetRegistryIndex(hlm_fates_litter_phosphorus_total)
+      j = this%GetRegistryVariableIndex(hlm_fates_litter_phosphorus_total)
       call this%hlm_vars(j)%Update(this%fates_vars(j))
 
-      j = this%GetRegistryIndex(hlm_fates_nitrogen_total)
+      j = this%GetRegistryVariableIndex(hlm_fates_litter_nitrogen_total)
       call this%hlm_vars(j)%Update(this%fates_vars(j))
     end if
 
@@ -1459,7 +1459,7 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
 
-  integer function GetRegistryIndex(this, key) result(index)
+  integer function GetRegistryVariableIndex(this, key) result(index)
 
     ! This procedure returns the index associated with the key provided
 
@@ -1477,11 +1477,11 @@ module FatesInterfaceTypesMod
       end if
     end do
 
-  end function GetRegistryIndex
+  end function GetRegistryVariableIndex
 
   ! ======================================================================================
 
-  function GetRegistryKey(this, index) result(key)
+  function GetRegistryVariableKey(this, index) result(key)
 
     ! This procedure returns the index associated with the key provided
 
@@ -1492,7 +1492,7 @@ module FatesInterfaceTypesMod
 
     key = this%key(index)
 
-  end function GetRegistryKey
+  end function GetRegistryVariableKey
 
   ! ======================================================================================
   
