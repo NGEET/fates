@@ -2818,10 +2818,7 @@ end subroutine InitializeFatesSites
 
 subroutine InitializeBoundaryConditions(this, patches_per_site)
    
-   use FatesInterfaceTypesMod, only : hlm_fates_decomp_max
-   use FatesInterfaceTypesMod, only : hlm_fates_soil_level
-   use FatesInterfaceTypesMod, only : hlm_fates_decomp_frac_moisture
-   use FatesInterfaceTypesMod, only : hlm_fates_decomp_frac_temperature
+   use FatesInterfaceParametersMod
 
    ! Arguments
    class(fates_interface_type), intent(inout) :: this                ! fates interface type
