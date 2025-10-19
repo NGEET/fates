@@ -8,7 +8,7 @@ module FatesInterfaceTypesMod
   use FatesGlobals        , only : endrun => fates_endrun
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
-
+  use PRTGenericMod       , only : prt_cnp_flex_allom_hyp
   use FatesInterfaceVariableTypeMod, only : fates_interface_variable_type
   use FatesInterfaceParametersMod
   
