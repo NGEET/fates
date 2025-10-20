@@ -1313,7 +1313,7 @@ contains
 
                                      ! If we are clearing for crops then kill everything 
                                      if (i_landusechange_receiverpatchlabel == cropland .or. &
-                                          i_landusechange_receiverpathclabel == pasureland) then
+                                          i_landusechange_receiverpatchlabel == pastureland) then
                                         nc%n = 0._r8
                                      else
                                         ! Otherwise kill some proportion of the PFT based on the PFT-level clearing mortality parameter
