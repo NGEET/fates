@@ -1087,7 +1087,7 @@ module FatesInterfaceTypesMod
                                       update_frequency=registry_update_init)
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_thickness, initialize=initialize, index=index, &
                                       update_frequency=registry_update_init)
-    call this%DefineInterfaceVariable(key=hlm_fates_decomp_id, initialize=initialize, index=index, &
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp, initialize=initialize, index=index, &
                                       update_frequency=registry_update_init)
     
     ! Variables that need to be updated daily
