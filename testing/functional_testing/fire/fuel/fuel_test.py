@@ -55,6 +55,7 @@ class FuelTest(FunctionalTestWithDrivers):
             "kgC m$^{-2}$",
             save_figs,
             plot_dir,
+            by_litter_type = False,
         )
         self.plot_barchart(
             fuel_dat,
@@ -63,6 +64,7 @@ class FuelTest(FunctionalTestWithDrivers):
             "kgC m$^{-2}$",
             save_figs,
             plot_dir,
+            by_litter_type=False,
         )
         self.plot_barchart(
             fuel_dat,
