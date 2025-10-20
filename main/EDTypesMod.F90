@@ -645,6 +645,7 @@ contains
     end subroutine AllocateRegistryIndexArray
 
   ! ============================================================================
+
    integer function GetRegistryIndex(this, ifp) result(ridx)
 
       ! Arguments
