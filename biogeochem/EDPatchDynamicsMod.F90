@@ -774,7 +774,8 @@ contains
                                     newPatch, patch_site_areadis,bc_in)
                             case (dtype_ilandusechange)
                                ! If we are clearing to make crops, then kill everything
-                               if (i_landusechange_receiverpatchlabel .eq. cropland) then
+                               if (i_landusechange_receiverpatchlabel .eq. cropland .or. &
+                                    i_landusechange_receiverpatchlabel .eq. pastureland) then
                                   clear_all = itrue
                                else ! otherwise kill a fraction of the cohort determined by the clearing mortality param
                                   clear_all = ifalse
@@ -1311,7 +1312,8 @@ contains
                                   if ( clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel) ) then
 
                                      ! If we are clearing for crops then kill everything 
-                                     if (i_landusechange_receiverpatchlabel == cropland ) then
+                                     if (i_landusechange_receiverpatchlabel == cropland .or. &
+                                          i_landusechange_receiverpathclabel == pasureland) then
                                         nc%n = 0._r8
                                      else
                                         ! Otherwise kill some proportion of the PFT based on the PFT-level clearing mortality parameter
