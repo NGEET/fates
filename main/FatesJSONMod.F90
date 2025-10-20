@@ -1,4 +1,18 @@
 module FatesJSONMod
+
+
+  ! TO-DO!!!!
+  ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Add methods that will check to ignore/swap out brackets }{
+  ! that are inside quotes with [].
+  ! These brackets are crucial for parsing the file
+  ! and if they are in quotes, the code will get confused.
+  ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+
+
   
   ! This module holds the data types and the routines used
   ! for scanning a JSON parameter file, and storing the contents
@@ -6,7 +20,7 @@ module FatesJSONMod
   !use FatesConstantsMod,only :: max_pft
   !use FatesConstantsMod,only :: max_plant_organs
   use FatesConstantsMod,only : r8 => fates_r8
-  use, intrinsic :: ISO_FORTRAN_ENV, ONLY : IOSTAT_END
+  use, intrinsic :: ISO_FORTRAN_ENV, ONLY : IOSTAT_END,IOSTAT_EOR
 
   implicit none
   
@@ -46,16 +60,11 @@ module FatesJSONMod
      integer :: data_type
      character(len=max_sl), allocatable :: dim_names(:)  ! These are the indices of the dimensions
                                                          ! associated with this variable
-
-    ! Data Storage (using separate arrays for heterogeneous types)
-    real(r8) :: r_scalar
-    integer  :: i_scalar
-    real(r8), allocatable :: r_data_1d(:)
-    real(r8), allocatable :: r_data_2d(:,:)
-    integer,  allocatable :: i_data_1d(:)
-    integer,  allocatable :: i_data_2d(:)
-    character(len=128), allocatable :: c_data_1d(:)
-    
+     integer :: ndims   ! Number of dimensions, same as size (dim_names)
+     ! Data Storage (using separate arrays for heterogeneous types)
+     real(r8), allocatable :: r_data_1d(:)
+     real(r8), allocatable :: r_data_2d(:,:)
+     character(len=128), allocatable :: c_data_1d(:)
  end type param_type
 
  
@@ -93,8 +102,11 @@ contains
     logical :: finished_dims
     logical :: finished_vars
     logical :: read_complete
+    logical :: is_num
     integer :: sep_id
     integer :: tmp_int
+    real(r8) :: tmp_real
+    character(len=max_sl) :: tmp_str
     integer :: n_dim
     integer :: n_var
     integer :: iter   ! Used for checking against infinite loops
@@ -123,6 +135,9 @@ contains
        write(*,*) 'successfully opened ',trim(filename)
     end if
 
+    call GetDimensions(file_unit) !,param_dimensions)
+
+    call GetVariables(file_unit,string_scr)
     
     line_num = 0
     do_scan: do while(.not.finished_scan)
@@ -136,6 +151,9 @@ contains
        line_num = line_num + 1
        
 
+       
+
+         
        ! ------------------------------------------------------------------------------
        ! Dimensions
        ! ------------------------------------------------------------------------------
@@ -219,17 +237,20 @@ contains
                 data_str = line(sep_id+1:max_ll)
                 data_str_len = max_ll-sep_id
 
-                call GetStringVec(data_str,string_scr,n_vec_out)
+                call StringToStringOrReal(data_str,is_num,tmp_str,tmp_real)
 
-                read (unit=string_scr(1), fmt=*, iostat=io_status) tmp_int
                 
-                if(n_vec_out>1)then
-                   write(*,*) 'dimension data should be scalar...'
-                   stop
-                end if
+                !call GetStringVec(data_str,string_scr,n_vec_out)
+
+                !read (unit=string_scr(1), fmt=*, iostat=io_status) tmp_int
+                
+                !if(n_vec_out>1)then
+                !   write(*,*) 'dimension data should be scalar...'
+                !   stop
+                !end if
 
                 param_dimensions(n_dim)%name = trim(CleanSymbol(symb_str))
-                param_dimensions(n_dim)%size = tmp_int
+                param_dimensions(n_dim)%size = int(tmp_real)
                 
                 ! Flush the scratch space again
                 do ii=1,n_vec_out
@@ -286,10 +307,6 @@ contains
              call ReadVar(file_unit,fill_phase,line_num,n_var,read_complete,string_scr,fates_params(n_var+1))
           end do scan_vars2
           
-          
-          
-
-          
           write(*,*) 'Found ',n_var,' variables in the file'
           finished_vars = .true.
           finished_scan = .true.
@@ -308,8 +325,457 @@ contains
     end if
     
   end subroutine ScanJSonGroups
-  
 
+  subroutine PopString(apstring,newchar)
+    
+    character(len=*) :: apstring
+    character(len=1) :: newchar
+    integer :: strlen
+    integer :: i
+    
+    strlen = len(apstring)
+    do i = 2,strlen
+       apstring(i-1:i-1) = apstring(i:i)
+    end do
+    apstring(strlen:strlen) = newchar
+    
+    return
+  end subroutine PopString
+  
+  subroutine GetDimensions(file_unit) !,param_dimensions)
+
+    integer,intent(in)          :: file_unit
+    !type(dim_type),dimension(:) :: param_dimensions
+    
+    integer,parameter :: scan_len = 128
+    integer,parameter :: dimdata_len = 4096
+    character(len=max_sl) :: group_str
+    character(len=dimdata_len) :: dimdata_str
+    character(len=1) :: filechar
+    character(len=max_sl) :: symb_str
+    character(len=max_sl) :: data_str
+    logical :: found_dimtag
+    logical :: found_close
+    logical :: found_dims
+    integer :: i
+    integer :: sep_id,beg_id,end_id
+    integer :: io_status
+    integer :: n_dims
+    logical :: is_num
+    real(r8):: tmp_real
+    character(len=max_sl) :: tmp_str
+    
+    ! -----------------------------------------------------------------------------------
+    ! Step 1: Advance the file's character pointer to the open bracket following
+    !         "dimensions:"
+    ! -----------------------------------------------------------------------------------
+    found_dimtag = .false.
+    group_str = ''
+    i=0
+    do while(.not.found_dimtag)
+       i=i+1
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status) filechar
+       if(i<=max_sl)then
+          group_str(i:i) = filechar
+       else
+          call PopString(group_str,filechar)
+       end if
+       if(index(group_str,'dimensions')>0 .and. index(group_str,'{',.true.)==max_sl)then
+          found_dimtag = .true.
+       end if
+    end do
+    
+    ! -----------------------------------------------------------------------------------
+    ! Step 2: Read in all the data until the closing bracket
+    ! -----------------------------------------------------------------------------------
+    found_close = .false.
+    dimdata_str = ''
+    i=0
+    do while(.not.found_close)
+       i=i+1
+       read(unit=file_unit, fmt='(A1)',ADVANCE='NO',iostat=io_status) filechar
+       if(i<=dimdata_len)then
+          dimdata_str(i:i) = filechar
+       else
+          write(*,*) 'Ran out of room reading in dimension data'
+       end if
+       if(index(dimdata_str,'}')>0)then
+          found_close = .true.
+       end if
+    end do
+
+    ! -----------------------------------------------------------------------------------
+    ! Step 3: Parse the dimension data string for dimension data
+    !         Each dimension should have a colon ":".
+    !         !!! Just count for now
+    ! -----------------------------------------------------------------------------------
+    i = 0
+    beg_id = 1
+    found_dims = .false.
+    do while(.not.found_dims)
+       sep_id = index(dimdata_str(beg_id:dimdata_len),':') + beg_id-1 ! Should be left most...
+       end_id = index(dimdata_str(beg_id:dimdata_len),',')
+       if(end_id==0)then
+          end_id = index(dimdata_str(beg_id:dimdata_len),'}')
+          if(end_id==0)then
+             write(*,*)'Trouble parsing dim data'
+             stop
+          end if
+          found_dims = .true.
+       end if
+       end_id = end_id + beg_id -1
+       i=i+1
+       beg_id = end_id+1
+    end do
+    
+    ! -----------------------------------------------------------------------------------
+    ! Step 4: Allocate dimensions and fill the name and sizes
+    ! -----------------------------------------------------------------------------------
+    n_dims = i
+    allocate(param_dimensions(n_dims))
+    beg_id = 1
+    do i = 1,n_dims
+       sep_id = index(dimdata_str(beg_id:dimdata_len),':') + beg_id-1 ! Should be left most...
+       end_id = index(dimdata_str(beg_id:dimdata_len),',')
+       if(end_id==0)then
+          end_id = index(dimdata_str(beg_id:dimdata_len),'}')
+       end if
+       end_id = end_id + beg_id -1
+       symb_str = dimdata_str(beg_id:sep_id-1)
+       data_str = dimdata_str(sep_id+1:end_id-1)
+       call StringToStringOrReal(data_str,is_num,tmp_str,tmp_real)
+       if(.not.is_num)then
+          write(*,*)'Failed to read dimension size:'
+          write(*,*) trim(symb_str)
+          write(*,*) trim(data_str)
+          stop
+       end if
+       param_dimensions(i)%name = trim(CleanSymbol(symb_str))
+       param_dimensions(i)%size = int(tmp_real)
+       write(*,*)i,trim(param_dimensions(i)%name),param_dimensions(i)%size
+       beg_id = end_id+1
+    end do
+
+    return
+  end subroutine GetDimensions
+
+  ! =====================================================================================
+
+  subroutine ReadCharVar(file_unit,phase,var_num,string_scr,found_vartag,fates_param)
+
+    integer,intent(in)          :: file_unit
+    integer,intent(in)          :: phase
+    integer,intent(inout)       :: var_num
+    character(len=max_ll), dimension(*) :: string_scr ! Internal scratch space
+    logical,intent(out)         :: found_vartag
+    type(param_type),optional   :: fates_param
+    
+    integer,parameter :: scan_len = 128
+    integer,parameter :: vardata_max_len = 4096
+    character(len=max_sl) :: group_str
+    character(len=vardata_max_len) :: vardata_str
+    character(len=1) :: filechar
+    character(len=max_sl) :: symb_str
+    character(len=max_sl) :: data_str
+    integer :: n_vec_out
+    logical :: found_close
+    logical :: found_vars
+    logical :: found_all
+    logical :: found_dims
+    logical :: found_data
+    logical :: found_units
+    logical :: found_long
+    integer :: i,j,k
+    integer :: filepos
+    integer :: sep_id,beg_id,end_id,next_sep_id
+    integer :: io_status
+    integer :: n_vars
+    integer :: vardata_len
+    logical :: is_num
+    real(r8):: tmp_real
+    integer :: iter
+    character(len=max_sl) :: tmp_str
+    integer :: dimsizes(2)
+    
+    ! -----------------------------------------------------------------------------------
+    ! Step 1: Advance the file's character pointer to the open bracket following
+    !         the name of the variable":", and save the symbol name
+    ! -----------------------------------------------------------------------------------
+    found_vartag = .false.
+    group_str = ''
+    i=0
+    do while(.not.found_vartag)
+       i=i+1
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status) filechar
+       if(i<=max_sl)then
+          group_str(i:i) = filechar
+       else
+          call PopString(group_str,filechar)
+       end if
+       if(index(group_str,':')>0 .and. index(group_str,'{',.true.)==min(i,max_sl))then
+          found_vartag = .true.
+       elseif(index(group_str,'}')>0) then
+          ! We found a closing bracket before a variable was defined
+          ! this means we are out of variables
+          return
+       end if
+       if(i>too_many_iter)then
+          write(*,*)'failed to find variable string or group closing bracket'
+          stop
+       end if
+    end do
+
+    if(phase==count_phase) var_num = var_num + 1
+    
+    sep_id = index(group_str,':')
+    symb_str = trim(CleanSymbol(group_str(1:sep_id-1)))
+    
+    !write(*,*) trim(symb_str)
+
+    ! ---------------------------------------------------------------------------------
+    ! Step 2: Advance through the file until the next closing bracket. Save
+    !         EVERYTHING in a large string.
+    ! ---------------------------------------------------------------------------------
+
+    found_close = .false.
+    vardata_str = ''
+    i=0
+    do while(.not.found_close)
+       i=i+1
+       read(unit=file_unit, fmt='(A1)',ADVANCE='NO',iostat=io_status) filechar
+       if(i<=vardata_max_len)then
+          vardata_str(i:i) = filechar
+       else
+          write(*,*) 'Ran out of room reading in dimension data'
+       end if
+       if(index(vardata_str,'{')>0)then
+          write(*,*)'An open bracket was found nested inside the current parameter:',trim(symb_str)
+          write(*,*)'This is an invalid file format for the parameter file'
+          stop
+       end if
+       if(index(vardata_str,'}')>0)then
+          found_close = .true.
+       end if
+    end do
+    vardata_len = i
+    
+    if(phase==count_phase)then
+       ! We've advance the file pointer to the closing bracket
+       ! if we are just counting, we are done
+       return
+    end if
+
+    ! ---------------------------------------------------------------------------------
+    ! Step 3: Read through that string. Fill data structures.
+    ! ---------------------------------------------------------------------------------
+
+    fates_param%name = trim(symb_str)
+    
+    !write(*,*) vardata_str(1:vardata_len)
+    
+    beg_id = 1
+    found_all   = .false.
+    found_dims  = .false.
+    found_units = .false.
+    found_long  = .false.
+    found_data  = .false.
+    iter = 0
+    do_parse_data: do while(.not.found_all)
+
+       iter = iter+1
+       sep_id = index(vardata_str(beg_id:vardata_len),':') + beg_id-1 ! Should be left most...
+       next_sep_id = index(vardata_str(sep_id+1:vardata_len),':')
+       if(next_sep_id==0)then
+          ! This is the last variable, test for closing bracket
+          end_id = index(vardata_str(1:vardata_len),'}',.true.)
+          if(end_id==0)then
+             write(*,*)'Trouble parsing var data'
+             stop
+          end if
+          found_all = .true.
+       else
+          next_sep_id = next_sep_id + sep_id
+          end_id = index(vardata_str(sep_id:next_sep_id),',',.true.) + sep_id-1
+       end if
+
+       ! We should not have found the right-most comma before the next separator
+       ! or... the closing bracket.  So text between beg_id and sep_id should
+       ! have the symbol, and text between sep_id and end_id should have the data
+
+       symb_str = vardata_str(beg_id:sep_id-1)
+       data_str = vardata_str(sep_id+1:end_id)
+
+       if( index(trim(symb_str),'"dims"')>0 ) then
+          call GetStringVec(data_str,string_scr,n_vec_out)
+          allocate(fates_param%dim_names(n_vec_out))
+          fates_param%ndims = n_vec_out
+          do i = 1,n_vec_out
+             fates_param%dim_names(i) = trim(CleanSymbol(string_scr(i)))
+             dimsizes(i) = GetDimSizeFromName(trim(fates_param%dim_names(i)))
+          end do
+          call ClearStringScratch(string_scr,n_vec_out)
+          found_dims = .true.
+       end if
+       
+       if( index(symb_str,'"long_name"')>0 ) then
+          fates_param%long_name = trim(CleanSymbol(data_str))
+          found_long = .true.
+       end if
+       
+       if( index(symb_str,'"units"')>0 ) then
+          fates_param%units = trim(CleanSymbol(data_str))
+          found_units = .true.
+       end if
+       
+       if_data: if( index(symb_str,'"data"')>0 ) then
+          call GetStringVec(data_str,string_scr,n_vec_out)
+          if(n_vec_out<1)then
+             write(*,*) 'parameter data was empty?'
+             stop
+          end if
+          call StringToStringOrReal(string_scr(1),is_num,tmp_str,tmp_real)
+          if(is_num)then
+             if(fates_param%ndims==1)then
+                allocate(fates_param%r_data_1d(dimsizes(1)))
+                if(n_vec_out.ne.dimsizes(1))then
+                   write(*,*)'parameter size does not match dimension size'
+                   stop
+                end if
+                do i=1,dimsizes(1)
+                   call StringToStringOrReal(string_scr(i),is_num,tmp_str,tmp_real)
+                   fates_param%r_data_1d(i) = tmp_real
+                end do
+                write(*,*)'-------------------------------'
+                write(*,*)fates_param%name
+                write(*,*)fates_param%r_data_1d(:)
+             else
+                if(n_vec_out.ne.(dimsizes(1)*dimsizes(2)))then
+                   write(*,*)'parameter size does not match dimension size'
+                   stop
+                end if
+                allocate(fates_param%r_data_2d(dimsizes(1),dimsizes(2)))
+                i=0
+                do j=1,dimsizes(1)
+                   do k=1,dimsizes(2)
+                      i=i+1
+                      call StringToStringOrReal(string_scr(i),is_num,tmp_str,tmp_real)
+                      fates_param%r_data_2d(j,k) = tmp_real
+                   end do
+                end do
+                write(*,*)'-------------------------------'
+                write(*,*)fates_param%name
+                write(*,*)fates_param%r_data_2d
+             end if
+          else
+             ! For string data, just follow the data
+             allocate(fates_param%c_data_1d(n_vec_out))
+             do i=1,n_vec_out
+                call StringToStringOrReal(string_scr(i),is_num,tmp_str,tmp_real)
+                fates_param%c_data_1d(i) = trim(tmp_str)
+             end do
+             write(*,*)'-------------------------------'
+             write(*,*)fates_param%name
+             write(*,*)fates_param%c_data_1d
+          end if
+          call ClearStringScratch(string_scr,n_vec_out)
+          found_data = .true.
+       end if if_data
+
+       ! If we found all the data
+       found_all = all( (/ found_data,found_units,found_long,found_dims /) )
+       
+       if(iter>too_many_iter)then
+          write(*,*)'couldnt resolve variables data'
+          stop
+       end if
+       
+       beg_id = end_id+1
+    end do do_parse_data
+
+    return
+  end subroutine ReadCharVar
+
+  
+  ! =====================================================================================
+  
+  subroutine GetVariables(file_unit,string_scr)
+
+    integer,intent(in)          :: file_unit
+    character(len=max_ll), dimension(*) :: string_scr ! Internal scratch space
+    
+    integer,parameter :: scan_len = 128
+    integer,parameter :: data_len = 4096
+    character(len=max_sl) :: group_str
+    character(len=data_len) :: vardata_str
+    character(len=1) :: filechar
+    character(len=max_sl) :: symb_str
+    character(len=max_sl) :: data_str
+    logical :: found_varstag
+    logical :: found_vartag
+    logical :: found_close
+    logical :: found_vars
+    integer :: i
+    integer :: filepos0
+    integer :: sep_id,beg_id,end_id
+    integer :: io_status
+    integer :: n_vars
+    logical :: is_num
+    real(r8):: tmp_real
+    character(len=max_sl) :: tmp_str
+
+    ! Step 0: We start at the very beginning of the file, which
+    ! allows us to count file positions and return to those file positions
+    rewind(file_unit)
+
+    ! -----------------------------------------------------------------------------------
+    ! Step 1: Advance the file's character pointer to the open bracket following
+    !         "variables:"
+    ! -----------------------------------------------------------------------------------
+    found_vartag = .false.
+    group_str = ''
+    i=0
+    do while(.not.found_vartag)
+       i=i+1
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status) filechar
+       if(i<=max_sl)then
+          group_str(i:i) = filechar
+       else
+          call PopString(group_str,filechar)
+       end if
+       if(index(group_str,'variables')>0 .and. index(group_str,'{',.true.)==max_sl)then
+          found_vartag = .true.
+       end if
+    end do
+
+    ! Remember this exact file position, we will need to return
+    filepos0 = i
+    
+    if(debug)write(*,*) 'Found variables: ',trim(group_str)
+
+    ! -----------------------------------------------------------------------------------
+    ! Step 2: Start a loop through variables, with each one we are identifying
+    ! the { and } brackets and saving that in a string.
+    ! -----------------------------------------------------------------------------------
+    found_vartag = .true.
+    n_vars=0
+    do while(found_vartag)
+       call ReadCharVar(file_unit,count_phase,n_vars,string_scr,found_vartag)
+    end do
+
+    write(*,*) 'Found ',n_vars,' variables'
+    allocate(fates_params(n_vars))
+
+    call GotoPos(file_unit,filepos0)
+    
+    do i=1,n_vars
+       call ReadCharVar(file_unit,fill_phase,n_vars,string_scr,found_vartag,fates_params(i))
+    end do
+    
+    stop
+    return
+  end subroutine GetVariables
+  
+       
   subroutine ReadVar(file_unit,read_phase,line_num,var_num,read_complete,string_scr,fates_param)
 
     integer, intent(in) :: file_unit
@@ -460,23 +926,55 @@ contains
                 stop
              end if
              allocate(fates_param%dim_names(n_vec_out))
-             write(*,*) "dims for: ",trim(symb_str)
              do i = 1,n_vec_out
                 fates_param%dim_names(i) = trim(CleanSymbol(string_scr(i)))
-                write(*,*) trim(fates_param%dim_names(i))
              end do
-             write(*,*) "------"
-             call ClearStringScratch(string_scr)
-             stop
+             call ClearStringScratch(string_scr,n_vec_out)
           end if
           if( index(line,'"long_name"')>0 ) then
-             
+             sep_id = scan(line,':')
+             if(sep_id>0)then
+                data_str = line(sep_id+1:max_ll)
+             else
+                write(*,*) 'long_names should have a separator :'
+                stop
+             end if
+             fates_param%long_name = trim(CleanSymbol(data_str))
           end if
           if( index(line,'"units"')>0 ) then
-             
+             sep_id = scan(line,':')
+             if(sep_id>0)then
+                data_str = line(sep_id+1:max_ll)
+             else
+                write(*,*) 'long_names should have a separator :'
+                stop
+             end if
+             fates_param%units = trim(CleanSymbol(data_str))
           end if
           if( index(line,'"data"')>0 ) then
+             sep_id = scan(line,':')
+             if(sep_id>0)then
+                data_str = line(sep_id+1:max_ll)
+                call GetStringVec(data_str,string_scr,n_vec_out)
+                if(n_vec_out<1)then
+                   write(*,*) 'parameter data was empty?'
+                   stop
+                end if
+             else
+                write(*,*) 'parameter data should have a separator :'
+                stop
+             end if
              
+         !    call StringToStringOrReal(string_scr(1),is_num,tmp_str,tmp_real)
+         !    if(is_num) then
+         !       allocate(fates_param%
+             
+             !   allocate(fates_param%data(n_vec_out))
+             !   do i = 1,n_vec_out
+            
+          !      fates_param%data(i) = trim(CleanSymbol(string_scr(i)))
+          !   end do
+          !   call ClearStringScratch(string_scr,n_vec_out)
           end if
           
           
@@ -600,20 +1098,56 @@ contains
           ! Append the character to the cleaned string
           string_out(k:k) = string_in(i:i)
        end if
+
+       ! remove trailing commas
+       j = scan(string_out,',',.true.)  ! right most occurance...
+       if(j==len(trim(string_out)) .and. j>0)then
+          !write(*,*) j,trim(string_out),len(trim(string_out))
+          string_out(j:j)=''
+       end if
        
     end do
     
   end function CleanSymbol
 
-  subroutine ClearStringScratch(string_scr)
+  subroutine ClearStringScratch(string_scr,n_vec_in)
     character(len=max_ll), dimension(*),intent(inout) :: string_scr
+    integer,intent(in) :: n_vec_in
     integer :: i
-    do i = 1,len(string_scr)
+    do i = 1,n_vec_in
        string_scr(i) = ''
     end do
     return
   end subroutine ClearStringScratch
-  
+
+  subroutine GotoPos(file_unit,filepos)
+    integer            :: file_unit
+    integer,intent(in) :: filepos
+
+    character(len=1) dummychar
+    integer :: i        ! file position number index
+    integer :: iostat   ! i/o status of read
+    
+    rewind(file_unit)
+
+    if (filepos > 1) then
+       do i = 1, filepos
+          ! empty read
+          read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=iostat) dummychar
+          !write(*,*) dummychar
+          if (iostat == 0) then
+             ! Success
+          else if (iostat == IOSTAT_EOR) then
+             ! help debugging and writing lines
+          else if(iostat<0)then
+             write(*,*) 'Error or EOF reached while skipping lines.'
+             stop
+          end if
+       end do
+    end if
+    
+  end subroutine GotoPos
+
   subroutine GotoLine(file_unit,line_number)
 
     ! This will reset the file read pointer
@@ -646,6 +1180,59 @@ contains
     
   end subroutine GotoLine
 
-    
+  ! ===============================================================================================
   
+  subroutine StringToStringOrReal(string_in,is_num,out_string,out_real)
+
+    ! This routine takes a string, and determines if it is a number
+    ! by trying to read the string into a floating point number
+    ! It uses the iostat report to determine if it was possible or not
+    ! If the string was not a number, it returns a cleaned version of the
+    ! string. It was a number, it returns that as well.
+    
+    character(len=*),intent(in) :: string_in
+    logical,intent(out)         :: is_num
+    character(len=max_sl),intent(out) :: out_string
+    character(len=max_sl)       :: tmp_str
+    real(r8),intent(out) :: out_real
+    integer  :: io_status
+    real(r8) :: tmp_real
+
+    tmp_str = trim(CleanSymbol(string_in))
+    read (unit=tmp_str,fmt=*,iostat=io_status) tmp_real
+    if (io_status == 0) then
+       out_real = tmp_real
+       out_string = 'invalid'
+       is_num = .true.
+    else
+       out_real = -9999.9_r8
+       out_string = trim(CleanSymbol(string_in))
+       is_num = .false.
+    end if
+    return
+  end subroutine StringToStringOrReal
+
+  ! =====================================================================================
+
+  function GetDimSizeFromName(dim_name) result(dim_size)
+
+    character(len=*) :: dim_name
+    integer          :: dim_size
+    integer          :: i
+
+    dim_size = -1
+    loop_dims: do i = 1,size(param_dimensions)
+       if(index(param_dimensions(i)%name,trim(dim_name))>0)then
+          dim_size = param_dimensions(i)%size
+          exit loop_dims
+       end if
+    end do loop_dims
+
+    if(dim_size==-1)then
+       write(*,*)'could not find a size for unknown dimension: ',trim(dim_name)
+       stop
+    end if
+  end function GetDimSizeFromName
+  
+    
 end module FatesJSONMod
