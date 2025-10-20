@@ -309,6 +309,7 @@ contains
       real(r8),            intent(in)    :: drying_ratio               ! drying ratio
       class(fire_weather), intent(in)    :: fireWeatherClass           ! fireWeatherClass
 
+      real(r8) :: moisture(num_fuel_classes)               ! fuel moisture [m3/m3]
       real(r8) :: moisture_of_extinction(num_fuel_classes) ! fuel moisture of extinction [m3/m3]
       real(r8) :: mef_live                                 ! live fuel moisture of extinction [m3/m3]
       integer  :: i                                        ! looping index
@@ -318,8 +319,9 @@ contains
          ! fire weather class is in use
          select type (fireWeatherClass)
           class is (nesterov_index)
-            call this%CalculateFuelMoistureNesterov(sav_fuel, drying_ratio,                   &
-               fireWeatherClass%fire_weather_index)
+            call CalculateFuelMoistureNesterov(sav_fuel, drying_ratio,                   &
+               fireWeatherClass%fire_weather_index, moisture)
+            this%moisture = moisture
           class default
             write(fates_log(), *) 'Unknown fire weather class selected.'
             write(fates_log(), *) 'Choose a different fire weather class or upate this subroutine.'
@@ -374,16 +376,16 @@ contains
 
    !-------------------------------------------------------------------------------------
 
-   subroutine CalculateFuelMoistureNesterov(this, sav_fuel, drying_ratio, NI)
+   subroutine CalculateFuelMoistureNesterov(sav_fuel, drying_ratio, NI, moisture)
       !
       ! DESCRIPTION:
       !   Updates fuel moisture
 
       ! ARGUMENTS:
-      class(fuel_type),    intent(inout) :: this                       ! fuel class
-      real(r8),            intent(in)    :: sav_fuel(num_fuel_classes) ! surface area to volume ratio of all fuel types [/cm]
-      real(r8),            intent(in)    :: drying_ratio               ! drying ratio
-      real(r8),            intent(in)    :: NI                         ! Nesterov Index
+      real(r8), intent(in)    :: sav_fuel(num_fuel_classes) ! surface area to volume ratio of all fuel types [/cm]
+      real(r8), intent(in)    :: drying_ratio               ! drying ratio
+      real(r8), intent(in)    :: NI                         ! Nesterov Index
+      real(r8), intent(out) :: moisture(num_fuel_classes) ! moisture of litter [m3/m3]
 
       ! LOCALS
       integer  :: i         ! looping index
@@ -398,7 +400,7 @@ contains
          else
             alpha_FMC = sav_fuel(i)/drying_ratio
          end if
-         this%moisture(i) = exp(-1.0_r8*alpha_FMC*NI)
+         moisture(i) = exp(-1.0_r8*alpha_FMC*NI)
       end do
 
    end subroutine CalculateFuelMoistureNesterov
