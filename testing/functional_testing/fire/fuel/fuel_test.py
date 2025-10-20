@@ -186,6 +186,25 @@ class FuelTest(FunctionalTestWithDrivers):
             plt.savefig(fig_name)
 
     @staticmethod
+    def plot_moisture_dead_dat(fuel_dat: xr.Dataset, save_figs: bool, plot_dir: str):
+        """Plot output for live fuel moisture
+
+        Args:
+            fuel_dat (Xarray Dataset): output fuel data
+            save_figs (bool): whether or not to save the figures
+            plot_dir (str): plot directory
+        """
+
+        plt.figure()
+        fuel_dat.fuel_moisture_dead.plot(hue="fuel_model")
+        plt.xlabel("Time", fontsize=11)
+        plt.ylabel("Dead fuel Moisture", fontsize=11)
+
+        if save_figs:
+            fig_name = os.path.join(plot_dir, "fuel_moisture_dead_plot.png")
+            plt.savefig(fig_name)
+
+    @staticmethod
     def plot_moisture_live_dat(fuel_dat: xr.Dataset, save_figs: bool, plot_dir: str):
         """Plot output for fuel moisture
 
