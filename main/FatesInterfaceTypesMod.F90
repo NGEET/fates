@@ -964,9 +964,14 @@ module FatesInterfaceTypesMod
     class(bc_in_type), intent(inout) :: this
 
     ! Allocate boundary condition arrays
+    allocate(this%decomp_id(this%nlevsoil))
+    this%decomp_id = fates_unset_int
+
+    allocate(this%dz_decomp_sisl(this%nlevdecomp_full))
+    this%dz_decomp_sisl = nan
+
     allocate(this%w_scalar_sisl(this%nlevdecomp_full))
     allocate(this%t_scalar_sisl(this%nlevdecomp_full))
-
     this%w_scalar_sisl = nan
     this%t_scalar_sisl = nan
 
