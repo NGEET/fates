@@ -212,7 +212,7 @@ contains
 
    !-------------------------------------------------------------------------------------
 
-   subroutine SumLoading(this)
+   subroutine SumLoading(this, sav_fuel, part_dens)
       ! DESCRIPTION:
       ! Sums up the loading - excludes trunks
       !
@@ -237,6 +237,8 @@ contains
 
       ! ARGUMENTS:
       class(fuel_type), intent(inout) :: this ! fuel class
+      real(r8), intent(in)            :: sav_fuel(num_fuel_classes) ! surface area to volume ratio of all fuel types [/cm]
+      real(r8), intent(in)            :: part_dens                  ! oven-dry particle density [kg m-2]
 
       ! LOCALS:
       integer    :: i                             ! looping index
