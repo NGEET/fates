@@ -97,9 +97,9 @@ program FatesTestFuel
       call SetUpFuel(fuel(f), fuel_models_array, fuel_models(f), fuel_names(f), carriers(f))
 
       ! sum up fuel and calculate loading
-      call fuel%CalculateWeightingFactor(SF_val_SAV, SF_val_part_dens)
-      call fuel(f)%SumLoading()
-      call fuel(f)%CalculateFractionalLoading()
+      call fuel(f)%CalculateWeightingFactor(SF_val_SAV, SF_val_part_dens)
+      call fuel(f)%SumLoading(SF_val_SAV, SF_val_part_dens)
+      call fuel(f)%CalculateFractionalLoading(SF_val_SAV, SF_val_part_dens)
 
       ! calculate geometric properties
       call fuel(f)%AverageBulkDensity(SF_val_FBD)
