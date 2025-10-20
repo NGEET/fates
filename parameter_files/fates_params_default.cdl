@@ -353,7 +353,7 @@ variables:
 		fates_landuse_grazing_palatability:long_name = "Relative intensity of leaf grazing/browsing per PFT" ;	
 	double fates_landuse_clearing_mortality(fates_pft) ;
 		fates_landuse_clearing_mortality:units = "fraction" ;
-		fates_landuse_clearing_mortality:long_name = "Fraction of cohort killed during land use clearing" ;
+		fates_landuse_clearing_mortality:long_name = "Fraction of PFT killed during land use clearing to rangeland" ;
 	double fates_landuse_harvest_pprod10(fates_pft) ;
 		fates_landuse_harvest_pprod10:units = "fraction" ;
 		fates_landuse_harvest_pprod10:long_name = "fraction of harvest wood product that goes to 10-year product pool (remainder goes to 100-year pool)" ;
@@ -1365,7 +1365,7 @@ data:
 
  fates_landuse_grazing_palatability = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 ;
 
- fates_landuse_clearing_mortality = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 1, 1, 1, 1, 1, 1, 1, 1 ;	
+ fates_landuse_clearing_mortality = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0, 0, 0, 0, 0, 0, 0, 0 ;	
 
  fates_landuse_harvest_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 
     1, 1, 1 ;
