@@ -2869,8 +2869,6 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
                                      data=bc_in%dz_decomp_sisl, hlm_flag=.false.)
       call this%registry(r)%Register(key=hlm_fates_decomp_id, &
                                      data=bc_in%decomp_id, hlm_flag=.false.)
-      call this%registry(r)%Register(key=hlm_fates_soil_level, &
-                                     data=bc_in%nlevsoil, hlm_flag=.false.)
 
       call this%registry(r)%Register(key=hlm_fates_decomp_frac_moisture, &                                     
                                      data=bc_in%w_scalar_sisl, hlm_flag=.false.)
