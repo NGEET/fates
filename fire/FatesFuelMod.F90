@@ -271,18 +271,20 @@ contains
 
    !-------------------------------------------------------------------------------------
 
-   subroutine CalculateFractionalLoading(this)
+   subroutine CalculateFractionalLoading(this, sav_fuel, part_dens)
       ! DESCRIPTION:
       !   Calculates fractional loading for fuel
 
       ! ARGUMENTS:
       class(fuel_type), intent(inout) :: this ! fuel class
+      real(r8), intent(in)            :: sav_fuel(num_fuel_classes) ! surface area to volume ratio of all fuel types [/cm]
+      real(r8), intent(in)            :: part_dens                  ! oven-dry particle density [kg m-2]
 
       ! LOCALS:
       integer :: i ! looping index
 
       ! sum up loading just in case
-      call this%SumLoading()
+      call this%SumLoading(sav_fuel, part_dens)
 
       if (this%non_trunk_loading > nearzero) then
          do i = 1, num_fuel_classes
