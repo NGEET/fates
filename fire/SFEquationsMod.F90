@@ -269,7 +269,7 @@ contains
          if(i /= fuel_classes%live_grass())then
             sum_dead = sum_dead + wf(i)*eps(i)*q_ig(i)
          else
-            sum_live = sum_live + wf(i)*eps(i),q_ig(i)
+            sum_live = sum_live + wf(i)*eps(i)*q_ig(i)
          end if
       end do
       HeatSink = mean_FBD * (wf_dead*sum_dead + wf_live*sum_live)

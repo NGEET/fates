@@ -25,7 +25,7 @@ module FatesFuelMod
       real(r8) :: non_trunk_loading                    ! total fuel loading excluding trunks [kgC/m2]
       real(r8) :: weighted_loading_dead                ! this is dead fuel load weighted by weighting_factor given SA:V [kgC/m2]
       real(r8) :: weighted_loading_live                ! this is live fuel load weighted by weighting factor given SA:V [kgC/m2]
-      real(r8) :: wf_lead                              ! weighting factor for dead fuel category [unitless]
+      real(r8) :: wf_dead                              ! weighting factor for dead fuel category [unitless]
       real(r8) :: wf_live                              ! weighting factor for live fuel category [unitless]
       real(r8) :: average_moisture_dead                ! weighted average of fuel moisture across all fuel classes for dead fuels [m3/m3]
       real(r8) :: average_moisture_live                ! weighted average of fuel moisture across all fuel classes for live fuels [m3/m3]
@@ -138,7 +138,7 @@ contains
          donor_fuel%bulk_density_weighted*donor_weight
       this%SAV_weighted = this%SAV_weighted*self_weight + donor_fuel%SAV_weighted*donor_weight
       this%MEF_dead = this%MEF_dead*self_weight + donor_fuel%MEF_dead*donor_weight
-      this%MEF_live = this%MEF_live*self_weight + donor_fuel%live_dead*donor_weight
+      this%MEF_live = this%MEF_live*self_weight + donor_fuel%MEF_live*donor_weight
 
    end subroutine Fuse
 
@@ -242,7 +242,7 @@ contains
       integer    :: i                             ! looping index
 
       ! ensure weighting factor is updated
-      call this%CalculateWeightingFactor()
+      call this%CalculateWeightingFactor(sav_fuel, part_dens)
 
       ! get fuel load weighting factor given SAV
       call this%FuelLoadWeight()
@@ -257,10 +257,10 @@ contains
 
          if(i /= fuel_classes%live_grass())then
             this%weighted_loading_dead = this%weighted_loading_dead + &
-               this%fuel_weight*this%loading(i)
+               this%fuel_weight(i)*this%loading(i)
          else
             this%weighted_loading_live = this%weighted_loading_live + &
-               this%fuel_weight*this%loading(i)
+               this%fuel_weight(i)*this%loading(i)
          end if
 
       end do
@@ -318,7 +318,7 @@ contains
          ! fire weather class is in use
          select type (fireWeatherClass)
           class is (nesterov_index)
-            call CalculateFuelMoistureNesterov(sav_fuel, drying_ratio,                   &
+            call this%CalculateFuelMoistureNesterov(sav_fuel, drying_ratio,                   &
                fireWeatherClass%fire_weather_index)
           class default
             write(fates_log(), *) 'Unknown fire weather class selected.'
@@ -335,7 +335,7 @@ contains
             ! to derive this by fuel category (live vs dead) and by fuel sizes
             ! let's still keep this calculation for both dead and live fuels
             moisture_of_extinction(i) = MoistureOfExtinction(sav_fuel(i))
-            this%effective_moisture(i) = moisture(i)/moisture_of_extinction(i)
+            this%effective_moisture(i) = this%moisture(i)/moisture_of_extinction(i)
             if(i /= fuel_classes%live_grass())then
                ! average fuel moisture  and MEF for dead fuels [m3/m3] EQ. 66 in Rothermel 1972
                ! trunk is not excluded, but it's getting a small weight
@@ -343,7 +343,7 @@ contains
                ! each fuel size class given SA:V, I am calculating averaged MEF_dead using the
                ! weighting factor 2025-10-16 XLG
                this%average_moisture_dead = this%average_moisture_dead + &
-                  this%weighting_factor(i)*moisture(i)
+                  this%weighting_factor(i)*this%moisture(i)
                this%MEF_dead = this%MEF_dead + this%weighting_factor(i)*moisture_of_extinction(i)
             end if
          end do
@@ -353,13 +353,13 @@ contains
          ! consider including live fine woody fuels later 2025-10-16 XLG
 
          this%average_moisture_live = this%average_moisture_live + &
-            this%weighting_factor(fuel_classes%live_grass())*moisture(fuel_classes%live_grass())
+            this%weighting_factor(fuel_classes%live_grass())*this%moisture(fuel_classes%live_grass())
 
          ! this is the Rothermel way of calculating averaged live fuel MEF across all fuel
          ! classes for live fuels, which is then used to calculate live fuel mositure damping coeff
          ! The difference between the SPITFIRE version and original Rothermel model
          ! is that live and dead fuels are always treated separately in the original model
-         call LiveFuelMoistureOfExtinction(this%fuel_loading, sav_fuel, moisture, &
+         call LiveFuelMoistureOfExtinction(this%loading, sav_fuel, this%moisture, &
             this%MEF_dead, mef_live)
          this%MEF_live = mef_live
       else
@@ -586,7 +586,7 @@ contains
       use SFParamsMod, only : SF_val_mid_moisture, SF_val_mid_moisture_Coeff
       use SFParamsMod, only : SF_val_mid_moisture_Slope, SF_val_min_moisture
       use SFParamsMod, only : SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope
-      use SFParamsMod, only : SF_val_miner_total
+      use SFParamsMod, only : SF_val_miner_total, SF_val_SAV, SF_val_part_dens
 
       ! ARGUMENTS:
       class(fuel_type), intent(inout) :: this                            ! fuel class
@@ -601,7 +601,7 @@ contains
 
       this%frac_burnt(:) = 1.0_r8
       ! get all the weighting factor
-      call this%CalculateWeightingFactor()
+      call this%CalculateWeightingFactor(SF_val_SAV, SF_val_part_dens)
       call this%FuelLoadWeight()
 
       ! Calculate fraction of litter is burnt for all classes.
