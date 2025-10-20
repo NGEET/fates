@@ -27,14 +27,10 @@ module FatesJSONMod
   public
 
   ! Data types
-  integer, parameter :: i_scalar_type = 0
-  integer, parameter :: i_1d_type     = 1
-  integer, parameter :: i_2d_type     = 2
-  integer, parameter :: r_scalar_type = 3
-  integer, parameter :: r_1d_type     = 4
-  integer, parameter :: r_2d_type     = 5
-  integer, parameter :: c_scalar_type = 6
-  integer, parameter :: c_1d_type     = 7
+  integer, parameter :: r_scalar_type = 1
+  integer, parameter :: r_1d_type     = 2
+  integer, parameter :: r_2d_type     = 3
+  integer, parameter :: c_1d_type     = 4
 
   logical, parameter :: debug = .false.
 
@@ -52,16 +48,14 @@ module FatesJSONMod
   end type dim_type
   
   type param_type
-
-     ! Metadata/Key-words
      character(len=max_sl) :: name        ! The variable symbol (the dictionary key)
      character(len=max_ul) :: units
      character(len=max_ll) :: long_name
-     integer :: data_type
+     integer :: dtype                                    ! Data type, see above
      character(len=max_sl), allocatable :: dim_names(:)  ! These are the indices of the dimensions
                                                          ! associated with this variable
      integer :: ndims   ! Number of dimensions, same as size (dim_names)
-     ! Data Storage (using separate arrays for heterogeneous types)
+     real(r8)              :: r_data_scalar
      real(r8), allocatable :: r_data_1d(:)
      real(r8), allocatable :: r_data_2d(:,:)
      character(len=128), allocatable :: c_data_1d(:)
@@ -357,6 +351,7 @@ contains
     logical :: found_dimtag
     logical :: found_close
     logical :: found_dims
+    logical :: found_scalar
     integer :: i
     integer :: sep_id,beg_id,end_id
     integer :: io_status
@@ -412,6 +407,7 @@ contains
     i = 0
     beg_id = 1
     found_dims = .false.
+    found_scalar = .false.
     do while(.not.found_dims)
        sep_id = index(dimdata_str(beg_id:dimdata_len),':') + beg_id-1 ! Should be left most...
        end_id = index(dimdata_str(beg_id:dimdata_len),',')
@@ -423,6 +419,12 @@ contains
           end if
           found_dims = .true.
        end if
+
+       symb_str = dimdata_str(beg_id:sep_id-1)
+       if( trim(CleanSymbol(symb_str))=='scalar') then
+          found_scalar = .true.
+       end if
+       
        end_id = end_id + beg_id -1
        i=i+1
        beg_id = end_id+1
@@ -432,7 +434,13 @@ contains
     ! Step 4: Allocate dimensions and fill the name and sizes
     ! -----------------------------------------------------------------------------------
     n_dims = i
-    allocate(param_dimensions(n_dims))
+
+    if(found_scalar) then
+       allocate(param_dimensions(n_dims))
+    else
+       allocate(param_dimensions(n_dims+1))
+    end if
+    
     beg_id = 1
     do i = 1,n_dims
        sep_id = index(dimdata_str(beg_id:dimdata_len),':') + beg_id-1 ! Should be left most...
@@ -456,6 +464,12 @@ contains
        beg_id = end_id+1
     end do
 
+    if(.not.found_scalar)then
+       param_dimensions(n_dims+1)%name = 'scalar'
+       param_dimensions(n_dims+1)%size = 1
+    end if
+    
+    
     return
   end subroutine GetDimensions
 
@@ -476,7 +490,7 @@ contains
     character(len=vardata_max_len) :: vardata_str
     character(len=1) :: filechar
     character(len=max_sl) :: symb_str
-    character(len=max_sl) :: data_str
+    character(len=max_ll) :: data_str
     integer :: n_vec_out
     logical :: found_close
     logical :: found_vars
@@ -530,8 +544,6 @@ contains
     sep_id = index(group_str,':')
     symb_str = trim(CleanSymbol(group_str(1:sep_id-1)))
     
-    !write(*,*) trim(symb_str)
-
     ! ---------------------------------------------------------------------------------
     ! Step 2: Advance through the file until the next closing bracket. Save
     !         EVERYTHING in a large string.
@@ -570,7 +582,7 @@ contains
     ! ---------------------------------------------------------------------------------
 
     fates_param%name = trim(symb_str)
-    
+    write(*,*) fates_param%name
     !write(*,*) vardata_str(1:vardata_len)
     
     beg_id = 1
@@ -636,21 +648,42 @@ contains
           call StringToStringOrReal(string_scr(1),is_num,tmp_str,tmp_real)
           if(is_num)then
              if(fates_param%ndims==1)then
-                allocate(fates_param%r_data_1d(dimsizes(1)))
-                if(n_vec_out.ne.dimsizes(1))then
-                   write(*,*)'parameter size does not match dimension size'
-                   stop
+                if(fates_param%dim_names(1)=='scalar')then
+                   call StringToStringOrReal(string_scr(1),is_num,tmp_str,tmp_real)
+                   fates_param%r_data_scalar = tmp_real
+                   fates_param%dtype =  r_scalar_type
+                   if(debug)then
+                      write(*,*)'-------------------------------'
+                      write(*,*)trim(fates_param%name)
+                      write(*,*)fates_param%r_data_scalar
+                   end if
+                else
+                   fates_param%dtype =  r_1d_type
+                   allocate(fates_param%r_data_1d(dimsizes(1)))
+                   if(n_vec_out.ne.dimsizes(1))then
+                      write(*,*)'parameter size does not match dimension size'
+                      write(*,*) n_vec_out,dimsizes(1)
+                      write(*,*) trim(fates_param%name)
+                      write(*,*) trim(data_str)
+                      write(*,*) len(trim(data_str))
+                      stop
+                   end if
+                   do i=1,dimsizes(1)
+                      call StringToStringOrReal(string_scr(i),is_num,tmp_str,tmp_real)
+                      fates_param%r_data_1d(i) = tmp_real
+                   end do
+                   if(debug)then
+                      write(*,*)'-------------------------------'
+                      write(*,*)trim(fates_param%name)
+                      write(*,*)fates_param%r_data_1d(:)
+                   end if
                 end if
-                do i=1,dimsizes(1)
-                   call StringToStringOrReal(string_scr(i),is_num,tmp_str,tmp_real)
-                   fates_param%r_data_1d(i) = tmp_real
-                end do
-                write(*,*)'-------------------------------'
-                write(*,*)fates_param%name
-                write(*,*)fates_param%r_data_1d(:)
              else
+                fates_param%dtype = r_2d_type
                 if(n_vec_out.ne.(dimsizes(1)*dimsizes(2)))then
                    write(*,*)'parameter size does not match dimension size'
+                   write(*,*) n_vec_out,dimsizes(1),dimsizes(2)
+                   write(*,*) trim(fates_param%name)
                    stop
                 end if
                 allocate(fates_param%r_data_2d(dimsizes(1),dimsizes(2)))
@@ -662,20 +695,25 @@ contains
                       fates_param%r_data_2d(j,k) = tmp_real
                    end do
                 end do
-                write(*,*)'-------------------------------'
-                write(*,*)fates_param%name
-                write(*,*)fates_param%r_data_2d
+                if(debug)then
+                   write(*,*)'-------------------------------'
+                   write(*,*)trim(fates_param%name)
+                   write(*,*)fates_param%r_data_2d
+                end if
              end if
           else
              ! For string data, just follow the data
+             fates_param%dtype = c_1d_type
              allocate(fates_param%c_data_1d(n_vec_out))
              do i=1,n_vec_out
                 call StringToStringOrReal(string_scr(i),is_num,tmp_str,tmp_real)
                 fates_param%c_data_1d(i) = trim(tmp_str)
              end do
-             write(*,*)'-------------------------------'
-             write(*,*)fates_param%name
-             write(*,*)fates_param%c_data_1d
+             if(debug)then
+                write(*,*)'-------------------------------'
+                write(*,*)trim(fates_param%name)
+                write(*,*)fates_param%c_data_1d
+             end if
           end if
           call ClearStringScratch(string_scr,n_vec_out)
           found_data = .true.
