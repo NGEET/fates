@@ -1084,7 +1084,6 @@ module FatesInterfaceTypesMod
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_max, initialize=initialize, index=index, &
                                       update_frequency=registry_update_init)
 
-    call this%DefineInterfaceVariable(key=hlm_fates_rooting_max_depth, initialize=initialize, index=index)
     call this%DefineInterfaceVariable(key=hlm_fates_soil_level, initialize=initialize, index=index)
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_thickness, initialize=initialize, index=index)
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_id, initialize=initialize, index=index)
