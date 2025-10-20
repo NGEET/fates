@@ -53,7 +53,7 @@ contains
    subroutine SumLoading_CorrectValues(this)
       ! test that the fuel is summed correctly (and ignores trunks)
       class(TestFireFuel), intent(inout) :: this                    ! fuel test object
-      real(r8)                           :: sav = (/13.0_r8, 3.58_r8, 0.98_r8, 0.2_r8, 66.0_r8, 66.0_r8 /)
+      real(r8), dimension(6)             :: sav = (/13.0_r8, 3.58_r8, 0.98_r8, 0.2_r8, 66.0_r8, 66.0_r8 /)
       real(r8)                           :: part_dens = 513_r8
       real(r8)                           :: dummy_litter = 5.0_r8   ! dummy litter value [kgC/m2]
       real(r8)                           :: trunk_litter = 100.0_r8 ! trunk branch litter [kgC/m2]
@@ -74,7 +74,7 @@ contains
    subroutine CalculateFractionalLoading_CorrectValues(this)
       ! test that the fractional loading is calculated correctly (and ignores trunks)
       class(TestFireFuel), intent(inout) :: this                    ! fuel test object
-      real(r8)                           :: sav = (/13.0_r8, 3.58_r8, 0.98_r8, 0.2_r8, 66.0_r8, 66.0_r8 /)
+      real(r8), dimension(6)             :: sav = (/13.0_r8, 3.58_r8, 0.98_r8, 0.2_r8, 66.0_r8, 66.0_r8 /)
       real(r8)                           :: part_dens = 513_r8
       real(r8)                           :: dummy_litter = 5.0_r8   ! dummy litter value [kgC/m2]
       real(r8)                           :: trunk_litter = 100.0_r8 ! trunk branch litter [kgC/m2]
