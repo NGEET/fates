@@ -2867,8 +2867,6 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
                                      data=bc_in%max_thaw_depth_index, hlm_flag=.false.)
       call this%registry(r)%Register(key=hlm_fates_decomp_thickness, &
                                      data=bc_in%dz_decomp_sisl, hlm_flag=.false.)
-      call this%registry(r)%Register(key=hlm_fates_decomp_id, &
-                                     data=bc_in%decomp_id, hlm_flag=.false.)
 
       call this%registry(r)%Register(key=hlm_fates_decomp_frac_moisture, &                                     
                                      data=bc_in%w_scalar_sisl, hlm_flag=.false.)
@@ -2926,6 +2924,7 @@ subroutine UpdateInterfaceVariables(this, initialize)
    integer :: r   ! registry interface index
    integer :: s   ! site index
    integer :: ifp ! fates patch index
+   integer :: i   ! layer index
 
    ! Set the default initialize flag to false
    if (present(initialize)) then
@@ -2945,11 +2944,48 @@ subroutine UpdateInterfaceVariables(this, initialize)
 
       bc_in  => this%sites(s)%bc_in(ifp)
 
-      ! Calculate the maximum rooting depth index
+      ! Calculate various bc_in variables that are based on other variables or namelist states
       if (initialize) then
+
+         ! Check vertical soil carbon decomposition usage
+         if (hlm_use_vertsoilc == itrue) then
+            if(bc_in%nlevdecomp .ne. bc_in%nlevsoil) then
+               write(fates_log(), *) 'The host has signaled a vertically resolved'
+               write(fates_log(), *) 'soil decomposition model. Therefore, the '
+               write(fates_log(), *) 'total number of soil layers should equal the'
+               write(fates_log(), *) 'total number of decomposition layers.'
+               write(fates_log(), *) 'nlevdecomp: ',bc_in%nlevdecomp
+               write(fates_log(), *) 'nlevsoil: ',bc_in%nlevsoil
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+
+            ! Set all decomposition layer ids to their respective soil layer index
+            do i = 1, bc_in%nlevsoil
+               bc_in%decomp_id(i) = i
+            end do
+
+         else ! No vertical soil carbon decomposition usage
+            if(bc_in%nlevdecomp .ne. 1)then
+               write(fates_log(), *) 'The host has signaled a non-vertically resolved'
+               write(fates_log(), *) 'soil decomposition model. Therefore, the '
+               write(fates_log(), *) 'total number of decomposition layers should be 1.'
+               write(fates_log(), *) 'nlevdecomp: ',bc_in%nlevdecomp
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+
+            ! Set all decomposition layer ids to 1
+            bc_in%decomp_id(:) = 1
+
+         end if
+
+         ! On initialization, set the max rooting depth index to the maximum decomposition level
          bc_in%max_rooting_depth_index_col = bc_in%nlevdecomp
+
       else
+
+         ! Set the max rooting depth index to either to the soil depth or the max thaw depth last year, whichever is shallower
          bc_in%max_rooting_depth_index_col = min(bc_in%nlevsoil, bc_in%max_thaw_depth_index)
+
       end if
 
    end do
