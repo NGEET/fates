@@ -2857,7 +2857,6 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       call this%registry(r)%InitializeInterfaceVariables()
       
       ! Initialize the currently registered boundary conditions
-      ! call this%sites(s)%InitializeBoundaryConditions(ifp)
       call bc_in%Initialize()
       call bc_out%Initialize(bc_in)
 
