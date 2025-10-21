@@ -1093,6 +1093,7 @@ module FatesInterfaceTypesMod
     ! Variables that need to be updated daily
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_moisture, initialize=initialize, index=index)
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_temperature, initialize=initialize, index=index)
+    call this%DefineInterfaceVariable(key=hlm_fates_thaw_max_depth_index, initialize=initialize, index=index)
     
     ! Variables that need to be updated with each timestep
     call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_cellulose, initialize=initialize, index=index, &
