@@ -159,7 +159,7 @@ module FatesInterfaceMod
       ! instance is fine.
       
       type(bc_pconst_type) :: bc_pconst
-      
+
 
    end type fates_interface_type
    
@@ -1499,6 +1499,7 @@ contains
          hlm_sf_scalar_lightning_def = unset_int
          hlm_sf_successful_ignitions_def = unset_int
          hlm_sf_anthro_ignitions_def = unset_int
+         hlm_use_managed_fire = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
@@ -1755,6 +1756,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
+         if(hlm_use_managed_fire .eq. unset_int) then
+            write(fates_log(), *) 'switch for managed fire mode unset: hlm_use_managed_fire, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
          if(trim(hlm_name).eq.'CLM' .and. hlm_parteh_mode .eq. 2) then
             if( sum(abs(EDPftvarcon_inst%prescribed_puptake(:)))<nearzero .and. &
                 sum(abs(EDPftvarcon_inst%prescribed_nuptake(:)))<nearzero) then
@@ -1927,9 +1933,6 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_seeddisp_cadence= ',ival,' to FATES'
                end if
-
-           
-               
                
             case('spitfire_mode')
                hlm_spitfire_mode = ival
@@ -1961,6 +1964,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_sf_anthro_ignition_def =',ival,' to FATES'
                end if
 
+            case('use_managed_fire')
+               hlm_use_managed_fire = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_managed_fire =',ival,' to FATES'
+              end if
+              
                
             case('use_fixed_biogeog')
                 hlm_use_fixed_biogeog = ival
@@ -2272,7 +2281,7 @@ contains
               ! vegetation.
               
               call SeedlingParPatch(cpatch, &
-                   bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar), &
+                   bc_in(s)%solad_parb(ifp,ipar),bc_in(s)%solai_parb(ifp,ipar), &
                    seedling_par_high, par_high_frac, seedling_par_low,&
                    & par_low_frac)
               
@@ -2340,7 +2349,7 @@ end subroutine UpdateFatesRMeansTStep
 ! ========================================================================================
 
 subroutine SeedlingParPatch(cpatch, & 
-     atm_par, & 
+     atm_par_dir,atm_par_dif, & 
      seedling_par_high, par_high_frac, &
      seedling_par_low, par_low_frac)
 
@@ -2359,7 +2368,8 @@ subroutine SeedlingParPatch(cpatch, &
 
   ! Arguments
   type(fates_patch_type)   :: cpatch             ! the current patch
-  real(r8), intent(in)  :: atm_par            ! direct+diffuse PAR at canopy top [W/m2]
+  real(r8), intent(in)  :: atm_par_dir        ! direct PAR at canopy top [W/m2]
+  real(r8), intent(in)  :: atm_par_dif        ! diffuse PAR at canopy top [W/m2]
   real(r8), intent(out) :: seedling_par_high  ! High intensity PAR for seedlings [W/m2]
   real(r8), intent(out) :: par_high_frac      ! Area fraction with high intensity
   real(r8), intent(out) :: seedling_par_low   ! Low intensity PAR for seedlings [W/m2]
@@ -2373,7 +2383,7 @@ subroutine SeedlingParPatch(cpatch, &
   integer  :: iv         ! lower-most leaf layer index for the cl & pft combo
 
   ! Start with the assumption that there is a single canopy layer
-  seedling_par_high = atm_par
+  seedling_par_high = atm_par_dir+atm_par_dif
   par_high_frac     = 1._r8-cpatch%total_canopy_area
   par_low_frac      = cpatch%total_canopy_area
 
@@ -2386,7 +2396,8 @@ subroutine SeedlingParPatch(cpatch, &
         ! Avoid calculating when there are no leaf layers for the given pft in the current canopy layer
         if (iv .ne. 0) then
            cl_par = cl_par + cpatch%canopy_area_profile(cl,ipft,1)* &
-                (cpatch%parprof_pft_dir_z(cl,ipft,iv)+cpatch%parprof_pft_dif_z(cl,ipft,iv))
+                (atm_par_dir*cpatch%nrmlzd_parprof_pft_dir_z(cl,ipft,iv) + &
+                 atm_par_dif*cpatch%nrmlzd_parprof_pft_dif_z(cl,ipft,iv))
            cl_area = cl_area + cpatch%canopy_area_profile(cl,ipft,1)
         end if
      end do
