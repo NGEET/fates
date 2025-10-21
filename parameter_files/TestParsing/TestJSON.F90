@@ -9,6 +9,8 @@ program TestJSON
 
   integer :: filename_len
   integer :: file_unit = 18
+
+  type(params_type) :: pstruct
   
   arg_count = command_argument_count()
   if (arg_count < 1) then
@@ -23,8 +25,8 @@ program TestJSON
   
   ! Read the first command line argument (index 1) into FILENAME
   call get_command_argument(1, value=filename)
-  
-  call ScanJSonGroups(filename,file_unit)
+
+  call ReadJSON(filename,file_unit,pstruct)
 
   
 
