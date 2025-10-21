@@ -21,12 +21,14 @@
       "dims": ["fates_history_age_bins"],
       "long_name": "Lower edges for age class bins used in age-resolved patch history output",
       "units": "yr",
-      "data": [0.0, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0] },      "fates_history_coageclass_bin_edges": {
+      "data": [0.0, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0]
+    },
+    "fates_history_coageclass_bin_edges": {
       "dims": ["fates_history_coage_bins"],
       "long_name": "Lower edges for cohort age class bins used in cohort age resolved history output",
       "units": "years",
 	  "data": [0.0, 5.0]
-      },
+    },
       "fates_history_height_bin_edges": {
       "dims": ["fates_history_height_bins"],
       "long_name": "Lower edges for height bins used in height-resolved history output",
