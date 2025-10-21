@@ -151,8 +151,21 @@ def main(argv):
                 file.write('      <dims> {} </dims>\n'.format(', '.join(val.dim_names)))
                 file.write('      <long> {} </long>\n'.format(val.meta['long_name']))
                 file.write('      <units> {} </units>\n'.format(val.meta['units']))
-                data_strs = [str(c) for c in val.data]
-                file.write('      <data> {} </data>\n'.format(', '.join(data_strs)))
+
+                if(len(val.data.shape)>1):
+                    data_strs = ''
+                    for k in range(val.data.shape[0]):
+                        data_strs = data_strs + ', '.join([str(c) for c in val.data[k,:]])
+                        if(k<val.data.shape[0]-1):
+                            data_strs = data_strs + ', '
+
+                    file.write('      <data> {} </data>\n'.format(data_strs))
+                else:
+                    data_strs = [str(c) for c in val.data]
+                    file.write('      <data> {} </data>\n'.format(', '.join(data_strs)))
+                #if(len(val.dim_names)>1):
+                #code.interact(local=dict(globals(), **locals()))
+                
                 file.write('    </par>\n')
             file.write('  </parameters>\n')
             file.write('</xml>\n')
@@ -187,17 +200,27 @@ def main(argv):
                 #print(val.dim_names)
                 file.write('    "{}":'.format(key))
                 file.write(' {\n')
-                output_string = ', '.join(f'"{name}"' for name in val.dim_names)
+                joinlist = [f'"{name.strip()}"' for name in val.dim_names if name != "fates_string_length"]
+                output_string = ', '.join(joinlist)
                 #print(key,val)
                 file.write('      "dims": [{}],\n'.format(output_string))
                 file.write('      "long_name": "{}",\n'.format(val.meta['long_name']))
                 file.write('      "units": "{}",\n'.format(val.meta['units']))
-                data_strs = [str(c) for c in val.data]
-                file.write('      "data": [{}]\n'.format(', '.join(data_strs)))
+
+                if(len(val.data.shape)>1):
+                    data_strs = '['
+                    for k in range(val.data.shape[0]):
+                        data_strs = data_strs + '[' + ', '.join([str(c).strip() for c in val.data[k,:]]) + ']'
+                        if(k<val.data.shape[0]-1):
+                            data_strs = data_strs + ','
+                    data_strs = data_strs + ']'
+                    file.write('      "data": {}\n'.format(data_strs))
+                else:
+                    data_strs = [str(c).strip() for c in val.data]
+                    file.write('      "data": [{}]\n'.format(', '.join(data_strs)))
                 file.write('    },\n')
             file.write('  },\n')
-            file.write('}\n')
-            
+            file.write('}\n')            
             
     # Test the file write
     if(debug):

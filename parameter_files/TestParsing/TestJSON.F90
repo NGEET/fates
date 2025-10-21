@@ -1,7 +1,7 @@
 program TestJSON
 
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesJSONMod
+  use JSONParameterUtilsMod
   implicit none
 
   integer :: arg_count   ! Number of arguments provided
@@ -28,6 +28,14 @@ program TestJSON
 
   call ReadJSON(filename,file_unit,pstruct)
 
+  ! Assert some reads
+
+  ! Check the character fields on pft names
+
+  !vcmax25top = [50. 62. 39. 61. 58. 58. 62. 54. 54. 38. 54. 86. 78. 78.
+
+
+  
   
 
   deallocate(filename)

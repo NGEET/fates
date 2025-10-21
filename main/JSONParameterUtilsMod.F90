@@ -1,4 +1,4 @@
-module FatesJSONMod
+module JSONParameterUtilsMod
 
 
   ! TO-DO!!!!
@@ -12,15 +12,14 @@ module FatesJSONMod
   ! This module holds the data types and the routines used
   ! for scanning a JSON parameter file, and storing the contents
 
-  !use FatesConstantsMod,only :: max_pft
-  !use FatesConstantsMod,only :: max_plant_organs
-  use FatesConstantsMod,only : r8 => fates_r8
   use, intrinsic :: ISO_FORTRAN_ENV, ONLY : IOSTAT_END,IOSTAT_EOR
 
   implicit none
   
-  public
+  private
 
+  integer, parameter :: r8 = selected_real_kind(12) ! 8 byte real
+  
   ! Data types
   integer, parameter :: r_scalar_type = 1
   integer, parameter :: r_1d_type     = 2
@@ -33,17 +32,21 @@ module FatesJSONMod
   integer, parameter :: max_sl = 128    ! Maximum allowable symbol-length
   integer, parameter :: max_ul = 64     ! Maximum characters for units
   integer, parameter :: max_scr = 500   ! Maximum vector size for strings
-  integer,parameter  :: too_many_iter = 1000
+  integer, parameter :: too_many_iter = 1000
 
   integer, parameter :: count_phase = 1 ! We read variables twice so that we can allocate
   integer, parameter :: fill_phase  = 2  
+
+  ! Numeric value to represent invalid values (like NaN and Null)
+  ! Overridable, see procedure below
+  real(r8) :: r_invalid = -1.e36_r8
   
-  type dim_type
+  type,public :: dim_type
      character(len=max_sl) :: name
      integer               :: size
   end type dim_type
   
-  type param_type
+  type,public ::  param_type
      character(len=max_sl) :: name        ! The variable symbol (the dictionary key)
      character(len=max_ul) :: units
      character(len=max_ll) :: long_name
@@ -57,16 +60,25 @@ module FatesJSONMod
      character(len=128), allocatable :: c_data_1d(:)
   end type param_type
 
-  type params_type
+  type,public :: params_type
      type(param_type), pointer :: parameters(:)
      type(dim_type), pointer :: dimensions(:)
    contains
      procedure :: GetDimSizeFromName
      procedure :: GetParamFromName
   end type params_type
-
+  
+  public :: ReadJSON
+  public :: SetInvalid
+  
 contains
- 
+
+  subroutine SetInvalid(r_invalid_in)
+    real(r8),intent(in) :: r_invalid_in
+    r_invalid = r_invalid_in
+  end subroutine SetInvalid
+
+  
   subroutine ReadJSON(filename,file_unit,pstruct)
 
     ! This is esssentially the driver for reading through the input parameter file
@@ -818,23 +830,65 @@ contains
     logical,intent(out)         :: is_num
     character(len=max_sl),intent(out) :: out_string
     character(len=max_sl)       :: tmp_str
+    character(len=max_sl)       :: tmp_lc_str
     real(r8),intent(out) :: out_real
     integer  :: io_status
     real(r8) :: tmp_real
-
+    logical  :: is_invalid
+    
     tmp_str = trim(CleanSymbol(string_in))
-    read (unit=tmp_str,fmt=*,iostat=io_status) tmp_real
-    if (io_status == 0) then
-       out_real = tmp_real
-       out_string = 'invalid'
+
+    tmp_lc_str = tmp_str
+
+    call to_lowercase(tmp_lc_str)
+    
+    ! Check if this is a nan
+    is_invalid = index(tmp_lc_str,'nan')>0 .or. index(tmp_lc_str,'null')>0
+
+    if(is_invalid)then
+
+       out_real = r_invalid
+       out_string = 'invalid real'
        is_num = .true.
+       
     else
-       out_real = -9999.9_r8
-       out_string = trim(CleanSymbol(string_in))
-       is_num = .false.
+       
+       read (unit=tmp_str,fmt=*,iostat=io_status) tmp_real
+       if (io_status == 0) then
+          out_real = tmp_real
+          out_string = 'real number'
+          is_num = .true.
+       else
+          out_real = -9999.9_r8
+          out_string = trim(CleanSymbol(string_in))
+          is_num = .false.
+       end if
     end if
+    
     return
   end subroutine StringToStringOrReal
+
+  ! =====================================================================================
+
+  subroutine to_lowercase(input_string)
+    character(len=*), intent(inout) :: input_string
+    integer :: i, char_code
+
+    ! Use IACHAR to convert the character to its integer
+    ! code. Capital letters have a different code than lower
+    ! case.
+    
+    do i = 1,len(input_string)
+
+       char_code = iachar(input_string(i:i))
+        
+       ! Check if the character is an uppercase letter (A-Z)
+       if (char_code >= iachar('A') .and. char_code <= iachar('Z')) then
+          ! Add 32 (the ASCII offset) to convert it to lowercase
+          input_string(i:i) = ACHAR(char_code + 32)
+       end if
+    end do
+  end subroutine to_lowercase
 
   ! =====================================================================================
 
@@ -885,6 +939,5 @@ contains
     end if
     
   end function GetParamFromName
-  
     
-end module FatesJSONMod
+end module JSONParameterUtilsMod
