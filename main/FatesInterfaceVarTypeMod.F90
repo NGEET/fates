@@ -292,6 +292,8 @@ module FatesInterfaceVariableTypeMod
           write(fates_log(),*) '  Source, size: ', var%key, var%data_size(1), var%data_size(2), var%data_size(3)
         else 
           write(fates_log(),*) '  Unsupported interface variable rank in UpdateErrorMessage'
+          write(fates_log(),*) '  Target key, rank: ', this%key, this%data_rank
+          write(fates_log(),*) '  Source key, rank: ', var%key, var%data_rank
         end if
 
         call endrun(msg=errMsg(__FILE__, __LINE__))
