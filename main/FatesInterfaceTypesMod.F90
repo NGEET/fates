@@ -883,7 +883,8 @@ module FatesInterfaceTypesMod
     character(len=48), allocatable, private :: key(:)
 
     ! Variable regsitry metadata
-    integer :: num_api_vars                        ! number of variables in the registry
+    integer :: num_api_vars                       ! number of variables in the registry
+    integer :: num_api_vars_update_init_dims      ! number of variables dimensions needed during initialization
     integer :: num_api_vars_update_init           ! number of variables that update only at initialization
     integer :: num_api_vars_update_daily          ! number of variables that update daily
     integer :: num_api_vars_update_timestep       ! number of variables that update on the model timestep
@@ -893,6 +894,7 @@ module FatesInterfaceTypesMod
     integer, allocatable :: update_frequency(:)
 
     ! Arrays that hold the registry indices of variables based on update frequency
+    integer, allocatable :: filter_init_dims(:) ! registry index of variables dimensions that update at initialization
     integer, allocatable :: filter_init(:)      ! registry index of variables that update only at initialization
     integer, allocatable :: filter_daily(:)     ! registry index of variables that update daily
     integer, allocatable :: filter_timestep(:)  ! registry index of variables that update at each timestep
@@ -918,6 +920,7 @@ module FatesInterfaceTypesMod
       procedure :: GetHLMPatchIndex
       procedure :: GetFatesPatchIndex
       procedure :: InitializeInterfaceRegistry
+      procedure :: InitializeInterfaceVariablesDimensions
       procedure :: InitializeInterfaceVariables
       procedure :: SetSubgridIndices
       procedure :: UpdateLitterFluxes
@@ -1026,6 +1029,7 @@ module FatesInterfaceTypesMod
 
     ! Initialize registry counters
     this%num_api_vars = 0
+    this%num_api_vars_update_init_dims = 0
     this%num_api_vars_update_init = 0
     this%num_api_vars_update_daily = 0
     this%num_api_vars_update_timestep = 0
@@ -1041,6 +1045,7 @@ module FatesInterfaceTypesMod
     allocate(this%update_frequency(this%num_api_vars))
     
     ! Allocate the index filter maps
+    allocate(this%filter_init_dims(this%num_api_vars_update_init_dims))
     allocate(this%filter_init(this%num_api_vars_update_init))
     allocate(this%filter_daily(this%num_api_vars_update_daily))
     allocate(this%filter_timestep(this%num_api_vars_update_timestep))
@@ -1050,6 +1055,7 @@ module FatesInterfaceTypesMod
     
     ! Unset the allocatables not including the interface variables
     this%update_frequency(:) = fates_unset_int
+    this%filter_init_dims(:) = fates_unset_int
     this%filter_init(:) = fates_unset_int
     this%filter_daily(:) = fates_unset_int
     this%filter_timestep(:) = fates_unset_int
@@ -1080,13 +1086,16 @@ module FatesInterfaceTypesMod
     index = 0
 
     ! Define the interface registry names and indices
-    ! Variables that only need to be updated during initialization, such as dimensions
+    ! Variables that need to be updated during initialization and are necessary for other boundary conditions
+    ! such as dimensions
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_max, initialize=initialize, index=index, &
-                                      update_frequency=registry_update_init)
+                                      update_frequency=registry_update_init_dims)
     call this%DefineInterfaceVariable(key=hlm_fates_decomp, initialize=initialize, index=index, &
-                                      update_frequency=registry_update_init)
+                                      update_frequency=registry_update_init_dims)
     call this%DefineInterfaceVariable(key=hlm_fates_soil_level, initialize=initialize, index=index, &
-                                      update_frequency=registry_update_init)
+                                      update_frequency=registry_update_init_dims)
+
+    ! Variables that only need to be updated at initialization
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_thickness, initialize=initialize, index=index, &
                                       update_frequency=registry_update_init)
     
@@ -1153,6 +1162,8 @@ module FatesInterfaceTypesMod
       ! Initialize the variable
       if (present(update_frequency)) then
         select case (update_frequency)
+        case (registry_update_init_dims)  
+          update_frequency_local = registry_update_init_dims
         case (registry_update_init)
           update_frequency_local = registry_update_init
         case (registry_update_daily)
@@ -1187,6 +1198,8 @@ module FatesInterfaceTypesMod
       ! Increment the count for the update frequency counts, defaulting to daily if not specified
       if (present(update_frequency)) then
         select case (update_frequency)
+        case (registry_update_init_dims)  
+          this%num_api_vars_update_init_dims = this%num_api_vars_update_init_dims + 1
         case (registry_update_init)
           this%num_api_vars_update_init = this%num_api_vars_update_init + 1
         case (registry_update_daily)
@@ -1303,12 +1316,14 @@ module FatesInterfaceTypesMod
     class(fates_interface_registry_type), intent(inout) :: this
 
     integer :: index
+    integer :: count_init_dims
     integer :: count_init
     integer :: count_daily
     integer :: count_timestep
     integer :: count_litter_flux
 
     ! Initialize counters
+    count_init_dims = 0
     count_init = 0
     count_daily = 0
     count_timestep = 0
@@ -1318,7 +1333,10 @@ module FatesInterfaceTypesMod
     do index = 1, this%num_api_vars
       
       ! Frequency update
-      if (this%update_frequency(index) == registry_update_init) then
+      if (this%update_frequency(index) == registry_update_init_dims) then
+        count_init_dims = count_init_dims + 1
+        this%filter_init_dims(count_init_dims) = index
+      else if (this%update_frequency(index) == registry_update_init) then
         count_init = count_init + 1
         this%filter_init(count_init) = index
       else if (this%update_frequency(index) == registry_update_daily) then
@@ -1350,7 +1368,8 @@ module FatesInterfaceTypesMod
     end do
     
     ! Check that the counts match the expected sizes
-    if (count_init /= this%num_api_vars_update_init .or. &
+    if (count_init_dims /= this%num_api_vars_update_init_dims .or. &
+        count_init /= this%num_api_vars_update_init .or. &
         count_daily /= this%num_api_vars_update_daily .or. &
         count_timestep /= this%num_api_vars_update_timestep) then
           
@@ -1464,6 +1483,30 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
   
+  subroutine InitializeInterfaceVariablesDimensions(this)
+
+    ! Arguments
+    class(fates_interface_registry_type), intent(inout) :: this  ! registry being initialized
+
+    ! Locals
+    integer :: i  ! initialization iterator
+    integer :: j  ! variable index
+    
+    ! Update the boundary conditions necessary during initialization only
+    do i = 1, this%num_api_vars_update_init_dims
+      
+      ! Get the variable index from the init filter
+      j = this%filter_init_dims(i)
+      
+      ! Update the variables
+      call this%fates_vars(j)%Update(this%hlm_vars(j))
+
+    end do
+    
+  end subroutine InitializeInterfaceVariablesDimensions
+  
+  ! ======================================================================================
+  
   subroutine InitializeInterfaceVariables(this)
 
     ! Arguments
@@ -1484,7 +1527,7 @@ module FatesInterfaceTypesMod
 
     end do
     
-  end subroutine
+  end subroutine InitializeInterfaceVariables
   
   ! ======================================================================================
 

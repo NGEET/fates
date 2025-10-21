@@ -2853,8 +2853,8 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       call this%registry(r)%Register(key=hlm_fates_decomp, data=bc_in%nlevdecomp, hlm_flag=.false.)
       call this%registry(r)%Register(key=hlm_fates_soil_level, data=bc_in%nlevsoil, hlm_flag=.false.)
 
-      ! Initialize the interface variables necessary for allocating boundary conditions
-      call this%registry(r)%InitializeInterfaceVariables()
+      ! Initialize the interface variables necessary for allocating boundary conditions dimensions
+      call this%registry(r)%InitializeInterfaceVariablesDimensions()
       
       ! Initialize the currently registered boundary conditions
       call bc_in%Initialize()
