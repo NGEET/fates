@@ -2944,7 +2944,7 @@ subroutine UpdateInterfaceVariables(this, initialize)
       bc_in  => this%sites(s)%bc_in(ifp)
 
       ! Calculate various bc_in variables that are based on other variables or namelist states
-      if (initialize) then
+      if (initialize_local) then
 
          ! Check vertical soil carbon decomposition usage
          if (hlm_use_vertsoilc == itrue) then
