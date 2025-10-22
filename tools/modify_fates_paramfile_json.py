@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--var','--variable', dest='varname', type=str, help="What variable to modify? Required.",required=True)
     parser.add_argument('--q','--queryvar', dest='queryvar', help="Report variable info only, then exit.",action="store_true")
     parser.add_argument('--indices', nargs='+', help='List of variable indices (1-len) to change (flattens 2d arrays, second dim is the inner).')
+    parser.add_argument('--pft-name.')
     parser.add_argument('--values', nargs='+', help='List of values to change, must coincide with indices')
     parser.add_argument('--overwrite', dest='overwrite', help="Use this flag to overwrite the input file",action="store_true")
     parser.add_argument('--silent',dest='silent',help="Suppress output messages",action="store_true")
