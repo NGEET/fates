@@ -28,10 +28,10 @@ module JSONParameterUtilsMod
 
   logical, parameter :: debug = .false.
 
-  integer, parameter :: max_ll = 256    ! Maximum allowable line-length
-  integer, parameter :: max_sl = 128    ! Maximum allowable symbol-length
-  integer, parameter :: max_ul = 64     ! Maximum characters for units
-  integer, parameter :: max_scr = 500   ! Maximum vector size for strings
+  integer, parameter :: max_ll = 1024    ! Maximum allowable line-length
+  integer, parameter :: max_sl = 256     ! Maximum allowable symbol-length
+  integer, parameter :: max_ul = 128     ! Maximum characters for units
+  integer, parameter :: max_scr = 500    ! Maximum vector size for strings
   integer, parameter :: too_many_iter = 1000
 
   integer, parameter :: count_phase = 1 ! We read variables twice so that we can allocate
@@ -139,7 +139,6 @@ contains
     integer,intent(in)          :: file_unit
     type(params_type)           :: pstruct
 
-    integer,parameter :: scan_len = 128
     integer,parameter :: dimdata_len = 4096
     character(len=max_sl) :: group_str
     character(len=dimdata_len) :: dimdata_str
@@ -173,7 +172,7 @@ contains
        else
           call PopString(group_str,filechar)
        end if
-       if(index(group_str,'dimensions')>0 .and. index(group_str,'{',.true.)==max_sl)then
+       if(index(group_str,'dimensions')>0 .and. index(group_str,'{',.true.)==min(i,max_sl))then
           found_dimtag = .true.
        end if
     end do
@@ -259,6 +258,7 @@ contains
        end if
        pstruct%dimensions(i)%name = trim(CleanSymbol(symb_str))
        pstruct%dimensions(i)%size = int(tmp_real)
+       if(debug)write(*,*) trim(pstruct%dimensions(i)%name),":",pstruct%dimensions(i)%size
        beg_id = end_id+1
     end do
 
@@ -284,13 +284,12 @@ contains
 
     type(param_type), pointer :: param
     type(dim_type), pointer   :: dim
-    integer,parameter :: scan_len = 128
     integer,parameter :: vardata_max_len = 4096
     character(len=max_sl) :: group_str
     character(len=vardata_max_len) :: vardata_str
     character(len=1) :: filechar
-    character(len=max_sl) :: symb_str
-    character(len=max_ll) :: data_str
+    character(len=max_ll) :: symb_str
+    character(len=vardata_max_len) :: data_str
     integer :: n_vec_out
     logical :: found_close
     logical :: found_vars
@@ -445,8 +444,8 @@ contains
              stop
           end if
           call StringToStringOrReal(string_scr(1),is_num,tmp_str,tmp_real)
-          if(is_num)then
-             if(param%ndims==1)then
+          if_isnum: if(is_num)then
+             if_dimsize: if(param%ndims==1)then
                 if(param%dim_names(1)=='scalar')then
                    call StringToStringOrReal(string_scr(1),is_num,tmp_str,tmp_real)
                    param%r_data_scalar = tmp_real
@@ -460,7 +459,7 @@ contains
                    param%dtype =  r_1d_type
                    allocate(param%r_data_1d(dimsizes(1)))
                    if(n_vec_out.ne.dimsizes(1))then
-                      write(*,*)'parameter size does not match dimension size'
+                      write(*,*)'1d parameter size does not match dimension size'
                       write(*,*) n_vec_out,dimsizes(1)
                       write(*,*) trim(param%name)
                       write(*,*) trim(data_str)
@@ -477,11 +476,13 @@ contains
                       write(*,*)param%r_data_1d(:)
                    end if
                 end if
-             else
+             else ! if_dimtype
                 param%dtype = r_2d_type
                 if(n_vec_out.ne.(dimsizes(1)*dimsizes(2)))then
-                   write(*,*)'parameter size does not match dimension size'
+                   write(*,*)'2d parameter size does not match dimension size'
                    write(*,*) n_vec_out,dimsizes(1),dimsizes(2)
+                   write(*,*) trim(data_str)
+                   write(*,*) "len:",len(trim(data_str))
                    write(*,*) trim(param%name)
                    stop
                 end if
@@ -499,7 +500,7 @@ contains
                    write(*,*)trim(param%name)
                    write(*,*)param%r_data_2d
                 end if
-             end if
+             end if if_dimsize
           else
              ! For string data, just follow the data
              param%dtype = c_1d_type
@@ -513,7 +514,7 @@ contains
                 write(*,*)trim(param%name)
                 write(*,*)param%c_data_1d
              end if
-          end if
+          end if if_isnum
           call ClearStringScratch(string_scr,n_vec_out)
           found_data = .true.
        end if if_data
@@ -540,8 +541,6 @@ contains
     character(len=max_ll), dimension(*) :: string_scr ! Internal scratch space
     type(params_type)                   :: pstruct
 
-    
-    integer,parameter :: scan_len = 128
     integer,parameter :: data_len = 4096
     character(len=max_sl) :: group_str
     character(len=data_len) :: vardata_str
@@ -633,22 +632,25 @@ contains
     !character(len=2)                                :: unwanted_chars  = (/!#/)
     integer :: i,j,k,l,ii
     integer :: iv    ! index of vector start
+    integer :: ivz   ! index of vector end
 
     ! Determine if this is a vector or not
     ! (ie iv=0 is scalar, iv>0 is vector)
+    ! Take the right most (in case nested brackets)
     iv = index(trim(string_in),'[')
-
+    ivz = index(trim(string_in),']',.true.)
+    
     k = 0 ! Counter for the cleaned string position
     l = 1 ! Counter for the output vector
     
     ! Loop through every character of the original string
 
-    do_str_scan: do i = iv+1, len(trim(string_in))
+    do_str_scan: do i = iv, len(trim(string_in))
 
        ! We are done parsing if we hit one of two conditions..
        ! 1) We are in vector mode and we encounter the end bracket
        ! 2) We are not in vector mode (no opening bracket) and we encounter a comma
-       if(iv>0 .and. index(string_in(i:i),']')>0) exit do_str_scan
+       if(iv>0 .and. i==ivz) exit do_str_scan
        if(iv==0 .and. index(string_in(i:i),',')>0) exit do_str_scan
 
        ! If we encounter a comma, we go to the next index
@@ -666,7 +668,7 @@ contains
           ! SCAN returns the position of the *first* character from the 
           ! set (unwanted_chars) that is present in the string.
           ! If it returns 0, the character is NOT unwanted.
-          j = scan(string_in(i:i),'!#&^')
+          j = scan(string_in(i:i),'!#&^[]')
           
           if (j == 0) then
              ! This is a character we want to keep

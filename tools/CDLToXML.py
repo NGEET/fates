@@ -195,14 +195,14 @@ def main(argv):
                     file.write('\n')
             file.write('  },\n')
             file.write('  "variables": {\n')
-            for key, val in params.items():
-                #print(key,val)
-                #print(val.dim_names)
+            item_list = list(params.items())
+            num_items = len(item_list)
+            
+            for i,(key, val) in enumerate(item_list):
                 file.write('    "{}":'.format(key))
                 file.write(' {\n')
                 joinlist = [f'"{name.strip()}"' for name in val.dim_names if name != "fates_string_length"]
                 output_string = ', '.join(joinlist)
-                #print(key,val)
                 file.write('      "dims": [{}],\n'.format(output_string))
                 file.write('      "long_name": "{}",\n'.format(val.meta['long_name']))
                 file.write('      "units": "{}",\n'.format(val.meta['units']))
@@ -210,16 +210,23 @@ def main(argv):
                 if(len(val.data.shape)>1):
                     data_strs = '['
                     for k in range(val.data.shape[0]):
-                        data_strs = data_strs + '[' + ', '.join([str(c).strip() for c in val.data[k,:]]) + ']'
+                        row_strs = [str(c).strip() for c in val.data[k,:]]
+                        row_strs = ['null' if c=='nan' else c for c in row_strs]
+                        data_strs = data_strs + '[' + ', '.join(row_strs) + ']'
                         if(k<val.data.shape[0]-1):
                             data_strs = data_strs + ','
                     data_strs = data_strs + ']'
                     file.write('      "data": {}\n'.format(data_strs))
                 else:
                     data_strs = [str(c).strip() for c in val.data]
+                    data_strs = ['null' if c=='nan' else c for c in data_strs]
                     file.write('      "data": [{}]\n'.format(', '.join(data_strs)))
-                file.write('    },\n')
-            file.write('  },\n')
+                #file.write('    },\n')
+                if i == num_items - 1:
+                    file.write('    }\n')
+                else:
+                    file.write('    },\n')
+            file.write('  }\n')
             file.write('}\n')            
             
     # Test the file write
