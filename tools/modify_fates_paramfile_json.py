@@ -61,8 +61,23 @@ def main():
         if(args.queryvar):
             print(f'Reporting: Variable: {args.varname}:')
             print(f'           dimension names: {dim_names}')
-            print(f'           dimension names: {dim_sizes}')
-            print(f'           data: {vardata}')
+            print(f'           dimension sizes: {dim_sizes}')
+            print(f'           Current Values:')
+            if(len(dim_sizes)>1):
+                for i in range(dim_sizes[0]):
+                    print(f'           {data["variables"][args.varname]["data"][i][:]}')
+            else:
+                print(f'           {data["variables"][args.varname]["data"][:]}')
+            print(f'           Index Pattern:')
+            if(len(dim_sizes)>1):
+                for i in range(dim_sizes[0]):
+                    i0 = i*dim_sizes[1]+1
+                    i1 = i0+dim_sizes[1]
+                    #code.interact(local=dict(globals(), **locals()))
+                    print(f'           {list(range(i0,i1))}')
+            else:
+                #code.interact(local=dict(globals(), **locals()))
+                print(f'           {list(range(1,dim_sizes[0]+1))}')
             exit(0)
 
         indices = []
