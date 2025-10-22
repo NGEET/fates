@@ -1,17 +1,8 @@
 #!/usr/bin/env python
 
-#### this script modifies a FATES parameter file. It accepts the following flags
-# --var or --variable: variable.
-# --pft or --PFT: PFT number. If this is missing, script will assume that its a global variable that is being modified.
-# --input or --fin: input filename.
-# --output or --fout: output filename.  If missing, will assume its directly modifying the input file, and will prompt unless -O is specified
-# --O or --overwrite: overwrite output file without asking.
-# --value or --val: value to put in variable
-# --s or --silent: don't write anything on successful execution.
-####
 #
-# Written by C. Koven, 2018
-#
+# Original: C. Koven, 2018
+# Refactored for json: R. Knox 2025
 
 # =======================================================================================
 # =======================================================================================
@@ -28,11 +19,6 @@ import code  # For development: code.interact(local=dict(globals(), **locals()))
 import json
 
 
-def comma_separated_list(input_string):
-    """Splits a string by commas and returns a list of stripped strings."""
-    # Use list comprehension to split and strip whitespace from each item
-    return [item.strip() for item in input_string.split(',')]
-
 # ========================================================================================
 # ========================================================================================
 #                                        Main
@@ -44,26 +30,17 @@ def main():
     parser = argparse.ArgumentParser(description='Parse command line arguments to this script.')
     #
     parser.add_argument('--fin', '--input', dest='inputfname', type=str, help="Input filename.  Required.", required=True)
-    parser.add_argument('--fout','--output', dest='outputfname', type=str, help="Output filename.  Required.", required=True)
-    parser.add_argument('--var','--variable', dest='varname', type=str, help="What variable to modify? Required.", required=True)
+    parser.add_argument('--fout','--output', dest='outputfname', type=str, help="Output filename. Required if not --overwrite.")
+    parser.add_argument('--var','--variable', dest='varname', type=str, help="What variable to modify? Required.",required=True)
     parser.add_argument('--q','--queryvar', dest='queryvar', help="Report variable info only, then exit.",action="store_true")
     parser.add_argument('--indices', nargs='+', help='List of variable indices (1-len) to change (flattens 2d arrays, second dim is the inner).')
     parser.add_argument('--values', nargs='+', help='List of values to change, must coincide with indices')
     parser.add_argument('--overwrite', dest='overwrite', help="Use this flag to overwrite the input file",action="store_true")
-     
+    parser.add_argument('--silent',dest='silent',help="Suppress output messages",action="store_true")
+
     args = parser.parse_args()
     
-    # work with the file in some random temporary place so that if something goes wrong,
-    # then nothing happens to original file and it doesn't make a persistent output file
-    tempdir = tempfile.mkdtemp()
-    tempfilename = os.path.join(tempdir, 'temp_fates_param_file.json')
-
-    
-    
-
     with open(args.inputfname, 'r') as file:
-        # json.load() reads the file object and converts the JSON data 
-        # (like arrays, objects, strings) into corresponding Python objects (lists, dictionaries, strings).
         data = json.load(file)
 
         try:
@@ -90,7 +67,7 @@ def main():
 
         indices = []
         for index in args.indices:
-            for item in index.split(','):
+            for item in index.strip('=[]').split(','):
                 if(int(item) > max_index):
                     print(f'\nYou provided an index that is larger than')
                     print(f'the size of the variable\'s dataset.')
@@ -103,7 +80,7 @@ def main():
        
         values = []
         for val in args.values:
-            for item in val.split(','):
+            for item in val.strip('=[]').split(','):
                 if dtype is float:
                     try:
                         values.append(float(item))
@@ -116,16 +93,28 @@ def main():
                 else:
                     values.append(str(item))
 
+        if(not args.silent):
+            print(f'\n')
+            
         # i is 1-size, not 0 through size
         for i,idx in enumerate(indices):
             if(len(dim_sizes)>1):
                 k = np.remainder(idx-1,dim_sizes[1])
                 j = int(np.floor(float(idx-1)/float(dim_sizes[1])))
+                if(not args.silent):
+                    old_val = data['variables'][args.varname]['data'][j][k]
+                    print(f'Changing {args.varname}[{j},{k}] from {old_val} to {values[i]}')
                 data['variables'][args.varname]['data'][j][k] = values[i]
             else:
                 j = idx-1
+                if(not args.silent):
+                    old_val = data['variables'][args.varname]['data'][j]
+                    print(f'Changing {args.varname}[{j}] from {old_val} to {values[i]}')
                 data['variables'][args.varname]['data'][j] = values[i]
 
+        if(not args.silent):
+            print(f'\n')
+            
     if args.outputfname is not None:
         output_filename = args.outputfname
         if(args.overwrite is True):
@@ -147,17 +136,8 @@ def main():
         json.dump(data, outfile, indent=2)
 
 
+
         
-                
-    # data is a nested dictionary
-    # >>> data['dimensions']['fates_NCWD']
-    #     4
-    #>>> type(data['dimensions']['fates_NCWD'])
-    #    <class 'int'>
-    #>>> data['variables']['fates_q10_froz']
-    #    {'dims': ['scalar'], 'long_name': 'Q10 for frozen-soil respiration rates', 'units': 'unitless', 'data': [1.5]}
-
-
 # =======================================================================================
 # This is the actual call to main
 
