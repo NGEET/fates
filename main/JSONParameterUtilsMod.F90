@@ -1,14 +1,6 @@
 module JSONParameterUtilsMod
 
 
-  ! TO-DO!!!!
-  ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! Add methods that will check to ignore/swap out brackets }{
-  ! that are inside quotes with [].
-  ! These brackets are crucial for parsing the file
-  ! and if they are in quotes, the code will get confused.
-  ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
   ! This module holds the data types and the routines used
   ! for scanning a JSON parameter file, and storing the contents
 
@@ -28,13 +20,21 @@ module JSONParameterUtilsMod
 
   logical, parameter :: debug = .false.
 
-  integer, parameter :: max_ll = 1024    ! Maximum allowable line-length
-  integer, parameter :: max_sl = 256     ! Maximum allowable symbol-length
-  integer, parameter :: max_ul = 128     ! Maximum characters for units
-  integer, parameter :: max_scr = 500    ! Maximum vector size for strings
-  integer, parameter :: too_many_iter = 1000
+  integer, parameter :: max_ll = 2048          ! Maximum allowable line-length
+  integer, parameter :: max_sl = 512           ! Maximum allowable symbol-length
+  integer, parameter :: max_ul = 128           ! Maximum characters for units
+  integer, parameter :: max_scr = 1000         ! Maximum number of strings that
+                                               ! need to be remembered at once. This
+                                               ! needs to be larger than the
+                                               ! total number of vector/array members
+                                               ! in any single variable/parameter
+  
+  integer, parameter :: vardata_max_len = 4096 ! Maximum number of characters that would
+                                               ! be needed to encapulate all the data
+                                               ! inside a variable's {}
 
-  integer, parameter :: count_phase = 1 ! We read variables twice so that we can allocate
+  integer, parameter :: too_many_iter = 1000
+  integer, parameter :: count_phase = 1        ! We read variables twice so that we can allocate
   integer, parameter :: fill_phase  = 2  
 
   ! Numeric value to represent invalid values (like NaN and Null)
@@ -53,7 +53,8 @@ module JSONParameterUtilsMod
      integer :: dtype                                    ! Data type, see above
      character(len=max_sl), allocatable :: dim_names(:)  ! These are the indices of the dimensions
                                                          ! associated with this variable
-     integer               :: ndims   ! Number of dimensions, same as size (dim_names)
+     integer               :: ndims                      ! Number of dimensions,
+                                                         ! same as size (dim_names)
      real(r8)              :: r_data_scalar
      real(r8), allocatable :: r_data_1d(:)
      real(r8), allocatable :: r_data_2d(:,:)
@@ -117,6 +118,8 @@ contains
        write(*,*) 'successfully opened ',trim(filename)
     end if
 
+    call CheckRogueBrackets(file_unit,filename)
+    
     call GetDimensions(file_unit,pstruct)
 
     call GetVariables(file_unit,string_scr,pstruct)
@@ -132,6 +135,45 @@ contains
     
   end subroutine ReadJSON
 
+  ! =====================================================================================
+
+  subroutine CheckRogueBrackets(file_unit,filename)
+
+    ! Go through the file and simply make sure that
+    ! { and } brackets are not found inside any quotes.
+
+    integer,intent(in)          :: file_unit
+    character(len=*) :: filename
+    character(len=1) :: filechar
+    logical          :: inside_quotes
+    integer          :: io_status
+    
+    inside_quotes = .false.
+    
+    do_readfile: do 
+       
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status) filechar
+       if (io_status == IOSTAT_END) then
+          exit do_readfile
+       end if
+       
+       if (scan(filechar,'"')>0)then
+          inside_quotes = .not.inside_quotes
+       end if
+
+       if (scan('{}',filechar)>0 .and. inside_quotes) then
+          write(*,*)'A curly bracket "} or {"  was found inside a quoted string in ',trim(filename)
+          write(*,*)'This confuses the JSON parser. Please remove brackets from inside all strings.'
+          stop
+       end if
+
+       if(debug)then
+          write(*,*) 'Scanned JSON file and found no rogue brackets'
+       end if
+
+    end do do_readfile
+    return
+  end subroutine CheckRogueBrackets
   ! =====================================================================================
   
   subroutine GetDimensions(file_unit,pstruct)
@@ -156,6 +198,11 @@ contains
     logical :: is_num
     real(r8):: tmp_real
     character(len=max_sl) :: tmp_str
+
+
+    ! Step 0: We start at the very beginning of the file, which
+    ! allows us to count file positions and return to those file positions
+    rewind(file_unit)
     
     ! -----------------------------------------------------------------------------------
     ! Step 1: Advance the file's character pointer to the open bracket following
@@ -284,7 +331,7 @@ contains
 
     type(param_type), pointer :: param
     type(dim_type), pointer   :: dim
-    integer,parameter :: vardata_max_len = 4096
+    
     character(len=max_sl) :: group_str
     character(len=vardata_max_len) :: vardata_str
     character(len=1) :: filechar
