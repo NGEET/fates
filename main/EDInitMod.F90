@@ -804,14 +804,13 @@ contains
                    seed_init = fates_unset_r8
                 else
                    litt_init = 0._r8
-                   seed_init = 0.01_r8  ! This should maybe be a parameter ultimately. Leaving here to avoid changing the api. 
                 end if
                 do el=1,num_elements
                    call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
                         init_root_fines=litt_init, &
                         init_ag_cwd=litt_init, &
                         init_bg_cwd=litt_init, &
-                        init_seed=seed_init,   &
+                        init_seed=litt_init,   &
                         init_seed_germ=litt_init)
                 end do
 
@@ -896,12 +895,25 @@ contains
                             litt_init = 0._r8
                          end if
                          do el=1,num_elements
-                            call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
-                                 init_root_fines=litt_init, &
-                                 init_ag_cwd=litt_init, &
-                                 init_bg_cwd=litt_init, &
-                                 init_seed=litt_init,   &
-                                 init_seed_germ=litt_init)
+                            if ((.not. hlm_use_sp .eq. itrue) .and. &
+                                (.not. (newp%nocomp_pft_label .eq. fates_unset_int) .or. &
+                                       (newp%nocomp_pft_label .eq. nocomp_bareground))) then
+                               ! nocomp non-bareground get inital seed pool from the parameter file
+                               ! sp mode will get unset values no matter what
+                               call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
+                                    init_root_fines=litt_init, &
+                                    init_ag_cwd=litt_init, &
+                                    init_bg_cwd=litt_init, &
+                                    init_seed=EDPftvarcon_inst%init_seed(newp%nocomp_pft_label),   &
+                                    init_seed_germ=litt_init)
+                            else
+                               call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
+                                   init_root_fines=litt_init, &
+                                   init_ag_cwd=litt_init, &
+                                   init_bg_cwd=litt_init, &
+                                   init_seed=litt_init,   &
+                                   init_seed_germ=litt_init)
+                            endif
                          end do
 
                          sitep => sites(s)
