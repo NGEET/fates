@@ -2903,7 +2903,10 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
          end if
       end do
    end do
-   
+
+   ! Check the interface variables for consistency
+   call this%CheckInterfaceVariables()
+
 end subroutine InitializeBoundaryConditions
 
 ! ======================================================================================
@@ -3006,6 +3009,20 @@ subroutine UpdateLitterFluxes(this, dtime)
    end do
 
 end subroutine UpdateLitterFluxes
+
+! ======================================================================================
+
+subroutine CheckInterfaceVariables(this)
+   class(fates_interface_type), intent(inout) :: this
+
+   ! Locals
+   integer :: r
+
+   do r = 1, this%npatches
+      call this%registry(r)%CheckInterfaceVariables()
+   end do
+
+end subroutine CheckInterfaceVariables
 
 ! ======================================================================================
 
