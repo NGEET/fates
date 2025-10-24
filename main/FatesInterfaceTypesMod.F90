@@ -913,6 +913,7 @@ module FatesInterfaceTypesMod
 
     contains
 
+      procedure :: CheckInterfaceVariables
       procedure :: GetGridcellIndex
       procedure :: GetLandunitIndex
       procedure :: GetColumnIndex
@@ -1071,6 +1072,46 @@ module FatesInterfaceTypesMod
     call this%SetFilterMapArrays()
 
   end subroutine InitializeInterfaceRegistry
+
+  ! ======================================================================================
+
+  subroutine CheckInterfaceVariables(this)
+
+    ! This procedure checks the registered HLM and FATES interface variables for consistency
+    
+    class(fates_interface_registry_type), intent(inout) :: this
+
+    integer :: i
+
+    do i = 1, this%num_api_vars
+      
+      
+      ! Check that variable keys match
+      if (this%hlm_vars(i)%key /= this%fates_vars(i)%key) then
+        write(*,*) "Key mismatch for variable: ", this%key(i), this%hlm_vars(i)%key, this%fates_vars(i)%key
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
+
+      ! Check that the rank matches
+      if (this%hlm_vars(i)%rank /= this%fates_vars(i)%rank) then
+        write(*,*) "Rank mismatch for variable: ", this%key(i)
+      end if
+      
+      ! Check that the bounds match
+      call this%hlm_vars(i)%CheckBounds(this%fates_vars(i))
+
+      ! Check that the size of the interface variables match
+      if (this%hlm_vars(i)%rank > 0) then
+        if (any(this%hlm_vars(i)%data_size(:) /= this%fates_vars(i)%data_size(:))) then
+          write(*,*) "Size mismatch: key,   hlm size: ", this%key(i), this%hlm_vars(i)%data_size
+          write(*,*) "Size mismatch: key, fates size: ", this%key(i), this%fates_vars(i)%data_size
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+        end if
+      end if
+
+    end do
+
+  end subroutine CheckInterfaceVariables
 
   ! ======================================================================================
   
