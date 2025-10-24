@@ -1093,15 +1093,16 @@ module FatesInterfaceTypesMod
       end if
 
       ! Check that the rank matches
-      if (this%hlm_vars(i)%rank /= this%fates_vars(i)%rank) then
+      if (this%hlm_vars(i)%data_rank /= this%fates_vars(i)%data_rank) then
         write(*,*) "Rank mismatch for variable: ", this%key(i)
+        call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
       
       ! Check that the bounds match
       call this%hlm_vars(i)%CheckBounds(this%fates_vars(i))
 
       ! Check that the size of the interface variables match
-      if (this%hlm_vars(i)%rank > 0) then
+      if (this%hlm_vars(i)%data_rank > 0) then
         if (any(this%hlm_vars(i)%data_size(:) /= this%fates_vars(i)%data_size(:))) then
           write(*,*) "Size mismatch: key,   hlm size: ", this%key(i), this%hlm_vars(i)%data_size
           write(*,*) "Size mismatch: key, fates size: ", this%key(i), this%fates_vars(i)%data_size
