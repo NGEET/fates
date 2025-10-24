@@ -33,6 +33,7 @@ module FatesInterfaceVariableTypeMod
     integer, allocatable :: data_size(:)   ! size of the first dimension of the variable
 
     contains
+      procedure :: CheckBounds
       procedure :: Initialize => InitializeInterfaceVariable
       procedure :: Update     => UpdateInterfaceVariable
 
@@ -48,6 +49,50 @@ module FatesInterfaceVariableTypeMod
   end type fates_interface_variable_type
   
   contains
+  
+  ! ====================================================================================
+  
+  subroutine CheckBounds(this, var)
+
+    class(fates_interface_variable_type), intent(in) :: this
+    class(fates_interface_variable_type), intent(in) :: var
+
+    ! Locals
+    integer :: ub1, ub2
+    integer :: lb1, lb2
+    logical :: bounds_mismatch
+
+    bounds_mismatch = .false.
+
+    if (this%data_rank >= 1) then
+      ub1 = ubound(this%data1d, dim=1)
+      lb1 = lbound(this%data1d, dim=1)
+      ub2 = ubound(var%data1d, dim=1)
+      lb2 = lbound(var%data1d, dim=1)
+      if (ub1 /= ub2 .or. lb1 /= lb2) then
+        write(fates_log,*) 'Dimension 1 bounds mismatch for variable: ', this%key, 
+        write(fates_log,*) 'Upper bounds: ', ub1, ', ', ub2
+        write(fates_log,*) 'Lower bounds: ', lb1, ', ', lb2
+        bounds_mismatch = .true.
+      end if
+    else if (this%data_rank >= 2) then
+      ub1 = ubound(this%data2d, dim=2)
+      lb1 = lbound(this%data2d, dim=2)
+      ub2 = ubound(var%data2d, dim=2)
+      lb2 = lbound(var%data2d, dim=2)
+      if (ub1 /= ub2 .or. lb1 /= lb2) then
+        write(fates_log,*) 'Dimension 2 bounds mismatch for variable: ', this%key, 
+        write(fates_log,*) 'Upper bounds: ', ub1, ', ', ub2
+        write(fates_log,*) 'Lower bounds: ', lb1, ', ', lb2
+        bounds_mismatch = .true.
+      end if
+    end if
+
+    if (bounds_mismatch) then
+      call endrun(msg=errMsg(__FILE__, __LINE__))
+    end if
+
+  end subroutine CheckBounds
   
   ! ====================================================================================
   
