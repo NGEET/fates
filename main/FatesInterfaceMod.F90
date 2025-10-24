@@ -168,6 +168,7 @@ module FatesInterfaceMod
       
       contains 
 
+         procedure         :: CheckInterfaceVariables
          procedure, public :: InitializeInterfaceRegistry
          procedure, public :: InitializeFatesSites
          procedure, public :: InitializeBoundaryConditions
