@@ -2878,7 +2878,7 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       call this%registry(r)%Register(key=hlm_fates_litter_carbon_lignin, &
                                      data=bc_out%litt_flux_lig_c_si, hlm_flag=.false.)
       call this%registry(r)%Register(key=hlm_fates_litter_carbon_labile, &
-                                     data=bc_out   %litt_flux_lab_c_si, hlm_flag=.false.)
+                                     data=bc_out%litt_flux_lab_c_si, hlm_flag=.false.)
       call this%registry(r)%Register(key=hlm_fates_litter_carbon_total, &
                                      data=bc_out%litt_flux_all_c, hlm_flag=.false.)
 
@@ -2888,7 +2888,7 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
          call this%registry(r)%Register(key=hlm_fates_litter_phosphorus_lignin, &
                                         data=bc_out%litt_flux_lig_p_si, hlm_flag=.false.)
          call this%registry(r)%Register(key=hlm_fates_litter_phosphorus_labile, &   
-                                        data=bc_out   %litt_flux_lab_p_si, hlm_flag=.false.)
+                                        data=bc_out%litt_flux_lab_p_si, hlm_flag=.false.)
          call this%registry(r)%Register(key=hlm_fates_litter_phosphorus_total, &
                                         data=bc_out%litt_flux_all_p, hlm_flag=.false.)
 
@@ -2897,7 +2897,7 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
          call this%registry(r)%Register(key=hlm_fates_litter_nitrogen_lignin, &
                                         data=bc_out%litt_flux_lig_n_si, hlm_flag=.false.)
          call this%registry(r)%Register(key=hlm_fates_litter_nitrogen_labile, &
-                                        data=bc_out   %litt_flux_lab_n_si, hlm_flag=.false.)
+                                        data=bc_out%litt_flux_lab_n_si, hlm_flag=.false.)
          call this%registry(r)%Register(key=hlm_fates_litter_nitrogen_total, &
                                         data=bc_out%litt_flux_all_n, hlm_flag=.false.)
          end if
