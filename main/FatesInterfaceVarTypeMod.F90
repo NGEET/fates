@@ -70,9 +70,9 @@ module FatesInterfaceVariableTypeMod
       ub2 = ubound(var%data1d, dim=1)
       lb2 = lbound(var%data1d, dim=1)
       if (ub1 /= ub2 .or. lb1 /= lb2) then
-        write(fates_log,*) 'Dimension 1 bounds mismatch for variable: ', this%key, 
-        write(fates_log,*) 'Upper bounds: ', ub1, ', ', ub2
-        write(fates_log,*) 'Lower bounds: ', lb1, ', ', lb2
+        write(fates_log(),*) 'Dimension 1 bounds mismatch for variable: ', this%key
+        write(fates_log(),*) 'Upper bounds: ', ub1, ', ', ub2
+        write(fates_log(),*) 'Lower bounds: ', lb1, ', ', lb2
         bounds_mismatch = .true.
       end if
     else if (this%data_rank >= 2) then
@@ -81,9 +81,9 @@ module FatesInterfaceVariableTypeMod
       ub2 = ubound(var%data2d, dim=2)
       lb2 = lbound(var%data2d, dim=2)
       if (ub1 /= ub2 .or. lb1 /= lb2) then
-        write(fates_log,*) 'Dimension 2 bounds mismatch for variable: ', this%key, 
-        write(fates_log,*) 'Upper bounds: ', ub1, ', ', ub2
-        write(fates_log,*) 'Lower bounds: ', lb1, ', ', lb2
+        write(fates_log(),*) 'Dimension 2 bounds mismatch for variable: ', this%key
+        write(fates_log(),*) 'Upper bounds: ', ub1, ', ', ub2
+        write(fates_log(),*) 'Lower bounds: ', lb1, ', ', lb2
         bounds_mismatch = .true.
       end if
     end if
