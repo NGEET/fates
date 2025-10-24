@@ -968,16 +968,16 @@ module FatesInterfaceTypesMod
 
     ! Allocate boundary condition arrays
     allocate(this%decomp_id(this%nlevsoil))
-    this%decomp_id = fates_unset_int
-
     allocate(this%dz_decomp_sisl(this%nlevdecomp_full))
-    this%dz_decomp_sisl = nan
-
     allocate(this%w_scalar_sisl(this%nlevdecomp_full))
     allocate(this%t_scalar_sisl(this%nlevdecomp_full))
+    
+    ! Unset variables
+    this%decomp_id = fates_unset_int
+    this%dz_decomp_sisl = nan
     this%w_scalar_sisl = nan
     this%t_scalar_sisl = nan
-
+    this%max_thaw_depth_index = fates_unset_int
 
   end subroutine InitializeBCIn
 
@@ -994,10 +994,11 @@ module FatesInterfaceTypesMod
     allocate(this%litt_flux_lig_c_si(bc_in%nlevdecomp_full))
     allocate(this%litt_flux_lab_c_si(bc_in%nlevdecomp_full))
 
-    ! Nan the arrays
+    ! Unset the arrays
     this%litt_flux_cel_c_si = nan
     this%litt_flux_lig_c_si = nan 
     this%litt_flux_lab_c_si = nan 
+    this%litt_flux_all_c = nan
 
     if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
       allocate(this%litt_flux_cel_n_si(bc_in%nlevdecomp_full))
@@ -1010,9 +1011,11 @@ module FatesInterfaceTypesMod
       this%litt_flux_cel_n_si = nan 
       this%litt_flux_lig_n_si = nan 
       this%litt_flux_lab_n_si = nan 
+      this%litt_flux_all_n = nan
       this%litt_flux_cel_p_si = nan 
       this%litt_flux_lig_p_si = nan 
       this%litt_flux_lab_p_si = nan
+      this%litt_flux_all_p = nan
     end if
 
   end subroutine InitializeBCOut
