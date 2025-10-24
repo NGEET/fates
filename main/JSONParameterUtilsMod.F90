@@ -16,7 +16,10 @@ module JSONParameterUtilsMod
   integer, parameter :: r_scalar_type = 1
   integer, parameter :: r_1d_type     = 2
   integer, parameter :: r_2d_type     = 3
-  integer, parameter :: c_1d_type     = 4
+  integer, parameter :: i_scalar_type = 4
+  integer, parameter :: i_1d_type     = 5
+  integer, parameter :: i_2d_type     = 6
+  integer, parameter :: c_1d_type     = 7
 
   logical, parameter :: debug = .false.
 
@@ -436,6 +439,7 @@ contains
     found_units = .false.
     found_long  = .false.
     found_data  = .false.
+    found_dtype = .false.
     iter = 0
     do_parse_data: do while(.not.found_all)
 
@@ -472,25 +476,76 @@ contains
           end do
           call ClearStringScratch(string_scr,n_vec_out)
           found_dims = .true.
+       else
+          write(*,*)'Found no dimension metadata associated with ',trim(param%name)
+          stop
+       end if
+
+       !integer, parameter :: r_scalar_type = 1
+       !integer, parameter :: r_1d_type     = 2
+       !integer, parameter :: r_2d_type     = 3
+       !integer, parameter :: i_scalar_type = 4
+       !integer, parameter :: i_1d_type     = 5
+       !integer, parameter :: i_2d_type     = 6
+       !integer, parameter :: c_1d_type     = 7
+       
+       if( index(symb_str,'"dtype"')>0 ) then
+          ! should be one of string, float or integer
+          if(trim(CleanSymbol(data_str))=='float') then
+             if(param%ndims>1)then
+                param%dtype = r_2d_type
+             else
+                if(param%dim_names(1)=='scalar')then
+                   param%dtype = r_scalar_type
+                else
+                   param%dtype = r_1d_type
+                else
+             end if
+          elseif(trim(CleanSymbol(data_str))=='integer')then
+             if(param%ndims>1)then
+                param%dtype = i_2d_type
+             else
+                if(param%dim_names(1)=='scalar')then
+                   param%dtype = i_scalar_type
+                else
+                   param%dtype = i_1d_type
+                else
+             end if
+          elseif(trim(CleanSymbol(data_str))=='string')then
+             param%dtype = c_1d_type
+          end if
+       else
+          write(*,*)'Found no data type (dtype) metadata associated with ',trim(param%name)
+          stop
        end if
        
        if( index(symb_str,'"long_name"')>0 ) then
           param%long_name = trim(CleanSymbol(data_str))
           found_long = .true.
+       else
+          write(*,*)'Found no long_name metadata associated with ',trim(param%name)
+          stop
        end if
        
        if( index(symb_str,'"units"')>0 ) then
           param%units = trim(CleanSymbol(data_str))
           found_units = .true.
+       else
+          write(*,*)'Found no units metadata associated with ',trim(param%name)
+          stop
        end if
        
-       if_data: if( index(symb_str,'"data"')>0 ) then
+       if_data: if( .not. index(symb_str,'"data"')>0 ) then
+          write(*,*)'Found no data associated with ',trim(param%name)
+          stop
+       else
           call GetStringVec(data_str,string_scr,n_vec_out)
           if(n_vec_out<1)then
              write(*,*) 'parameter data was empty?'
              stop
           end if
           call StringToStringOrReal(string_scr(1),is_num,tmp_str,tmp_real)
+          ! ADD IN VERIFICATION OF DATA VIS-A-VIS THE DECLARED TYPE
           if_isnum: if(is_num)then
              if_dimsize: if(param%ndims==1)then
                 if(param%dim_names(1)=='scalar')then

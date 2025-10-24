@@ -245,7 +245,7 @@ def main(argv):
                     data_strs = [str(c).strip() for c in val.data]
                     new_strs = []
                     for c in data_strs:
-                        if(c=='nan'):
+q                        if(c=='nan'):
                             new_strs.append('null')
                         elif(dtypes[key]==2):
                             new_strs.append('{}'.format(int(float(c))))
