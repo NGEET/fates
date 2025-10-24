@@ -25,7 +25,7 @@ fates_allom_d2bl1 1
 fates_allom_d2bl2 1
 fates_allom_d2bl3 1
 fates_allom_d2ca_coefficient_max 1
-fates_allom_d2ca_coefficient_min 
+fates_allom_d2ca_coefficient_min 1
 fates_allom_d2h1 1
 fates_allom_d2h2 1
 fates_allom_d2h3 1
@@ -87,7 +87,7 @@ fates_frag_fnrt_flab 1
 fates_frag_fnrt_flig 1
 fates_frag_leaf_fcel 1
 fates_frag_leaf_flab 1
-fates_frag_leaf_flig 
+fates_frag_leaf_flig 1 
 fates_frag_seed_decay_rate 1
 fates_grperc 1
 fates_hydro_avuln_gs 1 

@@ -131,6 +131,17 @@ def main(argv):
 
     params,dims = CDLParse(args.cdlfile,args.verbose)
 
+    # Load database of data types (float,int,string)
+    # for each variable
+    dtypes = {}
+
+    dtype_str = ['float','integer','string']
+    
+    with open('datatypes.txt', 'r') as file:
+        for line in file:
+            linevec = line.split(' ')
+            dtypes[linevec[0].strip()] = int(linevec[1].strip())
+            #print(f'{dtypes[linevec[0].strip()]}')
 
     xmlfile = args.outfile+'.xml'
     if(True):
@@ -145,13 +156,11 @@ def main(argv):
             file.write('  </dimensions>\n')
             file.write('  <parameters>\n')
             for key, val in params.items():
-                #print(key,val)
-                #print(val.dim_names)
                 file.write('    <par name="{}">\n'.format(key))
+                file.write('      <dtype> {} </dtype>\n'.format(dtype_str[dtypes[key]-1]))
                 file.write('      <dims> {} </dims>\n'.format(', '.join(val.dim_names)))
                 file.write('      <long> {} </long>\n'.format(val.meta['long_name']))
                 file.write('      <units> {} </units>\n'.format(val.meta['units']))
-
                 if(len(val.data.shape)>1):
                     data_strs = ''
                     for k in range(val.data.shape[0]):
@@ -187,20 +196,24 @@ def main(argv):
             file.write('{\n')
             it=0
             for key, val in dims.items():
-                file.write('    "{}": {}'.format(key,val))
                 it=it+1
-                if(it<len(dims.items())):
-                    file.write(',\n')
-                else:
-                    file.write('\n')
+                if(key.strip() != 'fates_string_length'):
+                    file.write('    "{}": {}'.format(key,val))
+                    if(it<len(dims.items())-1):
+                        file.write(',\n')
+                    else:
+                        file.write('\n')
+                        
             file.write('  },\n')
             file.write('  "variables": {\n')
             item_list = list(params.items())
             num_items = len(item_list)
             
             for i,(key, val) in enumerate(item_list):
+                #print('---{}---'.format(key))
                 file.write('    "{}":'.format(key))
                 file.write(' {\n')
+                file.write('      "dtype": "{}",\n'.format(dtype_str[dtypes[key]-1]))
                 joinlist = [f'"{name.strip()}"' for name in val.dim_names if name != "fates_string_length"]
                 output_string = ', '.join(joinlist)
                 file.write('      "dims": [{}],\n'.format(output_string))
@@ -211,16 +224,38 @@ def main(argv):
                     data_strs = '['
                     for k in range(val.data.shape[0]):
                         row_strs = [str(c).strip() for c in val.data[k,:]]
-                        row_strs = ['null' if c=='nan' else c for c in row_strs]
-                        data_strs = data_strs + '[' + ', '.join(row_strs) + ']'
+                        new_strs = []
+                        for c in row_strs:
+                            if(c=='nan'):
+                                new_strs.append('null')
+                            elif(dtypes[key]==2):
+                                new_strs.append('{}'.format(int(float(c))))
+                            elif(dtypes[key]==1):
+                                new_strs.append(c.strip())
+                            else:
+                                new_strs.append('"{}"'.format(c.strip('"').strip()))
+
+                        #row_strs = ['null' if c=='nan' else c for c in row_strs]
+                        data_strs = data_strs + '[' + ', '.join(new_strs) + ']'
                         if(k<val.data.shape[0]-1):
                             data_strs = data_strs + ','
                     data_strs = data_strs + ']'
                     file.write('      "data": {}\n'.format(data_strs))
                 else:
                     data_strs = [str(c).strip() for c in val.data]
-                    data_strs = ['null' if c=='nan' else c for c in data_strs]
-                    file.write('      "data": [{}]\n'.format(', '.join(data_strs)))
+                    new_strs = []
+                    for c in data_strs:
+                        if(c=='nan'):
+                            new_strs.append('null')
+                        elif(dtypes[key]==2):
+                            new_strs.append('{}'.format(int(float(c))))
+                        elif(dtypes[key]==1):
+                            # the numbers come in as unquoted floats, don't change
+                            new_strs.append(c.strip())
+                        else:
+                            new_strs.append('"{}"'.format(c.strip('"').strip()))
+                    #data_strs = ['null' if c=='nan' else c for c in data_strs]
+                    file.write('      "data": [{}]\n'.format(', '.join(new_strs)))
                 #file.write('    },\n')
                 if i == num_items - 1:
                     file.write('    }\n')
@@ -349,7 +384,9 @@ def CDLParse(file_name,verbose):
                 sline = line.split(':')
                 if(len(sline)>1 and sline[0] == varkey):
                     #code.interact(local=dict(globals(), **locals()))
-                    metacombo = sline[1]
+                    part_sline = sline[1:]
+                    #metacombo = sline[1]
+                    metacombo = " ".join(part_sline)
                     metakey = metacombo.split('=')[0].strip()
                     metavar = ''.join(metacombo.split('=')[1:])
                     metavar = re.sub('\"',' ',metavar).strip()
