@@ -60,6 +60,7 @@ module EDPftvarcon
                                                      ! with competition on (i.e. not nocomp)
      real(r8), allocatable :: initd_nocomp(:)        ! either initial seedling density or initial
                                                      ! plant size for nocomp runs
+     real(r8), allocatable :: init_seed(:)              ! initial seed pool 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
 
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
@@ -384,6 +385,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_recruit_init_nocomp'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_init_seed'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -799,6 +804,10 @@ contains
     name = 'fates_recruit_init_nocomp'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%initd_nocomp)
+
+    name = 'fates_init_seed'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%init_seed)
 
     name = 'fates_recruit_seed_supplement'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1591,6 +1600,7 @@ contains
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'initd_fullfates = ',EDPftvarcon_inst%initd_fullfates
         write(fates_log(),fmt0) 'initd_nocomp = ',EDPftvarcon_inst%initd_nocomp
+        write(fates_log(),fmt0) 'init_seed = ',EDPftvarcon_inst%init_seed
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
         write(fates_log(),fmt0) 'lf_flab = ',EDPftvarcon_inst%lf_flab
         write(fates_log(),fmt0) 'lf_fcel = ',EDPftvarcon_inst%lf_fcel
@@ -2013,6 +2023,11 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
            
         end if
+
+        if ( EDPftvarcon_inst%init_seed(ipft) .lt. 0.0_r8) then
+           write(fates_log(),*) ' Initial seed pool fates_init_seed can not be negative.'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        endif
            
 
         ! Check to make sure that if a grass sapwood allometry is used, it is not
