@@ -2926,10 +2926,9 @@ subroutine UpdateInterfaceVariables(this, initialize)
    integer :: i   ! layer index
 
    ! Set the default initialize flag to false
+   initialize_local = .false.
    if (present(initialize)) then
       initialize_local = initialize
-   else
-      initialize_local = .false.
    end if
 
    do r = 1, this%npatches
