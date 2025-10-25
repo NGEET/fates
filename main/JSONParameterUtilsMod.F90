@@ -19,7 +19,9 @@ module JSONParameterUtilsMod
   integer, parameter :: i_scalar_type = 4
   integer, parameter :: i_1d_type     = 5
   integer, parameter :: i_2d_type     = 6
-  integer, parameter :: c_1d_type     = 7
+  integer, parameter :: c_solo_type   = 7
+  integer, parameter :: c_1d_type     = 8
+  integer, parameter :: c_2d_type     = 9
 
   logical, parameter :: debug = .false.
 
@@ -53,15 +55,20 @@ module JSONParameterUtilsMod
      character(len=max_sl) :: name        ! The variable symbol (the dictionary key)
      character(len=max_ul) :: units
      character(len=max_ll) :: long_name
-     integer :: dtype                                    ! Data type, see above
+     integer               :: dtype                      ! Data type, see above
      character(len=max_sl), allocatable :: dim_names(:)  ! These are the indices of the dimensions
                                                          ! associated with this variable
      integer               :: ndims                      ! Number of dimensions,
                                                          ! same as size (dim_names)
-     real(r8)              :: r_data_scalar
-     real(r8), allocatable :: r_data_1d(:)
-     real(r8), allocatable :: r_data_2d(:,:)
+     real(r8)                        :: r_data_scalar
+     real(r8), allocatable           :: r_data_1d(:)
+     real(r8), allocatable           :: r_data_2d(:,:)
+     integer                         :: i_data_scalar
+     integer,  allocatable           :: i_data_1d(:)
+     integer,  allocatable           :: i_data_2d(:,:)
+     character(len=128)              :: c_data
      character(len=128), allocatable :: c_data_1d(:)
+     character(len=128), allocatable :: c_data_2d(:,:)
   end type param_type
 
   type,public :: params_type
@@ -74,6 +81,7 @@ module JSONParameterUtilsMod
   
   public :: ReadJSON
   public :: SetInvalid
+  public :: DumpParameter
   
 contains
 
@@ -118,7 +126,7 @@ contains
        write(*,*) 'IOSTAT value: ', io_status
        stop  ! Terminate program gracefully if file cannot be opened
     else
-       write(*,*) 'successfully opened ',trim(filename)
+       if(debug) write(*,*) 'Successfully opened ',trim(filename)
     end if
 
     call CheckRogueBrackets(file_unit,filename)
@@ -133,7 +141,7 @@ contains
        write(*,*) 'IOSTAT value: ', io_status
        stop  ! Terminate program gracefully if file cannot be opened
     else
-       write(*,*) 'sucessfully closed ',trim(filename)
+       if(debug) write(*,*) 'sucessfully closed ',trim(filename)
     end if
     
   end subroutine ReadJSON
@@ -177,6 +185,7 @@ contains
     end do do_readfile
     return
   end subroutine CheckRogueBrackets
+  
   ! =====================================================================================
   
   subroutine GetDimensions(file_unit,pstruct)
@@ -198,7 +207,7 @@ contains
     integer :: sep_id,beg_id,end_id
     integer :: io_status
     integer :: n_dims
-    logical :: is_num
+    integer :: is_num
     real(r8):: tmp_real
     character(len=max_sl) :: tmp_str
 
@@ -240,6 +249,7 @@ contains
           dimdata_str(i:i) = filechar
        else
           write(*,*) 'Ran out of room reading in dimension data'
+          stop
        end if
        if(index(dimdata_str,'}')>0)then
           found_close = .true.
@@ -299,13 +309,7 @@ contains
        end_id = end_id + beg_id -1
        symb_str = dimdata_str(beg_id:sep_id-1)
        data_str = dimdata_str(sep_id+1:end_id-1)
-       call StringToStringOrReal(data_str,is_num,tmp_str,tmp_real)
-       if(.not.is_num)then
-          write(*,*)'Failed to read dimension size:'
-          write(*,*) trim(symb_str)
-          write(*,*) trim(data_str)
-          stop
-       end if
+       call StringToStringOrReal(data_str,tmp_str,tmp_real,is_num=.true.)
        pstruct%dimensions(i)%name = trim(CleanSymbol(symb_str))
        pstruct%dimensions(i)%size = int(tmp_real)
        if(debug)write(*,*) trim(pstruct%dimensions(i)%name),":",pstruct%dimensions(i)%size
@@ -340,6 +344,7 @@ contains
     character(len=1) :: filechar
     character(len=max_ll) :: symb_str
     character(len=vardata_max_len) :: data_str
+    character(len=1) str_char
     integer :: n_vec_out
     logical :: found_close
     logical :: found_vars
@@ -348,13 +353,16 @@ contains
     logical :: found_data
     logical :: found_units
     logical :: found_long
+    logical :: found_dtype
+    logical :: open_bracket
+    logical :: open_quote
+    logical :: found_end
     integer :: i,j,k
     integer :: filepos
     integer :: sep_id,beg_id,end_id,next_sep_id
     integer :: io_status
     integer :: n_vars
     integer :: vardata_len
-    logical :: is_num
     real(r8):: tmp_real
     integer :: iter
     character(len=max_sl) :: tmp_str
@@ -433,205 +441,134 @@ contains
     param => pstruct%parameters(var_num)
     param%name = trim(symb_str)
 
-    beg_id = 1
-    found_all   = .false.
-    found_dims  = .false.
-    found_units = .false.
-    found_long  = .false.
-    found_data  = .false.
-    found_dtype = .false.
-    iter = 0
-    do_parse_data: do while(.not.found_all)
+    call GetMetaString(vardata_str,'"dims"',beg_id,end_id)
+    call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
+    allocate(param%dim_names(n_vec_out))
+    param%ndims = n_vec_out
+    do i = 1,n_vec_out
+       param%dim_names(i) = trim(CleanSymbol(string_scr(i)))
+       dimsizes(i) = pstruct%GetDimSizeFromName(trim(param%dim_names(i)))
+    end do
+    call ClearStringScratch(string_scr,n_vec_out)
 
-       iter = iter+1
-       sep_id = index(vardata_str(beg_id:vardata_len),':') + beg_id-1 ! Should be left most...
-       next_sep_id = index(vardata_str(sep_id+1:vardata_len),':')
-       if(next_sep_id==0)then
-          ! This is the last variable, test for closing bracket
-          end_id = index(vardata_str(1:vardata_len),'}',.true.)
-          if(end_id==0)then
-             write(*,*)'Trouble parsing var data'
-             stop
-          end if
-          found_all = .true.
+    
+    call GetMetaString(vardata_str,'"dtype"',beg_id,end_id)
+    call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
+    data_str = trim(string_scr(1))
+    param%dtype = -999
+    if(trim(CleanSymbol(data_str))=='float') then
+       if(param%ndims>1)then
+          param%dtype = r_2d_type
        else
-          next_sep_id = next_sep_id + sep_id
-          end_id = index(vardata_str(sep_id:next_sep_id),',',.true.) + sep_id-1
-       end if
-
-       ! We should not have found the right-most comma before the next separator
-       ! or... the closing bracket.  So text between beg_id and sep_id should
-       ! have the symbol, and text between sep_id and end_id should have the data
-
-       symb_str = vardata_str(beg_id:sep_id-1)
-       data_str = vardata_str(sep_id+1:end_id)
-
-       if( index(trim(symb_str),'"dims"')>0 ) then
-          call GetStringVec(data_str,string_scr,n_vec_out)
-          allocate(param%dim_names(n_vec_out))
-          param%ndims = n_vec_out
-          do i = 1,n_vec_out
-             param%dim_names(i) = trim(CleanSymbol(string_scr(i)))
-             dimsizes(i) = pstruct%GetDimSizeFromName(trim(param%dim_names(i)))
-          end do
-          call ClearStringScratch(string_scr,n_vec_out)
-          found_dims = .true.
-       else
-          write(*,*)'Found no dimension metadata associated with ',trim(param%name)
-          stop
-       end if
-
-       !integer, parameter :: r_scalar_type = 1
-       !integer, parameter :: r_1d_type     = 2
-       !integer, parameter :: r_2d_type     = 3
-       !integer, parameter :: i_scalar_type = 4
-       !integer, parameter :: i_1d_type     = 5
-       !integer, parameter :: i_2d_type     = 6
-       !integer, parameter :: c_1d_type     = 7
-       
-       if( index(symb_str,'"dtype"')>0 ) then
-          ! should be one of string, float or integer
-          if(trim(CleanSymbol(data_str))=='float') then
-             if(param%ndims>1)then
-                param%dtype = r_2d_type
-             else
-                if(param%dim_names(1)=='scalar')then
-                   param%dtype = r_scalar_type
-                else
-                   param%dtype = r_1d_type
-                else
-             end if
-          elseif(trim(CleanSymbol(data_str))=='integer')then
-             if(param%ndims>1)then
-                param%dtype = i_2d_type
-             else
-                if(param%dim_names(1)=='scalar')then
-                   param%dtype = i_scalar_type
-                else
-                   param%dtype = i_1d_type
-                else
-             end if
-          elseif(trim(CleanSymbol(data_str))=='string')then
-             param%dtype = c_1d_type
-          end if
-       else
-          write(*,*)'Found no data type (dtype) metadata associated with ',trim(param%name)
-          stop
-       end if
-       
-       if( index(symb_str,'"long_name"')>0 ) then
-          param%long_name = trim(CleanSymbol(data_str))
-          found_long = .true.
-       else
-          write(*,*)'Found no long_name metadata associated with ',trim(param%name)
-          stop
-       end if
-       
-       if( index(symb_str,'"units"')>0 ) then
-          param%units = trim(CleanSymbol(data_str))
-          found_units = .true.
-       else
-          write(*,*)'Found no units metadata associated with ',trim(param%name)
-          stop
-       end if
-       
-       if_data: if( .not. index(symb_str,'"data"')>0 ) then
-          write(*,*)'Found no data associated with ',trim(param%name)
-          stop
-       else
-          call GetStringVec(data_str,string_scr,n_vec_out)
-          if(n_vec_out<1)then
-             write(*,*) 'parameter data was empty?'
-             stop
-          end if
-          call StringToStringOrReal(string_scr(1),is_num,tmp_str,tmp_real)
-          ! ADD IN VERIFICATION OF DATA VIS-A-VIS THE DECLARED TYPE
-          if_isnum: if(is_num)then
-             if_dimsize: if(param%ndims==1)then
-                if(param%dim_names(1)=='scalar')then
-                   call StringToStringOrReal(string_scr(1),is_num,tmp_str,tmp_real)
-                   param%r_data_scalar = tmp_real
-                   param%dtype =  r_scalar_type
-                   if(debug)then
-                      write(*,*)'-------------------------------'
-                      write(*,*)trim(param%name)
-                      write(*,*)param%r_data_scalar
-                   end if
-                else
-                   param%dtype =  r_1d_type
-                   allocate(param%r_data_1d(dimsizes(1)))
-                   if(n_vec_out.ne.dimsizes(1))then
-                      write(*,*)'1d parameter size does not match dimension size'
-                      write(*,*) n_vec_out,dimsizes(1)
-                      write(*,*) trim(param%name)
-                      write(*,*) trim(data_str)
-                      write(*,*) len(trim(data_str))
-                      stop
-                   end if
-                   do i=1,dimsizes(1)
-                      call StringToStringOrReal(string_scr(i),is_num,tmp_str,tmp_real)
-                      param%r_data_1d(i) = tmp_real
-                   end do
-                   if(debug)then
-                      write(*,*)'-------------------------------'
-                      write(*,*)trim(param%name)
-                      write(*,*)param%r_data_1d(:)
-                   end if
-                end if
-             else ! if_dimtype
-                param%dtype = r_2d_type
-                if(n_vec_out.ne.(dimsizes(1)*dimsizes(2)))then
-                   write(*,*)'2d parameter size does not match dimension size'
-                   write(*,*) n_vec_out,dimsizes(1),dimsizes(2)
-                   write(*,*) trim(data_str)
-                   write(*,*) "len:",len(trim(data_str))
-                   write(*,*) trim(param%name)
-                   stop
-                end if
-                allocate(param%r_data_2d(dimsizes(1),dimsizes(2)))
-                i=0
-                do j=1,dimsizes(1)
-                   do k=1,dimsizes(2)
-                      i=i+1
-                      call StringToStringOrReal(string_scr(i),is_num,tmp_str,tmp_real)
-                      param%r_data_2d(j,k) = tmp_real
-                   end do
-                end do
-                if(debug)then
-                   write(*,*)'-------------------------------'
-                   write(*,*)trim(param%name)
-                   write(*,*)param%r_data_2d
-                end if
-             end if if_dimsize
+          if(param%dim_names(1)=='scalar')then
+             param%dtype = r_scalar_type
           else
-             ! For string data, just follow the data
+             param%dtype = r_1d_type
+          end if
+       end if
+    elseif(trim(CleanSymbol(data_str))=='integer')then
+       if(param%ndims>1)then
+          param%dtype = i_2d_type
+       else
+          if(param%dim_names(1)=='scalar')then
+             param%dtype = i_scalar_type
+          else
+             param%dtype = i_1d_type
+          end if
+       end if
+    elseif(trim(CleanSymbol(data_str))=='string')then
+       if(param%ndims>1)then
+          param%dtype = c_2d_type
+       else
+          if(param%dim_names(1)=='scalar')then
+             param%dtype = c_solo_type
+          else
              param%dtype = c_1d_type
-             allocate(param%c_data_1d(n_vec_out))
-             do i=1,n_vec_out
-                call StringToStringOrReal(string_scr(i),is_num,tmp_str,tmp_real)
-                param%c_data_1d(i) = trim(tmp_str)
-             end do
-             if(debug)then
-                write(*,*)'-------------------------------'
-                write(*,*)trim(param%name)
-                write(*,*)param%c_data_1d
-             end if
-          end if if_isnum
-          call ClearStringScratch(string_scr,n_vec_out)
-          found_data = .true.
-       end if if_data
-
-       ! If we found all the data
-       found_all = all( (/ found_data,found_units,found_long,found_dims /) )
-       
-       if(iter>too_many_iter)then
-          write(*,*)'couldnt resolve variables data'
+          end if
+       end if
+    else
+       write(*,*)'could not properly identify data type'
+       write(*,*)trim(data_str)
+       write(*,*)param%name
+       stop
+    end if
+    call ClearStringScratch(string_scr,n_vec_out)
+    
+    call GetMetaString(vardata_str,'"long_name"',beg_id,end_id)
+    call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
+    data_str = trim(string_scr(1))
+    param%long_name = trim(CleanSymbol(data_str))
+    call ClearStringScratch(string_scr,n_vec_out)
+    
+    call GetMetaString(vardata_str,'"units"',beg_id,end_id)
+    call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
+    data_str = trim(string_scr(1))
+    param%units = trim(CleanSymbol(data_str))
+    call ClearStringScratch(string_scr,n_vec_out)
+    
+    call GetMetaString(vardata_str,'"data"',beg_id,end_id)
+    call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
+    select case(param%dtype)
+    case(r_scalar_type)
+       call StringToStringOrReal(string_scr(1),tmp_str,tmp_real,is_num=.true.)
+       param%r_data_scalar = tmp_real
+    case(i_scalar_type)
+       call StringToStringOrReal(string_scr(1),tmp_str,tmp_real,is_num=.true.)
+       param%i_data_scalar = int(tmp_real)
+    case(c_solo_type)
+       call StringToStringOrReal(string_scr(1),tmp_str,tmp_real,is_num=.false.)
+       param%c_data = trim(tmp_str)
+    case(r_1d_type,i_1d_type,c_1d_type)
+       if(n_vec_out.ne.dimsizes(1))then
+          write(*,*)'1d parameter size does not match dimension size'
+          write(*,*) n_vec_out,dimsizes(1)
+          write(*,*) trim(param%name)
+          write(*,*) trim(data_str)
+          write(*,*) len(trim(data_str))
           stop
        end if
-       
-       beg_id = end_id+1
-    end do do_parse_data
-
+       if(param%dtype==r_1d_type)allocate(param%r_data_1d(dimsizes(1)))
+       if(param%dtype==i_1d_type)allocate(param%i_data_1d(dimsizes(1)))
+       if(param%dtype==c_1d_type)allocate(param%c_data_1d(dimsizes(1)))
+       do i=1,dimsizes(1)
+          if( any(param%dtype==(/r_1d_type,i_1d_type/)) )then
+             call StringToStringOrReal(string_scr(i),tmp_str,tmp_real,is_num=.true.)
+             if(param%dtype==r_1d_type)param%r_data_1d(i) = tmp_real
+             if(param%dtype==i_1d_type)param%i_data_1d(i) = int(tmp_real)
+          else
+             call StringToStringOrReal(string_scr(i),tmp_str,tmp_real,is_num=.false.)
+             param%c_data_1d(i) = trim(tmp_str)
+          end if
+       end do
+    case(r_2d_type,i_2d_type,c_2d_type)
+       if(n_vec_out.ne.(dimsizes(1)*dimsizes(2)))then
+          write(*,*)'2d parameter size does not match dimension size'
+          write(*,*) n_vec_out,dimsizes(1),dimsizes(2)
+          write(*,*) trim(data_str)
+          write(*,*) "len:",len(trim(data_str))
+          write(*,*) trim(param%name)
+          stop
+       end if
+       if(param%dtype==r_2d_type)allocate(param%r_data_2d(dimsizes(1),dimsizes(2)))
+       if(param%dtype==i_2d_type)allocate(param%i_data_2d(dimsizes(1),dimsizes(2)))
+       if(param%dtype==c_2d_type)allocate(param%c_data_2d(dimsizes(1),dimsizes(2)))
+       i=0
+       do j=1,dimsizes(1)
+          do k=1,dimsizes(2)
+             i=i+1
+             if( any(param%dtype==(/r_2d_type,i_2d_type/)) )then
+                call StringToStringOrReal(string_scr(i),tmp_str,tmp_real,is_num=.true.)
+                if(param%dtype==r_2d_type)param%r_data_2d(j,k) = tmp_real
+                if(param%dtype==i_2d_type)param%i_data_2d(j,k) = int(tmp_real)
+             else
+                call StringToStringOrReal(string_scr(i),tmp_str,tmp_real,is_num=.false.)
+                param%c_data_2d(j,k) = trim(tmp_str)
+             end if
+          end do
+       end do
+    end select
+    call ClearStringScratch(string_scr,n_vec_out)
+    
     return
   end subroutine ReadCharVar
 
@@ -658,7 +595,7 @@ contains
     integer :: sep_id,beg_id,end_id
     integer :: io_status
     integer :: n_vars
-    logical :: is_num
+    integer :: is_num
     real(r8):: tmp_real
     character(len=max_sl) :: tmp_str
 
@@ -712,6 +649,89 @@ contains
     return
   end subroutine GetVariables
 
+  ! =====================================================================================
+  
+  subroutine GetMetaString(string_in,meta_tag,beg_id,end_id)
+
+    ! This routine searches through a larger string to identify
+    ! the a substring associated with a metadata tag (such as "dims",
+    ! "data", "dtype", etc.  I will identify the index position of the
+    ! intput string that is the first value after the colon, and the index
+    ! position of the output string that closes it off. This is demarcated
+    ! by either a comma or closing bracket "}", and that character
+    ! may not be inside square brackets or quotes. Note, the meta_tag
+    ! should have the soft quotes around it, which should protect it from
+    ! false positives found inside data strings.
+
+    character(len=*) :: string_in
+    character(len=*) :: meta_tag
+    integer          :: beg_id
+    integer          :: end_id
+
+    integer          :: sep_id
+    integer          :: i
+    logical          :: open_bracket1
+    logical          :: open_bracket2
+    logical          :: open_quote
+    logical          :: found_end
+    
+    if( index(trim(string_in),trim(meta_tag))==0 ) then
+       write(*,*) 'metadata tag: ',trim(meta_tag),' was not found'
+       write(*,*) 'in data string: ',trim(string_in),'xxxxx'
+       stop
+    else
+       
+       beg_id = index(string_in,trim(meta_tag))
+       end_id = len(trim(string_in))
+       sep_id = index(string_in(beg_id:end_id),':')+beg_id+1
+       
+       ! Now we want to scan the dataset from sep_id onward for
+       ! the next comma, excluding any characters inside of
+       ! either brackets or quotations.
+
+       !write(*,*) 'xxx',string_in(sep_id:end_id),'xxx'
+       
+       open_bracket1 = .false.
+       open_bracket2 = .false.
+       open_quote   = .false.
+       found_end    = .false.  ! either a comma or a }
+       i=sep_id
+       search_close: do i = sep_id,end_id
+
+          if(.not.open_bracket1)then
+             if(scan(string_in(i:i),'[')>0) open_bracket1=.true.
+          else
+             if(scan(string_in(i:i),'[')>0) open_bracket2=.true.
+          end if
+          if(open_bracket2)then
+             if(scan(string_in(i:i),']')>0) open_bracket2=.false.
+          else
+             if(scan(string_in(i:i),']')>0) open_bracket1=.false.
+          end if
+          
+          if(scan(string_in(i:i),'"')>0) open_quote=.not.open_quote
+
+          if(.not.open_bracket1 .and. .not.open_quote)then
+             if(scan(string_in(i:i),',}')>0)then
+                found_end = .true.
+                exit search_close
+             end if
+          end if
+       end do search_close
+
+       if(.not.found_end)then
+          write(*,*)'could not find an end to a metadata string'
+          write(*,*)'base string: xxx',trim(string_in),'xxx'
+          stop
+       end if
+       
+       beg_id = sep_id
+       end_id = i
+
+    end if
+    
+  end subroutine GetMetaString
+  
   ! =====================================================================================
 
   subroutine GetStringVec(string_in,string_vec_out,n_vec_out)
@@ -835,7 +855,6 @@ contains
        ! remove trailing commas
        j = scan(string_out,',',.true.)  ! right most occurance...
        if(j==len(trim(string_out)) .and. j>0)then
-          !write(*,*) j,trim(string_out),len(trim(string_out))
           string_out(j:j)=''
        end if
        
@@ -871,7 +890,6 @@ contains
        do i = 1, filepos
           ! empty read
           read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=iostat) dummychar
-          !write(*,*) dummychar
           if (iostat == 0) then
              ! Success
           else if (iostat == IOSTAT_EOR) then
@@ -922,7 +940,7 @@ contains
 
   ! =====================================================================================
   
-  subroutine StringToStringOrReal(string_in,is_num,out_string,out_real)
+  subroutine StringToStringOrReal(string_in,out_string,out_real,is_num)
 
     ! This routine takes a string, and determines if it is a number
     ! by trying to read the string into a floating point number
@@ -931,11 +949,12 @@ contains
     ! string. It was a number, it returns that as well.
     
     character(len=*),intent(in) :: string_in
-    logical,intent(out)         :: is_num
+    logical,intent(in)          :: is_num  ! This specifies if we think the value is a number
     character(len=max_sl),intent(out) :: out_string
+    real(r8),intent(out)              :: out_real
+
     character(len=max_sl)       :: tmp_str
     character(len=max_sl)       :: tmp_lc_str
-    real(r8),intent(out) :: out_real
     integer  :: io_status
     real(r8) :: tmp_real
     logical  :: is_invalid
@@ -950,25 +969,28 @@ contains
     is_invalid = index(tmp_lc_str,'nan')>0 .or. index(tmp_lc_str,'null')>0
 
     if(is_invalid)then
-
        out_real = r_invalid
-       out_string = 'invalid real'
-       is_num = .true.
-       
+       out_string = 'null'
     else
-       
        read (unit=tmp_str,fmt=*,iostat=io_status) tmp_real
        if (io_status == 0) then
-          out_real = tmp_real
-          out_string = 'real number'
-          is_num = .true.
-       else
-          out_real = -9999.9_r8
-          out_string = trim(CleanSymbol(string_in))
-          is_num = .false.
+          if(is_num)then
+             out_real = tmp_real
+             out_string = 'real number'
+          else
+             write(*,*) 'Read string, expected number',trim(CleanSymbol(string_in))
+             stop
+          end if
+       elseif(io_status /= 0) then
+          if(.not.is_num)then
+             out_real = -9999.9_r8
+             out_string = trim(CleanSymbol(string_in))
+          else
+             write(*,*) 'Read string, expected character',trim(CleanSymbol(string_in))
+             stop
+          end if
        end if
     end if
-    
     return
   end subroutine StringToStringOrReal
 
@@ -1043,5 +1065,66 @@ contains
     end if
     
   end function GetParamFromName
+  
+  ! =====================================================================================
+  
+  subroutine DumpParameter(param)
     
+    type(param_type) :: param
+    integer :: i
+    integer :: j
+    
+    write(*,*) '----------------------------'
+    write(*,*) 'Parameter: ',trim(param%name)
+    write(*,*) '  units: ',trim(param%units)
+    write(*,*) '  long_name: ',trim(param%long_name)
+    write(*,*) '  dtype: ',param%dtype
+    do i=1,param%ndims
+       write(*,*) '  dimension: ',i,':',trim(param%dim_names(i))
+    end do
+    write(*,*) '  data: '
+    
+    
+    select case(param%dtype)
+    case(r_scalar_type)
+       write(*,'(F13.6)')param%r_data_scalar
+    case(i_scalar_type)
+       write(*,*)param%i_data_scalar
+    case(c_solo_type)
+       write(*,*)trim(param%c_data)
+    case(r_1d_type)
+       do i = 1,size(param%r_data_1d,dim=1)
+          write(*,'(F13.6)') param%r_data_1d(i)
+       end do
+    case(i_1d_type)
+       do i = 1,size(param%i_data_1d,dim=1)
+          write(*,*) param%i_data_1d(i)
+       end do
+    case(c_1d_type)
+       do i = 1,size(param%c_data_1d,dim=1)
+          write(*,*) trim(param%c_data_1d(i))
+       end do
+    case(r_2d_type)
+       do i = 1,size(param%r_data_2d,dim=1)
+          do j = 1,size(param%r_data_2d,dim=2)
+             write(*,'(F13.6)') param%r_data_2d(i,j)
+          end do
+       end do
+    case(i_2d_type)
+       do i = 1,size(param%i_data_2d,dim=1)
+          do j = 1,size(param%i_data_2d,dim=2)
+             write(*,*) param%i_data_2d(i,j)
+          end do
+       end do
+    case(c_2d_type)
+       do i = 1,size(param%c_data_2d,dim=1)
+          do j = 1,size(param%c_data_2d,dim=2)
+             write(*,*) trim(param%c_data_2d(i,j))
+          end do
+       end do
+    end select
+    
+  end subroutine DumpParameter
+
+  
 end module JSONParameterUtilsMod

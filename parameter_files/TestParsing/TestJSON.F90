@@ -9,6 +9,7 @@ program TestJSON
 
   integer :: filename_len
   integer :: file_unit = 18
+  integer :: i
 
   type(params_type) :: pstruct
   
@@ -28,6 +29,12 @@ program TestJSON
 
   call ReadJSON(filename,file_unit,pstruct)
 
+  
+  do i=1,size(pstruct%parameters)
+     call DumpParameter(pstruct%parameters(i))
+  end do
+
+  
   ! Assert some reads
 
   ! Check the character fields on pft names
