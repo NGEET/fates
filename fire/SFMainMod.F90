@@ -175,8 +175,8 @@ contains
             call currentPatch%fuel%CalculateWeightingFactor(SF_val_SAV, SF_val_part_dens)
 
             ! sum up fuel classes and calculate fractional loading for each
-            call currentPatch%fuel%SumLoading()
-            call currentPatch%fuel%CalculateFractionalLoading()
+            call currentPatch%fuel%SumLoading(SF_val_SAV, SF_val_part_dens)
+            call currentPatch%fuel%CalculateFractionalLoading(SF_val_SAV, SF_val_part_dens)
 
             ! calculate fuel moisture [m3/m3]
             call currentPatch%fuel%UpdateFuelMoisture(SF_val_SAV, SF_val_drying_ratio,       &
