@@ -2964,9 +2964,6 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       end do
    end do
 
-   ! Check the interface variables for consistency
-   call this%CheckInterfaceVariables()
-
 end subroutine InitializeBoundaryConditions
 
 ! ======================================================================================
