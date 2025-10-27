@@ -64,7 +64,7 @@ contains
       call this%fuel%UpdateLoading(dummy_litter, dummy_litter, dummy_litter,          &
          dummy_litter, trunk_litter, dummy_litter)
 
-      call this%fuel%SumLoading(sav, part_dens)
+      call this%fuel%SumLoading()
 
       @assertEqual(this%fuel%non_trunk_loading, non_trunk_loading, tolerance=tol)
 
@@ -88,8 +88,8 @@ contains
       call this%fuel%UpdateLoading(dummy_litter, dummy_litter, dummy_litter,          &
          dummy_litter, trunk_litter, dummy_litter)
 
-      call this%fuel%SumLoading(sav, part_dens)
-      call this%fuel%CalculateFractionalLoading(sav, part_dens)
+      call this%fuel%SumLoading()
+      call this%fuel%CalculateFractionalLoading()
 
       do i = 1, num_fuel_classes
          if (i /= fuel_classes%trunks()) then
