@@ -1148,7 +1148,7 @@ module FatesInterfaceTypesMod
     logical, intent(in) :: initialize  ! false = count up the keys in the registry
 
     integer :: index   ! Index to be incremented for each call to DefineInterfaceVariable()
-    
+
     ! Initialize the index
     index = 0
 
