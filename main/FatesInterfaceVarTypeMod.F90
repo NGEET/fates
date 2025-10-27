@@ -96,7 +96,58 @@ module FatesInterfaceVariableTypeMod
   
   ! ====================================================================================
   
-    subroutine InitializeInterfaceVariable(this, key, update_frequency)
+  subroutine Dump(this)
+
+    class(fates_interface_variable_type), intent(in) :: this
+
+    write(fates_log(),*) 'FATES Interface Variable Dump:'
+    write(fates_log(),*) '  Key: ', this%key
+    write(fates_log(),*) '  Active: ', this%active
+    write(fates_log(),*) '  Accumulate: ', this%accumulate
+    write(fates_log(),*) '  Data Rank: ', this%data_rank
+    write(fates_log(),*) '  Data Size: ', this%data_size
+
+    select case (this%data_rank)
+      case(0)
+        select type(var => this%data0d)
+          type is (real(r8))
+            write(fates_log(),*) '  Data (real): ', var
+          type is (integer)
+            write(fates_log(),*) '  Data (integer): ', var
+          class default
+            write(fates_log(),*), 'FATES ERROR: Unsupported interface variable type'
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+      case(1)
+        select type(var => this%data1d)
+          type is (real(r8))
+            write(fates_log(),*) '  Data (real): ', var
+          type is (integer)
+            write(fates_log(),*) '  Data (integer): ', var
+          class default
+            write(fates_log(),*), 'FATES ERROR: Unsupported interface variable type'
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+      case(2)
+        select type(var => this%data2d)
+          type is (real(r8))
+            write(fates_log(),*) '  Data (real): ', var
+          type is (integer)
+            write(fates_log(),*) '  Data (integer): ', var
+          class default
+            write(fates_log(),*), 'FATES ERROR: Unsupported interface variable type'
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+      case default
+        write(fates_log(),*) 'FATES ERROR: Unsupported interface variable rank in Dump'
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+      end select
+
+  end subroutine Dump
+
+  ! ====================================================================================
+  
+    subroutine InitializeInterfaceVariable(this, key, update_frequency, bc_dir)
                                             
       class(fates_interface_variable_type), intent(inout) :: this
       character(len=*), intent(in) :: key
