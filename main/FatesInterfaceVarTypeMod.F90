@@ -153,7 +153,7 @@ module FatesInterfaceVariableTypeMod
       class(fates_interface_variable_type), intent(inout) :: this
       character(len=*), intent(in) :: key
       integer, intent(in)          :: update_frequency
-      integet, intent(in)          :: bc_dir
+      integer, intent(in)          :: bc_dir
 
       
       allocate(this%data_size(3))
