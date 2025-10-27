@@ -1232,7 +1232,11 @@ module FatesInterfaceTypesMod
     ! If not initializing, increment the registry count variables, otherwise initialize the variable at the correct index
     if (initialize) then 
 
-      ! Initialize the variable
+      ! Set the key for each index
+      this%key(index) = key
+      
+      ! Set the update frequency, default to daily update frequency
+      update_frequency_local = registry_update_daily
       if (present(update_frequency)) then
         select case (update_frequency)
         case (registry_update_init_dims)  
@@ -1248,14 +1252,7 @@ module FatesInterfaceTypesMod
           call endrun(msg=errMsg(__FILE__, __LINE__))
         end select
       else
-        ! Default to daily update frequency
-        update_frequency_local = registry_update_daily
       end if
-
-      ! Set the key for each index
-      this%key(index) = key
-      
-      ! Set the update frequency array values
       this%update_frequency(index) = update_frequency_local
 
       ! Set the boundary condition directionality for the variable index defaulting to bc_in
