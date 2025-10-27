@@ -1301,6 +1301,7 @@ module FatesInterfaceTypesMod
           this%num_api_vars_bc_out + this%num_api_vars_bc_out + 1
         case default
           write(fates_log(), *) 'ERROR: Unrecognized bc_dir in DefineInterfaceVariable(): ', bc_dir
+          call endrun(msg=errMsg(__FILE__, __LINE__))
         end select
       else
         ! defaults to bc_in 
