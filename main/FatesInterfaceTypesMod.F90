@@ -1152,7 +1152,7 @@ module FatesInterfaceTypesMod
     ! Initialize the index
     index = 0
 
-    associate(bc_in => registry_bc_in
+    associate(bc_in => registry_bc_in, &
               bc_out => registry_bc_out)
     ! Define the interface registry names and indices
     ! Variables that need to be updated during initialization and are necessary for other boundary conditions
