@@ -2335,11 +2335,11 @@ contains
                  endif
 
                  ! Update the seedling layer smp and mdd running means
+                 call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd)
                  ! RW - only update after first model day to avoid adding
                  ! spike in smp (~negative billions) to running means
                  if (hlm_model_day > 1.0_r8) then 
                    call cpatch%sdlng_emerg_smp(pft)%p%UpdateRMean(new_seedling_layer_smp)
-                   call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd)
                  endif
 
               enddo !end pft loop

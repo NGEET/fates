@@ -2317,7 +2317,7 @@ contains
           
           ! Get the current seedling moisture deficit days (tracked as a pft-specific exponential
           ! average)
-          seedling_mdds = currentPatch%sdlng_mdd(pft)%p%GetMean()     
+          seedling_mdds = currentPatch%sdlng_mdd(pft)%p%GetMean()
           
           ! Calculate seedling mortality as a function of moisture deficit days (mdd)
           ! If the seedling mmd value is below a critical threshold then moisture-based mortality is zero
