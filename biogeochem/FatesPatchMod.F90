@@ -666,7 +666,7 @@ module FatesPatchMod
         call this%seedling_layer_par24%InitRMean(fixed_24hr,                   &
           init_value=init_seedling_par, init_offset=real(current_tod, r8))
         call this%sdlng_mort_par%InitRMean(ema_sdlng_mort_par,                 &
-          init_value=temp_init_veg)
+          init_value=init_seedling_par)
         call this%sdlng2sap_par%InitRMean(ema_sdlng2sap_par,                   &
           init_value=init_seedling_par)
 
