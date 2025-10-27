@@ -1162,7 +1162,7 @@ module FatesInterfaceTypesMod
     call this%DefineInterfaceVariable(key=hlm_fates_decomp, initialize=initialize, index=index, &
                                       update_frequency=registry_update_init_dims)
     call this%DefineInterfaceVariable(key=hlm_fates_soil_level, initialize=initialize, index=index, &
-                                      update_frequency=registry_update_init_dims, tofates)
+                                      update_frequency=registry_update_init_dims)
 
     ! Variables that only need to be updated at initialization
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_thickness, initialize=initialize, index=index, &
