@@ -1296,9 +1296,9 @@ module FatesInterfaceTypesMod
       if (present(bc_dir)) then
         select case (bc_dir)
         case (registry_bc_in)
-          this%num_api_vars_bc_in + this%num_api_vars_bc_in + 1
+          this%num_api_vars_bc_in = this%num_api_vars_bc_in + 1
         case (registry_bc_out)
-          this%num_api_vars_bc_out + this%num_api_vars_bc_out + 1
+          this%num_api_vars_bc_out = this%num_api_vars_bc_out + 1
         case default
           write(fates_log(), *) 'ERROR: Unrecognized bc_dir in DefineInterfaceVariable(): ', bc_dir
           call endrun(msg=errMsg(__FILE__, __LINE__))
