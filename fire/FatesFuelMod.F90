@@ -623,7 +623,7 @@ contains
 
       this%frac_burnt(:) = 1.0_r8
       ! get all the weighting factor
-      call this%CalculateWeightingFactor(SF_val_SAV, SF_val_part_dens)
+      call this%CalculateWeightingFactor()
       call this%FuelLoadWeight()
 
       ! Calculate fraction of litter is burnt for all classes.
