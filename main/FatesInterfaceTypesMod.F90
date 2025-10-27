@@ -875,6 +875,9 @@ module FatesInterfaceTypesMod
    ! Base type to be extended for the API registry
    type, public :: fates_interface_registry_type
 
+    ! Is registry have a FATES patch that exists?
+    logical, private :: active
+
     ! Container array of interface variables indexed by key
     type(fates_interface_variable_type), allocatable :: hlm_vars(:) 
     type(fates_interface_variable_type), allocatable :: fates_vars(:) 
@@ -923,6 +926,7 @@ module FatesInterfaceTypesMod
     contains
 
       procedure :: CheckInterfaceVariables
+      procedure :: GetActivateState
       procedure :: GetGridcellIndex
       procedure :: GetLandunitIndex
       procedure :: GetColumnIndex
@@ -933,6 +937,7 @@ module FatesInterfaceTypesMod
       procedure :: InitializeInterfaceVariablesDimensions
       procedure :: InitializeInterfaceVariables
       procedure :: SetSubgridIndices
+      procedure :: SetActiveState
       procedure :: UpdateLitterFluxes
       procedure :: Update => UpdateInterfaceVariables
 
@@ -1339,6 +1344,27 @@ module FatesInterfaceTypesMod
     if (present(site))       this%sidx = site
     
   end subroutine SetSubgridIndices
+  
+  ! ======================================================================================
+
+  subroutine SetActiveState(this, active_state)
+  
+    class(fates_interface_registry_type), intent(inout) :: this
+    logical, intent(in) :: active_state
+    
+    this%active = active_state
+    
+  end subroutine SetActiveState
+
+  ! ======================================================================================
+
+  logical function GetActivateState(this) result(active_state)
+  
+    class(fates_interface_registry_type), intent(inout) :: this
+    
+    active_state = this%active
+    
+  end function GetActivateState
   
   ! ======================================================================================
   

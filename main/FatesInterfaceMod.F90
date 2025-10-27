@@ -166,12 +166,21 @@ module FatesInterfaceMod
       ! This is the interface registry which associates variables with a common keyword
       type(fates_interface_registry_type), allocatable :: registry(:)
       
+      ! Index filter array for registries that are active (i.e. has a FATES patch)
+      integer, allocatable :: filter_registry_active(:)
+
+      ! Active vegetated patches
+      integer :: num_active_patches
+
+
+
       contains 
 
          procedure         :: CheckInterfaceVariables
          procedure, public :: InitializeInterfaceRegistry
          procedure, public :: InitializeFatesSites
          procedure, public :: InitializeBoundaryConditions
+         procedure         :: SetRegistryActiveState
          procedure, public :: UpdateInterfaceVariables
          procedure, public :: UpdateLitterFluxes
       
@@ -2244,6 +2253,53 @@ contains
 
    ! ====================================================================================
 
+   subroutine SetRegistryActiveState(this)
+
+      ! Argument
+      class(fates_interface_type), intent(inout) :: this
+
+      ! Locals
+      type(fates_patch_type),  pointer :: currentPatch
+
+      integer :: s   ! site index
+      integer :: r   ! registry index
+      integer :: i   ! filter index
+
+      ! Set all registries to inactive by default
+      do r = 1, this%npatches
+         call this%registry(r)%SetActiveState(active_state=.false.)
+      end do
+
+      ! Set the active registry index filter to unset
+      this%filter_registry_active = fates_unset_int
+
+      ! Set the active registry counter and filter index iterator to zero
+      this%num_active_patches = 0
+      i = 0
+
+      ! Loop over sites and patches to set active registries and iterate the counter
+      do s = 1, this%nsites
+         currentPatch => this%sites(s)%oldest_patch
+         do while (associated(currentPatch))
+
+            ! Get the registry index for the current site + patch combo and set it to active
+            r = this%sites(s)%GetRegistryIndex(currentPatch%patchno)
+            call this%registry(r)%SetActiveState(active_state=.true.)
+
+            ! Increment the active patch counter and update the active index filter
+            this%num_active_patches = this%num_active_patches + 1
+            i = i + 1
+            this%filter_registry_active(i) = r
+
+            ! Move to the next patch            
+            currentPatch => currentPatch%younger
+         end do
+      end do
+
+   end subroutine SetRegistryActiveState
+
+   ! ====================================================================================
+
    subroutine FatesReportParameters(masterproc)
       
       ! -----------------------------------------------------
@@ -2732,6 +2788,9 @@ subroutine InitializeInterfaceRegistry(this, num_veg_patches, patchlist)
    ! Allocate interface registries for each vegetated patch on the clump
    allocate(this%registry(num_veg_patches))
    
+   ! Allocate the active registry filter array to the maximum number of possible active patches
+   allocate(this%filter_registry_active(num_veg_patches))
+   
    ! Set the number of vegetated patches to the interface type level
    this%npatches = num_veg_patches
 
@@ -3003,9 +3062,16 @@ subroutine UpdateLitterFluxes(this, dtime)
    real(r8), intent(in)                       :: dtime   ! HLM timestep
    
    ! Locals
-   integer :: r
+   integer :: n  ! active registry index iterator
+   integer :: r  ! registry index 
+
+   ! Set the registry active state
+   call this%SetRegistryActiveState()
    
-   do r = 1, this%npatches
+   ! Loop through the active registries and update the litter fluxes
+   do n = 1, this%num_active_patches
+      r = this%filter_registry_active(n)
+      write(fates_log(),*) 'Updating litter fluxes: r, s, ifp ', r, this%registry(r)%GetSiteIndex(), this%registry(r)%GetFatesPatchIndex()
       call this%registry(r)%UpdateLitterFluxes(dtime)
    end do
 
