@@ -1064,7 +1064,7 @@ module FatesInterfaceTypesMod
     allocate(this%key(this%num_api_vars))
     allocate(this%update_frequency(this%num_api_vars))
     allocate(this%bc_dir(this%num_api_vars))
-    
+
     ! Allocate the index filter maps
     allocate(this%filter_init_dims(this%num_api_vars_update_init_dims))
     allocate(this%filter_init(this%num_api_vars_update_init))
@@ -1365,7 +1365,7 @@ module FatesInterfaceTypesMod
     active_state = this%active
     
   end function GetActivateState
-  
+
   ! ======================================================================================
   
   integer function GetGridcellIndex(this) result(gidx)
