@@ -173,7 +173,7 @@ contains
       ! DESCRIPTION:
       ! Calculate total area per fuel cell of each fuel class
       ! and the derived weighting factors
-      use SFParamsMod, only :: SF_val_SAV, SF_val_part_dens
+      use SFParamsMod, only : SF_val_SAV, SF_val_part_dens
 
       ! ARGUMENTS:
       class(fuel_type), intent(inout) :: this                       ! fuel class
