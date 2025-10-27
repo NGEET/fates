@@ -888,10 +888,15 @@ module FatesInterfaceTypesMod
     integer :: num_api_vars_update_init           ! number of variables that update only at initialization
     integer :: num_api_vars_update_daily          ! number of variables that update daily
     integer :: num_api_vars_update_timestep       ! number of variables that update on the model timestep
+    integer :: num_api_vars_bc_in                 ! number of variables that are bc_in associated
+    integer :: num_api_vars_bc_out                ! number of variables that are bc_ associated
     integer :: num_api_vars_litter_flux           ! number of variables that deal with all litter fluxes
 
     ! Array of update frequency values for each regsitry index
     integer, allocatable :: update_frequency(:)
+
+    ! Array of boundary condition directions for each registry index
+    integer, allocatable :: bc_dir(:)
 
     ! Arrays that hold the registry indices of variables based on update frequency
     integer, allocatable :: filter_init_dims(:) ! registry index of variables dimensions that update at initialization
@@ -901,6 +906,10 @@ module FatesInterfaceTypesMod
     
     ! Filter arrays that hold the registry indices for litter fluxes
     integer, allocatable :: filter_litter_flux(:)
+
+    ! Index arrays that map to the boundary condition types
+    integer, allocatable :: filter_bc_in(:)
+    integer, allocatable :: filter_bc_out(:)
 
     ! Subgrid index data
     integer, private :: gidx
@@ -1037,6 +1046,8 @@ module FatesInterfaceTypesMod
     this%num_api_vars_update_init = 0
     this%num_api_vars_update_daily = 0
     this%num_api_vars_update_timestep = 0
+    this%num_api_vars_bc_in = 0
+    this%num_api_vars_bc_out = 0
     this%num_api_vars_litter_flux = 0
     
     ! First count up the keys defined in the registry and the registry counters
@@ -1047,18 +1058,24 @@ module FatesInterfaceTypesMod
     allocate(this%hlm_vars(this%num_api_vars))
     allocate(this%key(this%num_api_vars))
     allocate(this%update_frequency(this%num_api_vars))
+    allocate(this%bc_dir(this%num_api_vars))
     
     ! Allocate the index filter maps
     allocate(this%filter_init_dims(this%num_api_vars_update_init_dims))
     allocate(this%filter_init(this%num_api_vars_update_init))
     allocate(this%filter_daily(this%num_api_vars_update_daily))
     allocate(this%filter_timestep(this%num_api_vars_update_timestep))
+
+    ! Allocate the boundary condition filter maps
+    allocate(this%filter_bc_in(this%num_api_vars_bc_in))
+    allocate(this%filter_bc_out(this%num_api_vars_bc_out))
     
     ! Allocate the litter flux filter
     allocate(this%filter_litter_flux(this%num_api_vars_litter_flux))
     
     ! Unset the allocatables not including the interface variables
     this%update_frequency(:) = fates_unset_int
+    this%bc_dir(:) = fates_unset_int
     this%filter_init_dims(:) = fates_unset_int
     this%filter_init(:) = fates_unset_int
     this%filter_daily(:) = fates_unset_int
@@ -1130,6 +1147,8 @@ module FatesInterfaceTypesMod
     ! Initialize the index
     index = 0
 
+    associate(bc_in => registry_bc_in
+              bc_out => registry_bc_out)
     ! Define the interface registry names and indices
     ! Variables that need to be updated during initialization and are necessary for other boundary conditions
     ! such as dimensions
@@ -1138,7 +1157,7 @@ module FatesInterfaceTypesMod
     call this%DefineInterfaceVariable(key=hlm_fates_decomp, initialize=initialize, index=index, &
                                       update_frequency=registry_update_init_dims)
     call this%DefineInterfaceVariable(key=hlm_fates_soil_level, initialize=initialize, index=index, &
-                                      update_frequency=registry_update_init_dims)
+                                      update_frequency=registry_update_init_dims, tofates)
 
     ! Variables that only need to be updated at initialization
     call this%DefineInterfaceVariable(key=hlm_fates_decomp_thickness, initialize=initialize, index=index, &
@@ -1151,41 +1170,43 @@ module FatesInterfaceTypesMod
     
     ! Variables that need to be updated with each timestep
     call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_cellulose, initialize=initialize, index=index, &
-                                      update_frequency=registry_update_timestep)
+                                      update_frequency=registry_update_timestep, bc_dir=bc_out)
     call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_lignin, initialize=initialize, index=index, &
-                                      update_frequency=registry_update_timestep)
+                                      update_frequency=registry_update_timestep, bc_dir=bc_out)
     call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_labile, initialize=initialize, index=index, & 
-                                      update_frequency=registry_update_timestep)
+                                      update_frequency=registry_update_timestep, bc_dir=bc_out)
     call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_total, initialize=initialize, index=index, &
-                                      update_frequency=registry_update_timestep)
+                                      update_frequency=registry_update_timestep, bc_dir=bc_out)
 
     ! Define the N and P litter fluxes if in CNP mode
     ! We could define the interface variables always, even if not registered, but this helps reduce the memory needs
     if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
       call this%DefineInterfaceVariable(key=hlm_fates_litter_phosphorus_cellulose, initialize=initialize, index=index, &
-                                        update_frequency=registry_update_timestep)
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
       call this%DefineInterfaceVariable(key=hlm_fates_litter_phosphorus_lignin, initialize=initialize, index=index, &
-                                        update_frequency=registry_update_timestep)
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
       call this%DefineInterfaceVariable(key=hlm_fates_litter_phosphorus_labile, initialize=initialize, index=index, &
-                                        update_frequency=registry_update_timestep)
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
       call this%DefineInterfaceVariable(key=hlm_fates_litter_phosphorus_total, initialize=initialize, index=index, &
-                                        update_frequency=registry_update_timestep)
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
 
       call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_cellulose, initialize=initialize, index=index, &
-                                        update_frequency=registry_update_timestep)
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
       call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_lignin, initialize=initialize, index=index, &
-                                        update_frequency=registry_update_timestep)
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
       call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_labile, initialize=initialize, index=index, &
-                                        update_frequency=registry_update_timestep)
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
       call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_total, initialize=initialize, index=index, &
-                                      update_frequency=registry_update_timestep)
+                                      update_frequency=registry_update_timestep, bc_dir=bc_out)
     end if
+
+    end associate
 
   end subroutine DefineInterfaceRegistry
 
   ! ======================================================================================
 
-  subroutine DefineInterfaceVariable(this, key, initialize, index, update_frequency)
+  subroutine DefineInterfaceVariable(this, key, initialize, index, update_frequency, bc_dir)
 
     class(fates_interface_registry_type), intent(inout) :: this
 
@@ -1193,10 +1214,12 @@ module FatesInterfaceTypesMod
     logical, intent(in)           :: initialize
     integer, intent(inout)        :: index
     integer, intent(in), optional :: update_frequency
+    integer, intent(in), optional :: bc_dir             ! 0 = bc_in, 1 = bc_out,
 
     ! Local variables
     integer :: index_type
     integer :: update_frequency_local
+    integer :: bc_dir_local
     
     ! Increment the index
     index = index + 1  
@@ -1229,10 +1252,17 @@ module FatesInterfaceTypesMod
       
       ! Set the update frequency array values
       this%update_frequency(index) = update_frequency_local
+
+      ! Set the boundary condition directionality for the variable index defaulting to bc_in
+      bc_dir_local = registry_bc_in
+      if (present(bc_dir)) then
+        bc_dir_local = bc_dir
+      end if
+      this%bc_dir(index) = bc_dir_local
       
       ! Initialize the interface variables and pass the key and update frequency to each for metadata
-      call this%hlm_vars(index)%Initialize(key, update_frequency_local)
-      call this%fates_vars(index)%Initialize(key, update_frequency_local)
+      call this%hlm_vars(index)%Initialize(key, update_frequency_local, bc_dir_local)
+      call this%fates_vars(index)%Initialize(key, update_frequency_local, bc_dir_local)
 
     ! Not initializing, just counting the variables
     else 
@@ -1259,6 +1289,22 @@ module FatesInterfaceTypesMod
         ! Default to daily update frequency
         this%num_api_vars_update_daily = this%num_api_vars_update_daily + 1
       end if
+
+      ! Increment the count for the boundary condition counters
+      if (present(bc_dir)) then
+        select case (bc_dir)
+        case (registry_bc_in)
+          this%num_api_vars_bc_in + this%num_api_vars_bc_in + 1
+        case (registry_bc_out)
+          this%num_api_vars_bc_out + this%num_api_vars_bc_out + 1
+        case default
+          write(fates_log(), *) 'ERROR: Unrecognized bc_dir in DefineInterfaceVariable(): ', bc_dir
+        end select
+      else
+        ! defaults to bc_in 
+        this%num_api_vars_bc_in + this%num_api_vars_bc_in + 1
+      end if
+
       
       ! Update the litter flux counters not including the total flux counter
       if (key == hlm_fates_litter_carbon_cellulose .or. &
@@ -1365,6 +1411,8 @@ module FatesInterfaceTypesMod
     integer :: count_init
     integer :: count_daily
     integer :: count_timestep
+    integer :: count_bc_in
+    integer :: count_bc_out
     integer :: count_litter_flux
 
     ! Initialize counters
@@ -1372,6 +1420,8 @@ module FatesInterfaceTypesMod
     count_init = 0
     count_daily = 0
     count_timestep = 0
+    count_bc_in = 0
+    count_bc_out = 0
     count_litter_flux= 0
     
     ! Iterate over all registered variables and populate the filter maps accordingly
@@ -1393,6 +1443,15 @@ module FatesInterfaceTypesMod
       else
         write(fates_log(),*) 'ERROR: Unrecognized update frequency in SetFilterMapArrays(): ', this%update_frequency(index)
         call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
+
+      ! Boundary condition filter update
+      if (this%bc_dir(index) == registry_bc_in) then
+        count_bc_in = count_bc_in + 1
+        this%filter_bc_in(count_bc_in) = index
+      else if (this%bc_dir(index) == registry_bc_out) then
+        count_bc_out = count_bc_out + 1
+        this%filter_bc_out(count_bc_out) = index
       end if
       
       ! Litter flux update
@@ -1580,11 +1639,13 @@ module FatesInterfaceTypesMod
 
     class(fates_interface_registry_type), intent(inout) :: this
 
-    integer :: i
+    integer :: n
+    integer :: ibc
 
     ! Iterate over all registered variables
-    do i = 1, this%num_api_vars
-      call this%fates_vars(i)%Update(this%hlm_vars(i))
+    do n = 1, this%num_api_vars_bc_in
+       ibc = this%filter_bc_in(n)
+      call this%fates_vars(ibc)%Update(this%hlm_vars(ibc))
     end do
 
   end subroutine UpdateInterfaceVariables

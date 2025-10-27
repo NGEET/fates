@@ -152,6 +152,7 @@ module FatesInterfaceVariableTypeMod
       class(fates_interface_variable_type), intent(inout) :: this
       character(len=*), intent(in) :: key
       integer, intent(in)          :: update_frequency
+      integet, intent(in)          :: bc_dir
 
       
       allocate(this%data_size(3))
@@ -166,9 +167,10 @@ module FatesInterfaceVariableTypeMod
       this%active = .false.
       this%accumulate = .false.
 
-      ! Initialize registry variable components that are updated at initialization
+      ! Initialize registry variable components that are updated at variable definition
       this%key = key 
       this%update_frequency = update_frequency
+      this%bc_dir = bc_dir
 
     end subroutine InitializeInterfaceVariable
 

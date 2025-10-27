@@ -29,5 +29,9 @@ module FatesInterfaceParametersMod
   integer, parameter, public :: registry_update_init = 1       ! variable only needs to be updated during initialization
   integer, parameter, public :: registry_update_daily = 2      ! variable needs to be updated daily
   integer, parameter, public :: registry_update_timestep = 3   ! variable needs to be updated at each timestep
+
+  ! Registry boundary condition parameters
+  integer, parameter, public :: registry_bc_in = 0
+  integer, parameter, public :: registry_bc_out = 1
   
 end module FatesInterfaceParametersMod
