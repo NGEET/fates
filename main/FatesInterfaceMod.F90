@@ -114,6 +114,12 @@ module FatesInterfaceMod
    use FatesTwoStreamUtilsMod, only : TransferRadParams
    use LeafBiophysicsMod         , only : lb_params
    use LeafBiophysicsMod         , only : FvCB1980
+   use JSONParameterUtilsMod     , only : params_type
+   use JSONParameterUtilsMod     , only : ReadJSON
+   use JSONParameterUtilsMod     , only : SetInvalidJSON
+   use JSONParameterUtilsMod     , only : SetLogInitJSON
+   use JSONParameterUtilsMod     , only : DumpParameter
+
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -771,7 +777,7 @@ contains
 
     ! ===================================================================================
     
-    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft,param_reader)
+    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft,paramfile,paramfile_unit)
 
        ! --------------------------------------------------------------------------------
        !
@@ -785,16 +791,27 @@ contains
       logical,                    intent(in) :: use_fates    ! Is fates turned on?
       integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
       integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
-      class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
+      character(len=*),           intent(in) :: paramfile        ! Full path to the fates parameter file
+      integer,                    intent(in) :: paramfile_unit   ! File unit reserved for the FATES
+                                                                 ! parameter file
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
-
+      
+      
       logical, parameter :: preserve_b4b = .true.
       
       if (use_fates) then
          
          ! Self explanatory, read the fates parameter file
-         call FatesReadParameters(param_reader)
+         !call FatesReadParameters(param_reader)
+         call SetInvalid(hlm_hio_ignore_val)
+         call SetLogInit(fates_log())
+         call ReadJSON(paramfile,paramfile_unit,pstruct)
 
+         ! This call transfers parameters from the pstruct data-structure
+         ! into the specific datastructures where parameters have there
+         ! own primitive arrays
+         call FatesTransferParameters()
+         
          fates_numpft = size(prt_params%wood_density,dim=1)
          
          if(hlm_use_sp==itrue)then
@@ -2700,9 +2717,15 @@ subroutine FatesReadParameters(param_reader)
   call LeafBiophysReceiveParams(fates_params)
   call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
 
+  call EDPftvarcon_inst%Init()
+  
   call fates_params%Destroy()
   deallocate(fates_params)
 
+  !!!! WHERE DO WE CALL THIS?
+  !!!!FatesCheckParams(is_master)
+
+  
  end subroutine FatesReadParameters
 
 end module FatesInterfaceMod
