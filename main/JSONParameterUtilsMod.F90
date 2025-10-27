@@ -5,6 +5,7 @@ module JSONParameterUtilsMod
   ! for scanning a JSON parameter file, and storing the contents
 
   use, intrinsic :: ISO_FORTRAN_ENV, ONLY : IOSTAT_END,IOSTAT_EOR
+  use shr_sys_mod   , only: shr_sys_abort
 
   implicit none
   
@@ -42,6 +43,8 @@ module JSONParameterUtilsMod
   integer, parameter :: count_phase = 1        ! We read variables twice so that we can allocate
   integer, parameter :: fill_phase  = 2  
 
+  integer            :: log_unit = -1
+  
   ! Numeric value to represent invalid values (like NaN and Null)
   ! Overridable, see procedure below
   real(r8) :: r_invalid = -1.e36_r8
@@ -81,6 +84,7 @@ module JSONParameterUtilsMod
   
   public :: ReadJSON
   public :: SetInvalid
+  public :: SetLogInit
   public :: DumpParameter
   
 contains
@@ -89,7 +93,12 @@ contains
     real(r8),intent(in) :: r_invalid_in
     r_invalid = r_invalid_in
   end subroutine SetInvalid
-
+  
+  subroutine SetLogInit(log_unit_in)
+    integer,intent(in) :: log_unit_in
+    log_unit = log_unit_in
+  end subroutine SetLogInit
+  
   
   subroutine ReadJSON(filename,file_unit,pstruct)
 
@@ -122,11 +131,11 @@ contains
         action='READ', iostat=io_status)
     
     if (io_status /= 0) THEN
-       write(*,*) 'ERROR: Could not open parameter file: ', trim(filename)
-       write(*,*) 'IOSTAT value: ', io_status
-       stop  ! Terminate program gracefully if file cannot be opened
+       write(log_unit,*) 'ERROR: Could not open parameter file: ', trim(filename)
+       write(log_unit,*) 'IOSTAT value: ', io_status
+       call shr_sys_abort()  ! Terminate program gracefully if file cannot be opened
     else
-       if(debug) write(*,*) 'Successfully opened ',trim(filename)
+       if(debug) write(log_unit,*) 'Successfully opened ',trim(filename)
     end if
 
     call CheckRogueBrackets(file_unit,filename)
@@ -137,11 +146,11 @@ contains
     
     close(unit=file_unit, iostat=io_status)
     if (io_status /= 0) THEN
-       write(*,*) 'ERROR: Could not close file: ', TRIM(filename)
-       write(*,*) 'IOSTAT value: ', io_status
-       stop  ! Terminate program gracefully if file cannot be opened
+       write(log_unit,*) 'ERROR: Could not close file: ', TRIM(filename)
+       write(log_unit,*) 'IOSTAT value: ', io_status
+       call shr_sys_abort()  ! Terminate program gracefully if file cannot be opened
     else
-       if(debug) write(*,*) 'sucessfully closed ',trim(filename)
+       if(debug) write(log_unit,*) 'sucessfully closed ',trim(filename)
     end if
     
   end subroutine ReadJSON
@@ -173,13 +182,13 @@ contains
        end if
 
        if (scan('{}',filechar)>0 .and. inside_quotes) then
-          write(*,*)'A curly bracket "} or {"  was found inside a quoted string in ',trim(filename)
-          write(*,*)'This confuses the JSON parser. Please remove brackets from inside all strings.'
-          stop
+          write(log_unit,*)'A curly bracket "} or {"  was found inside a quoted string in ',trim(filename)
+          write(log_unit,*)'This confuses the JSON parser. Please remove brackets from inside all strings.'
+          call shr_sys_abort()
        end if
 
        if(debug)then
-          write(*,*) 'Scanned JSON file and found no rogue brackets'
+          write(log_unit,*) 'Scanned JSON file and found no rogue brackets'
        end if
 
     end do do_readfile
@@ -248,8 +257,8 @@ contains
        if(i<=dimdata_len)then
           dimdata_str(i:i) = filechar
        else
-          write(*,*) 'Ran out of room reading in dimension data'
-          stop
+          write(log_unit,*) 'Ran out of room reading in dimension data'
+          call shr_sys_abort()
        end if
        if(index(dimdata_str,'}')>0)then
           found_close = .true.
@@ -271,8 +280,8 @@ contains
        if(end_id==0)then
           end_id = index(dimdata_str(beg_id:dimdata_len),'}')
           if(end_id==0)then
-             write(*,*)'Trouble parsing dim data'
-             stop
+             write(log_unit,*)'Trouble parsing dim data'
+             call shr_sys_abort()
           end if
           found_dims = .true.
        end if
@@ -312,7 +321,7 @@ contains
        call StringToStringOrReal(data_str,tmp_str,tmp_real,is_num=.true.)
        pstruct%dimensions(i)%name = trim(CleanSymbol(symb_str))
        pstruct%dimensions(i)%size = int(tmp_real)
-       if(debug)write(*,*) trim(pstruct%dimensions(i)%name),":",pstruct%dimensions(i)%size
+       if(debug)write(log_unit,*) trim(pstruct%dimensions(i)%name),":",pstruct%dimensions(i)%size
        beg_id = end_id+1
     end do
 
@@ -391,8 +400,8 @@ contains
           return
        end if
        if(i>too_many_iter)then
-          write(*,*)'failed to find variable string or group closing bracket'
-          stop
+          write(log_unit,*)'failed to find variable string or group closing bracket'
+          call shr_sys_abort()
        end if
     end do
 
@@ -413,13 +422,13 @@ contains
        if(i<=vardata_max_len)then
           vardata_str(i:i) = filechar
        else
-          write(*,*) 'Ran out of room reading in dimension data'
-          stop
+          write(log_unit,*) 'Ran out of room reading in dimension data'
+          call shr_sys_abort()
        end if
        if(index(vardata_str,'{')>0)then
-          write(*,*)'An open bracket was found nested inside the current parameter:',trim(symb_str)
-          write(*,*)'This is an invalid file format for the parameter file'
-          stop
+          write(log_unit,*)'An open bracket was found nested inside the current parameter:',trim(symb_str)
+          write(log_unit,*)'This is an invalid file format for the parameter file'
+          call shr_sys_abort()
        end if
        if(index(vardata_str,'}')>0)then
           found_close = .true.
@@ -487,10 +496,10 @@ contains
           end if
        end if
     else
-       write(*,*)'could not properly identify data type'
-       write(*,*)trim(data_str)
-       write(*,*)param%name
-       stop
+       write(log_unit,*)'could not properly identify data type'
+       write(log_unit,*)trim(data_str)
+       write(log_unit,*)param%name
+       call shr_sys_abort()
     end if
     call ClearStringScratch(string_scr,n_vec_out)
     
@@ -520,12 +529,12 @@ contains
        param%c_data = trim(tmp_str)
     case(r_1d_type,i_1d_type,c_1d_type)
        if(n_vec_out.ne.dimsizes(1))then
-          write(*,*)'1d parameter size does not match dimension size'
-          write(*,*) n_vec_out,dimsizes(1)
-          write(*,*) trim(param%name)
-          write(*,*) trim(data_str)
-          write(*,*) len(trim(data_str))
-          stop
+          write(log_unit,*)'1d parameter size does not match dimension size'
+          write(log_unit,*) n_vec_out,dimsizes(1)
+          write(log_unit,*) trim(param%name)
+          write(log_unit,*) trim(data_str)
+          write(log_unit,*) len(trim(data_str))
+          call shr_sys_abort()
        end if
        if(param%dtype==r_1d_type)allocate(param%r_data_1d(dimsizes(1)))
        if(param%dtype==i_1d_type)allocate(param%i_data_1d(dimsizes(1)))
@@ -542,12 +551,12 @@ contains
        end do
     case(r_2d_type,i_2d_type,c_2d_type)
        if(n_vec_out.ne.(dimsizes(1)*dimsizes(2)))then
-          write(*,*)'2d parameter size does not match dimension size'
-          write(*,*) n_vec_out,dimsizes(1),dimsizes(2)
-          write(*,*) trim(data_str)
-          write(*,*) "len:",len(trim(data_str))
-          write(*,*) trim(param%name)
-          stop
+          write(log_unit,*)'2d parameter size does not match dimension size'
+          write(log_unit,*) n_vec_out,dimsizes(1),dimsizes(2)
+          write(log_unit,*) trim(data_str)
+          write(log_unit,*) "len:",len(trim(data_str))
+          write(log_unit,*) trim(param%name)
+          call shr_sys_abort()
        end if
        if(param%dtype==r_2d_type)allocate(param%r_data_2d(dimsizes(1),dimsizes(2)))
        if(param%dtype==i_2d_type)allocate(param%i_data_2d(dimsizes(1),dimsizes(2)))
@@ -636,7 +645,7 @@ contains
        call ReadCharVar(file_unit,count_phase,n_vars,string_scr,found_vartag)
     end do
 
-    if(debug) write(*,*) 'Found ',n_vars,' variables'
+    if(debug) write(log_unit,*) 'Found ',n_vars,' variables'
     allocate(pstruct%parameters(n_vars))
 
     call GotoPos(file_unit,filepos0)
@@ -676,9 +685,9 @@ contains
     logical          :: found_end
     
     if( index(trim(string_in),trim(meta_tag))==0 ) then
-       write(*,*) 'metadata tag: ',trim(meta_tag),' was not found'
-       write(*,*) 'in data string: ',trim(string_in),'xxxxx'
-       stop
+       write(log_unit,*) 'metadata tag: ',trim(meta_tag),' was not found'
+       write(log_unit,*) 'in data string: ',trim(string_in),'xxxxx'
+       call shr_sys_abort()
     else
        
        beg_id = index(string_in,trim(meta_tag))
@@ -689,7 +698,7 @@ contains
        ! the next comma, excluding any characters inside of
        ! either brackets or quotations.
 
-       !write(*,*) 'xxx',string_in(sep_id:end_id),'xxx'
+       !write(log_unit,*) 'xxx',string_in(sep_id:end_id),'xxx'
        
        open_bracket1 = .false.
        open_bracket2 = .false.
@@ -720,9 +729,9 @@ contains
        end do search_close
 
        if(.not.found_end)then
-          write(*,*)'could not find an end to a metadata string'
-          write(*,*)'base string: xxx',trim(string_in),'xxx'
-          stop
+          write(log_unit,*)'could not find an end to a metadata string'
+          write(log_unit,*)'base string: xxx',trim(string_in),'xxx'
+          call shr_sys_abort()
        end if
        
        beg_id = sep_id
@@ -779,8 +788,8 @@ contains
        ! and cycle
        if(index(string_in(i:i),",")>0) then
           if(k==0)then
-             write(*,*) 'Encountered comma before data in string read, aborting'
-             stop
+             write(log_unit,*) 'Encountered comma before data in string read, aborting'
+             call shr_sys_abort()
           end if
           l = l + 1
           k = 0
@@ -895,8 +904,8 @@ contains
           else if (iostat == IOSTAT_EOR) then
              ! help debugging and writing lines
           else if(iostat<0)then
-             write(*,*) 'Error or EOF reached while skipping lines.'
-             stop
+             write(log_unit,*) 'Error or EOF reached while skipping lines.'
+             call shr_sys_abort()
           end if
        end do
     end if
@@ -927,12 +936,12 @@ contains
           ! empty read
           read(unit=file_unit, fmt='(A)', iostat=iostat) dummy_line
           if (iostat /= 0) then
-             write(*,*) 'Error or EOF reached while skipping lines.'
-             stop
+             write(log_unit,*) 'Error or EOF reached while skipping lines.'
+             call shr_sys_abort()
           end if
        end do
 
-       if(debug) write(*,*) 'gotoline last read: ',trim(dummy_line)
+       if(debug) write(log_unit,*) 'gotoline last read: ',trim(dummy_line)
        
     end if
     
@@ -978,16 +987,16 @@ contains
              out_real = tmp_real
              out_string = 'real number'
           else
-             write(*,*) 'Read string, expected number',trim(CleanSymbol(string_in))
-             stop
+             write(log_unit,*) 'Read string, expected number',trim(CleanSymbol(string_in))
+             call shr_sys_abort()
           end if
        elseif(io_status /= 0) then
           if(.not.is_num)then
              out_real = -9999.9_r8
              out_string = trim(CleanSymbol(string_in))
           else
-             write(*,*) 'Read string, expected character',trim(CleanSymbol(string_in))
-             stop
+             write(log_unit,*) 'Read string, expected character',trim(CleanSymbol(string_in))
+             call shr_sys_abort()
           end if
        end if
     end if
@@ -1034,8 +1043,8 @@ contains
     end do loop_dims
 
     if(dim_size==-1)then
-       write(*,*)'could not find a size for unknown dimension: ',trim(dim_name)
-       stop
+       write(log_unit,*)'could not find a size for unknown dimension: ',trim(dim_name)
+       call shr_sys_abort()
     end if
   end function GetDimSizeFromName
 
@@ -1059,9 +1068,9 @@ contains
     end do loop_params
 
     if(.not.found_param)then
-       write(*,*)'Error finding parameter by name'
-       write(*,*)'Cant find: ',trim(param_name)
-       stop
+       write(log_unit,*)'Error finding parameter by name'
+       write(log_unit,*)'Cant find: ',trim(param_name)
+       call shr_sys_abort()
     end if
     
   end function GetParamFromName
@@ -1074,52 +1083,52 @@ contains
     integer :: i
     integer :: j
     
-    write(*,*) '----------------------------'
-    write(*,*) 'Parameter: ',trim(param%name)
-    write(*,*) '  units: ',trim(param%units)
-    write(*,*) '  long_name: ',trim(param%long_name)
-    write(*,*) '  dtype: ',param%dtype
+    write(log_unit,*) '----------------------------'
+    write(log_unit,*) 'Parameter: ',trim(param%name)
+    write(log_unit,*) '  units: ',trim(param%units)
+    write(log_unit,*) '  long_name: ',trim(param%long_name)
+    write(log_unit,*) '  dtype: ',param%dtype
     do i=1,param%ndims
-       write(*,*) '  dimension: ',i,':',trim(param%dim_names(i))
+       write(log_unit,*) '  dimension: ',i,':',trim(param%dim_names(i))
     end do
-    write(*,*) '  data: '
+    write(log_unit,*) '  data: '
     
     
     select case(param%dtype)
     case(r_scalar_type)
-       write(*,'(F13.6)')param%r_data_scalar
+       write(log_unit,'(F13.6)')param%r_data_scalar
     case(i_scalar_type)
-       write(*,*)param%i_data_scalar
+       write(log_unit,*)param%i_data_scalar
     case(c_solo_type)
-       write(*,*)trim(param%c_data)
+       write(log_unit,*)trim(param%c_data)
     case(r_1d_type)
        do i = 1,size(param%r_data_1d,dim=1)
-          write(*,'(F13.6)') param%r_data_1d(i)
+          write(log_unit,'(F13.6)') param%r_data_1d(i)
        end do
     case(i_1d_type)
        do i = 1,size(param%i_data_1d,dim=1)
-          write(*,*) param%i_data_1d(i)
+          write(log_unit,*) param%i_data_1d(i)
        end do
     case(c_1d_type)
        do i = 1,size(param%c_data_1d,dim=1)
-          write(*,*) trim(param%c_data_1d(i))
+          write(log_unit,*) trim(param%c_data_1d(i))
        end do
     case(r_2d_type)
        do i = 1,size(param%r_data_2d,dim=1)
           do j = 1,size(param%r_data_2d,dim=2)
-             write(*,'(F13.6)') param%r_data_2d(i,j)
+             write(log_unit,'(F13.6)') param%r_data_2d(i,j)
           end do
        end do
     case(i_2d_type)
        do i = 1,size(param%i_data_2d,dim=1)
           do j = 1,size(param%i_data_2d,dim=2)
-             write(*,*) param%i_data_2d(i,j)
+             write(log_unit,*) param%i_data_2d(i,j)
           end do
        end do
     case(c_2d_type)
        do i = 1,size(param%c_data_2d,dim=1)
           do j = 1,size(param%c_data_2d,dim=2)
-             write(*,*) trim(param%c_data_2d(i,j))
+             write(log_unit,*) trim(param%c_data_2d(i,j))
           end do
        end do
     end select

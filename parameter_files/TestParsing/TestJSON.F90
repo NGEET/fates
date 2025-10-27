@@ -27,6 +27,8 @@ program TestJSON
   ! Read the first command line argument (index 1) into FILENAME
   call get_command_argument(1, value=filename)
 
+  call SetInvalid(1.e-32_r8)
+  call SetLogInit(6)
   call ReadJSON(filename,file_unit,pstruct)
 
   

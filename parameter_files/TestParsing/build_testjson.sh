@@ -21,5 +21,6 @@ rm -f bld/*.a
 
 # Build dgesv from lapack
 ${FC} ${F_OPTS} -c -I bld/ -J./bld/ -o bld/libFatesConstantsMod.so ${FATES_PATH}/main/FatesConstantsMod.F90
+${FC} ${F_OPTS} -c -I bld/ -J./bld/ -o bld/libWrapJSonTestMod.so ${FATES_PATH}/parameter_files/TestParsing/WrapJSonTestMod.F90
 ${FC} ${F_OPTS} -c -I bld/ -J./bld/ -o bld/libJSONParameterUtilsMod.so ${FATES_PATH}/main/JSONParameterUtilsMod.F90
-${FC} ${F_OPTS} -I bld/ -J./bld/ -L./bld/ -lFatesConstantsMod -lJSONParameterUtilsMod -o test_json TestJSON.F90
+${FC} ${F_OPTS} -I bld/ -J./bld/ -L./bld/ -lFatesConstantsMod -lJSONParameterUtilsMod -lWrapJSonTestMod -o test_json TestJSON.F90
