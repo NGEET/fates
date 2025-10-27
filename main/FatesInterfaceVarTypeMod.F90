@@ -36,6 +36,7 @@ module FatesInterfaceVariableTypeMod
       procedure :: CheckBounds
       procedure :: Initialize => InitializeInterfaceVariable
       procedure :: Update     => UpdateInterfaceVariable
+      procedure :: Dump
 
       generic :: Register => RegisterInterfaceVariable_0d, &
                              RegisterInterfaceVariable_1d, &
