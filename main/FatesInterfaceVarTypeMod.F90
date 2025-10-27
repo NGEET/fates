@@ -237,14 +237,7 @@ module FatesInterfaceVariableTypeMod
       real(r8), intent(in), optional                      :: scalar ! value to scale variable update 
 
       ! Locals
-      class(*), pointer :: data_var0d        => null()
-      class(*), pointer :: data_var1d(:)     => null()
-      class(*), pointer :: data_var2d(:,:)   => null()
-      class(*), pointer :: data_var3d(:,:,:) => null()
-
       real(r8) :: scalar_local
-      integer  :: index  ! index for the subgrid level of the input interface variable 
-      
       character(len=fates_long_string_length) :: msg_mismatch = 'FATES ERROR: Mismatched interface variable types'
 
       ! Check if scalar is present and set default value to one
