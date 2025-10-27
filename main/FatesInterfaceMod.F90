@@ -2787,7 +2787,7 @@ subroutine InitializeInterfaceRegistry(this, num_veg_patches, patchlist)
 
    ! Allocate interface registries for each vegetated patch on the clump
    allocate(this%registry(num_veg_patches))
-   
+
    ! Allocate the active registry filter array to the maximum number of possible active patches
    allocate(this%filter_registry_active(num_veg_patches))
    
