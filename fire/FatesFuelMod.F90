@@ -169,15 +169,14 @@ contains
 
    !-------------------------------------------------------------------------------------
 
-   subroutine CalculateWeightingFactor(this, sav_fuel, part_dens)
+   subroutine CalculateWeightingFactor(this)
       ! DESCRIPTION:
       ! Calculate total area per fuel cell of each fuel class
       ! and the derived weighting factors
+      use SFParamsMod, only :: SF_val_SAV, SF_val_part_dens
 
       ! ARGUMENTS:
       class(fuel_type), intent(inout) :: this                       ! fuel class
-      real(r8), intent(in)            :: sav_fuel(num_fuel_classes) ! surface area to volume ratio of all fuel types [/cm]
-      real(r8), intent(in)            :: part_dens                  ! oven-dry particle density [kg m-2]
 
       ! LOCALS:
       integer  :: i         ! looping index
@@ -189,7 +188,7 @@ contains
       A_live = 0.0_r8
       ! calculate mean total area per unit fuel cell of each size EQ 53 in Rothermel 1972
       do i = 1, num_fuel_classes
-         this%mean_total_SA(i) = sav_fuel(i)*this%loading(i)/part_dens
+         this%mean_total_SA(i) = SF_val_SAV(i)*this%loading(i)/SF_val_part_dens
          if (i /= fuel_classes%live_grass()) then
             A_dead = A_dead + this%mean_total_SA(i)
          else
@@ -220,7 +219,7 @@ contains
 
    !-------------------------------------------------------------------------------------
 
-   subroutine SumLoading(this, sav_fuel, part_dens)
+   subroutine SumLoading(this)
       ! DESCRIPTION:
       ! Sums up the loading - excludes trunks
       !
@@ -245,14 +244,12 @@ contains
 
       ! ARGUMENTS:
       class(fuel_type), intent(inout) :: this ! fuel class
-      real(r8), intent(in)            :: sav_fuel(num_fuel_classes) ! surface area to volume ratio of all fuel types [/cm]
-      real(r8), intent(in)            :: part_dens                  ! oven-dry particle density [kg m-2]
 
       ! LOCALS:
       integer    :: i                             ! looping index
 
       ! ensure weighting factor is updated
-      call this%CalculateWeightingFactor(sav_fuel, part_dens)
+      call this%CalculateWeightingFactor()
 
       ! get fuel load weighting factor given SAV
       call this%FuelLoadWeight()
@@ -279,20 +276,18 @@ contains
 
    !-------------------------------------------------------------------------------------
 
-   subroutine CalculateFractionalLoading(this, sav_fuel, part_dens)
+   subroutine CalculateFractionalLoading(this)
       ! DESCRIPTION:
       !   Calculates fractional loading for fuel
 
       ! ARGUMENTS:
       class(fuel_type), intent(inout) :: this ! fuel class
-      real(r8), intent(in)            :: sav_fuel(num_fuel_classes) ! surface area to volume ratio of all fuel types [/cm]
-      real(r8), intent(in)            :: part_dens                  ! oven-dry particle density [kg m-2]
 
       ! LOCALS:
       integer :: i ! looping index
 
       ! sum up loading just in case
-      call this%SumLoading(sav_fuel, part_dens)
+      call this%SumLoading()
 
       if (this%non_trunk_loading > nearzero) then
          do i = 1, num_fuel_classes
@@ -348,6 +343,7 @@ contains
             ! effective_moisture is used for determining fractional fuel burnt per fuel class later
             ! to derive this by fuel category (live vs dead) and by fuel sizes
             ! let's still keep this calculation for both dead and live fuels
+            ! 2025-10-16 XLG
             moisture_of_extinction(i) = MoistureOfExtinction(sav_fuel(i))
             this%effective_moisture(i) = this%moisture(i)/moisture_of_extinction(i)
             if(i /= fuel_classes%live_grass())then
@@ -519,7 +515,7 @@ contains
          moist_dead = 0.0_r8
       end if
 
-      mef_live = min(mef_dead, 2.9_r8 * W * (1.0_r8 - moist_dead/mef_dead) - 0.226_r8)
+      mef_live = min(1.0_r8, max(mef_dead, 2.9_r8 * W * (1.0_r8 - moist_dead/mef_dead) - 0.226_r8))
 
    end subroutine LiveFuelMoistureOfExtinction
 
@@ -722,7 +718,7 @@ contains
       integer                  :: i, g                           ! looping indices
       integer                  :: group_idx(num_fuel_classes)    ! fuel group assigned
       real(r8), allocatable    :: group_sum(:)                   ! summed weight across fuel sizes that are within the same subgroup
-      real(r8), parameter, dimension(5)      :: sav_edg=(/0.53_r8, 1.58_r8, 3.15_r8, 6.30_r8, 39.37_r8/)
+      real(r8), parameter, dimension(5)  :: sav_edg=(/0.53_r8, 1.58_r8, 3.15_r8, 6.30_r8, 39.37_r8/) ! SAV value for grouping[cm-1]
 
       ng = size(sav_edg)
       ! initialize fuel group with group 1 (sav < 0.53)
