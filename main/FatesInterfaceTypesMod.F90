@@ -1305,7 +1305,7 @@ module FatesInterfaceTypesMod
         end select
       else
         ! defaults to bc_in 
-        this%num_api_vars_bc_in + this%num_api_vars_bc_in + 1
+        this%num_api_vars_bc_in = this%num_api_vars_bc_in + 1
       end if
 
       
