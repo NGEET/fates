@@ -6,10 +6,12 @@ module EDParamsMod
   
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
+  use FatesConstantsMod, only : itrue
   use FatesGlobals        , only : fates_log
   use FatesGlobals        , only : endrun => fates_endrun
   use FatesConstantsMod,    only : fates_unset_r8
   use FatesConstantsMod,    only : n_landuse_cats
+  use JSONParameterUtilsMod,only : params_type,param_type
   
   ! CIME Globals
   use shr_log_mod         , only : errMsg => shr_log_errMsg
@@ -214,8 +216,6 @@ module EDParamsMod
     photo_temp_acclim_thome_time          = nan
     mortality_disturbance_fraction        = nan
     comp_excln_exp                        = nan
-    ED_val_vai_top_bin_width              = nan
-    ED_val_vai_width_increase_factor      = nan
     ED_val_nignitions                     = nan
     ED_val_understorey_death              = nan
     ED_val_cwd_fcel                       = nan
@@ -410,7 +410,7 @@ module EDParamsMod
     hydr_psi0 = param_p%r_data_scalar
     
     param_p => pstruct%GetParamFromName("fates_hydro_psicap")
-    hydr_name_psicap = param_p%r_data_scalar
+    hydr_psicap = param_p%r_data_scalar
 
     param_p => pstruct%GetParamFromName("fates_soil_salinity")
     bgc_soil_salinity = param_p%r_data_scalar
@@ -493,10 +493,8 @@ module EDParamsMod
         write(fates_log(),fmt0) 'sdlng_mort_par_timescale = ', sdlng_mort_par_timescale
         write(fates_log(),fmt0) 'sdlng_mdd_timescale = ', sdlng_mdd_timescale
         write(fates_log(),fmt0) 'sdlng2sap_par_timescale = ', sdlng2sap_par_timescale
-        write(fates_log(),fmt0) 'mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
+        write(fates_log(),fmt0) 'mortality_disturbance_fraction = ',mortality_disturbance_fraction
         write(fates_log(),fmt0) 'comp_excln_exp = ',comp_excln_exp
-        write(fates_log(),fmt0) 'ED_val_vai_top_bin_width = ',ED_val_vai_top_bin_width
-        write(fates_log(),fmt0) 'ED_val_vai_width_increase_factor = ',ED_val_vai_width_increase_factor
         write(fates_log(),fmt0) 'ED_val_nignitions = ',ED_val_nignitions
         write(fates_log(),fmt0) 'ED_val_understorey_death = ',ED_val_understorey_death
         write(fates_log(),fmt0) 'ED_val_cwd_fcel = ',ED_val_cwd_fcel
@@ -533,11 +531,11 @@ module EDParamsMod
         write(fates_log(),'(a,L2)') 'active_crown_fire = ',active_crown_fire
         write(fates_log(),fmt0) 'damage_event_code = ',damage_event_code
         write(fates_log(),fmt0) 'damage_canopy_layer_code = ', damage_canopy_layer_code
-	write(fates_log(),fmt0) 'landuse_grazing_carbon_use_eff = ', landuse_grazing_carbon_use_eff
-        write(fates_log(),fmt0) 'name_landuse_grazing_nitrogen_use_eff = ', name_landuse_grazing_nitrogen_use_eff
-        write(fates_log(),fmt0) 'name_landuse_grazing_phosphorus_use_eff = ', name_landuse_grazing_phosphorus_use_eff
-        write(fates_log(),fmt0) 'name_landuse_grazing_maxheight = ', name_landuse_grazing_maxheight
-        write(fates_log(),fmt0) 'name_landuse_grazing_rate(:) = ', name_landuse_grazing_rate(:)
+        write(fates_log(),fmt0) 'landuse_grazing_carbon_use_eff = ',landuse_grazing_carbon_use_eff
+        write(fates_log(),fmt0) 'landuse_grazing_nitrogen_use_eff = ', landuse_grazing_nitrogen_use_eff
+        write(fates_log(),fmt0) 'landuse_grazing_phosphorus_use_eff = ', landuse_grazing_phosphorus_use_eff
+        write(fates_log(),fmt0) 'landuse_grazing_maxheight = ', landuse_grazing_maxheight
+        write(fates_log(),fmt0) 'landuse_grazing_rate(:) = ', landuse_grazing_rate(:)
         write(fates_log(),*) '------------------------------------------------------'
 
      end if

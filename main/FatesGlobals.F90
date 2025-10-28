@@ -186,7 +186,7 @@ contains
 
     real(r8) :: reals_in(:)
     character(len=1024) :: str
-    integer :: i, nreal
+    integer :: i
     
     str = ', '
     do i = 1,ubound(reals_in,1)

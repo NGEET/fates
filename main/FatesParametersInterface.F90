@@ -7,7 +7,7 @@ module FatesParametersInterface
   ! Note also that JSONParameterUtilsMod
   ! only uses shr libraries
 
-  use JSONParameterUtilsMod only: params_type
+  use JSONParameterUtilsMod, only: params_type
 
   implicit none
   private
