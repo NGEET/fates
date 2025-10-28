@@ -66,9 +66,8 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
-   use FatesParametersInterface  , only : fates_param_reader_type
-   use FatesParametersInterface  , only : fates_parameters_type
-   use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
+   use FatesParametersInterface  , only : pstruct
+   use EDParamsMod               , only : FatesReceiveParams
    use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
    use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
    use FatesLeafBiophysParamsMod , only : LeafBiophysRegisterParams, LeafBiophysReceiveParams,LeafBiophysReportParams
@@ -803,6 +802,10 @@ contains
          
          ! Self explanatory, read the fates parameter file
          !call FatesReadParameters(param_reader)
+         if ( hlm_masterproc == itrue ) then
+            write(fates_log(), *) 'FatesParametersInterface.F90::'//trim(subname)//' :: CLM reading FATES '//' parameters '
+         end if
+         
          call SetInvalid(hlm_hio_ignore_val)
          call SetLogInit(fates_log())
          call ReadJSON(paramfile,paramfile_unit,pstruct)
@@ -2686,22 +2689,19 @@ end subroutine DetermineGridCellNeighbors
 
 ! ======================================================================================
      
-!-----------------------------------------------------------------------
-! TODO(jpalex): this belongs in FatesParametersInterface.F90, but would require
-! untangling the dependencies of the *RegisterParams methods below.
-subroutine FatesReadParameters(param_reader)
+subroutine FatesTransferParameters()
   implicit none
+
   
-  class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
+  character(len=32)  :: subname = 'FatesTransferParameters'
 
-  character(len=32)  :: subname = 'FatesReadParameters'
-  class(fates_parameters_type), allocatable :: fates_params
+  ! Initialize scalar parameters
 
-  if ( hlm_masterproc == itrue ) then
-    write(fates_log(), *) 'FatesParametersInterface.F90::'//trim(subname)//' :: CLM reading ED/FATES '//' parameters '
-  end if
+  call TransferParamsGeneric(pstruct)
 
-  allocate(fates_params)
+
+  
+
   call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
   call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
   call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
@@ -2726,6 +2726,6 @@ subroutine FatesReadParameters(param_reader)
   !!!!FatesCheckParams(is_master)
 
   
- end subroutine FatesReadParameters
+end subroutine FatesTransferParameters
 
 end module FatesInterfaceMod
