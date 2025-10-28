@@ -390,9 +390,9 @@ contains
       !   Updates fuel moisture
 
       ! ARGUMENTS:
-      real(r8), intent(in)    :: sav_fuel(num_fuel_classes) ! surface area to volume ratio of all fuel types [/cm]
-      real(r8), intent(in)    :: drying_ratio               ! drying ratio
-      real(r8), intent(in)    :: NI                         ! Nesterov Index
+      real(r8), intent(in)  :: sav_fuel(num_fuel_classes) ! surface area to volume ratio of all fuel types [/cm]
+      real(r8), intent(in)  :: drying_ratio               ! drying ratio
+      real(r8), intent(in)  :: NI                         ! Nesterov Index
       real(r8), intent(out) :: moisture(num_fuel_classes) ! moisture of litter [m3/m3]
 
       ! LOCALS
@@ -608,15 +608,15 @@ contains
       use SFParamsMod, only : SF_val_mid_moisture, SF_val_mid_moisture_Coeff
       use SFParamsMod, only : SF_val_mid_moisture_Slope, SF_val_min_moisture
       use SFParamsMod, only : SF_val_low_moisture_Coeff, SF_val_low_moisture_Slope
-      use SFParamsMod, only : SF_val_miner_total, SF_val_SAV, SF_val_part_dens
+      use SFParamsMod, only : SF_val_miner_total
 
       ! ARGUMENTS:
       class(fuel_type), intent(inout) :: this                            ! fuel class
       real(r8),         intent(out)   :: fuel_consumed(num_fuel_classes) ! fuel consumed [kgC/m2]
 
       ! LOCALS:
-      real(r8) :: rel_moisture                    ! relative moisture of fuel (moist/moisture of extinction) [unitless]
-      integer  :: i                               ! looping index
+      real(r8) :: rel_moisture   ! relative moisture of fuel (moist/moisture of extinction) [unitless]
+      integer  :: i              ! looping index
 
       ! CONSTANTS:
       real(r8), parameter :: max_grass_frac = 0.8_r8 ! maximum fraction burnt for live grass fuels

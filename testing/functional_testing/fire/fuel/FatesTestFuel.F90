@@ -11,7 +11,7 @@ program FatesTestFuel
    use FatesFuelMod,                only : fuel_type
    use FatesFuelClassesMod,         only : num_fuel_classes
    use SFParamsMod,                 only : SF_val_SAV, SF_val_drying_ratio
-   use SFParamsMod,                 only : SF_val_FBD, SF_val_part_dens
+   use SFParamsMod,                 only : SF_val_FBD
 
    implicit none
 
