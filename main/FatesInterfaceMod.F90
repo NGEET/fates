@@ -2699,28 +2699,25 @@ subroutine FatesTransferParameters()
 
   call TransferParamsGeneric(pstruct)
 
+  !call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
+  !call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
+  !call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
+  !call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
+  !call LeafBiophysRegisterParams(fates_params)
+  !call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
 
+  !call param_reader%Read(fates_params)
+
+  !call FatesReceiveParams(fates_params)
+  !call SpitFireReceiveParams(fates_params)
+  !call PRTReceiveParams(fates_params)
+  !call LeafBiophysReceiveParams(fates_params)
+  !call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
+
+  !call EDPftvarcon_inst%Init()
   
-
-  call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
-  call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
-  call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
-  call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
-  call LeafBiophysRegisterParams(fates_params)
-  call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
-
-  call param_reader%Read(fates_params)
-
-  call FatesReceiveParams(fates_params)
-  call SpitFireReceiveParams(fates_params)
-  call PRTReceiveParams(fates_params)
-  call LeafBiophysReceiveParams(fates_params)
-  call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
-
-  call EDPftvarcon_inst%Init()
-  
-  call fates_params%Destroy()
-  deallocate(fates_params)
+  !call fates_params%Destroy()
+  !deallocate(fates_params)
 
   !!!! WHERE DO WE CALL THIS?
   !!!!FatesCheckParams(is_master)

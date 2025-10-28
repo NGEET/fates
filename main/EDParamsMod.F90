@@ -28,16 +28,16 @@ module EDParamsMod
    real(r8),protected, public :: photo_temp_acclim_thome_time         ! Length of the window for the long-term exponential moving average (ema)
                                                                       ! of vegetation temperature used in photosynthesis 
                                                                       ! T_home term in Kumarathunge parameterization [years]
-   real(r8),protected, public :: sdlng_emerg_h2o_timescale            !Length of the window for the exponential moving
-                                                                      !average of smp used to calculate seedling emergence
-   real(r8),protected, public :: sdlng_mort_par_timescale             !Length of the window for the exponential moving average 
-                                                                      !of par at the seedling layer used to calculate 
-                                                                      !seedling mortality
-   real(r8),protected, public :: sdlng_mdd_timescale                  !Length of the window for the exponential moving average
+   real(r8),protected, public :: sdlng_emerg_h2o_timescale            ! Length of the window for the exponential moving
+                                                                      ! average of smp used to calculate seedling emergence
+   real(r8),protected, public :: sdlng_mort_par_timescale             ! Length of the window for the exponential moving average 
+                                                                      ! of par at the seedling layer used to calculate 
+                                                                      ! seedling mortality
+   real(r8),protected, public :: sdlng_mdd_timescale                  ! Length of the window for the exponential moving average
                                                                       ! of moisture deficit days used to calculate seedling mortality
-   real(r8),protected, public :: sdlng2sap_par_timescale              !Length of the window for the exponential 
-                                                                      !moving average of par at the seedling layer used to 
-                                                                      !calculate seedling to sapling transition rates
+   real(r8),protected, public :: sdlng2sap_par_timescale              ! Length of the window for the exponential 
+                                                                      ! moving average of par at the seedling layer used to 
+                                                                      ! calculate seedling to sapling transition rates
    real(r8),protected, public :: mortality_disturbance_fraction       ! the fraction of canopy mortality that results in disturbance
    real(r8),protected, public :: comp_excln_exp                       ! weighting factor (exponent) for canopy layer exclusion and promotion
    real(r8),protected, public :: ED_val_nignitions                    ! number of annual ignitions per square km
@@ -390,16 +390,13 @@ module EDParamsMod
     ED_val_history_damage_bin_edges(:) = param_p%r_data_1d(:)
     
     param_p => pstruct%GetParamFromName("fates_landuse_crop_lu_pft_vector")
-    allocate(crop_lu_pft_vector(n_landuse_cats))
     crop_lu_pft_vector(:) =  param_p%i_data_1d(:)
 
     param_p => pstruct%GetParamFromName("fates_maxpatches_by_landuse")
-    allocate(maxpatches_by_landuse(n_landuse_cats))
     maxpatches_by_landuse(:) = param_p%i_data_1d(:)
     maxpatch_total = sum(maxpatches_by_landuse(:))
     
     param_p => pstruct%GetParamFromName("fates_max_nocomp_pfts_by_landuse")
-    allocate(max_nocomp_pfts_by_landuse(n_landuse_cats))
     max_nocomp_pfts_by_landuse(:) = param_p%i_data_1d(:)
     
     ! if use_hydro
@@ -455,7 +452,6 @@ module EDParamsMod
     logging_export_frac  = param_p%r_data_scalar
 
     param_p => pstruct%GetParamFromName("fates_landuse_grazing_rate")
-    allocate(landuse_grazing_rate(n_landuse_cats))
     landuse_grazing_rate(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName("fates_landuse_grazing_carbon_use_eff")
