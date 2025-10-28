@@ -486,7 +486,6 @@ contains
       real(r8)          :: w_d, md_d   ! denominator for calculating W and moist_dead
 
       integer             :: i                         ! looping index
-      real(r8), parameter :: kgm2_to_lbft2 = 0.0248_r8 ! convert kg m-2 to lb ft-2
 
       w_n  = 0.0_r8
       md_n = 0.0_r8
@@ -494,11 +493,11 @@ contains
       md_d = 0.0_r8
       do i = 1, num_fuel_classes
          if(i /= fuel_classes%live_grass())then
-            w_n = w_n + kgm2_to_lbft2*fuel_load(i)*exp(-4.5276_r8/sav_val(i))
-            md_n = md_n + fmc(i)*kgm2_to_lbft2*fuel_load(i)*exp(-4.5276_r8/sav_val(i))
-            md_d = md_d + kgm2_to_lbft2*fuel_load(i)*exp(-4.5264_r8/sav_val(i))
+            w_n = w_n + fuel_load(i)*exp(-4.5276_r8/sav_val(i))
+            md_n = md_n + fmc(i)*fuel_load(i)*exp(-4.5276_r8/sav_val(i))
+            md_d = md_d + fuel_load(i)*exp(-4.5276_r8/sav_val(i))
          else
-            w_d = w_d + kgm2_to_lbft2*fuel_load(i)*exp(-16.4042_r8/sav_val(i))
+            w_d = w_d + fuel_load(i)*exp(-16.4042_r8/sav_val(i))
          end if
 
       end do
