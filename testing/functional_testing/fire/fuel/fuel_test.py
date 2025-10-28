@@ -46,8 +46,8 @@ class FuelTest(FunctionalTestWithDrivers):
         fuel_dat = xr.open_dataset(os.path.join(run_dir, self.out_file))
 
         for var, ylabel, hue, filename in ts_specs:
-        if var in fuel_dat:
-            self.plot_timeseries(fuel_dat, var, ylabel, hue, save_figs, plot_dir, filename)
+            if var in fuel_dat:
+                self.plot_timeseries(fuel_dat, var, ylabel, hue, save_figs, plot_dir, filename)
 
         self.plot_barchart(
             fuel_dat,
