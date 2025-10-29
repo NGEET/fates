@@ -2335,7 +2335,21 @@ contains
                (litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
                (litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
                * years_per_day)
-       
+
+          ! DEBUG BLOCK START 
+            write(fates_log(),*) '===DEBUG SEED DECAY===='
+            write(fates_log(),*) 'Model Day = ', hlm_model_day
+            write(fates_log(),*) 'PFT:', pft, 
+            write(fates_log(),*) 'Seedling par (raw):', currentPatch%sdlng_mort_par%GetMean()
+            write(fates_log(),*) 'Seedling par (converted):', seedling_layer_par
+            write(fates_log(),*) 'Seedling light mort rate:', seedling_light_mort_rate
+            write(fates_log(),*) 'Seedling mdds:', seedling_light_mort_rate     
+            write(fates_log(),*) 'Seedling mdd crit:', EDPftvarcon_inst%seedling_mdd_crit(pft) 
+            write(fates_log(),*) 'Seedling h2o mort rate:', seedling_h2o_mort_rate      
+            write(fates_log(),*) 'Seed germ pool:', litt%seed_germ(pft)
+            write(fates_log(),*) 'Seed germ decay:',litt%seed_germ_decay(pft)
+          ! DEBUG BLOCK END
+          
        else
           
           litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
@@ -2672,6 +2686,19 @@ contains
                         EDPftvarcon_inst%seedling_light_rec_a(ft)*             &
                         sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft) 
 
+                      ! DEBUG BLOCK START
+                        write(fates_log(),*) '=== DEBUG RECRUITMENT TRS ==='
+                        write(fates_log(),*) 'Model day:', hlm_model_day
+                        write(fates_log(),*) 'PFT:', ft
+                        write(fates_log(),*) 'Element:', element_id
+                        write(fates_log(),*) 'sdlng2sap_par (raw GetMean):', currentPatch%sdlng2sap_par%GetMean()
+                        write(fates_log(),*) 'sdlng2sap_par (converted):', sdlng2sap_par
+                        write(fates_log(),*) 'seed_germ before calc:', currentPatch%litter(el)%seed_germ(ft)
+                        write(fates_log(),*) 'seedling_light_rec_a:', EDPftvarcon_inst%seedling_light_rec_a(ft)
+                        write(fates_log(),*) 'seedling_light_rec_b:', EDPftvarcon_inst%seedling_light_rec_b(ft)
+                        write(fates_log(),*) 'currentPatch%area:', currentPatch%area
+                      ! DEBUG BLOCK END
+                     
                      ! If soil moisture is below pft-specific seedling  moisture stress threshold the 
                      ! recruitment does not occur.
                      ilayer_seedling_root = minloc(abs(bc_in%z_sisl(:) -       &
@@ -2682,6 +2709,13 @@ contains
                      if (seedling_layer_smp < EDPftvarcon_inst%seedling_psi_crit(ft)) then
                         mass_avail = 0.0_r8
                      end if 
+
+                     ! DEBUG BLOCK START
+                     write(fates_log(),*) 'ilayer_seedling_root', ilayer_seedling_root
+                     write(fates_log(),*) 'seedling_layer_smp', seedling_layer_smp
+                     write(fates_log(),*) 'seedling_psi_crit', EDPftvarcon_inst%seedling_psi_crit(ft)
+                     write(fates_log(),*) 'mass_avail after calc:', mass_avail
+                     ! DEBUG BLOCK END
 
                   end if ! End use TRS with seedling dynamics
 
