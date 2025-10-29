@@ -2349,7 +2349,7 @@ contains
             write(fates_log(),*) 'Seed germ pool:', litt%seed_germ(pft)
             write(fates_log(),*) 'Seed germ decay:',litt%seed_germ_decay(pft)
           ! DEBUG BLOCK END
-          
+
        else
           
           litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
@@ -2691,7 +2691,7 @@ contains
                         write(fates_log(),*) 'Model day:', hlm_model_day
                         write(fates_log(),*) 'PFT:', ft
                         write(fates_log(),*) 'Element:', element_id
-                        write(fates_log(),*) 'sdlng2sap_par (raw GetMean):', currentPatch%sdlng2sap_par%GetMean()
+                        write(fates_log(),*) 'sdlng2sap_par (raw):', currentPatch%sdlng2sap_par%GetMean()
                         write(fates_log(),*) 'sdlng2sap_par (converted):', sdlng2sap_par
                         write(fates_log(),*) 'seed_germ before calc:', currentPatch%litter(el)%seed_germ(ft)
                         write(fates_log(),*) 'seedling_light_rec_a:', EDPftvarcon_inst%seedling_light_rec_a(ft)

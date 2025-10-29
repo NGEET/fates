@@ -2317,7 +2317,7 @@ contains
               write(fates_log(),*) '=== Seedling Layer PAR Debug ==== Day:', hlm_model_day
               write(fates_log(),*) 'Seedling par high:', seedling_par_high, 'Par frac high:', par_high_frac
               write(fates_log(),*) 'Seedling par low:', seedling_par_low, 'Par frac low:', par_low_frac
-              write(fates_log(),*) 'New seedling layer par', new_seedling_layer_par 
+              write(fates_log(),*) 'New seedling layer par:', new_seedling_layer_par 
               ! DEBUG BLOCK END
               
               call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
@@ -2342,19 +2342,17 @@ contains
                  endif
 
                 ! === DEBUG BLOCK START  ===
-                   write(fates_log(),*) '=== MDD DEBUG Day:', hlm_model_day
-                   write(fates_log(),*) 'PFT:', pft, 'Soil layer:', ilayer_seedling_root
-                   write(fates_log(),*) 'Raw SMP from host:', bc_in(s)%smp_sl(ilayer_seedling_root)
-                   write(fates_log(),*) 'new_seedling_layer_smp:', new_seedling_layer_smp
-                   write(fates_log(),*) 'seedling_psi_crit:', EDPftvarcon_inst%seedling_psi_crit(pft)
-                   write(fates_log(),*) 'Deficit check val for check', abs(EDPftvarcon_inst%seedling_psi_crit(pft)) - abs(new_seedling_layer_smp)
-                   write(fates_log(),*) 'new_seedling_mdd (after zero check):', new_seedling_mdd
-                   write(fates_log(),*) 'Current EMA c_mean:', cpatch%sdlng_mdd(pft)%p%c_mean
-                   write(fates_log(),*) 'Current c_index:', cpatch%sdlng_mdd(pft)%p%c_index
-                   write(fates_log(),*) 'n_mem:', cpatch%sdlng_mdd(pft)%p%def_type%n_mem
-                   write(fates_log(),*) 'sdlng_mdd_timescale:', sdlng_mdd_timescale
-                   write(fates_log(),*) '========================'
-                 end if
+                  write(fates_log(),*) '=== MDD DEBUG Day:', hlm_model_day
+                  write(fates_log(),*) 'PFT:', pft, 'Soil layer:', ilayer_seedling_root
+                  write(fates_log(),*) 'Raw SMP from host:', bc_in(s)%smp_sl(ilayer_seedling_root)
+                  write(fates_log(),*) 'new_seedling_layer_smp:', new_seedling_layer_smp
+                  write(fates_log(),*) 'seedling_psi_crit:', EDPftvarcon_inst%seedling_psi_crit(pft)
+                  write(fates_log(),*) 'Deficit check val for check', abs(EDPftvarcon_inst%seedling_psi_crit(pft)) - abs(new_seedling_layer_smp)
+                  write(fates_log(),*) 'new_seedling_mdd (after zero check):', new_seedling_mdd
+                  write(fates_log(),*) 'Current EMA c_mean:', cpatch%sdlng_mdd(pft)%p%c_mean
+                  write(fates_log(),*) 'Current c_index:', cpatch%sdlng_mdd(pft)%p%c_index
+                  write(fates_log(),*) 'n_mem:', cpatch%sdlng_mdd(pft)%p%def_type%n_mem
+                  write(fates_log(),*) 'sdlng_mdd_timescale:', sdlng_mdd_timescale
                 ! === DEBUG BLOCK END ===
 
                  ! Update the seedling layer smp and mdd running means
