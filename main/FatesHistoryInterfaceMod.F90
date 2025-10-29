@@ -6,7 +6,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : fates_long_string_length
   use FatesConstantsMod        , only : itrue,ifalse
   use FatesConstantsMod        , only : calloc_abs_error
-  use FatesConstantsMod        , only : mg_per_kg
+  use FatesConstantsMod        , only : mg_per_kg, years_per_day
   use FatesConstantsMod        , only : pi_const
   use FatesConstantsMod        , only : nearzero
   use FatesConstantsMod        , only : t_water_freeze_k_1atm
@@ -448,6 +448,7 @@ module FatesHistoryInterfaceMod
 
   integer :: ih_nesterov_fire_danger_si
   integer :: ih_fire_nignitions_si
+  integer :: ih_fire_nfires_si
   integer :: ih_fire_fdi_si
   integer :: ih_fire_intensity_fracarea_product_si
   integer :: ih_spitfire_ros_si
@@ -2426,7 +2427,8 @@ contains
          hio_ca_weighted_height_si  => this%hvars(ih_ca_weighted_height_si)%r81d, &
          hio_canopy_spread_si    => this%hvars(ih_canopy_spread_si)%r81d, &
          hio_nesterov_fire_danger_si => this%hvars(ih_nesterov_fire_danger_si)%r81d, &
-         hio_fire_nignitions_si => this%hvars(ih_fire_nignitions_si)%r81d, &
+         hio_fire_nignitions_si  => this%hvars(ih_fire_nignitions_si)%r81d, &
+         hio_fire_nfires_si           => this%hvars(ih_fire_nfires_si)%r81d, &         
          hio_fire_fdi_si => this%hvars(ih_fire_fdi_si)%r81d, &
          hio_spitfire_ros_si     => this%hvars(ih_spitfire_ros_si)%r81d, &
          hio_tfc_ros_si          => this%hvars(ih_tfc_ros_si)%r81d, &
@@ -2560,9 +2562,12 @@ contains
          hio_effect_wspeed_si(io_si) = sites(s)%fireWeather%effective_windspeed/sec_per_min
 
          ! number of ignitions [#/km2/day -> #/m2/s]
-         hio_fire_nignitions_si(io_si) = sites(s)%NF_successful / m2_per_km2 /  &
-              sec_per_day
-
+         hio_fire_nignitions_si(io_si) = sites(s)%NF_successful / years_per_day ! / m2_per_km2 /  &
+              !sec_per_day
+         
+         hio_fire_nfires_si(io_si) = sites(s)%NF / years_per_day !/ m2_per_km2 /  &
+              !sec_per_day
+         
          ! Fire danger index (FDI) (0-1)
          hio_fire_fdi_si(io_si) = sites(s)%FDI
 
@@ -2697,7 +2702,7 @@ contains
             hio_fire_fracarea_si(io_si)        = hio_fire_fracarea_si(io_si) + cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
             hio_fire_fuel_bulkd_si(io_si)      = hio_fire_fuel_bulkd_si(io_si) + cpatch%fuel%bulk_density_notrunks * cpatch%area * AREA_INV
             hio_fire_fuel_eff_moist_si(io_si)  = hio_fire_fuel_eff_moist_si(io_si) + cpatch%fuel%average_moisture_notrunks * cpatch%area * AREA_INV
-            hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel%SAV_notrunks * cpatch%area * AREA_INV / m_per_cm
+            hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel%SAV_notrunks * cpatch%area * AREA_INV
             hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel%MEF_notrunks * cpatch%area * AREA_INV
             hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%fuel%non_trunk_loading * cpatch%area * AREA_INV
 
@@ -6371,9 +6376,15 @@ contains
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_nesterov_fire_danger_si)
 
-       call this%set_history_var(vname='FATES_IGNITIONS',                         &
-            units='m-2 s-1',                                                      &
-            long='number of successful fire ignitions per m2 land area per second',  &
+       call this%set_history_var(vname='FATES_NIGNITIONS_MAX', units='km-2 y-1',          &
+            long='max number of possible fires. nignitiions/km2/y', use_default='active',              &
+            avgflag='A', vtype=site_r8, hlms='CLM:ALM',                           &
+            upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_fire_nfires_si)       
+       
+       call this%set_history_var(vname='FATES_NFIRES',                         &
+            units='km-2 y-1',                                                      &
+            long='number of successful fire ignitions per km2 land area per year',  &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index=ih_fire_nignitions_si)
@@ -6439,7 +6450,7 @@ contains
             avgflag='A', vtype=site_r8, hlms='CLM:ALM', upfreq=group_dyna_simple, ivar=ivar,      &
             initialize=initialize_variables, index = ih_fire_fuel_eff_moist_si)
 
-       call this%set_history_var(vname='FATES_FUEL_SAV', units='m-1',             &
+       call this%set_history_var(vname='FATES_FUEL_SAV', units='cm-1',             &
             long='spitfire fuel surface area to volume ratio',                    &
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
