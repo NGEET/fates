@@ -63,6 +63,7 @@ module JSONParameterUtilsMod
                                                          ! associated with this variable
      integer               :: ndims                      ! Number of dimensions,
                                                          ! same as size (dim_names)
+     logical                         :: accessed
      real(r8)                        :: r_data_scalar
      real(r8), allocatable           :: r_data_1d(:)
      real(r8), allocatable           :: r_data_2d(:,:)
@@ -449,7 +450,8 @@ contains
 
     param => pstruct%parameters(var_num)
     param%name = trim(symb_str)
-
+    param%accessed = .false.
+    
     call GetMetaString(vardata_str,'"dims"',beg_id,end_id)
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
     allocate(param%dim_names(n_vec_out))
@@ -1056,22 +1058,19 @@ contains
     character(len=*)         :: param_name
     type(param_type),pointer :: param_ptr
     integer                  :: i
-    logical                  :: found_param
-
+    
     nullify(param_ptr)
-    found_param = .false.
     loop_params: do i = 1,size(this%parameters)
        if(trim(this%parameters(i)%name).eq.trim(param_name))then
           param_ptr=>this%parameters(i)
-          found_param = .true.
+          this%parameters(i)%accessed = .true.
+          return
        end if
     end do loop_params
 
-    if(.not.found_param)then
-       write(log_unit,*)'Error finding parameter by name'
-       write(log_unit,*)'Cant find: ',trim(param_name)
-       call shr_sys_abort()
-    end if
+    write(log_unit,*)'Error finding parameter by name'
+    write(log_unit,*)'Cant find: ',trim(param_name)
+    call shr_sys_abort()
     
   end function GetParamFromName
   
