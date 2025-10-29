@@ -2339,7 +2339,7 @@ contains
           ! DEBUG BLOCK START 
             write(fates_log(),*) '===DEBUG SEED DECAY===='
             write(fates_log(),*) 'Model Day = ', hlm_model_day
-            write(fates_log(),*) 'PFT:', pft, 
+            write(fates_log(),*) 'PFT:', pft 
             write(fates_log(),*) 'Seedling par (raw):', currentPatch%sdlng_mort_par%GetMean()
             write(fates_log(),*) 'Seedling par (converted):', seedling_layer_par
             write(fates_log(),*) 'Seedling light mort rate:', seedling_light_mort_rate
