@@ -10,10 +10,10 @@ module FatesInterfaceMod
    ! ------------------------------------------------------------------------------------
 
    use EDTypesMod                , only : ed_site_type
-   use EDParamsMod                , only : dinc_vai
-   use EDParamsMod                , only : dlower_vai
-   use EDParamsMod               , only : ED_val_vai_top_bin_width
-   use EDParamsMod               , only : ED_val_vai_width_increase_factor
+   use EDParamsMod               , only : dinc_vai
+   use EDParamsMod               , only : dlower_vai
+   use EDParamsMod               , only : vai_top_bin_width
+   use EDParamsMod               , only : vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
    use EDParamsMod               , only : maxpatch_total
    use EDParamsMod               , only : maxpatches_by_landuse
@@ -118,7 +118,8 @@ module FatesInterfaceMod
    use JSONParameterUtilsMod     , only : SetInvalidJSON
    use JSONParameterUtilsMod     , only : SetLogInitJSON
    use JSONParameterUtilsMod     , only : DumpParameter
-
+   use JSONParameterUtilsMod     , only :
+   
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -966,7 +967,7 @@ contains
          ! calculate the bin edges for radiative transfer calculations
          ! VAI bin widths array 
          do i = 1,nlevleaf
-            dinc_vai(i) = ED_val_vai_top_bin_width * ED_val_vai_width_increase_factor ** (i-1)
+            dinc_vai(i) = vai_top_bin_width * vai_width_increase_factor ** (i-1)
          end do
 
          if (sum(dinc_vai) < min_vai_bin_sum ) then
@@ -2683,11 +2684,14 @@ subroutine FatesTransferParameters(masterproc)
 
   call TransferParamsGeneric(pstruct)
   call TransferParamsSpitFire(pstruct)
+  call TransferParamsPRT(pstruct)
   call TransferParamsLeafBiophys(pstruct)
   call TransferParamsPFT(pstruct)
 
   call TransferRadParams()
-
+  
+  call pstruct%ReportAccessCounts()
+  stop
   
   call FatesReportPFTParams(masterproc)
   call FatesReportParams(masterproc)
@@ -2697,30 +2701,7 @@ subroutine FatesTransferParameters(masterproc)
   call PRTCheckParams(masterproc)      ! Check PARTEH parameters
   call SpitFireCheckParams(masterproc)
 
-  
-  
-  !call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
-  !call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
-  !call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
-  !call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
-  !call LeafBiophysRegisterParams(fates_params)
-  !call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
-
-  !call param_reader%Read(fates_params)
-
-  !call FatesReceiveParams(fates_params)
-  !call SpitFireReceiveParams(fates_params)
-  !call PRTReceiveParams(fates_params)
-  !call LeafBiophysReceiveParams(fates_params)
-  !call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
-
-  !call EDPftvarcon_inst%Init()
-  
-  !call fates_params%Destroy()
-  !deallocate(fates_params)
-
-  !!!! WHERE DO WE CALL THIS?
-  !!!!FatesCheckParams(is_master)
+  call FatesCheckParams(is_master)
 
   
 end subroutine FatesTransferParameters

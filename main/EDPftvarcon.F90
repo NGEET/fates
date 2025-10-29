@@ -266,18 +266,6 @@ module EDPftvarcon
      ! Grazing
      real(r8), allocatable :: landuse_grazing_palatability(:) ! Relative intensity of leaf grazing/browsing per PFT (unitless 0-1)
 
-   contains
-     procedure, public :: Init => EDpftconInit
-     procedure, public :: Register
-     procedure, public :: Receive
-     procedure, private :: Register_PFT
-     procedure, private :: Receive_PFT
-     procedure, private :: Register_PFT_hydr_organs
-     procedure, private :: Receive_PFT_hydr_organs
-     procedure, private :: Register_PFT_leafage
-     procedure, private :: Receive_PFT_leafage
-     procedure, private :: Register_PFT_numrad
-     procedure, private :: Receive_PFT_numrad
   end type EDPftvarcon_type
 
   type(EDPftvarcon_type), public :: EDPftvarcon_inst

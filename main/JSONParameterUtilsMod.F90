@@ -63,7 +63,7 @@ module JSONParameterUtilsMod
                                                          ! associated with this variable
      integer               :: ndims                      ! Number of dimensions,
                                                          ! same as size (dim_names)
-     logical                         :: accessed
+     integer                         :: access_count
      real(r8)                        :: r_data_scalar
      real(r8), allocatable           :: r_data_1d(:)
      real(r8), allocatable           :: r_data_2d(:,:)
@@ -81,6 +81,7 @@ module JSONParameterUtilsMod
    contains
      procedure :: GetDimSizeFromName
      procedure :: GetParamFromName
+     procedure :: ReportAccessCounts
   end type params_type
   
   public :: ReadJSON
@@ -450,7 +451,7 @@ contains
 
     param => pstruct%parameters(var_num)
     param%name = trim(symb_str)
-    param%accessed = .false.
+    param%access_count = 0
     
     call GetMetaString(vardata_str,'"dims"',beg_id,end_id)
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
@@ -1063,7 +1064,7 @@ contains
     loop_params: do i = 1,size(this%parameters)
        if(trim(this%parameters(i)%name).eq.trim(param_name))then
           param_ptr=>this%parameters(i)
-          this%parameters(i)%accessed = .true.
+          this%parameters(i)%access_count = this%parameters(i)%access_count + 1
           return
        end if
     end do loop_params
@@ -1073,6 +1074,34 @@ contains
     call shr_sys_abort()
     
   end function GetParamFromName
+
+  ! =====================================================================================
+
+  subroutine ReportAccessCounts(this)
+
+    class(params_type)       :: this
+    integer                  :: i
+    
+    write(log_unit,*) 'Reporting parameter access counts'
+    write(log_unit,*) ''
+    write(log_unit,*) 'Parameters accessed more than once:'
+    loop_params2: do i = 1,size(this%parameters)
+       if(this%parameters(i)%access_count>1)then
+          write(log_unit,*) trim(this%parameters(i)%name),', count: ',this%parameters(i)%access_count
+       end if
+    end do loop_params2
+    write(log_unit,*) ''
+    write(log_unit,*) 'Parameters that were not accessed:'
+    loop_params0: do i = 1,size(this%parameters)
+       if(this%parameters(i)%access_count==0)then
+          write(log_unit,*) trim(this%parameters(i)%name),', count: ',this%parameters(i)%access_count
+       end if
+    end do loop_params0
+    write(log_unit,*) 'All other parameters were accessed once (expected value)'
+       
+
+    return
+  end subroutine ReportAccessCounts
   
   ! =====================================================================================
   

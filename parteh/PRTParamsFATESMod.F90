@@ -41,910 +41,341 @@ module PRTInitParamsFatesMod
   save
   private
 
-  integer, parameter, public :: lower_bound_pft = 1
-  integer, parameter, public :: lower_bound_general = 1
-
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
   ! !PUBLIC MEMBER FUNCTIONS:
-  public :: PRTRegisterParams
-  public :: PRTReceiveParams
   public :: PRTCheckParams
   public :: PRTDerivedParams
+  public :: TransferParamsPRT
   public :: NewRecruitTotalStoichiometry
   !-----------------------------------------------------------------------
 
 contains
 
-  !-----------------------------------------------------------------------
-
-  subroutine PRTRegisterParams(fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-    
-    call PRTRegisterPFT(fates_params)
-    call PRTRegisterPFTOrgans(fates_params)
-    call PRTRegisterPFTLeafAge(fates_params)
-    call Register_PFT_nvariants(fates_params)
-    call PRTRegisterOrgan(fates_params)
-    
-  end subroutine PRTRegisterParams
-
-  !-----------------------------------------------------------------------
-  subroutine PRTReceiveParams(fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    call PRTReceivePFT(fates_params)
-    call PRTReceivePFTOrgans(fates_params)
-    call PRTReceivePFTLeafAge(fates_params)
-    call Receive_PFT_nvariants(fates_params)
-    call PRTReceiveOrgan(fates_params)
-    
-  end subroutine PRTReceiveParams
-
-  ! =====================================================================================
-  
-  subroutine PRTRegisterOrgan(fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
-    use FatesParametersInterface, only : dimension_name_prt_organs, dimension_shape_1d
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_prt_organs/)
-    integer, parameter :: dim_lower_bound(1) = (/ lower_bound_general /)
-    character(len=param_string_length) :: name
-
-    name = 'fates_alloc_organ_id'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
-  end subroutine PRTRegisterOrgan
-    
   ! =====================================================================================
 
-  subroutine PRTReceiveOrgan(fates_params)
-
-    ! Make sure to call this after PRTRegisterPFTOrgans
+  subroutine TransferParamsPRT(pstruct)
     
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
+    type(params_type) :: pstruct         ! Data structure containing all parameters and dimensions
+    type(param_type),pointer :: param_p  ! Pointer to one specific parameter
 
-    implicit none
+    integer                  :: num_pft
+    integer                  :: num_organ
+    integer                  :: num_ageclass
 
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    character(len=param_string_length) :: name
-
-    real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
+    num_ageclass = pstruct%GetDimSizeFromName('fates_leafage_class')
+    num_organ = pstruct%GetDimSizeFromName('fates_plant_organs')
+    num_pft   = pstruct%GetDimSizeFromName('fates_pft')
     
-    name = 'fates_alloc_organ_id'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%organ_id(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%organ_id)
-    deallocate(tmpreal)
+    param_p => pstruct%GetParamFromName('fates_alloc_organ_id')
+    allocate(prt_params%organ_id(num_organ))
+    prt_params%organ_id(:) = param_p%i_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_phen_leaf_habit')
+    allocate(prt_params%phen_leaf_habit(num_pft))
+    prt_params%phen_leaf_habit(:) = param_p%i_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_phen_stem_drop_fraction')
+    allocate(prt_params%phen_stem_drop_fraction(num_pft))
+    prt_params%phen_stem_drop_fraction(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_phen_fnrt_drop_fraction')
+    allocate(prt_params%phen_fnrt_drop_fraction(num_pft))
+    prt_params%phen_fnrt_drop_fraction(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_phen_mindaysoff')
+    allocate(prt_params%phen_doff_time(num_pft))
+    prt_params%phen_doff_time(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_phen_drought_threshold')
+    allocate(prt_params%phen_drought_threshold(num_pft))
+    prt_params%phen_drought_threshold(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_phen_moist_threshold')
+    allocate(prt_params%phen_moist_threshold(num_pft))
+    prt_params%phen_moist_threshold(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_leaf_slamax')
+    allocate(prt_params%slamax(num_pft))
+    prt_params%slamax(:) = param_p%r_data_1d(:)
     
-  end subroutine PRTReceiveOrgan
-  
-  ! =====================================================================================
-  
-  subroutine PRTRegisterPFT(fates_params)
+    param_p => pstruct%GetParamFromName('fates_leaf_slatop')
+    allocate(prt_params%slatop(num_pft))
+    prt_params%slatop(:) = param_p%r_data_1d(:)
 
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
-    use FatesParametersInterface, only : dimension_name_pft, dimension_shape_1d
+    param_p => pstruct%GetParamFromName('fates_allom_sai_scaler')
+    allocate(prt_params%allom_sai_scaler(num_pft))
+    prt_params%allom_sai_scaler(:) = param_p%r_data_1d(:)
 
-    implicit none
+    param_p => pstruct%GetParamFromName('fates_allom_fnrt_prof_a')
+    allocate(prt_params%fnrt_prof_a(num_pft))
+    prt_params%fnrt_prof_a(:) = param_p%r_data_1d(:)
 
-    class(fates_parameters_type), intent(inout) :: fates_params
+    param_p => pstruct%GetParamFromName('fates_allom_fnrt_prof_b')
+    allocate(prt_params%fnrt_prof_b(num_pft))
+    prt_params%fnrt_prof_b(:) = param_p%r_data_1d(:)
 
-    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_pft/)
-    integer, parameter :: dim_lower_bound(1) = (/ lower_bound_pft /)
-    character(len=param_string_length) :: name
+    param_p => pstruct%GetParamFromName('fates_allom_fnrt_prof_mode')
+    allocate(prt_params%fnrt_prof_mode(num_pft))
+    prt_params%fnrt_prof_mode(:) = param_p%r_data_1d(:)
 
-
-    name = 'fates_phen_leaf_habit'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_phen_stem_drop_fraction'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_phen_fnrt_drop_fraction'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_phen_mindaysoff'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_phen_drought_threshold'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_phen_moist_threshold'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_fnrt_prof_a'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_fnrt_prof_b'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_fnrt_prof_mode'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_woody')
+    allocate(prt_params%woody(num_pft))
+    prt_params%woody(:) = param_p%i_data_1d(:)
     
-    name = 'fates_woody'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_wood_density'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_slamax'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_leaf_slatop'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_sai_scaler'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_wood_density')
+    allocate(prt_params%wood_density(num_pft))
+    prt_params%wood_density(:) = param_p%r_data_1d(:)
     
-    name = 'fates_recruit_seed_dbh_repro_threshold'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_recruit_seed_dbh_repro_threshold')
+    allocate(prt_params%dbh_repro_threshold(num_pft))
+    prt_params%dbh_repro_threshold(:) = param_p%r_data_1d(:)
 
-    name = 'fates_alloc_storage_cushion'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_alloc_storage_cushion')
+    allocate(prt_params%cushion(num_pft))
+    prt_params%cushion(:) = param_p%r_data_1d(:)
 
-    name = 'fates_alloc_store_priority_frac'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_alloc_store_priority_frac')
+    allocate(prt_params%leaf_stor_priority(num_pft))
+    prt_params%leaf_stor_priority(:) = param_p%r_data_1d(:)
 
-    name = 'fates_turnover_senleaf_fdrought'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_turnover_senleaf_fdrought')
+    allocate(prt_params%(num_pft))
+    prt_params%senleaf_long_fdrought(:) = param_p%r_data_1d(:)
 
-    name = 'fates_turnover_fnrt'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_turnover_fnrt')
+    allocate(prt_params%(num_pft))
+    prt_params%root_long(:) = param_p%r_data_1d(:)
 
-    name = 'fates_leafn_vert_scaler_coeff1'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_leafn_vert_scaler_coeff1')
+    allocate(prt_params%(num_pft))
+    prt_params%leafn_vert_scaler_coeff1(:) = param_p%r_data_1d(:)
 
-    name = 'fates_leafn_vert_scaler_coeff2'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_leafn_vert_scaler_coeff2')
+    allocate(prt_params%(num_pft))
+    prt_params%leafn_vert_scaler_coeff2(:) = param_p%r_data_1d(:)
     
-    name = 'fates_recruit_seed_alloc_mature'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_recruit_seed_alloc'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_trs_repro_alloc_a'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_recruit_seed_alloc_mature')
+    allocate(prt_params%(num_pft))
+    prt_params%seed_alloc_mature(:) = param_p%r_data_1d(:)
     
-    name = 'fates_trs_repro_alloc_b'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_recruit_seed_alloc')
+    allocate(prt_params%(num_pft))
+    prt_params%seed_alloc(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_trs_repro_alloc_a')
+    allocate(prt_params%(num_pft))
+    prt_params%repro_alloc_a(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_trs_repro_alloc_b')
+    allocate(prt_params%(num_pft))
+    prt_params%repro_alloc_b(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_c2b')
+    allocate(prt_params%(num_pft))
+    prt_params%c2b(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_grperc')
+    allocate(prt_params%(num_pft))
+    prt_params%grperc(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_dbh_maxheight')
+    allocate(prt_params%(num_pft))
+    prt_params%allom_dbh_maxheight(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_hmode')
+    allocate(prt_params%allom_hmode(num_pft))
+    prt_params%allom_hmode(:) = param_p%i_data_1d(:)
     
-    name = 'fates_c2b'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_l2fr'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_cnp_pid_kd'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_cnp_pid_ki'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_cnp_pid_kp'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_allom_lmode')
+    allocate(prt_params%allom_lmode(num_pft))
+    prt_params%allom_lmode(:) = param_p%i_data_1d(:)
     
-    name = 'fates_cnp_store_ovrflw_frac'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_cnp_nfix1'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_allom_fmode')
+    allocate(prt_params%allom_fmode(num_pft))
+    prt_params%allom_fmode(:) = param_p%i_data_1d(:)
     
-    name = 'fates_grperc'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_dbh_maxheight'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_hmode'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_lmode'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_fmode'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_amode'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_stmode'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_cmode'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_smode'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_dmode'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_la_per_sa_int'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_la_per_sa_slp'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_agb_frac'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_d2h1'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_d2h2'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_d2h3'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_allom_amode')
+    allocate(prt_params%allom_amode(num_pft))
+    prt_params%allom_amode(:) = param_p%i_data_1d(:)
     
-    name = 'fates_allom_d2bl1'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_d2bl2'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_d2bl3'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_blca_expnt_diff'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_d2ca_coefficient_max'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_d2ca_coefficient_min'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_agb1'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_agb2'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_agb3'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_agb4'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_h2cd1'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_h2cd2'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_allom_zroot_max_dbh'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_allom_stmode')
+    allocate(prt_params%allom_stmode(num_pft))
+    prt_params%allom_stmode(:) = param_p%i_data_1d(:)
     
-    name = 'fates_allom_zroot_max_z'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_allom_cmode')
+    allocate(prt_params%allom_cmode(num_pft))
+    prt_params%allom_cmode(:) = param_p%i_data_1d(:)
     
-    name = 'fates_allom_zroot_min_dbh'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_allom_smode')
+    allocate(prt_params%allom_smode(num_pft))
+    prt_params%allom_smode(:) = param_p%i_data_1d(:)
     
-    name = 'fates_allom_zroot_min_z'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_allom_dmode')
+    allocate(prt_params%allom_dmode(num_pft))
+    prt_params%allom_dmode(:) = param_p%i_data_1d(:)
     
-    name = 'fates_allom_zroot_k'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-        
-    name = 'fates_turnover_branch'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_allom_la_per_sa_int')
+    allocate(prt_params%allom_la_per_sa_int(num_pft))
+    prt_params%allom_la_per_sa_int(:) = param_p%r_data_1d(:)
 
-   
+    param_p => pstruct%GetParamFromName('fates_allom_la_per_sa_slp')
+    allocate(prt_params%allom_la_per_sa_slp(num_pft))
+    prt_params%allom_la_per_sa_slp(:) = param_p%r_data_1d(:)
 
-    name = 'fates_cnp_nitr_store_ratio'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_allom_l2fr')
+    allocate(prt_params%allom_l2fr(num_pft))
+    prt_params%allom_l2fr(:) = param_p%r_data_1d(:)
 
-    name = 'fates_cnp_phos_store_ratio'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_cnp_pid_kp')
+    allocate(prt_params%pid_kp(num_pft))
+    prt_params%pid_kp(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_cnp_pid_ki')
+    allocate(prt_params%pid_ki(num_pft))
+    prt_params%pid_ki(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_cnp_pid_kd')
+    allocate(prt_params%pid_kd(num_pft))
+    prt_params%pid_kd(:) = param_p%r_data_1d(:)
     
-  end subroutine PRTRegisterPFT
-  
-  !-----------------------------------------------------------------------
-  
-  subroutine PRTReceivePFT(fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    character(len=param_string_length) :: name
-
-    real(r8), allocatable :: tmpreal(:)  ! Temporary variable to hold floats
-                                         ! that are converted to ints
-
-    name = 'fates_phen_leaf_habit'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%phen_leaf_habit(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%phen_leaf_habit)
-    deallocate(tmpreal)
-
-    name = 'fates_phen_stem_drop_fraction'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=prt_params%phen_stem_drop_fraction)
-
-    name = 'fates_phen_fnrt_drop_fraction'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=prt_params%phen_fnrt_drop_fraction)
-
-    name = 'fates_phen_mindaysoff'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=prt_params%phen_doff_time)
-
-    name = 'fates_phen_drought_threshold'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=prt_params%phen_drought_threshold)
-
-    name = 'fates_phen_moist_threshold'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=prt_params%phen_moist_threshold)
-
-    name = 'fates_leaf_slamax'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%slamax)
+    param_p => pstruct%GetParamFromName('fates_cnp_store_ovrflw_frac')
+    allocate(prt_params%store_ovrflw_frac(num_pft))
+    prt_params%store_ovrflw_frac(:) = param_p%r_data_1d(:)
     
-    name = 'fates_leaf_slatop'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%slatop)
-
-    name = 'fates_allom_sai_scaler'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_sai_scaler)
-
-    name = 'fates_allom_fnrt_prof_a'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%fnrt_prof_a)
-
-    name = 'fates_allom_fnrt_prof_b'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%fnrt_prof_b)
-
-    name = 'fates_allom_fnrt_prof_mode'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%fnrt_prof_mode)
-
-    name = 'fates_woody'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%woody(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%woody)
-    deallocate(tmpreal)
+    param_p => pstruct%GetParamFromName('fates_cnp_nfix1')
+    allocate(prt_params%nfix_mresp_scfrac(num_pft))
+    prt_params%nfix_mresp_scfrac(:) = param_p%r_data_1d(:)
     
-    name = 'fates_wood_density'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%wood_density)
+    param_p => pstruct%GetParamFromName('fates_allom_agb_frac')
+    allocate(prt_params%allom_agb_frac(num_pft))
+    prt_params%allom_agb_frac(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_d2h1')
+    allocate(prt_params%allom_d2h1(num_pft))
+    prt_params%allom_d2h1(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_d2h2')
+    allocate(prt_params%allom_d2h2(num_pft))
+    prt_params%allom_d2h2(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_d2h3')
+    allocate(prt_params%allom_d2h3(num_pft))
+    prt_params%allom_d2h3(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_d2bl1')
+    allocate(prt_params%allom_d2bl1(num_pft))
+    prt_params%allom_d2bl1(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_d2bl2')
+    allocate(prt_params%allom_d2bl2(num_pft))
+    prt_params%allom_d2bl2(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_d2bl3')
+    allocate(prt_params%allom_d2bl3(num_pft))
+    prt_params%allom_d2bl3(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_blca_expnt_diff')
+    allocate(prt_params%allom_blca_expnt_diff(num_pft))
+    prt_params%allom_blca_expnt_diff(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_d2ca_coefficient_max')
+    allocate(prt_params%allom_d2ca_coefficient_max(num_pft))
+    prt_params%allom_d2ca_coefficient_max(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_d2ca_coefficient_min')
+    allocate(prt_params%allom_d2ca_coefficient_min(num_pft))
+    prt_params%allom_d2ca_coefficient_min(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_agb1')
+    allocate(prt_params%allom_agb1(num_pft))
+    prt_params%allom_agb1(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_agb2')
+    allocate(prt_params%allom_agb2(num_pft))
+    prt_params%allom_agb2(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_agb3')
+    allocate(prt_params%allom_agb3(num_pft))
+    prt_params%allom_agb3(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_agb4')
+    allocate(prt_params%allom_agb4(num_pft))
+    prt_params%allom_agb4(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_h2cd1')
+    allocate(prt_params%allom_h2cd1(num_pft))
+    prt_params%allom_h2cd1(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_h2cd2')
+    allocate(prt_params%allom_h2cd2(num_pft))
+    prt_params%allom_h2cd2(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_allom_zroot_max_dbh')
+    allocate(prt_params%allom_zroot_max_dbh(num_pft))
+    prt_params%allom_zroot_max_dbh(:) = param_p%r_data_1d(:)
     
-    name = 'fates_recruit_seed_dbh_repro_threshold'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%dbh_repro_threshold)
-
-    name = 'fates_alloc_storage_cushion'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%cushion)
-
-    name = 'fates_alloc_store_priority_frac'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%leaf_stor_priority)
-
-    name = 'fates_turnover_senleaf_fdrought'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=prt_params%senleaf_long_fdrought)
-
-    name = 'fates_turnover_fnrt'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%root_long)
-
-    name = 'fates_leafn_vert_scaler_coeff1'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%leafn_vert_scaler_coeff1)
-
-    name = 'fates_leafn_vert_scaler_coeff2'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%leafn_vert_scaler_coeff2)
+    param_p => pstruct%GetParamFromName('fates_allom_zroot_max_z')
+    allocate(prt_params%allom_zroot_max_z(num_pft))
+    prt_params%allom_zroot_max_z(:) = param_p%r_data_1d(:)
     
-    name = 'fates_recruit_seed_alloc_mature'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%seed_alloc_mature)
+    param_p => pstruct%GetParamFromName('fates_allom_zroot_min_dbh')
+    allocate(prt_params%allom_zroot_min_dbh(num_pft))
+    prt_params%allom_zroot_min_dbh(:) = param_p%r_data_1d(:)
     
-    name = 'fates_recruit_seed_alloc'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%seed_alloc)
-
-    name = 'fates_trs_repro_alloc_a'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%repro_alloc_a)
-
-    name = 'fates_trs_repro_alloc_b'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%repro_alloc_b)
-
-    name = 'fates_c2b'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%c2b)
-
-    name = 'fates_grperc'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%grperc)
-
-    name = 'fates_allom_dbh_maxheight'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=prt_params%allom_dbh_maxheight)
-
-    name = 'fates_allom_hmode'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%allom_hmode(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%allom_hmode)
-    deallocate(tmpreal)
-
-    name = 'fates_allom_lmode'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%allom_lmode(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%allom_lmode)
-    deallocate(tmpreal)
-
-    name = 'fates_allom_fmode'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%allom_fmode(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%allom_fmode)
-    deallocate(tmpreal)
-
-    name = 'fates_allom_amode'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%allom_amode(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%allom_amode)
-    deallocate(tmpreal)
-
-    name = 'fates_allom_stmode'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%allom_stmode(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%allom_stmode)
-    deallocate(tmpreal)
-
-    name = 'fates_allom_cmode'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%allom_cmode(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%allom_cmode)
-    deallocate(tmpreal)
-
-    name = 'fates_allom_smode'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%allom_smode(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%allom_smode)
-    deallocate(tmpreal)
-
-    name = 'fates_allom_dmode'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=tmpreal)
-    allocate(prt_params%allom_dmode(size(tmpreal,dim=1)))
-    call ArrayNint(tmpreal,prt_params%allom_dmode)
-    deallocate(tmpreal)
-
-    name = 'fates_allom_la_per_sa_int'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_la_per_sa_int)
-
-    name = 'fates_allom_la_per_sa_slp'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_la_per_sa_slp)
-
-    name = 'fates_allom_l2fr'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_l2fr)
-
-    name = 'fates_cnp_pid_kp'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%pid_kp)
-
-    name = 'fates_cnp_pid_ki'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%pid_ki)
-
-    name = 'fates_cnp_pid_kd'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%pid_kd)
+    param_p => pstruct%GetParamFromName('fates_allom_zroot_min_z')
+    allocate(prt_params%allom_zroot_min_z(num_pft))
+    prt_params%allom_zroot_min_z(:) = param_p%r_data_1d(:)
     
-    name = 'fates_cnp_store_ovrflw_frac'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%store_ovrflw_frac)
+    param_p => pstruct%GetParamFromName('fates_allom_zroot_k')
+    allocate(prt_params%allom_zroot_k(num_pft))
+    prt_params%allom_zroot_k(:) = param_p%r_data_1d(:)
     
-    name = 'fates_cnp_nfix1'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%nfix_mresp_scfrac)
+    param_p => pstruct%GetParamFromName('fates_turnover_branch')
+    allocate(prt_params%branch_long(num_pft))
+    prt_params%branch_long(:) = param_p%r_data_1d(:)
     
-    name = 'fates_allom_agb_frac'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_agb_frac)
-
-    name = 'fates_allom_d2h1'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_d2h1)
-
-    name = 'fates_allom_d2h2'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_d2h2)
-
-    name = 'fates_allom_d2h3'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_d2h3)
-
-    name = 'fates_allom_d2bl1'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_d2bl1)
-
-    name = 'fates_allom_d2bl2'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_d2bl2)
-
-    name = 'fates_allom_d2bl3'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_d2bl3)
-
-    name = 'fates_allom_blca_expnt_diff'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_blca_expnt_diff)
-
-    name = 'fates_allom_d2ca_coefficient_max'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_d2ca_coefficient_max)
-
-    name = 'fates_allom_d2ca_coefficient_min'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_d2ca_coefficient_min)
-
-    name = 'fates_allom_agb1'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_agb1)
-
-    name = 'fates_allom_agb2'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_agb2)
-
-    name = 'fates_allom_agb3'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_agb3)
-
-    name = 'fates_allom_agb4'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_agb4)
-
-    name = 'fates_allom_h2cd1'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_h2cd1)
-
-    name = 'fates_allom_h2cd2'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_h2cd2)
-
-    name = 'fates_allom_zroot_max_dbh'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_zroot_max_dbh)
+    param_p => pstruct%GetParamFromName('fates_cnp_nitr_store_ratio')
+    allocate(prt_params%nitr_store_ratio(num_pft))
+    prt_params%nitr_store_ratio(:) = param_p%r_data_1d(:)
     
-    name = 'fates_allom_zroot_max_z'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_zroot_max_z)
+    param_p => pstruct%GetParamFromName('fates_cnp_phos_store_ratio')
+    allocate(prt_params%phos_store_ratio(num_pft))
+    prt_params%phos_store_ratio(:) = param_p%r_data_1d(:)
     
-    name = 'fates_allom_zroot_min_dbh'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_zroot_min_dbh)
+    param_p => pstruct%GetParamFromName('fates_turnover_leaf_canopy')
+    allocate(prt_params%leaf_long(num_pft,num_ageclass))
+    prt_params%leaf_long(:,:) = param_p%r_data_2d(:)
+
+    param_p => pstruct%GetParamFromName('fates_turnover_leaf_ustory')
+    allocate(prt_params%leaf_long_ustory(num_pft,num_ageclass))
+    prt_params%leaf_long_ustory(:,:) = param_p%r_data_2d(:)
+
+    param_p => pstruct%GetParamFromName('fates_stoich_nitr')
+    allocate(prt_params%nitr_stoich_p1(num_pft,num_organ))
+    prt_params%nitr_stoich_p1(:) = param_p%r_data_2d(:)
     
-    name = 'fates_allom_zroot_min_z'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_zroot_min_z)
+    param_p => pstruct%GetParamFromName('fates_stoich_phos')
+    allocate(prt_params%phos_stoich_p1(num_pft,num_organ))
+    prt_params%phos_stoich_p1(:) = param_p%r_data_2d(:)
     
-    name = 'fates_allom_zroot_k'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%allom_zroot_k)
+    param_p => pstruct%GetParamFromName('fates_alloc_organ_priority')
+    allocate(prt_params%alloc_priority(num_pft,num_organ))
+    prt_params%alloc_priority(:) = param_p%i_data_2d(:)
     
-    name = 'fates_turnover_branch'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%branch_long)
+    param_p => pstruct%GetParamFromName('fates_cnp_turnover_nitr_retrans')
+    allocate(prt_params%turnover_nitr_retrans(num_pft,num_organ))
+    prt_params%turnover_nitr_retrans(:) = param_p%r_data_2d(:)
     
-    name = 'fates_cnp_nitr_store_ratio'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%nitr_store_ratio)
-    
-    name = 'fates_cnp_phos_store_ratio'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=prt_params%phos_store_ratio)
-
-    
-  end subroutine PRTReceivePFT
-
-  !-----------------------------------------------------------------------
-
-  subroutine PRTRegisterPFTLeafAge(fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
-    use FatesParametersInterface, only : max_dimensions, dimension_name_leaf_age
-    use FatesParametersInterface, only : dimension_name_pft, dimension_shape_2d
-    
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    integer, parameter :: dim_lower_bound(2) = (/ lower_bound_pft, lower_bound_general /)
-    character(len=param_string_length) :: dim_names(2)
-    character(len=param_string_length) :: name
-
-    dim_names(1) = dimension_name_pft
-    dim_names(2) = dimension_name_leaf_age
-
-    name = 'fates_turnover_leaf_canopy'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_turnover_leaf_ustory'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_cnp_turnover_phos_retrans')
+    allocate(prt_params%turnover_phos_retrans(num_pft,num_organ))
+    prt_params%turnover_phos_retrans(:) = param_p%r_data_2d(:)
 
     return
-  end subroutine PRTRegisterPFTLeafAge
+  end subroutine TransferParamsPRT
 
   ! =====================================================================================
-
-  subroutine ArrayNint(realarr,intarr)
-
-    real(r8),intent(in)  :: realarr(:)
-    integer,intent(out)  :: intarr(:)
-    integer  :: i
-
-    do i = 1,size(realarr,dim=1)
-       intarr(i) = nint(realarr(i))
-    end do
-    
-    return
-  end subroutine ArrayNint
-  
-  ! =====================================================================================
-  
-  subroutine Register_PFT_nvariants(fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
-    use FatesParametersInterface, only : max_dimensions, dimension_name_variants, dimension_name_pft, dimension_shape_2d
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    integer, parameter :: dim_lower_bound(2) = (/ lower_bound_pft, lower_bound_general /)
-    character(len=param_string_length) :: dim_names(2)
-    character(len=param_string_length) :: name
-
-    ! NOTE(bja, 2017-01) initialization doesn't seem to work correctly
-    ! if dim_names has a parameter qualifier.
-    dim_names(1) = dimension_name_pft
-    dim_names(2) = dimension_name_variants
-
-    !X!    name = ''
-    !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-    !X!         dimension_names=dim_names)
-
-  end subroutine Register_PFT_nvariants
-
-  ! =====================================================================================
-  
-  subroutine Receive_PFT_nvariants(fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type
-    use FatesParametersInterface, only : param_string_length
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    character(len=param_string_length) :: name
-
-    !X!    name = ''
-    !X!    call fates_params%RetrieveParameter(name=name, &
-    !X!         data=this%)
-
-  end subroutine Receive_PFT_nvariants
-  
-  ! =====================================================================================
-
-  subroutine PRTReceivePFTLeafAge(fates_params)
-     
-     use FatesParametersInterface, only : fates_parameters_type
-     use FatesParametersInterface, only : param_string_length
-     
-     implicit none
-     
-     class(fates_parameters_type), intent(inout) :: fates_params
-     
-     character(len=param_string_length) :: name
-
-     name = 'fates_turnover_leaf_canopy'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=prt_params%leaf_long)
-
-     name = 'fates_turnover_leaf_ustory'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=prt_params%leaf_long_ustory)
-
-     return
-  end subroutine PRTReceivePFTLeafAge
-
-  ! =====================================================================================
-
-  
-  subroutine PRTRegisterPFTOrgans(fates_params)
-    
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
-    use FatesParametersInterface, only : max_dimensions, dimension_name_prt_organs
-    use FatesParametersInterface, only : dimension_name_pft, dimension_shape_2d
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    integer, parameter :: dim_lower_bound(2) = (/ lower_bound_pft, lower_bound_general /)
-    character(len=param_string_length) :: dim_names(2)
-    character(len=param_string_length) :: name
-
-    ! NOTE(bja, 2017-01) initialization doesn't seem to work correctly
-    ! if dim_names has a parameter qualifier.
-    dim_names(1) = dimension_name_pft
-    dim_names(2) = dimension_name_prt_organs
-
-    name = 'fates_stoich_nitr'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_stoich_phos'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_alloc_organ_priority'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_cnp_turnover_nitr_retrans'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-    
-    name = 'fates_cnp_turnover_phos_retrans'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    
-  end subroutine PRTRegisterPFTOrgans
-
-  ! =====================================================================================
-
-  subroutine PRTReceivePFTOrgans(fates_params)
-     
-     use FatesParametersInterface, only : fates_parameters_type
-     use FatesParametersInterface, only : param_string_length
-     
-     implicit none
-     
-     class(fates_parameters_type), intent(inout) :: fates_params
-     
-     character(len=param_string_length) :: name
-
-     name = 'fates_stoich_nitr'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=prt_params%nitr_stoich_p1)
-
-     name = 'fates_stoich_phos'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=prt_params%phos_stoich_p1)
-
-     name = 'fates_alloc_organ_priority'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=prt_params%alloc_priority)
-
-     name = 'fates_cnp_turnover_nitr_retrans'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=prt_params%turnover_nitr_retrans)
-
-     name = 'fates_cnp_turnover_phos_retrans'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=prt_params%turnover_phos_retrans)
-
-  end subroutine PRTReceivePFTOrgans
-
-  ! ===============================================================================================
   
   subroutine FatesReportPFTParams(is_master)
      
