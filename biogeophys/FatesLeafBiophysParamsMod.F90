@@ -14,7 +14,7 @@ module FatesLeafBiophysParamsMod
   save
 
 
-  public :: TransferLeafBiophysParams
+  public :: TransferParamsLeafBiophys
   public :: LeafBiophysReportParams
   
   character(len=*), parameter :: sourcefile = &
@@ -26,7 +26,7 @@ contains
 
   ! =====================================================================================
 
-  subroutine TransferLeafBiophysParams(pstruct)
+  subroutine TransferParamsLeafBiophys(pstruct)
 
     type(params_type) :: pstruct         ! Data structure containing all parameters and dimensions
     type(param_type),pointer :: param_p  ! Pointer to one specific parameter
@@ -107,7 +107,7 @@ contains
     lb_params%fnps(:) = param_p%r_data_1d(:)
     
     return
-  end subroutine LeafBiophysReceiveParams
+  end subroutine TransferParamsLeafBiophys
 
   ! ====================================================================================
 

@@ -286,7 +286,7 @@ module EDPftvarcon
        __FILE__
   !
   ! !PUBLIC MEMBER FUNCTIONS:
-  public :: TransferPFTParams
+  public :: TransferParamsPFT
   public :: FatesReportPFTParams
   public :: FatesCheckParams
   public :: GetDecompyFrac
@@ -295,7 +295,7 @@ module EDPftvarcon
 contains
 
   !-----------------------------------------------------------------------
-  subroutine TransferPFTParams(pstruct)
+  subroutine TransferParamsPFT(pstruct)
 
     implicit none
 
@@ -303,10 +303,16 @@ contains
     type(param_type),pointer :: param_p  ! Pointer to one specific parameter
     integer                  :: numpft
     integer                  :: num_hlm_pft
+    integer                  :: num_ageclass
+    integer                  :: num_hydrorgan
     
-    numpft = pstruct%GetDimSizeFromName('fates_pft')
-    num_hlm_pft = pstruct%GetDimSizeFromName('fates_hlm_pftno')
-
+    numpft       = pstruct%GetDimSizeFromName('fates_pft')
+    num_hlm_pft  = pstruct%GetDimSizeFromName('fates_hlm_pftno')
+    num_ageclass = pstruct%GetDimSizeFromName('fates_leafage_class')
+    num_hydrorgan = pstruct%GetDimSizeFromName('fates_hydr_organs')
+    
+    ! Section 1: 1D PFT dimension
+    ! --------------------------------------------------------------------------
     
     param_p => pstruct%GetParamFromName('fates_mort_freezetol')
     allocate(EDPftvarcon_inst%freezetol(numpft))
@@ -700,390 +706,120 @@ contains
     allocate(EDPftvarcon_inst%landuse_grazing_palatability(numpft))
     EDPftvarcon_inst%landuse_grazing_palatability(:) = param_p%r_data_1d(:)
 
+    ! Section 2: 2D PFT x HLM-PFT dimension
+    ! --------------------------------------------------------------------------
     param_p => pstruct%GetParamFromName('fates_hlm_pft_map')
     allocate(EDPftvarcon_inst%hlm_pft_map(numpft,num_hlm_pft))
     EDPftvarcon_inst%hlm_pft_map(:,:) = param_p%r_data_2d(:,:)
 
+    ! Section 3: 2D PFT x vis/nir dimension
+    ! --------------------------------------------------------------------------
     
-  end subroutine Receive_PFT
+    allocate(EDPftvarcon_inst%rhol(numpft,2))
 
-  !-----------------------------------------------------------------------
-  subroutine Register_PFT_numrad(this, fates_params)
-    ! NOTE(bja, 2017-02) these are 2-d parameters, but they are
-    ! currently stored in the parameter file as separate 1-d
-    ! arrays. We have to register the parameters as 1-d arrays as they
-    ! are on the parameter file. We store them as 2-d in the receive step.
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
-    use FatesParametersInterface, only : dimension_name_pft, dimension_shape_1d
+    param_p => pstruct%GetParamFromName('fates_rad_leaf_rhovis')
+    EDPftvarcon_inst%rhol(:,ivis) = param_p%r_data_1d(:)
 
-    implicit none
+    param_p => pstruct%GetParamFromName('fates_rad_leaf_rhonir')
+    EDPftvarcon_inst%rhol(:,inir) = param_p%r_data_1d(:)
 
-    class(EDPftvarcon_type), intent(inout) :: this
-    class(fates_parameters_type), intent(inout) :: fates_params
+    allocate(EDPftvarcon_inst%rhos(numpft,2))
 
-    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_pft/)
-    integer, parameter :: dim_lower_bound(1) = (/ lower_bound_pft /)
-    character(len=param_string_length) :: name
+    param_p => pstruct%GetParamFromName('fates_rad_stem_rhovis')
+    EDPftvarcon_inst%rhos(:,ivis) = param_p%r_data_1d(:)
 
-    !X!    name = ''
-    !X!    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-    !X!         dimension_names=dim_names)
+    param_p => pstruct%GetParamFromName('fates_rad_stem_rhonir')
+    EDPftvarcon_inst%rhos(:,inir) = param_p%r_data_1d(:)
+    
+    allocate(EDPftvarcon_inst%taul(numpft,2))
+    
+    param_p => pstruct%GetParamFromName('fates_rad_leaf_tauvis')
+    EDPftvarcon_inst%taul(:,ivis) = param_p%r_data_1d(:)
 
-    name = 'fates_rad_leaf_rhovis'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    param_p => pstruct%GetParamFromName('fates_rad_leaf_taunir')
+    EDPftvarcon_inst%taul(:,nir) = param_p%r_data_1d(:)
 
-    name = 'fates_rad_leaf_rhonir'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    allocate(EDPftvarcon_inst%taus(numpft,2))
+    
+    param_p => pstruct%GetParamFromName('fates_rad_stem_tauvis')
+    EDPftvarcon_inst%taus(:,ivis) = param_p%r_data_1d(:)
 
-    name = 'fates_rad_stem_rhovis'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    param_p => pstruct%GetParamFromName('fates_rad_stem_taunir')
+    EDPftvarcon_inst%taus(:,nir) = param_p%r_data_1d(:)
 
-    name = 'fates_rad_stem_rhonir'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    ! Section 4: 2D PFT x leaf age dimension
+    ! --------------------------------------------------------------------------
+    
+    param_p => pstruct%GetParamFromName('fates_leaf_vcmax25top')
+    allocate(EDPftvarcon_inst%vcmax25top(numpft,num_ageclass))
+    EDPftvarcon_inst%vcmax25top(:,:) = param_p%r_data_2d(:,:)
 
-    name = 'fates_rad_leaf_tauvis'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    ! Section 5: 2D PFT x hydro organ dimension
+    ! --------------------------------------------------------------------------
 
-    name = 'fates_rad_leaf_taunir'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    param_p => pstruct%GetParamFromName('fates_hydro_vg_alpha_node')
+    allocate(EDPftvarcon_inst%hydr_vg_alpha_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_vg_alpha_node(:,:) = param_p%r_data_2d(:,:)
 
-    name = 'fates_rad_stem_tauvis'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    param_p => pstruct%GetParamFromName('fates_hydro_vg_m_node')
+    allocate(EDPftvarcon_inst%hydr_vg_m_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_vg_m_node(:,:) = param_p%r_data_2d(:,:)
+    
+    param_p => pstruct%GetParamFromName('fates_hydro_vg_n_node')
+    allocate(EDPftvarcon_inst%hydr_vg_n_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_vg_n_node(:,:) = param_p%r_data_2d(:,:)
 
-    name = 'fates_rad_stem_taunir'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
+    param_p => pstruct%GetParamFromName('fates_hydro_avuln_node')
+    allocate(EDPftvarcon_inst%hydr_avuln_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_avuln_node(:,:) = param_p%r_data_2d(:,:)
 
-  end subroutine Register_PFT_numrad
+    param_p => pstruct%GetParamFromName('fates_hydro_p50_node')
+    allocate(EDPftvarcon_inst%%hydr_p50_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%%hydr_p50_node(:,:) = param_p%r_data_2d(:,:)
 
-  !-----------------------------------------------------------------------
-  subroutine Receive_PFT_numrad(this, fates_params)
-    ! NOTE(bja, 2017-02) these are 2-d parameters, but they are
-    ! currently stored in the parameter file as separate 1-d arrays.
-    ! We can't allocate slices of arrays separately, so we have to
-    ! manually allocate the memory here, retrieve into a dummy array,
-    ! and copy. All parameters in this subroutine are sized the same,
-    ! so we can reused the dummy array. If someone wants to cleanup
-    ! the input file, all this complexity can be removed.
-    use FatesParametersInterface, only : fates_parameters_type
-    use FatesParametersInterface, only : param_string_length, max_dimensions
+    param_p => pstruct%GetParamFromName('fates_hydro_thetas_node')
+    allocate(EDPftvarcon_inst%hydr_thetas_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_thetas_node(:,:) = param_p%r_data_2d(:,:)
+    
+    param_p => pstruct%GetParamFromName('fates_hydro_epsil_node')
+    allocate(EDPftvarcon_inst%hydr_epsil_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_epsil_node(:,:) = param_p%r_data_2d(:,:)
 
-    implicit none
+    param_p => pstruct%GetParamFromName('fates_hydro_pitlp_node')
+    allocate(EDPftvarcon_inst%hydr_pitlp_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_pitlp_node(:,:) = param_p%r_data_2d(:,:)
 
-    class(EDPftvarcon_type), intent(inout) :: this
-    class(fates_parameters_type), intent(inout) :: fates_params
+    param_p => pstruct%GetParamFromName('fates_hydro_resid_node')
+    allocate(EDPftvarcon_inst%hydr_resid_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_resid_node(:,:) = param_p%r_data_2d(:,:)
 
-    character(len=param_string_length) :: name
+    param_p => pstruct%GetParamFromName('fates_hydro_fcap_node')
+    allocate(EDPftvarcon_inst%hydr_fcap_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_fcap_node(:,:) = param_p%r_data_2d(:,:)
 
-    !X!    name = ''
-    !X!    call fates_params%RetrieveParameter(name=name, &
-    !X!         data=this%)
+    param_p => pstruct%GetParamFromName('fates_hydro_pinot_node')
+    allocate(EDPftvarcon_inst%hydr_pinot_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_pinot_node(:,:) = param_p%r_data_2d(:,:)
 
-    integer :: index
-    integer :: dimension_shape
-    integer :: dimension_sizes(max_dimensions)
-    character(len=param_string_length) :: dimension_names(max_dimensions)
-    logical :: is_host_param
+    param_p => pstruct%GetParamFromName('fates_hydro_kmax_node')
+    allocate(EDPftvarcon_inst%hydr_kmax_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_kmax_node(:,:) = param_p%r_data_2d(:,:)
 
-    integer :: lower_bound_1, upper_bound_1, lower_bound_2, upper_bound_2
-    real(r8), allocatable :: dummy_data(:)
+    param_p => pstruct%GetParamFromName('fates_hydro_vg_alpha_node')
+    allocate(EDPftvarcon_inst%hydr_vg_alpha_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_vg_alpha_node(:,:) = param_p%r_data_2d(:,:)
+    
+    param_p => pstruct%GetParamFromName('fates_hydro_vg_m_node')
+    allocate(EDPftvarcon_inst%hydr_vg_m_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_vg_m_node(:,:) = param_p%r_data_2d(:,:)
 
-    ! Fetch metadata from a representative variable. All variables
-    ! called by this subroutine must be dimensioned the same way!
-    name = 'fates_rad_leaf_rhovis'
-    index = fates_params%FindIndex(name)
-    call fates_params%GetMetaData(index, name, dimension_shape, dimension_sizes, dimension_names, is_host_param)
-    lower_bound_1 = lower_bound_pft
-    upper_bound_1 = lower_bound_pft + dimension_sizes(1) - 1
-    lower_bound_2 = lower_bound_general
-    upper_bound_2 = num_swb      ! When we have radiation parameters read in as a vector
-                                ! We will compare the vector dimension size that we
-                                ! read-in to the parameterized size that fates expects
-
-    allocate(dummy_data(lower_bound_1:upper_bound_1))
-
-    !
-    ! received rhol data
-    !
-    allocate(this%rhol(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
-
-    name = 'fates_rad_leaf_rhovis'
-    call fates_params%RetrieveParameter(name=name, &
-         data=dummy_data)
-    this%rhol(lower_bound_1:upper_bound_1, ivis) = dummy_data
-
-    name = 'fates_rad_leaf_rhonir'
-    call fates_params%RetrieveParameter(name=name, &
-         data=dummy_data)
-    this%rhol(lower_bound_1:upper_bound_1, inir) = dummy_data
-
-    !
-    ! received rhos data
-    !
-    allocate(this%rhos(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
-
-    name = 'fates_rad_stem_rhovis'
-    call fates_params%RetrieveParameter(name=name, &
-         data=dummy_data)
-    this%rhos(lower_bound_1:upper_bound_1, ivis) = dummy_data
-
-    name = 'fates_rad_stem_rhonir'
-    call fates_params%RetrieveParameter(name=name, &
-         data=dummy_data)
-    this%rhos(lower_bound_1:upper_bound_1, inir) = dummy_data
-
-    !
-    ! received taul data
-    !
-    allocate(this%taul(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
-
-    name = 'fates_rad_leaf_tauvis'
-    call fates_params%RetrieveParameter(name=name, &
-         data=dummy_data)
-    this%taul(lower_bound_1:upper_bound_1, ivis) = dummy_data
-
-    name = 'fates_rad_leaf_taunir'
-    call fates_params%RetrieveParameter(name=name, &
-         data=dummy_data)
-    this%taul(lower_bound_1:upper_bound_1, inir) = dummy_data
-
-    !
-    ! received taus data
-    !
-    allocate(this%taus(lower_bound_1:upper_bound_1, lower_bound_2:upper_bound_2))
-
-    name = 'fates_rad_stem_tauvis'
-    call fates_params%RetrieveParameter(name=name, &
-         data=dummy_data)
-    this%taus(lower_bound_1:upper_bound_1, ivis) = dummy_data
-
-    name = 'fates_rad_stem_taunir'
-    call fates_params%RetrieveParameter(name=name, &
-         data=dummy_data)
-    this%taus(lower_bound_1:upper_bound_1, inir) = dummy_data
-
-  end subroutine Receive_PFT_numrad
-
-
-  ! -----------------------------------------------------------------------
-
-  subroutine Register_PFT_leafage(this, fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
-    use FatesParametersInterface, only : max_dimensions, dimension_name_leaf_age
-    use FatesParametersInterface, only : dimension_name_pft, dimension_shape_2d
-
-    implicit none
-
-    class(EDPftvarcon_type), intent(inout) :: this
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    integer, parameter :: dim_lower_bound(2) = (/ lower_bound_pft, lower_bound_general /)
-    character(len=param_string_length) :: dim_names(2)
-    character(len=param_string_length) :: name
-
-    dim_names(1) = dimension_name_pft
-    dim_names(2) = dimension_name_leaf_age
-
-    name = 'fates_leaf_vcmax25top'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    param_p => pstruct%GetParamFromName('fates_hydro_vg_n_node')
+    allocate(EDPftvarcon_inst%hydr_vg_n_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_vg_n_node(:,:) = param_p%r_data_2d(:,:)
 
 
     return
-  end subroutine Register_PFT_leafage
-
-
-
-
-  ! =====================================================================================
-
-  subroutine Receive_PFT_leafage(this, fates_params)
-
-     use FatesParametersInterface, only : fates_parameters_type
-     use FatesParametersInterface, only : param_string_length
-
-     implicit none
-
-     class(EDPftvarcon_type), intent(inout) :: this
-     class(fates_parameters_type), intent(inout) :: fates_params
-
-     character(len=param_string_length) :: name
-
-     name = 'fates_leaf_vcmax25top'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%vcmax25top)
-          
-     return
-   end subroutine Receive_PFT_leafage
-
-  ! =====================================================================================
-
-  subroutine Register_PFT_hydr_organs(this, fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
-    use FatesParametersInterface, only : max_dimensions, dimension_name_hydr_organs
-    use FatesParametersInterface, only : dimension_name_pft, dimension_shape_2d
-
-    implicit none
-
-    class(EDPftvarcon_type), intent(inout) :: this
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    integer, parameter :: dim_lower_bound(2) = (/ lower_bound_pft, lower_bound_general /)
-    character(len=param_string_length) :: dim_names(2)
-    character(len=param_string_length) :: name
-
-    ! NOTE(bja, 2017-01) initialization doesn't seem to work correctly
-    ! if dim_names has a parameter qualifier.
-    dim_names(1) = dimension_name_pft
-    dim_names(2) = dimension_name_hydr_organs
-
-    name = 'fates_hydro_vg_alpha_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_vg_m_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_vg_n_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_avuln_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_p50_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_thetas_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_epsil_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_pitlp_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_resid_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_fcap_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_pinot_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_kmax_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_vg_alpha_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_vg_m_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-          dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_hydro_vg_n_node'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_2d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-  end subroutine Register_PFT_hydr_organs
-
-  !-----------------------------------------------------------------------
-
-  subroutine Receive_PFT_hydr_organs(this, fates_params)
-
-     use FatesParametersInterface, only : fates_parameters_type
-     use FatesParametersInterface, only : param_string_length
-
-     implicit none
-
-     class(EDPftvarcon_type), intent(inout) :: this
-     class(fates_parameters_type), intent(inout) :: fates_params
-
-     character(len=param_string_length) :: name
-
-
-     name = 'fates_hydro_vg_alpha_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%hydr_vg_alpha_node)
-
-     name = 'fates_hydro_vg_m_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=this%hydr_vg_m_node)
-
-     name = 'fates_hydro_vg_n_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%hydr_vg_n_node)
-
-     name = 'fates_hydro_avuln_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=this%hydr_avuln_node)
-
-     name = 'fates_hydro_p50_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=this%hydr_p50_node)
-
-     name = 'fates_hydro_thetas_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=this%hydr_thetas_node)
-
-     name = 'fates_hydro_epsil_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=this%hydr_epsil_node)
-
-     name = 'fates_hydro_pitlp_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=this%hydr_pitlp_node)
-
-     name = 'fates_hydro_resid_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=this%hydr_resid_node)
-
-     name = 'fates_hydro_fcap_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=this%hydr_fcap_node)
-
-     name = 'fates_hydro_pinot_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=this%hydr_pinot_node)
-
-     name = 'fates_hydro_kmax_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-           data=this%hydr_kmax_node)
-
-     name = 'fates_hydro_vg_alpha_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%hydr_vg_alpha_node)
-
-     name = 'fates_hydro_vg_m_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%hydr_vg_m_node)
-
-     name = 'fates_hydro_vg_n_node'
-     call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%hydr_vg_n_node)
-
-  end subroutine Receive_PFT_hydr_organs
+  end subroutine TransferParamsPFT
 
   ! ===============================================================================================
 

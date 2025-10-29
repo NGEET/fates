@@ -70,7 +70,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : FatesReceiveParams
    use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
    use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
-   use FatesLeafBiophysParamsMod , only : LeafBiophysRegisterParams, LeafBiophysReceiveParams,LeafBiophysReportParams
+   use FatesLeafBiophysParamsMod , only : TransferParamsLeafBiophys
    use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
    use EDParamsMod               , only : p_uptake_mode
    use EDParamsMod               , only : n_uptake_mode
@@ -2254,27 +2254,6 @@ contains
 
    ! ====================================================================================
 
-   subroutine FatesReportParameters(masterproc)
-      
-      ! -----------------------------------------------------
-      ! Simple parameter reporting functions
-      ! A debug like print flag is contained in each routine
-      ! -----------------------------------------------------
-
-      logical,intent(in) :: masterproc
-
-      call FatesReportPFTParams(masterproc)
-      call FatesReportParams(masterproc)
-      call LeafBiophysReportParams(masterproc)
-      call PRTDerivedParams()              ! Update PARTEH derived constants
-      call FatesCheckParams(masterproc)    ! Check general fates parameters
-      call PRTCheckParams(masterproc)      ! Check PARTEH parameters
-      call SpitFireCheckParams(masterproc)
-      call TransferRadParams()
-
-      
-      return
-   end subroutine FatesReportParameters
 
    ! =====================================================================================
 
@@ -2689,16 +2668,36 @@ end subroutine DetermineGridCellNeighbors
 
 ! ======================================================================================
      
-subroutine FatesTransferParameters()
+subroutine FatesTransferParameters(masterproc)
+  
   implicit none
+
+  logical,intent(in) :: masterproc
   
   character(len=32)  :: subname = 'FatesTransferParameters'
 
-  ! Initialize scalar parameters
+  ! This is a wrapper routine
+  ! It calls subroutines that transfer process groups of parameters
+  ! from the generic data structure to the primitives used by the model
+  ! When it is complete, we perform the checks
 
   call TransferParamsGeneric(pstruct)
   call TransferParamsSpitFire(pstruct)
-  call TransferLeafBiophysParams(pstruct)
+  call TransferParamsLeafBiophys(pstruct)
+  call TransferParamsPFT(pstruct)
+
+  call TransferRadParams()
+
+  
+  call FatesReportPFTParams(masterproc)
+  call FatesReportParams(masterproc)
+  call LeafBiophysReportParams(masterproc)
+  call PRTDerivedParams()              ! Update PARTEH derived constants
+  call FatesCheckParams(masterproc)    ! Check general fates parameters
+  call PRTCheckParams(masterproc)      ! Check PARTEH parameters
+  call SpitFireCheckParams(masterproc)
+
+  
   
   !call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
   !call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
