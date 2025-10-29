@@ -295,419 +295,416 @@ module EDPftvarcon
 contains
 
   !-----------------------------------------------------------------------
-  subroutine Receive_PFT(this, fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type, param_string_length
+  subroutine TransferPFTParams(pstruct)
 
     implicit none
 
-    class(EDPftvarcon_type), intent(inout) :: this
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    character(len=param_string_length) :: name
-
-    !X!    name = ''
-    !X!    call fates_params%RetrieveParameter(name=name, &
-    !X!         data=this%)
-
-    name = 'fates_mort_freezetol'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%freezetol)
-
-    name = 'fates_recruit_height_min'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%hgt_min)
-
-    name = 'fates_fire_bark_scaler'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%bark_scaler)
-
-    name = 'fates_fire_crown_kill'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%crown_kill)
-
-    name = 'fates_recruit_init_density'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%initd)
-
-    name = 'fates_recruit_seed_supplement'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seed_suppl)
-
-    name = 'fates_frag_leaf_flab'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%lf_flab)
-
-    name = 'fates_frag_leaf_fcel'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%lf_fcel)
-
-    name = 'fates_frag_leaf_flig'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%lf_flig)
-
-    name = 'fates_frag_fnrt_flab'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%fr_flab)
-
-    name = 'fates_frag_fnrt_fcel'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%fr_fcel)
-
-    name = 'fates_frag_fnrt_flig'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%fr_flig)
-
-    name = 'fates_rad_leaf_xl'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%xl)
-
-    name = 'fates_rad_leaf_clumping_index'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%clumping_index)
-
-    name = 'fates_nonhydro_smpso'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%smpso)
-
-    name = 'fates_nonhydro_smpsc'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%smpsc)
-
-    name = 'fates_maintresp_leaf_vert_scaler_coeff1'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%maintresp_leaf_vert_scaler_coeff1)
-
-    name = 'fates_maintresp_leaf_vert_scaler_coeff2'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%maintresp_leaf_vert_scaler_coeff2)
-
-    name = 'fates_prescribed_npp_canopy'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%prescribed_npp_canopy)
-
-    name = 'fates_prescribed_npp_understory'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%prescribed_npp_understory)
-
-    name = 'fates_mort_prescribed_canopy'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%prescribed_mortality_canopy)
-
-    name = 'fates_mort_prescribed_understory'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%prescribed_mortality_understory)
-
-    name = 'fates_recruit_prescribed_rate'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%prescribed_recruitment)
-
-    name = 'fates_damage_frac'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%damage_frac)
-
-    name = 'fates_damage_mort_p1'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%damage_mort_p1)
-
-    name = 'fates_damage_mort_p2'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%damage_mort_p2)
+    type(params_type) :: pstruct         ! Data structure containing all parameters and dimensions
+    type(param_type),pointer :: param_p  ! Pointer to one specific parameter
+    integer                  :: numpft
+    integer                  :: num_hlm_pft
     
-    name = 'fates_damage_recovery_scalar'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%damage_recovery_scalar)
+    numpft = pstruct%GetDimSizeFromName('fates_pft')
+    num_hlm_pft = pstruct%GetDimSizeFromName('fates_hlm_pftno')
 
-    name = 'fates_fire_alpha_SH'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%fire_alpha_SH)
-
-    name = 'fates_allom_frbstor_repro'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%allom_frbstor_repro)
-
-    name = 'fates_hydro_p_taper'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%hydr_p_taper)
-
-    name = 'fates_hydro_rs2'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%hydr_rs2)
-
-    name = 'fates_hydro_srl'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%hydr_srl)
-
-    name = 'fates_hydro_rfrac_stem'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%hydr_rfrac_stem)
-
-    name = 'fates_hydro_avuln_gs'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%hydr_avuln_gs)
-
-    name = 'fates_hydro_p50_gs'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%hydr_p50_gs)
-
-    name = 'fates_hydro_k_lwp'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%hydr_k_lwp)
-
-    name = 'fates_mort_bmort'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%bmort)
-
-    name = 'fates_mort_scalar_coldstress'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%mort_scalar_coldstress)
-
-    name = 'fates_mort_scalar_cstarvation'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%mort_scalar_cstarvation)
-
-    name = 'fates_mort_scalar_hydrfailure'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%mort_scalar_hydrfailure)
-
-    name = 'fates_mort_upthresh_cstarvation'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%mort_upthresh_cstarvation)
-
-
-    name = 'fates_mort_ip_size_senescence'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%mort_ip_size_senescence)
-
-    name = 'fates_mort_r_size_senescence'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%mort_r_size_senescence)
-
-    name = 'fates_mort_ip_age_senescence'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%mort_ip_age_senescence)
-
-    name = 'fates_mort_r_age_senescence'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%mort_r_age_senescence)
-
-    name = 'fates_mort_scalar_coldstress'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%mort_scalar_coldstress)
-
-    name = 'fates_mort_scalar_cstarvation'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%mort_scalar_cstarvation)
-
-    name = 'fates_mort_upthresh_cstarvation'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%mort_upthresh_cstarvation)
-
-
-    name = 'fates_mort_hf_sm_threshold'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%hf_sm_threshold)
-
-    name = 'fates_mort_hf_flc_threshold'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%hf_flc_threshold)
-
-    name = 'fates_recruit_seed_germination_rate'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%germination_rate)
-
-    name = 'fates_trs_repro_frac_seed'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%repro_frac_seed)
-
-    name = 'fates_trs_seedling_a_emerg'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%a_emerg)
-             
-    name = 'fates_trs_seedling_b_emerg'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%b_emerg)
     
-    name = 'fates_trs_seedling_par_crit_germ'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%par_crit_germ)
-
-    name = 'fates_trs_seedling_psi_emerg'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seedling_psi_emerg)
-   
-    name = 'fates_trs_seedling_psi_crit'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seedling_psi_crit)
+    param_p => pstruct%GetParamFromName('fates_mort_freezetol')
+    allocate(EDPftvarcon_inst%freezetol(numpft))
+    EDPftvarcon_inst%freezetol(:) = param_p%r_data_1d(:)
     
-    name = 'fates_trs_seedling_light_rec_a'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seedling_light_rec_a)
+    param_p => pstruct%GetParamFromName('fates_recruit_height_min')
+    allocate(EDPftvarcon_inst%hgt_min(numpft))
+    EDPftvarcon_inst%hgt_min(:) = param_p%r_data_1d(:)
     
-    name = 'fates_trs_seedling_light_rec_b'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seedling_light_rec_b)
-
-    name = 'fates_trs_seedling_mdd_crit'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seedling_mdd_crit)
-
-    name = 'fates_trs_seedling_h2o_mort_a'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seedling_h2o_mort_a)
+    param_p => pstruct%GetParamFromName('fates_fire_bark_scaler')
+    allocate(EDPftvarcon_inst%bark_scaler(numpft))
+    EDPftvarcon_inst%bark_scaler(:) = param_p%r_data_1d(:)
     
-    name = 'fates_trs_seedling_h2o_mort_b'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seedling_h2o_mort_b)
-
-    name = 'fates_trs_seedling_h2o_mort_c'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seedling_h2o_mort_c)
-
-    name = 'fates_trs_seedling_root_depth'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seedling_root_depth)
-                     
-    name = 'fates_trs_seedling_light_mort_a'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seedling_light_mort_a)
-
-    name = 'fates_trs_seedling_light_mort_b'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seedling_light_mort_b)
-
-    name = 'fates_trs_seedling_background_mort'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%background_seedling_mort)
-                              
-    name = 'fates_frag_seed_decay_rate'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seed_decay_rate)
-
-    name = 'fates_seed_dispersal_pdf_scale'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seed_dispersal_pdf_scale)
-         
-    name = 'fates_seed_dispersal_pdf_shape'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seed_dispersal_pdf_shape)
-
-    name = 'fates_seed_dispersal_max_dist'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seed_dispersal_max_dist)
-         
-    name = 'fates_seed_dispersal_fraction'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%seed_dispersal_fraction)         
-              
-    name = 'fates_trim_limit'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%trim_limit)
-
-    name = 'fates_trim_inc'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%trim_inc)
-
-    name = 'fates_turb_leaf_diameter'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%dleaf)
-
-    name = 'fates_turb_z0mr'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%z0mr)
-
-    name = 'fates_turb_displar'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%displar)
-
-    name = 'fates_phen_flush_fraction'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%phenflush_fraction)
-
-    name = 'fates_phen_cold_size_threshold'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-          data=this%phen_cold_size_threshold)
-
-    name = 'fates_cnp_prescribed_nuptake'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%prescribed_nuptake)
-
-    name = 'fates_cnp_prescribed_puptake'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%prescribed_puptake)
-
-    name = 'fates_dev_arbitrary_pft'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%dev_arbitrary_pft)
-
-    name = 'fates_cnp_eca_decompmicc'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%decompmicc)
-
-    name = 'fates_cnp_eca_km_nh4'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_km_nh4)
+    param_p => pstruct%GetParamFromName('fates_fire_crown_kill')
+    allocate(EDPftvarcon_inst%crown_kill(numpft))
+    EDPftvarcon_inst%crown_kill(:) = param_p%r_data_1d(:)
     
-    name = 'fates_cnp_vmax_nh4'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%vmax_nh4)
+    param_p => pstruct%GetParamFromName('fates_recruit_init_density')
+    allocate(EDPftvarcon_inst%initd(numpft))
+    EDPftvarcon_inst%initd(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_recruit_seed_supplement')
+    allocate(EDPftvarcon_inst%seed_suppl(numpft))
+    EDPftvarcon_inst%seed_suppl(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_frag_leaf_flab')
+    allocate(EDPftvarcon_inst%lf_flab(numpft))
+    EDPftvarcon_inst%lf_flab(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_frag_leaf_fcel')
+    allocate(EDPftvarcon_inst%lf_fcel(numpft))
+    EDPftvarcon_inst%lf_fcel(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_frag_leaf_flig')
+    allocate(EDPftvarcon_inst%lf_flig(numpft))
+    EDPftvarcon_inst%lf_flig(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_frag_fnrt_flab')
+    allocate(EDPftvarcon_inst%fr_flab(numpft))
+    EDPftvarcon_inst%fr_flab(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_frag_fnrt_fcel')
+    allocate(EDPftvarcon_inst%fr_fcel(numpft))
+    EDPftvarcon_inst%fr_fcel(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_frag_fnrt_flig')
+    allocate(EDPftvarcon_inst%fr_flig(numpft))
+    EDPftvarcon_inst%fr_flig(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_rad_leaf_xl')
+    allocate(EDPftvarcon_inst%xl(numpft))
+    EDPftvarcon_inst%xl(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_rad_leaf_clumping_index')
+    allocate(EDPftvarcon_inst%clumping_index(numpft))
+    EDPftvarcon_inst%clumping_index(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_nonhydro_smpso')
+    allocate(EDPftvarcon_inst%smpso(numpft))
+    EDPftvarcon_inst%smpso(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_nonhydro_smpsc')
+    allocate(EDPftvarcon_inst%smpsc(numpft))
+    EDPftvarcon_inst%smpsc(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_maintresp_leaf_vert_scaler_coeff1')
+    allocate(EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1(numpft))
+    EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_maintresp_leaf_vert_scaler_coeff2')
+    allocate(EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2(numpft))
+    EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_prescribed_npp_canopy')
+    allocate(EDPftvarcon_inst%prescribed_npp_canopy(numpft))
+    EDPftvarcon_inst%prescribed_npp_canopy(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_prescribed_npp_understory')
+    allocate(EDPftvarcon_inst%prescribed_npp_understory(numpft))
+    EDPftvarcon_inst%prescribed_npp_understory(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_prescribed_canopy')
+    allocate(EDPftvarcon_inst%prescribed_mortality_canopy(numpft))
+    EDPftvarcon_inst%prescribed_mortality_canopy(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_prescribed_understory')
+    allocate(EDPftvarcon_inst%prescribed_mortality_understory(numpft))
+    EDPftvarcon_inst%prescribed_mortality_understory(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_recruit_prescribed_rate')
+    allocate(EDPftvarcon_inst%prescribed_recruitment(numpft))
+    EDPftvarcon_inst%prescribed_recruitment(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_damage_frac')
+    allocate(EDPftvarcon_inst%damage_frac(numpft))
+    EDPftvarcon_inst%damage_frac(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_damage_mort_p1')
+    allocate(EDPftvarcon_inst%damage_mort_p1(numpft))
+    EDPftvarcon_inst%damage_mort_p1(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_damage_mort_p2')
+    allocate(EDPftvarcon_inst%damage_mort_p2(numpft))
+    EDPftvarcon_inst%damage_mort_p2(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_damage_recovery_scalar')
+    allocate(EDPftvarcon_inst%damage_recovery_scalar(numpft))
+    EDPftvarcon_inst%damage_recovery_scalar(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_fire_alpha_SH')
+    allocate(EDPftvarcon_inst%fire_alpha_SH(numpft))
+    EDPftvarcon_inst%fire_alpha_SH(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_allom_frbstor_repro')
+    allocate(EDPftvarcon_inst%allom_frbstor_repro(numpft))
+    EDPftvarcon_inst%allom_frbstor_repro(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_hydro_p_taper')
+    allocate(EDPftvarcon_inst%hydr_p_taper(numpft))
+    EDPftvarcon_inst%hydr_p_taper(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_hydro_rs2')
+    allocate(EDPftvarcon_inst%hydr_rs2(numpft))
+    EDPftvarcon_inst%hydr_rs2(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_hydro_srl')
+    allocate(EDPftvarcon_inst%hydr_srl(numpft))
+    EDPftvarcon_inst%hydr_srl(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_hydro_rfrac_stem')
+    allocate(EDPftvarcon_inst%hydr_rfrac_stem(numpft))
+    EDPftvarcon_inst%hydr_rfrac_stem(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_hydro_avuln_gs')
+    allocate(EDPftvarcon_inst%hydr_avuln_gs(numpft))
+    EDPftvarcon_inst%hydr_avuln_gs(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_hydro_p50_gs')
+    allocate(EDPftvarcon_inst%hydr_p50_gs(numpft))
+    EDPftvarcon_inst%hydr_p50_gs(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_hydro_k_lwp')
+    allocate(EDPftvarcon_inst%hydr_k_lwp(numpft))
+    EDPftvarcon_inst%hydr_k_lwp(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_bmort')
+    allocate(EDPftvarcon_inst%bmort(numpft))
+    EDPftvarcon_inst%bmort(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_scalar_coldstress')
+    allocate(EDPftvarcon_inst%mort_scalar_coldstress(numpft))
+    EDPftvarcon_inst%mort_scalar_coldstress(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_scalar_cstarvation')
+    allocate(EDPftvarcon_inst%mort_scalar_cstarvation(numpft))
+    EDPftvarcon_inst%mort_scalar_cstarvation(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_scalar_hydrfailure')
+    allocate(EDPftvarcon_inst%mort_scalar_hydrfailure(numpft))
+    EDPftvarcon_inst%mort_scalar_hydrfailure(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_upthresh_cstarvation')
+    allocate(EDPftvarcon_inst%mort_upthresh_cstarvation(numpft))
+    EDPftvarcon_inst%mort_upthresh_cstarvation(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_ip_size_senescence')
+    allocate(EDPftvarcon_inst%mort_ip_size_senescence(numpft))
+    EDPftvarcon_inst%mort_ip_size_senescence(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_r_size_senescence')
+    allocate(EDPftvarcon_inst%mort_r_size_senescence(numpft))
+    EDPftvarcon_inst%mort_r_size_senescence(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_ip_age_senescence')
+    allocate(EDPftvarcon_inst%mort_ip_age_senescence(numpft))
+    EDPftvarcon_inst%mort_ip_age_senescence(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_r_age_senescence')
+    allocate(EDPftvarcon_inst%mort_r_age_senescence(numpft))
+    EDPftvarcon_inst%mort_r_age_senescence(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_scalar_coldstress')
+    allocate(EDPftvarcon_inst%mort_scalar_coldstress(numpft))
+    EDPftvarcon_inst%mort_scalar_coldstress(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_scalar_cstarvation')
+    allocate(EDPftvarcon_inst%mort_scalar_cstarvation(numpft))
+    EDPftvarcon_inst%mort_scalar_cstarvation(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_upthresh_cstarvation')
+    allocate(EDPftvarcon_inst%mort_upthresh_cstarvation(numpft))
+    EDPftvarcon_inst%mort_upthresh_cstarvation(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_hf_sm_threshold')
+    allocate(EDPftvarcon_inst%hf_sm_threshold(numpft))
+    EDPftvarcon_inst%hf_sm_threshold(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_mort_hf_flc_threshold')
+    allocate(EDPftvarcon_inst%hf_flc_threshold(numpft))
+    EDPftvarcon_inst%hf_flc_threshold(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_recruit_seed_germination_rate')
+    allocate(EDPftvarcon_inst%germination_rate(numpft))
+    EDPftvarcon_inst%germination_rate(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_repro_frac_seed')
+    allocate(EDPftvarcon_inst%repro_frac_seed(numpft))
+    EDPftvarcon_inst%repro_frac_seed(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_a_emerg')
+    allocate(EDPftvarcon_inst%a_emerg(numpft))
+    EDPftvarcon_inst%a_emerg(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_b_emerg')
+    allocate(EDPftvarcon_inst%b_emerg(numpft))
+    EDPftvarcon_inst%b_emerg(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_par_crit_germ')
+    allocate(EDPftvarcon_inst%par_crit_germ(numpft))
+    EDPftvarcon_inst%par_crit_germ(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_psi_emerg')
+    allocate(EDPftvarcon_inst%seedling_psi_emerg(numpft))
+    EDPftvarcon_inst%seedling_psi_emerg(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_psi_crit')
+    allocate(EDPftvarcon_inst%seedling_psi_crit(numpft))
+    EDPftvarcon_inst%seedling_psi_crit(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_light_rec_a')
+    allocate(EDPftvarcon_inst%seedling_light_rec_a(numpft))
+    EDPftvarcon_inst%seedling_light_rec_a(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_light_rec_b')
+    allocate(EDPftvarcon_inst%seedling_light_rec_b(numpft))
+    EDPftvarcon_inst%seedling_light_rec_b(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_mdd_crit')
+    allocate(EDPftvarcon_inst%seedling_mdd_crit(numpft))
+    EDPftvarcon_inst%seedling_mdd_crit(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_h2o_mort_a')
+    allocate(EDPftvarcon_inst%seedling_h2o_mort_a(numpft))
+    EDPftvarcon_inst%seedling_h2o_mort_a(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_h2o_mort_b')
+    allocate(EDPftvarcon_inst%seedling_h2o_mort_b(numpft))
+    EDPftvarcon_inst%seedling_h2o_mort_b(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_h2o_mort_c')
+    allocate(EDPftvarcon_inst%seedling_h2o_mort_c(numpft))
+    EDPftvarcon_inst%seedling_h2o_mort_c(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_root_depth')
+    allocate(EDPftvarcon_inst%seedling_root_depth(numpft))
+    EDPftvarcon_inst%seedling_root_depth(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_light_mort_a')
+    allocate(EDPftvarcon_inst%seedling_light_mort_a(numpft))
+    EDPftvarcon_inst%seedling_light_mort_a(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_light_mort_b')
+    allocate(EDPftvarcon_inst%seedling_light_mort_b(numpft))
+    EDPftvarcon_inst%seedling_light_mort_b(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trs_seedling_background_mort')
+    allocate(EDPftvarcon_inst%background_seedling_mort(numpft))
+    EDPftvarcon_inst%background_seedling_mort(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_frag_seed_decay_rate')
+    allocate(EDPftvarcon_inst%seed_decay_rate(numpft))
+    EDPftvarcon_inst%seed_decay_rate(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_seed_dispersal_pdf_scale')
+    allocate(EDPftvarcon_inst%seed_dispersal_pdf_scale(numpft))
+    EDPftvarcon_inst%seed_dispersal_pdf_scale(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_seed_dispersal_pdf_shape')
+    allocate(EDPftvarcon_inst%seed_dispersal_pdf_shape(numpft))
+    EDPftvarcon_inst%seed_dispersal_pdf_shape(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_seed_dispersal_max_dist')
+    allocate(EDPftvarcon_inst%seed_dispersal_max_dist(numpft))
+    EDPftvarcon_inst%seed_dispersal_max_dist(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_seed_dispersal_fraction')
+    allocate(EDPftvarcon_inst%seed_dispersal_fraction(numpft))         
+    EDPftvarcon_inst%seed_dispersal_fraction(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trim_limit')
+    allocate(EDPftvarcon_inst%trim_limit(numpft))
+    EDPftvarcon_inst%trim_limit(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_trim_inc')
+    allocate(EDPftvarcon_inst%trim_inc(numpft))
+    EDPftvarcon_inst%trim_inc(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_turb_leaf_diameter')
+    allocate(EDPftvarcon_inst%dleaf(numpft))
+    EDPftvarcon_inst%dleaf(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_turb_z0mr')
+    allocate(EDPftvarcon_inst%z0mr(numpft))
+    EDPftvarcon_inst%z0mr(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_turb_displar')
+    allocate(EDPftvarcon_inst%displar(numpft))
+    EDPftvarcon_inst%displar(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_phen_flush_fraction')
+    allocate(EDPftvarcon_inst%phenflush_fraction(numpft))
+    EDPftvarcon_inst%phenflush_fraction(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_phen_cold_size_threshold')
+    allocate(EDPftvarcon_inst%phen_cold_size_threshold(numpft))
+    EDPftvarcon_inst%phen_cold_size_threshold(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_prescribed_nuptake')
+    allocate(EDPftvarcon_inst%prescribed_nuptake(numpft))
+    EDPftvarcon_inst%prescribed_nuptake(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_prescribed_puptake')
+    allocate(EDPftvarcon_inst%prescribed_puptake(numpft))
+    EDPftvarcon_inst%prescribed_puptake(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_dev_arbitrary_pft')
+    allocate(EDPftvarcon_inst%dev_arbitrary_pft(numpft))
+    EDPftvarcon_inst%dev_arbitrary_pft(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_eca_decompmicc')
+    allocate(EDPftvarcon_inst%decompmicc(numpft))
+    EDPftvarcon_inst%decompmicc(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_eca_km_nh4')
+    allocate(EDPftvarcon_inst%eca_km_nh4(numpft))
+    EDPftvarcon_inst%eca_km_nh4(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_vmax_nh4')
+    allocate(EDPftvarcon_inst%vmax_nh4(numpft))
+    EDPftvarcon_inst%vmax_nh4(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_eca_km_no3')
+    allocate(EDPftvarcon_inst%eca_km_no3(numpft))
+    EDPftvarcon_inst%eca_km_no3(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_vmax_no3')
+    allocate(EDPftvarcon_inst%vmax_no3(numpft))
+    EDPftvarcon_inst%vmax_no3(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_eca_km_p')
+    allocate(EDPftvarcon_inst%eca_km_p(numpft))
+    EDPftvarcon_inst%eca_km_p(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_vmax_p')
+    allocate(EDPftvarcon_inst%vmax_p(numpft))
+    EDPftvarcon_inst%vmax_p(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_eca_km_ptase')
+    allocate(EDPftvarcon_inst%eca_km_ptase(numpft))
+    EDPftvarcon_inst%eca_km_ptase(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_eca_vmax_ptase')
+    allocate(EDPftvarcon_inst%eca_vmax_ptase(numpft))
+    EDPftvarcon_inst%eca_vmax_ptase(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_eca_alpha_ptase')
+    allocate(EDPftvarcon_inst%eca_alpha_ptase(numpft))
+    EDPftvarcon_inst%eca_alpha_ptase(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_cnp_eca_lambda_ptase')
+    allocate(EDPftvarcon_inst%eca_lambda_ptase(numpft))
+    EDPftvarcon_inst%eca_lambda_ptase(:) = param_p%r_data_1d(:)
 
-    name = 'fates_cnp_eca_km_no3'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_km_no3)
+    param_p => pstruct%GetParamFromName('fates_landuse_harvest_pprod10')
+    allocate(EDPftvarcon_inst%harvest_pprod10(numpft))
+    EDPftvarcon_inst%harvest_pprod10(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_landuse_luc_frac_burned')
+    allocate(EDPftvarcon_inst%landusechange_frac_burned(numpft))
+    EDPftvarcon_inst%landusechange_frac_burned(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_landuse_luc_frac_exported')
+    allocate(EDPftvarcon_inst%landusechange_frac_exported(numpft))
+    EDPftvarcon_inst%landusechange_frac_exported(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_landuse_luc_pprod10')
+    allocate(EDPftvarcon_inst%landusechange_pprod10(numpft))
+    EDPftvarcon_inst%landusechange_pprod10(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName('fates_landuse_grazing_palatability')
+    allocate(EDPftvarcon_inst%landuse_grazing_palatability(numpft))
+    EDPftvarcon_inst%landuse_grazing_palatability(:) = param_p%r_data_1d(:)
 
-    name = 'fates_cnp_vmax_no3'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%vmax_no3)
+    param_p => pstruct%GetParamFromName('fates_hlm_pft_map')
+    allocate(EDPftvarcon_inst%hlm_pft_map(numpft,num_hlm_pft))
+    EDPftvarcon_inst%hlm_pft_map(:,:) = param_p%r_data_2d(:,:)
 
-    name = 'fates_cnp_eca_km_p'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_km_p)
-
-    name = 'fates_cnp_vmax_p'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%vmax_p)
-
-    name = 'fates_cnp_eca_km_ptase'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_km_ptase)
-
-    name = 'fates_cnp_eca_vmax_ptase'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_vmax_ptase)
-
-    name = 'fates_cnp_eca_alpha_ptase'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_alpha_ptase)
-
-    name = 'fates_cnp_eca_lambda_ptase'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%eca_lambda_ptase)
-
-    name = 'fates_hlm_pft_map'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%hlm_pft_map)
-
-    name = 'fates_landuse_harvest_pprod10'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%harvest_pprod10)
-
-    name = 'fates_landuse_luc_frac_burned'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%landusechange_frac_burned)
-
-    name = 'fates_landuse_luc_frac_exported'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%landusechange_frac_exported)
-
-    name = 'fates_landuse_luc_pprod10'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%landusechange_pprod10)
-
-    name = 'fates_landuse_grazing_palatability'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%landuse_grazing_palatability)
-
+    
   end subroutine Receive_PFT
 
   !-----------------------------------------------------------------------
