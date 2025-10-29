@@ -2691,14 +2691,15 @@ end subroutine DetermineGridCellNeighbors
      
 subroutine FatesTransferParameters()
   implicit none
-
   
   character(len=32)  :: subname = 'FatesTransferParameters'
 
   ! Initialize scalar parameters
 
   call TransferParamsGeneric(pstruct)
-
+  call TransferParamsSpitFire(pstruct)
+  call TransferLeafBiophysParams(pstruct)
+  
   !call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
   !call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
   !call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
