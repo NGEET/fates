@@ -2,12 +2,11 @@ module FatesLeafBiophysParamsMod
 
   use FatesConstantsMod , only: r8 => fates_r8
   use FatesConstantsMod , only: fates_check_param_set
-  use FatesParametersInterface, only : param_string_length
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
   use shr_log_mod      , only : errMsg => shr_log_errMsg
   use LeafBiophysicsMod, only : lb_params,btran_on_gs_gs1,btran_on_ag_none
-  use FatesUtilsMod, only : ArrayNint
+  use JSONParameterUtilsMod,only : params_type,param_type
   
   implicit none
   private ! Modules are private by default
@@ -19,8 +18,6 @@ module FatesLeafBiophysParamsMod
   
   character(len=*), parameter :: sourcefile = &
         __FILE__
-
-  integer, parameter  :: lower_bound_pft = 1
 
 contains
 

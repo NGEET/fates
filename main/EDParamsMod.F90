@@ -114,6 +114,15 @@ module EDParamsMod
    
    ! Hydraulics Control Parameters (ONLY RELEVANT WHEN USE_FATES_HYDR = TRUE)
    ! ----------------------------------------------------------------------------------------------
+
+   ! Switch that defines the hydraulic transfer functions for each organ.
+   ! campbell_type           = 3
+   ! smooth1_campbell_type   = 31
+   ! smooth2_campbell_type   = 32
+   ! tfs_type                = 1
+   ! van Genuchten 1980 model = 2 
+   integer, protected,allocatable,public :: hydr_htftype_node(:) 
+   
    real(r8),protected,public :: hydr_kmax_rsurf1         !  maximum conducitivity for unit root surface 
                                                          !  soil to root direction (kg water/m2 root area/Mpa/s)
    
@@ -273,9 +282,13 @@ module EDParamsMod
 
     type(params_type) :: pstruct         ! Data structure containing all parameters and dimensions
     type(param_type),pointer :: param_p  ! Pointer to one specific parameter
+
+    integer :: num_hydr_organ
     
     call FatesParamsInit()
 
+    num_hydr_organ = pstruct%GetDimSizeFromName('fates_hydr_organs')
+    
     param_p => pstruct%GetParamFromName("fates_fire_active_crown_fire")
     active_crown_fire = (param_p%i_data_scalar == itrue)
     
@@ -398,6 +411,10 @@ module EDParamsMod
     
     param_p => pstruct%GetParamFromName("fates_max_nocomp_pfts_by_landuse")
     max_nocomp_pfts_by_landuse(:) = param_p%i_data_1d(:)
+
+    param_p => pstruct%GetParamFromName("fates_hydro_htftype_node")
+    allocate(hydr_htftype_node(num_hydr_organ))
+    hydr_htftype_node(:) = param_p%i_data_1d(:)
     
     ! if use_hydro
     param_p => pstruct%GetParamFromName("fates_hydro_kmax_rsurf1")

@@ -34,7 +34,8 @@ module EDPftvarcon
   use FatesConstantsMod   , only : default_regeneration
   use FatesConstantsMod   , only : TRS_regeneration
   use FatesConstantsMod   , only : TRS_no_seedling_dyn
-
+  use JSONParameterUtilsMod,only : params_type,param_type
+  
    ! CIME Globals
   use shr_log_mod ,   only : errMsg => shr_log_errMsg
 
@@ -725,7 +726,7 @@ contains
     EDPftvarcon_inst%taul(:,ivis) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_rad_leaf_taunir')
-    EDPftvarcon_inst%taul(:,nir) = param_p%r_data_1d(:)
+    EDPftvarcon_inst%taul(:,inir) = param_p%r_data_1d(:)
 
     allocate(EDPftvarcon_inst%taus(numpft,2))
     
@@ -733,7 +734,7 @@ contains
     EDPftvarcon_inst%taus(:,ivis) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_rad_stem_taunir')
-    EDPftvarcon_inst%taus(:,nir) = param_p%r_data_1d(:)
+    EDPftvarcon_inst%taus(:,inir) = param_p%r_data_1d(:)
 
     ! Section 4: 2D PFT x leaf age dimension
     ! --------------------------------------------------------------------------
@@ -762,8 +763,8 @@ contains
     EDPftvarcon_inst%hydr_avuln_node(:,:) = param_p%r_data_2d(:,:)
 
     param_p => pstruct%GetParamFromName('fates_hydro_p50_node')
-    allocate(EDPftvarcon_inst%%hydr_p50_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%%hydr_p50_node(:,:) = param_p%r_data_2d(:,:)
+    allocate(EDPftvarcon_inst%hydr_p50_node(numpft,num_hydrorgan))
+    EDPftvarcon_inst%hydr_p50_node(:,:) = param_p%r_data_2d(:,:)
 
     param_p => pstruct%GetParamFromName('fates_hydro_thetas_node')
     allocate(EDPftvarcon_inst%hydr_thetas_node(numpft,num_hydrorgan))

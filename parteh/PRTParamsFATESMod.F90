@@ -34,6 +34,7 @@ module PRTInitParamsFatesMod
   use EDTypesMod,          only : init_recruit_trim
   use FatesConstantsMod,   only : ievergreen
   use FatesConstantsMod,   only : isemi_stress_decid
+  use JSONParameterUtilsMod,only : params_type,param_type
   
   !
   ! !PUBLIC TYPES:

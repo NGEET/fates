@@ -186,7 +186,7 @@ contains
     SF_val_miner_total = param_p%r_data_scalar
     
     param_p => pstruct%GetParamFromName("fates_fire_fuel_energy")
-    SF_val_fuel_total = param_p%r_data_scalar
+    SF_val_fuel_energy = param_p%r_data_scalar
     
     param_p => pstruct%GetParamFromName("fates_fire_part_dens")
     SF_val_part_dens = param_p%r_data_scalar
