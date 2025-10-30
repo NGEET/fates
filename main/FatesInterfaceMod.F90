@@ -67,11 +67,11 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
    use FatesParametersInterface  , only : pstruct
-   use EDParamsMod               , only : FatesReceiveParams
-   use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
-   use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
    use FatesLeafBiophysParamsMod , only : TransferParamsLeafBiophys
-   use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
+   use EDParamsMod               , only : TransferParamsGeneric
+   use SFParamsMod               , only : TransferParamsSpitFire
+   use PRTInitParamsFatesMod     , only : TransferParamsPRT
+   use EDPftvarcon               , only : TransferParamsPFT
    use EDParamsMod               , only : p_uptake_mode
    use EDParamsMod               , only : n_uptake_mode
    use EDTypesMod                , only : ed_site_type
@@ -115,10 +115,10 @@ module FatesInterfaceMod
    use LeafBiophysicsMod         , only : FvCB1980
    use JSONParameterUtilsMod     , only : params_type
    use JSONParameterUtilsMod     , only : ReadJSON
-   use JSONParameterUtilsMod     , only : SetInvalidJSON
-   use JSONParameterUtilsMod     , only : SetLogInitJSON
+   use JSONParameterUtilsMod     , only : SetInvalid
+   use JSONParameterUtilsMod     , only : SetLogInit
    use JSONParameterUtilsMod     , only : DumpParameter
-   use JSONParameterUtilsMod     , only :
+
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -178,7 +178,6 @@ module FatesInterfaceMod
    public :: SetFatesTime
    public :: SetFatesGlobalElements1
    public :: SetFatesGlobalElements2
-   public :: FatesReportParameters
    public :: allocate_bcin
    public :: allocate_bcout
    public :: allocate_bcpconst
@@ -188,7 +187,6 @@ module FatesInterfaceMod
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
 
-   private :: FatesReadParameters
    public :: DetermineGridCellNeighbors
 
    logical :: debug = .false.  ! for debugging this module
@@ -802,9 +800,8 @@ contains
       if (use_fates) then
          
          ! Self explanatory, read the fates parameter file
-         !call FatesReadParameters(param_reader)
          if ( hlm_masterproc == itrue ) then
-            write(fates_log(), *) 'FatesParametersInterface.F90::'//trim(subname)//' :: CLM reading FATES '//' parameters '
+            write(fates_log(), *) 'Reading FATES parameters'
          end if
          
          call SetInvalid(hlm_hio_ignore_val)
@@ -814,6 +811,7 @@ contains
          ! This call transfers parameters from the pstruct data-structure
          ! into the specific datastructures where parameters have there
          ! own primitive arrays
+
          call FatesTransferParameters()
          
          fates_numpft = size(prt_params%wood_density,dim=1)
@@ -2664,46 +2662,46 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
 
 
    call t_stopf('fates-seed-init-decomp')
-
-end subroutine DetermineGridCellNeighbors
-
-! ======================================================================================
-     
-subroutine FatesTransferParameters(masterproc)
-  
-  implicit none
-
-  logical,intent(in) :: masterproc
-  
-  character(len=32)  :: subname = 'FatesTransferParameters'
-
-  ! This is a wrapper routine
-  ! It calls subroutines that transfer process groups of parameters
-  ! from the generic data structure to the primitives used by the model
-  ! When it is complete, we perform the checks
-
-  call TransferParamsGeneric(pstruct)
-  call TransferParamsSpitFire(pstruct)
-  call TransferParamsPRT(pstruct)
-  call TransferParamsLeafBiophys(pstruct)
-  call TransferParamsPFT(pstruct)
-
-  call TransferRadParams()
-  
-  call pstruct%ReportAccessCounts()
-  stop
-  
-  call FatesReportPFTParams(masterproc)
-  call FatesReportParams(masterproc)
-  call LeafBiophysReportParams(masterproc)
-  call PRTDerivedParams()              ! Update PARTEH derived constants
-  call FatesCheckParams(masterproc)    ! Check general fates parameters
-  call PRTCheckParams(masterproc)      ! Check PARTEH parameters
-  call SpitFireCheckParams(masterproc)
-
-  call FatesCheckParams(is_master)
-
-  
-end subroutine FatesTransferParameters
+   
+ end subroutine DetermineGridCellNeighbors
+ 
+ ! ======================================================================================
+ 
+ subroutine FatesTransferParameters()
+   
+   logical :: masterproc
+   
+   character(len=32)  :: subname = 'FatesTransferParameters'
+   
+   ! This is a wrapper routine
+   ! It calls subroutines that transfer process groups of parameters
+   ! from the generic data structure to the primitives used by the model
+   ! When it is complete, we perform the checks
+   
+   call TransferParamsGeneric(pstruct)
+   call TransferParamsSpitFire(pstruct)
+   call TransferParamsPRT(pstruct)
+   call TransferParamsLeafBiophys(pstruct)
+   call TransferParamsPFT(pstruct)
+   
+   call TransferRadParams()
+   
+   call pstruct%ReportAccessCounts()
+   stop
+   
+   
+   masterproc = (hlm_masterproc == itrue ) 
+   
+   call FatesReportPFTParams(masterproc)
+   call FatesReportParams(masterproc)
+   call LeafBiophysReportParams(masterproc)
+   
+   call PRTDerivedParams()              ! Update PARTEH derived constants
+   call FatesCheckParams(masterproc)    ! Check general fates parameters
+   call PRTCheckParams(masterproc)      ! Check PARTEH parameters
+   call SpitFireCheckParams(masterproc)
+   
+   
+ end subroutine FatesTransferParameters
 
 end module FatesInterfaceMod
