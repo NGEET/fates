@@ -1085,7 +1085,7 @@ contains
        end if
     end do loop_params
 
-    write(log_unit,*)'Error finding parameter by name'
+    write(log_unit,*)'Error finding parameter by name,scanned ',size(this%parameters),' parameters'
     write(log_unit,*)'Cant find: ',trim(param_name)
     call shr_sys_abort()
     
