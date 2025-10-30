@@ -321,7 +321,7 @@ contains
        symb_str = dimdata_str(beg_id:sep_id-1)
        data_str = dimdata_str(sep_id+1:end_id-1)
        call StringToStringOrReal(data_str,tmp_str,tmp_real,is_num=.true.)
-       pstruct%dimensions(i)%name = trim(CleanSymbol(symb_str))
+       pstruct%dimensions(i)%name = trim(CleanSymbol(symb_str)) !CleanSymbol left adjusts...
        pstruct%dimensions(i)%size = int(tmp_real)
        if(debug)write(log_unit,*) trim(pstruct%dimensions(i)%name),":",pstruct%dimensions(i)%size
        beg_id = end_id+1
@@ -451,7 +451,7 @@ contains
     ! ---------------------------------------------------------------------------------
 
     param => pstruct%parameters(var_num)
-    param%name = trim(symb_str)
+    param%name = trim(adjustl(symb_str))
     param%access_count = 0
     
     call GetMetaString(vardata_str,'"dims"',beg_id,end_id)
@@ -871,7 +871,8 @@ contains
        ! SCAN returns the position of the *first* character from the 
        ! set (unwanted_chars) that is present in the string.
        ! If it returns 0, the character is NOT unwanted.
-       j = scan(string_in(i:i),'!#&^"@/><}{')
+       !j = scan(string_in(i:i),'!#&^"@/><}{')
+       j = scan(string_in(i:i),'"')
        
        if (j == 0) then
           ! This is a character we want to keep
