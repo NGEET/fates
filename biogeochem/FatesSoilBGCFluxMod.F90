@@ -673,6 +673,8 @@ contains
     currentPatch => csite%oldest_patch
     flux_patch_loop: do while (associated(currentPatch))
 
+      write(*,*) 'Entering FluxIntoLitterPools for patch ', currentPatch%patchno
+
       associate( &
         bc_out => csite%bc_out(currentPatch%patchno), &
         bc_in => csite%bc_in(currentPatch%patchno) &
@@ -835,6 +837,12 @@ contains
           flux_all_si = sum(flux_cel_si(:) * bc_in%dz_decomp_sisl(:)) + &
                         sum(flux_lig_si(:) * bc_in%dz_decomp_sisl(:)) + &
                         sum(flux_lab_si(:) * bc_in%dz_decomp_sisl(:))
+         !  if (flux_all_si > 1e35_r8) then
+             write(fates_log(), *) 'flux_all: ', flux_all_si
+             write(fates_log(), *) 'sum cel, lig, lab: ', sum(flux_cel_si), sum(flux_lig_si), sum(flux_lab_si)
+             write(fates_log(), *) 'sum dz: ', sum(bc_in%dz_decomp_sisl(:))
+            !  call endrun(msg=errMsg(__FILE__, __LINE__))
+         !  end if
 
       end do flux_elem_loop
       
