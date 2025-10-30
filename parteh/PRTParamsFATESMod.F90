@@ -119,7 +119,7 @@ contains
 
     param_p => pstruct%GetParamFromName('fates_allom_fnrt_prof_mode')
     allocate(prt_params%fnrt_prof_mode(num_pft))
-    prt_params%fnrt_prof_mode(:) = param_p%r_data_1d(:)
+    prt_params%fnrt_prof_mode(:) = param_p%i_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_woody')
     allocate(prt_params%woody(num_pft))
