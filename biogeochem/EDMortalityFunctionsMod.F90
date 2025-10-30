@@ -28,7 +28,7 @@ module EDMortalityFunctionsMod
    use FatesInterfaceTypesMod     , only : hlm_use_planthydro
    use FatesInterfaceTypesMod     , only : hlm_use_tree_damage
    use EDLoggingMortalityMod , only : LoggingMortality_frac
-   use EDParamsMod           , only : fates_mortality_disturbance_fraction
+   use EDParamsMod           , only : mortality_disturbance_fraction
    use FatesConstantsMod     , only : n_landuse_cats
    use PRTGenericMod,          only : carbon12_element
    use PRTGenericMod,          only : store_organ
@@ -360,7 +360,7 @@ contains
 
        currentCohort%dndt= -(cmort+hmort+bmort+frmort+smort+asmort+dgmort) * currentCohort%n
        if ( .not. ExemptTreefallDist(currentCohort)) then
-          currentCohort%dndt = (1.0_r8-fates_mortality_disturbance_fraction) * currentCohort%dndt
+          currentCohort%dndt = (1.0_r8-mortality_disturbance_fraction) * currentCohort%dndt
        endif
 
     endif

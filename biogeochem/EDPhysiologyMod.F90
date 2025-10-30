@@ -97,7 +97,6 @@ module EDPhysiologyMod
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
-  use EDParamsMod           , only : fates_mortality_disturbance_fraction
   use EDParamsMod           , only : q10_mr
   use EDParamsMod           , only : q10_froz
   use EDParamsMod           , only : logging_export_frac

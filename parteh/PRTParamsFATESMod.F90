@@ -142,47 +142,47 @@ contains
     prt_params%leaf_stor_priority(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_turnover_senleaf_fdrought')
-    allocate(prt_params%(num_pft))
+    allocate(prt_params%senleaf_long_fdrought(num_pft))
     prt_params%senleaf_long_fdrought(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_turnover_fnrt')
-    allocate(prt_params%(num_pft))
+    allocate(prt_params%root_long(num_pft))
     prt_params%root_long(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_leafn_vert_scaler_coeff1')
-    allocate(prt_params%(num_pft))
+    allocate(prt_params%leafn_vert_scaler_coeff1(num_pft))
     prt_params%leafn_vert_scaler_coeff1(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_leafn_vert_scaler_coeff2')
-    allocate(prt_params%(num_pft))
+    allocate(prt_params%leafn_vert_scaler_coeff2(num_pft))
     prt_params%leafn_vert_scaler_coeff2(:) = param_p%r_data_1d(:)
     
     param_p => pstruct%GetParamFromName('fates_recruit_seed_alloc_mature')
-    allocate(prt_params%(num_pft))
+    allocate(prt_params%seed_alloc_mature(num_pft))
     prt_params%seed_alloc_mature(:) = param_p%r_data_1d(:)
     
     param_p => pstruct%GetParamFromName('fates_recruit_seed_alloc')
-    allocate(prt_params%(num_pft))
+    allocate(prt_params%seed_alloc(num_pft))
     prt_params%seed_alloc(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_trs_repro_alloc_a')
-    allocate(prt_params%(num_pft))
+    allocate(prt_params%repro_alloc_a(num_pft))
     prt_params%repro_alloc_a(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_trs_repro_alloc_b')
-    allocate(prt_params%(num_pft))
+    allocate(prt_params%repro_alloc_b(num_pft))
     prt_params%repro_alloc_b(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_c2b')
-    allocate(prt_params%(num_pft))
+    allocate(prt_params%c2b(num_pft))
     prt_params%c2b(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_grperc')
-    allocate(prt_params%(num_pft))
+    allocate(prt_params%grperc(num_pft))
     prt_params%grperc(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_allom_dbh_maxheight')
-    allocate(prt_params%(num_pft))
+    allocate(prt_params%allom_dbh_maxheight(num_pft))
     prt_params%allom_dbh_maxheight(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_allom_hmode')
@@ -347,31 +347,31 @@ contains
     
     param_p => pstruct%GetParamFromName('fates_turnover_leaf_canopy')
     allocate(prt_params%leaf_long(num_pft,num_ageclass))
-    prt_params%leaf_long(:,:) = param_p%r_data_2d(:)
+    prt_params%leaf_long(:,:) = param_p%r_data_2d(:,:)
 
     param_p => pstruct%GetParamFromName('fates_turnover_leaf_ustory')
     allocate(prt_params%leaf_long_ustory(num_pft,num_ageclass))
-    prt_params%leaf_long_ustory(:,:) = param_p%r_data_2d(:)
+    prt_params%leaf_long_ustory(:,:) = param_p%r_data_2d(:,:)
 
     param_p => pstruct%GetParamFromName('fates_stoich_nitr')
     allocate(prt_params%nitr_stoich_p1(num_pft,num_organ))
-    prt_params%nitr_stoich_p1(:) = param_p%r_data_2d(:)
+    prt_params%nitr_stoich_p1(:,:) = param_p%r_data_2d(:,:)
     
     param_p => pstruct%GetParamFromName('fates_stoich_phos')
     allocate(prt_params%phos_stoich_p1(num_pft,num_organ))
-    prt_params%phos_stoich_p1(:) = param_p%r_data_2d(:)
+    prt_params%phos_stoich_p1(:,:) = param_p%r_data_2d(:,:)
     
     param_p => pstruct%GetParamFromName('fates_alloc_organ_priority')
     allocate(prt_params%alloc_priority(num_pft,num_organ))
-    prt_params%alloc_priority(:) = param_p%i_data_2d(:)
+    prt_params%alloc_priority(:,:) = param_p%i_data_2d(:,:)
     
     param_p => pstruct%GetParamFromName('fates_cnp_turnover_nitr_retrans')
     allocate(prt_params%turnover_nitr_retrans(num_pft,num_organ))
-    prt_params%turnover_nitr_retrans(:) = param_p%r_data_2d(:)
+    prt_params%turnover_nitr_retrans(:,:) = param_p%r_data_2d(:,:)
     
     param_p => pstruct%GetParamFromName('fates_cnp_turnover_phos_retrans')
     allocate(prt_params%turnover_phos_retrans(num_pft,num_organ))
-    prt_params%turnover_phos_retrans(:) = param_p%r_data_2d(:)
+    prt_params%turnover_phos_retrans(:,:) = param_p%r_data_2d(:,:)
 
     return
   end subroutine TransferParamsPRT

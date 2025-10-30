@@ -55,6 +55,7 @@ module SFParamsMod
    real(r8),         parameter, private :: min_fire_threshold = 0.0001_r8  ! The minimum reasonable fire intensity threshold [kW/m]
 
    public :: TransferParamsSpitFire
+   public :: SpitFireCheckParams
    
 contains
 
