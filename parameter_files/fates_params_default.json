@@ -1151,7 +1151,7 @@
       "data": [1, 1, 2, 1, 3, 2, 1, 3, 2, 1, 2, 2, 3, 3]
     },
     "fates_phen_mindaysoff": {
-      "dtype": "integer",
+      "dtype": "float",
       "dims": ["fates_pft"],
       "long_name": "day threshold compared against days since leaves abscised (shed)",
       "units": "days",
@@ -2026,14 +2026,14 @@
       "data": [-0.01]
     },
     "fates_phen_mindayson": {
-      "dtype": "integer",
+      "dtype": "float",
       "dims": ["scalar"],
       "long_name": "day threshold compared against days since leaves became on-allometry",
       "units": "days",
       "data": [90]
     },
     "fates_phen_ncolddayslim": {
-      "dtype": "integer",
+      "dtype": "float",
       "dims": ["scalar"],
       "long_name": "day threshold exceedance for temperature leaf-drop",
       "units": "days",

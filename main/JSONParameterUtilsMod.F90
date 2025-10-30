@@ -189,11 +189,12 @@ contains
           call shr_sys_abort()
        end if
 
-       if(debug)then
-          write(log_unit,*) 'Scanned JSON file and found no rogue brackets'
-       end if
-
     end do do_readfile
+
+    if(debug)then
+       write(log_unit,*) 'Scanned JSON file and found no rogue brackets'
+    end if
+    
     return
   end subroutine CheckRogueBrackets
   
