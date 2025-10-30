@@ -424,7 +424,8 @@ contains
        if(i<=vardata_max_len)then
           vardata_str(i:i) = filechar
        else
-          write(log_unit,*) 'Ran out of room reading in dimension data'
+          write(log_unit,*) 'Ran out of room reading in variable data'
+          write(log_unit,*) 'Increase the size of integer constant: JSONParameterUtilsMod:vardata_max_len'
           call shr_sys_abort()
        end if
        if(index(vardata_str,'{')>0)then
@@ -767,25 +768,39 @@ contains
     integer :: i,j,k,l,ii
     integer :: iv    ! index of vector start
     integer :: ivz   ! index of vector end
-
+    logical :: has_brackets
+    
     ! Determine if this is a vector or not
     ! (ie iv=0 is scalar, iv>0 is vector)
     ! Take the right most (in case nested brackets)
-    iv = index(trim(string_in),'[')
-    ivz = index(trim(string_in),']',.true.)
     
+    iv = index(trim(string_in),'[')
+    if(iv>0) then
+       has_brackets = .true.
+       ivz = index(trim(string_in),']',.true.) ! pos of last closing bracket
+       if(ivz==0)then
+          write(log_unit,*)'no closing bracket when one was opened?'
+          call shr_sys_abort()
+       end if
+    else
+       iv = 1
+       has_brackets = .false.
+       ivz = len(trim(string_in))
+    end if
+
+       
     k = 0 ! Counter for the cleaned string position
     l = 1 ! Counter for the output vector
     
     ! Loop through every character of the original string
 
-    do_str_scan: do i = iv, len(trim(string_in))
+    do_str_scan: do i = iv, ivz
 
        ! We are done parsing if we hit one of two conditions..
        ! 1) We are in vector mode and we encounter the end bracket
        ! 2) We are not in vector mode (no opening bracket) and we encounter a comma
-       if(iv>0 .and. i==ivz) exit do_str_scan
-       if(iv==0 .and. index(string_in(i:i),',')>0) exit do_str_scan
+       if(has_brackets .and. i==ivz) exit do_str_scan
+       if(.not.has_brackets .and. index(string_in(i:i),',')>0) exit do_str_scan
 
        ! If we encounter a comma, we go to the next index
        ! and cycle
@@ -802,7 +817,8 @@ contains
           ! SCAN returns the position of the *first* character from the 
           ! set (unwanted_chars) that is present in the string.
           ! If it returns 0, the character is NOT unwanted.
-          j = scan(string_in(i:i),'!#&^[]')
+          !j = scan(string_in(i:i),'!#&^[]')
+          j = scan(string_in(i:i),'[]')
           
           if (j == 0) then
              ! This is a character we want to keep

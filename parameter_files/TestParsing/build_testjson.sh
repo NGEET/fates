@@ -5,7 +5,7 @@
 FC='gfortran'
 
 #F_OPTS="-fPIC -O3 -llapack"
-F_OPTS="-g -fPIC"
+F_OPTS="-g -fPIC -fcheck=bounds"
 F_OBJ_OPTS="-shared"
 
 FATES_PATH='../..'
