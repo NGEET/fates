@@ -1117,7 +1117,6 @@ module FatesInterfaceTypesMod
       ! Check that the rank matches
       if (this%hlm_vars(i)%data_rank /= this%fates_vars(i)%data_rank) then
         write(*,*) "Rank mismatch for variable: ", this%key(i)
-        write(*,*) "Rank: hlm, fates: ", this%hlm_vars(i)%data_rank, this%fates_vars(i)%data_rank
         call endrun(msg=errMsg(__FILE__, __LINE__))
       end if
       
@@ -1692,19 +1691,11 @@ module FatesInterfaceTypesMod
       j = this%filter_litter_flux(i)
       
       ! Update the hlm variables with the fates variables
-      ! write(fates_log(),*) 'Updating litterfluxes: key:', this%GetRegistryVariableKey(j)
       call this%hlm_vars(j)%Update(this%fates_vars(j), scalar=dtime)
-
-      ! Dump HLM variable
-      ! write(fates_log(),*) 'Dumping HLM variable'
-      ! call this%hlm_vars(j)%Dump()
-      ! write(fates_log(),*) 'Dumping FATES variable'
-      ! call this%fates_vars(j)%Dump()
 
     end do
     
     ! Update the HLM variable with the total litterfall
-    ! write(fates_log(),*) 'Updating total litterfall'
     j = this%GetRegistryVariableIndex(hlm_fates_litter_carbon_total)
     call this%hlm_vars(j)%Update(this%fates_vars(j))
 
@@ -1712,23 +1703,8 @@ module FatesInterfaceTypesMod
       j = this%GetRegistryVariableIndex(hlm_fates_litter_phosphorus_total)
       call this%hlm_vars(j)%Update(this%fates_vars(j))
 
-      ! Dump HLM variable
-      ! write(fates_log(),*) 'Dumping HLM variable'
-      ! call this%hlm_vars(j)%Dump()
-      ! write(fates_log(),*) 'Dumping FATES variable'
-      ! call this%fates_vars(j)%Dump()
-
       j = this%GetRegistryVariableIndex(hlm_fates_litter_nitrogen_total)
       call this%hlm_vars(j)%Update(this%fates_vars(j))
-
-      ! Dump HLM variable
-      ! write(fates_log(),*) 'Dumping HLM variable'
-      ! call this%hlm_vars(j)%Dump()
-      ! write(fates_log(),*) 'Dumping FATES variable'
-      ! call this%fates_vars(j)%Dump()
-
-      ! write(fates_log(),*) 'Finished updating litter fluxes'
-
     end if
 
     
