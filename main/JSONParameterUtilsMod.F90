@@ -458,6 +458,7 @@ contains
     call GetMetaString(vardata_str,'"dims"',beg_id,end_id)
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
     allocate(param%dim_names(n_vec_out))
+    dimsizes(:)=-1
     param%ndims = n_vec_out
     do i = 1,n_vec_out
        param%dim_names(i) = trim(CleanSymbol(string_scr(i)))

@@ -1557,7 +1557,7 @@
       "data": [0.548327, 0.44235, 0.454845, 0.754336, 0.548327, 0.566452, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7]
     },
     "fates_woody": {
-      "dtype": "float",
+      "dtype": "integer",
       "dims": ["fates_pft"],
       "long_name": "Binary woody lifeform flag",
       "units": "logical flag",
