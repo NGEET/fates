@@ -69,15 +69,7 @@ module FatesPatchMod
     type (fates_patch_type),  pointer :: older => null()    ! pointer to next older patch   
     type (fates_patch_type),  pointer :: younger => null()  ! pointer to next younger patch
     type (fates_cohort_vec_type), pointer :: co_scr(:)      ! Scratch vector of cohort properties
-    
-    ! BC data
-    ! TODO change this to a specific bc type for incremental refactor purposes if this method is picked
-    type(bc_in_type)  :: bc_in
-    type(bc_out_type) :: bc_out
 
-    ! API registry container
-    type(fates_interface_registry_base_type) :: api
-  
     !---------------------------------------------------------------------------
 
     ! INDICES
