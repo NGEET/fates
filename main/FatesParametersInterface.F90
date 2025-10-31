@@ -8,7 +8,8 @@ module FatesParametersInterface
   ! only uses shr libraries
 
   use JSONParameterUtilsMod, only: params_type
-
+  use FatesConstantsMod, only : r8 => fates_r8
+  
   implicit none
   private
   
@@ -35,7 +36,7 @@ contains
     ! the PFT as the first dimension... so:
     
     integer :: i_2d_in(:,:)
-    integer :: i_2d_transp(:,:)
+    integer :: i_2d_out(:,:)
     integer :: i,j
 
     do i=1,size(i_2d_in,dim=1)
@@ -59,8 +60,8 @@ contains
     ! However, we the data arrays in fates use
     ! the PFT as the first dimension... so:
     
-    integer :: r_2d_in(:,:)
-    integer :: r_2d_transp(:,:)
+    real(r8) :: r_2d_in(:,:)
+    real(r8) :: r_2d_out(:,:)
     integer :: i,j
     
     do i=1,size(r_2d_in,dim=1)

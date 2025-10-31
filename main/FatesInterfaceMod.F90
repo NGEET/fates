@@ -68,6 +68,7 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
    use FatesParametersInterface  , only : pstruct
    use FatesLeafBiophysParamsMod , only : TransferParamsLeafBiophys
+   use FatesLeafBiophysParamsMod , only : LeafBiophysReportParams
    use EDParamsMod               , only : TransferParamsGeneric
    use SFParamsMod               , only : TransferParamsSpitFire
    use PRTInitParamsFatesMod     , only : TransferParamsPRT
@@ -82,6 +83,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : fates_np_comp_scaling
    use FatesConstantsMod         , only : coupled_np_comp_scaling
    use FatesConstantsMod         , only : trivial_np_comp_scaling
+   use FatesConstantsMod         , only : fates_check_param_set, min_vai_bin_sum
    use PRTGenericMod             , only : num_elements
    use PRTGenericMod             , only : element_list
    use PRTGenericMod             , only : element_pos
@@ -110,7 +112,7 @@ module FatesInterfaceMod
    use FatesHistoryInterfaceMod  , only : fates_hist
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
-   use FatesTwoStreamUtilsMod, only : TransferRadParams
+   use FatesTwoStreamUtilsMod    , only : TransferRadParams
    use LeafBiophysicsMod         , only : lb_params
    use LeafBiophysicsMod         , only : FvCB1980
    use JSONParameterUtilsMod     , only : params_type
@@ -118,7 +120,7 @@ module FatesInterfaceMod
    use JSONParameterUtilsMod     , only : SetInvalid
    use JSONParameterUtilsMod     , only : SetLogInit
    use JSONParameterUtilsMod     , only : DumpParameter
-
+   
    
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -803,8 +805,13 @@ contains
          if ( hlm_masterproc == itrue ) then
             write(fates_log(), *) 'Reading FATES parameters'
          end if
-         
-         call SetInvalid(hlm_hio_ignore_val)
+
+         ! We compare dataset values that have no-data against a parameter fates_check_param_set
+         ! If the value in the file is less than fates_check_param_set, then we assume
+         ! it is usable. So if the parser enounters no-data strings, such as null, nan or '_'
+         ! we set those values to fates_check_param_set plus a little extra to flag it is
+         ! invalid.
+         call SetInvalid(fates_check_param_set+10._r8)
          call SetLogInit(fates_log())
          call ReadJSON(paramfile,paramfile_unit,pstruct)
 
@@ -875,8 +882,6 @@ contains
       ! This is the second FATES routine that is called.
       !
       ! --------------------------------------------------------------------------------
-
-      use FatesConstantsMod,      only : fates_check_param_set, min_vai_bin_sum
 
       logical,intent(in) :: use_fates    ! Is fates turned on?
       integer :: i
@@ -1079,6 +1084,15 @@ contains
          
 
       end if
+
+      ! Check through FATES parameters
+      ! THis step is performed after the parameter
+      ! AND after all namelist settings because
+      ! they are cross referenced
+
+      call FatesCheckParameters()
+
+      
     end subroutine SetFatesGlobalElements2
 
     ! ======================================================================
@@ -1476,7 +1490,6 @@ contains
       !
       ! RGK-2016
       ! ---------------------------------------------------------------------------------
-      use FatesConstantsMod, only : fates_check_param_set
     
     
       ! Arguments
@@ -2670,9 +2683,7 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
  subroutine FatesTransferParameters()
    
    logical :: masterproc
-   
-   character(len=32)  :: subname = 'FatesTransferParameters'
-   
+
    ! This is a wrapper routine
    ! It calls subroutines that transfer process groups of parameters
    ! from the generic data structure to the primitives used by the model
@@ -2684,13 +2695,26 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    call TransferParamsLeafBiophys(pstruct)
    call TransferParamsPFT(pstruct)
    
+   masterproc = (hlm_masterproc == itrue )
+   
+   if(debug .and. masterproc) call pstruct%ReportAccessCounts()
+
+ end subroutine FatesTransferParameters
+
+
+ subroutine FatesCheckParameters()
+   
+   logical :: masterproc   ! Is this the master process?
+   
+   masterproc = (hlm_masterproc == itrue )
+
+   ! This is NOT transfering from the generic
+   ! json data structure, it is transfering
+   ! from the pftvarcon to the two-stream
+   ! and requires namelist variables to
+   ! be known (thats why it is here, later in the
+   ! the sequence)
    call TransferRadParams()
-   
-   call pstruct%ReportAccessCounts()
-   stop
-   
-   
-   masterproc = (hlm_masterproc == itrue ) 
    
    call FatesReportPFTParams(masterproc)
    call FatesReportParams(masterproc)
@@ -2701,7 +2725,6 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
    call PRTCheckParams(masterproc)      ! Check PARTEH parameters
    call SpitFireCheckParams(masterproc)
    
-   
- end subroutine FatesTransferParameters
+ end subroutine FatesCheckParameters
 
 end module FatesInterfaceMod

@@ -35,7 +35,7 @@ module EDPftvarcon
   use FatesConstantsMod   , only : TRS_regeneration
   use FatesConstantsMod   , only : TRS_no_seedling_dyn
   use JSONParameterUtilsMod,only : params_type,param_type
-  use FatesParametersInterfaceMod,only : Transp2dInt,Transp2dReal
+  use FatesParametersInterface,only : Transp2dInt,Transp2dReal
   
    ! CIME Globals
   use shr_log_mod ,   only : errMsg => shr_log_errMsg
@@ -52,6 +52,8 @@ module EDPftvarcon
   !ED specific variables.
   type, public ::  EDPftvarcon_type
 
+     character(len=256),allocatable :: pftname(:)             ! The name of the PFT
+     
      real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance
      real(r8), allocatable :: hgt_min(:)             ! sapling height m
      real(r8), allocatable :: dleaf(:)               ! leaf characteristic dimension length (m)
@@ -303,6 +305,10 @@ contains
     
     ! Section 1: 1D PFT dimension
     ! --------------------------------------------------------------------------
+
+    param_p => pstruct%GetParamFromName('fates_pftname')
+    allocate(EDPftvarcon_inst%pftname(numpft))
+    EDPftvarcon_inst%pftname(:) = param_p%c_data_1d(:)
     
     param_p => pstruct%GetParamFromName('fates_mort_freezetol')
     allocate(EDPftvarcon_inst%freezetol(numpft))
@@ -452,10 +458,6 @@ contains
     allocate(EDPftvarcon_inst%bmort(numpft))
     EDPftvarcon_inst%bmort(:) = param_p%r_data_1d(:)
     
-    param_p => pstruct%GetParamFromName('fates_mort_scalar_coldstress')
-    allocate(EDPftvarcon_inst%mort_scalar_coldstress(numpft))
-    EDPftvarcon_inst%mort_scalar_coldstress(:) = param_p%r_data_1d(:)
-    
     param_p => pstruct%GetParamFromName('fates_mort_scalar_cstarvation')
     allocate(EDPftvarcon_inst%mort_scalar_cstarvation(numpft))
     EDPftvarcon_inst%mort_scalar_cstarvation(:) = param_p%r_data_1d(:)
@@ -463,10 +465,6 @@ contains
     param_p => pstruct%GetParamFromName('fates_mort_scalar_hydrfailure')
     allocate(EDPftvarcon_inst%mort_scalar_hydrfailure(numpft))
     EDPftvarcon_inst%mort_scalar_hydrfailure(:) = param_p%r_data_1d(:)
-    
-    param_p => pstruct%GetParamFromName('fates_mort_upthresh_cstarvation')
-    allocate(EDPftvarcon_inst%mort_upthresh_cstarvation(numpft))
-    EDPftvarcon_inst%mort_upthresh_cstarvation(:) = param_p%r_data_1d(:)
     
     param_p => pstruct%GetParamFromName('fates_mort_ip_size_senescence')
     allocate(EDPftvarcon_inst%mort_ip_size_senescence(numpft))
@@ -487,10 +485,6 @@ contains
     param_p => pstruct%GetParamFromName('fates_mort_scalar_coldstress')
     allocate(EDPftvarcon_inst%mort_scalar_coldstress(numpft))
     EDPftvarcon_inst%mort_scalar_coldstress(:) = param_p%r_data_1d(:)
-    
-    param_p => pstruct%GetParamFromName('fates_mort_scalar_cstarvation')
-    allocate(EDPftvarcon_inst%mort_scalar_cstarvation(numpft))
-    EDPftvarcon_inst%mort_scalar_cstarvation(:) = param_p%r_data_1d(:)
     
     param_p => pstruct%GetParamFromName('fates_mort_upthresh_cstarvation')
     allocate(EDPftvarcon_inst%mort_upthresh_cstarvation(numpft))
@@ -700,7 +694,7 @@ contains
     ! --------------------------------------------------------------------------
     param_p => pstruct%GetParamFromName('fates_hlm_pft_map')
     allocate(EDPftvarcon_inst%hlm_pft_map(numpft,num_hlm_pft))
-    call Transp2dInt(param_p%r_data_2d,EDPftvarcon_inst%hlm_pft_map)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hlm_pft_map)
 
     ! Section 3: 2D PFT x vis/nir dimension
     ! --------------------------------------------------------------------------
@@ -794,19 +788,6 @@ contains
     param_p => pstruct%GetParamFromName('fates_hydro_kmax_node')
     allocate(EDPftvarcon_inst%hydr_kmax_node(numpft,num_hydrorgan))
     call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_kmax_node)
-
-    param_p => pstruct%GetParamFromName('fates_hydro_vg_alpha_node')
-    allocate(EDPftvarcon_inst%hydr_vg_alpha_node(numpft,num_hydrorgan))
-    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_vg_alpha_node)
-    
-    param_p => pstruct%GetParamFromName('fates_hydro_vg_m_node')
-    allocate(EDPftvarcon_inst%hydr_vg_m_node(numpft,num_hydrorgan))
-    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_vg_m_node)
-
-    param_p => pstruct%GetParamFromName('fates_hydro_vg_n_node')
-    allocate(EDPftvarcon_inst%hydr_vg_n_node(numpft,num_hydrorgan))
-    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_vg_n_node)
-
 
     return
   end subroutine TransferParamsPFT
@@ -1095,9 +1076,6 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
      end if
-
-
-     
 
      do ipft = 1,npft
 

@@ -1080,10 +1080,8 @@ contains
     integer                  :: i
     
     nullify(param_ptr)
-    write(log_unit,*) 'looking for: ',trim(param_name)
     loop_params: do i = 1,size(this%parameters)
-       write(log_unit,*)'xxx',trim(this%parameters(i)%name),'xxx'
-       if(index(trim(param_name),trim(this%parameters(i)%name))>0)then
+       if(trim(param_name)==this%parameters(i)%name)then
           param_ptr=>this%parameters(i)
           this%parameters(i)%access_count = this%parameters(i)%access_count + 1
           return

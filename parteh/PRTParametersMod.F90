@@ -89,7 +89,7 @@ module PRTParametersMod
 
      integer, allocatable :: organ_id(:)                 ! Mapping of the organ index in the parameter file, to the
                                                          ! global list of organs found in PRTGenericMod.F90
-     real(r8), allocatable :: alloc_priority(:,:)        ! Allocation priority for each organ (pft x organ) [integer 0-6]
+     integer,  allocatable :: alloc_priority(:,:)        ! Allocation priority for each organ (pft x organ) [integer 0-6]
      real(r8), allocatable :: cushion(:)                 ! labile carbon storage target as multiple of leaf pool.
      real(r8), allocatable :: leaf_stor_priority(:)      ! leaf turnover vs labile carbon use prioritisation
                                                          ! (1 = lose  leaves, 0 = use store).

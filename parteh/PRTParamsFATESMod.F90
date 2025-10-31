@@ -35,6 +35,7 @@ module PRTInitParamsFatesMod
   use FatesConstantsMod,   only : ievergreen
   use FatesConstantsMod,   only : isemi_stress_decid
   use JSONParameterUtilsMod,only : params_type,param_type
+  use FatesParametersInterface,only : Transp2dInt,Transp2dReal
   
   !
   ! !PUBLIC TYPES:
@@ -363,7 +364,7 @@ contains
     
     param_p => pstruct%GetParamFromName('fates_alloc_organ_priority')
     allocate(prt_params%alloc_priority(num_pft,num_organ))
-    call Transp2dReal(param_p%i_data_2d,prt_params%alloc_priority)
+    call Transp2dInt(param_p%i_data_2d,prt_params%alloc_priority)
     
     param_p => pstruct%GetParamFromName('fates_cnp_turnover_nitr_retrans')
     allocate(prt_params%turnover_nitr_retrans(num_pft,num_organ))
