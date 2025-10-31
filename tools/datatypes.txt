@@ -219,7 +219,7 @@ fates_turnover_leaf_ustory 1
 fates_turnover_senleaf_fdrought 1
 fates_wood_density 1
 fates_woody 2
-fates_hlm_pft_map 2
+fates_hlm_pft_map 1
 fates_fire_FBD 1
 fates_fire_low_moisture_Coeff 1
 fates_fire_low_moisture_Slope 1
