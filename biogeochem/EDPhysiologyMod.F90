@@ -458,7 +458,7 @@ contains
     !------------------------------------------------------------------------------------
 
     ! Calculate the fragmentation rates
-    call fragmentation_scaler(currentPatch, bc_in)
+    call fragmentation_scaler(currentPatch, currentSite%bc_in(currentPatch%patchno))
 
     do el = 1, num_elements
 

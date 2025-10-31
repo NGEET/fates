@@ -108,7 +108,7 @@ integer, parameter, public :: isemi_stress_decid = 4 ! Flag that indicates that 
   integer, parameter, public :: ican_ustory = 2 ! nominal index for diagnostics that refer to understory layers 
                                                 !  (all layers that are not the top canopy layer)
 
-  ! Flags specifying how phosphorous uptake and turnover interacts
+  ! Flags specifying how phosphorus uptake and turnover interacts
   ! with the host model.
   integer, public, parameter :: prescribed_p_uptake = 1
   integer, public, parameter :: coupled_p_uptake    = 2
