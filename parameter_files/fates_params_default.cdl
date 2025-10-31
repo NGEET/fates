@@ -555,6 +555,9 @@ variables:
 	double fates_recruit_init_nocomp(fates_pft) ;
 		fates_recruit_init_nocomp:units = "stems/m2 or dbh cm" ;
 		fates_recruit_init_nocomp:long_name = "initial seedling density or initial size of seedlings (if negative) in nocomp mode" ;
+	double fates_init_seed(fates_pft) ;
+		fates_init_seed:units = "kg/m2" ;
+		fates_init_seed:long_name = "initial seed pool (only applied)" ;
 	double fates_recruit_prescribed_rate(fates_pft) ;
 		fates_recruit_prescribed_rate:units = "n/yr" ;
 		fates_recruit_prescribed_rate:long_name = "recruitment rate for prescribed physiology mode" ;
@@ -1544,6 +1547,9 @@ data:
 
  fates_recruit_init_nocomp =  -1, -1, -1, -1, -1, -1, -1, -1, -2, -2, -6, -6, 
     -6, -2 ;
+
+fates_init_seed = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
+    0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 ;
 
  fates_recruit_prescribed_rate = 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 
     0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02 ;
