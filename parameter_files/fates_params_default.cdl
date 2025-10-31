@@ -1,4 +1,4 @@
-netcdf fates_params_api.40.0.0_noresm_v9_14pft_c251017 {
+netcdf fates_params_api.40.0.0_noresm_14pft_c251031.nc {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
@@ -549,15 +549,15 @@ variables:
 	double fates_recruit_height_min(fates_pft) ;
 		fates_recruit_height_min:units = "m" ;
 		fates_recruit_height_min:long_name = "the minimum height (ie starting height) of a newly recruited plant" ;
-	double fates_recruit_init_density_full_fates(fates_pft) ;
-		fates_recruit_init_density_full_fates:units = "stems/m2" ;
-		fates_recruit_init_density_full_fates:long_name = "initial seedling density for a cold-start near-bare-ground simulation in full fates (with competition)" ;
-	double fates_recruit_init_nocomp(fates_pft) ;
-		fates_recruit_init_nocomp:units = "stems/m2 or dbh cm" ;
-		fates_recruit_init_nocomp:long_name = "initial seedling density or initial size of seedlings (if negative) in nocomp mode" ;
+       double fates_recruit_init_density_full_fates(fates_pft) ;
+                fates_recruit_init_density_full_fates:units = "stems/m2" ;
+                fates_recruit_init_density_full_fates:long_name = "initial seedling density for a cold-start near-bare-ground simulation in full fates (with competition)" ;
+double fates_recruit_init_nocomp(fates_pft) ;
+		fates_recruit_init_nocomp:units = "stems/m2 or dbh cm";
+		fates_recruit_init_nocomp:long_name = "initial seedling density or initial size of seedlings (if negative) in nocomp mode";
 	double fates_init_seed(fates_pft) ;
-		fates_init_seed:units = "kg/m2" ;
-		fates_init_seed:long_name = "initial seed pool (only applied)" ;
+                fates_init_seed:units = "kg/m2" ;
+                fates_init_seed:long_name = "initial seed pool (only applied)" ;
 	double fates_recruit_prescribed_rate(fates_pft) ;
 		fates_recruit_prescribed_rate:units = "n/yr" ;
 		fates_recruit_prescribed_rate:long_name = "recruitment rate for prescribed physiology mode" ;
@@ -1017,8 +1017,8 @@ data:
  fates_allom_agb4 = 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 0.931, 
     0.931, 0.931, 0.931, -999.9, -999.9, -999.9 ;
 
- fates_allom_agb_frac = 0.6, 0.8, 0.8, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 
-    0.6, 1, 1, 1 ;
+ fates_allom_agb_frac = 0.6, 0.7, 0.8, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.5, 
+    0.4, 0.5, 1, 1 ;
 
  fates_allom_amode = 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 5, 5, 5 ;
 
@@ -1027,8 +1027,8 @@ data:
 
  fates_allom_cmode = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_allom_d2bl1 = 0.04, 0.08, 0.08, 0.01, 0.04, 0.07, 0.07, 0.07, 0.05, 
-    0.0481934, 0.0481934, 0.05, 0.04, 0.04 ;
+ fates_allom_d2bl1 = 0.04, 0.045, 0.05, 0.01, 0.04, 0.07, 0.07, 0.07, 0.05, 
+    0.03, 0.03, 0.03, 0.04, 0.04 ;
 
  fates_allom_d2bl2 = 1.6019679, 1.5234373, 1.3051237, 1.9621397, 1.6019679, 
     1.3998939, 1.3, 1.3, 1.3, 1.0600586, 1.7176758, 1.7092, 1.7092, 1.5879 ;
@@ -1038,11 +1038,11 @@ data:
 
  fates_allom_d2ca_coefficient_max = 0.2715891, 0.3693718, 1.0787259, 
     0.0579297, 0.2715891, 1.1553612, 0.6568464, 0.6568464, 0.6568464, 
-    0.4363427, 0.3166497, 0.0408, 0.0408, 0.0862 ;
+    0.4363427, 0.3166497, 0.3, 0.25, 0.15 ;
 
  fates_allom_d2ca_coefficient_min = 0.2715891, 0.3693718, 1.0787259, 
     0.0579297, 0.2715891, 1.1553612, 0.6568464, 0.6568464, 0.6568464, 
-    0.4363427, 0.3166497, 0.0408, 0.0408, 0.0862 ;
+    0.4363427, 0.3166497, 0.3, 0.25, 0.15 ;
 
  fates_allom_d2h1 = 78.4087704, 306.842667, 106.8745821, 104.3586841, 
     78.4087704, 31.4557047, 0.64, 0.64, 0.64, 0.8165625, 0.778125, 0.1812, 
@@ -1064,8 +1064,7 @@ data:
 
  fates_allom_fnrt_prof_a = 7, 7, 7, 7, 6, 6, 7, 7, 7, 7, 7, 11, 11, 11 ;
 
- fates_allom_fnrt_prof_b = 0.511, 2, 2, 1, 2, 2, 1.5, 1.5, 1.5, 1.5, 1.5, 
-    2.29, 2, 2 ;
+ fates_allom_fnrt_prof_b = 0.511, 2, 2, 1, 2, 2, 1.5, 1.5, 1.5, 1.5, 1.5, 2.29, 2, 2 ;
 
  fates_allom_fnrt_prof_mode = 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 ;
 
@@ -1078,7 +1077,7 @@ data:
 
  fates_allom_hmode = 5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1, 3, 3, 3 ;
 
- fates_allom_l2fr = 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1.5, 2, 2 ;
+ fates_allom_l2fr = 1.5, 1.5, 1, 1, 1, 1, 1, 0.7, 0.7, 1, 1.7, 2.0, 1.5, 2.3 ;
 
  fates_allom_la_per_sa_int = 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 
     0.8, 0.8, 0.8, 0.8, 0.8 ;
@@ -1218,7 +1217,7 @@ data:
     0.25, 0.25, 0.25, 0.25, 0.25 ;
 
  fates_frag_seed_decay_rate = 0.51, 0.25, 0.25, 0.51, 0.51, 0.51, 0.51, 0.51, 
-    0.51, 0.51, 0.51, 0.25, 0.51, 0.51 ;
+     0.51, 0.51, 0.51, 0.51, 0.51, 0.51 ;
 
  fates_grperc = 0.35, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
     0.25, 0.25, 0.25, 0.25 ;
@@ -1345,7 +1344,7 @@ data:
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 ;
 
- fates_landuse_grazing_palatability = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 ;
+ fates_landuse_grazing_palatability = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.3, 1, 1, 1, 1 ;
 
  fates_landuse_harvest_pprod10 = 1, 0.75, 0.75, 0.75, 1, 0.75, 1, 1, 1, 1, 1, 
     1, 1, 1 ;
@@ -1363,8 +1362,8 @@ data:
 
  fates_leaf_c3psn = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ;
 
- fates_leaf_fnps = 0.19, 0.3, 0.05, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 
-    0.15, 0.15, 0.15, 0.15 ;
+ fates_leaf_fnps = 0.190, 0.3, 0.05 , 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 
+    0.15, 0.15, 0.15, 0.15, 0.15 ;
 
  fates_leaf_jmaxha = 43540, 43540, 43540, 43540, 43540, 43540, 43540, 43540, 
     43540, 43540, 43540, 43540, 43540, 43540 ;
@@ -1378,24 +1377,24 @@ data:
  fates_leaf_slamax = 0.03, 0.03, 0.025, 0.03, 0.05, 0.05, 0.012, 0.03, 0.03, 
     0.012, 0.032, 0.05, 0.05, 0.05 ;
 
- fates_leaf_slatop = 0.024, 0.01, 0.028, 0.024, 0.02, 0.028, 0.012, 0.03, 
-    0.03, 0.01, 0.032, 0.027, 0.027, 0.03 ;
+ fates_leaf_slatop = 0.024, 0.010, 0.028, 0.024, 0.02, 0.028, 0.012, 0.03, 
+    0.03, 0.01, 0.023, 0.025, 0.027, 0.035 ;
 
  fates_leaf_stomatal_btran_model = 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0 ;
 
- fates_leaf_stomatal_intercept = 27443.3, 12943.3, 428.75, 26779.681, 
-    12869.022, 6205.777, 10000, 10000, 3750.669, 10000, 20000, 100.05, 
-    48331.9, 239459.319 ;
+ fates_leaf_stomatal_intercept = 27443.3, 12943.3 , 428.75, 26779.681, 
+    12869.022, 6205.777, 10000, 10000, 3750.669, 10000, 20000, 100.05,
+    118331.9,  239459.319 ;
 
  fates_leaf_stomatal_slope_ballberry = 10, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 
     8, 8 ;
 
  fates_leaf_stomatal_slope_medlyn = 4.03, 1.806, 3.812, 4.038, 3.159, 4.353, 
-    4.7, 4.7, 2.503, 4.7, 4.7, 2.32, 7.6, 0.967 ;
+    4.7, 4.7, 2.503, 4.7, 4.7, 2.32, 7.60, 0.967 ;
 
  fates_leaf_vcmax25top =
-  41.59, 40.91, 31.49, 40, 38.393, 34.363, 62, 54, 43.712, 38, 54, 50.55, 
-    69.17, 17.955 ;
+  47.59, 40.91, 45, 40, 38.393, 45, 62, 54, 53.712, 40, 50, 42.55, 69.17, 
+    17.955 ;
 
  fates_leaf_vcmaxha = 65330, 65330, 65330, 65330, 65330, 65330, 65330, 65330, 
     65330, 65330, 65330, 65330, 65330, 65330 ;
@@ -1406,9 +1405,9 @@ data:
  fates_leaf_vcmaxse = 485, 485, 485, 485, 485, 485, 485, 485, 485, 485, 485, 
     485, 485, 485 ;
 
- fates_leafn_vert_scaler_coeff1 = 0.0079, 0.014, 0.0048, 0.00963, 0.00963, 
+ fates_leafn_vert_scaler_coeff1 = 0.0079, 0.014, 0.0048, 0.00963, 
     0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 0.00963, 
-    0.00963 ;
+    0.00963,  0.00963 ;
 
  fates_leafn_vert_scaler_coeff2 = 1.357, 1.412, 1.23, 2.43, 2.43, 2.43, 2.43, 
     2.43, 2.43, 2.43, 2.43, 1.82, 2.607, 2.43 ;
@@ -1416,8 +1415,8 @@ data:
  fates_maintresp_leaf_atkin2017_baserate = 1.734, 2.169, 2.104, 2.104, 2.069, 
     1.622, 2.0749, 2.0749, 2.0749, 2.0749, 2.0749, 2.079, 2.0749, 2.182 ;
 
- fates_maintresp_leaf_ryan1991_baserate = 2.525e-06, 2.525e-06, 2.525e-06, 
-    2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 
+ fates_maintresp_leaf_ryan1991_baserate = 2.525e-06, 2.525e-06, 2.525e-06,
+     2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 
     2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06, 2.525e-06 ;
 
  fates_maintresp_leaf_vert_scaler_coeff1 = 0.00963, 0.00963, 0.00963, 
@@ -1434,8 +1433,8 @@ data:
 
  fates_maintresp_reduction_upthresh = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
- fates_mort_bmort = 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 0.014, 
-    0.014, 0.014, 0.014, 0.1, 0.1, 0.1 ;
+fates_mort_bmort = 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 
+     0.004, 0.004, 0.004, 0.014, 0.014, 0.05 ;
 
  fates_mort_freezetol = 2.5, -55, -80, -30, 2.5, -80, -60, -10, -80, -71, 
     -95, -89, -20, 2.5 ;
@@ -1443,12 +1442,12 @@ data:
  fates_mort_hf_flc_threshold = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5, 0.5, 0.5, 0.5 ;
 
- fates_mort_hf_sm_threshold = 0.5, 0.4, 0.4, 0.4, 0.3, 0.4, 0.4, 0.4, 0.4, 
-    0.4, 0.2, 0.2, 0.1, 0.1 ;
+ fates_mort_hf_sm_threshold = 0.5, 0.4, 0.4, 0.4, 0.1, 0.4, 0.1, 0.1, 0.1,
+      0.1, 0.2, 0.2, 0.03, 0.03 ;
 
  fates_mort_ip_age_senescence = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
 
- fates_mort_ip_size_senescence = 170, 150, 150, 150, 150, 150, 150, _, _, _, 
+ fates_mort_ip_size_senescence = 190, 190, 175, 175, 175, 175, 175, _, _, _, 
     _, _, _, _ ;
 
  fates_mort_prescribed_canopy = 0.0194, 0.0194, 0.0194, 0.0194, 0.0194, 
@@ -1459,18 +1458,18 @@ data:
 
  fates_mort_r_age_senescence = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
 
- fates_mort_r_size_senescence = 0.045, 0.045, 0.045, 0.045, 0.045, 0.045, 
-    0.045, 0.045, 0.045, 0.045, 0.045, 0.045, 0.045, 0.045 ;
+ fates_mort_r_size_senescence = 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 
+    0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04 ;
 
- fates_mort_scalar_coldstress = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
+ fates_mort_scalar_coldstress =  0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
     0.1, 0.1, 0.1, 0.1, 0.1 ;
 
- fates_mort_scalar_cstarvation = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
+ fates_mort_scalar_cstarvation = 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1, 0.1, 
     0.1, 0.1, 0.1, 0.1, 0.1 ;
 
- fates_mort_scalar_hydrfailure = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
+ fates_mort_scalar_hydrfailure =   0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
     0.1, 0.1, 0.1, 0.1, 0.1 ;
-
+    
  fates_mort_upthresh_cstarvation = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
  fates_nonhydro_smpsc = -177537.967, -352444.342, -214798.413, -307679.665, 
@@ -1510,8 +1509,8 @@ data:
     0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 0.03125, 
     0.03125, 0.03125 ;
 
- fates_rad_leaf_clumping_index = 1, 1, 0.3, 0.85, 0.85, 0.9, 0.85, 0.9, 0.9, 
-    0.85, 0.9, 0.71, 0.61, 0.75 ;
+ fates_rad_leaf_clumping_index = 1.0, 1.0, 0.30, 0.85, 0.85, 0.9, 0.85, 0.9, 
+    0.9, 0.85, 0.9, 0.71, 0.61, 0.75 ;
 
  fates_rad_leaf_rhonir = 0.46, 0.41, 0.39, 0.46, 0.41, 0.41, 0.46, 0.41, 
     0.41, 0.46, 0.41, 0.28, 0.28, 0.28 ;
@@ -1540,20 +1539,20 @@ data:
  fates_rad_stem_tauvis = 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 
     0.001, 0.001, 0.001, 0.001, 0.12, 0.12, 0.12 ;
 
- fates_recruit_height_min = 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.2, 0.2, 0.2, 0.8, 
-    0.8, 0.11, 0.2, 0.2 ;
+ fates_recruit_height_min = 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 0.2, 0.2, 0.2, 0.1, 
+    0.1, 0.1, 0.1, 0.1 ;
 
  fates_recruit_init_density_full_fates = 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 5, 2, 2 ;
 
- fates_recruit_init_nocomp =  -1, -1, -1, -1, -1, -1, -1, -1, -2, -2, -6, -6, 
-    -6, -2 ;
+ fates_recruit_init_nocomp = -1, -1, -1, -1, -1, -1, -0.5, -0.5, -0.5, 
+    -0.5, -0.5, -0.1, -0.1, -0.1 ;
 
-fates_init_seed = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
+ fates_init_seed = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
     0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 ;
 
  fates_recruit_prescribed_rate = 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 
     0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02 ;
-
+    
  fates_recruit_seed_alloc = 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
     0.07, 0.1, 0.1, 0.1, 0.1 ;
 
@@ -1566,8 +1565,8 @@ fates_init_seed = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
  fates_recruit_seed_germination_rate = 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 
     0.5, 0.5, 0.4, 0.49, 0.29, 0.5, 0.5 ;
 
- fates_recruit_seed_supplement = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.001, 
-    0.001 ;
+ fates_recruit_seed_supplement = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.00, 
+    0.00 ;
 
  fates_seed_dispersal_fraction = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
 
@@ -1578,9 +1577,9 @@ fates_init_seed = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
  fates_seed_dispersal_pdf_shape = _, _, _, _, _, _, _, _, _, _, _, _, _, _ ;
 
  fates_stoich_nitr =
-  0.033, 0.029, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04, 
+    0.033, 0.029, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04,
     0.04, 0.04, 0.04,
-  0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 
+    0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024,
     0.024, 0.024, 0.024, 0.024,
   1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 
     1e-08, 1e-08, 1e-08, 1e-08,
@@ -1674,22 +1673,22 @@ fates_init_seed = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
  fates_turb_displar = 0.056, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 0.67, 
     0.67, 0.67, 0.67, 0.67, 0.67 ;
 
- fates_turb_leaf_diameter = 0.031, 0.0298, 0.00072, 0.04, 0.04, 0.04, 0.04, 
-    0.04, 0.04, 0.04, 0.04, 0.027, 0.033, 0.04 ;
+ fates_turb_leaf_diameter = ,0.0310, 0.0298, 0.00072, 0.04, 0.04, 0.04, 0.04, 0.04, 
+    0.04, 0.04, 0.04, 0.027, 0.033, 0.04 ;
 
- fates_turb_z0mr = 0.06, 0.077, 0.033, 0.075, 0.055, 0.055, 0.12, 0.12, 0.12, 
-    0.12, 0.12, 0.126, 0.078, 0.12 ;
+ fates_turb_z0mr = 0.06, 0.077, 0.033, 0.075, 0.055, 0.055, 0.12, 0.12, 
+    0.12, 0.12, 0.12, 0.126, 0.078, 0.12 ;
 
  fates_turnover_branch = 150, 150, 150, 150, 150, 150, 150, 150, 150, 150, 
     150, 0, 0, 0 ;
 
- fates_turnover_fnrt = 1, 2, 2, 1.5, 1, 1, 1.5, 1, 1, 1.5, 1, 1.5, 0.5, 0.3 ;
+ fates_turnover_fnrt = 1, 2, 2, 1.5, 1, 1, 1, 1, 3, 1.5, 1, 1, 0.75, 0.5 ;
 
  fates_turnover_leaf_canopy =
-  1.5, 3.5, 1, 1.5, 0.7, 1, 1.5, 1, 1, 1.5, 1, 1, 0.25, 0.15 ;
+  1.5, 3, 1, 1.5, 0.7, 1, 1.5, 1, 1, 1.5, 1, 1, 0.25, 0.25 ;
 
  fates_turnover_leaf_ustory =
-  2.5, 5, 1, 1.5, 1, 1, 1.5, 1, 1, 1.5, 1, 1, 0.2, 0.15 ;
+  2.5, 4, 1, 1.5, 1, 1, 1.5, 1, 1, 1.5, 1, 1, 0.2, 0.20 ;
 
  fates_turnover_senleaf_fdrought = 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ;
 
@@ -1734,13 +1733,13 @@ fates_init_seed = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
 
  fates_fire_SAV = 13, 3.58, 0.98, 0.2, 66, 66 ;
 
- fates_frag_maxdecomp = 0.52, 0.383, 0.383, 0.19, 1, 999 ;
+ fates_frag_maxdecomp = 1.00, 0.83, 0.383, 0.19, 1, 999 ;
 
  fates_frag_cwd_frac = 0.045, 0.075, 0.21, 0.67 ;
 
  fates_landuse_crop_lu_pft_vector = -999, -999, -999, -999, 13 ;
 
- fates_landuse_grazing_rate = 0, 0, 0.01, 0.02, 0 ;
+ fates_landuse_grazing_rate = 0.007, 0, 0.02, 0.02, 0.02 ;
 
  fates_max_nocomp_pfts_by_landuse = 4, 4, 1, 1, 1 ;
 
@@ -1764,7 +1763,7 @@ fates_init_seed = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
 
  fates_fire_active_crown_fire = 0 ;
 
- fates_fire_cg_strikes = 0.2 ;
+ fates_fire_cg_strikes = 0.05 ;
 
  fates_fire_drying_ratio = 66000 ;
 
@@ -1780,7 +1779,7 @@ fates_init_seed = 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
 
  fates_fire_miner_total = 0.055 ;
 
- fates_fire_nignitions = 15 ;
+ fates_fire_nignitions = 3 ;
 
  fates_fire_part_dens = 513 ;
 
