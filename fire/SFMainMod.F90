@@ -714,9 +714,8 @@ contains
         ! check if there is a crown fire 
         if (currentPatch%FI > FI_init ) then
           ! calculate ROS_active and CI using fuel characteristics from fuel model 10
-          call CrownFireBehaveFM10(SF_val_drying_ratio, currentSite%fireWeather%fire_weather_index, &
-          SF_val_miner_total, SF_val_part_dens, currentSite%wind, &
-          currentPatch%fuel%canopy_bulk_density, ROS_active, CI)
+          call CrownFireBehaveFM10(currentSite%fireWeather, SF_val_drying_ratio, &
+         currentSite%wind, currentPatch%fuel%canopy_bulk_density, ROS_active, CI)
 
           ! Calculate ROS_acitive_min, EQ 14 in Scott & Reinhardt 2001
           ROS_active_min = 3.0_r8 / currentPatch%fuel%canopy_bulk_density
