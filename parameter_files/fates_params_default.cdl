@@ -1,4 +1,4 @@
-netcdf fates_params_api.40.0.0_noresm_14pft_c251031.nc {
+netcdf fates_params_sci.1.85.1_api.40.0.0_norsci1_api1.nc {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
