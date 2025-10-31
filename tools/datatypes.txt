@@ -160,7 +160,7 @@ fates_phen_drought_threshold 1
 fates_phen_flush_fraction 1
 fates_phen_fnrt_drop_fraction 1
 fates_phen_leaf_habit 2
-fates_phen_mindaysoff 2
+fates_phen_mindaysoff 1
 fates_phen_moist_threshold 1
 fates_phen_stem_drop_fraction 1
 fates_prescribed_npp_canopy 1
@@ -218,7 +218,7 @@ fates_turnover_leaf_canopy 1
 fates_turnover_leaf_ustory 1
 fates_turnover_senleaf_fdrought 1
 fates_wood_density 1
-fates_woody 1
+fates_woody 2
 fates_hlm_pft_map 2
 fates_fire_FBD 1
 fates_fire_low_moisture_Coeff 1
@@ -285,8 +285,8 @@ fates_phen_coldtemp 1
 fates_phen_gddthresh_a 1
 fates_phen_gddthresh_b 1
 fates_phen_gddthresh_c 1
-fates_phen_mindayson 2
-fates_phen_ncolddayslim 2
+fates_phen_mindayson 1
+fates_phen_ncolddayslim 1
 fates_q10_froz 1
 fates_q10_mr 1
 fates_rxfire_AB 1

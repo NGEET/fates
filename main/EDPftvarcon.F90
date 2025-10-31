@@ -35,6 +35,7 @@ module EDPftvarcon
   use FatesConstantsMod   , only : TRS_regeneration
   use FatesConstantsMod   , only : TRS_no_seedling_dyn
   use JSONParameterUtilsMod,only : params_type,param_type
+  use FatesParametersInterfaceMod,only : Transp2dInt,Transp2dReal
   
    ! CIME Globals
   use shr_log_mod ,   only : errMsg => shr_log_errMsg
@@ -699,7 +700,7 @@ contains
     ! --------------------------------------------------------------------------
     param_p => pstruct%GetParamFromName('fates_hlm_pft_map')
     allocate(EDPftvarcon_inst%hlm_pft_map(numpft,num_hlm_pft))
-    EDPftvarcon_inst%hlm_pft_map(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dInt(param_p%r_data_2d,EDPftvarcon_inst%hlm_pft_map)
 
     ! Section 3: 2D PFT x vis/nir dimension
     ! --------------------------------------------------------------------------
@@ -741,70 +742,70 @@ contains
     
     param_p => pstruct%GetParamFromName('fates_leaf_vcmax25top')
     allocate(EDPftvarcon_inst%vcmax25top(numpft,num_ageclass))
-    EDPftvarcon_inst%vcmax25top(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d, EDPftvarcon_inst%vcmax25top)
 
     ! Section 5: 2D PFT x hydro organ dimension
     ! --------------------------------------------------------------------------
 
     param_p => pstruct%GetParamFromName('fates_hydro_vg_alpha_node')
     allocate(EDPftvarcon_inst%hydr_vg_alpha_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_vg_alpha_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_vg_alpha_node)
 
     param_p => pstruct%GetParamFromName('fates_hydro_vg_m_node')
     allocate(EDPftvarcon_inst%hydr_vg_m_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_vg_m_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_vg_m_node)
     
     param_p => pstruct%GetParamFromName('fates_hydro_vg_n_node')
     allocate(EDPftvarcon_inst%hydr_vg_n_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_vg_n_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_vg_n_node)
 
     param_p => pstruct%GetParamFromName('fates_hydro_avuln_node')
     allocate(EDPftvarcon_inst%hydr_avuln_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_avuln_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_avuln_node)
 
     param_p => pstruct%GetParamFromName('fates_hydro_p50_node')
     allocate(EDPftvarcon_inst%hydr_p50_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_p50_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_p50_node)
 
     param_p => pstruct%GetParamFromName('fates_hydro_thetas_node')
     allocate(EDPftvarcon_inst%hydr_thetas_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_thetas_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_thetas_node)
     
     param_p => pstruct%GetParamFromName('fates_hydro_epsil_node')
     allocate(EDPftvarcon_inst%hydr_epsil_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_epsil_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_epsil_node)
 
     param_p => pstruct%GetParamFromName('fates_hydro_pitlp_node')
     allocate(EDPftvarcon_inst%hydr_pitlp_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_pitlp_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_pitlp_node)
 
     param_p => pstruct%GetParamFromName('fates_hydro_resid_node')
     allocate(EDPftvarcon_inst%hydr_resid_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_resid_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_resid_node)
 
     param_p => pstruct%GetParamFromName('fates_hydro_fcap_node')
     allocate(EDPftvarcon_inst%hydr_fcap_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_fcap_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_fcap_node)
 
     param_p => pstruct%GetParamFromName('fates_hydro_pinot_node')
     allocate(EDPftvarcon_inst%hydr_pinot_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_pinot_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_pinot_node)
 
     param_p => pstruct%GetParamFromName('fates_hydro_kmax_node')
     allocate(EDPftvarcon_inst%hydr_kmax_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_kmax_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_kmax_node)
 
     param_p => pstruct%GetParamFromName('fates_hydro_vg_alpha_node')
     allocate(EDPftvarcon_inst%hydr_vg_alpha_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_vg_alpha_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_vg_alpha_node)
     
     param_p => pstruct%GetParamFromName('fates_hydro_vg_m_node')
     allocate(EDPftvarcon_inst%hydr_vg_m_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_vg_m_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_vg_m_node)
 
     param_p => pstruct%GetParamFromName('fates_hydro_vg_n_node')
     allocate(EDPftvarcon_inst%hydr_vg_n_node(numpft,num_hydrorgan))
-    EDPftvarcon_inst%hydr_vg_n_node(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,EDPftvarcon_inst%hydr_vg_n_node)
 
 
     return

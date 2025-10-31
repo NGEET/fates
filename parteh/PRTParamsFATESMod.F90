@@ -347,31 +347,31 @@ contains
     
     param_p => pstruct%GetParamFromName('fates_turnover_leaf_canopy')
     allocate(prt_params%leaf_long(num_pft,num_ageclass))
-    prt_params%leaf_long(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,prt_params%leaf_long)
 
     param_p => pstruct%GetParamFromName('fates_turnover_leaf_ustory')
     allocate(prt_params%leaf_long_ustory(num_pft,num_ageclass))
-    prt_params%leaf_long_ustory(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,prt_params%leaf_long_ustory)
 
     param_p => pstruct%GetParamFromName('fates_stoich_nitr')
     allocate(prt_params%nitr_stoich_p1(num_pft,num_organ))
-    prt_params%nitr_stoich_p1(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,prt_params%nitr_stoich_p1)
     
     param_p => pstruct%GetParamFromName('fates_stoich_phos')
     allocate(prt_params%phos_stoich_p1(num_pft,num_organ))
-    prt_params%phos_stoich_p1(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,prt_params%phos_stoich_p1)
     
     param_p => pstruct%GetParamFromName('fates_alloc_organ_priority')
     allocate(prt_params%alloc_priority(num_pft,num_organ))
-    prt_params%alloc_priority(:,:) = param_p%i_data_2d(:,:)
+    call Transp2dReal(param_p%i_data_2d,prt_params%alloc_priority)
     
     param_p => pstruct%GetParamFromName('fates_cnp_turnover_nitr_retrans')
     allocate(prt_params%turnover_nitr_retrans(num_pft,num_organ))
-    prt_params%turnover_nitr_retrans(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,prt_params%turnover_nitr_retrans)
     
     param_p => pstruct%GetParamFromName('fates_cnp_turnover_phos_retrans')
     allocate(prt_params%turnover_phos_retrans(num_pft,num_organ))
-    prt_params%turnover_phos_retrans(:,:) = param_p%r_data_2d(:,:)
+    call Transp2dReal(param_p%r_data_2d,prt_params%turnover_phos_retrans)
 
     return
   end subroutine TransferParamsPRT
