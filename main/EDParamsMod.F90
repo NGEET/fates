@@ -63,10 +63,9 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_cohort_age_fusion_tol         ! minimum fraction in differece in cohort age between cohorts
    real(r8),protected, public :: ED_val_patch_fusion_tol              ! minimum fraction in difference in profiles between patches
    real(r8),protected, public :: ED_val_canopy_closure_thresh         ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
-
-   logical,protected, public :: active_crown_fire                     ! flag, 1=active crown fire 0=no active crown fire
-
-   character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
+   
+   logical,protected, public :: crown_fire_switch        ! flag, 1=active crown fire 0=no active crown fire
+   character(len=param_string_length),parameter :: fates_name_crown_fire_switch = "fates_crown_fire_switch"
 
    real(r8), protected, public :: cg_strikes                          ! fraction of cloud to ground lightning strikes (0-1)
    character(len=param_string_length),parameter :: fates_name_cg_strikes="fates_fire_cg_strikes"
@@ -545,7 +544,7 @@ module EDParamsMod
     call fates_params%RegisterParameter(name=ED_name_history_height_bin_edges, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names_height)
 
-    call fates_params%RegisterParameter(name=fates_name_active_crown_fire, dimension_shape=dimension_shape_scalar, &
+    call fates_params%RegisterParameter(name=fates_name_crown_fire_switch, dimension_shape=dimension_shape_scalar, &
          dimension_names=dim_names_scalar)
     
     call fates_params%RegisterParameter(name=fates_name_cg_strikes, dimension_shape=dimension_shape_scalar, &
@@ -724,9 +723,9 @@ module EDParamsMod
     call fates_params%RetrieveParameter(name=name_dev_arbitrary, &
          data=dev_arbitrary)
 
-    call fates_params%RetrieveParameter(name=fates_name_active_crown_fire, & 
+    call fates_params%RetrieveParameter(name=fates_name_crown_fire_switch, & 
           data=tmpreal)
-    active_crown_fire = (abs(tmpreal-1.0_r8)<nearzero)
+    crown_fire_switch = (abs(tmpreal-1.0_r8)<nearzero)
 
     call fates_params%RetrieveParameter(name=fates_name_cg_strikes, &
           data=cg_strikes)
@@ -861,7 +860,7 @@ module EDParamsMod
         write(fates_log(),fmt0) 'q10_mr = ',q10_mr
         write(fates_log(),fmt0) 'q10_froz = ',q10_froz
         write(fates_log(),fmt0) 'cg_strikes = ',cg_strikes
-        write(fates_log(),'(a,L2)') 'active_crown_fire = ',active_crown_fire
+        write(fates_log(),'(a,L2)') 'crown_fire_switch = ',crown_fire_switch
         write(fates_log(),fmt0) 'damage_event_code = ',damage_event_code
         write(fates_log(),fmt0) 'damage_canopy_layer_code = ', damage_canopy_layer_code
 	write(fates_log(),fmt0) 'landuse_grazing_carbon_use_eff = ', landuse_grazing_carbon_use_eff
