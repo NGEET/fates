@@ -291,8 +291,8 @@ module CrownFireEquationsMod
     call fuel_fm10%AverageSAV_NoTrunks(fuel_sav)
 
     ! use total fuel and fuel bed depth to calculate fuel bulk density
-    fuel_depth       = fuel_depth_ft * ft_to_meter           !convert to meters
-    fuel_bd          = fuel_fm10%non_trunk_loading/fuel_depth                 !fuel bulk density (kg biomass/m3)
+    fuel_depth       = fuel_depth_ft * ft_to_meter            !convert to meters
+    fuel_bd          = fuel_fm10%non_trunk_loading/fuel_depth !fuel bulk density (kg biomass/m3)
 
     ! remove mineral content, this fuel is in kg biomass m-2
     fuel_fm10%non_trunk_loading = fuel_fm10%non_trunk_loading*(1.0_r8 - SF_val_miner_total)
@@ -328,7 +328,7 @@ module CrownFireEquationsMod
 
     ! Calculate crowning index, which is used for calculating ROS_SA
     CI = CrowningIndex(eps_fm10, q_ig_fm10, i_r_fm10, xi_fm10, beta_ratio_fm10, &
-                       fuel_fm10%SAV_notrunks, canopy_bulk_density)
+                       fuel_fm10%SAV_notrunks, fuel_bd, canopy_bulk_density)
     CI = CI * km_per_hr_to_m_per_min  ! convert to m/min
 
   end subroutine CrownFireBehaveFM10
