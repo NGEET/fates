@@ -44,7 +44,7 @@ module EDParamsMod
                                                                       !moving average of par at the seedling layer used to 
                                                                       !calculate seedling to sapling transition rates
    real(r8),protected, public :: fates_mortality_disturbance_fraction ! the fraction of canopy mortality that results in disturbance
-   real(r8),protected, public :: ED_val_comp_excln                    ! weighting factor for canopy layer exclusion and promotion
+   real(r8),protected, public :: comp_excln_exp                       ! weighting factor (exponent) for canopy layer exclusion and promotion
    real(r8),protected, public :: ED_val_vai_top_bin_width             ! width in VAI units of uppermost leaf+stem layer scattering element
    real(r8),protected, public :: ED_val_vai_width_increase_factor     ! factor by which each leaf+stem scattering element increases in VAI width
    real(r8),protected, public :: ED_val_nignitions                    ! number of annual ignitions per square km
@@ -65,6 +65,7 @@ module EDParamsMod
    real(r8),protected, public :: ED_val_canopy_closure_thresh         ! site-level canopy closure point where trees take on forest (narrow) versus savannah (wide) crown allometry
 
    logical,protected, public :: active_crown_fire                     ! flag, 1=active crown fire 0=no active crown fire
+
    character(len=param_string_length),parameter :: fates_name_active_crown_fire = "fates_fire_active_crown_fire"
 
    real(r8), protected, public :: cg_strikes                          ! fraction of cloud to ground lightning strikes (0-1)
@@ -80,10 +81,10 @@ module EDParamsMod
 
    real(r8), parameter, public :: soil_tfrz_thresh = -2.0_r8          ! Soil temperature threshold below which hydraulic failure mortality is off (non-hydro only) in degrees C
    
-   integer, parameter, public :: nclmax = 2                           ! Maximum number of canopy layers (used only for scratch arrays)
-                                                                      ! We would make this even higher, but making this
-                                                                      ! a little lower keeps the size down on some output arrays
-                                                                      ! For large arrays at patch level we use dynamic allocation
+   integer, parameter, public :: nclmax = 3   ! Maximum number of canopy layers allowed
+                                              ! We would make this even higher, but making this
+                                              ! a little lower keeps the size down on some output arrays
+                                              ! For large arrays at patch level we use dynamic allocation
 
                                                                       ! parameters that govern the VAI (LAI+SAI) bins used in radiative transfer code
    integer, parameter, public :: nlevleaf = 30                        ! number of leaf+stem layers in each canopy layer
@@ -302,7 +303,7 @@ module EDParamsMod
     sdlng2sap_par_timescale               = nan
     photo_temp_acclim_thome_time          = nan
     fates_mortality_disturbance_fraction  = nan
-    ED_val_comp_excln                     = nan
+    comp_excln_exp                        = nan
     ED_val_vai_top_bin_width              = nan
     ED_val_vai_width_increase_factor      = nan
     ED_val_nignitions                     = nan
@@ -609,7 +610,7 @@ module EDParamsMod
           data=fates_mortality_disturbance_fraction)
 
     call fates_params%RetrieveParameter(name=ED_name_comp_excln, &
-         data=ED_val_comp_excln)
+         data=comp_excln_exp)
 
     call fates_params%RetrieveParameter(name=ED_name_vai_top_bin_width, &
          data=ED_val_vai_top_bin_width)
@@ -824,7 +825,7 @@ module EDParamsMod
         write(fates_log(),fmt0) 'photo_temp_acclim_thome_time (years) = ',photo_temp_acclim_thome_time
         write(fates_log(),fmti) 'hydr_htftype_node = ',hydr_htftype_node
         write(fates_log(),fmt0) 'fates_mortality_disturbance_fraction = ',fates_mortality_disturbance_fraction
-        write(fates_log(),fmt0) 'ED_val_comp_excln = ',ED_val_comp_excln
+        write(fates_log(),fmt0) 'comp_excln_exp = ',comp_excln_exp
         write(fates_log(),fmt0) 'ED_val_vai_top_bin_width = ',ED_val_vai_top_bin_width
         write(fates_log(),fmt0) 'ED_val_vai_width_increase_factor = ',ED_val_vai_width_increase_factor
         write(fates_log(),fmt0) 'ED_val_nignitions = ',ED_val_nignitions

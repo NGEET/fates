@@ -52,23 +52,14 @@ module FatesInterfaceTypesMod
    
    
    character(len=16), public :: hlm_nu_com ! This string defines which soil
-                                                      ! nutrient competition scheme is in use.
-                                                      ! current options with
-                                                      ! E3SM: RD, ECA
-                                                      ! CESM: NONE
-                                                      ! ATS: ?
-                                                      ! NORESM: ?
+                                           ! nutrient competition scheme is in use.
+                                           ! current options with
+                                           ! ELM: RD, ECA
+                                           ! CLM: NONE
+                                           ! ATS: ?
    
-
-   integer, public :: hlm_nitrogen_spec   ! This flag signals which nitrogen
-                                                     ! species are active if any:
-                                                     ! 0: none
-                                                     ! 1: nh4 only
-                                                     ! 2: nh4 and no3
-
-   integer, public :: hlm_phosphorus_spec ! Signals if phosphorous is turned on in the HLM
-                                                     ! 0: none
-                                                     ! 1: p is on
+   integer, public :: hlm_nitrogen_suppl    ! HLM nitrogen supplementation status   (True=Supplementing)
+   integer, public :: hlm_phosphorus_suppl  ! HLM phosphorus supplementation status (True=Supplementing)
 
    real(r8), public :: hlm_stepsize        ! The step-size of the host land model (s)
                                            ! moreover, this is the shortest main-model timestep
@@ -110,6 +101,8 @@ module FatesInterfaceTypesMod
    integer, public :: hlm_spitfire_mode  ! Flag to signal SPITFIRE mode
                                          ! See namelist_definition_clm4_5.xml
                                          ! ignitions: 1=constant, >1=external data sources (lightning and/or anthropogenic)
+
+   integer, public :: hlm_use_managed_fire    ! Flag to enable managed fire mode.  Requires spitfire to be on.
 
    integer, public :: hlm_use_lu_harvest      ! This flag signals whether or not to use
                                                          ! harvest data from the hlm
@@ -795,6 +788,15 @@ module FatesInterfaceTypesMod
       real(r8) :: gpp_site  ! Site level GPP, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
       real(r8) :: ar_site   ! Site level Autotrophic Resp, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
 
+      ! direct carbon loss to atm pathways
+      real(r8) :: grazing_closs_to_atm_si    ! Loss of carbon to atmosphere via grazing [Site-Level, gC m-2 s-1]
+      real(r8) :: fire_closs_to_atm_si       ! Loss of carbon to atmosphere via burning (includes burning from land use change) [Site-Level, gC m-2 s-1]
+
+      ! summary carbon stock variables
+      real(r8) :: veg_c_si                   ! Total vegetation carbon [Site-Level, gC m-2]
+      real(r8) :: litter_cwd_c_si            ! Total litter plus CWD carbon [Site-Level, gC m-2]
+      real(r8) :: seed_c_si                  ! Total seed carbon [Site-Level, gC m-2]
+
    end type bc_out_type
 
 
@@ -831,10 +833,23 @@ module FatesInterfaceTypesMod
                                                 ! increasing, or all 1s)
 
    end type bc_pconst_type
-  
+
+   public :: ZeroBCOutCarbonFluxes
+   
  contains
        
-    ! ======================================================================================
-      
-       
-  end module FatesInterfaceTypesMod
+   ! ======================================================================================
+
+   subroutine ZeroBCOutCarbonFluxes(bc_out)
+
+    ! !ARGUMENTS
+    type(bc_out_type), intent(inout)   :: bc_out
+
+    bc_out%grazing_closs_to_atm_si = nan    ! set via site_mass%burn_flux
+    bc_out%fire_closs_to_atm_si    = nan    ! set via site_mass%herbivory_flux_out
+    bc_out%gpp_site                = 0._r8
+    bc_out%ar_site                 = 0._r8
+
+  end subroutine ZeroBCOutCarbonFluxes
+
+end module FatesInterfaceTypesMod

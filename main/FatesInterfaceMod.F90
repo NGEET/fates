@@ -159,7 +159,7 @@ module FatesInterfaceMod
       ! instance is fine.
       
       type(bc_pconst_type) :: bc_pconst
-      
+
 
    end type fates_interface_type
    
@@ -369,7 +369,14 @@ contains
        write(fates_log(), *) 'hlm_parteh_mode: ',hlm_parteh_mode
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
-    
+
+    ! carbon loss to atmosphere pathways
+    ! (these values are a unit conversion off of the
+    !  equivalent "site_mass%" diagnostics, so they are not
+    !  incremented but set during update_site())
+    fates%bc_out(s)%grazing_closs_to_atm_si = nan
+    fates%bc_out(s)%fire_closs_to_atm_si    = nan
+
     fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
     fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
     
@@ -411,6 +418,10 @@ contains
        fates%bc_in(s)%hlm_luh_states(:) = 0.0_r8
        fates%bc_in(s)%hlm_luh_transitions(:) = 0.0_r8
     end if
+
+    fates%bc_out(s)%veg_c_si        = 0.0_r8
+    fates%bc_out(s)%litter_cwd_c_si = 0.0_r8
+    fates%bc_out(s)%seed_c_si       = 0.0_r8
 
     return
   end subroutine zero_bcs
@@ -1478,9 +1489,7 @@ contains
          hlm_ipedof       = unset_int
          hlm_nu_com      = 'unset'
          hlm_decomp      = 'unset'
-         hlm_nitrogen_spec = unset_int
          hlm_use_tree_damage = unset_int
-         hlm_phosphorus_spec = unset_int
          hlm_use_ch4       = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
@@ -1490,6 +1499,7 @@ contains
          hlm_sf_scalar_lightning_def = unset_int
          hlm_sf_successful_ignitions_def = unset_int
          hlm_sf_anthro_ignitions_def = unset_int
+         hlm_use_managed_fire = unset_int
          hlm_use_planthydro = unset_int
          hlm_use_lu_harvest   = unset_int
          hlm_num_lu_harvest_cats   = unset_int
@@ -1682,21 +1692,9 @@ contains
                write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
                write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
                call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
          end if
-
-            
-         end if
-
-         if(hlm_nitrogen_spec .eq. unset_int) then
-            write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-         if(hlm_phosphorus_spec .eq. unset_int) then
-            write(fates_log(),*) 'FATES parameters unset: hlm_phosphorus_spec, exiting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
+         
          if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
             write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1755,6 +1753,11 @@ contains
          end if
          if(hlm_sf_anthro_ignitions_def .eq. unset_int) then
             write(fates_log(), *) 'definition of anthro-ignition mode unset: hlm_sf_anthig_def, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if(hlm_use_managed_fire .eq. unset_int) then
+            write(fates_log(), *) 'switch for managed fire mode unset: hlm_use_managed_fire, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -1907,18 +1910,6 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_tree_damage = ',ival,' to FATES'
                end if
                
-            case('nitrogen_spec')
-               hlm_nitrogen_spec = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_nitrogen_spec = ',ival,' to FATES'
-               end if
-
-            case('phosphorus_spec')
-               hlm_phosphorus_spec = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_phosphorus_spec = ',ival,' to FATES'
-               end if
-
             case('use_ch4')
                hlm_use_ch4 = ival
                if (fates_global_verbose()) then
@@ -1942,9 +1933,6 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_seeddisp_cadence= ',ival,' to FATES'
                end if
-
-           
-               
                
             case('spitfire_mode')
                hlm_spitfire_mode = ival
@@ -1976,6 +1964,12 @@ contains
                   write(fates_log(),*) 'Transfering hlm_sf_anthro_ignition_def =',ival,' to FATES'
                end if
 
+            case('use_managed_fire')
+               hlm_use_managed_fire = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_managed_fire =',ival,' to FATES'
+              end if
+              
                
             case('use_fixed_biogeog')
                 hlm_use_fixed_biogeog = ival
@@ -2287,7 +2281,7 @@ contains
               ! vegetation.
               
               call SeedlingParPatch(cpatch, &
-                   bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar), &
+                   bc_in(s)%solad_parb(ifp,ipar),bc_in(s)%solai_parb(ifp,ipar), &
                    seedling_par_high, par_high_frac, seedling_par_low,&
                    & par_low_frac)
               
@@ -2355,7 +2349,7 @@ end subroutine UpdateFatesRMeansTStep
 ! ========================================================================================
 
 subroutine SeedlingParPatch(cpatch, & 
-     atm_par, & 
+     atm_par_dir,atm_par_dif, & 
      seedling_par_high, par_high_frac, &
      seedling_par_low, par_low_frac)
 
@@ -2374,7 +2368,8 @@ subroutine SeedlingParPatch(cpatch, &
 
   ! Arguments
   type(fates_patch_type)   :: cpatch             ! the current patch
-  real(r8), intent(in)  :: atm_par            ! direct+diffuse PAR at canopy top [W/m2]
+  real(r8), intent(in)  :: atm_par_dir        ! direct PAR at canopy top [W/m2]
+  real(r8), intent(in)  :: atm_par_dif        ! diffuse PAR at canopy top [W/m2]
   real(r8), intent(out) :: seedling_par_high  ! High intensity PAR for seedlings [W/m2]
   real(r8), intent(out) :: par_high_frac      ! Area fraction with high intensity
   real(r8), intent(out) :: seedling_par_low   ! Low intensity PAR for seedlings [W/m2]
@@ -2388,7 +2383,7 @@ subroutine SeedlingParPatch(cpatch, &
   integer  :: iv         ! lower-most leaf layer index for the cl & pft combo
 
   ! Start with the assumption that there is a single canopy layer
-  seedling_par_high = atm_par
+  seedling_par_high = atm_par_dir+atm_par_dif
   par_high_frac     = 1._r8-cpatch%total_canopy_area
   par_low_frac      = cpatch%total_canopy_area
 
@@ -2401,7 +2396,8 @@ subroutine SeedlingParPatch(cpatch, &
         ! Avoid calculating when there are no leaf layers for the given pft in the current canopy layer
         if (iv .ne. 0) then
            cl_par = cl_par + cpatch%canopy_area_profile(cl,ipft,1)* &
-                (cpatch%parprof_pft_dir_z(cl,ipft,iv)+cpatch%parprof_pft_dif_z(cl,ipft,iv))
+                (atm_par_dir*cpatch%nrmlzd_parprof_pft_dir_z(cl,ipft,iv) + &
+                 atm_par_dif*cpatch%nrmlzd_parprof_pft_dif_z(cl,ipft,iv))
            cl_area = cl_area + cpatch%canopy_area_profile(cl,ipft,1)
         end if
      end do
