@@ -562,6 +562,19 @@ contains
                litt%seed_germ_in(pft) - &
                litt%seed_germ_decay(pft)
 
+          ! RW BEBUG BLOCK START 
+            write(fates_log(),*) '=== PreDisturbanceIntegrateLitter DIAGNOSTICS ==='
+            write(fates_log(),*) 'Model Day:', hlm_model_day
+            write(fates_log(),*) 'PFT:', pft
+            write(fates_log(),*) 'seed_germ (before update):', litt%seed_germ(pft) - litt%seed_germ_in(pft) + &
+            litt%seed_germ_decay(pft)
+            write(fates_log(),*) 'seed_germ_in:', litt%seed_germ_in(pft)
+            write(fates_log(),*) 'seed_germ_decay:', litt%seed_germ_decay(pft)
+            write(fates_log(),*) 'seed_germ (after update):', litt%seed_germ(pft)
+            write(fates_log(),*) 'Net change:', litt%seed_germ_in(pft) - litt%seed_germ_decay(pft)
+            write(fates_log(),*) 'Decay exceeds pool?:', litt%seed_germ(pft) < 0.0_r8
+          ! RW DEBUG BLOCK END 
+
        enddo
 
        ! Update the Coarse Woody Debris pools (above and below)
@@ -2336,19 +2349,24 @@ contains
                (litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
                * years_per_day)
 
-          ! DEBUG BLOCK START 
-            write(fates_log(),*) '===DEBUG SEED DECAY===='
+          ! RW DEBUG BLOCK START 
+            write(fates_log(),*) '===SEED DECAY DIADNOSTICS===='
             write(fates_log(),*) 'Model Day = ', hlm_model_day
             write(fates_log(),*) 'PFT:', pft 
             write(fates_log(),*) 'Seedling par (raw):', currentPatch%sdlng_mort_par%GetMean()
             write(fates_log(),*) 'Seedling par (converted):', seedling_layer_par
-            write(fates_log(),*) 'Seedling light mort rate:', seedling_light_mort_rate
-            write(fates_log(),*) 'Seedling mdds:', seedling_light_mort_rate     
+            write(fates_log(),*) 'Seedling mdds:', currentPatch%sdlng_mdd(pft)%p%GetMean()     
             write(fates_log(),*) 'Seedling mdd crit:', EDPftvarcon_inst%seedling_mdd_crit(pft) 
-            write(fates_log(),*) 'Seedling h2o mort rate:', seedling_h2o_mort_rate      
-            write(fates_log(),*) 'Seed germ pool:', litt%seed_germ(pft)
-            write(fates_log(),*) 'Seed germ decay:',litt%seed_germ_decay(pft)
-          ! DEBUG BLOCK END
+            write(fates_log(),*) 'Seedling light mort rate:', seedling_light_mort_rate
+            write(fates_log(),*) 'Seedling h2o mort rate:', seedling_h2o_mort_rate
+            write(fates_log(),*) 'Seed_germ pool (before decay):', litt%seed_germ(pft)
+            write(fates_log(),*) 'Seed_germ_decay (calculated):', litt%seed_germ_decay(pft)            
+            write(fates_log(),*) 'Background_seedling_mort:', EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day
+            write(fates_log(),*) 'Total mort rate:', seedling_light_mort_rate + seedling_h2o_mort_rate + &
+               (EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day)
+            write(fates_log(),*) 'Does seed decay exceeds pool?:', litt%seed_germ_decay(pft) > litt%seed_germ(pft)
+         ! RW DEBUG BLOCK END
+
 
        else
           
@@ -2462,6 +2480,19 @@ contains
 
           ! Step 4. Calculate the amount of carbon germinating out of the seed bank
           litt%seed_germ_in(pft) = litt%seed(pft) * seedling_emerg_rate
+
+          ! RW DEBUG BLOCK START 
+          write(fates_log(),*) '=== SeedGermination DIAGNOSTICS ==='
+          write(fates_log(),*) 'Model Day:', hlm_model_day
+          write(fates_log(),*) 'PFT:', pft
+          write(fates_log(),*) 'seed pool:', litt%seed(pft)
+          write(fates_log(),*) 'seedling_layer_par:', seedling_layer_par
+          write(fates_log(),*) 'photoblastic_germ_modifier:', photoblastic_germ_modifier
+          write(fates_log(),*) 'seedling_layer_smp:', seedling_layer_smp
+          write(fates_log(),*) 'wetness_index:', wetness_index
+          write(fates_log(),*) 'seedling_emerg_rate:', seedling_emerg_rate
+          write(fates_log(),*) 'seed_germ_in (calculated):', litt%seed_germ_in(pft)          
+         ! RW DEBUG BLOCK END 
 
        end if if_tfs_or_def
 
@@ -2685,19 +2716,6 @@ contains
                         currentPatch%litter(el)%seed_germ(ft)*                 & 
                         EDPftvarcon_inst%seedling_light_rec_a(ft)*             &
                         sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft) 
-
-                      ! DEBUG BLOCK START
-                        write(fates_log(),*) '=== DEBUG RECRUITMENT TRS ==='
-                        write(fates_log(),*) 'Model day:', hlm_model_day
-                        write(fates_log(),*) 'PFT:', ft
-                        write(fates_log(),*) 'Element:', element_id
-                        write(fates_log(),*) 'sdlng2sap_par (raw):', currentPatch%sdlng2sap_par%GetMean()
-                        write(fates_log(),*) 'sdlng2sap_par (converted):', sdlng2sap_par
-                        write(fates_log(),*) 'seed_germ before calc:', currentPatch%litter(el)%seed_germ(ft)
-                        write(fates_log(),*) 'seedling_light_rec_a:', EDPftvarcon_inst%seedling_light_rec_a(ft)
-                        write(fates_log(),*) 'seedling_light_rec_b:', EDPftvarcon_inst%seedling_light_rec_b(ft)
-                        write(fates_log(),*) 'currentPatch%area:', currentPatch%area
-                      ! DEBUG BLOCK END
                      
                      ! If soil moisture is below pft-specific seedling  moisture stress threshold the 
                      ! recruitment does not occur.
@@ -2710,12 +2728,20 @@ contains
                         mass_avail = 0.0_r8
                      end if 
 
-                     ! DEBUG BLOCK START
+                     ! RW DEBUG BLOCK START
+                     write(fates_log(),*) '=== recruitment DIAGNOSTICS ==='
+                     write(fates_log(),*) 'Model Day:', hlm_model_day
+                     write(fates_log(),*) 'PFT:', ft
+                     write(fates_log(),*) 'Element:', element_id
+                     write(fates_log(),*) 'Seed_germ', currentPatch%area*    &
+                        currentPatch%litter(el)%seed_germ(ft)
+                     write(fates_log(),*) 'Mass_avail', mass_avail
+                     write(fates_log(),*) 'Mass_demand', mass_demand
                      write(fates_log(),*) 'ilayer_seedling_root', ilayer_seedling_root
                      write(fates_log(),*) 'seedling_layer_smp', seedling_layer_smp
                      write(fates_log(),*) 'seedling_psi_crit', EDPftvarcon_inst%seedling_psi_crit(ft)
-                     write(fates_log(),*) 'mass_avail after calc:', mass_avail
-                     ! DEBUG BLOCK END
+                     write(fates_log(),*) 'sdlng2sap_par', sdlng2sap_par
+                     ! RW DEBUG BLOCK END
 
                   end if ! End use TRS with seedling dynamics
 
@@ -2814,6 +2840,18 @@ contains
                      currentPatch%litter(el)%seed_germ(ft) =                   &
                      currentPatch%litter(el)%seed_germ(ft) - cohort_n / currentPatch%area *   &
                      (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
+                     
+                   ! RW DEBUG BLOCK START 
+                     write(fates_log(),*) '=== recruitment remove mass DIAGNOSTICS ==='
+                     write(fates_log(),*) 'cohort_n:', cohort_n
+                     write(fates_log(),*) 'currentPatch%area:', currentPatch%area
+                     write(fates_log(),*) 'cohort_n / area:', cohort_n / currentPatch%area
+                     write(fates_log(),*) 'm demand', (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
+                     write(fates_log(),*) 'm removed from seed_germ', cohort_n / currentPatch%area *   &
+                     (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
+                     write(fates_log(),*) 'Is seed_germ negative?:', currentPatch%litter(el)%seed_germ(ft) < 0.0_r8
+                   ! RW DEBUG BLOCK END 
+
                   end if
                   
                end do
