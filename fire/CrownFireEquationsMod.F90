@@ -110,7 +110,7 @@ module CrownFireEquationsMod
     if(i_r <= nearzero .or. xi <= nearzero .or. canopy_bulk_density <= nearzero) then
       CI_temp = 0.0_r8
     else
-      CI_temp = (3.0_r8/canopy_bulk_density*heatsink) / (3.34_r8*i_r*xi) - 1.0_r8
+      CI_temp = (3.0_r8/canopy_bulk_density*heat_sink) / (3.34_r8*i_r*xi) - 1.0_r8
     end if
     b = 0.15988_r8*(SAV**0.54_r8)
     c = 7.47_r8*(exp(-0.8711_r8*(SAV**0.55_r8)))
@@ -240,8 +240,8 @@ module CrownFireEquationsMod
     real(r8)              :: i_r_fm10          ! reaction intensity for FM 10 [kJ/m2/min]
     real(r8)              :: xi_fm10           ! propagating flux ratio for FM 10 [unitless]
     real(r8)              :: phi_wind_fm10     ! wind factor for FM 10 [unitless]
-    real(r8)              :: q_ig_fm10(num_fuel_classes) ! heat of pre-ignition for FM 10 [kJ/kg]
-    real(r8)              :: eps_fm10(num_fuel_classes)  ! effective heating number for FM 10 [unitless]
+    real(r8)              :: q_ig_fm10         ! heat of pre-ignition for FM 10 [kJ/kg]
+    real(r8)              :: eps_fm10          ! effective heating number for FM 10 [unitless]
 
     ! Parameters for fuel model 10 to describe fuel characteristics; and some constants 
     ! fuel loading, MEF, and depth from Anderson 1982 Aids to determining fuel models for fire behavior
@@ -292,7 +292,7 @@ module CrownFireEquationsMod
 
     ! use total fuel and fuel bed depth to calculate fuel bulk density
     fuel_depth       = fuel_depth_ft * ft_to_meter           !convert to meters
-    fuel_bd          = total_fuel/fuel_depth                 !fuel bulk density (kg biomass/m3)
+    fuel_bd          = fuel_fm10%non_trunk_loading/fuel_depth                 !fuel bulk density (kg biomass/m3)
 
     ! remove mineral content, this fuel is in kg biomass m-2
     fuel_fm10%non_trunk_loading = fuel_fm10%non_trunk_loading*(1.0_r8 - SF_val_miner_total)
@@ -311,7 +311,7 @@ module CrownFireEquationsMod
     ! XLG: I used calculated MEF instead of the constant MEF from fm10
     q_ig_fm10 = HeatofPreignition(fuel_fm10%average_moisture_notrunks)
 
-    eps_fm10 = EffectiveHeatingNumber(fue_fm10%SAV_notrunks)
+    eps_fm10 = EffectiveHeatingNumber(fuel_fm10%SAV_notrunks)
 
     ! Scott & Reinhardt 2001 use 40% of open wind speed as effective wind speed
     midflame_wind = wind * 0.40_r8 
