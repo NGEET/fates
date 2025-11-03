@@ -29,6 +29,9 @@ module SFMainMod
   use FatesLitterMod,         only : litter_type
   use FatesFuelClassesMod,    only : num_fuel_classes
   use PRTGenericMod,          only : carbon12_element
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : sapw_organ
+  use PRTGenericMod,          only : struct_organ
   use FatesInterfaceTypesMod, only : numpft
   use FatesAllometryMod,      only : CrownDepth
   use FatesFuelClassesMod,    only : fuel_classes
@@ -58,9 +61,11 @@ contains
     if (hlm_spitfire_mode > hlm_sf_nofire_def) then
       call UpdateFireWeather(currentSite, bc_in)
       call UpdateFuelCharacteristics(currentSite)
+      call UpdateCanopyFuelCharacteristics(currentSite, bc_in)
       call CalculateIgnitionsandFDI(currentSite, bc_in)
       call CalculateSurfaceRateOfSpread(currentSite)
       call CalculateSurfaceFireIntensity(currentSite)
+      call PassiveActiveCrownFireCheck(currentSite)
       call CalculateAreaBurnt(currentSite)
       call CalculateRxFireAreaBurnt(currentSite)
       call CalculatePostFireMortality(currentSite)
@@ -148,7 +153,7 @@ contains
     !  Updates fuel characteristics on each patch of the site
     !
 
-    use SFParamsMod, only : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
+    use SFParamsMod,     only : SF_val_drying_ratio, SF_val_SAV, SF_val_FBD
 
     ! ARGUMENTS:
     type(ed_site_type), intent(in), target :: currentSite  ! site object
@@ -189,6 +194,182 @@ contains
     end do 
 
   end subroutine UpdateFuelCharacteristics
+
+  !---------------------------------------------------------------------------------------
+
+  subroutine UpdateCanopyFuelCharacteristics(currentSite, bc_in)
+    !
+    ! DESCRIPTION:
+    ! Calculate canopy fuel load (sum of all 1 hour live fuels, in kg biomass),
+    ! canopy base height (minimum canopy height at which canopy fuel bed density > 0.011 kg/m3 for 
+    ! vertical fire spread through canopy), and canopy bulk desity (kg biomass/m3)
+    !
+    use FatesLitterMod,         only : ncwd
+    use SFParamsMod,            only : SF_val_CWD_frac
+    use FatesLitterMod,         only : adjust_SF_CWD_frac
+    use CrownFireEquationsMod,  only : MaxHeight
+    use CrownFireEquationsMod,  only : BiomassBin
+    use CrownFireEquationsMod,  only : LiveFuelMoistureContent
+    use EDTypesMod,             only : numWaterMem
+    use FatesInterfaceTypesMod, only : hlm_use_planthydro
+    use FatesConstantsMod,      only : denh2o => dens_fresh_liquid_water
+    use FatesHydraulicsMemMod,  only : n_hypool_leaf
+    use FatesHydraulicsMemMod,  only : ed_cohort_hydr_type
+
+    ! ARGUMENTS:
+    type(ed_site_type), intent(inout), target :: currentSite  ! site object
+    type(bc_in_type),   intent(in)            :: bc_in
+
+   
+    type(fates_patch_type),   pointer  :: currentPatch   ! FATES patch
+    type(fates_cohort_type),   pointer :: currentCohort  ! FATES cohort
+    type(ed_cohort_hydr_type), pointer :: ccohort_hydr   ! current cohort hyro-derived type
+
+    ! Locals:
+    real(r8) ::  crown_depth          ! depth of crown [m]
+    real(r8) ::  cbh_co               ! canopy base height of cohort [m]
+    real(r8) ::  max_height           ! max cohort height on patch (m)
+    real(r8) ::  woody_c              ! above-ground tree struct and sapwood biomass in cohort (kgC)
+    real(r8) ::  leaf_c               ! leaf carbon (kgC)
+    real(r8) ::  sapw_c               ! sapwood carbon (kgC)
+    real(r8) ::  struct_c             ! structure carbon (kgC)
+    real(r8) ::  canopy_fuel_1h               ! leaf + 1-hour woody fuel [kg biomass]
+    real(r8) ::  SF_val_CWD_frac_adj(ncwd)    ! adjusted fractional allocation of woody biomass to coarse wood debris pool
+    real(r8) ::  mean_10day_smp(numpft)       ! averaged 10 day soil matric potential for each PFT 
+    real(r8) ::  water_mass                   ! canopy water mass per individual plant (kgH2O/plant)
+    integer  ::  ipft                         ! pft index
+    real(r8), allocatable :: biom_matrix(:)   ! matrix to track biomass from bottom to top
+
+    ! Parameters
+    real(r8), parameter :: carbon_2_biomass = 0.45_r8
+    ! LFMC parameters for testing
+    real(r8), parameter :: min_lfmc = 80.0_r8
+    real(r8), parameter :: coeff_lfmc = 30.0_r8
+    real(r8), parameter :: smp_alpha = 4E-4_r8
+    real(r8), parameter :: lai_beta = 0.15_r8
+    real(r8), parameter :: gamma_int = 0.0_r8
+
+    ! update site level soil matric potential for each PFT
+    mean_10day_smp(:) = 0.0_r8
+
+    do ipft=1,numpft
+      if(int(prt_params%woody(ipft)) == itrue) then 
+         mean_10day_smp(ipft) = sum(currentSite%smp_memory(1:numWaterMem,ipft)) / &
+                                real(numWaterMem,r8)
+         
+      end if
+    end do
+
+    currentPatch => currentSite%oldest_patch
+
+    do while(associated(currentPatch))
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground) then
+        !zero Patch level variables
+        max_height                            = 0.0_r8
+        currentPatch%fuel%canopy_fuel_load    = 0.0_r8
+        currentPatch%fuel%canopy_bulk_density = 0.0_r8
+        currentPatch%fuel%canopy_base_height  = 0.0_r8
+        currentPatch%fuel%canopy_water_content = 0.0_r8
+      
+        ! find the max cohort height to set the upper bounds of biom_matrix
+        currentCohort=>currentPatch%tallest
+        do while(associated(currentCohort))
+
+          if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees
+
+            call MaxHeight(currentCohort%height, max_height)         
+          end if ! trees only
+          currentCohort => currentCohort%shorter;
+        end do ! end cohort loop
+
+        !allocate and initialize biom_matrix
+        allocate(biom_matrix(0:int(max_height)))
+        biom_matrix(:) = 0.0_r8
+    
+
+        !loop across cohorts to calculate canopy fuel load by 1m height bin
+        currentCohort => currentPatch%tallest
+        
+        do while(associated(currentCohort))
+          !zero cohort level variables
+          woody_c            = 0.0_r8
+          leaf_c             = 0.0_r8
+          sapw_c             = 0.0_r8
+          struct_c           = 0.0_r8
+          crown_depth        = 0.0_r8
+          cbh_co             = 0.0_r8
+          SF_val_CWD_frac_adj(ncwd) = 0.0_r8
+
+      
+          ! Calculate crown 1hr fuel biomass (leaf, twig sapwood, twig structural biomass)
+          if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees
+            ! calculate canopy base height for cohort, this is a different concept than the canopy fuel bed base height
+            call CrownDepth(currentCohort%height,currentCohort%pft,crown_depth)
+            cbh_co = currentCohort%height - crown_depth
+        
+            leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
+            sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
+            struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
+  
+            woody_c  = currentCohort%n * (prt_params%allom_agb_frac(currentCohort%pft)* &
+                        (sapw_c + struct_c)) / carbon_2_biomass
+            leaf_c   = currentCohort%n * leaf_c / carbon_2_biomass
+            
+            call adjust_SF_CWD_frac(currentCohort%dbh, ncwd, SF_val_CWD_frac, SF_val_CWD_frac_adj)
+
+            ! update canopy fuel load 
+            call currentPatch%fuel%CalculateCanopyFuelLoad(leaf_c, woody_c,  &
+            SF_val_CWD_frac_adj, canopy_fuel_1h)
+            currentCohort%canopy_fuel_1h = canopy_fuel_1h
+            ! 1m biomass bin
+            call BiomassBin(cbh_co, currentCohort%height, crown_depth, canopy_fuel_1h, biom_matrix)
+
+            ! calculate live canopy water content for current cohort 
+            ! either using statistic model- or hydro-derived cwc 
+            if (hlm_use_planthydro == itrue) then
+               ccohort_hydr => currentCohort%co_hydr
+               water_mass = ccohort_hydr%th_ag(n_hypool_leaf) * ccohort_hydr%v_ag(n_hypool_leaf) * &
+                            denh2o * currentCohort%n
+               currentCohort%lfmc = water_mass / leaf_c * 100.0_r8 ! leaf water content in percent
+            else
+              currentCohort%lfmc = LiveFuelMoistureContent(currentCohort%treelai, &
+                       mean_10day_smp(currentCohort%pft), &
+                       min_lfmc, coeff_lfmc, smp_alpha, lai_beta, gamma_int)
+            end if
+            write(fates_log(),*) 'current cohort cwc is ', currentCohort%lfmc
+
+          end if ! trees only
+          currentCohort => currentCohort%shorter;
+        end do ! end cohort loop
+        write(fates_log(),*) 'current patch canopy fuel is ', currentPatch%fuel%canopy_fuel_load
+
+        ! loop across cohorts to calculate patch level canopy water content
+        currentCohort => currentPatch%tallest
+
+        do while(associated(currentCohort))
+         if ( int(prt_params%woody(currentCohort%pft)) == itrue) then !trees
+            call currentPatch%fuel%CanopyWaterContent(currentCohort%lfmc, &
+            currentCohort%canopy_fuel_1h)
+         end if
+         currentCohort => currentCohort%shorter;
+        end do
+
+        biom_matrix(:) = biom_matrix(:) / currentPatch%area ! kg biomass / m3
+        ! update canopy fuel bulk density and canopy base height
+        call currentPatch%fuel%CalculateCanopyBulkDensity(biom_matrix, max_height)
+        write(fates_log(),*) 'current patch CBD is ', currentPatch%fuel%canopy_bulk_density
+        write(fates_log(),*) 'current patch canopy base height is ', currentPatch%fuel%canopy_base_height
+
+        deallocate(biom_matrix)
+
+      end if ! nocomp_bareground 
+      currentPatch => currentPatch%younger;
+    end do ! end patch loop
+
+  end subroutine UpdateCanopyFuelCharacteristics
+
+     
+      
 
   !---------------------------------------------------------------------------------------
   
@@ -444,6 +625,185 @@ contains
   end subroutine CalculateSurfaceFireIntensity
    
   !---------------------------------------------------------------------------------------
+
+  subroutine PassiveActiveCrownFireCheck(currentSite)
+    !
+    ! DESCRIPTION:
+    ! 1) Calculate theoretical active crown fire ROS (R_active) using fuel model 10 and Rothermel's ROS model
+    ! XLG: the calculation of R_active can also incluede canopy bulk density (CBD) and canopy water content (see EQ. 10),
+    ! but those are currently ignored in Scott & Reinhardt 2001 due to contrasting effects of CBD on R_active in lit.,
+    ! and the difficulty of obtaining a base-line FME (see discussion in Scott & Reinhardt 2001 pg12-13) 
+    ! 2) Calculate the critical mass flow rate for sustaining a fully active crown fire given current
+    ! canopy bulk density, which is R'_active in Scott & Reinhardt 2001; 
+    ! 3) Calculate the critical open wind speed for sustaining a fully active crown fire, AKA crowning index (CI)
+    ! using FM10 fuel characteristics 
+    ! and the theoretical surface fire ROS (R'_SA, will be used in calculating final ROS for crown fire) using CI
+    ! XLG: I'm not sure what SAV value they used in Scott & Reinhardt 2001 to calculate CI,
+    ! Sam Levis used SAV values from the BEHAVE model, but when use that to calculate some constants and comapre
+    ! to EQ. 20 it doesn't seem right to me. This is something we have to discuss
+    ! 4) Calculate the critical surface fire ROS (R'_initiation) for initiating a crown fire 
+    ! 5) Determine passive or active crown fire by comparing current surface ROS_front to R'_initiation, and
+    ! R_active to R'_active. Passive: ROS_front > R'_initiation but R_active < R'_active; 
+    ! Active: ROS_front > R'_initiation and R_active > R'_active. Note: FI > FI_init is equivalent to ROS_front > R'_initiation
+    ! 6) Calculate new ROS and FI and update ROS_front and FI   
+    !
+    use SFParamsMod,    only : SF_val_miner_total, SF_val_part_dens, SF_val_drying_ratio
+    use EDParamsMod,    only : crown_fire_switch
+    use EDTypesMod,     only : CalculateTreeGrassAreaSite
+    use SFEquationsMod, only : OptimumPackingRatio, ReactionIntensity
+    use SFEquationsMod, only : HeatofPreignition, EffectiveHeatingNumber
+    use SFEquationsMod, only : WindFactor, PropagatingFlux
+    use SFEquationsMod, only : ForwardRateOfSpread
+    use CrownFireEquationsMod, only : CrownFireBehaveFM10, CrownFireCFB
+    use CrownFireEquationsMod, only : PassiveCrownFireIntensity, HeatReleasePerArea
+    use CrownFireEquationsMod, only : CrowningIndex, CrownFireIntensity
+
+    ! ARGUMENTS:
+    type(ed_site_type), intent(inout), target :: currentSite
+
+    ! LOCALS:
+    type(fates_patch_type), pointer :: currentPatch                    ! patch object
+
+
+    real(r8)                        :: FI_init           ! critical surface fire intensity for initiating a crown fire [kW/m or kJ/m/s]
+    real(r8)                        :: HPA               ! heat release per unit area [kW/m2]
+    real(r8)                        :: ROS_init          ! critical surface ROS for initiating a crown fire [m/min]
+    real(r8)                        :: ROS_active_min    ! critical ROS for sustaining a fully active crown fire [m/min]
+    real(r8)                        :: ROS_active        ! theoretical crown fire rate of spread using FM 10 fuels [m/min]
+    real(r8)                        :: ROS_final         ! final ROS when a crown fire happens [m/min]
+    real(r8)                        :: FI_final          ! final fireline intensity with crown consumption [kW/m or kJ/m/s]
+    real(r8)                        :: crown_frac_burnt  ! patch level crown fraction burnt to calculate final crown fire intensty [fraction]
+    integer                         :: active_crownfire  ! 1 = active crown fire
+    integer                         :: passive_crownfire ! 1 = passive crown fire
+
+
+    ! local variables for calculating ROS_SA based on current patch fuel condition
+    real(r8)                        :: ROS_SA            ! surface ROS calculated at open wind speed of CI [m/min]
+    real(r8)                        :: beta         ! packing ratio of current patch [unitless]
+    real(r8)                        :: beta_op      ! optimum packing ratio of current patch [unitless]
+    real(r8)                        :: beta_ratio   ! relative packing ratio of current patch [unitless]
+    real(r8)                        :: i_r          ! reaction intensity of current patch [kJ/m2/min]
+    real(r8)                        :: xi           ! propagating flux ratio of current patch [unitless]
+    real(r8)                        :: eps          ! effective heating number of current patch [unitless]
+    real(r8)                        :: tree_fraction     ! site-level tree fraction [0-1]
+    real(r8)                        :: grass_fraction    ! site-level grass fraction [0-1]
+    real(r8)                        :: bare_fraction     ! site-level bare ground fraction [0-1]
+    real(r8)                        :: CI                ! crowning index: open wind speed to sustain active crown fire [km/hr]
+    real(r8)                        :: CI_effective      ! effective wind speed using CI [m/min]
+    real(r8)                        :: phi_wind_SA       ! wind factor for calculating ROS_SA [unitless]
+    real(r8)                        :: q_ig         ! heat of pre-ignition of current patch [kJ/kg]
+
+    ! Local parameters
+    real(r8), parameter :: wind_atten_tree = 0.4_r8                    ! wind attenuation factor for tree fraction
+    real(r8), parameter :: wind_atten_grass = 0.6_r8                   ! wind attenuation factor for grass fraction
+
+
+    currentPatch => currentSite%oldest_patch
+    do while(associated(currentPatch))
+      ! initialize patch level variables
+      currentPatch%passive_crown_fire = 0
+      currentPatch%active_crown_fire = 0
+
+      if (currentPatch%nocomp_pft_label /= nocomp_bareground .and.         &
+      currentPatch%fire == itrue .and. crown_fire_switch) then
+        ! calculate passive crown fire intensity, the minimum surface FI to initiate a crown fire
+        FI_init = PassiveCrownFireIntensity(currentPatch%fuel%canopy_base_height, &
+                                            currentPatch%fuel%canopy_water_content)
+
+        write(fates_log(),*) 'FI_init is ', FI_init 
+        write(fates_log(),*) 'FI is ', currentPatch%FI
+        
+        ! check if there is a crown fire 
+        if (currentPatch%FI > FI_init ) then
+          ! calculate ROS_active and CI using fuel characteristics from fuel model 10
+          call CrownFireBehaveFM10(currentSite%fireWeather, SF_val_drying_ratio, &
+         currentSite%wind, currentPatch%fuel%canopy_bulk_density, ROS_active, CI)
+
+          ! Calculate ROS_acitive_min, EQ 14 in Scott & Reinhardt 2001
+          ROS_active_min = 3.0_r8 / currentPatch%fuel%canopy_bulk_density
+
+          ! Calculate ROS_SA using current patch fuel conditions
+          beta = currentPatch%fuel%bulk_density_notrunks/SF_val_part_dens
+          beta_op = OptimumPackingRatio(currentPatch%fuel%SAV_notrunks)
+
+          if (beta_op < nearzero) then 
+            beta_ratio = 0.0_r8
+          else
+            beta_ratio = beta/beta_op 
+          end if
+
+          i_r = ReactionIntensity(currentPatch%fuel%non_trunk_loading/0.45_r8, &
+            currentPatch%fuel%SAV_notrunks, beta_ratio,                        &
+            currentPatch%fuel%average_moisture_notrunks, currentPatch%fuel%MEF_notrunks)
+          q_ig = HeatofPreignition(currentPatch%fuel%average_moisture_notrunks)
+          eps = EffectiveHeatingNumber(currentPatch%fuel%SAV_notrunks)
+
+
+          ! calculate effective wind speed at CI
+          ! XLG: this is the disconnection from ROS_active calculation, where they used midflame wind speed 
+          ! as effective wind speed. But it might also make sense as ROS_active is theoretical crown fire
+          ! rate of spread, and ROS_SA is just the surface fire rate of spread at crowning index wind speed,
+          ! so it makes senses to consider wind attenuation for grass cover as it's still surface fire??
+
+          call CalculateTreeGrassAreaSite(currentSite,tree_fraction, grass_fraction, bare_fraction)
+          CI_effective = CI * (tree_fraction*wind_atten_tree + &
+          (grass_fraction + bare_fraction)*wind_atten_grass)
+          ! phi_wind
+          phi_wind_SA = WindFactor(CI_effective, beta_ratio,   &
+              currentPatch%fuel%SAV_notrunks)
+          xi = PropagatingFlux(beta, currentPatch%fuel%SAV_notrunks)
+          ! calculate surface fire spread rate at CI 
+          ROS_SA = ForwardRateOfSpread(currentPatch%fuel%bulk_density_notrunks, &
+              eps, q_ig, i_r, xi, phi_wind_SA)
+          
+          ! Calculate ROS_init, EQ. 12 in Scott & Reinhardt 2001
+          ! first calculate heat release per unit area [kW/m2]
+          HPA = HeatReleasePerArea(currentPatch%fuel%SAV_notrunks, i_r)
+          ROS_init = (60.0_r8 * FI_init) / HPA 
+
+          ! Now check if there is passive or active crown fire and calculate crown fraction burnt (CFB)
+          ! XLG: there are alternative ways to calculate CFB, see pg 39-41 in Scott & Reinhardt 2001
+          call CrownFireCFB(ROS_active, ROS_active_min, currentPatch%ROS_front, &
+          ROS_init, ROS_SA, active_crownfire, passive_crownfire, crown_frac_burnt)
+
+          currentPatch%active_crown_fire = active_crownfire
+          currentPatch%passive_crown_fire = passive_crownfire
+          
+          ! calculate ROS_final EQ. 21 in Scott & Reinhardt 2001
+          ROS_final = currentPatch%ROS_front + crown_frac_burnt * &
+                      ( ROS_active - currentPatch%ROS_front)
+          
+          ! calculate final fire intensity by accounting for burned canopy fuels
+          ! EQ. 22 in Scott & Reinhardt 2001
+          FI_final = CrownFireIntensity(HPA, currentPatch%fuel%canopy_fuel_load, &
+          currentPatch%area, crown_frac_burnt, ROS_final)
+
+          write(fates_log(),*) 'FI_final is ', FI_final
+          write(fates_log(),*) 'passive crown fire is ', currentPatch%passive_crown_fire
+          write(fates_log(),*) 'active crown fire is ', currentPatch%active_crown_fire
+          write(fates_log(),*) 'FI final is ', FI_final
+          write(fates_log(),*) 'ROS final is  ', ROS_final 
+          write(fates_log(),*) 'ROS_active is ', ROS_active
+          write(fates_log(),*) 'ROS_active_min is ', ROS_active_min
+          write(fates_log(),*) 'HPA is ', HPA
+
+
+          ! only update FI and ROS_front when CFB > 0
+          if (crown_frac_burnt > 0.0_r8) then
+            currentPatch%ROS_front = ROS_final
+            currentPatch%FI = FI_final
+          end if
+
+        end if ! end check if there is a crown fire 
+      end if ! if there is a fire 
+
+          
+      currentPatch => currentPatch%younger 
+    end do ! end patch loop
+
+  end subroutine PassiveActiveCrownFireCheck
+
+  !---------------------------------------------------------------------------------------
   
   subroutine CalculateAreaBurnt(currentSite)
     !
@@ -611,7 +971,14 @@ contains
               ! calculate crown fraction burned [0-1]
               call CrownDepth(currentCohort%height, currentCohort%pft, crown_depth) 
               currentCohort%fraction_crown_burned = CrownFractionBurnt(currentPatch%Scorch_ht(currentCohort%pft),  &
-                currentCohort%height, crown_depth)
+              currentCohort%height, crown_depth)
+              
+              ! If there is an active crown fire, we set CFB to 1
+              if(currentPatch%active_crown_fire == 1)then
+                currentCohort%fraction_crown_burned = 1.0_r8
+              end if
+
+
                       
               ! shrink canopy to account for burnt section
               ! currentCohort%canopy_trim = min(currentCohort%canopy_trim, 1.0_r8 - currentCohort%fraction_crown_burned)
