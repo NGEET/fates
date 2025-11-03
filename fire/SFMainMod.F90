@@ -29,6 +29,9 @@ module SFMainMod
   use FatesLitterMod,         only : litter_type
   use FatesFuelClassesMod,    only : num_fuel_classes
   use PRTGenericMod,          only : carbon12_element
+  use PRTGenericMod,          only : leaf_organ
+  use PRTGenericMod,          only : sapw_organ
+  use PRTGenericMod,          only : struct_organ
   use FatesInterfaceTypesMod, only : numpft
   use FatesAllometryMod,      only : CrownDepth
   use FatesFuelClassesMod,    only : fuel_classes
@@ -293,7 +296,6 @@ contains
           leaf_c             = 0.0_r8
           sapw_c             = 0.0_r8
           struct_c           = 0.0_r8
-          crown_fuel_per_m   = 0.0_r8
           crown_depth        = 0.0_r8
           cbh_co             = 0.0_r8
           SF_val_CWD_frac_adj(ncwd) = 0.0_r8
@@ -652,7 +654,7 @@ contains
     use SFEquationsMod, only : HeatofPreignition, EffectiveHeatingNumber
     use SFEquationsMod, only : WindFactor, PropagatingFlux
     use SFEquationsMod, only : ForwardRateOfSpread
-    use CrownFireEquationsMod, only : CrownFireBehaveFM10
+    use CrownFireEquationsMod, only : CrownFireBehaveFM10, CrownFireCFB
     use CrownFireEquationsMod, only : PassiveCrownFireIntensity, HeatReleasePerArea
     use CrownFireEquationsMod, only : CrowningIndex, CrownFireIntensity
 
@@ -761,7 +763,7 @@ contains
 
           ! Now check if there is passive or active crown fire and calculate crown fraction burnt (CFB)
           ! XLG: there are alternative ways to calculate CFB, see pg 39-41 in Scott & Reinhardt 2001
-          call CrownFireCFB(ROS_active, ROS_acitive_min, currentPatch%ROS_front, &
+          call CrownFireCFB(ROS_active, ROS_active_min, currentPatch%ROS_front, &
           ROS_init, ROS_SA, active_crownfire, passive_crownfire, crown_frac_burnt)
 
           currentPatch%active_crown_fire = active_crownfire
@@ -776,17 +778,14 @@ contains
           FI_final = CrownFireIntensity(HPA, currentPatch%fuel%canopy_fuel_load, &
           currentPatch%area, crown_frac_burnt, ROS_final)
 
-          if(write_SF == itrue)then
-            if ( hlm_masterproc == itrue ) write(fates_log(),*) 'FI_final',FI_final
-         endif
-
-         write(fates_log(),*) 'passive crown fire is ', currentPatch%passive_crown_fire
-         write(fates_log(),*) 'active crown fire is ', currentPatch%active_crown_fire
-         write(fates_log(),*) 'FI final is ', FI_final
-         write(fates_log(),*) 'ROS final is  ', ROS_final 
-         write(fates_log(),*) 'ROS_active is ', ROS_active
-         write(fates_log(),*) 'ROS_active_min is ', ROS_active_min
-         write(fates_log(),*) 'HPA is ', HPA
+          write(fates_log(),*) 'FI_final is ', FI_final
+          write(fates_log(),*) 'passive crown fire is ', currentPatch%passive_crown_fire
+          write(fates_log(),*) 'active crown fire is ', currentPatch%active_crown_fire
+          write(fates_log(),*) 'FI final is ', FI_final
+          write(fates_log(),*) 'ROS final is  ', ROS_final 
+          write(fates_log(),*) 'ROS_active is ', ROS_active
+          write(fates_log(),*) 'ROS_active_min is ', ROS_active_min
+          write(fates_log(),*) 'HPA is ', HPA
 
 
           ! only update FI and ROS_front when CFB > 0
