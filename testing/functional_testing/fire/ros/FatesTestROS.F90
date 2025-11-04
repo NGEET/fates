@@ -9,6 +9,8 @@ program FatesTestROS
   ! LOCALS:
   type(fates_unit_test_param_reader) :: param_reader           ! param reader instance
   character(len=:), allocatable      :: param_file             ! input parameter file
+  real(r8),         allocatable      :: reaction_intensity(:)
+  real(r8),         allocatable      :: fuel_depth(:)
   real(r8),         allocatable      :: SAV(:)                 ! fuel surface area to volume ratio (for prop flux) [/cm]
   real(r8),         allocatable      :: beta(:)                ! packing ratio [unitless]
   real(r8),         allocatable      :: propagating_flux(:,:)  ! propagating flux [unitless]
@@ -146,7 +148,7 @@ subroutine TestReactionIntensity(fuel_depth, reaction_intensity)
   ! Calculates reaction intensity at different levels of fuel bed depth
   !
   use FatesConstantsMod, only : r8 => fates_r8
-  use SFEquationsMod,    only : ReactionIntensity
+  use SFEquationsMod,    only : ReactionIntensity, OptimumPackingRatio
   
   implicit none
   
@@ -175,7 +177,7 @@ subroutine TestReactionIntensity(fuel_depth, reaction_intensity)
   ! allocate arrays
   num_fd = int((fd_max - fd_min)/fd_inc + 1)
   allocate(fuel_depth(num_fd))
-  allocate(reaction_intensity(size(num_fd)))
+  allocate(reaction_intensity(num_fd))
   
   beta_opt = OptimumPackingRatio(SAV)
   
@@ -413,8 +415,8 @@ subroutine WriteROSData(out_file, reaction_intensity, fuel_depth, beta, SAV,    
   call OpenNCFile(trim(out_file), ncid, 'readwrite')
 
   ! register dimensions
-  call RegisterNCDims(ncid, dim_names, (/size(fuel_depth), size(SAV), size(beta),        &
-    size(SAV_values), size(beta_ratio), size(fuel_moisture)/), 5, dimIDs)
+  call RegisterNCDims(ncid, dim_names, (/size(SAV), size(beta),        &
+    size(SAV_values), size(beta_ratio), size(fuel_moisture), size(fuel_depth)/), 6, dimIDs)
 
   ! first register dimension variables
   

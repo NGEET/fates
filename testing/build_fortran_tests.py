@@ -142,8 +142,6 @@ def get_extra_cmake_args(build_dir:str, mpilib:str) -> str:
 
     cmake_args = " ".join(cmake_args_list)
     
-    print('here again')
-
     return cmake_args
 
 def find_library(caseroot:str, cmake_args:str, lib_string:str) -> str:
@@ -211,7 +209,7 @@ def run_cmake(test_dir:str, pfunit_path:str, netcdf_c_path:str, netcdf_f_path:st
         cmake_command.extend(cmake_args.split(" "))
         
         print("Running cmake for all tests.")
-
+        
         run_cmd_no_fail(" ".join(cmake_command), combine_output=True)
 
 def run_make(make_j:int, clean:bool=False, verbose:bool=False):
