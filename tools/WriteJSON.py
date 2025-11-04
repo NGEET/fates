@@ -5,9 +5,9 @@
 # on separate lines.  This utility will write anything inside an
 # innermost bracket on one single line.
 
-#def PrettyJSONDump(json_dict,filename):
+import code  # For development: code.interact(local=dict(globals(), **locals()))
 
-def traverse_data(data: ComplexData, indent_level: int = 0, current_key: str = "") -> None:
+def traverse_data(outfile, data: dict, indent_level: int = 0, current_key: str = "", last_att: bool = False) -> None:
     """
     Recursively traverses a nested dictionary or list and prints its contents.
 
@@ -17,36 +17,48 @@ def traverse_data(data: ComplexData, indent_level: int = 0, current_key: str = "
         current_key: The key associated with the data (for dictionaries).
     """
     # Create the indentation string
-    indent = "    " * indent_level
+    indent = "  " * indent_level
 
     # --- Case 1: The data is a dictionary (like the root or nested objects) ---
     if isinstance(data, dict):
         # Print the current dictionary key if one exists
         if current_key:
-            print(f"{indent}**Dictionary Key:** {current_key} (Size: {len(data)})")
+            outfile.write(f"{indent}{current_key}:{{\n")
         else:
-            print(f"{indent}**Starting Traversal of Root Dictionary** (Size: {len(data)})")
+            outfile.write(f"{{\n")
         
         # Loop through all key-value pairs in the dictionary
-        for key, value in data.items():
+        n_items = len(data.items())
+        for i, (key, value) in enumerate(data.items()):
+            is_last = (i == n_items - 1)
             # Recursively call the function for the value
-            traverse_data(value, indent_level + 1, key)
+            traverse_data(outfile,value, indent_level + 1, key, last_att = is_last)
 
+        outfile.write(f"{indent}}}\n")
+            
     # --- Case 2: The data is a list (like an array in JSON) ---
     elif isinstance(data, list):
-        print(f"{indent}**List Key:** {current_key} (Items: {len(data)})")
-        # Loop through all items in the list using an index
-        for index, item in enumerate(data):
-            # Recursively call the function for the item
-            # We use the key name plus the index for better context
-            traverse_data(item, indent_level + 1, f"{current_key}[{index}]")
 
+        for i,item in enumerate(data):
+            if item is None:
+                data[i] = "null"
+        
+        data_str = f"{data}"
+        cleaned_data_str = data_str.replace("'null'", "null")
+
+        if(last_att):
+            outfile.write(f"{indent}{current_key}: "+cleaned_data_str+"\n")
+        else:
+            outfile.write(f"{indent}{current_key}: "+cleaned_data_str+",\n")
+        
     # --- Case 3: The data is a primitive value (string, number, boolean, None) ---
     else:
         # Format the output for a primitive value
         value_type = type(data).__name__
         # Use repr() for strings to show quotes, helping differentiate values
         display_value = repr(data) if isinstance(data, str) else str(data)
-        
-        print(f"{indent}**Value Key:** {current_key} | **Type:** {value_type} | **Value:** {display_value}")
+        if(last_att):
+            outfile.write(f"{indent}{current_key}: {display_value}\n")
+        else:
+            outfile.write(f"{indent}{current_key}: {display_value},\n")
 
