@@ -6,6 +6,7 @@
 # innermost bracket on one single line.
 
 import code  # For development: code.interact(local=dict(globals(), **locals()))
+import json
 
 def traverse_data(outfile, data: dict, indent_level: int = 0, current_key: str = "", last_att: bool = False) -> None:
     """
@@ -23,7 +24,7 @@ def traverse_data(outfile, data: dict, indent_level: int = 0, current_key: str =
     if isinstance(data, dict):
         # Print the current dictionary key if one exists
         if current_key:
-            outfile.write(f"{indent}{current_key}:{{\n")
+            outfile.write(f'{indent}"{current_key}":{{\n')
         else:
             outfile.write(f"{{\n")
         
@@ -42,23 +43,24 @@ def traverse_data(outfile, data: dict, indent_level: int = 0, current_key: str =
         for i,item in enumerate(data):
             if item is None:
                 data[i] = "null"
-        
-        data_str = f"{data}"
-        cleaned_data_str = data_str.replace("'null'", "null")
+                
+        data_str = json.dumps(data)
+        cleaned_data_str =  data_str.replace('"null"', 'null')
 
         if(last_att):
-            outfile.write(f"{indent}{current_key}: "+cleaned_data_str+"\n")
+            outfile.write(f'{indent}"{current_key}": '+cleaned_data_str+"\n")
         else:
-            outfile.write(f"{indent}{current_key}: "+cleaned_data_str+",\n")
+            outfile.write(f'{indent}"{current_key}": '+cleaned_data_str+",\n")
         
     # --- Case 3: The data is a primitive value (string, number, boolean, None) ---
     else:
         # Format the output for a primitive value
         value_type = type(data).__name__
         # Use repr() for strings to show quotes, helping differentiate values
-        display_value = repr(data) if isinstance(data, str) else str(data)
+        #display_value = repr(data) if isinstance(data, str) else str(data)
+        display_value = '"'+data.strip()+'"' if isinstance(data,str) else str(data)
         if(last_att):
-            outfile.write(f"{indent}{current_key}: {display_value}\n")
+            outfile.write(f'{indent}"{current_key}": {display_value}\n')
         else:
-            outfile.write(f"{indent}{current_key}: {display_value},\n")
+            outfile.write(f'{indent}"{current_key}": {display_value},\n')
 

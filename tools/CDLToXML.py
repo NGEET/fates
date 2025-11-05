@@ -187,38 +187,38 @@ def main(argv):
         
         with open(jsonfile,"w") as file:
             file.write('{\n')
-            file.write('  attributes: {')
-            file.write('history: "{}, {} "'.format(\
+            file.write('  "attributes": {')
+            file.write('"history": "{}, {} "'.format(\
                 date.today().strftime("%d/%m/%y"), \
                 'First instantation, copied from: {}.'.format(args.cdlfile)))
             file.write('},\n')
-            file.write('  dimensions: ')
+            file.write('  "dimensions": ')
             file.write('{\n')
             it=0
             for key, val in dims.items():
                 it=it+1
                 if(key.strip() != 'fates_string_length'):
-                    file.write('    {}: {}'.format(key,val))
+                    file.write('    "{}": {}'.format(key,val))
                     if(it<len(dims.items())-1):
                         file.write(',\n')
                     else:
                         file.write('\n')
                         
             file.write('  },\n')
-            file.write('  parameters: {\n')
+            file.write('  "parameters": {\n')
             item_list = list(params.items())
             num_items = len(item_list)
             
             for i,(key, val) in enumerate(item_list):
                 #print('---{}---'.format(key))
-                file.write('    {}:'.format(key))
+                file.write('    "{}":'.format(key))
                 file.write(' {\n')
-                file.write('      dtype: "{}",\n'.format(dtype_str[dtypes[key]-1]))
+                file.write('      "dtype": "{}",\n'.format(dtype_str[dtypes[key]-1]))
                 joinlist = [f'"{name.strip()}"' for name in val.dim_names if name != "fates_string_length"]
                 output_string = ', '.join(joinlist)
-                file.write('      dims: [{}],\n'.format(output_string))
-                file.write('      long_name: "{}",\n'.format(val.meta['long_name']))
-                file.write('      units: "{}",\n'.format(val.meta['units']))
+                file.write('      "dims": [{}],\n'.format(output_string))
+                file.write('      "long_name": "{}",\n'.format(val.meta['long_name']))
+                file.write('      "units": "{}",\n'.format(val.meta['units']))
 
                 if(len(val.data.shape)>1):
                     data_strs = '['
@@ -240,7 +240,7 @@ def main(argv):
                         if(k<val.data.shape[0]-1):
                             data_strs = data_strs + ','
                     data_strs = data_strs + ']'
-                    file.write('      data: {}\n'.format(data_strs))
+                    file.write('      "data": {}\n'.format(data_strs))
                 else:
                     data_strs = [str(c).strip() for c in val.data]
                     new_strs = []
@@ -255,7 +255,7 @@ def main(argv):
                         else:
                             new_strs.append('"{}"'.format(c.strip('"').strip()))
                     #data_strs = ['null' if c=='nan' else c for c in data_strs]
-                    file.write('      data: [{}]\n'.format(', '.join(new_strs)))
+                    file.write('      "data": [{}]\n'.format(', '.join(new_strs)))
                 #file.write('    },\n')
                 if i == num_items - 1:
                     file.write('    }\n')

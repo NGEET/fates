@@ -42,7 +42,7 @@ def main():
             for item in index.strip('=[]').split(','):
                 if(int(item) > maxpft):
                     print(f'\nYou provided an index that is larger than')
-                    print(f'the size of the variable\'s dataset.')
+                    print(f'the size of the parameters\'s dataset.')
                     print(f'index: {int(item)}, total indices: {int(max_index)}')
                     print(f'You arguments for --indices were {args.indices}.')
                     print(f'Exiting\n')
@@ -50,8 +50,8 @@ def main():
                 else:
                     pft_indices.append(int(item)-1)
         
-        # Find all variables with fates_pft in the dims...
-        for key, struct in data['variables'].items():
+        # Find all parameters with fates_pft in the dims...
+        for key, struct in data['parameters'].items():
             if('fates_pft' in struct['dims']):
                 if(not args.silent):
                     print(f'Changing pft dimensions for: {key}')
@@ -61,7 +61,7 @@ def main():
                     subset_array = np_array[:, pft_indices]
                 else:
                     subset_array = np_array[pft_indices]
-                data['variables'][key]['data'] = subset_array.tolist()
+                data['parameters'][key]['data'] = subset_array.tolist()
 
         maxpft = data['dimensions']['fates_pft'] = len(pft_indices)
 
