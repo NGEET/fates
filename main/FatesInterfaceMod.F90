@@ -2998,7 +2998,7 @@ subroutine UpdateInterfaceVariables(this, initialize, restarting)
    restarting_local = .false.
    if (present(restarting)) then
       restarting_local = restarting
-      intialize_local = .true.
+      initialize_local = .true.
    end if
 
    do r = 1, this%npatches
