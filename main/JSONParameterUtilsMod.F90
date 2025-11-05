@@ -454,8 +454,11 @@ contains
     param => pstruct%parameters(var_num)
     param%name = trim(adjustl(symb_str))
     param%access_count = 0
+
+    if(debug) write(log_unit,*) 'Parameter: ',trim(param%name)
     
-    call GetMetaString(vardata_str,'"dims"',beg_id,end_id)
+    call GetMetaString(vardata_str,'dims',beg_id,end_id)
+    if(debug) write(log_unit,*)vardata_str(beg_id:end_id),'xx'
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
     allocate(param%dim_names(n_vec_out))
     dimsizes(:)=-1
@@ -467,7 +470,8 @@ contains
     call ClearStringScratch(string_scr,n_vec_out)
 
     
-    call GetMetaString(vardata_str,'"dtype"',beg_id,end_id)
+    call GetMetaString(vardata_str,'dtype',beg_id,end_id)
+    if(debug) write(log_unit,*) 'xxx',vardata_str(beg_id:end_id),'xxx'
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%dtype = -999
@@ -509,19 +513,19 @@ contains
     end if
     call ClearStringScratch(string_scr,n_vec_out)
     
-    call GetMetaString(vardata_str,'"long_name"',beg_id,end_id)
+    call GetMetaString(vardata_str,'long_name',beg_id,end_id)
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%long_name = trim(CleanSymbol(data_str))
     call ClearStringScratch(string_scr,n_vec_out)
     
-    call GetMetaString(vardata_str,'"units"',beg_id,end_id)
+    call GetMetaString(vardata_str,'units',beg_id,end_id)
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%units = trim(CleanSymbol(data_str))
     call ClearStringScratch(string_scr,n_vec_out)
     
-    call GetMetaString(vardata_str,'"data"',beg_id,end_id)
+    call GetMetaString(vardata_str,'data',beg_id,end_id)
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
     select case(param%dtype)
     case(r_scalar_type)
@@ -689,22 +693,48 @@ contains
     logical          :: open_bracket2
     logical          :: open_quote
     logical          :: found_end
+    logical          :: found_tag
     
     if( index(trim(string_in),trim(meta_tag))==0 ) then
        write(log_unit,*) 'metadata tag: ',trim(meta_tag),' was not found'
        write(log_unit,*) 'in data string: ',trim(string_in),'xxxxx'
        call shr_sys_abort()
     else
-       
-       beg_id = index(string_in,trim(meta_tag))
-       end_id = len(trim(string_in))
-       sep_id = index(string_in(beg_id:end_id),':')+beg_id+1
-       
-       ! Now we want to scan the dataset from sep_id onward for
-       ! the next comma, excluding any characters inside of
-       ! either brackets or quotations.
 
-       !write(log_unit,*) 'xxx',string_in(sep_id:end_id),'xxx'
+       ! We are looking for the meta tag. But it is possilbe
+       ! that the meta-tag is also somewhere else in the string.
+       ! However we want to identify the metatag that is followed
+       ! immediately by the separator and/ whitespaces before the
+       ! separator.
+       ! So, we identify the first position where we find the tag.
+       ! then we search through the next characters, if we find
+       ! neither a whitespace or a separator, we know we found
+       ! a red-herring, so increement and keep going.
+     
+       beg_id = 1
+       end_id = len(trim(string_in))
+       found_tag = .false.
+       search_tag: do while(.not.found_tag)
+          i = index(string_in(beg_id:end_id),trim(meta_tag))+beg_id-1+len(trim(meta_tag))
+          if(debug) write(log_unit,*) trim(meta_tag),'  i:',i,'string:xx',string_in(i:end_id)
+          do 
+             if(i>=end_id)then
+                write(log_unit,*)'could not find metatag and separator :',trim(meta_tag)
+                write(log_unit,*)'in data string: ',trim(string_in)
+                call shr_sys_abort()
+             end if
+             if(scan(string_in(i:i),':')>0)then
+                found_tag = .true.
+                sep_id = i+1
+                exit search_tag
+             end if
+             if(scan(string_in(i:i),' ')==0)then
+                beg_id = i
+                cycle search_tag
+             end if
+             i=i+1
+          end do
+       end do search_tag
        
        open_bracket1 = .false.
        open_bracket2 = .false.
@@ -861,7 +891,7 @@ contains
 
     character(len=*) string_in
     character(len=max_sl) :: string_out
-    integer :: i,j,k
+    integer :: i,j,k,jj
     
     ! Flush the string
     string_out = ''
@@ -874,9 +904,9 @@ contains
        ! set (unwanted_chars) that is present in the string.
        ! If it returns 0, the character is NOT unwanted.
        !j = scan(string_in(i:i),'!#&^"@/><}{')
-       j = scan(string_in(i:i),'"')
-       
-       if (j == 0) then
+       j = scan(string_in(i:i),"'")
+       jj = scan(string_in(i:i),'"')
+       if (j == 0 .and. jj==0 ) then
           ! This is a character we want to keep
           k = k + 1
           ! Append the character to the cleaned string
@@ -1066,6 +1096,9 @@ contains
 
     if(dim_size==-1)then
        write(log_unit,*)'could not find a size for unknown dimension: ',trim(dim_name)
+       do i = 1,size(this%dimensions)
+          write(log_unit,*) trim(this%dimensions(i)%name),this%dimensions(i)%size
+       end do
        call shr_sys_abort()
     end if
   end function GetDimSizeFromName
