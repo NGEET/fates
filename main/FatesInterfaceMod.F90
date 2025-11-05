@@ -2968,17 +2968,19 @@ end subroutine InitializeBoundaryConditions
 
 ! ======================================================================================
 
-subroutine UpdateInterfaceVariables(this, initialize)
+subroutine UpdateInterfaceVariables(this, initialize, restarting)
    
    ! Arguments
    class(fates_interface_type), intent(inout) :: this
    logical, intent(in), optional              :: initialize 
+   logical, intent(in), optional              :: restarting
 
    ! Locals
    type(bc_in_type),  pointer :: bc_in
    type(bc_out_type), pointer :: bc_out
 
    logical :: initialize_local
+   logical :: restarting_local 
 
    integer :: r   ! registry interface index
    integer :: s   ! site index
@@ -2991,6 +2993,14 @@ subroutine UpdateInterfaceVariables(this, initialize)
       initialize_local = initialize
    end if
 
+   ! Set the default restart flag to false
+   ! If we are restarting we need to initialize as well
+   restarting_local = .false.
+   if (present(restarting)) then
+      restarting_local = restarting
+      intialize_local = .true.
+   end if
+
    do r = 1, this%npatches
 
       ! Update the interface variables for the current registry
@@ -3001,6 +3011,9 @@ subroutine UpdateInterfaceVariables(this, initialize)
       ifp = this%registry(r)%GetFatesPatchIndex()
 
       bc_in  => this%sites(s)%bc_in(ifp)
+
+      ! Set the max rooting depth index to either to the soil depth or the max thaw depth last year, whichever is shallower
+      bc_in%max_rooting_depth_index_col = min(bc_in%nlevsoil, bc_in%max_thaw_depth_index)
 
       ! Calculate various bc_in variables that are based on other variables or namelist states
       if (initialize_local) then
@@ -3037,12 +3050,9 @@ subroutine UpdateInterfaceVariables(this, initialize)
          end if
 
          ! On initialization, set the max rooting depth index to the maximum decomposition level
-         bc_in%max_rooting_depth_index_col = bc_in%nlevdecomp
-
-      else
-
-         ! Set the max rooting depth index to either to the soil depth or the max thaw depth last year, whichever is shallower
-         bc_in%max_rooting_depth_index_col = min(bc_in%nlevsoil, bc_in%max_thaw_depth_index)
+         ! unless we are restarting
+         if (.not. restarting_local) bc_in%max_rooting_depth_index_col = bc_in%nlevdecomp
+            
 
       end if
 
@@ -3068,7 +3078,7 @@ subroutine UpdateLitterFluxes(this, dtime)
    ! Loop through the active registries and update the litter fluxes
    do n = 1, this%num_active_patches
       r = this%filter_registry_active(n)
-      write(fates_log(),*) 'Updating litter fluxes: r, s, ifp ', r, this%registry(r)%GetSiteIndex(), this%registry(r)%GetFatesPatchIndex()
+      !write(fates_log(),*) 'Updating litter fluxes: r, s, ifp ', r, this%registry(r)%GetSiteIndex(), this%registry(r)%GetFatesPatchIndex()
       call this%registry(r)%UpdateLitterFluxes(dtime)
    end do
 
