@@ -40,7 +40,7 @@ module JSONParameterUtilsMod
                                                ! inside a variable's {}
 
   integer, parameter :: too_many_iter = 1000
-  integer, parameter :: count_phase = 1        ! We read variables twice so that we can allocate
+  integer, parameter :: count_phase = 1        ! We read parameters twice so that we can allocate
   integer, parameter :: fill_phase  = 2  
 
   integer            :: log_unit = -1
@@ -107,9 +107,9 @@ contains
     ! This is esssentially the driver for reading through the input parameter file
     ! There should be two meaningful sections (not including attributes)
     ! 1) dimensions
-    ! 2) variables
+    ! 2) parameters
     !
-    ! All variables must be scalar or associated with a known dimension.
+    ! All parameters must be scalar or associated with a known dimension.
     !
     ! Each section is started with an open bracket '{' and closed with a closed bracket '}'
     
@@ -144,7 +144,7 @@ contains
     
     call GetDimensions(file_unit,pstruct)
 
-    call GetVariables(file_unit,string_scr,pstruct)
+    call GetParameters(file_unit,string_scr,pstruct)
     
     close(unit=file_unit, iostat=io_status)
     if (io_status /= 0) THEN
@@ -399,7 +399,7 @@ contains
           found_vartag = .true.
        elseif(index(group_str,'}')>0) then
           ! We found a closing bracket before a variable was defined
-          ! this means we are out of variables
+          ! this means we are out of parameters
           return
        end if
        if(i>too_many_iter)then
@@ -593,7 +593,7 @@ contains
 
   ! =====================================================================================
   
-  subroutine GetVariables(file_unit,string_scr,pstruct)
+  subroutine GetParameters(file_unit,string_scr,pstruct)
 
     integer,intent(in)                  :: file_unit
     character(len=max_ll), dimension(*) :: string_scr ! Internal scratch space
@@ -624,7 +624,7 @@ contains
 
     ! -----------------------------------------------------------------------------------
     ! Step 1: Advance the file's character pointer to the open bracket following
-    !         "variables:"
+    !         "parameters:"
     ! -----------------------------------------------------------------------------------
     found_vartag = .false.
     group_str = ''
@@ -637,7 +637,7 @@ contains
        else
           call PopString(group_str,filechar)
        end if
-       if(index(group_str,'variables')>0 .and. index(group_str,'{',.true.)==max_sl)then
+       if(index(group_str,'parameters')>0 .and. index(group_str,'{',.true.)==max_sl)then
           found_vartag = .true.
        end if
     end do
@@ -646,7 +646,7 @@ contains
     filepos0 = i
     
     ! -----------------------------------------------------------------------------------
-    ! Step 2: Start a loop through variables, with each one we are identifying
+    ! Step 2: Start a loop through parameters, with each one we are identifying
     ! the { and } brackets and saving that in a string.
     ! -----------------------------------------------------------------------------------
     found_vartag = .true.
@@ -655,7 +655,7 @@ contains
        call ReadCharVar(file_unit,count_phase,n_vars,string_scr,found_vartag)
     end do
 
-    if(debug) write(log_unit,*) 'Found ',n_vars,' variables'
+    if(debug) write(log_unit,*) 'Found ',n_vars,' in the "parameters" group'
     allocate(pstruct%parameters(n_vars))
 
     call GotoPos(file_unit,filepos0)
@@ -666,27 +666,27 @@ contains
     end do
 
     return
-  end subroutine GetVariables
+  end subroutine GetParameters
 
   ! =====================================================================================
   
   subroutine GetMetaString(string_in,meta_tag,beg_id,end_id)
 
     ! This routine searches through a larger string to identify
-    ! the a substring associated with a metadata tag (such as "dims",
-    ! "data", "dtype", etc.  I will identify the index position of the
+    ! the substring associated with a metadata tag (such as "dims",
+    ! "data", "dtype", etc. It assumes that the separator : follows
+    ! the provided string, with no other characters aside from whitespace
+    ! (if any) between the last character of the tag and the separator.
+    ! It will first identify the index position of the
     ! intput string that is the first value after the colon, and the index
     ! position of the output string that closes it off. This is demarcated
     ! by either a comma or closing bracket "}", and that character
-    ! may not be inside square brackets or quotes. Note, the meta_tag
-    ! should have the soft quotes around it, which should protect it from
-    ! false positives found inside data strings.
+    ! may not be inside square brackets or quotes.
 
     character(len=*) :: string_in
     character(len=*) :: meta_tag
     integer          :: beg_id
     integer          :: end_id
-
     integer          :: sep_id
     integer          :: i
     logical          :: open_bracket1
@@ -1176,14 +1176,14 @@ contains
     
     select case(param%dtype)
     case(r_scalar_type)
-       write(log_unit,'(F13.6)')param%r_data_scalar
+       write(log_unit,'(F15.6)')param%r_data_scalar
     case(i_scalar_type)
        write(log_unit,*)param%i_data_scalar
     case(c_solo_type)
        write(log_unit,*)trim(param%c_data)
     case(r_1d_type)
        do i = 1,size(param%r_data_1d,dim=1)
-          write(log_unit,'(F13.6)') param%r_data_1d(i)
+          write(log_unit,'(F15.6)') param%r_data_1d(i)
        end do
     case(i_1d_type)
        do i = 1,size(param%i_data_1d,dim=1)
@@ -1196,7 +1196,7 @@ contains
     case(r_2d_type)
        do i = 1,size(param%r_data_2d,dim=1)
           do j = 1,size(param%r_data_2d,dim=2)
-             write(log_unit,'(F13.6)') param%r_data_2d(i,j)
+             write(log_unit,'(F15.6)') param%r_data_2d(i,j)
           end do
        end do
     case(i_2d_type)
