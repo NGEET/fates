@@ -243,7 +243,7 @@ contains
        else
           call PopString(group_str,filechar)
        end if
-       if(index(group_str,'dimensions')>0 .and. index(group_str,'{',.true.)==min(i,max_sl))then
+       if(index(group_str,'"dimensions"')>0 .and. index(group_str,'{',.true.)==min(i,max_sl))then
           found_dimtag = .true.
        end if
     end do
@@ -457,8 +457,7 @@ contains
 
     if(debug) write(log_unit,*) 'Parameter: ',trim(param%name)
     
-    call GetMetaString(vardata_str,'dims',beg_id,end_id)
-    if(debug) write(log_unit,*)vardata_str(beg_id:end_id),'xx'
+    call GetMetaString(vardata_str,'"dims"',beg_id,end_id)
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
     allocate(param%dim_names(n_vec_out))
     dimsizes(:)=-1
@@ -470,8 +469,7 @@ contains
     call ClearStringScratch(string_scr,n_vec_out)
 
     
-    call GetMetaString(vardata_str,'dtype',beg_id,end_id)
-    if(debug) write(log_unit,*) 'xxx',vardata_str(beg_id:end_id),'xxx'
+    call GetMetaString(vardata_str,'"dtype"',beg_id,end_id)
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%dtype = -999
@@ -513,19 +511,19 @@ contains
     end if
     call ClearStringScratch(string_scr,n_vec_out)
     
-    call GetMetaString(vardata_str,'long_name',beg_id,end_id)
+    call GetMetaString(vardata_str,'"long_name"',beg_id,end_id)
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%long_name = trim(CleanSymbol(data_str))
     call ClearStringScratch(string_scr,n_vec_out)
     
-    call GetMetaString(vardata_str,'units',beg_id,end_id)
+    call GetMetaString(vardata_str,'"units"',beg_id,end_id)
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%units = trim(CleanSymbol(data_str))
     call ClearStringScratch(string_scr,n_vec_out)
     
-    call GetMetaString(vardata_str,'data',beg_id,end_id)
+    call GetMetaString(vardata_str,'"data"',beg_id,end_id)
     call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
     select case(param%dtype)
     case(r_scalar_type)
@@ -637,7 +635,7 @@ contains
        else
           call PopString(group_str,filechar)
        end if
-       if(index(group_str,'parameters')>0 .and. index(group_str,'{',.true.)==max_sl)then
+       if(index(group_str,'"parameters"')>0 .and. index(group_str,'{',.true.)==max_sl)then
           found_vartag = .true.
        end if
     end do
