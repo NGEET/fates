@@ -69,7 +69,7 @@ module FatesPatchMod
     type (fates_patch_type),  pointer :: older => null()    ! pointer to next older patch   
     type (fates_patch_type),  pointer :: younger => null()  ! pointer to next younger patch
     type (fates_cohort_vec_type), pointer :: co_scr(:)      ! Scratch vector of cohort properties
-    
+
     !---------------------------------------------------------------------------
 
     ! INDICES
@@ -296,7 +296,7 @@ module FatesPatchMod
       allocate(this%sabs_dif(num_swb))
       allocate(this%fragmentation_scaler(num_levsoil))
       allocate(this%co_scr(max_cohort_per_patch))
-      
+
       ! initialize all values to nan
       call this%NanValues()
 
@@ -534,7 +534,7 @@ module FatesPatchMod
       this%scorch_ht(:)                 = nan 
       this%tfc_ros                      = nan
       this%frac_burnt                   = nan
-      
+
     end subroutine NanValues
 
     !===========================================================================
@@ -732,11 +732,11 @@ module FatesPatchMod
       integer,                 intent(in)    :: num_levsoil        ! number of soil layers
       integer,                 intent(in)    :: current_tod        ! time of day [seconds past 0Z]
       integer,                 intent(in)    :: regeneration_model ! regeneration model version
-      
+
       ! initialize patch
       ! sets all values to nan, then some values to zero
       call this%Init(num_swb, num_levsoil)
-
+      
       ! initialize running means for patch
       call this%InitRunningMeans(current_tod, regeneration_model, num_pft)
       
@@ -1341,6 +1341,6 @@ module FatesPatchMod
 
     end subroutine CheckVars
 
-    !===========================================================================  
+! ======================================================================================
 
 end module FatesPatchMod
