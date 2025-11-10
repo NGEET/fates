@@ -1312,7 +1312,13 @@ module FatesInterfaceTypesMod
       ! Update the litter flux counters not including the total flux counter
       if (key == hlm_fates_litter_carbon_cellulose .or. &
           key == hlm_fates_litter_carbon_labile .or. &
-          key == hlm_fates_litter_carbon_lignin) then
+          key == hlm_fates_litter_carbon_lignin .or. &
+          key == hlm_fates_litter_nitrogen_cellulose .or. &
+          key == hlm_fates_litter_nitrogen_labile .or. &
+          key == hlm_fates_litter_nitrogen_lignin .or. &
+          key == hlm_fates_litter_phosphorus_cellulose .or. &
+          key == hlm_fates_litter_phosphorus_labile .or. &
+          key == hlm_fates_litter_phosphorus_lignin) then
             this%num_api_vars_litter_flux= this%num_api_vars_litter_flux + 1
       end if
       
