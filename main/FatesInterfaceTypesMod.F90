@@ -1505,7 +1505,8 @@ module FatesInterfaceTypesMod
     if (count_init_dims /= this%num_api_vars_update_init_dims .or. &
         count_init /= this%num_api_vars_update_init .or. &
         count_daily /= this%num_api_vars_update_daily .or. &
-        count_timestep /= this%num_api_vars_update_timestep) then
+        count_timestep /= this%num_api_vars_update_timestep .or. &
+        count_litter_flux /= this%num_api_vars_litter_flux) then
           
       write(fates_log(),*) 'ERROR: Mismatch in initialization counts in SetFilterMapArrays(): '
       write(fates_log(),*) '  count_init = ', count_init, ' expected = ', this%num_api_vars_update_init
