@@ -9,7 +9,7 @@ import os
 import argparse
 import datetime
 import json
-import WriteJSON
+import write_json
 import code  # For development: code.interact(local=dict(globals(), **locals()))
 
 
@@ -138,7 +138,7 @@ def main():
         if(not args.silent):
             print(f'Writing to: {output_filename}')
 
-        WriteJSON.traverse_data(outfile,new_data)
+        write_json.traverse_data(outfile,new_data)
 
         if(not args.silent):
             print(f'Writing complete')

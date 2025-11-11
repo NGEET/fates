@@ -30,7 +30,7 @@ import time
 import numpy as np
 import code  # For development: code.interact(local=dict(globals(), **locals()))
 import json
-import WriteJSON
+import write_json
 
 # ========================================================================================
 # ========================================================================================
@@ -278,7 +278,7 @@ def main():
         if(not args.silent):
             print(f'Writing to: {output_filename}')
 
-        WriteJSON.traverse_data(outfile,data)
+        write_json.traverse_data(outfile,data)
 
         if(not args.silent):
             print(f'Writing complete')

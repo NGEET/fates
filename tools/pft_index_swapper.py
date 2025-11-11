@@ -13,6 +13,7 @@ import time
 import numpy as np
 import code  # For development: code.interact(local=dict(globals(), **locals()))
 import json
+import write_json
 
 # ========================================================================================
 # ========================================================================================
@@ -80,11 +81,7 @@ def main():
     
     with open(output_filename, 'w') as outfile:
     
-        # 2. Use json.dump(data, file_object) to write the Python object
-        #    directly to the file as JSON format.
-        # indent=4 is highly recommended for readability (pretty-printing).
-        json.dump(data, outfile, indent=2)     
-
+        write_json.traverse_data(outfile,data)
         
 
 # =======================================================================================
