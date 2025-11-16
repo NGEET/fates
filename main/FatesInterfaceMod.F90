@@ -2312,13 +2312,6 @@ contains
                    & par_low_frac)
               
               new_seedling_layer_par = seedling_par_high*par_high_frac + seedling_par_low*par_low_frac
-
-              ! DEBUG BLOCK START 
-              write(fates_log(),*) '=== Seedling Layer PAR Debug ==== Day:', hlm_model_day
-              write(fates_log(),*) 'Seedling par high:', seedling_par_high, 'Par frac high:', par_high_frac
-              write(fates_log(),*) 'Seedling par low:', seedling_par_low, 'Par frac low:', par_low_frac
-              write(fates_log(),*) 'New seedling layer par:', new_seedling_layer_par 
-              ! DEBUG BLOCK END
               
               call cpatch%seedling_layer_par24%UpdateRMean(new_seedling_layer_par)
               call cpatch%sdlng_mort_par%UpdateRMean(new_seedling_layer_par)

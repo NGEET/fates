@@ -541,6 +541,7 @@ contains
     integer :: nlevsoil    ! number of soil layers
     integer :: ilyr        ! soil layer loop counter
     integer :: dcmpy       ! decomposability index
+    real(r8) :: net_seed_available  ! Available seed after inputs and decay
 
     do el = 1, num_elements
 
@@ -550,30 +551,42 @@ contains
        ! -----------------------------------------------------------------------------------
 
        do pft = 1,numpft
-          litt%seed(pft) = litt%seed(pft) + &
-               litt%seed_in_local(pft) +   &
-               litt%seed_in_extern(pft) -  &
-               litt%seed_decay(pft) -      &
-               litt%seed_germ_in(pft)
 
-          ! Note that the recruitment scheme will use seed_germ
-          ! for its construction costs.
-          litt%seed_germ(pft) = litt%seed_germ(pft) + &
+         ! Calculate net available seed after inputs and decay
+         net_seed_available = litt%seed(pft) + litt%seed_in_local(pft) + &
+            litt%seed_in_extern(pft) - litt%seed_decay(pft)
+
+         ! Cap germination at available seed
+         litt%seed_germ_in(pft) = min(litt%seed_germ_in(pft), net_seed_available)
+
+         ! RW - commenting out for reference
+         ! litt%seed(pft) = litt%seed(pft) + &
+         !      litt%seed_in_local(pft) +   &
+         !      litt%seed_in_extern(pft) -  &
+         !      litt%seed_decay(pft) -      &
+         !      litt%seed_germ_in(pft)
+
+         ! Update pools 
+         litt%seed(pft) = net_seed_available - litt%seed_germ_in(pft)
+
+         ! Note that the recruitment scheme will use seed_germ
+         ! for its construction costs.
+         litt%seed_germ(pft) = litt%seed_germ(pft) + &
                litt%seed_germ_in(pft) - &
                litt%seed_germ_decay(pft)
 
-          ! RW BEBUG BLOCK START 
-            write(fates_log(),*) '=== PreDisturbanceIntegrateLitter DIAGNOSTICS ==='
-            write(fates_log(),*) 'Model Day:', hlm_model_day
-            write(fates_log(),*) 'PFT:', pft
-            write(fates_log(),*) 'seed_germ (before update):', litt%seed_germ(pft) - litt%seed_germ_in(pft) + &
+         ! RW DEBUG BLOCK START 
+         write(fates_log(),*) '=== PreDisturbanceIntegrateLitter DIAGNOSTICS ==='
+         write(fates_log(),*) 'Model Day:', hlm_model_day
+         write(fates_log(),*) 'PFT:', pft
+         write(fates_log(),*) 'seed_germ (before update):', litt%seed_germ(pft) - litt%seed_germ_in(pft) + &
             litt%seed_germ_decay(pft)
-            write(fates_log(),*) 'seed_germ_in:', litt%seed_germ_in(pft)
-            write(fates_log(),*) 'seed_germ_decay:', litt%seed_germ_decay(pft)
-            write(fates_log(),*) 'seed_germ (after update):', litt%seed_germ(pft)
-            write(fates_log(),*) 'Net change:', litt%seed_germ_in(pft) - litt%seed_germ_decay(pft)
-            write(fates_log(),*) 'Decay exceeds pool?:', litt%seed_germ(pft) < 0.0_r8
-          ! RW DEBUG BLOCK END 
+         write(fates_log(),*) 'seed_germ_in:', litt%seed_germ_in(pft)
+         write(fates_log(),*) 'seed_germ_decay:', litt%seed_germ_decay(pft)
+         write(fates_log(),*) 'seed_germ (after update):', litt%seed_germ(pft)
+         write(fates_log(),*) 'Net change:', litt%seed_germ_in(pft) - litt%seed_germ_decay(pft)
+         write(fates_log(),*) 'Decay exceeds pool?:', litt%seed_germ(pft) < 0.0_r8
+         ! RW DEBUG BLOCK END 
 
        enddo
 
@@ -2469,9 +2482,10 @@ contains
           ! rate modifier (Step 1). See Eq. 4 of Hanbury-Brown et al., 2022
 
           ! If SMP is below a pft-specific value, then no germination occurs
+          ! RW - cap emerg rate at 1
           if ( seedling_layer_smp .GE. EDPftvarcon_inst%seedling_psi_emerg(pft) ) then
-             seedling_emerg_rate = photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
-                  wetness_index**EDPftvarcon_inst%b_emerg(pft)
+             seedling_emerg_rate = min(1.0_r8, photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
+                  wetness_index**EDPftvarcon_inst%b_emerg(pft))
           else 
 
              seedling_emerg_rate = 0.0_r8
