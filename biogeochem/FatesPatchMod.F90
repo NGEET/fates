@@ -149,8 +149,8 @@ module FatesPatchMod
     real(r8) :: c_stomata                                   ! mean stomatal conductance of all leaves in the patch   [umol/m2/s]
     real(r8) :: c_lblayer                                   ! mean boundary layer conductance of all leaves in the patch [umol/m2/s]
     
-    real(r8),allocatable :: nrmlzd_parprof_pft_dir_z(:,:,:,:) !num_rad_stream_types,nclmax,maxpft,nlevleaf)
-    real(r8),allocatable :: nrmlzd_parprof_pft_dif_z(:,:,:,:) !num_rad_stream_types,nclmax,maxpft,nlevleaf)
+    real(r8),allocatable :: nrmlzd_parprof_pft_dir_z(:,:,:) ! nclmax,maxpft,nlevleaf)
+    real(r8),allocatable :: nrmlzd_parprof_pft_dif_z(:,:,:) ! nclmax,maxpft,nlevleaf)
 
     !---------------------------------------------------------------------------
 
@@ -172,11 +172,6 @@ module FatesPatchMod
     real(r8),allocatable :: ed_laisun_z(:,:,:)   !nclmax,maxpft,nlevleaf)
     real(r8),allocatable :: ed_laisha_z(:,:,:)   !nclmax,maxpft,nlevleaf)
 
-    
-    ! radiation profiles for comparison against observations
-    real(r8),allocatable :: parprof_pft_dir_z(:,:,:)   !nclmax,maxpft,nlevleaf) ! direct-beam PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
-    real(r8),allocatable :: parprof_pft_dif_z(:,:,:)   !nclmax,maxpft,nlevleaf) ! diffuse     PAR profile through canopy, by canopy, PFT, leaf level [W/m2]
-    
     real(r8), allocatable :: tr_soil_dir(:)               ! fraction of incoming direct radiation transmitted to the soil as direct, by numSWB [0-1]
     real(r8), allocatable :: tr_soil_dif(:)               ! fraction of incoming diffuse radiation that is transmitted to the soil as diffuse [0-1]
     real(r8), allocatable :: tr_soil_dir_dif(:)           ! fraction of incoming direct radiation that is transmitted to the soil as diffuse [0-1]
@@ -372,8 +367,6 @@ module FatesPatchMod
             deallocate(this%ed_parsha_z)
             deallocate(this%ed_laisun_z)
             deallocate(this%ed_laisha_z)
-            deallocate(this%parprof_pft_dir_z)
-            deallocate(this%parprof_pft_dif_z)
             deallocate(this%canopy_area_profile)
          else
             ! The number of canopy layers has not changed
@@ -401,14 +394,12 @@ module FatesPatchMod
          allocate(this%fabd_sha_z(ncan,numpft,nveg))
          allocate(this%fabi_sun_z(ncan,numpft,nveg))
          allocate(this%fabi_sha_z(ncan,numpft,nveg))
-         allocate(this%nrmlzd_parprof_pft_dir_z(num_rad_stream_types,ncan,numpft,nveg))
-         allocate(this%nrmlzd_parprof_pft_dif_z(num_rad_stream_types,ncan,numpft,nveg))
+         allocate(this%nrmlzd_parprof_pft_dir_z(ncan,numpft,nveg))
+         allocate(this%nrmlzd_parprof_pft_dif_z(ncan,numpft,nveg))
          allocate(this%ed_parsun_z(ncan,numpft,nveg))
          allocate(this%ed_parsha_z(ncan,numpft,nveg))
          allocate(this%ed_laisun_z(ncan,numpft,nveg))
          allocate(this%ed_laisha_z(ncan,numpft,nveg))
-         allocate(this%parprof_pft_dir_z(ncan,numpft,nveg))
-         allocate(this%parprof_pft_dif_z(ncan,numpft,nveg))
       end if
 
       return
@@ -425,8 +416,8 @@ module FatesPatchMod
       this%tlai_profile(:,:,:)          = nan 
       this%tsai_profile(:,:,:)          = nan
       this%canopy_area_profile(:,:,:)   = nan  
-      this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = nan
-      this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = nan
+      this%nrmlzd_parprof_pft_dir_z(:,:,:) = nan
+      this%nrmlzd_parprof_pft_dif_z(:,:,:) = nan
 
       this%fabd_sun_z(:,:,:)            = nan 
       this%fabd_sha_z(:,:,:)            = nan 
@@ -437,8 +428,6 @@ module FatesPatchMod
       this%ed_parsun_z(:,:,:)           = nan 
       this%ed_parsha_z(:,:,:)           = nan 
       this%f_sun(:,:,:)                 = nan
-      this%parprof_pft_dir_z(:,:,:)     = nan 
-      this%parprof_pft_dif_z(:,:,:)     = nan
       
     end subroutine NanDynamics
 
@@ -559,8 +548,8 @@ module FatesPatchMod
       this%fabi_sun_z(:,:,:) = 0._r8
       this%fabd_sha_z(:,:,:) = 0._r8
       this%fabi_sha_z(:,:,:) = 0._r8
-      this%nrmlzd_parprof_pft_dir_z(:,:,:,:) = 0._r8
-      this%nrmlzd_parprof_pft_dif_z(:,:,:,:) = 0._r8
+      this%nrmlzd_parprof_pft_dir_z(:,:,:) = 0._r8
+      this%nrmlzd_parprof_pft_dif_z(:,:,:) = 0._r8
 
       ! Added
       this%elai_profile(:,:,:)          = 0._r8
@@ -573,8 +562,6 @@ module FatesPatchMod
       this%ed_laisha_z(:,:,:)           = 0._r8
       this%ed_parsun_z(:,:,:)           = 0._r8
       this%ed_parsha_z(:,:,:)           = 0._r8
-      this%parprof_pft_dir_z(:,:,:)     = 0._r8
-      this%parprof_pft_dif_z(:,:,:)     = 0._r8
       
     end subroutine ZeroDynamics
     
@@ -600,13 +587,13 @@ module FatesPatchMod
       this%c_lblayer                         = 0.0_r8
 
       ! RADIATION
-      this%rad_error(:)                      = 0.0_r8
       this%tr_soil_dir_dif(:)                = 0.0_r8
       this%fab(:)                            = 0.0_r8
       this%fabi(:)                           = 0.0_r8
       this%fabd(:)                           = 0.0_r8
       this%sabs_dir(:)                       = 0.0_r8
       this%sabs_dif(:)                       = 0.0_r8
+      this%rad_error(:)                      = hlm_hio_ignore_val
       
       ! ROOTS
       this%btran_ft(:)                       = 0.0_r8
@@ -944,8 +931,6 @@ module FatesPatchMod
          deallocate(this%ed_parsha_z)
          deallocate(this%ed_laisun_z)
          deallocate(this%ed_laisha_z)
-         deallocate(this%parprof_pft_dir_z)
-         deallocate(this%parprof_pft_dif_z)
          deallocate(this%canopy_area_profile)
       end if
       

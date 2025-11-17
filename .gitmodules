@@ -11,3 +11,9 @@
 	fxrequired = AlwaysRequired
 	# Standard Fork to compare to with "git fleximod test" to ensure personal forks aren't committed
 	fxDONOTUSEurl = https://github.com/NGEET/tools-fates-landusedata
+[submodule "tools/xarray-functions"]
+	path = tools/xarray-functions
+	url = https://github.com/NGEET/tools-fates-xarray.git
+	fxtag = v0.0.0
+	fxrequired = AlwaysRequired
+	fxDONOTUSEurl = https://github.com/NGEET/tools-fates-xarray

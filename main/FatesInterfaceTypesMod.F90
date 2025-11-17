@@ -52,23 +52,14 @@ module FatesInterfaceTypesMod
    
    
    character(len=16), public :: hlm_nu_com ! This string defines which soil
-                                                      ! nutrient competition scheme is in use.
-                                                      ! current options with
-                                                      ! E3SM: RD, ECA
-                                                      ! CESM: NONE
-                                                      ! ATS: ?
-                                                      ! NORESM: ?
+                                           ! nutrient competition scheme is in use.
+                                           ! current options with
+                                           ! ELM: RD, ECA
+                                           ! CLM: NONE
+                                           ! ATS: ?
    
-
-   integer, public :: hlm_nitrogen_spec   ! This flag signals which nitrogen
-                                                     ! species are active if any:
-                                                     ! 0: none
-                                                     ! 1: nh4 only
-                                                     ! 2: nh4 and no3
-
-   integer, public :: hlm_phosphorus_spec ! Signals if phosphorous is turned on in the HLM
-                                                     ! 0: none
-                                                     ! 1: p is on
+   integer, public :: hlm_nitrogen_suppl    ! HLM nitrogen supplementation status   (True=Supplementing)
+   integer, public :: hlm_phosphorus_suppl  ! HLM phosphorus supplementation status (True=Supplementing)
 
    real(r8), public :: hlm_stepsize        ! The step-size of the host land model (s)
                                            ! moreover, this is the shortest main-model timestep

@@ -848,7 +848,7 @@ contains
      currentPatch => this%oldest_patch
      do while (associated(currentPatch))
         if (currentPatch%land_use_label .eq. secondaryland) then
-           if ( currentPatch%age .ge. secondary_age_threshold ) then
+           if ( currentPatch%age_since_anthro_disturbance .ge. secondary_age_threshold ) then
               secondary_old_area = secondary_old_area + currentPatch%area
            else
               secondary_young_area = secondary_young_area + currentPatch%area
