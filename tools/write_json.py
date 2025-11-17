@@ -5,10 +5,12 @@
 # on separate lines.  This utility will write anything inside an
 # innermost bracket on one single line.
 
+# ALSO: This is recursive, so the calling function should have last_att = True
+
 import code  # For development: code.interact(local=dict(globals(), **locals()))
 import json
 
-def traverse_data(outfile, data: dict, indent_level: int = 0, current_key: str = "", last_att: bool = False) -> None:
+def traverse_data(outfile, data: dict, indent_level: int = 0, current_key: str = "", last_att: bool = True) -> None:
     """
     Recursively traverses a nested dictionary or list and prints its contents.
 
@@ -35,7 +37,10 @@ def traverse_data(outfile, data: dict, indent_level: int = 0, current_key: str =
             # Recursively call the function for the value
             traverse_data(outfile,value, indent_level + 1, key, last_att = is_last)
 
-        outfile.write(f"{indent}}}\n")
+        if(last_att):
+            outfile.write(f"{indent}}}\n")
+        else:
+            outfile.write(f"{indent}}},\n")
             
     # --- Case 2: The data is a list (like an array in JSON) ---
     elif isinstance(data, list):

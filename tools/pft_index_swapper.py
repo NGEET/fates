@@ -80,7 +80,6 @@ def main():
             
     
     with open(output_filename, 'w') as outfile:
-    
         write_json.traverse_data(outfile,data)
         
 

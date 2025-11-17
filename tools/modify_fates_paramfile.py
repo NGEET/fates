@@ -22,8 +22,6 @@
 
 import os
 import argparse
-import shutil
-import tempfile
 import sys
 import datetime
 import time
