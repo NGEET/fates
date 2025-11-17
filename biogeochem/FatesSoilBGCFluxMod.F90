@@ -673,12 +673,12 @@ contains
     currentPatch => csite%oldest_patch
     flux_patch_loop: do while (associated(currentPatch))
 
+      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
+
       associate( &
         bc_out => csite%bc_out(currentPatch%patchno), &
         bc_in => csite%bc_in(currentPatch%patchno) &
       )
-
-      if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
 
       ! This is the number of effective soil layers to transfer from
       nlev_eff_soil   = max(bc_in%max_rooting_depth_index_col, 1)
@@ -930,9 +930,10 @@ contains
          end if
 
       end if
-      end if
 
       end associate
+      end if
+
 
       currentPatch => currentPatch%younger
     end do flux_patch_loop 
