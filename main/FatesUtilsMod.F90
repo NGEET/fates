@@ -76,7 +76,6 @@ contains
 
      real(r8), parameter :: r8_type  = 1.0
      real(r8), parameter :: overflow  = huge(r8_type)
-     real(r8), parameter :: underflow = tiny(r8_type)
 
      return_code = 0
 
@@ -91,13 +90,6 @@ contains
         write(fates_log(),*) 'Nigh overflow detected, ',trim(var_name),': ',r8_var
         return_code = return_code + 10
      end if
-
-     ! Underflow check (within 100x of min precision)
-     if (abs(r8_var) < 100.0_r8*underflow) then
-        write(fates_log(),*) 'Nigh underflow detected, ',trim(var_name),': ',r8_var
-        return_code = return_code + 100
-     end if
-
 
   end subroutine check_var_real
   

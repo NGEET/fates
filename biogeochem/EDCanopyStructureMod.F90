@@ -206,6 +206,7 @@ contains
        ! Terminate cohorts before organizing canopy. That
        ! step will be interested in preserving area, so termination
        ! during that step will be counter productive
+       call terminate_cohorts(currentSite, currentPatch, -1,13,bc_in)
        call terminate_cohorts(currentSite, currentPatch, 1,13,bc_in)
        call terminate_cohorts(currentSite, currentPatch, 2,13,bc_in)       
        
@@ -216,6 +217,7 @@ contains
        ! canopy layer has a special bounds check
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
+          currentCohort%canopy_layer_yesterday = currentCohort%canopy_layer
           if( currentCohort%canopy_layer < 1 ) then
              write(fates_log(),*) 'lat:',currentSite%lat
              write(fates_log(),*) 'lon:',currentSite%lon
@@ -248,6 +250,8 @@ contains
              call PromoteOrDemote(currentSite, currentPatch, i_lyr, demotion_phase, target_area)
           end do
 
+          ! Terminate only for type 1 (near zero number density)
+          call terminate_cohorts(currentSite, currentPatch,1,23,bc_in)
           call fuse_cohorts(currentSite, currentPatch, bc_in)
 
           ! ---------------------------------------------------------------------------------------
@@ -266,6 +270,8 @@ contains
                 call PromoteOrDemote(currentSite, currentPatch, i_lyr, promotion_phase, target_area)
              end do
 
+             ! Terminate only for type 1 (near zero number density)
+             call terminate_cohorts(currentSite, currentPatch,1,24,bc_in)
              call fuse_cohorts(currentSite, currentPatch, bc_in)
 
           end if
@@ -590,22 +596,10 @@ contains
          end do
       end if comp_excl_type
 
-      ! Check to make sure the changes are within bounds
-      do ic = 1,n_layer
-         cohort => layer_co(ic)%p
-         if( ((layer_co(ic)%pd_area - cohort%c_area) > co_area_target_precision ) .or. &
-              (layer_co(ic)%pd_area < 0._r8) ) then
-            write(fates_log(),*) 'negative,or more area than the cohort has is being promoted/demoted'
-            write(fates_log(),*) 'change: ',layer_co(ic)%pd_area
-            write(fates_log(),*) 'existing area:',cohort%c_area
-            write(fates_log(),*) 'excess: ',layer_co(ic)%pd_area - cohort%c_area
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-      end do
-
       ! Part 3:
       ! Apply the area changes by splitting the cohort and re-assigning
       ! either all or part of it to a new layer
+      ! Check to make sure the changes are within bounds
 
       ic_loop0: do ic = 1,n_layer
 
@@ -617,25 +611,30 @@ contains
          !    and not trivialy small (larger than precision
          !    check), then split it and move part of it
          ! If the dem/prom area is less than zero or larger than
-         !    the cohort area within precision checks then
-         !    we would have failed in the previous checks
+         !    the cohort area within precision checks then fail
+         
+         
+         whole_or_part: if( ((layer_co(ic)%pd_area - cohort%c_area) > co_area_target_precision ) .or. &
+              (layer_co(ic)%pd_area < 0._r8) ) then
+            write(fates_log(),*) 'negative,or more area than the cohort has is being promoted/demoted'
+            write(fates_log(),*) 'change: ',layer_co(ic)%pd_area
+            write(fates_log(),*) 'existing area:',cohort%c_area
+            write(fates_log(),*) 'excess: ',layer_co(ic)%pd_area - cohort%c_area
+            call endrun(msg=errMsg(sourcefile, __LINE__))
 
-         whole_or_part: if ( abs(layer_co(ic)%pd_area - cohort%c_area) < &
-              co_area_target_precision ) then
+         
+         elseif ( abs(layer_co(ic)%pd_area - cohort%c_area) < co_area_target_precision ) then
 
             ! Whole cohort promotion/demotion
             cohort%canopy_layer = cohort%canopy_layer + ilyr_change
-
-         elseif( (layer_co(ic)%pd_area < cohort%c_area) .and. &
-                 (layer_co(ic)%pd_area > 0 ) ) then
+            
+         elseif( layer_co(ic)%pd_area > 0._r8 ) then
 
             ! Partial cohort promotion/demotion
-
             ! Make a copy of the current cohort.  The copy and the original
             ! conserve total number density.  The copy
             ! remains in the upper-story.  The original is the one
             ! demoted to the understory
-
 
             allocate(copyc)
 
@@ -660,7 +659,7 @@ contains
             call copyc%InitPRTBoundaryConditions()
 
             remainder_area = cohort%c_area - layer_co(ic)%pd_area
-            copyc%n = cohort%n*remainder_area/cohort%c_area
+            copyc%n = cohort%n*min(1._r8,max(0._r8,remainder_area/cohort%c_area))
             cohort%n = cohort%n - copyc%n
 
             ! The copied cohort is the part that remains in-layer
@@ -692,24 +691,26 @@ contains
          ! Part 4:
          ! keep track of number and biomass promoted/demoted
 
-         leaf_c   = cohort%prt%GetState(leaf_organ,carbon12_element)
-         store_c  = cohort%prt%GetState(store_organ,carbon12_element)
-         fnrt_c   = cohort%prt%GetState(fnrt_organ,carbon12_element)
-         sapw_c   = cohort%prt%GetState(sapw_organ,carbon12_element)
-         struct_c = cohort%prt%GetState(struct_organ,carbon12_element)
-
-         if(phase==demotion_phase) then
-            site%demotion_rate(cohort%size_class) = &
-                 site%demotion_rate(cohort%size_class) + cohort%n
-            site%demotion_carbonflux = site%demotion_carbonflux + &
-                 (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * cohort%n
-         else
-            site%promotion_rate(cohort%size_class) = &
-                 site%promotion_rate(cohort%size_class) + cohort%n
-            site%promotion_carbonflux = site%promotion_carbonflux + &
-                 (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * cohort%n
+         if( layer_co(ic)%pd_area > 0._r8 ) then
+            leaf_c   = cohort%prt%GetState(leaf_organ,carbon12_element)
+            store_c  = cohort%prt%GetState(store_organ,carbon12_element)
+            fnrt_c   = cohort%prt%GetState(fnrt_organ,carbon12_element)
+            sapw_c   = cohort%prt%GetState(sapw_organ,carbon12_element)
+            struct_c = cohort%prt%GetState(struct_organ,carbon12_element)
+            
+            if(phase==demotion_phase) then
+               site%demotion_rate(cohort%size_class) = &
+                    site%demotion_rate(cohort%size_class) + cohort%n
+               site%demotion_carbonflux = site%demotion_carbonflux + &
+                    (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * cohort%n
+            else
+               site%promotion_rate(cohort%size_class) = &
+                    site%promotion_rate(cohort%size_class) + cohort%n
+               site%promotion_carbonflux = site%promotion_carbonflux + &
+                    (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * cohort%n
+            end if
          end if
-
+            
       end do ic_loop0
 
     end associate
