@@ -206,7 +206,6 @@ contains
        ! Terminate cohorts before organizing canopy. That
        ! step will be interested in preserving area, so termination
        ! during that step will be counter productive
-       call terminate_cohorts(currentSite, currentPatch, -1,13,bc_in)
        call terminate_cohorts(currentSite, currentPatch, 1,13,bc_in)
        call terminate_cohorts(currentSite, currentPatch, 2,13,bc_in)       
        
