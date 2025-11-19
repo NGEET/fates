@@ -779,12 +779,16 @@ contains
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
+
+       if (currentPatch%nocomp_pft_label .ne. nocomp_bareground) then
        
        call GenerateDamageAndLitterFluxes( currentSite, currentPatch)
 
        call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
 
        call PreDisturbanceIntegrateLitter(currentPatch )
+
+       end if
 
        currentPatch => currentPatch%older
     enddo
