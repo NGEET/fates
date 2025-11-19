@@ -68,7 +68,7 @@ module FatesHistoryInterfaceMod
   use FatesInterfaceTypesMod        , only : nlevcoage
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesInterfaceTypesMod        , only : hlm_use_fixed_biogeog
-  use FatesRadiationMemMod          , only : ivis,inir
+  use FatesRadiationMemMod          , only : ivis,inir,ipar
   use FatesInterfaceTypesMod        , only : hlm_hist_level_hifrq,hlm_hist_level_dynam
   use FatesIOVariableKindMod, only : site_r8, site_soil_r8, site_size_pft_r8
   use FatesIOVariableKindMod, only : site_size_r8, site_pft_r8, site_age_r8
@@ -5123,7 +5123,7 @@ contains
     if(hlm_hist_level_hifrq>0) then
        call update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,dt_tstep)
        if(hlm_hist_level_hifrq>1) then
-          call update_history_hifrq_subsite(this,nc,nsites,sites,dt_tstep)
+          call update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,dt_tstep)
           call update_history_hifrq_subsite_ageclass(this,nsites,sites,dt_tstep)
        end if
     end if
@@ -5209,6 +5209,11 @@ contains
          ! We do not call the radiation solver if
          ! a) there is no vegetation
          ! b) there is no light! (ie cos(zenith) ~= 0)
+         ! c) the "do albedo" flag is true...but, this
+         !    may be false in coupled runs on alternate time-steps
+         !    and it is ok to carry over the previous errors
+         !    and diagnostics between these steps
+         
          age_area_rad(:) = 0._r8
          cpatch => sites(s)%oldest_patch
          do while(associated(cpatch))
@@ -5217,7 +5222,7 @@ contains
             ! solver was called. The solver will be called for NIR
             ! if VIS is called, and likewise the same for conservation
             ! error. So the check on VIS solve error will catch all.
-            if( abs(cpatch%rad_error(ivis))>nearzero ) then
+            if( abs(cpatch%rad_error(ivis)-hlm_hio_ignore_val)>nearzero ) then
                age_class = get_age_class_index(cpatch%age)
                age_area_rad(age_class) = age_area_rad(age_class) + cpatch%total_canopy_area
             end if
@@ -5226,23 +5231,22 @@ contains
 
          sum_area_rad = sum(age_area_rad(:))
 
-         if_anyrad: if(sum_area_rad<nearzero)then
+         if_anyrad: if(sum_area_rad < nearzero .or. &
+                       sites(s)%coszen < nearzero ) then
             hio_vis_rad_err_si(io_si)          = hlm_hio_ignore_val
             hio_nir_rad_err_si(io_si)          = hlm_hio_ignore_val
          else
-
             hio_vis_rad_err_si(io_si)          = 0._r8
             hio_nir_rad_err_si(io_si)          = 0._r8
-
             cpatch => sites(s)%oldest_patch
             do while(associated(cpatch))
-               if( abs(cpatch%rad_error(ivis))>nearzero ) then
+               if( abs(cpatch%rad_error(ivis)-hlm_hio_ignore_val)>nearzero ) then
 
                   hio_vis_rad_err_si(io_si) = hio_vis_rad_err_si(io_si) + &
                        cpatch%rad_error(ivis)*cpatch%total_canopy_area/sum_area_rad
                   hio_nir_rad_err_si(io_si) = hio_nir_rad_err_si(io_si) + &
                        cpatch%rad_error(inir)*cpatch%total_canopy_area/sum_area_rad
-
+                  
                end if
                cpatch => cpatch%younger
             end do
@@ -5354,7 +5358,7 @@ contains
 
   ! ===============================================================================================
 
-  subroutine update_history_hifrq_subsite(this,nc,nsites,sites,dt_tstep)
+  subroutine update_history_hifrq_subsite(this,nc,nsites,sites,bc_in,dt_tstep)
 
     ! ---------------------------------------------------------------------------------
     ! This subroutine is intended to update all history variables with upfreq ==
@@ -5369,7 +5373,8 @@ contains
     class(fates_history_interface_type)                 :: this
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
-    type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    type(ed_site_type)      , intent(inout)         :: sites(nsites)
+    type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     real(r8)                , intent(in)            :: dt_tstep
 
     ! Locals
@@ -5386,7 +5391,8 @@ contains
     real(r8) :: clllpf_area  ! area footprint (m2) for the current cl x ll x pft bin
     real(r8) :: clll_area    ! area footprint (m2) for the cl x ll bin (ie adds up pfts in parallel)
     real(r8) :: cl_area      ! total weight of all ll x pft bins in the canopy layer
-
+    real(r8) :: parprof_pft_dir_z,parprof_pft_dif_z  ! PAR intensity for dir/diff for pft/canopy/leaf layer (w/m2)
+    
     type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
     real(r8) :: dt_tstep_inv          ! Time step in frequency units (/s)
@@ -5456,8 +5462,10 @@ contains
          io_si  = sites(s)%h_gid
 
          cpatch => sites(s)%oldest_patch
-         do while(associated(cpatch))
-
+         patch_loop1: do while(associated(cpatch))
+            
+            nocomp_bare: if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
+            
             ccohort => cpatch%shortest
             do while(associated(ccohort))
 
@@ -5538,8 +5546,8 @@ contains
                     endif
                   end associate
                endif
+               ! canopy leaf carbon balance
 
-               !!! canopy leaf carbon balance
                ican = ccohort%canopy_layer
                do ileaf=1,ccohort%nv
                   cnlf_indx = ileaf + (ican-1) * nlevleaf
@@ -5551,186 +5559,194 @@ contains
             enddo ! cohort loop
 
 
-            ! summarize radiation profiles through the canopy
-            ! --------------------------------------------------------------------
+            ! Radiation diagnostics
+            ! Only process diagnostics if the sun is out
+            if_zenith1: if( sites(s)%coszen>0._r8 ) then
 
-            do_pft1: do ipft=1,numpft
-               do_canlev1: do ican=1,cpatch%ncl_p
-                  do_leaflev1: do ileaf=1,cpatch%nleaf(ican,ipft)
+               do_pft1: do ipft=1,numpft
+                  do_canlev1: do ican=1,cpatch%ncl_p
+                     do_leaflev1: do ileaf=1,cpatch%nrad(ican,ipft)
 
-                     ! calculate where we are on multiplexed dimensions
-                     clllpf_indx = ileaf + (ican-1) * nlevleaf + (ipft-1) * nlevleaf * nclmax
-                     cnlf_indx = ileaf + (ican-1) * nlevleaf
+                        ! calculate where we are on multiplexed dimensions
+                        clllpf_indx = ileaf + (ican-1) * nlevleaf + (ipft-1) * nlevleaf * nclmax
+                        cnlf_indx = ileaf + (ican-1) * nlevleaf
 
-                     ! canopy_area_profile is the fraction of the total canopy area that
-                     ! is occupied by this bin.  If you add up the top leaf layer bins in the
-                     ! top canopy layers, for all pfts, that should equal to 1
+                        ! canopy_area_profile is the fraction of the total canopy area that
+                        ! is occupied by this bin.  If you add up the top leaf layer bins in the
+                        ! top canopy layers, for all pfts, that should equal to 1
 
-                     clllpf_area = cpatch%canopy_area_profile(ican,ipft,ileaf)*cpatch%total_canopy_area
+                        clllpf_area = cpatch%canopy_area_profile(ican,ipft,ileaf)*cpatch%total_canopy_area
 
-                     ! Canopy by leaf by pft level diagnostics
-                     ! -------------------------------------------------------------------
-                     hio_parsun_z_si_cnlfpft(io_si,clllpf_indx) = hio_parsun_z_si_cnlfpft(io_si,clllpf_indx) + &
-                          cpatch%ed_parsun_z(ican,ipft,ileaf) * clllpf_area
+                        ! Canopy by leaf by pft level diagnostics
+                        ! -------------------------------------------------------------------
+                        hio_parsun_z_si_cnlfpft(io_si,clllpf_indx) = hio_parsun_z_si_cnlfpft(io_si,clllpf_indx) + &
+                             cpatch%ed_parsun_z(ican,ipft,ileaf) * clllpf_area
 
-                     hio_parsha_z_si_cnlfpft(io_si,clllpf_indx) = hio_parsha_z_si_cnlfpft(io_si,clllpf_indx) + &
-                          cpatch%ed_parsha_z(ican,ipft,ileaf) * clllpf_area
+                        hio_parsha_z_si_cnlfpft(io_si,clllpf_indx) = hio_parsha_z_si_cnlfpft(io_si,clllpf_indx) + &
+                             cpatch%ed_parsha_z(ican,ipft,ileaf) * clllpf_area
 
-                     ! elai_profile is the m2 of leaf inside the m2 of bin.
+                        ! elai_profile is the m2 of leaf inside the m2 of bin.
 
-                     hio_laisun_clllpf(io_si, clllpf_indx) = hio_laisun_clllpf(io_si, clllpf_indx) + &
-                          cpatch%elai_profile(ican,ipft,ileaf)*cpatch%f_sun(ican,ipft,ileaf)*clllpf_area
+                        hio_laisun_clllpf(io_si, clllpf_indx) = hio_laisun_clllpf(io_si, clllpf_indx) + &
+                             cpatch%elai_profile(ican,ipft,ileaf)*cpatch%f_sun(ican,ipft,ileaf)*clllpf_area
 
-                     hio_laisha_clllpf(io_si,clllpf_indx) = hio_laisha_clllpf(io_si,clllpf_indx) + &
-                          cpatch%elai_profile(ican,ipft,ileaf)*(1._r8-cpatch%f_sun(ican,ipft,ileaf))*clllpf_area
+                        hio_laisha_clllpf(io_si,clllpf_indx) = hio_laisha_clllpf(io_si,clllpf_indx) + &
+                             cpatch%elai_profile(ican,ipft,ileaf)*(1._r8-cpatch%f_sun(ican,ipft,ileaf))*clllpf_area
 
-                     hio_parprof_dir_si_cnlfpft(io_si,clllpf_indx) = hio_parprof_dir_si_cnlfpft(io_si,clllpf_indx) + &
-                          cpatch%parprof_pft_dir_z(ican,ipft,ileaf) * clllpf_area
+                        parprof_pft_dir_z = bc_in(s)%solad_parb(cpatch%patchno,ipar) * &
+                             cpatch%nrmlzd_parprof_pft_dir_z(ican,ipft,ileaf)
 
-                     hio_parprof_dif_si_cnlfpft(io_si,clllpf_indx) = hio_parprof_dif_si_cnlfpft(io_si,clllpf_indx) + &
-                          cpatch%parprof_pft_dif_z(ican,ipft,ileaf) * clllpf_area
+                        parprof_pft_dif_z = bc_in(s)%solai_parb(cpatch%patchno,ipar) * &
+                             cpatch%nrmlzd_parprof_pft_dif_z(ican,ipft,ileaf)
 
-                     ! The fractional area of Canopy layer and PFTs can be used
-                     ! do upscale the CLLLPF properties
-                     hio_crownfrac_clllpf(io_si,clllpf_indx) = hio_crownfrac_clllpf(io_si,clllpf_indx) + &
-                          clllpf_area
+                        hio_parprof_dir_si_cnlfpft(io_si,clllpf_indx) = hio_parprof_dir_si_cnlfpft(io_si,clllpf_indx) + &
+                             parprof_pft_dir_z * clllpf_area
+
+                        hio_parprof_dif_si_cnlfpft(io_si,clllpf_indx) = hio_parprof_dif_si_cnlfpft(io_si,clllpf_indx) + &
+                             parprof_pft_dif_z * clllpf_area
+
+                        ! The fractional area of Canopy layer and PFTs can be used
+                        ! do upscale the CLLLPF properties
+                        hio_crownfrac_clllpf(io_si,clllpf_indx) = hio_crownfrac_clllpf(io_si,clllpf_indx) + &
+                             clllpf_area
+                        
+                        
+                        ! Canopy by leaf layer (mean across pfts) level diagnostics
+                        ! ----------------------------------------------------------------------------
+                        hio_parprof_dir_si_cnlf(io_si,cnlf_indx) = hio_parprof_dir_si_cnlf(io_si,cnlf_indx) + &
+                             parprof_pft_dir_z * clllpf_area
+
+                        hio_parprof_dif_si_cnlf(io_si,cnlf_indx) = hio_parprof_dif_si_cnlf(io_si,cnlf_indx) + &
+                             parprof_pft_dif_z * clllpf_area
+
+                        hio_parsun_z_si_cnlf(io_si,cnlf_indx) = hio_parsun_z_si_cnlf(io_si,cnlf_indx) + &
+                             cpatch%ed_parsun_z(ican,ipft,ileaf) * clllpf_area
+
+                        hio_parsha_z_si_cnlf(io_si,cnlf_indx) = hio_parsha_z_si_cnlf(io_si,cnlf_indx) + &
+                             cpatch%ed_parsha_z(ican,ipft,ileaf) * clllpf_area
+
+                        hio_laisun_z_si_cnlf(io_si,cnlf_indx) = hio_laisun_z_si_cnlf(io_si,cnlf_indx) + &
+                             cpatch%f_sun(ican,ipft,ileaf)*clllpf_area
+
+                        hio_laisha_z_si_cnlf(io_si,cnlf_indx) = hio_laisha_z_si_cnlf(io_si,cnlf_indx) + &
+                             (1._r8-cpatch%f_sun(ican,ipft,ileaf))*clllpf_area
+
+                        ! Canopy mean diagnostics
+                        ! --------------------------------------------------------------
+
+                        hio_parsun_si_can(io_si,ican) = hio_parsun_si_can(io_si,ican) + &
+                             cpatch%ed_parsun_z(ican,ipft,ileaf) * clllpf_area
+                        hio_parsha_si_can(io_si,ican) = hio_parsha_si_can(io_si,ican) + &
+                             cpatch%ed_parsha_z(ican,ipft,ileaf) * clllpf_area
+
+                        hio_laisun_si_can(io_si,ican) = hio_laisun_si_can(io_si,ican) + &
+                             cpatch%f_sun(ican,ipft,ileaf)*cpatch%elai_profile(ican,ipft,ileaf) * clllpf_area
+                        hio_laisha_si_can(io_si,ican) = hio_laisha_si_can(io_si,ican) + &
+                             (1._r8-cpatch%f_sun(ican,ipft,ileaf))*cpatch%elai_profile(ican,ipft,ileaf) * clllpf_area
 
 
-                     ! Canopy by leaf layer (mean across pfts) level diagnostics
-                     ! ----------------------------------------------------------------------------
-                     hio_parprof_dir_si_cnlf(io_si,cnlf_indx) = hio_parprof_dir_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%parprof_pft_dir_z(ican,ipft,ileaf) * clllpf_area
-
-                     hio_parprof_dif_si_cnlf(io_si,cnlf_indx) = hio_parprof_dif_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%parprof_pft_dif_z(ican,ipft,ileaf) * clllpf_area
-
-                     hio_parsun_z_si_cnlf(io_si,cnlf_indx) = hio_parsun_z_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%ed_parsun_z(ican,ipft,ileaf) * clllpf_area
-
-                     hio_parsha_z_si_cnlf(io_si,cnlf_indx) = hio_parsha_z_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%ed_parsha_z(ican,ipft,ileaf) * clllpf_area
-
-                     hio_laisun_z_si_cnlf(io_si,cnlf_indx) = hio_laisun_z_si_cnlf(io_si,cnlf_indx) + &
-                          cpatch%f_sun(ican,ipft,ileaf)*clllpf_area
-
-                     hio_laisha_z_si_cnlf(io_si,cnlf_indx) = hio_laisha_z_si_cnlf(io_si,cnlf_indx) + &
-                          (1._r8-cpatch%f_sun(ican,ipft,ileaf))*clllpf_area
-
-                     ! Canopy mean diagnostics
-                     ! --------------------------------------------------------------
-
-                     hio_parsun_si_can(io_si,ican) = hio_parsun_si_can(io_si,ican) + &
-                          cpatch%ed_parsun_z(ican,ipft,ileaf) * clllpf_area
-                     hio_parsha_si_can(io_si,ican) = hio_parsha_si_can(io_si,ican) + &
-                          cpatch%ed_parsha_z(ican,ipft,ileaf) * clllpf_area
-
-                     hio_laisun_si_can(io_si,ican) = hio_laisun_si_can(io_si,ican) + &
-                          cpatch%f_sun(ican,ipft,ileaf)*cpatch%elai_profile(ican,ipft,ileaf) * clllpf_area
-                     hio_laisha_si_can(io_si,ican) = hio_laisha_si_can(io_si,ican) + &
-                          (1._r8-cpatch%f_sun(ican,ipft,ileaf))*cpatch%elai_profile(ican,ipft,ileaf) * clllpf_area
-
-
-                  end do do_leaflev1
-               end do do_canlev1
-            end do do_pft1
-
+                     end do do_leaflev1
+                  end do do_canlev1
+               end do do_pft1
+            end if if_zenith1
+            end if nocomp_bare
             cpatch => cpatch%younger
-         end do !patch loop
+         end do patch_loop1 !patch loop
 
          ! Normalize the radiation multiplexed diagnostics
          ! Set values that dont have canopy elements to ignore
          ! ----------------------------------------------------------------------------
+         
+         if_zenith2: if( sites(s)%coszen>0._r8 ) then
+            do_ican2: do ican = 1,nclmax
 
-         do_ican2: do ican = 1,nclmax
-
-            cl_area = 0._r8
-            do_ileaf2: do ileaf = 1,nlevleaf
-
-               clll_area = 0._r8
-               do_ipft2: do ipft = 1,numpft
-
-                  clllpf_indx = ileaf + (ican-1) * nlevleaf + (ipft-1) * nlevleaf * nclmax
-                  if( hio_crownfrac_clllpf(io_si,clllpf_indx)<nearzero)then
-                     hio_parsun_z_si_cnlfpft(io_si,clllpf_indx) = hlm_hio_ignore_val
-                     hio_parsha_z_si_cnlfpft(io_si,clllpf_indx) = hlm_hio_ignore_val
-                     hio_laisun_clllpf(io_si,clllpf_indx) = hlm_hio_ignore_val
-                     hio_laisha_clllpf(io_si,clllpf_indx) = hlm_hio_ignore_val
-                     hio_parprof_dir_si_cnlfpft(io_si,clllpf_indx) = hlm_hio_ignore_val
-                     hio_parprof_dif_si_cnlfpft(io_si,clllpf_indx) = hlm_hio_ignore_val
+               cl_area = 0._r8
+               do_ileaf2: do ileaf = 1,nlevleaf
+                  
+                  clll_area = 0._r8
+                  do_ipft2: do ipft = 1,numpft
+                     
+                     clllpf_indx = ileaf + (ican-1) * nlevleaf + (ipft-1) * nlevleaf * nclmax
+                     if( hio_crownfrac_clllpf(io_si,clllpf_indx)<nearzero)then
+                        hio_parsun_z_si_cnlfpft(io_si,clllpf_indx) = hlm_hio_ignore_val
+                        hio_parsha_z_si_cnlfpft(io_si,clllpf_indx) = hlm_hio_ignore_val
+                        hio_laisun_clllpf(io_si,clllpf_indx) = hlm_hio_ignore_val
+                        hio_laisha_clllpf(io_si,clllpf_indx) = hlm_hio_ignore_val
+                        hio_parprof_dir_si_cnlfpft(io_si,clllpf_indx) = hlm_hio_ignore_val
+                        hio_parprof_dif_si_cnlfpft(io_si,clllpf_indx) = hlm_hio_ignore_val
+                     else
+                        
+                        hio_parsun_z_si_cnlfpft(io_si,clllpf_indx) = &
+                             hio_parsun_z_si_cnlfpft(io_si,clllpf_indx)/hio_crownfrac_clllpf(io_si,clllpf_indx)
+                        
+                        hio_parsha_z_si_cnlfpft(io_si,clllpf_indx) = &
+                             hio_parsha_z_si_cnlfpft(io_si,clllpf_indx)/hio_crownfrac_clllpf(io_si,clllpf_indx)
+                        
+                        hio_laisun_clllpf(io_si, clllpf_indx) = &
+                             hio_laisun_clllpf(io_si, clllpf_indx)/hio_crownfrac_clllpf(io_si,clllpf_indx)
+                        
+                        hio_laisha_clllpf(io_si,clllpf_indx) = &
+                             hio_laisha_clllpf(io_si,clllpf_indx)/hio_crownfrac_clllpf(io_si,clllpf_indx)
+                        
+                        hio_parprof_dir_si_cnlfpft(io_si,clllpf_indx) = &
+                             hio_parprof_dir_si_cnlfpft(io_si,clllpf_indx)/hio_crownfrac_clllpf(io_si,clllpf_indx)
+                        
+                        hio_parprof_dif_si_cnlfpft(io_si,clllpf_indx) = &
+                             hio_parprof_dif_si_cnlfpft(io_si,clllpf_indx)/hio_crownfrac_clllpf(io_si,clllpf_indx)
+                        
+                        clll_area = clll_area + hio_crownfrac_clllpf(io_si,clllpf_indx)
+                        cl_area   = cl_area + hio_crownfrac_clllpf(io_si,clllpf_indx)
+                        
+                        ! Convert from total m2 to fraction of the site
+                        hio_crownfrac_clllpf(io_si,clllpf_indx) = &
+                             hio_crownfrac_clllpf(io_si,clllpf_indx)*site_area_veg_inv                     
+                     end if
+                  end do do_ipft2
+                  
+                  cnlf_indx = ileaf + (ican-1) * nlevleaf
+                  
+                  if(clll_area<nearzero)then
+                     hio_parprof_dir_si_cnlf(io_si,cnlf_indx) = hlm_hio_ignore_val
+                     hio_parprof_dif_si_cnlf(io_si,cnlf_indx) = hlm_hio_ignore_val
+                     hio_parsun_z_si_cnlf(io_si,cnlf_indx) = hlm_hio_ignore_val
+                     hio_parsha_z_si_cnlf(io_si,cnlf_indx) = hlm_hio_ignore_val
+                     hio_laisun_z_si_cnlf(io_si,cnlf_indx) = hlm_hio_ignore_val
+                     hio_laisha_z_si_cnlf(io_si,cnlf_indx) = hlm_hio_ignore_val
                   else
-
-                     hio_parsun_z_si_cnlfpft(io_si,clllpf_indx) = &
-                          hio_parsun_z_si_cnlfpft(io_si,clllpf_indx)/hio_crownfrac_clllpf(io_si,clllpf_indx)
-
-                     hio_parsha_z_si_cnlfpft(io_si,clllpf_indx) = &
-                          hio_parsha_z_si_cnlfpft(io_si,clllpf_indx)/hio_crownfrac_clllpf(io_si,clllpf_indx)
-
-                     hio_laisun_clllpf(io_si, clllpf_indx) = &
-                          hio_laisun_clllpf(io_si, clllpf_indx)/hio_crownfrac_clllpf(io_si,clllpf_indx)
-
-                     hio_laisha_clllpf(io_si,clllpf_indx) = &
-                          hio_laisha_clllpf(io_si,clllpf_indx)/hio_crownfrac_clllpf(io_si,clllpf_indx)
-
-                     hio_parprof_dir_si_cnlfpft(io_si,clllpf_indx) = &
-                          hio_parprof_dir_si_cnlfpft(io_si,clllpf_indx)/hio_crownfrac_clllpf(io_si,clllpf_indx)
-
-                     hio_parprof_dif_si_cnlfpft(io_si,clllpf_indx) = &
-                          hio_parprof_dif_si_cnlfpft(io_si,clllpf_indx)/hio_crownfrac_clllpf(io_si,clllpf_indx)
-
-                     clll_area = clll_area + hio_crownfrac_clllpf(io_si,clllpf_indx)
-                     cl_area   = cl_area + hio_crownfrac_clllpf(io_si,clllpf_indx)
-
-                     ! Convert from total m2 to fraction of the site
-                     hio_crownfrac_clllpf(io_si,clllpf_indx) = hio_crownfrac_clllpf(io_si,clllpf_indx)*site_area_veg_inv                     
+                     hio_parprof_dir_si_cnlf(io_si,cnlf_indx) = &
+                          hio_parprof_dir_si_cnlf(io_si,cnlf_indx)/clll_area
+                     hio_parprof_dif_si_cnlf(io_si,cnlf_indx) = &
+                          hio_parprof_dif_si_cnlf(io_si,cnlf_indx)/clll_area
+                     hio_parsun_z_si_cnlf(io_si,cnlf_indx) = &
+                          hio_parsun_z_si_cnlf(io_si,cnlf_indx)/clll_area
+                     hio_parsha_z_si_cnlf(io_si,cnlf_indx) = &
+                          hio_parsha_z_si_cnlf(io_si,cnlf_indx)/clll_area
+                     hio_laisun_z_si_cnlf(io_si,cnlf_indx) = &
+                          hio_laisun_z_si_cnlf(io_si,cnlf_indx)/clll_area
+                     hio_laisha_z_si_cnlf(io_si,cnlf_indx) = &
+                          hio_laisha_z_si_cnlf(io_si,cnlf_indx)/clll_area
                   end if
-               end do do_ipft2
-
-               cnlf_indx = ileaf + (ican-1) * nlevleaf
-
-               if(clll_area<nearzero)then
-                  hio_parprof_dir_si_cnlf(io_si,cnlf_indx) = hlm_hio_ignore_val
-                  hio_parprof_dif_si_cnlf(io_si,cnlf_indx) = hlm_hio_ignore_val
-                  hio_parsun_z_si_cnlf(io_si,cnlf_indx) = hlm_hio_ignore_val
-                  hio_parsha_z_si_cnlf(io_si,cnlf_indx) = hlm_hio_ignore_val
-                  hio_laisun_z_si_cnlf(io_si,cnlf_indx) = hlm_hio_ignore_val
-                  hio_laisha_z_si_cnlf(io_si,cnlf_indx) = hlm_hio_ignore_val
+               end do do_ileaf2
+               
+               if(cl_area<nearzero)then
+                  
+                  hio_parsun_si_can(io_si,ican) = hlm_hio_ignore_val
+                  hio_parsha_si_can(io_si,ican) = hlm_hio_ignore_val
+                  hio_laisun_si_can(io_si,ican) = hlm_hio_ignore_val
+                  hio_laisha_si_can(io_si,ican) = hlm_hio_ignore_val
+                  
                else
-
-                  hio_parprof_dir_si_cnlf(io_si,cnlf_indx) = &
-                       hio_parprof_dir_si_cnlf(io_si,cnlf_indx)/clll_area
-                  hio_parprof_dif_si_cnlf(io_si,cnlf_indx) = &
-                       hio_parprof_dif_si_cnlf(io_si,cnlf_indx)/clll_area
-                  hio_parsun_z_si_cnlf(io_si,cnlf_indx) = &
-                       hio_parsun_z_si_cnlf(io_si,cnlf_indx)/clll_area
-                  hio_parsha_z_si_cnlf(io_si,cnlf_indx) = &
-                       hio_parsha_z_si_cnlf(io_si,cnlf_indx)/clll_area
-                  hio_laisun_z_si_cnlf(io_si,cnlf_indx) = &
-                       hio_laisun_z_si_cnlf(io_si,cnlf_indx)/clll_area
-                  hio_laisha_z_si_cnlf(io_si,cnlf_indx) = &
-                       hio_laisha_z_si_cnlf(io_si,cnlf_indx)/clll_area
+                  ! Since these are integrated metrics, ie absorbed over depth
+                  ! and total leaf over depth, we just want to normalize by the
+                  ! the area of the footprint.  The weightings they had
+                  ! recieved were always in m2 (ie the footprint of the bin)
+                  hio_parsun_si_can(io_si,ican) = hio_parsun_si_can(io_si,ican) * site_area_veg_inv
+                  hio_parsha_si_can(io_si,ican) = hio_parsha_si_can(io_si,ican) * site_area_veg_inv
+                  hio_laisun_si_can(io_si,ican) = hio_laisun_si_can(io_si,ican) * site_area_veg_inv
+                  hio_laisha_si_can(io_si,ican) = hio_laisha_si_can(io_si,ican) * site_area_veg_inv
                end if
-            end do do_ileaf2
-
-            if(cl_area<nearzero)then
-
-               hio_parsun_si_can(io_si,ican) = hlm_hio_ignore_val
-               hio_parsha_si_can(io_si,ican) = hlm_hio_ignore_val
-               hio_laisun_si_can(io_si,ican) = hlm_hio_ignore_val
-               hio_laisha_si_can(io_si,ican) = hlm_hio_ignore_val
-
-            else
-               ! Since these are integrated metrics, ie absorbed over depth
-               ! and total leaf over depth, we just want to normalize by the
-               ! the area of the footprint.  The weightings they had
-               ! recieved were always in m2 (ie the footprint of the bin)
-               hio_parsun_si_can(io_si,ican) = hio_parsun_si_can(io_si,ican) * site_area_veg_inv
-               hio_parsha_si_can(io_si,ican) = hio_parsha_si_can(io_si,ican) * site_area_veg_inv
-               hio_laisun_si_can(io_si,ican) = hio_laisun_si_can(io_si,ican) * site_area_veg_inv
-               hio_laisha_si_can(io_si,ican) = hio_laisha_si_can(io_si,ican) * site_area_veg_inv
-            end if
-
-         end do do_ican2
-
+            end do do_ican2
+         end if if_zenith2
       enddo do_sites ! site loop
 
     end associate

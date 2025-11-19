@@ -3273,10 +3273,6 @@ contains
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
     rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
 
-    ! Radiation
-    rp%rad_error(1)         = (dp%rad_error(1)*dp%area + rp%rad_error(1)*rp%area) * inv_sum_area
-    rp%rad_error(2)         = (dp%rad_error(2)*dp%area + rp%rad_error(2)*rp%area) * inv_sum_area
-    
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
     !insert donor cohorts into recipient patch
