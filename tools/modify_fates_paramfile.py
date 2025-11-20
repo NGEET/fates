@@ -25,7 +25,7 @@ import argparse
 import sys
 import datetime
 import time
-import numpy as np
+import math
 import code  # For development: code.interact(local=dict(globals(), **locals()))
 import json
 import write_json
@@ -77,7 +77,7 @@ def main():
         print('Listing out parameters names:')
         for key in data['parameters'].keys():
             print(key.strip('"'))
-            exit(0)
+        exit(0)
     else:
         if(args.paramname is None):
             print('You must provide a parameter name if not using --listparams')
@@ -96,9 +96,18 @@ def main():
     except KeyError:
         print(f'\n\nThe parameter name "{args.paramname}" is not in the dataset. Exiting.\n')
 
-    dim_sizes = list(np.shape(data['parameters'][args.paramname]['data']))
-    max_index = np.prod(dim_sizes)
-
+    ndims = len(data['parameters'][args.paramname]['dims'])
+    dim_sizes = []
+    for id in range(ndims):
+        if(id==0):
+            dim_sizes.append(len(data['parameters'][args.paramname]['data']))
+        else:
+            dim_sizes.append(len(data['parameters'][args.paramname]['data'][0]))
+                             
+    max_index = 1 
+    for dsize in dim_sizes:
+        max_index *= dsize
+    
     if(args.queryparam):
         print(f'')
         print(f'Reporting: Parameter: {args.paramname}:')
@@ -238,8 +247,10 @@ def main():
     
     for i,idx in enumerate(indices):
         if(len(dim_sizes)>1):
-            k = np.remainder(idx-1,dim_sizes[1])
-            j = int(np.floor(float(idx-1)/float(dim_sizes[1])))
+
+            k = idx-1 % dim_sizes[1]
+            j = int(math.floor(float(idx-1)/float(dim_sizes[1])))
+            
             if(not args.silent):
                 old_val = data['parameters'][args.paramname]['data'][j][k]
                 print(f'Changing {args.paramname}[{j},{k}] from {old_val} to {values[i]}')
