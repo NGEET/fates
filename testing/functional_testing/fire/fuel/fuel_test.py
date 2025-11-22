@@ -35,10 +35,20 @@ class FuelTest(FunctionalTestWithDrivers):
             plot_dir (str): plot directory
         """
 
+        # define all timeseries vars
+        # concise: define all time-series plots in one list
+        ts_specs = [
+        ("NI", "Nesterov Index", None, "Nesterov_plot.png"),
+        ("fuel_moisture_dead", "Dead fuel Moisture", "fuel_model", "fuel_moisture_dead_plot.png"),
+        ("fuel_moisture_live", "Live fuel Moisture", "fuel_model", "fuel_moisture_live_plot.png"),
+        ]
+
         fuel_dat = xr.open_dataset(os.path.join(run_dir, self.out_file))
 
-        self.plot_NI_dat(fuel_dat, save_figs, plot_dir)
-        self.plot_moisture_dat(fuel_dat, save_figs, plot_dir)
+        for var, ylabel, hue, filename in ts_specs:
+            if var in fuel_dat:
+                self.plot_timeseries(fuel_dat, var, ylabel, hue, save_figs, plot_dir, filename)
+
         self.plot_barchart(
             fuel_dat,
             "fuel_loading",
@@ -46,6 +56,24 @@ class FuelTest(FunctionalTestWithDrivers):
             "kgC m$^{-2}$",
             save_figs,
             plot_dir,
+        )
+        self.plot_barchart(
+            fuel_dat,
+            "weighted_loading_dead",
+            "Weighted dead fuel loading",
+            "kgC m$^{-2}$",
+            save_figs,
+            plot_dir,
+            by_litter_type = False,
+        )
+        self.plot_barchart(
+            fuel_dat,
+            "weighted_loading_live",
+            "Weighted live fuel loading",
+            "kgC m$^{-2}$",
+            save_figs,
+            plot_dir,
+            by_litter_type=False,
         )
         self.plot_barchart(
             fuel_dat,
@@ -150,39 +178,41 @@ class FuelTest(FunctionalTestWithDrivers):
             plt.savefig(fig_name)
 
     @staticmethod
-    def plot_NI_dat(fuel_dat: xr.Dataset, save_figs: bool, plot_dir: str):
-        """Plot output for Nesterov index
+    def plot_timeseries(
+        fuel_dat: xr.Dataset, 
+        var: str,
+        ylabel: str, 
+        hue: str | None,
+        save_figs: bool, 
+        plot_dir: str,
+        filename: str,
+        ):
+        """Plot output as time series
 
         Args:
             fuel_dat (Xarray Dataset): output fuel data
+            var (str): variable to plot
+            ylabel (str): label for y axis 
+            hue (str): grouping variable (optional)
             save_figs (bool): whether or not to save the figures
             plot_dir (str): plot directory
+            filename (str): file name for saving figures
         """
+        if var not in fuel_dat:
+            return
+        
+        fig, ax = plt.subplots()
+        if hue is None:
+            fuel_dat[var].plot(ax=ax)
+        else:
+            fuel_dat[var].plot(hue = hue, ax=ax)
 
-        plt.figure()
-        fuel_dat.NI.plot()
-        plt.xlabel("Time", fontsize=11)
-        plt.ylabel("Nesterov Index", fontsize=11)
-
+        ax.set_xlabel("Time", fontsize=11)
+        ax.set_ylabel(ylabel, fontsize=11)
+        plt.tight_layout()
+    
         if save_figs:
-            fig_name = os.path.join(plot_dir, "Nesterov_plot.png")
-            plt.savefig(fig_name)
+            fig_name = os.path.join(plot_dir, filename)
+            plt.savefig(fig_name, dpi=150, bbox_inches="tight")
+        plt.close(fig)
 
-    @staticmethod
-    def plot_moisture_dat(fuel_dat: xr.Dataset, save_figs: bool, plot_dir: str):
-        """Plot output for fuel moisture
-
-        Args:
-            fuel_dat (Xarray Dataset): output fuel data
-            save_figs (bool): whether or not to save the figures
-            plot_dir (str): plot directory
-        """
-
-        plt.figure()
-        fuel_dat.fuel_moisture.plot(hue="fuel_model")
-        plt.xlabel("Time", fontsize=11)
-        plt.ylabel("Fuel Moisture", fontsize=11)
-
-        if save_figs:
-            fig_name = os.path.join(plot_dir, "fuel_moisture_plot.png")
-            plt.savefig(fig_name)
