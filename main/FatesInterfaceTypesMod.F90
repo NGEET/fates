@@ -922,6 +922,7 @@ module FatesInterfaceTypesMod
     integer, private :: sidx
     integer, private :: hpidx
     integer, private :: fpidx
+    logical, private :: bareground
 
     contains
 
@@ -936,6 +937,7 @@ module FatesInterfaceTypesMod
       procedure :: InitializeInterfaceRegistry
       procedure :: InitializeInterfaceVariablesDimensions
       procedure :: InitializeInterfaceVariables
+      procedure :: IsBareground => HLMPatchIsBareground 
       procedure :: SetSubgridIndices
       procedure :: SetActiveState
       procedure :: UpdateLitterFluxes
@@ -1328,7 +1330,7 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
   
-  subroutine SetSubgridIndices(this, gridcell, topounit, landunit, column, hlmpatch, fatespatch, site)
+  subroutine SetSubgridIndices(this, gridcell, topounit, landunit, column, hlmpatch, fatespatch, site, bareground)
     
     class(fates_interface_registry_type), intent(inout) :: this
     integer, intent(in), optional :: gridcell
@@ -1338,6 +1340,7 @@ module FatesInterfaceTypesMod
     integer, intent(in), optional :: hlmpatch
     integer, intent(in), optional :: fatespatch
     integer, intent(in), optional :: site
+    logical, intent(in), optional :: bareground
     
     if (present(gridcell))   this%gidx = gridcell
     if (present(topounit))   this%tidx = topounit
@@ -1346,6 +1349,7 @@ module FatesInterfaceTypesMod
     if (present(hlmpatch))   this%hpidx = hlmpatch
     if (present(fatespatch)) this%fpidx = fatespatch
     if (present(site))       this%sidx = site
+    if (present(bareground)) this%bareground = bareground
     
   end subroutine SetSubgridIndices
   
@@ -1429,6 +1433,16 @@ module FatesInterfaceTypesMod
     fpidx = this%fpidx
     
   end function GetFatesPatchIndex
+  
+  ! ======================================================================================
+  
+  logical function HLMPatchIsBareGround(this) result(bareground)
+  
+    class(fates_interface_registry_type), intent(inout) :: this
+    
+    bareground = this%bareground
+    
+  end function HLMPatchIsBareGround
   
   ! ======================================================================================
   
