@@ -1179,9 +1179,9 @@ contains
       do pft = 1, numpft
          ! check for the mode and set the initd
          if (hlm_use_nocomp .eq. itrue) then
-            l_initd(pft) = EDPftvarcon_inst%initd_nocomp(pft)
+            l_initd(pft) = EDPftvarcon_inst%initd
          else 
-            l_initd(pft) = EDPftvarcon_inst%initd_fullfates(pft)
+            l_initd(pft) = EDPftvarcon_inst%initd
          endif
          if (l_initd(pft) < 0.0_r8) then   
             site_in%spread = init_spread_inventory

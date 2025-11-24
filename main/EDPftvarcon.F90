@@ -56,11 +56,9 @@ module EDPftvarcon
      real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
-     real(r8), allocatable :: initd_fullfates(:)     ! initial seedling density for runs
-                                                     ! with competition on (i.e. not nocomp)
-     real(r8), allocatable :: initd_nocomp(:)        ! either initial seedling density or initial
-                                                     ! plant size for nocomp runs
-     real(r8), allocatable :: init_seed(:)              ! initial seed pool 
+     real(r8), allocatable :: initd(:)               ! initial seedling density [/m2] (positive values)
+                                                     ! or -dbh [cm] (negative values)
+     real(r8), allocatable :: init_seed(:)           ! initial seed pool 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
 
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
@@ -797,13 +795,9 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%crown_kill)
 
-    name = 'fates_recruit_init_density_full_fates'
+    name = 'fates_recruit_init_density'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%initd_fullfates)
-
-    name = 'fates_recruit_init_nocomp'
-    call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%initd_nocomp)
+         data=this%initd)
 
     name = 'fates_init_seed'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1579,7 +1573,7 @@ contains
 
      integer :: npft,ipft
 
-     npft = size(EDPftvarcon_inst%initd_fullfates,1)
+     npft = size(EDPftvarcon_inst%initd,1)
 
      if(debug_report .and. is_master) then
 
@@ -1598,8 +1592,7 @@ contains
         write(fates_log(),fmt0) 'displar = ',EDPftvarcon_inst%displar
         write(fates_log(),fmt0) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
-        write(fates_log(),fmt0) 'initd_fullfates = ',EDPftvarcon_inst%initd_fullfates
-        write(fates_log(),fmt0) 'initd_nocomp = ',EDPftvarcon_inst%initd_nocomp
+        write(fates_log(),fmt0) 'initd  = ',EDPftvarcon_inst%initd
         write(fates_log(),fmt0) 'init_seed = ',EDPftvarcon_inst%init_seed
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
         write(fates_log(),fmt0) 'lf_flab = ',EDPftvarcon_inst%lf_flab
@@ -2012,7 +2005,7 @@ contains
         !-----------------------------------------------------------------------------------
         
         if ( hlm_use_inventory_init == ifalse .and. & 
-             abs( EDPftvarcon_inst%initd_fullfates(ipft) ) < nearzero ) then
+             abs( EDPftvarcon_inst%initd(ipft) ) < nearzero ) then
           
            write(fates_log(),*) ' In a cold start run initial density cannot be zero.'
            write(fates_log(),*) ' For a bare ground run set to initial recruit density.'
