@@ -350,6 +350,7 @@ def main():
             
                 if(dimnames[0]=='scalar' or dimnames[0]=='none' or dimnames[0]==''):
                     dimnames = ()
+                    dcode = "d"
                 elif(isinstance(values[0],float)):
                     dcode = "d"
                 else:

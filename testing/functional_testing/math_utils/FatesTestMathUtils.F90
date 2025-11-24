@@ -1,7 +1,7 @@
 program FatesTestQuadSolvers
 
   use FatesConstantsMod, only : r8 => fates_r8
-  use FatesUtilsMod,     only : QuadraticRootsNSWC, QuadraticRootsSridharachary
+  use FatesUtilsMod,     only : QuadraticRootsNSWC
   use FatesUtilsMod,     only : GetNeighborDistance
 
   implicit none

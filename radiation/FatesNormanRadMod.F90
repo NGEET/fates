@@ -801,9 +801,11 @@ contains
                    ! pass normalized PAR profiles for use in diagnostic averaging for history fields
                    if (ib == ivis) then ! only diagnose PAR profiles for the visible band
                       do iv = 1, currentPatch%nrad(L,ft)
-                         currentPatch%nrmlzd_parprof_pft_dir_z(radtype,L,ft,iv) = &
+                         currentPatch%nrmlzd_parprof_pft_dir_z(L,ft,iv) = &
+                              currentPatch%nrmlzd_parprof_pft_dir_z(L,ft,iv) + &
                               forc_dir(radtype) * tr_dir_z(L,ft,iv)
-                         currentPatch%nrmlzd_parprof_pft_dif_z(radtype,L,ft,iv) = &
+                         currentPatch%nrmlzd_parprof_pft_dif_z(L,ft,iv) = &
+                              currentPatch%nrmlzd_parprof_pft_dif_z(L,ft,iv) + &
                               Dif_dn(L,ft,iv) + Dif_up(L,ft,iv)
                       end do
                    end if ! ib = visible

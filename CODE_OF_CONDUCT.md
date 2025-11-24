@@ -53,4 +53,4 @@ This Code of Conduct is adapted from the [Contributor Covenant][homepage], versi
 
 [homepage]: http://contributor-covenant.org
 [version]: http://contributor-covenant.org/version/1/4/
-[wiki_ref_page]: https://github.com/NGEET/fates/wiki/Relevant-References
+[references]: https://fates-users-guide.readthedocs.io/en/latest/user/Relevant-References.html
