@@ -302,7 +302,7 @@ contains
     ! make new patches from disturbed land
     if (do_patch_dynamics.eq.itrue ) then
 
-       call spawn_patches(currentSite, bc_in, bc_out)
+       call spawn_patches(currentSite, bc_in)
 
        call TotalBalanceCheck(currentSite,3)
 
@@ -842,7 +842,6 @@ contains
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
     type(site_massbal_type), pointer :: site_cmass
-    real(r8) :: total_stock  ! dummy variable for receiving from sitemassstock
     !-----------------------------------------------------------------------
 
     site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
