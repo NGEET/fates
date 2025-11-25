@@ -20,8 +20,6 @@ module EDPhysiologyMod
   use FatesInterfaceTypesMod, only    : hlm_use_nocomp
   use EDParamsMod           , only    : crop_lu_pft_vector
   use EDParamsMod           , only    : GetNVegLayers
-  use FatesInterfaceTypesMod, only    : hlm_nitrogen_spec
-  use FatesInterfaceTypesMod, only    : hlm_phosphorus_spec
   use FatesInterfaceTypesMod, only    : hlm_use_tree_damage
   use FatesInterfaceTypesMod, only : hlm_use_ed_prescribed_phys
   use FatesConstantsMod, only    : r8 => fates_r8
@@ -166,14 +164,14 @@ module EDPhysiologyMod
   public :: UpdateRecruitL2FR
   public :: UpdateRecruitStoicH
   public :: SetRecruitL2FR
-  
+
   logical, parameter :: debug  = .false. ! local debug flag
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
   integer :: istat           ! return status code
   character(len=255) :: smsg ! Message string for deallocation errors
-  
+
   integer, parameter :: dleafon_drycheck = 100 ! Drought deciduous leaves max days on check parameter
 
   real(r8), parameter :: decid_leaf_long_max = 1.0_r8 ! Maximum leaf lifespan for
@@ -198,7 +196,7 @@ module EDPhysiologyMod
                                                       !    computational problems. The current threshold
                                                       !    is the same used in ED-2.2.
 
-  real(r8), parameter :: smp_lwr_bound = -1000000._r8 ! Imposed soil matric potential lower bound for 
+  real(r8), parameter :: smp_lwr_bound = -1000000._r8 ! Imposed soil matric potential lower bound for
                                                       !    frozen or excessively dry soils, used when
                                                       !    computing water stress.
   ! ============================================================================
@@ -257,14 +255,11 @@ contains
     return
   end subroutine ZeroAllocationRates
 
-  ! ============================================================================
-  
   subroutine GenerateDamageAndLitterFluxes( csite, cpatch )
 
     ! Arguments
     type(ed_site_type)  :: csite
     type(fates_patch_type) :: cpatch
-
 
     ! Locals
     type(fates_cohort_type), pointer :: ccohort    ! Current cohort
@@ -284,10 +279,10 @@ contains
     real(r8) :: repro_loss       ! "" [kg]
     real(r8) :: sapw_loss        ! "" [kg]
     real(r8) :: store_loss       ! "" [kg]
-    real(r8) :: struct_loss      ! "" [kg]       
+    real(r8) :: struct_loss      ! "" [kg]
     real(r8) :: dcmpy_frac       ! fraction of mass going to each decomposition pool
-    real(r8) :: SF_val_CWD_frac_adj(4) !SF_val_CWD_frac adjusted based on cohort dbh 
-    
+    real(r8) :: SF_val_CWD_frac_adj(4) !SF_val_CWD_frac adjusted based on cohort dbh
+
     if(hlm_use_tree_damage .ne. itrue) return
 
     if(.not.damage_time) return
@@ -299,12 +294,12 @@ contains
        if(prt_params%woody(ccohort%pft)==ifalse  ) cycle
        if(ccohort%isnew ) cycle
 
-       associate( ipft     => ccohort%pft, & 
+       associate( ipft     => ccohort%pft, &
                   agb_frac => prt_params%allom_agb_frac(ccohort%pft), &
                   branch_frac => param_derived%branch_frac(ccohort%pft))
-         
+
        do_dclass: do cd = ccohort%crowndamage+1, nlevdamage
-          
+
           call GetDamageFrac(ccohort%crowndamage, cd, ipft, cd_frac)
 
           ! now to get the number of damaged trees we multiply by damage frac
@@ -316,7 +311,7 @@ contains
              ! Create a new damaged cohort
              allocate(ndcohort)  ! new cohort surviving but damaged
              if(hlm_use_planthydro.eq.itrue) call InitHydrCohort(csite,ndcohort)
-             
+
              ! Initialize the PARTEH object and point to the
              ! correct boundary condition fields
              ndcohort%prt => null()
@@ -324,37 +319,37 @@ contains
              call InitPRTObject(ndcohort%prt)
              call ndcohort%InitPRTBoundaryConditions()
              call ndcohort%ZeroValues()
-             
-             ! nc_canopy_d is the new cohort that gets damaged 
+
+             ! nc_canopy_d is the new cohort that gets damaged
              call ccohort%Copy(ndcohort)
-             
+
              ! new number densities - we just do damaged cohort here -
              ! undamaged at the end of the cohort loop once we know how many damaged to
              ! subtract
-             
+
              ndcohort%n = num_trees_cd
              ndcohort%crowndamage = cd
 
              ! Remove these trees from the donor cohort
              ccohort%n = ccohort%n - num_trees_cd
-             
-             ! update crown area here - for cohort fusion and canopy organisation below 
+
+             ! update crown area here - for cohort fusion and canopy organisation below
              call carea_allom(ndcohort%dbh, ndcohort%n, csite%spread, &
                   ipft, ndcohort%crowndamage, ndcohort%c_area)
-             
+
              call GetCrownReduction(cd-ccohort%crowndamage, crown_loss_frac)
 
              do_element: do el = 1, num_elements
-                
+
                 litt => cpatch%litter(el)
                 elflux_diags => csite%flux_diags%elem(el)
-                
+
                 ! Reduce the mass of the newly damaged cohort
                 ! Fine-roots are not damaged as of yet
                 ! only above-ground sapwood,structure and storage in
                 ! branches is damaged/removed
                 branch_loss_frac = crown_loss_frac * branch_frac * agb_frac
-                
+
                 leaf_loss = ndcohort%prt%GetState(leaf_organ,element_list(el))*crown_loss_frac
                 repro_loss = ndcohort%prt%GetState(repro_organ,element_list(el))*crown_loss_frac
                 sapw_loss = ndcohort%prt%GetState(sapw_organ,element_list(el))*branch_loss_frac
@@ -365,7 +360,7 @@ contains
                 ! Transfer the biomass from the cohort's
                 ! damage to the litter input fluxes
                 ! ------------------------------------------------------
-    
+
                 do dcmpy=1,ndcmpy
                    dcmpy_frac = GetDecompyFrac(ipft,leaf_organ,dcmpy)
                    litt%leaf_fines_in(dcmpy) = litt%leaf_fines_in(dcmpy) + &
@@ -376,7 +371,7 @@ contains
                 elflux_diags%surf_fine_litter_input(ipft) = &
                      elflux_diags%surf_fine_litter_input(ipft) +  &
                      (store_loss+leaf_loss+repro_loss) * ndcohort%n
-                
+
                 call adjust_SF_CWD_frac(ndcohort%dbh,ncwd,SF_val_CWD_frac,SF_val_CWD_frac_adj)
 
                 do c = 1,ncwd
@@ -384,12 +379,12 @@ contains
                         (sapw_loss + struct_loss) * &
                         SF_val_CWD_frac_adj(c) * ndcohort%n / &
                         cpatch%area
-                   
+
                    elflux_diags%cwd_ag_input(c)  = elflux_diags%cwd_ag_input(c) + &
                         (struct_loss + sapw_loss) * &
                         SF_val_CWD_frac_adj(c) * ndcohort%n
                 end do
-                
+
              end do do_element
 
              ! Applying the damage to the cohort, does not need to happen
@@ -399,14 +394,14 @@ contains
              call PRTDamageLosses(ndcohort%prt, sapw_organ, branch_loss_frac)
              call PRTDamageLosses(ndcohort%prt, store_organ, branch_loss_frac)
              call PRTDamageLosses(ndcohort%prt, struct_organ, branch_loss_frac)
-                                
-             
+
+
              !----------- Insert new cohort into the linked list
              ! This list is going tall to short, lets add this new
              ! cohort into a taller position so we don't hit it again
              ! as the loop traverses
              ! --------------------------------------------------------------!
-             
+
              ndcohort%shorter => ccohort
              if(associated(ccohort%taller))then
                 ndcohort%taller => ccohort%taller
@@ -416,7 +411,7 @@ contains
                 ndcohort%taller => null()
              endif
              ccohort%taller => ndcohort
-             
+
           end if if_numtrees
 
        end do do_dclass
@@ -424,7 +419,7 @@ contains
        end associate
        ccohort => ccohort%shorter
     enddo
-    
+
     return
   end subroutine GenerateDamageAndLitterFluxes
 
@@ -477,24 +472,24 @@ contains
          ! germination from occuring when the site is in a drought
          ! (for drought deciduous) or too cold (for cold deciduous)
          call SeedGermination(litt, currentSite%cstatus, currentSite%dstatus(1:numpft), currentPatch)
-         
+
          ! Send fluxes from newly created litter into the litter pools
          ! This litter flux is from non-disturbance inducing mortality, as well
          ! as litter fluxes from live trees
          call CWDInput(currentSite, currentPatch, litt,bc_in)
-         
+
          ! Only calculate fragmentation flux over layers that are active
          ! (RGK-Mar2019) SHOULD WE MAX THIS AT 1? DONT HAVE TO
-         
+
          nlev_eff_decomp = max(bc_in%max_rooting_depth_index_col, 1)
          call CWDOut(litt,currentPatch%fragmentation_scaler,nlev_eff_decomp)
-         
+
          ! Fragmentation flux to soil decomposition model [kg/site/day]
          site_mass%frag_out = site_mass%frag_out + currentPatch%area * &
               ( sum(litt%ag_cwd_frag) + sum(litt%bg_cwd_frag) + &
               sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
               sum(litt%seed_decay) + sum(litt%seed_germ_decay))
-         
+
          ! Track total seed decay diagnostic in [kg/m2/day]
          diag%tot_seed_turnover = diag%tot_seed_turnover + &
               (sum(litt%seed_decay) + sum(litt%seed_germ_decay))*currentPatch%area*area_inv
@@ -665,7 +660,7 @@ contains
     real(r8) :: target_c_area
 
     real(r8) :: pft_leaf_lifespan         ! Leaf lifespan of each PFT [years]
-    real(r8) :: leaf_long                 ! temporary leaf lifespan before accounting for deciduousness 
+    real(r8) :: leaf_long                 ! temporary leaf lifespan before accounting for deciduousness
     !----------------------------------------------------------------------
 
     currentPatch => currentSite%youngest_patch
@@ -726,7 +721,7 @@ contains
           else
              leaf_long = sum(prt_params%leaf_long_ustory(ipft,:))
           end if
-          
+
 
           ! PFT-level maximum SLA value, even if under a thick canopy (same units as slatop)
           sla_max = prt_params%slamax(ipft)
@@ -758,7 +753,7 @@ contains
                 kn = DecayCoeffVcmax(currentCohort%vcmax25top, &
                      prt_params%leafn_vert_scaler_coeff1(ipft), &
                      prt_params%leafn_vert_scaler_coeff2(ipft))
-                
+
                 ! Nscaler value at leaf level z
                 nscaler_levleaf = exp(-kn * cumulative_lai)
                 ! Sla value at leaf level z after nitrogen profile scaling (m2/gC)
@@ -948,8 +943,8 @@ contains
     real(r8) :: elongf_prev       ! Elongation factor from previous time
     real(r8) :: elongf_1st        ! First guess for elongation factor
     integer  :: ndays_pft_leaf_lifespan ! PFT life span of drought deciduous [days].
-                                        !    This is the shortest between the PFT leaf 
-                                        !    lifespan and the maximum lifespan of drought 
+                                        !    This is the shortest between the PFT leaf
+                                        !    lifespan and the maximum lifespan of drought
                                         !    deciduous (see parameter decid_leaf_long_max
                                         !    at the beginning of this file).
      real(r8) :: phen_drought_threshold ! For drought hard-deciduous, this is the threshold
@@ -960,14 +955,14 @@ contains
                                         !   on the sign. If positive, these are soil
                                         !   volumetric water content [m3/m3]. If negative,
                                         !   the values are soil matric potential [mm]. Not
-                                        !   used for non-deciduous plants. Ignored for 
+                                        !   used for non-deciduous plants. Ignored for
                                         !   non-deciduous plants.
-     real(r8) :: phen_moist_threshold   ! For semi-deciduous, this is the threshold above 
+     real(r8) :: phen_moist_threshold   ! For semi-deciduous, this is the threshold above
                                         !    which flushing will be complete.  This depends
                                         !    on the sign. If positive, these are soil
                                         !    volumetric water content [m3/m3]. If negative,
                                         !    the values are soil matric potential [mm].
-                                        !    Ignored for hard-deciduous and evergreen 
+                                        !    Ignored for hard-deciduous and evergreen
                                         !    plants.
      real(r8) :: phen_doff_time         ! Minimum number of days that plants must remain
                                         !   leafless before flushing leaves again.
@@ -1159,7 +1154,7 @@ contains
     ! and thus %nchilldays will never go from zero to 1.  The following logic
     ! when coupled with this fact will essentially prevent cold-deciduous
     ! plants from re-emerging in areas without at least some cold days
-    
+
     if( (currentSite%cstatus == phen_cstat_notcold)  .and. &
         (currentSite%cndaysleafoff > 400)) then   ! remove leaves after a whole year,
                                                   ! when there is no 'off' period.
@@ -1176,7 +1171,7 @@ contains
 
 
 
-    ! Loop through every PFT to assign the elongation factor. 
+    ! Loop through every PFT to assign the elongation factor.
     ! Add PFT look to account for different PFT rooting depth profiles.
     pft_elong_loop: do ipft=1,numpft
 
@@ -1198,9 +1193,9 @@ contains
        nlevroot = max(2,min(ubound(currentSite%zi_soil,1),bc_in%max_rooting_depth_index_col))
 
        ! The top most layer is typically very thin (~ 2cm) and dries rather quickly. Despite
-       ! being thin, it can have a non-negligible rooting fraction (e.g., using 
+       ! being thin, it can have a non-negligible rooting fraction (e.g., using
        ! exponential_2p_root_profile with default parameters make the top layer to contain
-       ! about 7% of the total fine root density).  To avoid overestimating dryness, we 
+       ! about 7% of the total fine root density).  To avoid overestimating dryness, we
        ! ignore the top layer when calculating the memory.
        rootfrac_notop = sum(currentSite%rootfrac_scr(2:nlevroot))
        if ( rootfrac_notop <= nearzero ) then
@@ -1219,13 +1214,13 @@ contains
        currentSite%smp_memory   (1,ipft)  = 0._r8
        do j = 2,nlevroot
           if(check_layer_water(bc_in%h2o_liqvol_sl(j),bc_in%tempk_sl(j)) ) then
-             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + & 
+             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + &
                   bc_in%smp_sl            (j) * &
                   currentSite%rootfrac_scr(j)  / &
                   rootfrac_notop
           else
              ! Nominal extreme suction for frozen or unreasonably dry soil
-             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + & 
+             currentSite%smp_memory   (1,ipft) = currentSite%smp_memory   (1,ipft) + &
                   smp_lwr_bound * &
                   currentSite%rootfrac_scr(j)  / &
                   rootfrac_notop
@@ -1272,7 +1267,7 @@ contains
        ! for drought deciduous (local parameter). The sum term accounts for the
        ! total leaf life span of this cohort.
        ! Note we only use canopy leaf lifespan here and assume  that understory cohorts
-       ! would  behave the same as canopy cohorts with regards to phenology. 
+       ! would  behave the same as canopy cohorts with regards to phenology.
        ndays_pft_leaf_lifespan = &
           nint(ndays_per_year*min(decid_leaf_long_max,sum(prt_params%leaf_long(ipft,:))))
 
@@ -1295,10 +1290,10 @@ contains
        case_drought_phen: select case (prt_params%phen_leaf_habit(ipft))
        case (ihard_stress_decid)
           !---~---
-          !    Default ("hard") drought deciduous phenology. The decision on whether to 
+          !    Default ("hard") drought deciduous phenology. The decision on whether to
           ! abscise (shed) or flush leaves is in principle defined by the soil moisture
-          ! in the rooting zone.  However, we must also account the time since last 
-          ! abscission or flushing event, to avoid excessive "flickering" of the leaf 
+          ! in the rooting zone.  However, we must also account the time since last
+          ! abscission or flushing event, to avoid excessive "flickering" of the leaf
           ! elongation factor if soil moisture is right at the threshold.
           !
           ! (MLO thought: maybe we should define moisture equivalents of GDD and chilling
@@ -1336,7 +1331,7 @@ contains
 
 
           !---~---
-          ! Revision of the conditions, added an if/elseif/else structure to ensure only 
+          ! Revision of the conditions, added an if/elseif/else structure to ensure only
           ! up to one change occurs at any given time. Also, prevent changes until the
           ! soil moisture memory is populated (the outer if check).
           !---~---
@@ -1381,7 +1376,7 @@ contains
 
              elseif ( prolonged_on_period ) then
                 ! LEAF OFF: DROUGHT DECIDUOUS LIFESPAN
-                ! Are the leaves rouhgly at the end of their lives? If so, shed leaves 
+                ! Are the leaves rouhgly at the end of their lives? If so, shed leaves
                 ! even if it is not dry.
                 currentSite%dstatus(ipft)      = phen_dstat_timeoff    !alter status of site to 'leaves off'
                 currentSite%dleafoffdate(ipft) = model_day_int         !record leaf on date
@@ -1582,7 +1577,6 @@ contains
 
     real(r8) :: fnrt_drop_fraction       ! Fine root relative drop fraction (0 = no drop, 1 = as much as leaves)
     real(r8) :: stem_drop_fraction       ! Stem drop relative fraction (0 = no drop, 1 = as much as leaves)
-    real(r8) :: l2fr                     ! Leaf to fineroot biomass multiplier 
 
     integer  :: ipft                     ! Plant functional type index
     real(r8), parameter :: leaf_drop_fraction  = 1.0_r8
@@ -1609,7 +1603,6 @@ contains
 
           fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(ipft)
           stem_drop_fraction = prt_params%phen_stem_drop_fraction(ipft)
-          l2fr               = prt_params%allom_l2fr(ipft)
 
           ! MLO. To avoid duplicating code for drought and cold deciduous PFTs, we first
           !      check whether or not it's time to flush or time to shed leaves, then
@@ -1643,15 +1636,15 @@ contains
 
 
 
-          ! Elongation factor for leaves is always the same as the site- and 
+          ! Elongation factor for leaves is always the same as the site- and
           ! PFT-dependent factor computed in subroutine phenology. For evergreen
-          ! PFTs, this value should be always 1.0. 
+          ! PFTs, this value should be always 1.0.
           currentCohort%efleaf_coh = currentSite%elong_factor(ipft)
 
           ! Find the effective "elongation factor" for fine roots and stems. The effective elongation
-          ! factor is a combination of the PFT leaf elongation factor (efleaf_coh) and the tissue drop 
+          ! factor is a combination of the PFT leaf elongation factor (efleaf_coh) and the tissue drop
           ! fraction relative to leaves (xxxx_drop_fraction). When xxxx_drop_fraction is 0, the biomass
-          ! of tissue xxxx will not be impacted by phenology. If xxxx_drop_fraction is 1, the biomass 
+          ! of tissue xxxx will not be impacted by phenology. If xxxx_drop_fraction is 1, the biomass
           ! of tissue xxxx will be as impacted by phenology as leaf biomass. Intermediate values will
           ! allow a more moderate impact of phenology in tissue xxxx relative to leaves.
           currentCohort%effnrt_coh = 1.0_r8 - (1.0_r8 - currentCohort%efleaf_coh ) * fnrt_drop_fraction
@@ -1662,7 +1655,7 @@ contains
           call bleaf(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage, &
                currentCohort%canopy_trim,currentCohort%efleaf_coh,target_leaf_c)
           call bfineroot(currentCohort%dbh,currentCohort%pft, &
-               currentCohort%canopy_trim,l2fr,currentCohort%effnrt_coh,target_fnrt_c)
+               currentCohort%canopy_trim,currentCohort%l2fr,currentCohort%effnrt_coh,target_fnrt_c)
           call bsap_allom(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage, &
                currentCohort%canopy_trim,currentCohort%efstem_coh,sapw_area,target_sapw_c)
           call bagw_allom(currentCohort%dbh,currentCohort%pft,currentCohort%crowndamage,&
@@ -1704,7 +1697,7 @@ contains
                    call PRTPhenologyFlush(currentCohort%prt, ipft, fnrt_organ, &
                                           store_c_transfer_frac*fnrt_deficit_c/total_deficit_c)
 
-                   ! MLO - stem_drop_fraction is a PFT parameter, do we really need this 
+                   ! MLO - stem_drop_fraction is a PFT parameter, do we really need this
                    !       check for woody/non-woody PFT?
                    if ( prt_params%woody(ipft) == ifalse ) then
                       call PRTPhenologyFlush(currentCohort%prt, ipft, sapw_organ, &
@@ -1734,7 +1727,7 @@ contains
 
              ! Find the effective fraction to drop. This fraction must be calculated every time
              ! because we must account for partial abscission. The simplest approach is to simply
-             ! use the ratio between the target and the original biomass of each pool. The 
+             ! use the ratio between the target and the original biomass of each pool. The
              ! max(tissue_c,nearzero) is overly cautious, because leaf_c = 0 would imply that
              ! leaves are already off, and this wouldn't be considered shedding time.
              eff_leaf_drop_fraction   = max( 0.0_r8, min( 1.0_r8,1.0_r8 - target_leaf_c   / max( leaf_c  , nearzero ) ) )
@@ -1940,13 +1933,13 @@ contains
     ! calculate leaf carbon from target treelai
     canopylai(:) = 0._r8
     leaf_c = leafc_from_treelai(tlai, tsai, pft, c_area, cohort_n, canopy_layer, vcmax25top)
-    
+
     ! check that the inverse calculation of leafc from treelai is the same as the
     ! standard calculation of treelai from leafc. Maybe can delete eventually?
 
     call tree_lai_sai(leaf_c, pft, c_area, cohort_n, canopy_layer, canopylai, vcmax25top, &
                           dbh, crown_damage, 1.0_r8, 1.0_r8, 11, check_treelai, dummy_treesai)
-    
+
     if (abs(tlai - check_treelai) > area_error_2) then !this is not as precise as nearzero
       write(fates_log(),*) 'error in validate treelai', tlai, check_treelai, tlai - check_treelai
       write(fates_log(),*) 'tree_lai inputs: ', pft, c_area, cohort_n, canopy_layer, vcmax25top
@@ -1986,7 +1979,7 @@ contains
     !  translates them into a FATES structure with one patch and one cohort per PFT.
     !  The leaf area of the cohort is modified each day to match that asserted by the HLM
 
-   
+
     ! ARGUMENTS
     type(fates_cohort_type), intent(inout), target :: currentCohort ! cohort object
     real(r8),                intent(in)            :: tlai          ! target leaf area index from SP inputs [m2/m2]
@@ -2034,7 +2027,7 @@ contains
   end subroutine assign_cohort_SP_properties
 
   ! =====================================================================================
-  
+
   subroutine SeedUpdate( currentSite )
 
     ! -----------------------------------------------------------------------------------
@@ -2128,7 +2121,7 @@ contains
              ! of seeds [kg] released by the plant, per the mass_fraction
              ! specified as input.  This routine will also remove the mass
              ! from the parteh state-variable.
-             
+
              call PRTReproRelease(currentCohort%prt,repro_organ,element_id, &
                   1.0_r8, seed_prod)
 
@@ -2180,18 +2173,18 @@ contains
                 ! If we are using the Tree Recruitment Scheme (TRS) with or w/o seedling dynamics
                 if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
                      prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees) then
-                   
-                   ! Send a fraction of reproductive carbon to litter to account for 
+
+                   ! Send a fraction of reproductive carbon to litter to account for
                    ! non-seed reproductive carbon (e.g. flowers, fruit, etc.)
-                   litt%seed_decay(pft) = litt%seed_in_local(pft) * (1.0_r8 - EDPftvarcon_inst%repro_frac_seed(pft)) 
-                   
+                   litt%seed_decay(pft) = litt%seed_in_local(pft) * (1.0_r8 - EDPftvarcon_inst%repro_frac_seed(pft))
+
                    ! Note: The default regeneration scheme sends all reproductive carbon to seed
                 end if !Use TRS
-                
+
                 ! If there is forced external seed rain, we calculate the input mass flux
                 ! from the different elements, using the mean stoichiometry of new
                 ! recruits for the current patch and lowest canopy position
-                
+
                 select case(element_id)
                 case(carbon12_element)
                    seed_stoich = 1._r8
@@ -2204,15 +2197,15 @@ contains
                    write(fates_log(), *) 'while defining forced external seed mass flux'
                    call endrun(msg=errMsg(sourcefile, __LINE__))
                 end select
-                
+
                 ! Seed input from external sources (user param seed rain, or dispersal model)
                 ! Include both prescribed seed_suppl and seed_in dispersed from neighbouring gridcells
                 seed_in_external = seed_stoich * (seed_supply*years_per_day + currentSite%seed_in(pft)/area)  ![kg/m2/day]
                 litt%seed_in_extern(pft) = litt%seed_in_extern(pft) + seed_in_external
-                
+
                 ! Seeds entering externally [kg/site/day]
                 site_mass%seed_in = site_mass%seed_in + seed_in_external*currentPatch%area
-             end if !use this pft  
+             end if !use this pft
           enddo
 
           currentPatch => currentPatch%younger
@@ -2224,7 +2217,7 @@ contains
           site_mass%seed_out = site_mass%seed_out + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
           currentSite%seed_out(pft) = currentSite%seed_out(pft) + site_seed_rain(pft)*site_disp_frac(pft) ![kg/site/day]
        end do
- 
+
     end do el_loop
 
     return
@@ -2238,7 +2231,7 @@ contains
     ! 1. Flux from seed pool into leaf litter pool
     ! 2. If the TRS with seedling dynamics is on (hlm_regeneration_model = 3)
     !    then we calculate seedling mortality here (i.e. flux from seedling pool
-    !    (into leaf litter pool)   
+    !    (into leaf litter pool)
     !
     ! !ARGUMENTS
     type(litter_type) :: litt
@@ -2247,17 +2240,17 @@ contains
     ! !LOCAL VARIABLES:
     integer  ::  pft
     real(r8) ::  seedling_layer_par          ! cumulative sum of PAR at the seedling layer (MJ)
-                                             ! over prior window of days defined by 
+                                             ! over prior window of days defined by
                                              ! fates_trs_seedling_mort_par_timescale
     real(r8) ::  seedling_light_mort_rate    ! daily seedling mortality rate from light stress
     real(r8) ::  seedling_h2o_mort_rate      ! daily seedling mortality rate from moisture stress
     real(r8) ::  seedling_mdds               ! moisture deficit days accumulated in the seedling layer
-   
+
     !----------------------------------------------------------------------
 
-    
+
     ! 1. Seed mortality (i.e. flux from seed bank to litter)
-    
+
     ! default value from Liscke and Loffler 2006 ; making this a PFT-specific parameter
     ! decays the seed pool according to exponential model
     ! seed_decay_rate is in yr-1
@@ -2265,9 +2258,9 @@ contains
     ! Assume that decay rates are same for all chemical species
 
     !=====================================================================================
-    do pft = 1,numpft 
-    
-       ! If the TRS is switched off or the pft can't get big enough to be considered a tree 
+    do pft = 1,numpft
+
+       ! If the TRS is switched off or the pft can't get big enough to be considered a tree
        ! then use FATES default regeneration.
        if ( hlm_regeneration_model == default_regeneration .or. &
             prt_params%allom_dbh_maxheight(pft) < min_max_dbh_for_trees ) then
@@ -2279,45 +2272,45 @@ contains
        end if
 
        ! If the TRS is switched on and the pft is a tree then add non-seed reproductive biomass
-       ! to the seed decay flux. This was added to litt%seed_decay in the previously called SeedIn 
+       ! to the seed decay flux. This was added to litt%seed_decay in the previously called SeedIn
        ! subroutine
        if ( any(hlm_regeneration_model == [TRS_regeneration, TRS_no_seedling_dyn]) .and. &
             prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
-          
+
           litt%seed_decay(pft) = litt%seed_decay(pft) + &! From non-seed reproductive biomass (added in
                ! in the SeedIn subroutine.
                litt%seed(pft) * EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
-          
-       end if 
+
+       end if
 
 
        ! If the TRS is switched on with seedling dynamics (hlm_regeneration_model = 2)
        ! then calculate seedling mortality.
        if_trs_germ_decay: if ( hlm_regeneration_model == TRS_regeneration .and. &
             prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
-          
+
           !----------------------------------------------------------------------
           ! Seedling mortality (flux from seedling pool to litter)
           ! Note: The TRS uses the litt%seed_germ data struture to track seedlings
           !
           ! Step 1. Calculate the daily seedling mortality rate from light stress
           !
-          ! Calculate the cumulative light at the seedling layer over a prior number of 
+          ! Calculate the cumulative light at the seedling layer over a prior number of
           ! days determined by the "fates_tres_seedling_mort_par_timescale" parameter.
 
-          seedling_layer_par = currentPatch%sdlng_mort_par%GetMean() * megajoules_per_joule * & 
-               sec_per_day * sdlng_mort_par_timescale 
-          
+          seedling_layer_par = currentPatch%sdlng_mort_par%GetMean() * megajoules_per_joule * &
+               sec_per_day * sdlng_mort_par_timescale
+
           ! Calculate daily seedling mortality rate from light
           seedling_light_mort_rate = exp( EDPftvarcon_inst%seedling_light_mort_a(pft) * &
-               seedling_layer_par + EDPftvarcon_inst%seedling_light_mort_b(pft) ) 
-        
+               seedling_layer_par + EDPftvarcon_inst%seedling_light_mort_b(pft) )
+
           ! Step 2. Calculate the daily seedling mortality rate from moisture stress
-          
+
           ! Get the current seedling moisture deficit days (tracked as a pft-specific exponential
           ! average)
-          seedling_mdds = currentPatch%sdlng_mdd(pft)%p%GetMean()     
-          
+          seedling_mdds = currentPatch%sdlng_mdd(pft)%p%GetMean()
+
           ! Calculate seedling mortality as a function of moisture deficit days (mdd)
           ! If the seedling mmd value is below a critical threshold then moisture-based mortality is zero
           if (seedling_mdds < EDPftvarcon_inst%seedling_mdd_crit(pft)) then
@@ -2327,23 +2320,23 @@ contains
                   EDPftvarcon_inst%seedling_h2o_mort_b(pft) * seedling_mdds + &
                   EDPftvarcon_inst%seedling_h2o_mort_c(pft)
           end if ! mdd threshold check
-          
+
           ! Step 3. Sum modes of mortality (including background mortality) and send dead seedlings
-          ! to litter        
+          ! to litter
           litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) + &
                (litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
                (litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
                * years_per_day)
-       
+
        else
-          
+
           litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
                EDPftvarcon_inst%seed_decay_rate(pft)*years_per_day
 
        end if if_trs_germ_decay
-       
+
     enddo
-    
+
     return
   end subroutine SeedDecay
 
@@ -2351,7 +2344,7 @@ contains
   subroutine SeedGermination( litt, cold_stat, drought_stat, currentPatch )
     !
     ! !DESCRIPTION:
-    !  Flux from seed bank into the seedling pool    
+    !  Flux from seed bank into the seedling pool
     !
     ! !USES:
 
@@ -2364,7 +2357,7 @@ contains
     !
     ! !LOCAL VARIABLES:
     integer :: pft
-    real(r8), parameter ::  max_germination = 1.0_r8 ! Cap on germination rates. 
+    real(r8), parameter ::  max_germination = 1.0_r8 ! Cap on germination rates.
                                                     ! KgC/m2/yr Lishcke et al. 2009
 
     !Light and moisture-sensitive seedling emergence variables (ahb)
@@ -2392,31 +2385,31 @@ contains
     ! is seed_decay_rate(p)/germination_rate(p)
     ! and thus the mortality rate (in units of individuals) is the product of
     ! that times the ratio of (hypothetical) seed mass to recruit biomass
-    
+
     !==============================================================================================
     do pft = 1,numpft
 
        ! If the TRS's seedling dynamics is switched off, then we use FATES's default approach
-       ! to germination 
+       ! to germination
        if_tfs_or_def: if ( hlm_regeneration_model == default_regeneration .or. &
             hlm_regeneration_model == TRS_no_seedling_dyn .or. &
             prt_params%allom_dbh_maxheight(pft) < min_max_dbh_for_trees ) then
 
-          litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &  
+          litt%seed_germ_in(pft) =  min(litt%seed(pft) * EDPftvarcon_inst%germination_rate(pft), &
                max_germination)*years_per_day
 
           ! If TRS seedling dynamics is switched on we calculate seedling emergence (i.e. germination)
           ! as a pft-specific function of understory light and soil moisture.
        else if ( hlm_regeneration_model == TRS_regeneration .and. &
-            prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then	    
+            prt_params%allom_dbh_maxheight(pft) > min_max_dbh_for_trees ) then
 
           ! Step 1. Calculate how germination rate is modified by understory light
-          ! This applies to photoblastic germinators (e.g. many tropical pioneers) 
+          ! This applies to photoblastic germinators (e.g. many tropical pioneers)
 
           ! Calculate mean PAR at the seedling layer (MJ m-2 day-1) over the prior 24 hours
           seedling_layer_par = currentPatch%seedling_layer_par24%GetMean() * sec_per_day * megajoules_per_joule
 
-          ! Calculate the photoblastic germination rate modifier (Eq. 3 Hanbury-Brown et al., 2022) 
+          ! Calculate the photoblastic germination rate modifier (Eq. 3 Hanbury-Brown et al., 2022)
           photoblastic_germ_modifier = seedling_layer_par / &
                (seedling_layer_par + EDPftvarcon_inst%par_crit_germ(pft))
 
@@ -2426,11 +2419,11 @@ contains
 
           ! Get running mean of soil matric potential (mm of H2O suction) at the seedling rooting depth
           ! This running mean based on pft-specific seedling rooting depth.
-          seedling_layer_smp = currentPatch%sdlng_emerg_smp(pft)%p%GetMean()    
+          seedling_layer_smp = currentPatch%sdlng_emerg_smp(pft)%p%GetMean()
 
           ! Calculate a soil wetness index (1 / -soil matric pontential (MPa) ) used by the TRS
-          ! to calculate seedling mortality from moisture stress. 
-          wetness_index = 1.0_r8 / (seedling_layer_smp * (-1.0_r8) * mpa_per_mm_suction)          
+          ! to calculate seedling mortality from moisture stress.
+          wetness_index = 1.0_r8 / (seedling_layer_smp * (-1.0_r8) * mpa_per_mm_suction)
 
           ! Step 3. Calculate the seedling emergence rate based on soil moisture and germination
           ! rate modifier (Step 1). See Eq. 4 of Hanbury-Brown et al., 2022
@@ -2439,7 +2432,7 @@ contains
           if ( seedling_layer_smp .GE. EDPftvarcon_inst%seedling_psi_emerg(pft) ) then
              seedling_emerg_rate = photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
                   wetness_index**EDPftvarcon_inst%b_emerg(pft)
-          else 
+          else
 
              seedling_emerg_rate = 0.0_r8
 
@@ -2491,11 +2484,11 @@ contains
       integer                           :: el                 ! loop counter for element
       integer                           :: element_id         ! element index consistent with definitions in PRTGenericMod
       integer                           :: iage               ! age loop counter for leaf age bins
-      integer                           :: crowndamage        ! crown damage class of the cohort [1 = undamaged, >1 = damaged]  
+      integer                           :: crowndamage        ! crown damage class of the cohort [1 = undamaged, >1 = damaged]
       real(r8)                          :: height             ! new cohort height [m]
       real(r8)                          :: dbh                ! new cohort DBH [cm]
-      real(r8)                          :: cohort_n           ! new cohort density 
-      real(r8)                          :: l2fr               ! leaf to fineroot biomass ratio [0-1]
+      real(r8)                          :: cohort_n           ! new cohort density
+      real(r8)                          :: l2fr               ! leaf to fineroot biomass ratio [-]
       real(r8)                          :: c_leaf             ! target leaf biomass [kgC]
       real(r8)                          :: c_fnrt             ! target fine root biomass [kgC]
       real(r8)                          :: c_sapw             ! target sapwood biomass [kgC]
@@ -2512,14 +2505,14 @@ contains
       real(r8)                          :: m_struct           ! structural mass (element agnostic) [kg]
       real(r8)                          :: m_store            ! storage mass (element agnostic) [kg]
       real(r8)                          :: m_repro            ! reproductive mass (element agnostic) [kg]
-      real(r8)                          :: efleaf_coh         
-      real(r8)                          :: effnrt_coh 
-      real(r8)                          :: efstem_coh 
+      real(r8)                          :: efleaf_coh
+      real(r8)                          :: effnrt_coh
+      real(r8)                          :: efstem_coh
       real(r8)                          :: mass_avail         ! mass of each nutrient/carbon available in the seed_germination pool [kg]
-      real(r8)                          :: mass_demand        ! total mass demanded by the plant to achieve the stoichiometric 
-                                          !    targets of all the organs in the recruits. Used for both [kg per plant] and [kg per cohort] 
-      real(r8)                          :: stem_drop_fraction ! 
-      real(r8)                          :: fnrt_drop_fraction ! 
+      real(r8)                          :: mass_demand        ! total mass demanded by the plant to achieve the stoichiometric
+                                          !    targets of all the organs in the recruits. Used for both [kg per plant] and [kg per cohort]
+      real(r8)                          :: stem_drop_fraction !
+      real(r8)                          :: fnrt_drop_fraction !
       real(r8)                          :: sdlng2sap_par      ! running mean of PAR at the seedling layer [MJ/m2/day]
       real(r8)                          :: seedling_layer_smp ! soil matric potential at seedling rooting depth [mm H2O suction]
       integer, parameter                :: recruitstatus = 1  ! whether the newly created cohorts are recruited or initialized
@@ -2559,7 +2552,7 @@ contains
             l2fr               = currentSite%rec_l2fr(ft, currentPatch%NCL_p)
             crowndamage        = 1 ! new recruits are undamaged
 
-            ! calculate DBH from initial height 
+            ! calculate DBH from initial height
             call h2d_allom(height, ft, dbh)
 
             ! default assumption is that leaves are on
@@ -2594,8 +2587,8 @@ contains
                ! whenever the elongation factor is non-zero.  If the elongation factor is zero, then leaves are in
                ! the "off" state.
                if (efleaf_coh > 0.0_r8) then
-                  leaf_status = leaves_on 
-               else 
+                  leaf_status = leaves_on
+               else
                   leaf_status = leaves_off
                end if
             end select
@@ -2667,11 +2660,11 @@ contains
                         sec_per_day*megajoules_per_joule
 
                      mass_avail = currentPatch%area*                           &
-                        currentPatch%litter(el)%seed_germ(ft)*                 & 
+                        currentPatch%litter(el)%seed_germ(ft)*                 &
                         EDPftvarcon_inst%seedling_light_rec_a(ft)*             &
-                        sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft) 
+                        sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft)
 
-                     ! If soil moisture is below pft-specific seedling  moisture stress threshold the 
+                     ! If soil moisture is below pft-specific seedling  moisture stress threshold the
                      ! recruitment does not occur.
                      ilayer_seedling_root = minloc(abs(bc_in%z_sisl(:) -       &
                         EDPftvarcon_inst%seedling_root_depth(ft)), dim=1)
@@ -2680,7 +2673,7 @@ contains
 
                      if (seedling_layer_smp < EDPftvarcon_inst%seedling_psi_crit(ft)) then
                         mass_avail = 0.0_r8
-                     end if 
+                     end if
 
                   end if ! End use TRS with seedling dynamics
 
@@ -2737,7 +2730,7 @@ contains
                      m_repro  = 0._r8
                   end select
 
-                  
+
                   select case(hlm_parteh_mode)
                   case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp)
 
@@ -2780,7 +2773,7 @@ contains
                      currentPatch%litter(el)%seed_germ(ft) - cohort_n / currentPatch%area *   &
                      (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
                   end if
-                  
+
                end do
 
                ! cycle through the initial conditions, and makes sure that they are all initialized
@@ -2894,7 +2887,7 @@ contains
     site_mass => currentSite%mass_balance(element_pos(element_id))
 
     ! Transfer litter from turnover of living plants
-    
+
     currentCohort => currentPatch%shortest
     do while(associated(currentCohort))
 
@@ -2905,9 +2898,9 @@ contains
        store_m_turnover  = currentCohort%prt%GetTurnover(store_organ,element_id)
        fnrt_m_turnover   = currentCohort%prt%GetTurnover(fnrt_organ,element_id)
        repro_m_turnover  = currentCohort%prt%GetTurnover(repro_organ,element_id)
-       
 
-       
+
+
        store_m         = currentCohort%prt%GetState(store_organ,element_id)
        fnrt_m          = currentCohort%prt%GetState(fnrt_organ,element_id)
        repro_m         = currentCohort%prt%GetState(repro_organ,element_id)
@@ -3311,16 +3304,16 @@ contains
     enddo
 
   end subroutine CWDOut
-  
+
   subroutine UpdateRecruitL2FR(csite)
-    
+
 
     ! When CNP is active, the l2fr (target leaf to fine-root biomass multiplier)
     ! is dynamic. We therefore update what the l2fr for recruits
     ! are, taking an exponential moving average of all plants that
     ! are within recruit size limitations (less than recruit size + delta)
     ! and less than the max_count cohort.
-    
+
     type(ed_site_type) :: csite
     type(fates_patch_type), pointer :: cpatch
     type(fates_cohort_type), pointer :: ccohort
@@ -3334,11 +3327,11 @@ contains
     real(r8), parameter :: max_delta = 5.0_r8  ! dbh tolerance, cm, consituting a recruit
     real(r8), parameter :: smth_wgt = 1._r8/300.0_r8
     integer, parameter :: max_count = 3
-    
+
     ! Difference in dbh (cm) to consider a plant was recruited fairly recently
 
     if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
-    
+
     rec_n(1:numpft,1:nclmax) = 0._r8
     rec_l2fr0(1:numpft,1:nclmax) = 0._r8
 
@@ -3346,7 +3339,7 @@ contains
     do while(associated(cpatch))
 
        rec_count(1:numpft,1:nclmax) = 0
-       
+
        ccohort => cpatch%shortest
        cloop: do while(associated(ccohort))
 
@@ -3395,16 +3388,16 @@ contains
     integer  :: ft                       ! functional type index
     integer  :: cl                       ! canopy layer index
     real(r8) :: rec_l2fr_pft             ! Actual l2fr of a pft in it's patch
-    
+
     ! Update the total plant stoichiometry of a new recruit, based on the updated
     ! L2FR values
 
     if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
-    
+
     cpatch => csite%youngest_patch
     do while(associated(cpatch))
        cl = cpatch%ncl_p
-       
+
        do ft = 1,numpft
           rec_l2fr_pft = csite%rec_l2fr(ft,cl)
           cpatch%nitr_repro_stoich(ft) = &
@@ -3420,15 +3413,15 @@ contains
           ccohort%pc_repro = NewRecruitTotalStoichiometry(ccohort%pft,rec_l2fr_pft,phosphorus_element)
           ccohort => ccohort%taller
        end do cloop
-       
+
        cpatch => cpatch%older
     end do
-       
+
     return
   end subroutine UpdateRecruitStoich
 
   ! ======================================================================
-  
+
   subroutine SetRecruitL2FR(csite)
 
 
@@ -3436,9 +3429,9 @@ contains
     type(fates_patch_type), pointer :: cpatch
     type(fates_cohort_type), pointer :: ccohort
     integer :: ft,cl
-    
+
     if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
-    
+
     cpatch => csite%youngest_patch
     do while(associated(cpatch))
        ccohort => cpatch%shortest
@@ -3455,7 +3448,7 @@ contains
 
        cpatch => cpatch%older
     end do
-    
+
     return
   end subroutine SetRecruitL2FR
 
