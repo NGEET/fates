@@ -30,7 +30,20 @@ import time
 import math
 import code  # For development: code.interact(local=dict(globals(), **locals()))
 import json
+
+# 1. Get the directory of the currently executing script
+# os.path.dirname(__file__) gets the directory of main_script.py
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 2. Insert this directory at the beginning of the Python search path
+# This tells Python to look in the same folder as main_script.py for imports
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir)
+
 import write_json
+
+
+
 
 # ========================================================================================
 # ========================================================================================
