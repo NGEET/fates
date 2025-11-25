@@ -9,8 +9,10 @@
 # --fin <string>                  : Input filename.  Required
 # --fout <string>                 : Output filename. Required if not --overwrite
 # --param  <string>               : Name of the parameter to modify or query. Required
-# --queryparam <string>             : Report parameter info only, then exit. Not required
-# --indices  <int,int,etc>        : List of the parameter indices (1-len) to change (flattens 2d arrays, second dim is the inner).')
+# --queryparam <string>           : Report parameter info only, then exit. Not required
+# --indices  <int,int,etc>        : List of the parameter indices (1-len) to change
+#                                   (flattens 2d arrays, second dim is the inner).')
+#                                   special argument "all" changes all values to the value listed
 # --pft-names <string,string,etc> : List of PFT names to identify indices to change in param
 # --values    <value,value,etc>   : List of values to change, must coincide with indices, Required if not queryparam
 # --overwrite                     : Use this flag to overwrite the input file
@@ -55,7 +57,7 @@ def main():
     parser.add_argument('--q','--queryparam', dest='queryparam', \
                         help="Report parameter info only, then exit.",action="store_true")
     parser.add_argument('--indices',dest='indices', nargs='+', \
-                        help='List of parameter indices (1-len) to change (flattens 2d arrays, second dim is the inner).')
+                        help='List of parameter indices (1-len) to change (flattens 2d arrays, second dim is the inner). Special value "all" will specify all indices in an array.')
     parser.add_argument('--pft-names',dest='pftnames', nargs='+', \
                         help='List of PFT names to change.')
     parser.add_argument('--values', nargs='+', \
@@ -83,10 +85,12 @@ def main():
     else:
         if(args.paramname is None):
             print('You must provide a parameter name if not using --listparams')
+            print(f'Exiting.')
             exit(2)
         if(not args.queryparam):
             if(args.values is None):
                 print('You must provide values (--values) to overwrite the desired parameter with')
+                print(f'Exiting.')
                 exit(2)
 
     # All use cases below here assume that you have a target parameter in mind
@@ -164,21 +168,24 @@ def main():
 
     if (args.indices is not None):
         indices = []
-        for index in args.indices:
-            for item in index.strip('=[]').split(','):
-                if(int(item) > max_index):
-                    print(f'\nYou provided an index that is larger than')
-                    print(f'the size of the parameter\'s dataset.')
-                    print(f'index: {int(item)}, total indices: {int(max_index)}')
-                    print(f'You arguments for --indices were {args.indices}.')
-                    print(f'Exiting\n')
-                    exit(2)
-                else:
-                    indices.append(int(item))
+        if (args.indices[0].strip('"][').lower().strip() == 'all'):
+            for i in range(max_index):
+                indices.append(i+1)
+        else:
+            for index in args.indices:
+                for item in index.strip('=[]').split(','):
+                    if(int(item) > max_index):
+                        print(f'\nYou provided an index that is larger than')
+                        print(f'the size of the parameter\'s dataset.')
+                        print(f'index: {int(item)}, total indices: {int(max_index)}')
+                        print(f'You arguments for --indices were {args.indices}.')
+                        print(f'Exiting\n')
+                        exit(2)
+                    else:
+                        indices.append(int(item))
 
 
     if(args.pftnames is not None):
-
         #Two requirements, must not be a 2d parameter, and must have pft dimension
         if(len(dim_sizes)>1):
             print(f"\nYou specified parameter index changes by pft (--pft-names)")
@@ -205,6 +212,7 @@ def main():
                     print(f" fates_pftname: {data['parameters']['fates_pftname'].keys()}")
                     print(f" you specified: {item}")
                     print(f" Exiting\n")
+                    exit(2)
                 else:
                     # indices uses a 1-numpft convention.
                     indices.append(cleaned_pft_names.index(item)+1)
@@ -215,26 +223,78 @@ def main():
     # ---------------------------------------------------------------------
                     
     values = []
-    for val in args.values:
-        for item in val.strip('=[]').split(','):
+    # If we are specifying "all" indices, then copy
+    # the one value provided
+    if (args.indices[0].strip('"][').lower().strip() == 'all'):
+        if(len(args.values)!=1):
+            print(f'You specified indices=all, only 1 value is required.')
+            print(f'Exiting.')
+            exit(2)
+        val = args.values[0].strip('"][')
+        for i in range(max_index):
             if dtype is float:
                 try:
-                    values.append(float(item))
+                    values.append(float(val))
                 except ValueError:
                     print(f'\nYou provided an incompatible value for this parameter.')
                     print(f'The parameter "{args.paramname}" is type {dtype}.')
                     print(f'You arguments for --values were {args.values}.')
                     print(f'Exiting\n')
                     exit(2)
+                    
             elif dtype is int:
-                values.append(int(item))
-
+                try:
+                    values.append(int(val))
+                except ValueError:
+                    print(f'\nYou provided an incompatible value for this parameter.')
+                    print(f'The parameter "{args.paramname}" is type {dtype}.')
+                    print(f'You arguments for --values were {args.values}.')
+                    print(f'Exiting\n')
+                    exit(2)
             else:
                 values.append(str(item))
+
+    # If this is not an "all" scenario, grab the comma delimited values
+    else:                
+        for val in args.values:
+            for item in val.strip('=[]').split(','):
+                if dtype is float:
+                    try:
+                        values.append(float(item))
+                    except ValueError:
+                        print(f'\nYou provided an incompatible value for this parameter.')
+                        print(f'The parameter "{args.paramname}" is type {dtype}.')
+                        print(f'You arguments for --values were {args.values}.')
+                        print(f'Exiting\n')
+                        exit(2)
+                elif dtype is int:
+                    try:
+                        values.append(int(item))
+                    except ValueError:
+                        print(f'\nYou provided an incompatible value for this parameter.')
+                        print(f'The parameter "{args.paramname}" is type {dtype}.')
+                        print(f'You arguments for --values were {args.values}.')
+                        print(f'Exiting\n')
+                        exit(2)
+                else:
+                    values.append(str(item))
 
     if(not args.silent):
         print(f'\n')
 
+
+    # Check to make sure that the number of indices matches the number of
+    # values provided...
+    # -----------------------------------------------------------------
+    if (len(indices) != len(values)):
+        print(f'The number of parameter indices does not match')
+        print(f'the number of values provided')
+        print(f'N indices: {len(indices)}')
+        print(f'N values: {len(values)}')
+        print(f'indices: {indices}')
+        print(f'values: {values}')
+        exit(2)
+        
     # Apply the changes to the parameter's data vector
     # -----------------------------------------------------------------
     
