@@ -347,10 +347,10 @@ module EDParamsMod
     ED_val_phen_a = param_p%r_data_scalar
     
     param_p => pstruct%GetParamFromName("fates_phen_gddthresh_b")
-    ED_val_phen_a = param_p%r_data_scalar
+    ED_val_phen_b = param_p%r_data_scalar
     
     param_p => pstruct%GetParamFromName("fates_phen_gddthresh_c")
-    ED_val_phen_a = param_p%r_data_scalar
+    ED_val_phen_c = param_p%r_data_scalar
     
     param_p => pstruct%GetParamFromName("fates_phen_chilltemp")
     ED_val_phen_chiltemp = param_p%r_data_scalar
