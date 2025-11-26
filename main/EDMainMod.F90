@@ -198,7 +198,7 @@ contains
     call ZeroBCOutCarbonFluxes(bc_out)
 
     ! Zero mass balance
-    call TotalBalanceCheck(currentSite, 0, is_restarting=.false.)
+    call TotalBalanceCheck(currentSite, 0)
 
     ! We do not allow phenology while in ST3 mode either, it is hypothetically
     ! possible to allow this, but we have not plugged in the litter fluxes
@@ -263,7 +263,7 @@ contains
           currentPatch => currentPatch%younger
        enddo
 
-       call TotalBalanceCheck(currentSite,1,is_restarting=.false.)
+       call TotalBalanceCheck(currentSite,1)
 
        currentPatch => currentSite%oldest_patch
        do while (associated(currentPatch))
@@ -286,7 +286,7 @@ contains
          
     end if
 
-    call TotalBalanceCheck(currentSite,2,is_restarting=.false.)
+    call TotalBalanceCheck(currentSite,2)
 
     !*********************************************************************************
     ! Patch dynamics sub-routines: fusion, new patch creation (spwaning), termination.
@@ -304,7 +304,7 @@ contains
 
        call spawn_patches(currentSite, bc_in)
 
-       call TotalBalanceCheck(currentSite,3,is_restarting=.false.)
+       call TotalBalanceCheck(currentSite,3)
 
        ! fuse on the spawned patches.
        call fuse_patches(currentSite, bc_in )
@@ -319,14 +319,14 @@ contains
        end if
 
        ! SP has changes in leaf carbon but we don't expect them to be in balance.
-       call TotalBalanceCheck(currentSite,4,is_restarting=.false.)
+       call TotalBalanceCheck(currentSite,4)
 
        ! kill patches that are too small
        call terminate_patches(currentSite, bc_in)
     end if
 
     ! Final instantaneous mass balance check
-    call TotalBalanceCheck(currentSite,5,is_restarting=.false.)
+    call TotalBalanceCheck(currentSite,5)
 
     
   end subroutine ed_ecosystem_dynamics
@@ -943,7 +943,7 @@ contains
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout) :: currentSite
     integer            , intent(in)    :: call_index
-    logical            , intent(in)    :: is_restarting
+    logical,optional   , intent(in)    :: is_restarting_arg
     
     !
     ! !LOCAL VARIABLES:
@@ -964,7 +964,7 @@ contains
     real(r8) :: store_m         ! "" storage
     real(r8) :: struct_m        ! "" structure
     real(r8) :: repro_m         ! "" reproduction
-
+    logical  :: is_restarting   ! is the model going through its restart init procedure?
     integer  :: el              ! loop counter for element types
 
     ! nb. There is no time associated with these variables
@@ -979,6 +979,13 @@ contains
     logical, parameter :: print_cohorts = .true.   ! Set to true if you want
                                                     ! to print cohort data
                                                     ! upon fail (lots of text)
+
+    if(present(is_restarting_arg))then
+       is_restarting = is_restarting_arg
+    else
+       is_restarting = .false.
+    end if
+    
     !-----------------------------------------------------------------------
 
   if(hlm_use_sp.eq.ifalse)then
