@@ -165,18 +165,25 @@ contains
     ! { and } brackets are not found inside any quotes.
 
     integer,intent(in)          :: file_unit
-    character(len=*) :: filename
-    character(len=1) :: filechar
-    logical          :: inside_quotes
-    integer          :: io_status
+    character(len=*)   :: filename
+    character(len=1)   :: filechar
+    logical            :: inside_quotes
+    integer            :: io_status
+    character(len=256) :: io_msg
     
     inside_quotes = .false.
     
     do_readfile: do 
        
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status) filechar
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
        if (io_status == IOSTAT_END) then
           exit do_readfile
+       elseif (io_status < 0) then
+          cycle do_readfile
+       elseif (io_status>0) then
+          write(log_unit,*) 'fatal i/o error! code:', io_status
+          write(log_unit,*) 'msg: ',io_msg
+          call shr_sys_abort()
        end if
        
        if (scan(filechar,'"')>0)then
@@ -222,7 +229,7 @@ contains
     integer :: is_num
     real(r8):: tmp_real
     character(len=max_sl) :: tmp_str
-
+    character(len=256) :: io_msg
 
     ! Step 0: We start at the very beginning of the file, which
     ! allows us to count file positions and return to those file positions
@@ -235,9 +242,22 @@ contains
     found_dimtag = .false.
     group_str = ''
     i=0
-    do while(.not.found_dimtag)
+    do_dimtag: do while(.not.found_dimtag)
+
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
+       if (io_status == IOSTAT_END) then
+          write(log_unit,*) 'encountered EOF'
+          call shr_sys_abort()
+       elseif (io_status < 0) then
+          cycle do_dimtag
+       elseif (io_status>0) then
+          write(log_unit,*) 'fatal i/o error! code:', io_status
+          write(log_unit,*) 'msg: ',io_msg
+          call shr_sys_abort()
+       end if
+       
        i=i+1
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status) filechar
+       
        if(i<=max_sl)then
           group_str(i:i) = filechar
        else
@@ -246,7 +266,7 @@ contains
        if(index(group_str,'"dimensions"')>0 .and. index(group_str,'{',.true.)==min(i,max_sl))then
           found_dimtag = .true.
        end if
-    end do
+    end do do_dimtag
     
     ! -----------------------------------------------------------------------------------
     ! Step 2: Read in all the data until the closing bracket
@@ -254,9 +274,22 @@ contains
     found_close = .false.
     dimdata_str = ''
     i=0
-    do while(.not.found_close)
+    do_close: do while(.not.found_close)
+
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
+       if (io_status == IOSTAT_END) then
+          write(log_unit,*) 'encountered EOF'
+          call shr_sys_abort()
+       elseif (io_status < 0) then
+          cycle do_close
+       elseif (io_status>0) then
+          write(log_unit,*) 'fatal i/o error! code:', io_status
+          write(log_unit,*) 'msg: ',io_msg
+          call shr_sys_abort()
+       end if
+
        i=i+1
-       read(unit=file_unit, fmt='(A1)',ADVANCE='NO',iostat=io_status) filechar
+       
        if(i<=dimdata_len)then
           dimdata_str(i:i) = filechar
        else
@@ -266,7 +299,7 @@ contains
        if(index(dimdata_str,'}')>0)then
           found_close = .true.
        end if
-    end do
+    end do do_close
 
     ! -----------------------------------------------------------------------------------
     ! Step 3: Parse the dimension data string for dimension data
@@ -379,6 +412,7 @@ contains
     integer :: iter
     character(len=max_sl) :: tmp_str
     integer :: dimsizes(2)
+    character(len=256) :: io_msg
     
     ! -----------------------------------------------------------------------------------
     ! Step 1: Advance the file's character pointer to the open bracket following
@@ -387,9 +421,22 @@ contains
     found_vartag = .false.
     group_str = ''
     i=0
-    do while(.not.found_vartag)
+    do_vartag: do while(.not.found_vartag)
+
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
+       if (io_status == IOSTAT_END) then
+          write(log_unit,*) 'encountered EOF'
+          call shr_sys_abort()
+       elseif (io_status < 0) then
+          cycle	do_vartag
+       elseif (io_status>0) then
+          write(log_unit,*) 'fatal i/o error! code:', io_status
+          write(log_unit,*) 'msg: ',io_msg
+          call shr_sys_abort()
+       end if
+
        i=i+1
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status) filechar
+       
        if(i<=max_sl)then
           group_str(i:i) = filechar
        else
@@ -406,7 +453,7 @@ contains
           write(log_unit,*)'failed to find variable string or group closing bracket'
           call shr_sys_abort()
        end if
-    end do
+    end do do_vartag
 
     sep_id = index(group_str,':')
     symb_str = trim(CleanSymbol(group_str(1:sep_id-1)))
@@ -419,9 +466,22 @@ contains
     found_close = .false.
     vardata_str = ''
     i=0
-    do while(.not.found_close)
+    do_close: do while(.not.found_close)
+
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
+       if (io_status == IOSTAT_END) then
+          write(log_unit,*) 'encountered EOF'
+          call shr_sys_abort()
+       elseif (io_status < 0) then
+          cycle do_close
+       elseif (io_status>0) then
+          write(log_unit,*) 'fatal i/o error! code:', io_status
+          write(log_unit,*) 'msg: ',io_msg
+          call shr_sys_abort()
+       end if
+
        i=i+1
-       read(unit=file_unit, fmt='(A1)',ADVANCE='NO',iostat=io_status) filechar
+       
        if(i<=vardata_max_len)then
           vardata_str(i:i) = filechar
        else
@@ -437,7 +497,7 @@ contains
        if(index(vardata_str,'}')>0)then
           found_close = .true.
        end if
-    end do
+    end do do_close
     vardata_len = i
     
     if(phase==count_phase)then
@@ -615,7 +675,8 @@ contains
     integer :: is_num
     real(r8):: tmp_real
     character(len=max_sl) :: tmp_str
-
+    character(len=256) :: io_msg
+    
     ! Step 0: We start at the very beginning of the file, which
     ! allows us to count file positions and return to those file positions
     rewind(file_unit)
@@ -627,9 +688,22 @@ contains
     found_vartag = .false.
     group_str = ''
     i=0
-    do while(.not.found_vartag)
+    do_vartag: do while(.not.found_vartag)
+
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
+       if (io_status == IOSTAT_END) then
+          write(log_unit,*) 'encountered EOF'
+          call shr_sys_abort()
+       elseif (io_status < 0) then
+          cycle do_vartag
+       elseif (io_status>0) then
+          write(log_unit,*) 'fatal i/o error! code:', io_status
+          write(log_unit,*) 'msg: ',io_msg
+          call shr_sys_abort()
+       end if
+       
        i=i+1
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status) filechar
+       
        if(i<=max_sl)then
           group_str(i:i) = filechar
        else
@@ -638,7 +712,7 @@ contains
        if(index(group_str,'"parameters"')>0 .and. index(group_str,'{',.true.)==max_sl)then
           found_vartag = .true.
        end if
-    end do
+    end do do_vartag
 
     ! Remember this exact file position, we will need to return
     filepos0 = i
@@ -940,62 +1014,38 @@ contains
     integer,intent(in) :: filepos
 
     character(len=1) dummychar
-    integer :: i        ! file position number index
-    integer :: iostat   ! i/o status of read
+    integer :: i         ! file position number index
+    integer :: io_status ! i/o status of read
+    character(len=256) :: io_msg
+    
+    ! note that we do not include EOLs as valid file positions...
     
     rewind(file_unit)
 
     if (filepos > 1) then
-       do i = 1, filepos
+
+       i=0
+       do_filepos: do while(i <= filepos)
+       
           ! empty read
-          read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=iostat) dummychar
-          if (iostat == 0) then
-             ! Success
-          else if (iostat == IOSTAT_EOR) then
-             ! help debugging and writing lines
-          else if(iostat<0)then
-             write(log_unit,*) 'Error or EOF reached while skipping lines.'
+          read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) dummychar
+          if (io_status == IOSTAT_END) then
+             write(log_unit,*) 'encountered EOF'
+             call shr_sys_abort()
+          elseif (io_status < 0) then
+             cycle do_filepos
+          elseif (io_status>0) then
+             write(log_unit,*) 'fatal i/o error! code:', io_status
+             write(log_unit,*) 'msg: ',io_msg
              call shr_sys_abort()
           end if
-       end do
+          
+          i=i+1
+          
+       end do do_filepos
     end if
     
   end subroutine GotoPos
-
-  ! =====================================================================================
-  
-  subroutine GotoLine(file_unit,line_number)
-
-    ! THIS ISN'T USED, BUT KEEPING IT HERE IN CASE
-    ! This will reset the file read pointer
-    ! to read the line of the input argument line_number.
-    ! Therefore the next line to be read will be the one
-    ! after line number.
-    
-    integer            :: file_unit
-    integer,intent(in) :: line_number
-
-    character(len=256) dummy_line
-    integer :: i        ! line number index
-    integer :: iostat   ! i/o status of read
-    
-    rewind(file_unit)
-
-    if (line_number > 1) then
-       do i = 1, line_number
-          ! empty read
-          read(unit=file_unit, fmt='(A)', iostat=iostat) dummy_line
-          if (iostat /= 0) then
-             write(log_unit,*) 'Error or EOF reached while skipping lines.'
-             call shr_sys_abort()
-          end if
-       end do
-
-       if(debug) write(log_unit,*) 'gotoline last read: ',trim(dummy_line)
-       
-    end if
-    
-  end subroutine GotoLine
 
   ! =====================================================================================
   
