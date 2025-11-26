@@ -943,7 +943,7 @@ contains
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout) :: currentSite
     integer            , intent(in)    :: call_index
-    logical,optional   , intent(in)    :: is_restarting_arg
+    logical,optional   , intent(in)    :: is_restarting  ! is the model going through its restart init procedure?
     
     !
     ! !LOCAL VARIABLES:
@@ -964,7 +964,7 @@ contains
     real(r8) :: store_m         ! "" storage
     real(r8) :: struct_m        ! "" structure
     real(r8) :: repro_m         ! "" reproduction
-    logical  :: is_restarting   ! is the model going through its restart init procedure?
+    logical  :: l_is_restarting  ! local version of the optional arg
     integer  :: el              ! loop counter for element types
 
     ! nb. There is no time associated with these variables
@@ -979,11 +979,9 @@ contains
     logical, parameter :: print_cohorts = .true.   ! Set to true if you want
                                                     ! to print cohort data
                                                     ! upon fail (lots of text)
-
-    if(present(is_restarting_arg))then
-       is_restarting = is_restarting_arg
-    else
-       is_restarting = .false.
+    l_is_restarting = .false.
+    if(present(is_restarting))then
+       l_is_restarting = is_restarting
     end if
     
     !-----------------------------------------------------------------------
@@ -1001,7 +999,7 @@ contains
        call SiteMassStock(currentSite,el,total_stock,biomass_stock,litter_stock,seed_stock)
 
        change_in_stock = total_stock - site_mass%old_stock
-       if(is_restarting) then
+       if(l_is_restarting) then
           flux_in  = 0._r8
           flux_out = 0._r8
        else
@@ -1118,7 +1116,7 @@ contains
 
       ! This is the last check of the sequence, where we update our total
       ! error check and the final fates stock
-      if(call_index == final_check_id .and. .not.is_restarting) then
+      if(call_index == final_check_id .and. .not. l_is_restarting) then
          site_mass%old_stock = total_stock
          site_mass%err_fates = net_flux - change_in_stock
       end if
