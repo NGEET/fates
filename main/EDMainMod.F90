@@ -841,7 +841,9 @@ contains
        call set_patchno(currentSite,.true.,1)
     end if
 
-   
+    ! Set gpp and ar bc outputs prior to zeroing the associate site carbon mass variables
+    bc_out%gpp_site = site_cmass%gpp_acc * area_inv * days_per_sec
+    bc_out%ar_site  = site_cmass%aresp_acc * area_inv * days_per_sec
     
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting))then
        call canopy_spread(currentSite)
@@ -919,8 +921,6 @@ contains
     
     bc_out%fire_closs_to_atm_si = site_cmass%burn_flux_to_atm * area_inv * days_per_sec
     bc_out%grazing_closs_to_atm_si = site_cmass%herbivory_flux_out * area_inv * days_per_sec
-    bc_out%gpp_site = site_cmass%gpp_acc * area_inv * days_per_sec
-    bc_out%ar_site  = site_cmass%aresp_acc * area_inv * days_per_sec
 
   end subroutine ed_update_site
 
