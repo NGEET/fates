@@ -1,8 +1,50 @@
 module JSONParameterUtilsMod
 
-
+  ! =============================================================================
   ! This module holds the data types and the routines used
   ! for scanning a JSON parameter file, and storing the contents
+  ! Assumptions:
+  ! 1) Conformity to the JSON standard, see: https://www.json.org/json-en.html
+  ! 2) Two lowest level objects are expected: "dimensions" and "parameters"
+  ! 3) Each parameter object inside "parameters" should contain:
+  !    a) dtype
+  !    b) dims
+  !    c) long_name
+  !    d) units
+  !    e) data
+  ! 4) The "dims" object in every parameter must reference objects listed in "dimensions"
+  !    unless it is defined as "scalar"
+  ! 5) All "data" must be encapsulated in [ ] brackets
+  ! 6) All parameters must have a dtype that is either "float" "string" or "integer"
+  ! 7) Other lowest level objects may exist (such as history) but will not be read
+  ! 8) Things like whitespace, spacing, if data is given its own line, line-breaks...
+  !    "shouldn't" matter, so long as the amount of whitespace is reasonable.
+  !    (If there are 10k blank characters, we may run out of buffer)
+  !
+  ! Example JSON file:
+  ! 
+  !{
+  ! "attributes": {"history": "05/11/25, First instantation,
+  !                 copied from: ../parameter_files/fates_params_default.cdl."},
+  ! "dimensions": {
+  !  "fates_NCWD": 4,
+  !  "fates_history_age_bins": 7,
+  !  "fates_history_coage_bins": 2
+  !  "fates_pft": 14
+  !  },
+  ! "parameters": {
+  !  "fates_history_ageclass_bin_edges": {
+  !    "dtype": "float",
+  !    "dims": ["fates_history_age_bins"],
+  !    "long_name": "Lower edges for age class bins used in age-resolved patch history output",
+  !    "units": "yr",
+  !    "data": [0.0, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0]
+  !  }
+  ! }
+  !}
+  !
+  ! =========================================================================================
+  
 
   use, intrinsic :: ISO_FORTRAN_ENV, ONLY : IOSTAT_END,IOSTAT_EOR
   use shr_sys_mod   , only: shr_sys_abort
@@ -39,9 +81,9 @@ module JSONParameterUtilsMod
                                                ! be needed to encapulate all the data
                                                ! inside a variable's {}
 
-  integer, parameter :: too_many_iter = 1000
+  integer, parameter :: too_many_iter = 1000   ! Fail-safe for loops with logical termination
   integer, parameter :: count_phase = 1        ! We read parameters twice so that we can allocate
-  integer, parameter :: fill_phase  = 2  
+  integer, parameter :: fill_phase  = 2        ! and then fill 
 
   integer            :: log_unit = -1
   
@@ -50,20 +92,27 @@ module JSONParameterUtilsMod
   real(r8) :: r_invalid = -1.e36_r8
   
   type,public :: dim_type
-     character(len=max_sl) :: name
-     integer               :: size
+     character(len=max_sl) :: name                      ! Name of the dimension
+     integer               :: size                      ! Number of values associated with dimension
   end type dim_type
   
   type,public ::  param_type
-     character(len=max_sl) :: name        ! The variable symbol (the dictionary key)
-     character(len=max_ul) :: units
-     character(len=max_ll) :: long_name
-     integer               :: dtype                      ! Data type, see above
-     character(len=max_sl), allocatable :: dim_names(:)  ! These are the indices of the dimensions
-                                                         ! associated with this variable
-     integer               :: ndims                      ! Number of dimensions,
-                                                         ! same as size (dim_names)
-     integer                         :: access_count
+     character(len=max_sl) :: name                      ! The variable symbol (the dictionary key)
+     character(len=max_ul) :: units                     ! Physical units of parameter
+     character(len=max_ll) :: long_name                 ! A long descriptive name of the parameter
+     integer               :: dtype                     ! Data type, see list above
+                                                        ! combines to explain dimensionality
+                                                        ! and type of value, such as int/string/float
+     character(len=max_sl), allocatable :: dim_names(:) ! These are the indices of the dimensions
+                                                        ! associated with this variable
+     integer               :: ndims                     ! Number of dimensions,
+                                                        ! same as size (dim_names)
+     integer                         :: access_count    ! This is used to count how many
+                                                        ! times this parameter has been read
+                                                        ! on initialization, expecte number
+                                                        ! of times is 1, helps for debugging
+
+     ! --- Data holding structures. Each parameter will only use ONE of these ----
      real(r8)                        :: r_data_scalar
      real(r8), allocatable           :: r_data_1d(:)
      real(r8), allocatable           :: r_data_2d(:,:)
@@ -73,6 +122,7 @@ module JSONParameterUtilsMod
      character(len=128)              :: c_data
      character(len=128), allocatable :: c_data_1d(:)
      character(len=128), allocatable :: c_data_2d(:,:)
+     
   end type param_type
 
   type,public :: params_type
@@ -100,7 +150,8 @@ contains
     integer,intent(in) :: log_unit_in
     log_unit = log_unit_in
   end subroutine SetLogInit
-  
+
+  ! ==============================================================================
   
   subroutine ReadJSON(filename,file_unit,pstruct)
 
@@ -112,15 +163,15 @@ contains
     ! All parameters must be scalar or associated with a known dimension.
     !
     ! Each section is started with an open bracket '{' and closed with a closed bracket '}'
+    ! For each section here we end with a call
+    ! to rewind and go back to the top of the file
     
     character(len=*),intent(in) :: filename
     integer,intent(in)          :: file_unit
     type(params_type)           :: pstruct
     
     ! Local
-
-    integer :: io_status
-    integer :: i
+    integer :: io_status   ! Read status return value from fortran internal
 
     ! scratch space for storing data as strings
     ! before its copied into data structures
@@ -128,7 +179,9 @@ contains
     
     ! Flush the scratch string
     call ClearStringScratch(string_scr,max_scr)
-    
+
+    ! Open the file, it is assumed that an open file unit has been identified
+    ! and passed in as an argument
     open(unit=file_unit, file=filename, status='old', &
         action='READ', iostat=io_status)
     
@@ -212,21 +265,23 @@ contains
     integer,intent(in)          :: file_unit
     type(params_type)           :: pstruct
 
-    integer,parameter :: dimdata_len = 4096
-    character(len=max_sl) :: group_str
-    character(len=dimdata_len) :: dimdata_str
+    integer,parameter :: dimdata_len = 4096 ! We read in ALL the dimension data
+                                            ! from { to } into one string, this
+                                            ! is how big this string is
+    character(len=max_sl) :: group_str      ! String buffer used to identify
+                                            ! where the start of the "dimensions" group is
+    character(len=dimdata_len) :: dimdata_str ! string that holds all dimension text
     character(len=1) :: filechar
     character(len=max_sl) :: symb_str
     character(len=max_sl) :: data_str
-    logical :: found_dimtag
-    logical :: found_close
-    logical :: found_dims
+    logical :: found_dimtag   ! Have we found the string "dimensions" yet?
+    logical :: found_close    ! Have we found the closing bracket?
+    logical :: found_dims     !
     logical :: found_scalar
     integer :: i
     integer :: sep_id,beg_id,end_id
     integer :: io_status
     integer :: n_dims
-    integer :: is_num
     real(r8):: tmp_real
     character(len=max_sl) :: tmp_str
     character(len=256) :: io_msg
@@ -248,7 +303,7 @@ contains
        if (io_status == IOSTAT_END) then
           write(log_unit,*) 'encountered EOF'
           call shr_sys_abort()
-       elseif (io_status < 0) then
+       elseif (io_status < 0) then    ! this is most-likely and end-line character
           cycle do_dimtag
        elseif (io_status>0) then
           write(log_unit,*) 'fatal i/o error! code:', io_status
@@ -293,7 +348,7 @@ contains
        if(i<=dimdata_len)then
           dimdata_str(i:i) = filechar
        else
-          write(log_unit,*) 'Ran out of room reading in dimension data'
+          write(log_unit,*) 'Ran out of room reading in dimension data, increase dimdata_len'
           call shr_sys_abort()
        end if
        if(index(dimdata_str,'}')>0)then
@@ -304,32 +359,40 @@ contains
     ! -----------------------------------------------------------------------------------
     ! Step 3: Parse the dimension data string for dimension data
     !         Each dimension should have a colon ":".
+    !         Also, scan for the "scalar" parameter
     !         !!! Just count for now
     ! -----------------------------------------------------------------------------------
+
+    found_scalar = .false.
+    if( index(trim(dimdata_str(1:dimdata_len)),'"scalar"')>0 ) then
+       found_scalar = .true.
+    end if
+    
     i = 0
     beg_id = 1
     found_dims = .false.
-    found_scalar = .false.
     do while(.not.found_dims)
-       sep_id = index(dimdata_str(beg_id:dimdata_len),':') + beg_id-1 ! Should be left most...
+
+       sep_id = index(dimdata_str(beg_id:dimdata_len),':')
+       if(sep_id==0)then
+          write(log_unit,*)'Expected more dimensions in the parameter file...'
+          call shr_sys_abort()
+       end if
+
+       i = i + 1
+       
        end_id = index(dimdata_str(beg_id:dimdata_len),',')
        if(end_id==0)then
           end_id = index(dimdata_str(beg_id:dimdata_len),'}')
           if(end_id==0)then
-             write(log_unit,*)'Trouble parsing dim data'
+             write(log_unit,*)'Trouble parsing dim data, expecting closing bracket'
              call shr_sys_abort()
           end if
           found_dims = .true.
        end if
 
-       symb_str = dimdata_str(beg_id:sep_id-1)
-       if( trim(CleanSymbol(symb_str))=='scalar') then
-          found_scalar = .true.
-       end if
+       beg_id = beg_id + end_id
        
-       end_id = end_id + beg_id -1
-       i=i+1
-       beg_id = end_id+1
     end do
     
     ! -----------------------------------------------------------------------------------
@@ -380,36 +443,20 @@ contains
     character(len=max_ll), dimension(*) :: string_scr ! Internal scratch space
     logical,intent(out)         :: found_vartag
     type(params_type),optional   :: pstruct
-
     type(param_type), pointer :: param
-    type(dim_type), pointer   :: dim
     
     character(len=max_sl) :: group_str
     character(len=vardata_max_len) :: vardata_str
     character(len=1) :: filechar
     character(len=max_ll) :: symb_str
     character(len=vardata_max_len) :: data_str
-    character(len=1) str_char
     integer :: n_vec_out
     logical :: found_close
-    logical :: found_vars
-    logical :: found_all
-    logical :: found_dims
-    logical :: found_data
-    logical :: found_units
-    logical :: found_long
-    logical :: found_dtype
-    logical :: open_bracket
-    logical :: open_quote
-    logical :: found_end
     integer :: i,j,k
-    integer :: filepos
-    integer :: sep_id,beg_id,end_id,next_sep_id
+    integer :: sep_id,beg_id,end_id
     integer :: io_status
-    integer :: n_vars
     integer :: vardata_len
     real(r8):: tmp_real
-    integer :: iter
     character(len=max_sl) :: tmp_str
     integer :: dimsizes(2)
     character(len=256) :: io_msg
@@ -428,7 +475,7 @@ contains
           write(log_unit,*) 'encountered EOF'
           call shr_sys_abort()
        elseif (io_status < 0) then
-          cycle	do_vartag
+          cycle do_vartag
        elseif (io_status>0) then
           write(log_unit,*) 'fatal i/o error! code:', io_status
           write(log_unit,*) 'msg: ',io_msg
@@ -659,22 +706,12 @@ contains
 
     integer,parameter :: data_len = 4096
     character(len=max_sl) :: group_str
-    character(len=data_len) :: vardata_str
     character(len=1) :: filechar
-    character(len=max_sl) :: symb_str
-    character(len=max_sl) :: data_str
-    logical :: found_varstag
     logical :: found_vartag
-    logical :: found_close
-    logical :: found_vars
     integer :: i,j
     integer :: filepos0
-    integer :: sep_id,beg_id,end_id
     integer :: io_status
     integer :: n_vars
-    integer :: is_num
-    real(r8):: tmp_real
-    character(len=max_sl) :: tmp_str
     character(len=256) :: io_msg
     
     ! Step 0: We start at the very beginning of the file, which
@@ -869,7 +906,7 @@ contains
     integer,intent(out)                               :: n_vec_out
 
     !character(len=2)                                :: unwanted_chars  = (/!#/)
-    integer :: i,j,k,l,ii
+    integer :: i,j,k,l
     integer :: iv    ! index of vector start
     integer :: ivz   ! index of vector end
     logical :: has_brackets
