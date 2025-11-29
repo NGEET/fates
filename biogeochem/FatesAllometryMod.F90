@@ -748,7 +748,8 @@ contains
           tree_lai = (log(exp(-1.0_r8 * kn * canopy_lai_above) - &
                kn * slat * leafc_per_unitarea) + &
                (kn * canopy_lai_above)) / (-1.0_r8 * kn)
-
+          ! precision errors in the above when leafc_per_unit_area is tiny can make treelai negative
+          tree_lai = max(0.0_r8,tree_lai)
           ! If leafc_per_unitarea becomes too large, tree_lai becomes an imaginary number 
           ! (because the tree_lai equation requires us to take the natural log of something >0)
           ! Thus, we include the following error message in case leafc_per_unitarea becomes too large.
@@ -774,7 +775,8 @@ contains
                kn * slat * leafc_slamax) + &
                (kn * canopy_lai_above)) / (-1.0_r8 * kn)) + &
                (leafc_per_unitarea - leafc_slamax) * sla_max
-
+          ! precision errors in the above when leafc_per_unit_area is tiny can make treelai negative
+          tree_lai = max(0.0_r8,tree_lai)
           ! if leafc_slamax becomes too large, tree_lai_exp becomes an imaginary number 
           ! (because the tree_lai equation requires us to take the natural log of something >0)
           ! Thus, we include the following error message in case leafc_slamax becomes too large.
