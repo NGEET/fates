@@ -1306,17 +1306,15 @@ contains
 
                   dbh = abs(EDPftvarcon_inst%initd(pft))
 
-                  site_in%spread = init_spread_inventory
-                  
                   ! calculate crown area of a single plant
-                  call carea_allom(dbh, 1.0_r8, init_spread_inventory, pft, crown_damage,  &
+                  call carea_allom(dbh, 1.0_r8, site_in%spread, pft, crown_damage,  &
                        c_area)
 
                   ! calculate initial density required to close canopy 
                   cohort_n = patch_in%area/c_area
 
                   ! calculate crown area of the cohort
-                  call carea_allom(dbh, cohort_n, init_spread_inventory, pft, crown_damage, &
+                  call carea_allom(dbh, cohort_n, site_in%spread, pft, crown_damage, &
                        c_area)
 
                   ! calculate height from diameter

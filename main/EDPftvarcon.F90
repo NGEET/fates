@@ -378,12 +378,7 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_recruit_init_density_full_fates'
-    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names, lower_bounds=dim_lower_bound)
-
-    name = 'fates_recruit_init_nocomp'
-
+    name = 'fates_recruit_init_density'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -2030,6 +2025,8 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
+
+        
         
         if ( EDPftvarcon_inst%init_seed(ipft) .lt. 0.0_r8) then
            write(fates_log(),*) ' Initial seed pool fates_init_seed can not be negative.'
