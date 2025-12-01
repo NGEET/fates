@@ -1173,6 +1173,15 @@ contains
       patch_in%tallest  => null()
       patch_in%shortest => null()
 
+      ! if any pfts are starting with a non-recruitment size then the whole site
+      ! needs the inventory type of spread 
+      do pft = 1, numpft
+         if (EDPftvarcon_inst%initd(pft) < 0.0_r8) then   
+            site_in%spread = init_spread_inventory
+         end if
+      end do
+
+      
       ! Manage interactions of fixed biogeog (site level filter) and nocomp (patch level filter)
       ! Need to cover all potential biogeog x nocomp combinations
       ! 1. biogeog = false. nocomp = false: all PFTs on (DEFAULT)
@@ -1285,7 +1294,7 @@ contains
                   ! to compensate (otherwise runs are very hard to compare)
                   ! this multiplies it by the number of PFTs there would have been in
                   ! the single shared patch in competition mode.
-                  ! n.b. that this is the same as currentcohort%n = l_initd(pft) &AREA
+                  ! n.b. that this is the same as currentcohort%n = initd(pft) &AREA
                   cohort_n = cohort_n*sum(site_in%use_this_pft)
 
                   height = EDPftvarcon_inst%hgt_min(pft)
