@@ -76,15 +76,11 @@ module EDCanopyStructureMod
   character(len=255) :: smsg ! Message string for deallocation errors
 
   ! Precision targets for demotion and promotion
-  ! We have two:
-  ! "pa_area_target_precision" is the required precision at the patch level,
-  !    we keep shuffling and splitting cohorts until each layer is within this precision
   ! "co_area_target_precision" is the required precision at the cohort level,
   !    essentially it is the minimum amount of change required to not ignore
   !    a partial promotion or demotion
   
-  real(r8), parameter :: pa_area_target_precision = 1.0E-11_r8
-  real(r8), parameter :: co_area_target_precision = 1.0E-12_r8 
+  real(r8), parameter :: co_area_target_precision = 1.0E-9_r8 
 
   integer, parameter :: demotion_phase  = 1
   integer, parameter :: promotion_phase = 2
@@ -94,8 +90,6 @@ module EDCanopyStructureMod
 
   real(r8), parameter :: area_check_precision  = 1.0E-7_r8     ! Area conservation checks must
   ! be within this absolute tolerance
-  real(r8), parameter :: area_check_rel_precision = 1.0E-4_r8  ! Area conservation checks must
-  ! be within this relative tolerance
 
   real(r8), parameter :: similar_height_tol = 1.0E-3_r8    ! I think trees that differ by 1mm
   ! can be roughly considered the same right?
@@ -169,7 +163,7 @@ contains
     integer  :: i_lyr                  ! current layer index
     integer  :: z                      ! Current number of canopy layers. (1= canopy, 2 = understorey)
     integer  :: ipft
-    real(r8) :: arealayer(nclmax+5)    ! Amount of plant area currently in each canopy layer
+    real(r8) :: arealayer!(nclmax+5)    ! Amount of plant area currently in each canopy layer
     integer  :: patch_area_counter     ! count iterations used to solve canopy areas
     logical  :: area_not_balanced      ! logical controlling if the patch layer areas
     real(r8) :: target_area            ! Canopy area that is either in excess/defiency
@@ -182,7 +176,7 @@ contains
     ! try to re-balance 3 times.  If that doesn't give layer areas
     ! within tolerance of canopy area, there is something wrong
 
-    integer, parameter  :: max_patch_iterations = 10
+    integer, parameter  :: max_patch_iterations = nclmax + 7
 
 
     !----------------------------------------------------------------------
@@ -244,8 +238,8 @@ contains
           z = NumCanopyLayers(currentPatch)
 
           do i_lyr = 1,z ! Loop around the currently occupied canopy layers.
-             call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer(i_lyr))
-             target_area = max(0._r8,arealayer(i_lyr) - (1._r8-imperfect_fraction)*currentPatch%area)
+             call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
+             target_area = max(0._r8,arealayer - (1._r8-imperfect_fraction)*currentPatch%area)
              call PromoteOrDemote(currentSite, currentPatch, i_lyr, demotion_phase, target_area)
           end do
 
@@ -264,8 +258,8 @@ contains
           ! We only promote if we have at least two layers
           if (z>1) then
              do i_lyr=2,z
-                call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr-1,arealayer(i_lyr-1))
-                target_area = max(0._r8,(1._r8-imperfect_fraction)*currentPatch%area - arealayer(i_lyr-1))
+                call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr-1,arealayer)
+                target_area = max(0._r8,(1._r8-imperfect_fraction)*currentPatch%area - arealayer)
                 call PromoteOrDemote(currentSite, currentPatch, i_lyr, promotion_phase, target_area)
              end do
 
@@ -286,14 +280,14 @@ contains
 
           z = NumCanopyLayers(currentPatch)
           area_not_balanced = .false.
-          do i_lyr = 1,z
-             call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer(i_lyr))
+          do i_lyr = 1,min(z,nclmax)
+             call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
              if(i_lyr < z)then
-                if (abs(arealayer(i_lyr)-(1._r8-imperfect_fraction)*currentPatch%area) > area_check_precision) then
+                if (abs(arealayer-(1._r8-imperfect_fraction)*currentPatch%area) > area_check_precision) then
                    area_not_balanced = .true.
                 end if
              else
-                if ((arealayer(i_lyr)-(1._r8-imperfect_fraction)*currentPatch%area) > area_check_precision) then
+                if ((arealayer-(1._r8-imperfect_fraction)*currentPatch%area) > area_check_precision) then
                    area_not_balanced = .true.
                 end if
              end if
@@ -313,8 +307,9 @@ contains
              write(fates_log(),*) 'spread:',currentSite%spread
              do i_lyr = 1,z
                 write(fates_log(),*) '-----------------------------------------'
-                write(fates_log(),*) 'layer: ',i_lyr,' area: ',arealayer(i_lyr)
-                write(fates_log(),*) 'bias [m2] (layer-patch): ',(arealayer(i_lyr)- &
+                call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
+                write(fates_log(),*) 'layer: ',i_lyr,' area: ',arealayer
+                write(fates_log(),*) 'bias [m2] (layer-patch): ',(arealayer - &
                      (1._r8-imperfect_fraction)*currentPatch%area)
                 currentCohort => currentPatch%tallest
                 do while (associated(currentCohort))
