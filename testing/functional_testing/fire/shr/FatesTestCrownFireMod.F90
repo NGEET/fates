@@ -9,6 +9,7 @@ module FatesTestCrownFireMod
    use FatesUnitTestIOMod,     only : OpenNCFile, GetVar, CloseNCFile, RegisterNCDims
    use FatesUnitTestIOMod,     only : RegisterVar, EndNCDef, WriteVar
    use FatesUnitTestIOMod,     only : type_double, type_char, type_int
+   use FatesFuelMod,           only : fuel_type
    use SFParamsMod,            only : SF_val_miner_total, SF_val_part_dens
    use SFEquationsMod,         only : OptimumPackingRatio, ReactionIntensity
    use SFEquationsMod,         only : HeatofPreignition, EffectiveHeatingNumber
@@ -26,19 +27,15 @@ module FatesTestCrownFireMod
 
 contains
 
-   subroutine ROSWrapper(bd, SAV, fuel_load, fmc, mef, fire_weather, effect_wind, ROS, i_r)
+   subroutine ROSWrapper(fuelType, fire_weather, effect_wind, ROS, i_r)
       !
       ! DESCRIPTION
       ! Calls a sequence of functions to calculate surface fire rate of spread
       !
       ! ARGUMENTS:
-      real(r8), intent(in)            :: bd           ! fuel bulk density no trunk [kg/m3]
-      real(r8), intent(in)            :: SAV          ! fuel surface area to volume ratio [/cm]
-      real(r8), intent(in)            :: fuel_load    ! fuel amount excluding trunks [kgC/m2]
-      real(r8), intent(in)            :: fmc          ! weighted average fuel moisture content across non-trunk fuel classes [m3/m3]
-      real(r8), intent(in)            :: mef          ! weighted average of moisture of extinction across non-trunk fuel classes [m3/m3]
+      type(fuel_type), intent(in)     :: fuelType     ! fuel type
       real(r8), intent(in)            :: fire_weather ! fire weather index [unitless]
-      real(r8), intent(in)            :: effect_wind   ! effective wind speed [m/min]
+      real(r8), intent(in)            :: effect_wind  ! effective wind speed [m/min]
       real(r8), intent(out)           :: ROS          ! forward rate of spread [m/min]
       real(r8), intent(out)           :: i_r          ! reaction intensity [kJ/m2/min], required for calculating HPA
       !
@@ -53,8 +50,8 @@ contains
       real(r8)                        :: fuel_net     ! fuel load excluding mineral content [kgC/m2]
 
       ! fraction of fuel array occupied by fuels and optimum packing ratio
-      beta = bd / SF_val_part_dens
-      beta_op = OptimumPackingRatio(SAV)
+      beta = fuelType%bulk_density_notrunks/SF_val_part_dens
+      beta_op = OptimumPackingRatio(fuelType%SAV_notrunks)
       ! relative packing ratio
       if (beta_op < nearzero) then
          beta_ratio = 0.0_r8
@@ -63,26 +60,26 @@ contains
       end if
 
       ! remove mineral content
-      fuel_net = fuel_load*(1.0_r8 - SF_val_miner_total)
+      fuel_net = fuelType%non_trunk_loading*(1.0_r8 - SF_val_miner_total)
 
       ! reaction intensity
-      i_r = ReactionIntensity(fuel_net/0.45_r8, SAV, beta_ratio,  &
-         fmc, mef)
+      i_r = ReactionIntensity(fuel_net/0.45_r8, fuelType%SAV_notrunks, beta_ratio,  &
+         fuelType%average_moisture_notrunks, fuelType%MEF_notrunks)
 
       ! heat of preignition
-      q_ig = HeatofPreignition(fmc)
+      q_ig = HeatofPreignition(fuelType%average_moisture_notrunks)
 
       ! effective heating number
-      eps = EffectiveHeatingNumber(SAV)
+      eps = EffectiveHeatingNumber(fuelType%SAV_notrunks)
 
       ! wind factor
-      phi_wind = WindFactor(effect_wind, beta_ratio, SAV)
+      phi_wind = WindFactor(effect_wind, beta_ratio, fuelType%SAV_notrunks)
 
       ! propogation flux
-      xi = PropagatingFlux(beta, SAV)
+      xi = PropagatingFlux(beta, fuelType%SAV_notrunks)
 
       ! forward rate of spread [m/min]
-      ROS = ForwardRateOfSpread(bd, eps, q_ig, i_r, xi, phi_wind)
+      ROS = ForwardRateOfSpread(fuelType%bulk_density_notrunks, eps, q_ig, i_r, xi, phi_wind)
 
    end subroutine ROSWrapper
 

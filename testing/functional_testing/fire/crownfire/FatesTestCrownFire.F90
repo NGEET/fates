@@ -232,9 +232,12 @@ subroutine TestCrownFireFM10(CBD, wind, drying_ratio, ROS_active_FM10, CI_FM10)
 
   use FatesConstantsMod,      only : r8 => fates_r8 
   use FatesConstantsMod,      only : nearzero
-  use SFParamsMod,                 only : SF_val_miner_total
-  use SFParamsMod,                 only : SF_val_part_dens
+  use SFParamsMod,            only : SF_val_miner_total
+  use SFParamsMod,            only : SF_val_part_dens
   use CrownFireEquationsMod,  only : CrownFireBehaveFM10
+  use SFFireWeatherMod,       only : fire_weather
+  use SFNesterovMod,          only : nesterov_index
+  use FatesFuelMod,           only : fuel_type
   
 
   implicit none
@@ -260,11 +263,15 @@ subroutine TestCrownFireFM10(CBD, wind, drying_ratio, ROS_active_FM10, CI_FM10)
   real(r8), parameter                :: kmhr_to_mmin = 16.6667_r8  ! convert km/hour to m/min for wind speed
   
   ! LOCALS:
-  integer            :: num_CBD     ! size of canopy bulk density array
-  integer            :: num_wind    ! size of wind speed array
-  integer            :: i, j        ! looping indicies
-  real(r8)           :: ROS_active  ! ROS_active output from CrownFireBehaveFM10 [m/min]
-  real(r8)           :: CI          ! CI output from CrownFireBehaveFM10 [m/min]
+  class(fire_weather), pointer       :: fireWeather ! fire weather object
+  type(fuel_type)                    :: fuel_fm10
+  real(r8)                           :: xi_fm10
+  real(r8)                           :: beta_ratio_fm10
+  integer                            :: num_CBD     ! size of canopy bulk density array
+  integer                            :: num_wind    ! size of wind speed array
+  integer                            :: i, j        ! looping indicies
+  real(r8)                           :: ROS_active  ! ROS_active output from CrownFireBehaveFM10 [m/min]
+  real(r8)                           :: CI          ! CI output from CrownFireBehaveFM10 [m/min]
 
   ! allocate arrays
   num_CBD = int((CBD_max - CBD_min) / CBD_inc + 1)
@@ -275,13 +282,17 @@ subroutine TestCrownFireFM10(CBD, wind, drying_ratio, ROS_active_FM10, CI_FM10)
   allocate(ROS_active_FM10(num_wind, size(dratio_vals)))
   allocate(CI_FM10(num_CBD, size(dratio_vals)))
 
+  ! set up fire weather class
+  allocate(nesterov_index :: fireWeather)
+  call fireWeather%Init()
+  fireWeather%fire_weather_index = fire_weather_index
+
   do i = 1, num_CBD
     CBD(i) = CBD_min + CBD_inc * (i-1)
 
     do j = 1, size(dratio_vals)
       drying_ratio(j) = dratio_vals(j)
-      call CrownFireBehaveFM10(drying_ratio(j), fire_weather_index, SF_val_miner_total, &
-      SF_val_part_dens, wind_ref, CBD(i), ROS_active, CI)  
+      call CrownFireBehaveFM10(fireWeather, drying_ratio(j), wind_ref, CBD(i), ROS_active, CI)  
       CI_FM10(i, j) = CI
 
     end do  
@@ -292,8 +303,7 @@ subroutine TestCrownFireFM10(CBD, wind, drying_ratio, ROS_active_FM10, CI_FM10)
 
     do j = 1, size(dratio_vals)
       drying_ratio(j) = dratio_vals(j)
-      call CrownFireBehaveFM10(drying_ratio(j), fire_weather_index, SF_val_miner_total, &
-      SF_val_part_dens, wind(i), cbd_ref, ROS_active, CI)
+      call CrownFireBehaveFM10(fireWeather, drying_ratio(j), wind(i), cbd_ref, ROS_active, CI)
       ROS_active_FM10(i, j) = ROS_active
 
     end do
