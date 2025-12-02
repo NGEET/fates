@@ -78,7 +78,10 @@ module EDCanopyStructureMod
   ! Precision targets for demotion and promotion
   ! "co_area_target_precision" is the required precision at the cohort level,
   !    essentially it is the minimum amount of change required to not ignore
-  !    a partial promotion or demotion
+  !    a partial promotion or demotion. This number was chosen because
+  !    math precision is around 15 digits in fortran r8s, with numbers that
+  !    can get to magnitude e4, this gives us about two orders of magitude in math
+  !    precision (ie e15-(e4+e9)=e2) in significant digits to match this absolute precision
   
   real(r8), parameter :: co_area_target_precision = 1.0E-9_r8 
 
@@ -163,7 +166,7 @@ contains
     integer  :: i_lyr                  ! current layer index
     integer  :: z                      ! Current number of canopy layers. (1= canopy, 2 = understorey)
     integer  :: ipft
-    real(r8) :: arealayer!(nclmax+5)    ! Amount of plant area currently in each canopy layer
+    real(r8) :: arealayer              ! Amount of plant area currently in each canopy layer
     integer  :: patch_area_counter     ! count iterations used to solve canopy areas
     logical  :: area_not_balanced      ! logical controlling if the patch layer areas
     real(r8) :: target_area            ! Canopy area that is either in excess/defiency
