@@ -262,7 +262,6 @@ module FatesCohortMod
     real(r8) :: dndt      ! time derivative of cohort size [n/year]
     real(r8) :: dhdt      ! time derivative of height [m/year]
     real(r8) :: ddbhdt    ! time derivative of dbh [cm/year]
-    real(r8) :: dbdeaddt  ! time derivative of dead biomass [kgC/year]
 
     !---------------------------------------------------------------------------
 
@@ -451,7 +450,6 @@ module FatesCohortMod
       this%dndt                    = nan 
       this%dhdt                    = nan 
       this%ddbhdt                  = nan
-      this%dbdeaddt                = nan 
    
       ! FIRE
       this%fraction_crown_burned   = nan 
@@ -794,7 +792,6 @@ module FatesCohortMod
       copyCohort%dndt                    = this%dndt
       copyCohort%dhdt                    = this%dhdt
       copyCohort%ddbhdt                  = this%ddbhdt
-      copyCohort%dbdeaddt                = this%dbdeaddt
 
       ! FIRE
       copyCohort%fraction_crown_burned   = this%fraction_crown_burned
@@ -1140,7 +1137,6 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%dndt                   = ', this%dndt
       write(fates_log(),*) 'cohort%dhdt                   = ', this%dhdt
       write(fates_log(),*) 'cohort%ddbhdt                 = ', this%ddbhdt
-      write(fates_log(),*) 'cohort%dbdeaddt               = ', this%dbdeaddt
       write(fates_log(),*) 'cohort%fraction_crown_burned  = ', this%fraction_crown_burned
       write(fates_log(),*) 'cohort%fire_mort              = ', this%fire_mort
       write(fates_log(),*) 'cohort%crownfire_mort         = ', this%crownfire_mort
