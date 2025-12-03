@@ -46,7 +46,8 @@ module FatesInterfaceMod
    use FatesGlobals              , only : fates_global_verbose
    use FatesGlobals              , only : fates_log
    use FatesGlobals              , only : endrun => fates_endrun
-   use FatesConstantsMod             , only : fates_unset_r8
+   use FatesConstantsMod         , only : fates_unset_r8
+   use FatesConstantsMod         , only : fates_unset_int
    use FatesLitterMod            , only : ncwd
    use FatesLitterMod            , only : ndcmpy
    use EDPftvarcon               , only : FatesReportPFTParams
@@ -114,6 +115,7 @@ module FatesInterfaceMod
    use FatesTwoStreamUtilsMod, only : TransferRadParams
    use LeafBiophysicsMod         , only : lb_params
    use LeafBiophysicsMod         , only : FvCB1980
+
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -134,6 +136,7 @@ module FatesInterfaceMod
       ! grid-cell, this is intended to be migrated to columns 
 
       integer                         :: nsites
+      integer                         :: npatches
 
       type(ed_site_type), pointer :: sites(:)
 
@@ -160,7 +163,27 @@ module FatesInterfaceMod
       
       type(bc_pconst_type) :: bc_pconst
 
+      ! This is the interface registry which associates variables with a common keyword
+      type(fates_interface_registry_type), allocatable :: registry(:)
+      
+      ! Index filter array for registries that are active (i.e. has a FATES patch)
+      integer, allocatable :: filter_registry_active(:)
 
+      ! Active vegetated patches
+      integer :: num_active_patches
+
+
+
+      contains 
+
+         procedure         :: CheckInterfaceVariables
+         procedure, public :: InitializeInterfaceRegistry
+         procedure, public :: InitializeFatesSites
+         procedure, public :: InitializeBoundaryConditions
+         procedure         :: SetRegistryActiveState
+         procedure, public :: UpdateInterfaceVariables
+         procedure, public :: UpdateLitterFluxes
+      
    end type fates_interface_type
    
    character(len=*), parameter :: sourcefile = &
@@ -186,7 +209,7 @@ module FatesInterfaceMod
    public :: DetermineGridCellNeighbors
 
    logical :: debug = .false.  ! for debugging this module
-   
+
 contains
 
   ! ====================================================================================
@@ -302,8 +325,6 @@ contains
     fates%bc_in(s)%tot_litc            = 0.0_r8
     fates%bc_in(s)%snow_depth_si       = 0.0_r8
     fates%bc_in(s)%frac_sno_eff_si     = 0.0_r8
-    fates%bc_in(s)%w_scalar_sisl(:)    = 0.0_r8
-    fates%bc_in(s)%t_scalar_sisl(:)    = 0.0_r8
     
     if(do_fates_salinity)then
        fates%bc_in(s)%salinity_sl(:)   = 0.0_r8
@@ -500,8 +521,6 @@ contains
       allocate(bc_in%z_sisl(nlevsoil_in))
       allocate(bc_in%decomp_id(nlevsoil_in))
       allocate(bc_in%dz_decomp_sisl(nlevdecomp_in))
-      allocate(bc_in%w_scalar_sisl(nlevsoil_in))
-      allocate(bc_in%t_scalar_sisl(nlevsoil_in))
 
       ! Lightning (or successful ignitions) and population density
       ! Fire related variables
@@ -2208,6 +2227,57 @@ contains
 
    ! ====================================================================================
 
+   subroutine SetRegistryActiveState(this)
+
+      ! Argument
+      class(fates_interface_type), intent(inout) :: this
+
+      ! Locals
+      type(fates_patch_type),  pointer :: currentPatch
+
+      integer :: s   ! site index
+      integer :: r   ! registry index
+      integer :: i   ! filter index
+
+      ! Set all registries to inactive by default
+      do r = 1, this%npatches
+         call this%registry(r)%SetActiveState(active_state=.false.)
+      end do
+
+      ! Set the active registry index filter to unset
+      this%filter_registry_active = fates_unset_int
+
+      ! Set the active registry counter and filter index iterator to zero
+      this%num_active_patches = 0
+      i = 0
+
+      ! Loop over sites and patches to set active registries and iterate the counter
+      do s = 1, this%nsites
+         currentPatch => this%sites(s)%oldest_patch
+         do while (associated(currentPatch))
+
+            if (currentPatch%nocomp_pft_label .ne. nocomp_bareground) then
+
+            ! Get the registry index for the current site + patch combo and set it to active
+            r = this%sites(s)%GetRegistryIndex(currentPatch%patchno)
+            call this%registry(r)%SetActiveState(active_state=.true.)
+
+            ! Increment the active patch counter and update the active index filter
+            this%num_active_patches = this%num_active_patches + 1
+            i = i + 1
+            this%filter_registry_active(i) = r
+
+            end if
+
+            ! Move to the next patch            
+            currentPatch => currentPatch%younger
+         end do
+      end do
+
+   end subroutine SetRegistryActiveState
+
+   ! ====================================================================================
+
    subroutine FatesReportParameters(masterproc)
       
       ! -----------------------------------------------------
@@ -2676,7 +2746,359 @@ subroutine FatesReadParameters(param_reader)
 
   call fates_params%Destroy()
   deallocate(fates_params)
+  
+end subroutine FatesReadParameters
 
- end subroutine FatesReadParameters
+! ======================================================================================
+
+subroutine InitializeInterfaceRegistry(this, num_veg_patches, patchlist)
+
+   ! This procedure intializes an interface registry for each patch index on the clump
+
+   ! Arguments
+   class(fates_interface_type), intent(inout) :: this                ! fates interface
+   integer, intent(in)                        :: num_veg_patches  ! number of veg patches in this clump
+   integer, intent(in)                        :: patchlist(:)        ! list of hlm patches for registry index
+
+   ! Locals
+   integer :: r   ! registry index
+
+   ! Allocate interface registries for each vegetated patch on the clump
+   allocate(this%registry(num_veg_patches))
+
+   ! Allocate the active registry filter array to the maximum number of possible active patches
+   allocate(this%filter_registry_active(num_veg_patches))
+   
+   ! Set the number of vegetated patches to the interface type level
+   this%npatches = num_veg_patches
+
+   ! Initialize and set patch index for each registry which is associated with a vegetated patch
+   do r = 1, num_veg_patches
+      
+      ! Initialize each registry with a dictionary of keys to register fates and hlm variables against
+      ! The keys are defined in the registry type-bound procedures
+      call this%registry(r)%InitializeInterfaceRegistry()
+
+      ! Set the HLM patch index with the current registry
+      call this%registry(r)%SetSubgridIndices(hlmpatch=patchlist(r))
+      
+   end do
+
+end subroutine InitializeInterfaceRegistry
+
+! ======================================================================================
+
+subroutine InitializeFatesSites(this, patches_per_site)
+   
+   class(fates_interface_type), intent(inout) :: this             ! fates interface
+   integer, intent(in)                        :: patches_per_site ! number of patches per site
+   
+   ! Local
+   integer :: r   ! interface registry index
+   integer :: g   ! gridcell index
+   integer :: gc  ! current gridcell index
+   integer :: s   ! site counter/index
+   integer :: ifp ! fates patch counter/index
+   
+   ! Initialize the current gridcell index and the fates site counter
+   gc = fates_unset_int
+   s = 0
+   ifp = 0
+   
+   ! Iterate over the number of vegetated patches and determine 
+   do r = 1, this%npatches
+      
+      ! Get the gridcell index
+      g = this%registry(r)%GetGridcellIndex()
+      
+      ! Update the fates counter
+      ifp = ifp + 1
+      
+      ! Iterate the fates site and reset the fates patch counter for each new gridcell index
+      if (gc /= g) then
+         gc = g
+         s = s + 1
+         ifp = 1
+      end if
+      
+      ! Set the site and fates patch index for the current registry
+      call this%registry(r)%SetSubgridIndices(fatespatch=ifp, site=s)
+
+   end do
+   
+   ! Set the number of fates sites for the interface
+   this%nsites = s
+   
+   ! Allocate the sites
+   allocate(this%sites(this%nsites))
+
+   ! Allocate the registry index array for the the sites
+   do s = 1, this%nsites
+      call this%sites(s)%AllocateRegistryIndexArray(patches_per_site)
+   end do
+   
+   ! Iterate through the registries again and store the registry indices for each site
+   do r = 1, this%npatches
+      
+      ! Get the site index for the current registry
+      s = this%registry(r)%GetSiteIndex()
+      ifp = this%registry(r)%GetFatesPatchIndex()
+
+      ! Store the registry index for the current site and fates patch index
+      call this%sites(s)%SetRegistryIndex(ifp, r)
+      
+   end do
+   
+
+end subroutine InitializeFatesSites
+
+! ======================================================================================
+
+subroutine InitializeBoundaryConditions(this, patches_per_site)
+   
+   use FatesInterfaceParametersMod
+
+   ! Arguments
+   class(fates_interface_type), intent(inout) :: this                ! fates interface type
+   integer, intent(in)                        :: patches_per_site    ! number of patches per site
+   
+   ! Locals
+   integer :: r      ! registery iterator
+   integer :: s      ! site iterator
+   integer :: ifp    ! boundary condition index
+   integer :: nlevdecomp
+   type(bc_in_type),  pointer :: bc_in
+   type(bc_out_type), pointer :: bc_out
+   
+   ! Register the input boundary conditions use for BC allocations
+   do s = 1, this%nsites
+
+      ! Allocate boundary conditions for all sites with the maximum number of patches per site
+      allocate(this%sites(s)%bc_in(patches_per_site))
+      allocate(this%sites(s)%bc_out(patches_per_site))
+
+      ! Iterate over the maximum number of patches for the current site
+      do ifp = 1, patches_per_site
+      
+      ! Create convenience pointers to the current boundary conditions    
+      bc_in  => this%sites(s)%bc_in(ifp)
+      bc_out => this%sites(s)%bc_out(ifp)
+
+      ! Get the site associated with this registry
+      r = this%sites(s)%GetRegistryIndex(ifp)
+
+      ! Register the boundary conditions that are necessary for allocating other boundary conditions first
+      call this%registry(r)%Register(key=hlm_fates_decomp_max, data=bc_in%nlevdecomp_full, hlm_flag=.false.)
+      call this%registry(r)%Register(key=hlm_fates_decomp, data=bc_in%nlevdecomp, hlm_flag=.false.)
+      call this%registry(r)%Register(key=hlm_fates_soil_level, data=bc_in%nlevsoil, hlm_flag=.false.)
+
+      ! Initialize the interface variables necessary for allocating boundary conditions dimensions
+      call this%registry(r)%InitializeInterfaceVariablesDimensions()
+      
+      ! Initialize the currently registered boundary conditions
+      call bc_in%Initialize()
+      call bc_out%Initialize(bc_in)
+
+      ! Register the remaining boundary conditions
+      ! bc_in
+      call this%registry(r)%Register(key=hlm_fates_thaw_max_depth_index, &
+                                     data=bc_in%max_thaw_depth_index, hlm_flag=.false.)
+      call this%registry(r)%Register(key=hlm_fates_decomp_thickness, &
+                                     data=bc_in%dz_decomp_sisl, hlm_flag=.false.)
+
+      call this%registry(r)%Register(key=hlm_fates_decomp_frac_moisture, &                                     
+                                     data=bc_in%w_scalar_sisl, hlm_flag=.false.)
+      call this%registry(r)%Register(key=hlm_fates_decomp_frac_temperature, &                               
+                                     data=bc_in%t_scalar_sisl, hlm_flag=.false.)
+      
+      ! bc_out
+      nlevdecomp = bc_in%nlevdecomp
+      call this%registry(r)%Register(key=hlm_fates_litter_carbon_cellulose, &
+                                     data=bc_out%litt_flux_cel_c_si(1:nlevdecomp), hlm_flag=.false.)
+      call this%registry(r)%Register(key=hlm_fates_litter_carbon_lignin, &
+                                     data=bc_out%litt_flux_lig_c_si(1:nlevdecomp), hlm_flag=.false.)
+      call this%registry(r)%Register(key=hlm_fates_litter_carbon_labile, &
+                                     data=bc_out%litt_flux_lab_c_si(1:nlevdecomp), hlm_flag=.false.)
+      call this%registry(r)%Register(key=hlm_fates_litter_carbon_total, &
+                                     data=bc_out%litt_flux_all_c, hlm_flag=.false.)
+
+      if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
+         call this%registry(r)%Register(key=hlm_fates_litter_phosphorus_cellulose, &
+                                        data=bc_out%litt_flux_cel_p_si, hlm_flag=.false.)
+         call this%registry(r)%Register(key=hlm_fates_litter_phosphorus_lignin, &
+                                        data=bc_out%litt_flux_lig_p_si, hlm_flag=.false.)
+         call this%registry(r)%Register(key=hlm_fates_litter_phosphorus_labile, &   
+                                        data=bc_out%litt_flux_lab_p_si, hlm_flag=.false.)
+         call this%registry(r)%Register(key=hlm_fates_litter_phosphorus_total, &
+                                        data=bc_out%litt_flux_all_p, hlm_flag=.false.)
+
+         call this%registry(r)%Register(key=hlm_fates_litter_nitrogen_cellulose, &
+                                        data=bc_out%litt_flux_cel_n_si, hlm_flag=.false.)
+         call this%registry(r)%Register(key=hlm_fates_litter_nitrogen_lignin, &
+                                        data=bc_out%litt_flux_lig_n_si, hlm_flag=.false.)
+         call this%registry(r)%Register(key=hlm_fates_litter_nitrogen_labile, &
+                                        data=bc_out%litt_flux_lab_n_si, hlm_flag=.false.)
+         call this%registry(r)%Register(key=hlm_fates_litter_nitrogen_total, &
+                                        data=bc_out%litt_flux_all_n, hlm_flag=.false.)
+         end if
+      end do
+   end do
+
+end subroutine InitializeBoundaryConditions
+
+! ======================================================================================
+
+subroutine UpdateInterfaceVariables(this, initialize, restarting)
+   
+   ! Arguments
+   class(fates_interface_type), intent(inout) :: this
+   logical, intent(in), optional              :: initialize 
+   logical, intent(in), optional              :: restarting
+
+   ! Locals
+   type(bc_in_type),  pointer :: bc_in
+   type(bc_out_type), pointer :: bc_out
+
+   logical :: initialize_local
+   logical :: restarting_local 
+
+   integer :: r   ! registry interface index
+   integer :: s   ! site index
+   integer :: ifp ! fates patch index
+   integer :: i   ! layer index
+
+   ! Set the default initialize flag to false
+   initialize_local = .false.
+   if (present(initialize)) then
+      initialize_local = initialize
+   end if
+
+   ! Set the default restart flag to false
+   ! If we are restarting we need to initialize as well
+   restarting_local = .false.
+   if (present(restarting)) then
+      restarting_local = restarting
+      initialize_local = .true.
+   end if
+
+   do r = 1, this%npatches
+
+      ! Update the interface variables for the current registry
+      call this%registry(r)%Update()
+
+      ! Get the site associated with this registry
+      s = this%registry(r)%GetSiteIndex()
+      ifp = this%registry(r)%GetFatesPatchIndex()
+
+      bc_in  => this%sites(s)%bc_in(ifp)
+
+      ! Set the max rooting depth index to either to the soil depth or the max thaw depth last year, whichever is shallower
+      bc_in%max_rooting_depth_index_col = min(bc_in%nlevsoil, bc_in%max_thaw_depth_index)
+
+      ! Calculate various bc_in variables that are based on other variables or namelist states
+      if (initialize_local) then
+
+         ! Check vertical soil carbon decomposition usage
+         if (hlm_use_vertsoilc == itrue) then
+            if(bc_in%nlevdecomp .ne. bc_in%nlevsoil) then
+               write(fates_log(), *) 'The host has signaled a vertically resolved'
+               write(fates_log(), *) 'soil decomposition model. Therefore, the '
+               write(fates_log(), *) 'total number of soil layers should equal the'
+               write(fates_log(), *) 'total number of decomposition layers.'
+               write(fates_log(), *) 'nlevdecomp: ',bc_in%nlevdecomp
+               write(fates_log(), *) 'nlevsoil: ',bc_in%nlevsoil
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+
+            ! Set all decomposition layer ids to their respective soil layer index
+            do i = 1, bc_in%nlevsoil
+               bc_in%decomp_id(i) = i
+            end do
+
+         else ! No vertical soil carbon decomposition usage
+            if(bc_in%nlevdecomp .ne. 1)then
+               write(fates_log(), *) 'The host has signaled a non-vertically resolved'
+               write(fates_log(), *) 'soil decomposition model. Therefore, the '
+               write(fates_log(), *) 'total number of decomposition layers should be 1.'
+               write(fates_log(), *) 'nlevdecomp: ',bc_in%nlevdecomp
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
+
+            ! Set all decomposition layer ids to 1
+            bc_in%decomp_id(:) = 1
+
+         end if
+
+         ! On initialization, set the max rooting depth index to the maximum decomposition level
+         ! unless we are restarting
+         if (.not. restarting_local) bc_in%max_rooting_depth_index_col = bc_in%nlevdecomp
+            
+
+      end if
+
+   end do
+
+   
+end subroutine UpdateInterfaceVariables
+
+! ======================================================================================
+
+subroutine UpdateLitterFluxes(this, dtime)
+   
+   class(fates_interface_type), intent(inout) :: this
+   real(r8), intent(in)                       :: dtime   ! HLM timestep
+   
+   ! Locals
+   integer :: n  ! active registry index iterator
+   integer :: r  ! registry index 
+   integer :: next_r
+   logical :: conversion_flag
+
+   ! Set the registry active state
+   call this%SetRegistryActiveState()
+   
+   ! Loop through the active registries and update the litter fluxes
+   do n = 1, this%num_active_patches
+      r = this%filter_registry_active(n)
+      
+      ! Set converstion flag to false by default
+      conversion_flag = .false.
+
+      ! Look ahead and determine if the next registry is for a different column.
+      ! If so, we need to convert the accumulated litter fluxes
+      ! This is facilitated by the fact that the column indices are monotonically increasing per the HLM
+      if (n .lt. this%num_active_patches) then
+         next_r = this%filter_registry_active(n+1)
+         if (this%registry(r)%GetColumnIndex() .ne. this%registry(next_r)%GetColumnIndex()) then
+            conversion_flag = .true.
+         end if
+      else
+         conversion_flag = .true.
+      end if
+
+      write(fates_log(),*) 'update litter flux, n, r, cflag: ', n, r, conversion_flag
+      write(fates_log(),*) 'update litter flux, s, c: ', this%registry(r)%GetSiteIndex(), this%registry(r)%GetColumnIndex()
+
+      call this%registry(r)%UpdateLitterFluxes(conversion_flag)
+      
+   end do
+
+end subroutine UpdateLitterFluxes
+
+! ======================================================================================
+
+subroutine CheckInterfaceVariables(this)
+   class(fates_interface_type), intent(inout) :: this
+
+   ! Locals
+   integer :: r
+
+   do r = 1, this%npatches
+      call this%registry(r)%CheckInterfaceVariables()
+   end do
+
+end subroutine CheckInterfaceVariables
+
+! ======================================================================================
 
 end module FatesInterfaceMod

@@ -9,6 +9,7 @@ module EDTypesMod
   use FatesConstantsMod,     only : secondaryland
   use FatesConstantsMod,     only : secondary_age_threshold
   use FatesConstantsMod,     only : nearzero
+  use FatesConstantsMod    , only : n_landuse_cats
   use FatesGlobals,          only : fates_log
   use FatesHydraulicsMemMod, only : ed_cohort_hydr_type
   use FatesHydraulicsMemMod, only : ed_site_hydr_type
@@ -27,15 +28,17 @@ module EDTypesMod
   use FatesConstantsMod,     only : days_per_year
   use FatesRunningMeanMod,   only : rmean_type,rmean_arr_type
   use FatesConstantsMod,     only : fates_unset_r8
+  use FatesConstantsMod,     only : fates_unset_int
   use FatesInterfaceTypesMod,only : bc_in_type
   use FatesInterfaceTypesMod,only : bc_out_type
-  use FatesConstantsMod    , only : n_landuse_cats
   use FatesInterfaceTypesMod,only : hlm_parteh_mode
+  use FatesInterfaceTypesMod,only : fates_interface_registry_type
   use FatesCohortMod,        only : fates_cohort_type
   use FatesPatchMod,         only : fates_patch_type
   use EDParamsMod,           only : nclmax, nlevleaf, maxpft
   use FatesConstantsMod,     only : n_dbh_bins, n_dist_types
   use shr_log_mod,           only : errMsg => shr_log_errMsg
+  use shr_infnan_mod,        only : nan => shr_infnan_nan, assignment(=)
   use SFFireWeatherMod,      only : fire_weather
 
   implicit none
@@ -324,9 +327,18 @@ module EDTypesMod
 
   type, public :: ed_site_type
      
-     ! POINTERS  
+     !! POINTERS  
+     
+     ! patch pointers
      type (fates_patch_type), pointer :: oldest_patch => null()   ! pointer to oldest patch at the site  
      type (fates_patch_type), pointer :: youngest_patch => null() ! pointer to yngest patch at the site
+     
+     ! Boundary conditions
+     type(bc_in_type), allocatable  :: bc_in(:)
+     type(bc_out_type), allocatable :: bc_out(:)
+     
+     ! Registry index array
+     integer, allocatable, private :: ridx(:)
      
      ! Resource management
      type (ed_resources_management_type) :: resources_management ! resources_management at the site 
@@ -600,8 +612,11 @@ module EDTypesMod
 
      contains
 
+       procedure, public :: AllocateRegistryIndexArray
        procedure, public :: get_current_landuse_statevector
        procedure, public :: get_secondary_young_fraction
+       procedure, public :: GetRegistryIndex
+       procedure, public :: SetRegistryIndex
 
   end type ed_site_type
   
@@ -611,6 +626,45 @@ module EDTypesMod
   public :: set_patchno
   
 contains
+
+  ! ============================================================================
+
+   subroutine AllocateRegistryIndexArray(this, patches_per_site)
+
+      ! Arguments
+      class(ed_site_type), intent(inout) :: this
+      integer, intent(in) :: patches_per_site
+
+      ! Allocate the registry index array
+      allocate(this%ridx(patches_per_site))
+      this%ridx = fates_unset_int
+
+    end subroutine AllocateRegistryIndexArray
+
+  ! ============================================================================
+
+   integer function GetRegistryIndex(this, ifp) result(ridx)
+
+      ! Arguments
+      class(ed_site_type), intent(in) :: this
+      integer, intent(in)             :: ifp
+      
+      ridx = this%ridx(ifp)
+      
+   end function GetRegistryIndex
+   
+  ! ============================================================================
+   
+   subroutine SetRegistryIndex(this, ifp, ridx)
+
+      ! Arguments
+      class(ed_site_type), intent(inout) :: this
+      integer, intent(in)                :: ifp
+      integer, intent(in)                :: ridx
+      
+      this%ridx(ifp) = ridx
+
+   end subroutine SetRegistryIndex
 
   ! ============================================================================
 

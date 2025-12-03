@@ -2,11 +2,15 @@ module FatesInterfaceTypesMod
   
   use FatesConstantsMod   , only : r8 => fates_r8
   use FatesConstantsMod   , only : itrue,ifalse
+  use FatesConstantsMod   , only : fates_unset_int
   use FatesGlobals        , only : fates_global_verbose
   use FatesGlobals        , only : fates_log
   use FatesGlobals        , only : endrun => fates_endrun
   use shr_log_mod         , only : errMsg => shr_log_errMsg
   use shr_infnan_mod      , only : nan => shr_infnan_nan, assignment(=)
+  use PRTGenericMod       , only : prt_cnp_flex_allom_hyp
+  use FatesInterfaceVariableTypeMod, only : fates_interface_variable_type
+  use FatesInterfaceParametersMod
   
   implicit none
 
@@ -274,6 +278,16 @@ module FatesInterfaceTypesMod
    integer, parameter, public :: fates_dispersal_cadence_monthly = 2  ! Disperse seeds monthly
    integer, parameter, public :: fates_dispersal_cadence_yearly = 3   ! Disperse seeds yearly
    
+   integer, parameter :: hlm_subgrid_levels = 5  ! The number of subgrid hierarchy levels that the HLM
+                                                 ! Including the gridcell level, ELM = 5, CLM = 4
+
+   ! Subgrid levels for HLM-FATES interface variable
+   integer, parameter, public :: subgrid_gridcell_index = 5
+   integer, parameter, public :: subgrid_topounit_index = 4
+   integer, parameter, public :: subgrid_landunit_index = 3
+   integer, parameter, public :: subgrid_column_index = 2
+   integer, parameter, public :: subgrid_patch_index = 1
+
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
    ! CLM/ALM have limited support for multi-dimensional history output arrays.
@@ -389,7 +403,8 @@ module FatesInterfaceTypesMod
       ! Soil layer structure
 
       integer              :: nlevsoil           ! the number of soil layers in this column
-      integer              :: nlevdecomp         ! the number of soil layers in the column
+      integer              :: nlevdecomp         ! the number of active soil layers in the column
+      integer              :: nlevdecomp_full    ! the maximum possible soil layers for any column
                                                  ! that are biogeochemically active
       real(r8),allocatable :: zi_sisl(:)         ! interface level below a "z" level (m)
                                                  ! this contains a zero index for surface.
@@ -515,6 +530,10 @@ module FatesInterfaceTypesMod
       ! due to permafrost or bedrock constraints
       integer  :: max_rooting_depth_index_col
 
+      ! The prior year maximum thaw depth index
+      ! Used to determine max_rooting_depth_index_col
+      integer  :: max_thaw_depth_index
+
       ! BGC Accounting
 
       real(r8) :: tot_het_resp  ! total heterotrophic respiration  (gC/m2/s)
@@ -596,6 +615,10 @@ module FatesInterfaceTypesMod
      real(r8),allocatable :: hlm_sp_tsai(:)  ! Interpolated sailt total SAI (stem area index) input from HLM per patch/pft
      real(r8),allocatable :: hlm_sp_htop(:)  ! Interpolated daily canopy vegetation height    input from HLM per patch/pft
 
+     contains
+
+      procedure, public :: Initialize => InitializeBCIn
+     
    end type bc_in_type
 
 
@@ -675,8 +698,10 @@ module FatesInterfaceTypesMod
       real(r8), allocatable :: litt_flux_cel_p_si(:) ! cellulose phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lig_p_si(:) ! lignin phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lab_p_si(:) ! labile phosphorus litter, fates->BGC g/m3/s
+      real(r8)              :: litt_flux_all_c      ! total litterfall carbon
+      real(r8)              :: litt_flux_all_n      ! total litterfall nitrogen
+      real(r8)              :: litt_flux_all_p      ! total litterfall phosphorus
 
-      
       ! MIMICS Boundary Conditions
       ! -----------------------------------------------------------------------------------
       real(r8) :: litt_flux_ligc_per_n  ! lignin carbon per total nitrogen
@@ -797,6 +822,10 @@ module FatesInterfaceTypesMod
       real(r8) :: litter_cwd_c_si            ! Total litter plus CWD carbon [Site-Level, gC m-2]
       real(r8) :: seed_c_si                  ! Total seed carbon [Site-Level, gC m-2]
 
+     contains
+
+      procedure, public :: Initialize => InitializeBCOut
+     
    end type bc_out_type
 
 
@@ -834,13 +863,99 @@ module FatesInterfaceTypesMod
 
    end type bc_pconst_type
 
+   ! Base type to be extended for the API registry
+   type, public :: fates_interface_registry_type
+
+    ! Is registry have a FATES patch that exists?
+    logical, private :: active
+
+    ! Container array of interface variables indexed by key
+    type(fates_interface_variable_type), allocatable :: hlm_vars(:) 
+    type(fates_interface_variable_type), allocatable :: fates_vars(:) 
+    
+    ! Array of keys associated with the interface variables
+    character(len=48), allocatable, private :: key(:)
+
+    ! Variable regsitry metadata
+    integer :: num_api_vars                       ! number of variables in the registry
+    integer :: num_api_vars_update_init_dims      ! number of variables dimensions needed during initialization
+    integer :: num_api_vars_update_init           ! number of variables that update only at initialization
+    integer :: num_api_vars_update_daily          ! number of variables that update daily
+    integer :: num_api_vars_update_timestep       ! number of variables that update on the model timestep
+    integer :: num_api_vars_bc_in                 ! number of variables that are bc_in associated
+    integer :: num_api_vars_bc_out                ! number of variables that are bc_ associated
+    integer :: num_api_vars_litter_flux           ! number of variables that deal with all litter fluxes
+
+    ! Array of update frequency values for each regsitry index
+    integer, allocatable :: update_frequency(:)
+
+    ! Array of boundary condition directions for each registry index
+    integer, allocatable :: bc_dir(:)
+
+    ! Arrays that hold the registry indices of variables based on update frequency
+    integer, allocatable :: filter_init_dims(:) ! registry index of variables dimensions that update at initialization
+    integer, allocatable :: filter_init(:)      ! registry index of variables that update only at initialization
+    integer, allocatable :: filter_daily(:)     ! registry index of variables that update daily
+    integer, allocatable :: filter_timestep(:)  ! registry index of variables that update at each timestep
+    
+    ! Filter arrays that hold the registry indices for litter fluxes
+    integer, allocatable :: filter_litter_flux(:)
+
+    ! Index arrays that map to the boundary condition types
+    integer, allocatable :: filter_bc_in(:)
+    integer, allocatable :: filter_bc_out(:)
+
+    ! Subgrid index data
+    integer, private :: gidx
+    integer, private :: tidx
+    integer, private :: lidx
+    integer, private :: cidx
+    integer, private :: sidx
+    integer, private :: hpidx
+    integer, private :: fpidx
+    logical, private :: bareground
+
+    contains
+
+      procedure :: CheckInterfaceVariables
+      procedure :: GetActivateState
+      procedure :: GetGridcellIndex
+      procedure :: GetLandunitIndex
+      procedure :: GetColumnIndex
+      procedure :: GetSiteIndex
+      procedure :: GetHLMPatchIndex
+      procedure :: GetFatesPatchIndex
+      procedure :: InitializeInterfaceRegistry
+      procedure :: InitializeInterfaceVariablesDimensions
+      procedure :: InitializeInterfaceVariables
+      procedure :: IsBareground => HLMPatchIsBareground 
+      procedure :: SetSubgridIndices
+      procedure :: SetActiveState
+      procedure :: UpdateLitterFluxes
+      procedure :: Update => UpdateInterfaceVariables
+
+      generic :: Register => RegisterInterfaceVariables_0d, & 
+                             RegisterInterfaceVariables_1d, &
+                             RegisterInterfaceVariables_2d
+      procedure, private :: RegisterInterfaceVariables_0d
+      procedure, private :: RegisterInterfaceVariables_1d
+      procedure, private :: RegisterInterfaceVariables_2d
+
+      procedure, private :: DefineInterfaceRegistry
+      procedure, private :: DefineInterfaceVariable
+      procedure, private :: SetFilterMapArrays
+      procedure, private :: GetRegistryVariableIndex
+      procedure, private :: GetRegistryVariableKey
+
+   end type fates_interface_registry_type
+
    public :: ZeroBCOutCarbonFluxes
    
  contains
-       
-   ! ======================================================================================
+  
+  ! ======================================================================================
 
-   subroutine ZeroBCOutCarbonFluxes(bc_out)
+  subroutine ZeroBCOutCarbonFluxes(bc_out)
 
     ! !ARGUMENTS
     type(bc_out_type), intent(inout)   :: bc_out
@@ -852,4 +967,824 @@ module FatesInterfaceTypesMod
 
   end subroutine ZeroBCOutCarbonFluxes
 
+  ! ======================================================================================
+
+  subroutine InitializeBCIn(this)
+
+    ! Arguments
+    class(bc_in_type), intent(inout) :: this
+
+    ! Allocate boundary condition arrays
+    allocate(this%decomp_id(this%nlevsoil))
+    allocate(this%dz_decomp_sisl(this%nlevdecomp_full))
+    allocate(this%w_scalar_sisl(this%nlevdecomp_full))
+    allocate(this%t_scalar_sisl(this%nlevdecomp_full))
+    
+    ! Unset variables
+    this%decomp_id = fates_unset_int
+    this%dz_decomp_sisl = nan
+    this%w_scalar_sisl = nan
+    this%t_scalar_sisl = nan
+    this%max_thaw_depth_index = fates_unset_int
+
+  end subroutine InitializeBCIn
+
+  ! ======================================================================================
+
+  subroutine InitializeBCOut(this, bc_in)
+
+    ! Arguments
+    class(bc_out_type), intent(inout) :: this
+    type(bc_in_type), intent(in)      :: bc_in
+
+    ! Allocate boundary condition arrays
+    allocate(this%litt_flux_cel_c_si(bc_in%nlevdecomp_full))
+    allocate(this%litt_flux_lig_c_si(bc_in%nlevdecomp_full))
+    allocate(this%litt_flux_lab_c_si(bc_in%nlevdecomp_full))
+
+    ! Unset the arrays
+    this%litt_flux_cel_c_si = nan
+    this%litt_flux_lig_c_si = nan 
+    this%litt_flux_lab_c_si = nan 
+    this%litt_flux_all_c = nan
+
+    if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
+      allocate(this%litt_flux_cel_n_si(bc_in%nlevdecomp_full))
+      allocate(this%litt_flux_lig_n_si(bc_in%nlevdecomp_full))
+      allocate(this%litt_flux_lab_n_si(bc_in%nlevdecomp_full))
+      allocate(this%litt_flux_cel_p_si(bc_in%nlevdecomp_full))
+      allocate(this%litt_flux_lig_p_si(bc_in%nlevdecomp_full))
+      allocate(this%litt_flux_lab_p_si(bc_in%nlevdecomp_full))
+
+      this%litt_flux_cel_n_si = nan 
+      this%litt_flux_lig_n_si = nan 
+      this%litt_flux_lab_n_si = nan 
+      this%litt_flux_all_n = nan
+      this%litt_flux_cel_p_si = nan 
+      this%litt_flux_lig_p_si = nan 
+      this%litt_flux_lab_p_si = nan
+      this%litt_flux_all_p = nan
+    end if
+
+  end subroutine InitializeBCOut
+
+  ! ======================================================================================
+
+  subroutine InitializeInterfaceRegistry(this)
+
+    ! This initializes the interface registry
+
+    class(fates_interface_registry_type), intent(inout) :: this
+
+    logical :: initialize
+
+    ! Initialize registry counters
+    this%num_api_vars = 0
+    this%num_api_vars_update_init_dims = 0
+    this%num_api_vars_update_init = 0
+    this%num_api_vars_update_daily = 0
+    this%num_api_vars_update_timestep = 0
+    this%num_api_vars_bc_in = 0
+    this%num_api_vars_bc_out = 0
+    this%num_api_vars_litter_flux = 0
+    
+    ! First count up the keys defined in the registry and the registry counters
+    call this%DefineInterfaceRegistry(initialize=.false.)
+
+    ! Allocate the registry variables arrays
+    allocate(this%fates_vars(this%num_api_vars))
+    allocate(this%hlm_vars(this%num_api_vars))
+    allocate(this%key(this%num_api_vars))
+    allocate(this%update_frequency(this%num_api_vars))
+    allocate(this%bc_dir(this%num_api_vars))
+
+    ! Allocate the index filter maps
+    allocate(this%filter_init_dims(this%num_api_vars_update_init_dims))
+    allocate(this%filter_init(this%num_api_vars_update_init))
+    allocate(this%filter_daily(this%num_api_vars_update_daily))
+    allocate(this%filter_timestep(this%num_api_vars_update_timestep))
+
+    ! Allocate the boundary condition filter maps
+    allocate(this%filter_bc_in(this%num_api_vars_bc_in))
+    allocate(this%filter_bc_out(this%num_api_vars_bc_out))
+    
+    ! Allocate the litter flux filter
+    allocate(this%filter_litter_flux(this%num_api_vars_litter_flux))
+    
+    ! Unset the allocatables not including the interface variables
+    this%update_frequency(:) = fates_unset_int
+    this%bc_dir(:) = fates_unset_int
+    this%filter_init_dims(:) = fates_unset_int
+    this%filter_init(:) = fates_unset_int
+    this%filter_daily(:) = fates_unset_int
+    this%filter_timestep(:) = fates_unset_int
+    this%filter_litter_flux(:) = fates_unset_int
+
+    ! Now initialize the registry keys
+    call this%DefineInterfaceRegistry(initialize=.true.)
+
+    ! Set filter map arrays
+    call this%SetFilterMapArrays()
+
+  end subroutine InitializeInterfaceRegistry
+
+  ! ======================================================================================
+
+  subroutine CheckInterfaceVariables(this)
+
+    ! This procedure checks the registered HLM and FATES interface variables for consistency
+    
+    class(fates_interface_registry_type), intent(inout) :: this
+
+    integer :: i
+
+    do i = 1, this%num_api_vars
+      
+      
+      ! Check that variable keys match
+      if (this%hlm_vars(i)%key /= this%fates_vars(i)%key) then
+        write(*,*) "Key mismatch for variable: ", this%key(i), this%hlm_vars(i)%key, this%fates_vars(i)%key
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
+
+      ! Check that the rank matches
+      if (this%hlm_vars(i)%data_rank /= this%fates_vars(i)%data_rank) then
+        write(*,*) "Rank mismatch for variable: ", this%key(i)
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
+      
+      ! Check that the bounds match
+      call this%hlm_vars(i)%CheckBounds(this%fates_vars(i))
+
+      ! Check that the size of the interface variables match
+      if (this%hlm_vars(i)%data_rank > 0) then
+        if (any(this%hlm_vars(i)%data_size(:) /= this%fates_vars(i)%data_size(:))) then
+          write(*,*) "Size mismatch: key,   hlm size: ", this%key(i), this%hlm_vars(i)%data_size
+          write(*,*) "Size mismatch: key, fates size: ", this%key(i), this%fates_vars(i)%data_size
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+        end if
+      end if
+
+    end do
+
+  end subroutine CheckInterfaceVariables
+
+  ! ======================================================================================
+  
+  subroutine DefineInterfaceRegistry(this, initialize)
+
+    ! This procedure defines the list of common names to be associated with FATES and HLM
+    ! variables.
+
+    class(fates_interface_registry_type), intent(inout) :: this
+
+    logical, intent(in) :: initialize  ! false = count up the keys in the registry
+
+    integer :: index   ! Index to be incremented for each call to DefineInterfaceVariable()
+
+    ! Initialize the index
+    index = 0
+
+    associate(bc_in => registry_bc_in, &
+              bc_out => registry_bc_out)
+    ! Define the interface registry names and indices
+    ! Variables that need to be updated during initialization and are necessary for other boundary conditions
+    ! such as dimensions
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp_max, initialize=initialize, index=index, &
+                                      update_frequency=registry_update_init_dims)
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp, initialize=initialize, index=index, &
+                                      update_frequency=registry_update_init_dims)
+    call this%DefineInterfaceVariable(key=hlm_fates_soil_level, initialize=initialize, index=index, &
+                                      update_frequency=registry_update_init_dims)
+
+    ! Variables that only need to be updated at initialization
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp_thickness, initialize=initialize, index=index, &
+                                      update_frequency=registry_update_init)
+    
+    ! Variables that need to be updated daily
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_moisture, initialize=initialize, index=index)
+    call this%DefineInterfaceVariable(key=hlm_fates_decomp_frac_temperature, initialize=initialize, index=index)
+    call this%DefineInterfaceVariable(key=hlm_fates_thaw_max_depth_index, initialize=initialize, index=index)
+    
+    ! Variables that need to be updated with each timestep
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_cellulose, initialize=initialize, index=index, &
+                                      update_frequency=registry_update_timestep, bc_dir=bc_out)
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_lignin, initialize=initialize, index=index, &
+                                      update_frequency=registry_update_timestep, bc_dir=bc_out)
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_labile, initialize=initialize, index=index, & 
+                                      update_frequency=registry_update_timestep, bc_dir=bc_out)
+    call this%DefineInterfaceVariable(key=hlm_fates_litter_carbon_total, initialize=initialize, index=index, &
+                                      update_frequency=registry_update_timestep, bc_dir=bc_out)
+
+    ! Define the N and P litter fluxes if in CNP mode
+    ! We could define the interface variables always, even if not registered, but this helps reduce the memory needs
+    if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
+      call this%DefineInterfaceVariable(key=hlm_fates_litter_phosphorus_cellulose, initialize=initialize, index=index, &
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
+      call this%DefineInterfaceVariable(key=hlm_fates_litter_phosphorus_lignin, initialize=initialize, index=index, &
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
+      call this%DefineInterfaceVariable(key=hlm_fates_litter_phosphorus_labile, initialize=initialize, index=index, &
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
+      call this%DefineInterfaceVariable(key=hlm_fates_litter_phosphorus_total, initialize=initialize, index=index, &
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
+
+      call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_cellulose, initialize=initialize, index=index, &
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
+      call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_lignin, initialize=initialize, index=index, &
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
+      call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_labile, initialize=initialize, index=index, &
+                                        update_frequency=registry_update_timestep, bc_dir=bc_out)
+      call this%DefineInterfaceVariable(key=hlm_fates_litter_nitrogen_total, initialize=initialize, index=index, &
+                                      update_frequency=registry_update_timestep, bc_dir=bc_out)
+    end if
+
+    end associate
+
+  end subroutine DefineInterfaceRegistry
+
+  ! ======================================================================================
+
+  subroutine DefineInterfaceVariable(this, key, initialize, index, update_frequency, bc_dir)
+
+    class(fates_interface_registry_type), intent(inout) :: this
+
+    character(len=*), intent(in)  :: key
+    logical, intent(in)           :: initialize
+    integer, intent(inout)        :: index
+    integer, intent(in), optional :: update_frequency
+    integer, intent(in), optional :: bc_dir             ! 0 = bc_in, 1 = bc_out,
+
+    ! Local variables
+    integer :: index_type
+    integer :: update_frequency_local
+    integer :: bc_dir_local
+    
+    ! Increment the index
+    index = index + 1  
+
+    ! If not initializing, increment the registry count variables, otherwise initialize the variable at the correct index
+    if (initialize) then 
+
+      ! Set the key for each index
+      this%key(index) = key
+      
+      ! Set the update frequency, default to daily update frequency
+      update_frequency_local = registry_update_daily
+      if (present(update_frequency)) then
+        select case (update_frequency)
+        case (registry_update_init_dims)  
+          update_frequency_local = registry_update_init_dims
+        case (registry_update_init)
+          update_frequency_local = registry_update_init
+        case (registry_update_daily)
+          update_frequency_local = registry_update_daily
+        case (registry_update_timestep)
+          update_frequency_local = registry_update_timestep
+        case default
+          write(fates_log(),*) 'ERROR: Unrecognized update frequency in DefineInterfaceVariable(): ', update_frequency
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+      else
+      end if
+      this%update_frequency(index) = update_frequency_local
+
+      ! Set the boundary condition directionality for the variable index defaulting to bc_in
+      bc_dir_local = registry_bc_in
+      if (present(bc_dir)) then
+        bc_dir_local = bc_dir
+      end if
+      this%bc_dir(index) = bc_dir_local
+      
+      ! Initialize the interface variables and pass the key and update frequency to each for metadata
+      call this%hlm_vars(index)%Initialize(key, update_frequency_local, bc_dir_local)
+      call this%fates_vars(index)%Initialize(key, update_frequency_local, bc_dir_local)
+
+    ! Not initializing, just counting the variables
+    else 
+
+      ! Increment the total API count
+      this%num_api_vars = this%num_api_vars + 1
+
+      ! Increment the count for the update frequency counts, defaulting to daily if not specified
+      if (present(update_frequency)) then
+        select case (update_frequency)
+        case (registry_update_init_dims)  
+          this%num_api_vars_update_init_dims = this%num_api_vars_update_init_dims + 1
+        case (registry_update_init)
+          this%num_api_vars_update_init = this%num_api_vars_update_init + 1
+        case (registry_update_daily)
+          this%num_api_vars_update_daily = this%num_api_vars_update_daily + 1
+        case (registry_update_timestep)
+          this%num_api_vars_update_timestep = this%num_api_vars_update_timestep + 1
+        case default
+          write(fates_log(),*) 'ERROR: Unrecognized update frequency in DefineInterfaceVariable(): ', update_frequency
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+      else
+        ! Default to daily update frequency
+        this%num_api_vars_update_daily = this%num_api_vars_update_daily + 1
+      end if
+
+      ! Increment the count for the boundary condition counters
+      if (present(bc_dir)) then
+        select case (bc_dir)
+        case (registry_bc_in)
+          this%num_api_vars_bc_in = this%num_api_vars_bc_in + 1
+        case (registry_bc_out)
+          this%num_api_vars_bc_out = this%num_api_vars_bc_out + 1
+        case default
+          write(fates_log(), *) 'ERROR: Unrecognized bc_dir in DefineInterfaceVariable(): ', bc_dir
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+      else
+        ! defaults to bc_in 
+        this%num_api_vars_bc_in = this%num_api_vars_bc_in + 1
+      end if
+
+      
+      ! Update the litter flux counters not including the total flux counter
+      if (key == hlm_fates_litter_carbon_cellulose .or. &
+          key == hlm_fates_litter_carbon_labile .or. &
+          key == hlm_fates_litter_carbon_lignin .or. &
+          key == hlm_fates_litter_nitrogen_cellulose .or. &
+          key == hlm_fates_litter_nitrogen_labile .or. &
+          key == hlm_fates_litter_nitrogen_lignin .or. &
+          key == hlm_fates_litter_phosphorus_cellulose .or. &
+          key == hlm_fates_litter_phosphorus_labile .or. &
+          key == hlm_fates_litter_phosphorus_lignin) then
+            this%num_api_vars_litter_flux= this%num_api_vars_litter_flux + 1
+      end if
+      
+    end if
+
+  end subroutine DefineInterfaceVariable
+
+  ! ======================================================================================
+  
+  subroutine SetSubgridIndices(this, gridcell, topounit, landunit, column, hlmpatch, fatespatch, site, bareground)
+    
+    class(fates_interface_registry_type), intent(inout) :: this
+    integer, intent(in), optional :: gridcell
+    integer, intent(in), optional :: topounit
+    integer, intent(in), optional :: landunit
+    integer, intent(in), optional :: column
+    integer, intent(in), optional :: hlmpatch
+    integer, intent(in), optional :: fatespatch
+    integer, intent(in), optional :: site
+    logical, intent(in), optional :: bareground
+    
+    if (present(gridcell))   this%gidx = gridcell
+    if (present(topounit))   this%tidx = topounit
+    if (present(landunit))   this%lidx = landunit
+    if (present(column))     this%cidx = column
+    if (present(hlmpatch))   this%hpidx = hlmpatch
+    if (present(fatespatch)) this%fpidx = fatespatch
+    if (present(site))       this%sidx = site
+    if (present(bareground)) this%bareground = bareground
+    
+  end subroutine SetSubgridIndices
+  
+  ! ======================================================================================
+
+  subroutine SetActiveState(this, active_state)
+  
+    class(fates_interface_registry_type), intent(inout) :: this
+    logical, intent(in) :: active_state
+    
+    this%active = active_state
+    
+  end subroutine SetActiveState
+
+  ! ======================================================================================
+
+  logical function GetActivateState(this) result(active_state)
+  
+    class(fates_interface_registry_type), intent(inout) :: this
+    
+    active_state = this%active
+    
+  end function GetActivateState
+
+  ! ======================================================================================
+  
+  integer function GetGridcellIndex(this) result(gidx)
+  
+    class(fates_interface_registry_type), intent(inout) :: this
+    
+    gidx = this%gidx
+    
+  end function GetGridcellIndex
+  
+  ! ======================================================================================
+  
+  integer function GetLandunitIndex(this) result(lidx)
+  
+    class(fates_interface_registry_type), intent(inout) :: this
+    
+    lidx = this%lidx
+    
+  end function GetLandunitIndex
+  
+  ! ======================================================================================
+  
+  integer function GetColumnIndex(this) result(cidx)
+  
+    class(fates_interface_registry_type), intent(inout) :: this
+    
+    cidx = this%cidx
+    
+  end function GetColumnIndex
+  
+  ! ======================================================================================
+  
+  integer function GetHLMPatchIndex(this) result(hpidx)
+  
+    class(fates_interface_registry_type), intent(inout) :: this
+    
+    hpidx = this%hpidx
+    
+  end function GetHLMPatchIndex
+  
+  ! ======================================================================================
+  
+  integer function GetSiteIndex(this) result(sidx)
+  
+    class(fates_interface_registry_type), intent(inout) :: this
+    
+    sidx = this%sidx
+    
+  end function GetSiteIndex
+  
+  ! ======================================================================================
+  
+  integer function GetFatesPatchIndex(this) result(fpidx)
+  
+    class(fates_interface_registry_type), intent(inout) :: this
+    
+    fpidx = this%fpidx
+    
+  end function GetFatesPatchIndex
+  
+  ! ======================================================================================
+  
+  logical function HLMPatchIsBareGround(this) result(bareground)
+  
+    class(fates_interface_registry_type), intent(inout) :: this
+    
+    bareground = this%bareground
+    
+  end function HLMPatchIsBareGround
+  
+  ! ======================================================================================
+  
+  subroutine SetFilterMapArrays(this)
+
+    class(fates_interface_registry_type), intent(inout) :: this
+
+    integer :: index
+    integer :: count_init_dims
+    integer :: count_init
+    integer :: count_daily
+    integer :: count_timestep
+    integer :: count_bc_in
+    integer :: count_bc_out
+    integer :: count_litter_flux
+
+    ! Initialize counters
+    count_init_dims = 0
+    count_init = 0
+    count_daily = 0
+    count_timestep = 0
+    count_bc_in = 0
+    count_bc_out = 0
+    count_litter_flux= 0
+    
+    ! Iterate over all registered variables and populate the filter maps accordingly
+    do index = 1, this%num_api_vars
+      
+      ! Frequency update
+      if (this%update_frequency(index) == registry_update_init_dims) then
+        count_init_dims = count_init_dims + 1
+        this%filter_init_dims(count_init_dims) = index
+      else if (this%update_frequency(index) == registry_update_init) then
+        count_init = count_init + 1
+        this%filter_init(count_init) = index
+      else if (this%update_frequency(index) == registry_update_daily) then
+        count_daily = count_daily + 1
+        this%filter_daily(count_daily) = index
+      else if (this%update_frequency(index) == registry_update_timestep) then
+        count_timestep = count_timestep + 1
+        this%filter_timestep(count_timestep) = index
+      else
+        write(fates_log(),*) 'ERROR: Unrecognized update frequency in SetFilterMapArrays(): ', this%update_frequency(index)
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+      end if
+
+      ! Boundary condition filter update
+      if (this%bc_dir(index) == registry_bc_in) then
+        count_bc_in = count_bc_in + 1
+        this%filter_bc_in(count_bc_in) = index
+      else if (this%bc_dir(index) == registry_bc_out) then
+        count_bc_out = count_bc_out + 1
+        this%filter_bc_out(count_bc_out) = index
+      end if
+      
+      ! Litter flux update
+      if (this%key(index) == hlm_fates_litter_carbon_cellulose .or. &
+          this%key(index) == hlm_fates_litter_nitrogen_cellulose .or. &
+          this%key(index) == hlm_fates_litter_phosphorus_cellulose .or. &
+          this%key(index) == hlm_fates_litter_carbon_labile .or. &
+          this%key(index) == hlm_fates_litter_nitrogen_labile .or. &
+          this%key(index) == hlm_fates_litter_phosphorus_labile .or. &
+          this%key(index) == hlm_fates_litter_carbon_lignin .or. &
+          this%key(index) == hlm_fates_litter_nitrogen_lignin .or. &
+          this%key(index) == hlm_fates_litter_phosphorus_lignin) then
+            count_litter_flux = count_litter_flux + 1
+            this%filter_litter_flux(count_litter_flux) = index
+      end if
+      
+      
+    end do
+    
+    ! Check that the counts match the expected sizes
+    if (count_init_dims /= this%num_api_vars_update_init_dims .or. &
+        count_init /= this%num_api_vars_update_init .or. &
+        count_daily /= this%num_api_vars_update_daily .or. &
+        count_timestep /= this%num_api_vars_update_timestep .or. &
+        count_litter_flux /= this%num_api_vars_litter_flux) then
+          
+      write(fates_log(),*) 'ERROR: Mismatch in initialization counts in SetFilterMapArrays(): '
+      write(fates_log(),*) '  count_init = ', count_init, ' expected = ', this%num_api_vars_update_init
+      write(fates_log(),*) '  count_daily = ', count_daily, ' expected = ', this%num_api_vars_update_daily  
+      write(fates_log(),*) '  count_timestep = ', count_timestep, ' expected = ', this%num_api_vars_update_timestep
+      call endrun(msg=errMsg(__FILE__, __LINE__))
+
+    end if
+
+  end subroutine SetFilterMapArrays
+  
+  ! ======================================================================================
+
+  subroutine RegisterInterfaceVariables_0d(this, key, data, hlm_flag, accumulate)
+
+    ! This procedure is called by the to associate a data variable
+    ! with a particular registry key
+
+    ! Arguments
+    class(fates_interface_registry_type), intent(inout) :: this
+    class(*), target, intent(in)  :: data          ! data to be associated with key
+    character(len=*), intent(in)  :: key           ! variable registry key 
+    logical, intent(in)           :: hlm_flag      ! Is the variable being register from the HLM?
+    logical, intent(in), optional :: accumulate    ! Should the variable accumulate during the update?
+    
+    ! Local
+    logical :: accumulate_local
+    
+    ! Default accumulate to false
+    if (present(accumulate)) then
+      accumulate_local = accumulate
+    else
+      accumulate_local = .false.
+    end if
+    
+    ! Get index from registry key and associate the given data pointer
+    if (hlm_flag) then
+      call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data, active=.true., accumulate=accumulate_local)
+    else
+      call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data, active=.true., accumulate=accumulate_local)
+    end if
+
+
+  end subroutine RegisterInterfaceVariables_0d
+
+  ! ======================================================================================
+
+  subroutine RegisterInterfaceVariables_1d(this, key, data, hlm_flag, accumulate)
+
+    ! This procedure is called by the to associate a data variable
+    ! with a particular registry key
+
+    class(fates_interface_registry_type), intent(inout) :: this
+    class(*), target, intent(in)  :: data(:)    ! data to be associated with key
+    character(len=*), intent(in)  :: key        ! variable registry key 
+    logical, intent(in)           :: hlm_flag   ! Is the variable being register from the HLM?
+    logical, intent(in), optional :: accumulate    ! Should the variable accumulate during the update?
+
+    ! Local
+    logical :: accumulate_local
+    
+    ! Default accumulate to false
+    if (present(accumulate)) then
+      accumulate_local = accumulate
+    else
+      accumulate_local = .false.
+    end if
+    
+    ! Get index from registry key and associate the given data pointer
+    if (hlm_flag) then
+      call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data(:), active=.true., accumulate=accumulate_local)
+    else
+      call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data(:), active=.true., accumulate=accumulate_local)
+    end if
+
+  end subroutine RegisterInterfaceVariables_1d
+
+  ! ======================================================================================
+
+  subroutine RegisterInterfaceVariables_2d(this, key, data, hlm_flag, accumulate)
+
+    ! This procedure is called by the to associate a data variable
+    ! with a particular registry key
+
+    class(fates_interface_registry_type), intent(inout) :: this
+    class(*), target, intent(in)  :: data(:,:)  ! data to be associated with key
+    character(len=*), intent(in)  :: key        ! variable registry key 
+    logical, intent(in)           :: hlm_flag   ! Is the variable being register from the HLM?
+    logical, intent(in), optional :: accumulate    ! Should the variable accumulate during the update?
+
+    ! Local
+    logical :: accumulate_local
+    
+    ! Default accumulate to false
+    if (present(accumulate)) then
+      accumulate_local = accumulate
+    else
+      accumulate_local = .false.
+    end if
+    
+    ! Get index from registry key and associate the given data pointer
+    if (hlm_flag) then
+      call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data(:,:), active=.true., accumulate=accumulate_local)
+    else
+      call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data(:,:), active=.true., accumulate=accumulate_local)
+    end if
+
+  end subroutine RegisterInterfaceVariables_2d
+
+  ! ======================================================================================
+  
+  subroutine InitializeInterfaceVariablesDimensions(this)
+
+    ! Arguments
+    class(fates_interface_registry_type), intent(inout) :: this  ! registry being initialized
+
+    ! Locals
+    integer :: i  ! initialization iterator
+    integer :: j  ! variable index
+    
+    ! Update the boundary conditions necessary during initialization only
+    do i = 1, this%num_api_vars_update_init_dims
+      
+      ! Get the variable index from the init filter
+      j = this%filter_init_dims(i)
+      
+      ! Update the variables
+      call this%fates_vars(j)%Update(this%hlm_vars(j))
+
+    end do
+    
+  end subroutine InitializeInterfaceVariablesDimensions
+  
+  ! ======================================================================================
+  
+  subroutine InitializeInterfaceVariables(this)
+
+    ! Arguments
+    class(fates_interface_registry_type), intent(inout) :: this  ! registry being initialized
+
+    ! Locals
+    integer :: i  ! initialization iterator
+    integer :: j  ! variable index
+    
+    ! Update the boundary conditions necessary during initialization only
+    do i = 1, this%num_api_vars_update_init
+      
+      ! Get the variable index from the init filter
+      j = this%filter_init(i)
+      
+      ! Update the variables
+      call this%fates_vars(j)%Update(this%hlm_vars(j))
+
+    end do
+    
+  end subroutine InitializeInterfaceVariables
+  
+  ! ======================================================================================
+
+  subroutine UpdateInterfaceVariables(this)
+
+    class(fates_interface_registry_type), intent(inout) :: this
+
+    integer :: n
+    integer :: ibc
+
+    ! Iterate over all registered variables
+    do n = 1, this%num_api_vars_bc_in
+       ibc = this%filter_bc_in(n)
+      call this%fates_vars(ibc)%Update(this%hlm_vars(ibc))
+    end do
+
+  end subroutine UpdateInterfaceVariables
+
+  ! ======================================================================================
+  
+  ! subroutine UpdateLitterFluxes(this, dtime)
+  subroutine UpdateLitterFluxes(this, conversion_flag)
+
+    use FatesConstantsMod, only : days_per_sec
+    use FatesConstantsMod, only : g_per_kg
+
+    ! Arguments
+    class(fates_interface_registry_type), intent(inout) :: this
+    ! real(r8), intent(in)                                     :: dtime
+    logical, intent(in)                                   :: conversion_flag
+    
+    ! Locals
+    integer :: i
+    integer :: j
+    integer :: k
+    integer :: d
+    real(r8) :: conversion_factor
+    
+    ! Iterate over the litter flux filter to update the individual litter types
+    do i = 1, this%num_api_vars_litter_flux 
+      j = this%filter_litter_flux(i)
+      
+      ! Update the hlm variables with the fates variables
+      ! call this%hlm_vars(j)%Update(this%fates_vars(j), scalar=dtime)
+      call this%hlm_vars(j)%Update(this%fates_vars(j))
+      
+      ! If the conversion flag is set, convert and scale the updated HLM litter flux interface variable
+      if (conversion_flag) then
+      
+        ! Convert from kgC/m2/s to gC/m2/day
+        call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
+        
+        ! Get the index for the decomposition thickness key
+        d = this%GetRegistryVariableIndex(hlm_fates_decomp_thickness)
+        
+        ! Normalize the litter fluxes against the decomposition layer thicknesses
+        call this%hlm_vars(j)%Normalize(this%fates_vars(d))
+
+      end if
+
+    end do
+    
+    ! Update the HLM variable with the total litterfall
+    j = this%GetRegistryVariableIndex(hlm_fates_litter_carbon_total)
+    call this%hlm_vars(j)%Update(this%fates_vars(j))
+    if (conversion_flag) call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
+
+    if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
+      j = this%GetRegistryVariableIndex(hlm_fates_litter_phosphorus_total)
+      call this%hlm_vars(j)%Update(this%fates_vars(j))
+      call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
+
+      j = this%GetRegistryVariableIndex(hlm_fates_litter_nitrogen_total)
+      call this%hlm_vars(j)%Update(this%fates_vars(j))
+      call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
+    end if
+
+    
+  end subroutine UpdateLitterFluxes
+
+  ! ======================================================================================
+
+  integer function GetRegistryVariableIndex(this, key) result(index)
+
+    ! This procedure returns the index associated with the key provided
+
+    class(fates_interface_registry_type), intent(in) :: this
+
+    character(len=*), intent(in) :: key    ! variable registry key to search
+
+    integer :: ivar  ! Iterator
+
+    ! Iterate over the registry variables until the associated key is found
+    do ivar = 1, this%num_api_vars
+      if (this%key(ivar) == key) then
+        index = ivar
+        return
+      end if
+    end do
+
+  end function GetRegistryVariableIndex
+
+  ! ======================================================================================
+
+  function GetRegistryVariableKey(this, index) result(key)
+
+    ! This procedure returns the index associated with the key provided
+
+    class(fates_interface_registry_type), intent(in) :: this
+
+    integer, intent(in) :: index    ! variable registry index
+    character(len=:), allocatable :: key
+
+    key = this%key(index)
+
+  end function GetRegistryVariableKey
+
+  ! ======================================================================================
+  
 end module FatesInterfaceTypesMod
