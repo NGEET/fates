@@ -56,8 +56,9 @@ module EDPftvarcon
      real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
-     real(r8), allocatable :: initd(:)               ! initial seedling density
-
+     real(r8), allocatable :: initd(:)               ! initial seedling density [/m2] (positive values)
+                                                     ! or -dbh [cm] (negative values)
+     real(r8), allocatable :: init_seed(:)           ! initial seed pool 
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
 
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
@@ -378,6 +379,10 @@ contains
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
     name = 'fates_recruit_init_density'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+         dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
+    name = 'fates_init_seed'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
          dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
@@ -789,6 +794,10 @@ contains
     name = 'fates_recruit_init_density'
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%initd)
+
+    name = 'fates_init_seed'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%init_seed)
 
     name = 'fates_recruit_seed_supplement'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1579,7 +1588,8 @@ contains
         write(fates_log(),fmt0) 'displar = ',EDPftvarcon_inst%displar
         write(fates_log(),fmt0) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
-        write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
+        write(fates_log(),fmt0) 'initd  = ',EDPftvarcon_inst%initd
+        write(fates_log(),fmt0) 'init_seed = ',EDPftvarcon_inst%init_seed
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
         write(fates_log(),fmt0) 'lf_flab = ',EDPftvarcon_inst%lf_flab
         write(fates_log(),fmt0) 'lf_fcel = ',EDPftvarcon_inst%lf_fcel
@@ -1996,12 +2006,32 @@ contains
            write(fates_log(),*) ' In a cold start run initial density cannot be zero.'
            write(fates_log(),*) ' For a bare ground run set to initial recruit density.'
            write(fates_log(),*) ' If no-comp is on it is possible to initialize with larger  '
-           write(fates_log(),*) ' plants by setting fates_recruit_init_density to a negative number'
+           write(fates_log(),*) ' plants by setting fates_recruit_init_nocomp to a negative number'
            write(fates_log(),*) ' which will be interpreted as (absolute) initial dbh. '
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
            
         end if
+
+        if ( hlm_use_nocomp .eq. ifalse .and. EDPftvarcon_inst%initd(ipft) < -nearzero ) then
+           write(fates_log(),*) ' When not in a noncomp configuration, FATES does not'
+           write(fates_log(),*) ' know how to interpret a negative %initd (number density)'
+           write(fates_log(),*) ' on a cold-start. In nocomp with a negative, we assume the absolute'
+           write(fates_log(),*) ' value of the %inidt parameter is the initial plant size.'
+           write(fates_log(),*) ' And since the fractional area of each PFT is known from'
+           write(fates_log(),*) ' the surface file, we can derive a number density from this'
+           write(fates_log(),*) ' However, we do not have a hypothesis to do this in full FATES.'
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
+
+
+        
+        
+        if ( EDPftvarcon_inst%init_seed(ipft) .lt. 0.0_r8) then
+           write(fates_log(),*) ' Initial seed pool fates_init_seed can not be negative.'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        endif
            
 
         ! Check to make sure that if a grass sapwood allometry is used, it is not
