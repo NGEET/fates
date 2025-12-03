@@ -1005,24 +1005,6 @@ contains
        call SiteMassStock(currentSite,el,total_stock,biomass_stock,litter_stock,seed_stock)
 
        change_in_stock = total_stock - site_mass%old_stock
-<<<<<<< HEAD
-       
-       flux_in  = site_mass%seed_in + &
-                  site_mass%net_root_uptake + &
-                  site_mass%gpp_acc + &
-                  site_mass%flux_generic_in + &
-                  site_mass%patch_resize_err
-
-       flux_out = sum(site_mass%wood_product_harvest(:)) + &
-                  sum(site_mass%wood_product_landusechange(:)) + &
-                  site_mass%burn_flux_to_atm + &
-                  site_mass%seed_out + &
-                  site_mass%flux_generic_out + &
-                  site_mass%frag_out + &
-                  site_mass%aresp_acc + &
-                  site_mass%herbivory_flux_out
-
-=======
        if(l_is_restarting) then
           flux_in  = 0._r8
           flux_out = 0._r8
@@ -1043,7 +1025,6 @@ contains
                site_mass%herbivory_flux_out
        end if
        
->>>>>>> upstream/main
        net_flux        = flux_in - flux_out
        error           = abs(net_flux - change_in_stock)
 
