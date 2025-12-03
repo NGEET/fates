@@ -34,6 +34,7 @@ module FatesInterfaceVariableTypeMod
 
     contains
       procedure :: CheckBounds
+      procedure :: Convert    => ConvertScaleInterfaceVariable
       procedure :: Initialize => InitializeInterfaceVariable
       procedure :: Update     => UpdateInterfaceVariable
       procedure :: Dump
@@ -94,6 +95,54 @@ module FatesInterfaceVariableTypeMod
     end if
 
   end subroutine CheckBounds
+  
+  ! ====================================================================================
+  
+  subroutine ConvertScaleInterfaceVariable(this, scalar)
+  
+    ! This subroutine scales a given interface variable data.  This
+    ! routine is provided primarily to allow for post accumulation conversion
+    ! of units and scaling of data as necessary.  Note that this only provides
+    ! scaling for real data types currently.
+
+    class(fates_interface_variable_type), intent(inout) :: this
+    real(r8), intent(in)                               :: scalar
+
+    ! Locals
+    integer :: i
+    character(len=fates_long_string_length) :: err_msg = 'FATES Error: invalid interface type being scaled'
+
+    select case (this%data_rank)
+      case(0)
+        select type(var => this%data0d)
+          type is (real(r8))
+            var = var * scalar
+          class default
+            write(fates_log(),*), err_msg
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+      case(1)
+        select type(var => this%data1d)
+          type is (real(r8))
+            var = var * scalar
+          class default
+            write(fates_log(),*), err_msg
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+      case(2)
+        select type(var => this%data2d)
+          type is (real(r8))
+            var = var * scalar
+          class default
+            write(fates_log(),*), err_msg
+            call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+      case default
+        write(fates_log(),*) 'FATES ERROR: Unsupported interface variable rank in ConvertScaleInterfaceVariable'
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+      end select
+
+  end subroutine ConvertScaleInterfaceVariable
   
   ! ====================================================================================
   
