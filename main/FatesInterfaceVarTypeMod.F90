@@ -36,6 +36,7 @@ module FatesInterfaceVariableTypeMod
       procedure :: CheckBounds
       procedure :: Convert    => ConvertScaleInterfaceVariable
       procedure :: Initialize => InitializeInterfaceVariable
+      procedure :: Normalize  => NormalizeLitterVariable
       procedure :: Update     => UpdateInterfaceVariable
       procedure :: Dump
 
@@ -223,6 +224,45 @@ module FatesInterfaceVariableTypeMod
       this%bc_dir = bc_dir
 
     end subroutine InitializeInterfaceVariable
+    
+  ! ====================================================================================
+  
+    subroutine NormalizeLitterVariable(this, norm_var)
+    
+      ! This subroutine is specifically set up to normalize the litter flux interface
+      ! variables by the decomposition thickness variable passed in as norm_factor.
+      ! It could be extended later to handle other normalization needs as necessary.
+
+      class(fates_interface_variable_type), intent(inout) :: this
+      class(fates_interface_variable_type), intent(in)    :: norm_var  ! normalization interface variable
+
+      ! Locals
+      integer :: i
+      character(len=fates_long_string_length) :: err_msg = 'FATES Error: invalid interface type being normalized'
+
+      select case (this%data_rank)
+        case(1)
+          select type(var => this%data1d)
+            type is (real(r8))
+              select type(norm => norm_var%data1d)
+                type is (real(r8))
+                  do i = lbound(var, dim=1), ubound(var, dim=1)
+                    var(i) = var(i) / norm(i)
+                  end do
+                class default
+                  write(fates_log(),*), err_msg
+                  call endrun(msg=errMsg(__FILE__, __LINE__))
+              end select
+            class default
+              write(fates_log(),*), err_msg
+              call endrun(msg=errMsg(__FILE__, __LINE__))
+          end select
+        case default
+          write(fates_log(),*) 'FATES ERROR: Unsupported interface variable rank in NormalizeLitterVariable'
+          call endrun(msg=errMsg(__FILE__, __LINE__))
+        end select
+
+    end subroutine NormalizeLitterVariable
 
   ! ====================================================================================
     
