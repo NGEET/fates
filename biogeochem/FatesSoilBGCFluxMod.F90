@@ -751,16 +751,16 @@ contains
           ! for the current element on the current
           ! patch
           litt       => currentPatch%litter(el)
-          
+          area_frac  = currentPatch%area/area
+
           do ic = 1, ncwd
 
              do id = 1,nlev_eff_decomp
                 flux_cel_si(id) = flux_cel_si(id) + &
-                     litt%ag_cwd_frag(ic) * ED_val_cwd_fcel * surface_prof(id)
+                     litt%ag_cwd_frag(ic) * ED_val_cwd_fcel * area_frac * surface_prof(id)
 
                 flux_lig_si(id) = flux_lig_si(id) + & 
-                     litt%ag_cwd_frag(ic) * ED_val_cwd_flig * surface_prof(id)
-                
+                     litt%ag_cwd_frag(ic) * ED_val_cwd_flig * area_frac * surface_prof(id)
              end do
 
              do j = 1, nlev_eff_soil
@@ -768,10 +768,10 @@ contains
                 id = bc_in%decomp_id(j)  ! Map from soil layer to decomp layer
 
                 flux_cel_si(id) = flux_cel_si(id) + &
-                     litt%bg_cwd_frag(ic,j) * ED_val_cwd_fcel
+                     litt%bg_cwd_frag(ic,j) * ED_val_cwd_fcel * area_frac
 
                 flux_lig_si(id) = flux_lig_si(id) + &
-                     litt%bg_cwd_frag(ic,j) * ED_val_cwd_flig
+                     litt%bg_cwd_frag(ic,j) * ED_val_cwd_flig * area_frac
 
              end do
           end do
@@ -784,13 +784,13 @@ contains
           do id = 1,nlev_eff_decomp
 
              flux_lab_si(id) = flux_lab_si(id) + &
-                  litt%leaf_fines_frag(ilabile) * surface_prof(id)
+                  litt%leaf_fines_frag(ilabile) * area_frac * surface_prof(id)
 
              flux_cel_si(id) = flux_cel_si(id) + &
-                  litt%leaf_fines_frag(icellulose) * surface_prof(id)
+                  litt%leaf_fines_frag(icellulose) * area_frac * surface_prof(id)
 
              flux_lig_si(id) = flux_lig_si(id) + &
-                  litt%leaf_fines_frag(ilignin) * surface_prof(id)
+                  litt%leaf_fines_frag(ilignin) * area_frac * surface_prof(id)
 
           end do
 
@@ -800,26 +800,25 @@ contains
              do id = 1,nlev_eff_decomp
                 flux_lab_si(id) = flux_lab_si(id) + &
                      (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
-                     EDPftvarcon_inst%lf_flab(ipft) * surface_prof(id)
+                     EDPftvarcon_inst%lf_flab(ipft) * area_frac * surface_prof(id)
 
                 flux_cel_si(id) = flux_cel_si(id) + &
                      (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
-                     EDPftvarcon_inst%lf_fcel(ipft) * surface_prof(id)
-
+                     EDPftvarcon_inst%lf_fcel(ipft) * area_frac * surface_prof(id)
                 flux_lig_si(id) = flux_lig_si(id) + &
                      (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft)) * &
-                     EDPftvarcon_inst%lf_flig(ipft) * surface_prof(id)
+                     EDPftvarcon_inst%lf_flig(ipft) * area_frac * surface_prof(id)
              end do
           end do
 
           do j = 1, nlev_eff_soil
              id = bc_in%decomp_id(j)
              flux_lab_si(id) = flux_lab_si(id) + &
-                  litt%root_fines_frag(ilabile,j)
+                  litt%root_fines_frag(ilabile,j) * area_frac
              flux_cel_si(id) = flux_cel_si(id) + &
-                  litt%root_fines_frag(icellulose,j)
+                  litt%root_fines_frag(icellulose,j) * area_frac
              flux_lig_si(id) = flux_lig_si(id) + &
-                  litt%root_fines_frag(ilignin,j)
+                  litt%root_fines_frag(ilignin,j) * area_frac
           enddo
 
           ! Normalize all masses over the decomposition layer's depth
