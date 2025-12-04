@@ -86,8 +86,9 @@ contains
     real(r8) :: target_leaf_c      ! target leaf biomass for the current trim status and
                                    ! damage class [kgC]
     real(r8) :: store_c
-    real(r8) :: hf_sm_threshold    ! hydraulic failure soil moisture threshold 
-    real(r8) :: hf_flc_threshold   ! hydraulic failure fractional loss of conductivity threshold
+    real(r8) :: mort_hydrfailure_threshold ! hydraulic failure threshold (btran units). When
+                                           !   FATES-Hydro is enabled, this is equivalent to
+                                           !   fraction of maximum conductivity (fmc)
     real(r8) :: mort_ip_size_senescence ! inflection point for increase in mortality with dbh 
     real(r8) :: mort_r_size_senescence  ! rate of mortality increase with dbh in senesence term
     real(r8) :: mort_ip_age_senescence ! inflection point for increase in mortality with age
@@ -98,7 +99,6 @@ contains
     real(r8) :: min_fmc_tr         ! minimum fraction of maximum conductivity for transporting root
     real(r8) :: min_fmc_ar         ! minimum fraction of maximum conductivity for absorbing root
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
-    real(r8) :: flc                ! fractional loss of conductivity 
     logical  :: is_decid_dormant   ! Flag to signal that the cohort is deciduous and dormant
 
 
@@ -160,35 +160,40 @@ contains
        bmort = EDPftvarcon_inst%bmort(cohort_in%pft)
 
        ! Proxy for hydraulic failure induced mortality.
-       hf_sm_threshold = EDPftvarcon_inst%hf_sm_threshold(cohort_in%pft)
-       hf_flc_threshold = EDPftvarcon_inst%hf_flc_threshold(cohort_in%pft)
+       mort_hydrfailure_threshold = EDPftvarcon_inst%mort_hydrfailure_threshold(cohort_in%pft)
 
-       if (hlm_use_planthydro == itrue) then
-          !note the flc is set as the fraction of max conductivity in hydro
-          min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
-          min_fmc_tr = cohort_in%co_hydr%ftc_troot
-          min_fmc_ar = minval(cohort_in%co_hydr%ftc_aroot(:))
-          min_fmc = min(min_fmc_ag, min_fmc_tr)
-          min_fmc = min(min_fmc, min_fmc_ar)
-          flc = 1.0_r8-min_fmc
-          if(flc >= hf_flc_threshold .and. hf_flc_threshold < 1.0_r8 )then 
-             hmort = (flc-hf_flc_threshold)/(1.0_r8-hf_flc_threshold) * &
-                  EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
+       !    Make sure the hydraulic failure mortality threshold is positive. In case it is
+       ! zero, we bypass the mortality calculation altogether.
+       if ( mort_hydrfailure_threshold > nearzero ) then
+          !    We calculate the fraction of maximum conductivity differently, depending on
+          ! whether FATES-Hydro is enabled or disabled.
+          if (hlm_use_planthydro == itrue) then
+             ! FATES-Hydro enabled: set fmc as the fraction of max conductivity in hydro
+             min_fmc_ag = minval(cohort_in%co_hydr%ftc_ag(:))
+             min_fmc_tr = cohort_in%co_hydr%ftc_troot
+             min_fmc_ar = minval(cohort_in%co_hydr%ftc_aroot(:))
+             min_fmc = min(min_fmc_ag, min_fmc_tr)
+             min_fmc = min(min_fmc, min_fmc_ar)
+          else if ( (.not. is_decid_dormant) .and. &
+                    ( ( minval(bc_in%t_soisno_sl) - tfrz ) > soil_tfrz_thresh ) ) then
+             ! FATES-Hydro disabled: set fmc as btran
+             min_fmc = btran_ft(cohort_in%pft)
           else
-             hmort = 0.0_r8
-          endif
+             !    Dormant plant, or plant in frozen soils, assume conductivity at the threshold,
+             ! which effectively sets mortality to zero.
+             min_fmc = mort_hydrfailure_threshold
+          end if
+
+          ! Hydraulic failure mortality increases as fmc decreases. Note that this is different
+          ! than before when FATES-Hydro was disabled, in which mortality followed a step function.
+          hmort = max( 0.0_r8, ( mort_hydrfailure_threshold - min_fmc ) / mort_hydrfailure_threshold ) * &
+                  EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
 
        else
-          ! When FATES-Hydro is off, hydraulic failure mortality occurs only when btran
-          ! falls below a threshold and plants have leaves.
-          if ( (.not. is_decid_dormant) .and. &
-               ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
-               ( ( minval(bc_in%t_soisno_sl) - tfrz ) > soil_tfrz_thresh ) ) then
-             hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)
-          else
-             hmort = 0.0_r8
-          end if
+          ! Assume zero hydraulic failure mortality.
+          hmort = 0.0_r8
        end if
+
 
        ! Carbon Starvation induced mortality.
        if ( cohort_in%dbh  >  0._r8 ) then
