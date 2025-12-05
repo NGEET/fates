@@ -417,6 +417,12 @@ contains
     site_in%resources_management%harvest_debt = 0.0_r8
     site_in%resources_management%harvest_debt_sec = 0.0_r8
 
+    ! rxfire vars:
+
+    site_in%rxfire_area_fuel = 0.0_r8
+    site_in%rxfire_area_fi = 0.0_r8
+    site_in%rxfire_area_final = 0.0_r8
+
     ! canopy spread
     site_in%spread = 0._r8
 
