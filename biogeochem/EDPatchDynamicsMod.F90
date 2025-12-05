@@ -3,7 +3,7 @@ module EDPatchDynamicsMod
   ! Controls formation, creation, fusing and termination of patch level processes. 
   ! ============================================================================
   use FatesGlobals         , only : fates_log
-  use FatesGlobals         , only : FatesWarn,N2S,A2S
+  use FatesGlobals         , only : FatesWarn,N2S,A2S,I2S
   use FatesInterfaceTypesMod, only : hlm_freq_day
   use FatesInterfaceTypesMod, only : hlm_current_tod
   use EDPftvarcon          , only : EDPftvarcon_inst
@@ -17,7 +17,6 @@ module EDPatchDynamicsMod
   use FatesLitterMod       , only : litter_type
   use FatesConstantsMod    , only : n_dbh_bins 
   use FatesLitterMod       , only : adjust_SF_CWD_frac
-  use EDTypesMod           , only : homogenize_seed_pfts
   use EDTypesMod           , only : area
   use FatesConstantsMod    , only : patchfusion_dbhbin_loweredges
   use EDtypesMod           , only : force_patchfuse_min_biomass
@@ -433,7 +432,7 @@ contains
        endif
 
        ! Fire Disturbance Rate
-       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt 
+       currentPatch%disturbance_rates(dtype_ifire) = currentPatch%frac_burnt
 
 
        ! Fires can't burn the whole patch, as this causes /0 errors. 
@@ -483,7 +482,7 @@ contains
 
     ! ============================================================================
 
-  subroutine spawn_patches( currentSite, bc_in, bc_out)
+  subroutine spawn_patches( currentSite, bc_in )
     !
     ! !DESCRIPTION:
     ! In this subroutine, the following happens,
@@ -510,7 +509,6 @@ contains
     ! !ARGUMENTS:
     type (ed_site_type), intent(inout) :: currentSite
     type (bc_in_type), intent(in)      :: bc_in
-    type (bc_out_type), intent(inout)  :: bc_out
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: newPatch
@@ -569,8 +567,6 @@ contains
 
     ! zero the diagnostic disturbance rate fields
     currentSite%disturbance_rates(:,:,:) = 0._r8
-    bc_out%fire_closs_to_atm_si = 0._r8
-    bc_out%grazing_closs_to_atm_si = 0._r8
     ! get rules for vegetation clearing during land use change
     call GetLanduseChangeRules(clearing_matrix)
     
@@ -757,7 +753,7 @@ contains
                             call CopyPatchMeansTimers(currentPatch, newPatch)
 
 
-                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis, bc_out, i_disturbance_type)
+                            call TransLitterNewPatch( currentSite, currentPatch, newPatch, patch_site_areadis, i_disturbance_type)
 
 
                             ! Transfer in litter fluxes from plants in various contexts of death and destruction
@@ -773,13 +769,13 @@ contains
                                end if
                             case (dtype_ifire)
                                call fire_litter_fluxes(currentSite, currentPatch, &
-                                    newPatch, patch_site_areadis,bc_in, bc_out)
+                                    newPatch, patch_site_areadis,bc_in)
                             case (dtype_ifall)
                                call mortality_litter_fluxes(currentSite, currentPatch, &
                                     newPatch, patch_site_areadis,bc_in)
                             case (dtype_ilandusechange)
                                call landusechange_litter_fluxes(currentSite, currentPatch, &
-                                    newPatch, patch_site_areadis,bc_in, bc_out, &
+                                    newPatch, patch_site_areadis,bc_in, &
                                     clearing_matrix(i_donorpatch_landuse_type,i_landusechange_receiverpatchlabel))
 
                                ! if land use change, then may need to change nocomp pft, so tag as having transitioned LU
@@ -977,11 +973,29 @@ contains
                                      ! due to fire, as well as from each fire mortality term
                                      currentSite%fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) = &
                                           currentSite%fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) + &
-                                          nc%n * currentCohort%fire_mort / hlm_freq_day
+                                          nc%n * currentCohort%fire_mort / hlm_freq_day  ! total
+                                    
+                                     currentSite%rx_fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) = &
+                                          currentSite%rx_fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) + &
+                                          nc%n * currentCohort%rx_fire_mort / hlm_freq_day  ! for prescribed fire
+                                    
+                                     currentSite%nonrx_fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) = &
+                                          currentSite%nonrx_fmort_rate_canopy(currentCohort%size_class, currentCohort%pft) + &
+                                          nc%n * currentCohort%nonrx_fire_mort / hlm_freq_day ! for wildfire fire
 
                                      currentSite%fmort_carbonflux_canopy(currentCohort%pft) = &
                                           currentSite%fmort_carbonflux_canopy(currentCohort%pft) + &
                                           (nc%n * currentCohort%fire_mort) * &
+                                          total_c * g_per_kg * days_per_sec * ha_per_m2
+
+                                     currentSite%rx_fmort_carbonflux_canopy(currentCohort%pft) = &
+                                          currentSite%rx_fmort_carbonflux_canopy(currentCohort%pft) + &
+                                          (nc%n * currentCohort%rx_fire_mort) * &
+                                          total_c * g_per_kg * days_per_sec * ha_per_m2
+
+                                     currentSite%nonrx_fmort_carbonflux_canopy(currentCohort%pft) = &
+                                          currentSite%nonrx_fmort_carbonflux_canopy(currentCohort%pft) + &
+                                          (nc%n * currentCohort%nonrx_fire_mort) * &
                                           total_c * g_per_kg * days_per_sec * ha_per_m2
 
                                   else
@@ -989,11 +1003,31 @@ contains
                                      currentSite%fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) = &
                                           currentSite%fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) + &
                                           nc%n * currentCohort%fire_mort / hlm_freq_day
+                                     
+                                     currentSite%rx_fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) = &
+                                          currentSite%rx_fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) + &
+                                          nc%n * currentCohort%rx_fire_mort / hlm_freq_day
+
+                                     currentSite%nonrx_fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) = &
+                                          currentSite%nonrx_fmort_rate_ustory(currentCohort%size_class, currentCohort%pft) + &
+                                          nc%n * currentCohort%nonrx_fire_mort / hlm_freq_day
 
                                      currentSite%fmort_carbonflux_ustory(currentCohort%pft) = &
                                           currentSite%fmort_carbonflux_ustory(currentCohort%pft) + &
                                           (nc%n * currentCohort%fire_mort) * &
                                           total_c * g_per_kg * days_per_sec * ha_per_m2
+
+                                     currentSite%rx_fmort_carbonflux_ustory(currentCohort%pft) = &
+                                          currentSite%rx_fmort_carbonflux_ustory(currentCohort%pft) + &
+                                          (nc%n * currentCohort%rx_fire_mort) * &
+                                          total_c * g_per_kg * days_per_sec * ha_per_m2
+
+                                     currentSite%nonrx_fmort_carbonflux_ustory(currentCohort%pft) = &
+                                          currentSite%nonrx_fmort_carbonflux_ustory(currentCohort%pft) + &
+                                          (nc%n * currentCohort%nonrx_fire_mort) * &
+                                          total_c * g_per_kg * days_per_sec * ha_per_m2
+                                     
+                                     
                                   end if
 
                                   currentSite%fmort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
@@ -1002,6 +1036,19 @@ contains
                                        ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
                                        leaf_c ) * &
                                        g_per_kg * days_per_sec * ha_per_m2
+                                  
+                                  currentSite%rx_fmort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%rx_fmort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
+                                       (nc%n * currentCohort%rx_fire_mort) * &
+                                       ( (sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+                                       leaf_c ) * &
+                                       g_per_kg * days_per_sec * ha_per_m2
+
+                                  currentSite%nonrx_fmort_abg_flux(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%nonrx_fmort_abg_flux(currentCohort%size_class, currentCohort%pft) + &
+                                       (nc%n * currentCohort%nonrx_fire_mort) * &
+                                       ((sapw_c + struct_c + store_c) * prt_params%allom_agb_frac(currentCohort%pft) + &
+                                       leaf_c) * g_per_kg * days_per_sec * ha_per_m2
 
 
                                   currentSite%fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) = &
@@ -1010,6 +1057,20 @@ contains
                                   currentSite%fmort_rate_crown(currentCohort%size_class, currentCohort%pft) = &
                                        currentSite%fmort_rate_crown(currentCohort%size_class, currentCohort%pft) + &
                                        nc%n * currentCohort%crownfire_mort / hlm_freq_day
+
+                                  currentSite%rx_fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%rx_fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) + &
+                                       nc%n * currentCohort%rx_cambial_mort / hlm_freq_day
+                                  currentSite%rx_fmort_rate_crown(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%rx_fmort_rate_crown(currentCohort%size_class, currentCohort%pft) + &
+                                       nc%n * currentCohort%rx_crown_mort / hlm_freq_day
+
+                                  currentSite%nonrx_fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%nonrx_fmort_rate_cambial(currentCohort%size_class, currentCohort%pft) + &
+                                       nc%n * currentCohort%nonrx_cambial_mort / hlm_freq_day
+                                  currentSite%nonrx_fmort_rate_crown(currentCohort%size_class, currentCohort%pft) = &
+                                       currentSite%nonrx_fmort_rate_crown(currentCohort%size_class, currentCohort%pft) + &
+                                       nc%n * currentCohort%nonrx_crown_mort / hlm_freq_day
 
                                   ! loss of individual from fire in new patch.
                                   nc%n = nc%n * (1.0_r8 - currentCohort%fire_mort)
@@ -1044,12 +1105,18 @@ contains
 
                                   if( (leaf_burn_frac < 0._r8) .or. &
                                        (leaf_burn_frac > 1._r8) .or. &
-                                       (currentCohort%fire_mort < 0._r8) .or. &
-                                       (currentCohort%fire_mort > 1._r8)) then
+                                       (currentCohort%fire_mort < 0._r8)  .or. &
+                                       (currentCohort%fire_mort > 1._r8)  .or. &
+                                       (currentCohort%rx_fire_mort < 0._r8)    .or. &
+                                       (currentCohort%rx_fire_mort > 1._r8)    .or. &
+                                       (currentCohort%nonrx_fire_mort < 0._r8) .or. &
+                                       (currentCohort%nonrx_fire_mort > 1._r8) ) then
                                      write(fates_log(),*) 'unexpected fire fractions'
                                      write(fates_log(),*) prt_params%woody(currentCohort%pft)
                                      write(fates_log(),*) leaf_burn_frac
                                      write(fates_log(),*) currentCohort%fire_mort
+                                     write(fates_log(),*) currentCohort%rx_fire_mort
+                                     write(fates_log(),*) currentCohort%nonrx_fire_mort
                                      call endrun(msg=errMsg(sourcefile, __LINE__))
                                   end if
 
@@ -1073,11 +1140,16 @@ contains
                                           currentSite%mass_balance(el)%burn_flux_to_atm + &
                                           leaf_burn_frac * leaf_m * nc%n
 
-                                     bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + &
-                                          leaf_burn_frac * leaf_m * nc%n * ha_per_m2 * days_per_sec
+                                     ! This term increments the loss flux from surviving trees
+                                     currentSite%flux_diags%elem(el)%burned_liveveg = &
+                                          currentSite%flux_diags%elem(el)%burned_liveveg + & 
+                                          leaf_burn_frac * leaf_m * nc%n * area_inv
+                                     
+                                     
                                   end do
 
-                                  ! Here the mass is removed from the plant
+                                  ! Add burned leaf carbon to the atmospheric carbon flux
+                                  ! for burning.
 
                                   if(int(prt_params%woody(currentCohort%pft)) == itrue)then
                                      call PRTBurnLosses(nc%prt, leaf_organ, leaf_burn_frac)
@@ -1423,7 +1495,7 @@ contains
 
                          allocate(temp_patch)
 
-                         call split_patch(currentSite, currentPatch, temp_patch, fraction_to_keep, newp_area, bc_out)
+                         call split_patch(currentSite, currentPatch, temp_patch, fraction_to_keep, newp_area)
                          !
                          temp_patch%nocomp_pft_label = 0
 
@@ -1526,7 +1598,7 @@ contains
                                ! split buffer patch in two, keeping the smaller buffer patch to put into new patches
                                allocate(temp_patch)
 
-                               call split_patch(currentSite, buffer_patch, temp_patch, fraction_to_keep, newp_area, bc_out)
+                               call split_patch(currentSite, buffer_patch, temp_patch, fraction_to_keep, newp_area)
 
                                ! give the new patch the intended nocomp PFT label
                                temp_patch%nocomp_pft_label = i_pft
@@ -1635,7 +1707,7 @@ contains
 
   ! -----------------------------------------------------------------------------------------
 
-  subroutine split_patch(currentSite, currentPatch, new_patch, fraction_to_keep, area_to_remove, bc_out)
+  subroutine split_patch(currentSite, currentPatch, new_patch, fraction_to_keep, area_to_remove)
     !
     ! !DESCRIPTION:
     !  Split a patch into two patches that are identical except in their areas
@@ -1646,7 +1718,6 @@ contains
     type(fates_patch_type) , intent(inout), pointer :: new_patch         ! New Patch
     real(r8), intent(in)                            :: fraction_to_keep  ! fraction of currentPatch to keep, the rest goes to newpatch
     real(r8), intent(in), optional                  :: area_to_remove     ! area of currentPatch to remove, the rest goes to newpatch
-    type(bc_out_type)   , intent(inout)             :: bc_out
     !
     ! !LOCAL VARIABLES:
     integer  :: el                           ! element loop index
@@ -1683,7 +1754,7 @@ contains
 
     call CopyPatchMeansTimers(currentPatch, new_patch)
 
-    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, bc_out, 0)
+    call TransLitterNewPatch( currentSite, currentPatch, new_patch, temp_area, 0)
 
 
     ! Next, we loop through the cohorts in the donor patch, copy them with
@@ -1818,7 +1889,7 @@ contains
   subroutine TransLitterNewPatch(currentSite,        &
                                  currentPatch,       &
                                  newPatch,           &
-                                 patch_site_areadis, bc_out, dist_type)
+                                 patch_site_areadis, dist_type)
 
     ! -----------------------------------------------------------------------------------
     ! 
@@ -1867,9 +1938,8 @@ contains
     type(fates_patch_type) , intent(inout) :: newPatch           ! New patch
     real(r8)            , intent(in)    :: patch_site_areadis ! Area being donated
                                                               ! by current patch
-    type(bc_out_type)   , intent(inout)         :: bc_out
     integer,              intent(in)    :: dist_type          ! disturbance type
-    
+
     ! locals
     type(site_massbal_type), pointer :: site_mass
     type(litter_type),pointer :: curr_litt  ! litter object for current patch
@@ -1898,9 +1968,13 @@ contains
        curr_litt  => currentPatch%litter(el)
        new_litt  => newPatch%litter(el)
 
-       ! Distribute the fragmentation litter flux rates. This is only used for diagnostics
-       ! at this point.  Litter fragmentation has already been passed to the output
-       ! boundary flux arrays.
+       ! Distribute the fragmentation litter flux rates. The mean site-level
+       ! flux rate must be preserved, so when we create new patches
+       ! from disturbance, we must area weight the contributions of the
+       ! donor patches.  This is because the host model will call
+       ! FatesSoilBGCFluxMod:FluxIntoLitterPools() which uses these
+       ! litt%<>_frac() arrays to fill site level output fluxes, and
+       ! this is called over the next day on the model timestep.       
 
        do c = 1,ncwd 
           new_litt%ag_cwd_frag(c) = new_litt%ag_cwd_frag(c) + &
@@ -1993,10 +2067,7 @@ contains
 
           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-          bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
-
           ! Transfer below ground CWD (none burns)
-          
           do sl = 1,currentSite%nlevsoil
              donatable_mass         = curr_litt%bg_cwd(c,sl) * patch_site_areadis
              new_litt%bg_cwd(c,sl)  = new_litt%bg_cwd(c,sl) + donatable_mass*donate_m2
@@ -2023,8 +2094,6 @@ contains
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
            
            site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
-           bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
            ! Transfer root fines (none burns)
            do sl = 1,currentSite%nlevsoil
@@ -2075,7 +2144,7 @@ contains
   ! ============================================================================
 
   subroutine fire_litter_fluxes(currentSite, currentPatch, &
-       newPatch, patch_site_areadis, bc_in, bc_out)
+       newPatch, patch_site_areadis, bc_in)
     !
     ! !DESCRIPTION:
     !  CWD pool burned by a fire. 
@@ -2095,8 +2164,7 @@ contains
     type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)            , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)    , intent(in)            :: bc_in
-    type(bc_out_type)   , intent(inout)         :: bc_out
-    
+
     !
     ! !LOCAL VARIABLES:
 
@@ -2217,8 +2285,8 @@ contains
 
 
              ! Absolute number of dead trees being transfered in with the donated area
-             num_dead_trees = (currentCohort%fire_mort*currentCohort%n * &
-                               patch_site_areadis/currentPatch%area)
+             num_dead_trees = (currentCohort%fire_mort  * &
+                              currentCohort%n * patch_site_areadis/currentPatch%area)
 
              ! Contribution of dead trees to leaf litter
              donatable_mass = num_dead_trees * (leaf_m+repro_m) * &
@@ -2236,8 +2304,6 @@ contains
              end do
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
-             bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
@@ -2300,7 +2366,6 @@ contains
                       burned_mass = num_dead_trees * SF_val_CWD_frac_adj(c) * bstem * &
                       currentCohort%fraction_crown_burned
                       site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-                      bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
@@ -2310,7 +2375,7 @@ contains
 
             currentCohort => currentCohort%taller
         enddo
-    end do
+     end do
     
     return
   end subroutine fire_litter_fluxes
@@ -2391,7 +2456,7 @@ contains
 
 
     do el = 1,num_elements
-       
+
        element_id = element_list(el)
        site_mass  => currentSite%mass_balance(el)
        elflux_diags => currentSite%flux_diags%elem(el)
@@ -2551,7 +2616,7 @@ contains
     ! ============================================================================
 
   subroutine landusechange_litter_fluxes(currentSite, currentPatch, &
-       newPatch, patch_site_areadis, bc_in, bc_out, &
+       newPatch, patch_site_areadis, bc_in,  &
        clearing_matrix_element)
     !
     ! !DESCRIPTION:
@@ -2568,7 +2633,6 @@ contains
     type(fates_patch_type) , intent(inout), target :: newPatch   ! New Patch
     real(r8)               , intent(in)            :: patch_site_areadis ! Area being donated
     type(bc_in_type)       , intent(in)            :: bc_in
-    type(bc_out_type)      , intent(inout)         :: bc_out
     logical                , intent(in)            :: clearing_matrix_element ! whether or not to clear vegetation
 
     !
@@ -2606,8 +2670,6 @@ contains
     integer  :: pft                  ! loop index for plant functional types
     integer  :: dcmpy                ! loop index for decomposability pool
     integer  :: element_id           ! parteh compatible global element index
-    real(r8) :: trunk_product_site   ! flux of carbon in trunk products exported off site      [ kgC/site ]
-                                     ! (note we are accumulating over the patch, but scale is site level)
     real(r8) :: woodproduct_mass     ! mass that ends up in wood products [kg]
 
     !---------------------------------------------------------------------
@@ -2649,9 +2711,6 @@ contains
        end if
 
        do el = 1,num_elements
-
-          ! Zero some site level accumulator diagnsotics
-          trunk_product_site  = 0.0_r8
 
           element_id = element_list(el)
           site_mass  => currentSite%mass_balance(el)
@@ -2713,8 +2772,6 @@ contains
 
              site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-             bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
-
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
 
@@ -2774,7 +2831,7 @@ contains
                         EDPftvarcon_inst%landusechange_frac_burned(pft)
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-                   bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
+
                 else ! all other pools can end up as timber products or burn or go to litter
                    donatable_mass = donatable_mass * (1.0_r8-EDPftvarcon_inst%landusechange_frac_exported(pft)) * &
                         (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
@@ -2788,10 +2845,7 @@ contains
 
                    site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
-                   bc_out%fire_closs_to_atm_si = bc_out%fire_closs_to_atm_si + burned_mass * ha_per_m2 * days_per_sec
 
-                   trunk_product_site = trunk_product_site + &
-                        woodproduct_mass
 
                    ! Amount of trunk mass exported off site [kg/m2]
                    elflux_diags%exported_harvest = elflux_diags%exported_harvest + &
@@ -2808,15 +2862,6 @@ contains
 
              currentCohort => currentCohort%taller
           enddo
-
-          ! Update the amount of carbon exported from the site through logging.
-
-          if(element_id .eq. carbon12_element) then
-             currentSite%resources_management%trunk_product_site  = &
-                  currentSite%resources_management%trunk_product_site + &
-                  trunk_product_site
-          end if
-
 
        end do
 
@@ -3219,19 +3264,19 @@ contains
     rp%tau_l                   = (dp%tau_l*dp%area + rp%tau_l*rp%area) * inv_sum_area
     rp%tfc_ros              = (dp%tfc_ros*dp%area + rp%tfc_ros*rp%area) * inv_sum_area
     rp%fi                   = (dp%fi*dp%area + rp%fi*rp%area) * inv_sum_area
+    rp%nonrx_fi             = (dp%nonrx_fi*dp%area + rp%nonrx_fi*rp%area) * inv_sum_area
+    rp%rx_fi                = (dp%rx_fi*dp%area + rp%rx_fi*rp%area) * inv_sum_area
     rp%fd                   = (dp%fd*dp%area + rp%fd*rp%area) * inv_sum_area
     rp%ros_back             = (dp%ros_back*dp%area + rp%ros_back*rp%area) * inv_sum_area
     rp%scorch_ht(:)         = (dp%scorch_ht(:)*dp%area + rp%scorch_ht(:)*rp%area) * inv_sum_area
     rp%frac_burnt           = (dp%frac_burnt*dp%area + rp%frac_burnt*rp%area) * inv_sum_area
+    rp%rx_frac_burnt        = (dp%rx_frac_burnt*dp%area + rp%rx_frac_burnt*rp%area) * inv_sum_area
+    rp%nonrx_frac_burnt     = (dp%nonrx_frac_burnt*dp%area + rp%nonrx_frac_burnt*rp%area) * inv_sum_area
     rp%btran_ft(:)          = (dp%btran_ft(:)*dp%area + rp%btran_ft(:)*rp%area) * inv_sum_area
     rp%zstar                = (dp%zstar*dp%area + rp%zstar*rp%area) * inv_sum_area
     rp%c_stomata            = (dp%c_stomata*dp%area + rp%c_stomata*rp%area) * inv_sum_area
     rp%c_lblayer            = (dp%c_lblayer*dp%area + rp%c_lblayer*rp%area) * inv_sum_area
 
-    ! Radiation
-    rp%rad_error(1)         = (dp%rad_error(1)*dp%area + rp%rad_error(1)*rp%area) * inv_sum_area
-    rp%rad_error(2)         = (dp%rad_error(2)*dp%area + rp%rad_error(2)*rp%area) * inv_sum_area
-    
     rp%area = rp%area + dp%area !THIS MUST COME AT THE END!
 
     !insert donor cohorts into recipient patch
@@ -3340,6 +3385,7 @@ contains
     real(r8) areatot ! variable for checking whether the total patch area is wrong.
     real(r8) :: state_vector_driver(n_landuse_cats)  ! [m2/m2]
     real(r8) :: state_vector_internal(n_landuse_cats)  ! [m2/m2]
+    character(len=1024) :: warn_msg   ! for defining a warning message
     !---------------------------------------------------------------------
 
     ! Initialize the count cycles
@@ -3370,8 +3416,12 @@ contains
 
              if ( .not. gotfused ) then
                 !! somehow didn't find a patch to fuse with.
-                write(fates_log(),*) 'Warning. small nocomp patch wasnt able to find another patch to fuse with.', &
-                     currentPatch%nocomp_pft_label, currentPatch%land_use_label, currentPatch%area
+                warn_msg = 'small nocomp patch wasnt able to find '// &
+                           'another patch to fuse with. '// &
+                           'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
+                           'lu label: '//trim(I2S(currentPatch%land_use_label))// &
+                           'area: '//trim(N2S(currentPatch%area))
+                call FatesWarn(warn_msg,index=5)
              endif
 
           else nocomp_if
@@ -3593,12 +3643,8 @@ contains
       do while(associated(currentPatch)) 
           litt => currentPatch%litter(el)
           
-          if(homogenize_seed_pfts) then
-              litt%seed(:) = litt%seed(:) + seed_mass/(area_site*real(numpft,r8))
-          else
-              litt%seed(pft) = litt%seed(pft) + seed_mass/area_site
-          end if
-          
+          litt%seed(pft) = litt%seed(pft) + seed_mass/area_site
+
           currentPatch => currentPatch%younger
       end do
           
