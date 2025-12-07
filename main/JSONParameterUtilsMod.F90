@@ -892,7 +892,7 @@ contains
 
     ! This routine parses a string, does some cleaning of extra charachters
     ! and generally uses commas as separators to fill in a vector of
-    ! cleaned strings. It is assumed that the sting passed in contains
+    ! cleaned strings. It is assumed that the string passed in contains
     ! the data, not the symbol.
     !
     ! Essentially this is everything in a JSON file after a ":"
