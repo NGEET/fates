@@ -274,7 +274,6 @@ contains
     character(len=1) :: filechar
     character(len=max_sl) :: symb_str
     character(len=max_sl) :: data_str
-    logical :: found_dimtag   ! Have we found the string "dimensions" yet?
     logical :: found_close    ! Have we found the closing bracket?
     logical :: found_dims     !
     logical :: found_scalar
@@ -294,35 +293,8 @@ contains
     ! Step 1: Advance the file's character pointer to the open bracket following
     !         "dimensions:"
     ! -----------------------------------------------------------------------------------
-    found_dimtag = .false.
-    group_str = ''
-    i=0
-    do_dimtag: do while(.not.found_dimtag)
+    call FindJSONTag(file_unit, tag='"dimensions"', group_str)
 
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
-       if (io_status == IOSTAT_END) then
-          write(log_unit,*) 'encountered EOF'
-          call shr_sys_abort()
-       elseif (io_status < 0) then    ! this is most-likely and end-line character
-          cycle do_dimtag
-       elseif (io_status>0) then
-          write(log_unit,*) 'fatal i/o error! code:', io_status
-          write(log_unit,*) 'msg: ',io_msg
-          call shr_sys_abort()
-       end if
-       
-       i=i+1
-       
-       if(i<=max_sl)then
-          group_str(i:i) = filechar
-       else
-          call PopString(group_str,filechar)
-       end if
-       if(index(group_str,'"dimensions"')>0 .and. index(group_str,'{',.true.)==min(i,max_sl))then
-          found_dimtag = .true.
-       end if
-    end do do_dimtag
-    
     ! -----------------------------------------------------------------------------------
     ! Step 2: Read in all the data until the closing bracket
     ! -----------------------------------------------------------------------------------
@@ -695,6 +667,64 @@ contains
     
     return
   end subroutine ReadCharVar
+  ! ====================================================================================
+
+  subroutine FindJSONTag(file_unit, tag, group_str, file_position)
+
+   ! This procedure finds the location in the file of a specific JSON tag
+   ! and returns a large string of all the characters between the tag
+   ! and the closing bracket.  It also optional returns the position in the file.
+
+   ! Arguments
+    integer,intent(in)          :: file_unit
+    character(len=*), intent(in) :: tag
+    character(len=*), intent(out) :: group_str
+    integer, intent(out), optional :: file_position
+
+    ! Locals
+    logical :: found_tag
+    integer :: io_status
+    character(len=1) :: filechar
+    character(len=256) :: io_msg
+
+    ! Trim the incoming tag of trailing whitespace
+    tag = trim(tag)
+
+    found_tag = .false.
+    group_str = ''
+    i=0
+    do_findtag: do while(.not.found_tag)
+
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
+       if (io_status == IOSTAT_END) then
+          write(log_unit,*) 'encountered EOF'
+          call shr_sys_abort()
+       elseif (io_status < 0) then
+          cycle do_findtag
+       elseif (io_status>0) then
+          write(log_unit,*) 'fatal i/o error! code:', io_status
+          write(log_unit,*) 'msg: ',io_msg
+          call shr_sys_abort()
+       end if
+       
+       i=i+1
+       
+       if(i<=max_sl)then
+          group_str(i:i) = filechar
+       else
+          call PopString(group_str,filechar)
+       end if
+       if(index(group_str,tag)>0 .and. index(group_str,'{',.true.)==min(i,max_sl))then
+          found_tag = .true.
+       end if
+    end do do_findtag
+
+    ! Remember this exact file position, we will need to return if requested
+    if (present(file_position)) then
+      file_position = i
+    end if
+
+  end subroutine FindJSONTag
 
   ! =====================================================================================
   
@@ -707,7 +737,6 @@ contains
     integer,parameter :: data_len = 4096
     character(len=max_sl) :: group_str
     character(len=1) :: filechar
-    logical :: found_vartag
     integer :: i,j
     integer :: filepos0
     integer :: io_status
@@ -722,37 +751,7 @@ contains
     ! Step 1: Advance the file's character pointer to the open bracket following
     !         "parameters:"
     ! -----------------------------------------------------------------------------------
-    found_vartag = .false.
-    group_str = ''
-    i=0
-    do_vartag: do while(.not.found_vartag)
-
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
-       if (io_status == IOSTAT_END) then
-          write(log_unit,*) 'encountered EOF'
-          call shr_sys_abort()
-       elseif (io_status < 0) then
-          cycle do_vartag
-       elseif (io_status>0) then
-          write(log_unit,*) 'fatal i/o error! code:', io_status
-          write(log_unit,*) 'msg: ',io_msg
-          call shr_sys_abort()
-       end if
-       
-       i=i+1
-       
-       if(i<=max_sl)then
-          group_str(i:i) = filechar
-       else
-          call PopString(group_str,filechar)
-       end if
-       if(index(group_str,'"parameters"')>0 .and. index(group_str,'{',.true.)==max_sl)then
-          found_vartag = .true.
-       end if
-    end do do_vartag
-
-    ! Remember this exact file position, we will need to return
-    filepos0 = i
+    call FindJSONTag(file_unit, tag='"parameters"', group_str, filepos0)
     
     ! -----------------------------------------------------------------------------------
     ! Step 2: Start a loop through parameters, with each one we are identifying
