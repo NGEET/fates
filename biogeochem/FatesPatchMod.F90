@@ -242,6 +242,11 @@ module FatesPatchMod
     ! fire effects      
     real(r8)              :: scorch_ht(maxpft)       ! scorch height [m] 
     real(r8)              :: tfc_ros                 ! total intensity-relevant fuel consumed - no trunks [kgC/m2 of burned ground/day]
+
+    ! crown fire
+    integer               :: passive_crown_fire      ! is there a passive crown fire [1=yes; 0=no]
+    integer               :: active_crown_fire       ! is there an active crown fire [1=yes; 0=no]
+
     !---------------------------------------------------------------------------
     
     ! PLANT HYDRAULICS (not currently used in hydraulics RGK 03-2018)  
@@ -526,6 +531,8 @@ module FatesPatchMod
       this%fire                         = fates_unset_int
       this%nonrx_fire                   = fates_unset_int
       this%rx_fire                      = fates_unset_int
+      this%passive_crown_fire           = fates_unset_int
+      this%active_crown_fire            = fates_unset_int
       this%nonrx_fi                     = nan
       this%nonrx_frac_burnt             = nan
       this%rx_fi                        = nan

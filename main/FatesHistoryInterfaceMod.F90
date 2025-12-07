@@ -16,6 +16,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : i_term_mort_type_numdens
   use FatesConstantsMod        , only : nocomp_bareground_land
   use FatesConstantsMod        , only : nocomp_bareground
+  use FatesConstantsMod        , only : mass_2_carbon
   use FatesGlobals             , only : fates_log
   use FatesGlobals             , only : endrun => fates_endrun
   use EDParamsMod              , only : nclmax, maxpft
@@ -463,6 +464,11 @@ module FatesHistoryInterfaceMod
   integer :: ih_fire_fuel_sav_si
   integer :: ih_fire_fuel_mef_si
   integer :: ih_sum_fuel_si
+  integer :: ih_sum_canopy_fuel_si
+  integer :: ih_canopy_fuel_bulkd_si
+  integer :: ih_act_crown_fire_freq_si
+  integer :: ih_pass_crown_fire_freq_si
+  integer :: ih_canopy_water_content_si
   integer :: ih_rx_burn_window_si
   integer :: ih_rx_intensity_si
   integer :: ih_rx_fracarea_si
@@ -2456,6 +2462,11 @@ contains
          hio_fire_fuel_sav_si    => this%hvars(ih_fire_fuel_sav_si)%r81d, &
          hio_fire_fuel_mef_si    => this%hvars(ih_fire_fuel_mef_si)%r81d, &
          hio_sum_fuel_si         => this%hvars(ih_sum_fuel_si)%r81d,  &
+         hio_sum_canopy_fuel_si  => this%hvars(ih_sum_canopy_fuel_si)%r81d, &
+         hio_canopy_fuel_bulkd_si     => this%hvars(ih_canopy_fuel_bulkd_si)%r81d, &
+         hio_act_crown_fire_freq_si   => this%hvars(ih_act_crown_fire_freq_si)%r81d, &
+         hio_pass_crown_fire_freq_si   => this%hvars(ih_pass_crown_fire_freq_si)%r81d, &
+         hio_canopy_water_content_si   => this%hvars(ih_canopy_water_content_si)%r81d, &
          hio_nonrx_intensity_si  => this%hvars(ih_nonrx_intensity_si)%r81d, &
          hio_nonrx_intensity_fracarea_product_si => this%hvars(ih_nonrx_intensity_fracarea_product_si)%r81d, &
          hio_nonrx_fracarea_si       => this%hvars(ih_nonrx_fracarea_si)%r81d, &
@@ -2737,6 +2748,14 @@ contains
             hio_fire_fuel_sav_si(io_si)        = hio_fire_fuel_sav_si(io_si) + cpatch%fuel%SAV_notrunks * cpatch%area * AREA_INV / m_per_cm
             hio_fire_fuel_mef_si(io_si)        = hio_fire_fuel_mef_si(io_si) + cpatch%fuel%MEF_notrunks * cpatch%area * AREA_INV
             hio_sum_fuel_si(io_si)             = hio_sum_fuel_si(io_si) + cpatch%fuel%non_trunk_loading * cpatch%area * AREA_INV
+            ! since canopy_fuel_load is the summed canopy fuel at patch level [kg biomass], not fuel load density [kg biomass / m2], so to
+            ! calculate site level fuel load density, we only need to scale this by site area, and convert to carbon for consistency
+            ! in FATES output unit
+            hio_sum_canopy_fuel_si(io_si)      = hio_sum_canopy_fuel_si(io_si) + cpatch%fuel%canopy_fuel_load * AREA_INV * mass_2_carbon
+            hio_canopy_fuel_bulkd_si(io_si)    = hio_canopy_fuel_bulkd_si(io_si) + cpatch%fuel%canopy_bulk_density * cpatch%area * AREA_INV * mass_2_carbon
+            hio_act_crown_fire_freq_si(io_si)  = hio_act_crown_fire_freq_si(io_si) + cpatch%active_crown_fire * cpatch%area * AREA_INV
+            hio_pass_crown_fire_freq_si(io_si) = hio_pass_crown_fire_freq_si(io_si) + cpatch%passive_crown_fire * cpatch%area * AREA_INV
+            hio_canopy_water_content_si(io_si) = hio_canopy_water_content_si(io_si) + cpatch%fuel%canopy_water_content * cpatch%area * AREA_INV
 
             hio_nonrx_intensity_fracarea_product_si(io_si) = hio_nonrx_intensity_fracarea_product_si(io_si) + &
                  cpatch%nonrx_FI * cpatch%nonrx_frac_burnt * cpatch%area * AREA_INV * J_per_kJ
@@ -6622,6 +6641,36 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_dyna_simple, ivar=ivar, initialize=initialize_variables,                 &
             index = ih_sum_fuel_si)
+      
+       call this%set_history_var(vname='FATES_CANOPY_FUEL_AMOUNT', units='kg m-2',       &
+            long='total canopy 1h woody plus leaf biomass for crown fire in kg C per m2 land area',   &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+            index = ih_sum_canopy_fuel_si)
+     
+       call this%set_history_var(vname='FATES_CANOPY_FUEL_BULKD', units='kg m-3',       &
+            long='canopy fuel bulk density (only 1hr woody plus leaf biomss) in kg C per m3',   &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                 &
+            index = ih_canopy_fuel_bulkd_si)
+
+       call this%set_history_var(vname='FATES_CANOPY_WATER_CONTENT', units='%',  &
+            long='Non-hydro live canopy water content in %',                     &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',    &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,                &
+            index = ih_canopy_water_content_si)
+
+       call this%set_history_var(vname='FATES_ACTIVE_CROWNFIRE_FREQ', units='1', &
+            long='active canopy fire frequency scaled by patch to site area ratio',  &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM', &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,  &
+            index = ih_act_crown_fire_freq_si)
+
+       call this%set_history_var(vname='FATES_PASSIVE_CROWNFIRE_FREQ', units='1', &
+            long='passive canopy fire frequency scaled by patch to site area ratio',  &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM', &
+            upfreq=1, ivar=ivar, initialize=initialize_variables,  &
+            index = ih_pass_crown_fire_freq_si)
        ! Litter Variables
 
        call this%set_history_var(vname='FATES_LITTER_IN', units='kg m-2 s-1',     &
