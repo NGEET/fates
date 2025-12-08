@@ -153,7 +153,7 @@ contains
 
   ! ==============================================================================
   
-  subroutine JSONRead(filename,file_unit,pstruct)
+  subroutine JSONRead(filename,pstruct)
 
     ! This is esssentially the driver for reading through the input parameter file
     ! There should be two meaningful sections (not including attributes)
@@ -167,11 +167,11 @@ contains
     ! to rewind and go back to the top of the file
     
     character(len=*),intent(in) :: filename
-    integer,intent(in)          :: file_unit
     type(params_type)           :: pstruct
     
     ! Local
     integer :: io_status   ! Read status return value from fortran internal
+    integer :: file_unit
 
     ! scratch space for storing data as strings
     ! before its copied into data structures
@@ -182,7 +182,7 @@ contains
 
     ! Open the file, it is assumed that an open file unit has been identified
     ! and passed in as an argument
-    open(unit=file_unit, file=filename, status='old', &
+    open(newunit=file_unit, file=filename, status='old', &
         action='READ', iostat=io_status)
     
     if (io_status /= 0) THEN
