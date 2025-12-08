@@ -701,8 +701,8 @@ contains
   subroutine GetParameters(file_unit,string_scr,pstruct)
 
     integer,intent(in)                  :: file_unit
-    character(len=max_ll), dimension(*) :: string_scr ! Internal scratch space
-    type(params_type)                   :: pstruct
+    character(len=max_ll), dimension(*), intent(inout) :: string_scr ! Internal scratch space
+    type(params_type), intent(inout)                   :: pstruct
 
     integer,parameter :: data_len = 4096
     character(len=max_sl) :: group_str
@@ -980,8 +980,8 @@ contains
   
   subroutine PopString(apstring,newchar)
     
-    character(len=*) :: apstring
-    character(len=1) :: newchar
+    character(len=*), intent(inout) :: apstring
+    character(len=1), intent(in) :: newchar
     integer :: strlen
     integer :: i
     
