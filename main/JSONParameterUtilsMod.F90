@@ -293,7 +293,7 @@ contains
     ! Step 1: Advance the file's character pointer to the open bracket following
     !         "dimensions:"
     ! -----------------------------------------------------------------------------------
-    call FindJSONTag(file_unit, tag='"dimensions"', group_str)
+    call FindJSONTag(file_unit, '"dimensions"', group_str)
 
     ! -----------------------------------------------------------------------------------
     ! Step 2: Read in all the data until the closing bracket
@@ -684,11 +684,13 @@ contains
     ! Locals
     logical :: found_tag
     integer :: io_status
+    integer :: i
     character(len=1) :: filechar
     character(len=256) :: io_msg
+    character(len=12) :: trim_tag
 
     ! Trim the incoming tag of trailing whitespace
-    tag = trim(tag)
+    trim_tag = trim(tag)
 
     found_tag = .false.
     group_str = ''
@@ -714,7 +716,7 @@ contains
        else
           call PopString(group_str,filechar)
        end if
-       if(index(group_str,tag)>0 .and. index(group_str,'{',.true.)==min(i,max_sl))then
+       if(index(group_str,trim_tag)>0 .and. index(group_str,'{',.true.)==min(i,max_sl))then
           found_tag = .true.
        end if
     end do do_findtag
@@ -736,7 +738,7 @@ contains
 
     integer,parameter :: data_len = 4096
     character(len=max_sl) :: group_str
-    character(len=1) :: filechar
+    logical :: found_vartag
     integer :: i,j
     integer :: filepos0
     integer :: io_status
@@ -751,7 +753,7 @@ contains
     ! Step 1: Advance the file's character pointer to the open bracket following
     !         "parameters:"
     ! -----------------------------------------------------------------------------------
-    call FindJSONTag(file_unit, tag='"parameters"', group_str, filepos0)
+    call FindJSONTag(file_unit, '"parameters"', group_str, filepos0)
     
     ! -----------------------------------------------------------------------------------
     ! Step 2: Start a loop through parameters, with each one we are identifying
