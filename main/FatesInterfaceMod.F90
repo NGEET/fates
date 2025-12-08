@@ -2322,9 +2322,9 @@ contains
            do while (associated(ccohort))
               !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
               if(.not.ccohort%isnew)then
-                 ! [kgC/plant/yr] -> [gC/m2/s]
+                 ! [kgC/plant/yr] -> [gC/m2/yr]
                  site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
-                      g_per_kg * hlm_days_per_year / sec_per_day
+                      g_per_kg
               end if
               ccohort => ccohort%shorter
            end do
