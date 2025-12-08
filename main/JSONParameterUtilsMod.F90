@@ -980,8 +980,8 @@ contains
   
   subroutine PopString(apstring,newchar)
     
-    character(len=*) :: apstring
-    character(len=1) :: newchar
+    character(len=*), intent(inout) :: apstring
+    character(len=1), intent(in) :: newchar
     integer :: strlen
     integer :: i
     
