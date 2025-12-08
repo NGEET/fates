@@ -119,9 +119,9 @@ module JSONParameterUtilsMod
      integer                         :: i_data_scalar
      integer,  allocatable           :: i_data_1d(:)
      integer,  allocatable           :: i_data_2d(:,:)
-     character(len=128)              :: c_data
-     character(len=128), allocatable :: c_data_1d(:)
-     character(len=128), allocatable :: c_data_2d(:,:)
+     character(len=512)              :: c_data
+     character(len=512), allocatable :: c_data_1d(:)
+     character(len=512), allocatable :: c_data_2d(:,:)
      
   end type param_type
 
