@@ -701,8 +701,8 @@ contains
   subroutine GetParameters(file_unit,string_scr,pstruct)
 
     integer,intent(in)                  :: file_unit
-    character(len=max_ll), dimension(*) :: string_scr ! Internal scratch space
-    type(params_type)                   :: pstruct
+    character(len=max_ll), dimension(*), intent(inout) :: string_scr ! Internal scratch space
+    type(params_type), intent(inout)                   :: pstruct
 
     integer,parameter :: data_len = 4096
     character(len=max_sl) :: group_str
