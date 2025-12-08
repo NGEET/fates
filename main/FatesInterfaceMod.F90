@@ -116,10 +116,10 @@ module FatesInterfaceMod
    use LeafBiophysicsMod         , only : lb_params
    use LeafBiophysicsMod         , only : FvCB1980
    use JSONParameterUtilsMod     , only : params_type
-   use JSONParameterUtilsMod     , only : ReadJSON
-   use JSONParameterUtilsMod     , only : SetInvalid
-   use JSONParameterUtilsMod     , only : SetLogInit
-   use JSONParameterUtilsMod     , only : DumpParameter
+   use JSONParameterUtilsMod     , only : JSONRead
+   use JSONParameterUtilsMod     , only : JSONSetInvalid
+   use JSONParameterUtilsMod     , only : JSONSetLogInit
+   use JSONParameterUtilsMod     , only : JSONDumpParameter
    
    
    ! CIME Globals
@@ -777,7 +777,7 @@ contains
 
     ! ===================================================================================
     
-    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft,paramfile,paramfile_unit)
+    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft,paramfile)
 
        ! --------------------------------------------------------------------------------
        !
@@ -792,8 +792,7 @@ contains
       integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
       integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
       character(len=*),           intent(in) :: paramfile        ! Full path to the fates parameter file
-      integer,                    intent(in) :: paramfile_unit   ! File unit reserved for the FATES
-                                                                 ! parameter file
+      integer :: i
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
       
       
@@ -811,10 +810,18 @@ contains
          ! it is usable. So if the parser enounters no-data strings, such as null, nan or '_'
          ! we set those values to fates_check_param_set plus a little extra to flag it is
          ! invalid.
-         call SetInvalid(fates_check_param_set+10._r8)
-         call SetLogInit(fates_log())
-         call ReadJSON(paramfile,paramfile_unit,pstruct)
+         call JSONSetInvalid(fates_check_param_set+10._r8)
+         call JSONSetLogInit(fates_log())
+         call JSONRead(paramfile,paramfile_unit,pstruct)
 
+         if ( hlm_masterproc == itrue ) then
+            write(fates_log(),*) '============= FATES Parameter Info ============'
+            do i=1,size(pstruct%parameters)
+               call JSONDumpParameter(pstruct)
+            end do
+            write(fates_log(),*) '============ End FATES Parameter Info ========='
+         end if
+         
          ! This call transfers parameters from the pstruct data-structure
          ! into the specific datastructures where parameters have there
          ! own primitive arrays

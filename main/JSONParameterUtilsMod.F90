@@ -134,26 +134,26 @@ module JSONParameterUtilsMod
      procedure :: ReportAccessCounts
   end type params_type
   
-  public :: ReadJSON
-  public :: SetInvalid
-  public :: SetLogInit
-  public :: DumpParameter
+  public :: JSONRead
+  public :: JSONSetInvalid
+  public :: JSONSetLogInit
+  public :: JSONDumpParameter
   
 contains
 
-  subroutine SetInvalid(r_invalid_in)
+  subroutine JSONSetInvalid(r_invalid_in)
     real(r8),intent(in) :: r_invalid_in
     r_invalid = r_invalid_in
-  end subroutine SetInvalid
+  end subroutine JSONSetInvalid
   
-  subroutine SetLogInit(log_unit_in)
+  subroutine JSONSetLogInit(log_unit_in)
     integer,intent(in) :: log_unit_in
     log_unit = log_unit_in
-  end subroutine SetLogInit
+  end subroutine JSONSetLogInit
 
   ! ==============================================================================
   
-  subroutine ReadJSON(filename,file_unit,pstruct)
+  subroutine JSONRead(filename,file_unit,pstruct)
 
     ! This is esssentially the driver for reading through the input parameter file
     ! There should be two meaningful sections (not including attributes)
@@ -208,7 +208,7 @@ contains
        if(debug) write(log_unit,*) 'sucessfully closed ',trim(filename)
     end if
     
-  end subroutine ReadJSON
+  end subroutine JSONRead
 
   ! =====================================================================================
 
@@ -1242,7 +1242,7 @@ contains
   
   ! =====================================================================================
   
-  subroutine DumpParameter(param)
+  subroutine JSONDumpParameter(param)
     
     type(param_type) :: param
     integer :: i
@@ -1298,7 +1298,7 @@ contains
        end do
     end select
     
-  end subroutine DumpParameter
+  end subroutine JSONDumpParameter
 
   
 end module JSONParameterUtilsMod

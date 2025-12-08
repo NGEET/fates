@@ -8,7 +8,6 @@ program TestJSON
   character(len=:),allocatable :: filename
 
   integer :: filename_len
-  integer :: file_unit = 18
   integer :: i
 
   type(params_type) :: pstruct
@@ -27,13 +26,13 @@ program TestJSON
   ! Read the first command line argument (index 1) into FILENAME
   call get_command_argument(1, value=filename)
 
-  call SetInvalid(1.e-32_r8)
-  call SetLogInit(6)
-  call ReadJSON(filename,file_unit,pstruct)
+  call JSONSetInvalid(1.e-32_r8)
+  call JSONSetLogInit(6)
+  call JSONRead(filename,pstruct)
 
   
   do i=1,size(pstruct%parameters)
-     call DumpParameter(pstruct%parameters(i))
+     call JSONDumpParameter(pstruct%parameters(i))
   end do
 
   
