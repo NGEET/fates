@@ -239,6 +239,7 @@ contains
           call shr_sys_abort()
        end if
        
+       ! gnu doc: Scans arg1 for ANY of the characters in a arg2 {set} of characters.
        if (scan(filechar,'"')>0)then
           inside_quotes = .not.inside_quotes
        end if
@@ -832,6 +833,7 @@ contains
                 write(log_unit,*)'in data string: ',trim(string_in)
                 call shr_sys_abort()
              end if
+             ! gnu doc: Scans arg1 for ANY of the characters in a arg2 {set} of characters.
              if(scan(string_in(i:i),':')>0)then
                 found_tag = .true.
                 sep_id = i+1
@@ -852,6 +854,7 @@ contains
        i=sep_id
        search_close: do i = sep_id,end_id
 
+          ! gnu doc: "scan" arg1 for ANY of the characters in a arg2 {set} of characters.
           if(.not.open_bracket1)then
              if(scan(string_in(i:i),'[')>0) open_bracket1=.true.
           else
