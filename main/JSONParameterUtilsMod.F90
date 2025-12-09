@@ -275,10 +275,11 @@ contains
     character(len=1) :: filechar
     character(len=max_sl) :: symb_str
     character(len=max_sl) :: data_str
-    logical :: found_close    ! Have we found the closing bracket?
-    logical :: found_dims     !
+    logical :: found_close     ! Have we found the closing bracket?
+    logical :: found_dims      !
     logical :: found_scalar
-    integer :: i
+    integer :: fcpos           ! file's character position index
+    integer :: i               ! local character read position index
     integer :: sep_id,beg_id,end_id
     integer :: io_status
     integer :: n_dims
@@ -289,12 +290,14 @@ contains
     ! Step 0: We start at the very beginning of the file, which
     ! allows us to count file positions and return to those file positions
     rewind(file_unit)
+
+    fcpos = 0   ! We have not read anything yet, set file char position to 0
     
     ! -----------------------------------------------------------------------------------
-    ! Step 1: Advance the file's character pointer to the open bracket following
-    !         "dimensions:"
+    ! Step 1: Advance the file's character pointer such that the last character
+    !         the : separator for "dimensions"
     ! -----------------------------------------------------------------------------------
-    call FindTagPos(file_unit, '"dimensions"', filepos)
+    call FindTagPos(file_unit, '"dimensions"', fcpos)
 
     ! -----------------------------------------------------------------------------------
     ! Step 2: Read in all the data until the closing bracket
@@ -693,17 +696,17 @@ contains
                                         ! largest expected tag/keyword name
     logical :: found_tag
     integer :: io_status
-    integer :: i
+    integer :: i                        ! Index of how many valid chars read
     character(len=1) :: filechar
     character(len=256) :: io_msg
-    character(len=12) :: trim_tag
+    character(len=max_sl) :: trim_tag
 
     ! Trim the incoming tag of trailing whitespace
     trim_tag = trim(tag)
 
     found_tag = .false.
     str_buffer = ''
-
+    i          = 0
     do_findtag: do while(.not.found_tag)
 
        read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
@@ -718,19 +721,19 @@ contains
           call shr_sys_abort()
        end if
        
-       i = i+1
+       i = i + 1
        
        if(i<=max_sl)then
-          str_buffer(fpos:fpos) = filechar
+          str_buffer(i:i) = filechar
        else
           call PopString(str_buffer,filechar)
        end if
 
-       ! After the separator, there are three different types
-       
-       if(index(str_buffer,trim_tag)>0 .and. index(str_buffer,'{"[',.true.)==min(i,max_sl))then
+       ! Once we find that string and it's separator, we are can exit
+       if(index(str_buffer,trim_tag)>0 .and. index(str_buffer,':',.true.)==min(i,max_sl))then
           found_tag = .true.
        end if
+       
     end do do_findtag
 
     ! Remember this exact file position, we will need to return if requested
@@ -750,7 +753,7 @@ contains
     character(len=max_sl) :: group_str
     logical :: found_vartag
     integer :: i,j
-    integer :: filepos
+    integer :: fcpos          ! File's character position index
     integer :: io_status
     integer :: n_vars
     character(len=256) :: io_msg
@@ -759,11 +762,13 @@ contains
     ! allows us to count file positions and return to those file positions
     rewind(file_unit)
 
+    fcpos = 0
+    
     ! -----------------------------------------------------------------------------------
     ! Step 1: Advance the file read position so that the last character read
     !         was the open bracket at the start of "parameters"
     ! -----------------------------------------------------------------------------------
-    call FindTagPos(file_unit, '"parameters"', filepos)
+    call FindTagPos(file_unit, '"parameters"', fcpos)
     
     ! -----------------------------------------------------------------------------------
     ! Step 2: Start a loop through parameters, with each one we are identifying
@@ -778,7 +783,7 @@ contains
     if(debug) write(log_unit,*) 'Found ',n_vars,' in the "parameters" group'
     allocate(pstruct%parameters(n_vars))
 
-    call GotoPos(file_unit,filepos0)
+    call GotoPos(file_unit,fcpos)
     
     do i=1,n_vars
        j = i
