@@ -293,7 +293,7 @@ contains
     ! Step 1: Advance the file's character pointer to the open bracket following
     !         "dimensions:"
     ! -----------------------------------------------------------------------------------
-    call FindJSONTag(file_unit, '"dimensions"', group_str)
+    call FindTagPos(file_unit, '"dimensions"', filepos)
 
     ! -----------------------------------------------------------------------------------
     ! Step 2: Read in all the data until the closing bracket
@@ -669,19 +669,27 @@ contains
   end subroutine ReadCharVar
   ! ====================================================================================
 
-  subroutine FindJSONTag(file_unit, tag, group_str, file_position)
+  subroutine FindTagPos(file_unit, tag, fpos)
 
-   ! This procedure finds the location in the file of a specific JSON tag
-   ! and returns a large string of all the characters between the tag
-   ! and the closing bracket.  It also optional returns the position in the file.
-
-   ! Arguments
-    integer,intent(in)          :: file_unit
-    character(len=*), intent(in) :: tag
-    character(len=*), intent(out) :: group_str
-    integer, intent(out), optional :: file_position
+    ! This procedure finds the location in the file following the identification
+    ! of the provided tag/keyword name and the separator ":"
+    ! This does not tell us what type of object it is, just the
+    ! file character index, as well as advancing the file pointer.
+    
+    ! Arguments
+    integer, intent(inout)       :: file_unit ! fortran file unit
+    character(len=*), intent(in) :: tag       ! The keyword for this object
+    integer, intent(inout)       :: fpos      ! Character index of the file position
+                                              ! ignores end-line characters and anything
+                                              ! that does not return a 0 io_status. Must
+                                              ! provide the starting position if not called
+                                              ! immediately after rewind or a new open
 
     ! Locals
+    character(len=max_sl) :: str_buffer ! This is just some buffer space to
+                                        ! hold recently read characters. It
+                                        ! only needs to be as long as the
+                                        ! largest expected tag/keyword name
     logical :: found_tag
     integer :: io_status
     integer :: i
@@ -693,8 +701,8 @@ contains
     trim_tag = trim(tag)
 
     found_tag = .false.
-    group_str = ''
-    i=0
+    str_buffer = ''
+
     do_findtag: do while(.not.found_tag)
 
        read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
@@ -709,24 +717,25 @@ contains
           call shr_sys_abort()
        end if
        
-       i=i+1
+       i = i+1
        
        if(i<=max_sl)then
-          group_str(i:i) = filechar
+          str_buffer(fpos:fpos) = filechar
        else
-          call PopString(group_str,filechar)
+          call PopString(str_buffer,filechar)
        end if
-       if(index(group_str,trim_tag)>0 .and. index(group_str,'{',.true.)==min(i,max_sl))then
+
+       ! After the separator, there are three different types
+       
+       if(index(str_buffer,trim_tag)>0 .and. index(str_buffer,'{"[',.true.)==min(i,max_sl))then
           found_tag = .true.
        end if
     end do do_findtag
 
     ! Remember this exact file position, we will need to return if requested
-    if (present(file_position)) then
-      file_position = i
-    end if
+    fpos = fpos + i
 
-  end subroutine FindJSONTag
+  end subroutine FindTagPos
 
   ! =====================================================================================
   
@@ -740,7 +749,7 @@ contains
     character(len=max_sl) :: group_str
     logical :: found_vartag
     integer :: i,j
-    integer :: filepos0
+    integer :: filepos
     integer :: io_status
     integer :: n_vars
     character(len=256) :: io_msg
@@ -750,10 +759,10 @@ contains
     rewind(file_unit)
 
     ! -----------------------------------------------------------------------------------
-    ! Step 1: Advance the file's character pointer to the open bracket following
-    !         "parameters:"
+    ! Step 1: Advance the file read position so that the last character read
+    !         was the open bracket at the start of "parameters"
     ! -----------------------------------------------------------------------------------
-    call FindJSONTag(file_unit, '"parameters"', group_str, filepos0)
+    call FindTagPos(file_unit, '"parameters"', filepos)
     
     ! -----------------------------------------------------------------------------------
     ! Step 2: Start a loop through parameters, with each one we are identifying
