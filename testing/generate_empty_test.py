@@ -66,15 +66,11 @@ def commandline_args():
 
 def main():
 
-    # args = commandline_args()
+    args = commandline_args()
 
     # Example - create a unit test
-    unit_test = generate_test("unit", "hello_world")
-    unit_test.setup_test()
-
-    # Example: Creating a functional test
-    # functional_test = generate_test("functional", "hello_world")
-    # functional_test.setup_test()
+    test = generate_test(args.test_type, args.test_name, args.test_subdir)
+    test.setup_test()
 
 
 if __name__ == "__main__":
