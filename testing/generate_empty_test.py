@@ -15,11 +15,11 @@ Specifically, this script peforms the following steps:
 3. Updates the existing CMakeLists.txt file to include the new test.
 4. Appends an entry for this test to the configuration file.
 5. Creates a template test file in the new directory.
-6. If it's a functional test, generates a new Python TestCase file and updates load_functional_tests.py
+6. If it's a functional test, generates a new Python TestCase file and updates
+    load_functional_tests.py
 
 """
 
-import os
 import argparse
 import textwrap
 from test_generator_class import generate_test
@@ -38,10 +38,6 @@ def commandline_args():
     functional_parser = subparsers.add_parser(
         "functional", help="Create an empty functional test"
     )
-
-    # Unit test parser options
-
-    # Functional test parser options
 
     # common options between both subparsers
     for subparser in [unit_parser, functional_parser]:
@@ -64,11 +60,13 @@ def commandline_args():
 
     return args
 
+
 def main():
+    """Main function to create boilerplate files"""
 
     args = commandline_args()
 
-    # Example - create a unit test
+    # create the test
     test = generate_test(args.test_type, args.test_name, args.test_subdir)
     test.setup_test()
 
