@@ -73,8 +73,8 @@ def main():
     unit_test.setup_test()
 
     # Example: Creating a functional test
-    functional_test = generate_test("functional", "hello_world")
-    functional_test.setup_test()
+    # functional_test = generate_test("functional", "hello_world")
+    # functional_test.setup_test()
 
 
 if __name__ == "__main__":
