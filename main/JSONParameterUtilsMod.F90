@@ -275,7 +275,6 @@ contains
     character(len=1) :: filechar
     character(len=max_sl) :: symb_str
     character(len=max_sl) :: data_str
-    logical :: found_dimtag   ! Have we found the string "dimensions" yet?
     logical :: found_close    ! Have we found the closing bracket?
     logical :: found_dims     !
     logical :: found_scalar
@@ -295,35 +294,8 @@ contains
     ! Step 1: Advance the file's character pointer to the open bracket following
     !         "dimensions:"
     ! -----------------------------------------------------------------------------------
-    found_dimtag = .false.
-    group_str = ''
-    i=0
-    do_dimtag: do while(.not.found_dimtag)
+    call FindTagPos(file_unit, '"dimensions"', filepos)
 
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
-       if (io_status == IOSTAT_END) then
-          write(log_unit,*) 'encountered EOF'
-          call shr_sys_abort()
-       elseif (io_status < 0) then    ! this is most-likely and end-line character
-          cycle do_dimtag
-       elseif (io_status>0) then
-          write(log_unit,*) 'fatal i/o error! code:', io_status
-          write(log_unit,*) 'msg: ',io_msg
-          call shr_sys_abort()
-       end if
-       
-       i=i+1
-       
-       if(i<=max_sl)then
-          group_str(i:i) = filechar
-       else
-          call PopString(group_str,filechar)
-       end if
-       if(index(group_str,'"dimensions"')>0 .and. index(group_str,'{',.true.)==min(i,max_sl))then
-          found_dimtag = .true.
-       end if
-    end do do_dimtag
-    
     ! -----------------------------------------------------------------------------------
     ! Step 2: Read in all the data until the closing bracket
     ! -----------------------------------------------------------------------------------
@@ -696,6 +668,75 @@ contains
     
     return
   end subroutine ReadCharVar
+  ! ====================================================================================
+
+  subroutine FindTagPos(file_unit, tag, fpos)
+
+    ! This procedure finds the location in the file following the identification
+    ! of the provided tag/keyword name and the separator ":"
+    ! This does not tell us what type of object it is, just the
+    ! file character index, as well as advancing the file pointer.
+    
+    ! Arguments
+    integer, intent(inout)       :: file_unit ! fortran file unit
+    character(len=*), intent(in) :: tag       ! The keyword for this object
+    integer, intent(inout)       :: fpos      ! Character index of the file position
+                                              ! ignores end-line characters and anything
+                                              ! that does not return a 0 io_status. Must
+                                              ! provide the starting position if not called
+                                              ! immediately after rewind or a new open
+
+    ! Locals
+    character(len=max_sl) :: str_buffer ! This is just some buffer space to
+                                        ! hold recently read characters. It
+                                        ! only needs to be as long as the
+                                        ! largest expected tag/keyword name
+    logical :: found_tag
+    integer :: io_status
+    integer :: i
+    character(len=1) :: filechar
+    character(len=256) :: io_msg
+    character(len=12) :: trim_tag
+
+    ! Trim the incoming tag of trailing whitespace
+    trim_tag = trim(tag)
+
+    found_tag = .false.
+    str_buffer = ''
+
+    do_findtag: do while(.not.found_tag)
+
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
+       if (io_status == IOSTAT_END) then
+          write(log_unit,*) 'encountered EOF'
+          call shr_sys_abort()
+       elseif (io_status < 0) then
+          cycle do_findtag
+       elseif (io_status>0) then
+          write(log_unit,*) 'fatal i/o error! code:', io_status
+          write(log_unit,*) 'msg: ',io_msg
+          call shr_sys_abort()
+       end if
+       
+       i = i+1
+       
+       if(i<=max_sl)then
+          str_buffer(fpos:fpos) = filechar
+       else
+          call PopString(str_buffer,filechar)
+       end if
+
+       ! After the separator, there are three different types
+       
+       if(index(str_buffer,trim_tag)>0 .and. index(str_buffer,'{"[',.true.)==min(i,max_sl))then
+          found_tag = .true.
+       end if
+    end do do_findtag
+
+    ! Remember this exact file position, we will need to return if requested
+    fpos = fpos + i
+
+  end subroutine FindTagPos
 
   ! =====================================================================================
   
@@ -707,10 +748,9 @@ contains
 
     integer,parameter :: data_len = 4096
     character(len=max_sl) :: group_str
-    character(len=1) :: filechar
     logical :: found_vartag
     integer :: i,j
-    integer :: filepos0
+    integer :: filepos
     integer :: io_status
     integer :: n_vars
     character(len=256) :: io_msg
@@ -720,40 +760,10 @@ contains
     rewind(file_unit)
 
     ! -----------------------------------------------------------------------------------
-    ! Step 1: Advance the file's character pointer to the open bracket following
-    !         "parameters:"
+    ! Step 1: Advance the file read position so that the last character read
+    !         was the open bracket at the start of "parameters"
     ! -----------------------------------------------------------------------------------
-    found_vartag = .false.
-    group_str = ''
-    i=0
-    do_vartag: do while(.not.found_vartag)
-
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
-       if (io_status == IOSTAT_END) then
-          write(log_unit,*) 'encountered EOF'
-          call shr_sys_abort()
-       elseif (io_status < 0) then
-          cycle do_vartag
-       elseif (io_status>0) then
-          write(log_unit,*) 'fatal i/o error! code:', io_status
-          write(log_unit,*) 'msg: ',io_msg
-          call shr_sys_abort()
-       end if
-       
-       i=i+1
-       
-       if(i<=max_sl)then
-          group_str(i:i) = filechar
-       else
-          call PopString(group_str,filechar)
-       end if
-       if(index(group_str,'"parameters"')>0 .and. index(group_str,'{',.true.)==max_sl)then
-          found_vartag = .true.
-       end if
-    end do do_vartag
-
-    ! Remember this exact file position, we will need to return
-    filepos0 = i
+    call FindTagPos(file_unit, '"parameters"', filepos)
     
     ! -----------------------------------------------------------------------------------
     ! Step 2: Start a loop through parameters, with each one we are identifying
