@@ -90,6 +90,13 @@ module JSONParameterUtilsMod
   ! Numeric value to represent invalid values (like NaN and Null)
   ! Overridable, see procedure below
   real(r8) :: r_invalid = -1.e36_r8
+
+  ! This large string holds the file contents, minus
+  ! all non-standard characters like end-lines and such
+  ! This will be deallocated at the end of the parsing
+  ! process
+  character(len=:), allocatable :: file_buffer
+  integer                       :: nbuffer
   
   type,public :: dim_type
      character(len=max_sl) :: name                      ! Name of the dimension
@@ -193,23 +200,86 @@ contains
        if(debug) write(log_unit,*) 'Successfully opened ',trim(filename)
     end if
 
-    call CheckRogueBrackets(file_unit,filename)
-    
-    call GetDimensions(file_unit,pstruct)
+    ! Transfer text file into one large string buffer
+    call AllocFillBuffer(file_unit)
 
-    call GetParameters(file_unit,string_scr,pstruct)
-    
     close(unit=file_unit, iostat=io_status)
-    if (io_status /= 0) THEN
-       write(log_unit,*) 'ERROR: Could not close file: ', TRIM(filename)
+    if (io_status /= 0) then
+       write(log_unit,*) 'ERROR: Could not close file: ', trim(filename)
        write(log_unit,*) 'IOSTAT value: ', io_status
        call shr_sys_abort()  ! Terminate program gracefully if file cannot be opened
     else
        if(debug) write(log_unit,*) 'sucessfully closed ',trim(filename)
     end if
     
+    !call CheckRogueBrackets(file_unit,filename)
+    
+    call GetDimensions(pstruct)
+
+    call GetParameters(string_scr,pstruct)
+    
+    
+    
   end subroutine JSONRead
 
+  ! =====================================================================================
+
+  subroutine AllocFillBuffer(file_unit)
+
+    integer,intent(in) :: file_unit
+    character(len=1)   :: filechar
+    integer            :: io_status
+    character(len=256) :: io_msg
+    integer            :: i
+    
+    rewind(file_unit)
+    
+    i = 0
+    countchar: do 
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
+       if (io_status == IOSTAT_END) then
+          exit countchar
+       elseif (io_status < 0) then
+          cycle countchar
+       elseif (io_status>0) then
+          write(log_unit,*) 'fatal i/o error! code:', io_status
+          write(log_unit,*) 'msg: ',io_msg
+          call shr_sys_abort()
+       end if
+
+       ! If desired, we can put a checker here to enforce ascii characters
+       ! char_code = iachar(filechar)
+       ! if (char_code >= 0 .and. char_code <= 127) then
+       ! call  shr_sys_abort()
+       ! end if
+       
+       i = i + 1
+    end do countchar
+
+    nbuffer = i
+    allocate(character(len=nbuffer) :: file_buffer)
+
+    rewind(file_unit)
+    
+    i = 0
+    fillchar: do 
+       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
+       if (io_status == IOSTAT_END) then
+          exit fillchar
+       elseif (io_status < 0) then
+          cycle fillchar
+       elseif (io_status>0) then
+          write(log_unit,*) 'fatal i/o error! code:', io_status
+          write(log_unit,*) 'msg: ',io_msg
+          call shr_sys_abort()
+       end if
+       i = i + 1
+       file_buffer(i:i) = filechar
+       
+    end do fillchar
+    
+  end subroutine AllocFillBuffer
+  
   ! =====================================================================================
 
   subroutine CheckRogueBrackets(file_unit,filename)
@@ -261,9 +331,8 @@ contains
   
   ! =====================================================================================
   
-  subroutine GetDimensions(file_unit,pstruct)
+  subroutine GetDimensions(pstruct)
 
-    integer,intent(in)          :: file_unit
     type(params_type)           :: pstruct
 
     integer,parameter :: dimdata_len = 4096 ! We read in ALL the dimension data
@@ -278,7 +347,7 @@ contains
     logical :: found_close     ! Have we found the closing bracket?
     logical :: found_dims      !
     logical :: found_scalar
-    integer :: fcpos           ! file's character position index
+    integer :: fpos            ! file's character position index
     integer :: i               ! local character read position index
     integer :: sep_id,beg_id,end_id
     integer :: io_status
@@ -286,19 +355,20 @@ contains
     real(r8):: tmp_real
     character(len=max_sl) :: tmp_str
     character(len=256) :: io_msg
+    integer :: file_unit
 
-    ! Step 0: We start at the very beginning of the file, which
-    ! allows us to count file positions and return to those file positions
-    rewind(file_unit)
-
-    fcpos = 0   ! We have not read anything yet, set file char position to 0
     
     ! -----------------------------------------------------------------------------------
     ! Step 1: Advance the file's character pointer such that the last character
     !         the : separator for "dimensions"
     ! -----------------------------------------------------------------------------------
-    call FindTagPos(file_unit, '"dimensions"', fcpos)
+    call FindTag('"dimensions"',fpos)
 
+    ! Given the starting position fpos, find the end position
+    ! of the object
+    call GetObject(fpos,otype,epos)
+
+    
     ! -----------------------------------------------------------------------------------
     ! Step 2: Read in all the data until the closing bracket
     ! -----------------------------------------------------------------------------------
@@ -671,81 +741,69 @@ contains
     
     return
   end subroutine ReadCharVar
+
   ! ====================================================================================
 
-  subroutine FindTagPos(file_unit, tag, fpos)
+  subroutine FindTag(tag, epos, fpos)
 
-    ! This procedure finds the location in the file following the identification
-    ! of the provided tag/keyword name and the separator ":"
+    ! FORCE THIS TO HAVE A INPUT START POSITION
+    ! AND ALLOW FOR MULTIPLE KEYS, BUT ASSUME FIRST KEY
+    
+    ! This procedure finds the location in the character buffer
+    ! of the provided tag/keyword name and the separator ":".
     ! This does not tell us what type of object it is, just the
-    ! file character index, as well as advancing the file pointer.
+    ! character index position of the trailing separator.
     
     ! Arguments
-    integer, intent(inout)       :: file_unit ! fortran file unit
-    character(len=*), intent(in) :: tag       ! The keyword for this object
-    integer, intent(inout)       :: fpos      ! Character index of the file position
-                                              ! ignores end-line characters and anything
-                                              ! that does not return a 0 io_status. Must
-                                              ! provide the starting position if not called
-                                              ! immediately after rewind or a new open
+    character(len=*), intent(in)  :: tag  ! The keyword for this object
+    
+    integer, intent(out)          :: epos ! Index of the first character
+                                          ! following the separator
+                                          ! for the tag, ie the
+                                          ! end position
+    integer,optional, intent(out) :: fpos ! Index of the first character
+                                          ! in the tag
+    
+    integer :: spos     ! index of the separator in the truncated string buffer
+    integer :: tpos     ! non-optional, tag position start
+    integer :: len_tag
 
-    ! Locals
-    character(len=max_sl) :: str_buffer ! This is just some buffer space to
-                                        ! hold recently read characters. It
-                                        ! only needs to be as long as the
-                                        ! largest expected tag/keyword name
-    logical :: found_tag
-    integer :: io_status
-    integer :: i                        ! Index of how many valid chars read
-    character(len=1) :: filechar
-    character(len=256) :: io_msg
-    character(len=max_sl) :: trim_tag
+    len_tag = len(trim(tag))
+    tpos = index(file_buffer,trim(tag))
 
-    ! Trim the incoming tag of trailing whitespace
-    trim_tag = trim(tag)
+    if (tpos .ne. index(file_buffer,trim(tag),.true.)) then
+       write(log_unit,*) 'FindTagPos, tag:',trim(tag),' is non-unique?'
+       call shr_sys_abort()
+    end if
 
-    found_tag = .false.
-    str_buffer = ''
-    i          = 0
-    do_findtag: do while(.not.found_tag)
+    if (tpos==0) then
+       write(log_unit,*) 'FindTagPos, tag:',trim(tag),' not found?'
+       call shr_sys_abort()
+    end if
+    
+    ! Find the fist position of the separator, which must follow
+    ! the last index of the tag
+    spos = index(file_buffer(tpos+len_tag-1:nbuffer),':')
 
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
-       if (io_status == IOSTAT_END) then
-          write(log_unit,*) 'encountered EOF'
-          call shr_sys_abort()
-       elseif (io_status < 0) then
-          cycle do_findtag
-       elseif (io_status>0) then
-          write(log_unit,*) 'fatal i/o error! code:', io_status
-          write(log_unit,*) 'msg: ',io_msg
-          call shr_sys_abort()
-       end if
-       
-       i = i + 1
-       
-       if(i<=max_sl)then
-          str_buffer(i:i) = filechar
-       else
-          call PopString(str_buffer,filechar)
-       end if
+    if (spos==0) then
+       write(log_unit,*) 'FindTagPos, tag:',trim(tag),'no separator found?'
+       call shr_sys_abort()
+    end if
 
-       ! Once we find that string and it's separator, we are can exit
-       if(index(str_buffer,trim_tag)>0 .and. index(str_buffer,':',.true.)==min(i,max_sl))then
-          found_tag = .true.
-       end if
-       
-    end do do_findtag
+    epos = spos + tpos + len_tag - 1
 
-    ! Remember this exact file position, we will need to return if requested
-    fpos = fpos + i
+    if(present(fpos)) then
+       fpos = tpos
+    end if
 
-  end subroutine FindTagPos
-
+    return
+  end subroutine FindTag
+    
   ! =====================================================================================
   
-  subroutine GetParameters(file_unit,string_scr,pstruct)
+  subroutine GetParameters(string_scr,pstruct)
 
-    integer,intent(in)                  :: file_unit
+    integer                  :: file_unit
     character(len=max_ll), dimension(*), intent(inout) :: string_scr ! Internal scratch space
     type(params_type), intent(inout)                   :: pstruct
 
@@ -760,7 +818,7 @@ contains
     
     ! Step 0: We start at the very beginning of the file, which
     ! allows us to count file positions and return to those file positions
-    rewind(file_unit)
+    !!!rewind(file_unit)
 
     fcpos = 0
     
@@ -768,7 +826,7 @@ contains
     ! Step 1: Advance the file read position so that the last character read
     !         was the open bracket at the start of "parameters"
     ! -----------------------------------------------------------------------------------
-    call FindTagPos(file_unit, '"parameters"', fcpos)
+    !!!call FindTag('"parameters"',fpos,epos)
     
     ! -----------------------------------------------------------------------------------
     ! Step 2: Start a loop through parameters, with each one we are identifying
