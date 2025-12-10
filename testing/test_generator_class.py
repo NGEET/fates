@@ -1,24 +1,35 @@
 """Module for generating empty test classes"""
 
-import os
 import re
+from pathlib import Path
 from abc import ABC, abstractmethod
 from file_system import FileSystem
 from utils import snake_to_camel
 
-_TEST_SUB_DIR = os.path.dirname(os.path.abspath(__file__))
-_UNIT_TESTING_DIR = "unit_testing"
-_FUNCTIONAL_TESTING_DIR = "functional_testing"
-_TEMPLATE_DIR = os.path.join(_TEST_SUB_DIR, "templates")
+# root directory of this test package
+_TEST_ROOT = Path(__file__).resolve().parent
+
+# top-level test directories
+_UNIT_TESTING_DIR = _TEST_ROOT / "unit_testing"
+_FUNCTIONAL_TESTING_DIR = _TEST_ROOT / "functional_testing"
+
+# template directory
+_TEMPLATE_DIR = _TEST_ROOT / "templates"
+
+# template file names
 _UNIT_CMAKE_TEMPLATE = "cmake_utest_template.txt"
 _FUNCTIONAL_CMAKE_TEMPLATE = "cmake_ftest_template.txt"
 _PFUNIT_TEMPLATE = "pfunit_template.txt"
 _FUNCTIONAL_TEST_TEMPLATE = "fortran_test_template.txt"
 _CLASS_TEMPLATE = "test_class_template.txt"
-_TEST_CMAKELISTS = os.path.join(_TEST_SUB_DIR, "CMakeLists.txt")
-_UNIT_TESTS_CONFIG = os.path.join(_TEST_SUB_DIR, "unit_tests.cfg")
-_FUNCTIONAL_TESTS_CONFIG = os.path.join(_TEST_SUB_DIR, "functional_tests.cfg")
-_LOAD_CLASS_FILE = os.path.join(_TEST_SUB_DIR, "load_functional_tests.py")
+
+# configuration files
+_TEST_CMAKELISTS = _TEST_ROOT / "CMakeLists.txt"
+_UNIT_TESTS_CONFIG = _TEST_ROOT / "unit_tests.cfg"
+_FUNCTIONAL_TESTS_CONFIG = _TEST_ROOT / "functional_tests.cfg"
+
+# dynamic import loader
+_LOAD_CLASS_FILE = _TEST_ROOT / "load_functional_tests.py"
 
 
 class GenerateTestClass(ABC):
@@ -51,18 +62,18 @@ class GenerateTestClass(ABC):
 
     @property
     @abstractmethod
-    def config_file(self) -> str:
+    def config_file(self) -> Path:
         """Path to the config file that should be modified during test creation."""
         raise NotImplementedError
 
     @abstractmethod
-    def generate_test_dir(self) -> str:
+    def generate_test_dir(self) -> Path:
         """Generates a test directory path (must be implemented by subclasses)."""
         raise NotImplementedError
 
     @abstractmethod
     def generate_test_build_dir(self) -> str:
-        """Generates a test build directory path (must be implemented by subclasses)."""
+        """Generates a test build directory name (must be implemented by subclasses)."""
         raise NotImplementedError
 
     @abstractmethod
@@ -172,10 +183,21 @@ class GenerateTestClass(ABC):
             str: template string
         """
 
-        template_path = os.path.join(_TEMPLATE_DIR, template_name)
+        template_path = _TEMPLATE_DIR / template_name
         if not self.fs.exists(template_path):
             raise FileNotFoundError(f"ERROR: Template '{template_path}' not found.")
         return self.fs.read_text(template_path)
+    
+    def render_template(self, template_name: str, out_path: Path, **kwargs):
+        """Write text to a file based on an input template and keyword arguments
+
+        Args:
+            template_name (str): name of template
+            out_path (Path): path to file to write
+        """
+        template = self.load_template(template_name)
+        rendered = template.format(**kwargs)
+        self.fs.write_file(out_path, rendered)
 
     def setup_test(self):
         """Runs all setup steps: creates directory, updates CMake, and config."""
@@ -195,26 +217,26 @@ class GenerateUnitTest(GenerateTestClass):
         return "## Unit tests"
 
     @property
-    def config_file(self) -> str:
+    def config_file(self) -> Path:
         return _UNIT_TESTS_CONFIG
 
     # ---------------------------------------------------------
     # Directory + filename generation
     # ---------------------------------------------------------
 
-    def generate_test_dir(self) -> str:
-        """Returns the directyr path where this unit test will be created
+    def generate_test_dir(self) -> Path:
+        """Returns the directory path where this unit test will be created
 
         Returns:
-            str: test directory path
+            Path: test directory path
         """
         test_name = f"{self.test_name}_test"  # append "_test"
         if self.sub_dir:
-            return os.path.join(_UNIT_TESTING_DIR, self.sub_dir, test_name)
-        return os.path.join(_UNIT_TESTING_DIR, test_name)
+            return _UNIT_TESTING_DIR / self.sub_dir / test_name
+        return _UNIT_TESTING_DIR / test_name
 
     def generate_test_build_dir(self) -> str:
-        """Return the build-directory name used in add_subdirectory().
+        """Return the build-directory name
 
         Returns:
             str: test build directory path
@@ -241,15 +263,9 @@ class GenerateUnitTest(GenerateTestClass):
 
     def create_cmake_file(self):
         """Create the test's CMakeLists.txt."""
-        cmake_template = self.load_template(_UNIT_CMAKE_TEMPLATE)
-        cmake_path = os.path.join(self.test_dir, "CMakeLists.txt")
-
-        rendered = cmake_template.format(
-            file_name=self.file_name,
-            module_name=self.module_name,
-        )
-
-        self.fs.write_file(cmake_path, rendered)
+        cmake_path = self.test_dir / "CMakeLists.txt"
+        self.render_template(_UNIT_CMAKE_TEMPLATE, cmake_path, file_name=self.file_name, 
+                             module_name=self.module_name)
         print(f"Created {cmake_path}.")
 
     def append_config_lines(self, lines: list[str]) -> list[str]:
@@ -268,14 +284,9 @@ class GenerateUnitTest(GenerateTestClass):
 
     def create_template_program(self):
         """Generate the .pf unit test boilerplate file."""
-        pfunit_template = self.load_template(_PFUNIT_TEMPLATE)
-        pfunit_path = os.path.join(self.test_dir, self.file_name)
-
-        rendered = pfunit_template.format(module_name=self.module_name)
-
-        self.fs.write_file(pfunit_path, rendered)
+        pfunit_path = self.test_dir / self.file_name
+        self.render_template(_PFUNIT_TEMPLATE, pfunit_path, module_name=self.module_name)
         print(f"Added template test files in {self.test_dir}.")
-
 
 class GenerateFunctionalTest(GenerateTestClass):
     """Concrete generator for functional test boilerplate"""
@@ -285,10 +296,10 @@ class GenerateFunctionalTest(GenerateTestClass):
         return "## Functional tests"
 
     @property
-    def config_file(self) -> str:
+    def config_file(self) -> Path:
         return _FUNCTIONAL_TESTS_CONFIG
 
-    def __init__(self, test_name, sub_dir=None):
+    def __init__(self, test_name: str, sub_dir: str | None = None):
         super().__init__(test_name, sub_dir)
         self.executable_name = f"{self.module_name}_exe"
 
@@ -296,15 +307,15 @@ class GenerateFunctionalTest(GenerateTestClass):
     # Directory + filename generation
     # ---------------------------------------------------------
 
-    def generate_test_dir(self) -> str:
+    def generate_test_dir(self) -> Path:
         """Return the functional test directory path.
 
         Returns:
-            str: test directory path
+            Path: test directory path
         """
         if self.sub_dir:
-            return os.path.join(_FUNCTIONAL_TESTING_DIR, self.sub_dir, self.test_name)
-        return os.path.join(_FUNCTIONAL_TESTING_DIR, self.test_name)
+            return _FUNCTIONAL_TESTING_DIR / self.sub_dir / self.test_name
+        return _FUNCTIONAL_TESTING_DIR / self.test_name
 
     def generate_file_name(self) -> str:
         """Return the filename for the functional test's Fortran program.
@@ -334,15 +345,10 @@ class GenerateFunctionalTest(GenerateTestClass):
 
     def create_cmake_file(self):
         """Creates the test's CMakeLists.txt file for the test"""
-        cmake_template = self.load_template(_FUNCTIONAL_CMAKE_TEMPLATE)
-        cmake_path = os.path.join(self.test_dir, "CMakeLists.txt")
-
-        rendered = cmake_template.format(
-            file_name=self.file_name,
-            executable_name=self.executable_name,
-        )
-
-        self.fs.write_file(cmake_path, rendered)
+        cmake_path = self.test_dir / "CMakeLists.txt"
+        self.render_template(_FUNCTIONAL_CMAKE_TEMPLATE, cmake_path,
+                             file_name=self.file_name,
+                             executable_name=self.executable_name)
         print(f"Created {cmake_path}.")
 
     def append_config_lines(self, lines: list[str]) -> list[str]:
@@ -370,19 +376,14 @@ class GenerateFunctionalTest(GenerateTestClass):
         """
 
         # create a fortran template file
-        functional_test_template = self.load_template(_FUNCTIONAL_TEST_TEMPLATE)
-        test_path = os.path.join(self.test_dir, self.file_name)
-        
-        rendered = functional_test_template.format(module_name=self.module_name)
-        self.fs.write_file(test_path, rendered)
+        test_path = self.test_dir / self.file_name
+        self.render_template(_FUNCTIONAL_TEST_TEMPLATE, test_path,
+                             module_name=self.module_name)
         
         # create the python template file
-        class_template = self.load_template(_CLASS_TEMPLATE)
-        class_path = os.path.join(self.test_dir, f"{self.test_name}.py")
-
-        rendered = class_template.format(module_name=self.module_name)
-
-        self.fs.write_file(class_path, rendered)
+        class_path = self.test_dir / f"{self.test_name}.py"
+        self.render_template(_CLASS_TEMPLATE, class_path, module_name=self.module_name)
+        
         print(f"Added template test files in {self.test_dir}.")
 
         # add import to class loader file
