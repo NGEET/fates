@@ -1621,7 +1621,6 @@ contains
 
 
         ! Growth respiration
-        !        if (parteh_mode .eq. fates_c_only) then
         if ( ( prt_params%grperc(ipft) < 0.0_r8) .or. &
              ( prt_params%grperc(ipft) > 1.0_r8 ) ) then
            write(fates_log(),*) "---~---"
@@ -1632,18 +1631,6 @@ contains
            write(fates_log(),*) ''
            nerror = nerror + 1
         end if
-!        elseif(parteh_mode .eq. fates_cn) then
-!           if ( ( any(prt_params%grperc_organ(ipft,:) < 0.0_r8)) .or. &
-!                ( any(prt_params%grperc_organ(ipft,:) >= 1.0_r8)) ) then
-!              write(fates_log(),*) "---~---"
-!              write(fates_log(),*) ' PFT#: ',ipft
-!              write(fates_log(),*) ' Growth respiration must be between 0 and 1: ',prt_params%grperc_organ(ipft,:)
-!              write(fates_log(),*) "---~---"
-!              write(fates_log(),*) ''
-!              write(fates_log(),*) ''
-!              nerror = nerror + 1
-!           end if
-!        end if
 
         select case (hlm_parteh_mode)
         case (fates_c_only, fates_cn)
