@@ -81,11 +81,13 @@ module JSONParameterUtilsMod
                                                ! be needed to encapulate all the data
                                                ! inside a variable's {}
 
-  integer, parameter :: too_many_iter = 1000   ! Fail-safe for loops with logical termination
+  integer, parameter :: too_many_iter = 10000  ! Fail-safe for loops with logical termination
   integer, parameter :: count_phase = 1        ! We read parameters twice so that we can allocate
   integer, parameter :: fill_phase  = 2        ! and then fill 
 
   integer            :: log_unit = -1
+
+  integer, parameter :: ascii_wspace_set(5) = (/9,10,12,13,32/)
   
   ! Numeric value to represent invalid values (like NaN and Null)
   ! Overridable, see procedure below
@@ -95,8 +97,11 @@ module JSONParameterUtilsMod
   ! all non-standard characters like end-lines and such
   ! This will be deallocated at the end of the parsing
   ! process
-  character(len=:), allocatable :: file_buffer
-  integer                       :: nbuffer
+  character(len=:), allocatable  :: file_buffer
+  integer                        :: nbuffer
+  character(len=vardata_max_len) :: obj_buffer
+
+
   
   type,public :: dim_type
      character(len=max_sl) :: name                      ! Name of the dimension
@@ -342,7 +347,7 @@ contains
                                             ! where the start of the "dimensions" group is
     character(len=dimdata_len) :: dimdata_str ! string that holds all dimension text
     character(len=1) :: filechar
-    character(len=max_sl) :: symb_str
+    character(len=max_sl) :: tagname
     character(len=max_sl) :: data_str
     logical :: found_close     ! Have we found the closing bracket?
     logical :: found_dims      !
@@ -362,34 +367,117 @@ contains
     ! Step 1: Advance the file's character pointer such that the last character
     !         the : separator for "dimensions"
     ! -----------------------------------------------------------------------------------
-    call FindTag('"dimensions"',fpos)
-
+    tagname = '"dimensions"'
+    call FindTag(1, tagname, fpos, objpos)
+    
     ! Given the starting position fpos, find the end position
     ! of the object
-    call GetObject(fpos,otype,epos)
-
+    call GetNextObject(objpos,otype,endpos)
     
-    ! -----------------------------------------------------------------------------------
-    ! Step 2: Read in all the data until the closing bracket
-    ! -----------------------------------------------------------------------------------
-    found_close = .false.
-    dimdata_str = ''
-    i=0
-    do_close: do while(.not.found_close)
 
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
-       if (io_status == IOSTAT_END) then
-          write(log_unit,*) 'encountered EOF'
-          call shr_sys_abort()
-       elseif (io_status < 0) then
-          cycle do_close
-       elseif (io_status>0) then
-          write(log_unit,*) 'fatal i/o error! code:', io_status
-          write(log_unit,*) 'msg: ',io_msg
-          call shr_sys_abort()
-       end if
+  end subroutine GetDimensions
 
-       i=i+1
+  ! ======================================================================================
+  
+  subroutine GetNextObject(begpos,obj_type,endpos)
+
+      ! --------------------------------------------------------------------
+      ! Provide a position index in the file string buffer
+      ! and this will transfer all of the text
+      ! associated with the object into the obj_buffer.
+      ! If it is complex object with curly brackets, it will return
+      ! everything between them.
+      ! If it is a single double quoted string, it will
+      ! return the contents of the string with the double quotes
+      ! If it is a single value, it will return that value as a string
+      ! If it is an array (or nested) it will have the array brackets
+      ! included.
+      ! It will also return the index position FOLLOWING the terminator
+      !
+
+      ! First, lets find the first tag/keyword name that follows this
+      ! file string buffer position, record the name, and then 
+
+      obj_buffer = repeat(' ',vardata_max_len)
+
+      open_cb  = .false.     ! Are we inside a curly bracket?
+      open_dq  = .false.     ! Are we inside a double quote?
+      open_sb1 = .false.     ! Are we inside the first square bracket?
+      open_sb2 = .false.     ! Are we inside the second square bracket?
+      ignore_wspace = .true.
+      
+      obj_type = scalar_type ! We assume scalar unless we encounter brackets
+      
+      i=1
+      fpos = begpos
+      search_obj: do
+
+         ! We ignore whitepspace until we encounter a
+         ! non whitespace character
+         if (ignore_wspace) then
+            char_code = iachar(file_buffer(fpos:fpos))
+            if ( any(ascii_wspace_set == char_code) ) then
+               fpos = fpos + 1
+               cycle search_obj
+            else
+               ignore_wspace = .false.
+            end if
+         end if
+         
+         if (scan(file_buffer(fpos:fpos),'{')>0) then
+            obj_type = gen_type
+            open_cb = .true.
+            fpos = fpos + 1
+            cycle search_obj
+         end if
+
+         
+
+         if (open_cb)then
+
+            
+            if(scan(file_buffer(fpos:fpos),'}')>0)then
+               fpos = fpos + 1
+               exit search_obj
+            else
+               obj_buffer(i:i) = file_buffer(fpos:fpos)
+               i = i + 1
+            end if
+            
+         else
+
+            obj_buffer(i:i) = file_buffer(fpos:fpos)
+            i = i + 1
+            
+            ! Array stuff
+            if(open_sb1) then
+               if(open_sb2) then
+                  if (scan(file_buffer(fpos:fpos),']')>0) then
+                     open_sb2 = .false.
+                  end if
+               else
+                  if (scan(file_buffer(fpos:fpos),'[')>0) then
+                     open_sb2 = .true.
+                  end if
+                  if (scan(file_buffer(fpos:fpos),']')>0) then
+                     exit search_obj
+                  end if
+               end if
+            else
+               if (scan(file_buffer(fpos:fpos),'[')>0) then
+                  obj_type = arr_type
+                  open_sb1 = .true.
+               end if
+               if (scan(file_buffer(fpos:fpos),',')>0) then
+                  exit search_obj
+               end if
+            end if            
+         end if
+         
+         fpos = fpos + 1
+         
+      end do search_obj
+         
        
        if(i<=dimdata_len)then
           dimdata_str(i:i) = filechar
@@ -744,57 +832,86 @@ contains
 
   ! ====================================================================================
 
-  subroutine FindTag(tag, epos, fpos)
+  subroutine FindTag(pos0, tag, fpos, epos)
 
-    ! FORCE THIS TO HAVE A INPUT START POSITION
-    ! AND ALLOW FOR MULTIPLE KEYS, BUT ASSUME FIRST KEY
-    
     ! This procedure finds the location in the character buffer
     ! of the provided tag/keyword name and the separator ":".
     ! This does not tell us what type of object it is, just the
     ! character index position of the trailing separator.
     
     ! Arguments
-    character(len=*), intent(in)  :: tag  ! The keyword for this object
+    integer, intent(in)           :: pos0 ! Index to start with, find
+                                          ! the first key/tag after this
+    
+    character(len=max_sl), intent(inout)  :: tag  ! The keyword for this object
     
     integer, intent(out)          :: epos ! Index of the first character
                                           ! following the separator
                                           ! for the tag, ie the
-                                          ! end position
-    integer,optional, intent(out) :: fpos ! Index of the first character
+                                          ! start position of it's object
+    integer, intent(out)          :: fpos ! Index of the first character
                                           ! in the tag
     
     integer :: spos     ! index of the separator in the truncated string buffer
-    integer :: tpos     ! non-optional, tag position start
+    integer :: ipos
+    integer :: i
+    logical :: open_dq
     integer :: len_tag
 
+    
+    if(index(trim(tag),'search-next-tag')>0)then
+       
+       tag  = repeat(' ',max_sl)
+       ipos = pos0
+       i    = 1
+       open_dq = .false.
+       search_tag: do
+          if (open_dq) then
+             i = i + 1
+             tag(i:i) = file_buffer(ipos:ipos)
+             if (scan(file_buffer(ipos:ipos),'"')>0) then
+                exit search_tag
+             end if
+          end if
+          if (scan(file_buffer(ipos:ipos),'"')>0) then
+             fpos     = ipos
+             tag(i:i) = file_buffer(ipos:ipos)
+             open_dq  = .true.
+          end if
+          ipos = ipos + 1
+          if(ipos>(vardata_max_len+pos0)) then
+             write(log_unit,*) 'FindTag, could not find next tag from position: ',pos0
+             call shr_sys_abort()
+          end if
+       end do search_tag
+    else
+       
+       fpos = index(file_buffer(pos0:nbuffer),trim(tag))
+       if (fpos .ne. index(file_buffer(pos0:nbuffer),trim(tag),.true.)) then
+          write(log_unit,*) 'FindTagPos, tag:',trim(tag),' is non-unique?'
+          call shr_sys_abort()
+       end if
+       if (fpos==0) then
+          write(log_unit,*) 'FindTagPos, tag:',trim(tag),' not found?'
+          call shr_sys_abort()
+       end if
+       fpos = fpos + pos0 - 1
+       
+    end if
+    
     len_tag = len(trim(tag))
-    tpos = index(file_buffer,trim(tag))
-
-    if (tpos .ne. index(file_buffer,trim(tag),.true.)) then
-       write(log_unit,*) 'FindTagPos, tag:',trim(tag),' is non-unique?'
-       call shr_sys_abort()
-    end if
-
-    if (tpos==0) then
-       write(log_unit,*) 'FindTagPos, tag:',trim(tag),' not found?'
-       call shr_sys_abort()
-    end if
     
     ! Find the fist position of the separator, which must follow
     ! the last index of the tag
-    spos = index(file_buffer(tpos+len_tag-1:nbuffer),':')
+    spos = index(file_buffer(fpos+len_tag-1:nbuffer),':')
 
     if (spos==0) then
        write(log_unit,*) 'FindTagPos, tag:',trim(tag),'no separator found?'
        call shr_sys_abort()
     end if
 
-    epos = spos + tpos + len_tag - 1
+    epos = spos + fpos + len_tag - 1
 
-    if(present(fpos)) then
-       fpos = tpos
-    end if
 
     return
   end subroutine FindTag
