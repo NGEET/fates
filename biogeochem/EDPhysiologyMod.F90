@@ -576,16 +576,16 @@ contains
                litt%seed_germ_decay(pft)
 
          ! RW DEBUG BLOCK START 
-         write(fates_log(),*) '=== PreDisturbanceIntegrateLitter DIAGNOSTICS ==='
-         write(fates_log(),*) 'Model Day:', hlm_model_day
-         write(fates_log(),*) 'PFT:', pft
-         write(fates_log(),*) 'seed_germ (before update):', litt%seed_germ(pft) - litt%seed_germ_in(pft) + &
-            litt%seed_germ_decay(pft)
-         write(fates_log(),*) 'seed_germ_in:', litt%seed_germ_in(pft)
-         write(fates_log(),*) 'seed_germ_decay:', litt%seed_germ_decay(pft)
-         write(fates_log(),*) 'seed_germ (after update):', litt%seed_germ(pft)
-         write(fates_log(),*) 'Net change:', litt%seed_germ_in(pft) - litt%seed_germ_decay(pft)
-         write(fates_log(),*) 'Decay exceeds pool?:', litt%seed_germ(pft) < 0.0_r8
+         ! write(fates_log(),*) '=== PreDisturbanceIntegrateLitter DIAGNOSTICS ==='
+         ! write(fates_log(),*) 'Model Day:', hlm_model_day
+         ! write(fates_log(),*) 'PFT:', pft
+         ! write(fates_log(),*) 'seed_germ (before update):', litt%seed_germ(pft) - litt%seed_germ_in(pft) + &
+         !   litt%seed_germ_decay(pft)
+         ! write(fates_log(),*) 'seed_germ_in:', litt%seed_germ_in(pft)
+         !write(fates_log(),*) 'seed_germ_decay:', litt%seed_germ_decay(pft)
+         ! write(fates_log(),*) 'seed_germ (after update):', litt%seed_germ(pft)
+         ! write(fates_log(),*) 'Net change:', litt%seed_germ_in(pft) - litt%seed_germ_decay(pft)
+         ! write(fates_log(),*) 'Decay exceeds pool?:', litt%seed_germ(pft) < 0.0_r8
          ! RW DEBUG BLOCK END 
 
        enddo
@@ -2363,21 +2363,21 @@ contains
                * years_per_day)
 
           ! RW DEBUG BLOCK START 
-            write(fates_log(),*) '===SEED DECAY DIADNOSTICS===='
-            write(fates_log(),*) 'Model Day = ', hlm_model_day
-            write(fates_log(),*) 'PFT:', pft 
-            write(fates_log(),*) 'Seedling par (raw):', currentPatch%sdlng_mort_par%GetMean()
-            write(fates_log(),*) 'Seedling par (converted):', seedling_layer_par
-            write(fates_log(),*) 'Seedling mdds:', currentPatch%sdlng_mdd(pft)%p%GetMean()     
-            write(fates_log(),*) 'Seedling mdd crit:', EDPftvarcon_inst%seedling_mdd_crit(pft) 
-            write(fates_log(),*) 'Seedling light mort rate:', seedling_light_mort_rate
-            write(fates_log(),*) 'Seedling h2o mort rate:', seedling_h2o_mort_rate
-            write(fates_log(),*) 'Seed_germ pool (before decay):', litt%seed_germ(pft)
-            write(fates_log(),*) 'Seed_germ_decay (calculated):', litt%seed_germ_decay(pft)            
-            write(fates_log(),*) 'Background_seedling_mort:', EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day
-            write(fates_log(),*) 'Total mort rate:', seedling_light_mort_rate + seedling_h2o_mort_rate + &
-               (EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day)
-            write(fates_log(),*) 'Does seed decay exceeds pool?:', litt%seed_germ_decay(pft) > litt%seed_germ(pft)
+          !  write(fates_log(),*) '===SEED DECAY DIADNOSTICS===='
+          !  write(fates_log(),*) 'Model Day = ', hlm_model_day
+          !  write(fates_log(),*) 'PFT:', pft 
+          !  write(fates_log(),*) 'Seedling par (raw):', currentPatch%sdlng_mort_par%GetMean()
+          !  write(fates_log(),*) 'Seedling par (converted):', seedling_layer_par
+          !  write(fates_log(),*) 'Seedling mdds:', currentPatch%sdlng_mdd(pft)%p%GetMean()     
+          !  write(fates_log(),*) 'Seedling mdd crit:', EDPftvarcon_inst%seedling_mdd_crit(pft) 
+          !  write(fates_log(),*) 'Seedling light mort rate:', seedling_light_mort_rate
+          !  write(fates_log(),*) 'Seedling h2o mort rate:', seedling_h2o_mort_rate
+          !  write(fates_log(),*) 'Seed_germ pool (before decay):', litt%seed_germ(pft)
+          !  write(fates_log(),*) 'Seed_germ_decay (calculated):', litt%seed_germ_decay(pft)            
+          !  write(fates_log(),*) 'Background_seedling_mort:', EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day
+          !  write(fates_log(),*) 'Total mort rate:', seedling_light_mort_rate + seedling_h2o_mort_rate + &
+          !     (EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day)
+          !  write(fates_log(),*) 'Does seed decay exceeds pool?:', litt%seed_germ_decay(pft) > litt%seed_germ(pft)
          ! RW DEBUG BLOCK END
 
 
@@ -2856,14 +2856,14 @@ contains
                      (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
                      
                    ! RW DEBUG BLOCK START 
-                     write(fates_log(),*) '=== recruitment remove mass DIAGNOSTICS ==='
-                     write(fates_log(),*) 'cohort_n:', cohort_n
-                     write(fates_log(),*) 'currentPatch%area:', currentPatch%area
-                     write(fates_log(),*) 'cohort_n / area:', cohort_n / currentPatch%area
-                     write(fates_log(),*) 'm demand', (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
-                     write(fates_log(),*) 'm removed from seed_germ', cohort_n / currentPatch%area *   &
-                     (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
-                     write(fates_log(),*) 'Is seed_germ negative?:', currentPatch%litter(el)%seed_germ(ft) < 0.0_r8
+                   !  write(fates_log(),*) '=== recruitment remove mass DIAGNOSTICS ==='
+                   !  write(fates_log(),*) 'cohort_n:', cohort_n
+                   !  write(fates_log(),*) 'currentPatch%area:', currentPatch%area
+                   !  write(fates_log(),*) 'cohort_n / area:', cohort_n / currentPatch%area
+                   !  write(fates_log(),*) 'm demand', (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
+                   !  write(fates_log(),*) 'm removed from seed_germ', cohort_n / currentPatch%area *   &
+                   !  (m_struct + m_leaf + m_fnrt + m_sapw + m_store + m_repro)
+                   !  write(fates_log(),*) 'Is seed_germ negative?:', currentPatch%litter(el)%seed_germ(ft) < 0.0_r8
                    ! RW DEBUG BLOCK END 
 
                   end if
