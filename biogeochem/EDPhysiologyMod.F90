@@ -2353,31 +2353,42 @@ contains
              seedling_h2o_mort_rate = EDPftvarcon_inst%seedling_h2o_mort_a(pft) * seedling_mdds**2 + &
                   EDPftvarcon_inst%seedling_h2o_mort_b(pft) * seedling_mdds + &
                   EDPftvarcon_inst%seedling_h2o_mort_c(pft)
+             ! RW: capping h20 mortality rate at 1
+             seedling_h2o_mort_rate = min(1.0_r8, seedling_h2o_mort_rate)
           end if ! mdd threshold check
           
           ! Step 3. Sum modes of mortality (including background mortality) and send dead seedlings
           ! to litter        
-          litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) + &
-               (litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
-               (litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
-               * years_per_day)
+          ! litt%seed_germ_decay(pft) = (litt%seed_germ(pft) * seedling_light_mort_rate) + &
+          !     (litt%seed_germ(pft) * seedling_h2o_mort_rate) + &
+          !     (litt%seed_germ(pft) * EDPftvarcon_inst%background_seedling_mort(pft) &
+          !     * years_per_day)
+
+          ! RW: capping total mortality rate at 1
+           litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
+               min(1.0_r8, seedling_light_mort_rate + &
+                           seedling_h2o_mort_rate + &
+                           (EDPftvarcon_inst%background_seedling_mort(pft) * &
+                           years_per_day))
+           
+
 
           ! RW DEBUG BLOCK START 
-          !  write(fates_log(),*) '===SEED DECAY DIADNOSTICS===='
-          !  write(fates_log(),*) 'Model Day = ', hlm_model_day
-          !  write(fates_log(),*) 'PFT:', pft 
-          !  write(fates_log(),*) 'Seedling par (raw):', currentPatch%sdlng_mort_par%GetMean()
-          !  write(fates_log(),*) 'Seedling par (converted):', seedling_layer_par
-          !  write(fates_log(),*) 'Seedling mdds:', currentPatch%sdlng_mdd(pft)%p%GetMean()     
-          !  write(fates_log(),*) 'Seedling mdd crit:', EDPftvarcon_inst%seedling_mdd_crit(pft) 
-          !  write(fates_log(),*) 'Seedling light mort rate:', seedling_light_mort_rate
-          !  write(fates_log(),*) 'Seedling h2o mort rate:', seedling_h2o_mort_rate
-          !  write(fates_log(),*) 'Seed_germ pool (before decay):', litt%seed_germ(pft)
-          !  write(fates_log(),*) 'Seed_germ_decay (calculated):', litt%seed_germ_decay(pft)            
-          !  write(fates_log(),*) 'Background_seedling_mort:', EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day
-          !  write(fates_log(),*) 'Total mort rate:', seedling_light_mort_rate + seedling_h2o_mort_rate + &
-          !     (EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day)
-          !  write(fates_log(),*) 'Does seed decay exceeds pool?:', litt%seed_germ_decay(pft) > litt%seed_germ(pft)
+            write(fates_log(),*) '===SEED DECAY DIADNOSTICS===='
+            write(fates_log(),*) 'Model Day = ', hlm_model_day
+            write(fates_log(),*) 'PFT:', pft 
+            write(fates_log(),*) 'Seedling par (raw):', currentPatch%sdlng_mort_par%GetMean()
+            write(fates_log(),*) 'Seedling par (converted):', seedling_layer_par
+            write(fates_log(),*) 'Seedling mdds:', currentPatch%sdlng_mdd(pft)%p%GetMean()     
+            write(fates_log(),*) 'Seedling mdd crit:', EDPftvarcon_inst%seedling_mdd_crit(pft) 
+            write(fates_log(),*) 'Seedling light mort rate:', seedling_light_mort_rate
+            write(fates_log(),*) 'Seedling h2o mort rate:', seedling_h2o_mort_rate
+            write(fates_log(),*) 'Seed_germ pool (before decay):', litt%seed_germ(pft)
+            write(fates_log(),*) 'Seed_germ_decay (calculated):', litt%seed_germ_decay(pft)            
+            write(fates_log(),*) 'Background_seedling_mort:', EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day
+            write(fates_log(),*) 'Total mort rate:', seedling_light_mort_rate + seedling_h2o_mort_rate + &
+               (EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day)
+            write(fates_log(),*) 'Does seed decay exceeds pool?:', litt%seed_germ_decay(pft) > litt%seed_germ(pft)
          ! RW DEBUG BLOCK END
 
 
