@@ -914,15 +914,15 @@ contains
          if (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
             p_uptake_mode = prescribed_p_uptake
          else
-            if (trim(hlm_name) == 'CLM') then
-               write(fates_log(), *) 'hlm_name cannot be CLM while prescribed_puptake == 0, because the CLM does not do prognostic phosphorus. Exiting. '
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
             p_uptake_mode = coupled_p_uptake
          end if
          
          if (hlm_parteh_mode == fates_cn) then
 
+            if (p_uptake_mode == coupled_p_uptake .and. trim(hlm_name) == 'CLM') then
+               write(fates_log(), *) 'CLM-FATES must have prescribed phosphorus when hlm_parteh_mode == fates_cn. To select prescribed phosphorus, set fates_cnp_prescribed_puptake > 1 (recommended 10) in the fates parameter file. Exiting. '
+               call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
             if((p_uptake_mode==coupled_p_uptake) .or. (n_uptake_mode==coupled_n_uptake))then
                max_comp_per_site = fates_maxElementsPerSite
                fates_np_comp_scaling = coupled_np_comp_scaling
