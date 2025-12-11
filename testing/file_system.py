@@ -1,10 +1,13 @@
-"""Module for filesystem abstraction for test generators"""
+"""Module for filesystem abstraction for I/O"""
 
 from pathlib import Path
 
 
 class FileSystem:
-    """Minimal filesystem abstractions for test generators"""
+    """Minimal filesystem abstractions for I/O"""
+
+    def __init__(self, root: Path | str | None = None):
+        self.root = Path(root) if root else Path(__file__).resolve().parent
 
     def exists(self, path: Path) -> bool:
         """Returns whether an input path exists
@@ -66,8 +69,7 @@ class FileSystem:
         Returns:
             list[str]: lines of file
         """
-        with path.open("r", encoding="utf-8") as f:
-            return f.readlines()
+        return path.read_text(encoding="utf-8").splitlines(keepends=True)
 
     def write_lines(self, path: Path, content: list[str]):
         """Writes lines to a file
@@ -77,4 +79,4 @@ class FileSystem:
             content (list[str]): content to write
         """
         with path.open("w", encoding="utf-8") as f:
-            return f.writelines(content)
+            f.writelines(content)
