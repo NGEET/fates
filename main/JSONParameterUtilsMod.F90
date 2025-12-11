@@ -105,7 +105,7 @@ module JSONParameterUtilsMod
   integer                        :: nbuffer
   character(len=vardata_max_len) :: obj_buffer
 
-
+  character(len=max_sl),parameter :: search_next_tag = 'search-next-tag'
   
   type,public :: dim_type
      character(len=max_sl) :: name                      ! Name of the dimension
@@ -513,6 +513,7 @@ contains
     integer :: otype
     integer :: tag_pos            ! tag's starting position
     integer :: obj_pos            ! object's first position
+    integer :: dim0_pos           ! position at start of dimensions section
     integer :: next_pos
     logical :: is_terminal
     integer :: end_pos
@@ -531,31 +532,23 @@ contains
     !         the : separator for "dimensions"
     ! -----------------------------------------------------------------------------------
     tagname = '"dimensions"'
-    call FindTag(1, tagname, tag_pos, obj_pos)
-    
-    ! Given the starting position fpos, find the end position
-    ! of the dimensions object
-    call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+    call FindTag(1, tagname, tag_pos, dim0_pos)
 
-    print*,"is terminal: ",is_terminal
-    print*,"otype: ",otype
-    print*,file_buffer(obj_pos:next_pos-1)
-    print*,""
-    print*,trim(obj_buffer)
-    stop
+    ! -----------------------------------------------------------------------------------
+    ! Step 2: Count the number of dimensions
+    ! -----------------------------------------------------------------------------------
+    n_dims = 0
+    next_pos = dim0_pos
+    is_terminal = .false.
+    do_dimcount: do while(.not.is_terminal)
+       tagname = search_next_tag
+       call FindTag(next_pos, tagname, tag_pos, obj_pos)
+       call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+       n_dims = n_dims+1
+       if(debug) write(log_unit,*) trim(tagname),trim(obj_buffer)
+    end do do_dimcount
 
-    do_close: do
-       
-       if(i<=dimdata_len)then
-          dimdata_str(i:i) = filechar
-       else
-          write(log_unit,*) 'Ran out of room reading in dimension data, increase dimdata_len'
-          call shr_sys_abort()
-       end if
-       if(index(dimdata_str,'}')>0)then
-          found_close = .true.
-       end if
-    end do do_close
+    allocate(pstruct%dimensions(n_dims))
 
     ! -----------------------------------------------------------------------------------
     ! Step 3: Parse the dimension data string for dimension data
@@ -563,89 +556,40 @@ contains
     !         Also, scan for the "scalar" parameter
     !         !!! Just count for now
     ! -----------------------------------------------------------------------------------
-
-    found_scalar = .false.
-    if( index(trim(dimdata_str(1:dimdata_len)),'"scalar"')>0 ) then
-       found_scalar = .true.
-    end if
-    
     i = 0
-    beg_id = 1
-    found_dims = .false.
-    do while(.not.found_dims)
-
-       sep_id = index(dimdata_str(beg_id:dimdata_len),':')
-       if(sep_id==0)then
-          write(log_unit,*)'Expected more dimensions in the parameter file...'
-          call shr_sys_abort()
-       end if
-
+    next_pos = dim0_pos
+    is_terminal = .false.
+    do_dimget: do while(.not.is_terminal)
+       tagname = search_next_tag
+       call FindTag(next_pos, tagname, tag_pos, obj_pos)
+       call GetNextObject(obj_pos,otype,next_pos,is_terminal)
        i = i + 1
-       
-       end_id = index(dimdata_str(beg_id:dimdata_len),',')
-       if(end_id==0)then
-          end_id = index(dimdata_str(beg_id:dimdata_len),'}')
-          if(end_id==0)then
-             write(log_unit,*)'Trouble parsing dim data, expecting closing bracket'
-             call shr_sys_abort()
-          end if
-          found_dims = .true.
-       end if
-
-       beg_id = beg_id + end_id
-       
-    end do
-    
-    ! -----------------------------------------------------------------------------------
-    ! Step 4: Allocate dimensions and fill the name and sizes
-    !         add in the scalar dimension if it was not already defined
-    ! -----------------------------------------------------------------------------------
-    n_dims = i
-
-    if(found_scalar) then
-       allocate(pstruct%dimensions(n_dims))
-    else
-       allocate(pstruct%dimensions(n_dims+1))
-    end if
-    
-    beg_id = 1
-    do i = 1,n_dims
-       sep_id = index(dimdata_str(beg_id:dimdata_len),':') + beg_id-1 ! Should be left most...
-       end_id = index(dimdata_str(beg_id:dimdata_len),',')
-       if(end_id==0)then
-          end_id = index(dimdata_str(beg_id:dimdata_len),'}')
-       end if
-       end_id = end_id + beg_id -1
-       symb_str = dimdata_str(beg_id:sep_id-1)
-       data_str = dimdata_str(sep_id+1:end_id-1)
-       call StringToStringOrReal(data_str,tmp_str,tmp_real,is_num=.true.)
-       pstruct%dimensions(i)%name = trim(CleanSymbol(symb_str)) !CleanSymbol left adjusts...
+       pstruct%dimensions(i)%name = trim(CleanSymbol(tagname))
+       call StringToStringOrReal(trim(obj_buffer),tmp_str,tmp_real,is_num=.true.)
        pstruct%dimensions(i)%size = int(tmp_real)
-       if(debug)write(log_unit,*) trim(pstruct%dimensions(i)%name),":",pstruct%dimensions(i)%size
-       beg_id = end_id+1
-    end do
+    end do do_dimget
 
-    if(.not.found_scalar)then
-       pstruct%dimensions(n_dims+1)%name = 'scalar'
-       pstruct%dimensions(n_dims+1)%size = 1
+    if(debug)then
+       write(log_unit,*)'--- Dimensions ---'
+       do i = 1,n_dims
+          write(log_unit,*),trim(pstruct%dimensions(i)%name),pstruct%dimensions(i)%size
+       end do
+       write(log_unit,*)''
     end if
-    
     
     return
   end subroutine GetDimensions
 
   ! =====================================================================================
 
-  subroutine ReadCharVar(file_unit,phase,var_num,string_scr,found_vartag,pstruct)
+  subroutine ReadCharVar(pstruct,iparm,param_name,string_scr)
 
-    integer,intent(in)          :: file_unit
-    integer,intent(in)          :: phase
-    integer,intent(inout)       :: var_num
-    character(len=max_ll), dimension(*) :: string_scr ! Internal scratch space
-    logical,intent(out)         :: found_vartag
-    type(params_type),optional   :: pstruct
-    type(param_type), pointer :: param
+    type(params_type)     :: pstruct
+    integer               :: iparm
+    character(len=max_sl) :: param_name
+    character(len=max_ll), dimension(*) :: string_scr
     
+    type(param_type), pointer :: param
     character(len=max_sl) :: group_str
     character(len=vardata_max_len) :: vardata_str
     character(len=1) :: filechar
@@ -661,124 +605,39 @@ contains
     character(len=max_sl) :: tmp_str
     integer :: dimsizes(2)
     character(len=256) :: io_msg
-    
-    ! -----------------------------------------------------------------------------------
-    ! Step 1: Advance the file's character pointer to the open bracket following
-    !         the name of the variable":", and save the symbol name
-    ! -----------------------------------------------------------------------------------
-    found_vartag = .false.
-    group_str = ''
-    i=0
-    do_vartag: do while(.not.found_vartag)
 
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
-       if (io_status == IOSTAT_END) then
-          write(log_unit,*) 'encountered EOF'
-          call shr_sys_abort()
-       elseif (io_status < 0) then
-          cycle do_vartag
-       elseif (io_status>0) then
-          write(log_unit,*) 'fatal i/o error! code:', io_status
-          write(log_unit,*) 'msg: ',io_msg
-          call shr_sys_abort()
-       end if
 
-       i=i+1
-       
-       if(i<=max_sl)then
-          group_str(i:i) = filechar
-       else
-          call PopString(group_str,filechar)
-       end if
-       if(index(group_str,':')>0 .and. index(group_str,'{',.true.)==min(i,max_sl))then
-          found_vartag = .true.
-       elseif(index(group_str,'}')>0) then
-          ! We found a closing bracket before a variable was defined
-          ! this means we are out of parameters
-          return
-       end if
-       if(i>too_many_iter)then
-          write(log_unit,*)'failed to find variable string or group closing bracket'
-          call shr_sys_abort()
-       end if
-    end do do_vartag
-
-    sep_id = index(group_str,':')
-    symb_str = trim(CleanSymbol(group_str(1:sep_id-1)))
-    
-    ! ---------------------------------------------------------------------------------
-    ! Step 2: Advance through the file until the next closing bracket. Save
-    !         EVERYTHING in a large string.
-    ! ---------------------------------------------------------------------------------
-
-    found_close = .false.
-    vardata_str = ''
-    i=0
-    do_close: do while(.not.found_close)
-
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
-       if (io_status == IOSTAT_END) then
-          write(log_unit,*) 'encountered EOF'
-          call shr_sys_abort()
-       elseif (io_status < 0) then
-          cycle do_close
-       elseif (io_status>0) then
-          write(log_unit,*) 'fatal i/o error! code:', io_status
-          write(log_unit,*) 'msg: ',io_msg
-          call shr_sys_abort()
-       end if
-
-       i=i+1
-       
-       if(i<=vardata_max_len)then
-          vardata_str(i:i) = filechar
-       else
-          write(log_unit,*) 'Ran out of room reading in variable data'
-          write(log_unit,*) 'Increase the size of integer constant: JSONParameterUtilsMod:vardata_max_len'
-          call shr_sys_abort()
-       end if
-       if(index(vardata_str,'{')>0)then
-          write(log_unit,*)'An open bracket was found nested inside the current parameter:',trim(symb_str)
-          write(log_unit,*)'This is an invalid file format for the parameter file'
-          call shr_sys_abort()
-       end if
-       if(index(vardata_str,'}')>0)then
-          found_close = .true.
-       end if
-    end do do_close
-    vardata_len = i
-    
-    if(phase==count_phase)then
-       var_num = var_num + 1
-       ! We've advance the file pointer to the closing bracket
-       ! if we are just counting, we are done
-       return
-    end if
-
-    ! ---------------------------------------------------------------------------------
-    ! Step 3: Read through that string. Fill data structures.
-    ! ---------------------------------------------------------------------------------
-
-    param => pstruct%parameters(var_num)
-    param%name = trim(adjustl(symb_str))
+    param => pstruct%parameters(iparm)
+    param%name = trim(CleanSymbol(param_name))
     param%access_count = 0
 
-    if(debug) write(log_unit,*) 'Parameter: ',trim(param%name)
+    ! Transfer the dimensions to the data structure
+    ! ---------------------------------------------------------------
+
+    print*,'----',trim(obj_buffer),'-----'
     
-    call GetMetaString(vardata_str,'"dims"',beg_id,end_id)
-    call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
+    call GetMetaString(obj_buffer,'"dims"',beg_id,end_id)
+    call GetStringVec(obj_buffer(beg_id:end_id),string_scr,n_vec_out)
     allocate(param%dim_names(n_vec_out))
     dimsizes(:)=-1
     param%ndims = n_vec_out
     do i = 1,n_vec_out
        param%dim_names(i) = trim(CleanSymbol(string_scr(i)))
-       dimsizes(i) = pstruct%GetDimSizeFromName(trim(param%dim_names(i)))
+       if(index(trim(param%dim_names(i)),'scalar')>0)then
+          dimsizes(i) = 1
+       else
+          dimsizes(i) = pstruct%GetDimSizeFromName(trim(param%dim_names(i)))
+       end if
     end do
     call ClearStringScratch(string_scr,n_vec_out)
 
+    print*,dimsizes(1:n_vec_out)
     
-    call GetMetaString(vardata_str,'"dtype"',beg_id,end_id)
-    call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
+    ! Transfer the datatype to the data structure
+    ! ---------------------------------------------------------------
+    
+    call GetMetaString(obj_buffer,'"dtype"',beg_id,end_id)
+    call GetStringVec(obj_buffer(beg_id:end_id),string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%dtype = -999
     if(trim(CleanSymbol(data_str))=='float') then
@@ -818,21 +677,32 @@ contains
        call shr_sys_abort()
     end if
     call ClearStringScratch(string_scr,n_vec_out)
+
+
+    print*,"dtype: ",param%dtype
     
-    call GetMetaString(vardata_str,'"long_name"',beg_id,end_id)
-    call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
+    
+    call GetMetaString(obj_buffer,'"long_name"',beg_id,end_id)
+    call GetStringVec(obj_buffer(beg_id:end_id),string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%long_name = trim(CleanSymbol(data_str))
     call ClearStringScratch(string_scr,n_vec_out)
+
+    print*,"long: ",trim(param%long_name)
     
-    call GetMetaString(vardata_str,'"units"',beg_id,end_id)
-    call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
+    call GetMetaString(obj_buffer,'"units"',beg_id,end_id)
+    call GetStringVec(obj_buffer(beg_id:end_id),string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%units = trim(CleanSymbol(data_str))
     call ClearStringScratch(string_scr,n_vec_out)
+
+    print*,"units: ",trim(param%units)
     
-    call GetMetaString(vardata_str,'"data"',beg_id,end_id)
-    call GetStringVec(vardata_str(beg_id:end_id),string_scr,n_vec_out)
+    call GetMetaString(obj_buffer,'"data"',beg_id,end_id)
+
+    print*,obj_buffer(beg_id:end_id)
+    
+    call GetStringVec(obj_buffer(beg_id:end_id),string_scr,n_vec_out)
     select case(param%dtype)
     case(r_scalar_type)
        call StringToStringOrReal(string_scr(1),tmp_str,tmp_real,is_num=.true.)
@@ -893,6 +763,9 @@ contains
        end do
     end select
     call ClearStringScratch(string_scr,n_vec_out)
+
+
+ 
     
     return
   end subroutine ReadCharVar
@@ -991,6 +864,9 @@ contains
     character(len=max_ll), dimension(*), intent(inout) :: string_scr ! Internal scratch space
     type(params_type), intent(inout)                   :: pstruct
 
+    character(len=max_sl) :: tagname
+    integer               :: tag_pos
+    integer               :: param0_pos
     integer,parameter :: data_len = 4096
     character(len=max_sl) :: group_str
     logical :: found_vartag
@@ -999,38 +875,49 @@ contains
     integer :: io_status
     integer :: n_vars
     character(len=256) :: io_msg
-    
-    ! Step 0: We start at the very beginning of the file, which
-    ! allows us to count file positions and return to those file positions
-    !!!rewind(file_unit)
+    integer :: otype
+    integer :: next_pos
+    integer :: n_params
+    integer :: obj_pos
+    logical :: is_terminal
 
-    fcpos = 0
-    
     ! -----------------------------------------------------------------------------------
-    ! Step 1: Advance the file read position so that the last character read
-    !         was the open bracket at the start of "parameters"
+    ! Step 1: Advance the file's character pointer such that the last character
+    !         the : separator for "parameters"
     ! -----------------------------------------------------------------------------------
-    !!!call FindTag('"parameters"',fpos,epos)
-    
-    ! -----------------------------------------------------------------------------------
-    ! Step 2: Start a loop through parameters, with each one we are identifying
-    ! the { and } brackets and saving that in a string.
-    ! -----------------------------------------------------------------------------------
-    found_vartag = .true.
-    n_vars=0
-    do while(found_vartag)
-       call ReadCharVar(file_unit,count_phase,n_vars,string_scr,found_vartag)
-    end do
+    tagname = '"parameters"'
+    call FindTag(1, tagname, tag_pos, param0_pos)
 
-    if(debug) write(log_unit,*) 'Found ',n_vars,' in the "parameters" group'
-    allocate(pstruct%parameters(n_vars))
-
-    call GotoPos(file_unit,fcpos)
+    print*,file_buffer(tag_pos:param0_pos)
+    print*,""
     
-    do i=1,n_vars
-       j = i
-       call ReadCharVar(file_unit,fill_phase,j,string_scr,found_vartag,pstruct)
-    end do
+    n_params = 0
+    next_pos = param0_pos
+    is_terminal = .false.
+    do_paramcount: do while(.not.is_terminal)
+       tagname = search_next_tag
+       call FindTag(next_pos, tagname, tag_pos, obj_pos)
+       call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+       n_params = n_params + 1
+    end do do_paramcount
+
+    if(debug) write(log_unit,*) 'Found ',n_params,' in the "parameters" group'
+    allocate(pstruct%parameters(n_params))
+
+    i = 0
+    next_pos = param0_pos
+    is_terminal = .false.
+    do_paramget: do while(.not.is_terminal)
+       tagname = search_next_tag
+       call FindTag(next_pos, tagname, tag_pos, obj_pos)
+       call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+       i = i + 1
+       if(debug)write(log_unit,*) "-------------------"
+       if(debug)write(log_unit,*) trim(tagname),"    ",trim(obj_buffer)
+       ! Fill in the parameter data structures using the object buffer
+       call ReadCharVar(pstruct,i,tagname,string_scr)
+    end do do_paramget
+    
 
     return
   end subroutine GetParameters
