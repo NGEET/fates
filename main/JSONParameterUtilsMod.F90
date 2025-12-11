@@ -88,6 +88,10 @@ module JSONParameterUtilsMod
   integer            :: log_unit = -1
 
   integer, parameter :: ascii_wspace_set(5) = (/9,10,12,13,32/)
+
+  integer, parameter :: scalar_obj = 1
+  integer, parameter :: array_obj  = 2
+  integer, parameter :: nested_obj = 3
   
   ! Numeric value to represent invalid values (like NaN and Null)
   ! Overridable, see procedure below
@@ -236,9 +240,10 @@ contains
     integer            :: io_status
     character(len=256) :: io_msg
     integer            :: i
+    logical            :: inside_dq ! Inside a double quote?
     
     rewind(file_unit)
-    
+    inside_dq = .false.
     i = 0
     countchar: do 
        read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
@@ -252,13 +257,13 @@ contains
           call shr_sys_abort()
        end if
 
-       ! If desired, we can put a checker here to enforce ascii characters
-       ! char_code = iachar(filechar)
-       ! if (char_code >= 0 .and. char_code <= 127) then
-       ! call  shr_sys_abort()
-       ! end if
-       
-       i = i + 1
+       ! Omit white-space that is not inside a double quote
+       if(scan(filechar,'"')>0)then
+          inside_dq = .not.inside_dq
+       end if
+       if(.not.(.not.inside_dq .and. any(ascii_wspace_set == iachar(filechar)))) then
+          i = i + 1
+       end if
     end do countchar
 
     nbuffer = i
@@ -278,8 +283,14 @@ contains
           write(log_unit,*) 'msg: ',io_msg
           call shr_sys_abort()
        end if
-       i = i + 1
-       file_buffer(i:i) = filechar
+       ! Omit white-space that is not inside a double quote
+       if(scan(filechar,'"')>0)then
+          inside_dq = .not.inside_dq
+       end if
+       if(.not.(.not.inside_dq .and. any(ascii_wspace_set == iachar(filechar)))) then
+          i = i + 1
+          file_buffer(i:i) = filechar
+       end if
        
     end do fillchar
     
@@ -333,7 +344,153 @@ contains
     
     return
   end subroutine CheckRogueBrackets
+
+  ! ======================================================================================
   
+  subroutine GetNextObject(beg_pos,obj_type,next_pos,is_terminal)
+    
+    ! --------------------------------------------------------------------
+    ! Provide a position index in the file string buffer
+    ! and this will transfer all of the text
+    ! associated with the object into the obj_buffer.
+    ! If it is complex object with curly brackets, it will return
+    ! everything between them.
+    ! If it is a single double quoted string, it will
+    ! return the contents of the string with the double quotes
+    ! If it is a single value, it will return that value as a string
+    ! If it is an array (or nested) it will have the array brackets
+    ! included.
+    ! It will also return the index position FOLLOWING the terminator
+    ! --------------------------------------------------------------------
+
+    integer :: beg_pos     ! input, where to start
+    integer :: next_pos    ! Index position following this object's terminator
+                           ! If this is a nested object, position after the "}"
+                           ! If this is the an array or single value, it
+                           ! follows the trailing comma. If this is the
+                           ! last single value in the nest, its the
+                           ! position of the parent's "}"
+    integer :: obj_type    ! This is either a "scalar","array" or "nested"
+    logical :: is_terminal ! Is this the last object in it's nest?
+                           ! ie is the character after this a "}"
+    ! locals
+    logical :: open_cb     ! Are we inside a curly bracket?
+    logical :: open_dq     ! Are we inside double quotes?
+    logical :: open_sb1    ! Are we inside outer square brackets?
+    logical :: open_sb2    ! Are we insdie inner square brackets?
+    integer :: i           ! object buffer position
+    integer :: fpos        ! file string buffer position
+    character(len=1) :: filechar ! A single character
+    
+    ! Clear out the string buffer
+    obj_buffer = repeat(' ',vardata_max_len)
+    
+    open_cb  = .false.
+    open_dq  = .false.
+    open_sb1 = .false.
+    open_sb2 = .false.
+    is_terminal = .false.
+
+    ! We assume scalar unless we encounter brackets
+    obj_type = scalar_obj
+    
+    i=1
+    fpos = beg_pos
+    search_obj: do
+
+       filechar = file_buffer(fpos:fpos)
+       
+       if(scan(filechar,'"')>0)then
+          open_dq = .not.open_dq
+       end if
+
+       if_doublequote: if(open_dq) then
+
+          obj_buffer(i:i) = filechar
+          i = i + 1
+          fpos = fpos + 1
+          
+       else
+          
+          if (scan(file_buffer(fpos:fpos),'{')>0) then
+             obj_type = nested_obj
+             open_cb = .true.
+             fpos = fpos + 1
+             cycle search_obj
+          end if
+       
+          if_curlybrack: if (open_cb)then
+          
+             if(scan(filechar,'}')>0)then
+                fpos = fpos + 1
+                if (scan(file_buffer(fpos:fpos),'}')>0) then
+                   is_terminal = .true.
+                end if
+                exit search_obj
+             else
+                obj_buffer(i:i) = filechar
+                i = i + 1
+                fpos = fpos + 1
+             end if
+             
+          else
+             
+             obj_buffer(i:i) = filechar
+             i = i + 1
+             fpos = fpos + 1
+             
+             ! Array stuff, if the hard brackets
+             ! are open, then we cannot terminate yet
+             if_squarebrack: if(open_sb1) then
+                if(open_sb2) then
+                   if (scan(filechar,']')>0) then
+                      open_sb2 = .false.
+                   end if
+                else
+                   if (scan(filechar,'[')>0) then
+                      open_sb2 = .true.
+                   end if
+                   if (scan(filechar,']')>0) then
+                      if (scan(file_buffer(fpos:fpos),'}')>0) then
+                         is_terminal = .true.
+                      end if
+                      exit search_obj
+                   end if
+                end if
+             else
+                if (scan(filechar,'[')>0) then
+                   obj_type = array_obj
+                   open_sb1 = .true.
+                end if
+                ! Its possible that this object is the last
+                ! nested object, so it will be either terminated
+                ! by a comma or a curly bracket from it's parent
+                if (scan(file_buffer(fpos:fpos),',')>0) then
+                   fpos = fpos + 1
+                   exit search_obj
+                end if
+                if (scan(file_buffer(fpos:fpos),'}')>0) then
+                   fpos = fpos + 1
+                   is_terminal = .true.
+                   exit search_obj
+                end if
+                
+             end if if_squarebrack
+          end if if_curlybrack
+       end if if_doublequote
+
+       if (i>vardata_max_len)then
+          write(log_unit,*) 'GetNextObject could not close the object within the buffer space.'
+          call shr_sys_abort()
+       end if
+         
+    end do search_obj
+
+    next_pos = fpos
+      
+    return
+  end subroutine GetNextObject
+    
   ! =====================================================================================
   
   subroutine GetDimensions(pstruct)
@@ -348,11 +505,17 @@ contains
     character(len=dimdata_len) :: dimdata_str ! string that holds all dimension text
     character(len=1) :: filechar
     character(len=max_sl) :: tagname
+    character(len=max_sl) :: symb_str
     character(len=max_sl) :: data_str
     logical :: found_close     ! Have we found the closing bracket?
     logical :: found_dims      !
     logical :: found_scalar
-    integer :: fpos            ! file's character position index
+    integer :: otype
+    integer :: tag_pos            ! tag's starting position
+    integer :: obj_pos            ! object's first position
+    integer :: next_pos
+    logical :: is_terminal
+    integer :: end_pos
     integer :: i               ! local character read position index
     integer :: sep_id,beg_id,end_id
     integer :: io_status
@@ -361,123 +524,27 @@ contains
     character(len=max_sl) :: tmp_str
     character(len=256) :: io_msg
     integer :: file_unit
-
+    
     
     ! -----------------------------------------------------------------------------------
     ! Step 1: Advance the file's character pointer such that the last character
     !         the : separator for "dimensions"
     ! -----------------------------------------------------------------------------------
     tagname = '"dimensions"'
-    call FindTag(1, tagname, fpos, objpos)
+    call FindTag(1, tagname, tag_pos, obj_pos)
     
     ! Given the starting position fpos, find the end position
-    ! of the object
-    call GetNextObject(objpos,otype,endpos)
-    
+    ! of the dimensions object
+    call GetNextObject(obj_pos,otype,next_pos,is_terminal)
 
-  end subroutine GetDimensions
+    print*,"is terminal: ",is_terminal
+    print*,"otype: ",otype
+    print*,file_buffer(obj_pos:next_pos-1)
+    print*,""
+    print*,trim(obj_buffer)
+    stop
 
-  ! ======================================================================================
-  
-  subroutine GetNextObject(begpos,obj_type,endpos)
-
-      ! --------------------------------------------------------------------
-      ! Provide a position index in the file string buffer
-      ! and this will transfer all of the text
-      ! associated with the object into the obj_buffer.
-      ! If it is complex object with curly brackets, it will return
-      ! everything between them.
-      ! If it is a single double quoted string, it will
-      ! return the contents of the string with the double quotes
-      ! If it is a single value, it will return that value as a string
-      ! If it is an array (or nested) it will have the array brackets
-      ! included.
-      ! It will also return the index position FOLLOWING the terminator
-      !
-
-      ! First, lets find the first tag/keyword name that follows this
-      ! file string buffer position, record the name, and then 
-
-      obj_buffer = repeat(' ',vardata_max_len)
-
-      open_cb  = .false.     ! Are we inside a curly bracket?
-      open_dq  = .false.     ! Are we inside a double quote?
-      open_sb1 = .false.     ! Are we inside the first square bracket?
-      open_sb2 = .false.     ! Are we inside the second square bracket?
-      ignore_wspace = .true.
-      
-      obj_type = scalar_type ! We assume scalar unless we encounter brackets
-      
-      i=1
-      fpos = begpos
-      search_obj: do
-
-         ! We ignore whitepspace until we encounter a
-         ! non whitespace character
-         if (ignore_wspace) then
-            char_code = iachar(file_buffer(fpos:fpos))
-            if ( any(ascii_wspace_set == char_code) ) then
-               fpos = fpos + 1
-               cycle search_obj
-            else
-               ignore_wspace = .false.
-            end if
-         end if
-         
-         if (scan(file_buffer(fpos:fpos),'{')>0) then
-            obj_type = gen_type
-            open_cb = .true.
-            fpos = fpos + 1
-            cycle search_obj
-         end if
-
-         
-
-         if (open_cb)then
-
-            
-            if(scan(file_buffer(fpos:fpos),'}')>0)then
-               fpos = fpos + 1
-               exit search_obj
-            else
-               obj_buffer(i:i) = file_buffer(fpos:fpos)
-               i = i + 1
-            end if
-            
-         else
-
-            obj_buffer(i:i) = file_buffer(fpos:fpos)
-            i = i + 1
-            
-            ! Array stuff
-            if(open_sb1) then
-               if(open_sb2) then
-                  if (scan(file_buffer(fpos:fpos),']')>0) then
-                     open_sb2 = .false.
-                  end if
-               else
-                  if (scan(file_buffer(fpos:fpos),'[')>0) then
-                     open_sb2 = .true.
-                  end if
-                  if (scan(file_buffer(fpos:fpos),']')>0) then
-                     exit search_obj
-                  end if
-               end if
-            else
-               if (scan(file_buffer(fpos:fpos),'[')>0) then
-                  obj_type = arr_type
-                  open_sb1 = .true.
-               end if
-               if (scan(file_buffer(fpos:fpos),',')>0) then
-                  exit search_obj
-               end if
-            end if            
-         end if
-         
-         fpos = fpos + 1
-         
-      end do search_obj
-         
+    do_close: do
        
        if(i<=dimdata_len)then
           dimdata_str(i:i) = filechar
