@@ -846,12 +846,12 @@ contains
 
   subroutine GetStringVec(string_in,string_vec_out,n_vec_out)
 
-    ! This routine parses a string, does some cleaning of extra charachters
+    ! This routine parses a string, does some cleaning of extra characters
     ! and generally uses commas as separators to fill in a vector of
     ! cleaned strings. It is assumed that the string passed in contains
     ! the data, not the symbol.
     !
-    ! Essentially this is everything in a JSON file after a ":"
+    ! We typically use this to parse data following the separator ":"
     ! If its a vector, it probably looks like this:  [0, 1, 2, 5, 10, 20, 50],
     ! If its a scalar, it probably looks like this:  5,
     ! It should also parse vectors of length 1 just fine...
@@ -861,69 +861,75 @@ contains
     character(len=max_ll), dimension(*),intent(inout) :: string_vec_out 
     integer,intent(out)                               :: n_vec_out
 
-    !character(len=2)                                :: unwanted_chars  = (/!#/)
-    integer :: i,j,k,l
+    integer :: i,k,l
     integer :: iv    ! index of vector start
     integer :: ivz   ! index of vector end
     logical :: has_brackets
+    logical :: open_dq
+    integer :: len_string
     
     ! Determine if this is a vector or not
     ! (ie iv=0 is scalar, iv>0 is vector)
     ! Take the right most (in case nested brackets)
-    
-    iv = index(trim(string_in),'[')
-    if(iv>0) then
-       has_brackets = .true.
+
+    len_string = len(trim(string_in))
+    open_dq = .false.
+    has_brackets = .false.
+    do i = 1,len_string
+       if(scan(string_in(i:i),'"')>0)then
+          open_dq=.not.open_dq
+       end if
+       if(.not.open_dq)then
+          if(.not.has_brackets)then
+             has_brackets = scan(string_in(i:i),"[")>0
+          end if
+       end if
+    end do
+
+    if(has_brackets)then
        ivz = index(trim(string_in),']',.true.) ! pos of last closing bracket
        if(ivz==0)then
           write(log_unit,*)'no closing bracket when one was opened?'
           call shr_sys_abort()
        end if
+       iv = index(trim(string_in),'[')
     else
-       iv = 1
-       has_brackets = .false.
+       iv  = 1
        ivz = len(trim(string_in))
     end if
-
-       
+    
     k = 0 ! Counter for the cleaned string position
     l = 1 ! Counter for the output vector
     
     ! Loop through every character of the original string
 
     do_str_scan: do i = iv, ivz
-
-       ! We are done parsing if we hit one of two conditions..
-       ! 1) We are in vector mode and we encounter the end bracket
-       ! 2) We are not in vector mode (no opening bracket) and we encounter a comma
-       if(has_brackets .and. i==ivz) exit do_str_scan
-       if(.not.has_brackets .and. index(string_in(i:i),',')>0) exit do_str_scan
-
-       ! If we encounter a comma, we go to the next index
-       ! and cycle
-       if(index(string_in(i:i),",")>0) then
+       
+       ! If we hit a comma, we either finish our scan
+       ! because that was the last character, unless this
+       ! is an array, then we update our index and cycle
+       if(scan(string_in(i:i),',')>0) then
           if(k==0)then
              write(log_unit,*) 'Encountered comma before data in string read, aborting'
              call shr_sys_abort()
           end if
-          l = l + 1
-          k = 0
-          cycle do_str_scan
-       else
-          
-          ! SCAN returns the position of the *first* character from the 
-          ! set (unwanted_chars) that is present in the string.
-          ! If it returns 0, the character is NOT unwanted.
-          !j = scan(string_in(i:i),'!#&^[]')
-          j = scan(string_in(i:i),'[]')
-          
-          if (j == 0) then
-             ! This is a character we want to keep
-             k = k + 1
-             ! Append the character to the cleaned string
-             string_vec_out(l)(k:k) = string_in(i:i)
+          if(has_brackets)then
+             l = l + 1
+             k = 0
+             cycle do_str_scan
+          else
+             exit do_str_scan
           end if
-          
+       end if
+       
+       ! Otherwise, we save anything other than a bracket character
+       ! into our string array
+       
+       if (scan(string_in(i:i),'[]') == 0) then
+          ! This is a character we want to keep
+          k = k + 1
+          ! Append the character to the cleaned string
+          string_vec_out(l)(k:k) = string_in(i:i)
        end if
        
     end do do_str_scan
