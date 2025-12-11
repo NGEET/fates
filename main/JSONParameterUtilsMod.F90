@@ -540,14 +540,11 @@ contains
     param%name = trim(CleanSymbol(param_name))
     param%access_count = 0
 
-    ! Transfer the dimensions to the data structure
-    ! ---------------------------------------------------------------
 
     tag = '"dims"'
     call FindTag(obj_pos0,tag, tag_pos, obj_pos)
     call GetNextObject(obj_pos,otype,next_pos,is_terminal)
     call GetStringVec(obj_buffer,string_scr,n_vec_out)
-    
     allocate(param%dim_names(n_vec_out))
     dimsizes(:)=-1
     param%ndims = n_vec_out
@@ -561,8 +558,7 @@ contains
     end do
     call ClearStringScratch(string_scr,n_vec_out)
 
-    ! Transfer the datatype to the data structure
-    ! ---------------------------------------------------------------
+
     tag = '"dtype"'
     call FindTag(obj_pos0,tag, tag_pos, obj_pos)
     call GetNextObject(obj_pos,otype,next_pos,is_terminal)
@@ -720,10 +716,10 @@ contains
                                           ! in the tag
     
     integer :: spos     ! index of the separator in the truncated string buffer
-    integer :: ipos
+    integer :: ipos     ! current index
     integer :: i
-    logical :: open_dq
-    integer :: len_tag
+    logical :: open_dq  ! Are double quotes currently open?
+    integer :: len_tag  ! length of the trimmed string
 
     
     if(index(trim(tag),trim(search_next_tag))>0)then
@@ -778,7 +774,6 @@ contains
     end if
 
     epos = spos + fpos + len_tag - 1
-
 
     return
   end subroutine FindTag
@@ -902,26 +897,34 @@ contains
     l = 1 ! Counter for the output vector
     
     ! Loop through every character of the original string
-
+    open_dq = .false.
     do_str_scan: do i = iv, ivz
+
+       ! commas and brackets inside quotes
+       ! should not be allowed to act as separators
+       if(scan(string_in(i:i),'"')>0)then
+          open_dq=.not.open_dq
+       end if
        
        ! If we hit a comma, we either finish our scan
        ! because that was the last character, unless this
        ! is an array, then we update our index and cycle
-       if(scan(string_in(i:i),',')>0) then
-          if(k==0)then
-             write(log_unit,*) 'Encountered comma before data in string read, aborting'
-             call shr_sys_abort()
-          end if
-          if(has_brackets)then
-             l = l + 1
-             k = 0
-             cycle do_str_scan
-          else
-             exit do_str_scan
+       if(.not.open_dq) then
+          if(scan(string_in(i:i),',')>0) then
+             if(k==0)then
+                write(log_unit,*) 'Encountered comma before data in string read, aborting'
+                call shr_sys_abort()
+             end if
+             if(has_brackets)then
+                l = l + 1
+                k = 0
+                cycle do_str_scan
+             else
+                exit do_str_scan
+             end if
           end if
        end if
-       
+          
        ! Otherwise, we save anything other than a bracket character
        ! into our string array
        
@@ -944,35 +947,34 @@ contains
 
     character(len=*) string_in
     character(len=max_sl) :: string_out
-    integer :: i,j,k,jj
+    integer :: i,k
+    logical :: inside_dq  ! inside a double quote
     
     ! Flush the string
-    string_out = ''
+    string_out = repeat(' ',max_sl)
     string_in  = adjustl(string_in)
-    
     k=0
+    inside_dq = .false.
     do i = 1, len(trim(string_in))
 
-       ! SCAN returns the position of the *first* character from the 
-       ! set (unwanted_chars) that is present in the string.
-       ! If it returns 0, the character is NOT unwanted.
-       !j = scan(string_in(i:i),'!#&^"@/><}{')
-       j = scan(string_in(i:i),"'")
-       jj = scan(string_in(i:i),'"')
-       if (j == 0 .and. jj==0 ) then
-          ! This is a character we want to keep
-          k = k + 1
-          ! Append the character to the cleaned string
-          string_out(k:k) = string_in(i:i)
+       if( scan(string_in(i:i),'"')>0 ) then
+          inside_dq = .not.inside_dq
+       else
+          if( scan(string_in(i:i),',')==0 .or. inside_dq ) then
+             ! This is a character we want to keep
+             k = k + 1
+             ! Append the character to the cleaned string
+             string_out(k:k) = string_in(i:i)
+          end if
        end if
 
-       ! remove trailing commas
-       j = scan(string_out,',',.true.)  ! right most occurance...
-       if(j==len(trim(string_out)) .and. j>0)then
-          string_out(j:j)=''
-       end if
-       
     end do
+
+    if(inside_dq)then
+       write(log_unit,*) 'Tried to clean a symbol, but it did not close double quotes?'
+       call shr_sys_abort()
+    end if
+    
     
   end function CleanSymbol
 
@@ -983,7 +985,7 @@ contains
     integer,intent(in) :: n_vec_in
     integer :: i
     do i = 1,n_vec_in
-       string_scr(i) = ''
+       string_scr(i) = repeat(' ',max_ll)
     end do
     return
   end subroutine ClearStringScratch
@@ -1008,7 +1010,8 @@ contains
     integer  :: io_status
     real(r8) :: tmp_real
     logical  :: is_invalid
-    
+
+    ! This gets rid of things like double quotes
     tmp_str = trim(CleanSymbol(string_in))
 
     tmp_lc_str = tmp_str
