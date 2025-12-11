@@ -82,8 +82,6 @@ module JSONParameterUtilsMod
                                                ! inside a variable's {}
 
   integer, parameter :: too_many_iter = 10000  ! Fail-safe for loops with logical termination
-  integer, parameter :: count_phase = 1        ! We read parameters twice so that we can allocate
-  integer, parameter :: fill_phase  = 2        ! and then fill 
 
   integer            :: log_unit = -1
 
@@ -105,6 +103,7 @@ module JSONParameterUtilsMod
   integer                        :: nbuffer
   character(len=vardata_max_len) :: obj_buffer
 
+  
   character(len=max_sl),parameter :: search_next_tag = 'search-next-tag'
   
   type,public :: dim_type
@@ -123,21 +122,21 @@ module JSONParameterUtilsMod
                                                         ! associated with this variable
      integer               :: ndims                     ! Number of dimensions,
                                                         ! same as size (dim_names)
-     integer                         :: access_count    ! This is used to count how many
+     integer               :: access_count              ! This is used to count how many
                                                         ! times this parameter has been read
                                                         ! on initialization, expecte number
                                                         ! of times is 1, helps for debugging
 
      ! --- Data holding structures. Each parameter will only use ONE of these ----
-     real(r8)                        :: r_data_scalar
-     real(r8), allocatable           :: r_data_1d(:)
-     real(r8), allocatable           :: r_data_2d(:,:)
-     integer                         :: i_data_scalar
-     integer,  allocatable           :: i_data_1d(:)
-     integer,  allocatable           :: i_data_2d(:,:)
-     character(len=512)              :: c_data
-     character(len=512), allocatable :: c_data_1d(:)
-     character(len=512), allocatable :: c_data_2d(:,:)
+     real(r8)                           :: r_data_scalar
+     real(r8), allocatable              :: r_data_1d(:)
+     real(r8), allocatable              :: r_data_2d(:,:)
+     integer                            :: i_data_scalar
+     integer,  allocatable              :: i_data_1d(:)
+     integer,  allocatable              :: i_data_2d(:,:)
+     character(len=max_sl)              :: c_data
+     character(len=max_sl), allocatable :: c_data_1d(:)
+     character(len=max_sl), allocatable :: c_data_2d(:,:)
      
   end type param_type
 
@@ -221,14 +220,11 @@ contains
        if(debug) write(log_unit,*) 'sucessfully closed ',trim(filename)
     end if
     
-    !call CheckRogueBrackets(file_unit,filename)
-    
     call GetDimensions(pstruct)
 
     call GetParameters(string_scr,pstruct)
     
-    
-    
+    return
   end subroutine JSONRead
 
   ! =====================================================================================
@@ -296,55 +292,6 @@ contains
     
   end subroutine AllocFillBuffer
   
-  ! =====================================================================================
-
-  subroutine CheckRogueBrackets(file_unit,filename)
-
-    ! Go through the file and simply make sure that
-    ! { and } brackets are not found inside any quotes.
-
-    integer,intent(in)          :: file_unit
-    character(len=*)   :: filename
-    character(len=1)   :: filechar
-    logical            :: inside_quotes
-    integer            :: io_status
-    character(len=256) :: io_msg
-    
-    inside_quotes = .false.
-    
-    do_readfile: do 
-       
-       read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) filechar
-       if (io_status == IOSTAT_END) then
-          exit do_readfile
-       elseif (io_status < 0) then
-          cycle do_readfile
-       elseif (io_status>0) then
-          write(log_unit,*) 'fatal i/o error! code:', io_status
-          write(log_unit,*) 'msg: ',io_msg
-          call shr_sys_abort()
-       end if
-       
-       ! gnu doc: Scans arg1 for ANY of the characters in a arg2 {set} of characters.
-       if (scan(filechar,'"')>0)then
-          inside_quotes = .not.inside_quotes
-       end if
-
-       if (scan('{}',filechar)>0 .and. inside_quotes) then
-          write(log_unit,*)'A curly bracket "} or {"  was found inside a quoted string in ',trim(filename)
-          write(log_unit,*)'This confuses the JSON parser. Please remove brackets from inside all strings.'
-          call shr_sys_abort()
-       end if
-
-    end do do_readfile
-
-    if(debug)then
-       write(log_unit,*) 'Scanned JSON file and found no rogue brackets'
-    end if
-    
-    return
-  end subroutine CheckRogueBrackets
-
   ! ======================================================================================
   
   subroutine GetNextObject(beg_pos,obj_type,next_pos,is_terminal)
@@ -500,32 +447,17 @@ contains
     integer,parameter :: dimdata_len = 4096 ! We read in ALL the dimension data
                                             ! from { to } into one string, this
                                             ! is how big this string is
-    character(len=max_sl) :: group_str      ! String buffer used to identify
-                                            ! where the start of the "dimensions" group is
-    character(len=dimdata_len) :: dimdata_str ! string that holds all dimension text
-    character(len=1) :: filechar
     character(len=max_sl) :: tagname
-    character(len=max_sl) :: symb_str
-    character(len=max_sl) :: data_str
-    logical :: found_close     ! Have we found the closing bracket?
-    logical :: found_dims      !
-    logical :: found_scalar
     integer :: otype
     integer :: tag_pos            ! tag's starting position
     integer :: obj_pos            ! object's first position
     integer :: dim0_pos           ! position at start of dimensions section
     integer :: next_pos
     logical :: is_terminal
-    integer :: end_pos
     integer :: i               ! local character read position index
-    integer :: sep_id,beg_id,end_id
-    integer :: io_status
     integer :: n_dims
     real(r8):: tmp_real
     character(len=max_sl) :: tmp_str
-    character(len=256) :: io_msg
-    integer :: file_unit
-    
     
     ! -----------------------------------------------------------------------------------
     ! Step 1: Advance the file's character pointer such that the last character
@@ -572,7 +504,7 @@ contains
     if(debug)then
        write(log_unit,*)'--- Dimensions ---'
        do i = 1,n_dims
-          write(log_unit,*),trim(pstruct%dimensions(i)%name),pstruct%dimensions(i)%size
+          write(log_unit,*)trim(pstruct%dimensions(i)%name),pstruct%dimensions(i)%size
        end do
        write(log_unit,*)''
     end if
@@ -582,31 +514,28 @@ contains
 
   ! =====================================================================================
 
-  subroutine ReadCharVar(pstruct,iparm,param_name,string_scr)
+  subroutine ReadCharVar(pstruct,iparm,obj_pos0,param_name,string_scr)
 
     type(params_type)     :: pstruct
     integer               :: iparm
+    integer               :: obj_pos0
     character(len=max_sl) :: param_name
     character(len=max_ll), dimension(*) :: string_scr
     
     type(param_type), pointer :: param
-    character(len=max_sl) :: group_str
-    character(len=vardata_max_len) :: vardata_str
-    character(len=1) :: filechar
-    character(len=max_ll) :: symb_str
     character(len=vardata_max_len) :: data_str
     integer :: n_vec_out
-    logical :: found_close
     integer :: i,j,k
-    integer :: sep_id,beg_id,end_id
-    integer :: io_status
-    integer :: vardata_len
     real(r8):: tmp_real
     character(len=max_sl) :: tmp_str
     integer :: dimsizes(2)
-    character(len=256) :: io_msg
-
-
+    integer :: tag_pos
+    integer :: obj_pos
+    integer :: next_pos
+    logical :: is_terminal
+    integer :: otype
+    character(len=max_sl) :: tag  ! The keyword for this object
+    
     param => pstruct%parameters(iparm)
     param%name = trim(CleanSymbol(param_name))
     param%access_count = 0
@@ -614,10 +543,11 @@ contains
     ! Transfer the dimensions to the data structure
     ! ---------------------------------------------------------------
 
-    print*,'----',trim(obj_buffer),'-----'
+    tag = '"dims"'
+    call FindTag(obj_pos0,tag, tag_pos, obj_pos)
+    call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+    call GetStringVec(obj_buffer,string_scr,n_vec_out)
     
-    call GetMetaString(obj_buffer,'"dims"',beg_id,end_id)
-    call GetStringVec(obj_buffer(beg_id:end_id),string_scr,n_vec_out)
     allocate(param%dim_names(n_vec_out))
     dimsizes(:)=-1
     param%ndims = n_vec_out
@@ -631,13 +561,12 @@ contains
     end do
     call ClearStringScratch(string_scr,n_vec_out)
 
-    print*,dimsizes(1:n_vec_out)
-    
     ! Transfer the datatype to the data structure
     ! ---------------------------------------------------------------
-    
-    call GetMetaString(obj_buffer,'"dtype"',beg_id,end_id)
-    call GetStringVec(obj_buffer(beg_id:end_id),string_scr,n_vec_out)
+    tag = '"dtype"'
+    call FindTag(obj_pos0,tag, tag_pos, obj_pos)
+    call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+    call GetStringVec(obj_buffer,string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%dtype = -999
     if(trim(CleanSymbol(data_str))=='float') then
@@ -678,31 +607,29 @@ contains
     end if
     call ClearStringScratch(string_scr,n_vec_out)
 
-
-    print*,"dtype: ",param%dtype
     
-    
-    call GetMetaString(obj_buffer,'"long_name"',beg_id,end_id)
-    call GetStringVec(obj_buffer(beg_id:end_id),string_scr,n_vec_out)
+    tag = '"long_name"'
+    call FindTag(obj_pos0,tag, tag_pos, obj_pos)
+    call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+    call GetStringVec(obj_buffer,string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%long_name = trim(CleanSymbol(data_str))
     call ClearStringScratch(string_scr,n_vec_out)
 
-    print*,"long: ",trim(param%long_name)
-    
-    call GetMetaString(obj_buffer,'"units"',beg_id,end_id)
-    call GetStringVec(obj_buffer(beg_id:end_id),string_scr,n_vec_out)
+
+    tag = '"units"'
+    call FindTag(obj_pos0,tag, tag_pos, obj_pos)
+    call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+    call GetStringVec(obj_buffer,string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%units = trim(CleanSymbol(data_str))
     call ClearStringScratch(string_scr,n_vec_out)
 
-    print*,"units: ",trim(param%units)
-    
-    call GetMetaString(obj_buffer,'"data"',beg_id,end_id)
 
-    print*,obj_buffer(beg_id:end_id)
-    
-    call GetStringVec(obj_buffer(beg_id:end_id),string_scr,n_vec_out)
+    tag = '"data"'
+    call FindTag(obj_pos0,tag, tag_pos, obj_pos)
+    call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+    call GetStringVec(obj_buffer,string_scr,n_vec_out)
     select case(param%dtype)
     case(r_scalar_type)
        call StringToStringOrReal(string_scr(1),tmp_str,tmp_real,is_num=.true.)
@@ -799,7 +726,7 @@ contains
     integer :: len_tag
 
     
-    if(index(trim(tag),'search-next-tag')>0)then
+    if(index(trim(tag),trim(search_next_tag))>0)then
        
        tag  = repeat(' ',max_sl)
        ipos = pos0
@@ -827,10 +754,10 @@ contains
     else
        
        fpos = index(file_buffer(pos0:nbuffer),trim(tag))
-       if (fpos .ne. index(file_buffer(pos0:nbuffer),trim(tag),.true.)) then
-          write(log_unit,*) 'FindTagPos, tag:',trim(tag),' is non-unique?'
-          call shr_sys_abort()
-       end if
+       !if (fpos .ne. index(file_buffer(pos0:nbuffer),trim(tag),.true.)) then
+       !   write(log_unit,*) 'FindTagPos, tag:',trim(tag),' is non-unique?'
+       !   call shr_sys_abort()
+       !end if
        if (fpos==0) then
           write(log_unit,*) 'FindTagPos, tag:',trim(tag),' not found?'
           call shr_sys_abort()
@@ -860,7 +787,6 @@ contains
   
   subroutine GetParameters(string_scr,pstruct)
 
-    integer                  :: file_unit
     character(len=max_ll), dimension(*), intent(inout) :: string_scr ! Internal scratch space
     type(params_type), intent(inout)                   :: pstruct
 
@@ -868,13 +794,7 @@ contains
     integer               :: tag_pos
     integer               :: param0_pos
     integer,parameter :: data_len = 4096
-    character(len=max_sl) :: group_str
-    logical :: found_vartag
-    integer :: i,j
-    integer :: fcpos          ! File's character position index
-    integer :: io_status
-    integer :: n_vars
-    character(len=256) :: io_msg
+    integer :: i
     integer :: otype
     integer :: next_pos
     integer :: n_params
@@ -915,124 +835,13 @@ contains
        if(debug)write(log_unit,*) "-------------------"
        if(debug)write(log_unit,*) trim(tagname),"    ",trim(obj_buffer)
        ! Fill in the parameter data structures using the object buffer
-       call ReadCharVar(pstruct,i,tagname,string_scr)
+       call ReadCharVar(pstruct,i,obj_pos,tagname,string_scr)
     end do do_paramget
     
 
     return
   end subroutine GetParameters
 
-  ! =====================================================================================
-  
-  subroutine GetMetaString(string_in,meta_tag,beg_id,end_id)
-
-    ! This routine searches through a larger string to identify
-    ! the substring associated with a metadata tag (such as "dims",
-    ! "data", "dtype", etc. It assumes that the separator : follows
-    ! the provided string, with no other characters aside from whitespace
-    ! (if any) between the last character of the tag and the separator.
-    ! It will first identify the index position of the
-    ! intput string that is the first value after the colon, and the index
-    ! position of the output string that closes it off. This is demarcated
-    ! by either a comma or closing bracket "}", and that character
-    ! may not be inside square brackets or quotes.
-
-    character(len=*) :: string_in
-    character(len=*) :: meta_tag
-    integer          :: beg_id
-    integer          :: end_id
-    integer          :: sep_id
-    integer          :: i
-    logical          :: open_bracket1
-    logical          :: open_bracket2
-    logical          :: open_quote
-    logical          :: found_end
-    logical          :: found_tag
-    
-    if( index(trim(string_in),trim(meta_tag))==0 ) then
-       write(log_unit,*) 'metadata tag: ',trim(meta_tag),' was not found'
-       write(log_unit,*) 'in data string: ',trim(string_in),'xxxxx'
-       call shr_sys_abort()
-    else
-
-       ! We are looking for the meta tag. But it is possilbe
-       ! that the meta-tag is also somewhere else in the string.
-       ! However we want to identify the metatag that is followed
-       ! immediately by the separator and/ whitespaces before the
-       ! separator.
-       ! So, we identify the first position where we find the tag.
-       ! then we search through the next characters, if we find
-       ! neither a whitespace or a separator, we know we found
-       ! a red-herring, so increement and keep going.
-     
-       beg_id = 1
-       end_id = len(trim(string_in))
-       found_tag = .false.
-       search_tag: do while(.not.found_tag)
-          i = index(string_in(beg_id:end_id),trim(meta_tag))+beg_id-1+len(trim(meta_tag))
-          if(debug) write(log_unit,*) trim(meta_tag),'  i:',i,'string:xx',string_in(i:end_id)
-          do 
-             if(i>=end_id)then
-                write(log_unit,*)'could not find metatag and separator :',trim(meta_tag)
-                write(log_unit,*)'in data string: ',trim(string_in)
-                call shr_sys_abort()
-             end if
-             ! gnu doc: Scans arg1 for ANY of the characters in a arg2 {set} of characters.
-             if(scan(string_in(i:i),':')>0)then
-                found_tag = .true.
-                sep_id = i+1
-                exit search_tag
-             end if
-             if(scan(string_in(i:i),' ')==0)then
-                beg_id = i
-                cycle search_tag
-             end if
-             i=i+1
-          end do
-       end do search_tag
-       
-       open_bracket1 = .false.
-       open_bracket2 = .false.
-       open_quote   = .false.
-       found_end    = .false.  ! either a comma or a }
-       i=sep_id
-       search_close: do i = sep_id,end_id
-
-          ! gnu doc: "scan" arg1 for ANY of the characters in a arg2 {set} of characters.
-          if(.not.open_bracket1)then
-             if(scan(string_in(i:i),'[')>0) open_bracket1=.true.
-          else
-             if(scan(string_in(i:i),'[')>0) open_bracket2=.true.
-          end if
-          if(open_bracket2)then
-             if(scan(string_in(i:i),']')>0) open_bracket2=.false.
-          else
-             if(scan(string_in(i:i),']')>0) open_bracket1=.false.
-          end if
-          
-          if(scan(string_in(i:i),'"')>0) open_quote=.not.open_quote
-
-          if(.not.open_bracket1 .and. .not.open_quote)then
-             if(scan(string_in(i:i),',}')>0)then
-                found_end = .true.
-                exit search_close
-             end if
-          end if
-       end do search_close
-
-       if(.not.found_end)then
-          write(log_unit,*)'could not find an end to a metadata string'
-          write(log_unit,*)'base string: xxx',trim(string_in),'xxx'
-          call shr_sys_abort()
-       end if
-       
-       beg_id = sep_id
-       end_id = i
-
-    end if
-    
-  end subroutine GetMetaString
-  
   ! =====================================================================================
 
   subroutine GetStringVec(string_in,string_vec_out,n_vec_out)
@@ -1048,7 +857,7 @@ contains
     ! It should also parse vectors of length 1 just fine...
     ! First step is to look for a "["
     
-    character(len=*),intent(in)                  :: string_in
+    character(len=*),intent(in)                       :: string_in
     character(len=max_ll), dimension(*),intent(inout) :: string_vec_out 
     integer,intent(out)                               :: n_vec_out
 
@@ -1125,24 +934,6 @@ contains
 
   ! =====================================================================================
   
-  subroutine PopString(apstring,newchar)
-    
-    character(len=*), intent(inout) :: apstring
-    character(len=1), intent(in) :: newchar
-    integer :: strlen
-    integer :: i
-    
-    strlen = len(apstring)
-    do i = 2,strlen
-       apstring(i-1:i-1) = apstring(i:i)
-    end do
-    apstring(strlen:strlen) = newchar
-    
-    return
-  end subroutine PopString
-
-  ! =====================================================================================
-  
   function CleanSymbol(string_in) result(string_out)
 
     character(len=*) string_in
@@ -1190,46 +981,6 @@ contains
     end do
     return
   end subroutine ClearStringScratch
-
-  ! =====================================================================================
-  
-  subroutine GotoPos(file_unit,filepos)
-    integer            :: file_unit
-    integer,intent(in) :: filepos
-
-    character(len=1) dummychar
-    integer :: i         ! file position number index
-    integer :: io_status ! i/o status of read
-    character(len=256) :: io_msg
-    
-    ! note that we do not include EOLs as valid file positions...
-    
-    rewind(file_unit)
-
-    if (filepos > 1) then
-
-       i=0
-       do_filepos: do while(i <= filepos)
-       
-          ! empty read
-          read(unit=file_unit,fmt='(A1)',ADVANCE='NO', iostat=io_status, iomsg=io_msg) dummychar
-          if (io_status == IOSTAT_END) then
-             write(log_unit,*) 'encountered EOF'
-             call shr_sys_abort()
-          elseif (io_status < 0) then
-             cycle do_filepos
-          elseif (io_status>0) then
-             write(log_unit,*) 'fatal i/o error! code:', io_status
-             write(log_unit,*) 'msg: ',io_msg
-             call shr_sys_abort()
-          end if
-          
-          i=i+1
-          
-       end do do_filepos
-    end if
-    
-  end subroutine GotoPos
 
   ! =====================================================================================
   
