@@ -150,7 +150,8 @@ class GenerateTestClass(ABC):
             raise FileNotFoundError(f"{self.main_cmakelists} not found.")
         lines = self.fs.read_lines(self.main_cmakelists)
 
-        new_entry = f"add_subdirectory({self.test_dir} {self.build_dir})\n"
+        test_dir_rel = self.test_dir.relative_to(_TEST_ROOT)
+        new_entry = f"add_subdirectory({test_dir_rel} {self.build_dir})\n"
         updated_lines = []
         inside_block = False
 

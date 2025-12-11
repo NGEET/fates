@@ -47,6 +47,12 @@ def commandline_args():
         subparser.add_argument(
             "--test-sub-dir", default=None, help="Optional test subdirectory path"
         )
+        subparser.add_argument(
+            "--verbose",
+            action="store_true",
+            default=False,
+            help="Enable verbose output",
+        )
 
     # print help for both subparsers
     parser.epilog = textwrap.dedent(
@@ -67,7 +73,7 @@ def main():
     args = commandline_args()
 
     # create the test
-    test = generate_test(args.test_type, args.test_name, args.test_subdir)
+    test = generate_test(args.test_type, args.test_name, args.test_sub_dir, args.verbose)
     test.setup_test()
 
 
