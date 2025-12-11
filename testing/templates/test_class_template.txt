@@ -9,10 +9,10 @@ from functional_class import FunctionalTest
 
 
 class {module_name}(FunctionalTest):
-    """Quadratic test class
+    """{module_name} test class
     """
 
-    name = "allometry"
+    name = "{module name}"
 
     def __init__(self, test_dict):
         super().__init__(
