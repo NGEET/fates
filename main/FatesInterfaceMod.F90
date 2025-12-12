@@ -812,12 +812,12 @@ contains
          ! invalid.
          call JSONSetInvalid(fates_check_param_set+10._r8)
          call JSONSetLogInit(fates_log())
-         call JSONRead(paramfile,paramfile_unit,pstruct)
+         call JSONRead(paramfile,pstruct)
 
          if ( hlm_masterproc == itrue ) then
             write(fates_log(),*) '============= FATES Parameter Info ============'
             do i=1,size(pstruct%parameters)
-               call JSONDumpParameter(pstruct)
+               call JSONDumpParameter(pstruct%parameters(i))
             end do
             write(fates_log(),*) '============ End FATES Parameter Info ========='
          end if
