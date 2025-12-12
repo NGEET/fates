@@ -1,257 +1,278 @@
 """
 Builds/compiles any tests within the FATES repository
 """
+
 import os
 import shutil
+import logging
+from pathlib import Path
+from dataclasses import dataclass, field
+from typing import Optional
+
+# local imports
 from path_utils import add_cime_lib_to_path
 
+# initialize CIME path
 add_cime_lib_to_path()
 
-from CIME.utils import get_src_root, run_cmd_no_fail, expect, stringify_bool # pylint: disable=wrong-import-position,import-error,wrong-import-order
-from CIME.build import CmakeTmpBuildDir # pylint: disable=wrong-import-position,import-error,wrong-import-order
-from CIME.XML.machines import Machines # pylint: disable=wrong-import-position,import-error,wrong-import-order
-from CIME.BuildTools.configure import configure, FakeCase # pylint: disable=wrong-import-position,import-error,wrong-import-order
-from CIME.XML.env_mach_specific import EnvMachSpecific # pylint: disable=wrong-import-position,import-error,wrong-import-order
+try:
+    from CIME.utils import get_src_root, run_cmd_no_fail
+    from CIME.build import CmakeTmpBuildDir
+    from CIME.XML.machines import Machines
+    from CIME.BuildTools.configure import configure, FakeCase
+    from CIME.XML.env_mach_specific import EnvMachSpecific
+except ImportError as e:
+    # fail fast if environment isn't set up
+    raise ImportError(
+        f"CIME dependencies missing. Ensure environment is configured. Error: {e}"
+    ) from e
 
-# constants for this script
-_CIMEROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../cime")
+# setup logging
+logger = logging.getLogger(__name__)
+
+# constants
+_CURRENT_FILE = Path(__file__).resolve()
+_CIMEROOT = (_CURRENT_FILE.parent / "../../../cime").resolve()
 _MPI_LIBRARY = "mpi-serial"
 
-def build_tests(build_dir:str, cmake_directory:str, make_j:int, clean:bool=False, 
-                verbose:bool=False):
-    """Builds the test executables
 
-    Args:
-        build_dir (str): build directory
-        cmake_directory (str): directory where the make CMakeLists.txt file is
-        make_j (int): number of processes to use for make
-        clean (bool, optional): whether or not to clean the build first. Defaults to False.
-        verbose (bool, optional): whether or not to run make with verbose output. Defaults to False.
-    """
-    # create the build directory
-    full_build_path = prep_build_dir(build_dir, clean=clean)
+@dataclass
+class BuildConfig:
+    """Encapsulates all configuration needed for the build."""
 
-    # get cmake args and the pfunit and netcdf paths
+    build_dir: Path
+    cmake_dir: Path
+    make_j: int
+    clean: bool = False
+    verbose: bool = False
+    compiler: str = field(init=False)
+    machine_os: str = field(init=False)
+    mpilib: str = _MPI_LIBRARY
 
-    cmake_args = get_extra_cmake_args(full_build_path, _MPI_LIBRARY)
-    pfunit_path = find_library(full_build_path, cmake_args, "PFUNIT_PATH")
+    # paths resolved during setup
+    pfunit_path: Optional[str] = None
+    netcdf_c_path: Optional[str] = None
+    netcdf_f_path: Optional[str] = None
+    cmake_args: str = ""
 
-    if not "NETCDF" in os.environ:
-        netcdf_c_path = find_library(full_build_path, cmake_args, "NETCDF_C_PATH")
-        netcdf_f_path = find_library(full_build_path, cmake_args, "NETCDF_FORTRAN_PATH")
-    else:
-        netcdf_c_path = None
-        netcdf_f_path = None
+    def __post_init__(self):
+        """Ensure paths are Path objects"""
+        self.build_dir = Path(self.build_dir).resolve()
+        self.cmake_dir = Path(self.cmake_dir).resolve()
 
-    # change into the build dir
-    os.chdir(full_build_path)
 
-    # run cmake and make
-    run_cmake(cmake_directory, pfunit_path, netcdf_c_path, netcdf_f_path, cmake_args)
-    run_make(make_j, clean=clean, verbose=verbose)
+class TestBuilder:
+    """Orchestrates the build process."""
 
-def prep_build_dir(build_dir:str, clean:bool) -> str:
-    """Creates (if necessary) build directory and cleans contents (if asked to)
+    def __init__(self, config: BuildConfig):
+        self.config = config
 
-    Args:
-        build_dir (str): build directory name
-        clean (bool): whether or not to clean contents
-    Returns:
-        str: full build path
-    """
+    def build(self):
+        """Main entry point for building tests."""
 
-    # create the build directory
-    build_dir_path = os.path.abspath(build_dir)
-    if not os.path.isdir(build_dir_path):
-        os.mkdir(build_dir_path)
+        self._prep_build_dir()
 
-    # change into that directory
-    os.chdir(build_dir_path)
+        # gether environment info and cmake args
+        self._configure_environment()
 
-    # clean up any files if we want to
-    if clean:
-        clean_cmake_files()
+        # execute build steps
+        self._run_cmake()
+        self._run_make()
 
-    return build_dir_path
+    def _prep_build_dir(self):
+        """Creates directory and cleans if requested."""
+        if not self.config.build_dir.exists():
+            self.config.build_dir.mkdir(parents=True, exist_ok=True)
 
-def clean_cmake_files():
-    """Deletes all files related to build
+        if self.config.clean:
+            logger.info("Cleaning build directory: %s", self.config.build_dir)
+            self._clean_cmake_files()
 
-    """
-    if os.path.isfile("CMakeCache.txt"):
-        os.remove("CMakeCache.txt")
-    if os.path.isdir("CMakeFiles"):
-        shutil.rmtree("CMakeFiles")
+    def _clean_cmake_files(self):
+        """Deletes all files related to cmake build."""
+        to_remove = ["CMakeCache.txt", "Macros.cmake", "env_mach_specific.xml"]
+        to_remove_dirs = ["CMakeFiles"]
 
-    cwd_contents = os.listdir(os.getcwd())
+        for f in to_remove:
+            p = Path(f)
+            if p.is_file():
+                p.unlink()
 
-    # clear contents to do with cmake cache
-    for file in cwd_contents:
-        if (
-            file in ("Macros.cmake", "env_mach_specific.xml")
-            or file.startswith("Depends")
-            or file.startswith(".env_mach_specific")
-            ):
-            os.remove(file)
-           
-def get_extra_cmake_args(build_dir:str, mpilib:str) -> str:
-    """Makes a fake case to grab the required cmake arguments
-    Args:
-        build_dir (str): build directory name
-        mpilib (str): MPI library name
-    Returns:
-        str: space-separated list of cmake arguments
-    """
-    # get the machine objects file
-    machobj = Machines()
-    
-    # get compiler
-    compiler = machobj.get_default_compiler()
+        for d in to_remove_dirs:
+            p = Path(d)
+            if p.is_dir():
+                shutil.rmtree(p)
 
-    # get operating system
-    os_ = machobj.get_value("OS")
+        for p in Path(".").glob("Depends*"):
+            p.unlink()
+        for p in Path(".").glob(".env_mach_specific*"):
+            p.unlink()
 
-    # create the environment, and the Macros.cmake file
-    configure(
-        machobj,
-        build_dir,
-        ["CMake"],
-        compiler,
-        mpilib,
-        True,
-        "nuopc",
-        os_,
-        unit_testing=True,
-    )
-    machspecific = EnvMachSpecific(build_dir, unit_testing=True)
+    def _configure_environment(self):
+        """Generates cmake arguments and finds library paths
+        NOTE: this section interacts heavily with CIME global state/objects
+        """
 
-    # make a fake case
-    fake_case = FakeCase(compiler, mpilib, True, "nuopc", threading=False)
-    machspecific.load_env(fake_case)
-    
-    # create cmake argument list with information from the fake case and machine object
-    cmake_args_list = [
-      f"-DOS={os_}",
-      f"-DMACH={machobj.get_machine_name()}",
-      f"-DCOMPILER={compiler}",
-      f"-DDEBUG={stringify_bool(True)}",
-      f"-DMPILIB={mpilib}",
-      f"-Dcompile_threaded={stringify_bool(False)}",
-      f"-DCASEROOT={build_dir}"
-    ]
+        machobj = Machines()
+        self.config.compiler = machobj.get_default_compiler()
+        self.config.machine_os = machobj.get_value("OS")
 
-    cmake_args = " ".join(cmake_args_list)
-    
-    return cmake_args
+        # configure CIME (creates Macros.cmake)
+        configure(
+            machobj,
+            str(self.config.build_dir),
+            ["CMake"],
+            self.config.compiler,
+            self.config.mpilib,
+            True,
+            "nuopc",
+            self.config.machine_os,
+            unit_testing=True,
+        )
 
-def find_library(caseroot:str, cmake_args:str, lib_string:str) -> str:
-    """Find the library installation we'll be using, and return its path
+        # load environment specific to this machine
+        machspecific = EnvMachSpecific(str(self.config.build_dir), unit_testing=True)
+        fake_case = FakeCase(
+            self.config.compiler, self.config.mpilib, True, "nuopc", threading=False
+        )
+        machspecific.load_env(fake_case)
 
-    Args:
-        caseroot (str): Directory with pfunit macros
-        cmake_args (str): The cmake args used to invoke cmake
-        (so that we get the correct makefile vars)
-    Returns:
-        str: full path to library installation
-    """
-    with CmakeTmpBuildDir(macroloc=caseroot) as cmaketmp:
-        all_vars = cmaketmp.get_makefile_vars(cmake_args=cmake_args)
+        self._generate_cmake_args(machobj)
+        self._find_libraries()
 
-        all_vars_list = all_vars.splitlines()
-        for all_var in all_vars_list:
-            if ":=" in all_var:
-                expect(all_var.count(":=") == 1, f"Bad makefile: {all_var}")
-                varname, value = [item.strip() for item in all_var.split(":=")]
-                if varname == lib_string:
-                    return value
-
-        expect(False, f"{lib_string} not found for this machine and compiler")
-
-        return None
-
-def run_cmake(test_dir:str, pfunit_path:str, netcdf_c_path:str, netcdf_f_path:str, cmake_args:str):
-    """Run cmake for the fortran unit tests
-    Arguments:
-    test_dir (str) - directory to run Cmake in
-    pfunit_path (str) - path to pfunit
-    netcdf_c_path (str) - path to netcdf
-    netcdf_f_path (str) - path to netcdff
-    cmake_args (str) - extra arguments to Cmake
-    """
-    if not os.path.isfile("CMakeCache.txt"):
-        
-        # directory with cmake modules
-        cmake_module_dir = os.path.abspath(os.path.join(_CIMEROOT, "CIME", "non_py",
-                                                        "src", "CMake"))
-        # directory with genf90
-        genf90_dir = os.path.join(_CIMEROOT, "CIME", "non_py", "externals", "genf90")
-
-        cmake_command = [
-          "cmake",
-          "-C Macros.cmake",
-          test_dir,
-          f"-DCIMEROOT={_CIMEROOT}",
-          f"-DSRC_ROOT={get_src_root()}",
-          f"-DCIME_CMAKE_MODULE_DIRECTORY={cmake_module_dir}",
-          "-DCMAKE_BUILD_TYPE=CESM_DEBUG",
-          f"-DCMAKE_PREFIX_PATH={pfunit_path}",
-          "-DUSE_MPI_SERIAL=ON",
-          "-DENABLE_GENF90=ON",
-          f"-DCMAKE_PROGRAM_PATH={genf90_dir}"
+    def _generate_cmake_args(self, machobj):
+        args_list = [
+            f"-DOS={self.config.machine_os}",
+            f"-DMACH={machobj.get_machine_name()}",
+            f"-DCOMPILER={self.config.compiler}",
+            f"-DDEBUG={'ON'}",
+            f"-DMPILIB={self.config.mpilib}",
+            f"-Dcompile_threaded={'OFF'}",
+            f"-DCASEROOT={self.config.build_dir}",
         ]
+        self.config.cmake_args = " ".join(args_list)
 
-        if netcdf_c_path is not None:
-            cmake_command.append(f"-DNETCDF_C_PATH={netcdf_c_path}")
+    def _find_libraries(self):
+        """Locates PFUNIT and NETCDF paths."""
+        self.config.pfunit_path = self._query_makefile_var("PFUNIT_PATH")
 
-        if netcdf_f_path is not None:
-            cmake_command.append(f"-DNETCDF_F_PATH={netcdf_f_path}")
+        if "NETCDF" not in os.environ:
+            self.config.netcdf_c_path = self._query_makefile_var("NETCDF_C_PATH")
+            self.config.netcdf_f_path = self._query_makefile_var("NETCDF_FORTRAN_PATH")
 
-        cmake_command.extend(cmake_args.split(" "))
-        
-        print("Running cmake for all tests.")
-        
-        run_cmd_no_fail(" ".join(cmake_command), combine_output=True)
-
-def run_make(make_j:int, clean:bool=False, verbose:bool=False):
-    """Run make in current working directory
-
-    Args:
-        make_j (int): number of processes to use for make
-        clean (bool, optional): whether or not to clean Defaults to False.
-        verbose (bool, optional): verbose error logging for make Defaults to False.
-    """
-    if clean:
-        run_cmd_no_fail("make clean")
-
-    make_command = ["make", "-j", str(make_j)]
-
-    if verbose:
-        make_command.append("VERBOSE=1")
-        
-    print("Running make for all tests.")
-
-    run_cmd_no_fail(" ".join(make_command), combine_output=True)
-
-def build_exists(build_dir:str, test_dir:str, test_exe:str=None) -> bool:
-    """Checks to see if the build directory and associated executables exist.
+    def _query_makefile_var(self, var_name: str) -> Optional[str]:
+        """Helper to query variables from CIME makefile generation
 
         Args:
-          build_dir (str): build directory
-          test_dir (str): test directory
-          test_exe (str): test executable
+            var_name (str): variable to query
+
         Returns:
-          bool: whether or not build directory and associated executables exist
+            Optional[str]: library path
+        """
+        # using the CmakeTmpBuildDir context manager provided by CIME
+        with CmakeTmpBuildDir(macroloc=str(self.config.build_dir)) as cmaketmp:
+            all_vars = cmaketmp.get_makefile_vars(cmake_args=self.config.cmake_args)
+
+            # parsing logic
+            for line in all_vars.splitlines():
+                if ":=" in line:
+                    parts = line.split(":=")
+                    if len(parts) == 2:
+                        key, val = parts[0].strip(), parts[1].strip()
+                        if key == var_name:
+                            return val
+        logger.warning("Library path variable %s not found.", var_name)
+        return None
+
+    def _run_cmake(self):
+        """Run cmake"""
+        cmake_module_dir = _CIMEROOT / "CIME/non_py/src/CMake"
+        genf90_dir = _CIMEROOT / "CIME/non_py/externals/genf90"
+
+        cmd = [
+            "cmake",
+            "-C",
+            "Macros.cmake",
+            str(self.config.cmake_dir),
+            f"-DCIMEROOT={_CIMEROOT}",
+            f"-DSRC_ROOT={get_src_root()}",
+            f"-DCIME_CMAKE_MODULE_DIRECTORY={cmake_module_dir}",
+            "-DCMAKE_BUILD_TYPE=CESM_DEBUG",
+            f"-DCMAKE_PREFIX_PATH={self.config.pfunit_path}",
+            "-DUSE_MPI_SERIAL=ON",
+            "-DENABLE_GENF90=ON",
+            f"-DCMAKE_PROGRAM_PATH={genf90_dir}",
+        ]
+        if self.config.netcdf_c_path:
+            cmd.append(f"-DNETCDF_C_PATH={self.config.netcdf_c_path}")
+        if self.config.netcdf_f_path:
+            cmd.append(f"-DNETCDF_F_PATH={self.config.netcdf_f_path}")
+
+        # append extra args
+        cmd.extend(self.config.cmake_args.split(" "))
+
+        logger.info("Running cmake...")
+        run_cmd_no_fail(
+            " ".join(cmd), from_dir=self.config.build_dir, combine_output=True
+        )
+
+    def _run_make(self):
+        """Run make"""
+        cmd = ["make", "-j", str(self.config.make_j)]
+        if self.config.verbose:
+            cmd.append("VERBOSE=1")
+
+        logger.info("Running make...")
+        run_cmd_no_fail(
+            " ".join(cmd), from_dir=self.config.build_dir, combine_output=True
+        )
+
+
+def build_tests(
+    build_dir: Path,
+    cmake_dir: Path,
+    make_j: int,
+    clean: bool = False,
+    verbose: bool = False,
+):
+    """Wrapper function
+
+    Args:
+        build_dir (str): _description_
+        cmake_directory (str): _description_
+        make_j (int): _description_
+        clean (bool, optional): _description_. Defaults to False.
+        verbose (bool, optional): _description_. Defaults to False.
+    """
+    config = BuildConfig(
+        build_dir=build_dir,
+        cmake_dir=cmake_dir,
+        make_j=make_j,
+        clean=clean,
+        verbose=verbose,
+    )
+    builder = TestBuilder(config)
+    builder.build()
+
+
+def build_exists(build_dir: str, test_dir: str, test_exe: Optional[str] = None) -> bool:
+    """Checks to see if build artifacts exist.
+
+    Args:
+      build_dir (str): build directory
+      test_dir (str): test directory
+      test_exe (str, optional): test executable. Defaults to None.
+    Returns:
+      bool: whether or not build directory and associated executables exist
     """
 
-    build_path = os.path.abspath(build_dir)
-    if not os.path.isdir(build_path):
+    build_path = Path(build_dir).resolve()
+    test_path = build_path / test_dir
+
+    if not test_path.is_dir():
         return False
 
-    if not os.path.isdir(os.path.join(build_path, test_dir)):
+    if test_exe and not (test_path / test_exe).is_file():
         return False
-
-    if test_exe is not None:
-        if not os.path.isfile(os.path.join(build_path, test_dir, test_exe)):
-            return False
 
     return True
