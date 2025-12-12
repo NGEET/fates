@@ -147,6 +147,7 @@ module JSONParameterUtilsMod
      procedure :: GetDimSizeFromName
      procedure :: GetParamFromName
      procedure :: ReportAccessCounts
+     procedure :: Destroy
   end type params_type
   
   public :: JSONRead
@@ -1146,7 +1147,34 @@ contains
 
     return
   end subroutine ReportAccessCounts
-  
+
+  ! ==================================================================================
+
+  subroutine Destroy(this)
+
+    ! Deallocate the parameter and dimension data structure
+    
+    class(params_type)       :: this
+    type(param_type),pointer :: param_ptr
+    integer                  :: i
+
+    nullify(param_ptr)
+    loop_params: do i = 1,size(this%parameters)
+       param_ptr=>this%parameters(i)
+       if(allocated(param_ptr%dim_names))deallocate(param_ptr%dim_names)
+       if(allocated(param_ptr%r_data_1d))deallocate(param_ptr%r_data_1d)
+       if(allocated(param_ptr%r_data_2d))deallocate(param_ptr%r_data_2d)
+       if(allocated(param_ptr%i_data_1d))deallocate(param_ptr%i_data_1d)
+       if(allocated(param_ptr%i_data_2d))deallocate(param_ptr%i_data_2d)
+       if(allocated(param_ptr%c_data_1d))deallocate(param_ptr%c_data_1d)
+       if(allocated(param_ptr%c_data_2d))deallocate(param_ptr%c_data_2d)
+    end do loop_params
+    if(associated(this%parameters))deallocate(this%parameters)
+    if(associated(this%dimensions))deallocate(this%dimensions)
+
+  end subroutine Destroy
+
+    
   ! =====================================================================================
   
   subroutine JSONDumpParameter(param)
@@ -1156,51 +1184,49 @@ contains
     integer :: j
     
     write(log_unit,*) '----------------------------'
-    write(log_unit,*) 'Parameter: ',trim(param%name)
-    write(log_unit,*) '  units: ',trim(param%units)
-    write(log_unit,*) '  long_name: ',trim(param%long_name)
-    write(log_unit,*) '  dtype: ',param%dtype
+    write(log_unit,'(A14,A)') 'Parameter: ',trim(param%name)
+    write(log_unit,'(A14,A)') '  units: ',trim(param%units)
+    write(log_unit,'(A14,A)') '  long_name: ',trim(param%long_name)
+    write(log_unit,'(A14,I1)')'  dtype: ',param%dtype
     do i=1,param%ndims
-       write(log_unit,*) '  dimension: ',i,':',trim(param%dim_names(i))
+       write(log_unit,'(A14,I1,A,A)') '  dimension: ',i,': ',trim(param%dim_names(i))
     end do
-    write(log_unit,*) '  data: '
-    
     
     select case(param%dtype)
     case(r_scalar_type)
-       write(log_unit,'(F15.6)')param%r_data_scalar
+       write(log_unit,'(A,F15.6)')'   data: ',param%r_data_scalar
     case(i_scalar_type)
-       write(log_unit,*)param%i_data_scalar
+       write(log_unit,*)'   data: ',param%i_data_scalar
     case(c_solo_type)
        write(log_unit,*)trim(param%c_data)
     case(r_1d_type)
        do i = 1,size(param%r_data_1d,dim=1)
-          write(log_unit,'(F15.6)') param%r_data_1d(i)
+          write(log_unit,'(A,F15.6)')'   data: ',param%r_data_1d(i)
        end do
     case(i_1d_type)
        do i = 1,size(param%i_data_1d,dim=1)
-          write(log_unit,*) param%i_data_1d(i)
+          write(log_unit,*)'   data: ',param%i_data_1d(i)
        end do
     case(c_1d_type)
        do i = 1,size(param%c_data_1d,dim=1)
-          write(log_unit,*) trim(param%c_data_1d(i))
+          write(log_unit,*)'   data: ',trim(param%c_data_1d(i))
        end do
     case(r_2d_type)
        do i = 1,size(param%r_data_2d,dim=1)
           do j = 1,size(param%r_data_2d,dim=2)
-             write(log_unit,'(F15.6)') param%r_data_2d(i,j)
+             write(log_unit,'(A,F15.6)')'   data: ',param%r_data_2d(i,j)
           end do
        end do
     case(i_2d_type)
        do i = 1,size(param%i_data_2d,dim=1)
           do j = 1,size(param%i_data_2d,dim=2)
-             write(log_unit,*) param%i_data_2d(i,j)
+             write(log_unit,*)'   data: ',param%i_data_2d(i,j)
           end do
        end do
     case(c_2d_type)
        do i = 1,size(param%c_data_2d,dim=1)
           do j = 1,size(param%c_data_2d,dim=2)
-             write(log_unit,*) trim(param%c_data_2d(i,j))
+             write(log_unit,*)'   data: ',trim(param%c_data_2d(i,j))
           end do
        end do
     end select

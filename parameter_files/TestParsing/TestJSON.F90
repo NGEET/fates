@@ -35,6 +35,9 @@ program TestJSON
      call JSONDumpParameter(pstruct%parameters(i))
   end do
 
+  ! Destroy the data structure
+  call pstruct%Destroy()
+
   
   ! Assert some reads
 
