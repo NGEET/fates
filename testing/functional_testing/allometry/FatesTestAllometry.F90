@@ -5,13 +5,12 @@ program FatesTestAllometry
   use FatesAllometryMod,           only : carea_allom, bsap_allom, bbgw_allom
   use FatesAllometryMod,           only : bfineroot, bstore_allom, bdead_allom
   use PRTParametersMod,            only : prt_params
-  use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
+  use FatesUnitTestParamReaderMod, only : ReadParameters
   use FatesArgumentUtils,          only : command_line_arg
 
   implicit none
 
   ! LOCALS:
-  type(fates_unit_test_param_reader) :: param_reader            ! param reader instance
   character(len=:), allocatable      :: param_file              ! input parameter file
   integer                            :: numpft                  ! number of pfts (from parameter file)
   integer                            :: i, j                    ! looping indices
@@ -77,10 +76,9 @@ program FatesTestAllometry
 
   ! read in parameter file name from command line
   param_file = command_line_arg(1)
-  
+
   ! read in parameter file
-  call param_reader%Init(param_file)
-  call param_reader%RetrieveParameters()
+  call ReadParameters(param_file)
 
   ! determine sizes of arrays
   numpft = size(prt_params%wood_density, dim=1)

@@ -4,6 +4,7 @@ Do not include any third-party modules here.
 
 import math
 import os
+import re
 import configparser
 import argparse
 from path_utils import add_cime_lib_to_path
@@ -178,6 +179,27 @@ def str_to_bool(val: str) -> bool:
         return False
     raise ValueError(f"invalid truth value {val}")
 
+def snake_to_camel(snake_str: str) -> str:
+    """Convert a snake_case string to CamelCase.
+
+    Args:
+        snake_str (str): input snake case
+
+    Returns:
+        str: output CamelCase
+    """
+    return "".join(word.capitalize() for word in snake_str.split("_"))
+
+def camel_to_snake(camel_str: str) -> str:
+    """Convert a CamelCase string to snake_case.
+
+    Args:
+        camel_str (str): input camel case
+
+    Returns:
+        str: output snake_case
+    """
+    return re.sub(r'(?<!^)(?=[A-Z])', '_', camel_str).lower()
 
 def str_to_list(val: str) -> list:
     """converts string representation of list to actual list

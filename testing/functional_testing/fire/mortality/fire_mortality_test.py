@@ -7,7 +7,7 @@ import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
 from functional_class import FunctionalTest
-from utils import blank_plot, get_color_palette
+from utils_plotting import blank_plot, get_color_palette
 
 class FireMortTest(FunctionalTest):
     """Fire mortality test class"""

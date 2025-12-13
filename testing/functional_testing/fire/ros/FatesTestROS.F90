@@ -2,13 +2,14 @@ program FatesTestROS
   
   use FatesConstantsMod,           only : r8 => fates_r8 
   use FatesArgumentUtils,          only : command_line_arg
-  use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
+  use FatesUnitTestParamReaderMod, only : ReadParameters
   
   implicit none
   
   ! LOCALS:
-  type(fates_unit_test_param_reader) :: param_reader           ! param reader instance
   character(len=:), allocatable      :: param_file             ! input parameter file
+  real(r8),         allocatable      :: reaction_intensity(:)
+  real(r8),         allocatable      :: fuel_depth(:)
   real(r8),         allocatable      :: SAV(:)                 ! fuel surface area to volume ratio (for prop flux) [/cm]
   real(r8),         allocatable      :: beta(:)                ! packing ratio [unitless]
   real(r8),         allocatable      :: propagating_flux(:,:)  ! propagating flux [unitless]
@@ -23,6 +24,15 @@ program FatesTestROS
   character(len=*), parameter :: out_file = 'ros_out.nc' ! output file 
   
   interface
+  
+    subroutine TestReactionIntensity(fuel_depth, reaction_intensity)
+      use FatesConstantsMod, only : r8 => fates_r8
+      use SFEquationsMod,    only : ReactionIntensity
+      implicit none
+      real(r8), allocatable, intent(out) :: fuel_depth(:)        
+      real(r8), allocatable, intent(out) :: reaction_intensity(:)
+    
+    end subroutine TestReactionIntensity
 
     subroutine TestPropFlux(SAV, propagating_flux, beta)
 
@@ -62,8 +72,9 @@ program FatesTestROS
       real(r8), allocatable, intent(out) :: eps(:)
     end subroutine TestEffectiveHeatingNumber
     
-    subroutine WriteROSData(out_file, beta, SAV, propagating_flux, SAV_values,           &
-      beta_ratio, reaction_velocity, fuel_moisture, q_ig, eps)
+    subroutine WriteROSData(out_file, reaction_intensity, fuel_depth, beta, SAV,         &
+      propagating_flux, SAV_values, beta_ratio, reaction_velocity, fuel_moisture, q_ig,  &
+      eps)
 
       use FatesConstantsMod, only : r8 => fates_r8
       use FatesUnitTestIOMod,  only : OpenNCFile, CloseNCFile, RegisterNCDims
@@ -71,6 +82,8 @@ program FatesTestROS
       use FatesUnitTestIOMod,  only : type_double
       implicit none
       character(len=*), intent(in) :: out_file
+      real(r8),         intent(in) :: reaction_intensity(:)
+      real(r8),         intent(in) :: fuel_depth(:)
       real(r8),         intent(in) :: beta(:)
       real(r8),         intent(in) :: SAV(:)
       real(r8),         intent(in) :: propagating_flux(:,:)
@@ -89,8 +102,10 @@ program FatesTestROS
   param_file = command_line_arg(1)
   
   ! read in parameter file
-  call param_reader%Init(param_file)
-  call param_reader%RetrieveParameters()
+  call ReadParameters(param_file)
+  
+  ! calculate reaction intensity
+  call TestReactionIntensity(fuel_depth, reaction_intensity)
   
   ! calculate propagating flux
   call TestPropFlux(SAV, propagating_flux, beta)
@@ -105,10 +120,12 @@ program FatesTestROS
   call TestEffectiveHeatingNumber(eps)
   
   ! write output data
-  call WriteROSData(out_file, beta, SAV, propagating_flux, SAV_values, beta_ratio,       &
-    reaction_velocity, fuel_moisture, q_ig, eps)
+  call WriteROSData(out_file, reaction_intensity, fuel_depth, beta, SAV,                 &
+    propagating_flux, SAV_values, beta_ratio, reaction_velocity, fuel_moisture, q_ig, eps)
   
   ! deallocate arrays
+  if (allocated(fuel_depth)) deallocate(fuel_depth)
+  if (allocated(reaction_intensity)) deallocate(reaction_intensity)
   if (allocated(propagating_flux)) deallocate(propagating_flux)
   if (allocated(SAV)) deallocate(SAV)
   if (allocated(beta)) deallocate(beta)
@@ -120,6 +137,60 @@ program FatesTestROS
   if (allocated(eps)) deallocate(eps)
 
 end program FatesTestROS
+
+!=========================================================================================
+
+subroutine TestReactionIntensity(fuel_depth, reaction_intensity)
+  !
+  ! DESCRIPTION:
+  ! Calculates reaction intensity at different levels of fuel bed depth
+  !
+  use FatesConstantsMod, only : r8 => fates_r8
+  use SFEquationsMod,    only : ReactionIntensity, OptimumPackingRatio
+  
+  implicit none
+  
+  ! ARGUMENTS:
+  real(r8), allocatable, intent(out) :: fuel_depth(:)         ! fuel depth [m]
+  real(r8), allocatable, intent(out) :: reaction_intensity(:) ! reaction intensity [kJ/m2/min]
+  
+  ! CONSTANTS:
+  real(r8), parameter :: fuel_loading = 1.4_r8 ! fuel loading [kg/m2]
+  real(r8), parameter :: SAV = 63.0_r8         ! surface area to volume ratio [/cm]
+  real(r8), parameter :: moisture = 0.04_r8    ! fuel moisture content [m3/m3]
+  real(r8), parameter :: MEF = 0.25_r8         ! moisture of extinction [m3/m3]
+  real(r8), parameter :: fd_min = 0.05         ! minimum fuel depth to test [m]
+  real(r8), parameter :: fd_max = 2.5          ! maximum fuel depth to test [m]
+  real(r8), parameter :: fd_inc = 0.05         ! fuel depth increment [m]
+  real(r8), parameter :: part_dens = 513.0_r8  ! particle density [kg/m3]
+  
+  ! LOCALS:
+  real(r8) :: beta_opt     ! optimum packing ratio
+  real(r8) :: beta         ! packing ratio
+  real(r8) :: beta_ratio   ! relative packing ratio
+  real(r8) :: bulk_density ! fuel bulk densith [kg/m3]
+  integer  :: num_fd       ! size of fuel depth array
+  integer  :: i, j         ! looping indices
+  
+  ! allocate arrays
+  num_fd = int((fd_max - fd_min)/fd_inc + 1)
+  allocate(fuel_depth(num_fd))
+  allocate(reaction_intensity(num_fd))
+  
+  beta_opt = OptimumPackingRatio(SAV)
+  
+  do i = 1, num_fd
+  
+    fuel_depth(i) = fd_min + fd_inc*(i-1)
+    
+    bulk_density = fuel_loading/fuel_depth(i)
+    beta = bulk_density/part_dens
+    beta_ratio = beta/beta_opt
+  
+    reaction_intensity(i) = ReactionIntensity(fuel_loading, SAV, beta_ratio, moisture,  &
+      MEF)
+  end do 
+end subroutine TestReactionIntensity
 
 !=========================================================================================
 
@@ -291,8 +362,8 @@ end subroutine TestEffectiveHeatingNumber
 
 !=========================================================================================
 
-subroutine WriteROSData(out_file, beta, SAV, propagating_flux, SAV_values, beta_ratio,   &
-  reaction_velocity, fuel_moisture, q_ig, eps)
+subroutine WriteROSData(out_file, reaction_intensity, fuel_depth, beta, SAV,             &
+  propagating_flux, SAV_values, beta_ratio, reaction_velocity, fuel_moisture, q_ig, eps)
   !
   ! DESCRIPTION:
   ! writes out data from the test
@@ -306,6 +377,8 @@ subroutine WriteROSData(out_file, beta, SAV, propagating_flux, SAV_values, beta_
   
   ! ARGUMENTS:
   character(len=*), intent(in) :: out_file
+  real(r8),         intent(in) :: reaction_intensity(:)
+  real(r8),         intent(in) :: fuel_depth(:)
   real(r8),         intent(in) :: beta(:)
   real(r8),         intent(in) :: SAV(:)
   real(r8),         intent(in) :: propagating_flux(:,:)
@@ -318,8 +391,10 @@ subroutine WriteROSData(out_file, beta, SAV, propagating_flux, SAV_values, beta_
   
   ! LOCALS:
   integer           :: ncid         ! netcdf id
-  character(len=20) :: dim_names(5) ! dimension names
-  integer           :: dimIDs(5)    ! dimension IDs
+  character(len=20) :: dim_names(6) ! dimension names
+  integer           :: dimIDs(6)    ! dimension IDs
+  integer           :: fuel_depthID
+  integer           :: reactionintenseID
   integer           :: SAVID
   integer           :: betaID
   integer           :: propfluxID
@@ -331,16 +406,22 @@ subroutine WriteROSData(out_file, beta, SAV, propagating_flux, SAV_values, beta_
   integer           :: epsID
   
   ! dimension names
-  dim_names = [character(len=20) :: 'SAV', 'packing_ratio', 'SAV_ind', 'beta_ratio', 'fuel_moisture']
+  dim_names = [character(len=20) :: 'SAV', 'packing_ratio', 'SAV_ind',                   &
+    'beta_ratio', 'fuel_moisture', 'fuel_depth']
 
   ! open file
   call OpenNCFile(trim(out_file), ncid, 'readwrite')
 
   ! register dimensions
-  call RegisterNCDims(ncid, dim_names, (/size(SAV), size(beta), size(SAV_values),        &
-    size(beta_ratio), size(fuel_moisture)/), 5, dimIDs)
+  call RegisterNCDims(ncid, dim_names, (/size(SAV), size(beta),        &
+    size(SAV_values), size(beta_ratio), size(fuel_moisture), size(fuel_depth)/), 6, dimIDs)
 
   ! first register dimension variables
+  
+  ! register fuel depth
+  call RegisterVar(ncid, 'fuel_depth', dimIDs(6:6), type_double,   &
+    [character(len=20)  :: 'units', 'long_name'],           &
+    [character(len=150) :: 'm', 'fuel bed depth'], 2, fuel_depthID)
   
   ! register SAV 
   call RegisterVar(ncid, 'SAV', dimIDs(1:1), type_double,   &
@@ -368,6 +449,12 @@ subroutine WriteROSData(out_file, beta, SAV, propagating_flux, SAV_values, beta_
     [character(len=150) :: 'm3/m3', 'fuel moisture'], 2, moistID)
 
   ! then register actual variables
+  
+  ! register reaction intensity
+  call RegisterVar(ncid, 'reaction_intensity', dimIDs(6:6), type_double,         &
+    [character(len=20)  :: 'coordinates', 'units', 'long_name'],        &
+    [character(len=150) :: 'fuel_depth', 'kJ/m2/min', 'reaction intensity'],  &
+    3, reactionintenseID)
 
   ! register propagating flux
   call RegisterVar(ncid, 'prop_flux', dimIDs(1:2), type_double,         &
@@ -407,6 +494,8 @@ subroutine WriteROSData(out_file, beta, SAV, propagating_flux, SAV_values, beta_
   call WriteVar(ncid, moistID, fuel_moisture(:))
   call WriteVar(ncid, qigID, q_ig(:))
   call WriteVar(ncid, epsID, eps(:))
+  call WriteVar(ncid, fuel_depthID, fuel_depth(:))
+  call WriteVar(ncid, reactionintenseID, reaction_intensity(:))
   
   ! close file
   call CloseNCFile(ncid)

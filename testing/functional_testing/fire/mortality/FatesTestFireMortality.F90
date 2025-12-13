@@ -2,13 +2,12 @@ program FatesTestFireMortality
   
   use FatesConstantsMod,           only : r8 => fates_r8
   use FatesArgumentUtils,          only : command_line_arg
-  use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
+  use FatesUnitTestParamReaderMod, only : ReadParameters
   use PRTParametersMod,            only : prt_params
   
   implicit none
   
   ! LOCALS:
-  type(fates_unit_test_param_reader) :: param_reader               ! param reader instance
   character(len=:), allocatable      :: param_file                 ! input parameter file
   real(r8),         allocatable      :: tree_diameter(:)           ! tree diameter at breast height [cm]
   real(r8),         allocatable      :: tau_c(:,:)                 ! critical residence time for cambial death [min]
@@ -93,10 +92,10 @@ program FatesTestFireMortality
   
   ! read in parameter file name and DATM file from command line
   param_file = command_line_arg(1)
-  
+
   ! read in parameter file
-  call param_reader%Init(param_file)
-  call param_reader%RetrieveParameters()
+  call ReadParameters(param_file)
+  
   num_pfts = size(prt_params%wood_density, dim=1)
   
   ! calculate propagating flux
