@@ -804,9 +804,6 @@ contains
     tagname = '"parameters"'
     call FindTag(1, tagname, tag_pos, param0_pos)
 
-    print*,file_buffer(tag_pos:param0_pos)
-    print*,""
-    
     n_params = 0
     next_pos = param0_pos
     is_terminal = .false.
