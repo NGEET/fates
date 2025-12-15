@@ -4,7 +4,6 @@ import re
 import logging
 from pathlib import Path
 from abc import ABC, abstractmethod
-from file_system import FileSystem
 from test_layout_protocol import (
     TestLayoutProtocol,
     FunctionalLayoutProtocol,
@@ -27,13 +26,11 @@ class GenerateTestClass(ABC):
         self,
         test_name: str,
         sub_dir: str | None = None,
-        fs: FileSystem | None = None,
         layout: TestLayoutProtocol | None = None,
         verbose: bool = True,
     ):
         self.test_name = re.sub(r"_test$", "", test_name.lower())
         self.sub_dir = sub_dir
-        self.fs = fs or FileSystem()
         self.layout = layout or self.default_layout()
         self.verbose = verbose
 
@@ -133,9 +130,9 @@ class GenerateTestClass(ABC):
         Raises:
             FileExistsError: Directory already exists
         """
-        if self.fs.exists(self.test_dir):
+        if self.test_dir.exists():
             raise FileExistsError(f"Directory '{self.test_dir}' already exists.")
-        self.fs.makedirs(self.test_dir)
+        self.test_dir.mkdir(parents=True, exist_ok=True)
         if self.verbose:
             logger.info("Created directory: %d", self.test_dir)
 
@@ -146,9 +143,11 @@ class GenerateTestClass(ABC):
         Raises:
             FileNotFoundError: testing/CMakeLists.txt file not found
         """
-        if not self.fs.exists(self.main_cmakelists):
+        if not self.main_cmakelists.exists():
             raise FileNotFoundError(f"{self.main_cmakelists} not found.")
-        lines = self.fs.read_lines(self.main_cmakelists)
+        lines = self.main_cmakelists.read_text(encoding="utf-8").splitlines(
+            keepends=True
+        )
 
         test_dir_rel = self.test_dir.relative_to(_TEST_ROOT)
         new_entry = f"add_subdirectory({test_dir_rel} {self.build_dir})\n"
@@ -173,15 +172,16 @@ class GenerateTestClass(ABC):
             updated_lines.append(new_entry)
 
         # write modified contents back to file
-        self.fs.write_lines(self.main_cmakelists, updated_lines)
+        with self.main_cmakelists.open("w", encoding="utf-8") as f:
+            f.writelines(updated_lines)
         logger.info("Updated %s to include %s.", self.main_cmakelists, self.test_dir)
 
     def update_config_file(self):
         """Loads config file lines"""
 
-        if not self.fs.exists(self.config_file):
+        if not self.config_file.exists():
             raise FileNotFoundError(f"{self.config_file} not found.")
-        lines = self.fs.read_lines(self.config_file)
+        lines = self.config_file.read_text(encoding="utf-8").splitlines(keepends=True)
 
         # strip trailing newlines and whitespace-only lines
         while lines and lines[-1].strip() == "":
@@ -190,7 +190,8 @@ class GenerateTestClass(ABC):
         # new config block
         lines = self.append_config_lines(lines)
 
-        self.fs.write_lines(self.config_file, lines)
+        with self.config_file.open("w", encoding="utf-8") as f:
+            f.writelines(lines)
         logger.info("Updated %s.", self.config_file)
 
     def load_template(self, template_path: Path) -> str:
@@ -205,9 +206,9 @@ class GenerateTestClass(ABC):
         Returns:
             Path: template path
         """
-        if not self.fs.exists(template_path):
+        if not template_path.exists():
             raise FileNotFoundError(f"Template '{template_path}' not found.")
-        return self.fs.read_text(template_path)
+        return template_path.read_text(encoding="utf-8")
 
     def render_template(self, template_path: Path, out_path: Path, **kwargs):
         """Write text to a file based on an input template and keyword arguments
@@ -217,7 +218,7 @@ class GenerateTestClass(ABC):
             out_path (Path): path to file to write
         """
         template = self.load_template(template_path)
-        self.fs.write_file(out_path, template.format(**kwargs))
+        out_path.write_text(template.format(**kwargs), encoding="utf-8")
 
     # --------------------------
     # Template Method
@@ -365,12 +366,13 @@ class GenerateFunctionalTest(GenerateTestClass):
         logger.info("Added template test files in %s.", self.test_dir)
 
         # add import to class loader file
-        if not self.fs.exists(self.load_class_file):
+        if not self.load_class_file.exists():
             raise FileNotFoundError(f"{self.load_class_file} not found.")
 
         name = f"{self.sub_dir}.{self.test_name}" if self.sub_dir else self.test_name
         content = f"from functional_testing.{name} import {self.module_name}\n"
-        self.fs.append_file(self.load_class_file, content)
+        with self.load_class_file.open("a", encoding="utf-8") as f:
+            f.write(content)
         logger.info("Updated %s.", self.load_class_file)
 
 
