@@ -98,10 +98,11 @@ module JSONParameterUtilsMod
   ! This large string holds the file contents, minus
   ! all non-standard characters like end-lines and such
   ! This will be deallocated at the end of the parsing
-  ! process
-  character(len=:), allocatable  :: file_buffer
-  integer                        :: nbuffer
-  character(len=vardata_max_len) :: obj_buffer
+  ! process.  THese are public so they can be filled
+  ! for unit testing
+  character(len=:), public, allocatable :: file_buffer
+  integer, public                       :: nbuffer
+  character(len=vardata_max_len)        :: obj_buffer
 
   
   character(len=max_sl),parameter :: search_next_tag = 'search-next-tag'
@@ -154,6 +155,8 @@ module JSONParameterUtilsMod
   public :: JSONSetInvalid
   public :: JSONSetLogInit
   public :: JSONDumpParameter
+  public :: JSONFindTag
+  public :: JSONGetNextObject
   
 contains
 
@@ -295,7 +298,7 @@ contains
   
   ! ======================================================================================
   
-  subroutine GetNextObject(beg_pos,obj_type,next_pos,is_terminal)
+  subroutine JSONGetNextObject(beg_pos,obj_type,next_pos,is_terminal)
     
     ! --------------------------------------------------------------------
     ! Provide a position index in the file string buffer
@@ -428,7 +431,7 @@ contains
        end if if_doublequote
 
        if (i>vardata_max_len)then
-          write(log_unit,*) 'GetNextObject could not close the object within the buffer space.'
+          write(log_unit,*) 'JSONGetNextObject could not close the object within the buffer space.'
           call shr_sys_abort()
        end if
          
@@ -437,7 +440,7 @@ contains
     next_pos = fpos
       
     return
-  end subroutine GetNextObject
+  end subroutine JSONGetNextObject
     
   ! =====================================================================================
   
@@ -465,7 +468,7 @@ contains
     !         the : separator for "dimensions"
     ! -----------------------------------------------------------------------------------
     tagname = '"dimensions"'
-    call FindTag(1, tagname, tag_pos, dim0_pos)
+    call JSONFindTag(1, tagname, tag_pos, dim0_pos)
 
     ! -----------------------------------------------------------------------------------
     ! Step 2: Count the number of dimensions
@@ -475,8 +478,8 @@ contains
     is_terminal = .false.
     do_dimcount: do while(.not.is_terminal)
        tagname = search_next_tag
-       call FindTag(next_pos, tagname, tag_pos, obj_pos)
-       call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+       call JSONFindTag(next_pos, tagname, tag_pos, obj_pos)
+       call JSONGetNextObject(obj_pos,otype,next_pos,is_terminal)
        n_dims = n_dims+1
        if(debug) write(log_unit,*) trim(tagname),trim(obj_buffer)
     end do do_dimcount
@@ -494,8 +497,8 @@ contains
     is_terminal = .false.
     do_dimget: do while(.not.is_terminal)
        tagname = search_next_tag
-       call FindTag(next_pos, tagname, tag_pos, obj_pos)
-       call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+       call JSONFindTag(next_pos, tagname, tag_pos, obj_pos)
+       call JSONGetNextObject(obj_pos,otype,next_pos,is_terminal)
        i = i + 1
        pstruct%dimensions(i)%name = trim(CleanSymbol(tagname))
        call StringToStringOrReal(trim(obj_buffer),tmp_str,tmp_real,is_num=.true.)
@@ -543,8 +546,8 @@ contains
 
 
     tag = '"dims"'
-    call FindTag(obj_pos0,tag, tag_pos, obj_pos)
-    call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+    call JSONFindTag(obj_pos0,tag, tag_pos, obj_pos)
+    call JSONGetNextObject(obj_pos,otype,next_pos,is_terminal)
     call GetStringVec(obj_buffer,string_scr,n_vec_out)
     allocate(param%dim_names(n_vec_out))
     dimsizes(:)=-1
@@ -561,8 +564,8 @@ contains
 
 
     tag = '"dtype"'
-    call FindTag(obj_pos0,tag, tag_pos, obj_pos)
-    call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+    call JSONFindTag(obj_pos0,tag, tag_pos, obj_pos)
+    call JSONGetNextObject(obj_pos,otype,next_pos,is_terminal)
     call GetStringVec(obj_buffer,string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%dtype = -999
@@ -606,8 +609,8 @@ contains
 
     
     tag = '"long_name"'
-    call FindTag(obj_pos0,tag, tag_pos, obj_pos)
-    call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+    call JSONFindTag(obj_pos0,tag, tag_pos, obj_pos)
+    call JSONGetNextObject(obj_pos,otype,next_pos,is_terminal)
     call GetStringVec(obj_buffer,string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%long_name = trim(CleanSymbol(data_str))
@@ -615,8 +618,8 @@ contains
 
 
     tag = '"units"'
-    call FindTag(obj_pos0,tag, tag_pos, obj_pos)
-    call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+    call JSONFindTag(obj_pos0,tag, tag_pos, obj_pos)
+    call JSONGetNextObject(obj_pos,otype,next_pos,is_terminal)
     call GetStringVec(obj_buffer,string_scr,n_vec_out)
     data_str = trim(string_scr(1))
     param%units = trim(CleanSymbol(data_str))
@@ -624,8 +627,8 @@ contains
 
 
     tag = '"data"'
-    call FindTag(obj_pos0,tag, tag_pos, obj_pos)
-    call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+    call JSONFindTag(obj_pos0,tag, tag_pos, obj_pos)
+    call JSONGetNextObject(obj_pos,otype,next_pos,is_terminal)
     call GetStringVec(obj_buffer,string_scr,n_vec_out)
     select case(param%dtype)
     case(r_scalar_type)
@@ -696,7 +699,7 @@ contains
 
   ! ====================================================================================
 
-  subroutine FindTag(pos0, tag, fpos, epos)
+  subroutine JSONFindTag(pos0, tag, fpos, epos)
 
     ! This procedure finds the location in the character buffer
     ! of the provided tag/keyword name and the separator ":".
@@ -744,7 +747,7 @@ contains
           end if
           ipos = ipos + 1
           if(ipos>(vardata_max_len+pos0)) then
-             write(log_unit,*) 'FindTag, could not find next tag from position: ',pos0
+             write(log_unit,*) 'JSONFindTag, could not find next tag from position: ',pos0
              call shr_sys_abort()
           end if
        end do search_tag
@@ -752,11 +755,11 @@ contains
        
        fpos = index(file_buffer(pos0:nbuffer),trim(tag))
        !if (fpos .ne. index(file_buffer(pos0:nbuffer),trim(tag),.true.)) then
-       !   write(log_unit,*) 'FindTagPos, tag:',trim(tag),' is non-unique?'
+       !   write(log_unit,*) 'JSONFindTagPos, tag:',trim(tag),' is non-unique?'
        !   call shr_sys_abort()
        !end if
        if (fpos==0) then
-          write(log_unit,*) 'FindTagPos, tag:',trim(tag),' not found?'
+          write(log_unit,*) 'JSONFindTagPos, tag:',trim(tag),' not found?'
           call shr_sys_abort()
        end if
        fpos = fpos + pos0 - 1
@@ -770,14 +773,14 @@ contains
     spos = index(file_buffer(fpos+len_tag-1:nbuffer),':')
 
     if (spos==0) then
-       write(log_unit,*) 'FindTagPos, tag:',trim(tag),'no separator found?'
+       write(log_unit,*) 'JSONFindTagPos, tag:',trim(tag),'no separator found?'
        call shr_sys_abort()
     end if
 
     epos = spos + fpos + len_tag - 1
 
     return
-  end subroutine FindTag
+  end subroutine JSONFindTag
     
   ! =====================================================================================
   
@@ -802,15 +805,15 @@ contains
     !         the : separator for "parameters"
     ! -----------------------------------------------------------------------------------
     tagname = '"parameters"'
-    call FindTag(1, tagname, tag_pos, param0_pos)
+    call JSONFindTag(1, tagname, tag_pos, param0_pos)
 
     n_params = 0
     next_pos = param0_pos
     is_terminal = .false.
     do_paramcount: do while(.not.is_terminal)
        tagname = search_next_tag
-       call FindTag(next_pos, tagname, tag_pos, obj_pos)
-       call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+       call JSONFindTag(next_pos, tagname, tag_pos, obj_pos)
+       call JSONGetNextObject(obj_pos,otype,next_pos,is_terminal)
        n_params = n_params + 1
     end do do_paramcount
 
@@ -822,8 +825,8 @@ contains
     is_terminal = .false.
     do_paramget: do while(.not.is_terminal)
        tagname = search_next_tag
-       call FindTag(next_pos, tagname, tag_pos, obj_pos)
-       call GetNextObject(obj_pos,otype,next_pos,is_terminal)
+       call JSONFindTag(next_pos, tagname, tag_pos, obj_pos)
+       call JSONGetNextObject(obj_pos,otype,next_pos,is_terminal)
        i = i + 1
        if(debug)write(log_unit,*) "-------------------"
        if(debug)write(log_unit,*) trim(tagname),"    ",trim(obj_buffer)

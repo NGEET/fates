@@ -67,7 +67,7 @@ def main():
     args = commandline_args()
 
     # create the test
-    test = generate_test(args.test_type, args.test_name, args.test_subdir)
+    test = generate_test(args.test_type, args.test_name, args.test_sub_dir)
     test.setup_test()
 
 
