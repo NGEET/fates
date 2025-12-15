@@ -6,11 +6,28 @@
 
 1. *For Mac Users Only*: Install Apple Developer Tools, if you haven't already
 2. Install homebrew ([link here](https://brew.sh/))
-3. Download ESMF ([link here](https://earthsystemmodeling.org/static/releases.html))
 
 ### PFunit
 
-Download and install pfunit using the instructions on their ([GitHub page](https://github.com/Goddard-Fortran-Ecosystem/pFUnit))
+Clone pfunit from GitHub:
+
+```bash
+git clone https://github.com/Goddard-Fortran-Ecosystem/pFUnit.git
+```
+
+Install and build:
+
+```bash
+export PFUNIT=/Users/afoster/pfunit_builds/pfunit4.11.1-gfortran14.2.0
+
+mkdir build-dir
+cd build-dir
+cmake -DSKIP_OPENMP=YES -DCMAKE_INSTALL_PREFIX=$PFUNIT/install ..
+make -j 8
+
+make tests
+make install
+```
 
 #### Homebrew Installs
 
@@ -65,6 +82,8 @@ brew install the_silver_searcher
 *For Mac users*: `brew cask install mactex`
 
 ### ESMF Installation
+
+Download ESMF: ([link here](https://github.com/esmf-org/esmf/releases))
 
 Set an environment variable `ESMF_DIR` to where you want to install ESMF, for example: `export ESMF_DIR=/Users/afoster/esmf/esmf-8.4.0`
 
