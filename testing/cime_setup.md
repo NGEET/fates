@@ -114,10 +114,9 @@ git checkout -b "my_configuration"
 
 You'll need to modify some of the files and folders.
 
-1. In the top-level `config_machines.xml`, change the `MACH` values to match your machine name (can obtain this via the terminal by typing `hostname`)
-2. Rename the `green` directory to your computer's hostname.
-3. In the `{hostname}/config_machines.xml`, update relevant fields like `MACH`, `DESC`, `OS`, and `SUPPORTED_BY`
-4. In `{hostname}/config_machines.xml`, update the `ESMFMKFILE` based on the path to what you just made above.
+1. In `config_machines.xml`, change the `MACH` values to match your machine name (can obtain this via the terminal by typing `hostname`)
+3. Additionally update relevant fields like `MACH`, `DESC`, `OS`, and `SUPPORTED_BY`
+4. Additionally update the `ESMFMKFILE` based on the path to what you just made above.
 5. Rename `gnu_green.cmake` to `gnu_{hostname}.cmake`.
 6. Inside `gnu_{hostname}.cmake` update `NETCDF_C_PATH`, `NETCDF_FORTRAN_PATH`, `APPEND LDFLAGS` (both), and `PFUNIT_PATH` to your netcdf and pfunit paths (see below).
 
