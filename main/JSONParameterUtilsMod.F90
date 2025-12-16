@@ -185,8 +185,8 @@ contains
     ! For each section here we end with a call
     ! to rewind and go back to the top of the file
     
-    character(len=*),intent(in) :: filename
-    type(params_type)           :: pstruct
+    character(len=*),intent(in)     :: filename
+    type(params_type),intent(inout) :: pstruct
     
     ! Local
     integer :: io_status   ! Read status return value from fortran internal
