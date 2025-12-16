@@ -73,13 +73,7 @@ def main():
     args = commandline_args()
 
     # create the test
-<<<<<<< HEAD
     test = generate_test(args.test_type, args.test_name, args.test_sub_dir, args.verbose)
-||||||| 1baa9d76
-    test = generate_test(args.test_type, args.test_name, args.test_subdir)
-=======
-    test = generate_test(args.test_type, args.test_name, args.test_sub_dir)
->>>>>>> json-params
     test.setup_test()
 
 
