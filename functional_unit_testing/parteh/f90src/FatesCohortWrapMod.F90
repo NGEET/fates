@@ -36,7 +36,7 @@ module FatesCohortWrapMod
   use PRTGenericMod,          only : SetState
   use PRTGenericMod,          only : prt_global
   use PRTGenericMod,          only : fates_c_only
-  use PRTGenericMod,          only : fates_cn
+  use PRTGenericMod,          only : fates_cnp
 
   use PRTAllometricCarbonMod, only : callom_prt_vartypes
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
@@ -262,7 +262,7 @@ contains
        allocate(callom_prt)
        ccohort%prt => callom_prt
 
-    case(fates_cn)
+    case(fates_cnp)
        prt_global => prt_global_acnp
        allocate(cnpallom_prt)
        ccohort%prt => cnpallom_prt
@@ -291,7 +291,7 @@ contains
        call ccohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = ccohort%pft)
        call ccohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = ccohort%canopy_trim)
 
-    case (fates_cn)
+    case (fates_cnp)
 
        ! Initializing with the target stoichiometric ratios
        ! (OR you can initialize with the minimum ratios too.... p2)
@@ -403,7 +403,7 @@ contains
        ccohort%daily_r_grow = 0.0_r8
        ccohort%carbon_root_efflux = 0.0_r8
 
-    case (fates_cn)
+    case (fates_cnp)
 
        prt_global => prt_global_acnp
        ccohort%daily_carbon_gain     = daily_carbon_gain
@@ -459,7 +459,7 @@ contains
     select case(ccohort%parteh_mode)
     case (fates_c_only)
        prt_global => prt_global_ac
-    case (fates_cn)
+    case (fates_cnp)
        prt_global => prt_global_acnp
     end select
     
@@ -549,7 +549,7 @@ contains
     select case(ccohort%parteh_mode)
     case (fates_c_only )
        prt_global => prt_global_ac
-    case (fates_cn)
+    case (fates_cnp)
        prt_global => prt_global_acnp
     end select
     

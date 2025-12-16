@@ -41,7 +41,7 @@ module FatesFactoryMod
   use PRTGenericMod,               only : nitrogen_element
   use PRTGenericMod,               only : phosphorus_element
   use PRTGenericMod,               only : fates_c_only
-  use PRTGenericMod,               only : fates_cn
+  use PRTGenericMod,               only : fates_cnp
   use PRTGenericMod,               only : StorageNutrientTarget
   use PRTAllometricCarbonMod,      only : InitPRTGlobalAllometricCarbon
   use FatesAllometryMod,           only : h_allom
@@ -177,7 +177,7 @@ module FatesFactoryMod
 
       select case(hlm_parteh_mode)
         
-        case (fates_c_only, fates_cn)
+        case (fates_c_only, fates_cnp)
           ! Put all of the leaf mass into the first bin
           call SetState(prt, leaf_organ, element_id, m_leaf, 1)
           do iage = 2, nleafage

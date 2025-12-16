@@ -22,7 +22,7 @@ module EDPftvarcon
   use FatesLitterMod, only : ilabile,icellulose,ilignin
   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
-  use PRTGenericMod,  only : fates_cn, fates_c_only
+  use PRTGenericMod,  only : fates_cnp, fates_c_only
   use FatesInterfaceTypesMod, only : hlm_nitrogen_spec, hlm_phosphorus_spec
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : hlm_nu_com
@@ -1714,7 +1714,7 @@ contains
      if(.not.is_master) return
 
      select case (hlm_parteh_mode)
-     case (fates_cn)
+     case (fates_cnp)
 
         ! Check to see if either RD/ECA/MIC is turned on
 

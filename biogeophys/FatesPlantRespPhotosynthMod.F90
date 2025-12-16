@@ -45,7 +45,7 @@ module FATESPlantRespPhotosynthMod
   use FatesConstantsMod, only : lmrmodel_ryan_1991
   use FatesConstantsMod, only : lmrmodel_atkin_etal_2017
   use PRTGenericMod,     only : fates_c_only
-  use PRTGenericMod,     only : fates_cn
+  use PRTGenericMod,     only : fates_cnp
   use PRTGenericMod,     only : carbon12_element
   use PRTGenericMod,     only : nitrogen_element
   use PRTGenericMod,     only : leaf_organ
@@ -568,7 +568,7 @@ contains
 
                                     lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
 
-                                 case (fates_cn)
+                                 case (fates_cnp)
 
                                     leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
                                     if( (leaf_c*slatop(ft)) > nearzero) then
@@ -927,7 +927,7 @@ contains
 
                            fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
 
-                        case(fates_cn)
+                        case(fates_cnp)
 
                            live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
                                 currentCohort%prt%GetState(sapw_organ, nitrogen_element)

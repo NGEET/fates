@@ -67,7 +67,7 @@ module PRTGenericMod
   ! -------------------------------------------------------------------------------------
 
   integer, parameter, public :: fates_c_only = 1
-  integer, parameter, public :: fates_cn = 2
+  integer, parameter, public :: fates_cnp = 2
 
   ! -------------------------------------------------------------------------------------
   ! Organ types

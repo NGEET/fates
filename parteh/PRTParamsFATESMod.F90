@@ -17,7 +17,7 @@ module PRTInitParamsFatesMod
   use FatesGlobals,      only : fates_log 
   use shr_log_mod,       only : errMsg => shr_log_errMsg
   use EDPftvarcon,       only : EDPftvarcon_inst
-  use PRTGenericMod,     only : fates_cn, fates_c_only
+  use PRTGenericMod,     only : fates_cnp, fates_c_only
   use FatesAllometryMod  , only : h_allom
   use FatesAllometryMod  , only : h2d_allom
   use FatesAllometryMod  , only : bagw_allom
@@ -1142,7 +1142,7 @@ contains
      ! Check to make sure the organ ids are valid if this is the
      ! cnp_flex_allom_hypothesis
      select case (hlm_parteh_mode)
-     case (fates_c_only,fates_cn)
+     case (fates_c_only,fates_cnp)
 
          do io = 1,norgans
            if(prt_params%organ_id(io) == repro_organ) then
@@ -1175,7 +1175,7 @@ contains
 
      ! Make sure that the N fixation respiration surcharge fraction is
      ! between 0 and 1
-     if (hlm_parteh_mode == fates_cn) then
+     if (hlm_parteh_mode == fates_cnp) then
         if(any(prt_params%nfix_mresp_scfrac(:)<0._r8) .or. any(prt_params%nfix_mresp_scfrac(:)>1.0_r8)) then
            write(fates_log(),*) '---~---'
            write(fates_log(),*) 'The N fixation surcharge nfix_mresp_sfrac (fates_nfix1) must be between 0-1.'
@@ -1525,7 +1525,7 @@ contains
         end if
 
         select case (hlm_parteh_mode)
-        case (fates_cn)
+        case (fates_cnp)
 
            ! Make sure nutrient storage fractions are positive
            if( prt_params%nitr_store_ratio(ipft) < 0._r8  ) then
@@ -1633,7 +1633,7 @@ contains
         end if
 
         select case (hlm_parteh_mode)
-        case (fates_c_only, fates_cn)
+        case (fates_c_only, fates_cnp)
            ! The first nitrogen stoichiometry is used in all cases
            if ( (any(prt_params%nitr_stoich_p1(ipft,:) < 0.0_r8)) .or. &
                 (any(prt_params%nitr_stoich_p1(ipft,:) >= 1.0_r8))) then
@@ -1649,7 +1649,7 @@ contains
         end select
 
         select case (hlm_parteh_mode)
-        case (fates_cn)
+        case (fates_cnp)
 
            do i = 1,norgans
               if ( (prt_params%nitr_stoich_p1(ipft,i) < 0._r8) .or. &
@@ -1658,7 +1658,7 @@ contains
                    (prt_params%phos_stoich_p1(ipft,i) > 1._r8) ) then
                  write(fates_log(),*) "---~---"
                  write(fates_log(),*) 'When the C,N,P allocation hypothesis with flexible'
-                 write(fates_log(),*) 'stoichiometry is turned on (fates_cn),'
+                 write(fates_log(),*) 'stoichiometry is turned on (fates_cnp),'
                  write(fates_log(),*) 'all stoichiometries must be greater than or equal to zero,'
                  write(fates_log(),*) 'and less than 1 (probably way less than 1).'
                  write(fates_log(),*) 'You specified an organ/pft less than zero.'

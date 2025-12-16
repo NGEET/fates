@@ -22,7 +22,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : ican_upper
   use PRTGenericMod            , only : element_pos
   use PRTGenericMod            , only : num_elements
-  use PRTGenericMod            , only : fates_cn
+  use PRTGenericMod            , only : fates_cnp
   use EDTypesMod               , only : site_fluxdiags_type
   use EDTypesMod               , only : elem_diag_type
   use EDtypesMod               , only : ed_site_type
@@ -2789,7 +2789,7 @@ contains
                      hio_agb_si(io_si) = hio_agb_si(io_si) + n_perm2 *            &
                           ( leaf_m + (sapw_m + struct_m + store_m) * prt_params%allom_agb_frac(ccohort%pft) )
 
-                     if (hlm_parteh_mode == fates_cn) then
+                     if (hlm_parteh_mode == fates_cnp) then
                         this%hvars(ih_l2fr_si)%r81d(io_si) = &
                              this%hvars(ih_l2fr_si)%r81d(io_si) + &
                              ccohort%l2fr *ccohort%n * fnrt_m / m2_per_ha

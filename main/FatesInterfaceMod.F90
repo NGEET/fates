@@ -88,7 +88,7 @@ module FatesInterfaceMod
    use PRTGenericMod             , only : element_pos
    use EDParamsMod               , only : eca_plant_escalar
    use PRTGenericMod             , only : fates_c_only
-   use PRTGenericMod             , only : fates_cn
+   use PRTGenericMod             , only : fates_cnp
    use PRTGenericMod             , only : carbon12_element
    use PRTGenericMod             , only : nitrogen_element
    use PRTGenericMod             , only : phosphorus_element
@@ -346,7 +346,7 @@ contains
        fates%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
-    case(fates_cn)
+    case(fates_cnp)
        
        fates%bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
        fates%bc_in(s)%plant_no3_uptake_flux(:,:) = 0._r8
@@ -474,7 +474,7 @@ contains
       ! uptake for each cohort, and don't need to allocate by layer
       ! Allocating differently could save a lot of memory and time
 
-      if (hlm_parteh_mode == fates_cn) then
+      if (hlm_parteh_mode == fates_cnp) then
          allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,1))
          allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,1))
          allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
@@ -683,7 +683,7 @@ contains
          allocate(bc_out%litt_flux_cel_n_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_n_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_n_si(nlevdecomp_in))
-      case(fates_cn)
+      case(fates_cnp)
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
@@ -917,10 +917,10 @@ contains
             p_uptake_mode = coupled_p_uptake
          end if
          
-         if (hlm_parteh_mode == fates_cn) then
+         if (hlm_parteh_mode == fates_cnp) then
 
             if (p_uptake_mode == coupled_p_uptake .and. trim(hlm_name) == 'CLM') then
-               write(fates_log(), *) 'CLM-FATES must have prescribed phosphorus when hlm_parteh_mode == fates_cn. To select prescribed phosphorus, set fates_cnp_prescribed_puptake > 1 (recommended 10) in the fates parameter file. Exiting. '
+               write(fates_log(), *) 'CLM-FATES must have prescribed phosphorus when hlm_parteh_mode == fates_cnp. To select prescribed phosphorus, set fates_cnp_prescribed_puptake > 1 (recommended 10) in the fates parameter file. Exiting. '
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
             if((p_uptake_mode==coupled_p_uptake) .or. (n_uptake_mode==coupled_n_uptake))then
@@ -1119,7 +1119,7 @@ contains
 
         call InitPRTGlobalAllometricCarbon()
 
-     case(fates_cn)
+     case(fates_cnp)
         
         num_elements = 3
         allocate(element_list(num_elements))
@@ -1682,7 +1682,7 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          else
             if((hlm_use_tree_damage .eq. itrue) .and. &
-                 (hlm_parteh_mode == fates_cn)) then
+                 (hlm_parteh_mode == fates_cnp)) then
                write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
                write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
                call endrun(msg=errMsg(sourcefile, __LINE__))

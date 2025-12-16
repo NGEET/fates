@@ -16,7 +16,7 @@ module FatesSoilBGCFluxMod
   use PRTGenericMod     , only : element_list
   use PRTGenericMod     , only : element_pos
   use PRTGenericMod     , only : fates_c_only
-  use PRTGenericMod     , only : fates_cn
+  use PRTGenericMod     , only : fates_cnp
   use PRTGenericMod     , only : prt_vartypes
   use PRTGenericMod     , only : leaf_organ
   use PRTGenericMod     , only : sapw_organ, struct_organ
@@ -269,7 +269,7 @@ contains
     
 
     ! Exit if we need not communicate with the hlm's ch4 module
-   ! if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==fates_cn) ) return
+   ! if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==fates_cnp) ) return
     
     ! Initialize to zero
     bc_out%annavg_agnpp_pa(:) = 0._r8
@@ -282,7 +282,7 @@ contains
     bc_out%ema_npp = 0._r8
 
     ! Process CH4 variables first
-    !if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==fates_cn) )
+    !if(.not.(hlm_use_ch4==itrue) .and. .not.(hlm_parteh_mode==fates_cnp) )
 
     cpatch => csite%oldest_patch
     do while (associated(cpatch))
