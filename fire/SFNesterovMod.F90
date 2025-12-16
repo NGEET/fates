@@ -49,7 +49,7 @@ module SFNesterovMod
       real(r8),              intent(in)    :: temp_C ! daily averaged temperature [degrees C]
       real(r8),              intent(in)    :: precip ! daily precipitation [mm]
       real(r8),              intent(in)    :: rh     ! daily relative humidity [%]
-      real(r8),              intent(in)    :: wind   ! daily wind speed [m/min]
+      real(r8),              intent(in)    :: wind   ! daily wind speed [m/s]
       
       ! LOCALS:
       real(r8) :: t_dew ! dewpoint temperature [degrees C]

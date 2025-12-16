@@ -22,8 +22,8 @@ configurations for CIME.
 This script builds and runs FATES functional tests, and plots any relevant output from
 those tests.
 
-You can supply your own parameter file (either a .cdl or a .nc file), or if you do not
-specify anything, the script will use the default FATES parameter cdl file.
+You can supply your own parameter file (a json formatted file), or if you do not
+specify anything, the script will use the default FATES parameter json file.
 
 """
 import os
@@ -51,7 +51,7 @@ _DEFAULT_CDL_PATH = os.path.abspath(
         _FILE_DIR,
         os.pardir,
         "parameter_files",
-        "fates_params_default.cdl",
+        "fates_params_default.json",
     )
 )
 _CMAKE_BASE_DIR = os.path.join(_FILE_DIR, os.pardir)
@@ -79,8 +79,8 @@ def commandline_args():
         type=str,
         default=_DEFAULT_CDL_PATH,
         help="Parameter file to run the FATES tests with.\n"
-        "Can be a netcdf (.nc) or cdl (.cdl) file.\n"
-        "If no file is specified the script will use the default .cdl file in the\n"
+        "This should be JSON formatted.\n"
+        "If no file is specified the script will use the default .json file in the\n"
         "parameter_files directory.\n",
     )
 
@@ -204,19 +204,19 @@ def check_arg_validity(args):
 
 
 def check_param_file(param_file):
-    """Checks to see if param_file exists and is of the correct form (.nc or .cdl)
+    """Checks to see if param_file exists and is of the correct form (.json)
 
     Args:
         param_file (str): path to parameter file
 
     Raises:
-        argparse.ArgumentError: Parameter file is not of the correct form (.nc or .cdl)
+        argparse.ArgumentError: Parameter file is not of the correct form (.json)
         argparse.ArgumentError: Can't find parameter file
     """
     file_suffix = os.path.basename(param_file).split(".")[-1]
-    if not file_suffix in ["cdl", "nc"]:
+    if not file_suffix in ["json"]:
         raise argparse.ArgumentError(
-            None, "Must supply parameter file with .cdl or .nc ending."
+            None, "Must supply parameter file with .json. Ending."
         )
     if not os.path.isfile(param_file):
         raise FileNotFoundError(param_file)
@@ -305,7 +305,7 @@ def run_functional_tests(
     if save_figs:
         make_plotdirs(os.path.abspath(run_dir), test_dict)
 
-    # move parameter file to correct location (creates nc file if cdl supplied)
+    # move parameter file to correct location
     param_file = create_param_file(param_file, run_dir)
 
     # compile code
@@ -361,15 +361,14 @@ def make_plotdirs(run_dir, test_dict):
 
 
 def create_param_file(param_file, run_dir):
-    """Creates and/or move the default or input parameter file to the run directory
-    Creates a netcdf file from a cdl file if a cdl file is supplied
+    """Moves the input parameter file to the run directory
 
     Args:
         param_file (str): path to parmaeter file
         run_dir (str): full path to run directory
 
     Raises:
-        RuntimeError: Supplied parameter file is not netcdf (.cd) or cdl (.cdl)
+        RuntimeError: Supplied parameter file is not JSON
 
     Returns:
         str: full path to new parameter file name/location
@@ -381,12 +380,10 @@ def create_param_file(param_file, run_dir):
     else:
         print(f"Using parameter file {param_file}.")
         file_suffix = os.path.basename(param_file).split(".")[-1]
-        if file_suffix == "cdl":
-            param_file_update = create_nc_from_cdl(param_file, run_dir)
-        elif file_suffix == "nc":
+        if file_suffix == "json":
             param_file_update = copy_file(param_file, run_dir)
         else:
-            raise RuntimeError("Must supply parameter file with .cdl or .nc ending.")
+            raise RuntimeError("Must supply parameter file with .json. Ending.")
 
     return param_file_update
 

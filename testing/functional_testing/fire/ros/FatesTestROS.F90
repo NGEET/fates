@@ -2,12 +2,11 @@ program FatesTestROS
   
   use FatesConstantsMod,           only : r8 => fates_r8 
   use FatesArgumentUtils,          only : command_line_arg
-  use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
+  use FatesUnitTestParamReaderMod, only : ReadParameters
   
   implicit none
   
   ! LOCALS:
-  type(fates_unit_test_param_reader) :: param_reader           ! param reader instance
   character(len=:), allocatable      :: param_file             ! input parameter file
   real(r8),         allocatable      :: reaction_intensity(:)
   real(r8),         allocatable      :: fuel_depth(:)
@@ -103,8 +102,7 @@ program FatesTestROS
   param_file = command_line_arg(1)
   
   ! read in parameter file
-  call param_reader%Init(param_file)
-  call param_reader%RetrieveParameters()
+  call ReadParameters(param_file)
   
   ! calculate reaction intensity
   call TestReactionIntensity(fuel_depth, reaction_intensity)

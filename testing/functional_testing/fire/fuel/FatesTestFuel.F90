@@ -4,7 +4,7 @@ program FatesTestFuel
   use EDTypesMod,                  only : ed_site_type
   use FatesTestFireMod,            only : SetUpFuel, ReadDatmData, WriteFireData
   use FatesArgumentUtils,          only : command_line_arg
-  use FatesUnitTestParamReaderMod, only : fates_unit_test_param_reader
+  use FatesUnitTestParamReaderMod, only : ReadParameters
   use SyntheticFuelModels,         only : fuel_models_array_class
   use SFFireWeatherMod,            only : fire_weather
   use SFNesterovMod,               only : nesterov_index
@@ -16,7 +16,6 @@ program FatesTestFuel
   implicit none
   
   ! LOCALS:
-  type(fates_unit_test_param_reader)             :: param_reader         ! param reader instance
   type(fuel_models_array_class)                  :: fuel_models_array    ! array of fuel models
   class(fire_weather),               pointer     :: fireWeather          ! fire weather object
   type(fuel_type),                   allocatable :: fuel(:)              ! fuel objects                          
@@ -68,10 +67,9 @@ program FatesTestFuel
   ! read in parameter file name and DATM file from command line
   param_file = command_line_arg(1)
   datm_file = command_line_arg(2)
-  
+
   ! read in parameter file
-  call param_reader%Init(param_file)
-  call param_reader%RetrieveParameters()
+  call ReadParameters(param_file)
   
   ! read in DATM data
   call ReadDatmData(datm_file, temp_degC, precip, rh, wind)
