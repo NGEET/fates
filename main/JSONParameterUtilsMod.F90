@@ -97,11 +97,21 @@ module JSONParameterUtilsMod
 
   ! This large string holds the file contents, minus
   ! all non-standard characters like end-lines and such
+
+
+  ! RGK: IN TESTING, SOME COMPILERS SEEMED TO ALMOST
+  ! PATHOLOGICALY HAVE TROUBLE WITH DYNAMIC ALLOCATION
+  ! SO WE WILL TRY TO RESOLVE THIS PROBLEM A JUST USE
+  ! A LARGE ALLOCATION FOR NOW (12/25)
   ! This will be deallocated at the end of the parsing
   ! process.  THese are public so they can be filled
   ! for unit testing
-  character(len=:), public, allocatable :: file_buffer
-  integer, public                       :: nbuffer
+  !character(len=:), public, allocatable :: file_buffer
+  !integer, public                       :: nbuffer
+
+  integer, parameter :: nbuffer = 150000
+  character(len=nbuffer) :: file_buffer
+
   character(len=vardata_max_len)        :: obj_buffer
 
   
@@ -266,9 +276,21 @@ contains
        end if
     end do countchar
 
-    nbuffer = i
-    allocate(character(len=nbuffer) :: file_buffer)
+    ! REVERT TO DYNAMIC ALLOCATION LATER
+    !nbuffer = i
+    !allocate(character(len=nbuffer) :: file_buffer)
 
+    if(i>nbuffer)then
+       write(log_unit,*)'Attempting to read a JSON file that has'
+       write(log_unit,*)' more non-whitespace characters than the'
+       write(log_unit,*)' maximum buffer size.'
+       write(log_unit,*)' Max buffer (nbuffer): ',nbuffer
+       write(log_unit,*)' characters in file: ',i
+       write(log_unit,*)' Increase nbuffer in JSONParamerUtilsMod.F90'
+       write(log_unit,*)' Exiting'
+       call shr_sys_abort()
+    end if
+    
     rewind(file_unit)
     
     i = 0
