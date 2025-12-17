@@ -307,7 +307,7 @@ def run_functional_tests(
 
     # move parameter file to correct location
     param_file = create_param_file(param_file, run_dir)
-
+    
     # compile code
     if build:
         build_tests(

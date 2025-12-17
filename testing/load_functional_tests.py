@@ -2,9 +2,9 @@
 
 from functional_class import FunctionalTest
 from functional_class_with_drivers import FunctionalTestWithDrivers
-from functional_testing.allometry.allometry_test import AllometryTest
-from functional_testing.math_utils.math_utils_test import QuadraticTest
-from functional_testing.fire.fuel.fuel_test import FuelTest 
-from functional_testing.fire.ros.ros_test import ROSTest  
-from functional_testing.patch.patch_test import PatchTest
-from functional_testing.fire.mortality.fire_mortality_test import FireMortTest
+from tests.functional.allometry.allometry_test import AllometryTest
+from tests.functional.math_utils.math_utils_test import QuadraticTest
+from tests.functional.fire.fuel.fuel_test import FuelTest 
+from tests.functional.fire.ros.ros_test import ROSTest  
+from tests.functional.patch.patch_test import PatchTest
+from tests.functional.fire.mortality.fire_mortality_test import FireMortTest
