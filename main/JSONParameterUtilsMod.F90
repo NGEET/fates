@@ -95,25 +95,29 @@ module JSONParameterUtilsMod
   ! Overridable, see procedure below
   real(r8) :: r_invalid = -1.e36_r8
 
-  ! This large string holds the file contents, minus
-  ! all non-standard characters like end-lines and such
-
-
   ! RGK: IN TESTING, SOME COMPILERS SEEMED TO ALMOST
   ! PATHOLOGICALY HAVE TROUBLE WITH DYNAMIC ALLOCATION
   ! SO WE WILL TRY TO RESOLVE THIS PROBLEM A JUST USE
   ! A LARGE ALLOCATION FOR NOW (12/25)
+
+  ! The file_buffer string holds the file contents, minus
+  ! all non-standard characters like end-lines and such.
+  ! This is defined as a pointer, which points to an
+  ! allocatable target, because some compilers will
+  ! perform "reallocation on assignment", which is
+  ! quite silly imho, but we have to avoid it. Using
+  ! a pointer/target system simply prevents this behavior.
   ! This will be deallocated at the end of the parsing
-  ! process.  THese are public so they can be filled
+  ! process. THese are public so they can be filled
   ! for unit testing
-  !character(len=:), public, allocatable :: file_buffer
-  !integer, public                       :: nbuffer
-
-  integer, parameter :: nbuffer = 150000
-  character(len=nbuffer) :: file_buffer
-
-  character(len=vardata_max_len)        :: obj_buffer
-
+  ! character(len=:), allocatable,target :: alloc_buffer
+  ! character(len=:), pointer            :: file_buffer
+  ! integer, public                      :: nbuffer
+    
+  integer, parameter             :: maxbuffer = 150000
+  character(len=maxbuffer)       :: file_buffer
+  character(len=vardata_max_len) :: obj_buffer
+  integer                        :: nbuffer
   
   character(len=max_sl),parameter :: search_next_tag = 'search-next-tag'
   
@@ -237,6 +241,11 @@ contains
     call GetDimensions(pstruct)
 
     call GetParameters(string_scr,pstruct)
+
+    ! RGK: UNCOMMENT WHEN WE SWITCH TO DYNAMIC ALLOCATION
+    ! Release the string buffers
+    ! deallocate(alloc_buffer)
+    ! nullify(file_buffer)
     
     return
   end subroutine JSONRead
@@ -250,7 +259,8 @@ contains
     integer            :: io_status
     character(len=256) :: io_msg
     integer            :: i
-    logical            :: inside_dq ! Inside a double quote?
+    logical            :: inside_dq       ! Inside a double quote?
+  
     
     rewind(file_unit)
     inside_dq = .false.
@@ -276,20 +286,24 @@ contains
        end if
     end do countchar
 
-    ! REVERT TO DYNAMIC ALLOCATION LATER
-    !nbuffer = i
-    !allocate(character(len=nbuffer) :: file_buffer)
-
-    if(i>nbuffer)then
+    if(i>maxbuffer)then
        write(log_unit,*)'Attempting to read a JSON file that has'
        write(log_unit,*)' more non-whitespace characters than the'
        write(log_unit,*)' maximum buffer size.'
-       write(log_unit,*)' Max buffer (nbuffer): ',nbuffer
+       write(log_unit,*)' Max buffer (maxbuffer): ',maxbuffer
        write(log_unit,*)' characters in file: ',i
-       write(log_unit,*)' Increase nbuffer in JSONParamerUtilsMod.F90'
+       write(log_unit,*)' Increase maxbuffer in JSONParamerUtilsMod.F90'
        write(log_unit,*)' Exiting'
        call shr_sys_abort()
     end if
+
+    nbuffer = i
+    
+    ! SWITCH TO DYNAMIC ALLOCATION AT A LATER DATE
+    ! nbuffer = i
+    ! allocate(character(len=nbuffer) :: alloc_buffer)
+    ! Assignments to the pointer target will NOT trigger reallocation
+    ! file_buffer => alloc_buffer
     
     rewind(file_unit)
     
