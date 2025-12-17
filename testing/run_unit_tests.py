@@ -20,7 +20,7 @@ This script builds and runs FATES units tests.
 import os
 import argparse
 
-from build_fortran_tests import build_tests
+from test_builder import build_tests
 from path_utils import add_cime_lib_to_path
 from utils import config_to_dict, parse_test_list
 
@@ -31,7 +31,7 @@ from CIME.utils import run_cmd_no_fail  # pylint: disable=wrong-import-position,
 # constants for this script
 _FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 _CMAKE_BASE_DIR = os.path.join(_FILE_DIR, os.pardir)
-_DEFAULT_CONFIG_FILE = os.path.join(_FILE_DIR, "unit_tests.cfg")
+_DEFAULT_CONFIG_FILE = os.path.join(_FILE_DIR, "config", "unit.cfg")
 _TEST_SUB_DIR = "testing"
 
 

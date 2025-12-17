@@ -90,7 +90,7 @@ class UnitTestLayout(TestLayoutProtocol):
 
     @property
     def config_file(self) -> Path:
-        return self.root / "unit_tests.cfg"
+        return self.root / "config" / "unit.cfg"
 
     @property
     def cmake_template(self) -> Path:
@@ -145,7 +145,7 @@ class FunctionalTestLayout(FunctionalLayoutProtocol):
 
     @property
     def config_file(self) -> Path:
-        return self.root / "functional_tests.cfg"
+        return self.root / "config" / "functional.cfg"
 
     @property
     def cmake_template(self) -> Path:

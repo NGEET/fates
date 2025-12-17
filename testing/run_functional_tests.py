@@ -45,7 +45,7 @@ from CIME.utils import run_cmd
 
 # constants for this script
 _FILE_DIR = os.path.dirname(__file__)
-_DEFAULT_CONFIG_FILE = os.path.join(_FILE_DIR, "functional_tests.cfg")
+_DEFAULT_CONFIG_FILE = os.path.join(_FILE_DIR, "config", "functional.cfg")
 _DEFAULT_CDL_PATH = os.path.abspath(
     os.path.join(
         _FILE_DIR,
