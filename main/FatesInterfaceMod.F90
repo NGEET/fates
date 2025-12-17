@@ -914,15 +914,18 @@ contains
          if (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
             p_uptake_mode = prescribed_p_uptake
          else
+            ! An error check in subroutine set_fates_ctrlparms stops the run earlier if
+            ! - hlm_name is CLM
+            ! - p_uptake_mode is coupled_p_uptake and
+            ! - hlm_parteh_mode is fates_cnp
+            ! because CLM-FATES must have prescribed phosphorus when hlm_parteh_mode == fates_cnp.
+            ! To select prescribed phosphorus, set fates_cnp_prescribed_puptake > 1 (recommended 10)
+            ! in the fates parameter file.
             p_uptake_mode = coupled_p_uptake
          end if
          
          if (hlm_parteh_mode == fates_cnp) then
 
-            if (p_uptake_mode == coupled_p_uptake .and. trim(hlm_name) == 'CLM') then
-               write(fates_log(), *) 'CLM-FATES must have prescribed phosphorus when hlm_parteh_mode == fates_cnp. To select prescribed phosphorus, set fates_cnp_prescribed_puptake > 1 (recommended 10) in the fates parameter file. Exiting. '
-               call endrun(msg=errMsg(sourcefile, __LINE__))
-            end if
             if((p_uptake_mode==coupled_p_uptake) .or. (n_uptake_mode==coupled_n_uptake))then
                max_comp_per_site = fates_maxElementsPerSite
                fates_np_comp_scaling = coupled_np_comp_scaling
@@ -1762,12 +1765,11 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(trim(hlm_name).eq.'CLM' .and. hlm_parteh_mode .eq. 2) then
-            if( sum(abs(EDPftvarcon_inst%prescribed_puptake(:)))<nearzero .and. &
-                sum(abs(EDPftvarcon_inst%prescribed_nuptake(:)))<nearzero) then
-               write(fates_log(), *) 'PARTEH hypothesis 2 is only viable with forced'
-               write(fates_log(), *) 'boundary conditions for CLM (currently).'
-               write(fates_log(), *) 'prescribed_puptake or prescribed_nuptake must > 0'
+         if(trim(hlm_name) == 'CLM' .and. hlm_parteh_mode  == fates_cnp) then
+            if( sum(abs(EDPftvarcon_inst%prescribed_puptake(:))) < nearzero ) then
+               write(fates_log(), *) 'PARTEH hypothesis 2 (i.e. fates_cnp) is only viable with forced'
+               write(fates_log(), *) 'phosphorus boundary conditions for CLM (currently).'
+               write(fates_log(), *) 'prescribed_puptake must > 0 (recommended is 10)'
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end if
