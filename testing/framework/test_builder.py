@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 # local imports
-from path_utils import add_cime_lib_to_path
+from utils.path_utils import add_cime_lib_to_path
 
 # initialize CIME path
 add_cime_lib_to_path()
