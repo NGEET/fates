@@ -1,0 +1,33 @@
+program FatesHelloWorld
+
+  use FatesConstantsMod, only : r8 => fates_r8
+  !use FatesParametersInterface, only : pstruct
+
+  implicit none
+
+  ! LOCALS:
+  ! if you need parameter file leave this here
+  character(len=:), allocatable      :: param_file   ! input parameter file
+
+
+  ! CONSTANTS:
+  ! if you need an output file update name, otherwise delete
+  character(len=*), parameter :: out_file = 'my_output_file.nc' ! output file
+
+  ! Command line arguments read in here -----
+  ! uncomment if you want the parameter file or need other arguments
+  ! param_file = command_line_arg(1)
+  
+  ! Read in parameter file here -------
+  ! uncomment if you need parameters
+  ! 
+  ! call JSONSetInvalid(fates_check_param_set+10._r8)
+  ! call JSONSetLogInit(fates_log())
+  ! call JSONRead(param_file,pstruct)
+
+  
+  print *, "Hello HelloWorld"
+  
+end program FatesHelloWorld
+
+! ----------------------------------------------------------------------------------------

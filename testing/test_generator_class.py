@@ -369,13 +369,8 @@ class GenerateFunctionalTest(GenerateTestClass):
         if not self.load_class_file.exists():
             raise FileNotFoundError(f"{self.load_class_file} not found.")
 
-        test_dir_rel = self.test_dir.relative_to(_TEST_ROOT)
-        name = (
-            f"{self.sub_dir}.{test_dir_rel}.{self.test_name}"
-            if self.sub_dir
-            else f"{test_dir_rel}.{self.test_name}"
-        )
-        content = f"from functional_testing.{name} import {self.module_name}\n"
+        test_dir_rel = str(self.test_dir.relative_to(_TEST_ROOT)).replace('/', '.')
+        content = f"from {test_dir_rel} import {self.module_name}\n"
         with self.load_class_file.open("a", encoding="utf-8") as f:
             f.write(content)
         logger.info("Updated %s.", self.load_class_file)
