@@ -95,14 +95,21 @@ module JSONParameterUtilsMod
   ! Overridable, see procedure below
   real(r8) :: r_invalid = -1.e36_r8
 
-  ! This large string holds the file contents, minus
-  ! all non-standard characters like end-lines and such
+  ! The file_buffer string holds the file contents, minus
+  ! all non-standard characters like end-lines and such.
+  ! This is defined as a pointer, which points to an
+  ! allocatable target, because some compilers will
+  ! perform "reallocation on assignment", which is
+  ! quite silly imho, but we have to avoid it. Using
+  ! a pointer/target system simply prevents this behavior.
   ! This will be deallocated at the end of the parsing
-  ! process.  THese are public so they can be filled
+  ! process. THese are public so they can be filled
   ! for unit testing
-  character(len=:), public, allocatable :: file_buffer
-  integer, public                       :: nbuffer
-  character(len=vardata_max_len)        :: obj_buffer
+  
+  character(len=:), allocatable,target :: alloc_buffer
+  character(len=:), pointer            :: file_buffer
+  integer, public                      :: nbuffer
+  character(len=vardata_max_len)       :: obj_buffer
 
   
   character(len=max_sl),parameter :: search_next_tag = 'search-next-tag'
@@ -227,6 +234,10 @@ contains
     call GetDimensions(pstruct)
 
     call GetParameters(string_scr,pstruct)
+
+    ! Release the string buffers
+    deallocate(alloc_buffer)
+    nullify(file_buffer)
     
     return
   end subroutine JSONRead
@@ -240,7 +251,8 @@ contains
     integer            :: io_status
     character(len=256) :: io_msg
     integer            :: i
-    logical            :: inside_dq ! Inside a double quote?
+    logical            :: inside_dq       ! Inside a double quote?
+  
     
     rewind(file_unit)
     inside_dq = .false.
@@ -267,8 +279,11 @@ contains
     end do countchar
 
     nbuffer = i
-    allocate(character(len=nbuffer) :: file_buffer)
+    allocate(character(len=nbuffer) :: alloc_buffer)
 
+    ! Assignments to the pointer target will NOT trigger reallocation
+    file_buffer => alloc_buffer
+    
     rewind(file_unit)
     
     i = 0
