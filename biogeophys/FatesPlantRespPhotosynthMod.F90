@@ -165,7 +165,7 @@ contains
     real(r8) :: psn_z(nlevleaf,maxpft,nclmax) 
 
     ! carbon 13 in newly assimilated carbon at leaf level
-    real(r8) :: c13disc_z(nlevleaf,maxpft,nclmax) 
+    real(r8) :: c13disc_z(nlevleaf,maxpft,nclmax)
     
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
@@ -412,7 +412,7 @@ contains
                   c13disc_z(:,:,:) = 0._r8
                   rs_z(:,:,:)      = 0._r8
                   lmr_z(:,:,:)     = 0._r8
-                                    
+                  
                   if_any_cohorts: if(currentPatch%num_cohorts > 0)then
 
                      currentCohort => currentPatch%tallest
@@ -787,6 +787,7 @@ contains
                                     psn_z(iv,ft,cl) = psn_z(iv,ft,cl) + area_frac * psn_ll
                                     anet_av_z(iv,ft,cl) = anet_av_z(iv,ft,cl) + area_frac * anet_ll
                                     c13disc_z(iv,ft,cl) = c13disc_z(iv,ft,cl) + area_frac * c13disc_ll
+
                                     
                                  end do do_sunsha
                                  

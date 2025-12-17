@@ -89,7 +89,7 @@ module FatesUnitTestParamReaderMod
           case default
             write(*, '(a,a)') 'dimension shape:', dimension_shape
             write(*, '(a)') 'unsupported number of dimensions reading parameters.'
-            stop
+            call abort()
         end select
     end do
 

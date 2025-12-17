@@ -23,7 +23,6 @@ module EDPftvarcon
   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
   use PRTGenericMod,  only : fates_cnp, fates_c_only
-  use FatesInterfaceTypesMod, only : hlm_nitrogen_spec, hlm_phosphorus_spec
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : hlm_nu_com
   use FatesConstantsMod   , only : ievergreen
@@ -1725,28 +1724,21 @@ contains
            write(fates_log(),*) 'Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-
         
         ! If nitrogen is turned on, check to make sure there are valid ammonium
         ! parameters
-        if(hlm_nitrogen_spec>0)then
-           if (trim(hlm_nu_com).eq.'ECA') then
-
-              if(any(EDpftvarcon_inst%eca_km_nh4(:)<0._r8) ) then
-                 write(fates_log(),*) 'ECA with nitrogen is turned on'
-                 write(fates_log(),*) 'bad ECA km value(s) for nh4: ',EDpftvarcon_inst%eca_km_nh4(:)
-                 write(fates_log(),*) 'Aborting'
-                 call endrun(msg=errMsg(sourcefile, __LINE__))
-              end if
-
-              if(hlm_nitrogen_spec==2)then
-                 if(any(EDpftvarcon_inst%eca_km_no3(:)<0._r8)) then
-                    write(fates_log(),*) 'ECA with nit/denitr is turned on'
-                    write(fates_log(),*) 'bad ECA km value(s) for no3: ',EDpftvarcon_inst%eca_km_no3(:)
-                    write(fates_log(),*) 'Aborting'
-                    call endrun(msg=errMsg(sourcefile, __LINE__))
-                 end if
-              end if
+        if (trim(hlm_nu_com).eq.'ECA') then
+           if(any(EDpftvarcon_inst%eca_km_nh4(:)<0._r8) ) then
+              write(fates_log(),*) 'ECA with nitrogen is turned on'
+              write(fates_log(),*) 'bad ECA km value(s) for nh4: ',EDpftvarcon_inst%eca_km_nh4(:)
+              write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           end if
+           if(any(EDpftvarcon_inst%eca_km_no3(:)<0._r8)) then
+              write(fates_log(),*) 'ECA with nit/denitr is turned on'
+              write(fates_log(),*) 'bad ECA km value(s) for no3: ',EDpftvarcon_inst%eca_km_no3(:)
+              write(fates_log(),*) 'Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
         end if
         
@@ -1776,8 +1768,8 @@ contains
         ! We are using a simple phosphatase model right now. There is
         ! no critical value (lambda) , and there is no preferential uptake (alpha).
         ! Make sure these parameters are both set to 0.
-
-        if ((hlm_phosphorus_spec>0) .and. (trim(hlm_nu_com).eq.'ECA')) then
+        
+        if (trim(hlm_nu_com).eq.'ECA') then
            if (any(abs(EDPftvarcon_inst%eca_lambda_ptase(:)) > nearzero ) ) then
               write(fates_log(),*) 'Critical Values for phosphatase in ECA are not'
               write(fates_log(),*) 'enabled right now. Please set fates_eca_lambda_ptase = 0'
