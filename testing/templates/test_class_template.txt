@@ -12,7 +12,7 @@ class {module_name}(FunctionalTest):
     """{module_name} test class
     """
 
-    name = "{module name}"
+    name = "{module_name}"
 
     def __init__(self, test_dict):
         super().__init__(

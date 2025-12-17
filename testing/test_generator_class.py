@@ -27,7 +27,7 @@ class GenerateTestClass(ABC):
         test_name: str,
         sub_dir: str | None = None,
         layout: TestLayoutProtocol | None = None,
-        verbose: bool = True,
+        verbose: bool = False,
     ):
         self.test_name = re.sub(r"_test$", "", test_name.lower())
         self.sub_dir = sub_dir
@@ -184,7 +184,7 @@ class GenerateTestClass(ABC):
         lines = self.config_file.read_text(encoding="utf-8").splitlines(keepends=True)
 
         # strip trailing newlines and whitespace-only lines
-        while lines and lines[-1].strip() == "":
+        while lines and lines[-2].strip() == "":
             lines.pop()
 
         # new config block
@@ -369,7 +369,12 @@ class GenerateFunctionalTest(GenerateTestClass):
         if not self.load_class_file.exists():
             raise FileNotFoundError(f"{self.load_class_file} not found.")
 
-        name = f"{self.sub_dir}.{self.test_name}" if self.sub_dir else self.test_name
+        test_dir_rel = self.test_dir.relative_to(_TEST_ROOT)
+        name = (
+            f"{self.sub_dir}.{test_dir_rel}.{self.test_name}"
+            if self.sub_dir
+            else f"{test_dir_rel}.{self.test_name}"
+        )
         content = f"from functional_testing.{name} import {self.module_name}\n"
         with self.load_class_file.open("a", encoding="utf-8") as f:
             f.write(content)
