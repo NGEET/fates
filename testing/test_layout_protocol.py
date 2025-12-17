@@ -86,7 +86,7 @@ class UnitTestLayout(TestLayoutProtocol):
 
     @property
     def base_dir(self) -> Path:
-        return self.root / "unit_testing"
+        return self.root / "tests" / "unit"
 
     @property
     def config_file(self) -> Path:
@@ -141,7 +141,7 @@ class FunctionalTestLayout(FunctionalLayoutProtocol):
 
     @property
     def base_dir(self) -> Path:
-        return self.root / "functional_testing"
+        return self.root / "tests" / "functional"
 
     @property
     def config_file(self) -> Path:
