@@ -28,7 +28,7 @@ except ImportError as e:
     ) from e
 
 # setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # constants
@@ -67,7 +67,12 @@ class TestBuilder:
 
     def __init__(self, config: BuildConfig):
         self.config = config
-
+        
+        if self.config.verbose:
+            logging.getLogger().setLevel(logging.INFO)
+        else:
+            logging.getLogger().setLevel(logging.WARNING)
+        
     def build(self):
         """Main entry point for building tests."""
 
