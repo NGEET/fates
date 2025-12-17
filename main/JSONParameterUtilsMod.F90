@@ -989,7 +989,6 @@ contains
     
     ! Flush the string
     string_out = repeat(' ',max_sl)
-    string_in  = adjustl(string_in)
     k=0
     inside_dq = .false.
     do i = 1, len(trim(string_in))
