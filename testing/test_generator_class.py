@@ -358,7 +358,7 @@ class GenerateFunctionalTest(GenerateTestClass):
         )
 
         # create the python template file
-        class_path = self.test_dir / f"{self.test_name}.py"
+        class_path = self.test_dir / f"{self.test_name}_test.py"
         self.render_template(
             self.class_template, class_path, module_name=self.module_name
         )
@@ -370,7 +370,7 @@ class GenerateFunctionalTest(GenerateTestClass):
             raise FileNotFoundError(f"{self.load_class_file} not found.")
 
         test_dir_rel = str(self.test_dir.relative_to(_TEST_ROOT)).replace('/', '.')
-        content = f"from {test_dir_rel} import {self.module_name}\n"
+        content = f"from {test_dir_rel}.{self.test_name}_test import {self.module_name}\n"
         with self.load_class_file.open("a", encoding="utf-8") as f:
             f.write(content)
         logger.info("Updated %s.", self.load_class_file)
