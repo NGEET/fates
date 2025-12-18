@@ -5,7 +5,7 @@ import os
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
-from functional_class_with_drivers import FunctionalTestWithDrivers
+from framework.functional_class_with_drivers import FunctionalTestWithDrivers
 
 
 class FuelTest(FunctionalTestWithDrivers):

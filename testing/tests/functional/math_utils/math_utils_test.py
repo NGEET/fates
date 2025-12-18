@@ -5,8 +5,8 @@ import os
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
-from utils_plotting import get_color_palette
-from functional_class import FunctionalTest
+from framework.utils.plotting import get_color_palette
+from framework.functional_class import FunctionalTest
 
 
 class QuadraticTest(FunctionalTest):

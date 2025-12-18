@@ -27,21 +27,31 @@ specify anything, the script will use the default FATES parameter json file.
 
 """
 import os
+import sys
 import argparse
 import subprocess
 import matplotlib.pyplot as plt
 
-from test_builder import build_tests, build_exists
-from functional_class_with_drivers import FunctionalTestWithDrivers
-from path_utils import add_cime_lib_to_path
-from utils import copy_file, create_nc_from_cdl, config_to_dict, parse_test_list
+from framework.builder import build_tests, build_exists
+from framework.utils.path import add_cime_lib_to_path
+from framework.utils.general import copy_file, create_nc_from_cdl, config_to_dict, parse_test_list
+
+# root_dir = os.path.dirname(os.path.abspath(__file__))
+# if root_dir not in sys.path:
+#     sys.path.insert(0, root_dir)
 
 # load the functional test classes
-from load_functional_tests import *
+from framework.load_functional_tests import *
 
+# initialze CIME path
 add_cime_lib_to_path()
-
-from CIME.utils import run_cmd
+try:
+    from CIME.utils import run_cmd
+except ImportError as e:
+    # fail fast if environment isn't set up
+    raise ImportError(
+        f"CIME dependencies missing. Ensure environment is configured. Error: {e}"
+    ) from e
 
 # constants for this script
 _FILE_DIR = os.path.dirname(__file__)

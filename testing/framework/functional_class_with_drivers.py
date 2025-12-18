@@ -1,5 +1,5 @@
 import os
-from functional_class import FunctionalTest
+from framework.functional_class import FunctionalTest
 
 
 class FunctionalTestWithDrivers(FunctionalTest):

@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 # local imports
-from utils.path_utils import add_cime_lib_to_path
+from framework.utils.path import add_cime_lib_to_path, path_to_cime
 
 # initialize CIME path
 add_cime_lib_to_path()
@@ -32,8 +32,7 @@ logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s -
 logger = logging.getLogger(__name__)
 
 # constants
-_CURRENT_FILE = Path(__file__).resolve()
-_CIMEROOT = (_CURRENT_FILE.parent / "../../../cime").resolve()
+_CIMEROOT = path_to_cime() #(_CURRENT_FILE.parent / "../../../cime").resolve()
 _MPI_LIBRARY = "mpi-serial"
 
 

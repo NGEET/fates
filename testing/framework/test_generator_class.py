@@ -4,13 +4,13 @@ import re
 import logging
 from pathlib import Path
 from abc import ABC, abstractmethod
-from utils.test_layout_protocol import (
+from framework.utils.test_layout_protocol import (
     TestLayoutProtocol,
     FunctionalLayoutProtocol,
     UnitTestLayout,
     FunctionalTestLayout,
 )
-from utils.utils import snake_to_camel
+from framework.utils.general import snake_to_camel
 
 # configure logger
 logger = logging.getLogger(__name__)

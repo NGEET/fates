@@ -6,8 +6,8 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
-from functional_class import FunctionalTest
-from utils_plotting import blank_plot
+from framework.functional_class import FunctionalTest
+from framework.utils.plotting import blank_plot
 
 COLORS = ["#793922", "#6B8939", "#99291F", "#CC9728", "#2C778A"]
 CM_TO_FT = 30.48

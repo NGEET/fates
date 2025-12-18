@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from utils.utils import str_to_bool, str_to_list
+from framework.utils.general import str_to_bool, str_to_list
 
 class FunctionalTest(ABC):
     """Class for running FATES functional tests"""

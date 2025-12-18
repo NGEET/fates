@@ -1,14 +1,7 @@
 """
 Concrete class for running the allometry functional tests for FATES.
 """
-import os
-import xarray as xr
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from utils import round_up
-from utils_plotting import blank_plot, get_color_palette
-from functional_class import FunctionalTest
+from framework.functional_class import FunctionalTest
 
 
 class PatchTest(FunctionalTest):
@@ -37,4 +30,4 @@ class PatchTest(FunctionalTest):
             save_figs (bool): whether or not to save the figures
             plot_dir (str): plot directory to save the figures to
         """
-        
+        pass
