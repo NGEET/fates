@@ -22,7 +22,7 @@ Specifically, this script peforms the following steps:
 
 import argparse
 import textwrap
-from test_generator_class import generate_test
+from framework.test_generator_class import generate_test
 
 
 def commandline_args():
@@ -73,7 +73,9 @@ def main():
     args = commandline_args()
 
     # create the test
-    test = generate_test(args.test_type, args.test_name, args.test_sub_dir, args.verbose)
+    test = generate_test(
+        args.test_type, args.test_name, args.test_sub_dir, args.verbose
+    )
     test.setup_test()
 
 

@@ -20,13 +20,19 @@ This script builds and runs FATES units tests.
 import os
 import argparse
 
-from test_builder import build_tests
-from path_utils import add_cime_lib_to_path
-from utils import config_to_dict, parse_test_list
+from framework.builder import build_tests
+from framework.utils.path import add_cime_lib_to_path
+from framework.utils.general import config_to_dict, parse_test_list
 
+# initialze CIME path
 add_cime_lib_to_path()
-
-from CIME.utils import run_cmd_no_fail  # pylint: disable=wrong-import-position,import-error,wrong-import-order
+try:
+    from CIME.utils import run_cmd_no_fail
+except ImportError as e:
+    # fail fast if environment isn't set up
+    raise ImportError(
+        f"CIME dependencies missing. Ensure environment is configured. Error: {e}"
+    ) from e
 
 # constants for this script
 _FILE_DIR = os.path.dirname(os.path.abspath(__file__))

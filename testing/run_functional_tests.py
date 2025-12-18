@@ -27,18 +27,18 @@ specify anything, the script will use the default FATES parameter json file.
 
 """
 import os
-import sys
 import argparse
 import subprocess
 import matplotlib.pyplot as plt
 
 from framework.builder import build_tests, build_exists
 from framework.utils.path import add_cime_lib_to_path
-from framework.utils.general import copy_file, create_nc_from_cdl, config_to_dict, parse_test_list
-
-# root_dir = os.path.dirname(os.path.abspath(__file__))
-# if root_dir not in sys.path:
-#     sys.path.insert(0, root_dir)
+from framework.utils.general import (
+    copy_file,
+    create_nc_from_cdl,
+    config_to_dict,
+    parse_test_list,
+)
 
 # load the functional test classes
 from framework.load_functional_tests import *
@@ -317,7 +317,7 @@ def run_functional_tests(
 
     # move parameter file to correct location
     param_file = create_param_file(param_file, run_dir)
-    
+
     # compile code
     if build:
         build_tests(
@@ -434,7 +434,9 @@ def get_test_subclasses(*argv):
     """
     test_subclasses = []
     for ftest_class in argv:
-        test_subclasses += [x for x in ftest_class.__subclasses__() if hasattr(x, "name")]
+        test_subclasses += [
+            x for x in ftest_class.__subclasses__() if hasattr(x, "name")
+        ]
     return test_subclasses
 
 
@@ -453,11 +455,11 @@ def main():
     # Get all the possible test subclasses.
     subclasses = get_test_subclasses(FunctionalTest, FunctionalTestWithDrivers)
 
-    # Associate each test in the config file with the appropriate test subclass
+    # associate each test in the config file with the appropriate test subclass
     for name in config_dict.keys():
-        test_class = list(filter(lambda subclass: subclass.name == name, subclasses))[
-            0
-        ](config_dict[name])
+        test_class = list(
+            filter(lambda subclass, n=name: subclass.name == n, subclasses)
+        )[0](config_dict[name])
         test_dict[name] = test_class
 
     build = not args.skip_build

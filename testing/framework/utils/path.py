@@ -1,7 +1,6 @@
 """Utility functions related to getting paths to various important places
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -9,7 +8,7 @@ from pathlib import Path
 _FATES_ROOT = Path(__file__).resolve().parents[3]
 
 
-def add_cime_lib_to_path() -> str:
+def add_cime_lib_to_path():
     """Adds the CIME python library to the python path, to allow importing
        modules from that library
 
@@ -17,15 +16,13 @@ def add_cime_lib_to_path() -> str:
         str: path to top-level cime directory
     """
     cime_path = path_to_cime()
-    prepend_to_python_path(cime_path)
+    prepend_to_python_path(str(cime_path))
 
-    cime_lib_path = os.path.join(cime_path, "CIME", "Tools")
-    prepend_to_python_path(cime_lib_path)
-
-    return cime_path
+    cime_lib_path = (cime_path / "CIME" / "Tools").resolve()
+    prepend_to_python_path(str(cime_lib_path))
 
 
-def path_to_cime() -> str:
+def path_to_cime() -> Path:
     """Returns the path to cime, if it can be found
 
     Raises:
@@ -34,13 +31,13 @@ def path_to_cime() -> str:
     Returns:
         str: full path to cime
     """
-    cime_path = os.path.join(path_to_fates_root(), "../../cime")
-    if os.path.isdir(cime_path):
+    cime_path = (path_to_fates_root() / "../../cime").resolve()
+    if cime_path.is_dir():
         return cime_path
     raise RuntimeError("Cannot find cime.")
 
 
-def path_to_fates_root():
+def path_to_fates_root() -> Path:
     """Returns Returns the path to the root directory of FATES
 
     Returns:
