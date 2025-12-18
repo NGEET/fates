@@ -3,7 +3,7 @@ module EDPatchDynamicsMod
   ! Controls formation, creation, fusing and termination of patch level processes. 
   ! ============================================================================
   use FatesGlobals         , only : fates_log
-  use FatesGlobals         , only : FatesWarn,N2S,A2S
+  use FatesGlobals         , only : FatesWarn,N2S,A2S,I2S
   use FatesInterfaceTypesMod, only : hlm_freq_day
   use FatesInterfaceTypesMod, only : hlm_current_tod
   use EDPftvarcon          , only : EDPftvarcon_inst
@@ -3381,6 +3381,7 @@ contains
     real(r8) areatot ! variable for checking whether the total patch area is wrong.
     real(r8) :: state_vector_driver(n_landuse_cats)  ! [m2/m2]
     real(r8) :: state_vector_internal(n_landuse_cats)  ! [m2/m2]
+    character(len=1024) :: warn_msg   ! for defining a warning message
     !---------------------------------------------------------------------
 
     ! Initialize the count cycles
@@ -3411,8 +3412,12 @@ contains
 
              if ( .not. gotfused ) then
                 !! somehow didn't find a patch to fuse with.
-                write(fates_log(),*) 'Warning. small nocomp patch wasnt able to find another patch to fuse with.', &
-                     currentPatch%nocomp_pft_label, currentPatch%land_use_label, currentPatch%area
+                warn_msg = 'small nocomp patch wasnt able to find '// &
+                           'another patch to fuse with. '// &
+                           'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
+                           'lu label: '//trim(I2S(currentPatch%land_use_label))// &
+                           'area: '//trim(N2S(currentPatch%area))
+                call FatesWarn(warn_msg,index=5)
              endif
 
           else nocomp_if
