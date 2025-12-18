@@ -65,8 +65,6 @@ _DEFAULT_CDL_PATH = os.path.abspath(
     )
 )
 _CMAKE_BASE_DIR = os.path.join(_FILE_DIR, os.pardir)
-_TEST_SUB_DIR = "testing"
-
 
 def commandline_args():
     """Parse and return command-line arguments"""

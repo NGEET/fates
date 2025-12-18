@@ -1,7 +1,7 @@
-"""Utility functions related to getting paths to various important places
-"""
+"""Utility functions related to getting paths to various important places"""
 
 import sys
+import importlib
 from pathlib import Path
 
 # path to the root directory of FATES, based on the path of this file
@@ -20,6 +20,14 @@ def add_cime_lib_to_path():
 
     cime_lib_path = (cime_path / "CIME" / "Tools").resolve()
     prepend_to_python_path(str(cime_lib_path))
+
+    try:
+        import CIME
+    except ImportError as e:
+        raise ImportError(
+            f"Could not find CIME at {cime_lib_path}. "
+            f"Ensure git_fleximod has been run. Error: {e}"
+        ) from e
 
 
 def path_to_cime() -> Path:
@@ -57,3 +65,24 @@ def prepend_to_python_path(path: str):
     if not path in sys.path:
         # insert at location 1 rather than 0, because 0 is special
         sys.path.insert(1, path)
+
+
+def get_cime_module(module_path: str):
+    """Safely retrieves a CIME module.
+    Usage: utils = get_cime_module('CIME.utils')
+
+    Args:
+        module_path (str): module path string
+
+    Raises:
+        ImportError: Failed to load CIME module
+
+    Returns:
+        ModuleType: module
+    """
+
+    add_cime_lib_to_path()
+    try:
+        return importlib.import_module(module_path)
+    except ImportError as e:
+        raise ImportError(f"Failed to load {module_path} from CIME: {e}") from e

@@ -2,19 +2,15 @@
 Do not include any third-party modules here.
 """
 
-import math
 import os
+import math
 import re
 import configparser
 import argparse
-from framework.utils.path import add_cime_lib_to_path
+from pathlib import Path
+from framework.utils.path import get_cime_module
 
-add_cime_lib_to_path()
-
-from CIME.utils import (
-    run_cmd_no_fail,
-)  # pylint: disable=wrong-import-position,import-error,wrong-import-order
-
+cime_utils = get_cime_module('CIME.utils')
 
 def round_up(num: float, decimals: int = 0) -> float:
     """Rounds a number up
@@ -44,37 +40,41 @@ def truncate(num: float, decimals: int = 0) -> float:
     return int(num * multiplier) / multiplier
 
 
-def create_nc_from_cdl(cdl_path: str, run_dir: str) -> str:
-    """Creates a netcdf file from a cdl file and return path to new file.
+def create_nc_from_cdl(cdl_path: Path, out_dir: Path) -> str:
+    """Creates a netcdf file from a cdl file and writes to specified directory
 
     Args:
-        cdl_path (str): full path to desired cdl file
-        run_dir (str): where the file should be written to
+        cdl_path (Path): path to cdl file
+        out_dir (Path): directory to write to
+
+    Returns:
+        str: output from subprocess command
     """
-    file_basename = os.path.basename(cdl_path).split(".")[-2]
+
+    file_basename = cdl_path.name.split(".")[-2]
     file_nc_name = f"{file_basename}.nc"
 
-    file_gen_command = ["ncgen -o", os.path.join(run_dir, file_nc_name), cdl_path]
-    out = run_cmd_no_fail(" ".join(file_gen_command), combine_output=True)
+    file_gen_command = ["ncgen -o", str((out_dir / file_nc_name)), str(cdl_path)]
+    out = cime_utils.run_cmd_no_fail(" ".join(file_gen_command), combine_output=True)
     print(out)
 
     return file_nc_name
 
 
-def copy_file(file_path: str, directory) -> str:
-    """Copies a file file to a desired directory and returns path to file.
+def copy_file(file_path: Path, directory: Path) -> Path:
+    """Copies a file file to a desired directory and returns new path to file.
 
     Args:
-        file_path (str): full path to file
-        dir (str): where the file should be copied to
+        file_path (Path): full path to file
+        dir (Path): where the file should be copied to
     """
-    file_basename = os.path.basename(file_path)
+    file_basename = file_path.name
 
-    file_copy_command = ["cp", os.path.abspath(file_path), os.path.abspath(directory)]
-    out = run_cmd_no_fail(" ".join(file_copy_command), combine_output=True)
+    file_copy_command = ["cp", str(file_path.resolve()), str(directory.resolve())]
+    out = cime_utils.run_cmd_no_fail(" ".join(file_copy_command), combine_output=True)
     print(out)
 
-    return file_basename
+    return (directory / file_basename)
 
 
 def get_abspath_from_config_file(relative_path, config_file):
@@ -89,7 +89,7 @@ def get_abspath_from_config_file(relative_path, config_file):
       The absolute path of the target file.
     """
 
-    # Do nothing if it's already a absolute path
+    # do nothing if it's already a absolute path
     if os.path.isabs(relative_path):
         return relative_path
 

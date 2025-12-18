@@ -101,18 +101,18 @@ class TestBuilder:
         to_remove_dirs = ["CMakeFiles"]
 
         for f in to_remove:
-            p = Path(f)
+            p = self.config.build_dir / f
             if p.is_file():
                 p.unlink()
 
         for d in to_remove_dirs:
-            p = Path(d)
+            p = self.config.build_dir / d
             if p.is_dir():
                 shutil.rmtree(p)
 
-        for p in Path(".").glob("Depends*"):
+        for p in self.config.build_dir.glob("Depends*"):
             p.unlink()
-        for p in Path(".").glob(".env_mach_specific*"):
+        for p in self.config.build_dir.glob(".env_mach_specific*"):
             p.unlink()
 
     def _configure_environment(self):
