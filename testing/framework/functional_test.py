@@ -11,9 +11,9 @@ class FunctionalTest(FatesTest):
         super().__init__(
             name=name,
             test_dir=config["test_dir"],
-            test_exe=config["test_exe"],
         )
-
+        
+        self.test_exe = config['test_exe']
         self.out_file = config["out_file"]
         self.use_param_file = str_to_bool(config["use_param_file"])
         self.other_args = str_to_list(config["other_args"])

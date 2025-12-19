@@ -192,29 +192,13 @@ def copy_param_file(param_file: Path, run_dir: Path) -> Path:
     raise ValueError("Must supply parameter file with .json ending.")
 
 
-def run_functional_tests(
-    run: bool,
-    build_dir: Path,
-    make_j: int,
-    clean: bool,
-    verbose: bool,
-    run_dir: Path,
-    param_file: Path,
-    test_instances: dict,
-    save_figs: bool,
-):
-    """Runs all functional tests
+def prep_directories(run_dir: Path, test_instances: dict, save_figs: bool):
+    """Creates directories (run_dir and plotting directories) for the tests
 
     Args:
-        run (bool): whether to run
-        build_dir (Path): path to build directory
-        make_j (int): number of processes to run for build
-        clean (bool): whether or not to clean the build
-        verbose (bool): whether or not to print verbose output
         run_dir (Path): path to run directory
-        param_file (Path): path to parameter file
-        test_instances (dict): dictionary of test class intances
-        save_figs (bool): whether or not to save figures to a file
+        test_instances (dict): dictionary of test class instances
+        save_figs (bool): whether or not to save figures
     """
 
     # create run directory
@@ -225,25 +209,6 @@ def run_functional_tests(
     if save_figs:
         make_plotdirs(run_dir, test_instances)
 
-    param_file_moved = copy_param_file(param_file, run_dir)
-
-    # run tests
-    if run:
-        # build tests
-        build_tests(build_dir, _CMAKE_BASE_DIR, make_j, clean=clean, verbose=verbose)
-
-        for test_name, test in test_instances.items():
-            out = test.run(build_dir, run_dir, param_file_moved)
-            logging.info("%s: %s", test_name, out)
-
-    # plot output
-    for test_name, test in test_instances.items():
-        if test.plot:
-            test.plot_output(run_dir, save_figs, run_dir / "plots" / test_name)
-
-    # show plots
-    plt.show()
-
 
 def main():
     """Main script
@@ -251,6 +216,9 @@ def main():
     """
 
     args = commandline_args()
+
+    build_dir = Path(args.build_dir)
+    run_dir = Path(args.run_dir)
 
     if args.verbose:
         logging.getLogger().setLevel(logging.INFO)
@@ -261,21 +229,37 @@ def main():
     full_test_dict = config_to_dict(args.config_file)
     config_dict = parse_test_list(full_test_dict, args.test_list)
 
-    # get intances of tests to run
+    # get instances of tests to run
     test_instances = get_test_instances(config_dict)
 
-    # run tests
-    run_functional_tests(
-        not args.skip_run,
-        Path(args.build_dir),
+    # build tests
+    build_tests(
+        build_dir,
+        _CMAKE_BASE_DIR,
         args.make_j,
-        args.clean,
-        args.verbose,
-        Path(args.run_dir),
-        Path(args.parameter_file),
-        test_instances,
-        args.save_figs,
+        clean=args.clean,
+        verbose=args.verbose,
     )
+
+    # create run and plotting directories
+    prep_directories(run_dir, test_instances, args.save_figs)
+
+    # move parameter file into run directory
+    param_file_moved = copy_param_file(Path(args.parameter_file), run_dir)
+
+    # run tests
+    if not args.skip_run:
+        for test_name, test in test_instances.items():
+            out = test.run(build_dir, run_dir, param_file_moved)
+            logging.info("%s: %s", test_name, out)
+
+    # plot output
+    for test_name, test in test_instances.items():
+        if test.plot:
+            test.plot_output(run_dir, args.save_figs, run_dir / "plots" / test_name)
+
+    # show plots
+    plt.show()
 
 
 if __name__ == "__main__":

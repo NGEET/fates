@@ -28,10 +28,9 @@ _TEST_SUB_DIR = "testing"
 class FatesTest(ABC):
     """Base class for all FATES tests"""
 
-    def __init__(self, name: str, test_dir: str, test_exe: str):
+    def __init__(self, name: str, test_dir: str):
         self.name = name
         self.test_dir = Path(test_dir)
-        self.test_exe = test_exe
     
     @abstractmethod
     def run(self, **kwargs):
