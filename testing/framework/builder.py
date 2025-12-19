@@ -8,8 +8,6 @@ import logging
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional
-
-# local imports
 from framework.utils.path import add_cime_lib_to_path, path_to_cime
 
 # initialize CIME path
@@ -242,14 +240,14 @@ def build_tests(
     clean: bool = False,
     verbose: bool = False,
 ):
-    """Wrapper function
+    """Wrapper function for building tests
 
     Args:
-        build_dir (str): _description_
-        cmake_directory (str): _description_
-        make_j (int): _description_
-        clean (bool, optional): _description_. Defaults to False.
-        verbose (bool, optional): _description_. Defaults to False.
+        build_dir (str): build directory path
+        cmake_directory (str): cmake directory
+        make_j (int): number of processes to build with
+        clean (bool, optional): whether or not to clean the build. Defaults to False.
+        verbose (bool, optional): build with verbose make. Defaults to False.
     """
     config = BuildConfig(
         build_dir=build_dir,
@@ -260,26 +258,3 @@ def build_tests(
     )
     builder = TestBuilder(config)
     builder.build()
-
-
-def build_exists(build_dir: str, test_dir: str, test_exe: Optional[str] = None) -> bool:
-    """Checks to see if build artifacts exist.
-
-    Args:
-      build_dir (str): build directory
-      test_dir (str): test directory
-      test_exe (str, optional): test executable. Defaults to None.
-    Returns:
-      bool: whether or not build directory and associated executables exist
-    """
-
-    build_path = Path(build_dir).resolve()
-    test_path = build_path / test_dir
-
-    if not test_path.is_dir():
-        return False
-
-    if test_exe and not (test_path / test_exe).is_file():
-        return False
-
-    return True

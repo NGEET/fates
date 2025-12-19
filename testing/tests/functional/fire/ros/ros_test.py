@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
-from framework.functional_class import FunctionalTest
+from framework.functional_test import FunctionalTest
 from framework.utils.plotting import blank_plot
 
 COLORS = ["#793922", "#6B8939", "#99291F", "#CC9728", "#2C778A"]
@@ -16,19 +16,7 @@ KJKG_TO_BTULB = 0.947817 / 2.20462
 
 class ROSTest(FunctionalTest):
     """ROS test class"""
-
-    name = "ros"
-
-    def __init__(self, test_dict):
-        super().__init__(
-            ROSTest.name,
-            test_dict["test_dir"],
-            test_dict["test_exe"],
-            test_dict["out_file"],
-            test_dict["use_param_file"],
-            test_dict["other_args"],
-        )
-        self.plot = True
+    name = 'ros'
 
     def plot_output(self, run_dir: str, save_figs: bool, plot_dir: str):
         """Plot output associated with fuel tests

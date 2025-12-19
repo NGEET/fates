@@ -8,26 +8,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from framework.utils.general import round_up
 from framework.utils.plotting import blank_plot, get_color_palette
-from framework.functional_class import FunctionalTest
+from framework.functional_test import FunctionalTest
 
 
 class AllometryTest(FunctionalTest):
-    """Quadratic test class
+    """Allometry test class
     """
-
     name = "allometry"
-
-    def __init__(self, test_dict):
-        super().__init__(
-            AllometryTest.name,
-            test_dict["test_dir"],
-            test_dict["test_exe"],
-            test_dict["out_file"],
-            test_dict["use_param_file"],
-            test_dict["other_args"],
-        )
-        self.plot = True
-
+    
     def plot_output(self, run_dir: str, save_figs: bool, plot_dir: str):
         """Plots all allometry plots
 

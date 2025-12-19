@@ -34,8 +34,8 @@ class FatesTest(ABC):
         self.test_exe = test_exe
     
     @abstractmethod
-    def run_cmd(self) -> list[str]:
-        """Returns the run command"""
+    def run(self, **kwargs):
+        """Each category of test will define its own requirements"""
         raise NotImplementedError
 
     def find_build(self, build_dir: Path):
@@ -53,7 +53,7 @@ class FatesTest(ABC):
         
         return exe_path
 
-    def execute_shell(self, run_dir: Path) -> str:
+    def execute_shell(self, cmd: list[str], run_dir: Path) -> str:
         """Run executable or test
 
         Args:
@@ -67,8 +67,6 @@ class FatesTest(ABC):
         """
         
         logging.info("--> Running Test: %s", self.name)
-        
-        cmd = self.run_cmd()
         
         stat, out, _ = run_cmd(
             " ".join(cmd), from_dir=str(run_dir), combine_output=True

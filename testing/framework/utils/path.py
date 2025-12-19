@@ -21,6 +21,7 @@ def add_cime_lib_to_path():
     cime_lib_path = (cime_path / "CIME" / "Tools").resolve()
     prepend_to_python_path(str(cime_lib_path))
 
+    # try to import CIME to test
     try:
         import CIME
     except ImportError as e:

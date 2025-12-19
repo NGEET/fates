@@ -6,24 +6,12 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
-from framework.functional_class import FunctionalTest
+from framework.functional_test import FunctionalTest
 from framework.utils.plotting import blank_plot, get_color_palette
 
 class FireMortTest(FunctionalTest):
     """Fire mortality test class"""
-
-    name = "fire_mortality"
-
-    def __init__(self, test_dict):
-        super().__init__(
-            FireMortTest.name,
-            test_dict["test_dir"],
-            test_dict["test_exe"],
-            test_dict["out_file"],
-            test_dict["use_param_file"],
-            test_dict["other_args"],
-        )
-        self.plot = True
+    name = 'fire_mortality'
 
     def plot_output(self, run_dir: str, save_figs: bool, plot_dir: str):
         """Plot output associated with fuel tests

@@ -201,7 +201,7 @@ def camel_to_snake(camel_str: str) -> str:
     """
     return re.sub(r'(?<!^)(?=[A-Z])', '_', camel_str).lower()
 
-def str_to_list(val: str) -> list:
+def str_to_list(val: str) -> list[str] | None:
     """converts string representation of list to actual list
 
     Args:
@@ -212,6 +212,6 @@ def str_to_list(val: str) -> list:
     """
     if val in ("", "[]"):
         # empty list
-        return []
+        return None
     res = val.strip("][").split(",")
     return [n.strip() for n in res]

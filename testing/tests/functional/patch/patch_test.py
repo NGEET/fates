@@ -1,25 +1,13 @@
 """
 Concrete class for running the allometry functional tests for FATES.
 """
-from framework.functional_class import FunctionalTest
+from framework.functional_test import FunctionalTest
 
 
 class PatchTest(FunctionalTest):
     """Patch test class
     """
-
-    name = "patch"
-
-    def __init__(self, test_dict):
-        super().__init__(
-            PatchTest.name,
-            test_dict["test_dir"],
-            test_dict["test_exe"],
-            test_dict["out_file"],
-            test_dict["use_param_file"],
-            test_dict["other_args"],
-        )
-        self.plot = True
+    name = 'patch'
 
     def plot_output(self, run_dir: str, save_figs: bool, plot_dir: str):
         """Plots all allometry plots

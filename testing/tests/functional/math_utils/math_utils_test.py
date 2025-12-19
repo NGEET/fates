@@ -6,25 +6,13 @@ import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
 from framework.utils.plotting import get_color_palette
-from framework.functional_class import FunctionalTest
+from framework.functional_test import FunctionalTest
 
 
 class QuadraticTest(FunctionalTest):
     """Quadratic test class
     """
-
-    name = "quadratic"
-
-    def __init__(self, test_dict):
-        super().__init__(
-            QuadraticTest.name,
-            test_dict["test_dir"],
-            test_dict["test_exe"],
-            test_dict["out_file"],
-            test_dict["use_param_file"],
-            test_dict["other_args"],
-        )
-        self.plot = True
+    name = 'quadratic'
 
     def plot_output(self, run_dir: str, save_figs: bool, plot_dir: str):
         """Reads in and plots quadratic formula test output
