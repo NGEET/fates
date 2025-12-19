@@ -1,5 +1,4 @@
-"""Utility functions for plotting
-"""
+"""Utility functions for plotting"""
 
 import math
 import matplotlib.pyplot as plt

@@ -159,10 +159,6 @@ class FunctionalTestLayout(FunctionalLayoutProtocol):
     def class_template(self) -> Path:
         return self.templates_dir / "test_class_template.txt"
 
-    @property
-    def load_class_file(self) -> Path:
-        return self.root / "load_functional_tests.py"
-
     def test_dir(self, test_name: str, sub_dir: str | None = None) -> Path:
         """Defines a test directory path
 

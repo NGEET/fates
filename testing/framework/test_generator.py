@@ -362,18 +362,8 @@ class GenerateFunctionalTest(GenerateTestClass):
         self.render_template(
             self.class_template, class_path, module_name=self.module_name
         )
-
         logger.info("Added template test files in %s.", self.test_dir)
 
-        # add import to class loader file
-        if not self.load_class_file.exists():
-            raise FileNotFoundError(f"{self.load_class_file} not found.")
-
-        test_dir_rel = str(self.test_dir.relative_to(_TEST_ROOT)).replace('/', '.')
-        content = f"from {test_dir_rel}.{self.test_name}_test import {self.module_name}\n"
-        with self.load_class_file.open("a", encoding="utf-8") as f:
-            f.write(content)
-        logger.info("Updated %s.", self.load_class_file)
 
 
 # ---------------------------------------------------------

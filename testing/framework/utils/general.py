@@ -10,7 +10,8 @@ import argparse
 from pathlib import Path
 from framework.utils.path import get_cime_module
 
-cime_utils = get_cime_module('CIME.utils')
+cime_utils = get_cime_module("CIME.utils")
+
 
 def round_up(num: float, decimals: int = 0) -> float:
     """Rounds a number up
@@ -74,7 +75,7 @@ def copy_file(file_path: Path, directory: Path) -> Path:
     out = cime_utils.run_cmd_no_fail(" ".join(file_copy_command), combine_output=True)
     print(out)
 
-    return (directory / file_basename)
+    return directory / file_basename
 
 
 def get_abspath_from_config_file(relative_path, config_file):
@@ -179,6 +180,7 @@ def str_to_bool(val: str) -> bool:
         return False
     raise ValueError(f"invalid truth value {val}")
 
+
 def snake_to_camel(snake_str: str) -> str:
     """Convert a snake_case string to CamelCase.
 
@@ -190,6 +192,7 @@ def snake_to_camel(snake_str: str) -> str:
     """
     return "".join(word.capitalize() for word in snake_str.split("_"))
 
+
 def camel_to_snake(camel_str: str) -> str:
     """Convert a CamelCase string to snake_case.
 
@@ -199,7 +202,8 @@ def camel_to_snake(camel_str: str) -> str:
     Returns:
         str: output snake_case
     """
-    return re.sub(r'(?<!^)(?=[A-Z])', '_', camel_str).lower()
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", camel_str).lower()
+
 
 def str_to_list(val: str) -> list[str] | None:
     """converts string representation of list to actual list
