@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 # root directory of this test package
 _TEST_ROOT = Path(__file__).resolve().parents[1]
-print(_TEST_ROOT)
 
 class GenerateTestClass(ABC):
     """Abstract base class for creating boilerplate for FATES tests"""
