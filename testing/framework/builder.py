@@ -8,22 +8,9 @@ import logging
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional
-from framework.utils.path import add_cime_lib_to_path, path_to_cime
+from framework.utils.path import get_cime_module, path_to_cime
 
-# initialize CIME path
-add_cime_lib_to_path()
-
-try:
-    from CIME.utils import get_src_root, run_cmd_no_fail
-    from CIME.build import CmakeTmpBuildDir
-    from CIME.XML.machines import Machines
-    from CIME.BuildTools.configure import configure, FakeCase
-    from CIME.XML.env_mach_specific import EnvMachSpecific
-except ImportError as e:
-    # fail fast if environment isn't set up
-    raise ImportError(
-        f"CIME dependencies missing. Ensure environment is configured. Error: {e}"
-    ) from e
+cime_utils = get_cime_module("CIME.utils")
 
 # setup logging
 logging.basicConfig(
@@ -117,13 +104,15 @@ class TestBuilder:
         """Generates cmake arguments and finds library paths
         NOTE: this section interacts heavily with CIME global state/objects
         """
+        cime_machines = get_cime_module("CIME.XML.machines")
+        cime_configure = get_cime_module("CIME.BuildTools.configure")
+        cime_env_mach = get_cime_module("CIME.XML.env_mach_specific")
 
-        machobj = Machines()
+        machobj = cime_machines.Machines()
         self.config.compiler = machobj.get_default_compiler()
         self.config.machine_os = machobj.get_value("OS")
 
-        # configure CIME (creates Macros.cmake)
-        configure(
+        cime_configure.configure(
             machobj,
             str(self.config.build_dir),
             ["CMake"],
@@ -136,8 +125,10 @@ class TestBuilder:
         )
 
         # load environment specific to this machine
-        machspecific = EnvMachSpecific(str(self.config.build_dir), unit_testing=True)
-        fake_case = FakeCase(
+        machspecific = cime_env_mach.EnvMachSpecific(
+            str(self.config.build_dir), unit_testing=True
+        )
+        fake_case = cime_configure.FakeCase(
             self.config.compiler, self.config.mpilib, True, "nuopc", threading=False
         )
         machspecific.load_env(fake_case)
@@ -175,7 +166,10 @@ class TestBuilder:
             Optional[str]: library path
         """
         # using the CmakeTmpBuildDir context manager provided by CIME
-        with CmakeTmpBuildDir(macroloc=str(self.config.build_dir)) as cmaketmp:
+        cime_build = get_cime_module("CIME.build")
+        with cime_build.CmakeTmpBuildDir(
+            macroloc=str(self.config.build_dir)
+        ) as cmaketmp:
             all_vars = cmaketmp.get_makefile_vars(cmake_args=self.config.cmake_args)
 
             # parsing logic
@@ -200,7 +194,7 @@ class TestBuilder:
             "Macros.cmake",
             str(self.config.cmake_dir),
             f"-DCIMEROOT={_CIMEROOT}",
-            f"-DSRC_ROOT={get_src_root()}",
+            f"-DSRC_ROOT={cime_utils.get_src_root()}",
             f"-DCIME_CMAKE_MODULE_DIRECTORY={cmake_module_dir}",
             "-DCMAKE_BUILD_TYPE=CESM_DEBUG",
             f"-DCMAKE_PREFIX_PATH={self.config.pfunit_path}",
@@ -217,7 +211,7 @@ class TestBuilder:
         cmd.extend(self.config.cmake_args.split(" "))
 
         logger.info("Running cmake...")
-        run_cmd_no_fail(
+        cime_utils.run_cmd_no_fail(
             " ".join(cmd), from_dir=self.config.build_dir, combine_output=True
         )
 
@@ -228,7 +222,7 @@ class TestBuilder:
             cmd.append("VERBOSE=1")
 
         logger.info("Running make...")
-        run_cmd_no_fail(
+        cime_utils.run_cmd_no_fail(
             " ".join(cmd), from_dir=self.config.build_dir, combine_output=True
         )
 

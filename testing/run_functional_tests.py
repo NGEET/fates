@@ -4,10 +4,10 @@
 |---------------------  Instructions  -----------------------------|
 |------------------------------------------------------------------|
 To run this script the following python packages are required:
-        - numpy
-        - xarray
-        - matplotlib
-        - pandas
+    - numpy
+    - xarray
+    - matplotlib
+    - pandas
 
 Though this script does not require any host land model code, it does require some CIME
 and shr code, so you should still get these repositories as you normally would
