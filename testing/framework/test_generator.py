@@ -174,8 +174,8 @@ class GenerateTestClass(ABC):
                     inserted = True  # stop inserting
 
         # write modified contents back to file
-        self.main_cmakelists.write_text("\n".join(updated_lines) + "\n")
-        logger.info("Updated %s to include %s.", self.main_cmakelists, self.test_dir)
+        self.main_cmakelists.write_text("".join(updated_lines) + "\n")
+        # logger.info("Updated %s to include %s.", self.main_cmakelists, self.test_dir)
 
     def update_config_file(self):
         """Loads config file lines"""
@@ -227,8 +227,8 @@ class GenerateTestClass(ABC):
     def setup_test(self):
         """Template method for setting up a test"""
        # self.create_test_directory()
-        self.create_cmake_file()
-       # self.update_main_cmake()
+       # self.create_cmake_file()
+        self.update_main_cmake()
        # self.update_config_file()
        # self.create_template_program()
 
