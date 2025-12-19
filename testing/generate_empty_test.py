@@ -15,14 +15,13 @@ Specifically, this script peforms the following steps:
 3. Updates the existing CMakeLists.txt file to include the new test.
 4. Appends an entry for this test to the configuration file.
 5. Creates a template test file in the new directory.
-6. If it's a functional test, generates a new Python TestCase file and updates
-    load_functional_tests.py
+6. If it's a functional test, generates a new Python TestCase file
 
 """
 
 import argparse
 import textwrap
-from framework.test_generator_class import generate_test
+from framework.test_generator import generate_test
 
 
 def commandline_args():

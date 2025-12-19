@@ -2,19 +2,19 @@
 
 These scripts set up, build, and run FATES functional tests and unit tests.
 
-By "functional" test, we mean a standalone Fortran program that runs pieces of the FATES 
-production code, potentially outputs results (i.e. to a netcdf file), and potentially 
+By "functional" test, we mean a standalone Fortran program that runs pieces of the FATES
+production code, potentially outputs results (i.e. to a netcdf file), and potentially
 plots or runs some other test on the output in python. These tests do not necessarily
 have a pass/fail status, but are meant to be more hands-on for the user.
 
 Unit tests do have a pass/fail outcome, and are written as such. We accommodate both Ctest
-and pfunit tests. 
+and pfunit tests.
 
 ## How to run 
 
 To run the testing scripts, `run_functional_tests.py` or `run_unit_tests.py`, you will
 need a few python packages. You can create a conda environment with these packages
-using the `testing.yml` file: `conda env create --file=testing.yml`
+using the `environment.yml` file: `conda env create --file=environment.yml`
 
 Though these tests do not need host land model code, you will need the `cime` and `shr`
 repositories, as well as a machine configuration file. If you are already set up to run
@@ -22,14 +22,14 @@ FATES on a machine (e.g. derecho at NCAR), you should be able to run these scrip
 of the box on that machine.
 
 Additionally, these tests require netcdf and netcdff, as well as a fortran compiler (e.g. gnu),
-esmf, and pfunit. See `cime_setup.md` for tips on how to do this.
+esmf, and pfunit. See `docs/cime_setup.md` for tips on how to do this.
 
 Once you are set up, you should be able to just run the scripts. For the functional test
-script, you can point to your own parameter file (cdl or nc; `./run_functional_tests -f my_param_file.nc`). 
-If none is supplied the script will use the default cdl file in `parameter_files`.
+script, you can point to your own parameter file (json; `./run_functional_tests -f my_param_file.json`). 
+If none is supplied the script will use the default json file in `fates/parameter_files`.
 
 You can run an individual set of tests by passing the script a comma-separated list of 
-test names. See the `functional_tests.cfg` or `unit_tests.cfg` for the test names. If you
+test names. See the `config/functional.cfg` or `config/unit.cfg` for the test names. If you
 do not supply a list, the script will run all tests.
 
 ## How to create new tests
@@ -37,6 +37,8 @@ do not supply a list, the script will run all tests.
 First, determine if you are going to create a functional or unit test. Remember,
 unit tests must have a pass/fail outcome. These are best for testing edgecases, error
 handling, or where we know exactly what the result should be from a method.
+
+First, 
 
 First, add your test to either the `functional_tests.cfg` or `unit_tests.cfg` config file,
 depending on the test you want to create.

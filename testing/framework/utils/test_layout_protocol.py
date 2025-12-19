@@ -69,12 +69,6 @@ class FunctionalLayoutProtocol(TestLayoutProtocol, ABC):
         """Defines the class template"""
         raise NotImplementedError
 
-    @property
-    @abstractmethod
-    def load_class_file(self) -> Path:
-        """Defines the load class file path"""
-        raise NotImplementedError
-
     @abstractmethod
     def executable_name(self, module_name) -> str:
         """Defines the name of the executable"""

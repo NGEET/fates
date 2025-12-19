@@ -16,8 +16,8 @@ from framework.utils.general import snake_to_camel
 logger = logging.getLogger(__name__)
 
 # root directory of this test package
-_TEST_ROOT = Path(__file__).resolve().parent
-
+_TEST_ROOT = Path(__file__).resolve().parents[1]
+print(_TEST_ROOT)
 
 class GenerateTestClass(ABC):
     """Abstract base class for creating boilerplate for FATES tests"""
@@ -145,35 +145,37 @@ class GenerateTestClass(ABC):
         """
         if not self.main_cmakelists.exists():
             raise FileNotFoundError(f"{self.main_cmakelists} not found.")
+        
         lines = self.main_cmakelists.read_text(encoding="utf-8").splitlines(
             keepends=True
         )
 
         test_dir_rel = self.test_dir.relative_to(_TEST_ROOT)
         new_entry = f"add_subdirectory({test_dir_rel} {self.build_dir})\n"
+        
+        # avoid duplicates
+        if any(new_entry in line for line in lines):
+            logger.warning("Test already exists in CMakeLists. Skipping.")
+            return
+        
         updated_lines = []
-        inside_block = False
+        found_section = False
+        inserted = False
 
-        for line in lines:
+        for i, line in enumerate(lines):
             updated_lines.append(line)
-
-            # insert new entry in the correct section
             if line.strip() == self.section_header:
-                inside_block = True
+                found_section = True
                 continue
 
-            # if we're in the correct section and hit another section header, insert it
-            if inside_block and line.startswith("## "):
-                updated_lines.insert(-2, new_entry)  # insert before new section header
-                inside_block = False  # stop inserting
-
-        # if we never found a new section header, append at end
-        if inside_block:
-            updated_lines.append(new_entry)
+            # if we're in the correct section and hit another section header OR end of file, insert it
+            if found_section and not inserted:
+                if (i + 1 < len(lines) and lines[i+1].startswith("##")) or (i + 1 == len(lines)):
+                    updated_lines.append(new_entry)
+                    inserted = True  # stop inserting
 
         # write modified contents back to file
-        with self.main_cmakelists.open("w", encoding="utf-8") as f:
-            f.writelines(updated_lines)
+        self.main_cmakelists.write_text("\n".join(updated_lines) + "\n")
         logger.info("Updated %s to include %s.", self.main_cmakelists, self.test_dir)
 
     def update_config_file(self):
@@ -181,17 +183,16 @@ class GenerateTestClass(ABC):
 
         if not self.config_file.exists():
             raise FileNotFoundError(f"{self.config_file} not found.")
-        lines = self.config_file.read_text(encoding="utf-8").splitlines(keepends=True)
+        
+        content = self.config_file.read_text(encoding="utf-8").rstrip()
 
-        # strip trailing newlines and whitespace-only lines
-        while lines and lines[-2].strip() == "":
-            lines.pop()
+        # get the new lines from the subclass
+        new_lines = self.append_config_lines([])
+        
+        # add a double new line before the new block
+        new_block = "\n\n" + "".join(new_lines)
 
-        # new config block
-        lines = self.append_config_lines(lines)
-
-        with self.config_file.open("w", encoding="utf-8") as f:
-            f.writelines(lines)
+        self.config_file.write_text(content + new_block + "\n")
         logger.info("Updated %s.", self.config_file)
 
     def load_template(self, template_path: Path) -> str:
@@ -226,11 +227,11 @@ class GenerateTestClass(ABC):
 
     def setup_test(self):
         """Template method for setting up a test"""
-        self.create_test_directory()
+       # self.create_test_directory()
         self.create_cmake_file()
-        self.update_main_cmake()
-        self.update_config_file()
-        self.create_template_program()
+       # self.update_main_cmake()
+       # self.update_config_file()
+       # self.create_template_program()
 
 
 # ---------------------------------------------------------
@@ -304,11 +305,6 @@ class GenerateFunctionalTest(GenerateTestClass):
     def class_template(self) -> Path:
         """Returns a class template path"""
         return self.layout.class_template
-
-    @property
-    def load_class_file(self) -> Path:
-        """Defines the load class file"""
-        return self.layout.load_class_file
 
     @property
     def executable_name(self) -> str:

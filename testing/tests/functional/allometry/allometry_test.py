@@ -1,6 +1,7 @@
 """
 Concrete class for running the allometry functional tests for FATES.
 """
+
 import os
 import xarray as xr
 import pandas as pd
@@ -12,10 +13,10 @@ from framework.functional_test import FunctionalTest
 
 
 class AllometryTest(FunctionalTest):
-    """Allometry test class
-    """
+    """Allometry test class"""
+
     name = "allometry"
-    
+
     def plot_output(self, run_dir: str, save_figs: bool, plot_dir: str):
         """Plots all allometry plots
 
