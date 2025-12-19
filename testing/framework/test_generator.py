@@ -365,7 +365,6 @@ class GenerateFunctionalTest(GenerateTestClass):
         logger.info("Added template test files in %s.", self.test_dir)
 
 
-
 # ---------------------------------------------------------
 # Factory
 # ---------------------------------------------------------

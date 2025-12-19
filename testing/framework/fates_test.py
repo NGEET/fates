@@ -1,28 +1,16 @@
+"""Abstract class for FATES tests"""
+
 import logging
 import subprocess
 from pathlib import Path
 from abc import ABC, abstractmethod
-from typing import Optional
-from framework.utils.path import add_cime_lib_to_path
-
-# initialze CIME path
-add_cime_lib_to_path()
-try:
-    from CIME.utils import run_cmd
-except ImportError as e:
-    # fail fast if environment isn't set up
-    raise ImportError(
-        f"CIME dependencies missing. Ensure environment is configured. Error: {e}"
-    ) from e
+from framework.utils.path import get_cime_module
 
 # setup logging
 logging.basicConfig(
     level=logging.WARNING, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-# constants
-_TEST_SUB_DIR = "testing"
 
 
 class FatesTest(ABC):
@@ -31,32 +19,17 @@ class FatesTest(ABC):
     def __init__(self, name: str, test_dir: str):
         self.name = name
         self.test_dir = Path(test_dir)
-    
+
     @abstractmethod
-    def run(self, **kwargs):
+    def run(self, build_dir, run_dir, param_file):
         """Each category of test will define its own requirements"""
         raise NotImplementedError
-
-    def find_build(self, build_dir: Path):
-        """Check to see if the required binary exists and return it
-
-        Args:
-            build_dir (Path): path build directory
-
-        Raises:
-            FileNotFoundError: Could not find executable
-        """
-        exe_path = build_dir / _TEST_SUB_DIR / self.test_dir / self.test_exe
-        if not exe_path.exists():
-            raise FileNotFoundError(f"[{self.name}] Executable not found at {exe_path}")
-        
-        return exe_path
 
     def execute_shell(self, cmd: list[str], run_dir: Path) -> str:
         """Run executable or test
 
         Args:
-            run_dir (Path): path to run directory
+            run_dir (Path): path to directory to run test
 
         Raises:
             subprocess.CalledProcessError: error from subprocess call
@@ -64,10 +37,11 @@ class FatesTest(ABC):
         Returns:
             str: output from subprocess call
         """
-        
+        cime_utils = get_cime_module("CIME.utils")
+
         logging.info("--> Running Test: %s", self.name)
-        
-        stat, out, _ = run_cmd(
+
+        stat, out, _ = cime_utils.run_cmd(
             " ".join(cmd), from_dir=str(run_dir), combine_output=True
         )
         if stat:

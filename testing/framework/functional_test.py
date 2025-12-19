@@ -1,7 +1,12 @@
-from abc import ABC, abstractmethod
+"""Class for FATES functional tests"""
+
+from abc import abstractmethod
 from pathlib import Path
 from framework.fates_test import FatesTest
 from framework.utils.general import str_to_bool, str_to_list, copy_file
+
+# constants
+_TEST_SUB_DIR = "testing"
 
 
 class FunctionalTest(FatesTest):
@@ -12,12 +17,27 @@ class FunctionalTest(FatesTest):
             name=name,
             test_dir=config["test_dir"],
         )
-        
-        self.test_exe = config['test_exe']
+
+        self.test_exe = config["test_exe"]
         self.out_file = config["out_file"]
         self.use_param_file = str_to_bool(config["use_param_file"])
         self.other_args = str_to_list(config["other_args"])
         self.plot = True
+
+    def find_build(self, build_dir: Path):
+        """Check to see if the required binary exists and return it
+
+        Args:
+            build_dir (Path): path build directory
+
+        Raises:
+            FileNotFoundError: Could not find executable
+        """
+        exe_path = build_dir / _TEST_SUB_DIR / self.test_dir / self.test_exe
+        if not exe_path.exists():
+            raise FileNotFoundError(f"[{self.name}] Executable not found at {exe_path}")
+
+        return exe_path
 
     def run_command(self, param_file: Path | None = None) -> list[str]:
         """Builds run command for executing binary
@@ -40,7 +60,10 @@ class FunctionalTest(FatesTest):
         return cmd
 
     def run(
-        self, build_dir: Path, run_dir: Path, param_file: Path | None = None
+        self,
+        build_dir: Path,
+        run_dir: Path,
+        param_file: Path | None = None,
     ) -> str:
         """Runs a functional test
 
@@ -58,7 +81,7 @@ class FunctionalTest(FatesTest):
 
         # copy file to run directory
         copy_file(exe_path, run_dir)
-        
+
         # get specific run command and execute
         cmd = self.run_command(param_file)
         return self.execute_shell(cmd, run_dir)

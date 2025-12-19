@@ -21,7 +21,8 @@ def discover_tests():
             if (
                 isinstance(obj, type)
                 and issubclass(obj, FunctionalTest)
-                and obj is not FunctionalTest and obj is not FunctionalTestWithDrivers
+                and obj is not FunctionalTest
+                and obj is not FunctionalTestWithDrivers
             ):
                 # use the 'name' attribute defined in your class to register it
                 registry[obj.name] = obj
