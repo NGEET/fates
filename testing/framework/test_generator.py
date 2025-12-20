@@ -103,7 +103,7 @@ class GenerateTestClass(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def append_config_lines(self, lines):
+    def append_config_lines(self):
         """Appends lines to the config file for the test (must be implemented by
         subclasses)."""
         raise NotImplementedError
@@ -198,10 +198,10 @@ class GenerateTestClass(ABC):
         content = self.config_file.read_text(encoding="utf-8").rstrip()
 
         # get the new lines from the subclass
-        new_lines = self.append_config_lines([])
+        new_lines = self.append_config_lines()
         
         # add a double new line before the new block
-        new_block = "\n\n" + "".join(new_lines)
+        new_block = "\n" + "".join(new_lines)
 
         self.config_file.write_text(content + new_block + "\n")
         logger.info("Updated %s.", self.config_file)
@@ -273,7 +273,7 @@ class GenerateUnitTest(GenerateTestClass):
         )
         logger.info("Created %s.", cmake_path)
 
-    def append_config_lines(self, lines: list[str]) -> list[str]:
+    def append_config_lines(self) -> list[str]:
         """Appends this test's config section to the config file contents
 
         Args:
@@ -282,10 +282,7 @@ class GenerateUnitTest(GenerateTestClass):
         Returns:
             list[str]: updated lines
         """
-
-        lines.append("\n")
-        lines.append(f"[{self.test_name}]\n")
-        lines.append(f"test_dir = {self.build_dir}\n")
+        lines = ["\n", f"[{self.test_name}]\n", f"test_dir = {self.build_dir}\n"]
         return lines
 
     def create_template_program(self):
@@ -333,7 +330,7 @@ class GenerateFunctionalTest(GenerateTestClass):
         )
         logger.info("Created %s.", cmake_path)
 
-    def append_config_lines(self, lines: list[str]) -> list[str]:
+    def append_config_lines(self) -> list[str]:
         """Append this functional test's config section to the config file
 
         Args:
@@ -342,13 +339,9 @@ class GenerateFunctionalTest(GenerateTestClass):
         Returns:
             str: updated lines
         """
-        lines.append("\n")
-        lines.append(f"[{self.test_name}]\n")
-        lines.append(f"test_dir = {self.build_dir}\n")
-        lines.append(f"test_exe = {self.executable_name}\n")
-        lines.append("out_file = None\n")
-        lines.append("use_param_file = False\n")
-        lines.append("other_args = []\n")
+        lines = ["\n", f"[{self.test_name}]\n", "test_dir = {self.build_dir}\n", 
+                 f"test_exe = {self.executable_name}\n", "out_file = None\n", 
+                 "use_param_file = False\n", "other_args = []\n"]
         return lines
 
     def create_template_program(self):

@@ -13,7 +13,6 @@ class {module_name}(FunctionalTest):
     """
     name = "{module_name}"
 
-
     def plot_output(self, run_dir: str, save_figs: bool, plot_dir: str):
         """Plots - update this to plot your output
 
@@ -23,6 +22,5 @@ class {module_name}(FunctionalTest):
             save_figs (bool): whether or not to save the figures
             plot_dir (str): plot directory to save the figures to
         """
-
         pass
 
