@@ -145,12 +145,10 @@ class GenerateTestClass(ABC):
         if not self.main_cmakelists.exists():
             raise FileNotFoundError(f"{self.main_cmakelists} not found.")
         
-        lines = self.main_cmakelists.read_text(encoding="utf-8").splitlines(
-            keepends=True
-        )
+        lines = self.main_cmakelists.read_text(encoding="utf-8").splitlines()
 
         test_dir_rel = self.test_dir.relative_to(_TEST_ROOT)
-        new_entry = f"add_subdirectory({test_dir_rel} {self.build_dir})\n"
+        new_entry = f"add_subdirectory({test_dir_rel} {self.build_dir})"
         
         # avoid duplicates
         if any(new_entry in line for line in lines):
@@ -161,21 +159,35 @@ class GenerateTestClass(ABC):
         found_section = False
         inserted = False
 
-        for i, line in enumerate(lines):
+        for line in lines:
+            # if we hit the next section header while in our target section,
+            # or if we are at the very end of the file and haven't inserted yet
+            is_next_header = line.startswith("##") and found_section
+            
+            if is_next_header and not inserted:
+                # if there's a blank line before the next header,
+                # we want to insert BEFORE that blank line.
+                if len(updated_lines) > 0 and updated_lines[-1].strip() == "":
+                    updated_lines.insert(-1, new_entry.strip())
+                else:
+                    updated_lines.append(new_entry.strip())
+                inserted = True
+            
             updated_lines.append(line)
+            
             if line.strip() == self.section_header:
                 found_section = True
-                continue
-
-            # if we're in the correct section and hit another section header OR end of file, insert it
-            if found_section and not inserted:
-                if (i + 1 < len(lines) and lines[i+1].startswith("##")) or (i + 1 == len(lines)):
-                    updated_lines.append(new_entry)
-                    inserted = True  # stop inserting
-
+                
+        # if we reached the end of the file and haven't inserted (last section)
+        if found_section and not inserted:
+            # check for trailing empty lines to keep it clean
+            while updated_lines and updated_lines[-1].strip() == "":
+                updated_lines.pop()
+            updated_lines.append(new_entry.strip())
+            
         # write modified contents back to file
-        self.main_cmakelists.write_text("".join(updated_lines) + "\n")
-        # logger.info("Updated %s to include %s.", self.main_cmakelists, self.test_dir)
+        self.main_cmakelists.write_text("\n".join(updated_lines) + "\n")
+        logger.info("Updated %s to include %s.", self.main_cmakelists, self.test_dir)
 
     def update_config_file(self):
         """Loads config file lines"""
@@ -226,11 +238,11 @@ class GenerateTestClass(ABC):
 
     def setup_test(self):
         """Template method for setting up a test"""
-       # self.create_test_directory()
-       # self.create_cmake_file()
+        self.create_test_directory()
+        self.create_cmake_file()
         self.update_main_cmake()
-       # self.update_config_file()
-       # self.create_template_program()
+        self.update_config_file()
+        self.create_template_program()
 
 
 # ---------------------------------------------------------
