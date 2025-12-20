@@ -28,8 +28,8 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesInterfaceTypesMod        , only : ZeroBCOutCarbonFluxes
-  use PRTGenericMod            , only : prt_carbon_allom_hyp
-  use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod            , only : fates_c_only
+  use PRTGenericMod            , only : fates_cnp
   use PRTGenericMod            , only : nitrogen_element
   use PRTGenericMod            , only : phosphorus_element
   use EDCohortDynamicsMod      , only : terminate_cohorts
@@ -739,7 +739,7 @@ contains
    ! Update history diagnostics related to Nutrients (if any)
    ! -----------------------------------------------------------------------------
    select case(hlm_parteh_mode)
-   case (prt_cnp_flex_allom_hyp)
+   case (fates_cnp)
       call fates_hist%update_history_nutrflux(currentSite)
    end select
    

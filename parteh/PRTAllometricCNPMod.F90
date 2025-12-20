@@ -26,7 +26,7 @@ module PRTAllometricCNPMod
   use PRTGenericMod , only  : repro_organ
   use PRTGenericMod , only  : struct_organ
   use PRTGenericMod , only  : num_organ_types
-  use PRTGenericMod , only  : prt_cnp_flex_allom_hyp
+  use PRTGenericMod , only  : fates_cnp
   use PRTGenericMod , only  : StorageNutrientTarget
 
   use FatesAllometryMod   , only : bleaf
@@ -314,7 +314,7 @@ contains
 
      prt_global_acnp%hyp_name = 'Allometric Flexible C+N+P'
 
-     prt_global_acnp%hyp_id = prt_cnp_flex_allom_hyp
+     prt_global_acnp%hyp_id = fates_cnp
 
      call prt_global_acnp%ZeroGlobal()
 
