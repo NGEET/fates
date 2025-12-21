@@ -83,7 +83,7 @@ file.
 
 ### Step 3: Configure Metadata
 
-Edit `config/fucntional.cfg` or `config/unit.cfg`. The generator provides defaults, but
+Edit `config/functional.cfg` or `config/unit.cfg`. The generator provides defaults, but
 you may need to update:
 
 * `out_file`: The name of the NetCDF file your Fortran code generates.
