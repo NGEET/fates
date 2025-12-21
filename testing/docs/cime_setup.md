@@ -1,137 +1,127 @@
-# Instructions for setting up CIME on your personal computer
+# CIME and Environment Setup Guide
 
-## Mac and Linux Users
+This guide covers setting up the specialized Fortran environment required to build and
+run FATES standalone tests on a local machine (Mac/Linux).
 
-### Downloads and Installs
+## System Dependencies (Homebrew)
 
-1. *For Mac Users Only*: Install Apple Developer Tools, if you haven't already
-2. Install homebrew ([link here](https://brew.sh/))
+FATES requires a specific stack of scientific libraries. If you are on a Mac,
+use ([Homebrew](https://brew.sh/)) to install these core dependencies:
 
-### PFunit
+```bash
+# Core Build Tools
+brew install cmake gcc mpich git subversion
 
-Clone pfunit from GitHub:
+# NetCDF Stack (Critical for FATES)
+brew install netcdf nco ncview
+
+# Scientific Libraries
+brew install lapack
+```
+
+## Setting up pFunit
+
+Standalone Unit Tests require pFUnit. Important: It must be built with the same
+compiler you intend to use for FATES.
+
+**1. Clone and Build:**
 
 ```bash
 git clone https://github.com/Goddard-Fortran-Ecosystem/pFUnit.git
-```
+cd pFUnit
+mkdir build && cd build
 
-Install and build:
-
-```bash
-export PFUNIT=/Users/afoster/pfunit_builds/pfunit4.11.1-gfortran14.2.0
-
-mkdir build-dir
-cd build-dir
-cmake -DSKIP_OPENMP=YES -DCMAKE_INSTALL_PREFIX=$PFUNIT/install ..
+# Set your install prefix to a local directory
+export PFUNIT_INSTALL=$HOME/software/pfunit
+cmake -DSKIP_OPENMP=YES -DCMAKE_INSTALL_PREFIX=$PFUNIT_INSTALL ..
 make -j 8
-
 make tests
 make install
 ```
 
-#### Homebrew Installs
+**2. Verify:** Ensure `$PFUNIT_INSTALL/bin/pfunit-config` exists.
+
+## CIME Configuration
+
+CIME acts as the "manager" that tells the FATES build system where your libraries are.
+We use a local `.cime` directory to store these "Machine Tags."
+
+### Initialze the .cime directory
+
+If you don't have a `.cime` folder in your home directory, create one:
 
 ```bash
-brew install subversion git bash-completion
-
-brew install kdiff3
-
-brew install gcc
-
-brew install netcdf 
-
-brew install nco
-
-brew install ncview
-
-brew install mpich
-
-brew install cmake
-
-brew install markdown
-
-brew install sloccount
-
-brew install pyqt --with-python3
-
-brew install lapack
+cd ~
+git clone https://github.com/billsacks/mac_cime_configuration.git .cime
+cd .cime
 ```
 
-For compilers to find `lapack` you may need to set:
+### Configure `config_machines.xml`
+
+Find your computer's hostname by typing `hostname -s` in your terminal. Edit
+`config_machines.xml` and update the following for your machine entry:
+
+* `<MACH>`: Set this to your hostname.
+* `<OS>`: `Darwin` (for Mac) or `Linux`.
+* `<COMPILERS>`: `gnu`.
+* `<ESMFMKFILE>`: The path to your `ESMF.mod` file (usually found in your ESMF installation directory). See below.
+
+### Create your Compiler File
+
+Rename the template to match your machine:
 
 ```bash
-export LDFLAGS="-L/usr/local/opt/lapack/lib"
-export CPPFLAGS="-I/usr/local/opt/lapack/include"
+cp cmake_macros/gnu_green.cmake cmake_macros/gnu_$(hostname -s).cmake
 ```
 
-For compilers to find `libomp` you may need to set:
+Edit this new `.cmake` file and update the paths to match your Homebrew/Manual installs.
+You can find these paths using these commands:
+
+| Variable                | Command to find value                        |
+| ----------------------- | -------------------------------------------- |
+| **NETCDF_C_PATH**       | `nc-config --prefix`                         |
+| **NETCDF_FORTRAN_PATH** | `nf-config --prefix`                         |
+| **LDFLAGS**             | `nc-config --libs and nf-config --flibs`     |
+| **PFUNIT_PATH**         | The `$PFUNIT_INSTALL` path used in Section 2 |
+
+### Environment Variables
+
+To ensure the FATES building scripts can communicate with CIME, you must define your
+machine name and model type in your shell profile (e.g., `~/.zshrc` or `~/.bashrc`).
+
+Add the following lines to the bottom of your profile:
 
 ```bash
-export LDFLAGS="-L/usr/local/opt/libomp/lib"
-export CPPFLAGS="-I/usr/local/opt/libomp/include"
+# Tells CIME which machine entry to use from config_machines.xml
+export CIME_MACHINE='hostname' 
+
+# Tells CIME to use the CESM build structure logic
+export CIME_MODEL='cesm'
 ```
 
-```bash
-brew install highlight
+*Note: Replace 'hostname` with the hostname you defined in `config_machines.xml`.*
 
-brew install git-when-merged
+After saving, remember to source your profile: `source ~/.zshrc`.
 
-brew install the_silver_searcher
-```
+## ESMF Build
 
-*For Mac users*: `brew cask install mactex`
+**1. Download:** [ESMF Releases](https://github.com/esmf-org/esmf/releases)
 
-### ESMF Installation
-
-Download ESMF: ([link here](https://github.com/esmf-org/esmf/releases))
-
-Set an environment variable `ESMF_DIR` to where you want to install ESMF, for example: `export ESMF_DIR=/Users/afoster/esmf/esmf-8.4.0`
-
-Next set up some other environment variables:
+**2. Environment Variables:**
 
 ```bash
+export ESMF_DIR=$(pwd)  # where you will install ESMF
 export ESMF_INSTALL_PREFIX=$ESMF_DIR/install_dir
 export ESMF_COMM=mpich
-export ESMF_COMPILER=gfortranclang
+export ESMF_COMPILER=gfortranclang  # For Mac
 ```
 
-Inside the download, run:
+**3. Build:**
 
 ```bash
 gmake -j4 lib
 gmake install
 ```
 
-### CIME Setup
-
-You'll need to set up a `.cime` directory with some specific files in it. I use Bill Sack's setup:
-
-```bash
-cd
-git clone https://github.com/billsacks/mac_cime_configuration.git .cime
-git checkout -b "my_configuration"
-```
-
-You'll need to modify some of the files and folders.
-
-1. In `config_machines.xml`, change the `MACH` values to match your machine name (can obtain this via the terminal by typing `hostname`)
-3. Additionally update relevant fields like `MACH`, `DESC`, `OS`, and `SUPPORTED_BY`
-4. Additionally update the `ESMFMKFILE` based on the path to what you just made above.
-5. Rename `gnu_green.cmake` to `gnu_{hostname}.cmake`.
-6. Inside `gnu_{hostname}.cmake` update `NETCDF_C_PATH`, `NETCDF_FORTRAN_PATH`, `APPEND LDFLAGS` (both), and `PFUNIT_PATH` to your netcdf and pfunit paths (see below).
-
-#### Libraries
-
-The `NETCDF_C_PATH` should be the output of `nc-config --prefix`.
-The `NETCDF_FORTRAN_PATH` should be the output of `nf-config --prefix`
-Then update the `APPEND LDFLAGS` section as the output from:
-
-```bash
-nc-config --libs
-```
-
-```bash
-nf-config --flibs 
-```
-
-Pfunit should be in a directiory called `installed` in the build directory.
+**4. Link:** Update the `<ESMFMKFILE>` path in your .cime/config_machines.xml to point 
+to `$ESMF_DIR/install_dir/lib/esmf.mk`.
