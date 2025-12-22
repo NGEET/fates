@@ -1,5 +1,5 @@
 """
-Concrete class for running a {module_name} functional tests for FATES.
+Concrete class for running a GreatCircle functional tests for FATES.
 """
 import os
 import xarray as xr
@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 from framework.functional_test import FunctionalTest
 
 
-class {module_name}(FunctionalTest):
-    """{module_name} test class
+class GreatCircle(FunctionalTest):
+    """GreatCircle test class
     """
-    name = "{test_name}"
+    name = "great_circle"
 
     def plot_output(self, run_dir: str, save_figs: bool, plot_dir: str):
         """Plots - update this to plot your output

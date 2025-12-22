@@ -252,7 +252,7 @@ def main():
     if not args.skip_run:
         for test_name, test in test_instances.items():
             out = test.run(build_dir, run_dir, param_file_moved)
-            logging.info("%s: %s", test_name, out)
+            print(out)
 
     # plot output
     for test_name, test in test_instances.items():

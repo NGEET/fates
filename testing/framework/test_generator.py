@@ -343,7 +343,7 @@ class GenerateFunctionalTest(GenerateTestClass):
         lines = [
             "\n",
             f"[{self.test_name}]\n",
-            "test_dir = {self.build_dir}\n",
+            f"test_dir = {self.build_dir}\n",
             f"test_exe = {self.executable_name}\n",
             "out_file = None\n",
             "use_param_file = False\n",
@@ -367,7 +367,8 @@ class GenerateFunctionalTest(GenerateTestClass):
         # create the python template file
         class_path = self.test_dir / f"{self.test_name}_test.py"
         self.render_template(
-            self.class_template, class_path, module_name=self.module_name
+            self.class_template, class_path, module_name=self.module_name,
+            test_name=self.test_name
         )
         logger.info("Added template test files in %s.", self.test_dir)
         
