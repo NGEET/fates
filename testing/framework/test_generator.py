@@ -370,6 +370,10 @@ class GenerateFunctionalTest(GenerateTestClass):
             self.class_template, class_path, module_name=self.module_name
         )
         logger.info("Added template test files in %s.", self.test_dir)
+        
+        # create the __init__.py
+        init_path = self.test_dir / "__init__.py"
+        init_path.touch()
 
 
 # ---------------------------------------------------------
