@@ -374,6 +374,7 @@ class GenerateFunctionalTest(GenerateTestClass):
         # create the __init__.py
         init_path = self.test_dir / "__init__.py"
         init_path.touch()
+        logger.info("Added __init__.py file in %s.", self.test_dir)
 
 
 # ---------------------------------------------------------
