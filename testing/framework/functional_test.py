@@ -97,37 +97,3 @@ class FunctionalTest(FatesTest):
     def plot_output(self, run_dir: str, save_figs: bool, plot_dir: str):
         """Every functional test must implement its own plotting logic"""
         raise NotImplementedError
-
-
-# class FunctionalTestWithDrivers(FunctionalTest):
-#     """Class for running FATES functional tests with driver files"""
-
-#     def __init__(self, name: str, config: dict):
-#         super().__init__(name=name, config=config)
-#         # driver tests specifically look for this key in the config
-#         datm_file = config.get("datm_file")
-#         if datm_file:
-#             self.datm_file = _DATA_DIR / datm_file
-
-#     def run_command(self, param_file: Path | None = None) -> list[str]:
-#         """Builds run command for executing binary
-
-#         Args:
-#             param_file (str | None, optional): input parameter file path. Defaults to None.
-
-#         Returns:
-#             list[str]: list of arguments
-#         """
-
-#         cmd = [f"./{self.test_exe}"]
-
-#         if self.use_param_file and param_file:
-#             cmd.append(str(param_file))
-
-#         if hasattr(self, "datm_file") and self.datm_file:
-#             cmd.append(str(self.datm_file))
-
-#         if self.other_args:
-#             cmd.extend(self.other_args)
-
-#         return cmd
