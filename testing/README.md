@@ -88,7 +88,7 @@ you may need to update:
 
 * `out_file`: The name of the NetCDF file your Fortran code generates.
 * `use_param_file`: Set to `True` to pass the FATES JSON parameter file to your binary.
-* `datm_file`: (Optional) Path to a driver file, relative to the FATES root.
+* `datm_file`: (Optional) Driver file name. All driver data should be placed in `testing/tests/data`
 
 ### Step 4: Python Analysis (Functional Only)
 
@@ -104,14 +104,13 @@ the `plot_output` method to define how your test results should be visualized or
 
 ## Troubleshooting
 
-* **Missing Drivers**: If a functional tests requires a `datm_file`, ensure the path in
-the `.cfg` is correct relative to the FATES root. The script will perform a pre-flight
-check and fail if the file is missing.
+* **Missing Drivers**: If a functional tests requires a `datm_file`, ensure the file name0 in
+the `.cfg` is correct and the data is in `testing/tests/data`.
+The script will perform a pre-flight check and fail if the file is missing.
 
 * **Build Failures**: Ensure your environment modules (compiler, netcdf, esmf) match the
-configuration in your CIME machine tags.
-
-* **Library Paths**: If the executable fails to start, ensure your `LD_LIBRARY_PATH`
-(or `DYLD_LIBRARY_PATH` on macOS) includes the paths to the NetCDF and ESMF shared
-libraries.
-
+configuration in your CIME machine tags. Also, if you are using a Fortran module that is
+in a file that is not currently listed in one of the `CMakeLists.txt` files, you will
+need to add it. There should be a `CMakeLists.txt` file in each subdirectory of the FATES
+source code. Add the file to the corresponding `CMakeLists.txt` inside the `fates_sources`
+list.

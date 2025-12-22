@@ -5,10 +5,10 @@ import os
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
-from framework.functional_test import FunctionalTestWithDrivers
+from framework.functional_test import FunctionalTest
 
 
-class FuelTest(FunctionalTestWithDrivers):
+class FuelTest(FunctionalTest):
     """Fuel test class"""
     name = "fuel"
     
@@ -68,7 +68,7 @@ class FuelTest(FunctionalTestWithDrivers):
         varname: str,
         units: str,
         save_figs: bool,
-        plot_dir: bool,
+        plot_dir: str,
         by_litter_type: bool = True,
     ):
         """Plots fuel data output as a bar chart

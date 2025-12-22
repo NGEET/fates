@@ -29,7 +29,7 @@ import argparse
 import logging
 from pathlib import Path
 import matplotlib.pyplot as plt
-from framework.loader import get_test_instances
+from framework.loader import get_test_instances, validate_test_configs
 from framework.utils.general import config_to_dict, parse_test_list, copy_file
 from framework.builder import build_tests
 
@@ -228,9 +228,10 @@ def main():
     # get config of specific tests to run
     full_test_dict = config_to_dict(args.config_file)
     config_dict = parse_test_list(full_test_dict, args.test_list)
-
+    
     # get instances of tests to run
     test_instances = get_test_instances(config_dict)
+    validate_test_configs(test_instances)
 
     # build tests
     build_tests(

@@ -3,7 +3,7 @@
 import importlib
 import pkgutil
 import tests.functional as functional_path
-from framework.functional_test import FunctionalTest, FunctionalTestWithDrivers
+from framework.functional_test import FunctionalTest
 
 
 def discover_tests():
@@ -22,7 +22,6 @@ def discover_tests():
                 isinstance(obj, type)
                 and issubclass(obj, FunctionalTest)
                 and obj is not FunctionalTest
-                and obj is not FunctionalTestWithDrivers
             ):
                 # use the 'name' attribute defined in your class to register it
                 registry[obj.name] = obj
@@ -40,7 +39,7 @@ def get_test_instances(config_dict: dict) -> dict:
 
     # map subclasses
     available_classes = {}
-    for base in [FunctionalTest, FunctionalTestWithDrivers]:
+    for base in [FunctionalTest]:
         for cls in base.__subclasses__():
             # ensure we only pick concrete classes, not the base classes themselves
             if hasattr(cls, "name"):
@@ -59,3 +58,24 @@ def get_test_instances(config_dict: dict) -> dict:
             )
 
     return test_instances
+
+def validate_test_configs(test_instances):
+    """
+    Checks that all external dependencies (like DATM files) 
+    exist before running any tests.
+    """
+    missing_assets = []
+    
+    for name, test in test_instances.items():
+        # only check tests that actually have a driver file defined
+        if test.datm_file:
+            # resolve driver path - should be in data directory
+            driver_path = test.datm_file
+            
+            if not driver_path.exists():
+                missing_assets.append(f"[{name}] Driver missing: {driver_path}")
+
+    if missing_assets:
+        error_msg = "\n".join(missing_assets)
+        raise FileNotFoundError(f"Pre-run validation failed:\n{error_msg}")
+    

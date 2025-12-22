@@ -2,7 +2,6 @@
 Do not include any third-party modules here.
 """
 
-import os
 import math
 import re
 import configparser
@@ -78,27 +77,6 @@ def copy_file(file_path: Path, directory: Path) -> Path:
     return directory / file_basename
 
 
-def get_abspath_from_config_file(relative_path, config_file):
-    """
-    Gets the absolute path of a file relative to the config file where it was defined.
-
-    Args:
-      relative_path: The path to the target file, relative to the base file.
-      config_file: The path to the config file.
-
-    Returns:
-      The absolute path of the target file.
-    """
-
-    # do nothing if it's already a absolute path
-    if os.path.isabs(relative_path):
-        return relative_path
-
-    base_dir = os.path.dirname(os.path.abspath(config_file))
-    absolute_path = os.path.abspath(os.path.join(base_dir, relative_path))
-    return absolute_path
-
-
 def config_to_dict(config_file: str) -> dict:
     """Convert a config file to a python dictionary
 
@@ -109,9 +87,6 @@ def config_to_dict(config_file: str) -> dict:
         dictionary: dictionary of config file
     """
 
-    # Define list of config file options that we expect to be paths
-    options_that_are_paths = ["datm_file"]
-
     config = configparser.ConfigParser()
     config.read(config_file)
 
@@ -120,12 +95,6 @@ def config_to_dict(config_file: str) -> dict:
         dictionary[section] = {}
         for option in config.options(section):
             value = config.get(section, option)
-
-            # If the option is one that we expect to be a path, ensure it's an absolute path.
-            if option in options_that_are_paths:
-                value = get_abspath_from_config_file(value, config_file)
-
-            # Save value to dictionary
             dictionary[section][option] = value
 
     return dictionary

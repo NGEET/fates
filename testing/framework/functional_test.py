@@ -7,6 +7,7 @@ from framework.utils.general import str_to_bool, str_to_list, copy_file
 
 # constants
 _TEST_SUB_DIR = "testing"
+_DATA_DIR = Path(__file__).resolve().parents[1] / "tests" / "data"
 
 
 class FunctionalTest(FatesTest):
@@ -23,6 +24,9 @@ class FunctionalTest(FatesTest):
         self.use_param_file = str_to_bool(config["use_param_file"])
         self.other_args = str_to_list(config["other_args"])
         self.plot = True
+        
+        datm_val = config.get("datm_file")
+        self.datm_file = _DATA_DIR / datm_val if datm_val else None
 
     def find_build(self, build_dir: Path):
         """Check to see if the required binary exists and return it
@@ -51,8 +55,11 @@ class FunctionalTest(FatesTest):
 
         cmd = [f"./{self.test_exe}"]
 
-        if self.use_param_file:
+        if self.use_param_file and param_file:
             cmd.append(str(param_file))
+            
+        if self.datm_file:
+            cmd.append(str(self.datm_file))
 
         if self.other_args:
             cmd.extend(self.other_args)
@@ -92,33 +99,35 @@ class FunctionalTest(FatesTest):
         raise NotImplementedError
 
 
-class FunctionalTestWithDrivers(FunctionalTest):
-    """Class for running FATES functional tests with driver files"""
+# class FunctionalTestWithDrivers(FunctionalTest):
+#     """Class for running FATES functional tests with driver files"""
 
-    def __init__(self, name: str, config: dict):
-        super().__init__(name=name, config=config)
-        # driver tests specifically look for this key in the config
-        self.datm_file = config.get("datm_file")
+#     def __init__(self, name: str, config: dict):
+#         super().__init__(name=name, config=config)
+#         # driver tests specifically look for this key in the config
+#         datm_file = config.get("datm_file")
+#         if datm_file:
+#             self.datm_file = _DATA_DIR / datm_file
 
-    def run_command(self, param_file: Path | None = None) -> list[str]:
-        """Builds run command for executing binary
+#     def run_command(self, param_file: Path | None = None) -> list[str]:
+#         """Builds run command for executing binary
 
-        Args:
-            param_file (str | None, optional): input parameter file path. Defaults to None.
+#         Args:
+#             param_file (str | None, optional): input parameter file path. Defaults to None.
 
-        Returns:
-            list[str]: list of arguments
-        """
+#         Returns:
+#             list[str]: list of arguments
+#         """
 
-        cmd = [f"./{self.test_exe}"]
+#         cmd = [f"./{self.test_exe}"]
 
-        if self.use_param_file and param_file:
-            cmd.append(str(param_file))
+#         if self.use_param_file and param_file:
+#             cmd.append(str(param_file))
 
-        if hasattr(self, "datm_file") and self.datm_file:
-            cmd.append(str(self.datm_file))
+#         if hasattr(self, "datm_file") and self.datm_file:
+#             cmd.append(str(self.datm_file))
 
-        if self.other_args:
-            cmd.extend(self.other_args)
+#         if self.other_args:
+#             cmd.extend(self.other_args)
 
-        return cmd
+#         return cmd
