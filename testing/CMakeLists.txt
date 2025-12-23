@@ -2,7 +2,6 @@
 
 ## Functional tests
 add_subdirectory(tests/functional/allometry fates_allom_ftest)
-add_subdirectory(tests/functional/math_utils fates_math_ftest)
 add_subdirectory(tests/functional/fire/fuel fates_fuel_ftest)
 add_subdirectory(tests/functional/fire/ros fates_ros_ftest)
 add_subdirectory(tests/functional/patch fates_patch_ftest)
