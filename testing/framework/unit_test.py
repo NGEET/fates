@@ -12,7 +12,7 @@ class UnitTest(FatesTest):
         # unit tests don't produce plots
         self.plot = False
 
-    def run(self, build_dir: Path, run_dir: None, param_file: None):
+    def run(self, build_dir: Path, run_dir: None=None, param_file: None=None):
         """
         Executes a unit test. Note: Unit tests only require the build_dir
         because they run inside the build tree using ctest.

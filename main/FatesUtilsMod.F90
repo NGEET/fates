@@ -244,9 +244,9 @@ contains
         endif
         if ( e<0.0_r8 ) then
            ! complex conjugate zeros
-           write (fates_log(),*)'error, imaginary roots detected in quadratic solve'
            err = .true.
-           call endrun(msg=errMsg(sourcefile, __LINE__))
+           call endrun(msg="imaginary roots detected in quadratic solve",                &
+            additional_msg=errMsg(sourcefile, __LINE__))
         else
             ! real zeros
             if ( b1>=0.0_r8 ) d = -d
