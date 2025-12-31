@@ -11,7 +11,7 @@ def validate():
     if sys.version_info < MIN_PYTHON:
         sys.exit(
             f"[-] Failure: Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]}+ is required.\n"
-            f"[-] You are currently running {sys.version.split()[0]}."
+            f"[-] You are currently running {sys.version}."
         )
         
 # run on import
