@@ -29,6 +29,7 @@ import argparse
 import logging
 from pathlib import Path
 import matplotlib.pyplot as plt
+import framework.utils.env_check
 from framework.loader import get_test_instances, validate_test_configs
 from framework.utils.general import config_to_dict, parse_test_list, copy_file
 from framework.builder import build_tests

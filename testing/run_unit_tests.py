@@ -20,6 +20,7 @@ This script builds and runs FATES units tests.
 from pathlib import Path
 import argparse
 
+import framework.utils.env_check
 from framework.unit_test import UnitTest
 from framework.builder import build_tests
 from framework.utils.general import config_to_dict, parse_test_list
