@@ -76,15 +76,14 @@ module EDCanopyStructureMod
   character(len=255) :: smsg ! Message string for deallocation errors
 
   ! Precision targets for demotion and promotion
-  ! We have two:
-  ! "pa_area_target_precision" is the required precision at the patch level,
-  !    we keep shuffling and splitting cohorts until each layer is within this precision
   ! "co_area_target_precision" is the required precision at the cohort level,
   !    essentially it is the minimum amount of change required to not ignore
-  !    a partial promotion or demotion
+  !    a partial promotion or demotion. This number was chosen because
+  !    math precision is around 15 digits in fortran r8s, with numbers that
+  !    can get to magnitude e4, this gives us about two orders of magitude in math
+  !    precision (ie e15-(e4+e9)=e2) in significant digits to match this absolute precision
   
-  real(r8), parameter :: pa_area_target_precision = 1.0E-11_r8
-  real(r8), parameter :: co_area_target_precision = 1.0E-12_r8 
+  real(r8), parameter :: co_area_target_precision = 1.0E-9_r8 
 
   integer, parameter :: demotion_phase  = 1
   integer, parameter :: promotion_phase = 2
@@ -94,8 +93,6 @@ module EDCanopyStructureMod
 
   real(r8), parameter :: area_check_precision  = 1.0E-7_r8     ! Area conservation checks must
   ! be within this absolute tolerance
-  real(r8), parameter :: area_check_rel_precision = 1.0E-4_r8  ! Area conservation checks must
-  ! be within this relative tolerance
 
   real(r8), parameter :: similar_height_tol = 1.0E-3_r8    ! I think trees that differ by 1mm
   ! can be roughly considered the same right?
@@ -169,7 +166,7 @@ contains
     integer  :: i_lyr                  ! current layer index
     integer  :: z                      ! Current number of canopy layers. (1= canopy, 2 = understorey)
     integer  :: ipft
-    real(r8) :: arealayer(nclmax+5)    ! Amount of plant area currently in each canopy layer
+    real(r8) :: arealayer              ! Amount of plant area currently in each canopy layer
     integer  :: patch_area_counter     ! count iterations used to solve canopy areas
     logical  :: area_not_balanced      ! logical controlling if the patch layer areas
     real(r8) :: target_area            ! Canopy area that is either in excess/defiency
@@ -182,7 +179,7 @@ contains
     ! try to re-balance 3 times.  If that doesn't give layer areas
     ! within tolerance of canopy area, there is something wrong
 
-    integer, parameter  :: max_patch_iterations = 10
+    integer, parameter  :: max_patch_iterations = nclmax + 7
 
 
     !----------------------------------------------------------------------
@@ -216,6 +213,7 @@ contains
        ! canopy layer has a special bounds check
        currentCohort => currentPatch%tallest
        do while (associated(currentCohort))
+          currentCohort%canopy_layer_yesterday = currentCohort%canopy_layer
           if( currentCohort%canopy_layer < 1 ) then
              write(fates_log(),*) 'lat:',currentSite%lat
              write(fates_log(),*) 'lon:',currentSite%lon
@@ -243,11 +241,13 @@ contains
           z = NumCanopyLayers(currentPatch)
 
           do i_lyr = 1,z ! Loop around the currently occupied canopy layers.
-             call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer(i_lyr))
-             target_area = max(0._r8,arealayer(i_lyr) - (1._r8-imperfect_fraction)*currentPatch%area)
+             call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
+             target_area = max(0._r8,arealayer - (1._r8-imperfect_fraction)*currentPatch%area)
              call PromoteOrDemote(currentSite, currentPatch, i_lyr, demotion_phase, target_area)
           end do
 
+          ! Terminate only for type 1 (near zero number density)
+          call terminate_cohorts(currentSite, currentPatch,1,23,bc_in)
           call fuse_cohorts(currentSite, currentPatch, bc_in)
 
           ! ---------------------------------------------------------------------------------------
@@ -261,11 +261,13 @@ contains
           ! We only promote if we have at least two layers
           if (z>1) then
              do i_lyr=2,z
-                call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr-1,arealayer(i_lyr-1))
-                target_area = max(0._r8,(1._r8-imperfect_fraction)*currentPatch%area - arealayer(i_lyr-1))
+                call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr-1,arealayer)
+                target_area = max(0._r8,(1._r8-imperfect_fraction)*currentPatch%area - arealayer)
                 call PromoteOrDemote(currentSite, currentPatch, i_lyr, promotion_phase, target_area)
              end do
 
+             ! Terminate only for type 1 (near zero number density)
+             call terminate_cohorts(currentSite, currentPatch,1,24,bc_in)
              call fuse_cohorts(currentSite, currentPatch, bc_in)
 
           end if
@@ -281,14 +283,14 @@ contains
 
           z = NumCanopyLayers(currentPatch)
           area_not_balanced = .false.
-          do i_lyr = 1,z
-             call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer(i_lyr))
+          do i_lyr = 1,min(z,nclmax)
+             call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
              if(i_lyr < z)then
-                if (abs(arealayer(i_lyr)-(1._r8-imperfect_fraction)*currentPatch%area) > area_check_precision) then
+                if (abs(arealayer-(1._r8-imperfect_fraction)*currentPatch%area) > area_check_precision) then
                    area_not_balanced = .true.
                 end if
              else
-                if ((arealayer(i_lyr)-(1._r8-imperfect_fraction)*currentPatch%area) > area_check_precision) then
+                if ((arealayer-(1._r8-imperfect_fraction)*currentPatch%area) > area_check_precision) then
                    area_not_balanced = .true.
                 end if
              end if
@@ -308,8 +310,9 @@ contains
              write(fates_log(),*) 'spread:',currentSite%spread
              do i_lyr = 1,z
                 write(fates_log(),*) '-----------------------------------------'
-                write(fates_log(),*) 'layer: ',i_lyr,' area: ',arealayer(i_lyr)
-                write(fates_log(),*) 'bias [m2] (layer-patch): ',(arealayer(i_lyr)- &
+                call CanopyLayerArea(currentPatch,currentSite%spread,i_lyr,arealayer)
+                write(fates_log(),*) 'layer: ',i_lyr,' area: ',arealayer
+                write(fates_log(),*) 'bias [m2] (layer-patch): ',(arealayer - &
                      (1._r8-imperfect_fraction)*currentPatch%area)
                 currentCohort => currentPatch%tallest
                 do while (associated(currentCohort))
@@ -590,22 +593,10 @@ contains
          end do
       end if comp_excl_type
 
-      ! Check to make sure the changes are within bounds
-      do ic = 1,n_layer
-         cohort => layer_co(ic)%p
-         if( ((layer_co(ic)%pd_area - cohort%c_area) > co_area_target_precision ) .or. &
-              (layer_co(ic)%pd_area < 0._r8) ) then
-            write(fates_log(),*) 'negative,or more area than the cohort has is being promoted/demoted'
-            write(fates_log(),*) 'change: ',layer_co(ic)%pd_area
-            write(fates_log(),*) 'existing area:',cohort%c_area
-            write(fates_log(),*) 'excess: ',layer_co(ic)%pd_area - cohort%c_area
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-      end do
-
       ! Part 3:
       ! Apply the area changes by splitting the cohort and re-assigning
       ! either all or part of it to a new layer
+      ! Check to make sure the changes are within bounds
 
       ic_loop0: do ic = 1,n_layer
 
@@ -617,25 +608,30 @@ contains
          !    and not trivialy small (larger than precision
          !    check), then split it and move part of it
          ! If the dem/prom area is less than zero or larger than
-         !    the cohort area within precision checks then
-         !    we would have failed in the previous checks
+         !    the cohort area within precision checks then fail
+         
+         
+         whole_or_part: if( ((layer_co(ic)%pd_area - cohort%c_area) > co_area_target_precision ) .or. &
+              (layer_co(ic)%pd_area < 0._r8) ) then
+            write(fates_log(),*) 'negative,or more area than the cohort has is being promoted/demoted'
+            write(fates_log(),*) 'change: ',layer_co(ic)%pd_area
+            write(fates_log(),*) 'existing area:',cohort%c_area
+            write(fates_log(),*) 'excess: ',layer_co(ic)%pd_area - cohort%c_area
+            call endrun(msg=errMsg(sourcefile, __LINE__))
 
-         whole_or_part: if ( abs(layer_co(ic)%pd_area - cohort%c_area) < &
-              co_area_target_precision ) then
+         
+         elseif ( abs(layer_co(ic)%pd_area - cohort%c_area) < co_area_target_precision ) then
 
             ! Whole cohort promotion/demotion
             cohort%canopy_layer = cohort%canopy_layer + ilyr_change
-
-         elseif( (layer_co(ic)%pd_area < cohort%c_area) .and. &
-                 (layer_co(ic)%pd_area > 0 ) ) then
+            
+         elseif( layer_co(ic)%pd_area > 0._r8 ) then
 
             ! Partial cohort promotion/demotion
-
             ! Make a copy of the current cohort.  The copy and the original
             ! conserve total number density.  The copy
             ! remains in the upper-story.  The original is the one
             ! demoted to the understory
-
 
             allocate(copyc)
 
@@ -660,7 +656,7 @@ contains
             call copyc%InitPRTBoundaryConditions()
 
             remainder_area = cohort%c_area - layer_co(ic)%pd_area
-            copyc%n = cohort%n*remainder_area/cohort%c_area
+            copyc%n = cohort%n*min(1._r8,max(0._r8,remainder_area/cohort%c_area))
             cohort%n = cohort%n - copyc%n
 
             ! The copied cohort is the part that remains in-layer
@@ -692,24 +688,26 @@ contains
          ! Part 4:
          ! keep track of number and biomass promoted/demoted
 
-         leaf_c   = cohort%prt%GetState(leaf_organ,carbon12_element)
-         store_c  = cohort%prt%GetState(store_organ,carbon12_element)
-         fnrt_c   = cohort%prt%GetState(fnrt_organ,carbon12_element)
-         sapw_c   = cohort%prt%GetState(sapw_organ,carbon12_element)
-         struct_c = cohort%prt%GetState(struct_organ,carbon12_element)
-
-         if(phase==demotion_phase) then
-            site%demotion_rate(cohort%size_class) = &
-                 site%demotion_rate(cohort%size_class) + cohort%n
-            site%demotion_carbonflux = site%demotion_carbonflux + &
-                 (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * cohort%n
-         else
-            site%promotion_rate(cohort%size_class) = &
-                 site%promotion_rate(cohort%size_class) + cohort%n
-            site%promotion_carbonflux = site%promotion_carbonflux + &
-                 (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * cohort%n
+         if( layer_co(ic)%pd_area > 0._r8 ) then
+            leaf_c   = cohort%prt%GetState(leaf_organ,carbon12_element)
+            store_c  = cohort%prt%GetState(store_organ,carbon12_element)
+            fnrt_c   = cohort%prt%GetState(fnrt_organ,carbon12_element)
+            sapw_c   = cohort%prt%GetState(sapw_organ,carbon12_element)
+            struct_c = cohort%prt%GetState(struct_organ,carbon12_element)
+            
+            if(phase==demotion_phase) then
+               site%demotion_rate(cohort%size_class) = &
+                    site%demotion_rate(cohort%size_class) + cohort%n
+               site%demotion_carbonflux = site%demotion_carbonflux + &
+                    (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * cohort%n
+            else
+               site%promotion_rate(cohort%size_class) = &
+                    site%promotion_rate(cohort%size_class) + cohort%n
+               site%promotion_carbonflux = site%promotion_carbonflux + &
+                    (leaf_c + store_c + fnrt_c + sapw_c + struct_c) * cohort%n
+            end if
          end if
-
+            
       end do ic_loop0
 
     end associate

@@ -27,7 +27,7 @@ module EDInitMod
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts
   use EDCohortDynamicsMod       , only : InitPRTObject
   use EDTypesMod                , only : set_patchno
-  use EDPhysiologyMod           , only : calculate_sp_properties
+  use EDPhysiologyMod           , only : calculate_SP_properties
   use ChecksBalancesMod         , only : SiteMassStock
   use FatesInterfaceTypesMod    , only : hlm_day_of_year
   use FatesRadiationMemMod      , only : num_swb
@@ -1212,7 +1212,8 @@ contains
             l2fr         = prt_params%allom_l2fr(pft)
             canopy_trim  = 1.0_r8
             crown_damage = 1  ! Assume no damage to begin with
-
+            c_area       = fates_unset_r8
+            
             ! retrieve drop fraction of non-leaf tissues for phenology initialization
             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(pft)
             stem_drop_fraction = prt_params%phen_stem_drop_fraction(pft)
@@ -1312,10 +1313,6 @@ contains
 
                   ! calculate initial density required to close canopy 
                   cohort_n = patch_in%area/c_area
-
-                  ! calculate crown area of the cohort
-                  call carea_allom(dbh, cohort_n, site_in%spread, pft, crown_damage, &
-                       c_area)
 
                   ! calculate height from diameter
                   call h_allom(dbh, pft, height)

@@ -15,8 +15,8 @@ module FatesFactoryMod
   use FatesPatchMod,               only : fates_patch_type
   use EDTypesMod,                  only : init_spread_inventory
   use FatesRadiationMemMod,        only : num_swb
-  use EDParamsMod,                 only : ED_val_vai_top_bin_width
-  use EDParamsMod,                 only : ED_val_vai_width_increase_factor
+  use EDParamsMod,                 only : vai_top_bin_width
+  use EDParamsMod,                 only : vai_width_increase_factor
   use EDParamsMod,                 only : nlevleaf
   use EDParamsMod,                 only : dinc_vai
   use EDParamsMod,                 only : dlower_vai
@@ -104,7 +104,7 @@ module FatesFactoryMod
       step_size, moving_ema_window)
       
     do i = 1, nlevleaf
-      dinc_vai(i) = ED_val_vai_top_bin_width*ED_val_vai_width_increase_factor**(i-1)
+      dinc_vai(i) = vai_top_bin_width*vai_width_increase_factor**(i-1)
     end do 
   
     ! lower edges of VAI bins
