@@ -62,6 +62,7 @@ module EDPftvarcon
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
      real(r8), allocatable :: initd(:)               ! initial seedling density [/m2] (positive values)
                                                      ! or -dbh [cm] (negative values)
+     real(r8), allocatable :: init_seed(:)           ! Initial seed bank for no-comp runs [kg/m2]
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
 
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
