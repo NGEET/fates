@@ -1274,8 +1274,8 @@
       "dims": ["fates_pft"],
       "long_name": "(no-comp only): initial un-germinated but potentially viable seed pool",
       "units": "kg/m2",
-      "data": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-    },      
+      "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    },
     "fates_recruit_prescribed_rate": {
       "dtype": "float",
       "dims": ["fates_pft"],
