@@ -46,9 +46,7 @@ def main():
     new_file  = batch_data['new_file'].strip()
 
     # This should be a list of integers
-    pft_trim_list = ", ".join(str(i) for i in batch_data['pft_trim_list'])
-    
-    #code.interact(local=dict(globals(), **locals()))
+    pft_trim_list = ",".join(str(i) for i in batch_data['pft_trim_list'])
     
     swapcmd="../tools/pft_index_swapper.py --pft-indices="+pft_trim_list+" --fin="+base_file+" --fout="+new_file
     os.system(swapcmd)
@@ -56,15 +54,16 @@ def main():
     with open(new_file, 'r') as file:
         base_data = json.load(file)
 
-    for pft,pft_dic in batch_data['parameters']['pft_parameters'].items():
-        ipft = int(pft)-1
+    for pfts,pft_dic in batch_data['parameters']['pft_parameters'].items():
+        ipfts = [int(x) for x in pfts.split(',')]
+
+        ipft = int(pfts)-1
         for param_name,data_list in pft_dic.items():
-            if(len(data_list)==1):
-                base_data['parameters'][param_name]['data'] = data_list
-            else:
-                for i,val in enumerate(data_list):
-                    #code.interact(local=dict(globals(), **locals()))
-                    base_data['parameters'][param_name]['data'][i][ipft] = val
+            data_arr = np.array(data_list)
+            for i,val in enumerate(data_list):
+                #code.interact(local=dict(globals(), **locals()))
+                
+                base_data['parameters'][param_name]['data'][i][ipft] = val
 
     for param_name,data_list in batch_data['parameters']['non_pft_parameters'].items():
         base_data['parameters'][param_name]['data'] = data_list
