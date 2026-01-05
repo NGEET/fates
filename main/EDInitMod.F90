@@ -1283,6 +1283,8 @@ contains
                ! calculate the plant diameter from height
                call h2d_allom(height, pft, dbh)
 
+               call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh, c_leaf)
+               
             else ! We are in a nocomp simulation 
 
                ! interpret as initial density and calculate diameter
@@ -1318,7 +1320,11 @@ contains
                   call h_allom(dbh, pft, height)
 
                endif if_init_dens
-
+               
+               ! Calculate the leaf biomass from allometry
+               ! (calculates a maximum first, then applies canopy trim)
+               call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh, c_leaf)
+               
                ! If we are in SP mode we ignore the initial values and read in height,
                ! which is used to calcualte n.
                ! h, dbh, leafc, n from SP values or from small initial size
@@ -1337,7 +1343,7 @@ contains
 
             ! Calculate the leaf biomass from allometry
             ! (calculates a maximum first, then applies canopy trim)
-            call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh, c_leaf)
+            !call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh, c_leaf)
 
             ! calculate total above-ground biomass from allometry
             call bagw_allom(dbh, pft, crown_damage, efstem_coh, c_agw)
