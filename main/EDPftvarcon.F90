@@ -51,7 +51,7 @@ module EDPftvarcon
   !ED specific variables.
   type, public ::  EDPftvarcon_type
 
-     character(len=256),allocatable :: pftname(:)             ! The name of the PFT
+     character(len=256),allocatable :: pftname(:)    ! The name of the PFT
      
      real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance
      real(r8), allocatable :: hgt_min(:)             ! sapling height m
@@ -62,7 +62,23 @@ module EDPftvarcon
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
      real(r8), allocatable :: initd(:)               ! initial seedling density [/m2] (positive values)
                                                      ! or -dbh [cm] (negative values)
-     real(r8), allocatable :: init_seed(:)           ! Initial seed bank for no-comp runs [kg/m2]
+     real(r8), allocatable :: init_seed(:)           ! Initial seed bank [kg/m2]
+                                                     ! For SP: this is unused
+                                                     ! For Nocomp: This only applies the seed from the
+                                                     !     pft associated with the pft's dedicated patch
+                                                     ! For Fixed biogeo: Applies all seed from pfts
+                                                     !     found on that site/grid to starter patch
+                                                     ! Full Fates: All pft seed banks applied on starter
+                                                     !     patch
+                                                     ! Example: if nocomp says 14 pft equally 
+                                                     !     share the site, the total amount of seed
+                                                     !     integrated across the site would be 
+                                                     !     1/14 as much as would be allocated in full 
+                                                     !     fates using the same parameters, or
+                                                     !     likewise fixed-biogeo if all pfts also present.
+                                                     !     Fixed-biogeo and full-fates would have the
+                                                     !     the same amounts initialized if all pfts
+                                                     !     present at a site
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
 
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
