@@ -1272,7 +1272,7 @@
     "fates_recruit_init_seed": {
       "dtype": "float",
       "dims": ["fates_pft"],
-      "long_name": "(no-comp only): initial un-germinated but potentially viable seed pool",
+      "long_name": "initial seed pool - per m2 of patch for no-comp, per m2 of site for non no-comp",
       "units": "kg/m2",
       "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     },

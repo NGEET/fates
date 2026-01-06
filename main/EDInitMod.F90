@@ -100,7 +100,7 @@ module EDInitMod
   use FatesConstantsMod,      only : min_nocomp_pftfrac_perlanduse
   use EdTypesMod,             only : dump_site
   use SFNesterovMod,          only : nesterov_index
-
+  use PRTInitParamsFatesMod,  only : NewRecruitTotalStoichiometry
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -723,7 +723,7 @@ contains
     real(r8) :: newparea, newparea_withlanduse
     real(r8) :: total !check on area
     real(r8) :: litt_init  !invalid for satphen, 0 otherwise
-    real(r8) :: seed_init ! start seedbank at this value for each PFT. 
+    real(r8),allocatable :: seed_init(:) ! start seedbank at this value for each PFT. 
     real(r8) :: old_carea
     logical  :: is_first_patch
     ! integer  :: n_luh_states
@@ -732,7 +732,7 @@ contains
     integer  :: i_lu, i_lu_state
     integer  :: n_active_landuse_cats
     integer  :: end_landuse_idx
-
+    integer  :: element_id
     type(ed_site_type),  pointer :: sitep
     type(fates_patch_type), pointer :: newppft(:)
     type(fates_patch_type), pointer :: newp
@@ -744,6 +744,10 @@ contains
     age                  = 0.0_r8
     ! ---------------------------------------------------------------------------------------------
 
+    ! Assume that seed banks start with zero mass unless otherwise stated
+    allocate(seed_init(numpft))
+    seed_init(:) = 0.
+    
     ! ---------------------------------------------------------------------------------------------
     ! Two primary options, either a Near Bear Ground (NBG) or Inventory based cold-start
     ! ---------------------------------------------------------------------------------------------
@@ -857,16 +861,17 @@ contains
                 ! and transfering in mass
                 if(hlm_use_sp.eq.itrue)then
                    litt_init = fates_unset_r8
-                   seed_init = fates_unset_r8
+                   seed_init(:) = fates_unset_r8
                 else
                    litt_init = 0._r8
+                   seed_init(:) = 0._r8
                 end if
                 do el=1,num_elements
                    call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
                         init_root_fines=litt_init, &
                         init_ag_cwd=litt_init, &
                         init_bg_cwd=litt_init, &
-                        init_seed=litt_init,   &
+                        init_seed_array=seed_init,   &
                         init_seed_germ=litt_init)
                 end do
 
@@ -951,25 +956,66 @@ contains
                             litt_init = 0._r8
                          end if
                          do el=1,num_elements
-                            if ((.not. hlm_use_sp .eq. itrue) .and. &
-                                (.not. (newp%nocomp_pft_label .eq. fates_unset_int) .or. &
-                                       (newp%nocomp_pft_label .eq. nocomp_bareground))) then
-                               ! nocomp non-bareground get inital seed pool from the parameter file
-                               ! sp mode will get unset values no matter what
-                               call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
+
+                            element_id = element_list(el)
+
+                            ! -------------------------------------------------------------------------------
+                            ! Three+ ways to initialize seed banks on cold-start
+                            ! 1) this is either an SP run, or this is a bareground: no seed
+                            ! 2) this patch has a no-comp label, and therefore gets seed just from that pft
+                            ! 3a) full fates: all pft seed banks are included
+                            ! 3b) non no-comp fixed-biogeography: only geographically relevant pfts have
+                            !     non-zero seed banks
+                            ! --------------------------------------------------------------------------------
+                            
+                            if (hlm_use_sp .eq. ifalse .or. newp%nocomp_pft_label .eq. nocomp_bareground) then
+                               seed_init(:) = 0._r8
+                            elseif(.not.(newp%nocomp_pft_label .eq. fates_unset_int))then
+                               seed_init(:) = 0._r8
+                               pft = newp%nocomp_pft_label
+                               seed_init(pft) = NewRecruitTotalStoichiometry(pft,prt_params%allom_l2fr(pft),element_id) * &
+                                    EDPftvarcon_inst%init_seed(pft)
+                            else
+                               do pft = 1, numpft
+                                  if(site_in%use_this_pft(pft).eq.itrue)then
+                                     seed_init(pft) = NewRecruitTotalStoichiometry(pft,prt_params%allom_l2fr(pft),element_id) * &
+                                          EDPftvarcon_inst%init_seed(ipft)
+                                  else
+                                     seed_init(pft) = 0._r8
+                                  end if
+                               end if
+                            end if
+
+                            call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
                                     init_root_fines=litt_init, &
                                     init_ag_cwd=litt_init, &
                                     init_bg_cwd=litt_init, &
-                                    init_seed=EDPftvarcon_inst%init_seed(newp%nocomp_pft_label),   &
+                                    init_seed_array=seed_init, &
                                     init_seed_germ=litt_init)
-                            else
-                               call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
-                                   init_root_fines=litt_init, &
-                                   init_ag_cwd=litt_init, &
-                                   init_bg_cwd=litt_init, &
-                                   init_seed=litt_init,   &
-                                   init_seed_germ=litt_init)
-                            endif
+                            
+!                            if ((.not. hlm_use_sp .eq. itrue) .and. &
+!                                (.not. (newp%nocomp_pft_label .eq. fates_unset_int) .or. &
+!                                (newp%nocomp_pft_label .eq. nocomp_bareground))) then
+!
+!                               seed_init(newp%nocomp_pft_label) = EDPftvarcon_inst%init_seed(newp%nocomp_pft_label)
+!                               
+!                               ! nocomp non-bareground get inital seed pool from the parameter file
+!                               ! sp mode will get unset values no matter what
+!                               call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
+!                                    init_root_fines=litt_init, &
+!                                    init_ag_cwd=litt_init, &
+!                                    init_bg_cwd=litt_init, &
+!                                    init_seed_array=seed_init, &
+!                                    init_seed_germ=litt_init)
+!                            else
+!                               call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
+!                                    init_root_fines=litt_init, &
+!                                    init_ag_cwd=litt_init, &
+!                                    init_bg_cwd=litt_init, &
+!                                    init_seed_array=seed_init,   &
+!                                    init_seed_germ=litt_init)
+!                            endif
+                            
                          end do
 
                          sitep => sites(s)
@@ -1114,6 +1160,8 @@ contains
        end do
     end do
 
+    deallocate(seed_init)
+    
     return
   end subroutine init_patches
 
