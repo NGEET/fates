@@ -71,7 +71,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : get_harvestable_carbon
   use EDLoggingMortalityMod, only : get_harvest_debt
   use FatesLandUseChangeMod, only : GetInitLanduseHarvestRate
-  use EDParamsMod          , only : fates_mortality_disturbance_fraction
+  use EDParamsMod          , only : mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
   use FatesConstantsMod    , only : g_per_kg
@@ -360,7 +360,7 @@ contains
              ! Treefall Disturbance Rate.  Only count this for trees, not grasses
              if ( .not. ExemptTreefallDist(currentCohort) ) then
                 currentPatch%disturbance_rates(dtype_ifall) = currentPatch%disturbance_rates(dtype_ifall) + &
-                     fates_mortality_disturbance_fraction * &
+                     mortality_disturbance_fraction * &
                      min(1.0_r8,currentCohort%dmort)*hlm_freq_day*currentCohort%c_area/currentPatch%area
              end if
 
@@ -842,7 +842,7 @@ contains
                                      ! because this is the part of the original patch where no trees have actually fallen
                                      ! The diagnostic cmort,bmort,hmort, and frmort  rates have already been saved
 
-                                     currentCohort%n = currentCohort%n * (1.0_r8 - fates_mortality_disturbance_fraction * &
+                                     currentCohort%n = currentCohort%n * (1.0_r8 - mortality_disturbance_fraction * &
                                           min(1.0_r8,currentCohort%dmort * hlm_freq_day))
 
                                      nc%n = 0.0_r8      ! kill all of the trees who caused the disturbance.
@@ -2490,7 +2490,7 @@ contains
              ! generating mortality rate.
              
              num_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * &
-                   hlm_freq_day * fates_mortality_disturbance_fraction)
+                   hlm_freq_day * mortality_disturbance_fraction)
              
           elseif(prt_params%woody(pft) == itrue) then
              

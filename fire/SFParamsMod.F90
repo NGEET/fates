@@ -6,11 +6,11 @@ module SFParamsMod
    use FatesConstantsMod,        only : fates_check_param_set
    use FatesFuelClassesMod,      only : num_fuel_classes
    use FatesLitterMod,           only : ncwd
-   use FatesParametersInterface, only : param_string_length
    use FatesGlobals,             only : fates_log
    use FatesGlobals,             only : endrun => fates_endrun
    use shr_log_mod,              only : errMsg => shr_log_errMsg
-
+   use JSONParameterUtilsMod,only : params_type,param_type
+   
    implicit none
    private 
    save
@@ -51,47 +51,12 @@ module SFParamsMod
    real(r8),protected, public :: SF_val_rxfire_fuel_max      ! maximum fuel load at or above which rx fire is disallowed
    real(r8),protected, public :: SF_val_rxfire_min_frac      ! minimum burnable fraction at site level at or above which rx fire is allowed
 
-   character(len=param_string_length),parameter :: SF_name_fdi_alpha = "fates_fire_fdi_alpha"
-   character(len=param_string_length),parameter :: SF_name_miner_total = "fates_fire_miner_total"
-   character(len=param_string_length),parameter :: SF_name_fuel_energy = "fates_fire_fuel_energy"
-   character(len=param_string_length),parameter :: SF_name_part_dens = "fates_fire_part_dens"
-   character(len=param_string_length),parameter :: SF_name_miner_damp = "fates_fire_miner_damp"
-   character(len=param_string_length),parameter :: SF_name_max_durat = "fates_fire_max_durat"
-   character(len=param_string_length),parameter :: SF_name_durat_slope = "fates_fire_durat_slope"
-   character(len=param_string_length),parameter :: SF_name_drying_ratio = "fates_fire_drying_ratio"
-   character(len=param_string_length),parameter :: SF_name_fire_threshold = "fates_fire_threshold"
-   character(len=param_string_length),parameter :: SF_name_CWD_frac = "fates_frag_cwd_frac"
-   character(len=param_string_length),parameter :: SF_name_max_decomp = "fates_frag_maxdecomp"
-   character(len=param_string_length),parameter :: SF_name_SAV = "fates_fire_SAV"
-   character(len=param_string_length),parameter :: SF_name_FBD = "fates_fire_FBD"
-   character(len=param_string_length),parameter :: SF_name_min_moisture = "fates_fire_min_moisture"
-   character(len=param_string_length),parameter :: SF_name_mid_moisture = "fates_fire_mid_moisture"
-   character(len=param_string_length),parameter :: SF_name_low_moisture_Coeff = "fates_fire_low_moisture_Coeff"
-   character(len=param_string_length),parameter :: SF_name_low_moisture_Slope = "fates_fire_low_moisture_Slope"
-   character(len=param_string_length),parameter :: SF_name_mid_moisture_Coeff = "fates_fire_mid_moisture_Coeff"
-   character(len=param_string_length),parameter :: SF_name_mid_moisture_Slope = "fates_fire_mid_moisture_Slope"
-   character(len=param_string_length),parameter :: SF_name_rxfire_tpup = "fates_rxfire_temp_upthreshold"
-   character(len=param_string_length),parameter :: SF_name_rxfire_tplw = "fates_rxfire_temp_lwthreshold"
-   character(len=param_string_length),parameter :: SF_name_rxfire_rhup = "fates_rxfire_rh_upthreshold"
-   character(len=param_string_length),parameter :: SF_name_rxfire_rhlw = "fates_rxfire_rh_lwthreshold"
-   character(len=param_string_length),parameter :: SF_name_rxfire_wdup = "fates_rxfire_wind_upthreshold"
-   character(len=param_string_length),parameter :: SF_name_rxfire_wdlw = "fates_rxfire_wind_lwthreshold"
-   character(len=param_string_length),parameter :: SF_name_rxfire_AB   = "fates_rxfire_AB"
-   character(len=param_string_length),parameter :: SF_name_rxfire_min_threshold = "fates_rxfire_min_threshold"
-   character(len=param_string_length),parameter :: SF_name_rxfire_max_threshold = "fates_rxfire_max_threshold"
-   character(len=param_string_length),parameter :: SF_name_rxfire_fuel_min = "fates_rxfire_fuel_min"
-   character(len=param_string_length),parameter :: SF_name_rxfire_fuel_max = "fates_rxfire_fuel_max"
-   character(len=param_string_length),parameter :: SF_name_rxfire_min_frac = "fates_rxfire_min_frac"
-   
-  
-
    character(len=*), parameter, private :: sourcefile =  __FILE__
    real(r8),         parameter, private :: min_fire_threshold = 0.0001_r8  ! The minimum reasonable fire intensity threshold [kW/m]
 
-   public :: SpitFireRegisterParams
-   public :: SpitFireReceiveParams
+   public :: TransferParamsSpitFire
    public :: SpitFireCheckParams
-
+   
 contains
 
   ! =====================================================================================
@@ -199,305 +164,115 @@ contains
 
   end subroutine SpitFireParamsInit
 
-  !-----------------------------------------------------------------------
-  subroutine SpitFireRegisterParams(fates_params)
+  ! ======================================================================
 
-    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar, dimension_shape_scalar
+  subroutine TransferParamsSpitFire(pstruct)
+
+    ! -----------------------------------------------------------------------------------
+    ! Transfer SpitFire parameter values from the data structure "pstruct"
+    ! to named primitive data structures
+    ! -----------------------------------------------------------------------------------
 
     implicit none
 
-    class(fates_parameters_type), intent(inout) :: fates_params
+    type(params_type) :: pstruct         ! Data structure containing all parameters and dimensions
+    type(param_type),pointer :: param_p  ! Pointer to one specific parameter
 
     call SpitFireParamsInit()
-    call SpitFireRegisterScalars(fates_params)
-    call SpitFireRegisterNCWD(fates_params)
-    call SpitFireRegisterNFSC(fates_params)
 
- end subroutine SpitFireRegisterParams
-
- !-----------------------------------------------------------------------
- subroutine SpitFireReceiveParams(fates_params)
-   
-   use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
-   
-   implicit none
-   
-    class(fates_parameters_type), intent(inout) :: fates_params
+    param_p => pstruct%GetParamFromName("fates_fire_fdi_alpha")
+    SF_val_fdi_alpha = param_p%r_data_scalar
     
-    call SpitFireReceiveScalars(fates_params)
-    call SpitFireReceiveNCWD(fates_params)
-    call SpitFireReceiveNFSC(fates_params)
+    param_p => pstruct%GetParamFromName("fates_fire_miner_total")
+    SF_val_miner_total = param_p%r_data_scalar
     
-  end subroutine SpitFireReceiveParams
-
-  !-----------------------------------------------------------------------
-  subroutine SpitFireRegisterScalars(fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar, dimension_shape_scalar
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    character(len=param_string_length), parameter :: dim_names_scalar(1) = (/dimension_name_scalar/)
+    param_p => pstruct%GetParamFromName("fates_fire_fuel_energy")
+    SF_val_fuel_energy = param_p%r_data_scalar
     
-    call fates_params%RegisterParameter(name=SF_name_fdi_alpha, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_miner_total, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_fuel_energy, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_part_dens, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_miner_damp, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_max_durat, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_durat_slope, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_drying_ratio, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_fire_threshold, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-     
-    call fates_params%RegisterParameter(name=SF_name_rxfire_tpup, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_rxfire_tplw, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_rxfire_rhup, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_rxfire_rhlw, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_rxfire_wdup, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_rxfire_wdlw, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_rxfire_AB, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_rxfire_min_threshold, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_rxfire_max_threshold, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_rxfire_fuel_min, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-
-    call fates_params%RegisterParameter(name=SF_name_rxfire_fuel_max, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-     
-    call fates_params%RegisterParameter(name=SF_name_rxfire_min_frac, dimension_shape=dimension_shape_scalar, &
-         dimension_names=dim_names_scalar)
-     
-     
-
-
-  end subroutine SpitFireRegisterScalars
-
- !-----------------------------------------------------------------------
- subroutine SpitFireReceiveScalars(fates_params)
-   
-    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-    real(r8) :: tmp_real
-
-    call fates_params%RetrieveParameter(name=SF_name_fdi_alpha, &
-         data=SF_val_fdi_alpha)
-
-    call fates_params%RetrieveParameter(name=SF_name_miner_total, &
-         data=SF_val_miner_total)
-
-    call fates_params%RetrieveParameter(name=SF_name_fuel_energy, &
-         data=SF_val_fuel_energy)
-
-    call fates_params%RetrieveParameter(name=SF_name_part_dens, &
-         data=SF_val_part_dens)
-
-    call fates_params%RetrieveParameter(name=SF_name_miner_damp, &
-         data=SF_val_miner_damp)
-
-    call fates_params%RetrieveParameter(name=SF_name_max_durat, &
-         data=SF_val_max_durat)
-
-    call fates_params%RetrieveParameter(name=SF_name_durat_slope, &
-         data=SF_val_durat_slope)
-
-    call fates_params%RetrieveParameter(name=SF_name_drying_ratio, &
-         data=SF_val_drying_ratio)
-
-    call fates_params%RetrieveParameter(name=SF_name_fire_threshold, &
-         data=SF_val_fire_threshold)
-     
-    call fates_params%RetrieveParameter(name=SF_name_rxfire_tpup, &
-         data=SF_val_rxfire_tpup)
-
-    call fates_params%RetrieveParameter(name=SF_name_rxfire_tplw, &
-	 data=SF_val_rxfire_tplw)
-
-    call fates_params%RetrieveParameter(name=SF_name_rxfire_rhup, &
-	 data=SF_val_rxfire_rhup)
-
-    call fates_params%RetrieveParameter(name=SF_name_rxfire_rhlw, &
-	 data=SF_val_rxfire_rhlw)
-
-    call fates_params%RetrieveParameter(name=SF_name_rxfire_wdup, &
-	 data=SF_val_rxfire_wdup)
-
-    call fates_params%RetrieveParameter(name=SF_name_rxfire_wdlw, &
-	 data=SF_val_rxfire_wdlw)
-
-    call fates_params%RetrieveParameter(name=SF_name_rxfire_AB, &
-         data=SF_val_rxfire_AB)
-
-    call fates_params%RetrieveParameter(name=SF_name_rxfire_min_threshold, &
-         data=SF_val_rxfire_min_threshold)
-
-    call fates_params%RetrieveParameter(name=SF_name_rxfire_max_threshold, &
-         data=SF_val_rxfire_max_threshold)
-
-    call fates_params%RetrieveParameter(name=SF_name_rxfire_fuel_min, &
-         data=SF_val_rxfire_fuel_min)
-
-    call fates_params%RetrieveParameter(name=SF_name_rxfire_fuel_max, &
-         data=SF_val_rxfire_fuel_max)
-     
-    call fates_params%RetrieveParameter(name=SF_name_rxfire_min_frac, &
-         data=SF_val_rxfire_min_frac)
-
-
-
-
-  end subroutine SpitFireReceiveScalars
-
-  !-----------------------------------------------------------------------
-  subroutine SpitFireRegisterNCWD(fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type, dimension_name_cwd, dimension_shape_1d
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    character(len=param_string_length), parameter :: dim_names_cwd(1) = (/dimension_name_cwd/)
-
-    call fates_params%RegisterParameter(name=SF_name_CWD_frac, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names_cwd)
-
-  end subroutine SpitFireRegisterNCWD
-
- !-----------------------------------------------------------------------
- subroutine SpitFireReceiveNCWD(fates_params)
-   
-    use FatesParametersInterface, only : fates_parameters_type, dimension_name_scalar
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    call fates_params%RetrieveParameter(name=SF_name_CWD_frac, &
-         data=SF_val_CWD_frac)
-
+    param_p => pstruct%GetParamFromName("fates_fire_part_dens")
+    SF_val_part_dens = param_p%r_data_scalar
     
-
-  end subroutine SpitFireReceiveNCWD
-
-  !-----------------------------------------------------------------------
-  subroutine SpitFireRegisterNFSC(fates_params)
-
-    use FatesParametersInterface, only : fates_parameters_type, dimension_name_fsc, dimension_shape_1d
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
-    character(len=param_string_length), parameter :: dim_names(1) = (/dimension_name_fsc/)
-
-    call fates_params%RegisterParameter(name=SF_name_SAV, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=SF_name_FBD, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=SF_name_min_moisture, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=SF_name_mid_moisture, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=SF_name_low_moisture_Coeff, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=SF_name_low_moisture_Slope, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=SF_name_mid_moisture_Coeff, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=SF_name_mid_moisture_Slope, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-    call fates_params%RegisterParameter(name=SF_name_max_decomp, dimension_shape=dimension_shape_1d, &
-         dimension_names=dim_names)
-
-  end subroutine SpitFireRegisterNFSC
-
- !-----------------------------------------------------------------------
- subroutine SpitFireReceiveNFSC(fates_params)
-   
-    use FatesParametersInterface, only : fates_parameters_type
-
-    implicit none
-
-    class(fates_parameters_type), intent(inout) :: fates_params
-
+    param_p => pstruct%GetParamFromName("fates_fire_miner_damp")
+    SF_val_miner_damp = param_p%r_data_scalar
     
-    call fates_params%RetrieveParameter(name=SF_name_SAV, &
-         data=SF_val_SAV)
+    param_p => pstruct%GetParamFromName("fates_fire_max_durat")
+    SF_val_max_durat = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_fire_durat_slope")
+    SF_val_durat_slope = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_fire_drying_ratio")
+    SF_val_drying_ratio = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_fire_threshold")
+    SF_val_fire_threshold = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_frag_cwd_frac")
+    SF_val_CWD_frac(:) = param_p%r_data_1d(:)
 
-    call fates_params%RetrieveParameter(name=SF_name_FBD, &
-         data=SF_val_FBD)
+    param_p => pstruct%GetParamFromName("fates_frag_maxdecomp")
+    SF_val_max_decomp(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName("fates_fire_SAV")
+    SF_val_SAV(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName("fates_fire_FBD")
+    SF_val_FBD(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName("fates_fire_min_moisture")
+    SF_val_min_moisture(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName("fates_fire_mid_moisture")
+    SF_val_mid_moisture(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName("fates_fire_low_moisture_Coeff")
+    SF_val_low_moisture_Coeff(:) = param_p%r_data_1d(:)
 
-    call fates_params%RetrieveParameter(name=SF_name_min_moisture, &
-         data=SF_val_min_moisture)
-
-    call fates_params%RetrieveParameter(name=SF_name_mid_moisture, &
-         data=SF_val_mid_moisture)
-
-    call fates_params%RetrieveParameter(name=SF_name_low_moisture_Coeff, &
-         data=SF_val_low_moisture_Coeff)
-
-    call fates_params%RetrieveParameter(name=SF_name_low_moisture_Slope, &
-         data=SF_val_low_moisture_Slope)
-
-    call fates_params%RetrieveParameter(name=SF_name_mid_moisture_Coeff, &
-         data=SF_val_mid_moisture_Coeff)
-
-    call fates_params%RetrieveParameter(name=SF_name_mid_moisture_Slope, &
-         data=SF_val_mid_moisture_Slope)
-
-    call fates_params%RetrieveParameter(name=SF_name_max_decomp, &
-         data=SF_val_max_decomp)
-
-  end subroutine SpitFireReceiveNFSC
-  !-----------------------------------------------------------------------
-
+    param_p => pstruct%GetParamFromName("fates_fire_low_moisture_Slope")
+    SF_val_low_moisture_Slope(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName("fates_fire_mid_moisture_Coeff")
+    SF_val_mid_moisture_Coeff(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName("fates_fire_mid_moisture_Slope")
+    SF_val_mid_moisture_Slope(:) = param_p%r_data_1d(:)
+    
+    param_p => pstruct%GetParamFromName("fates_rxfire_temp_upthreshold")
+    SF_val_rxfire_tpup = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_rxfire_temp_lwthreshold")
+    SF_val_rxfire_tplw = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_rxfire_rh_upthreshold")
+    SF_val_rxfire_rhup = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_rxfire_rh_lwthreshold")
+    SF_val_rxfire_rhlw = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_rxfire_wind_upthreshold")
+    SF_val_rxfire_wdup = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_rxfire_wind_lwthreshold")
+    SF_val_rxfire_wdlw = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_rxfire_AB")
+    SF_val_rxfire_AB = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_rxfire_min_threshold")
+    SF_val_rxfire_min_threshold = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_rxfire_max_threshold")
+    SF_val_rxfire_max_threshold = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_rxfire_fuel_min")
+    SF_val_rxfire_fuel_min = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_rxfire_fuel_max")
+    SF_val_rxfire_fuel_max = param_p%r_data_scalar
+    
+    param_p => pstruct%GetParamFromName("fates_rxfire_min_frac")
+    SF_val_rxfire_min_frac = param_p%r_data_scalar
+    
+  end subroutine TransferParamsSpitFire
 
 end module SFParamsMod
