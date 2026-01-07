@@ -1747,11 +1747,11 @@ module FatesInterfaceTypesMod
     if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
       j = this%GetRegistryVariableIndex(hlm_fates_litter_phosphorus_total)
       call this%hlm_vars(j)%Update(this%fates_vars(j))
-      call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
+      if (conversion_flag) call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
 
       j = this%GetRegistryVariableIndex(hlm_fates_litter_nitrogen_total)
       call this%hlm_vars(j)%Update(this%fates_vars(j))
-      call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
+      if (conversion_flag) call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
     end if
 
     
