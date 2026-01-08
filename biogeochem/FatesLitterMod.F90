@@ -322,7 +322,7 @@ contains
                             init_root_fines, &
                             init_ag_cwd,     &
                             init_bg_cwd,     &
-                            init_seed,       &
+                            init_seed_array, &
                             init_seed_germ)
     
     ! This procedure initialized litter pools.  This does not allow initialization
@@ -337,14 +337,14 @@ contains
     real(r8),intent(in) :: init_root_fines
     real(r8),intent(in) :: init_ag_cwd
     real(r8),intent(in) :: init_bg_cwd
-    real(r8),intent(in) :: init_seed
+    real(r8),intent(in) :: init_seed_array(:)
     real(r8),intent(in) :: init_seed_germ
     
     this%ag_cwd(:)              = init_ag_cwd
     this%bg_cwd(:,:)            = init_bg_cwd
     this%leaf_fines(:)          = init_leaf_fines
     this%root_fines(:,:)        = init_root_fines
-    this%seed(:)                = init_seed
+    this%seed(:)                = init_seed_array(:)
     this%seed_germ(:)           = init_seed_germ
 
     return

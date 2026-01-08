@@ -46,9 +46,7 @@ def main():
     new_file  = batch_data['new_file'].strip()
 
     # This should be a list of integers
-    pft_trim_list = ", ".join(str(i) for i in batch_data['pft_trim_list'])
-    
-    #code.interact(local=dict(globals(), **locals()))
+    pft_trim_list = ",".join(str(i) for i in batch_data['pft_trim_list'])
     
     swapcmd="../tools/pft_index_swapper.py --pft-indices="+pft_trim_list+" --fin="+base_file+" --fout="+new_file
     os.system(swapcmd)
@@ -56,18 +54,26 @@ def main():
     with open(new_file, 'r') as file:
         base_data = json.load(file)
 
-    for pft,pft_dic in batch_data['parameters']['pft_parameters'].items():
-        ipft = int(pft)-1
-        for param_name,data_list in pft_dic.items():
-            if(len(data_list)==1):
-                base_data['parameters'][param_name]['data'] = data_list
-            else:
-                for i,val in enumerate(data_list):
-                    #code.interact(local=dict(globals(), **locals()))
-                    base_data['parameters'][param_name]['data'][i][ipft] = val
-
-    for param_name,data_list in batch_data['parameters']['non_pft_parameters'].items():
-        base_data['parameters'][param_name]['data'] = data_list
+    if "pft_parameters" in batch_data['parameters']:
+        for pfts,pft_dic in batch_data['parameters']['pft_parameters'].items():
+            ipfts = [int(x) for x in pfts.split(',')]
+            for param_name,data_list in pft_dic.items():
+                # 2D list
+                if(isinstance(data_list[0], list)):
+                    dim2 = len(data_list)
+                    for index,i in enumerate(ipfts):
+                        ipft = i-1 #because python uses 0 and our file uses 1 indexing
+                        for id2 in range(dim2):
+                            base_data['parameters'][param_name]['data'][id2][ipft] = data_list[id2][index]
+                # 1D list
+                else:
+                    for index,i in enumerate(ipfts):
+                        ipft = i-1 #because python uses 0 and our file uses 1 indexing
+                        base_data['parameters'][param_name]['data'][ipft] = data_list[index]
+                        
+    if "non_pft_parameters" in batch_data['parameters']:
+        for param_name,data_list in batch_data['parameters']['non_pft_parameters'].items():
+            base_data['parameters'][param_name]['data'] = data_list
 
     with open(new_file, 'w') as outfile:
         write_json.traverse_data(outfile,base_data)

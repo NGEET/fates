@@ -1330,6 +1330,10 @@ contains
 
      ! Total nutrient in a newly recruited plant
      select case(element_id)
+     case(carbon12_element)
+        
+        nutr_total = c_total
+        
      case(nitrogen_element)
 
         nutr_total = &
