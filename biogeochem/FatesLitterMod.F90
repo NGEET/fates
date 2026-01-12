@@ -322,6 +322,7 @@ contains
                             init_root_fines, &
                             init_ag_cwd,     &
                             init_bg_cwd,     &
+                            init_seed,       & 
                             init_seed_array, &
                             init_seed_germ)
     
@@ -337,14 +338,27 @@ contains
     real(r8),intent(in) :: init_root_fines
     real(r8),intent(in) :: init_ag_cwd
     real(r8),intent(in) :: init_bg_cwd
-    real(r8),intent(in) :: init_seed_array(:)
+    real(r8),intent(in),optional :: init_seed_array(:)
+    real(r8),intent(in),optional :: init_seed
     real(r8),intent(in) :: init_seed_germ
+
+    if(present(init_seed) .and. present(init_seed_array))then
+       write(fates_log(),*) 'cannot specificy both a scalar and array input for seed bank initialization'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    elseif(.not.present(init_seed) .and. .not.present(init_seed_array))then
+       write(fates_log(),*) 'must specify one of scalar or array input for seed bank initialization'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
+    end if
     
     this%ag_cwd(:)              = init_ag_cwd
     this%bg_cwd(:,:)            = init_bg_cwd
     this%leaf_fines(:)          = init_leaf_fines
     this%root_fines(:,:)        = init_root_fines
-    this%seed(:)                = init_seed_array(:)
+    if(present(init_seed))then
+       this%seed(:)             = init_seed
+    else
+       this%seed(:)             = init_seed_array(:)
+    end if
     this%seed_germ(:)           = init_seed_germ
 
     return

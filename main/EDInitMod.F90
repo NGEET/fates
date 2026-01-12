@@ -716,7 +716,8 @@ contains
     real(r8) :: biomass_stock
     real(r8) :: litter_stock
     real(r8) :: seed_stock
-    integer  :: n
+    integer  :: pft
+    integer  :: n     ! for cycling nocomp_pft loops
     integer  :: start_patch
     integer  :: num_nocomp_pfts
     integer  :: nocomp_pft
@@ -968,7 +969,7 @@ contains
                             !     non-zero seed banks
                             ! --------------------------------------------------------------------------------
                             
-                            if (hlm_use_sp .eq. ifalse .or. newp%nocomp_pft_label .eq. nocomp_bareground) then
+                            if (hlm_use_sp .eq. itrue .or. newp%nocomp_pft_label .eq. nocomp_bareground) then
                                seed_init(:) = 0._r8
                             elseif(.not.(newp%nocomp_pft_label .eq. fates_unset_int))then
                                seed_init(:) = 0._r8
@@ -977,13 +978,13 @@ contains
                                     EDPftvarcon_inst%init_seed(pft)
                             else
                                do pft = 1, numpft
-                                  if(site_in%use_this_pft(pft).eq.itrue)then
+                                  if(sites(s)%use_this_pft(pft).eq.itrue)then
                                      seed_init(pft) = NewRecruitTotalStoichiometry(pft,prt_params%allom_l2fr(pft),element_id) * &
-                                          EDPftvarcon_inst%init_seed(ipft)
+                                          EDPftvarcon_inst%init_seed(pft)
                                   else
                                      seed_init(pft) = 0._r8
                                   end if
-                               end if
+                               end do
                             end if
 
                             call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
@@ -992,29 +993,6 @@ contains
                                     init_bg_cwd=litt_init, &
                                     init_seed_array=seed_init, &
                                     init_seed_germ=litt_init)
-                            
-!                            if ((.not. hlm_use_sp .eq. itrue) .and. &
-!                                (.not. (newp%nocomp_pft_label .eq. fates_unset_int) .or. &
-!                                (newp%nocomp_pft_label .eq. nocomp_bareground))) then
-!
-!                               seed_init(newp%nocomp_pft_label) = EDPftvarcon_inst%init_seed(newp%nocomp_pft_label)
-!                               
-!                               ! nocomp non-bareground get inital seed pool from the parameter file
-!                               ! sp mode will get unset values no matter what
-!                               call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
-!                                    init_root_fines=litt_init, &
-!                                    init_ag_cwd=litt_init, &
-!                                    init_bg_cwd=litt_init, &
-!                                    init_seed_array=seed_init, &
-!                                    init_seed_germ=litt_init)
-!                            else
-!                               call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
-!                                    init_root_fines=litt_init, &
-!                                    init_ag_cwd=litt_init, &
-!                                    init_bg_cwd=litt_init, &
-!                                    init_seed_array=seed_init,   &
-!                                    init_seed_germ=litt_init)
-!                            endif
                             
                          end do
 

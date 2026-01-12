@@ -1277,15 +1277,6 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
 
-        if ( hlm_use_nocomp .eq. ifalse .and. EDPftvarcon_inst%init_seed(ipft) > nearzero ) then
-           write(fates_log(),*) ' When not in a noncomp configuration, FATES does not'
-           write(fates_log(),*) ' know how to initialize the seed-bed.'
-           write(fates_log(),*) ' In a no-comp configuration, this is simple, as each PFT has'
-           write(fates_log(),*) ' its own patch, and the seed density is spread over that area'
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-        end if
-
         if ( EDPftvarcon_inst%init_seed(ipft) < 0._r8) then
            write(fates_log(),*) ' Initial seed pool fates_init_seed can not be negative.'
            call endrun(msg=errMsg(sourcefile, __LINE__))
