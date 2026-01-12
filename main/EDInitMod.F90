@@ -969,7 +969,9 @@ contains
                             !     non-zero seed banks
                             ! --------------------------------------------------------------------------------
                             
-                            if (hlm_use_sp .eq. itrue .or. newp%nocomp_pft_label .eq. nocomp_bareground) then
+                            if (hlm_use_sp .eq. itrue) then
+                               seed_init(:) = fates_unset_r8
+                            elseif(newp%nocomp_pft_label .eq. nocomp_bareground) then
                                seed_init(:) = 0._r8
                             elseif(.not.(newp%nocomp_pft_label .eq. fates_unset_int))then
                                seed_init(:) = 0._r8
