@@ -1367,10 +1367,6 @@ contains
 
             endif if_fullfates
 
-            ! Calculate the leaf biomass from allometry
-            ! (calculates a maximum first, then applies canopy trim)
-            !call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh, c_leaf)
-
             ! calculate total above-ground biomass from allometry
             call bagw_allom(dbh, pft, crown_damage, efstem_coh, c_agw)
 

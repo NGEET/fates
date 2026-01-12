@@ -1295,10 +1295,6 @@ contains
            write(fates_log(),*) 'Please correct this discrepancy before re-running. Aborting.'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-
-        
-
-        
         
         ! Check if fraction of storage to reproduction is between 0-1
         ! ----------------------------------------------------------------------------------
