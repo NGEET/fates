@@ -27,6 +27,7 @@ module FatesInterfaceVariableTypeMod
     class(*), pointer :: data3d(:,:,:)  ! 3D polymorphic data pointer
     logical           :: active         ! true if the variable is used by the host land model
     logical           :: accumulate     ! If true, this variable should add the source to the target
+    logical           :: zero_first     ! If true, zero the target variable before accumulation
     integer           :: bc_dir         ! 0 if bc_in, 1 if bc_out
     integer           :: data_rank      ! rank of the variable (0, 1, 2, or 3)
     integer           :: update_frequency ! frequency of updates 
@@ -217,6 +218,7 @@ module FatesInterfaceVariableTypeMod
       this%data3d  => null()
       this%active = .false.
       this%accumulate = .false.
+      this%zero_first = .false.
 
       ! Initialize registry variable components that are updated at variable definition
       this%key = key 
@@ -266,33 +268,37 @@ module FatesInterfaceVariableTypeMod
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_0d(this, data, active, accumulate)
+    subroutine RegisterInterfaceVariable_0d(this, data, active, accumulate, is_first)
 
       class(fates_interface_variable_type), intent(inout) :: this
       class(*), target, intent(in) :: data
       logical, intent(in)          :: active
       logical, intent(in)          :: accumulate
+      logical, intent(in)          :: is_first
 
       this%data0d => data
       this%active = active
       this%accumulate = accumulate
+      this%zero_first = is_first
       this%data_rank = rank(data)
 
     end subroutine RegisterInterfaceVariable_0d
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_1d(this, data, active, accumulate)
+    subroutine RegisterInterfaceVariable_1d(this, data, active, accumulate, is_first)
 
       class(fates_interface_variable_type), intent(inout) :: this
 
       class(*), target, intent(in) :: data(:)
       logical, intent(in)          :: active
       logical, intent(in)          :: accumulate
+      logical, intent(in)          :: is_first
 
       this%data1d => data(:)
       this%active = active
       this%accumulate = accumulate
+      this%zero_first = is_first
       this%data_rank = rank(data)
       this%data_size(1) = size(data, dim=1)
 
@@ -300,16 +306,18 @@ module FatesInterfaceVariableTypeMod
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_2d(this, data, active, accumulate)
+    subroutine RegisterInterfaceVariable_2d(this, data, active, accumulate, is_first)
 
       class(fates_interface_variable_type), intent(inout) :: this
       class(*), target, intent(in)  :: data(:,:)
       logical, intent(in)           :: active
       logical, intent(in)          :: accumulate
+      logical, intent(in)          :: is_first
 
       this%data2d => data(:,:)
       this%active = active
       this%accumulate = accumulate
+      this%zero_first = is_first
       this%data_rank = rank(data) 
       this%data_size(1) = size(data, dim=1)
       this%data_size(2) = size(data, dim=2)
@@ -354,6 +362,9 @@ module FatesInterfaceVariableTypeMod
               select type(source => var%data0d)
                 type is (real(r8))
                   if (this%accumulate) then
+                    if (this%zero_first) then
+                      dest = 0.0_r8
+                    end if
                     dest = dest + source * scalar_local
                   else
                     dest = source * scalar_local
@@ -366,6 +377,9 @@ module FatesInterfaceVariableTypeMod
               select type(source => var%data0d)
                 type is (integer)
                   if (this%accumulate) then
+                    if (this%zero_first) then
+                      dest = 0
+                    end if
                     dest = dest + source 
                   else
                     dest = source 
@@ -386,6 +400,9 @@ module FatesInterfaceVariableTypeMod
               select type(source => var%data1d)
                 type is (real(r8))
                   if (this%accumulate) then
+                    if (this%zero_first) then
+                      dest = 0.0_r8
+                    end if
                     dest = dest + source * scalar_local
                   else
                     dest = source * scalar_local
@@ -398,6 +415,9 @@ module FatesInterfaceVariableTypeMod
               select type(source => var%data1d)
                 type is (integer)
                   if (this%accumulate) then
+                    if (this%zero_first) then
+                      dest = 0
+                    end if
                     dest = dest + source
                   else
                     dest = source
@@ -418,6 +438,9 @@ module FatesInterfaceVariableTypeMod
               select type(source => var%data2d)
                 type is (real(r8))
                   if (this%accumulate) then
+                    if (this%zero_first) then
+                      dest = 0.0_r8
+                    end if
                     dest = dest + source * scalar_local
                   else
                     dest = source * scalar_local
@@ -430,6 +453,9 @@ module FatesInterfaceVariableTypeMod
               select type(source => var%data2d)
                 type is (integer)
                   if (this%accumulate) then
+                    if (this%zero_first) then
+                      dest = 0
+                    end if
                     dest = dest + source
                   else
                     dest = source
