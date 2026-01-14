@@ -13,6 +13,6 @@ def validate():
             f"[-] Failure: Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]}+ is required.\n"
             f"[-] You are currently running {sys.version}."
         )
-        
+       
 # run on import
 validate()
