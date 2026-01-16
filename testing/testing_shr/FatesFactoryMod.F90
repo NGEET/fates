@@ -41,8 +41,8 @@ module FatesFactoryMod
   use PRTGenericMod,               only : carbon12_element
   use PRTGenericMod,               only : nitrogen_element
   use PRTGenericMod,               only : phosphorus_element
-  use PRTGenericMod,               only : fates_c_only
-  use PRTGenericMod,               only : fates_cnp
+  use PRTGenericMod,               only : carbon_only
+  use PRTGenericMod,               only : carbon_nitrogen_phosphorus
   use PRTGenericMod,               only : StorageNutrientTarget
   use PRTAllometricCarbonMod,      only : InitPRTGlobalAllometricCarbon
   use FatesAllometryMod,           only : h_allom
@@ -82,7 +82,7 @@ module FatesFactoryMod
     integer :: i ! looping index
     
     ! initialize some values
-    hlm_parteh_mode = fates_c_only
+    hlm_parteh_mode = carbon_nitrogen_phosphorus
     num_elements = 1
     allocate(element_list(num_elements))
     element_list(1) = carbon12_element
@@ -180,7 +180,7 @@ module FatesFactoryMod
 
       select case(hlm_parteh_mode)
         
-        case (fates_c_only, fates_cnp)
+        case (carbon_only,carbon_nitrogen_phosphorus)
           ! Put all of the leaf mass into the first bin
           call SetState(prt, leaf_organ, element_id, m_leaf, 1)
           do iage = 2, nleafage

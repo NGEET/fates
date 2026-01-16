@@ -68,8 +68,8 @@ Module EDCohortDynamicsMod
   use FatesAllometryMod  , only : bstore_allom
   use FatesAllometryMod  , only : ForceDBH
   use FatesAllometryMod    , only : set_root_fraction
-  use PRTGenericMod,          only : fates_c_only
-  use PRTGenericMod,          only : fates_cnp
+  use PRTGenericMod,          only : carbon_only
+  use PRTGenericMod,          only : carbon_nitrogen_phosphorus
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : nitrogen_element
@@ -251,12 +251,12 @@ contains
 
 
     select case(hlm_parteh_mode)
-    case (fates_c_only)
+    case (carbon_only)
 
         allocate(c_allom_prt)
         prt => c_allom_prt
 
-    case (fates_cnp)
+    case (carbon_nitrogen_phosphorus)
 
        allocate(cnp_allom_prt)
        prt => cnp_allom_prt
@@ -1039,7 +1039,7 @@ contains
                                       currentCohort%frmort = (currentCohort%n*currentCohort%frmort + nextc%n*nextc%frmort)/newn
 
                                       ! Nutrients
-                                      if (hlm_parteh_mode == fates_cnp) then
+                                      if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
 
                                          currentCohort%l2fr = (currentCohort%n*currentCohort%l2fr &
                                               + nextc%n*nextc%l2fr)/newn
