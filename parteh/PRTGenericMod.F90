@@ -66,8 +66,8 @@ module PRTGenericMod
   ! These should each have their own module
   ! -------------------------------------------------------------------------------------
 
-  integer, parameter, public :: fates_c_only = 1
-  integer, parameter, public :: fates_cnp = 2
+  integer, parameter, public :: carbon_only = 1
+  integer, parameter, public :: carbon_nitrogen_phosphorus = 2
 
   ! -------------------------------------------------------------------------------------
   ! Organ types

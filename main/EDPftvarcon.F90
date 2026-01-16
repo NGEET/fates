@@ -22,7 +22,7 @@ module EDPftvarcon
   use FatesLitterMod, only : ilabile,icellulose,ilignin
   use PRTGenericMod,  only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,  only : sapw_organ, struct_organ, repro_organ
-  use PRTGenericMod,  only : fates_cnp, fates_c_only
+  use PRTGenericMod,  only : carbon_nitrogen_phosphorus,carbon_only
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
   use FatesInterfaceTypesMod, only : hlm_nu_com
   use FatesConstantsMod   , only : ievergreen
@@ -956,7 +956,7 @@ contains
      if(.not.is_master) return
 
      select case (hlm_parteh_mode)
-     case (fates_cnp)
+     case (carbon_nitrogen_phosphorus)
 
         ! Check to see if either RD/ECA/MIC is turned on
 
@@ -1027,7 +1027,7 @@ contains
            end if
         end if
         
-     case (fates_c_only)
+     case (carbon_only)
         ! No additional checks needed for now.
         continue
 

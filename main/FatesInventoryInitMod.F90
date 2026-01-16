@@ -58,8 +58,8 @@ module FatesInventoryInitMod
    use EDPftvarcon      , only : EDPftvarcon_inst
    use FatesInterfaceTypesMod, only : hlm_parteh_mode
    use EDCohortDynamicsMod, only : InitPRTObject
-   use PRTGenericMod,       only : fates_c_only
-   use PRTGenericMod,       only : fates_cnp
+   use PRTGenericMod,       only : carbon_only
+   use PRTGenericMod,       only : carbon_nitrogen_phosphorus
    use PRTGenericMod,       only : prt_vartypes
    use PRTGenericMod,       only : leaf_organ
    use PRTGenericMod,       only : fnrt_organ
@@ -1116,7 +1116,7 @@ contains
             end select
 
             select case(hlm_parteh_mode)
-            case (fates_c_only, fates_cnp)
+            case (carbon_only,carbon_nitrogen_phosphorus)
 
                ! Equally distribute leaf mass into available age-bins
                do iage = 1,nleafage
