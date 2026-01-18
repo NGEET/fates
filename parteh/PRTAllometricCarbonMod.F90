@@ -23,7 +23,7 @@ module PRTAllometricCarbonMod
   use PRTGenericMod , only  : repro_organ
   use PRTGenericMod , only  : struct_organ
   use PRTGenericMod , only  : un_initialized
-  use PRTGenericMod , only  : fates_c_only
+  use PRTGenericMod , only  : carbon_only
 
   use FatesAllometryMod   , only : bleaf
   use FatesAllometryMod   , only : bsap_allom
@@ -209,7 +209,7 @@ module PRTAllometricCarbonMod
 
      prt_global_ac%hyp_name = 'Allometric Carbon Only'
      
-     prt_global_ac%hyp_id = fates_c_only
+     prt_global_ac%hyp_id = carbon_only
 
      ! Set mapping tables to zero
      call prt_global_ac%ZeroGlobal()
