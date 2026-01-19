@@ -24,6 +24,7 @@ module PRTLossFluxesMod
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : calloc_abs_error
   use FatesConstantsMod, only : itrue
+  use FatesInterfaceTypesMod, only : hlm_use_ed_st3
   use FatesConstantsMod, only : ievergreen
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : fates_log 
@@ -569,6 +570,13 @@ contains
          
           if( prt_params%organ_param_id(organ_id) < 1 ) then
              retrans = 0._r8
+          else if (hlm_use_ed_st3 == itrue) then
+             ! For now we retranslocate all biomass to storage to prevent carbon balance errors.
+             ! This is not an ideal solution because tissue abscission may contribute to a 
+             ! seasonal sign in litter and consequently heterotrophic respiration (though the
+             ! lack of phenology is also problematic for seasonal cycles of GPP, ET, sensible
+             ! heat, etc.).
+             retrans = 1._r8
           else
              if ( element_id == carbon12_element ) then
                 retrans = 0._r8
