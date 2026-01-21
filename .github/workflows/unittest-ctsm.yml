@@ -1,0 +1,41 @@
+name: Run unit tests with ctsm 
+
+on:
+  pull_request:
+
+jobs:
+  ctsm-unit-test:
+    runs-on: ubuntu-latest
+    env:
+      TESTING_DIR: /CTSM/src/fates/testing/
+    container:
+      image: ghcr.io/ngeet/containers/unit-test-ctsm:latest
+      env:
+        BRANCH_NAME: ${{ github.head_ref }}
+        BRANCH_URL: ${{ github.event.pull_request.head.repo.html_url }}
+
+    steps:
+      - name: Checkout code with git-fleximod
+        run: |
+          cd /CTSM
+          ./bin/git-fleximod update
+
+      # TODO: Cache conda
+
+      # Install conda environment packages
+      - name: Install conda environment
+        run: |
+          conda env create --file ${{env.TESTING_DIR}}/testing.yml -y
+
+      - name: Activate spack and conda environments and run tests 
+        run: |
+          source /opt/miniconda/etc/profile.d/conda.sh
+          conda activate testing
+          . /opt/spack-environment/activate.sh
+          echo "CONDA_PREFIX: $CONDA_PREFIX"
+          echo "NETCDF_FORTRAN_PATH: $NETCDF_FORTRAN_PATH"
+          echo "NETCDF_C_PATH: $NETCDF_C_PATH"
+          cd ${{env.TESTING_DIR}}
+          python run_unit_tests.py --test-list fire_fuel
+
+
