@@ -5,7 +5,8 @@ module FatesInterfaceVariableTypeMod
   ! related across the application programming interface.
   ! This method is largely inspired by the FATES history infrastructure
 
-  use shr_log_mod           , only : errMsg => shr_log_errMsg
+  use shr_log_mod    , only : errMsg => shr_log_errMsg
+  use shr_infnan_mod , only : nan => shr_infnan_nan, assignment(=)
  
   use FatesGlobals, only : fates_log
   use FatesGlobals, only : endrun => fates_endrun
@@ -28,9 +29,11 @@ module FatesInterfaceVariableTypeMod
     logical           :: active         ! true if the variable is used by the host land model
     logical           :: accumulate     ! If true, this variable should add the source to the target
     logical           :: zero_first     ! If true, zero the target variable before accumulation
+    logical           :: last_patch     ! True if the variable is associated with the last patch for the associated subgrid unit
     integer           :: bc_dir         ! 0 if bc_in, 1 if bc_out
     integer           :: data_rank      ! rank of the variable (0, 1, 2, or 3)
     integer           :: update_frequency ! frequency of updates 
+    real              :: conversion_factor ! conversion factor to adjust units as necessary
     integer, allocatable :: data_size(:)   ! size of the first dimension of the variable
 
     contains
@@ -219,6 +222,7 @@ module FatesInterfaceVariableTypeMod
       this%active = .false.
       this%accumulate = .false.
       this%zero_first = .false.
+      this%conversion_factor = nan
 
       ! Initialize registry variable components that are updated at variable definition
       this%key = key 
@@ -268,25 +272,29 @@ module FatesInterfaceVariableTypeMod
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_0d(this, data, active, accumulate, is_first)
+    subroutine RegisterInterfaceVariable_0d(this, data, active, accumulate, is_first, is_last, conversion_factor)
 
       class(fates_interface_variable_type), intent(inout) :: this
       class(*), target, intent(in) :: data
       logical, intent(in)          :: active
       logical, intent(in)          :: accumulate
       logical, intent(in)          :: is_first
+      logical, intent(in)          :: is_last
+      real(r8), intent(in)         :: conversion_factor
 
       this%data0d => data
       this%active = active
       this%accumulate = accumulate
       this%zero_first = is_first
+      this%last_patch = is_last
       this%data_rank = rank(data)
+      this%conversion_factor = conversion_factor
 
     end subroutine RegisterInterfaceVariable_0d
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_1d(this, data, active, accumulate, is_first)
+    subroutine RegisterInterfaceVariable_1d(this, data, active, accumulate, is_first, is_last, conversion_factor)
 
       class(fates_interface_variable_type), intent(inout) :: this
 
@@ -294,57 +302,55 @@ module FatesInterfaceVariableTypeMod
       logical, intent(in)          :: active
       logical, intent(in)          :: accumulate
       logical, intent(in)          :: is_first
+      logical, intent(in)          :: is_last
+      real(r8), intent(in)         :: conversion_factor
 
       this%data1d => data(:)
       this%active = active
       this%accumulate = accumulate
       this%zero_first = is_first
+      this%last_patch = is_last
       this%data_rank = rank(data)
       this%data_size(1) = size(data, dim=1)
+      this%conversion_factor = conversion_factor
 
     end subroutine RegisterInterfaceVariable_1d
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_2d(this, data, active, accumulate, is_first)
+    subroutine RegisterInterfaceVariable_2d(this, data, active, accumulate, is_first, is_last, conversion_factor)
 
       class(fates_interface_variable_type), intent(inout) :: this
       class(*), target, intent(in)  :: data(:,:)
       logical, intent(in)           :: active
       logical, intent(in)          :: accumulate
       logical, intent(in)          :: is_first
+      logical, intent(in)          :: is_last 
+      real(r8), intent(in)         :: conversion_factor
 
       this%data2d => data(:,:)
       this%active = active
       this%accumulate = accumulate
       this%zero_first = is_first
+      this%last_patch = is_last
       this%data_rank = rank(data) 
       this%data_size(1) = size(data, dim=1)
       this%data_size(2) = size(data, dim=2)
+      this%conversion_factor = conversion_factor
 
     end subroutine RegisterInterfaceVariable_2d
 
   ! ====================================================================================
     
-    subroutine UpdateInterfaceVariable(this, var, scalar)
+    subroutine UpdateInterfaceVariable(this, var)
 
       ! Arguments
       class(fates_interface_variable_type), intent(inout) :: this ! variable being updated
       class(fates_interface_variable_type), intent(in)    :: var  ! variable update source
-      real(r8), intent(in), optional                      :: scalar ! value to scale variable update 
 
       ! Locals
-      real(r8) :: scalar_local
       character(len=fates_long_string_length) :: msg_mismatch = 'FATES ERROR: Mismatched interface variable types'
 
-      ! Check if scalar is present and set default value to one
-      ! Currently this assumes that the only real values are to be scaled
-      if (present(scalar)) then
-        scalar_local = scalar
-      else
-        scalar_local = 1.0_r8
-      end if
-      
       ! Check that the dimensions of the source and target match
       call this%CompareRegistryVariableSizes(var)
           
@@ -365,9 +371,13 @@ module FatesInterfaceVariableTypeMod
                     if (this%zero_first) then
                       dest = 0.0_r8
                     end if
-                    dest = dest + source * scalar_local
+                    dest = dest + source
                   else
-                    dest = source * scalar_local
+                    dest = source
+                  end if
+                  ! Apply conversion factor if this is the last patch associated with the subgrid unit
+                  if (this%last_patch) then
+                    dest = dest * var%conversion_factor
                   end if
                 class default
                   write(fates_log(),*), msg_mismatch 
@@ -403,9 +413,12 @@ module FatesInterfaceVariableTypeMod
                     if (this%zero_first) then
                       dest = 0.0_r8
                     end if
-                    dest = dest + source * scalar_local
+                    dest = dest + source
                   else
-                    dest = source * scalar_local
+                    dest = source
+                  end if
+                  if (this%last_patch) then
+                    dest = dest * var%conversion_factor
                   end if
                 class default
                   write(fates_log(),*), msg_mismatch 
@@ -441,9 +454,12 @@ module FatesInterfaceVariableTypeMod
                     if (this%zero_first) then
                       dest = 0.0_r8
                     end if
-                    dest = dest + source * scalar_local
+                    dest = dest + source
                   else
-                    dest = source * scalar_local
+                    dest = source
+                  end if
+                  if (this%last_patch) then
+                    dest = dest * var%conversion_factor
                   end if
                 class default
                   write(fates_log(),*), msg_mismatch 

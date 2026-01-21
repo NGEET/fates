@@ -1534,7 +1534,7 @@ module FatesInterfaceTypesMod
   
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_0d(this, key, data, hlm_flag, accumulate, is_first)
+  subroutine RegisterInterfaceVariables_0d(this, key, data, hlm_flag, accumulate, is_first, is_last, conversion_factor)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
@@ -1546,10 +1546,14 @@ module FatesInterfaceTypesMod
     logical, intent(in)           :: hlm_flag      ! Is the variable being register from the HLM?
     logical, intent(in), optional :: accumulate    ! Should the variable accumulate during the update?
     logical, intent(in), optional :: is_first      ! Should the variable be zeroed first?
-    
+    logical, intent(in), optional :: is_last       ! Should the variable be last in the update?
+    real(r8), intent(in), optional    :: conversion_factor ! Conversion factor for the variable
+
     ! Local
     logical :: accumulate_local
     logical :: is_first_local
+    logical :: is_last_local
+    real(r8) :: conversion_factor_local
 
     ! Default accumulate to false
     if (present(accumulate)) then
@@ -1564,12 +1568,34 @@ module FatesInterfaceTypesMod
     else
       is_first_local = .false.
     end if
+
+    ! Default is_last to false
+    if (present(is_last)) then
+      is_last_local = is_last
+    else
+      is_last_local = .false.
+    end if
+
+    ! Default conversion factor to 1.0
+    if (present(conversion_factor)) then
+      conversion_factor_local = conversion_factor
+    else
+      conversion_factor_local = 1.0_r8
+    end if
     
     ! Get index from registry key and associate the given data pointer
     if (hlm_flag) then
-      call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data, active=.true., accumulate=accumulate_local, is_first=is_first_local)
+      call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data, active=.true., &
+                                                                      accumulate=accumulate_local, &
+                                                                      is_first=is_first_local, &
+                                                                      is_last=is_last_local, &
+                                                                      conversion_factor=conversion_factor_local)
     else
-      call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data, active=.true., accumulate=accumulate_local, is_first=is_first_local)
+      call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data, active=.true., & 
+                                                                        accumulate=accumulate_local, &
+                                                                        is_first=is_first_local, &
+                                                                        is_last=is_last_local, &
+                                                                        conversion_factor=conversion_factor_local)
     end if
 
 
@@ -1577,7 +1603,7 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_1d(this, key, data, hlm_flag, accumulate, is_first)
+  subroutine RegisterInterfaceVariables_1d(this, key, data, hlm_flag, accumulate, is_first, is_last, conversion_factor)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
@@ -1588,10 +1614,14 @@ module FatesInterfaceTypesMod
     logical, intent(in)           :: hlm_flag   ! Is the variable being register from the HLM?
     logical, intent(in), optional :: accumulate    ! Should the variable accumulate during the update?
     logical, intent(in), optional :: is_first      ! Should the variable be zeroed first?
+    logical, intent(in), optional :: is_last       ! Should the variable be last in the update?
+    real(r8), intent(in), optional    :: conversion_factor ! Conversion factor for the variable
 
     ! Local
     logical :: accumulate_local
     logical :: is_first_local
+    logical :: is_last_local
+    real(r8) :: conversion_factor_local
     
     ! Default accumulate to false
     if (present(accumulate)) then
@@ -1607,18 +1637,40 @@ module FatesInterfaceTypesMod
       is_first_local = .false.
     end if
     
+    ! Default is_last to false
+    if (present(is_last)) then
+      is_last_local = is_last
+    else
+      is_last_local = .false.
+    end if
+
+    ! Default conversion factor to 1.0
+    if (present(conversion_factor)) then
+      conversion_factor_local = conversion_factor
+    else
+      conversion_factor_local = 1.0_r8
+    end if
+
     ! Get index from registry key and associate the given data pointer
     if (hlm_flag) then
-      call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data(:), active=.true., accumulate=accumulate_local, is_first=is_first_local)
+      call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data(:), active=.true., &
+                                                                      accumulate=accumulate_local, &
+                                                                      is_first=is_first_local, &
+                                                                      is_last=is_last_local, &
+                                                                      conversion_factor=conversion_factor_local)
     else
-      call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data(:), active=.true., accumulate=accumulate_local, is_first=is_first_local)
+      call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data(:), active=.true., &
+                                                                      accumulate=accumulate_local, &
+                                                                      is_first=is_first_local, &
+                                                                      is_last=is_last_local, &
+                                                                      conversion_factor=conversion_factor_local)
     end if
 
   end subroutine RegisterInterfaceVariables_1d
 
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_2d(this, key, data, hlm_flag, accumulate, is_first)
+  subroutine RegisterInterfaceVariables_2d(this, key, data, hlm_flag, accumulate, is_first, is_last, conversion_factor)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
@@ -1629,10 +1681,14 @@ module FatesInterfaceTypesMod
     logical, intent(in)           :: hlm_flag   ! Is the variable being register from the HLM?
     logical, intent(in), optional :: accumulate    ! Should the variable accumulate during the update?
     logical, intent(in), optional :: is_first      ! Should the variable be zeroed first?
+    logical, intent(in), optional :: is_last       ! Should the variable be last in the update?
+    real(r8), intent(in), optional    :: conversion_factor ! Conversion factor for the variable
 
     ! Local
     logical :: accumulate_local
     logical :: is_first_local
+    logical :: is_last_local
+    real(r8) :: conversion_factor_local
     
     ! Default accumulate to false
     if (present(accumulate)) then
@@ -1648,11 +1704,33 @@ module FatesInterfaceTypesMod
       is_first_local = .false.
     end if
 
+    ! Default is_last to false
+    if (present(is_last)) then
+      is_last_local = is_last
+    else
+      is_last_local = .false.
+    end if
+
+    ! Default conversion factor to 1.0
+    if (present(conversion_factor)) then
+      conversion_factor_local = conversion_factor
+    else
+      conversion_factor_local = 1.0_r8
+    end if
+
     ! Get index from registry key and associate the given data pointer
     if (hlm_flag) then
-      call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data(:,:), active=.true., accumulate=accumulate_local, is_first=is_first_local)
+      call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data(:,:), active=.true., &
+                                                                      accumulate=accumulate_local, &
+                                                                      is_first=is_first_local, &
+                                                                      is_last=is_last_local, &
+                                                                      conversion_factor=conversion_factor_local)
     else
-      call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data(:,:), active=.true., accumulate=accumulate_local, is_first=is_first_local)
+      call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data(:,:), active=.true., &
+                                                                        accumulate=accumulate_local, &
+                                                                        is_first=is_first_local, &
+                                                                        is_last=is_last_local, &
+                                                                        conversion_factor=conversion_factor_local)
     end if
 
   end subroutine RegisterInterfaceVariables_2d
@@ -1754,7 +1832,7 @@ module FatesInterfaceTypesMod
       if (conversion_flag) then
       
         ! Convert from kgC/m2/s to gC/m2/day
-        call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
+        ! call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
         
         ! Get the index for the decomposition thickness key
         d = this%GetRegistryVariableIndex(hlm_fates_decomp_thickness)
@@ -1769,16 +1847,16 @@ module FatesInterfaceTypesMod
     ! Update the HLM variable with the total litterfall
     j = this%GetRegistryVariableIndex(hlm_fates_litter_carbon_total)
     call this%hlm_vars(j)%Update(this%fates_vars(j))
-    if (conversion_flag) call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
+    ! if (conversion_flag) call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
 
     if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
       j = this%GetRegistryVariableIndex(hlm_fates_litter_phosphorus_total)
       call this%hlm_vars(j)%Update(this%fates_vars(j))
-      if (conversion_flag) call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
+      ! if (conversion_flag) call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
 
       j = this%GetRegistryVariableIndex(hlm_fates_litter_nitrogen_total)
       call this%hlm_vars(j)%Update(this%fates_vars(j))
-      if (conversion_flag) call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
+      ! if (conversion_flag) call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
     end if
 
     
