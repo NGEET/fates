@@ -33,7 +33,7 @@ module FatesInterfaceVariableTypeMod
     integer           :: bc_dir         ! 0 if bc_in, 1 if bc_out
     integer           :: data_rank      ! rank of the variable (0, 1, 2, or 3)
     integer           :: update_frequency ! frequency of updates 
-    real              :: conversion_factor ! conversion factor to adjust units as necessary
+    real(r8)          :: conversion_factor ! conversion factor to adjust units as necessary
     integer, allocatable :: data_size(:)   ! size of the first dimension of the variable
 
     contains

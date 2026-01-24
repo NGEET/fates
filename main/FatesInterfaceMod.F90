@@ -2943,15 +2943,19 @@ subroutine InitializeBoundaryConditions(this, patches_per_site)
       call this%registry(r)%Register(key=hlm_fates_litter_carbon_cellulose, &
                                      data=bc_out%litt_flux_cel_c_si(1:nlevdecomp), hlm_flag=.false., &
                                      conversion_factor=days_per_sec*g_per_kg)
+
       call this%registry(r)%Register(key=hlm_fates_litter_carbon_lignin, &
                                      data=bc_out%litt_flux_lig_c_si(1:nlevdecomp), hlm_flag=.false., &
                                      conversion_factor=days_per_sec*g_per_kg)
+
       call this%registry(r)%Register(key=hlm_fates_litter_carbon_labile, &
                                      data=bc_out%litt_flux_lab_c_si(1:nlevdecomp), hlm_flag=.false., &
                                      conversion_factor=days_per_sec*g_per_kg)
+
       call this%registry(r)%Register(key=hlm_fates_litter_carbon_total, &
                                      data=bc_out%litt_flux_all_c, hlm_flag=.false., &
                                      conversion_factor=days_per_sec*g_per_kg)
+
       if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
          call this%registry(r)%Register(key=hlm_fates_litter_phosphorus_cellulose, &
                                         data=bc_out%litt_flux_cel_p_si, hlm_flag=.false., &
