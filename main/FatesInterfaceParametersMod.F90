@@ -33,5 +33,12 @@ module FatesInterfaceParametersMod
   ! Registry boundary condition parameters
   integer, parameter, public :: registry_bc_in = 0
   integer, parameter, public :: registry_bc_out = 1
+
+  ! Registry subgrid object parameters
+  integer, parameter, public :: registry_var_intid_allsubgrids = 999
+  integer, parameter, public :: registry_var_intid_gridcell   = 0
+  integer, parameter, public :: registry_var_intid_topounit   = 1
+  integer, parameter, public :: registry_var_intid_landunit   = 2
+  integer, parameter, public :: registry_var_intid_column     = 3
   
 end module FatesInterfaceParametersMod
