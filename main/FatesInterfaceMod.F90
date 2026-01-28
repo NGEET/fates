@@ -181,6 +181,7 @@ module FatesInterfaceMod
          procedure, public :: InitializeFatesSites
          procedure, public :: InitializeBoundaryConditions
          procedure         :: SetRegistryActiveState
+         procedure         :: SetRegistryLastState
          procedure, public :: UpdateInterfaceVariables
          procedure, public :: UpdateLitterFluxes
       
@@ -2303,6 +2304,51 @@ contains
    end subroutine SetRegistryActiveState
 
    ! ====================================================================================
+   
+   subroutine SetRegistryLastState(this)
+
+      use FatesInterfaceParametersMod, only : registry_var_intid_column
+
+      ! Argument
+      class(fates_interface_type), intent(inout) :: this
+
+      ! Locals
+      integer :: n            ! loop index
+      integer :: r, r_next    ! registry index
+      integer :: c, c_next    ! column index
+
+      ! Loop over all active registries and set the last state to the current state
+      do n = 1, this%num_active_patches
+
+         ! Set the registry indices for the current and previous active registry
+         r = this%filter_registry_active(n)
+
+         ! Set last in subgrid state to false by default
+         call this%registry(r)%SetLastState()
+
+         ! Get the column index for the current and previous active registry
+         c = this%registry(r)%GetColumnIndex()
+
+         ! If the next index is greater than the current, set the previous last state to true
+         if (n .lt. this%num_active_patches) then
+            r_next = this%filter_registry_active(n+1)
+            c_next = this%registry(r_next)%GetColumnIndex()
+            if (c_next .ne. c) call this%registry(r)%SetLastState(registry_var_intid_column)
+            ! if (c_next .ne. c) write(fates_log(),*) 'SRLS: n, r, c: ', n, r, c
+         else 
+            call this%registry(r)%SetLastState(registry_var_intid_column)
+            ! write(fates_log(),*) 'SRLS: n, r, c: ', n, r, c
+         end if
+
+         ! ! If this is the last active registry, set its last state to true for all subgrid cases
+         ! if (n .eq. this%num_active_patches) call this%registry(r)%SetLastState(registry_var_intid_column)
+         ! if (n .eq. this%num_active_patches) write(fates_log(),*) 'SRLS: n, rp, cp: ', n, r_prev, c_prev
+
+      end do
+
+   end subroutine SetRegistryLastState
+
+   ! ====================================================================================
 
    subroutine FatesReportParameters(masterproc)
       
@@ -3098,6 +3144,9 @@ subroutine UpdateLitterFluxes(this, dtime)
 
    ! Set the registry active state
    call this%SetRegistryActiveState()
+
+   ! Set the registry last state
+   call this%SetRegistryLastState()
    
    ! Loop through the active registries and update the litter fluxes
    do n = 1, this%num_active_patches
