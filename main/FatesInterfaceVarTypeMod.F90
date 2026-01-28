@@ -45,6 +45,7 @@ module FatesInterfaceVariableTypeMod
       procedure :: Normalize  => NormalizeLitterVariable
       procedure :: Update     => UpdateInterfaceVariable
       procedure :: Dump
+      procedure :: SetLastState
 
       generic :: Register => RegisterInterfaceVariable_0d, &
                              RegisterInterfaceVariable_1d, &
@@ -354,6 +355,17 @@ module FatesInterfaceVariableTypeMod
       this%conversion_factor = conversion_factor
 
     end subroutine RegisterInterfaceVariable_2d
+
+  ! ====================================================================================
+
+    subroutine SetLastState(this, last_state)
+
+      class(fates_interface_variable_type), intent(inout) :: this
+      logical, intent(in) :: last_state
+
+      this%is_last = last_state
+
+    end subroutine SetLastState
 
   ! ====================================================================================
     
