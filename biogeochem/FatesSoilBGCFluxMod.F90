@@ -886,17 +886,17 @@ contains
                end do
 
                if(tot_wood_c>nearzero) then
-                  sum_N = sum_N + sum(litt%ag_cwd_frag)*(tot_wood_n/tot_wood_c)
-                  sum_N = sum_N + sum(litt%bg_cwd_frag)*(tot_wood_n/tot_wood_c)
+                  sum_N = sum_N + area_frac*sum(litt%ag_cwd_frag)*(tot_wood_n/tot_wood_c)
+                  sum_N = sum_N + area_frac*sum(litt%bg_cwd_frag)*(tot_wood_n/tot_wood_c)
                end if
                if(tot_leaf_c>nearzero)then
-                  sum_N = sum_N + sum(litt%leaf_fines_frag)*(tot_leaf_n / tot_leaf_c)
+                  sum_N = sum_N + area_frac*sum(litt%leaf_fines_frag)*(tot_leaf_n / tot_leaf_c)
                end if
                if(tot_fnrt_c>nearzero)then
-                  sum_N = sum_N + sum(litt%root_fines_frag)*(tot_fnrt_n / tot_fnrt_c)
+                  sum_N = sum_N + area_frac*sum(litt%root_fines_frag)*(tot_fnrt_n / tot_fnrt_c)
                end if
                do ipft = 1,numpft
-                  sum_N = sum_N + currentPatch%nitr_repro_stoich(ipft) * &
+                  sum_N = sum_N + area_frac*currentPatch%nitr_repro_stoich(ipft) * &
                        (litt%seed_decay(ipft) + litt%seed_germ_decay(ipft))
                end do
 
