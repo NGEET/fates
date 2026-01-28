@@ -1897,6 +1897,8 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
 
   subroutine UpdateInterfaceVariables(this)
+  
+    ! This procedure updates BC input interface variables
 
     class(fates_interface_registry_type), intent(inout) :: this
 
@@ -1915,6 +1917,11 @@ module FatesInterfaceTypesMod
   
   ! subroutine UpdateLitterFluxes(this, dtime)
   subroutine UpdateLitterFluxes(this, conversion_flag)
+
+    ! This procedure updates the litter flux output boundary conditions 
+    ! This procedure is separated from other update calls as it happens
+    ! on the model time-step and has specific update calls for the total
+    ! litterfall per nutrient type based on run mode
 
     use FatesConstantsMod, only : days_per_sec
     use FatesConstantsMod, only : g_per_kg
