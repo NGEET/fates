@@ -287,16 +287,6 @@ module FatesInterfaceTypesMod
    integer, parameter, public :: fates_dispersal_cadence_monthly = 2  ! Disperse seeds monthly
    integer, parameter, public :: fates_dispersal_cadence_yearly = 3   ! Disperse seeds yearly
    
-   integer, parameter :: hlm_subgrid_levels = 5  ! The number of subgrid hierarchy levels that the HLM
-                                                 ! Including the gridcell level, ELM = 5, CLM = 4
-
-   ! Subgrid levels for HLM-FATES interface variable
-   integer, parameter, public :: subgrid_gridcell_index = 5
-   integer, parameter, public :: subgrid_topounit_index = 4
-   integer, parameter, public :: subgrid_landunit_index = 3
-   integer, parameter, public :: subgrid_column_index = 2
-   integer, parameter, public :: subgrid_patch_index = 1
-
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
    ! CLM/ALM have limited support for multi-dimensional history output arrays.
