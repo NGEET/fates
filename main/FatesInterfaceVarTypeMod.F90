@@ -29,7 +29,7 @@ module FatesInterfaceVariableTypeMod
     logical           :: active         ! true if the variable is used by the host land model
     logical           :: accumulate     ! If true, this variable should add the source to the target
     logical           :: zero_first     ! If true, zero the target variable before accumulation
-    logical           :: last_patch     ! True if the variable is associated with the last patch for the associated subgrid unit
+    logical           :: is_last        ! True if the variable is associated with the last patch for the associated subgrid unit
     integer           :: bc_dir         ! 0 if bc_in, 1 if bc_out
     integer           :: data_rank      ! rank of the variable (0, 1, 2, or 3)
     integer           :: update_frequency ! frequency of updates 
@@ -224,6 +224,7 @@ module FatesInterfaceVariableTypeMod
       this%active = .false.
       this%accumulate = .false.
       this%zero_first = .false.
+      this%is_last = .false.
       this%conversion_factor = nan
       this%subgrid_type = fates_unset_int
 
