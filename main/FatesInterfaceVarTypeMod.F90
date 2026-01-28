@@ -33,6 +33,7 @@ module FatesInterfaceVariableTypeMod
     integer           :: bc_dir         ! 0 if bc_in, 1 if bc_out
     integer           :: data_rank      ! rank of the variable (0, 1, 2, or 3)
     integer           :: update_frequency ! frequency of updates 
+    integer           :: subgrid_type   ! subgrid integer ID associated with this variable
     real(r8)          :: conversion_factor ! conversion factor to adjust units as necessary
     integer, allocatable :: data_size(:)   ! size of the first dimension of the variable
 
@@ -223,6 +224,7 @@ module FatesInterfaceVariableTypeMod
       this%accumulate = .false.
       this%zero_first = .false.
       this%conversion_factor = nan
+      this%subgrid_type = fates_unset_int
 
       ! Initialize registry variable components that are updated at variable definition
       this%key = key 
@@ -272,29 +274,29 @@ module FatesInterfaceVariableTypeMod
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_0d(this, data, active, accumulate, is_first, is_last, conversion_factor)
+    subroutine RegisterInterfaceVariable_0d(this, data, active, accumulate, is_first, subgrid_type, conversion_factor)
 
       class(fates_interface_variable_type), intent(inout) :: this
       class(*), target, intent(in) :: data
       logical, intent(in)          :: active
       logical, intent(in)          :: accumulate
       logical, intent(in)          :: is_first
-      logical, intent(in)          :: is_last
+      integer, intent(in)          :: subgrid_type
       real(r8), intent(in)         :: conversion_factor
 
       this%data0d => data
       this%active = active
       this%accumulate = accumulate
       this%zero_first = is_first
-      this%last_patch = is_last
       this%data_rank = rank(data)
       this%conversion_factor = conversion_factor
+      this%subgrid_type = subgrid_type
 
     end subroutine RegisterInterfaceVariable_0d
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_1d(this, data, active, accumulate, is_first, is_last, conversion_factor)
+    subroutine RegisterInterfaceVariable_1d(this, data, active, accumulate, is_first, subgrid_type, conversion_factor)
 
       class(fates_interface_variable_type), intent(inout) :: this
 
@@ -302,40 +304,40 @@ module FatesInterfaceVariableTypeMod
       logical, intent(in)          :: active
       logical, intent(in)          :: accumulate
       logical, intent(in)          :: is_first
-      logical, intent(in)          :: is_last
+      integer, intent(in)          :: subgrid_type  
       real(r8), intent(in)         :: conversion_factor
 
       this%data1d => data(:)
       this%active = active
       this%accumulate = accumulate
       this%zero_first = is_first
-      this%last_patch = is_last
       this%data_rank = rank(data)
       this%data_size(1) = size(data, dim=1)
       this%conversion_factor = conversion_factor
+      this%subgrid_type = subgrid_type
 
     end subroutine RegisterInterfaceVariable_1d
 
   ! ====================================================================================
     
-    subroutine RegisterInterfaceVariable_2d(this, data, active, accumulate, is_first, is_last, conversion_factor)
+    subroutine RegisterInterfaceVariable_2d(this, data, active, accumulate, is_first, subgrid_type, conversion_factor)
 
       class(fates_interface_variable_type), intent(inout) :: this
       class(*), target, intent(in)  :: data(:,:)
       logical, intent(in)           :: active
       logical, intent(in)          :: accumulate
       logical, intent(in)          :: is_first
-      logical, intent(in)          :: is_last 
+      integer, intent(in)          :: subgrid_type
       real(r8), intent(in)         :: conversion_factor
 
       this%data2d => data(:,:)
       this%active = active
       this%accumulate = accumulate
       this%zero_first = is_first
-      this%last_patch = is_last
       this%data_rank = rank(data) 
       this%data_size(1) = size(data, dim=1)
       this%data_size(2) = size(data, dim=2)
+      this%subgrid_type = subgrid_type
       this%conversion_factor = conversion_factor
 
     end subroutine RegisterInterfaceVariable_2d

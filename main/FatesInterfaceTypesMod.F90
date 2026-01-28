@@ -1534,7 +1534,7 @@ module FatesInterfaceTypesMod
   
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_0d(this, key, data, hlm_flag, accumulate, is_first, is_last, conversion_factor)
+  subroutine RegisterInterfaceVariables_0d(this, key, data, hlm_flag, accumulate, is_first, subgrid_type, conversion_factor)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
@@ -1546,13 +1546,13 @@ module FatesInterfaceTypesMod
     logical, intent(in)           :: hlm_flag      ! Is the variable being register from the HLM?
     logical, intent(in), optional :: accumulate    ! Should the variable accumulate during the update?
     logical, intent(in), optional :: is_first      ! Should the variable be zeroed first?
-    logical, intent(in), optional :: is_last       ! Should the variable be last in the update?
-    real(r8), intent(in), optional    :: conversion_factor ! Conversion factor for the variable
+    integer, intent(in), optional :: subgrid_type  ! The subgrid integer id associated with this HLM variable
+    real(r8), intent(in), optional :: conversion_factor ! Conversion factor for the variable
 
     ! Local
     logical :: accumulate_local
     logical :: is_first_local
-    logical :: is_last_local
+    integer :: subgrid_type_local 
     real(r8) :: conversion_factor_local
 
     ! Default accumulate to false
@@ -1570,10 +1570,10 @@ module FatesInterfaceTypesMod
     end if
 
     ! Default is_last to false
-    if (present(is_last)) then
-      is_last_local = is_last
+    if (present(subgrid_type)) then
+      subgrid_type_local = subgrid_type
     else
-      is_last_local = .false.
+      subgrid_type_local = fates_unset_int
     end if
 
     ! Default conversion factor to 1.0
@@ -1588,13 +1588,13 @@ module FatesInterfaceTypesMod
       call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data, active=.true., &
                                                                       accumulate=accumulate_local, &
                                                                       is_first=is_first_local, &
-                                                                      is_last=is_last_local, &
+                                                                      subgrid_type=subgrid_type_local, &
                                                                       conversion_factor=conversion_factor_local)
     else
       call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data, active=.true., & 
                                                                         accumulate=accumulate_local, &
                                                                         is_first=is_first_local, &
-                                                                        is_last=is_last_local, &
+                                                                        subgrid_type=subgrid_type_local, &
                                                                         conversion_factor=conversion_factor_local)
     end if
 
@@ -1603,8 +1603,7 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_1d(this, key, data, hlm_flag, accumulate, is_first, is_last, conversion_factor)
-
+  subroutine RegisterInterfaceVariables_1d(this, key, data, hlm_flag, accumulate, is_first, subgrid_type, conversion_factor)
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
 
@@ -1614,13 +1613,13 @@ module FatesInterfaceTypesMod
     logical, intent(in)           :: hlm_flag   ! Is the variable being register from the HLM?
     logical, intent(in), optional :: accumulate    ! Should the variable accumulate during the update?
     logical, intent(in), optional :: is_first      ! Should the variable be zeroed first?
-    logical, intent(in), optional :: is_last       ! Should the variable be last in the update?
-    real(r8), intent(in), optional    :: conversion_factor ! Conversion factor for the variable
+    integer, intent(in), optional :: subgrid_type  ! The subgrid integer id associated with this HLM variable
+    real(r8), intent(in), optional :: conversion_factor ! Conversion factor for the variable
 
     ! Local
     logical :: accumulate_local
     logical :: is_first_local
-    logical :: is_last_local
+    integer :: subgrid_type_local
     real(r8) :: conversion_factor_local
     
     ! Default accumulate to false
@@ -1636,12 +1635,19 @@ module FatesInterfaceTypesMod
     else
       is_first_local = .false.
     end if
-    
-    ! Default is_last to false
-    if (present(is_last)) then
-      is_last_local = is_last
+
+    ! Default subgrid_type to fates_unset_int
+    if (present(subgrid_type)) then
+      subgrid_type_local = subgrid_type
     else
-      is_last_local = .false.
+      subgrid_type_local = fates_unset_int
+    end if
+
+    ! Default conversion factor to 1.0
+    if (present(conversion_factor)) then
+      conversion_factor_local = conversion_factor
+    else
+      conversion_factor_local = 1.0_r8
     end if
 
     ! Default conversion factor to 1.0
@@ -1656,13 +1662,13 @@ module FatesInterfaceTypesMod
       call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data(:), active=.true., &
                                                                       accumulate=accumulate_local, &
                                                                       is_first=is_first_local, &
-                                                                      is_last=is_last_local, &
+                                                                      subgrid_type=subgrid_type_local, &
                                                                       conversion_factor=conversion_factor_local)
     else
       call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data(:), active=.true., &
                                                                       accumulate=accumulate_local, &
                                                                       is_first=is_first_local, &
-                                                                      is_last=is_last_local, &
+                                                                      subgrid_type=subgrid_type_local, &
                                                                       conversion_factor=conversion_factor_local)
     end if
 
@@ -1670,7 +1676,7 @@ module FatesInterfaceTypesMod
 
   ! ======================================================================================
 
-  subroutine RegisterInterfaceVariables_2d(this, key, data, hlm_flag, accumulate, is_first, is_last, conversion_factor)
+  subroutine RegisterInterfaceVariables_2d(this, key, data, hlm_flag, accumulate, is_first, subgrid_type, conversion_factor)
 
     ! This procedure is called by the to associate a data variable
     ! with a particular registry key
@@ -1681,13 +1687,13 @@ module FatesInterfaceTypesMod
     logical, intent(in)           :: hlm_flag   ! Is the variable being register from the HLM?
     logical, intent(in), optional :: accumulate    ! Should the variable accumulate during the update?
     logical, intent(in), optional :: is_first      ! Should the variable be zeroed first?
-    logical, intent(in), optional :: is_last       ! Should the variable be last in the update?
-    real(r8), intent(in), optional    :: conversion_factor ! Conversion factor for the variable
+    integer, intent(in), optional :: subgrid_type  ! The subgrid integer id associated with this HLM variable
+    real(r8), intent(in), optional :: conversion_factor ! Conversion factor for the variable
 
     ! Local
     logical :: accumulate_local
     logical :: is_first_local
-    logical :: is_last_local
+    integer :: subgrid_type_local
     real(r8) :: conversion_factor_local
     
     ! Default accumulate to false
@@ -1704,11 +1710,11 @@ module FatesInterfaceTypesMod
       is_first_local = .false.
     end if
 
-    ! Default is_last to false
-    if (present(is_last)) then
-      is_last_local = is_last
+    ! Default subgrid_type to fates_unset_int
+    if (present(subgrid_type)) then
+      subgrid_type_local = subgrid_type
     else
-      is_last_local = .false.
+      subgrid_type_local = fates_unset_int
     end if
 
     ! Default conversion factor to 1.0
@@ -1723,13 +1729,13 @@ module FatesInterfaceTypesMod
       call this%hlm_vars(this%GetRegistryVariableIndex(key))%Register(data(:,:), active=.true., &
                                                                       accumulate=accumulate_local, &
                                                                       is_first=is_first_local, &
-                                                                      is_last=is_last_local, &
+                                                                      subgrid_type=subgrid_type_local, &
                                                                       conversion_factor=conversion_factor_local)
     else
       call this%fates_vars(this%GetRegistryVariableIndex(key))%Register(data(:,:), active=.true., &
                                                                         accumulate=accumulate_local, &
                                                                         is_first=is_first_local, &
-                                                                        is_last=is_last_local, &
+                                                                        subgrid_type=subgrid_type_local, &
                                                                         conversion_factor=conversion_factor_local)
     end if
 
