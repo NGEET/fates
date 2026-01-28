@@ -41,6 +41,7 @@ module FatesInterfaceVariableTypeMod
       procedure :: CheckBounds
       procedure :: Convert    => ConvertScaleInterfaceVariable
       procedure :: Initialize => InitializeInterfaceVariable
+      procedure :: IsSubgridType
       procedure :: Normalize  => NormalizeLitterVariable
       procedure :: Update     => UpdateInterfaceVariable
       procedure :: Dump
@@ -233,6 +234,17 @@ module FatesInterfaceVariableTypeMod
 
     end subroutine InitializeInterfaceVariable
     
+  ! ====================================================================================
+
+  logical function IsSubgridType(this, subgrid_type)
+
+    class(fates_interface_variable_type), intent(in) :: this
+    integer, intent(in) :: subgrid_type
+
+    IsSubgridType = (this%subgrid_type == subgrid_type)
+
+  end function IsSubgridType
+
   ! ====================================================================================
   
     subroutine NormalizeLitterVariable(this, norm_var)
