@@ -2255,6 +2255,12 @@ contains
    ! ====================================================================================
 
    subroutine SetRegistryActiveState(this)
+   
+      ! This subroutine determines if a registry is active, i.e. whether it is associated
+      ! with a FATES patch.  Registries are allocated during initialization to the maximum
+      ! number of possible patches, but not all FATES patches will necessarily be created
+      ! particularly during a cold start.  As such, we need a procedure to determine with
+      ! each API update, which registries are active to avoid passing invalid data.
 
       ! Argument
       class(fates_interface_type), intent(inout) :: this
@@ -2306,6 +2312,13 @@ contains
    ! ====================================================================================
    
    subroutine SetRegistryLastState(this)
+   
+      ! This procedure determines when a registry is the last in a series to be associated
+      ! with a specific subgrid object index (e.g. column index).  The API design currently
+      ! implements any unit conversion or scaling as a last step after all data associated
+      ! with the specific subgrid object has been passed to the HLM.  As such, we need to
+      ! identify when the next registry index in the series is associated with a different
+      ! subgrid object index.
 
       use FatesInterfaceParametersMod, only : registry_var_intid_column
 
@@ -2861,6 +2874,10 @@ end subroutine InitializeInterfaceRegistry
 ! ======================================================================================
 
 subroutine InitializeFatesSites(this, patches_per_site)
+
+   ! This procedure initializes the FATES sites by iterating through the number of
+   ! vegetated patches and incrementing the number of sites  when a new gridcell index 
+   ! is encountered.  
    
    class(fates_interface_type), intent(inout) :: this             ! fates interface
    integer, intent(in)                        :: patches_per_site ! number of patches per site
@@ -2927,6 +2944,11 @@ end subroutine InitializeFatesSites
 ! ======================================================================================
 
 subroutine InitializeBoundaryConditions(this, patches_per_site)
+
+   ! This procedure initializes the boundary conditions arrays with the maximum number 
+   ! of possible patches for each FATES site.  It then registers the boundary condition
+   ! variables for each patch.  Conversion factors are applied as necessary during 
+   ! registration, which will be utilized during the update API calls.
    
    use FatesInterfaceParametersMod
    use FatesConstantsMod         , only : days_per_sec
@@ -3037,6 +3059,11 @@ end subroutine InitializeBoundaryConditions
 ! ======================================================================================
 
 subroutine UpdateInterfaceVariables(this, initialize, restarting)
+
+   ! This procedure is responsible for updating the bulk of the interface variables by
+   ! iterating through each registry entry.  It also handles special updates during
+   ! initialization and restart relating to the maximum rooting depth index, nlevdecomp
+   ! and the decomp_id.
    
    ! Arguments
    class(fates_interface_type), intent(inout) :: this
@@ -3121,17 +3148,16 @@ subroutine UpdateInterfaceVariables(this, initialize, restarting)
          ! unless we are restarting
          if (.not. restarting_local) bc_in%max_rooting_depth_index_col = bc_in%nlevdecomp
             
-
       end if
-
    end do
-
    
 end subroutine UpdateInterfaceVariables
 
 ! ======================================================================================
 
 subroutine UpdateLitterFluxes(this, dtime)
+
+   ! This procedure handles the updating of litter fluxes from FATES to the HLM.
    
    class(fates_interface_type), intent(inout) :: this
    real(r8), intent(in)                       :: dtime   ! HLM timestep
@@ -3167,8 +3193,8 @@ subroutine UpdateLitterFluxes(this, dtime)
          conversion_flag = .true.
       end if
 
-      write(fates_log(),*) 'update litter flux, n, r, cflag: ', n, r, conversion_flag
-      write(fates_log(),*) 'update litter flux, s, c: ', this%registry(r)%GetSiteIndex(), this%registry(r)%GetColumnIndex()
+      ! write(fates_log(),*) 'update litter flux, n, r, cflag: ', n, r, conversion_flag
+      ! write(fates_log(),*) 'update litter flux, s, c: ', this%registry(r)%GetSiteIndex(), this%registry(r)%GetColumnIndex()
 
       call this%registry(r)%UpdateLitterFluxes(conversion_flag)
       
