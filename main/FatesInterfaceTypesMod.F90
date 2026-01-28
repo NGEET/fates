@@ -976,6 +976,12 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
 
   subroutine InitializeBCIn(this)
+  
+    ! This procedure initializes the input boundary condition structure by allocating
+    ! the associated variables arrays and unsetting their values.  Note that some of the 
+    ! input boundary conditions are used to initialize the output boundary conditions
+    ! and as such, this initialization must occur prior to the output boundary condition
+    ! initialization.
 
     ! Arguments
     class(bc_in_type), intent(inout) :: this
@@ -998,6 +1004,12 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
 
   subroutine InitializeBCOut(this, bc_in)
+
+    ! This procedure initializes the output boundary condition structure by allocating
+    ! the associated variables arrays and unsetting their values.  Note that the input
+    ! boundary conditions are needed to determine the set the size of some of the output
+    ! boundary condition arrays and as such, this procedure should be called after
+    ! the input boundary condition initialization.
 
     ! Arguments
     class(bc_out_type), intent(inout) :: this
@@ -1038,7 +1050,9 @@ module FatesInterfaceTypesMod
 
   subroutine InitializeInterfaceRegistry(this)
 
-    ! This initializes the interface registry
+    ! This initializes the interface registry with the associated variable counters, filters,
+    ! and metadata.  This procedure calls the interface registry definition procedure which
+    ! is necessary to allow for the registration of the HLM and FATES variables.
 
     class(fates_interface_registry_type), intent(inout) :: this
 
@@ -1139,8 +1153,12 @@ module FatesInterfaceTypesMod
   
   subroutine DefineInterfaceRegistry(this, initialize)
 
-    ! This procedure defines the list of common names to be associated with FATES and HLM
-    ! variables.
+    ! This procedure defines the list of common names (i.e. "keys") to be associated with 
+    ! FATES and HLM variables.  All new keys, regardless of whether or not they are used
+    ! in a particular run mode or by a specific host land model, must be defined here. 
+    ! For a future update, this procedure could be split in a manner similar to the fates
+    ! history interface module, where related keys are grouped together in separate procedure
+    ! calls to provide clarity to the developer and/or definion based on run mode .
 
     class(fates_interface_registry_type), intent(inout) :: this
 
@@ -1153,6 +1171,7 @@ module FatesInterfaceTypesMod
 
     associate(bc_in => registry_bc_in, &
               bc_out => registry_bc_out)
+
     ! Define the interface registry names and indices
     ! Variables that need to be updated during initialization and are necessary for other boundary conditions
     ! such as dimensions
@@ -1211,6 +1230,10 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
 
   subroutine DefineInterfaceVariable(this, key, initialize, index, update_frequency, bc_dir)
+  
+    ! This procedure initializes the interface variables for this registry passing the 
+    ! key associated with the variables along with other relavant data.  The procedure
+    ! also increments various registry counters depending on the input arguments.
 
     class(fates_interface_registry_type), intent(inout) :: this
 
@@ -1328,6 +1351,10 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
   
   subroutine SetSubgridIndices(this, gridcell, topounit, landunit, column, hlmpatch, fatespatch, site, bareground)
+  
+    ! This procedure sets the associated HLM subgrid index values for the calling registry.
+    ! This is provided so that the FATES registry and interface variable subroutines can
+    ! have access to the HLM subgrid indices as needed internal to the FATES code.
     
     class(fates_interface_registry_type), intent(inout) :: this
     integer, intent(in), optional :: gridcell
@@ -1353,6 +1380,8 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
 
   subroutine SetActiveState(this, active_state)
+  
+    ! This procedure sets the registry active state flag for the calling registry.
   
     class(fates_interface_registry_type), intent(inout) :: this
     logical, intent(in) :: active_state
@@ -1421,6 +1450,8 @@ module FatesInterfaceTypesMod
 
   logical function GetActivateState(this) result(active_state)
   
+    ! This procedure gets the registry active state flag for the calling registry.
+  
     class(fates_interface_registry_type), intent(inout) :: this
     
     active_state = this%active
@@ -1430,6 +1461,8 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
   
   integer function GetGridcellIndex(this) result(gidx)
+  
+    ! This procedure gets the HLM gridcell index for the calling registry.
   
     class(fates_interface_registry_type), intent(inout) :: this
     
@@ -1441,6 +1474,8 @@ module FatesInterfaceTypesMod
   
   integer function GetLandunitIndex(this) result(lidx)
   
+    ! This procedure gets the HLM landunit index for the calling registry.
+  
     class(fates_interface_registry_type), intent(inout) :: this
     
     lidx = this%lidx
@@ -1450,6 +1485,8 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
   
   integer function GetColumnIndex(this) result(cidx)
+  
+    ! This procedure gets the HLM column index for the calling registry.
   
     class(fates_interface_registry_type), intent(inout) :: this
     
@@ -1461,6 +1498,8 @@ module FatesInterfaceTypesMod
   
   integer function GetHLMPatchIndex(this) result(hpidx)
   
+    ! This procedure gets the HLM patch index for the calling registry.
+  
     class(fates_interface_registry_type), intent(inout) :: this
     
     hpidx = this%hpidx
@@ -1470,6 +1509,8 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
   
   integer function GetSiteIndex(this) result(sidx)
+  
+    ! This procedure gets the FATES site index for the calling registry.
   
     class(fates_interface_registry_type), intent(inout) :: this
     
@@ -1481,6 +1522,8 @@ module FatesInterfaceTypesMod
   
   integer function GetFatesPatchIndex(this) result(fpidx)
   
+    ! This procedure gets the FATES patch index for the calling registry.
+  
     class(fates_interface_registry_type), intent(inout) :: this
     
     fpidx = this%fpidx
@@ -1491,6 +1534,8 @@ module FatesInterfaceTypesMod
   
   logical function HLMPatchIsBareGround(this) result(bareground)
   
+    ! This procedure gets the HLM bareground flag for the calling registry.
+  
     class(fates_interface_registry_type), intent(inout) :: this
     
     bareground = this%bareground
@@ -1500,6 +1545,10 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
   
   subroutine SetFilterMapArrays(this)
+  
+    ! This procedure sets the filter mapping arrays for the interface registry.  These
+    ! filters are provided as a mean to quickly access the registry indices for specific
+    ! variable types (e.g. those that update on the model timestep)
 
     class(fates_interface_registry_type), intent(inout) :: this
 
@@ -1589,8 +1638,7 @@ module FatesInterfaceTypesMod
 
   subroutine RegisterInterfaceVariables_0d(this, key, data, hlm_flag, accumulate, is_first, subgrid_type, conversion_factor)
 
-    ! This procedure is called by the to associate a data variable
-    ! with a particular registry key
+    ! This procedure associates a scalar data variable with a particular registry key
 
     ! Arguments
     class(fates_interface_registry_type), intent(inout) :: this
@@ -1657,8 +1705,8 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
 
   subroutine RegisterInterfaceVariables_1d(this, key, data, hlm_flag, accumulate, is_first, subgrid_type, conversion_factor)
-    ! This procedure is called by the to associate a data variable
-    ! with a particular registry key
+
+    ! This procedure associates 1D array data variable with a particular registry key
 
     class(fates_interface_registry_type), intent(inout) :: this
     class(*), target, intent(in)  :: data(:)    ! data to be associated with key
@@ -1731,8 +1779,7 @@ module FatesInterfaceTypesMod
 
   subroutine RegisterInterfaceVariables_2d(this, key, data, hlm_flag, accumulate, is_first, subgrid_type, conversion_factor)
 
-    ! This procedure is called by the to associate a data variable
-    ! with a particular registry key
+    ! This procedure associates 2D array data variable with a particular registry key
 
     class(fates_interface_registry_type), intent(inout) :: this
     class(*), target, intent(in)  :: data(:,:)  ! data to be associated with key
@@ -1797,6 +1844,9 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
   
   subroutine InitializeInterfaceVariablesDimensions(this)
+  
+    ! This procedure initializes the interface variables that are used as dimensions
+    ! for initializing other interface variables.
 
     ! Arguments
     class(fates_interface_registry_type), intent(inout) :: this  ! registry being initialized
@@ -1821,6 +1871,8 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
   
   subroutine InitializeInterfaceVariables(this)
+  
+    ! This procedure updates the interface variables that are used during initialization.
 
     ! Arguments
     class(fates_interface_registry_type), intent(inout) :: this  ! registry being initialized
