@@ -924,6 +924,12 @@ module FatesInterfaceTypesMod
     integer, private :: fpidx
     logical, private :: bareground
 
+    ! Subgrid last state data
+    integer, private :: is_last_in_gridcell
+    integer, private :: is_last_in_topounit
+    integer, private :: is_last_in_landunit
+    integer, private :: is_last_in_column
+
     contains
 
       procedure :: CheckInterfaceVariables
@@ -940,6 +946,7 @@ module FatesInterfaceTypesMod
       procedure :: IsBareground => HLMPatchIsBareground 
       procedure :: SetSubgridIndices
       procedure :: SetActiveState
+      procedure :: SetLastState
       procedure :: UpdateLitterFluxes
       procedure :: Update => UpdateInterfaceVariables
 
@@ -1363,6 +1370,62 @@ module FatesInterfaceTypesMod
     this%active = active_state
     
   end subroutine SetActiveState
+
+  ! ======================================================================================
+
+  subroutine SetLastState(this, subgrid_type)
+    
+    ! Set the registry last state flag based on the subgrid type being processed
+    ! If a subgrid_type is not provided, then reset all last state flags to false
+
+    class(fates_interface_registry_type), intent(inout) :: this
+    integer, intent(in), optional :: subgrid_type
+
+    ! Local variables
+    integer :: n
+    logical :: last_state_local
+    integer :: subgrid_type_local
+
+    ! If a subgrid type is provided, we set the last state flag for that type at the register level
+    ! and update the associated local subgrid type variable.
+    if (present(subgrid_type)) then
+      select case (subgrid_type)
+      case(registry_var_intid_gridcell)
+        this%is_last_in_gridcell = .true.
+        subgrid_type_local = registry_var_intid_gridcell
+      case(registry_var_intid_topounit)
+        this%is_last_in_topounit = .true.
+        subgrid_type_local = registry_var_intid_topounit
+      case(registry_var_intid_landunit)
+        this%is_last_in_landunit = .true.
+        subgrid_type_local = registry_var_intid_landunit
+      case(registry_var_intid_column)
+        this%is_last_in_column = .true.
+        subgrid_type_local = registry_var_intid_column
+      case default
+        write(fates_log(),*) 'ERROR: unrecognised subgrid_type provided to SetLastState()'
+        call endrun(msg=errMsg(__FILE__, __LINE__))
+      end select
+      last_state_local = .true.
+    else
+      this%is_last_in_gridcell = .false.
+      this%is_last_in_topounit = .false.
+      this%is_last_in_landunit = .false.
+      this%is_last_in_column = .false.
+      last_state_local = .false.
+      subgrid_type_local = fates_unset_int
+    end if
+
+    ! Set the last state flags in the interface variables associated with the subgrid type
+    ! or if no subgrid type is provided, set all last state flags to false
+    do n = 1, this%num_api_vars
+      if (this%hlm_vars(n)%IsSubgridType(subgrid_type_local) .or. subgrid_type_local == fates_unset_int) then
+        ! write(fates_log(),*) 'SLS: n, lsl, stl: ' , n, last_state_local, subgrid_type_local
+        call this%hlm_vars(n)%SetLastState(last_state_local)
+      end if
+    end do
+    
+  end subroutine SetLastState
 
   ! ======================================================================================
 
