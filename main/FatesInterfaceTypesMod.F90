@@ -1949,9 +1949,6 @@ module FatesInterfaceTypesMod
       ! If the conversion flag is set, convert and scale the updated HLM litter flux interface variable
       if (conversion_flag) then
       
-        ! Convert from kgC/m2/s to gC/m2/day
-        ! call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
-        
         ! Get the index for the decomposition thickness key
         d = this%GetRegistryVariableIndex(hlm_fates_decomp_thickness)
         
@@ -1965,16 +1962,13 @@ module FatesInterfaceTypesMod
     ! Update the HLM variable with the total litterfall
     j = this%GetRegistryVariableIndex(hlm_fates_litter_carbon_total)
     call this%hlm_vars(j)%Update(this%fates_vars(j))
-    ! if (conversion_flag) call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
 
     if (hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
       j = this%GetRegistryVariableIndex(hlm_fates_litter_phosphorus_total)
       call this%hlm_vars(j)%Update(this%fates_vars(j))
-      ! if (conversion_flag) call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
 
       j = this%GetRegistryVariableIndex(hlm_fates_litter_nitrogen_total)
       call this%hlm_vars(j)%Update(this%fates_vars(j))
-      ! if (conversion_flag) call this%hlm_vars(j)%Convert(days_per_sec * g_per_kg)
     end if
 
     
