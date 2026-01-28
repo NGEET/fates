@@ -403,7 +403,7 @@ module FatesInterfaceVariableTypeMod
                     dest = source
                   end if
                   ! Apply conversion factor if this is the last patch associated with the subgrid unit
-                  if (this%last_patch) then
+                  if (this%is_last) then
                     dest = dest * var%conversion_factor
                   end if
                 class default
@@ -444,7 +444,7 @@ module FatesInterfaceVariableTypeMod
                   else
                     dest = source
                   end if
-                  if (this%last_patch) then
+                  if (this%is_last) then
                     dest = dest * var%conversion_factor
                   end if
                 class default
@@ -485,7 +485,7 @@ module FatesInterfaceVariableTypeMod
                   else
                     dest = source
                   end if
-                  if (this%last_patch) then
+                  if (this%is_last) then
                     dest = dest * var%conversion_factor
                   end if
                 class default
