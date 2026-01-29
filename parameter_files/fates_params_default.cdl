@@ -1,4 +1,4 @@
-netcdf fates_params_sci.1.88.6_api.42.0.0_014_nor_sci2_api1_default {
+netcdf fates_params_sci.1.88.6_api.42.0.0_14pft_nor_sci2_api1_default {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
