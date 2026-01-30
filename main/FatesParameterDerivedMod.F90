@@ -15,8 +15,9 @@ module FatesParameterDerivedMod
   use FatesInterfaceTypesMod,     only : nleafage
   use FatesInterfaceTypesMod,     only : nlevdamage
   use FatesGlobals     ,     only : fates_log
-  use EDParamsMod      ,     only : ED_val_history_damage_bin_edges
-
+  use FatesParametersInterface
+  
+  
   implicit none
   private
 
@@ -81,21 +82,21 @@ contains
 
   ! =====================================================================================
  
-  subroutine Init(this,numpft)
+  subroutine Init(this)
 
-    use EDPftvarcon, only: EDPftvarcon_inst
-    use SFParamsMod, only: SF_val_CWD_frac
     use FatesLitterMod, only : ncwd
     
     class(param_derived_type), intent(inout) :: this
-    integer, intent(in)                      :: numpft
     
     ! local variables
     integer  :: ft                 ! pft index
     integer  :: iage               ! leaf age class index
+    integer  :: numpft
 
-    associate( vcmax25top => EDPftvarcon_inst%vcmax25top ) 
-    
+    associate( vcmax25top => pstruct%parameters(pid_vcmax25top)%r_data_2d )
+
+      numpft = size(vcmax25top,dim=2)
+      
       call this%InitAllocate(numpft)
       call this%InitDamageTransitions(numpft)
       
@@ -114,14 +115,14 @@ contains
             ! jmax25top(ft) =  &
             ! (2.59_r8 - 0.035_r8*min(max((t10(p)-tfrzc),11._r8),35._r8)) * vcmax25top(ft)
             
-            this%jmax25top(ft,iage) = 1.67_r8   * vcmax25top(ft,iage)
-            this%tpu25top(ft,iage)  = 0.167_r8  * vcmax25top(ft,iage)
-            this%kp25top(ft,iage)   = 20000._r8 * vcmax25top(ft,iage)
+            this%jmax25top(ft,iage) = 1.67_r8   * vcmax25top(iage,ft)
+            this%tpu25top(ft,iage)  = 0.167_r8  * vcmax25top(iage,ft)
+            this%kp25top(ft,iage)   = 20000._r8 * vcmax25top(iage,ft)
          
          end do
 
          ! Allocate fraction of aboveground woody biomass in branches
-         this%branch_frac(ft) = sum(SF_val_CWD_frac(1:3))
+         this%branch_frac(ft) = sum(pstruct%parameters(pid_cwd_frac)%r_data_1d(1:3),dim=1)
          
       end do !ft
 
@@ -132,9 +133,6 @@ contains
 !=========================================================================
   
   subroutine InitDamageTransitions(this, numpft)
-
-    use EDPftvarcon, only: EDPftvarcon_inst
-
 
     class(param_derived_type), intent(inout) :: this
     integer, intent(in)                      :: numpft
@@ -155,7 +153,7 @@ contains
     ! class widths
     ! append 100 to ED_val_history_damage_bin_edges
     do j = 1,nlevdamage
-       damage_bin_edges_ex(j) = ED_val_history_damage_bin_edges(j)
+       damage_bin_edges_ex(j) = pstruct%parameters(pid_damage_bins)%r_data_1d(j) !ED_val_history_damage_bin_edges(j)
     end do
     damage_bin_edges_ex(j) = 100.0_r8
 
@@ -165,7 +163,7 @@ contains
 
      do ft = 1, numpft
 
-       damage_frac = EDPftvarcon_inst%damage_frac(ft)
+       damage_frac = pstruct%parameters(pid_damage_frac)%r_data_1d(ft)
 
        do i = 1, nlevdamage
 

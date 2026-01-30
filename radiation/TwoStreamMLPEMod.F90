@@ -910,7 +910,6 @@ contains
     integer :: ican                           ! scattering element canopy layer index (top down)
     integer :: icol                           ! scattering element column
     integer :: ib                             ! band index, matches indexing of rad_params
-    integer :: ib2                            ! band inner loop index while testing for singularity
     real(r8) :: asu                           ! single scattering albedo
     real(r8) :: gdir
     real(r8) :: tmp0,tmp1,tmp2
