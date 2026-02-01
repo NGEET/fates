@@ -3166,7 +3166,6 @@ subroutine UpdateLitterFluxes(this, dtime)
    integer :: n  ! active registry index iterator
    integer :: r  ! registry index 
    integer :: next_r
-   logical :: conversion_flag
 
    ! Set the registry active state
    call this%SetRegistryActiveState()
@@ -3178,25 +3177,7 @@ subroutine UpdateLitterFluxes(this, dtime)
    do n = 1, this%num_active_patches
       r = this%filter_registry_active(n)
       
-      ! Set converstion flag to false by default
-      conversion_flag = .false.
-
-      ! Look ahead and determine if the next registry is for a different column.
-      ! If so, we need to convert the accumulated litter fluxes
-      ! This is facilitated by the fact that the column indices are monotonically increasing per the HLM
-      if (n .lt. this%num_active_patches) then
-         next_r = this%filter_registry_active(n+1)
-         if (this%registry(r)%GetColumnIndex() .ne. this%registry(next_r)%GetColumnIndex()) then
-            conversion_flag = .true.
-         end if
-      else
-         conversion_flag = .true.
-      end if
-
-      ! write(fates_log(),*) 'update litter flux, n, r, cflag: ', n, r, conversion_flag
-      ! write(fates_log(),*) 'update litter flux, s, c: ', this%registry(r)%GetSiteIndex(), this%registry(r)%GetColumnIndex()
-
-      call this%registry(r)%UpdateLitterFluxes(conversion_flag)
+      call this%registry(r)%UpdateLitterFluxes()
       
    end do
 

@@ -1916,7 +1916,7 @@ module FatesInterfaceTypesMod
   ! ======================================================================================
   
   ! subroutine UpdateLitterFluxes(this, dtime)
-  subroutine UpdateLitterFluxes(this, conversion_flag)
+  subroutine UpdateLitterFluxes(this)
 
     ! This procedure updates the litter flux output boundary conditions 
     ! This procedure is separated from other update calls as it happens
@@ -1929,37 +1929,39 @@ module FatesInterfaceTypesMod
     ! Arguments
     class(fates_interface_registry_type), intent(inout) :: this
     ! real(r8), intent(in)                                     :: dtime
-    logical, intent(in)                                   :: conversion_flag
     
     ! Locals
     integer :: i
     integer :: j
     integer :: k
-    integer :: d
-    real(r8) :: conversion_factor
+    logical :: normalization_flag 
     
     ! Iterate over the litter flux filter to update the individual litter types
     do i = 1, this%num_api_vars_litter_flux 
       j = this%filter_litter_flux(i)
       
       ! Update the hlm variables with the fates variables
-      ! call this%hlm_vars(j)%Update(this%fates_vars(j), scalar=dtime)
-      call this%hlm_vars(j)%Update(this%fates_vars(j))
+      call this%hlm_vars(j)%Update(this%fates_vars(j), normalization_flag)
       
-      ! If the conversion flag is set, convert and scale the updated HLM litter flux interface variable
-      if (conversion_flag) then
+      ! If the normalization flag is set, scale the updated HLM litter flux interface variable
+      ! by the decomposition layer thickness.
+      ! The normalization factor could be set during the registration call in a manner similar
+      ! to the unit conversation factor, but given that not all interface variables may need normalization
+      ! and the normalization factor is not necessarily a simple standard constant, we handle it here for now. 
+      if (normalization_flag) then
       
         ! Get the index for the decomposition thickness key
-        d = this%GetRegistryVariableIndex(hlm_fates_decomp_thickness)
+        k = this%GetRegistryVariableIndex(hlm_fates_decomp_thickness)
         
         ! Normalize the litter fluxes against the decomposition layer thicknesses
-        call this%hlm_vars(j)%Normalize(this%fates_vars(d))
+        call this%hlm_vars(j)%Normalize(this%fates_vars(k))
 
       end if
 
     end do
     
     ! Update the HLM variable with the total litterfall
+    ! These are not currently included in the litter flux filter as these are not normalized
     j = this%GetRegistryVariableIndex(hlm_fates_litter_carbon_total)
     call this%hlm_vars(j)%Update(this%fates_vars(j))
 

@@ -402,7 +402,7 @@ module FatesInterfaceVariableTypeMod
 
   ! ====================================================================================
     
-    subroutine UpdateInterfaceVariable(this, var)
+    subroutine UpdateInterfaceVariable(this, var, is_last)
     
       ! This is the main procedure that drives the updates between the HLM and FATES.
       ! It updates the calling interface variable data with data from the argument
@@ -414,15 +414,19 @@ module FatesInterfaceVariableTypeMod
       ! interface variable data prior to adding the argument variable data to it.
 
       ! Arguments
-      class(fates_interface_variable_type), intent(inout) :: this ! variable being updated
-      class(fates_interface_variable_type), intent(in)    :: var  ! variable update source
+      class(fates_interface_variable_type), intent(inout) :: this     ! variable being updated
+      class(fates_interface_variable_type), intent(in)    :: var      ! variable update source
+      logical, intent(out), optional                      :: is_last  ! true if last patch for subgrid unit   
 
       ! Locals
       character(len=fates_long_string_length) :: msg_mismatch = 'FATES ERROR: Mismatched interface variable types'
 
       ! Check that the dimensions of the source and target match
       call this%CompareRegistryVariableSizes(var)
-          
+
+      ! If the is_last argument is present, output the is_last flag state for this variable
+      if (present(is_last)) is_last = this%is_last
+        
       ! Update the data of the target variable using the source variable data pointer
       ! Make sure the types match for the polymorphic data to allow for copying from the 
       ! source to the target.
