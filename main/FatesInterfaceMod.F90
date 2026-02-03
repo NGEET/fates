@@ -10,10 +10,10 @@ module FatesInterfaceMod
    ! ------------------------------------------------------------------------------------
 
    use EDTypesMod                , only : ed_site_type
-   use EDParamsMod                , only : dinc_vai
-   use EDParamsMod                , only : dlower_vai
-   use EDParamsMod               , only : ED_val_vai_top_bin_width
-   use EDParamsMod               , only : ED_val_vai_width_increase_factor
+   use EDParamsMod               , only : dinc_vai
+   use EDParamsMod               , only : dlower_vai
+   use EDParamsMod               , only : vai_top_bin_width
+   use EDParamsMod               , only : vai_width_increase_factor
    use EDParamsMod               , only : ED_val_history_damage_bin_edges
    use EDParamsMod               , only : maxpatch_total
    use EDParamsMod               , only : maxpatches_by_landuse
@@ -66,13 +66,13 @@ module FatesInterfaceMod
    use EDParamsMod               , only : ED_val_history_ageclass_bin_edges
    use EDParamsMod               , only : ED_val_history_height_bin_edges
    use EDParamsMod               , only : ED_val_history_coageclass_bin_edges
-   use FatesParametersInterface  , only : fates_param_reader_type
-   use FatesParametersInterface  , only : fates_parameters_type
-   use EDParamsMod               , only : FatesRegisterParams, FatesReceiveParams
-   use SFParamsMod               , only : SpitFireRegisterParams, SpitFireReceiveParams
-   use PRTInitParamsFATESMod     , only : PRTRegisterParams, PRTReceiveParams
-   use FatesLeafBiophysParamsMod , only : LeafBiophysRegisterParams, LeafBiophysReceiveParams,LeafBiophysReportParams
-   use FatesSynchronizedParamsMod, only : FatesSynchronizedParamsInst
+   use FatesParametersInterface  , only : pstruct
+   use FatesLeafBiophysParamsMod , only : TransferParamsLeafBiophys
+   use FatesLeafBiophysParamsMod , only : LeafBiophysReportParams
+   use EDParamsMod               , only : TransferParamsGeneric
+   use SFParamsMod               , only : TransferParamsSpitFire
+   use PRTInitParamsFatesMod     , only : TransferParamsPRT
+   use EDPftvarcon               , only : TransferParamsPFT
    use EDParamsMod               , only : p_uptake_mode
    use EDParamsMod               , only : n_uptake_mode
    use EDTypesMod                , only : ed_site_type
@@ -83,6 +83,7 @@ module FatesInterfaceMod
    use FatesConstantsMod         , only : fates_np_comp_scaling
    use FatesConstantsMod         , only : coupled_np_comp_scaling
    use FatesConstantsMod         , only : trivial_np_comp_scaling
+   use FatesConstantsMod         , only : fates_check_param_set, min_vai_bin_sum
    use PRTGenericMod             , only : num_elements
    use PRTGenericMod             , only : element_list
    use PRTGenericMod             , only : element_pos
@@ -111,9 +112,16 @@ module FatesInterfaceMod
    use FatesHistoryInterfaceMod  , only : fates_hist
    use FatesHydraulicsMemMod     , only : nshell
    use FatesHydraulicsMemMod     , only : nlevsoi_hyd_max
-   use FatesTwoStreamUtilsMod, only : TransferRadParams
+   use FatesTwoStreamUtilsMod    , only : TransferRadParams
    use LeafBiophysicsMod         , only : lb_params
    use LeafBiophysicsMod         , only : FvCB1980
+   use JSONParameterUtilsMod     , only : params_type
+   use JSONParameterUtilsMod     , only : JSONRead
+   use JSONParameterUtilsMod     , only : JSONSetInvalid
+   use JSONParameterUtilsMod     , only : JSONSetLogInit
+   use JSONParameterUtilsMod     , only : JSONDumpParameter
+   
+   
    ! CIME Globals
    use shr_log_mod               , only : errMsg => shr_log_errMsg
    use shr_infnan_mod            , only : nan => shr_infnan_nan, assignment(=)
@@ -172,7 +180,6 @@ module FatesInterfaceMod
    public :: SetFatesTime
    public :: SetFatesGlobalElements1
    public :: SetFatesGlobalElements2
-   public :: FatesReportParameters
    public :: allocate_bcin
    public :: allocate_bcout
    public :: allocate_bcpconst
@@ -182,7 +189,6 @@ module FatesInterfaceMod
    public :: UpdateFatesRMeansTStep
    public :: InitTimeAveragingGlobals
 
-   private :: FatesReadParameters
    public :: DetermineGridCellNeighbors
 
    logical :: debug = .false.  ! for debugging this module
@@ -771,7 +777,7 @@ contains
 
     ! ===================================================================================
     
-    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft,param_reader)
+    subroutine SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft,paramfile)
 
        ! --------------------------------------------------------------------------------
        !
@@ -785,16 +791,43 @@ contains
       logical,                    intent(in) :: use_fates    ! Is fates turned on?
       integer,                    intent(in) :: surf_numpft  ! Number of PFTs in surface dataset
       integer,                    intent(in) :: surf_numcft  ! Number of CFTs in surface dataset
-      class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
+      character(len=*),           intent(in) :: paramfile        ! Full path to the fates parameter file
+      integer :: i
       integer :: fates_numpft  ! Number of PFTs tracked in FATES
-
+      
+      
       logical, parameter :: preserve_b4b = .true.
       
       if (use_fates) then
          
          ! Self explanatory, read the fates parameter file
-         call FatesReadParameters(param_reader)
+         if ( hlm_masterproc == itrue ) then
+            write(fates_log(), *) 'Reading FATES parameters'
+         end if
 
+         ! We compare dataset values that have no-data against a parameter fates_check_param_set
+         ! If the value in the file is less than fates_check_param_set, then we assume
+         ! it is usable. So if the parser enounters no-data strings, such as null, nan or '_'
+         ! we set those values to fates_check_param_set plus a little extra to flag it is
+         ! invalid.
+         call JSONSetInvalid(fates_check_param_set+10._r8)
+         call JSONSetLogInit(fates_log())
+         call JSONRead(paramfile,pstruct)
+
+         if ( hlm_masterproc == itrue ) then
+            write(fates_log(),*) '============= FATES Parameter Info ============'
+            do i=1,size(pstruct%parameters)
+               call JSONDumpParameter(pstruct%parameters(i))
+            end do
+            write(fates_log(),*) '============ End FATES Parameter Info ========='
+         end if
+         
+         ! This call transfers parameters from the pstruct data-structure
+         ! into the specific datastructures where parameters have there
+         ! own primitive arrays
+
+         call FatesTransferParameters()
+         
          fates_numpft = size(prt_params%wood_density,dim=1)
          
          if(hlm_use_sp==itrue)then
@@ -856,8 +889,6 @@ contains
       ! This is the second FATES routine that is called.
       !
       ! --------------------------------------------------------------------------------
-
-      use FatesConstantsMod,      only : fates_check_param_set, min_vai_bin_sum
 
       logical,intent(in) :: use_fates    ! Is fates turned on?
       integer :: i
@@ -946,7 +977,7 @@ contains
          ! calculate the bin edges for radiative transfer calculations
          ! VAI bin widths array 
          do i = 1,nlevleaf
-            dinc_vai(i) = ED_val_vai_top_bin_width * ED_val_vai_width_increase_factor ** (i-1)
+            dinc_vai(i) = vai_top_bin_width * vai_width_increase_factor ** (i-1)
          end do
 
          if (sum(dinc_vai) < min_vai_bin_sum ) then
@@ -1060,6 +1091,15 @@ contains
          
 
       end if
+
+      ! Check through FATES parameters
+      ! THis step is performed after the parameter
+      ! AND after all namelist settings because
+      ! they are cross referenced
+
+      call FatesCheckParameters()
+
+      
     end subroutine SetFatesGlobalElements2
 
     ! ======================================================================
@@ -1457,7 +1497,6 @@ contains
       !
       ! RGK-2016
       ! ---------------------------------------------------------------------------------
-      use FatesConstantsMod, only : fates_check_param_set
     
     
       ! Arguments
@@ -1489,9 +1528,7 @@ contains
          hlm_ipedof       = unset_int
          hlm_nu_com      = 'unset'
          hlm_decomp      = 'unset'
-         hlm_nitrogen_spec = unset_int
          hlm_use_tree_damage = unset_int
-         hlm_phosphorus_spec = unset_int
          hlm_use_ch4       = unset_int
          hlm_use_vertsoilc = unset_int
          hlm_parteh_mode   = unset_int
@@ -1694,21 +1731,9 @@ contains
                write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
                write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
                call endrun(msg=errMsg(sourcefile, __LINE__))
+            end if
          end if
-
-            
-         end if
-
-         if(hlm_nitrogen_spec .eq. unset_int) then
-            write(fates_log(),*) 'FATES parameters unset: hlm_nitrogen_spec, exiting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
-         if(hlm_phosphorus_spec .eq. unset_int) then
-            write(fates_log(),*) 'FATES parameters unset: hlm_phosphorus_spec, exiting'
-            call endrun(msg=errMsg(sourcefile, __LINE__))
-         end if
-
+         
          if( abs(hlm_hio_ignore_val-unset_double)<1e-10 ) then
             write(fates_log(),*) 'FATES dimension/parameter unset: hio_ignore'
             call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1924,18 +1949,6 @@ contains
                   write(fates_log(),*) 'Transfering hlm_use_tree_damage = ',ival,' to FATES'
                end if
                
-            case('nitrogen_spec')
-               hlm_nitrogen_spec = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_nitrogen_spec = ',ival,' to FATES'
-               end if
-
-            case('phosphorus_spec')
-               hlm_phosphorus_spec = ival
-               if (fates_global_verbose()) then
-                  write(fates_log(),*) 'Transfering hlm_phosphorus_spec = ',ival,' to FATES'
-               end if
-
             case('use_ch4')
                hlm_use_ch4 = ival
                if (fates_global_verbose()) then
@@ -2234,27 +2247,6 @@ contains
 
    ! ====================================================================================
 
-   subroutine FatesReportParameters(masterproc)
-      
-      ! -----------------------------------------------------
-      ! Simple parameter reporting functions
-      ! A debug like print flag is contained in each routine
-      ! -----------------------------------------------------
-
-      logical,intent(in) :: masterproc
-
-      call FatesReportPFTParams(masterproc)
-      call FatesReportParams(masterproc)
-      call LeafBiophysReportParams(masterproc)
-      call PRTDerivedParams()              ! Update PARTEH derived constants
-      call FatesCheckParams(masterproc)    ! Check general fates parameters
-      call PRTCheckParams(masterproc)      ! Check PARTEH parameters
-      call SpitFireCheckParams(masterproc)
-      call TransferRadParams()
-
-      
-      return
-   end subroutine FatesReportParameters
 
    ! =====================================================================================
 
@@ -2307,7 +2299,7 @@ contains
               ! vegetation.
               
               call SeedlingParPatch(cpatch, &
-                   bc_in(s)%solad_parb(ifp,ipar) + bc_in(s)%solai_parb(ifp,ipar), &
+                   bc_in(s)%solad_parb(ifp,ipar),bc_in(s)%solai_parb(ifp,ipar), &
                    seedling_par_high, par_high_frac, seedling_par_low,&
                    & par_low_frac)
               
@@ -2346,9 +2338,8 @@ contains
            do while (associated(ccohort))
               !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
               if(.not.ccohort%isnew)then
-                 ! [kgC/plant/yr] -> [gC/m2/s]
-                 site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
-                      g_per_kg * hlm_days_per_year / sec_per_day
+                 ! [kgC/plant/yr] -> [gC/m2/yr]
+                 site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * g_per_kg
               end if
               ccohort => ccohort%shorter
            end do
@@ -2375,7 +2366,7 @@ end subroutine UpdateFatesRMeansTStep
 ! ========================================================================================
 
 subroutine SeedlingParPatch(cpatch, & 
-     atm_par, & 
+     atm_par_dir,atm_par_dif, & 
      seedling_par_high, par_high_frac, &
      seedling_par_low, par_low_frac)
 
@@ -2394,7 +2385,8 @@ subroutine SeedlingParPatch(cpatch, &
 
   ! Arguments
   type(fates_patch_type)   :: cpatch             ! the current patch
-  real(r8), intent(in)  :: atm_par            ! direct+diffuse PAR at canopy top [W/m2]
+  real(r8), intent(in)  :: atm_par_dir        ! direct PAR at canopy top [W/m2]
+  real(r8), intent(in)  :: atm_par_dif        ! diffuse PAR at canopy top [W/m2]
   real(r8), intent(out) :: seedling_par_high  ! High intensity PAR for seedlings [W/m2]
   real(r8), intent(out) :: par_high_frac      ! Area fraction with high intensity
   real(r8), intent(out) :: seedling_par_low   ! Low intensity PAR for seedlings [W/m2]
@@ -2408,7 +2400,7 @@ subroutine SeedlingParPatch(cpatch, &
   integer  :: iv         ! lower-most leaf layer index for the cl & pft combo
 
   ! Start with the assumption that there is a single canopy layer
-  seedling_par_high = atm_par
+  seedling_par_high = atm_par_dir+atm_par_dif
   par_high_frac     = 1._r8-cpatch%total_canopy_area
   par_low_frac      = cpatch%total_canopy_area
 
@@ -2421,7 +2413,8 @@ subroutine SeedlingParPatch(cpatch, &
         ! Avoid calculating when there are no leaf layers for the given pft in the current canopy layer
         if (iv .ne. 0) then
            cl_par = cl_par + cpatch%canopy_area_profile(cl,ipft,1)* &
-                (cpatch%parprof_pft_dir_z(cl,ipft,iv)+cpatch%parprof_pft_dif_z(cl,ipft,iv))
+                (atm_par_dir*cpatch%nrmlzd_parprof_pft_dir_z(cl,ipft,iv) + &
+                 atm_par_dif*cpatch%nrmlzd_parprof_pft_dif_z(cl,ipft,iv))
            cl_area = cl_area + cpatch%canopy_area_profile(cl,ipft,1)
         end if
      end do
@@ -2662,45 +2655,56 @@ subroutine DetermineGridCellNeighbors(neighbors,seeds,numg)
 
 
    call t_stopf('fates-seed-init-decomp')
+   
+ end subroutine DetermineGridCellNeighbors
+ 
+ ! ======================================================================================
+ 
+ subroutine FatesTransferParameters()
+   
+   logical :: masterproc
 
-end subroutine DetermineGridCellNeighbors
+   ! This is a wrapper routine
+   ! It calls subroutines that transfer process groups of parameters
+   ! from the generic data structure to the primitives used by the model
+   ! When it is complete, we perform the checks
+   
+   call TransferParamsGeneric(pstruct)
+   call TransferParamsSpitFire(pstruct)
+   call TransferParamsPRT(pstruct)
+   call TransferParamsLeafBiophys(pstruct)
+   call TransferParamsPFT(pstruct)
+   
+   masterproc = (hlm_masterproc == itrue )
+   
+   if(debug .and. masterproc) call pstruct%ReportAccessCounts()
 
-! ======================================================================================
-     
-!-----------------------------------------------------------------------
-! TODO(jpalex): this belongs in FatesParametersInterface.F90, but would require
-! untangling the dependencies of the *RegisterParams methods below.
-subroutine FatesReadParameters(param_reader)
-  implicit none
-  
-  class(fates_param_reader_type), intent(in) :: param_reader ! HLM-provided param file reader
+ end subroutine FatesTransferParameters
 
-  character(len=32)  :: subname = 'FatesReadParameters'
-  class(fates_parameters_type), allocatable :: fates_params
 
-  if ( hlm_masterproc == itrue ) then
-    write(fates_log(), *) 'FatesParametersInterface.F90::'//trim(subname)//' :: CLM reading ED/FATES '//' parameters '
-  end if
+ subroutine FatesCheckParameters()
+   
+   logical :: masterproc   ! Is this the master process?
+   
+   masterproc = (hlm_masterproc == itrue )
 
-  allocate(fates_params)
-  call fates_params%Init()   ! fates_params class, in FatesParameterInterfaceMod
-  call FatesRegisterParams(fates_params)  !EDParamsMod, only operates on fates_params class
-  call SpitFireRegisterParams(fates_params) !SpitFire Mod, only operates of fates_params class
-  call PRTRegisterParams(fates_params)     ! PRT mod, only operates on fates_params class
-  call LeafBiophysRegisterParams(fates_params)
-  call FatesSynchronizedParamsInst%RegisterParams(fates_params) !Synchronized params class in Synchronized params mod, only operates on fates_params class
-
-  call param_reader%Read(fates_params)
-
-  call FatesReceiveParams(fates_params)
-  call SpitFireReceiveParams(fates_params)
-  call PRTReceiveParams(fates_params)
-  call LeafBiophysReceiveParams(fates_params)
-  call FatesSynchronizedParamsInst%ReceiveParams(fates_params)
-
-  call fates_params%Destroy()
-  deallocate(fates_params)
-
- end subroutine FatesReadParameters
+   ! This is NOT transfering from the generic
+   ! json data structure, it is transfering
+   ! from the pftvarcon to the two-stream
+   ! and requires namelist variables to
+   ! be known (thats why it is here, later in the
+   ! the sequence)
+   call TransferRadParams()
+   
+   call FatesReportPFTParams(masterproc)
+   call FatesReportParams(masterproc)
+   call LeafBiophysReportParams(masterproc)
+   
+   call PRTDerivedParams()              ! Update PARTEH derived constants
+   call FatesCheckParams(masterproc)    ! Check general fates parameters
+   call PRTCheckParams(masterproc)      ! Check PARTEH parameters
+   call SpitFireCheckParams(masterproc)
+   
+ end subroutine FatesCheckParameters
 
 end module FatesInterfaceMod
