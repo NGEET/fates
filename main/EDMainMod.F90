@@ -27,6 +27,7 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : hlm_masterproc
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
+  use FatesInterfaceTypesMod        , only : ZeroBCOutCarbonFluxes
   use PRTGenericMod            , only : prt_carbon_allom_hyp
   use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
   use PRTGenericMod            , only : nitrogen_element
@@ -46,6 +47,7 @@ module EDMainMod
   use EDPhysiologyMod          , only : SeedUpdate
   use EDPhysiologyMod          , only : ZeroAllocationRates
   use EDPhysiologyMod          , only : ZeroLitterFluxes
+ 
   use EDPhysiologyMod          , only : PreDisturbanceLitterFluxes
   use EDPhysiologyMod          , only : PreDisturbanceIntegrateLitter
   use EDPhysiologyMod          , only : UpdateRecruitL2FR
@@ -77,7 +79,10 @@ module EDMainMod
   use FatesConstantsMod        , only : n_landuse_cats  
   use FatesConstantsMod        , only : nearzero
   use FatesConstantsMod        , only : m2_per_ha
+  use FatesConstantsMod        , only : ha_per_m2
+  use FatesConstantsMod        , only : days_per_sec
   use FatesConstantsMod        , only : sec_per_day
+  use FatesConstantsMod        , only : g_per_kg
   use FatesConstantsMod        , only : nocomp_bareground
   use FatesPlantHydraulicsMod  , only : do_growthrecruiteffects
   use FatesPlantHydraulicsMod  , only : UpdateSizeDepPlantHydProps
@@ -188,6 +193,9 @@ contains
 
     ! Zero fluxes in and out of litter pools
     call ZeroLitterFluxes(currentSite)
+
+    ! Zero diagnostic bc_out carbon fluxes
+    call ZeroBCOutCarbonFluxes(bc_out)
 
     ! Zero mass balance
     call TotalBalanceCheck(currentSite, 0)
@@ -418,9 +426,7 @@ contains
 
     current_fates_landuse_state_vector = currentSite%get_current_landuse_statevector()
 
-    ! Clear site GPP and AR passing to HLM
-    bc_out%gpp_site = 0._r8
-    bc_out%ar_site = 0._r8
+    
 
     ! Patch level biomass are required for C-based harvest
     call get_harvestable_carbon(currentSite, bc_in%site_area, bc_in%hlm_harvest_catnames, harvestable_forest_c)
@@ -637,19 +643,9 @@ contains
           
           currentCohort%npp_acc_hold  = currentCohort%npp_acc_hold - &
                currentCohort%resp_excess_hold*real( hlm_days_per_year,r8)
-
-          ! Passing gpp_acc_hold to HLM 
-          bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
-               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
-          bc_out%ar_site = bc_out%ar_site + (currentCohort%resp_m_acc_hold + &
-               currentCohort%resp_g_acc_hold + currentCohort%resp_excess_hold*real(hlm_days_per_year,r8) ) * & 
-               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
           
           ! Update the mass balance tracking for the daily nutrient uptake flux
           ! Then zero out the daily uptakes, they have been used
-
-          ! -----------------------------------------------------------------------------
-
 
           
           call EffluxIntoLitterPools(currentSite, currentPatch, currentCohort, bc_in )
@@ -672,11 +668,6 @@ contains
                currentSite%mass_balance(element_pos(carbon12_element))%net_root_uptake - &
                currentCohort%daily_c_efflux*currentCohort%n
 
-          ! Save NPP diagnostic for flux accounting [kg/m2/day]
-
-          currentSite%flux_diags%npp = currentSite%flux_diags%npp + &
-               currentCohort%npp_acc_hold/real( hlm_days_per_year,r8) * currentCohort%n * area_inv
-          
           ! And simultaneously add the input fluxes to mass balance accounting
           site_cmass%gpp_acc   = site_cmass%gpp_acc + &
                 currentCohort%gpp_acc * currentCohort%n
@@ -685,7 +676,7 @@ contains
                currentCohort%resp_m_acc*currentCohort%n + &
                currentCohort%resp_excess_hold*currentCohort%n + &
                currentCohort%resp_g_acc_hold*currentCohort%n/real( hlm_days_per_year,r8)
-
+          
           call currentCohort%prt%CheckMassConservation(ft,5)
 
           ! Update the leaf biophysical rates based on proportion of leaf
@@ -714,7 +705,7 @@ contains
           ! (size --> heights of elements --> hydraulic path lengths -->
           ! maximum node-to-node conductances)
           if( (hlm_use_planthydro.eq.itrue) .and. do_growthrecruiteffects) then
-             call UpdateSizeDepPlantHydProps(currentSite,currentCohort, bc_in)
+             call UpdateSizeDepPlantHydProps(currentSite,currentCohort)
              call UpdateSizeDepPlantHydStates(currentSite,currentCohort)
           end if
 
@@ -782,7 +773,7 @@ contains
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
        
-       call GenerateDamageAndLitterFluxes( currentSite, currentPatch, bc_in)
+       call GenerateDamageAndLitterFluxes( currentSite, currentPatch)
 
        call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
 
@@ -839,24 +830,35 @@ contains
     !
     ! !LOCAL VARIABLES:
     type (fates_patch_type) , pointer :: currentPatch
+    type(site_massbal_type), pointer :: site_cmass
+    real(r8) :: total_stock  ! dummy variable for receiving from sitemassstock
     !-----------------------------------------------------------------------
 
+    site_cmass => currentSite%mass_balance(element_pos(carbon12_element))
+    
     ! check patch order (set second argument to true)
     if (debug) then
        call set_patchno(currentSite,.true.,1)
     end if
+
+    ! Set gpp and ar bc outputs prior to zeroing the associate site carbon mass variables
+    bc_out%gpp_site = site_cmass%gpp_acc * area_inv * days_per_sec
+    bc_out%ar_site  = site_cmass%aresp_acc * area_inv * days_per_sec
     
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting))then
-      call canopy_spread(currentSite)
+       call canopy_spread(currentSite)
+    else
+       site_cmass%gpp_acc = 0._r8
+       site_cmass%aresp_acc = 0._r8
     end if
 
-    call TotalBalanceCheck(currentSite,6)
+    call TotalBalanceCheck(currentSite,6,is_restarting=is_restarting)
 
     if(hlm_use_sp.eq.ifalse .and. (.not.is_restarting) )then
        call canopy_structure(currentSite, bc_in)
     endif
 
-    call TotalBalanceCheck(currentSite,final_check_id)
+    call TotalBalanceCheck(currentSite,final_check_id,is_restarting=is_restarting)
 
     ! Update recruit L2FRs based on new canopy position
     call SetRecruitL2FR(currentSite)
@@ -905,21 +907,44 @@ contains
      endif
     endif
 
+    ! report summary diagnostic values of FATES carbon mass pools for HLM to include in total land stocks
+    call SiteMassStock(currentSite,carbon12_element,total_stock,&
+         bc_out%veg_c_si, bc_out%litter_cwd_c_si, bc_out%seed_c_si)
+
+    ! because the outputs of SiteMassStock are in kg C/ha, convert units to g C/m2
+    bc_out%veg_c_si = bc_out%veg_c_si * g_per_kg * AREA_INV
+    bc_out%litter_cwd_c_si = bc_out%litter_cwd_c_si * g_per_kg * AREA_INV
+    bc_out%seed_c_si = bc_out%seed_c_si * g_per_kg * AREA_INV
+
+    ! Set boundary condition to HLM for carbon loss to atm from fires and grazing
+    ! [kgC/ha/day]*[ha/m2]*[day/s] = [kg/m2/s] 
+    
+    bc_out%fire_closs_to_atm_si = site_cmass%burn_flux_to_atm * area_inv * days_per_sec
+    bc_out%grazing_closs_to_atm_si = site_cmass%herbivory_flux_out * area_inv * days_per_sec
+
   end subroutine ed_update_site
 
   !-------------------------------------------------------------------------------!
 
-  subroutine TotalBalanceCheck (currentSite, call_index )
+  subroutine TotalBalanceCheck (currentSite, call_index, is_restarting )
 
     !
     ! !DESCRIPTION:
     ! This routine looks at the mass flux in and out of the FATES and compares it to
     ! the change in total stocks (states).
     ! Fluxes in are NPP. Fluxes out are decay of CWD and litter into SOM pools.
+    ! Note: If the model is restarting, it is assumed that the mass stocks
+    ! that were saved in the restart file are the "old" stocks, and they
+    ! should equal the stocks that are currently in the sites. However,
+    ! the fluxes on a restart are saved so that they can inform the HLM
+    ! on the next day, so we have to modify our mass balance check to ignore
+    ! fluxes on restarts.
     !
     ! !ARGUMENTS:
     type(ed_site_type) , intent(inout) :: currentSite
     integer            , intent(in)    :: call_index
+    logical,optional   , intent(in)    :: is_restarting  ! is the model going through its restart init procedure?
+    
     !
     ! !LOCAL VARIABLES:
     type(site_massbal_type),pointer :: site_mass
@@ -939,7 +964,7 @@ contains
     real(r8) :: store_m         ! "" storage
     real(r8) :: struct_m        ! "" structure
     real(r8) :: repro_m         ! "" reproduction
-
+    logical  :: l_is_restarting  ! local version of the optional arg
     integer  :: el              ! loop counter for element types
 
     ! nb. There is no time associated with these variables
@@ -954,38 +979,46 @@ contains
     logical, parameter :: print_cohorts = .true.   ! Set to true if you want
                                                     ! to print cohort data
                                                     ! upon fail (lots of text)
+    l_is_restarting = .false.
+    if(present(is_restarting))then
+       l_is_restarting = is_restarting
+    end if
+    
     !-----------------------------------------------------------------------
 
   if(hlm_use_sp.eq.ifalse)then
 
     change_in_stock = 0.0_r8
 
-
     ! Loop through the number of elements in the system
 
-    do el = 1, num_elements
+    do_elem_loop: do el = 1, num_elements
 
        site_mass => currentSite%mass_balance(el)
 
        call SiteMassStock(currentSite,el,total_stock,biomass_stock,litter_stock,seed_stock)
 
        change_in_stock = total_stock - site_mass%old_stock
+       if(l_is_restarting) then
+          flux_in  = 0._r8
+          flux_out = 0._r8
+       else
+          flux_in  = site_mass%seed_in + &
+               site_mass%net_root_uptake + &
+               site_mass%gpp_acc + &
+               site_mass%flux_generic_in + &
+               site_mass%patch_resize_err
 
-       flux_in  = site_mass%seed_in + &
-                  site_mass%net_root_uptake + &
-                  site_mass%gpp_acc + &
-                  site_mass%flux_generic_in + &
-                  site_mass%patch_resize_err
-
-       flux_out = sum(site_mass%wood_product_harvest(:)) + &
-                  sum(site_mass%wood_product_landusechange(:)) + &
-                  site_mass%burn_flux_to_atm + &
-                  site_mass%seed_out + &
-                  site_mass%flux_generic_out + &
-                  site_mass%frag_out + &
-                  site_mass%aresp_acc + &
-                  site_mass%herbivory_flux_out
-
+          flux_out = sum(site_mass%wood_product_harvest(:)) + &
+               sum(site_mass%wood_product_landusechange(:)) + &
+               site_mass%burn_flux_to_atm + &
+               site_mass%seed_out + &
+               site_mass%flux_generic_out + &
+               site_mass%frag_out + &
+               site_mass%aresp_acc + &
+               site_mass%herbivory_flux_out
+       end if
+       
        net_flux        = flux_in - flux_out
        error           = abs(net_flux - change_in_stock)
 
@@ -1083,12 +1116,13 @@ contains
 
       ! This is the last check of the sequence, where we update our total
       ! error check and the final fates stock
-      if(call_index == final_check_id) then
-          site_mass%old_stock = total_stock
-          site_mass%err_fates = net_flux - change_in_stock
+      if(call_index == final_check_id .and. .not. l_is_restarting) then
+         site_mass%old_stock = total_stock
+         site_mass%err_fates = net_flux - change_in_stock
       end if
 
-   end do
+   end do do_elem_loop
+   
   end if ! not SP mode
   end subroutine TotalBalanceCheck
 
@@ -1153,14 +1187,6 @@ contains
           ! Shouldn't need to zero any nutrient fluxes
           ! as they should just be zero, no uptake
           ! in ST3 mode.
-
-          ! Passing 
-          bc_out%gpp_site = bc_out%gpp_site + currentCohort%gpp_acc_hold * &
-               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
-          bc_out%ar_site = bc_out%ar_site + (currentCohort%resp_m_acc_hold + &
-               currentCohort%resp_g_acc_hold +  &
-               currentCohort%resp_excess_hold*real( hlm_days_per_year,r8)) * & 
-               AREA_INV * currentCohort%n / real( hlm_days_per_year,r8) / sec_per_day
           
           currentCohort => currentCohort%taller
        enddo

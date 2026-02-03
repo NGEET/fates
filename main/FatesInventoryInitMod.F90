@@ -28,7 +28,6 @@ module FatesInventoryInitMod
    ! FATES GLOBALS
    use FatesConstantsMod, only : r8 => fates_r8
    use FatesConstantsMod, only : pi_const
-   use FatesConstantsMod, only : itrue
    use FatesConstantsMod, only : nearzero
    use FatesGlobals     , only : endrun => fates_endrun
    use FatesGlobals     , only : fates_log
@@ -45,6 +44,8 @@ module FatesInventoryInitMod
    use EDTypesMod       , only : area
    use FatesConstantsMod, only : leaves_on
    use FatesConstantsMod, only : leaves_off
+   use FatesConstantsMod, only : ievergreen
+   use FatesConstantsMod, only : ihard_season_decid
    use FatesConstantsMod, only : ihard_stress_decid
    use FatesConstantsMod, only : isemi_stress_decid
    use PRTGenericMod    , only : num_elements
@@ -76,6 +77,7 @@ module FatesInventoryInitMod
    use FatesConstantsMod,   only : fates_unset_int
    use EDCanopyStructureMod, only : canopy_summarization, canopy_structure
    use FatesRadiationMemMod, only : num_swb
+   use FatesUtilsMod,       only : GreatCircleDist
    implicit none
    private
 
@@ -104,6 +106,9 @@ module FatesInventoryInitMod
                                                            ! defined in model memory and a physical
                                                            ! site listed in the file
 
+   real(r8), parameter :: max_site_adjacency_m  = 5500._r8 ! 0.05 deg roughly equals 5.5k meters
+                                                           ! at the two tropic lines (111 km/deg)
+   
    logical, parameter :: do_inventory_out = .false.
 
 
@@ -147,6 +152,7 @@ contains
       real(r8)                                     :: age_init             ! dummy value for creating a patch
       real(r8)                                     :: area_init            ! dummy value for creating a patch
       integer                                      :: s                    ! site index
+      integer                                      :: i                    ! inventory site index
       integer                                      :: ipa                  ! patch index
       integer                                      :: iv, ft, ic
       integer                                      :: total_cohorts        ! cohort counter for error checking
@@ -156,6 +162,7 @@ contains
 
       real(r8),                        allocatable :: inv_lat_list(:)      ! list of lat coords
       real(r8),                        allocatable :: inv_lon_list(:)      ! list of lon coords
+      real(r8),                        allocatable :: delta_site_list(:)   ! list of differences between model site and inv site (m)
       integer                                      :: invsite              ! index of inventory site
                                                                            ! closest to actual site
       integer                                      :: el                   ! loop counter for number of elements
@@ -209,7 +216,7 @@ contains
       allocate(inv_css_list(nfilesites))
       allocate(inv_lat_list(nfilesites))
       allocate(inv_lon_list(nfilesites))
-
+      allocate(delta_site_list(nfilesites))
 
       ! Check through the sites that are listed and do some sanity checks
       ! ------------------------------------------------------------------------------------------
@@ -230,17 +237,22 @@ contains
       ! For each site, identify the most proximal PSS/CSS couplet, read-in the data
       ! allocate linked lists and assign to memory
       do s = 1, nsites
-         invsite = &
-               minloc( (sites(s)%lat-inv_lat_list(:))**2.0_r8 + &
-               (sites(s)%lon-inv_lon_list(:))**2.0_r8 , dim=1)
+
+         do i = 1,nfilesites
+            ! Great circle calculates the distance in meters between two points
+            ! on the earth and also factors in the earth's curvature
+            delta_site_list(i) = &
+                 GreatCircleDist(sites(s)%lon,inv_lon_list(i),sites(s)%lat,inv_lat_list(i))
+         end do
+            
+         invsite = minloc(delta_site_list(:), dim=1)
 
          ! Do a sanity check on the distance separation between physical site and model site
-         if ( sqrt( (sites(s)%lat-inv_lat_list(invsite))**2.0_r8 + &
-               (sites(s)%lon-inv_lon_list(invsite))**2.0_r8 ) > max_site_adjacency_deg ) then
+         if ( delta_site_list(invsite) > max_site_adjacency_m ) then
             write(fates_log(), *) 'Model site at lat:',sites(s)%lat,' lon:',sites(s)%lon
             write(fates_log(), *) 'has no reasonably proximal site in the inventory site list.'
             write(fates_log(), *) 'Closest is at lat:',inv_lat_list(invsite),' lon:',inv_lon_list(invsite)
-            write(fates_log(), *) 'Separation must be less than ',max_site_adjacency_deg,' degrees'
+            write(fates_log(), *) 'Separation must be less than ',max_site_adjacency_m,' meters'
             write(fates_log(), *) 'Exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
@@ -480,7 +492,7 @@ contains
 
       end do
       
-      deallocate(inv_format_list, inv_pss_list, inv_css_list, inv_lat_list, inv_lon_list)
+      deallocate(inv_format_list, inv_pss_list, inv_css_list, inv_lat_list, inv_lon_list,delta_site_list)
 
       return
    end subroutine initialize_sites_by_inventory
@@ -970,17 +982,24 @@ contains
          fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(temp_cohort%pft)
          stem_drop_fraction = prt_params%phen_stem_drop_fraction(temp_cohort%pft)
 
-         if( prt_params%season_decid(temp_cohort%pft) == itrue .and. &
-              any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold])) then
-            ! Cold deciduous and season is for leaves off. Set leaf status and 
-            ! elongation factors accordingly
-            temp_cohort%efleaf_coh = 0.0_r8
-            temp_cohort%effnrt_coh = 1._r8 - fnrt_drop_fraction
-            temp_cohort%efstem_coh = 1._r8 - stem_drop_fraction
+         phen_select: select case (prt_params%phen_leaf_habit(temp_cohort%pft))
+         case (ihard_season_decid)
+            if ( any(csite%cstatus == [phen_cstat_nevercold,phen_cstat_iscold]) ) then
+               ! Cold deciduous and season is for leaves off. Set leaf status and 
+               ! elongation factors accordingly
+               temp_cohort%efleaf_coh = 0.0_r8
+               temp_cohort%effnrt_coh = 1._r8 - fnrt_drop_fraction
+               temp_cohort%efstem_coh = 1._r8 - stem_drop_fraction
+               temp_cohort%status_coh = leaves_off
+            else
+               ! Cold deciduous during the growing season. Assume tissues are fully flushed.
+               temp_cohort%efleaf_coh = 1.0_r8
+               temp_cohort%effnrt_coh = 1.0_r8
+               temp_cohort%efstem_coh = 1.0_r8
+               temp_cohort%status_coh = leaves_on
+            end if
 
-            temp_cohort%status_coh = leaves_off
-
-         elseif ( any(prt_params%stress_decid(temp_cohort%pft) == [ihard_stress_decid,isemi_stress_decid])) then
+         case (ihard_stress_decid,isemi_stress_decid)
             ! Drought deciduous.  For the default approach, elongation factor is either
             ! zero (full abscission) or one (fully flushed), but this can also be a
             ! fraction in other approaches. Here we assume that leaves are "on" (i.e.
@@ -1002,14 +1021,13 @@ contains
                ! Leaves are off (abscissing).
                temp_cohort%status_coh = leaves_off
             end if
-         else
-            ! Evergreen, or deciduous PFT during the growing season. Assume tissues are fully flushed.
+         case (ievergreen)
+            ! Evergreen. Assume tissues are fully flushed.
             temp_cohort%efleaf_coh = 1.0_r8
             temp_cohort%effnrt_coh = 1.0_r8
             temp_cohort%efstem_coh = 1.0_r8
-
             temp_cohort%status_coh = leaves_on
-         end if
+         end select phen_select
 
          call bagw_allom(temp_cohort%dbh,temp_cohort%pft, &
               temp_cohort%crowndamage, temp_cohort%efstem_coh, c_agw)

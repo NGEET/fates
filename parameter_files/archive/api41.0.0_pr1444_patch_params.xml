@@ -1,0 +1,119 @@
+<?xml version="1.0"?>
+<all>
+  <!-- This parameter patch file updates the parameter file with the changes
+  associated with pull requests 1360, 1419, and 1412 (all merge via 1444) -->
+
+  <!-- To use this patch file run the following command: -->
+  <!--   Run `python ../tools/UpdateParamAPI.py -/-f archive/api41.0.0_pr1444_patch_params.xml` -->
+
+  <!-- General xml file usage notes: -->
+  <!-- Special mod types 
+         "variable_add": creates a new variable
+         "dimension_add": creates a new dimension
+         "variable_del": removes a variable, must include attribute "name" 
+         "variable_change": change values in the parameter, possibly including the name, and
+                          this must also come with a name attribute as well -->
+  <!-- To change a dimension. The easiest way to script this, is to delete the variables
+         that use it, delete the dimension. Re-add it with the new size, and then re-add
+         the variables -->
+  <!-- -->
+  
+  <base_file>archive/api40.0.0_060625_params_default.cdl</base_file>
+  <new_file>fates_params_default.cdl</new_file>
+  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12,13,14 </pft_list>
+  <mods>
+    <mod type="variable_del">
+      <na> fates_leaf_theta_cj_c3 </na>
+    </mod>
+    <mod type="variable_del">
+      <na> fates_leaf_theta_cj_c4 </na>
+    </mod>
+    <mod type="variable_change" name="fates_landuse_crop_lu_pft_vector">
+      <val> -999, -999, -999, -999, 13 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rxfire_temp_upthreshold </na>
+      <di> scalar </di>
+      <un> degree C </un>
+      <ln> maximum temprature threshold above which prescribed fire is disallowed </ln>
+      <val> 30 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rxfire_temp_lwthreshold </na>
+      <di> scalar </di>
+      <un> degree C </un>
+      <ln> minimum temprature threshold below which prescribed fire is disallowed </ln>
+      <val> 5 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rxfire_rh_upthreshold </na>
+      <di> scalar </di>
+      <un> % </un>
+      <ln> maximum relative humidity threshold above which prescribed fire is disallowed </ln>
+      <val> 55 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rxfire_rh_lwthreshold </na>
+      <di> scalar </di>
+      <un> % </un>
+      <ln> minimum relative humidity threshold below which prescribed fire is disallowed </ln>
+      <val> 30 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rxfire_wind_upthreshold </na>
+      <di> scalar </di>
+      <un> % </un>
+      <ln> maximum wind speed threshold above which prescribed fire is disallowed </ln>
+      <val> 10 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rxfire_wind_lwthreshold </na>
+      <di> scalar </di>
+      <un> % </un>
+      <ln> minimum wind speed threshold below which prescribed fire is disallowed </ln>
+      <val> 2 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rxfire_AB </na>
+      <di> scalar </di>
+      <un> fraction/day </un>
+      <ln> daily burn capacity of prescribed fire </ln>
+      <val> 0.01 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rxfire_min_threshold </na>
+      <di> scalar </di>
+      <un> kJ/m/s or kW/m </un>
+      <ln> minimum energy threshold at or above which prescribed fire is disallowed </ln>
+      <val> 50 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rxfire_max_threshold </na>
+      <di> scalar </di>
+      <un> kJ/m/s or kW/m </un>
+      <ln> maximum energy threshold at or above which prescribed fire is disallowed </ln>
+      <val> 500 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rxfire_fuel_min </na>
+      <di> scalar </di>
+      <un> kgC/m2 </un>
+      <ln> minimum fuel load at or below which prescribed fire is disallowed </ln>
+      <val> 0.5 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rxfire_fuel_max </na>
+      <di> scalar </di>
+      <un> kgC/m2 </un>
+      <ln> maximum fuel load at or above which prescribed fire is disallowed </ln>
+      <val> 1.5 </val>
+    </mod>
+    <mod type="variable_add">
+      <na> fates_rxfire_min_frac </na>
+      <di> scalar </di>
+      <un> fraction </un>
+      <ln> minimum fraction of land needs to be burnable to allow rx fire </ln>
+      <val> 0.1 </val>
+    </mod>
+  </mods>
+</all>

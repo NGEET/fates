@@ -1,11 +1,12 @@
-"""Utility functions for plotting, file checking, math equations, etc.
+"""Utility functions for file checking, math equations, etc.
+Do not include any third-party modules here.
 """
 
 import math
 import os
+import re
 import configparser
 import argparse
-import matplotlib.pyplot as plt
 from path_utils import add_cime_lib_to_path
 
 add_cime_lib_to_path()
@@ -76,51 +77,25 @@ def copy_file(file_path: str, directory) -> str:
     return file_basename
 
 
-def get_color_palette(number: int) -> list:
-    """_summary_
+def get_abspath_from_config_file(relative_path, config_file):
+    """
+    Gets the absolute path of a file relative to the config file where it was defined.
 
     Args:
-        number (int): number of colors to get - must be <= 20
-
-    Raises:
-        ValueError: number must be less than hard-coded list
+      relative_path: The path to the target file, relative to the base file.
+      config_file: The path to the config file.
 
     Returns:
-        list[tuple]: list of colors to use in plotting
+      The absolute path of the target file.
     """
 
-    # hard-coded list of colors, can add more here if necessary
-    all_colors = [
-        (31, 119, 180),
-        (174, 199, 232),
-        (255, 127, 14),
-        (255, 187, 120),
-        (44, 160, 44),
-        (152, 223, 138),
-        (214, 39, 40),
-        (255, 152, 150),
-        (148, 103, 189),
-        (197, 176, 213),
-        (140, 86, 75),
-        (196, 156, 148),
-        (227, 119, 194),
-        (247, 182, 210),
-        (127, 127, 127),
-        (199, 199, 199),
-        (188, 189, 34),
-        (219, 219, 141),
-        (23, 190, 207),
-        (158, 218, 229),
-    ]
+    # Do nothing if it's already a absolute path
+    if os.path.isabs(relative_path):
+        return relative_path
 
-    if number > len(all_colors):
-        raise ValueError(f"get_color_palette: number must be <= {len(all_colors)}")
-
-    colors = [
-        (red / 255.0, green / 255.0, blue / 255.0) for red, green, blue in all_colors
-    ]
-
-    return colors[:number]
+    base_dir = os.path.dirname(os.path.abspath(config_file))
+    absolute_path = os.path.abspath(os.path.join(base_dir, relative_path))
+    return absolute_path
 
 
 def config_to_dict(config_file: str) -> dict:
@@ -132,6 +107,10 @@ def config_to_dict(config_file: str) -> dict:
     Returns:
         dictionary: dictionary of config file
     """
+
+    # Define list of config file options that we expect to be paths
+    options_that_are_paths = ["datm_file"]
+
     config = configparser.ConfigParser()
     config.read(config_file)
 
@@ -139,7 +118,14 @@ def config_to_dict(config_file: str) -> dict:
     for section in config.sections():
         dictionary[section] = {}
         for option in config.options(section):
-            dictionary[section][option] = config.get(section, option)
+            value = config.get(section, option)
+
+            # If the option is one that we expect to be a path, ensure it's an absolute path.
+            if option in options_that_are_paths:
+                value = get_abspath_from_config_file(value, config_file)
+
+            # Save value to dictionary
+            dictionary[section][option] = value
 
     return dictionary
 
@@ -193,6 +179,27 @@ def str_to_bool(val: str) -> bool:
         return False
     raise ValueError(f"invalid truth value {val}")
 
+def snake_to_camel(snake_str: str) -> str:
+    """Convert a snake_case string to CamelCase.
+
+    Args:
+        snake_str (str): input snake case
+
+    Returns:
+        str: output CamelCase
+    """
+    return "".join(word.capitalize() for word in snake_str.split("_"))
+
+def camel_to_snake(camel_str: str) -> str:
+    """Convert a CamelCase string to snake_case.
+
+    Args:
+        camel_str (str): input camel case
+
+    Returns:
+        str: output snake_case
+    """
+    return re.sub(r'(?<!^)(?=[A-Z])', '_', camel_str).lower()
 
 def str_to_list(val: str) -> list:
     """converts string representation of list to actual list
@@ -208,52 +215,3 @@ def str_to_list(val: str) -> list:
         return []
     res = val.strip("][").split(",")
     return [n.strip() for n in res]
-
-
-def blank_plot(
-    x_max: float,
-    x_min: float,
-    y_max: float,
-    y_min: float,
-    draw_horizontal_lines: bool = False,
-):
-    """Generate a blank plot with set attributes
-
-    Args:
-        x_max (float): maximum x value
-        x_min (float): minimum x value
-        y_max (float): maximum y value
-        y_min (float): minimum y value
-        draw_horizontal_lines (bool, optional): whether or not to draw horizontal
-        lines across plot. Defaults to False.
-    """
-
-    plt.figure(figsize=(7, 5))
-    axis = plt.subplot(111)
-    axis.spines["top"].set_visible(False)
-    axis.spines["bottom"].set_visible(False)
-    axis.spines["right"].set_visible(False)
-    axis.spines["left"].set_visible(False)
-
-    axis.get_xaxis().tick_bottom()
-    axis.get_yaxis().tick_left()
-
-    plt.xlim(0.0, x_max)
-    plt.ylim(0.0, y_max)
-
-    plt.yticks(fontsize=10)
-    plt.xticks(fontsize=10)
-
-    if draw_horizontal_lines:
-        inc = (int(y_max) - y_min) / 20
-        for i in range(0, 20):
-            plt.plot(
-                range(math.floor(x_min), math.ceil(x_max)),
-                [0.0 + i * inc] * len(range(math.floor(x_min), math.ceil(x_max))),
-                "--",
-                lw=0.5,
-                color="black",
-                alpha=0.3,
-            )
-
-    plt.tick_params(bottom=False, top=False, left=False, right=False)

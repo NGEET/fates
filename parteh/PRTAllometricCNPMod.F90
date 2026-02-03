@@ -53,6 +53,9 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : calloc_abs_error
   use FatesConstantsMod   , only : nearzero
   use FatesConstantsMod   , only : itrue
+  use FatesConstantsMod   , only : ifalse
+  use FatesConstantsMod   , only : coupled_p_uptake
+  use FatesConstantsMod   , only : coupled_n_uptake
   use FatesConstantsMod   , only : fates_unset_r8
   use FatesConstantsMod   , only : fates_unset_int
   use FatesConstantsMod   , only : sec_per_day
@@ -60,6 +63,7 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : default_regeneration
   use FatesConstantsMod   , only : TRS_no_seedling_dyn
   use FatesConstantsMod   , only : min_max_dbh_for_trees
+  use FatesConstantsMod   , only : ievergreen
   use PRTParametersMod    , only : prt_params
   use FatesConstantsMod   , only : leaves_on,leaves_off
   use FatesConstantsMod   , only : leaves_shedding
@@ -69,7 +73,8 @@ module PRTAllometricCNPMod
   use FatesConstantsMod   , only : prescribed_n_uptake
   use EDPftvarcon, only : EDPftvarcon_inst
   use FatesInterfaceTypesMod, only : hlm_regeneration_model
-
+  use FatesInterfaceTypesMod, only : hlm_nitrogen_suppl
+  use FatesInterfaceTypesMod, only : hlm_phosphorus_suppl
 
 
   implicit none
@@ -1039,7 +1044,7 @@ contains
        ! Also, dont allocate to replace turnover if this is not evergreen
        ! (this prevents accidental re-flushing on the day they drop)
        if( ( any(leaf_status == [leaves_off,leaves_shedding]) .or. &
-             (prt_params%evergreen(ipft) /= itrue) ) &
+             (prt_params%phen_leaf_habit(ipft) /= ievergreen) ) &
             .and. (i_org == leaf_organ)) cycle
 
        ! The priority code associated with this organ
@@ -1845,6 +1850,8 @@ contains
     real(r8), dimension(num_organs) :: deficit_p
     real(r8) :: target_n
     real(r8) :: target_p
+    logical  :: limiting_p
+    logical  :: limiting_n
     real(r8) :: store_c_target   ! Target amount of C in storage including "overflow" [kgC]
     real(r8) :: total_c_flux     ! Total C flux from gains into storage and growth R [kgC]
     real(r8), pointer :: dbh
@@ -1898,7 +1905,14 @@ contains
 
     ! This routine updates the l2fr (leaf 2 fine-root multiplier) variable
     ! It will also update the target
-    call this%CNPAdjustFRootTargets(target_c,target_dcdd)
+
+    ! turn on the dynamic L2FR if either nutrient in not being supplemented
+    limiting_p = ((p_uptake_mode .eq. coupled_p_uptake) .and. (hlm_phosphorus_suppl .eq. ifalse))
+    limiting_n = ((n_uptake_mode .eq. coupled_p_uptake) .and. (hlm_nitrogen_suppl .eq. ifalse))
+
+    if (limiting_p .or. limiting_n) then
+      call this%CNPAdjustFRootTargets(target_c,target_dcdd)
+    end if
 
     ! -----------------------------------------------------------------------------------
     ! If carbon is still available, lets cram some into storage overflow

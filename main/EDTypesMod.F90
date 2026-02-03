@@ -129,7 +129,6 @@ module EDTypesMod
                                                                           ! number densities of cohorts to prevent FPEs
 
   ! special mode to cause PFTs to create seed mass of all currently-existing PFTs
-  logical, parameter, public :: homogenize_seed_pfts  = .false.
   character(len=*), parameter, private :: sourcefile = __FILE__
 
   !************************************
@@ -138,7 +137,6 @@ module EDTypesMod
   !************************************
   type, public :: ed_resources_management_type
     
-     real(r8) ::  trunk_product_site                       ! Actual  trunk product at site level KgC/site
      real(r8) ::  harvest_debt                             ! the amount of kgC per site that did not successfully harvested 
      real(r8) ::  harvest_debt_sec                         ! the amount of kgC per site from secondary patches that did
                                                            ! not successfully harvested
@@ -219,18 +217,15 @@ module EDTypesMod
   type, public :: site_fluxdiags_type
 
 
-     ! This is for all diagnostics that are uniform over all elements (C,N,P)
+     ! These are site level flux diagnostics that are not used
+     ! in mass balance checks. We use these structures
+     ! to inform the history output.  These values are not
+     ! zero'd when dynamics are completed.  These values
+     ! are zero'd on cold-starts, and on restarts prior to the read
      
+     ! This is for all diagnostics that are uniform over all elements (C,N,P)
      type(elem_diag_type), pointer :: elem(:)
 
-     ! This variable is slated as to-do, but the fluxdiags type needs
-     ! to be refactored first. Currently this type is allocated
-     ! by chemical species (ie C, N or P). GPP is C, but not N or P (RGK 0524)
-     ! Previous day GPP [kgC/m2/year], partitioned by size x pft
-     !real(r8),allocatable :: gpp_prev_scpf(:)
-
-     real(r8) :: npp          ! kg m-2 day-1
-     
      ! Nutrient Flux Diagnostics
      
      real(r8) :: resp_excess  ! plant carbon respired due to carbon overflow
@@ -456,6 +451,12 @@ module EDTypesMod
      real(r8) ::  NF                                           ! daily ignitions in km2
      real(r8) ::  NF_successful                                ! daily ignitions in km2 that actually lead to fire
      class(fire_weather), pointer :: fireWeather               ! fire weather object
+     integer  ::  rx_flag                                      ! daily burn window flag
+     real(r8) ::  rxfire_area_fuel                             ! daily total burnable area [m2] when burn window present and fuel condition met 
+     real(r8) ::  rxfire_area_fi                               ! daily total burnable area [m2] when burn window present, fuel and fire intensity condition met
+     real(r8) ::  rxfire_area_final                            ! daily total burnable area [m2] when all conditions met  
+
+
 
      ! PLANT HYDRAULICS
      type(ed_site_hydr_type), pointer :: si_hydr
@@ -496,6 +497,12 @@ module EDTypesMod
 
      real(r8) :: fmort_crownarea_canopy                ! crownarea of canopy indivs killed due to fire per year. [m2/sec]
      real(r8) :: fmort_crownarea_ustory                ! crownarea of understory indivs killed due to fire per year [m2/sec] 
+     real(r8) :: rx_fmort_crownarea_canopy             ! crownarea of canopy indivs killed due to precribed fire per year [m2/sec]
+     real(r8) :: rx_fmort_crownarea_ustory             ! crownarea of undertsory indivs killed due to prescribed fire per year [m2/sec]
+     real(r8) :: nonrx_fmort_crownarea_canopy          ! crownarea of canopy indivs killed due to wildfire per year [m2/sec]
+     real(r8) :: nonrx_fmort_crownarea_ustory          ! crownarea of understory indivs killed due to wildfire per year [m2/sec]
+
+     
 
      real(r8), allocatable :: term_nindivs_canopy(:,:,:)   ! number of canopy individuals that were in cohorts which 
                                                            ! were terminated this timestep, by termination type, size x pft
@@ -509,10 +516,16 @@ module EDTypesMod
      real(r8), allocatable :: imort_carbonflux(:)        ! biomass of individuals killed due to impact mortality per year, by pft. [kgC/m2/sec]
      real(r8), allocatable :: fmort_carbonflux_canopy(:) ! biomass of canopy indivs killed due to fire per year, by pft. [gC/m2/sec]
      real(r8), allocatable :: fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to fire per year, by pft [gC/m2/sec] 
+     real(r8), allocatable :: rx_fmort_carbonflux_canopy(:) ! biomass of cnaopy indivs killed due to prescribed fire per year [gC/m2/sec]
+     real(r8), allocatable :: rx_fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to prescribed fire per year [gC/m2/sec]
+     real(r8), allocatable :: nonrx_fmort_carbonflux_canopy(:) ! biomass of canopy indivs killed due to wildfire per year [gC/m2/sec]
+     real(r8), allocatable :: nonrx_fmort_carbonflux_ustory(:) ! biomass of understory indivs killed due to wildfire per year [gC/m2/sec]
 
-     real(r8), allocatable :: term_abg_flux(:,:)          ! aboveground biomass lost due to termination mortality x size x pft
-     real(r8), allocatable :: imort_abg_flux(:,:)         ! aboveground biomass lost due to impact mortality x size x pft [kgC/m2/sec]
-     real(r8), allocatable :: fmort_abg_flux(:,:)         ! aboveground biomass lost due to fire mortality x size x pft
+     real(r8), allocatable :: term_abg_flux(:,:)           ! aboveground biomass lost due to termination mortality x size x pft
+     real(r8), allocatable :: imort_abg_flux(:,:)          ! aboveground biomass lost due to impact mortality x size x pft [kgC/m2/sec]
+     real(r8), allocatable :: fmort_abg_flux(:,:)          ! aboveground biomass lost due to total fire mortality x size x pft
+     real(r8), allocatable :: rx_fmort_abg_flux(:,:)       ! aboveground biomass loss due to precribed fire mortality x size x pft
+     real(r8), allocatable :: nonrx_fmort_abg_flux(:,:)    ! aboveground biomass loss due to wildfire mortality x size x pft
 
 
      real(r8) :: demotion_carbonflux                     ! biomass of demoted individuals from canopy to understory [kgC/ha/day]
@@ -533,6 +546,16 @@ module EDTypesMod
      real(r8), allocatable :: fmort_rate_crown(:,:)      ! rate of individuals killed due to fire mortality 
                                                          ! from crown damage per year.  on size x pft array
 
+     real(r8), allocatable :: rx_fmort_rate_canopy(:,:)   ! rate of canopy individuals killed due to prescribed fire per year
+     real(r8), allocatable :: rx_fmort_rate_ustory(:,:)   ! rate of understory individuals killed due to precribed fire per yr
+     real(r8), allocatable :: rx_fmort_rate_cambial(:,:)  ! cambial mortality rate due to prescribed fire
+     real(r8), allocatable :: rx_fmort_rate_crown(:,:)    ! crown damage mortality due to prescribed fire
+
+     real(r8), allocatable :: nonrx_fmort_rate_canopy(:,:)   ! rate of canopy indivs killed due to wildfire per year
+     real(r8), allocatable :: nonrx_fmort_rate_ustory(:,:)   ! rate of understory indivs killed due to wildfire per year
+     real(r8), allocatable :: nonrx_fmort_rate_cambial(:,:)  ! cambial mortality rate due to wildfire 
+     real(r8), allocatable :: nonrx_fmort_rate_crown(:,:)    ! crown damage mortality due to wildfire 
+
      real(r8), allocatable :: imort_rate_damage(:,:,:)     ! number of individuals per damage class that die from impact mortality
      real(r8), allocatable :: term_nindivs_canopy_damage(:,:,:) ! number of individuals per damage class that die from termination mortality - canopy
      real(r8), allocatable :: term_nindivs_ustory_damage(:,:,:) ! number of individuals per damage class that die from termination mortality - canopy
@@ -540,6 +563,14 @@ module EDTypesMod
      real(r8), allocatable :: fmort_rate_ustory_damage(:,:,:) ! number of individuals per damage class that die from fire - ustory
      real(r8), allocatable :: fmort_cflux_canopy_damage(:,:) ! cflux per damage class that die from fire - canopy
      real(r8), allocatable :: fmort_cflux_ustory_damage(:,:) ! cflux per damage class that die from fire - ustory
+     real(r8), allocatable :: rx_fmort_rate_canopy_damage(:,:,:) ! number of indivs per damage class that die from precribed fire -canopy
+     real(r8), allocatable :: rx_fmort_rate_ustory_damage(:,:,:) ! number of indivs per damage class that die from precribed fire -understory
+     real(r8), allocatable :: rx_fmort_cflux_canopy_damage(:,:) ! cflux per damage class that die from prescribed fire -canopy
+     real(r8), allocatable :: rx_fmort_cflux_ustory_damage(:,:) ! cflux per damage class that die from precribed fire - understory
+     real(r8), allocatable :: nonrx_fmort_rate_canopy_damage(:,:,:) !number of indivs per damage class that die from wildfire -canopy
+     real(r8), allocatable :: nonrx_fmort_rate_ustory_damage(:,:,:) !number of indivs per damage class that die from wildfire -understory
+     real(r8), allocatable :: nonrx_fmort_cflux_canopy_damage(:,:)  !cflux per damage class that die from wildfire - canopy
+     real(r8), allocatable :: nonrx_fmort_cflux_ustory_damage(:,:)  !cflux per damage class that die from wildfire - understory
      real(r8), allocatable :: imort_cflux_damage(:,:)         ! carbon flux from impact mortality by damage class [kgC/m2/sec]
      real(r8), allocatable :: term_cflux_canopy_damage(:,:)          ! carbon flux from termination mortality by damage class
      real(r8), allocatable :: term_cflux_ustory_damage(:,:)          ! carbon flux from termination mortality by damage class
@@ -644,7 +675,6 @@ contains
 
       end do
 
-     this%npp = 0._r8
      this%resp_excess = 0._r8
      this%nh4_uptake  = 0._r8
      this%no3_uptake  = 0._r8
@@ -660,11 +690,6 @@ contains
      this%p_uptake_scpf(:) = 0._r8
      this%p_efflux_scpf(:) = 0._r8
       
-     ! We don't zero gpp_prev_scpf because this is not
-     ! incremented like others, it is assigned at the end
-     ! of the daily history write process
-     
-     
      return
    end subroutine ZeroFluxDiags
 
@@ -814,7 +839,7 @@ contains
      currentPatch => this%oldest_patch
      do while (associated(currentPatch))
         if (currentPatch%land_use_label .eq. secondaryland) then
-           if ( currentPatch%age .ge. secondary_age_threshold ) then
+           if ( currentPatch%age_since_anthro_disturbance .ge. secondary_age_threshold ) then
               secondary_old_area = secondary_old_area + currentPatch%area
            else
               secondary_young_area = secondary_young_area + currentPatch%area

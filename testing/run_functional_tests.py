@@ -22,15 +22,17 @@ configurations for CIME.
 This script builds and runs FATES functional tests, and plots any relevant output from
 those tests.
 
-You can supply your own parameter file (either a .cdl or a .nc file), or if you do not
-specify anything, the script will use the default FATES parameter cdl file.
+You can supply your own parameter file (a json formatted file), or if you do not
+specify anything, the script will use the default FATES parameter json file.
 
 """
 import os
 import argparse
+import subprocess
 import matplotlib.pyplot as plt
 
 from build_fortran_tests import build_tests, build_exists
+from functional_class_with_drivers import FunctionalTestWithDrivers
 from path_utils import add_cime_lib_to_path
 from utils import copy_file, create_nc_from_cdl, config_to_dict, parse_test_list
 
@@ -39,12 +41,20 @@ from load_functional_tests import *
 
 add_cime_lib_to_path()
 
-from CIME.utils import run_cmd_no_fail
+from CIME.utils import run_cmd
 
 # constants for this script
-_DEFAULT_CONFIG_FILE = "functional_tests.cfg"
-_DEFAULT_CDL_PATH = os.path.abspath("../parameter_files/fates_params_default.cdl")
-_CMAKE_BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")
+_FILE_DIR = os.path.dirname(__file__)
+_DEFAULT_CONFIG_FILE = os.path.join(_FILE_DIR, "functional_tests.cfg")
+_DEFAULT_CDL_PATH = os.path.abspath(
+    os.path.join(
+        _FILE_DIR,
+        os.pardir,
+        "parameter_files",
+        "fates_params_default.json",
+    )
+)
+_CMAKE_BASE_DIR = os.path.join(_FILE_DIR, os.pardir)
 _TEST_SUB_DIR = "testing"
 
 
@@ -69,9 +79,16 @@ def commandline_args():
         type=str,
         default=_DEFAULT_CDL_PATH,
         help="Parameter file to run the FATES tests with.\n"
-        "Can be a netcdf (.nc) or cdl (.cdl) file.\n"
-        "If no file is specified the script will use the default .cdl file in the\n"
+        "This should be JSON formatted.\n"
+        "If no file is specified the script will use the default .json file in the\n"
         "parameter_files directory.\n",
+    )
+
+    parser.add_argument(
+        "--config-file",
+        type=str,
+        default=_DEFAULT_CONFIG_FILE,
+        help=f"Configuration file where test list is defined. Default: '{_DEFAULT_CONFIG_FILE}'",
     )
 
     parser.add_argument(
@@ -179,24 +196,30 @@ def check_arg_validity(args):
             )
         check_build_dir(args.build_dir, args.test_dict)
 
+    # Check that config file exists and is a file
+    if not os.path.exists(args.config_file):
+        raise FileNotFoundError(args.config_file)
+    if not os.path.isfile(args.config_file):
+        raise RuntimeError(f"config 'file' is a directory: '{args.config_file}'")
+
 
 def check_param_file(param_file):
-    """Checks to see if param_file exists and is of the correct form (.nc or .cdl)
+    """Checks to see if param_file exists and is of the correct form (.json)
 
     Args:
         param_file (str): path to parameter file
 
     Raises:
-        argparse.ArgumentError: Parameter file is not of the correct form (.nc or .cdl)
+        argparse.ArgumentError: Parameter file is not of the correct form (.json)
         argparse.ArgumentError: Can't find parameter file
     """
     file_suffix = os.path.basename(param_file).split(".")[-1]
-    if not file_suffix in ["cdl", "nc"]:
+    if not file_suffix in ["json"]:
         raise argparse.ArgumentError(
-            None, "Must supply parameter file with .cdl or .nc ending."
+            None, "Must supply parameter file with .json. Ending."
         )
     if not os.path.isfile(param_file):
-        raise argparse.ArgumentError(None, f"Cannot find file {param_file}.")
+        raise FileNotFoundError(param_file)
 
 
 def check_build_dir(build_dir, test_dict):
@@ -282,7 +305,7 @@ def run_functional_tests(
     if save_figs:
         make_plotdirs(os.path.abspath(run_dir), test_dict)
 
-    # move parameter file to correct location (creates nc file if cdl supplied)
+    # move parameter file to correct location
     param_file = create_param_file(param_file, run_dir)
 
     # compile code
@@ -295,8 +318,11 @@ def run_functional_tests(
     if run_executables:
         print("Running executables")
         for _, test in test_dict.items():
-            # prepend parameter file (if required) to argument list
             args = test.other_args
+            # prepend datm file (if required) to argument list
+            if isinstance(test, FunctionalTestWithDrivers) and test.datm_file:
+                args.insert(0, test.datm_file)
+            # prepend parameter file (if required) to argument list
             if test.use_param_file:
                 args.insert(0, param_file)
             # run
@@ -335,15 +361,14 @@ def make_plotdirs(run_dir, test_dict):
 
 
 def create_param_file(param_file, run_dir):
-    """Creates and/or move the default or input parameter file to the run directory
-    Creates a netcdf file from a cdl file if a cdl file is supplied
+    """Moves the input parameter file to the run directory
 
     Args:
         param_file (str): path to parmaeter file
         run_dir (str): full path to run directory
 
     Raises:
-        RuntimeError: Supplied parameter file is not netcdf (.cd) or cdl (.cdl)
+        RuntimeError: Supplied parameter file is not JSON
 
     Returns:
         str: full path to new parameter file name/location
@@ -355,12 +380,10 @@ def create_param_file(param_file, run_dir):
     else:
         print(f"Using parameter file {param_file}.")
         file_suffix = os.path.basename(param_file).split(".")[-1]
-        if file_suffix == "cdl":
-            param_file_update = create_nc_from_cdl(param_file, run_dir)
-        elif file_suffix == "nc":
+        if file_suffix == "json":
             param_file_update = copy_file(param_file, run_dir)
         else:
-            raise RuntimeError("Must supply parameter file with .cdl or .nc ending.")
+            raise RuntimeError("Must supply parameter file with .json. Ending.")
 
     return param_file_update
 
@@ -386,8 +409,23 @@ def run_fortran_exectuables(build_dir, test_dir, test_exe, run_dir, args):
     run_command.extend(args)
 
     os.chdir(run_dir)
-    out = run_cmd_no_fail(" ".join(run_command), combine_output=True)
+    cmd = " ".join(run_command)
+    stat, out, _ = run_cmd(cmd, combine_output=True)
+    if stat:
+        print(out)
+        raise subprocess.CalledProcessError(stat, cmd, out)
     print(out)
+
+
+def get_test_subclasses(*argv):
+    """
+    Given a FunctionalTest* class, find all its test subclasses. Do not include child
+    FunctionalTest* classes.
+    """
+    test_subclasses = []
+    for ftest_class in argv:
+        test_subclasses += [x for x in ftest_class.__subclasses__() if hasattr(x, "name")]
+    return test_subclasses
 
 
 def main():
@@ -395,13 +433,17 @@ def main():
     Reads in command-line arguments and then runs the tests.
     """
 
-    full_test_dict = config_to_dict(_DEFAULT_CONFIG_FILE)
-    subclasses = FunctionalTest.__subclasses__()
-
     args = commandline_args()
+
+    full_test_dict = config_to_dict(args.config_file)
     config_dict = parse_test_list(full_test_dict, args.test_list)
 
     test_dict = {}
+
+    # Get all the possible test subclasses.
+    subclasses = get_test_subclasses(FunctionalTest, FunctionalTestWithDrivers)
+
+    # Associate each test in the config file with the appropriate test subclass
     for name in config_dict.keys():
         test_class = list(filter(lambda subclass: subclass.name == name, subclasses))[
             0

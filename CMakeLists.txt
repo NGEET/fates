@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.10)
 
 list(APPEND CMAKE_MODULE_PATH ${CIME_CMAKE_MODULE_DIRECTORY})
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../share/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../components/cmeps/cmake")
 
 FIND_PATH(NETCDFC_FOUND libnetcdf.a ${NETCDF_C_DIR}/lib)
 FIND_PATH(NETCDFF_FOUND libnetcdff.a ${NETCDF_FORTRAN_DIR}/lib)
@@ -18,6 +19,23 @@ project(FATES_tests Fortran C)
 include(CIME_utils)
 
 set(HLM_ROOT "../../")
+
+if (DEFINED ENV{ESMF_ROOT})
+  list(APPEND CMAKE_MODULE_PATH $ENV{ESMF_ROOT}/cmake)
+endif()
+find_package(ESMF REQUIRED)
+
+# This adds include directories needed for ESMF
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${ESMF_F90COMPILEPATHS} ")
+# This (which is *not* done in the share CMakeLists.txt) adds all directories and
+# libraries needed when linking ESMF, including any dependencies of ESMF. (But note that
+# this does *not* include the "-lesmf" itself). In particular, note that this includes any
+# link flags needed to link against PIO, which is needed on some systems (including
+# derecho); bringing in these PIO-related link flags via this ESMF mechanism allows us to
+# avoid explicitly including PIO as a link library, which wouldn't work on systems where
+# there is no separate PIO library and instead ESMF is built with its internal PIO
+# library.
+link_libraries(${ESMF_INTERFACE_LINK_LIBRARIES})
 
 # Add source directories from other share code (csm_share, etc.)
 add_subdirectory(${HLM_ROOT}/share/src csm_share)
@@ -69,7 +87,7 @@ endforeach()
 add_library(csm_share ${share_sources})
 declare_generated_dependencies(csm_share "${share_genf90_sources}")
 add_library(fates ${fates_sources})
-add_dependencies(fates csm_share)
+add_dependencies(fates csm_share ESMF)
 
 # We need to look for header files here, in order to pick up shr_assert.h
 include_directories(${HLM_ROOT}/share/include)
@@ -90,6 +108,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # Directories and libraries to include in the link step
 link_directories(${CMAKE_CURRENT_BINARY_DIR})
+link_libraries(esmf)
               
 # Add the main test directory
 add_subdirectory(${HLM_ROOT}/src/fates/testing)

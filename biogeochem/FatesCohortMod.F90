@@ -144,7 +144,7 @@ module FatesCohortMod
     real(r8) :: gpp_tstep                 ! Gross Primary Production (see above *)
     real(r8) :: gpp_acc
     real(r8) :: gpp_acc_hold
-
+    
     real(r8) :: npp_acc
     real(r8) :: npp_acc_hold
 
@@ -156,7 +156,7 @@ module FatesCohortMod
     real(r8) :: c13disc_clm               ! carbon 13 discrimination in new synthesized carbon at each indiv/timestep [ppm]
     real(r8) :: c13disc_acc               ! carbon 13 discrimination in new synthesized carbon at each indiv/day
                                           !   at the end of a day [ppm]
-
+    
     ! The following four biophysical rates are assumed to be at the canopy top, at reference temp 25degC, 
     ! and based on the leaf age weighted average of the PFT parameterized values. 
     ! The last condition is why it is dynamic and tied to the cohort
@@ -262,7 +262,6 @@ module FatesCohortMod
     real(r8) :: dndt      ! time derivative of cohort size [n/year]
     real(r8) :: dhdt      ! time derivative of height [m/year]
     real(r8) :: ddbhdt    ! time derivative of dbh [cm/year]
-    real(r8) :: dbdeaddt  ! time derivative of dead biomass [kgC/year]
 
     !---------------------------------------------------------------------------
 
@@ -273,6 +272,12 @@ module FatesCohortMod
     real(r8) ::  crownfire_mort        ! probability of tree post-fire mortality from crown scorch [0-1]
                                        !  (conditional on the tree being subjected to the fire)
     real(r8) ::  fire_mort             ! post-fire mortality from cambial and crown damage assuming two are independent [0-1]
+    real(r8) ::  nonrx_cambial_mort    ! cambial kill mortality due to wildfire
+    real(r8) ::  nonrx_crown_mort      ! crown fire mortality due to wildfire
+    real(r8) ::  nonrx_fire_mort       ! post-fire mortality due to wildfire 
+    real(r8) ::  rx_cambial_mort       ! cambial kill mortality due to prescribed fire
+    real(r8) ::  rx_crown_mort         ! crown fire mortality due to prescribed fire
+    real(r8) ::  rx_fire_mort          ! post-fire mortality due to prescribed fire
 
     !---------------------------------------------------------------------------
 
@@ -445,14 +450,19 @@ module FatesCohortMod
       this%dndt                    = nan 
       this%dhdt                    = nan 
       this%ddbhdt                  = nan
-      this%dbdeaddt                = nan 
    
       ! FIRE
       this%fraction_crown_burned   = nan 
       this%cambial_mort            = nan 
       this%crownfire_mort          = nan 
       this%fire_mort               = nan 
-      
+      this%nonrx_cambial_mort      = nan
+      this%nonrx_crown_mort        = nan
+      this%nonrx_fire_mort         = nan
+      this%rx_cambial_mort         = nan
+      this%rx_crown_mort           = nan
+      this%rx_fire_mort            = nan
+
     end subroutine NanValues
    
     !===========================================================================
@@ -499,7 +509,7 @@ module FatesCohortMod
       
       this%c13disc_clm             = 0._r8
       this%c13disc_acc             = 0._r8
-   
+
       this%ts_net_uptake(:)        = 0._r8
       this%year_net_uptake(:)      = 999._r8 ! this needs to be 999, or trimming of new cohorts will break.
    
@@ -538,6 +548,12 @@ module FatesCohortMod
       this%cambial_mort            = 0._r8
       this%crownfire_mort          = 0._r8
       this%fire_mort               = 0._r8
+      this%nonrx_cambial_mort      = 0._r8
+      this%nonrx_crown_mort        = 0._r8
+      this%nonrx_fire_mort         = 0._r8
+      this%rx_cambial_mort         = 0._r8
+      this%rx_crown_mort           = 0._r8
+      this%rx_fire_mort            = 0._r8
     
     end subroutine ZeroValues
    
@@ -776,13 +792,18 @@ module FatesCohortMod
       copyCohort%dndt                    = this%dndt
       copyCohort%dhdt                    = this%dhdt
       copyCohort%ddbhdt                  = this%ddbhdt
-      copyCohort%dbdeaddt                = this%dbdeaddt
 
       ! FIRE
       copyCohort%fraction_crown_burned   = this%fraction_crown_burned
       copyCohort%cambial_mort            = this%cambial_mort
       copyCohort%crownfire_mort          = this%crownfire_mort
       copyCohort%fire_mort               = this%fire_mort
+      copyCohort%nonrx_cambial_mort      = this%nonrx_cambial_mort
+      copyCohort%nonrx_crown_mort        = this%nonrx_crown_mort
+      copyCohort%nonrx_fire_mort         = this%nonrx_fire_mort
+      copyCohort%rx_cambial_mort         = this%rx_cambial_mort
+      copyCohort%rx_crown_mort           = this%rx_crown_mort
+      copyCohort%rx_fire_mort            = this%rx_fire_mort
 
       ! HYDRAULICS
       if (hlm_use_planthydro .eq. itrue) then
@@ -1116,11 +1137,16 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%dndt                   = ', this%dndt
       write(fates_log(),*) 'cohort%dhdt                   = ', this%dhdt
       write(fates_log(),*) 'cohort%ddbhdt                 = ', this%ddbhdt
-      write(fates_log(),*) 'cohort%dbdeaddt               = ', this%dbdeaddt
       write(fates_log(),*) 'cohort%fraction_crown_burned  = ', this%fraction_crown_burned
       write(fates_log(),*) 'cohort%fire_mort              = ', this%fire_mort
       write(fates_log(),*) 'cohort%crownfire_mort         = ', this%crownfire_mort
       write(fates_log(),*) 'cohort%cambial_mort           = ', this%cambial_mort
+      write(fates_log(),*) 'cohort%nonrx_cambial_mort     = ', this%nonrx_cambial_mort
+      write(fates_log(),*) 'cohort%nonrx_crown_mort       = ', this%nonrx_crown_mort
+      write(fates_log(),*) 'cohort%nonrx_fire_mort        = ', this%nonrx_fire_mort
+      write(fates_log(),*) 'cohort%rx_crown_mort          = ', this%rx_crown_mort
+      write(fates_log(),*) 'cohort%rx_cambial_mort        = ', this%rx_cambial_mort
+      write(fates_log(),*) 'cohort%rx_fire_mort           = ', this%rx_fire_mort
       write(fates_log(),*) 'cohort%size_class             = ', this%size_class
       write(fates_log(),*) 'cohort%size_by_pft_class      = ', this%size_by_pft_class
    
