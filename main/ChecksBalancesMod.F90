@@ -331,7 +331,7 @@ contains
             ibal%iflux_litter = ibal%iflux_litter + &
                  tot_litter_input - &
                  (site_mass%frag_out*area_inv - ediag%tot_seed_turnover) - &
-                 (site_mass%burn_flux_to_atm*area_inv - ediag%burned_liveveg)
+                 (sum(site_mass%burn_flux_to_atm(:))*area_inv - ediag%burned_liveveg)
 
 
             ediag%err_liveveg = ibal%iflux_liveveg - ibal%state_liveveg
