@@ -190,6 +190,13 @@ module FatesPatchMod
     ! ROOTS
     real(r8) :: btran_ft(maxpft)       ! btran calculated seperately for each PFT
     real(r8) :: bstress_sal_ft(maxpft) ! bstress from salinity calculated seperately for each PFT
+
+    ! Fine-root fraction by pft and depth. This is used as scratch space as it could be used
+    ! to temporarily hold cohort-specific fine-root fractions. We don't hold this at the
+    ! site level, because that would not be thread-safe
+    
+    real(r8), allocatable :: fnrtfrac_ftz(:,:)  
+                                                
     
     !---------------------------------------------------------------------------
 
@@ -296,7 +303,9 @@ module FatesPatchMod
       allocate(this%sabs_dif(num_swb))
       allocate(this%fragmentation_scaler(num_levsoil))
       allocate(this%co_scr(max_cohort_per_patch))
-      
+      allocate(this%fnrtfrac_ftz(numpft,num_levsoil))
+
+
       ! initialize all values to nan
       call this%NanValues()
 
@@ -516,7 +525,10 @@ module FatesPatchMod
 
       ! LITTER AND COARSE WOODY DEBRIS
       this%fragmentation_scaler(:)      = nan 
-  
+
+      ! Fine-root fraction
+      fnrtfrac_ftz(:,:)                 = nan
+      
       ! FUELS AND FIRE
       this%livegrass                    = nan 
       this%ros_front                    = nan
@@ -607,7 +619,7 @@ module FatesPatchMod
 
       ! LITTER AND COARSE WOODY DEBRIS
       this%fragmentation_scaler(:)           = 0.0_r8
-
+      
       ! FIRE
       this%livegrass                         = 0.0_r8
       this%ros_front                         = 0.0_r8
@@ -908,6 +920,7 @@ module FatesPatchMod
                  this%sabs_dif,                 &
                  this%fragmentation_scaler,     &
                  this%co_scr,                   &
+                 this%fnrtfrac_ftz,             &
                  stat=istat, errmsg=smsg)
 
       ! These arrays are allocated via a call from EDCanopyStructureMod

@@ -141,10 +141,10 @@ contains
              ! --------------------------------------------------------------------------
              
              if(bc_in(s)%filter_photo_pa(ifp)==2)then
-                call FatesRespPhotoPatch(patch,bc_in(s),bc_out(s),dtime)
+                call FatesCondPhotoPatch(patch,bc_in(s),bc_out(s),dtime)
 
                 ! MOVE ME TO POST Land Energy Balance please!!
-                call FatesPlantRespPatch(patch,bc_in,dtime)
+                call FatesPlantRespPatch(patch,bc_in(s),dtime)
              end if
           end if
           patch => patch%younger
@@ -218,8 +218,7 @@ contains
     real(r8) :: nscaler                          ! leaf nitrogen scaling coefficient
     real(r8) :: rdark_scaler                     ! scaling coefficient for Atkin dark respiration
     real(r8) :: leaf_frac                        ! ratio of to leaf biomass to total alive biomass
-    real(r8) :: tcsoi                            ! Temperature response function for root respiration.
-    real(r8) :: tcwood                           ! Temperature response function for wood
+    
     real(r8) :: patch_la                         ! exposed leaf area (patch scale)
 
     real(r8) :: g_sb_leaves                      ! Mean combined (stomata+boundary layer) leaf conductance [m/s]
@@ -232,9 +231,6 @@ contains
     real(r8) :: r_stomata                        ! Mean stomatal resistance across all leaves in the patch [s/m]
     real(r8) :: maintresp_reduction_factor       ! factor by which to reduce maintenance
                                                  ! respiration when storage pools are low
-    real(r8) :: b_leaf                           ! leaf biomass kgC
-    real(r8) :: frac                             ! storage pool as a fraction of target leaf biomass
-                                                 ! over each cohort x layer.
     real(r8) :: cohort_eleaf_area                ! This is the effective leaf area [m2] reported by each cohort
     real(r8) :: lnc_top                          ! Leaf nitrogen content per unit area at canopy top [gN/m2]
     real(r8) :: lmr25top                         ! canopy top leaf maint resp rate at 25C 
@@ -245,7 +241,6 @@ contains
     real(r8) :: leaf_psi                         ! leaf xylem matric potential [MPa] (only meaningful/used w/ hydro)
     real(r8) :: fnrt_mr_layer                    ! fine root maintenance respiation per layer [kgC/plant/s]
     integer  :: isunsha                          ! Index for differentiating sun and shade
-
     real(r8) :: rd_abs_leaf, rb_abs_leaf         ! Watts of diffuse and beam light absorbed by leaves over this
                                                  ! depth interval and ground footprint (m2)
     real(r8) :: r_abs_stem, r_abs_snow           ! Watts of light absorbed by stems and snow over this depth interval and
@@ -283,22 +278,13 @@ contains
     real(r8)               :: gs2                ! optional btran scaling factor for Medlyn conductance only, instead
                                                  ! of applying to gs1, this would scale the whole non-intercept
                                                  ! portion of the conductance equation
-
     real(r8)               :: vmol_cf            ! velocity to molar conductance conversion (m/s) -> (umol/m2/s)
+    integer  :: cl,s,iv,j,ps,ft,ifp              ! indices
+    integer  :: nv                               ! number of leaf layers
+    integer  :: iage                             ! loop counter for leaf age classes
+    integer  :: solve_iter                       ! number of iterations required for photosynthesis solve
     
-    ! -----------------------------------------------------------------------------------
-    ! Keeping these two definitions in case they need to be added later
-    !
-    ! -----------------------------------------------------------------------------------
-    !real(r8) :: psncanopy_pa  ! patch sunlit leaf photosynthesis (umol CO2 /m**2/ s)
-    !real(r8) :: lmrcanopy_pa  ! patch sunlit leaf maintenance respiration rate (umol CO2/m**2/s)
-
-    integer  :: cl,s,iv,j,ps,ft,ifp ! indices
-    integer  :: nv                  ! number of leaf layers
-    integer  :: iage                ! loop counter for leaf age classes
-    integer  :: solve_iter          ! number of iterations required for photosynthesis solve
-    
-    ! Parameters
+    ! Constants
     ! Absolute convergence tolerance on solving intracellular CO2 concentration [Pa]
 
     real(r8), parameter :: ci_tol = 0.5_r8
@@ -310,16 +296,11 @@ contains
          woody     => prt_params%woody)      ! Is vegetation woody or not?
 
 
-      ! TO-DO: Make patch-level root profile scratch space
-      do ft = 1,numpft
-         call set_root_fraction(patch%rootfr_ft(ft,:), ft, &
-              bc_in(s)%zi_sisl, &
-              bc_in(s)%max_rooting_depth_index_col)
-      end do
+ 
       
       ifp = patch%patchno
 
-      ! Part I. Zero output boundary conditions
+      ! Part I. Zero output boundary conditions and patch weighted means
       ! ---------------------------------------------------------------------------
       bc_out(s)%rssun_pa(ifp)     = 0._r8
       bc_out(s)%rssha_pa(ifp)     = 0._r8
@@ -342,9 +323,9 @@ contains
       !  leaf boundary layer conductance of h20
       !  constrained vapor pressure
       
-      call GetCanopyGasParameters(bc_in(s)%forc_pbot,       & ! in
-           bc_in(s)%oair_pa(ifp),    & ! in
-           bc_in(s)%t_veg_pa(ifp),   & ! in
+      call GetCanopyGasParameters(bc_in%forc_pbot,       & ! in
+           bc_in%oair_pa(ifp),    & ! in
+           bc_in%t_veg_pa(ifp),   & ! in
            mm_kco2,                  & ! out
            mm_ko2,                   & ! out
            co2_cpoint)
@@ -352,7 +333,7 @@ contains
       ! The host models use velocity based conductances and resistance
       ! this is the factor that converts a conductance from
       ! [m/s] to [umol/m2/s]
-      vmol_cf = VeloToMolarCF(bc_in(s)%forc_pbot,bc_in(s)%tgcm_pa(ifp))
+      vmol_cf = VeloToMolarCF(bc_in%forc_pbot,bc_in%tgcm_pa(ifp))
                   
       ! ------------------------------------------------------------------------
       ! Part VI: Loop over all leaf layers.
@@ -558,7 +539,7 @@ contains
                         call LeafLayerMaintenanceRespiration_Ryan_1991( lnc_top,     &  ! in
                              nscaler,                  &  ! in
                              ft,                       &  ! in
-                             bc_in(s)%t_veg_pa(ifp),   &  ! in
+                             bc_in%t_veg_pa(ifp),   &  ! in
                              lmr_z(iv,ft,cl))             ! out
 
                      case (lmrmodel_atkin_etal_2017)
@@ -580,7 +561,7 @@ contains
                         call LeafLayerMaintenanceRespiration_Atkin_etal_2017( lnc_top, &  ! in
                              rdark_scaler,                       &  ! in
                              ft,                                 &  ! in
-                             bc_in(s)%t_veg_pa(ifp),             &  ! in
+                             bc_in%t_veg_pa(ifp),             &  ! in
                              patch%tveg_lpa%GetMean(),    &  ! in
                              lmr_z(iv,ft,cl))                       ! out
 
@@ -653,7 +634,7 @@ contains
                      ! ---------------------------------------------------------------
 
                      ! Calculate leaf boundary layer conductance in molar form [umol/m2/s]
-                     gb_mol = (1._r8/bc_in(s)%rb_pa(ifp)) * vmol_cf
+                     gb_mol = (1._r8/bc_in%rb_pa(ifp)) * vmol_cf
 
                      gstoma = 0._r8
                      do_sunsha: do isunsha = 1,2
@@ -696,8 +677,8 @@ contains
                              cohort%jmax25top,             &  ! in
                              cohort%kp25top,               &  ! in
                              nscaler,                             &  ! in
-                             bc_in(s)%t_veg_pa(ifp),              &  ! in
-                             bc_in(s)%dayl_factor_pa(ifp),        &  ! in
+                             bc_in%t_veg_pa(ifp),              &  ! in
+                             bc_in%dayl_factor_pa(ifp),        &  ! in
                              patch%tveg_lpa%GetMean(),     &  ! in
                              patch%tveg_longterm%GetMean(),&  ! in
                              btran_eff,                           &  ! in
@@ -724,13 +705,13 @@ contains
                              gs0,                                &  ! in
                              gs1,                                &  ! in
                              gs2,                                &  ! in
-                             bc_in(s)%t_veg_pa(ifp),             &  ! in
-                             bc_in(s)%forc_pbot,                 &  ! in
-                             bc_in(s)%cair_pa(ifp),              &  ! in
-                             bc_in(s)%oair_pa(ifp),              &  ! in
-                             bc_in(s)%esat_tv_pa(ifp),           &  ! in
+                             bc_in%t_veg_pa(ifp),             &  ! in
+                             bc_in%forc_pbot,                 &  ! in
+                             bc_in%cair_pa(ifp),              &  ! in
+                             bc_in%oair_pa(ifp),              &  ! in
+                             bc_in%esat_tv_pa(ifp),           &  ! in
                              gb_mol,                             &  ! in
-                             bc_in(s)%eair_pa(ifp),              &  ! in
+                             bc_in%eair_pa(ifp),              &  ! in
                              mm_kco2,                            &  ! in
                              mm_ko2,                             &  ! in
                              co2_cpoint,                         &  ! in
@@ -759,8 +740,8 @@ contains
                      if ( (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
 
                         rs_z(iv,ft,cl) = LeafHumidityStomaResis(leaf_psi, EDPftvarcon_inst%hydr_k_lwp(ft), &
-                             bc_in(s)%t_veg_pa(ifp),bc_in(s)%cair_pa(ifp),bc_in(s)%forc_pbot, &
-                             bc_in(s)%rb_pa(ifp), gstoma, ft, bc_in(s)%esat_tv_pa(ifp) )
+                             bc_in%t_veg_pa(ifp),bc_in%cair_pa(ifp),bc_in%forc_pbot, &
+                             bc_in%rb_pa(ifp), gstoma, ft, bc_in%esat_tv_pa(ifp) )
 
                      else
                         rs_z(iv,ft,cl)= 1._r8/gstoma
@@ -798,7 +779,7 @@ contains
                        c13disc_z(1:nv,ft,cl),                 & !in
                        cohort%c_area,                  & !in
                        cohort%n,                       & !in
-                       bc_in(s)%rb_pa(ifp),                   & !in
+                       bc_in%rb_pa(ifp),                   & !in
                        maintresp_reduction_factor,            & !in
                        cohort%g_sb_laweight,           & !out
                        cohort%gpp_tstep,               & !out
@@ -818,7 +799,7 @@ contains
                        c13disc_z(1:nv,ft,cl),                 & !in
                        cohort%c_area,                  & !in
                        cohort%n,                       & !in
-                       bc_in(s)%rb_pa(ifp),                   & !in
+                       bc_in%rb_pa(ifp),                   & !in
                        maintresp_reduction_factor,            & !in
                        cohort%g_sb_laweight,           & !out
                        cohort%gpp_tstep,               & !out
@@ -830,7 +811,18 @@ contains
 
                ! Net Uptake does not need to be scaled, just transfer directly
                cohort%ts_net_uptake(1:nv) = anet_av_z(1:nv,ft,cl) * umolC_to_kgC
-
+               
+               ! Accumulate the combined conductance (stomatal+leaf boundary layer)
+               ! Note that cohort%g_sb_laweight is weighted by the leaf area
+               ! of each cohort and has units of [m/s] * [m2 leaf]
+               
+               g_sb_leaves  = g_sb_leaves + cohort%g_sb_laweight
+               
+               ! Accumulate the total effective leaf area from all cohorts
+               ! in this patch. Normalize by canopy area outside the loop
+               patch_la = patch_la + cohort_eleaf_area
+               
+               
             else
 
                ! In this case, the cohort had no leaves,
@@ -866,16 +858,16 @@ contains
                ! the inverse of mean leaf conductance
                r_sb_leaves  = 1.0_r8/g_sb_leaves
                
-               if (r_sb_leaves<bc_in(s)%rb_pa(ifp)) then
+               if (r_sb_leaves<bc_in%rb_pa(ifp)) then
                   write(fates_log(),*) 'Combined canopy resistance was somehow smaller than'
                   write(fates_log(),*) 'its boundary layer resistance component'
                   write(fates_log(),*) 'r_sb_leaves [s/m]: ',r_sb_leaves
-                  write(fates_log(),*) 'bc_in(s)%rb_pa(ifp) [s/m]: ',bc_in(s)%rb_pa(ifp)
+                  write(fates_log(),*) 'bc_in%rb_pa(ifp) [s/m]: ',bc_in%rb_pa(ifp)
                   call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
                
                ! Mean leaf stomatal resistance for all patch leaves
-               r_stomata = (r_sb_leaves - bc_in(s)%rb_pa(ifp))
+               r_stomata = (r_sb_leaves - bc_in%rb_pa(ifp))
                
             else !if_above_mincond
                
@@ -910,16 +902,16 @@ contains
          
          ! This value is used for diagnostics, the molar form of conductance
          ! is what is used in the field usually, so we track that form
-         patch%c_lblayer = vmol_cf / bc_in(s)%rb_pa(ifp)
-
-
+         patch%c_lblayer = vmol_cf / bc_in%rb_pa(ifp)
+         
       end if if_any_cohorts
+
+      
     end associate
     return
   end subroutine FatesCondPhotoPatch
 
   ! =============================================================================
-
 
   subroutine FatesPlantRespPatch(patch,bc_in,dtime)
 
@@ -932,17 +924,17 @@ contains
     ! -----------------------------------------------------------------------------------
 
     type (fates_patch_type)           :: patch
-    type (fates_cohort_type), pointer :: cohort
-
+    type(bc_in_type),intent(in)       :: bc_in
+    real(r8),intent(in)               :: dtime
+    
     ! Locals
 
-
+    type (fates_cohort_type), pointer :: cohort
     real(r8) :: maintresp_reduction_factor       ! factor by which to reduce maintenance
                                                  ! respiration when storage pools are low
     real(r8) :: fnrt_mr_nfix_layer               ! fineroot maintenance respiration
                                                  ! specifically for symbiotic fixation [kgC/plant/layer/s]
     real(r8) :: nfix_layer                       ! Nitrogen fixed in each layer this timestep [kgN/plant/layer/timestep]
-    real(r8), allocatable :: rootfr_ft(:,:)      ! Root fractions per depth and PFT
     real(r8) :: agb_frac                         ! fraction of biomass aboveground
     real(r8) :: branch_frac                      ! fraction of aboveground woody biomass in branches
     real(r8) :: crown_reduction                  ! reduction in crown biomass from damage
@@ -963,6 +955,10 @@ contains
     real(r8) :: fnrt_n                           ! Fine root nitrogen content (kgN/plant)
     real(r8) :: leaf_c                           ! Leaf carbon (kgC/plant)
     real(r8) :: leaf_n                           ! leaf nitrogen content (kgN/plant)
+    real(r8) :: tcsoi                            ! Temperature response function for root respiration.
+    real(r8) :: tcwood                           ! Temperature response function for wood
+
+    integer :: ft, cl, j                         ! indices: pft, canopy layer, soil layer
     
     ! -----------------------------------------------------------------------------------
     ! Calculate the amount of nitrogen in the above and below ground stem and root
@@ -970,6 +966,12 @@ contains
     ! approximation for the sapwood pools. Units are in (kgN/plant)
     ! -----------------------------------------------------------------------------------
 
+    do ft = 1,numpft
+       call set_root_fraction(patch%fnrtfrac_ftz(ft,:), ft, &
+            bc_in%zi_sisl, &
+            bc_in%max_rooting_depth_index_col)
+    end do
+      
     cohort => patch%tallest
     do_cohort_drive: do while (associated(cohort)) ! Cohort loop
        
@@ -1068,7 +1070,7 @@ contains
        ! Live stem MR (kgC/plant/s) (above ground sapwood)
        ! ------------------------------------------------------------------
        if ( int(woody(ft)) == itrue) then
-          tcwood = q10_mr**((bc_in(s)%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8)
+          tcwood = q10_mr**((bc_in%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8)
           ! kgC/s = kgN * kgC/kgN/s
           cohort%livestem_mr  = live_stem_n * maintresp_nonleaf_baserate * tcwood * maintresp_reduction_factor
        else
@@ -1076,8 +1078,9 @@ contains
        end if
 
        ! Fine Root MR  (kgC/plant/s)
-       ! and calculate the N fixation rate as a function of the fixation-specific root respiration
-       ! for now use dev_arbitrary_pft as scaling term between 0 and 1 as additional increment of root respiration used for N fixation
+       ! and calculate the N fixation rate as a function of the fixation-specific
+       ! root respiration for now use dev_arbitrary_pft as scaling term between 0
+       ! and 1 as additional increment of root respiration used for N fixation
        ! ------------------------------------------------------------------
        cohort%froot_mr = 0._r8
        cohort%sym_nfix_tstep = 0._r8
@@ -1085,14 +1088,14 @@ contains
        ! n_fixation is integrated over the course of the day
        ! this variable is zeroed at the end of the FATES dynamics sequence
        
-       do j = 1,bc_in(s)%nlevsoil
-          tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
+       do j = 1,bc_in%nlevsoil
+          tcsoi  = q10_mr**((bc_in%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
           
-          fnrt_mr_layer = fnrt_n * maintresp_nonleaf_baserate * tcsoi * rootfr_ft(ft,j) * maintresp_reduction_factor
+          fnrt_mr_layer = fnrt_n * maintresp_nonleaf_baserate * tcsoi * patch%fnrtfrac_ftz(ft,j) * maintresp_reduction_factor
           
           ! calculate the cost of carbon for N fixation in each soil layer and calculate N fixation rate based on that [kgC / kgN]
           
-          call RootLayerNFixation(bc_in(s)%t_soisno_sl(j),ft,dtime,fnrt_mr_layer,fnrt_mr_nfix_layer,nfix_layer)
+          call RootLayerNFixation(bc_in%t_soisno_sl(j),ft,dtime,fnrt_mr_layer,fnrt_mr_nfix_layer,nfix_layer)
           
           cohort%froot_mr = cohort%froot_mr + fnrt_mr_nfix_layer + fnrt_mr_layer 
           
@@ -1104,12 +1107,12 @@ contains
        ! ------------------------------------------------------------------
        if ( int(woody(ft)) == itrue) then
           cohort%livecroot_mr = 0._r8
-          do j = 1,bc_in(s)%nlevsoil
+          do j = 1,bc_in%nlevsoil
              ! Soil temperature used to adjust base rate of MR
-             tcsoi  = q10_mr**((bc_in(s)%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
+             tcsoi  = q10_mr**((bc_in%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
              cohort%livecroot_mr = cohort%livecroot_mr + &
                   live_croot_n * maintresp_nonleaf_baserate * tcsoi * &
-                  rootfr_ft(ft,j) * maintresp_reduction_factor
+                  patch%fnrtfrac_ftz(ft,j) * maintresp_reduction_factor
           enddo
        else
           cohort%livecroot_mr = 0._r8
@@ -1140,19 +1143,11 @@ contains
        cohort%resp_m_unreduced = cohort%resp_m_tstep / maintresp_reduction_factor
 
        
-       ! Accumulate the combined conductance (stomatal+leaf boundary layer)
-       ! Note that cohort%g_sb_laweight is weighted by the leaf area
-       ! of each cohort and has units of [m/s] * [m2 leaf]
        
-       g_sb_leaves  = g_sb_leaves + cohort%g_sb_laweight
-       
-       ! Accumulate the total effective leaf area from all cohorts
-       ! in this patch. Normalize by canopy area outside the loop
-       patch_la = patch_la + cohort_eleaf_area
        
        cohort => cohort%shorter
     enddo do_cohort_drive
- 
+
   end subroutine FatesPlantRespPatch
 
   ! ===========================================================================================
@@ -1207,7 +1202,7 @@ contains
 
     ! Amount of nitrogen fixed in this layer [kgC/plant/layer/tstep]/[kgC/kgN] = [kgN/plant/layer/tstep]
     nfix_layer = c_spent_nfix / c_cost_nfix
-
+    
     return
   end subroutine RootLayerNFixation
 
