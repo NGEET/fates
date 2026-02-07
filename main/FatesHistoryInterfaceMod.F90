@@ -22,7 +22,7 @@ module FatesHistoryInterfaceMod
   use FatesConstantsMod        , only : ican_upper
   use PRTGenericMod            , only : element_pos
   use PRTGenericMod            , only : num_elements
-  use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod            , only : carbon_nitrogen_phosphorus
   use EDTypesMod               , only : site_fluxdiags_type
   use EDTypesMod               , only : elem_diag_type
   use EDtypesMod               , only : ed_site_type
@@ -120,7 +120,6 @@ module FatesHistoryInterfaceMod
   use PRTGenericMod            , only : struct_organ, store_organ, repro_organ
   use PRTGenericMod            , only : carbon12_element
   use PRTGenericMod            , only : nitrogen_element, phosphorus_element
-  use PRTGenericMod            , only : prt_carbon_allom_hyp
   use PRTAllometricCNPMod      , only : stoich_max,stoich_growth_min
   use FatesSizeAgeTypeIndicesMod, only : get_layersizetype_class_index
   use FatesSizeAgeTypeIndicesMod, only : get_age_class_index
@@ -2836,7 +2835,7 @@ contains
                      hio_agb_si(io_si) = hio_agb_si(io_si) + n_perm2 *            &
                           ( leaf_m + (sapw_m + struct_m + store_m) * prt_params%allom_agb_frac(ccohort%pft) )
 
-                     if( hlm_parteh_mode == prt_cnp_flex_allom_hyp) then
+                     if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
                         this%hvars(ih_l2fr_si)%r81d(io_si) = &
                              this%hvars(ih_l2fr_si)%r81d(io_si) + &
                              ccohort%l2fr *ccohort%n * fnrt_m / m2_per_ha

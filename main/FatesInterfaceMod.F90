@@ -88,8 +88,8 @@ module FatesInterfaceMod
    use PRTGenericMod             , only : element_list
    use PRTGenericMod             , only : element_pos
    use EDParamsMod               , only : eca_plant_escalar
-   use PRTGenericMod             , only : prt_carbon_allom_hyp
-   use PRTGenericMod             , only : prt_cnp_flex_allom_hyp
+   use PRTGenericMod             , only : carbon_only
+   use PRTGenericMod             , only : carbon_nitrogen_phosphorus
    use PRTGenericMod             , only : carbon12_element
    use PRTGenericMod             , only : nitrogen_element
    use PRTGenericMod             , only : phosphorus_element
@@ -342,7 +342,7 @@ contains
     
     ! Fates -> BGC fragmentation mass fluxes
     select case(hlm_parteh_mode) 
-    case(prt_carbon_allom_hyp)
+    case(carbon_only)
        fates%bc_out(s)%litt_flux_cel_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lig_c_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lab_c_si(:) = 0._r8
@@ -352,7 +352,7 @@ contains
        fates%bc_out(s)%litt_flux_cel_n_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lig_n_si(:) = 0._r8
        fates%bc_out(s)%litt_flux_lab_n_si(:) = 0._r8
-    case(prt_cnp_flex_allom_hyp) 
+    case(carbon_nitrogen_phosphorus)
        
        fates%bc_in(s)%plant_nh4_uptake_flux(:,:) = 0._r8
        fates%bc_in(s)%plant_no3_uptake_flux(:,:) = 0._r8
@@ -491,7 +491,7 @@ contains
       ! uptake for each cohort, and don't need to allocate by layer
       ! Allocating differently could save a lot of memory and time
 
-      if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+      if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
          allocate(bc_in%plant_nh4_uptake_flux(max_comp_per_site,1))
          allocate(bc_in%plant_no3_uptake_flux(max_comp_per_site,1))
          allocate(bc_in%plant_p_uptake_flux(max_comp_per_site,1))
@@ -690,7 +690,7 @@ contains
       
       ! Fates -> BGC fragmentation mass fluxes
       select case(hlm_parteh_mode) 
-      case(prt_carbon_allom_hyp)
+      case(carbon_only)
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
@@ -700,7 +700,7 @@ contains
          allocate(bc_out%litt_flux_cel_n_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_n_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_n_si(nlevdecomp_in))
-      case(prt_cnp_flex_allom_hyp) 
+      case(carbon_nitrogen_phosphorus)
          allocate(bc_out%litt_flux_cel_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lig_c_si(nlevdecomp_in))
          allocate(bc_out%litt_flux_lab_c_si(nlevdecomp_in))
@@ -956,10 +956,17 @@ contains
          if (any(abs(EDPftvarcon_inst%prescribed_puptake(:)) > nearzero )) then
             p_uptake_mode = prescribed_p_uptake
          else
+            ! An error check in subroutine set_fates_ctrlparms stops the run earlier if
+            ! - hlm_name is CLM
+            ! - p_uptake_mode is coupled_p_uptake and
+            ! - hlm_parteh_mode is CNP
+            ! because CLM-FATES must have prescribed phosphorus when hlm_parteh_mode == carbon_nitrogen_phosphorus.
+            ! To select prescribed phosphorus, set fates_cnp_prescribed_puptake > 1 (recommended 10)
+            ! in the fates parameter file.
             p_uptake_mode = coupled_p_uptake
          end if
          
-         if (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp ) then
+         if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
 
             if((p_uptake_mode==coupled_p_uptake) .or. (n_uptake_mode==coupled_n_uptake))then
                max_comp_per_site = fates_maxElementsPerSite
@@ -1156,7 +1163,7 @@ contains
      ! automatically.
      
      select case(hlm_parteh_mode)
-     case(prt_carbon_allom_hyp)
+     case(carbon_only)
 
         num_elements = 1
         allocate(element_list(num_elements))
@@ -1166,7 +1173,7 @@ contains
 
         call InitPRTGlobalAllometricCarbon()
 
-     case(prt_cnp_flex_allom_hyp)
+     case(carbon_nitrogen_phosphorus)
         
         num_elements = 3
         allocate(element_list(num_elements))
@@ -1727,7 +1734,7 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          else
             if((hlm_use_tree_damage .eq. itrue) .and. &
-                 (hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp))then
+                 (hlm_parteh_mode == carbon_nitrogen_phosphorus)) then
                write(fates_log(),*) 'FATES tree damage (use_fates_tree_damage = .true.) is not'
                write(fates_log(),*) '(yet) compatible with CNP allocation (fates_parteh_mode = 2)'
                call endrun(msg=errMsg(sourcefile, __LINE__))
@@ -1800,12 +1807,12 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if(trim(hlm_name).eq.'CLM' .and. hlm_parteh_mode .eq. 2) then
-            if( sum(abs(EDPftvarcon_inst%prescribed_puptake(:)))<nearzero .and. &
-                sum(abs(EDPftvarcon_inst%prescribed_nuptake(:)))<nearzero) then
-               write(fates_log(), *) 'PARTEH hypothesis 2 is only viable with forced'
-               write(fates_log(), *) 'boundary conditions for CLM (currently).'
-               write(fates_log(), *) 'prescribed_puptake or prescribed_nuptake must > 0'
+         if(trim(hlm_name) == 'CLM' .and. &
+              hlm_parteh_mode  == carbon_nitrogen_phosphorus) then
+            if( sum(abs(EDPftvarcon_inst%prescribed_puptake(:))) < nearzero ) then
+               write(fates_log(), *) 'PARTEH hypothesis 2 (i.e. CNP) is only viable with forced'
+               write(fates_log(), *) 'phosphorus boundary conditions for CLM (currently).'
+               write(fates_log(), *) 'prescribed_puptake must > 0 (recommended is 10)'
                call endrun(msg=errMsg(sourcefile, __LINE__))
             end if
          end if
@@ -2339,7 +2346,8 @@ contains
               !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
               if(.not.ccohort%isnew)then
                  ! [kgC/plant/yr] -> [gC/m2/yr]
-                 site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * g_per_kg
+                 site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
+                      g_per_kg
               end if
               ccohort => ccohort%shorter
            end do

@@ -36,7 +36,8 @@ module FatesRestartInterfaceMod
   use FatesHydraulicsMemMod,   only : nlevsoi_hyd_max
   use FatesPlantHydraulicsMod, only : UpdatePlantPsiFTCFromTheta
   use PRTGenericMod,           only : prt_global
-  use PRTGenericMod,           only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,           only : carbon_only
+  use PRTGenericMod,           only : carbon_nitrogen_phosphorus
   use EDCohortDynamicsMod,     only : InitPRTObject
   use FatesPlantHydraulicsMod, only : InitHydrCohort
   use FatesInterfaceTypesMod,  only : nlevsclass
@@ -836,7 +837,7 @@ contains
          long_name='ed cohort - l2fr', units='fraction', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_l2fr_co )
 
-    if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+    if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
     
        call this%set_restart_var(vname='fates_cx_int', vtype=cohort_r8, &
             long_name='ed cohort - emacx', units='fraction', flushval = flushzero, &
@@ -2677,7 +2678,7 @@ contains
 
                 rio_l2fr_co(io_idx_co)         = ccohort%l2fr
                 
-                if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+                if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
                    this%rvars(ir_cx_int_co)%r81d(io_idx_co)       = ccohort%cx_int
                    this%rvars(ir_emadcxdt_co)%r81d(io_idx_co)     = ccohort%ema_dcxdt
                    this%rvars(ir_cx0_co)%r81d(io_idx_co)          = ccohort%cx0
@@ -3717,7 +3718,7 @@ contains
 
                 call this%GetCohortRealVector(ccohort%year_net_uptake,nlevleaf,ir_year_net_up_co,io_idx_co)
 
-                if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
+                if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
                    ccohort%cx_int       = this%rvars(ir_cx_int_co)%r81d(io_idx_co)
                    ccohort%ema_dcxdt    = this%rvars(ir_emadcxdt_co)%r81d(io_idx_co)
                    ccohort%cx0          = this%rvars(ir_cx0_co)%r81d(io_idx_co)
