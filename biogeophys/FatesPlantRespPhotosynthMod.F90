@@ -44,8 +44,8 @@ module FATESPlantRespPhotosynthMod
   use FatesCohortMod,    only : fates_cohort_type
   use FatesConstantsMod, only : lmrmodel_ryan_1991
   use FatesConstantsMod, only : lmrmodel_atkin_etal_2017
-  use PRTGenericMod,     only : fates_c_only
-  use PRTGenericMod,     only : fates_cnp
+  use PRTGenericMod,     only : carbon_only
+  use PRTGenericMod,     only : carbon_nitrogen_phosphorus
   use PRTGenericMod,     only : carbon12_element
   use PRTGenericMod,     only : nitrogen_element
   use PRTGenericMod,     only : leaf_organ
@@ -497,7 +497,7 @@ contains
                                    (hlm_use_planthydro.eq.itrue) .or. &
                                    (hlm_radiation_model .eq. twostr_solver ) .or. &
                                    (nleafage > 1) .or. &
-                                   (hlm_parteh_mode /= fates_c_only)   ) then
+                                   (hlm_parteh_mode /= carbon_only)   ) then
 
                                  
                                  ! These values are incremented, therefore since
@@ -564,11 +564,11 @@ contains
                                  ! Then scale this value at the top of the canopy for canopy depth
                                  ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
                                  select case(hlm_parteh_mode)
-                                 case (fates_c_only)
+                                 case (carbon_only)
 
                                     lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
 
-                                 case (fates_cnp)
+                                 case (carbon_nitrogen_phosphorus)
 
                                     leaf_c  = currentCohort%prt%GetState(leaf_organ, carbon12_element)
                                     if( (leaf_c*slatop(ft)) > nearzero) then
@@ -920,7 +920,7 @@ contains
 
 
                         select case(hlm_parteh_mode)
-                        case (fates_c_only)
+                        case (carbon_only)
 
                            live_stem_n = sapw_c_agw * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
 
@@ -928,7 +928,7 @@ contains
 
                            fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
 
-                        case(fates_cnp)
+                        case(carbon_nitrogen_phosphorus)
 
                            live_stem_n = prt_params%allom_agb_frac(currentCohort%pft) * &
                                 currentCohort%prt%GetState(sapw_organ, nitrogen_element)

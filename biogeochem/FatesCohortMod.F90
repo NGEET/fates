@@ -12,8 +12,8 @@ module FatesCohortMod
   use FatesGlobals,               only : fates_log
   use PRTGenericMod,              only : max_nleafage
   use PRTGenericMod,              only : prt_vartypes
-  use PRTGenericMod,              only : fates_c_only
-  use PRTGenericMod,              only : fates_cnp
+  use PRTGenericMod,              only : carbon_only
+  use PRTGenericMod,              only : carbon_nitrogen_phosphorus
   use PRTGenericMod,              only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,              only : repro_organ, store_organ, struct_organ
   use PRTGenericMod,              only : carbon12_element
@@ -625,7 +625,7 @@ module FatesCohortMod
       ! initialized with full stores, which match with minimum fineroot biomass
       this%l2fr = prt_params%allom_l2fr(pft)
 
-      if (hlm_parteh_mode == fates_cnp) then
+      if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
         this%cx_int      = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
         this%cx0         = 0._r8  ! Assume balanced N,P/C stores ie log(1) = 0
         this%ema_dcxdt   = 0._r8  ! Assume unchanged dCX/dt
@@ -743,7 +743,7 @@ module FatesCohortMod
       copyCohort%year_net_uptake         = this%year_net_uptake
       copyCohort%cnp_limiter             = this%cnp_limiter
 
-      if (hlm_parteh_mode == fates_cnp) then
+      if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
         copyCohort%cx_int                  = this%cx_int
         copyCohort%ema_dcxdt               = this%ema_dcxdt
         copyCohort%cx0                     = this%cx0
@@ -873,7 +873,7 @@ module FatesCohortMod
       class(fates_cohort_type), intent(inout), target :: this
       
       select case(hlm_parteh_mode)
-      case (fates_c_only)
+      case (carbon_only)
    
         ! Register boundary conditions for the Carbon Only Allometric Hypothesis
   
@@ -887,7 +887,7 @@ module FatesCohortMod
         call this%prt%RegisterBCIn(ac_bc_in_id_effnrt, bc_rval = this%effnrt_coh)
         call this%prt%RegisterBCIn(ac_bc_in_id_efstem, bc_rval = this%efstem_coh)
         
-      case (fates_cnp)
+      case (carbon_nitrogen_phosphorus)
    
         ! Register boundary conditions for the CNP Allometric Hypothesis
    
