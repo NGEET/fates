@@ -12,7 +12,9 @@ module PRTInitParamsFatesMod
   use PRTGenericMod,     only : num_organ_types
   use PRTGenericMod,     only : leaf_organ, fnrt_organ, store_organ
   use PRTGenericMod,     only : sapw_organ, struct_organ, repro_organ
-  use PRTGenericMod,     only : nitrogen_element, phosphorus_element
+  use PRTGenericMod,     only : nitrogen_element
+  use PRTGenericMod,     only : phosphorus_element
+  use PRTGenericMod,     only : carbon12_element
   use FatesGlobals,      only : endrun => fates_endrun
   use FatesGlobals,      only : fates_log 
   use shr_log_mod,       only : errMsg => shr_log_errMsg
@@ -1316,6 +1318,10 @@ contains
 
      ! Total nutrient in a newly recruited plant
      select case(element_id)
+     case(carbon12_element)
+        
+        nutr_total = c_total
+        
      case(nitrogen_element)
 
         nutr_total = &
