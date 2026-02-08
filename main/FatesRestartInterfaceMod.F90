@@ -3623,6 +3623,7 @@ contains
                 io_idx_si_cwd = io_idx_co_1st
                 io_idx_si_pft = io_idx_co_1st
                 io_idx_si_scpf = io_idx_co_1st
+                io_idx_si_dist = io_idx_co_1st
 
                 do i_cwd=1,ncwd
                    sites(s)%flux_diags%elem(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd)
