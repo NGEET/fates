@@ -132,16 +132,14 @@ contains
        do while (associated(patch))
           if(patch%nocomp_pft_label.ne.nocomp_bareground)then
 
-             ifp = patch%patchno
-
              ! --------------------------------------------------------------------------
              ! 1 = initial value before the land-energy-balance solve
              ! 2 = patch is currently marked for photosynthesis
              ! 3 = patch has been called for photosynthesis already
              ! --------------------------------------------------------------------------
              
-             if(bc_in(s)%filter_photo_pa(ifp)==2)then
-                call FatesCondPhotoPatch(patch,bc_in(s),bc_out(s),dtime)
+             if(bc_in(s)%filter_photo_pa(patch%patchno)==2)then
+                call FatesCondPhotoPatch(patch,sites(s),bc_in(s),bc_out(s),dtime)
 
                 ! MOVE ME TO POST Land Energy Balance please!!
                 call FatesPlantRespPatch(patch,bc_in(s),dtime)
@@ -156,7 +154,7 @@ contains
 
   ! ==================================================================================
 
-  subroutine FatesCondPhotoPatch(patch,bc_in,bc_out,dtime)
+  subroutine FatesCondPhotoPatch(patch,site,bc_in,bc_out,dtime)
 
     ! -----------------------------------------------------------------------------------
     ! !DESCRIPTION:
@@ -165,9 +163,12 @@ contains
     ! a multi-layer canopy
     ! -----------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------
-    type (fates_patch_type)           :: patch
-    type (fates_cohort_type), pointer :: cohort
-
+    type (fates_patch_type)          :: patch
+    type(ed_site_type),intent(inout) :: site
+    type(bc_in_type),intent(in)      :: bc_in
+    type(bc_out_type),intent(inout)  :: bc_out
+    real(r8)                         :: dtime
+    
     ! -----------------------------------------------------------------------------------
     ! The followingarrays hold leaf-level biophysical rates that are calculated
     ! in one loop and then sent to the cohorts in another loop.  If hydraulics are
@@ -203,6 +204,7 @@ contains
     ! used already
     logical :: rate_mask_z(nlevleaf,maxpft,nclmax)
 
+    type (fates_cohort_type), pointer :: cohort
     real(r8) :: vcmax_z                          ! leaf layer maximum rate of carboxylation
                                                  ! (umol co2/m**2/s)
     real(r8) :: jmax_z                           ! leaf layer maximum electron transport rate
@@ -231,6 +233,8 @@ contains
     real(r8) :: r_stomata                        ! Mean stomatal resistance across all leaves in the patch [s/m]
     real(r8) :: maintresp_reduction_factor       ! factor by which to reduce maintenance
                                                  ! respiration when storage pools are low
+    real(r8) :: storage_target_frac              ! carbon storage as a fraciton of the target value
+    real(r8) :: store_c_target                   ! Target storage carbon (kgC/plant)
     real(r8) :: cohort_eleaf_area                ! This is the effective leaf area [m2] reported by each cohort
     real(r8) :: lnc_top                          ! Leaf nitrogen content per unit area at canopy top [gN/m2]
     real(r8) :: lmr25top                         ! canopy top leaf maint resp rate at 25C 
@@ -239,7 +243,7 @@ contains
     real(r8) :: leaf_veg_frac                    ! fraction of vegetation area (leaf+stem) that is just leaf
     real(r8) :: cumulative_lai                   ! the cumulative LAI, top down, to the leaf layer of interest
     real(r8) :: leaf_psi                         ! leaf xylem matric potential [MPa] (only meaningful/used w/ hydro)
-    real(r8) :: fnrt_mr_layer                    ! fine root maintenance respiation per layer [kgC/plant/s]
+    
     integer  :: isunsha                          ! Index for differentiating sun and shade
     real(r8) :: rd_abs_leaf, rb_abs_leaf         ! Watts of diffuse and beam light absorbed by leaves over this
                                                  ! depth interval and ground footprint (m2)
@@ -279,6 +283,8 @@ contains
                                                  ! of applying to gs1, this would scale the whole non-intercept
                                                  ! portion of the conductance equation
     real(r8)               :: vmol_cf            ! velocity to molar conductance conversion (m/s) -> (umol/m2/s)
+    real(r8) :: leaf_c                           ! Leaf carbon (kgC/plant)
+    real(r8) :: leaf_n                           ! leaf nitrogen content (kgN/plant)
     integer  :: cl,s,iv,j,ps,ft,ifp              ! indices
     integer  :: nv                               ! number of leaf layers
     integer  :: iage                             ! loop counter for leaf age classes
@@ -289,21 +295,12 @@ contains
 
     real(r8), parameter :: ci_tol = 0.5_r8
     
-  
-
-    associate(  &
-         slatop    => prt_params%slatop , &  ! specific leaf area at top of canopy
-         woody     => prt_params%woody)      ! Is vegetation woody or not?
-
-
- 
-      
       ifp = patch%patchno
 
       ! Part I. Zero output boundary conditions and patch weighted means
       ! ---------------------------------------------------------------------------
-      bc_out(s)%rssun_pa(ifp)     = 0._r8
-      bc_out(s)%rssha_pa(ifp)     = 0._r8
+      bc_out%rssun_pa(ifp)     = 0._r8
+      bc_out%rssha_pa(ifp)     = 0._r8
       g_sb_leaves = 0._r8
       patch_la    = 0._r8
 
@@ -386,7 +383,7 @@ contains
                        iv,                                 &
                        cohort%nv,                   &
                        cohort%pft,                  &
-                       sites(s)%snow_depth,                &
+                       site%snow_depth,                &
                        cohort_vaitop(iv),                  &
                        cohort_vaibot(iv),                  & 
                        cohort_layer_elai(iv),              &
@@ -411,9 +408,9 @@ contains
             
             call storage_fraction_of_target(store_c_target, &
                  cohort%prt%GetState(store_organ, carbon12_element), &
-                 frac)
+                 storage_target_frac)
             
-            call LowstorageMainRespReduction(frac,cohort%pft, &
+            call LowstorageMainRespReduction(storage_target_frac,cohort%pft, &
                  maintresp_reduction_factor)
             
             ! are there any leaves of this pft in this layer?
@@ -511,21 +508,21 @@ contains
                      select case(hlm_parteh_mode)
                      case (prt_carbon_allom_hyp)
 
-                        lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
+                        lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/prt_params%slatop(ft)
 
                      case (prt_cnp_flex_allom_hyp)
 
                         leaf_c  = cohort%prt%GetState(leaf_organ, carbon12_element)
-                        if( (leaf_c*slatop(ft)) > nearzero) then
+                        if( (leaf_c*prt_params%slatop(ft)) > nearzero) then
                            leaf_n  = cohort%prt%GetState(leaf_organ, nitrogen_element)
-                           lnc_top = leaf_n / (slatop(ft) * leaf_c )
+                           lnc_top = leaf_n / (prt_params%slatop(ft) * leaf_c )
                         else
-                           lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
+                           lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/prt_params%slatop(ft)
                         end if
 
                         ! If one wants to break coupling with dynamic N conentrations,
                         ! use the stoichiometry parameter
-                        ! lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/slatop(ft)
+                        ! lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/prt_params%slatop(ft)
 
                      end select
 
@@ -592,7 +589,7 @@ contains
 
                      else    ! Two-stream
 
-                        if(cohort_layer_elai(iv) > nearzero .and. sites(s)%coszen>0._r8 ) then
+                        if(cohort_layer_elai(iv) > nearzero .and. site%coszen>0._r8 ) then
 
                            call FatesGetCohortAbsRad(patch, cohort, ipar, &
                                 cohort_vaitop(iv), cohort_vaibot(iv), cohort_elai, cohort_esai, &
@@ -879,8 +876,8 @@ contains
                      
             ! This will be multiplied by scaled by effective LAI in the host model
             ! when it comes time to calculate a flux rate per unit ground
-            bc_out(s)%rssun_pa(ifp) = r_stomata
-            bc_out(s)%rssha_pa(ifp) = r_stomata
+            bc_out%rssun_pa(ifp) = r_stomata
+            bc_out%rssha_pa(ifp) = r_stomata
             
             ! This value is used for diagnostics, the molar form of conductance
             ! is what is used in the field usually, so we track that form
@@ -891,8 +888,8 @@ contains
          else !if_any_lai
             
             ! But this will prevent it from using an unintialized value
-            bc_out(s)%rssun_pa(ifp) = rsmax0
-            bc_out(s)%rssha_pa(ifp) = rsmax0
+            bc_out%rssun_pa(ifp) = rsmax0
+            bc_out%rssha_pa(ifp) = rsmax0
             
             ! This value is used for diagnostics, the molar form of conductance
             ! is what is used in the field usually, so we track that form
@@ -906,8 +903,6 @@ contains
          
       end if if_any_cohorts
 
-      
-    end associate
     return
   end subroutine FatesCondPhotoPatch
 
@@ -932,6 +927,7 @@ contains
     type (fates_cohort_type), pointer :: cohort
     real(r8) :: maintresp_reduction_factor       ! factor by which to reduce maintenance
                                                  ! respiration when storage pools are low
+    real(r8) :: storage_target_frac              ! storage as a fraction of the target
     real(r8) :: fnrt_mr_nfix_layer               ! fineroot maintenance respiration
                                                  ! specifically for symbiotic fixation [kgC/plant/layer/s]
     real(r8) :: nfix_layer                       ! Nitrogen fixed in each layer this timestep [kgN/plant/layer/timestep]
@@ -953,12 +949,12 @@ contains
     real(r8) :: store_c_target                   ! Target storage carbon (kgC/plant)
     real(r8) :: fnrt_c                           ! Fine root carbon (kgC/plant)
     real(r8) :: fnrt_n                           ! Fine root nitrogen content (kgN/plant)
-    real(r8) :: leaf_c                           ! Leaf carbon (kgC/plant)
-    real(r8) :: leaf_n                           ! leaf nitrogen content (kgN/plant)
+   
     real(r8) :: tcsoi                            ! Temperature response function for root respiration.
     real(r8) :: tcwood                           ! Temperature response function for wood
-
+    real(r8) :: fnrt_mr_layer                    ! fine root maintenance respiation per layer [kgC/plant/s]
     integer :: ft, cl, j                         ! indices: pft, canopy layer, soil layer
+    integer :: ifp                               ! index of the fates patch
     
     ! -----------------------------------------------------------------------------------
     ! Calculate the amount of nitrogen in the above and below ground stem and root
@@ -988,9 +984,9 @@ contains
        
        call storage_fraction_of_target(store_c_target, &
             cohort%prt%GetState(store_organ, carbon12_element), &
-            frac)
+            storage_target_frac)
        
-       call LowstorageMainRespReduction(frac,cohort%pft, &
+       call LowstorageMainRespReduction(storage_target_frac,cohort%pft, &
             maintresp_reduction_factor)
        
        sapw_c   = cohort%prt%GetState(sapw_organ, carbon12_element)
@@ -1069,8 +1065,8 @@ contains
        
        ! Live stem MR (kgC/plant/s) (above ground sapwood)
        ! ------------------------------------------------------------------
-       if ( int(woody(ft)) == itrue) then
-          tcwood = q10_mr**((bc_in%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8)
+       if ( int(prt_params%woody(ft)) == itrue) then
+          tcwood = q10_mr**((bc_in%t_veg_pa(patch%patchno)-tfrz - 20.0_r8)/10.0_r8)
           ! kgC/s = kgN * kgC/kgN/s
           cohort%livestem_mr  = live_stem_n * maintresp_nonleaf_baserate * tcwood * maintresp_reduction_factor
        else
@@ -1105,7 +1101,7 @@ contains
        
        ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
        ! ------------------------------------------------------------------
-       if ( int(woody(ft)) == itrue) then
+       if ( int(prt_params%woody(ft)) == itrue) then
           cohort%livecroot_mr = 0._r8
           do j = 1,bc_in%nlevsoil
              ! Soil temperature used to adjust base rate of MR

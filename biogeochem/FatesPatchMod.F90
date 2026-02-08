@@ -527,7 +527,7 @@ module FatesPatchMod
       this%fragmentation_scaler(:)      = nan 
 
       ! Fine-root fraction
-      fnrtfrac_ftz(:,:)                 = nan
+      this%fnrtfrac_ftz(:,:)            = nan
       
       ! FUELS AND FIRE
       this%livegrass                    = nan 
