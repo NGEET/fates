@@ -2042,7 +2042,10 @@ contains
 
 
        if (debug) then
-          burn_flux0    = site_mass%burn_flux_to_atm(dist_type)
+          burn_flux0 = 0._r8
+          if (dist_type .gt. 0) then
+             burn_flux0    = site_mass%burn_flux_to_atm(dist_type)
+          end if
           litter_stock0 = curr_litt%GetTotalLitterMass()*currentPatch%area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
        end if
@@ -2051,19 +2054,16 @@ contains
          frac_burnt = 0.0_r8
          if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
             frac_burnt = currentPatch%fuel%frac_burnt(c)
+            burned_mass = curr_litt%ag_cwd(c) * patch_site_areadis * frac_burnt
+            site_mass%burn_flux_to_atm(dist_type) = site_mass%burn_flux_to_atm(dist_type) + burned_mass
          end if 
              
           ! Transfer above ground CWD
           donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
                                (1._r8 - frac_burnt)
 
-          burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               frac_burnt
- 
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
-
-          site_mass%burn_flux_to_atm(dist_type) = site_mass%burn_flux_to_atm(dist_type) + burned_mass
 
           ! Transfer below ground CWD (none burns)
           do sl = 1,currentSite%nlevsoil
@@ -2077,6 +2077,8 @@ contains
        frac_burnt = 0.0_r8
        if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
          frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
+         burned_mass = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * frac_burnt
+         site_mass%burn_flux_to_atm(dist_type) = site_mass%burn_flux_to_atm(dist_type) + burned_mass
       end if 
              
        do dcmpy=1,ndcmpy
@@ -2085,13 +2087,8 @@ contains
            donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
                                       (1._r8 - frac_burnt)
 
-           burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                       frac_burnt
-
            new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
-           
-           site_mass%burn_flux_to_atm(dist_type) = site_mass%burn_flux_to_atm(dist_type) + burned_mass
 
            ! Transfer root fines (none burns)
            do sl = 1,currentSite%nlevsoil
@@ -2122,7 +2119,10 @@ contains
        ! EDMainMod start triggering.
        ! --------------------------------------------------------------------------
        if (debug) then
-          burn_flux1    = site_mass%burn_flux_to_atm(dist_type)
+          burn_flux1 = 0._r8
+          if (dist_type .gt. 0) then
+             burn_flux1    = site_mass%burn_flux_to_atm(dist_type)
+          end if
           litter_stock1 = curr_litt%GetTotalLitterMass()*remainder_area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
           error = (litter_stock1 - litter_stock0) + (burn_flux1-burn_flux0)
