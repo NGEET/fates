@@ -1207,7 +1207,7 @@ contains
             units='kg/ha/day', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_herbivory_flux_out_si)
        
-       call this%RegisterCohortVector(symbol_base='burn_flux_to_atm', vtype=site_r8, &
+       call this%RegisterCohortVector(symbol_base='burn_flux_to_atm', vtype=cohort_r8, &
             long_name_base='Mass flux of burn loss to the atmosphere at site level', &
             units='kg/ha/day', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_burn_flux_to_atm_si)
