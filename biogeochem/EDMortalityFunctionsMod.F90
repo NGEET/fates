@@ -22,6 +22,7 @@ module EDMortalityFunctionsMod
    use FatesConstantsMod     , only : leaves_off
    use FatesAllometryMod     , only : bleaf
    use FatesAllometryMod     , only : storage_fraction_of_target
+   use FatesAllometryMod     , only : set_root_fraction
    use FatesInterfaceTypesMod     , only : bc_in_type
    use FatesInterfaceTypesMod     , only : hlm_use_ed_prescribed_phys
    use FatesInterfaceTypesMod     , only : hlm_freq_day
@@ -56,7 +57,7 @@ module EDMortalityFunctionsMod
 
 contains
 
-  subroutine mortality_rates( cohort_in,bc_in, btran_ft, mean_temp,             &
+  subroutine mortality_rates( cohort_in,bc_in, btran_ft, soil_root_i, mean_temp,             &
       cmort,hmort,bmort, frmort,smort,asmort,dgmort )
 
     ! ============================================================================
@@ -72,7 +73,8 @@ contains
     
     type (fates_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
-    real(r8), intent(in)          :: btran_ft(maxpft) 
+    real(r8), intent(in)          :: btran_ft(maxpft)
+    integer, intent(in)          :: soil_root_i ! index of deepest soil layer with roots
     real(r8), intent(in)          :: mean_temp
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
@@ -181,9 +183,13 @@ contains
        else
           ! When FATES-Hydro is off, hydraulic failure mortality occurs only when btran
           ! falls below a threshold and plants have leaves.
+          ! Btran is zero for frozen soil layers. To prevent plants at high latitude from
+          ! being killed in winter, do not calculate mortality if any of the soil layers
+          ! with roots are frozen.
+          
           if ( (.not. is_decid_dormant) .and. &
                ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
-               ( ( minval(bc_in%t_soisno_sl) - tfrz ) > soil_tfrz_thresh ) ) then
+               ( ( minval(bc_in%t_soisno_sl(1:soil_root_i)) - tfrz ) > soil_tfrz_thresh ) ) then
              hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)*((hf_sm_threshold- btran_ft(cohort_in%pft))/hf_sm_threshold)
           else
              hmort = 0.0_r8
@@ -319,14 +325,31 @@ contains
     real(r8) :: dgmort   ! damage mortality (fraction per year)
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
     integer  :: ipft              ! local copy of the pft index
-   
+    integer  :: max_root_soil_ind ! max soil layer with roots in
+    integer  :: i_soil ! index for soil layers
+    
    !----------------------------------------------------------------------
 
     ipft = currentCohort%pft
     
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,bc_in,btran_ft, mean_temp,              &
+    
+    ! get the deepest soil layer with roots - used in calculating hydraulic failure mortality
+    ! first get root fraction in each soil layer
+    max_root_soil_ind = 1
+
+    call set_root_fraction(currentSite%rootfrac_scr, ipft, currentSite%zi_soil, &
+         bc_in%max_rooting_depth_index_col)
+
+    do i_soil = bc_in%nlevsoil, 1, -1
+       if (currentSite%rootfrac_scr(i_soil) .ne. 0) then
+          max_root_soil_ind = i_soil
+          exit
+       end if
+    end do
+    
+    call mortality_rates(currentCohort,bc_in,btran_ft,max_root_soil_ind,mean_temp,              &
       cmort,hmort,bmort,frmort, smort, asmort, dgmort)
     call LoggingMortality_frac(currentSite, bc_in, ipft, currentCohort%dbh, currentCohort%canopy_layer, &
                                currentCohort%lmort_direct,                       &
