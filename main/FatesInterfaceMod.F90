@@ -1544,6 +1544,7 @@ contains
          hlm_num_lu_harvest_cats   = unset_int
          hlm_num_luh2_states       = unset_int
          hlm_num_luh2_transitions  = unset_int
+         hlm_lu_transition_logic = unset_int
          hlm_use_cohort_age_tracking = unset_int
          lb_params%dayl_switch = unset_int
          lb_params%photo_tempsens_model = unset_int
@@ -2069,7 +2070,13 @@ contains
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_num_luh2_transitions= ',ival,' to FATES'
                end if
-
+               
+            case('fates_lu_transition_logic')
+               hlm_lu_transition_logic = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_lu_transition_logic= ',ival,' to FATES'
+               end if
+               
             case('use_cohort_age_tracking')
                hlm_use_cohort_age_tracking = ival
                if (fates_global_verbose()) then

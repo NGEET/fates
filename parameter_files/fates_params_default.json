@@ -800,6 +800,13 @@
       "units": "unitless 0-1",
       "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
     },
+      "fates_landuse_clearing_mortality": {
+      "dtype": "float",
+      "dims": ["fates_pft"],
+      "long_name": "Fraction of PFT killed during land use clearing to rangeland",
+      "units": "fraction",
+      "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    },
     "fates_landuse_harvest_pprod10": {
       "dtype": "float",
       "dims": ["fates_pft"],
