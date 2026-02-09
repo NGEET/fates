@@ -217,18 +217,15 @@ module EDTypesMod
   type, public :: site_fluxdiags_type
 
 
-     ! This is for all diagnostics that are uniform over all elements (C,N,P)
+     ! These are site level flux diagnostics that are not used
+     ! in mass balance checks. We use these structures
+     ! to inform the history output.  These values are not
+     ! zero'd when dynamics are completed.  These values
+     ! are zero'd on cold-starts, and on restarts prior to the read
      
+     ! This is for all diagnostics that are uniform over all elements (C,N,P)
      type(elem_diag_type), pointer :: elem(:)
 
-     ! This variable is slated as to-do, but the fluxdiags type needs
-     ! to be refactored first. Currently this type is allocated
-     ! by chemical species (ie C, N or P). GPP is C, but not N or P (RGK 0524)
-     ! Previous day GPP [kgC/m2/year], partitioned by size x pft
-     !real(r8),allocatable :: gpp_prev_scpf(:)
-
-     real(r8) :: npp          ! kg m-2 day-1
-     
      ! Nutrient Flux Diagnostics
      
      real(r8) :: resp_excess  ! plant carbon respired due to carbon overflow
@@ -678,7 +675,6 @@ contains
 
       end do
 
-     this%npp = 0._r8
      this%resp_excess = 0._r8
      this%nh4_uptake  = 0._r8
      this%no3_uptake  = 0._r8
@@ -694,11 +690,6 @@ contains
      this%p_uptake_scpf(:) = 0._r8
      this%p_efflux_scpf(:) = 0._r8
       
-     ! We don't zero gpp_prev_scpf because this is not
-     ! incremented like others, it is assigned at the end
-     ! of the daily history write process
-     
-     
      return
    end subroutine ZeroFluxDiags
 
@@ -848,7 +839,7 @@ contains
      currentPatch => this%oldest_patch
      do while (associated(currentPatch))
         if (currentPatch%land_use_label .eq. secondaryland) then
-           if ( currentPatch%age .ge. secondary_age_threshold ) then
+           if ( currentPatch%age_since_anthro_disturbance .ge. secondary_age_threshold ) then
               secondary_old_area = secondary_old_area + currentPatch%area
            else
               secondary_young_area = secondary_young_area + currentPatch%area

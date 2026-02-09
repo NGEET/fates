@@ -7,7 +7,6 @@ module FatesUtilsMod
   use FatesGlobals, only      : fates_log
   use FatesConstantsMod, only : nearzero
   use FatesGlobals,      only : endrun => fates_endrun
-  
   use shr_log_mod , only      : errMsg => shr_log_errMsg
   
   implicit none
@@ -21,6 +20,7 @@ module FatesUtilsMod
   public :: QuadraticRootsNSWC
   public :: QuadraticRootsSridharachary
   public :: ArrayNint
+  public :: GreatCircleDist
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -76,7 +76,6 @@ contains
 
      real(r8), parameter :: r8_type  = 1.0
      real(r8), parameter :: overflow  = huge(r8_type)
-     real(r8), parameter :: underflow = tiny(r8_type)
 
      return_code = 0
 
@@ -91,13 +90,6 @@ contains
         write(fates_log(),*) 'Nigh overflow detected, ',trim(var_name),': ',r8_var
         return_code = return_code + 10
      end if
-
-     ! Underflow check (within 100x of min precision)
-     if (abs(r8_var) < 100.0_r8*underflow) then
-        write(fates_log(),*) 'Nigh underflow detected, ',trim(var_name),': ',r8_var
-        return_code = return_code + 100
-     end if
-
 
   end subroutine check_var_real
   
@@ -130,10 +122,15 @@ contains
      real(r8)     :: x
      real(r8)     :: y
      !---------------------------------------------------------------------------------------!
-    
+
+     ! ---- Make sure that longitudes are using the same convention (-180,180)
+
+     lons = modulo(slons + 180.0_r8,360.0_r8)-180.0_r8
+     lonf = modulo(slonf + 180.0_r8,360.0_r8)-180.0_r8
+     
      !----- Convert the co-ordinates to double precision and to radians. --------------------!
-     lons = slons * rad_per_deg
-     lonf = slonf * rad_per_deg
+     lons = lons * rad_per_deg
+     lonf = lonf * rad_per_deg
      lats = slats * rad_per_deg
      latf = slatf * rad_per_deg
      dlon = lonf - lons

@@ -47,6 +47,7 @@ class ROSTest(FunctionalTest):
         self.plot_reaction_vel(ros_dat, save_figs, plot_dir)
         self.plot_qig(ros_dat, save_figs, plot_dir)
         self.plot_eps(ros_dat, save_figs, plot_dir)
+        self.plot_reaction_intensity(ros_dat, save_figs, plot_dir)
 
     @staticmethod
     def plot_prop_flux(data: xr.Dataset, save_fig: bool, plot_dir: str = None):
@@ -230,4 +231,42 @@ class ROSTest(FunctionalTest):
 
         if save_fig:
             fig_name = os.path.join(plot_dir, "eps_plot.png")
+            plt.savefig(fig_name)
+            
+            
+    @staticmethod
+    def plot_reaction_intensity(data: xr.Dataset, save_fig: bool, plot_dir: str = None):
+        """Plot reaction intensity
+
+        Args:
+            data (xarray DataSet): the data set
+            save_fig (bool): whether or not to write out plot
+            plot_dir (str): if saving figure, where to write to
+        """
+        data_frame = pd.DataFrame(
+            {
+                "reaction_intensity": data.reaction_intensity,
+                "fuel_depth": data.fuel_depth.values.flatten(),
+            }
+        )
+
+        max_reaction_intensity = 120000.0
+        max_fuel_depth = 200
+
+        blank_plot(max_fuel_depth, 0.0, max_reaction_intensity, 0.0,
+                   draw_horizontal_lines=True)
+
+        plt.plot(
+            data_frame.fuel_depth.values*100,
+            data_frame["reaction_intensity"].values,
+            lw=2,
+            color="k",
+        )
+
+        plt.xlabel("Fuel bed depth (cm)", fontsize=11)
+        plt.ylabel("Reaction intensity (kJ m$^{-2}$ min$^{-1}$)", fontsize=11)
+        plt.tight_layout()
+
+        if save_fig:
+            fig_name = os.path.join(plot_dir, "reaction_intensity_plot.png")
             plt.savefig(fig_name)
