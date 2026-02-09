@@ -2074,14 +2074,15 @@ contains
           
        enddo
        
-       frac_burnt = 0.0_r8
-       if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
-         frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
-         burned_mass = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * frac_burnt
-         site_mass%burn_flux_to_atm(dist_type) = site_mass%burn_flux_to_atm(dist_type) + burned_mass
-      end if 
              
        do dcmpy=1,ndcmpy
+
+           frac_burnt = 0.0_r8
+           if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
+              frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
+              burned_mass = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * frac_burnt
+              site_mass%burn_flux_to_atm(dist_type) = site_mass%burn_flux_to_atm(dist_type) + burned_mass
+           end if 
 
            ! Transfer leaf fines
            donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
@@ -2129,6 +2130,11 @@ contains
           if(abs(error)>1.e-8_r8) then
              write(fates_log(),*) 'non trivial carbon mass balance error in litter transfer'
              write(fates_log(),*) 'abs error: ',error
+             write(fates_log(),*) 'dist type: ', dist_type
+             write(fates_log(),*) 'litt stock 1, 0: ', litter_stock1, litter_stock0
+             write(fates_log(),*) 'area: rem, new ', remainder_area, newPatch%area
+             write(fates_log(),*) 'burn flux 1, 0: ', burn_flux1, burn_flux0, sum(site_mass%burn_flux_to_atm)
+             write(fates_log(),*) 'burn flux: ', site_mass%burn_flux_to_atm
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
        end if
