@@ -821,11 +821,15 @@ contains
             end do
             write(fates_log(),*) '============ End FATES Parameter Info ========='
          end if
+
+         ! This assigns named constants to the indices of each
+         ! parameter datastructure, allowing data to be accessed
+         ! directly from the structure
+         call SetParameterIndices()
          
          ! This call transfers parameters from the pstruct data-structure
          ! into the specific datastructures where parameters have there
          ! own primitive arrays
-
          call FatesTransferParameters()
          
          fates_numpft = size(prt_params%wood_density,dim=1)
@@ -2338,8 +2342,9 @@ contains
            do while (associated(ccohort))
               !   call ccohort%tveg_lpa%UpdateRMean(bc_in(s)%t_veg_pa(ifp))
               if(.not.ccohort%isnew)then
-                 ! [kgC/plant/yr] -> [gC/m2/yr]
-                 site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * g_per_kg
+                 ! [kgC/plant/yr] -> [gC/m2/s]
+                 site_npp = site_npp + ccohort%npp_acc_hold * ccohort%n*area_inv * &
+                      g_per_kg * hlm_days_per_year / sec_per_day
               end if
               ccohort => ccohort%shorter
            end do

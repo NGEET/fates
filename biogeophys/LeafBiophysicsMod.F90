@@ -950,7 +950,6 @@ contains
     real(r8), intent(out) :: fval           ! ci_input - ci_updated  (Pa)
     
     !real(r8) :: veg_esat          ! Saturation vapor pressure at leaf-surface [Pa]
-    real(r8) :: veg_qs            ! DUMMY, specific humidity at leaf-surface [kg/kg]
     real(r8) :: a_gs              ! The assimilation (a) for calculating conductance (gs)
                                   ! is either = to anet or agross
     real(r8) :: ac                ! Rubisco-limited gross photosynthesis (umol CO2/m**2/s)
@@ -1478,7 +1477,7 @@ contains
        lwp_star = 1._r8
     end if
     
-    ! call QSat(veg_tempk, can_press, qsat_alt, veg_esat)
+    call QSat(veg_tempk, can_press, qsat_alt, veg_esat)
 
     qsat_alt = qsat_alt * g_per_kg
     
