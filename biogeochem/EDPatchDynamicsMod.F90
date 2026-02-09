@@ -217,6 +217,7 @@ contains
     logical  :: site_secondaryland_first_exceeding_min
     real(r8) :: secondary_young_fraction  ! what fraction of secondary land is young secondary land
     integer :: i_soil
+    real(r8) :: cumrootfrac
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
@@ -256,8 +257,11 @@ contains
           call set_root_fraction(site_in%rootfrac_scr, currentCohort%pft, site_in%zi_soil, &
                bc_in%max_rooting_depth_index_col)
 
-          do i_soil = bc_in%nlevsoil, 1, -1
-             if (site_in%rootfrac_scr(i_soil) .ne. 0) then
+          cumrootfrac = 0._r8
+          
+          do i_soil = 1, bc_in%nlevsoil, 1
+             cumrootfrac = cumrootfrac + site_in%rootfrac_scr(i_soil)
+             if (cumrootfrac .ge. 0.9_r8) then
                 max_root_soil_ind = i_soil
                 exit
              end if
