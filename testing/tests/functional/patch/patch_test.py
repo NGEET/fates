@@ -1,20 +1,16 @@
 """
-Concrete class for running a {module_name} functional tests for FATES.
+Concrete class for running the allometry functional tests for FATES.
 """
-import os
-import xarray as xr
-import numpy as np
-import matplotlib.pyplot as plt
 from framework.functional_test import FunctionalTest
 
 
-class {module_name}(FunctionalTest):
-    """{module_name} test class
+class PatchTest(FunctionalTest):
+    """Patch test class
     """
-    name = "{test_name}"
+    name = 'patch'
 
     def plot_output(self, run_dir: str, save_figs: bool, plot_dir: str):
-        """Plots - update this to plot your output
+        """Plots all allometry plots
 
         Args:
             run_dir (str): run directory
@@ -23,4 +19,3 @@ class {module_name}(FunctionalTest):
             plot_dir (str): plot directory to save the figures to
         """
         pass
-

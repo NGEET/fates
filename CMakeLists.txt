@@ -50,8 +50,8 @@ add_subdirectory(${HLM_ROOT}/src/fates/fire fates_fire)
 add_subdirectory(${HLM_ROOT}/src/fates/radiation fates_radiation)
 
 # Testing directories
-add_subdirectory(${HLM_ROOT}/src/fates/testing/testing_shr test_share)
-add_subdirectory(${HLM_ROOT}/src/fates/testing/functional_testing/fire/shr fire_share)
+add_subdirectory(${HLM_ROOT}/src/fates/testing/tests/fortran_shr test_share)
+add_subdirectory(${HLM_ROOT}/src/fates/testing/tests/functional/fire/shr fire_share)
 
 # Remove shr_mpi_mod from share_sources.
 # This is needed because we want to use the mock shr_mpi_mod in place of the real one

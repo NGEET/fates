@@ -1,0 +1,190 @@
+"""Utility functions for file checking, math equations, etc.
+Do not include any third-party modules here.
+"""
+
+import math
+import re
+import configparser
+import argparse
+from pathlib import Path
+from framework.utils.path import get_cime_module
+
+cime_utils = get_cime_module("CIME.utils")
+
+
+def round_up(num: float, decimals: int = 0) -> float:
+    """Rounds a number up
+
+    Args:
+        num (float): number to round
+        decimals (int, optional): number of decimals to round to. Defaults to 0.
+
+    Returns:
+        float: input number rounded up
+    """
+    multiplier = 10**decimals
+    return math.ceil(num * multiplier) / multiplier
+
+
+def truncate(num: float, decimals: int = 0) -> float:
+    """Rounds a number down
+
+    Args:
+        num (float): number to round
+        decimals (int, optional): Decimals to round down to. Defaults to 0.
+
+    Returns:
+        float: number rounded down
+    """
+    multiplier = 10**decimals
+    return int(num * multiplier) / multiplier
+
+
+def create_nc_from_cdl(cdl_path: Path, out_dir: Path) -> str:
+    """Creates a netcdf file from a cdl file and writes to specified directory
+
+    Args:
+        cdl_path (Path): path to cdl file
+        out_dir (Path): directory to write to
+
+    Returns:
+        str: output from subprocess command
+    """
+
+    file_basename = cdl_path.name.split(".")[-2]
+    file_nc_name = f"{file_basename}.nc"
+
+    file_gen_command = ["ncgen -o", str((out_dir / file_nc_name)), str(cdl_path)]
+    out = cime_utils.run_cmd_no_fail(" ".join(file_gen_command), combine_output=True)
+    print(out)
+
+    return file_nc_name
+
+
+def copy_file(file_path: Path, directory: Path) -> Path:
+    """Copies a file file to a desired directory and returns new path to file.
+
+    Args:
+        file_path (Path): full path to file
+        dir (Path): where the file should be copied to
+    """
+    file_basename = file_path.name
+
+    file_copy_command = ["cp", str(file_path.resolve()), str(directory.resolve())]
+    out = cime_utils.run_cmd_no_fail(" ".join(file_copy_command), combine_output=True)
+    print(out)
+
+    return directory / file_basename
+
+
+def config_to_dict(config_file: str) -> dict:
+    """Convert a config file to a python dictionary
+
+    Args:
+        config_file (str): full path to config file
+
+    Returns:
+        dictionary: dictionary of config file
+    """
+
+    config = configparser.ConfigParser()
+    config.read(config_file)
+
+    dictionary = {}
+    for section in config.sections():
+        dictionary[section] = {}
+        for option in config.options(section):
+            value = config.get(section, option)
+            dictionary[section][option] = value
+
+    return dictionary
+
+
+def parse_test_list(full_test_dict, test_string):
+    """Parses the input test list and checks for errors
+
+    Args:
+        test (str): user-supplied comma-separated list of test names
+
+    Returns:
+        dictionary: filtered dictionary of tests to run
+
+    Raises:
+        RuntimeError: Invalid test name supplied
+    """
+    valid_test_names = full_test_dict.keys()
+
+    if test_string != "all":
+        test_list = test_string.split(",")
+        for test in test_list:
+            if test not in valid_test_names:
+                raise argparse.ArgumentTypeError(
+                    "Invalid test supplied, \n"
+                    "must supply one of:\n"
+                    f"{', '.join(valid_test_names)}\n"
+                    "or do not supply a test name to run all tests."
+                )
+        test_dict = {key: full_test_dict[key] for key in test_list}
+    else:
+        test_dict = full_test_dict
+
+    return test_dict
+
+
+def str_to_bool(val: str) -> bool:
+    """Convert a string representation of truth to True or False.
+
+    Args:
+        val (str): input string
+
+    Raises:
+        ValueError: can't figure out what the string should be converted to
+
+    Returns:
+        bool: True or False
+    """
+    if val.lower() in ("y", "yes", "t", "true", "on", "1"):
+        return True
+    if val.lower() in ("n", "no", "f", "false", "off", "0"):
+        return False
+    raise ValueError(f"invalid truth value {val}")
+
+
+def snake_to_camel(snake_str: str) -> str:
+    """Convert a snake_case string to CamelCase.
+
+    Args:
+        snake_str (str): input snake case
+
+    Returns:
+        str: output CamelCase
+    """
+    return "".join(word.capitalize() for word in snake_str.split("_"))
+
+
+def camel_to_snake(camel_str: str) -> str:
+    """Convert a CamelCase string to snake_case.
+
+    Args:
+        camel_str (str): input camel case
+
+    Returns:
+        str: output snake_case
+    """
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", camel_str).lower()
+
+
+def str_to_list(val: str) -> list[str] | None:
+    """converts string representation of list to actual list
+
+    Args:
+        val (str): string representation of list
+
+    Returns:
+        list: actual list
+    """
+    if val in ("", "[]"):
+        # empty list
+        return None
+    res = val.strip("][").split(",")
+    return [n.strip() for n in res]
