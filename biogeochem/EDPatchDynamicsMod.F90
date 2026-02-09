@@ -205,7 +205,7 @@ contains
     integer  :: threshold_sizeclass
     integer  :: i_dist
     integer  :: h_index
-    integer  :: max_root_soil_ind ! max soil layer with roots
+    integer  :: max_root_soil_ind ! deepest soil layer with 90% root biomass
     real(r8) :: harvest_rate
     real(r8) :: tempsum
     real(r8) :: mean_temp
@@ -250,7 +250,7 @@ contains
           !currentCohort%patchptr => currentPatch
           mean_temp = currentPatch%tveg24%GetMean()
 
-          ! get the deepest soil layer with roots - used in calculating hydraulic failure mortality
+          ! get the deepest soil layer with 90% of root biomass - used in calculating hydraulic failure mortality
           ! first get root fraction in each soil layer
           max_root_soil_ind = 1
           

@@ -185,7 +185,7 @@ contains
           ! falls below a threshold and plants have leaves.
           ! Btran is zero for frozen soil layers. To prevent plants at high latitude from
           ! being killed in winter, do not calculate mortality if any of the soil layers
-          ! with roots are frozen.
+          ! with 90% root biomass are frozen.
           
           if ( (.not. is_decid_dormant) .and. &
                ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
@@ -325,7 +325,7 @@ contains
     real(r8) :: dgmort   ! damage mortality (fraction per year)
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
     integer  :: ipft              ! local copy of the pft index
-    integer  :: max_root_soil_ind ! max soil layer with roots in
+    integer  :: max_root_soil_ind ! deepest soil layer with 90% root biomass in
     integer  :: i_soil ! index for soil layers
     real(r8) :: cumrootfrac
     
@@ -337,7 +337,7 @@ contains
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
     
-    ! get the deepest soil layer with roots - used in calculating hydraulic failure mortality
+    ! get the deepest soil layer with 90% root biomass - used in calculating hydraulic failure mortality
     ! first get root fraction in each soil layer
     max_root_soil_ind = 1
 
