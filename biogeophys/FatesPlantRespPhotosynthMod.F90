@@ -97,12 +97,14 @@ module FATESPlantRespPhotosynthMod
   private
 
   public :: FatesPlantRespPhotosynthDrive ! Called by the HLM-Fates interface
-
+  public :: FatesCondPhotoPatch
+  public :: FatesPlantRespPatch
+  
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
 
-  character(len=1024) :: warn_msg   ! for defining a warning message
+  !character(len=1024) :: warn_msg   ! for defining a warning message
 
   logical   ::  debug = .false.
   !-------------------------------------------------------------------------------------
@@ -139,10 +141,10 @@ contains
              ! --------------------------------------------------------------------------
              
              if(bc_in(s)%filter_photo_pa(patch%patchno)==2)then
-                call FatesCondPhotoPatch(patch,sites(s),bc_in(s),bc_out(s),dtime)
+                call FatesCondPhotoPatch(patch%patchno,sites(s),bc_in(s),bc_out(s))
 
                 ! MOVE ME TO POST Land Energy Balance please!!
-                call FatesPlantRespPatch(patch,bc_in(s),dtime)
+                call FatesPlantRespPatch(patch%patchno,sites(s),bc_in(s),dtime)
              end if
           end if
           patch => patch%younger
@@ -154,7 +156,7 @@ contains
 
   ! ==================================================================================
 
-  subroutine FatesCondPhotoPatch(patch,site,bc_in,bc_out,dtime)
+  subroutine FatesCondPhotoPatch(ifp,site,bc_in,bc_out)
 
     ! -----------------------------------------------------------------------------------
     ! !DESCRIPTION:
@@ -163,11 +165,11 @@ contains
     ! a multi-layer canopy
     ! -----------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------
-    type (fates_patch_type)          :: patch
+    integer                          :: ifp
+    
     type(ed_site_type),intent(inout) :: site
     type(bc_in_type),intent(in)      :: bc_in
     type(bc_out_type),intent(inout)  :: bc_out
-    real(r8)                         :: dtime
     
     ! -----------------------------------------------------------------------------------
     ! The followingarrays hold leaf-level biophysical rates that are calculated
@@ -203,7 +205,7 @@ contains
     ! Mask used to determine which leaf-layer biophysical rates have been
     ! used already
     logical :: rate_mask_z(nlevleaf,maxpft,nclmax)
-
+    type (fates_patch_type), pointer  :: patch
     type (fates_cohort_type), pointer :: cohort
     real(r8) :: vcmax_z                          ! leaf layer maximum rate of carboxylation
                                                  ! (umol co2/m**2/s)
@@ -219,10 +221,7 @@ contains
     real(r8) :: gb_mol                           ! leaf boundary layer conductance (molar form: [umol /m**2/s])
     real(r8) :: nscaler                          ! leaf nitrogen scaling coefficient
     real(r8) :: rdark_scaler                     ! scaling coefficient for Atkin dark respiration
-    real(r8) :: leaf_frac                        ! ratio of to leaf biomass to total alive biomass
-    
     real(r8) :: patch_la                         ! exposed leaf area (patch scale)
-
     real(r8) :: g_sb_leaves                      ! Mean combined (stomata+boundary layer) leaf conductance [m/s]
                                                  ! over all of the patch's leaves.  The "sb" refers to the combined
                                                  ! "s"tomatal and "b"oundary layer.
@@ -237,8 +236,6 @@ contains
     real(r8) :: store_c_target                   ! Target storage carbon (kgC/plant)
     real(r8) :: cohort_eleaf_area                ! This is the effective leaf area [m2] reported by each cohort
     real(r8) :: lnc_top                          ! Leaf nitrogen content per unit area at canopy top [gN/m2]
-    real(r8) :: lmr25top                         ! canopy top leaf maint resp rate at 25C 
-                                                 ! for this plant or pft (umol CO2/m**2/s)
     real(r8) :: lai_canopy_above                 ! the LAI in the canopy layers above the layer of interest
     real(r8) :: leaf_veg_frac                    ! fraction of vegetation area (leaf+stem) that is just leaf
     real(r8) :: cumulative_lai                   ! the cumulative LAI, top down, to the leaf layer of interest
@@ -247,14 +244,13 @@ contains
     integer  :: isunsha                          ! Index for differentiating sun and shade
     real(r8) :: rd_abs_leaf, rb_abs_leaf         ! Watts of diffuse and beam light absorbed by leaves over this
                                                  ! depth interval and ground footprint (m2)
-    real(r8) :: r_abs_stem, r_abs_snow           ! Watts of light absorbed by stems and snow over this depth interval and
-                                                 ! ground footprint 
     real(r8) :: rb_abs, rd_abs                   ! Total beam and diffuse radiation absorbed over this depth interval
                                                  ! and ground footprint
     real(r8) :: fsun                             ! sun-shade fraction
     real(r8) :: par_per_sunla, par_per_shala     ! PAR per sunlit and shaded leaf area [W/m2 leaf]
-    real(r8) :: ac_utest, aj_utest               ! Gross rubisco and rubp limited assimilation (for unit tests)
-    real(r8) :: ap_utest, co2_inter_c_utest      ! PEP limited assimilation, and intracellular co2 (for unit tests)
+    !real(r8) :: ac_utest, aj_utest              ! Gross rubisco and rubp limited assimilation (for unit tests)
+    !real(r8) :: ap_utest,
+    real(r8) :: co2_inter_c                      ! intracellular co2 (for unit tests) (Pa)
     real(r8),dimension(150) :: cohort_vaitop     ! The top-down integrated vegetation area index
                                                  ! (leaf+stem) at the top of the layer
     real(r8),dimension(150) :: cohort_vaibot     ! The top-down integrated vegetation area index
@@ -269,7 +265,6 @@ contains
     real(r8)               :: canopy_area        ! For Norman radiation, the fraction of crown area per
                                                  ! canopy area in each layer
                                                  ! they will sum to 1.0 in the fully closed canopy layers
-    real(r8)               :: elai               ! effective leaf area index
     real(r8)               :: area_frac          ! this is either f_sun , or 1-f_sun, its for area weighting
     real(r8)               :: psn_ll             ! Leaf level photosyntheis
     real(r8)               :: gstoma_ll          ! leaf level stomatal conductance (separate for sun shade) [m/s]
@@ -285,24 +280,32 @@ contains
     real(r8)               :: vmol_cf            ! velocity to molar conductance conversion (m/s) -> (umol/m2/s)
     real(r8) :: leaf_c                           ! Leaf carbon (kgC/plant)
     real(r8) :: leaf_n                           ! leaf nitrogen content (kgN/plant)
-    integer  :: cl,s,iv,j,ps,ft,ifp              ! indices
+    integer  :: cl,iv,ft                         ! indices
     integer  :: nv                               ! number of leaf layers
-    integer  :: iage                             ! loop counter for leaf age classes
     integer  :: solve_iter                       ! number of iterations required for photosynthesis solve
     
     ! Constants
     ! Absolute convergence tolerance on solving intracellular CO2 concentration [Pa]
 
     real(r8), parameter :: ci_tol = 0.5_r8
-    
-      ifp = patch%patchno
 
-      ! Part I. Zero output boundary conditions and patch weighted means
-      ! ---------------------------------------------------------------------------
-      bc_out%rssun_pa(ifp)     = 0._r8
-      bc_out%rssha_pa(ifp)     = 0._r8
-      g_sb_leaves = 0._r8
-      patch_la    = 0._r8
+    patch => site%oldest_patch
+    do while(associated(patch))
+       if(ifp == patch%patchno) exit
+       patch => patch%younger
+    end do
+
+    if(.not.associated(patch))then
+       write(fates_log(),*)'did not find ifp?'
+       stop
+    end if
+    
+    ! Part I. Zero output boundary conditions and patch weighted means
+    ! ---------------------------------------------------------------------------
+    bc_out%rssun_pa(ifp)     = 0._r8
+    bc_out%rssha_pa(ifp)     = 0._r8
+    g_sb_leaves = 0._r8
+    patch_la    = 0._r8
 
       ! Part III. Calculate the number of sublayers for each pft and layer.
       ! And then identify which layer/pft combinations have things in them.
@@ -718,9 +721,10 @@ contains
                              gstoma_ll,                          &  ! out
                              anet_ll,                            &  ! out
                              c13disc_ll,                         &  ! out
-                             co2_inter_c_utest,                  &  ! out (unit tests)
+                             co2_inter_c,                        &  ! out (unit tests)
                              solve_iter)                            ! out performance tracking
 
+                        
                         ! Average output quantities across sunlit and shaded leaves
                         ! Convert from molar to velocity (umol /m**2/s) to (m/s)
                         gstoma = gstoma + area_frac*(gstoma_ll / vmol_cf) 
@@ -908,7 +912,7 @@ contains
 
   ! =============================================================================
 
-  subroutine FatesPlantRespPatch(patch,bc_in,dtime)
+  subroutine FatesPlantRespPatch(ifp,site,bc_in,dtime)
 
     ! -----------------------------------------------------------------------------------
     ! !DESCRIPTION:
@@ -918,12 +922,14 @@ contains
     ! often called inside a land-energy balance solver
     ! -----------------------------------------------------------------------------------
 
-    type (fates_patch_type)           :: patch
+    integer                          :: ifp
+    
+    type(ed_site_type),intent(inout) :: site
     type(bc_in_type),intent(in)       :: bc_in
     real(r8),intent(in)               :: dtime
     
     ! Locals
-
+    type (fates_patch_type), pointer  :: patch
     type (fates_cohort_type), pointer :: cohort
     real(r8) :: maintresp_reduction_factor       ! factor by which to reduce maintenance
                                                  ! respiration when storage pools are low
@@ -954,7 +960,13 @@ contains
     real(r8) :: tcwood                           ! Temperature response function for wood
     real(r8) :: fnrt_mr_layer                    ! fine root maintenance respiation per layer [kgC/plant/s]
     integer :: ft, cl, j                         ! indices: pft, canopy layer, soil layer
-    integer :: ifp                               ! index of the fates patch
+
+
+    patch => site%oldest_patch
+    do while(associated(patch))
+       if(ifp == patch%patchno) exit
+       patch => patch%younger
+    end do
     
     ! -----------------------------------------------------------------------------------
     ! Calculate the amount of nitrogen in the above and below ground stem and root
