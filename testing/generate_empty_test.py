@@ -15,14 +15,13 @@ Specifically, this script peforms the following steps:
 3. Updates the existing CMakeLists.txt file to include the new test.
 4. Appends an entry for this test to the configuration file.
 5. Creates a template test file in the new directory.
-6. If it's a functional test, generates a new Python TestCase file and updates
-    load_functional_tests.py
+6. If it's a functional test, generates a new Python TestCase file
 
 """
 
 import argparse
 import textwrap
-from test_generator_class import generate_test
+from framework.test_generator import generate_test
 
 
 def commandline_args():
@@ -47,6 +46,12 @@ def commandline_args():
         subparser.add_argument(
             "--test-sub-dir", default=None, help="Optional test subdirectory path"
         )
+        subparser.add_argument(
+            "--verbose",
+            action="store_true",
+            default=False,
+            help="Enable verbose output",
+        )
 
     # print help for both subparsers
     parser.epilog = textwrap.dedent(
@@ -67,7 +72,9 @@ def main():
     args = commandline_args()
 
     # create the test
-    test = generate_test(args.test_type, args.test_name, args.test_sub_dir)
+    test = generate_test(
+        args.test_type, args.test_name, args.test_sub_dir, args.verbose
+    )
     test.setup_test()
 
 
