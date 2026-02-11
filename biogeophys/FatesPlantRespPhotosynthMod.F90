@@ -187,6 +187,9 @@ contains
     ! are not modifying its order now.
     ! -----------------------------------------------------------------------------------
 
+    ! NLEVLEAF IS A DYNAMIC VARIABLE, THIS WILL BE ALLOCATED EVERY CALL
+    ! MOVE THESE TO THE PATCH LEVEL AS SCRATCH SPACE
+    
     ! leaf maintenance (dark) respiration [umol CO2/m**2/s]
     real(r8) :: lmr_z(nlevleaf,maxpft,nclmax)
 
@@ -299,6 +302,8 @@ contains
        write(fates_log(),*)'did not find ifp?'
        stop
     end if
+
+    
     
     ! Part I. Zero output boundary conditions and patch weighted means
     ! ---------------------------------------------------------------------------
