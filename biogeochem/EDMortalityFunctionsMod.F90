@@ -100,8 +100,8 @@ contains
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity 
     logical  :: is_decid_dormant   ! Flag to signal that the cohort is deciduous and dormant
-
-
+    integer  :: nlev_eff_soil      ! number of effective soil layers
+    integer  :: n_layer_thawed     ! number of soil layers that have thawed
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
@@ -181,9 +181,12 @@ contains
        else
           ! When FATES-Hydro is off, hydraulic failure mortality occurs only when btran
           ! falls below a threshold and plants have leaves.
+          n_layer_thawed = count((bc_in%t_soisno_sl - tfrz ) > soil_tfrz_thresh)
+          nlev_eff_soil   = max(bc_in%max_rooting_depth_index_col, 1)
+          
           if ( (.not. is_decid_dormant) .and. &
                ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
-               ( ( minval(bc_in%t_soisno_sl) - tfrz ) > soil_tfrz_thresh ) ) then
+               ( n_layer_thawed .ge. (0.5_r8 * nlev_eff_soil)  )) then
              hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)*((hf_sm_threshold- btran_ft(cohort_in%pft))/hf_sm_threshold)
           else
              hmort = 0.0_r8
