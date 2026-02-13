@@ -138,6 +138,7 @@ module FatesHistoryInterfaceMod
   use FatesSizeAgeTypeIndicesMod, only : get_cdamagesize_class_index
   use FatesSizeAgeTypeIndicesMod, only : get_cdamagesizepft_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
+  use FatesSizeAgeTypeIndicesMod, only : get_landusepft_class_index
 
   implicit none
   private          ! By default everything is private
@@ -366,6 +367,10 @@ module FatesHistoryInterfaceMod
   ! land use by land use variables
   integer :: ih_disturbance_rate_si_lulu
   integer :: ih_transition_matrix_si_lulu
+
+  ! land use by PFT variables
+  integer :: ih_biomass_si_lupft
+  integer :: ih_nocomp_patcharea_si_lupft
   
   integer :: ih_fire_disturbance_rate_si
   integer :: ih_logging_disturbance_rate_si
@@ -3125,6 +3130,7 @@ contains
     integer  :: i_heightbin  ! iterator for height bins
     integer  :: ilyr      ! Soil index for nlevsoil
     integer  :: icdpf, icdsc, icdam ! iterators for the crown damage level
+    integer  :: lupft_index   ! land use x PFT index
     real(r8) :: gpp_cached    ! gpp from previous timestep, for c13 discrimination
     real(r8) :: crown_depth   ! Depth of the crown [m]
     real(r8) :: gpp_cached_scpf(numpft*nlevsclass)  ! variable used to cache gpp value in previous time step; for C13 discrimination
@@ -3306,6 +3312,7 @@ contains
            hio_fracarea_si_landuse     => this%hvars(ih_fracarea_si_landuse)%r82d, &
            hio_npp_si_landuse                 => this%hvars(ih_npp_si_landuse)%r82d, &
            hio_biomass_si_landuse            => this%hvars(ih_biomass_si_landuse)%r82d, &
+           hio_biomass_si_lupft              => this%hvars(ih_biomass_si_lupft)%r82d, &
            hio_burnedarea_si_landuse         => this%hvars(ih_burnedarea_si_landuse)%r82d, &
            hio_burnt_frac_litter_si_fuel      => this%hvars(ih_burnt_frac_litter_si_fuel)%r82d, &
            hio_fuel_amount_si_fuel            => this%hvars(ih_fuel_amount_si_fuel)%r82d, &
@@ -3479,6 +3486,11 @@ contains
                       this%hvars(ih_nocomp_pftburnedarea_si_pft)%r82d(io_si,ft) = &
                            this%hvars(ih_nocomp_pftburnedarea_si_pft)%r82d(io_si,ft) + &
                            cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
+
+                      ! land use x pft too
+                      lupft_index = get_landusepft_class_index(cpatch%land_use_label,ft)
+                      this%hvars(ih_nocomp_patcharea_si_lupft)%r82d(io_si,lupft_index) = &
+                           this%hvars(ih_nocomp_patcharea_si_lupft)%r82d(io_si,lupft_index) + cpatch%area * AREA_INV
                    endif
 
                 end do
@@ -3581,6 +3593,12 @@ contains
                          ! biomass by land use type
                          hio_biomass_si_landuse(io_si, cpatch%land_use_label) = &
                               hio_biomass_si_landuse(io_si, cpatch%land_use_label) &
+                              + total_m * ccohort%n * AREA_INV
+
+                         ! biomass by land use type and pft
+                         lupft_index = get_landusepft_class_index(cpatch%land_use_label,ccohort%pft)
+                         hio_biomass_si_lupft(io_si, lupft_index) = &
+                              hio_biomass_si_lupft(io_si, lupft_index) &
                               + total_m * ccohort%n * AREA_INV
 
                          if (ccohort%canopy_layer .eq. 1) then
@@ -7142,6 +7160,11 @@ contains
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
                ivar=ivar, initialize=initialize_variables, index=ih_biomass_si_landuse)
 
+          call this%set_history_var(vname='FATES_VEGC_LUPF', units='kg m-2',      &
+               long='Vegetation Carbon by land use type and PFT', use_default='active',  &
+               avgflag='A', vtype=site_lupft_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
+               ivar=ivar, initialize=initialize_variables, index=ih_biomass_si_lupft)
+
           call this%set_history_var(vname='FATES_BURNEDAREA_LU', units='s-1',      &
                long='burned area by land use type', use_default='active',  &
                avgflag='A', vtype=site_landuse_r8, hlms='CLM:ALM', upfreq=group_dyna_complx, &
@@ -7328,6 +7351,12 @@ contains
                   use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
                   upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                   index=ih_nocomp_pftburnedarea_si_pft)
+
+             call this%set_history_var(vname='FATES_NOCOMP_PATCHAREA_LUPF', units='m2 m-2',&
+                  long='total patch area allowed per PFT and land use type (nocomp-mode-only)',           &
+                  use_default='active', avgflag='A', vtype=site_lupft_r8, hlms='CLM:ALM', &
+                  upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+                  index=ih_nocomp_patcharea_si_lupft)
           endif nocomp_if
 
           call this%set_history_var(vname='FATES_CANOPYAREA', units='m2 m-2',     &
