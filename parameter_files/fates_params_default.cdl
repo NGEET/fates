@@ -6,7 +6,7 @@ dimensions:
 	fates_history_damage_bins = 2 ;
 	fates_history_height_bins = 6 ;
 	fates_history_size_bins = 13 ;
-	fates_hlm_pftno = 16 ;
+	fates_hlm_pftno = 14 ;
 	fates_hydr_organs = 4 ;
 	fates_landuseclass = 5 ;
 	fates_leafage_class = 1 ;
@@ -1746,9 +1746,7 @@ data:
   0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0.1, 0.8, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ;
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1;
 
  fates_wesley_pft_index_fordrydep = 4, 5, 5, 4, 4, 4, 11, 11, 11, 3, 3, 3, 3, 3 ;
 
