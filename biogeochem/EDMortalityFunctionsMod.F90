@@ -46,7 +46,7 @@ module EDMortalityFunctionsMod
    public :: mortality_rates
    public :: Mortality_Derivative
    public :: ExemptTreefallDist
-   
+   public :: get_thaw_layer_index
    
    ! ============================================================================
    ! 10/30/09: Created by Rosie Fisher
@@ -72,7 +72,9 @@ contains
     
     type (fates_cohort_type), intent(in) :: cohort_in 
     type (bc_in_type), intent(in) :: bc_in
-    real(r8), intent(in)          :: btran_ft(maxpft) 
+    real(r8), intent(in)          :: btran_ft(maxpft)
+    integer, intent(in)          :: soil_root_i ! index of soil layer above which soils
+                                                ! must be thawed for hmort
     real(r8), intent(in)          :: mean_temp
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
@@ -100,8 +102,7 @@ contains
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity 
     logical  :: is_decid_dormant   ! Flag to signal that the cohort is deciduous and dormant
-    integer  :: nlev_eff_soil      ! number of effective soil layers
-    integer  :: n_layer_thawed     ! number of soil layers that have thawed
+
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
@@ -181,12 +182,13 @@ contains
        else
           ! When FATES-Hydro is off, hydraulic failure mortality occurs only when btran
           ! falls below a threshold and plants have leaves.
-          n_layer_thawed = count((bc_in%t_soisno_sl - tfrz ) > soil_tfrz_thresh)
-          nlev_eff_soil   = max(bc_in%max_rooting_depth_index_col, 1)
+          ! Btran is zero for frozen soil layers. To prevent plants at high latitude from
+          ! being killed in winter, do not calculate mortality if any of the soil layers
+          ! with a given percentage of root biomass are frozen.
           
           if ( (.not. is_decid_dormant) .and. &
                ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
-               ( n_layer_thawed .ge. (0.5_r8 * nlev_eff_soil)  )) then
+               ( ( minval(bc_in%t_soisno_sl(1:soil_root_i)) - tfrz ) > soil_tfrz_thresh ) ) then
              hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)*((hf_sm_threshold- btran_ft(cohort_in%pft))/hf_sm_threshold)
           else
              hmort = 0.0_r8
@@ -322,15 +324,20 @@ contains
     real(r8) :: dgmort   ! damage mortality (fraction per year)
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
     integer  :: ipft              ! local copy of the pft index
-   
+    integer  :: max_soil_ind      ! Soil layer above which soil must be thawed for hmort
+    
    !----------------------------------------------------------------------
 
     ipft = currentCohort%pft
     
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
-    call mortality_rates(currentCohort,bc_in,btran_ft, mean_temp,              &
-      cmort,hmort,bmort,frmort, smort, asmort, dgmort)
+    
+    call get_thaw_layer_index(currentSite, currentCohort, bc_in, max_soil_ind)
+    
+    call mortality_rates(currentCohort,bc_in,btran_ft,max_soil_ind,mean_temp,              &
+         cmort,hmort,bmort,frmort, smort, asmort, dgmort)
+    
     call LoggingMortality_frac(currentSite, bc_in, ipft, currentCohort%dbh, currentCohort%canopy_layer, &
                                currentCohort%lmort_direct,                       &
                                currentCohort%lmort_collateral,                    &
@@ -400,4 +407,51 @@ contains
 
  end function ExemptTreefallDist
 
+ ! ============================================================================
+ 
+ subroutine get_thaw_layer_index(site_in, cohort_in, bc_in, max_soil_ind)
+
+   !
+   ! !DESCRIPTION:
+   ! Returns the soil layer above which soils must be thawed in order for
+   ! hydraulic failure mortality to be calculated. 
+   !
+   ! !USES:
+
+   !
+   ! !ARGUMENTS
+   type(ed_site_type), intent(inout)    :: site_in
+   type (fates_cohort_type), intent(in) :: cohort_in 
+   type (bc_in_type), intent(in)        :: bc_in
+
+   integer, intent(out) :: max_soil_ind ! soil layer with given percent of root biomass
+   ! above which soil must be thawed for hmort 
+
+   real(r8)  :: cumrootfrac
+   integer   :: i_soil
+   
+   max_soil_ind = 1
+
+   call set_root_fraction(site_in%rootfrac_scr, cohort_in%pft, site_in%zi_soil, &
+        bc_in%max_rooting_depth_index_col)
+
+   cumrootfrac = 0._r8
+
+   do i_soil = 1, bc_in%nlevsoil, 1
+      cumrootfrac = cumrootfrac + site_in%rootfrac_scr(i_soil)
+      if (cumrootfrac .ge. 0.75_r8) then
+         max_soil_ind = i_soil
+         exit
+      end if
+   end do
+      
+   return
+ end subroutine get_thaw_layer_index
+
+
+  ! =====================================================================================
+
+
 end module EDMortalityFunctionsMod
+
+
