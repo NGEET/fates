@@ -429,8 +429,10 @@ contains
 
    real(r8)  :: cumrootfrac
    integer   :: i_soil
+   real(r8)  :: hmort_thaw_frac_threshold 
    
    max_soil_ind = 1
+   hmort_thaw_frac_threshold = 0.75_r8
 
    call set_root_fraction(site_in%rootfrac_scr, cohort_in%pft, site_in%zi_soil, &
         bc_in%max_rooting_depth_index_col)
@@ -439,7 +441,7 @@ contains
 
    do i_soil = 1, bc_in%nlevsoil, 1
       cumrootfrac = cumrootfrac + site_in%rootfrac_scr(i_soil)
-      if (cumrootfrac .ge. 0.75_r8) then
+      if (cumrootfrac .ge. hmort_thaw_frac_threshold) then
          max_soil_ind = i_soil
          exit
       end if
