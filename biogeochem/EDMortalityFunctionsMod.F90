@@ -327,8 +327,6 @@ contains
     integer  :: ipft              ! local copy of the pft index
     integer  :: max_root_soil_ind ! max soil layer with roots in
     integer  :: i_soil ! index for soil layers
-    real(r8) :: cumrootfrac
-    
     
    !----------------------------------------------------------------------
 
@@ -344,11 +342,8 @@ contains
     call set_root_fraction(currentSite%rootfrac_scr, ipft, currentSite%zi_soil, &
          bc_in%max_rooting_depth_index_col)
 
-    cumrootfrac = 0._r8
-    
-    do i_soil = 1, bc_in%nlevsoil, 1
-       cumrootfrac = cumrootfrac + currentSite%rootfrac_scr(i_soil)
-       if (cumrootfrac .ge. 0.9_r8) then
+    do i_soil = bc_in%nlevsoil, 1, -1
+       if (currentSite%rootfrac_scr(i_soil) .ne. 0) then
           max_root_soil_ind = i_soil
           exit
        end if
