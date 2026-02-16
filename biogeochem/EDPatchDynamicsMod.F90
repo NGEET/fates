@@ -176,6 +176,7 @@ contains
     ! !USES:
     use EDMortalityFunctionsMod , only : mortality_rates
     use EDMortalityFunctionsMod , only : ExemptTreefallDist
+    use EDMortalityFunctionsMod , only : get_thaw_layer_index
     ! loging flux
     use EDLoggingMortalityMod , only : LoggingMortality_frac
 
@@ -206,7 +207,7 @@ contains
     integer  :: threshold_sizeclass
     integer  :: i_dist
     integer  :: h_index
-    integer  :: max_root_soil_ind ! max soil layer with roots
+    integer  :: max_soil_ind ! max soil layer with roots
     real(r8) :: harvest_rate
     real(r8) :: tempsum
     real(r8) :: mean_temp
@@ -217,7 +218,6 @@ contains
     real(r8), parameter :: max_daily_disturbance_rate = 0.999_r8
     logical  :: site_secondaryland_first_exceeding_min
     real(r8) :: secondary_young_fraction  ! what fraction of secondary land is young secondary land
-    integer :: i_soil
     !----------------------------------------------------------------------------------------------
     ! Calculate Mortality Rates (these were previously calculated during growth derivatives)
     ! And the same rates in understory plants have already been applied to %dndt
@@ -250,22 +250,9 @@ contains
           !currentCohort%patchptr => currentPatch
           mean_temp = currentPatch%tveg24%GetMean()
 
-          ! get the deepest soil layer with roots - used in calculating hydraulic failure mortality
-          ! first get root fraction in each soil layer
-          max_root_soil_ind = 1
+          call get_thaw_layer_index(site_in, currentCohort, bc_in, max_soil_ind)
           
-          call set_root_fraction(site_in%rootfrac_scr, currentCohort%pft, site_in%zi_soil, &
-               bc_in%max_rooting_depth_index_col)
-
-          do i_soil = bc_in%nlevsoil, 1, -1
-             if (site_in%rootfrac_scr(i_soil) .ne. 0) then
-                max_root_soil_ind = i_soil
-                exit
-             end if
-          end do
-          
-          
-          call mortality_rates(currentCohort,bc_in,currentPatch%btran_ft, max_root_soil_ind,     &
+          call mortality_rates(currentCohort,bc_in,currentPatch%btran_ft, max_soil_ind,     &
             mean_temp, cmort,hmort,bmort,frmort,smort,asmort,dgmort)
           currentCohort%dmort  = cmort+hmort+bmort+frmort+smort+asmort+dgmort
           call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
