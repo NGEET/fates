@@ -56,7 +56,7 @@ module EDMortalityFunctionsMod
 
 contains
 
-  subroutine mortality_rates( cohort_in,bc_in, btran_ft, mean_temp,             &
+  subroutine mortality_rates( cohort_in,bc_in, btran_ft, soil_root_i, mean_temp,             &
       cmort,hmort,bmort, frmort,smort,asmort,dgmort )
 
     ! ============================================================================
