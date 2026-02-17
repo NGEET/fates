@@ -1134,8 +1134,8 @@ contains
 
                                      endif
 
-                                     currentSite%mass_balance(el)%burn_flux_to_atm = &
-                                          currentSite%mass_balance(el)%burn_flux_to_atm + &
+                                     currentSite%mass_balance(el)%burn_flux_to_atm(i_disturbance_type) = &
+                                          currentSite%mass_balance(el)%burn_flux_to_atm(i_disturbance_type) + &
                                           leaf_burn_frac * leaf_m * nc%n
 
                                      ! This term increments the loss flux from surviving trees
@@ -2042,7 +2042,10 @@ contains
 
 
        if (debug) then
-          burn_flux0    = site_mass%burn_flux_to_atm
+          burn_flux0 = 0._r8
+          if (dist_type .gt. 0) then
+             burn_flux0    = site_mass%burn_flux_to_atm(dist_type)
+          end if
           litter_stock0 = curr_litt%GetTotalLitterMass()*currentPatch%area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
        end if
@@ -2051,19 +2054,16 @@ contains
          frac_burnt = 0.0_r8
          if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
             frac_burnt = currentPatch%fuel%frac_burnt(c)
+            burned_mass = curr_litt%ag_cwd(c) * patch_site_areadis * frac_burnt
+            site_mass%burn_flux_to_atm(dist_type) = site_mass%burn_flux_to_atm(dist_type) + burned_mass
          end if 
              
           ! Transfer above ground CWD
           donatable_mass     = curr_litt%ag_cwd(c) * patch_site_areadis * &
                                (1._r8 - frac_burnt)
 
-          burned_mass        = curr_litt%ag_cwd(c) * patch_site_areadis * &
-                               frac_burnt
- 
           new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass*donate_m2
           curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass*retain_m2
-
-          site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
           ! Transfer below ground CWD (none burns)
           do sl = 1,currentSite%nlevsoil
@@ -2074,24 +2074,22 @@ contains
           
        enddo
        
-       frac_burnt = 0.0_r8
-       if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
-         frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
-      end if 
              
        do dcmpy=1,ndcmpy
+
+           frac_burnt = 0.0_r8
+           if (dist_type == dtype_ifire .and. currentPatch%fire == 1) then
+              frac_burnt = currentPatch%fuel%frac_burnt(fuel_classes%dead_leaves())
+              burned_mass = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * frac_burnt
+              site_mass%burn_flux_to_atm(dist_type) = site_mass%burn_flux_to_atm(dist_type) + burned_mass
+           end if 
 
            ! Transfer leaf fines
            donatable_mass           = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
                                       (1._r8 - frac_burnt)
 
-           burned_mass              = curr_litt%leaf_fines(dcmpy) * patch_site_areadis * &
-                                       frac_burnt
-
            new_litt%leaf_fines(dcmpy) = new_litt%leaf_fines(dcmpy) + donatable_mass*donate_m2
            curr_litt%leaf_fines(dcmpy) = curr_litt%leaf_fines(dcmpy) + donatable_mass*retain_m2
-           
-           site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
 
            ! Transfer root fines (none burns)
            do sl = 1,currentSite%nlevsoil
@@ -2122,13 +2120,21 @@ contains
        ! EDMainMod start triggering.
        ! --------------------------------------------------------------------------
        if (debug) then
-          burn_flux1    = site_mass%burn_flux_to_atm
+          burn_flux1 = 0._r8
+          if (dist_type .gt. 0) then
+             burn_flux1    = site_mass%burn_flux_to_atm(dist_type)
+          end if
           litter_stock1 = curr_litt%GetTotalLitterMass()*remainder_area + & 
                           new_litt%GetTotalLitterMass()*newPatch%area
           error = (litter_stock1 - litter_stock0) + (burn_flux1-burn_flux0)
           if(abs(error)>1.e-8_r8) then
              write(fates_log(),*) 'non trivial carbon mass balance error in litter transfer'
              write(fates_log(),*) 'abs error: ',error
+             write(fates_log(),*) 'dist type: ', dist_type
+             write(fates_log(),*) 'litt stock 1, 0: ', litter_stock1, litter_stock0
+             write(fates_log(),*) 'area: rem, new ', remainder_area, newPatch%area
+             write(fates_log(),*) 'burn flux 1, 0: ', burn_flux1, burn_flux0, sum(site_mass%burn_flux_to_atm)
+             write(fates_log(),*) 'burn flux: ', site_mass%burn_flux_to_atm
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
        end if
@@ -2301,7 +2307,7 @@ contains
                                                donatable_mass*retain_m2*dcmpy_frac
              end do
 
-             site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+             site_mass%burn_flux_to_atm(dtype_ifire) = site_mass%burn_flux_to_atm(dtype_ifire) + burned_mass
 
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
@@ -2363,7 +2369,7 @@ contains
                       donatable_mass = donatable_mass * (1.0_r8-currentCohort%fraction_crown_burned)
                       burned_mass = num_dead_trees * SF_val_CWD_frac_adj(c) * bstem * &
                       currentCohort%fraction_crown_burned
-                      site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                      site_mass%burn_flux_to_atm(dtype_ifire) = site_mass%burn_flux_to_atm(dtype_ifire) + burned_mass
                 endif
                 new_litt%ag_cwd(c) = new_litt%ag_cwd(c) + donatable_mass * donate_m2
                 curr_litt%ag_cwd(c) = curr_litt%ag_cwd(c) + donatable_mass * retain_m2
@@ -2768,7 +2774,8 @@ contains
                      donatable_mass*retain_m2*dcmpy_frac
              end do
 
-             site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+             site_mass%burn_flux_to_atm(dtype_ilandusechange) = &
+                  site_mass%burn_flux_to_atm(dtype_ilandusechange) + burned_mass
 
              call set_root_fraction(currentSite%rootfrac_scr, pft, currentSite%zi_soil, &
                   bc_in%max_rooting_depth_index_col)
@@ -2828,8 +2835,8 @@ contains
                    burned_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
                         EDPftvarcon_inst%landusechange_frac_burned(pft)
 
-                   site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
-
+                   site_mass%burn_flux_to_atm(dtype_ilandusechange) = &
+                        site_mass%burn_flux_to_atm(dtype_ilandusechange) + burned_mass
                 else ! all other pools can end up as timber products or burn or go to litter
                    donatable_mass = donatable_mass * (1.0_r8-EDPftvarcon_inst%landusechange_frac_exported(pft)) * &
                         (1.0_r8-EDPftvarcon_inst%landusechange_frac_burned(pft))
@@ -2841,7 +2848,8 @@ contains
                    woodproduct_mass = num_dead_trees * SF_val_CWD_frac(c) * bstem * &
                         EDPftvarcon_inst%landusechange_frac_exported(pft)
 
-                   site_mass%burn_flux_to_atm = site_mass%burn_flux_to_atm + burned_mass
+                   site_mass%burn_flux_to_atm(dtype_ilandusechange) = &
+                        site_mass%burn_flux_to_atm(dtype_ilandusechange) + burned_mass
 
                    ! Amount of trunk mass exported off site [kg/m2]
                    elflux_diags%exported_harvest = elflux_diags%exported_harvest + &
