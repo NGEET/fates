@@ -628,6 +628,10 @@ module FatesInterfaceTypesMod
       ! Shaded canopy resistance [s/m]
       real(r8), allocatable :: rssha_pa(:)
 
+
+      ! For load-balancing by patch
+      real(r8), allocatable :: load_size(:)
+      
       ! leaf photosynthesis (umol CO2 /m**2/ s)
       ! (NOT CURRENTLY USED, PLACE-HOLDER)
       !real(r8), allocatable :: psncanopy_pa(:)

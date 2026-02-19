@@ -385,6 +385,8 @@ contains
 
     fates%bc_out(s)%rssun_pa(:)     = 0.0_r8
     fates%bc_out(s)%rssha_pa(:)     = 0.0_r8
+
+    fates%bc_out(s)%load_size(:)    = 0._r8
     
     fates%bc_out(s)%albd_parb(:,:) = 1.0_r8   ! zero albedo, soil absorbs all rad
     fates%bc_out(s)%albi_parb(:,:) = 1.0_r8   ! zero albedo, soil absorbs all rad
@@ -633,10 +635,11 @@ contains
 
       allocate(bc_out%rssun_pa(maxpatch_total))
       allocate(bc_out%rssha_pa(maxpatch_total))
+
+      ! Load balancing
+      allocate(bc_out%load_size(maxpatch_total))
       
       ! Canopy Radiation
-
-     
       allocate(bc_out%albd_parb(maxpatch_total,num_swb))
       allocate(bc_out%albi_parb(maxpatch_total,num_swb))
       allocate(bc_out%fabd_parb(maxpatch_total,num_swb))

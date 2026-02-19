@@ -879,9 +879,13 @@ contains
        ! Update the total area of by patch age class array 
        currentSite%area_by_age(currentPatch%age_class) = &
             currentSite%area_by_age(currentPatch%age_class) + currentPatch%area
+
+       ! update load balancing for canopy fluxes and photosynthesis
+       if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then
+          bc_out%load_size(currentPatch%patchno) = currentPatch%num_cohorts
+       end if
        
        currentPatch => currentPatch%younger
-       
     enddo
 
     ! Check to see if the time integrated fluxes match the state
@@ -922,6 +926,9 @@ contains
     bc_out%fire_closs_to_atm_si = site_cmass%burn_flux_to_atm * area_inv * days_per_sec
     bc_out%grazing_closs_to_atm_si = site_cmass%herbivory_flux_out * area_inv * days_per_sec
 
+    
+
+    
   end subroutine ed_update_site
 
   !-------------------------------------------------------------------------------!
