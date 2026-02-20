@@ -47,7 +47,6 @@ module EDMortalityFunctionsMod
    public :: mortality_rates
    public :: Mortality_Derivative
    public :: ExemptTreefallDist
-   public :: get_thaw_layer_index
    
    ! ============================================================================
    ! 10/30/09: Created by Rosie Fisher
@@ -57,8 +56,8 @@ module EDMortalityFunctionsMod
 
 contains
 
-  subroutine mortality_rates( cohort_in,bc_in, btran_ft, soil_root_i, mean_temp,             &
-      cmort,hmort,bmort, frmort,smort,asmort,dgmort )
+  subroutine mortality_rates( cohort_in,site_in, bc_in, btran_ft, &
+        mean_temp, cmort,hmort,bmort, frmort,smort,asmort,dgmort )
 
     ! ============================================================================
     !  Calculate mortality rates from carbon storage, hydraulic cavitation, 
@@ -71,12 +70,12 @@ contains
     use EDParamsmod,            only : soil_tfrz_thresh
     use FatesInterfaceTypesMod, only : hlm_mort_cstarvation_model
     
-    type (fates_cohort_type), intent(in) :: cohort_in 
-    type (bc_in_type), intent(in) :: bc_in
-    real(r8), intent(in)          :: btran_ft(maxpft)
-    integer, intent(in)          :: soil_root_i ! index of soil layer above which soils
-                                                ! must be thawed for hmort
-    real(r8), intent(in)          :: mean_temp
+    type (fates_cohort_type), intent(in) :: cohort_in
+    type (ed_site_type),intent(in)       :: site_in
+    type (bc_in_type), intent(in)        :: bc_in
+    real(r8), intent(in)                 :: btran_ft(maxpft)
+    real(r8), intent(in)                 :: mean_temp
+    
     real(r8),intent(out) :: bmort ! background mortality : Fraction per year
     real(r8),intent(out) :: cmort  ! carbon starvation mortality
     real(r8),intent(out) :: hmort  ! hydraulic failure mortality
@@ -103,8 +102,8 @@ contains
     real(r8) :: min_fmc            ! minimum fraction of maximum conductivity for whole plant
     real(r8) :: flc                ! fractional loss of conductivity 
     logical  :: is_decid_dormant   ! Flag to signal that the cohort is deciduous and dormant
-    
-
+    integer  :: max_soil_ind       ! Soil layer with given percent of root biomass
+                                   ! above which soil must be thawed for hmort 
     real(r8), parameter :: frost_mort_buffer = 5.0_r8  ! 5deg buffer for freezing mortality
     logical, parameter :: test_zero_mortality = .false. ! Developer test which
                                                         ! may help to debug carbon imbalances
@@ -187,6 +186,8 @@ contains
           ! Btran is zero for frozen soil layers. To prevent plants at high latitude from
           ! being killed in winter, do not calculate mortality if any of the soil layers
           ! with a given percentage of root biomass are frozen.
+
+          call get_thaw_layer_index(site_in, cohort_in, bc_in, max_soil_ind)
           
           if ( (.not. is_decid_dormant) .and. &
                ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
@@ -326,7 +327,6 @@ contains
     real(r8) :: dgmort   ! damage mortality (fraction per year)
     real(r8) :: dndt_logging      ! Mortality rate (per day) associated with the a logging event
     integer  :: ipft              ! local copy of the pft index
-    integer  :: max_soil_ind      ! Soil layer above which soil must be thawed for hmort
     
    !----------------------------------------------------------------------
 
@@ -335,9 +335,7 @@ contains
     ! Mortality for trees in the understorey. 
     !if trees are in the canopy, then their death is 'disturbance'. This probably needs a different terminology
     
-    call get_thaw_layer_index(currentSite, currentCohort, bc_in, max_soil_ind)
-    
-    call mortality_rates(currentCohort,bc_in,btran_ft,max_soil_ind,mean_temp,              &
+    call mortality_rates(currentCohort,currentSite,bc_in,btran_ft,mean_temp,              &
          cmort,hmort,bmort,frmort, smort, asmort, dgmort)
     
     call LoggingMortality_frac(currentSite, bc_in, ipft, currentCohort%dbh, currentCohort%canopy_layer, &
