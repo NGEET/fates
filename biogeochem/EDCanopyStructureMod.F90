@@ -29,6 +29,7 @@ module EDCanopyStructureMod
   use EDParamsMod           , only : nlevleaf
   use EDParamsMod           , only : GetNVegLayers
   use EDParamsMod           , only : comp_excln_exp
+  use EDParamsMod           , only : maxpft
   use EDtypesMod            , only : AREA
   use EDLoggingMortalityMod , only : UpdateHarvestC
   use FatesGlobals          , only : endrun => fates_endrun

@@ -2408,7 +2408,7 @@ subroutine SeedlingParPatch(cpatch, &
   par_low_frac      = cpatch%total_canopy_area
 
   ! Work up through the canopy layers from the bottom layer
-  do cl = cpatch%NCL_p,max(1,cpatch%NCL_p-1),-1
+  do cl = cpatch%ncl,max(1,cpatch%ncl-1),-1
      cl_par = 0._r8
      cl_area = 0._r8
      do ipft = 1,numpft
@@ -2434,7 +2434,7 @@ subroutine SeedlingParPatch(cpatch, &
      ! Since we are working up through the canopy layers from the ground,
      ! set the par_high to the previous par_low value and update
      ! the par_low to the new cl_par value
-     if(cl .lt. cpatch%NCL_p) then
+     if(cl .lt. cpatch%ncl) then
         seedling_par_high = seedling_par_low
         par_high_frac     = (1._r8-cl_area)
         seedling_par_low  = cl_par

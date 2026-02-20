@@ -2690,7 +2690,7 @@ contains
             hio_elai_si(io_si) = hio_elai_si(io_si) + sum( cpatch%canopy_area_profile(:,:,:) * cpatch%elai_profile(:,:,:) ) * &
                  cpatch%total_canopy_area * AREA_INV
             
-            hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl_p * cpatch%area * AREA_INV
+            hio_ncl_si(io_si) = hio_ncl_si(io_si) + cpatch%ncl * cpatch%area * AREA_INV
 
             ! only valid when "strict ppa" enabled
             if ( comp_excln_exp .lt. 0._r8 ) then
@@ -4838,7 +4838,7 @@ contains
           end do
 
           hio_ncl_si_age(io_si,cpatch%age_class) = hio_ncl_si_age(io_si,cpatch%age_class) &
-               + cpatch%ncl_p * patch_area_div_site_area
+               + cpatch%ncl * patch_area_div_site_area
 
           hio_fracarea_burnt_si_age(io_si,cpatch%age_class) = hio_fracarea_burnt_si_age(io_si,cpatch%age_class) + &
                cpatch%frac_burnt / sec_per_day &  ! [frac/day] -> [frac/sec]
@@ -5564,7 +5564,7 @@ contains
             if_zenith1: if( sites(s)%coszen>0._r8 ) then
 
                do_pft1: do ipft=1,numpft
-                  do_canlev1: do ican=1,cpatch%ncl_p
+                  do_canlev1: do ican=1,cpatch%ncl
                      do_leaflev1: do ileaf=1,cpatch%nrad(ican,ipft)
 
                         ! calculate where we are on multiplexed dimensions

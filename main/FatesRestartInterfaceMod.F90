@@ -2808,7 +2808,7 @@ contains
                       ,io_idx_co,cohortsperpatch
              endif
 
-             this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st) = cpatch%ncl_p
+             this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st) = cpatch%ncl
              this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st) = cpatch%zstar
 
              if(hlm_use_sp.eq.ifalse)then
@@ -3823,7 +3823,7 @@ contains
 
              ! Set zenith angle info
 
-             cpatch%ncl_p = this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st)
+             cpatch%ncl = this%rvars(ir_nclp_pa)%int1d(io_idx_co_1st)
              cpatch%zstar = this%rvars(ir_zstar_pa)%r81d(io_idx_co_1st)
 
              call this%GetRMeanRestartVar(cpatch%tveg24, ir_tveg24_pa, io_idx_co_1st)

@@ -315,7 +315,7 @@ contains
                 ! SurfaceAlbedo is canopy integrated so that layer value equals canopy value.
                 ! cpatch%f_sun is calculated in the surface_albedo routine...
 
-                do cl = 1, cpatch%ncl_p
+                do cl = 1, cpatch%ncl
                    do ft = 1,numpft
                       do iv = 1,cpatch%nrad(cl,ft)
                          cpatch%ed_laisun_z(cl,ft,iv) = cpatch%elai_profile(cl,ft,iv) * &
@@ -351,7 +351,7 @@ contains
                 ! If sun/shade big leaf code, nrad=1 and fluxes from SurfaceAlbedo
                 ! are canopy integrated so that layer values equal big leaf values.
 
-                do cl = 1, cpatch%ncl_p
+                do cl = 1, cpatch%ncl
                    do ft = 1,numpft
                       do iv = 1, cpatch%nrad(cl,ft)
 

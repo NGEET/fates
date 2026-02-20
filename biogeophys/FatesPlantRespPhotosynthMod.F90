@@ -156,7 +156,7 @@ contains
 
   ! ==================================================================================
 
-  subroutine FatesCondPhotoPatch(ifp,site,bc_in,bc_out,nleafmax,npft,ncl)
+  pure subroutine FatesCondPhotoPatch(ifp,site,bc_in,bc_out)
 
     ! Refactor Objectives:
     ! 1) Decrease memory footprint as much as possible
@@ -165,7 +165,6 @@ contains
     ! 4) Try pure
     ! 5) Evaluate loops to make sure no weird indexing
     !    leaf layers are most accessed...
-
 
     ! Organizational notes:
     ! 1) We do need to loop over cohorts, because we need to scale
@@ -188,9 +187,9 @@ contains
 
     ! We pass these in so that we can use automatic arrays
     ! wich are more efficient than dynamic allocations
-    integer,intent(in) :: nleafmax      ! Maximum number of leaf levels on this patch
-    integer,intent(in) :: npft          ! Number of pfts on this patch
-    integer,intent(in) :: ncl           ! Number of canopy layers on this patch
+    !integer,intent(in) :: nleafmax      ! Maximum number of leaf levels on this patch
+    !integer,intent(in) :: npft          ! Number of pfts on this patch
+    !integer,intent(in) :: ncl           ! Number of canopy layers on this patch
     
     ! -----------------------------------------------------------------------------------
     ! The followingarrays hold leaf-level biophysical rates that are calculated
@@ -299,7 +298,7 @@ contains
 
     if(.not.associated(patch))then
        write(fates_log(),*)'did not find ifp?'
-       stop
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
     ! We use this block to enable the use of automatic
@@ -308,30 +307,30 @@ contains
     block
 
       ! leaf maintenance (dark) respiration [umol CO2/m**2/s]
-      real(r8) :: lmr_z(patch%nleafmax,patch%npft,patch%ncl)
+      real(r8) :: lmr_z(patch%nleafmax,patch%nupft,patch%ncl)
 
       ! stomatal resistance [s/m]
-      real(r8) :: rs_z(patch%nleafmax,patch%npft,patch%ncl)
+      real(r8) :: rs_z(patch%nleafmax,patch%nupft,patch%ncl)
 
       ! net leaf photosynthesis averaged over sun and shade leaves. [umol CO2/m**2/s]
-      real(r8) :: anet_av_z(patch%nleafmax,patch%npft,patch%ncl)
+      real(r8) :: anet_av_z(patch%nleafmax,patch%nupft,patch%ncl)
 
       ! photsynthesis
-      real(r8) :: psn_z(patch%nleafmax,patch%npft,patch%ncl) 
+      real(r8) :: psn_z(patch%nleafmax,patch%nupft,patch%ncl) 
 
       ! carbon 13 in newly assimilated carbon at leaf level
-      real(r8) :: c13disc_z(patch%nleafmax,patch%npft,patch%ncl)
+      real(r8) :: c13disc_z(patch%nleafmax,patch%nupft,patch%ncl)
 
       ! Mask used to determine which leaf-layer
       ! biophysical rates have been used already
-      logical :: rate_mask_z(patch%nleafmax,patch%npft,patch%ncl)
+      logical :: rate_mask_z(patch%nleafmax,patch%nupft,patch%ncl)
       
-      real(r8) :: cohort_vaitop !(patch%nleafmax)     ! The top-down integrated vegetation area index
+      real(r8) :: cohort_vaitop(patch%nleafmax)     ! The top-down integrated vegetation area index
                                                     ! (leaf+stem) at the top of the layer
-      real(r8) :: cohort_vaibot !(patch%nleafmax)     ! The top-down integrated vegetation area index
+      real(r8) :: cohort_vaibot(patch%nleafmax)     ! The top-down integrated vegetation area index
                                                     ! (leaf+stem) at the bottom of the layer
-      real(r8) :: cohort_layer_elai !(patch%nleafmax) ! exposed leaf area index of the layer
-      real(r8) :: cohort_layer_esai !(patch%nleafmax) ! exposed stem area index of the layer
+      real(r8) :: cohort_layer_elai(patch%nleafmax) ! exposed leaf area index of the layer
+      real(r8) :: cohort_layer_esai(patch%nleafmax) ! exposed stem area index of the layer
 
       
     ! Part I. Zero output boundary conditions and patch weighted means
@@ -413,24 +412,24 @@ contains
             ! LAI and SAI start to shrink to zero, as well as
             ! the difference between vaitop and vaibot.
             if(cohort%treesai>0._r8)then
-               !do iv = 1,cohort%nv
+               do iv = 1,cohort%nv
                   call VegAreaLayer(cohort%treelai, &
                        cohort%treesai,              &
                        cohort%height,               &
-                       0,                                 &
+                       iv,                          &
                        cohort%nv,                   &
                        cohort%pft,                  &
                        site%snow_depth,                &
-                       cohort_vaitop,                  &
-                       cohort_vaibot,                  & 
-                       cohort_elai,              &
-                       cohort_esai)
-               !end do
-               !cohort_elai = sum(cohort_layer_elai(1:cohort%nv))
-               !cohort_esai = sum(cohort_layer_esai(1:cohort%nv))
+                       cohort_vaitop(iv),                  &
+                       cohort_vaibot(iv),                  & 
+                       cohort_layer_elai(iv),              &
+                       cohort_layer_esai(iv))
+               end do
+               cohort_elai = sum(cohort_layer_elai(1:cohort%nv))
+               cohort_esai = sum(cohort_layer_esai(1:cohort%nv))
             else
-               cohort_vaitop = 0._r8
-               cohort_vaibot = 0._r8
+               cohort_vaitop(:) = 0._r8
+               cohort_vaibot(:) = 0._r8
                cohort_elai = 0._r8
                cohort_esai = 0._r8
             end if
@@ -475,19 +474,6 @@ contains
                        (hlm_radiation_model .eq. twostr_solver ) .or. &
                        (nleafage > 1) .or. &
                        (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
-
-                     call VegAreaLayer(cohort%treelai, &
-                          cohort%treesai,              &
-                          cohort%height,               &
-                          iv,                          &
-                          cohort%nv,                   &
-                          cohort%pft,                  &
-                          site%snow_depth,             &
-                          cohort_vaitop,               &
-                          cohort_vaibot
-                          cohort_layer_elai(iv),       &
-                          cohort_layer_esai(iv))
-                     
 
                      ! These values are incremented, therefore since
                      ! sometimes we re-do layers, we need to re-zero them as well
@@ -958,6 +944,8 @@ contains
          
       end if if_any_cohorts
 
+    end block
+
     return
   end subroutine FatesCondPhotoPatch
 
@@ -1326,8 +1314,7 @@ contains
     gpp               = 0.0_r8
     rdark             = 0.0_r8
 
-    do il = 1, nv        ! Loop over the leaf layers this cohort participates in
-
+    do il = 1, nv
 
        ! Cohort's total effective leaf area in this layer [m2]
        ! leaf area index of the layer [m2/m2 ground] * [m2 ground]
@@ -1355,8 +1342,6 @@ contains
 
     end do
 
-
-
     if (nv > 1) then
        ! cohort%c13disc_clm as weighted mean of d13c flux at all related leave layers
        sum_weight = sum(psn_llz(1:nv-1) * elai_llz(1:nv-1))
@@ -1383,16 +1368,6 @@ contains
 
     rdark     = rdark * umolC_to_kgC * maintresp_reduction_factor / nplant
     gpp       = gpp * umolC_to_kgC / nplant
-
-    if ( debug ) then
-       write(fates_log(),*) 'EDPhoto 816 ', gpp
-       write(fates_log(),*) 'EDPhoto 817 ', psn_llz(1:nv)
-       write(fates_log(),*) 'EDPhoto 820 ', nv
-       write(fates_log(),*) 'EDPhoto 821 ', elai_llz(1:nv)
-       write(fates_log(),*) 'EDPhoto 843 ', rdark
-       write(fates_log(),*) 'EDPhoto 873 ', nv
-       write(fates_log(),*) 'EDPhoto 874 ', cohort_eleaf_area
-    endif
 
     return
   end subroutine ScaleLeafLayerFluxToCohort
