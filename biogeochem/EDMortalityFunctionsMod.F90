@@ -71,7 +71,7 @@ contains
     use FatesInterfaceTypesMod, only : hlm_mort_cstarvation_model
     
     type (fates_cohort_type), intent(in) :: cohort_in
-    type (ed_site_type),intent(in)       :: site_in
+    type (ed_site_type),intent(inout)    :: site_in   ! We modify scratch space, hence in/out
     type (bc_in_type), intent(in)        :: bc_in
     real(r8), intent(in)                 :: btran_ft(maxpft)
     real(r8), intent(in)                 :: mean_temp
@@ -191,7 +191,7 @@ contains
           
           if ( (.not. is_decid_dormant) .and. &
                ( btran_ft(cohort_in%pft) <= hf_sm_threshold ) .and. &
-               ( ( minval(bc_in%t_soisno_sl(1:soil_root_i)) - tfrz ) > soil_tfrz_thresh ) ) then
+               ( ( minval(bc_in%t_soisno_sl(1:max_soil_ind)) - tfrz ) > soil_tfrz_thresh ) ) then
              hmort = EDPftvarcon_inst%mort_scalar_hydrfailure(cohort_in%pft)*((hf_sm_threshold- btran_ft(cohort_in%pft))/hf_sm_threshold)
           else
              hmort = 0.0_r8
