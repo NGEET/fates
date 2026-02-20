@@ -175,7 +175,7 @@ contains
     ! !USES:
     use EDMortalityFunctionsMod , only : mortality_rates
     use EDMortalityFunctionsMod , only : ExemptTreefallDist
-    use EDMortalityFunctionsMod , only : get_thaw_layer_index
+
     ! loging flux
     use EDLoggingMortalityMod , only : LoggingMortality_frac
 
@@ -249,10 +249,9 @@ contains
           !currentCohort%patchptr => currentPatch
           mean_temp = currentPatch%tveg24%GetMean()
 
-          call get_thaw_layer_index(site_in, currentCohort, bc_in, max_soil_ind)
+          call mortality_rates(currentCohort,site_in,bc_in,currentPatch%btran_ft,   &
+               mean_temp, cmort,hmort,bmort,frmort,smort,asmort,dgmort)
           
-          call mortality_rates(currentCohort,bc_in,currentPatch%btran_ft, max_soil_ind,     &
-            mean_temp, cmort,hmort,bmort,frmort,smort,asmort,dgmort)
           currentCohort%dmort  = cmort+hmort+bmort+frmort+smort+asmort+dgmort
           call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
                currentCohort%crowndamage,currentCohort%c_area)
