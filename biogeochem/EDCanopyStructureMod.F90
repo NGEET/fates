@@ -349,7 +349,7 @@ contains
           write(fates_log(),*) 'and you think this number of canopy layers is reasonable.'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        else
-          currentPatch%NCL_p = z
+          currentPatch%ncl = z
        end if
        
        ! -------------------------------------------------------------------------------------------
@@ -805,6 +805,7 @@ contains
     real(r8) :: sapw_c           ! sapwood carbon [kg]
     real(r8) :: store_c          ! storage carbon [kg]
     real(r8) :: struct_c         ! structure carbon [kg]
+    integer  :: unique_pfts(maxpft)
 
     !----------------------------------------------------------------------
 
@@ -820,9 +821,8 @@ contains
        ! order of oldest to youngest where the oldest is 1.
        ! --------------------------------------------------------------------------------
        call set_patchno( sites(s) , .false., 0)
-
+       unique_pfts(:) = 0
        currentPatch => sites(s)%oldest_patch
-
        do while(associated(currentPatch))
 
           !zero cohort-summed variables.
@@ -831,9 +831,12 @@ contains
 
           !update cohort quantitie s
           currentCohort => currentPatch%shortest
-          do while(associated(currentCohort))
+          co_loop1: do while(associated(currentCohort))
 
              ft = currentCohort%pft
+
+             unique_pfts(ft) = 1
+             
              leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
              sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
              struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
@@ -902,8 +905,15 @@ contains
 
              currentCohort => currentCohort%taller
 
-          enddo ! ends 'do while(associated(currentCohort))
+          enddo co_loop1 ! ends 'do while(associated(currentCohort))
 
+          ! Calculate the number of unique pfts
+          ! this helps with efficient memory allocation during
+          ! photosynthesis
+          currentPatch%nupft = sum(unique_pfts)
+          
+
+          
           if ( currentPatch%total_canopy_area>currentPatch%area ) then
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.001_r8 ) then
                 write(fates_log(),*) 'FATES: canopy area bigger than area', &
@@ -1205,7 +1215,7 @@ contains
           ! should have a value of exactly 1.0 in its top leaf layer
           ! --------------------------------------------------------------------------
 
-          if ( (cpatch%NCL_p > 1) .and. &
+          if ( (cpatch%ncl > 1) .and. &
                (sum(cpatch%canopy_area_profile(1,:,1)) < 0.9999 )) then
              write(fates_log(), *) 'FATES: canopy_area_profile was less than 1 at the canopy top'
              write(fates_log(), *) 'cl: ',1
@@ -1238,7 +1248,7 @@ contains
           ! It should never be larger than 1 or less than 0.
           ! --------------------------------------------------------------------------
 
-          do cl = 1,cpatch%NCL_p
+          do cl = 1,cpatch%ncl
              do iv = 1,cpatch%nleaf(cl,ft)
 
                 if( debug .and. sum(cpatch%canopy_area_profile(cl,:,iv)) > 1.0001_r8 ) then
@@ -1298,7 +1308,7 @@ contains
           ! preserve_b4b will be removed soon. This is kept here to prevent
           ! round off errors in the baseline tests for the two-stream code (RGK 12-27-23)
           if(preserve_b4b) then
-             do cl = 1,cpatch%NCL_p
+             do cl = 1,cpatch%ncl
                 do ft = 1,numpft
                    do  iv = 1, cpatch%nrad(cl,ft)
                       if(cpatch%canopy_area_profile(cl,ft,iv) > 0._r8)then
@@ -1308,16 +1318,21 @@ contains
                 end do
              end do
           else
-             do cl = 1,cpatch%NCL_p
+             do cl = 1,cpatch%ncl
                 do ft = 1,numpft
                    if(cpatch%canopy_area_profile(cl,ft,1) > 0._r8 ) cpatch%canopy_mask(cl,ft) = 1
                 end do
              end do
           end if
-
              
        end if if_any_canopy_area
 
+       ! Identify the maximum number of leaf layers for any canopy
+       ! or pft, this helps with efficient memory allocation during
+       ! photosynthesis
+
+       cpatch%nleafmax = maxval(cpatch%nleaf)
+       
        cpatch => cpatch%younger
     enddo !patch
 
@@ -1574,14 +1589,14 @@ contains
 
     ai = 0._r8
     if     (trim(ai_type) == 'elai') then
-       do cl = 1,cpatch%NCL_p
+       do cl = 1,cpatch%ncl
           do ft = 1,numpft
              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                   cpatch%elai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
           enddo
        enddo
     elseif (trim(ai_type) == 'tlai') then
-       do cl = 1,cpatch%NCL_p
+       do cl = 1,cpatch%ncl
           do ft = 1,numpft
              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                   cpatch%tlai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
@@ -1589,14 +1604,14 @@ contains
        enddo
 
     elseif (trim(ai_type) == 'esai') then
-       do cl = 1,cpatch%NCL_p
+       do cl = 1,cpatch%ncl
           do ft = 1,numpft
              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                   cpatch%esai_profile(cl,ft,1:cpatch%nrad(cl,ft)))
           enddo
        enddo
     elseif (trim(ai_type) == 'tsai') then
-       do cl = 1,cpatch%NCL_p
+       do cl = 1,cpatch%ncl
           do ft = 1,numpft
              ai = ai + sum(cpatch%canopy_area_profile(cl,ft,1:cpatch%nrad(cl,ft)) * &
                   cpatch%tsai_profile(cl,ft,1:cpatch%nrad(cl,ft)))

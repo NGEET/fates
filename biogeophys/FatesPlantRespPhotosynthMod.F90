@@ -156,8 +156,24 @@ contains
 
   ! ==================================================================================
 
-  subroutine FatesCondPhotoPatch(ifp,site,bc_in,bc_out)
+  subroutine FatesCondPhotoPatch(ifp,site,bc_in,bc_out,nleafmax,npft,ncl)
 
+    ! Refactor Objectives:
+    ! 1) Decrease memory footprint as much as possible
+    ! 2) Remove unecessary code
+    ! 3) Use better memory structure (remove heap memory)
+    ! 4) Try pure
+    ! 5) Evaluate loops to make sure no weird indexing
+    !    leaf layers are most accessed...
+
+
+    ! Organizational notes:
+    ! 1) We do need to loop over cohorts, because we need to scale
+    !    up to patch level conductance.
+    ! 2) We could perform a lot of the filtering on the dyamics step
+    ! 3) These arrays for leaf area are not ideal...
+
+    
     ! -----------------------------------------------------------------------------------
     ! !DESCRIPTION:
     ! Leaf photosynthesis and stomatal conductance calculation as described by
@@ -166,10 +182,15 @@ contains
     ! -----------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------
     integer                          :: ifp
-    
     type(ed_site_type),intent(inout) :: site
     type(bc_in_type),intent(in)      :: bc_in
     type(bc_out_type),intent(inout)  :: bc_out
+
+    ! We pass these in so that we can use automatic arrays
+    ! wich are more efficient than dynamic allocations
+    integer,intent(in) :: nleafmax      ! Maximum number of leaf levels on this patch
+    integer,intent(in) :: npft          ! Number of pfts on this patch
+    integer,intent(in) :: ncl           ! Number of canopy layers on this patch
     
     ! -----------------------------------------------------------------------------------
     ! The followingarrays hold leaf-level biophysical rates that are calculated
@@ -190,28 +211,12 @@ contains
     ! NLEVLEAF IS A DYNAMIC VARIABLE, THIS WILL BE ALLOCATED EVERY CALL
     ! MOVE THESE TO THE PATCH LEVEL AS SCRATCH SPACE
     
-    ! leaf maintenance (dark) respiration [umol CO2/m**2/s]
-    !real(r8) :: lmr_z(nlevleaf,maxpft,nclmax)
-    real(r8) :: lmr_z(30,maxpft,nclmax)
-    
-    ! stomatal resistance [s/m]
-    real(r8) :: rs_z(30,maxpft,nclmax)
 
-    ! net leaf photosynthesis averaged over sun and shade leaves. [umol CO2/m**2/s]
-    real(r8) :: anet_av_z(30,maxpft,nclmax)
-
-    ! photsynthesis
-    real(r8) :: psn_z(30,maxpft,nclmax) 
-
-    ! carbon 13 in newly assimilated carbon at leaf level
-    real(r8) :: c13disc_z(30,maxpft,nclmax)
-    
-    ! Mask used to determine which leaf-layer biophysical rates have been
-    ! used already
-    logical :: rate_mask_z(30,maxpft,nclmax)
     
     type (fates_patch_type), pointer  :: patch
     type (fates_cohort_type), pointer :: cohort
+
+    
     real(r8) :: vcmax_z                          ! leaf layer maximum rate of carboxylation
                                                  ! (umol co2/m**2/s)
     real(r8) :: jmax_z                           ! leaf layer maximum electron transport rate
@@ -253,16 +258,8 @@ contains
                                                  ! and ground footprint
     real(r8) :: fsun                             ! sun-shade fraction
     real(r8) :: par_per_sunla, par_per_shala     ! PAR per sunlit and shaded leaf area [W/m2 leaf]
-    !real(r8) :: ac_utest, aj_utest              ! Gross rubisco and rubp limited assimilation (for unit tests)
-    !real(r8) :: ap_utest,
     real(r8) :: co2_inter_c                      ! intracellular co2 (for unit tests) (Pa)
-    real(r8),dimension(150) :: cohort_vaitop     ! The top-down integrated vegetation area index
-                                                 ! (leaf+stem) at the top of the layer
-    real(r8),dimension(150) :: cohort_vaibot     ! The top-down integrated vegetation area index
-                                                 ! (leaf+stem) at the bottom of the layer
-    real(r8),dimension(150) :: cohort_layer_elai ! exposed leaf area index of the layer
-    real(r8),dimension(150) :: cohort_layer_esai ! exposed stem area index of the layer
-    real(r8)               :: cohort_elai        ! exposed leaf area index of the cohort 
+   real(r8)               :: cohort_elai        ! exposed leaf area index of the cohort 
     real(r8)               :: cohort_esai        ! exposed stem area index of the cohort
     real(r8)               :: laisun,laisha      ! m2 of exposed or shaded leaves per m2 of crown
     real(r8)               :: leaf_area          ! m2 leaf per m2 footprint, for either sunlit or shaded leaf
@@ -305,8 +302,38 @@ contains
        stop
     end if
 
-    
-    
+    ! We use this block to enable the use of automatic
+    ! arrays (stack) as opposed to dynamic allocations
+    ! (heap) which is more faster
+    block
+
+      ! leaf maintenance (dark) respiration [umol CO2/m**2/s]
+      real(r8) :: lmr_z(patch%nleafmax,patch%npft,patch%ncl)
+
+      ! stomatal resistance [s/m]
+      real(r8) :: rs_z(patch%nleafmax,patch%npft,patch%ncl)
+
+      ! net leaf photosynthesis averaged over sun and shade leaves. [umol CO2/m**2/s]
+      real(r8) :: anet_av_z(patch%nleafmax,patch%npft,patch%ncl)
+
+      ! photsynthesis
+      real(r8) :: psn_z(patch%nleafmax,patch%npft,patch%ncl) 
+
+      ! carbon 13 in newly assimilated carbon at leaf level
+      real(r8) :: c13disc_z(patch%nleafmax,patch%npft,patch%ncl)
+
+      ! Mask used to determine which leaf-layer
+      ! biophysical rates have been used already
+      logical :: rate_mask_z(patch%nleafmax,patch%npft,patch%ncl)
+      
+      real(r8) :: cohort_vaitop !(patch%nleafmax)     ! The top-down integrated vegetation area index
+                                                    ! (leaf+stem) at the top of the layer
+      real(r8) :: cohort_vaibot !(patch%nleafmax)     ! The top-down integrated vegetation area index
+                                                    ! (leaf+stem) at the bottom of the layer
+      real(r8) :: cohort_layer_elai !(patch%nleafmax) ! exposed leaf area index of the layer
+      real(r8) :: cohort_layer_esai !(patch%nleafmax) ! exposed stem area index of the layer
+
+      
     ! Part I. Zero output boundary conditions and patch weighted means
     ! ---------------------------------------------------------------------------
     bc_out%rssun_pa(ifp)     = 0._r8
@@ -319,7 +346,7 @@ contains
       ! Output:
       ! patch%ncan(:,:)
       ! patch%canopy_mask(:,:)
-      call UpdateCanopyNCanNRadPresent(patch)
+      ! call UpdateCanopyNCanNRadPresent(patch)
 
 
       ! Part IV.  Identify some environmentally derived parameters:
@@ -361,7 +388,7 @@ contains
       ! NOTE: Only need to flush mask on the number of used pfts, not the whole
       ! scratch space.
       ! ------------------------------------------------------------------------
-      rate_mask_z(:,1:numpft,:) = .false.
+      rate_mask_z(:,:,:) = .false.
       !psn_z(:,:,:)     = 0._r8
       !anet_av_z(:,:,:) = 0._r8
       !c13disc_z(:,:,:) = 0._r8
@@ -386,26 +413,24 @@ contains
             ! LAI and SAI start to shrink to zero, as well as
             ! the difference between vaitop and vaibot.
             if(cohort%treesai>0._r8)then
-               do iv = 1,cohort%nv
+               !do iv = 1,cohort%nv
                   call VegAreaLayer(cohort%treelai, &
                        cohort%treesai,              &
                        cohort%height,               &
-                       iv,                                 &
+                       0,                                 &
                        cohort%nv,                   &
                        cohort%pft,                  &
                        site%snow_depth,                &
-                       cohort_vaitop(iv),                  &
-                       cohort_vaibot(iv),                  & 
-                       cohort_layer_elai(iv),              &
-                       cohort_layer_esai(iv))
-               end do
-               cohort_elai = sum(cohort_layer_elai(1:cohort%nv))
-               cohort_esai = sum(cohort_layer_esai(1:cohort%nv))
+                       cohort_vaitop,                  &
+                       cohort_vaibot,                  & 
+                       cohort_elai,              &
+                       cohort_esai)
+               !end do
+               !cohort_elai = sum(cohort_layer_elai(1:cohort%nv))
+               !cohort_esai = sum(cohort_layer_esai(1:cohort%nv))
             else
-               cohort_layer_elai(:)   = 0._r8
-               cohort_layer_esai(:)   = 0._r8
-               cohort_vaitop(:) = 0._r8
-               cohort_vaibot(:) = 0._r8
+               cohort_vaitop = 0._r8
+               cohort_vaibot = 0._r8
                cohort_elai = 0._r8
                cohort_esai = 0._r8
             end if
@@ -451,6 +476,18 @@ contains
                        (nleafage > 1) .or. &
                        (hlm_parteh_mode .ne. prt_carbon_allom_hyp )   ) then
 
+                     call VegAreaLayer(cohort%treelai, &
+                          cohort%treesai,              &
+                          cohort%height,               &
+                          iv,                          &
+                          cohort%nv,                   &
+                          cohort%pft,                  &
+                          site%snow_depth,             &
+                          cohort_vaitop,               &
+                          cohort_vaibot
+                          cohort_layer_elai(iv),       &
+                          cohort_layer_esai(iv))
+                     
 
                      ! These values are incremented, therefore since
                      ! sometimes we re-do layers, we need to re-zero them as well
@@ -599,8 +636,15 @@ contains
 
                      else    ! Two-stream
 
+                        
+                        
                         if(cohort_layer_elai(iv) > nearzero .and. site%coszen>0._r8 ) then
 
+
+                           ! Since this is supposed to be cohort agnostic, lets
+                           ! try to call the twostream function directly?
+                           ! We should noot need to know cohort_elai here..?
+                           
                            call FatesGetCohortAbsRad(patch, cohort, ipar, &
                                 cohort_vaitop(iv), cohort_vaibot(iv), cohort_elai, cohort_esai, &
                                 rb_abs, rd_abs, rb_abs_leaf, rd_abs_leaf, fsun)
@@ -1357,6 +1401,11 @@ contains
 
   subroutine UpdateCanopyNCanNRadPresent(currentPatch)
 
+    ! THE INFORMATION USED IN THIS ROUTINE IS NOT
+    ! UPDATED AT THE FAST TIMESTEP, AND THIS IS
+    ! ALREADY CALCULATED IN leaf_area_profile()
+
+    
     ! ---------------------------------------------------------------------------------
     ! This subroutine calculates two patch level quanities:
     ! currentPatch%ncan   and

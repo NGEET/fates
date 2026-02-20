@@ -88,7 +88,11 @@ module FatesPatchMod
     integer  :: age_class                    ! age class of the patch for history binning purposes
     real(r8) :: area                         ! patch area [m2]
     integer  :: num_cohorts                  ! number of cohorts in patch
-    integer  :: ncl_p                        ! number of occupied canopy layers
+    integer  :: ncl                          ! number of occupied canopy layers
+    integer  :: nupft                        ! number of unique PFTs in the patch
+    integer  :: nleafmax                     ! maximum number of leaf layers required in
+                                             ! each of the canopy layers for evaluating photosynthesis
+    
     integer  :: land_use_label               ! patch label for land use classification (primaryland, secondaryland, etc)
     real(r8) :: age_since_anthro_disturbance ! average age for secondary forest since last anthropogenic disturbance [years]
     logical  :: changed_landuse_this_ts      ! logical flag to track patches that have just undergone land use change [only used with nocomp and land use change]
@@ -339,7 +343,7 @@ module FatesPatchMod
       integer  :: prev_ncan                ! Number of canopy layers previously
                                            ! as defined in the allocation space
     
-      ncan = this%ncl_p
+      ncan = this%ncl
       nveg = maxval(this%nleaf(:,:))
 
       ! Assume we will need to allocate, unless the
@@ -470,7 +474,9 @@ module FatesPatchMod
       this%age_class                    = fates_unset_int
       this%area                         = nan    
       this%num_cohorts                  = fates_unset_int 
-      this%ncl_p                        = fates_unset_int
+      this%ncl                          = fates_unset_int
+      this%nupft                        = fates_unset_int
+      this%nleafmax                     = fates_unset_int
       this%land_use_label               = fates_unset_int
       this%age_since_anthro_disturbance = nan
       
@@ -779,7 +785,7 @@ module FatesPatchMod
 
       this%tr_soil_dir(:) = 1.0_r8
       this%tr_soil_dif(:) = 1.0_r8
-      this%NCL_p          = 1
+      this%ncl            = 1
 
       this%changed_landuse_this_ts = .false.
 
@@ -1272,7 +1278,9 @@ module FatesPatchMod
       write(fates_log(),*) 'pa%age_class          = ',this%age_class
       write(fates_log(),*) 'pa%area               = ',this%area
       write(fates_log(),*) 'pa%num_cohorts        = ',this%num_cohorts
-      write(fates_log(),*) 'pa%ncl_p              = ',this%ncl_p
+      write(fates_log(),*) 'pa%ncl                = ',this%ncl
+      write(fates_log(),*) 'pa%nupft              = ',this%nupft
+      write(fates_log(),*) 'pa%nleafmax           = ',this%nleafmax
       write(fates_log(),*) 'pa%total_canopy_area  = ',this%total_canopy_area
       write(fates_log(),*) 'pa%total_tree_area    = ',this%total_tree_area
       write(fates_log(),*) 'pa%total_grass_area   = ',this%total_grass_area
