@@ -362,22 +362,22 @@ contains
 
 
     ! Input
-    real(r8), intent(in) :: veg_esat                 ! saturation vapor pressure at veg_tempk (Pa)
-    real(r8), intent(in) :: can_press                ! Air pressure near the surface of the leaf (Pa)
-    real(r8), intent(in) :: gb                       ! leaf boundary layer conductance (umol /m**2/s)
-    real(r8), intent(in) :: can_vpress               ! vapor pressure of the canopy air (Pa)
-    real(r8), intent(in) :: gs0,gs1                  ! Stomatal intercept and slope (umol H2O/m**2/s)
-    real(r8), intent(in) :: leaf_co2_ppress          ! CO2 partial pressure at leaf surface (Pa)
-    real(r8), intent(in) :: a_gs                     ! The assimilation (a) for calculating conductance (gs)
-                                                     ! is either = to anet or agross
-    real(r8), intent(in) :: a_net                    ! Net assimilation rate of co2 (umol/m2/s)
-                                                     ! Output
-    real(r8), intent(out) :: gs                      ! leaf stomatal conductance (umol H2O/m**2/s)
+    real(r8), intent(in) :: veg_esat        ! saturation vapor pressure at veg_tempk (Pa)
+    real(r8), intent(in) :: can_press       ! Air pressure near the surface of the leaf (Pa)
+    real(r8), intent(in) :: gb              ! leaf boundary layer conductance (umol /m**2/s)
+    real(r8), intent(in) :: can_vpress      ! vapor pressure of the canopy air (Pa)
+    real(r8), intent(in) :: gs0,gs1         ! Stomatal intercept and slope (umol H2O/m**2/s)
+    real(r8), intent(in) :: leaf_co2_ppress ! CO2 partial pressure at leaf surface (Pa)
+    real(r8), intent(in) :: a_gs            ! The assimilation (a) for calculating conductance (gs)
+                                            ! is either = to anet or agross
+    real(r8), intent(in) :: a_net           ! Net assimilation rate of co2 (umol/m2/s)
+                                            ! Output
+    real(r8), intent(out) :: gs             ! leaf stomatal conductance (umol H2O/m**2/s)
 
-                                                     ! locals
-    real(r8) :: ceair                                ! constrained vapor pressure (Pa)
-    real(r8) :: aquad,bquad,cquad                    ! quadradic solve terms
-    real(r8) :: r1,r2                                ! quadradic solve roots
+                                            ! locals
+    real(r8) :: ceair                       ! constrained vapor pressure (Pa)
+    real(r8) :: aquad,bquad,cquad           ! quadradic solve terms
+    real(r8) :: r1,r2                       ! quadradic solve roots
     logical :: err
 
 
@@ -423,12 +423,12 @@ contains
   function AgrossRubiscoC3(vcmax,ci,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2) result(ac)
 
     ! Input
-    real(r8) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
-    real(r8) :: ci                ! intracellular leaf CO2 (Pa)
-    real(r8) :: co2_cpoint        ! CO2 compensation point (Pa)
-    real(r8) :: can_o2_ppress     ! Partial pressure of O2 near the leaf surface (Pa)
-    real(r8) :: mm_kco2           ! Michaelis-Menten constant for CO2 (Pa)
-    real(r8) :: mm_ko2            ! Michaelis-Menten constant for O2 (Pa)
+    real(r8),intent(in) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
+    real(r8),intent(in) :: ci                ! intracellular leaf CO2 (Pa)
+    real(r8),intent(in) :: co2_cpoint        ! CO2 compensation point (Pa)
+    real(r8),intent(in) :: can_o2_ppress     ! Partial pressure of O2 near the leaf surface (Pa)
+    real(r8),intent(in) :: mm_kco2           ! Michaelis-Menten constant for CO2 (Pa)
+    real(r8),intent(in) :: mm_ko2            ! Michaelis-Menten constant for O2 (Pa)
     
     ! Output
     real(r8) :: ac               ! Rubisco-limited gross photosynthesis (umol CO2/m**2/s)
@@ -443,10 +443,10 @@ contains
   function GetJe(par_abs,jmax,fnps) result (je)
 
     ! Input
-    real(r8) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
-    real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
-    real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
+    real(r8),intent(in) :: par_abs ! Absorbed PAR per leaf area [umol photons/m**2/s]
+    real(r8),intent(in) :: jmax    ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8),intent(in) :: fnps    ! Fraction of light absorbed by non-photosynthetic pigments
+    real(r8) :: je                 ! electron transport rate (umol electrons/m**2/s)
 
     select case(lb_params%electron_transport_model)
     case (FvCB1980)   
@@ -469,10 +469,11 @@ contains
   function GetJe_FvCB(par_abs,jmax,fnps) result(je)
 
     ! Input
-    real(r8) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
-    real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
+    real(r8),intent(in) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
+    real(r8),intent(in) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8),intent(in) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
     real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
+    
     real(r8) :: aquad,bquad,cquad ! terms for quadratic equations
     real(r8) :: r1,r2             ! roots of quadratic equation
     real(r8) :: jpar              ! absorbed photons in photocenters as an electron
@@ -508,20 +509,20 @@ contains
   function GetJe_JB(par_abs,jmax,fnps) result(je)
 
     ! Input
-    real(r8) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
-    real(r8) :: jmax              ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8) :: fnps              ! Fraction of light absorbed by non-photosynthetic pigments
-    real(r8) :: je                ! electron transport rate (umol electrons/m**2/s)
-    real(r8) :: phi               ! maximum quantum yield (mol electrons/mol photons)
-    real(r8) :: cb6fmax           ! maximum activity of the cytochrome b6f complex
-                                  ! (umol electrons/m**2/s)
-                                  ! referred to as vqmax in Lamour et al.
-    real(r8) :: Qsat              ! Saturating irradiance - assumed to be a constant (umol/m**2/s)
-                                  ! Here we asssume abosorbed irradiance
-    real(r8) :: jsat              ! Electron transport rate estimated by the FvCB model for a
-                                  ! given Jmax at Qsat
+    real(r8),intent(in) :: par_abs          ! Absorbed PAR per leaf area [umol photons/m**2/s]
+    real(r8),intent(in) :: jmax             ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8),intent(in) :: fnps             ! Fraction of light absorbed by non-photosynthetic pigments
+    real(r8) :: je                          ! electron transport rate (umol electrons/m**2/s)
 
-    Qsat = 1530.0_r8
+    real(r8) :: phi                         ! maximum quantum yield (mol electrons/mol photons)
+    real(r8) :: cb6fmax                     ! maximum activity of the cytochrome b6f complex
+                                            ! (umol electrons/m**2/s)
+                                            ! referred to as vqmax in Lamour et al.
+                                            ! Here we asssume abosorbed irradiance
+    real(r8) :: jsat                        ! Electron transport rate estimated by the FvCB model for a
+                                            ! given Jmax at Qsat
+    real(r8),parameter :: Qsat  = 1530.0_r8 ! Saturating irradiance - assumed to be
+                                            ! a constant (umol/m**2/s)
     
     phi = (1.0_r8 - fnps) * photon_to_e
 
@@ -543,11 +544,11 @@ contains
   function AgrossRuBPC3(par_abs,jmax,fnps,ci,co2_cpoint) result(aj)
 
     ! Input
-    real(r8) :: par_abs    ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
-    real(r8) :: jmax       ! maximum electron transport rate (umol electrons/m**2/s)
-    real(r8) :: fnps       ! Fraction of light absorbed by non-photosynthetic pigments
-    real(r8) :: ci         ! intracellular leaf CO2 (Pa)
-    real(r8) :: co2_cpoint ! CO2 compensation point (Pa)
+    real(r8),intent(in) :: par_abs    ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
+    real(r8),intent(in) :: jmax       ! maximum electron transport rate (umol electrons/m**2/s)
+    real(r8),intent(in) :: fnps       ! Fraction of light absorbed by non-photosynthetic pigments
+    real(r8),intent(in) :: ci         ! intracellular leaf CO2 (Pa)
+    real(r8),intent(in) :: co2_cpoint ! CO2 compensation point (Pa)
 
     ! Output
     real(r8) :: aj         ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
@@ -568,11 +569,11 @@ contains
 
   function AgrossRuBPC4(par_abs) result(aj)
 
-    real(r8) :: par_abs ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
+    real(r8),intent(in) :: par_abs ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
     real(r8) :: aj      ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
 
     ! quantum efficiency, used only for C4 (mol CO2 / mol photons)
-    real(r8),parameter :: c4_quant_eff = 0.05_r8
+    real(r8), parameter :: c4_quant_eff = 0.05_r8
     
     aj = c4_quant_eff*par_abs
     
@@ -582,9 +583,9 @@ contains
 
   function AgrossPEPC4(ci,kp,can_press) result(ap)
 
-    real(r8) :: ci                ! intracellular leaf CO2 (Pa)
-    real(r8) :: kp                ! initial co2 response slope 
-    real(r8) :: can_press         ! Air pressure near the surface of the leaf (Pa)
+    real(r8),intent(in) :: ci                ! intracellular leaf CO2 (Pa)
+    real(r8),intent(in) :: kp                ! initial co2 response slope 
+    real(r8),intent(in) :: can_press         ! Air pressure near the surface of the leaf (Pa)
     real(r8) :: ap                ! PEP limited gross assimilation rate (umol co2/m2/s)     
     
     ap = kp * max(ci, 0._r8) / can_press
@@ -880,7 +881,7 @@ contains
     ! This function is called to find endpoints, where conductance is maximized
     ! and minimized, to perform a binary search
     
-    real(r8) :: a,b,c,d,e,f,g     ! compound terms to solve the coupled Anet
+    real(r8),intent(in) :: a,b,c,d,e,f,g     ! compound terms to solve the coupled Anet
                                   ! and diffusive flux gradient equations
     real(r8) :: ci                ! intracellular co2 [Pa]
     real(r8) :: r1,r2             ! roots for quadratic
@@ -1446,17 +1447,17 @@ contains
     ! -------------------------------------------------------------------------------------
 
     ! Arguments
-    real(r8) :: leaf_psi   ! Leaf water potential [MPa]
-    real(r8) :: k_lwp      ! Scaling coefficient for the ratio of leaf xylem (user parameter)
-    real(r8) :: veg_tempk  ! Leaf temperature     [K]
-    real(r8) :: can_vpress ! vapor pressure of air (unconstrained) [Pa]
-    real(r8) :: can_press  ! Atmospheric pressure of canopy [Pa]
-    
-    real(r8) :: rb         ! Leaf Boundary layer resistance [s/m]
-    real(r8) :: gstoma     ! Stomatal Conductance of this leaf layer [m/s]
-    integer  :: ft         ! Plant Functional Type
+    real(r8),intent(in) :: leaf_psi   ! Leaf water potential [MPa]
+    real(r8),intent(in) :: k_lwp      ! Scaling coefficient for the ratio of leaf xylem (user parameter)
+    real(r8),intent(in) :: veg_tempk  ! Leaf temperature     [K]
+    real(r8),intent(in) :: can_vpress ! vapor pressure of air (unconstrained) [Pa]
+    real(r8),intent(in) :: can_press  ! Atmospheric pressure of canopy [Pa]
+    real(r8),intent(in) :: rb         ! Leaf Boundary layer resistance [s/m]
+    real(r8),intent(in) :: gstoma     ! Stomatal Conductance of this leaf layer [m/s]
+    integer,intent(in)  :: ft         ! Plant Functional Type
+    real(r8),intent(in) :: veg_esat   ! Saturation vapor pressure at veg surface [Pa]
+
     real(r8) :: rstoma_out ! Total Stomatal resistance (stoma and BL) [s/m]
-    real(r8) :: veg_esat   ! Saturation vapor pressure at veg surface [Pa]
     
     ! Locals
     real(r8) :: ceair      ! vapor pressure of air, constrained [Pa]
@@ -1545,7 +1546,6 @@ contains
     ! 7/23/16: Copied over from CLM by Ryan Knox
     !
     !!USES
-    
 
     !
     ! !ARGUMENTS:
@@ -1710,9 +1710,6 @@ contains
        veg_tempk,     &
        lmr)
 
-    
-    
-
     ! -----------------------------------------------------------------------
     ! Base maintenance respiration rate for plant tissues maintresp_leaf_ryan1991_baserate
     ! M. Ryan, 1991. Effects of climate change on plant respiration.
@@ -1748,7 +1745,6 @@ contains
     ! ----------------------------------------------------------------------------------
     lmr25 = lmr25top * nscaler
 
-
     if (lb_params%c3psn(ft) == c3_path_index) then
        ! temperature sensitivity of C3 plants
        lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
@@ -1772,8 +1768,6 @@ contains
        veg_tempk,      &
        tgrowth,        &
        lmr)
-
-   
 
     ! Arguments
     real(r8), intent(in)  :: lnc_top          ! Leaf nitrogen content per unit area at canopy top [gN/m2]
@@ -1817,7 +1811,7 @@ contains
     end if
 
     lmr = r_t_ref * exp(lmr_b * (veg_tempk - tfrz - lmr_TrefC) + lmr_c * &
-         ((veg_tempk-tfrz)**2 - lmr_TrefC**2))
+         ((veg_tempk-tfrz)**2._r8 - lmr_TrefC**2._r8))
 
   end subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017
 
@@ -2028,9 +2022,6 @@ contains
           gs1 = lb_params%bb_slope(ft)
        end if
     end if
-
-    
-
     
     return
   end subroutine LeafLayerBiophysicalRates
@@ -2121,7 +2112,7 @@ contains
 
   ! =====================================================================================
 
-  real(r8) function GetConstrainedVPress(air_vpress,veg_esat) result(ceair)
+  function GetConstrainedVPress(air_vpress,veg_esat) result(ceair)
 
     ! -----------------------------------------------------------------------------------
     ! Return a constrained vapor pressure [Pa]
@@ -2133,12 +2124,14 @@ contains
     ! behaved.
     ! -----------------------------------------------------------------------------------
     
-    real(r8) :: air_vpress              ! vapor pressure of the air (unconstrained) [Pa]
-    real(r8) :: veg_esat                ! saturated vapor pressure [Pa]
-    real(r8) :: min_frac_esat = 0.05_r8 ! We don't allow vapor pressures
-                                        ! below this fraction amount of saturation vapor pressure
+    real(r8),intent(in) :: air_vpress             ! vapor pressure of the air (unconstrained) [Pa]
+    real(r8),intent(in) :: veg_esat                ! saturated vapor pressure [Pa]
+    real(r8)            :: ceair
 
-    ceair = min( max(air_vpress, min_frac_esat*veg_esat ),veg_esat )
+    real(r8),parameter :: min_frac_esat = 0.05_r8 ! We don't allow vapor pressures
+                                                  ! below this fraction amount of saturation vapor pressure
+
+    ceair = min( max(air_vpress, min_frac_esat*veg_esat),veg_esat )
     
   end function GetConstrainedVPress
 
@@ -2257,7 +2250,7 @@ contains
 
   ! =====================================================================================
   
-  real(r8) function VeloToMolarCF(press,tempk) result(cf)
+  function VeloToMolarCF(press,tempk) result(cf)
 
     ! ---------------------------------------------------------------------------------
     !
@@ -2287,8 +2280,9 @@ contains
     ! --------------------------------------------------------------------------------
 
     ! Arguments
-    real(r8) :: press    ! air pressure at point of interest [Pa]
-    real(r8) :: tempk    ! temperature at point of interest  [K]
+    real(r8),intent(in) :: press    ! air pressure at point of interest [Pa]
+    real(r8),intent(in) :: tempk    ! temperature at point of interest  [K]
+    real(r8)            :: cf
     
     cf = press/(rgas_J_K_kmol * tempk )*umol_per_kmol
     

@@ -156,7 +156,7 @@ contains
 
   ! ==================================================================================
 
-  pure subroutine FatesCondPhotoPatch(ifp,site,bc_in,bc_out)
+  subroutine FatesCondPhotoPatch(ifp,site,bc_in,bc_out)
 
     ! Refactor Objectives:
     ! 1) Decrease memory footprint as much as possible
@@ -180,17 +180,11 @@ contains
     ! a multi-layer canopy
     ! -----------------------------------------------------------------------------------
     ! -----------------------------------------------------------------------------------
-    integer                          :: ifp
+    integer,intent(in)               :: ifp
     type(ed_site_type),intent(inout) :: site
     type(bc_in_type),intent(in)      :: bc_in
     type(bc_out_type),intent(inout)  :: bc_out
 
-    ! We pass these in so that we can use automatic arrays
-    ! wich are more efficient than dynamic allocations
-    !integer,intent(in) :: nleafmax      ! Maximum number of leaf levels on this patch
-    !integer,intent(in) :: npft          ! Number of pfts on this patch
-    !integer,intent(in) :: ncl           ! Number of canopy layers on this patch
-    
     ! -----------------------------------------------------------------------------------
     ! The followingarrays hold leaf-level biophysical rates that are calculated
     ! in one loop and then sent to the cohorts in another loop.  If hydraulics are
@@ -207,11 +201,6 @@ contains
     ! are not modifying its order now.
     ! -----------------------------------------------------------------------------------
 
-    ! NLEVLEAF IS A DYNAMIC VARIABLE, THIS WILL BE ALLOCATED EVERY CALL
-    ! MOVE THESE TO THE PATCH LEVEL AS SCRATCH SPACE
-    
-
-    
     type (fates_patch_type), pointer  :: patch
     type (fates_cohort_type), pointer :: cohort
 
@@ -297,13 +286,13 @@ contains
     end do
 
     if(.not.associated(patch))then
-       write(fates_log(),*)'did not find ifp?'
-       call endrun(msg=errMsg(sourcefile, __LINE__))
+       !write(fates_log(),*)'did not find ifp?'
+       !call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
     ! We use this block to enable the use of automatic
     ! arrays (stack) as opposed to dynamic allocations
-    ! (heap) which is more faster
+    ! (heap), which enables faster computation
     block
 
       ! leaf maintenance (dark) respiration [umol CO2/m**2/s]
@@ -597,8 +586,8 @@ contains
 
                      case default
 
-                        write (fates_log(),*)'error, incorrect leaf respiration model specified'
-                        call endrun(msg=errMsg(sourcefile, __LINE__))
+                        !write (fates_log(),*)'error, incorrect leaf respiration model specified'
+                        !call endrun(msg=errMsg(sourcefile, __LINE__))
 
                      end select
 
@@ -897,11 +886,11 @@ contains
                r_sb_leaves  = 1.0_r8/g_sb_leaves
                
                if (r_sb_leaves<bc_in%rb_pa(ifp)) then
-                  write(fates_log(),*) 'Combined canopy resistance was somehow smaller than'
-                  write(fates_log(),*) 'its boundary layer resistance component'
-                  write(fates_log(),*) 'r_sb_leaves [s/m]: ',r_sb_leaves
-                  write(fates_log(),*) 'bc_in%rb_pa(ifp) [s/m]: ',bc_in%rb_pa(ifp)
-                  call endrun(msg=errMsg(sourcefile, __LINE__))
+                  !write(fates_log(),*) 'Combined canopy resistance was somehow smaller than'
+                  !write(fates_log(),*) 'its boundary layer resistance component'
+                  !write(fates_log(),*) 'r_sb_leaves [s/m]: ',r_sb_leaves
+                  !write(fates_log(),*) 'bc_in%rb_pa(ifp) [s/m]: ',bc_in%rb_pa(ifp)
+                  !call endrun(msg=errMsg(sourcefile, __LINE__))
                end if
                
                ! Mean leaf stomatal resistance for all patch leaves
