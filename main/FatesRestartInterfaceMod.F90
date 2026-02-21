@@ -4213,9 +4213,9 @@ contains
                       call twostr%Solve(ib,             &  ! in
                            normalized_upper_boundary,   &  ! in
                            1.0_r8,1.0_r8,               &  ! in
-                           sites(s)%taulambda_2str,     &  ! inout (scratch)
-                           sites(s)%omega_2str,         &  ! inout (scratch)
-                           sites(s)%ipiv_2str,          &  ! inout (scratch)
+                           !sites(s)%taulambda_2str,     &  ! inout (scratch)
+                           !sites(s)%omega_2str,         &  ! inout (scratch)
+                           !sites(s)%ipiv_2str,          &  ! inout (scratch)
                            albd_parb(ifp,ib), &
                            albi_parb(ifp,ib), &
                            currentPatch%rad_error(ib),  &

@@ -32,7 +32,7 @@ Module TwoStreamMLPEMod
   private
 
   real(r8),parameter :: nearzero = 1.e-20_r8
-  logical, parameter :: debug=.true.
+  logical, parameter :: debug=.false.
   real(r8), parameter :: unset_r8 = 1.e-36_r8
   real(r8), parameter :: unset_int = -999
   integer, parameter :: twostr_vis = 1         ! Named index of visible shortwave radiation
@@ -1103,9 +1103,9 @@ contains
        upper_boundary_type, & 
        Rbeam_atm, & 
        Rdiff_atm, &
-       taulamb,   &
-       omega,     &
-       ipiv,      &
+       !taulamb,   &
+       !omega,     &
+       !ipiv,      &
        albedo_beam, & 
        albedo_diff, &
        consv_err,   &
@@ -1143,9 +1143,9 @@ contains
     real(r8)  :: Rbeam_atm          ! Intensity of beam radiation at top of canopy [W/m2 ground]
     real(r8)  :: Rdiff_atm          ! Intensity of diffuse radiation at top of canopy [W/m2 ground]
                                     ! 
-    real(r8)  :: taulamb(:)         ! both the coefficient vector and constant side of the linear equation
-    real(r8)  :: omega(:,:)         ! the square matrix to be inverted
-    integer   :: ipiv(:)            ! pivot indices for LAPACK (not optional output, we don't use)
+    !real(r8)  :: taulamb(:)         ! both the coefficient vector and constant side of the linear equation
+    !real(r8)  :: omega(:,:)         ! the square matrix to be inverted
+    !integer   :: ipiv(:)            ! pivot indices for LAPACK (not optional output, we don't use)
     
     real(r8) :: albedo_beam    ! Mean albedo at canopy top generated from beam radiation [-]
     real(r8) :: albedo_diff    ! Mean albedo at canopy top generated from downwelling diffuse [-]
@@ -1341,7 +1341,14 @@ contains
     ! =====================================================================
 
     n_eq = 2*this%n_scel
-    
+
+
+    block
+
+      real(r8) :: omega(n_eq,n_eq)
+      real(r8) :: taulamb(n_eq)
+      integer  :: ipiv(n_eq)
+      
     ! TO-DO: MAKE THIS SCRATCH SPACE AT THE SITE LEVEL?
     !!allocate(OMEGA(2*this%n_scel,2*this%n_scel),stat=alloc_err)
     !!allocate(TAU(2*this%n_scel),stat=alloc_err)
@@ -1573,22 +1580,23 @@ contains
        end if
 
        ! Perform a forward check on the solution error
-       do ilem = 1,n_eq
-          temp_err = tau_temp(ilem) - sum(taulamb(1:n_eq)*omega_temp(ilem,1:n_eq))
-          if(abs(temp_err)>rel_err_thresh)then
-             write(log_unit,*) 'Poor forward solution on two-stream solver'
-             write(log_unit,*) 'isol (1=beam or 2=diff): ',isol
-             write(log_unit,*) 'i (equation): ',ilem
-             write(log_unit,*) 'band index (1=vis,2=nir): ',ib
-             write(log_unit,*) 'error (tau(i) - omega(i,:)*lambda(:)) ',temp_err
-             this%band(ib)%Rbeam_atm = 1._r8
-             this%band(ib)%Rdiff_atm = 1._r8
-             call this%Dump(ib)
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-       end do
-       deallocate(tau_temp,omega_temp)
-              
+       if(debug)then
+          do ilem = 1,n_eq
+             temp_err = tau_temp(ilem) - sum(taulamb(1:n_eq)*omega_temp(ilem,1:n_eq))
+             if(abs(temp_err)>rel_err_thresh)then
+                write(log_unit,*) 'Poor forward solution on two-stream solver'
+                write(log_unit,*) 'isol (1=beam or 2=diff): ',isol
+                write(log_unit,*) 'i (equation): ',ilem
+                write(log_unit,*) 'band index (1=vis,2=nir): ',ib
+                write(log_unit,*) 'error (tau(i) - omega(i,:)*lambda(:)) ',temp_err
+                this%band(ib)%Rbeam_atm = 1._r8
+                this%band(ib)%Rdiff_atm = 1._r8
+                call this%Dump(ib)
+                call endrun(msg=errMsg(sourcefile, __LINE__))
+             end if
+          end do
+          deallocate(tau_temp,omega_temp)
+       end if
 
        ! Save the solution terms
 
@@ -1702,6 +1710,8 @@ contains
        
     end do do_isol
 
+    end block
+    
     
     ! Check the error balance
     ! ---------------------------------------------------------------------------------------------
