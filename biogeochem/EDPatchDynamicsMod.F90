@@ -175,6 +175,7 @@ contains
     ! !USES:
     use EDMortalityFunctionsMod , only : mortality_rates
     use EDMortalityFunctionsMod , only : ExemptTreefallDist
+
     ! loging flux
     use EDLoggingMortalityMod , only : LoggingMortality_frac
 
@@ -205,6 +206,7 @@ contains
     integer  :: threshold_sizeclass
     integer  :: i_dist
     integer  :: h_index
+    integer  :: max_soil_ind ! max soil layer with roots
     real(r8) :: harvest_rate
     real(r8) :: tempsum
     real(r8) :: mean_temp
@@ -246,8 +248,10 @@ contains
           ! Mortality for trees in the understorey.
           !currentCohort%patchptr => currentPatch
           mean_temp = currentPatch%tveg24%GetMean()
-          call mortality_rates(currentCohort,bc_in,currentPatch%btran_ft,      &
-            mean_temp, cmort,hmort,bmort,frmort,smort,asmort,dgmort)
+
+          call mortality_rates(currentCohort,site_in,bc_in,currentPatch%btran_ft,   &
+               mean_temp, cmort,hmort,bmort,frmort,smort,asmort,dgmort)
+          
           currentCohort%dmort  = cmort+hmort+bmort+frmort+smort+asmort+dgmort
           call carea_allom(currentCohort%dbh,currentCohort%n,site_in%spread,currentCohort%pft, &
                currentCohort%crowndamage,currentCohort%c_area)
