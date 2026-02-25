@@ -2289,6 +2289,7 @@ contains
          currentPatch => this%sites(s)%oldest_patch
          do while (associated(currentPatch))
 
+            ! This check is necessary until FATES no longer instantiates a bareground patch
             if (currentPatch%nocomp_pft_label .ne. nocomp_bareground) then
 
             ! Get the registry index for the current site + patch combo and set it to active
