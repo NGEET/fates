@@ -199,9 +199,6 @@ contains
                call twostr%Solve(ib,             &  ! in
                     normalized_upper_boundary,   &  ! in
                     1.0_r8,1.0_r8,               &  ! in
-                    !site%taulambda_2str,         &  ! inout (scratch)
-                    !site%omega_2str,             &  ! inout (scratch)
-                    !site%ipiv_2str,              &  ! inout (scratch)
                     bc_out%albd_parb(ifp,ib), &  ! out
                     bc_out%albi_parb(ifp,ib), &  ! out
                     patch%rad_error(ib),  &  ! out

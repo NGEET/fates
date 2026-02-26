@@ -1103,9 +1103,6 @@ contains
        upper_boundary_type, & 
        Rbeam_atm, & 
        Rdiff_atm, &
-       !taulamb,   &
-       !omega,     &
-       !ipiv,      &
        albedo_beam, & 
        albedo_diff, &
        consv_err,   &
@@ -1205,12 +1202,6 @@ contains
 
     ! Parameters for solving via LAPACK  DGESV() and DGESVXX()
     integer :: info                                 ! Procedure diagnostic ouput
-
-    ! Testing switch
-    ! If true, then allow elements
-    ! of different layers, but same row, to have priority
-    ! flux into the other element, instead of a mix
-    logical, parameter :: continuity_on = .true.    
 
     logical, parameter :: albedo_corr = .true.
 
@@ -1348,11 +1339,6 @@ contains
       real(r8) :: omega(n_eq,n_eq)
       real(r8) :: taulamb(n_eq)
       integer  :: ipiv(n_eq)
-      
-    ! TO-DO: MAKE THIS SCRATCH SPACE AT THE SITE LEVEL?
-    !!allocate(OMEGA(2*this%n_scel,2*this%n_scel),stat=alloc_err)
-    !!allocate(TAU(2*this%n_scel),stat=alloc_err)
-    !!allocate(LAMBDA(2*this%n_scel),stat=alloc_err)
 
     ! We come up with two solutions:
     ! First: we run with now diffuse downwelling

@@ -103,8 +103,7 @@ module FATESPlantRespPhotosynthMod
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
 
-
-  !character(len=1024) :: warn_msg   ! for defining a warning message
+  character(len=1024) :: warn_msg   ! for defining a warning message
 
   logical   ::  debug = .false.
   !-------------------------------------------------------------------------------------
@@ -143,7 +142,6 @@ contains
              if(bc_in(s)%filter_photo_pa(patch%patchno)==2)then
                 call FatesCondPhotoPatch(patch%patchno,sites(s),bc_in(s),bc_out(s))
 
-                ! MOVE ME TO POST Land Energy Balance please!!
                 call FatesPlantRespPatch(patch%patchno,sites(s),bc_in(s),dtime)
              end if
           end if
@@ -162,8 +160,7 @@ contains
     ! 1) Decrease memory footprint as much as possible
     ! 2) Remove unecessary code
     ! 3) Use better memory structure (remove heap memory)
-    ! 4) Try pure
-    ! 5) Evaluate loops to make sure no weird indexing
+    ! 4) Evaluate loops to make sure no weird indexing
     !    leaf layers are most accessed...
 
     ! Organizational notes:
@@ -286,8 +283,8 @@ contains
     end do
 
     if(.not.associated(patch))then
-       !write(fates_log(),*)'did not find ifp?'
-       !call endrun(msg=errMsg(sourcefile, __LINE__))
+       write(fates_log(),*)'did not find ifp?'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
     ! We use this block to enable the use of automatic
@@ -321,23 +318,14 @@ contains
       real(r8) :: cohort_layer_elai(patch%nleafmax) ! exposed leaf area index of the layer
       real(r8) :: cohort_layer_esai(patch%nleafmax) ! exposed stem area index of the layer
 
-      
-    ! Part I. Zero output boundary conditions and patch weighted means
-    ! ---------------------------------------------------------------------------
-    bc_out%rssun_pa(ifp)     = 0._r8
-    bc_out%rssha_pa(ifp)     = 0._r8
-    g_sb_leaves = 0._r8
-    patch_la    = 0._r8
+      ! Part I. Zero output boundary conditions and patch weighted means
+      ! ---------------------------------------------------------------------------
+      bc_out%rssun_pa(ifp)     = 0._r8
+      bc_out%rssha_pa(ifp)     = 0._r8
+      g_sb_leaves = 0._r8
+      patch_la    = 0._r8
 
-      ! Part III. Calculate the number of sublayers for each pft and layer.
-      ! And then identify which layer/pft combinations have things in them.
-      ! Output:
-      ! patch%ncan(:,:)
-      ! patch%canopy_mask(:,:)
-      ! call UpdateCanopyNCanNRadPresent(patch)
-
-
-      ! Part IV.  Identify some environmentally derived parameters:
+      ! Part II.  Identify some environmentally derived parameters:
       !           These quantities are biologically irrelevant
       !  Michaelis-Menten constant for CO2 (Pa)
       !  Michaelis-Menten constant for O2 (Pa)
@@ -348,8 +336,8 @@ contains
       call GetCanopyGasParameters(bc_in%forc_pbot,       & ! in
            bc_in%oair_pa(ifp),    & ! in
            bc_in%t_veg_pa(ifp),   & ! in
-           mm_kco2,                  & ! out
-           mm_ko2,                   & ! out
+           mm_kco2,               & ! out
+           mm_ko2,                & ! out
            co2_cpoint)
 
       ! The host models use velocity based conductances and resistance
@@ -610,11 +598,8 @@ contains
                         fsun = patch%f_sun(cl,ft,iv)
 
                      else    ! Two-stream
-
-                        
                         
                         if(cohort_layer_elai(iv) > nearzero .and. site%coszen>0._r8 ) then
-
 
                            ! Since this is supposed to be cohort agnostic, lets
                            ! try to call the twostream function directly?

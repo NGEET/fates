@@ -77,8 +77,6 @@ contains
                            ! and elements as well (to preserve mass and volume).
 
     integer :: max_elements     ! Maximum number of scattering elements on the site
-    integer :: n_scr            ! The size of the scratch arrays
-    logical :: allocate_scratch ! Whether to re-allocate the scratch arrays
 
     integer  :: icolmax         ! Column index for each layer with largest area footprint
     real(r8) :: areamax         ! The area footprint of the largest column
@@ -352,33 +350,6 @@ contains
        patch => patch%younger
     end do
 
-    ! Re-evaluate the scratch space used for solving two-stream radiation
-    ! The scratch space needs to be 2x the number of computational elements
-    ! for the patch with the most elements.
-    
-    if(allocated(site%taulambda_2str)) then
-       n_scr = ubound(site%taulambda_2str,dim=1)
-       allocate_scratch = .false.
-       if(2*max_elements > n_scr) then
-          allocate_scratch = .true.
-          deallocate(site%taulambda_2str,site%ipiv_2str,site%omega_2str)
-       elseif(2*max_elements < (n_scr-24)) then
-          allocate_scratch = .true.
-          deallocate(site%taulambda_2str,site%ipiv_2str,site%omega_2str)
-       end if
-    else
-       allocate_scratch = .true.
-    end if
-
-    if(allocate_scratch)then
-       ! Twice as many spaces as there are elements, plus some
-       ! extra to prevent allocating/deallocating on the next step
-       n_scr = 2*max_elements+8
-       allocate(site%taulambda_2str(n_scr))
-       allocate(site%omega_2str(n_scr,n_scr))
-       allocate(site%ipiv_2str(n_scr))
-    end if
-    
     return
   end subroutine FatesConstructRadElements
 
