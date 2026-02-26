@@ -987,9 +987,9 @@ contains
     real(r8) :: tcsoi                            ! Temperature response function for root respiration.
     real(r8) :: tcwood                           ! Temperature response function for wood
     real(r8) :: fnrt_mr_layer                    ! fine root maintenance respiation per layer [kgC/plant/s]
-    integer :: ft, cl, j                         ! indices: pft, canopy layer, soil layer
-
-
+    integer  :: ft, cl, j                        ! indices: pft, canopy layer, soil layer
+    real(r8) :: fnrtfrac_ftz(numpft,nlevsoil)
+    
     patch => site%oldest_patch
     do while(associated(patch))
        if(ifp == patch%patchno) exit
@@ -1003,7 +1003,7 @@ contains
     ! -----------------------------------------------------------------------------------
 
     do ft = 1,numpft
-       call set_root_fraction(patch%fnrtfrac_ftz(ft,:), ft, &
+       call set_root_fraction(fnrtfrac_ftz(ft,:), ft, &
             bc_in%zi_sisl, &
             bc_in%max_rooting_depth_index_col)
     end do
@@ -1127,7 +1127,7 @@ contains
        do j = 1,bc_in%nlevsoil
           tcsoi  = q10_mr**((bc_in%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
           
-          fnrt_mr_layer = fnrt_n * maintresp_nonleaf_baserate * tcsoi * patch%fnrtfrac_ftz(ft,j) * maintresp_reduction_factor
+          fnrt_mr_layer = fnrt_n * maintresp_nonleaf_baserate * tcsoi * fnrtfrac_ftz(ft,j) * maintresp_reduction_factor
           
           ! calculate the cost of carbon for N fixation in each soil layer and calculate N fixation rate based on that [kgC / kgN]
           
@@ -1148,7 +1148,7 @@ contains
              tcsoi  = q10_mr**((bc_in%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
              cohort%livecroot_mr = cohort%livecroot_mr + &
                   live_croot_n * maintresp_nonleaf_baserate * tcsoi * &
-                  patch%fnrtfrac_ftz(ft,j) * maintresp_reduction_factor
+                  fnrtfrac_ftz(ft,j) * maintresp_reduction_factor
           enddo
        else
           cohort%livecroot_mr = 0._r8
