@@ -35,8 +35,8 @@ module FatesCohortWrapMod
   use PRTGenericMod,          only : carbon12_element
   use PRTGenericMod,          only : SetState
   use PRTGenericMod,          only : prt_global
-  use PRTGenericMod,          only : fates_c_only
-  use PRTGenericMod,          only : fates_cnp
+  use PRTGenericMod,          only : carbon_only
+  use PRTGenericMod,          only : carbon_nitrogen_phosphorus
 
   use PRTAllometricCarbonMod, only : callom_prt_vartypes
   use PRTAllometricCarbonMod, only : ac_bc_inout_id_netdc
