@@ -979,20 +979,21 @@ module FatesCohortMod
 
         this%kp25top = sum(param_derived%kp25top(ipft, 1:nleafage)*            &
           frac_leaf_aclass(1:nleafage))
-
-      else if (hlm_use_sp .eq. itrue) then
+      
+      ! This else branch used to only be the behaviour in sp-mode
+      ! if the if-statement was skipped because of no leaves in any
+      ! of the age classes, all variables were instead set to zero
+      ! which caused a restart bug and non b4b in certain spun-up cases
+      ! Therefore we choose the behaviour which sets these variables to
+      ! the values for the first leaf age_class
+      ! If leaf_ageclasses come into active use, this issue might need 
+      ! to be revisited
+      else
           
         this%vcmax25top = EDPftvarcon_inst%vcmax25top(ipft, 1)
         this%jmax25top = param_derived%jmax25top(ipft, 1)
         this%tpu25top = param_derived%tpu25top(ipft, 1)
         this%kp25top = param_derived%kp25top(ipft, 1)
-
-      else
-      
-        this%vcmax25top = 0._r8
-        this%jmax25top  = 0._r8
-        this%tpu25top   = 0._r8
-        this%kp25top    = 0._r8
 
       end if
 
