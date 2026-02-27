@@ -736,7 +736,7 @@ module FatesInterfaceTypesMod
                                                  ! used for calculating patch-level aerenchyma porosity
       
       real(r8)          :: ema_npp               ! site-level NPP smoothed over time, see PrepCH4BCs()
-                                                 ! used for N fixation in ELM/CLM right now
+                                                 ! used for N fixation in ELM/CLM right now [gc/m2/yr]
       ! Canopy Structure
 
       real(r8), allocatable :: elai_pa(:)  ! exposed leaf area index

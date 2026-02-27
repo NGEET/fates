@@ -82,7 +82,7 @@ module FatesFactoryMod
     integer :: i ! looping index
     
     ! initialize some values
-    hlm_parteh_mode = carbon_nitrogen_phosphorus
+    hlm_parteh_mode = carbon_only
     num_elements = 1
     allocate(element_list(num_elements))
     element_list(1) = carbon12_element

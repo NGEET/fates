@@ -51,7 +51,7 @@ module EDPftvarcon
   !ED specific variables.
   type, public ::  EDPftvarcon_type
 
-     character(len=256),allocatable :: pftname(:)             ! The name of the PFT
+     character(len=256),allocatable :: pftname(:)    ! The name of the PFT
      
      real(r8), allocatable :: freezetol(:)           ! minimum temperature tolerance
      real(r8), allocatable :: hgt_min(:)             ! sapling height m
@@ -60,8 +60,25 @@ module EDPftvarcon
      real(r8), allocatable :: displar(:)             ! ratio of displacement height to canopy top height
      real(r8), allocatable :: bark_scaler(:)         ! scaler from dbh to bark thickness. For fire model.
      real(r8), allocatable :: crown_kill(:)          ! scaler on fire death. For fire model.
-     real(r8), allocatable :: initd(:)               ! initial seedling density
-
+     real(r8), allocatable :: initd(:)               ! initial seedling density [/m2] (positive values)
+                                                     ! or -dbh [cm] (negative values)
+     real(r8), allocatable :: init_seed(:)           ! Initial seed bank [kg/m2]
+                                                     ! For SP: this is unused
+                                                     ! For Nocomp: This only applies the seed from the
+                                                     !     pft associated with the pft's dedicated patch
+                                                     ! For Fixed biogeo: Applies all seed from pfts
+                                                     !     found on that site/grid to starter patch
+                                                     ! Full Fates: All pft seed banks applied on starter
+                                                     !     patch
+                                                     ! Example: if nocomp says 14 pft equally 
+                                                     !     share the site, the total amount of seed
+                                                     !     integrated across the site would be 
+                                                     !     1/14 as much as would be allocated in full 
+                                                     !     fates using the same parameters, or
+                                                     !     likewise fixed-biogeo if all pfts also present.
+                                                     !     Fixed-biogeo and full-fates would have the
+                                                     !     the same amounts initialized if all pfts
+                                                     !     present at a site
      real(r8), allocatable :: seed_suppl(:)          ! seeds that come from outside the gridbox.
 
      real(r8), allocatable :: lf_flab(:)             ! Leaf litter labile fraction [-]
@@ -328,6 +345,10 @@ contains
     param_p => pstruct%GetParamFromName('fates_recruit_init_density')
     allocate(EDPftvarcon_inst%initd(numpft))
     EDPftvarcon_inst%initd(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_recruit_init_seed')
+    allocate(EDPftvarcon_inst%init_seed(numpft))
+    EDPftvarcon_inst%init_seed(:) = param_p%r_data_1d(:)
     
     param_p => pstruct%GetParamFromName('fates_recruit_seed_supplement')
     allocate(EDPftvarcon_inst%seed_suppl(numpft))
@@ -823,6 +844,7 @@ contains
         write(fates_log(),fmt0) 'bark_scaler = ',EDPftvarcon_inst%bark_scaler
         write(fates_log(),fmt0) 'crown_kill = ',EDPftvarcon_inst%crown_kill
         write(fates_log(),fmt0) 'initd = ',EDPftvarcon_inst%initd
+        write(fates_log(),fmt0) 'init_seed = ',EDPftvarcon_inst%init_seed
         write(fates_log(),fmt0) 'seed_suppl = ',EDPftvarcon_inst%seed_suppl
         write(fates_log(),fmt0) 'lf_flab = ',EDPftvarcon_inst%lf_flab
         write(fates_log(),fmt0) 'lf_fcel = ',EDPftvarcon_inst%lf_fcel
@@ -1242,8 +1264,24 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
            
         end if
-           
+        
+        if ( hlm_use_nocomp .eq. ifalse .and. EDPftvarcon_inst%initd(ipft) < -nearzero ) then
+           write(fates_log(),*) ' When not in a noncomp configuration, FATES does not'
+           write(fates_log(),*) ' know how to interpret a negative %initd (number density)'
+           write(fates_log(),*) ' on a cold-start. In nocomp with a negative, we assume the absolute'
+           write(fates_log(),*) ' value of the %inidt parameter is the initial plant size.'
+           write(fates_log(),*) ' And since the fractional area of each PFT is known from'
+           write(fates_log(),*) ' the surface file, we can derive a number density from this'
+           write(fates_log(),*) ' However, we do not have a hypothesis to do this in full FATES.'
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        end if
 
+        if ( EDPftvarcon_inst%init_seed(ipft) < 0._r8) then
+           write(fates_log(),*) ' Initial seed pool fates_init_seed can not be negative.'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+        endif
+        
         ! Check to make sure that if a grass sapwood allometry is used, it is not
         ! a woody plant.
         if ( ( prt_params%allom_smode(ipft)==2 ) .and. (prt_params%woody(ipft)==itrue) ) then
@@ -1257,7 +1295,7 @@ contains
            write(fates_log(),*) 'Please correct this discrepancy before re-running. Aborting.'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
-
+        
         ! Check if fraction of storage to reproduction is between 0-1
         ! ----------------------------------------------------------------------------------
 

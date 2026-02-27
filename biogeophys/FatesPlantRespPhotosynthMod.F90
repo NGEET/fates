@@ -44,8 +44,8 @@ module FATESPlantRespPhotosynthMod
   use FatesCohortMod,    only : fates_cohort_type
   use FatesConstantsMod, only : lmrmodel_ryan_1991
   use FatesConstantsMod, only : lmrmodel_atkin_etal_2017
-  use PRTGenericMod,     only : carbon_nitrogen_phosphorus
   use PRTGenericMod,     only : carbon_only
+  use PRTGenericMod,     only : carbon_nitrogen_phosphorus
   use PRTGenericMod,     only : carbon12_element
   use PRTGenericMod,     only : nitrogen_element
   use PRTGenericMod,     only : leaf_organ
