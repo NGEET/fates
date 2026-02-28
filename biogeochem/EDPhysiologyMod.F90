@@ -452,7 +452,7 @@ contains
     ! !ARGUMENTS
     type(ed_site_type), intent(inout)  :: currentSite
     type(fates_patch_type), intent(inout) :: currentPatch
-    type(bc_in_type), intent(in)       :: bc_in
+    type(bc_in_type), intent(in)       :: bc_in(:)
 
     !
     ! !LOCAL VARIABLES:
@@ -3192,7 +3192,7 @@ contains
     !
     ! !ARGUMENTS
     type(fates_patch_type), intent(inout) :: currentPatch
-    type(bc_in_type),    intent(in)    :: bc_in
+    type(bc_in_type),    intent(in)    :: bc_in(:)
 
     !
     ! !LOCAL VARIABLES:
@@ -3215,7 +3215,8 @@ contains
        if ( use_hlm_soil_scalar ) then
 
          ! Calculate the fragmentation_scaler
-         currentPatch%fragmentation_scaler =  min(1.0_r8,max(0.0_r8,bc_in%t_scalar_sisl * bc_in%w_scalar_sisl))
+         currentPatch%fragmentation_scaler =  min(1.0_r8,max(0.0_r8,bc_in(currentPatch%patchno)%t_scalar_sisl * &
+                                                                    bc_in(currentPatch%patchno)%w_scalar_sisl))
 
        else
 
