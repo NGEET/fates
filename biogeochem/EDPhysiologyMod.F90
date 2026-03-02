@@ -446,7 +446,7 @@ contains
     ! !ARGUMENTS
     type(ed_site_type), intent(inout)  :: currentSite
     type(fates_patch_type), intent(inout) :: currentPatch
-    type(bc_in_type), intent(in)       :: bc_in(:)
+    type(bc_in_type), intent(in)       :: bc_in
 
     !
     ! !LOCAL VARIABLES:
