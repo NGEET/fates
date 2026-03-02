@@ -3,7 +3,7 @@ module EDPatchDynamicsMod
   ! Controls formation, creation, fusing and termination of patch level processes. 
   ! ============================================================================
   use FatesGlobals         , only : fates_log
-  use FatesGlobals         , only : FatesWarn,N2S,A2S
+  use FatesGlobals         , only : FatesWarn,N2S,A2S,I2S
   use FatesInterfaceTypesMod, only : hlm_freq_day
   use FatesInterfaceTypesMod, only : hlm_current_tod
   use EDPftvarcon          , only : EDPftvarcon_inst
@@ -71,7 +71,7 @@ module EDPatchDynamicsMod
   use EDLoggingMortalityMod, only : get_harvestable_carbon
   use EDLoggingMortalityMod, only : get_harvest_debt
   use FatesLandUseChangeMod, only : GetInitLanduseHarvestRate
-  use EDParamsMod          , only : fates_mortality_disturbance_fraction
+  use EDParamsMod          , only : mortality_disturbance_fraction
   use FatesAllometryMod    , only : carea_allom
   use FatesAllometryMod    , only : set_root_fraction
   use FatesConstantsMod    , only : g_per_kg
@@ -360,7 +360,7 @@ contains
              ! Treefall Disturbance Rate.  Only count this for trees, not grasses
              if ( .not. ExemptTreefallDist(currentCohort) ) then
                 currentPatch%disturbance_rates(dtype_ifall) = currentPatch%disturbance_rates(dtype_ifall) + &
-                     fates_mortality_disturbance_fraction * &
+                     mortality_disturbance_fraction * &
                      min(1.0_r8,currentCohort%dmort)*hlm_freq_day*currentCohort%c_area/currentPatch%area
              end if
 
@@ -842,7 +842,7 @@ contains
                                      ! because this is the part of the original patch where no trees have actually fallen
                                      ! The diagnostic cmort,bmort,hmort, and frmort  rates have already been saved
 
-                                     currentCohort%n = currentCohort%n * (1.0_r8 - fates_mortality_disturbance_fraction * &
+                                     currentCohort%n = currentCohort%n * (1.0_r8 - mortality_disturbance_fraction * &
                                           min(1.0_r8,currentCohort%dmort * hlm_freq_day))
 
                                      nc%n = 0.0_r8      ! kill all of the trees who caused the disturbance.
@@ -2490,7 +2490,7 @@ contains
              ! generating mortality rate.
              
              num_dead = currentCohort%n * min(1.0_r8,currentCohort%dmort * &
-                   hlm_freq_day * fates_mortality_disturbance_fraction)
+                   hlm_freq_day * mortality_disturbance_fraction)
              
           elseif(prt_params%woody(pft) == itrue) then
              
@@ -3381,6 +3381,7 @@ contains
     real(r8) areatot ! variable for checking whether the total patch area is wrong.
     real(r8) :: state_vector_driver(n_landuse_cats)  ! [m2/m2]
     real(r8) :: state_vector_internal(n_landuse_cats)  ! [m2/m2]
+    character(len=1024) :: warn_msg   ! for defining a warning message
     !---------------------------------------------------------------------
 
     ! Initialize the count cycles
@@ -3411,8 +3412,12 @@ contains
 
              if ( .not. gotfused ) then
                 !! somehow didn't find a patch to fuse with.
-                write(fates_log(),*) 'Warning. small nocomp patch wasnt able to find another patch to fuse with.', &
-                     currentPatch%nocomp_pft_label, currentPatch%land_use_label, currentPatch%area
+                warn_msg = 'small nocomp patch wasnt able to find '// &
+                           'another patch to fuse with. '// &
+                           'nocomp pft: '//trim(I2S(currentPatch%nocomp_pft_label))// &
+                           'lu label: '//trim(I2S(currentPatch%land_use_label))// &
+                           'area: '//trim(N2S(currentPatch%area))
+                call FatesWarn(warn_msg,index=5)
              endif
 
           else nocomp_if

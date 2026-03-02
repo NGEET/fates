@@ -823,9 +823,6 @@ contains
                                    ! Leaf biophysical rates (use leaf mass weighting)
                                    ! -----------------------------------------------------------------
                                    call currentCohort%UpdateCohortBioPhysRates()
-                                   
-                                   currentCohort%l2fr = (currentCohort%n*currentCohort%l2fr &
-                                        + nextc%n*nextc%l2fr)/newn
 
                                    currentCohort%canopy_trim = (currentCohort%n*currentCohort%canopy_trim &
                                         + nextc%n*nextc%canopy_trim)/newn
@@ -1044,6 +1041,9 @@ contains
                                       ! Nutrients
                                       if(hlm_parteh_mode .eq. prt_cnp_flex_allom_hyp) then
 
+                                         currentCohort%l2fr = (currentCohort%n*currentCohort%l2fr &
+                                              + nextc%n*nextc%l2fr)/newn
+                                         
                                          if(nextc%n > currentCohort%n) currentCohort%cnp_limiter = nextc%cnp_limiter
 
                                          currentCohort%cx_int = (currentCohort%n*currentCohort%cx_int + &
