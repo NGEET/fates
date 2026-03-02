@@ -60,6 +60,19 @@ module FatesPatchMod
      
   end type fates_cohort_vec_type
 
+  ! This holds various biophysical rates used in photosynthesis
+  ! These values change at slow timescales when using Kumarathunge et al.
+  type, public :: bprate_type
+     real(r8) :: vcmaxha  ! activation energy for vcmax (J/mol)
+     real(r8) :: jmaxha   ! activation energy for jmax (J/mol)
+     real(r8) :: vcmaxhd  ! deactivation energy for vcmax (J/mol)
+     real(r8) :: jmaxhd   ! deactivation energy for jmax (J/mol)
+     real(r8) :: vcmaxse  ! entropy term for vcmax (J/mol/K)
+     real(r8) :: jmaxse   ! entropy term for jmax (J/mol/K)
+     real(r8) :: jvr      ! ratio of Jmax25 / Vcmax25   ! Kumarathunge et al.
+     real(r8) :: vcmaxc   ! scaling factor for high temperature inhibition (25 C = 1.0)
+     real(r8) :: jmaxc    ! scaling factor for high temperature inhibition (25 C = 1.0)
+  end type bprate_type
   
   type, public :: fates_patch_type
 
@@ -72,6 +85,8 @@ module FatesPatchMod
     
     !---------------------------------------------------------------------------
 
+    type(bprate_type), allocatable :: bprate(:)  ! Biophysical rates
+    
     ! INDICES
     integer  :: patchno          ! unique number given to each new patch created for tracking
     integer  :: nocomp_pft_label ! when nocomp is active, use this label for patch ID
@@ -274,6 +289,8 @@ module FatesPatchMod
 
   end type fates_patch_type
 
+  public :: UpdateSlowBiophysicalRates
+  
   contains 
 
     !===========================================================================
@@ -300,7 +317,8 @@ module FatesPatchMod
       allocate(this%sabs_dif(num_swb))
       allocate(this%fragmentation_scaler(num_levsoil))
       allocate(this%co_scr(max_cohort_per_patch))
-
+      allocate(this%bprate(numpft))
+      
       ! initialize all values to nan
       call this%NanValues()
 
@@ -914,6 +932,7 @@ module FatesPatchMod
                  this%sabs_dif,                 &
                  this%fragmentation_scaler,     &
                  this%co_scr,                   &
+                 this%bprate,                   &
                  stat=istat, errmsg=smsg)
 
       ! These arrays are allocated via a call from EDCanopyStructureMod
@@ -1348,7 +1367,54 @@ module FatesPatchMod
       end if
 
     end subroutine CheckVars
-
+    
     !===========================================================================  
 
+    subroutine UpdateSlowBiophysicalRates(bprate,ft,t_growth_k,t_home_k)
+
+      use LeafBiophysicsMod, only: fth25_f, lb_params
+      use LeafBiophysicsMod, only: photosynth_acclim_model_none
+      use LeafBiophysicsMod, only: photosynth_acclim_model_kumarathunge_etal_2019
+      use FatesConstantsMod, only: tfrz => t_water_freeze_k_1atm
+      
+      type(bprate_type),intent(inout) :: bprate
+      integer          ,intent(in)    :: ft
+      real(r8)         ,intent(in)    :: t_growth_k
+      real(r8)         ,intent(in)    :: t_home_k
+
+      real(r8) :: t_growth_celsius
+      real(r8) :: t_home_celsius
+      
+      select case(lb_params%photo_tempsens_model)
+      case (photosynth_acclim_model_none) !No temperature acclimation
+         bprate%vcmaxha = lb_params%vcmaxha(ft)
+         bprate%jmaxha  = lb_params%jmaxha(ft)
+         bprate%vcmaxhd = lb_params%vcmaxhd(ft)
+         bprate%jmaxhd  = lb_params%jmaxhd(ft)
+         bprate%vcmaxse = lb_params%vcmaxse(ft)
+         bprate%jmaxse  = lb_params%jmaxse(ft)
+         bprate%jvr     = 1._r8
+         
+      case (photosynth_acclim_model_kumarathunge_etal_2019) !Kumarathunge et al. temperature acclimation, Thome=30-year running mean
+         t_growth_celsius = t_growth_k-tfrz
+         t_home_celsius = t_home_k-tfrz
+         bprate%vcmaxha = (42.6_r8 + (1.14_r8*t_growth_celsius))*1e3_r8 !J/mol
+         bprate%jmaxha = 40.71_r8*1e3_r8 !J/mol
+         bprate%vcmaxhd = 200._r8*1e3_r8 !J/mol
+         bprate%jmaxhd = 200._r8*1e3_r8 !J/mol
+         bprate%vcmaxse = (645.13_r8 - (0.38_r8*t_growth_celsius))
+         bprate%jmaxse = 658.77_r8 - (0.84_r8*t_home_celsius) - 0.52_r8*(t_growth_celsius-t_home_celsius)
+         bprate%jvr = 2.56_r8 - (0.0375_r8*t_home_celsius)-(0.0202_r8*(t_growth_celsius-t_home_celsius))
+         
+      case default
+         write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
+         write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
+         call endrun(msg=errMsg(sourcefile, __LINE__))
+      end select
+      
+      bprate%vcmaxc  = fth25_f(bprate%vcmaxhd, bprate%vcmaxse)
+      bprate%jmaxc  = fth25_f(bprate%jmaxhd, bprate%jmaxse)
+      
+    end subroutine UpdateSlowBiophysicalRates
+    
 end module FatesPatchMod

@@ -102,10 +102,11 @@ contains
     param_p => pstruct%GetParamFromName('fates_leaf_fnps')
     allocate(lb_params%fnps(numpft))
     lb_params%fnps(:) = param_p%r_data_1d(:)
-    
+
     return
   end subroutine TransferParamsLeafBiophys
 
+  
   ! ====================================================================================
 
   subroutine LeafBiophysReportParams(is_master)

@@ -7,6 +7,7 @@ module EDParamsMod
   use FatesConstantsMod, only : r8 => fates_r8
   use FatesConstantsMod, only : nearzero
   use FatesConstantsMod, only : itrue
+  use FatesConstantsMod, only : tfrz => t_water_freeze_k_1atm
   use FatesGlobals        , only : fates_log
   use FatesGlobals        , only : endrun => fates_endrun
   use FatesConstantsMod,    only : fates_unset_r8
@@ -93,6 +94,9 @@ module EDParamsMod
    real(r8),protected,public  :: q10_mr     ! Q10 for respiration rate (for soil fragmenation and plant respiration)    (unitless)
    real(r8),protected,public  :: q10_froz   ! Q10 for frozen-soil respiration rates (for soil fragmentation)            (unitless)
 
+   real(r8),protected,public  :: log_q10_mr_div10      != log(q10_mr)/10.0_r8
+   real(r8),protected,public  :: log_q10_froz_div10    !
+   
    ! grazing parameters
    real(r8),protected,public :: landuse_grazing_carbon_use_eff
    real(r8),protected,public :: landuse_grazing_maxheight
@@ -191,11 +195,38 @@ module EDParamsMod
    public :: TransferParamsGeneric
    public :: FatesReportParams
    public :: GetNVegLayers
-
+   public :: FastQ10
    
  contains
 
+   function FastQ10(temperature,offset) result(t_factor)
 
+     ! ----------------------------------------------------------------------------------
+     ! The exp() intrinsic is faster than a pow()
+     ! or ** math operation. So we re-write  the
+     ! q10 function leverage this. Differences
+     ! are on the order of e-15 on gnu compiler
+     !
+     ! identity:
+     ! a^b = e^{b ln(a)}
+     !
+     ! original:
+     ! t_factor_orig = q10_mr**((temp - tfrz - 20.0_r8)/10.0_r8)
+     !
+     ! log_q10_mr_div10 = log(q10_mr)/10.
+     ! ----------------------------------------------------------------------------------
+     
+     real(r8),intent(in) :: temperature  ! The temperature dictating the response [K]
+     real(r8),intent(in) :: offset       ! Offset of the temperature response [C] (e.g. 20C,25C,etc)
+     real(r8)            :: t_factor
+     
+     t_factor = exp(log_q10_mr_div10 * (temperature - tfrz - offset))
+     
+     return
+   end function FastQ10
+
+   ! ====================================================================================
+  
    function GetNVegLayers(treevai) result(nv)
 
      real(r8) :: treevai  ! The LAI+SAI of the cohort (m2/m2)
@@ -381,6 +412,10 @@ module EDParamsMod
     
     param_p => pstruct%GetParamFromName("fates_q10_froz")
     q10_froz = param_p%r_data_scalar
+
+    ! pre-logged for computational efficiency
+    log_q10_mr_div10 = log(q10_mr)/10.0_r8
+    log_q10_froz_div10 = log(q10_froz)/10.0_r8
     
     param_p => pstruct%GetParamFromName("fates_history_sizeclass_bin_edges")
     allocate(ED_val_history_sizeclass_bin_edges(size(param_p%r_data_1d,dim=1)))

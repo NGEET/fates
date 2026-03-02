@@ -137,12 +137,8 @@ contains
     ! index at lop of layer
     real(r8) :: vai                                ! total VAI of the scattering element
     
-    patch => site%oldest_patch
-    do while(associated(patch))
-       if(ifp == patch%patchno) exit
-       patch => patch%younger
-    end do
-
+    patch => site%pa_vec(ifp)%p
+    
     ! Initialize output boundary conditions with trivial assumption
     ! This matches CLM/ELM
     ! Albedo is perfect reflector, no flux into or through canopy

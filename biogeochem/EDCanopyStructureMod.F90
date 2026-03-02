@@ -38,7 +38,8 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod     , only : hlm_use_sp
   use FatesInterfaceTypesMod     , only : numpft
-  use FatesInterfaceTypesMod, only : bc_in_type
+  use FatesInterfaceTypesMod,  only : bc_in_type
+  use FatesInterfaceTypesMod , only : fates_maxPatchesPerSite
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : leaf_organ
@@ -52,6 +53,7 @@ module EDCanopyStructureMod
   use FatesTwoStreamUtilsMod, only : FatesConstructRadElements
   use FatesRadiationMemMod  , only : twostr_solver
   use FatesRadiationMemMod  , only : num_rad_stream_types
+  use FatesPatchMod, only :          UpdateSlowBiophysicalRates
   
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -788,7 +790,8 @@ contains
     use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
     use EDtypesMod                , only : area
     use FatesConstantsMod         , only : itrue
-
+    use EDParamsMod                    , only : maxpatch_total
+    
     ! !ARGUMENTS
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
@@ -815,7 +818,7 @@ contains
     endif
 
     do s = 1,nsites
-
+       
        ! --------------------------------------------------------------------------------
        ! Set the patch indices (this is usefull mostly for communicating with a host or
        ! driving model.  Loops through all patches and sets cpatch%patchno to the integer
@@ -825,7 +828,7 @@ contains
        unique_pfts(:) = 0
        currentPatch => sites(s)%oldest_patch
        do while(associated(currentPatch))
-
+          
           !zero cohort-summed variables.
           currentPatch%total_canopy_area = 0.0_r8
           currentPatch%total_tree_area = 0.0_r8
@@ -913,8 +916,6 @@ contains
           ! photosynthesis
           currentPatch%nupft = sum(unique_pfts)
           
-
-          
           if ( currentPatch%total_canopy_area>currentPatch%area ) then
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.001_r8 ) then
                 write(fates_log(),*) 'FATES: canopy area bigger than area', &
@@ -926,14 +927,22 @@ contains
              currentPatch%total_canopy_area = currentPatch%area
           endif
 
+          do ft=1,numpft
+             call UpdateSlowBiophysicalRates(currentPatch%bprate(ft),ft,&
+                  currentPatch%tveg_lpa%GetMean(), &
+                  currentPatch%tveg_longterm%GetMean())
+          end do
+          
+          
           currentPatch => currentPatch%younger
        end do !patch loop
-
+       
        call leaf_area_profile(sites(s))
        
        if(hlm_radiation_model.eq.twostr_solver) then
           call FatesConstructRadElements(sites(s))
        end if
+
        
     end do ! site loop
 

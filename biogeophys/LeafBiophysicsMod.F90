@@ -64,6 +64,7 @@ module LeafBiophysicsMod
   public :: CiMinMax
   public :: CiFunc
   public :: CiBisection
+  public :: fth25_f
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -116,8 +117,8 @@ module LeafBiophysicsMod
   integer, public, parameter :: JohnsonBerry2021 = 2
 
   ! Constants defining the photosynthesis temperature acclimation model
-  integer, parameter :: photosynth_acclim_model_none = 0
-  integer, parameter :: photosynth_acclim_model_kumarathunge_etal_2019 = 1
+  integer, public, parameter :: photosynth_acclim_model_none = 0
+  integer, public, parameter :: photosynth_acclim_model_kumarathunge_etal_2019 = 1
 
   ! Rdark constants from Atkin et al., 2017 https://doi.org/10.1007/978-3-319-68703-2_6
   ! and Heskel et al., 2016 https://doi.org/10.1073/pnas.1520282113
@@ -223,6 +224,14 @@ module LeafBiophysicsMod
                                                                   ! 1: btran scales only vcmax
                                                                   ! 2: btran scales both vcmax and jmax
      real(r8),allocatable :: fnps(:)                              ! fraction of light absorbed by non-photosynthetic pigments
+
+
+     
+     ! Pre-calculations for improved performance
+     
+     real(r8),allocatable :: vcmaxc_25(:)
+     real(r8),allocatable :: jmaxc_25(:)
+     
      ! -------------------------------------------------------------------------------------
      ! Note the omission of several parameter constants:
      !
@@ -320,13 +329,16 @@ contains
     
     vpd =  max((veg_esat - can_vpress), min_vpd_pa) * kpa_per_pa
     term = gs2 * h2o_co2_stoma_diffuse_ratio * anet / (leaf_co2_ppress / can_press)
-    aquad = 1.0_r8
+    !aquad = 1.0_r8
     bquad = -(2.0 * (gs0 + term) + (gs1 * term)**2 / (gb * vpd ))
     cquad = gs0*gs0 +  (2.0*gs0 + term * &
          (1.0 - gs1*gs1 / vpd)) * term
-    
-    call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-    gs = max(r1,r2)
+
+
+    gs = QuadraticSolveSmooth_a1_max(bquad, cquad)
+
+    !call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+    !gs = max(r1,r2)
 
     if(debug)then
        if(err)then
@@ -404,23 +416,23 @@ contains
        cquad = -gb*(leaf_co2_ppress * gs0 + gs1 * a_gs* can_press * ceair/ veg_esat )
     end if
     
-    call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+    !call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+    !if(debug)then
+    !   if(err)then
+    !      write(fates_log(),*) "bbquadfail:",a_net,a_gs,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press
+    !      call endrun(msg=errMsg(sourcefile, __LINE__))
+    !   end if
+    !end if
+    !gs = max(r1,r2)
 
-    if(debug)then
-       if(err)then
-          write(fates_log(),*) "bbquadfail:",a_net,a_gs,veg_esat,can_vpress,gs0,gs1,leaf_co2_ppress,can_press
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-    end if
-    
-    gs = max(r1,r2)
+    gs = QuadraticSolveSmoothMax(aquad,bquad,cquad)
     
     return
   end subroutine StomatalCondBallBerry
 
   ! =====================================================================================
   
-  function AgrossRubiscoC3(vcmax,ci,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2) result(ac)
+  elemental function AgrossRubiscoC3(vcmax,ci,can_o2_ppress,co2_cpoint,mm_kco2,mm_ko2) result(ac)
 
     ! Input
     real(r8),intent(in) :: vcmax             ! maximum rate of carboxylation (umol co2/m**2/s)
@@ -440,7 +452,7 @@ contains
   
   ! =====================================================================================
 
-  function GetJe(par_abs,jmax,fnps) result (je)
+  elemental function GetJe(par_abs,jmax,fnps) result (je)
 
     ! Input
     real(r8),intent(in) :: par_abs ! Absorbed PAR per leaf area [umol photons/m**2/s]
@@ -456,9 +468,6 @@ contains
     case (JohnsonBerry2021)
        je = GetJe_JB(par_abs,jmax,fnps)
 
-    case default
-       write (fates_log(),*)'error, incorrect leaf electron transport model specified:',lb_params%electron_transport_model
-       call endrun(msg=errMsg(sourcefile, __LINE__))
     end select
 
   end function GetJe
@@ -466,7 +475,7 @@ contains
     
   !======================================================================================
 
-  function GetJe_FvCB(par_abs,jmax,fnps) result(je)
+  elemental function GetJe_FvCB(par_abs,jmax,fnps) result(je)
 
     ! Input
     real(r8),intent(in) :: par_abs           ! Absorbed PAR per leaf area [umol photons/m**2/s]
@@ -488,25 +497,25 @@ contains
     
     ! convert the absorbed par into absorbed par per m2 of leaf,
     ! so it is consistant with the vcmax and lmr numbers.
-    aquad = theta_psii
+    !aquad = theta_psii
     bquad = -(jpar + jmax)
     cquad = jpar * jmax
-    call QuadraticRoots(aquad, bquad, cquad, r1, r2, err)
+    !call QuadraticRoots(aquad, bquad, cquad, r1, r2, err)
+    !if(debug)then
+    !   if(err)then
+    !      write(fates_log(),*) "jequadfail:",par_abs,jpar,jmax
+    !      call endrun(msg=errMsg(sourcefile, __LINE__))
+    !   end if
+    !end if
+    !je = min(r1,r2)
 
-    if(debug)then
-       if(err)then
-          write(fates_log(),*) "jequadfail:",par_abs,jpar,jmax
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
-    end if
-    
-    je = min(r1,r2)
+    je = QuadraticSolveSmooth_theta_psii(bquad,cquad)
     
   end function GetJe_FvCB
 
   ! =====================================================================================
 
-  function GetJe_JB(par_abs,jmax,fnps) result(je)
+  elemental function GetJe_JB(par_abs,jmax,fnps) result(je)
 
     ! Input
     real(r8),intent(in) :: par_abs          ! Absorbed PAR per leaf area [umol photons/m**2/s]
@@ -541,7 +550,7 @@ contains
 
   ! =====================================================================================
   
-  function AgrossRuBPC3(par_abs,jmax,fnps,ci,co2_cpoint) result(aj)
+  elemental function AgrossRuBPC3(par_abs,jmax,fnps,ci,co2_cpoint) result(aj)
 
     ! Input
     real(r8),intent(in) :: par_abs    ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
@@ -567,7 +576,7 @@ contains
   
   ! =======================================================================================
 
-  function AgrossRuBPC4(par_abs) result(aj)
+  elemental function AgrossRuBPC4(par_abs) result(aj)
 
     real(r8),intent(in) :: par_abs ! Absorbed PAR per leaf area [umol photons/m2leaf/s ]
     real(r8) :: aj      ! RuBP-limited gross photosynthesis (umol CO2/m**2/s)
@@ -581,7 +590,7 @@ contains
 
   ! =======================================================================================
 
-  function AgrossPEPC4(ci,kp,can_press) result(ap)
+  elemental function AgrossPEPC4(ci,kp,can_press) result(ap)
 
     real(r8),intent(in) :: ci                ! intracellular leaf CO2 (Pa)
     real(r8),intent(in) :: kp                ! initial co2 response slope 
@@ -669,6 +678,8 @@ contains
        
        ai = min(r1,r2)
 
+       
+       
        a = rmin*can_press
        
        aquad = theta_ip_c4/a**2.0_r8 + kp/(can_press*a)
@@ -988,33 +999,33 @@ contains
        ! C4: PEP carboxylase-limited (CO2-limited)
        ap = AgrossPEPC4(ci,kp,can_press)
 
-       aquad = theta_cj_c4
+       !aquad = theta_cj_c4
        bquad = -(ac + aj)
        cquad = ac * aj
-       call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       !call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       !if(debug)then
+       !   if(err)then
+       !      write(fates_log(),*) "c41quadfail:",par_abs,ci,kp,can_press,vcmax
+       !      call endrun(msg=errMsg(sourcefile, __LINE__))
+       !   end if
+       !end if
+       !ai = min(r1,r2)
 
-       if(debug)then
-          if(err)then
-             write(fates_log(),*) "c41quadfail:",par_abs,ci,kp,can_press,vcmax
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-       end if
-
-       ai = min(r1,r2)
-
-       aquad = theta_ip_c4
+       ai = QuadraticSolveSmooth_theta_cj(bquad, cquad)
+       
+       !aquad = theta_ip_c4
        bquad = -(ai + ap)
        cquad = ai * ap
-       call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
-
-       if(debug)then
-          if(err)then
-             write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
-             call endrun(msg=errMsg(sourcefile, __LINE__))
-          end if
-       end if
+       !call QuadraticRoots(aquad, bquad, cquad, r1, r2,err)
+       !if(debug)then
+       !   if(err)then
+       !      write(fates_log(),*) "c42quadfail:",par_abs,ci,kp,can_press,vcmax
+       !      call endrun(msg=errMsg(sourcefile, __LINE__))
+       !   end if
+       !end if
+       !agross = min(r1,r2)
        
-       agross = min(r1,r2)
+       agross = QuadraticSolveSmooth_theta_ip(bquad, cquad)
        
     end if
 
@@ -1824,8 +1835,15 @@ contains
        nscaler,    &
        veg_tempk,      &
        dayl_factor, &
-       t_growth,   &
-       t_home,     &
+       vcmaxha, &
+       vcmaxhd, &
+       vcmaxse, &
+       vcmaxc,  &
+       jmaxha,  &
+       jmaxhd,  &
+       jmaxse,  &
+       jmaxc,   &
+       jvr,     &
        btran, &
        vcmax, &
        jmax, &
@@ -1851,27 +1869,34 @@ contains
     ! Arguments
     ! ------------------------------------------------------------------------------
 
-    integer,  intent(in) :: ft                        ! (plant) Functional Type Index
-    real(r8), intent(in) :: nscaler                   ! Scale for leaf nitrogen profile
-    real(r8), intent(in) :: vcmax25top_ft             ! canopy top maximum rate of carboxylation at 25C
-                                                      ! for this pft (umol CO2/m**2/s)
-    real(r8), intent(in) :: jmax25top_ft              ! canopy top maximum electron transport rate at 25C
-                                                      ! for this pft (umol electrons/m**2/s)
-    real(r8), intent(in) :: kp25_ft                   ! initial slope of CO2 response curve
-                                                      ! (C4 plants) at 25C, canopy top, this pft
-    real(r8), intent(in) :: veg_tempk                 ! vegetation temperature
-    real(r8), intent(in) :: dayl_factor               ! daylength scaling factor (0-1)
-    real(r8), intent(in) :: t_growth                  ! T_growth (short-term running mean temperature) (K)
-    real(r8), intent(in) :: t_home                    ! T_home (long-term running mean temperature) (K)
-    real(r8), intent(in) :: btran                     ! transpiration wetness factor (0 to 1)
-    real(r8), intent(out) :: vcmax                    ! maximum rate of carboxylation (umol co2/m**2/s)
-    real(r8), intent(out) :: jmax                     ! maximum electron transport rate
-                                                      ! (umol electrons/m**2/s)
-    real(r8), intent(out) :: kp                       ! initial slope of CO2 response curve (C4 plants)
-    real(r8), intent(out) :: gs0                      ! effective stomatal intercept
-    real(r8), intent(out) :: gs1                      ! effective stomatal slope
-    real(r8), intent(out) :: gs2                      ! alternative btran term applied to Medlyn
-                                                      ! conductance on whole non-intercept side of equation
+    integer,  intent(in) :: ft            ! (plant) Functional Type Index
+    real(r8), intent(in) :: nscaler       ! Scale for leaf nitrogen profile
+    real(r8), intent(in) :: vcmax25top_ft ! canopy top maximum rate of carboxylation at 25C
+                                          ! for this pft (umol CO2/m**2/s)
+    real(r8), intent(in) :: jmax25top_ft  ! canopy top maximum electron transport rate at 25C
+                                          ! for this pft (umol electrons/m**2/s)
+    real(r8), intent(in) :: kp25_ft       ! initial slope of CO2 response curve
+                                          ! (C4 plants) at 25C, canopy top, this pft
+    real(r8), intent(in) :: veg_tempk     ! vegetation temperature
+    real(r8), intent(in) :: dayl_factor   ! daylength scaling factor (0-1)
+    real(r8), intent(in) :: vcmaxha       ! activation energy for vcmax (J/mol)
+    real(r8), intent(in) :: jmaxha        ! activation energy for jmax (J/mol)
+    real(r8), intent(in) :: vcmaxhd       ! deactivation energy for vcmax (J/mol)
+    real(r8), intent(in) :: jmaxhd        ! deactivation energy for jmax (J/mol)
+    real(r8), intent(in) :: vcmaxse       ! entropy term for vcmax (J/mol/K)
+    real(r8), intent(in) :: jmaxse        ! entropy term for jmax (J/mol/K)
+    real(r8), intent(in) :: jvr           ! ratio of Jmax25 / Vcmax25
+    real(r8), intent(in) :: vcmaxc        ! scaling factor for high temperature inhibition (25 C = 1.0)
+    real(r8), intent(in) :: jmaxc         ! scaling factor for high temperature inhibition (25 C = 1.0)
+    real(r8), intent(in) :: btran         ! transpiration wetness factor (0 to 1)
+    real(r8), intent(out) :: vcmax        ! maximum rate of carboxylation (umol co2/m**2/s)
+    real(r8), intent(out) :: jmax         ! maximum electron transport rate
+                                          ! (umol electrons/m**2/s)
+    real(r8), intent(out) :: kp           ! initial slope of CO2 response curve (C4 plants)
+    real(r8), intent(out) :: gs0          ! effective stomatal intercept
+    real(r8), intent(out) :: gs1          ! effective stomatal slope
+    real(r8), intent(out) :: gs2          ! alternative btran term applied to Medlyn
+                                          ! conductance on whole non-intercept side of equation
     
     ! Locals
     ! -------------------------------------------------------------------------------
@@ -1883,18 +1908,7 @@ contains
 
     ! Parameters
     ! ---------------------------------------------------------------------------------
-    real(r8) :: vcmaxha          ! activation energy for vcmax (J/mol)
-    real(r8) :: jmaxha           ! activation energy for jmax (J/mol)
-    real(r8) :: vcmaxhd          ! deactivation energy for vcmax (J/mol)
-    real(r8) :: jmaxhd           ! deactivation energy for jmax (J/mol)
-    real(r8) :: vcmaxse          ! entropy term for vcmax (J/mol/K)
-    real(r8) :: jmaxse           ! entropy term for jmax (J/mol/K)
-    real(r8) :: t_growth_celsius ! average growing temperature
-    real(r8) :: t_home_celsius   ! average home temperature
-    real(r8) :: jvr              ! ratio of Jmax25 / Vcmax25
-    real(r8) :: vcmaxc           ! scaling factor for high temperature inhibition (25 C = 1.0)
-    real(r8) :: jmaxc            ! scaling factor for high temperature inhibition (25 C = 1.0)
-
+ 
 
     ! update the daylength factor local variable if the switch is on
     if ( lb_params%dayl_switch == itrue ) then
@@ -1902,36 +1916,6 @@ contains
     else
        dayl_factor_local = 1.0_r8
     endif
-    
-    select case(lb_params%photo_tempsens_model)
-    case (photosynth_acclim_model_none) !No temperature acclimation
-       vcmaxha = lb_params%vcmaxha(FT)
-       jmaxha  = lb_params%jmaxha(FT)
-       vcmaxhd = lb_params%vcmaxhd(FT)
-       jmaxhd  = lb_params%jmaxhd(FT)
-       vcmaxse = lb_params%vcmaxse(FT)
-       jmaxse  = lb_params%jmaxse(FT)
-       
-    case (photosynth_acclim_model_kumarathunge_etal_2019) !Kumarathunge et al. temperature acclimation, Thome=30-year running mean
-       t_growth_celsius = t_growth-tfrz
-       t_home_celsius = t_home-tfrz
-       vcmaxha = (42.6_r8 + (1.14_r8*t_growth_celsius))*1e3_r8 !J/mol
-       jmaxha = 40.71_r8*1e3_r8 !J/mol
-       vcmaxhd = 200._r8*1e3_r8 !J/mol
-       jmaxhd = 200._r8*1e3_r8 !J/mol
-       vcmaxse = (645.13_r8 - (0.38_r8*t_growth_celsius))
-       jmaxse = 658.77_r8 - (0.84_r8*t_home_celsius) - 0.52_r8*(t_growth_celsius-t_home_celsius)
-       jvr = 2.56_r8 - (0.0375_r8*t_home_celsius)-(0.0202_r8*(t_growth_celsius-t_home_celsius))
-
-       
-    case default
-       write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
-       write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
-       call endrun(msg=errMsg(sourcefile, __LINE__))
-    end select
-
-    vcmaxc = fth25_f(vcmaxhd, vcmaxse)
-    jmaxc  = fth25_f(jmaxhd, jmaxse)
     
     ! Vcmax25top was already calculated to derive the nscaler function
     vcmax25 = vcmax25top_ft * nscaler * dayl_factor_local
@@ -2289,5 +2273,105 @@ contains
   end function VeloToMolarCF
 
   ! =====================================================================================
+  
+  elemental function QuadraticSolveSmooth_a1_max(b, c) result(root)
+
+    ! -----------------------------------------------------------------------------------
+    ! Specialized solver for a = 1.0 - returns LARGER root (max)
+    ! Used for: Medlyn stomatal conductance
+    ! Returns: (-b + sqrt(b^2 - 4*1*c)) / 2*1
+    ! -----------------------------------------------------------------------------------
+    
+    real(r8), intent(in) :: b, c
+    real(r8) :: root
+    real(r8) :: discriminant
+    real(r8), parameter :: inv_2 = 0.5_r8
+    
+    discriminant = b * b - 4.0_r8 * c
+    
+    root = (-b + sqrt(max(discriminant, 0.0_r8))) * inv_2
+    
+  end function QuadraticSolveSmooth_a1_max
+
+  ! =====================================================================================
+ 
+  elemental function QuadraticSolveSmooth_theta_psii(b, c) result(root)
+
+    ! -----------------------------------------------------------------------------------
+    ! Specialized solver for a = theta_psii = 0.7 (electron transport)
+    ! Returns the SMALLER root (min): (-b - sqrt(b^2 - 4*theta*c)) / (2*theta)
+    ! -----------------------------------------------------------------------------------
+    
+    real(r8), intent(in) :: b, c
+    real(r8) :: root
+    real(r8) :: discriminant
+    real(r8), parameter :: four_theta_psii = 4.0_r8 * theta_psii
+    real(r8), parameter :: inv_2_theta_psii = 1.0_r8 / (2.0_r8 * theta_psii)
+  
+    discriminant = b * b - four_theta_psii * c
+    
+    root = (-b - sqrt(max(discriminant, 0.0_r8))) * inv_2_theta_psii
+    
+  end function QuadraticSolveSmooth_theta_psii
+
+  ! =====================================================================================
+
+  elemental function QuadraticSolveSmooth_theta_cj(b, c) result(root)
+
+    ! -----------------------------------------------------------------------------------
+    ! Specialized solver for a = theta_cj_c4 = 0.98 (C4 RuBP limitation)
+    ! -----------------------------------------------------------------------------------
+    
+    real(r8), intent(in) :: b, c
+    real(r8) :: root
+    real(r8) :: discriminant
+    real(r8), parameter :: four_theta_cj = 4.0_r8 * theta_cj_c4
+    real(r8), parameter :: inv_2_theta_cj = 1.0_r8 / (2.0_r8 * theta_cj_c4)
+     
+    discriminant = b * b - four_theta_cj * c
+    
+    root = (-b - sqrt(max(discriminant, 0.0_r8))) * inv_2_theta_cj
+    
+  end function QuadraticSolveSmooth_theta_cj
+  
+  ! =====================================================================================
+  
+  elemental function QuadraticSolveSmooth_theta_ip(b, c) result(root)
+
+    ! -----------------------------------------------------------------------------------
+    ! Specialized solver for a = theta_ip_c4 = 0.95 (C4 PEP limitation)
+    ! -----------------------------------------------------------------------------------
+    
+    real(r8), intent(in) :: b, c
+    real(r8) :: root
+    real(r8) :: discriminant
+    real(r8), parameter :: four_theta_ip = 4.0_r8 * theta_ip_c4
+    real(r8), parameter :: inv_2_theta_ip = 1.0_r8 / (2.0_r8 * theta_ip_c4)
+    
+    discriminant = b * b - four_theta_ip * c
+    
+    root = (-b - sqrt(max(discriminant, 0.0_r8))) * inv_2_theta_ip
+    
+  end function QuadraticSolveSmooth_theta_ip
+
+  
+  elemental function QuadraticSolveSmoothMax(a, b, c) result(root)
+
+    ! -----------------------------------------------------------------------------------
+    ! Generic fast solver
+    ! Used for BB, where a is positive, to the added sqrt is the
+    ! larger root.
+    ! -----------------------------------------------------------------------------------
+    
+    real(r8), intent(in) :: a, b, c
+    real(r8) :: root
+    real(r8) :: discriminant
+    
+    discriminant = b * b - 4._r8*a*c
+    
+    root = 0.5_r8*(-b + sqrt(max(discriminant, 0.0_r8)))/a
+    
+  end function QuadraticSolveSmoothMax
+  
   
 end module LeafBiophysicsMod
