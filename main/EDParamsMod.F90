@@ -209,6 +209,8 @@ module EDParamsMod
      !
      ! identity:
      ! a^b = e^{b ln(a)}
+     ! a^(x-c)/b = e^{(x-c)/b ln(a)}
+     !           = e^{(x-c) ln(a)/b}
      !
      ! original:
      ! t_factor_orig = q10_mr**((temp - tfrz - 20.0_r8)/10.0_r8)

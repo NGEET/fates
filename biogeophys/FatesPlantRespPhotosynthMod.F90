@@ -57,8 +57,6 @@ module FATESPlantRespPhotosynthMod
   use EDTypesMod,        only : do_fates_salinity
   use EDParamsMod,       only : q10_mr
   use FatesPatchMod,     only : fates_patch_type
-  use FatesPatchMod,     only : bprate_type
-  use FatesPatchMod,     only : UpdateSlowBiophysicalRates
   use FatesCohortMod,    only : fates_cohort_type
   use FatesConstantsMod, only : lmrmodel_ryan_1991
   use FatesConstantsMod, only : lmrmodel_atkin_etal_2017
@@ -94,7 +92,8 @@ module FATESPlantRespPhotosynthMod
   use LeafBiophysicsMod, only : lb_params
   use LeafBiophysicsMod, only : photosynth_acclim_model_none
   use LeafBiophysicsMod, only : photosynth_acclim_model_kumarathunge_etal_2019
-  use LeafBiophysicsMod, only : fth25_f
+  use LeafBiophysicsMod, only : UpdateSlowBiophysicalRates
+  use LeafBiophysicsMod, only : UpdateFastBiophysicalRates
   use FatesRadiationMemMod, only : idirect
   
   ! CIME Globals
@@ -274,7 +273,7 @@ contains
     real(r8)               :: vmol_cf            ! velocity to molar conductance conversion (m/s) -> (umol/m2/s)
     real(r8) :: leaf_c                           ! Leaf carbon (kgC/plant)
     real(r8) :: leaf_n                           ! leaf nitrogen content (kgN/plant)
-    integer  :: cl,iv,ft                         ! indices
+    integer  :: cl,iv,ft,ift                     ! indices
     integer  :: nv                               ! number of leaf layers
     integer  :: solve_iter                       ! number of iterations required for photosynthesis solve
     
@@ -334,6 +333,19 @@ contains
       g_sb_leaves = 0._r8
       patch_la    = 0._r8
 
+
+      ! Update temperature scaling functions on biophysical rates
+      ! we only need to do this once per PFT
+      do ift=1,patch%nupft 
+         ft = patch%unique_pfts(ift)
+         ! Move this to daily timestep
+         !call UpdateSlowBiophysicalRates(patch%bprate(ft),ft, &
+         !     patch%tveg_lpa%GetMean(), &
+         !     patch%tveg_longterm%GetMean())
+         call UpdateFastBiophysicalRates(patch%bprate(ft),ft, &
+              bc_in%t_veg_pa(ifp))
+      end do
+      
       ! Part II.  Identify some environmentally derived parameters:
       !           These quantities are biologically irrelevant
       !  Michaelis-Menten constant for CO2 (Pa)
@@ -656,6 +668,32 @@ contains
                      ! Calculate leaf boundary layer conductance in molar form [umol/m2/s]
                      gb_mol = (1._r8/bc_in%rb_pa(ifp)) * vmol_cf
 
+                     ! Part VII: Calculate (1) maximum rate of carboxylation (vcmax),
+                     ! (2) maximum electron transport rate, (3) triose phosphate
+                     ! utilization rate and (4) the initial slope of CO2 response curve
+                     ! (C4 plants). Earlier we calculated their base rates as dictated
+                     ! by their plant functional type and some simple scaling rules for
+                     ! nitrogen limitation baesd on canopy position (not prognostic).
+                     ! These rates are the specific rates used in the actual photosynthesis
+                     ! calculations that take localized environmental effects (temperature)
+                     ! into consideration.
+                     
+                     call LeafLayerBiophysicalRates(ft, &  ! in
+                          cohort%vcmax25top,            &  ! in
+                          cohort%jmax25top,             &  ! in
+                          cohort%kp25top,               &  ! in
+                          nscaler,                      &  ! in
+                          bc_in%t_veg_pa(ifp),          &  ! in
+                          bc_in%dayl_factor_pa(ifp),    &  ! in
+                          patch%bprate(ft),             &  ! in
+                          btran_eff,                    &  ! in
+                          vcmax_z,                      &  ! out
+                          jmax_z,                       &  ! out
+                          kp_z,                         &  ! out
+                          gs0,                          &  ! out
+                          gs1,                          &  ! out
+                          gs2 )                            ! out
+                     
                      gstoma = 0._r8
                      do_sunsha: do isunsha = 1,2
 
@@ -681,45 +719,6 @@ contains
 
                            cycle do_sunsha
                         end if
-
-                        ! Part VII: Calculate (1) maximum rate of carboxylation (vcmax),
-                        ! (2) maximum electron transport rate, (3) triose phosphate
-                        ! utilization rate and (4) the initial slope of CO2 response curve
-                        ! (C4 plants). Earlier we calculated their base rates as dictated
-                        ! by their plant functional type and some simple scaling rules for
-                        ! nitrogen limitation baesd on canopy position (not prognostic).
-                        ! These rates are the specific rates used in the actual photosynthesis
-                        ! calculations that take localized environmental effects (temperature)
-                        ! into consideration.
-
-                        call UpdateSlowBiophysicalRates(patch%bprate(ft),ft,&
-                             patch%tveg_lpa%GetMean(), &
-                             patch%tveg_longterm%GetMean())
-                        
-                        call LeafLayerBiophysicalRates(ft, &  ! in
-                             cohort%vcmax25top,            &  ! in
-                             cohort%jmax25top,             &  ! in
-                             cohort%kp25top,               &  ! in
-                             nscaler,                      &  ! in
-                             bc_in%t_veg_pa(ifp),          &  ! in
-                             bc_in%dayl_factor_pa(ifp),    &  ! in
-                             patch%bprate(ft)%vcmaxha,     &  ! in
-                             patch%bprate(ft)%vcmaxhd,     &  ! in
-                             patch%bprate(ft)%vcmaxse,     &  ! in
-                             patch%bprate(ft)%vcmaxc,      &  ! in
-                             patch%bprate(ft)%jmaxha,      &  ! in
-                             patch%bprate(ft)%jmaxhd,      &  ! in
-                             patch%bprate(ft)%jmaxse,      &  ! in
-                             patch%bprate(ft)%jmaxc,       &  ! in
-                             patch%bprate(ft)%jvr,         &  ! in
-                             btran_eff,                    &  ! in
-                             vcmax_z,                      &  ! out
-                             jmax_z,                       &  ! out
-                             kp_z,                         &  ! out
-                             gs0,                          &  ! out
-                             gs1,                          &  ! out
-                             gs2 )                            ! out
-
 
                         if ( (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
                            hydr_k_lwp = EDPftvarcon_inst%hydr_k_lwp(ft)
@@ -995,12 +994,6 @@ contains
     integer  :: ft, cl, j                        ! indices: pft, canopy layer, soil layer
     real(r8) :: fnrtfrac_ftz(numpft,bc_in%nlevsoil)
     
-    !patch => site%oldest_patch
-    !do while(associated(patch))
-    !   if(ifp == patch%patchno) exit
-    !   patch => patch%younger
-    !end do
-
     patch => site%pa_vec(ifp)%p
     
     ! -----------------------------------------------------------------------------------
@@ -1016,7 +1009,13 @@ contains
     end do
 
     ! Temperature correction for wood on this patch
-    tcwood = FastQ10(bc_in%t_veg_pa(patch%patchno),20._r8)
+    !tcwood = FastQ10(bc_in%t_veg_pa(patch%patchno),20._r8)
+    tcwood = q10_mr**((bc_in%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8)
+    do j = 1,bc_in%nlevsoil
+       !tcsoi(j) = FastQ10(bc_in%t_soisno_sl(j),20._r8)
+       tcsoi(j)  = q10_mr**((bc_in%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
+    end do
+
     
     cohort => patch%tallest
     do_cohort_drive: do while (associated(cohort)) ! Cohort loop
@@ -1117,6 +1116,7 @@ contains
        ! ------------------------------------------------------------------
        if ( int(prt_params%woody(ft)) == itrue) then
           ! kgC/s = kgN * kgC/kgN/s
+          
           cohort%livestem_mr  = live_stem_n * maintresp_nonleaf_baserate * tcwood * maintresp_reduction_factor
        else
           cohort%livestem_mr  = 0._r8
@@ -1135,7 +1135,6 @@ contains
        
        do j = 1,bc_in%nlevsoil
 
-          tcsoi(j) = FastQ10(bc_in%t_soisno_sl(j),20._r8)
           fnrt_mr_layer = fnrt_n * maintresp_nonleaf_baserate * tcsoi(j) * fnrtfrac_ftz(ft,j) * maintresp_reduction_factor
           
           ! calculate the cost of carbon for N fixation in each soil layer and calculate N fixation rate based on that [kgC / kgN]

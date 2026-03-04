@@ -178,7 +178,7 @@ module PRTGenericMod
 
   type, public :: prt_vartype
      
-     real(r8),pointer :: val(:)       ! Instantaneous state variable           [kg]
+     real(r8),pointer :: val(:)           ! Instantaneous state variable           [kg]
      real(r8),allocatable :: val0(:)      ! State variable at the beginning 
                                           ! of the control period                  [kg]
      real(r8),allocatable :: net_alloc(:)   ! Net change due to allocation/transport [kg]

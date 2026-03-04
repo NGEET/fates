@@ -53,7 +53,7 @@ module EDCanopyStructureMod
   use FatesTwoStreamUtilsMod, only : FatesConstructRadElements
   use FatesRadiationMemMod  , only : twostr_solver
   use FatesRadiationMemMod  , only : num_rad_stream_types
-  use FatesPatchMod, only :          UpdateSlowBiophysicalRates
+  use LeafBiophysicsMod     , only : UpdateSlowBiophysicalRates
   
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -802,6 +802,7 @@ contains
     type (fates_cohort_type) , pointer :: currentCohort
     integer  :: s
     integer  :: ft               ! plant functional type
+    integer  :: ift              ! index of unique plant functional type array
     integer  :: ifp              ! the number of the vegetated patch (1,2,3). In SP mode bareground patch is 0
     integer  :: patchn           ! identification number for each patch.
     real(r8) :: leaf_c           ! leaf carbon [kg]
@@ -809,8 +810,7 @@ contains
     real(r8) :: sapw_c           ! sapwood carbon [kg]
     real(r8) :: store_c          ! storage carbon [kg]
     real(r8) :: struct_c         ! structure carbon [kg]
-    integer  :: unique_pfts(maxpft)
-
+   
     !----------------------------------------------------------------------
 
     if ( debug ) then
@@ -825,7 +825,7 @@ contains
        ! order of oldest to youngest where the oldest is 1.
        ! --------------------------------------------------------------------------------
        call set_patchno( sites(s) , .false., 0)
-       unique_pfts(:) = 0
+      
        currentPatch => sites(s)%oldest_patch
        do while(associated(currentPatch))
           
@@ -833,13 +833,21 @@ contains
           currentPatch%total_canopy_area = 0.0_r8
           currentPatch%total_tree_area = 0.0_r8
 
+          ! Tracking unique pft counts on this patch
+          ! used to help speed up photosynthesis calculations
+          currentPatch%unique_pfts(:) = 0
+          currentPatch%nupft          = 0
+           
           !update cohort quantitie s
           currentCohort => currentPatch%shortest
           co_loop1: do while(associated(currentCohort))
 
              ft = currentCohort%pft
 
-             unique_pfts(ft) = 1
+             if( .not. any(currentPatch%unique_pfts(1:numpft) == ft) )then
+                currentPatch%nupft = currentPatch%nupft+1
+                currentPatch%unique_pfts(currentPatch%nupft)=ft
+             end if
              
              leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
              sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
@@ -911,11 +919,6 @@ contains
 
           enddo co_loop1 ! ends 'do while(associated(currentCohort))
 
-          ! Calculate the number of unique pfts
-          ! this helps with efficient memory allocation during
-          ! photosynthesis
-          currentPatch%nupft = sum(unique_pfts)
-          
           if ( currentPatch%total_canopy_area>currentPatch%area ) then
              if ( currentPatch%total_canopy_area-currentPatch%area > 0.001_r8 ) then
                 write(fates_log(),*) 'FATES: canopy area bigger than area', &
@@ -927,12 +930,12 @@ contains
              currentPatch%total_canopy_area = currentPatch%area
           endif
 
-          do ft=1,numpft
+          do ift=1,currentPatch%nupft
+             ft = currentPatch%unique_pfts(ift)
              call UpdateSlowBiophysicalRates(currentPatch%bprate(ft),ft,&
                   currentPatch%tveg_lpa%GetMean(), &
                   currentPatch%tveg_longterm%GetMean())
           end do
-          
           
           currentPatch => currentPatch%younger
        end do !patch loop

@@ -74,10 +74,10 @@ contains
                 call FatesAccumulatePatchFluxes(ifp, sites(s), dt_time)
 
              end if
-          end if ! not bare ground
+          end if
 
           cpatch => cpatch%younger
-       end do  ! while(associated(cpatch))
+       end do
     end do
     return
 
