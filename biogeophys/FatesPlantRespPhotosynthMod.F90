@@ -433,7 +433,7 @@ contains
               cohort%crowndamage,cohort%canopy_trim,1.0_r8,store_c_target)
 
          call storage_fraction_of_target(store_c_target, &
-              cohort%prt%GetState(store_organ, carbon12_element), &
+              cohort%prt%store_c, &
               storage_target_frac)
 
          call LowstorageMainRespReduction(storage_target_frac,cohort%pft, &
@@ -444,9 +444,9 @@ contains
          case (prt_carbon_allom_hyp)
             lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/prt_params%slatop(ft)
          case (prt_cnp_flex_allom_hyp)
-            leaf_c  = cohort%prt%GetState(leaf_organ, carbon12_element)
+            leaf_c  = sum(cohort%prt%leaf_c(:))
             if( (leaf_c*prt_params%slatop(ft)) > nearzero) then
-               leaf_n  = cohort%prt%GetState(leaf_organ, nitrogen_element)
+               leaf_n  = sum(cohort%prt%leaf_n(:))
                lnc_top = leaf_n / (prt_params%slatop(ft) * leaf_c )
             else
                lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/prt_params%slatop(ft)
@@ -966,9 +966,7 @@ contains
                                                  ! nitrogen content (kgN/plant)
     real(r8) :: live_croot_n                     ! Live coarse root (below-ground sapwood)
                                                  ! nitrogen content (kgN/plant)
-    real(r8) :: sapw_c                           ! Sapwood carbon (kgC/plant)
     real(r8) :: store_c_target                   ! Target storage carbon (kgC/plant)
-    real(r8) :: fnrt_c                           ! Fine root carbon (kgC/plant)
     real(r8) :: fnrt_n                           ! Fine root nitrogen content (kgN/plant)
    
     real(r8) :: tcsoi(bc_in%nlevsoil)            ! Temperature response function for root respiration.
@@ -1015,15 +1013,12 @@ contains
             cohort%crowndamage,cohort%canopy_trim,1.0_r8,store_c_target)
        
        call storage_fraction_of_target(store_c_target, &
-            cohort%prt%GetState(store_organ, carbon12_element), &
+            cohort%prt%store_c, &
             storage_target_frac)
        
        call LowstorageMainRespReduction(storage_target_frac,cohort%pft, &
             maintresp_reduction_factor)
        
-       sapw_c   = cohort%prt%GetState(sapw_organ, carbon12_element)
-       fnrt_c   = cohort%prt%GetState(fnrt_organ, carbon12_element)
-
        if (hlm_use_tree_damage .eq. itrue) then
           
           ! Crown damage currenly only reduces the aboveground portion of 
@@ -1038,13 +1033,13 @@ contains
        ! If crown reduction is zero, undamaged sapwood target will equal sapwood carbon
        agb_frac = prt_params%allom_agb_frac(cohort%pft)
        branch_frac = param_derived%branch_frac(cohort%pft)
-       sapw_c_undamaged = sapw_c / (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
+       sapw_c_undamaged = cohort%prt%sapw_c / (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
        
        ! Undamaged below ground portion
        sapw_c_bgw = sapw_c_undamaged * (1.0_r8 - agb_frac)
        
        ! Damaged aboveground portion
-       sapw_c_agw = sapw_c - sapw_c_bgw                         
+       sapw_c_agw = cohort%prt%sapw_c - sapw_c_bgw                         
 
        
        select case(hlm_parteh_mode)
@@ -1054,28 +1049,25 @@ contains
           
           live_croot_n = sapw_c_bgw * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
           
-          fnrt_n = fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
+          fnrt_n = cohort%prt%fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
           
        case(prt_cnp_flex_allom_hyp)
           
           live_stem_n = prt_params%allom_agb_frac(cohort%pft) * &
-               cohort%prt%GetState(sapw_organ, nitrogen_element)
+               cohort%prt%sapw_n
           
           live_croot_n = (1.0_r8-prt_params%allom_agb_frac(cohort%pft)) * &
-               cohort%prt%GetState(sapw_organ, nitrogen_element)
+               cohort%prt%sapw_n
           
-          
-          fnrt_n = cohort%prt%GetState(fnrt_organ, nitrogen_element)
+          fnrt_n = cohort%prt%fnrt_n
           
           if (hlm_use_tree_damage .eq. itrue) then
              
-             sapw_n = cohort%prt%GetState(sapw_organ, nitrogen_element)
-             
-             sapw_n_undamaged = sapw_n / &
+             sapw_n_undamaged = cohort%prt%sapw_n / &
                   (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
              
              sapw_n_bgw = sapw_n_undamaged * (1.0_r8 - agb_frac)
-             sapw_n_agw = sapw_n - sapw_n_bgw
+             sapw_n_agw = cohort%prt%sapw_n - sapw_n_bgw
              
              live_croot_n = sapw_n_bgw
              

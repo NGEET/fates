@@ -230,6 +230,31 @@ module PRTGenericMod
   ! -------------------------------------------------------------------------------------
 
   type, public :: prt_vartypes
+
+     ! Performance optimization: Cached variable indices
+     integer :: i_leaf_c, i_fnrt_c, i_sapw_c, i_store_c, i_struct_c, i_repro_c
+     integer :: i_leaf_n, i_fnrt_n, i_sapw_n, i_store_n, i_struct_n
+     integer :: i_leaf_p, i_fnrt_p, i_sapw_p, i_store_p, i_struct_p
+
+     real(r8), pointer :: fnrt_c   => null()
+     real(r8), pointer :: sapw_c   => null()
+     real(r8), pointer :: store_c  => null()
+     real(r8), pointer :: struct_c => null()
+     real(r8), pointer :: repro_c  => null()
+     
+     real(r8), pointer :: fnrt_n   => null()
+     real(r8), pointer :: sapw_n   => null()
+     real(r8), pointer :: store_n  => null()
+     real(r8), pointer :: struct_n => null()
+     
+     real(r8), pointer :: fnrt_p   => null()
+     real(r8), pointer :: sapw_p   => null()
+     real(r8), pointer :: store_p  => null()
+     real(r8), pointer :: struct_p => null()
+     
+     real(r8), pointer :: leaf_c(:) => null()
+     real(r8), pointer :: leaf_n(:) => null()
+     real(r8), pointer :: leaf_p(:) => null()
      
      type(prt_vartype),allocatable :: variables(:)    ! The state variables and fluxes
      type(prt_bctype), allocatable :: bc_inout(:)     ! These boundaries may be changed
@@ -268,7 +293,16 @@ module PRTGenericMod
      procedure, non_overridable :: DeallocatePRTVartypes
      procedure, non_overridable :: WeightedFusePRTVartypes
      procedure, non_overridable :: CopyPRTVartypes
-     
+     procedure, non_overridable :: CacheIndices
+     procedure, non_overridable :: GetLeafC
+     procedure, non_overridable :: GetFnrtC
+     procedure, non_overridable :: GetSapwC
+     procedure, non_overridable :: GetStoreC
+     procedure, non_overridable :: GetStructC
+     procedure, non_overridable :: GetReproC
+     procedure, non_overridable :: GetLeafN
+     procedure, non_overridable :: GetSapwN
+     procedure, non_overridable :: GetFnrtN
      
      procedure :: AgeLeaves  ! This routine may be used generically
                              ! but also leaving the door open for over-rides
@@ -554,6 +588,8 @@ contains
         
      end do
 
+     ! Cache variable indices for fast access (performance optimization)
+     call this%CacheIndices()
      
      return
   end subroutine InitAllocate
@@ -1056,6 +1092,121 @@ contains
       
       return
     end function GetState
+
+    ! ===================================================================================
+    
+    subroutine CacheIndices(this)
+      
+      ! Cache variable indices for fast repeated access
+      ! Call this once after InitAllocate
+      
+      class(prt_vartypes) :: this
+      
+      ! Carbon indices
+      this%i_leaf_c   = prt_global%sp_organ_map(leaf_organ, carbon12_element)
+      this%i_fnrt_c   = prt_global%sp_organ_map(fnrt_organ, carbon12_element)
+      this%i_sapw_c   = prt_global%sp_organ_map(sapw_organ, carbon12_element)
+      this%i_store_c  = prt_global%sp_organ_map(store_organ, carbon12_element)
+      this%i_struct_c = prt_global%sp_organ_map(struct_organ, carbon12_element)
+      this%i_repro_c  = prt_global%sp_organ_map(repro_organ, carbon12_element)
+      
+      ! Carbon pointers
+      this%fnrt_c   => this%variables(this%i_fnrt_c)%val(1)
+      this%sapw_c   => this%variables(this%i_sapw_c)%val(1)
+      this%store_c  => this%variables(this%i_store_c)%val(1)
+      this%struct_c => this%variables(this%i_struct_c)%val(1)
+      this%repro_c  => this%variables(this%i_repro_c)%val(1)
+      this%leaf_c   => this%variables(this%i_leaf_c)%val(:)
+
+      ! Nitrogen indices
+      this%i_leaf_n   = prt_global%sp_organ_map(leaf_organ, nitrogen_element)
+      this%i_fnrt_n   = prt_global%sp_organ_map(fnrt_organ, nitrogen_element)
+      this%i_sapw_n   = prt_global%sp_organ_map(sapw_organ, nitrogen_element)
+      this%i_store_n  = prt_global%sp_organ_map(store_organ, nitrogen_element)
+      this%i_struct_n = prt_global%sp_organ_map(struct_organ, nitrogen_element)
+
+      ! Nitrogen pointers
+      this%fnrt_n   => this%variables(this%i_fnrt_n)%val(1)
+      this%sapw_n   => this%variables(this%i_sapw_n)%val(1)
+      this%store_n  => this%variables(this%i_store_n)%val(1)
+      this%struct_n => this%variables(this%i_struct_n)%val(1)
+      this%leaf_n => this%variables(this%i_leaf_n)%val(:)
+
+      ! Phosphorus indices
+      this%i_leaf_p   = prt_global%sp_organ_map(leaf_organ, phosphorus_element)
+      this%i_fnrt_p   = prt_global%sp_organ_map(fnrt_organ, phosphorus_element)
+      this%i_sapw_p   = prt_global%sp_organ_map(sapw_organ, phosphorus_element)
+      this%i_store_p  = prt_global%sp_organ_map(store_organ, phosphorus_element)
+      this%i_struct_p = prt_global%sp_organ_map(struct_organ, phosphorus_element)
+
+      ! Phosphorus pointers
+      this%fnrt_p   => this%variables(this%i_fnrt_p)%val(1)
+      this%sapw_p   => this%variables(this%i_sapw_p)%val(1)
+      this%store_p  => this%variables(this%i_store_p)%val(1)
+      this%struct_p => this%variables(this%i_struct_p)%val(1)
+      this%leaf_p   => this%variables(this%i_leaf_p)%val(:)
+
+      
+    end subroutine CacheIndices
+    
+    ! Fast carbon accessors (no map lookup, direct index access)
+    
+    function GetLeafC(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = sum(this%variables(this%i_leaf_c)%val(:))
+    end function GetLeafC
+    
+    function GetFnrtC(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_fnrt_c)%val(1)
+    end function GetFnrtC
+    
+    function GetSapwC(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_sapw_c)%val(1)
+    end function GetSapwC
+    
+    function GetStoreC(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_store_c)%val(1)
+    end function GetStoreC
+    
+    function GetStructC(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_struct_c)%val(1)
+    end function GetStructC
+    
+    function GetReproC(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_repro_c)%val(1)
+    end function GetReproC
+    
+    ! Fast nitrogen accessors
+    
+    function GetLeafN(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_leaf_n)%val(1)
+    end function GetLeafN
+    
+    function GetSapwN(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_sapw_n)%val(1)
+    end function GetSapwN
+    
+    function GetFnrtN(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_fnrt_n)%val(1)
+    end function GetFnrtN
+    
 
     ! ====================================================================================
 
