@@ -5427,7 +5427,7 @@ contains
     real(r8) :: landuse_statevector(n_landuse_cats)
     real(r8) :: canopy_area_bylanduse(n_landuse_cats)
     integer  :: i_lu
-    integer  :: baregroundindex
+    integer, parameter  :: baregroundindex = 0
 
     type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
@@ -5491,7 +5491,6 @@ contains
          end do
 
          ! for all the land-use indexed variables, except for TVEG, also add in the component for the unvegetated area of each land use
-         baregroundindex = 0
          do i_lu = 1, n_landuse_cats
             if ( landuse_statevector(i_lu) .gt. rsnbl_math_prec ) then
                hio_tsa_si_landuse(io_si,i_lu) = hio_tsa_si_landuse(io_si,i_lu) + &
