@@ -22,7 +22,8 @@ module FATESPlantRespPhotosynthMod
   use EDTypesMod        , only : ed_site_type
   use EDParamsMod       , only : dinc_vai
   use EDParamsMod       , only : dlower_vai
-  use EDParamsMod       , only : FastQ10
+  use LeafBiophysicsMod , only : FastQ10
+  use EDParamsMod       , only : log_q10_mr_div10
   use FatesInterfaceTypesMod , only : bc_in_type
   use FatesInterfaceTypesMod , only : bc_out_type
   use EDCanopyStructureMod, only : calc_areaindex
@@ -112,6 +113,7 @@ module FATESPlantRespPhotosynthMod
   character(len=1024) :: warn_msg   ! for defining a warning message
 
   logical   ::  debug = .false.
+  logical   :: do_b4b = .true.
   !-------------------------------------------------------------------------------------
 
 contains
@@ -331,7 +333,7 @@ contains
       ! ---------------------------------------------------------------------------
       bc_out%rssun_pa(ifp)     = 0._r8
       bc_out%rssha_pa(ifp)     = 0._r8
-
+      patch%c_lblayer          = fates_unset_r8
       if(patch%num_cohorts == 0) return
 
       g_sb_leaves = 0._r8
@@ -341,6 +343,11 @@ contains
       ! we only need to do this once per PFT
       do ift=1,patch%nupft 
          ft = patch%unique_pfts(ift)
+         if(do_b4b)then
+            call UpdateSlowBiophysicalRates(patch%bprate(ft),ft, &
+                 patch%tveg_lpa%GetMean(), &
+                 patch%tveg_longterm%GetMean())
+         end if
          call UpdateFastBiophysicalRates(patch%bprate(ft),ft, &
               bc_in%t_veg_pa(ifp),lb_params%c3psn(ft),hlm_maintresp_leaf_model)
       end do
@@ -385,9 +392,6 @@ contains
       ! scratch space.
       ! ------------------------------------------------------------------------
       rate_mask_z(:,:,:) = .false.
-
-      ! We should be able to immediately return from this...
-
 
       cohort => patch%tallest
       do_cohort_drive: do while (associated(cohort)) ! Cohort loop
@@ -990,11 +994,12 @@ contains
     end do
 
     ! Temperature correction for wood on this patch
-    !tcwood = FastQ10(bc_in%t_veg_pa(patch%patchno),20._r8)
-    tcwood = q10_mr**((bc_in%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8)
+    tcwood = FastQ10(bc_in%t_veg_pa(patch%patchno),20._r8,q10_mr,log_q10_mr_div10)
+    !tcwood = q10_mr**((bc_in%t_veg_pa(ifp)-tfrz - 20.0_r8)/10.0_r8)
+    
     do j = 1,bc_in%nlevsoil
-       !tcsoi(j) = FastQ10(bc_in%t_soisno_sl(j),20._r8)
-       tcsoi(j)  = q10_mr**((bc_in%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
+       tcsoi(j) = FastQ10(bc_in%t_soisno_sl(j),20._r8,q10_mr,log_q10_mr_div10)
+       !tcsoi(j)  = q10_mr**((bc_in%t_soisno_sl(j)-tfrz - 20.0_r8)/10.0_r8)
     end do
 
     

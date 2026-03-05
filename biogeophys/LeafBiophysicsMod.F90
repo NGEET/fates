@@ -66,6 +66,7 @@ module LeafBiophysicsMod
   public :: CiBisection
   public :: UpdateSlowBiophysicalRates
   public :: UpdateFastBiophysicalRates
+  public :: FastQ10
   
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -492,7 +493,7 @@ contains
     case (JohnsonBerry2021)
        je = GetJe_JB(par_abs,jmax,fnps)
 
-    end select
+     end select
 
   end function GetJe
   
@@ -2577,6 +2578,47 @@ contains
     
     return
   end subroutine UpdateSlowBiophysicalRates
+
+
+  
+  
+  function FastQ10(temperature,offset,q10_base,log_q10_div10) result(t_factor)
+
+     ! ----------------------------------------------------------------------------------
+     ! The exp() intrinsic is faster than a pow()
+     ! or ** math operation. So we re-write  the
+     ! q10 function leverage this. Differences
+     ! are on the order of e-15 on gnu compiler
+     !
+     ! identity:
+     ! since: a^b = e^{b ln(a)}
+     !
+     ! a^(x-c)/b = e^{(x-c)/b ln(a)}
+     !           = e^{(x-c) ln(a)/b}
+     !
+     ! original:
+     ! t_factor_orig = q10_mr**((temp - tfrz - 20.0_r8)/10.0_r8)
+     !
+     ! log_q10_mr_div10 = log(q10_mr)/10.
+     ! ----------------------------------------------------------------------------------
+     
+     real(r8),intent(in) :: temperature  ! The temperature dictating the response [K]
+     real(r8),intent(in) :: offset       ! Offset of the temperature response [C] (e.g. 20C,25C,etc)
+     real(r8),intent(in) :: q10_base
+     real(r8),intent(in) :: log_q10_div10 ! = ln(a)/10
+     real(r8)            :: t_factor
+
+     if(do_b4b)then
+        t_factor = q10_base**((temperature - tfrz - offset)/10.0_r8)
+        
+     else
+        t_factor = exp(log_q10_div10 * (temperature - tfrz - offset))
+     end if
+     
+     return
+   end function FastQ10
+
+
 
   
   
