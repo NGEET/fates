@@ -2,6 +2,8 @@ module FatesLeafBiophysParamsMod
 
   use FatesConstantsMod , only: r8 => fates_r8
   use FatesConstantsMod , only: fates_check_param_set
+  use FatesConstantsMod  , only: umolC_to_kgC
+  use FatesConstantsMod  , only: g_per_kg
   use FatesGlobals,   only : fates_log
   use FatesGlobals,   only : endrun => fates_endrun
   use shr_log_mod      , only : errMsg => shr_log_errMsg
@@ -10,8 +12,6 @@ module FatesLeafBiophysParamsMod
   
   implicit none
   private ! Modules are private by default
-  save
-
 
   public :: TransferParamsLeafBiophys
   public :: LeafBiophysReportParams
@@ -58,6 +58,10 @@ contains
     param_p => pstruct%GetParamFromName('fates_maintresp_leaf_ryan1991_baserate')
     allocate(lb_params%maintresp_leaf_ryan1991_baserate(numpft))
     lb_params%maintresp_leaf_ryan1991_baserate(:) = param_p%r_data_1d(:)
+
+    ! Convert from "gC/gN/s" to "umolC/gN/s @25 deg
+    lb_params%maintresp_leaf_ryan1991_baserate(:) = lb_params%maintresp_leaf_ryan1991_baserate(:) * &
+         (1.5_r8 ** ((25._r8 - 20._r8)/10._r8)) / (umolC_to_kgC * g_per_kg)
     
     param_p => pstruct%GetParamFromName('fates_maintresp_leaf_atkin2017_baserate')
     allocate(lb_params%maintresp_leaf_atkin2017_baserate(numpft))
@@ -118,8 +122,6 @@ contains
     character(len=32),parameter :: fmt_rout = '(a,F16.8)'
     character(len=32),parameter :: fmt_iout = '(a,I8)'
     
-    integer :: npft,ipft
-
     if(debug_report .and. is_master) then
        write(fates_log(),fmt_iout) 'fates_leaf_c3psn = ',lb_params%c3psn
        write(fates_log(),fmt_iout) 'fates_leaf_stomatal_btran_model = ',lb_params%stomatal_btran_model

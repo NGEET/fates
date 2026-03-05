@@ -71,7 +71,7 @@ module LeafBiophysicsMod
        __FILE__
 
 
-  logical, parameter :: do_b4b = .false.
+  logical, parameter :: do_b4b = .true.
   
   character(len=1024) :: warn_msg   ! for defining a warning message
 
@@ -173,15 +173,7 @@ module LeafBiophysicsMod
   ! This holds various biophysical rates used in photosynthesis
   ! These values change at slow timescales when using Kumarathunge et al.
   type, public :: bprate_type
-     real(r8) :: vcmaxha  ! activation energy for vcmax (J/mol)
-     real(r8) :: jmaxha   ! activation energy for jmax (J/mol)
-     real(r8) :: vcmaxhd  ! deactivation energy for vcmax (J/mol)
-     real(r8) :: jmaxhd   ! deactivation energy for jmax (J/mol)
-     real(r8) :: vcmaxse  ! entropy term for vcmax (J/mol/K)
-     real(r8) :: jmaxse   ! entropy term for jmax (J/mol/K)
-     real(r8) :: jvr      ! ratio of Jmax25 / Vcmax25   ! Kumarathunge et al.
-     real(r8) :: vcmaxc   ! scaling factor for high temperature inhibition (25 C = 1.0)
-     real(r8) :: jmaxc    ! scaling factor for high temperature inhibition (25 C = 1.0)
+    
      real(r8) :: vr_a     ! term a of optimized temp response ft1_f
      real(r8) :: vr_b     ! term b of optimized temp response ft1_f
      real(r8) :: jr_a     ! term a of optimized temp response ft1_f
@@ -192,8 +184,11 @@ module LeafBiophysicsMod
      real(r8) :: ji_a     ! term a of optimized temp inhibition fth1_f
      real(r8) :: ji_b     ! term b of optimized temp inhibition fth1_f
      real(r8) :: ji_c     ! term c of optimized temp inhibition fth1_f
+     real(r8) :: jvr      ! ratio of Jmax25 / Vcmax25   ! Kumarathunge et al.
      real(r8) :: vcmax_tscaler  ! Temperature scaling functions on vcmax
      real(r8) :: jmax_tscaler   ! Temperature scaling functions on jmax
+     ! Respiration
+     real(r8) :: lmr_tscaler   ! Temperature response scaler on LMR
   end type bprate_type
 
   
@@ -1817,6 +1812,7 @@ contains
        nscaler,       &
        ft,            &
        veg_tempk,     &
+       bprate,        &
        lmr)
 
     ! -----------------------------------------------------------------------
@@ -1832,38 +1828,24 @@ contains
     real(r8), intent(in)  :: nscaler      ! Scale for leaf nitrogen profile
     integer,  intent(in)  :: ft           ! (plant) Functional Type Index
     real(r8), intent(in)  :: veg_tempk    ! vegetation temperature
+    type(bprate_type),intent(in) :: bprate! Temperature response function
     real(r8), intent(out) :: lmr          ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
 
     ! Locals
     real(r8) :: lmr25   ! leaf layer: leaf maintenance respiration rate at 25C (umol CO2/m**2/s)
     real(r8) :: lmr25top  ! canopy top leaf maint resp rate at 25C for this pft (umol CO2/m**2/s)
-
-    ! Parameter
-    real(r8), parameter :: lmrha = 46390._r8    ! activation energy for lmr (J/mol)
-    real(r8), parameter :: lmrhd = 150650._r8   ! deactivation energy for lmr (J/mol)
-    real(r8), parameter :: lmrse = 490._r8      ! entropy term for lmr (J/mol/K)
-    real(r8), parameter :: lmrc = 1.15912391_r8 ! scaling factor for high
-
-    ! temperature inhibition (25 C = 1.0)
-
-    lmr25top = lb_params%maintresp_leaf_ryan1991_baserate(ft) * (1.5_r8 ** ((25._r8 - 20._r8)/10._r8))
-    lmr25top = lmr25top * lnc_top / (umolC_to_kgC * g_per_kg)
-
+    
+    ! Baserate is in umolC/gN/s @25C
+    ! umolC/gN/s*gN/m2 = umolC/m2/s
+    lmr25top = lb_params%maintresp_leaf_ryan1991_baserate(ft) * lnc_top
 
     ! Part I: Leaf Maintenance respiration: umol CO2 / m**2 [leaf] / s
     ! ----------------------------------------------------------------------------------
     lmr25 = lmr25top * nscaler
 
-    if (lb_params%c3psn(ft) == c3_path_index) then
-       ! temperature sensitivity of C3 plants
-       lmr = lmr25 * ft1_f(veg_tempk, lmrha) * &
-            fth_f(veg_tempk, lmrhd, lmrse, lmrc)
-    else
-       ! temperature sensitivity of C4 plants
-       lmr = lmr25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
-       lmr = lmr / (1._r8 + exp( 1.3_r8*(veg_tempk-(tfrz+55._r8)) ))
-    endif
-
+    ! temperature response
+    lmr = lmr25* bprate%lmr_tscaler
+    
     ! Any hydrodynamic limitations could go here, currently none
     ! lmr = lmr * (nothing)
 
@@ -1876,6 +1858,7 @@ contains
        ft,             &
        veg_tempk,      &
        tgrowth,        &
+       bprate,         &       
        lmr)
 
     ! Arguments
@@ -1884,6 +1867,7 @@ contains
     integer,  intent(in)  :: ft               ! (plant) Functional Type Index
     real(r8), intent(in)  :: veg_tempk        ! vegetation temperature  (degrees K)
     real(r8), intent(in)  :: tgrowth          ! lagged vegetation temperature averaged over acclimation timescale (degrees K)
+    type(bprate_type),intent(in) :: bprate    ! Temperature response function
     real(r8), intent(out) :: lmr              ! Leaf Maintenance Respiration  (umol CO2/m**2/s)
     
     
@@ -1919,8 +1903,10 @@ contains
        call FatesWarn(warn_msg,index=4)            
     end if
 
-    lmr = r_t_ref * exp(lmr_b * (veg_tempk - tfrz - lmr_TrefC) + lmr_c * &
-         ((veg_tempk-tfrz)**2._r8 - lmr_TrefC**2._r8))
+    lmr = r_t_ref * bprate%lmr_tscaler
+
+    !exp(lmr_b * (veg_tempk - tfrz - lmr_TrefC) + lmr_c * &
+    !     ((veg_tempk-tfrz)**2._r8 - lmr_TrefC**2._r8))
 
   end subroutine LeafLayerMaintenanceRespiration_Atkin_etal_2017
 
@@ -2484,19 +2470,44 @@ contains
 
   ! =====================================================================================
   
-  subroutine UpdateFastBiophysicalRates(bprate,ft,veg_tempk)
+  subroutine UpdateFastBiophysicalRates(bprate,ft,veg_tempk,c3_psn,maintresp_leaf_model)
 
     type(bprate_type),intent(inout) :: bprate
     integer          ,intent(in)    :: ft
     real(r8)         ,intent(in)    :: veg_tempk
+    integer          ,intent(in)    :: c3_psn                     ! 1=C3, 0=C4
+    integer          ,intent(in)    :: maintresp_leaf_model   ! Ryan91 or Atkin2017
 
-    ! Update the temperature scalers that applie to vcmax25 and jmax25
+    ! Parameter
+    real(r8), parameter :: lmrha = 46390._r8    ! activation energy for lmr (J/mol)
+    real(r8), parameter :: lmrhd = 150650._r8   ! deactivation energy for lmr (J/mol)
+    real(r8), parameter :: lmrse = 490._r8      ! entropy term for lmr (J/mol/K)
+    real(r8), parameter :: lmrc = 1.15912391_r8 ! scaling factor for high
+    
+    ! Update the temperature scalers that apply to vcmax25 and jmax25
     
     bprate%vcmax_tscaler = ft1_fo(veg_tempk, bprate%vr_a, bprate%vr_b) * &
          fth_fo(veg_tempk, bprate%vi_a, bprate%vi_b, bprate%vi_c)
     
     bprate%jmax_tscaler  = ft1_fo(veg_tempk, bprate%jr_a, bprate%jr_b) * &
          fth_fo(veg_tempk, bprate%ji_a, bprate%ji_b, bprate%ji_c)
+
+    if(maintresp_leaf_model == lmrmodel_ryan_1991)then
+       
+       if (c3_psn == c3_path_index) then
+          ! LMR temperature sensitivity of C3 plants
+          bprate%lmr_tscaler =  ft1_f(veg_tempk, lmrha) * &
+               fth_f(veg_tempk, lmrhd, lmrse, lmrc)
+       else
+          ! temperature sensitivity of C4 plants
+          bprate%lmr_tscaler = 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8) / &
+               (1._r8 + exp( 1.3_r8*(veg_tempk-(tfrz+55._r8)) ))
+       endif
+    else
+       bprate%lmr_tscaler = exp(lmr_b * (veg_tempk - tfrz - lmr_TrefC) + lmr_c * &
+            ((veg_tempk-tfrz)**2._r8 - lmr_TrefC**2._r8))
+    end if
+       
     
     return
   end subroutine UpdateFastBiophysicalRates
@@ -2512,28 +2523,35 @@ contains
     integer          ,intent(in)    :: ft
     real(r8)         ,intent(in)    :: t_growth_k
     real(r8)         ,intent(in)    :: t_home_k
-    
+    real(r8) :: vcmaxha  ! activation energy for vcmax (J/mol)
+    real(r8) :: jmaxha   ! activation energy for jmax (J/mol)
+    real(r8) :: vcmaxhd  ! deactivation energy for vcmax (J/mol)
+    real(r8) :: jmaxhd   ! deactivation energy for jmax (J/mol)
+    real(r8) :: vcmaxse  ! entropy term for vcmax (J/mol/K)
+    real(r8) :: jmaxse   ! entropy term for jmax (J/mol/K)
+    real(r8) :: jvr      ! ratio of Jmax25 / Vcmax25   ! Kumarathunge et al.
+    real(r8) :: vcmaxc   ! scaling factor for high temperature inhibition (25 C = 1.0)
+    real(r8) :: jmaxc    ! scaling factor for high temperature inhibition (25 C = 1.0)
     real(r8) :: t_growth_celsius
     real(r8) :: t_home_celsius
     
     select case(lb_params%photo_tempsens_model)
     case (photosynth_acclim_model_none) !No temperature acclimation
-       bprate%vcmaxha = lb_params%vcmaxha(ft)
-       bprate%jmaxha  = lb_params%jmaxha(ft)
-       bprate%vcmaxhd = lb_params%vcmaxhd(ft)
-       bprate%jmaxhd  = lb_params%jmaxhd(ft)
-       bprate%vcmaxse = lb_params%vcmaxse(ft)
-       bprate%jmaxse  = lb_params%jmaxse(ft)
-       bprate%jvr     = fates_unset_r8
+       vcmaxha = lb_params%vcmaxha(ft)
+       jmaxha  = lb_params%jmaxha(ft)
+       vcmaxhd = lb_params%vcmaxhd(ft)
+       jmaxhd  = lb_params%jmaxhd(ft)
+       vcmaxse = lb_params%vcmaxse(ft)
+       jmaxse  = lb_params%jmaxse(ft)
     case (photosynth_acclim_model_kumarathunge_etal_2019) !Kumarathunge et al. temperature acclimation, Thome=30-year running mean
        t_growth_celsius = t_growth_k-tfrz
        t_home_celsius = t_home_k-tfrz
-       bprate%vcmaxha = (42.6_r8 + (1.14_r8*t_growth_celsius))*1e3_r8 !J/mol
-       bprate%jmaxha = 40.71_r8*1e3_r8 !J/mol
-       bprate%vcmaxhd = 200._r8*1e3_r8 !J/mol
-       bprate%jmaxhd = 200._r8*1e3_r8 !J/mol
-       bprate%vcmaxse = (645.13_r8 - (0.38_r8*t_growth_celsius))
-       bprate%jmaxse = 658.77_r8 - (0.84_r8*t_home_celsius) - 0.52_r8*(t_growth_celsius-t_home_celsius)
+       vcmaxha = (42.6_r8 + (1.14_r8*t_growth_celsius))*1e3_r8 !J/mol
+       jmaxha = 40.71_r8*1e3_r8 !J/mol
+       vcmaxhd = 200._r8*1e3_r8 !J/mol
+       jmaxhd = 200._r8*1e3_r8 !J/mol
+       vcmaxse = (645.13_r8 - (0.38_r8*t_growth_celsius))
+       jmaxse = 658.77_r8 - (0.84_r8*t_home_celsius) - 0.52_r8*(t_growth_celsius-t_home_celsius)
        bprate%jvr = 2.56_r8 - (0.0375_r8*t_home_celsius)-(0.0202_r8*(t_growth_celsius-t_home_celsius))
     case default
        write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
@@ -2542,20 +2560,19 @@ contains
     end select
     
     ! Response function terms
-    bprate%vr_a  = bprate%vcmaxha / (rgas_J_K_mol*t_ref_298K)
-    bprate%vr_b  = bprate%vcmaxha / rgas_J_K_mol
-    bprate%jr_a  = bprate%jmaxha / (rgas_J_K_mol*t_ref_298K)
-    bprate%jr_b  = bprate%jmaxha / rgas_J_K_mol
+    bprate%vr_a  = vcmaxha / (rgas_J_K_mol*t_ref_298K)
+    bprate%vr_b  = vcmaxha / rgas_J_K_mol
+    bprate%jr_a  = jmaxha / (rgas_J_K_mol*t_ref_298K)
+    bprate%jr_b  = jmaxha / rgas_J_K_mol
     
     ! Inhibition function terms
-    bprate%vi_a = bprate%vcmaxse / rgas_J_K_mol
-    bprate%vi_b = -bprate%vcmaxhd / rgas_J_K_mol
-    bprate%vi_c  = fth25_f(bprate%vcmaxhd, bprate%vcmaxse)
+    bprate%vi_a = vcmaxse / rgas_J_K_mol
+    bprate%vi_b = -vcmaxhd / rgas_J_K_mol
+    bprate%vi_c  = fth25_f(vcmaxhd, vcmaxse)
     
-    bprate%ji_a = bprate%jmaxse / rgas_J_K_mol
-    bprate%ji_b = -bprate%jmaxhd / rgas_J_K_mol
-    bprate%ji_c  = fth25_f(bprate%jmaxhd, bprate%jmaxse)
-
+    bprate%ji_a = jmaxse / rgas_J_K_mol
+    bprate%ji_b = -jmaxhd / rgas_J_K_mol
+    bprate%ji_c  = fth25_f(jmaxhd, jmaxse)
 
     
     return
