@@ -61,7 +61,50 @@ module FatesPatchMod
      
   end type fates_cohort_vec_type
 
+  ! Scratch space for high frequency operations
+  ! in photosynthesis, respirationa and
+  ! radiation scattering (soon)
+  
+  type :: fates_vecscr_type
 
+     ! Unique PFT arrays
+     real(r8),allocatable :: vcmax_tscaler(:)    ! u pft
+     real(r8),allocatable :: jmax_tscaler(:)     ! u pft
+
+     ! Cohort Arrays
+     real(r8),allocatable :: vmax25top(:)
+     real(r8),allocatable :: jmax25top(:)
+     real(r8),allocatable :: kp25top(:)
+     real(r8),allocatable :: pft(:)
+     real(r8),allocatable :: c_area(:)
+     real(r8),allocatable :: nplant(:)
+     real(r8),allocatable :: canopy_layer(:)
+     real(r8),allocatable :: nv(:) 
+     real(r8),allocatable :: treesai(:)
+     real(r8),allocatable :: treelai(:)
+     real(r8),allocatable :: height(:)
+     real(r8),allocatable :: mr_reduction_factor(:)
+     real(r8),allocatable :: lnc_top(:)
+     real(r8),allocatable :: kn_leafn(:)
+     real(r8),allocatable :: kn_atk(:)
+
+     real(r8),allocatable :: btran(:)
+
+     !Hydro only
+     real(r8),allocatable :: leaf_psi(:)
+     
+     ! Outputs
+     real(r8),allocatable :: resp_m_tstep(:)
+     real(r8),allocatable :: gpp_tstep(:)
+     real(r8),allocatable :: rdark(:)
+     real(r8),allocatable :: c13disc_clm(:)
+     real(r8),allocatable :: g_sb_laweight(:)
+
+     ! Cohort x leaf-layer
+     real(r8),allocatable :: ts_net_uptake(:,:)
+                    
+  end type fates_vecscr_type
+  
   
   type, public :: fates_patch_type
 
