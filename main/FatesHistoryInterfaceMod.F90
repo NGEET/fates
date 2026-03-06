@@ -5427,7 +5427,7 @@ contains
     real(r8) :: landuse_statevector(n_landuse_cats)
     real(r8) :: canopy_area_bylanduse(n_landuse_cats)
     integer  :: i_lu
-    logical  :: foundbaregroundpatch
+    integer, parameter  :: baregroundindex = 0
 
     type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
@@ -5491,36 +5491,28 @@ contains
          end do
 
          ! for all the land-use indexed variables, except for TVEG, also add in the component for the unvegetated area of each land use
-         foundbaregroundpatch = .false.
-         cpatch => sites(s)%oldest_patch
-         do while(associated(cpatch))
-            if (cpatch%land_use_label .eq. nocomp_bareground_land .and. .not. foundbaregroundpatch) then
-               foundbaregroundpatch = .true.
-               do i_lu = 1, n_landuse_cats
-                  if ( landuse_statevector(i_lu) .gt. rsnbl_math_prec ) then
-                     hio_tsa_si_landuse(io_si,i_lu) = hio_tsa_si_landuse(io_si,i_lu) + &
-                          bc_in(s)%t2m_pa(cpatch%patchno) * &
-                          (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
+         do i_lu = 1, n_landuse_cats
+            if ( landuse_statevector(i_lu) .gt. rsnbl_math_prec ) then
+               hio_tsa_si_landuse(io_si,i_lu) = hio_tsa_si_landuse(io_si,i_lu) + &
+                    bc_in(s)%t2m_pa(baregroundindex) * &
+                    (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
 
-                     hio_sw_abs_si_landuse(io_si,i_lu) = hio_sw_abs_si_landuse(io_si,i_lu) + &
-                          bc_in(s)%swabs_pa(cpatch%patchno) * &
-                          (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
+               hio_sw_abs_si_landuse(io_si,i_lu) = hio_sw_abs_si_landuse(io_si,i_lu) + &
+                    bc_in(s)%swabs_pa(baregroundindex) * &
+                    (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
 
-                     hio_lw_net_si_landuse(io_si,i_lu) = hio_lw_net_si_landuse(io_si,i_lu) + &
-                          bc_in(s)%netlw_pa(cpatch%patchno) * &
-                          (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
+               hio_lw_net_si_landuse(io_si,i_lu) = hio_lw_net_si_landuse(io_si,i_lu) + &
+                    bc_in(s)%netlw_pa(baregroundindex) * &
+                    (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
 
-                     hio_shflux_si_landuse(io_si,i_lu) = hio_shflux_si_landuse(io_si,i_lu) + &
-                          bc_in(s)%shflux_pa(cpatch%patchno) * &
-                          (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
+               hio_shflux_si_landuse(io_si,i_lu) = hio_shflux_si_landuse(io_si,i_lu) + &
+                    bc_in(s)%shflux_pa(baregroundindex) * &
+                    (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
 
-                     hio_lhflux_si_landuse(io_si,i_lu) = hio_lhflux_si_landuse(io_si,i_lu) + &
-                          bc_in(s)%lhflux_pa(cpatch%patchno) * &
-                          (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
-                  end if
-               end do
+               hio_lhflux_si_landuse(io_si,i_lu) = hio_lhflux_si_landuse(io_si,i_lu) + &
+                    bc_in(s)%lhflux_pa(baregroundindex) * &
+                    (landuse_statevector(i_lu) - canopy_area_bylanduse(i_lu)) / landuse_statevector(i_lu)
             end if
-            cpatch => cpatch%younger
          end do
 
          ! instead of leaving the values for unoccupied areas as zero, set as missing values
