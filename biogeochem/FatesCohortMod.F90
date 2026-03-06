@@ -84,7 +84,6 @@ module FatesCohortMod
     real(r8) :: dbh                     ! diameter at breast height [cm]
     real(r8) :: coage                   ! age [years]
     real(r8) :: height                  ! height [m]
-    integer  :: indexnumber             ! unique number for each cohort (within clump?)
     integer  :: canopy_layer            ! canopy status of cohort [1 = canopy, 2 = understorey, etc.]
     real(r8) :: canopy_layer_yesterday  ! recent canopy status of cohort [1 = canopy, 2 = understorey, etc.]
                                         !   real to be conservative during fusion
@@ -361,7 +360,6 @@ module FatesCohortMod
       this%dbh                     = nan
       this%coage                   = nan 
       this%height                  = nan 
-      this%indexnumber             = fates_unset_int
       this%canopy_layer            = fates_unset_int
       this%canopy_layer_yesterday  = nan  
       this%crowndamage             = fates_unset_int
@@ -684,8 +682,6 @@ module FatesCohortMod
       class(fates_cohort_type), intent(in)    :: this       ! old cohort 
       class(fates_cohort_type), intent(inout) :: copyCohort ! new cohort
 
-      copyCohort%indexnumber = fates_unset_int
-      
       ! POINTERS
       copyCohort%taller  => NULL() 
       copyCohort%shorter => NULL() 

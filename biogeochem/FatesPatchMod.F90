@@ -67,18 +67,14 @@ module FatesPatchMod
   
   type :: fates_vecscr_type
 
-     ! Unique PFT arrays
-     real(r8),allocatable :: vcmax_tscaler(:)    ! u pft
-     real(r8),allocatable :: jmax_tscaler(:)     ! u pft
-
      ! Cohort Arrays
-     real(r8),allocatable :: vmax25top(:)
+     real(r8),allocatable :: vcmax25top(:)
      real(r8),allocatable :: jmax25top(:)
      real(r8),allocatable :: kp25top(:)
-     real(r8),allocatable :: pft(:)
+     integer,allocatable  :: pft(:)
      real(r8),allocatable :: c_area(:)
      real(r8),allocatable :: nplant(:)
-     real(r8),allocatable :: canopy_layer(:)
+     integer,allocatable  :: canopy_layer(:)
      real(r8),allocatable :: nv(:) 
      real(r8),allocatable :: treesai(:)
      real(r8),allocatable :: treelai(:)
@@ -114,6 +110,9 @@ module FatesPatchMod
     type (fates_patch_type),  pointer :: older => null()    ! pointer to next older patch   
     type (fates_patch_type),  pointer :: younger => null()  ! pointer to next younger patch
     type (fates_cohort_vec_type), pointer :: co_scr(:)      ! Scratch vector of cohort properties
+    type (fates_vecscr_type), pointer :: coarrays(:)        ! Array structured cohort data
+                                                            ! for high-efficiency computation
+
     
     !---------------------------------------------------------------------------
 

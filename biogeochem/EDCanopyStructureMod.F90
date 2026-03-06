@@ -69,6 +69,7 @@ module EDCanopyStructureMod
   public :: UpdateFatesAvgSnowDepth
   public :: UpdatePatchLAI
   public :: UpdateCohortLAI
+  public :: CopyCohortToHEArray
 
   logical, parameter :: debug=.false.
 
@@ -1782,4 +1783,86 @@ contains
 
   end function NumCanopyLayers
 
+  subroutine CopyCohortToHEArray(patch)
+
+    type(fates_patch_type),intent(inout) :: patch
+    type(fates_cohort_type) :: cohort
+    integer :: ico  ! cohort index
+    integer :: ft
+    real(r8) :: leaf_c,leaf_n
+    real(r8) :: lnc_top
+    real(r8) :: store_c_target
+
+    ico = 0
+    currentCohort => currentPatch%tallest
+    do while (associated(currentCohort))
+       ico = ico + 1
+
+       patch%coarrays%vcmax25top(ico) = cohort%vcmax25top
+       patch%coarrays%jmax25top(ico) = cohort%jmax25top
+       patch%coarrays%kp25top(ico) = cohort%kp25top
+       patch%coarrays%pft(ico) = cohort%pft
+       patch%coarrays%c_area(ico) = cohort%c_area
+       patch%coarrays%nplant(ico) = cohort%n
+       patch%coarrays%canopy_layer(ico) = cohort%canopy_layer
+       patch%coarrays%nv(ico) = cohort%nv
+       patch%coarrays%treesai(ico) = cohort%treesai
+       patch%coarrays%treelai(ico) = cohort%treelai
+       patch%coarrays%height(ico) = cohort%height
+
+       call bleaf(cohort%dbh,cohort%pft,&
+            cohort%crowndamage,cohort%canopy_trim,1.0_r8,store_c_target)
+       
+       call storage_fraction_of_target(store_c_target, &
+            cohort%prt%store_c, &
+            storage_target_frac)
+       
+       call LowstorageMainRespReduction(storage_target_frac,cohort%pft, &
+            mr_reduction_factor)
+       
+       patch%coarrays%mr_reduction_factor(ico) = mr_reduction_factor
+
+       ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
+       ft = cohort%pft
+       select case(hlm_parteh_mode)
+       case (prt_carbon_allom_hyp)
+          lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/prt_params%slatop(ft)
+       case (prt_cnp_flex_allom_hyp)
+          leaf_c  = sum(cohort%prt%leaf_c(:))
+          if( (leaf_c*prt_params%slatop(ft)) > nearzero) then
+             leaf_n  = sum(cohort%prt%leaf_n(:))
+             lnc_top = leaf_n / (prt_params%slatop(ft) * leaf_c )
+          else
+             lnc_top  = prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(leaf_organ))/prt_params%slatop(ft)
+          end if
+       end select
+       
+       patch%coarrays%lnc_top(ico) = lnc_top
+       patch%coarrays%kn_leafn(ico) = 
+       patch%coarrays%kn_atk(ico) = 
+       patch%coarrays%btran(ico) = 
+
+       patch%coarrays%resp_m_tstep(ico) = 
+       patch%coarrays%gpp_tstep(ico) = 
+       patch%coarrays%rdark(ico) = 
+       patch%coarrays%c13disc_clm(ico) = 
+       patch%coarrays%g_sb_laweight(ico) = 
+       
+       if (hlm_use_planthydro.eq.itrue ) then
+          patch%coarrays%leaf_psi(ico) = cohort%co_hydr%psi_ag(1)
+          patch%coarrays%btran(ico)    = cohort%co_hydr%btran 
+       else
+          patch%coarrays%btran(ico) = patch%btran_ft(ft)
+          patch%coarrays%leaf_psi(ico) = fates_unset_r8
+       end if
+       
+       currentCohort => currentCohort%shorter
+    enddo
+
+    patch%coarrays%ncohorts = ico
+    
+
+    
+  end subroutine CopyCohortToHEArray
+  
 end module EDCanopyStructureMod
