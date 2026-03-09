@@ -345,11 +345,11 @@ contains
       do ift=1,patch%nupft 
          ft = patch%unique_pfts(ift)
          if(do_b4b)then
-            call UpdateSlowBiophysicalRates(patch%bprate(ft),ft, &
+            call UpdateSlowBiophysicalRates(patch%bprates,ft, &
                  patch%tveg_lpa%GetMean(), &
                  patch%tveg_longterm%GetMean())
          end if
-         call UpdateFastBiophysicalRates(patch%bprate(ft),ft, &
+         call UpdateFastBiophysicalRates(patch%bprates,ft, &
               bc_in%t_veg_pa(ifp),lb_params%c3psn(ft),hlm_maintresp_leaf_model)
       end do
 
@@ -529,7 +529,7 @@ contains
                           nscaler,                  &  ! in
                           ft,                       &  ! in
                           bc_in%t_veg_pa(ifp),      &  ! in
-                          patch%bprate(ft),         &  ! in
+                          patch%bprates,             &  ! in
                           lmr_z(iv,ft,cl))             ! out
 
                   case (lmrmodel_atkin_etal_2017)
@@ -549,7 +549,7 @@ contains
                           ft,                                 &  ! in
                           bc_in%t_veg_pa(ifp),                &  ! in
                           patch%tveg_lpa%GetMean(),           &  ! in
-                          patch%bprate(ft),                   &  ! in
+                          patch%bprates,                   &  ! in
                           lmr_z(iv,ft,cl))                       ! out
 
                   case default
@@ -657,7 +657,7 @@ contains
                        nscaler,                      &  ! in
                        bc_in%t_veg_pa(ifp),          &  ! in
                        bc_in%dayl_factor_pa(ifp),    &  ! in
-                       patch%bprate(ft),             &  ! in
+                       patch%bprates,                 &  ! in
                        btran_eff,                    &  ! in
                        vcmax_z,                      &  ! out
                        jmax_z,                       &  ! out

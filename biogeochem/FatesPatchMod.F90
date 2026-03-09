@@ -117,13 +117,12 @@ module FatesPatchMod
     type (fates_cohort_vec_type), pointer :: co_scr(:)      ! Scratch vector of cohort properties
    
 
-
     ! Helper spaces for computational efficiency and pre-calcualtions outside
     ! of high-frequency call spaces
     !---------------------------------------------------------------------------
-    type (fates_vecscr_type) :: coarrays         ! Array structured cohort data
-                                                 ! for high-efficiency computation
-    type(bprate_type), allocatable :: bprate(:)  ! Biophysical rates
+    type(fates_vecscr_type),pointer :: coarrays         ! Array structured cohort data
+
+    class(bprate_type),pointer :: bprates       ! Biophysical rates
     
     ! INDICES
     integer  :: patchno          ! unique number given to each new patch created for tracking
@@ -356,7 +355,13 @@ module FatesPatchMod
       allocate(this%sabs_dif(num_swb))
       allocate(this%fragmentation_scaler(num_levsoil))
       allocate(this%co_scr(max_cohort_per_patch))
-      allocate(this%bprate(numpft))
+
+      ! Note that we allocate the innerds of
+      ! co-arrays during canopy summarization
+      allocate(this%coarrays)
+      
+      allocate(this%bprates)
+      call this%bprates%BPRateInitAlloc(numpft)
       
       ! initialize all values to nan
       call this%NanValues()
@@ -1039,20 +1044,8 @@ module FatesPatchMod
         call endrun(msg=errMsg(sourcefile, __LINE__))
       endif
 
-      ! deallocate the allocatable arrays
-      deallocate(this%tr_soil_dir,              & 
-                 this%tr_soil_dif,              & 
-                 this%tr_soil_dir_dif,          & 
-                 this%fab,                      &
-                 this%fabd,                     &
-                 this%fabi,                     &
-                 this%sabs_dir,                 &
-                 this%sabs_dif,                 &
-                 this%fragmentation_scaler,     &
-                 this%co_scr,                   &
-                 this%bprate,                   &
-                 stat=istat, errmsg=smsg)
-
+      call this%bprates%BPRateDealloc()
+      
       ! These arrays are allocated via a call from EDCanopyStructureMod
       ! while determining how many canopy and leaf layers the patch has.
       ! Its possible that patches may be spawned and destroyed before
@@ -1105,7 +1098,21 @@ module FatesPatchMod
          deallocate(this%coarrays%ts_net_uptake)
       end if
 
-      
+      ! deallocate allocatable structures
+      ! directly attached to the patch
+      deallocate(this%tr_soil_dir,              & 
+                 this%tr_soil_dif,              & 
+                 this%tr_soil_dir_dif,          & 
+                 this%fab,                      &
+                 this%fabd,                     &
+                 this%fabi,                     &
+                 this%sabs_dir,                 &
+                 this%sabs_dif,                 &
+                 this%fragmentation_scaler,     &
+                 this%co_scr,                   &
+                 this%bprates,                  &
+                 this%coarrays,                 &
+                 stat=istat, errmsg=smsg)
       
       if (istat/=0) then
         write(fates_log(),*) 'dealloc010: fail on deallocate patch vectors:'//trim(smsg)

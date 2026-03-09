@@ -162,36 +162,40 @@ module LeafBiophysicsMod
   ! For plants with no leaves, a miniscule amount of conductance
   ! can happen through the stems, at a partial rate of cuticular conductance
   real(r8),parameter :: stem_cuticle_loss_frac = 0.1_r8
-
   
-  ! The temperature response and inhibition functions require non-trivial
-  ! mathematical operations at high frequencies, so we pre-calculate
-  ! as much as we can before operating on leaf and organ temperatures.
-
-  ! For leaves, many of these pre-calculated rates are either constant
-  ! or slowly acclimating following Kumarathunge et al. 
-  
-  ! This holds various biophysical rates used in photosynthesis
-  ! These values change at slow timescales when using Kumarathunge et al.
   type, public :: bprate_type
-    
-     real(r8) :: vr_a     ! term a of optimized temp response ft1_f
-     real(r8) :: vr_b     ! term b of optimized temp response ft1_f
-     real(r8) :: jr_a     ! term a of optimized temp response ft1_f
-     real(r8) :: jr_b     ! term b of optimized temp response ft1_f
-     real(r8) :: vi_a     ! term a of optimized temp inhibition fth1_f
-     real(r8) :: vi_b     ! term b of optimized temp inhibition fth1_f
-     real(r8) :: vi_c     ! term c of optimized temp inhibition fth1_f
-     real(r8) :: ji_a     ! term a of optimized temp inhibition fth1_f
-     real(r8) :: ji_b     ! term b of optimized temp inhibition fth1_f
-     real(r8) :: ji_c     ! term c of optimized temp inhibition fth1_f
-     real(r8) :: jvr      ! ratio of Jmax25 / Vcmax25   ! Kumarathunge et al.
-     real(r8) :: vcmax_tscaler  ! Temperature scaling functions on vcmax
-     real(r8) :: jmax_tscaler   ! Temperature scaling functions on jmax
-     ! Respiration
-     real(r8) :: lmr_tscaler   ! Temperature response scaler on LMR
+
+     ! This holds various biophysical rates used in photosynthesis
+     ! These values change at slow timescales when using Kumarathunge et al.
+     ! The temperature response and inhibition functions require non-trivial
+     ! mathematical operations at high frequencies, so we pre-calculate
+     ! as much as we can before operating on leaf and organ temperatures.
+     ! For leaves, many of these pre-calculated rates are either constant
+     ! or slowly acclimating following Kumarathunge et al.
+     
+     real(r8),allocatable :: vr_a(:)          ! term a of optimized temp response ft1_f
+     real(r8),allocatable :: vr_b(:)          ! term b of optimized temp response ft1_f
+     real(r8),allocatable :: jr_a(:)          ! term a of optimized temp response ft1_f
+     real(r8),allocatable :: jr_b(:)          ! term b of optimized temp response ft1_f
+     real(r8),allocatable :: vi_a(:)          ! term a of optimized temp inhibition fth1_f
+     real(r8),allocatable :: vi_b(:)          ! term b of optimized temp inhibition fth1_f
+     real(r8),allocatable :: vi_c(:)          ! term c of optimized temp inhibition fth1_f
+     real(r8),allocatable :: ji_a(:)          ! term a of optimized temp inhibition fth1_f
+     real(r8),allocatable :: ji_b(:)          ! term b of optimized temp inhibition fth1_f
+     real(r8),allocatable :: ji_c(:)          ! term c of optimized temp inhibition fth1_f
+     real(r8),allocatable :: jvr(:)           ! ratio of Jmax25 / Vcmax25   ! Kumarathunge et al.
+     real(r8),allocatable :: vcmax_tscaler(:) ! Temperature scaling functions on vcmax
+     real(r8),allocatable :: jmax_tscaler(:)  ! Temperature scaling functions on jmax
+     real(r8),allocatable :: lmr_tscaler(:)   ! Temperature response scaler on LMR
+
+   contains
+     procedure :: BPRateInitAlloc
+     procedure :: BPRateDealloc
   end type bprate_type
 
+
+
+  
   
   ! The stomatal slope can either be scaled by btran or not. FATES had
   ! a precedent of using this into 2024, but discussions here: https://github.com/NGEET/fates/issues/719
@@ -283,8 +287,6 @@ module LeafBiophysicsMod
 
   type(leafbiophys_params_type),public :: lb_params
 
-
-
   ! A possible sequence of calls for leaf biophysics is as follows:
   ! 1) determine any gas quantities or parameters that are derived and
   !    are applicable to a super-set of leaf-layers (like MM, and compensation points)
@@ -296,6 +298,57 @@ module LeafBiophysicsMod
   ! 7) solve for maintenance respiration of other tissues (other library?)
 
 contains
+  
+  subroutine BPRateInitAlloc(this,numpft)
+
+    ! Class helper routine that allocates the type holding
+    ! biophyical rates
+    
+    class(bprate_type) :: this
+    integer,intent(in) :: numpft
+
+    allocate(this%vr_a(numpft));this%vr_a(:)=fates_unset_r8
+    allocate(this%vr_b(numpft));this%vr_b(:)=fates_unset_r8
+    allocate(this%jr_a(numpft));this%jr_a(:)=fates_unset_r8
+    allocate(this%jr_b(numpft));this%jr_b(:)=fates_unset_r8
+    allocate(this%vi_a(numpft));this%vi_a(:)=fates_unset_r8
+    allocate(this%vi_b(numpft));this%vi_b(:)=fates_unset_r8
+    allocate(this%vi_c(numpft));this%vi_c(:)=fates_unset_r8
+    allocate(this%ji_a(numpft));this%ji_a(:)=fates_unset_r8
+    allocate(this%ji_b(numpft));this%ji_b(:)=fates_unset_r8
+    allocate(this%ji_c(numpft));this%ji_c(:)=fates_unset_r8
+    allocate(this%jvr(numpft));this%jvr(:)=fates_unset_r8
+    allocate(this%vcmax_tscaler(numpft));this%vcmax_tscaler(:)=fates_unset_r8
+    allocate(this%jmax_tscaler(numpft));this%jmax_tscaler(:)=fates_unset_r8
+    allocate(this%lmr_tscaler(numpft));this%lmr_tscaler(:)=fates_unset_r8
+    return
+  end subroutine BPRateInitAlloc
+
+  ! =====================================================================================
+  
+  subroutine BPRateDealloc(this)
+
+    ! Class helper routine that deallocates biophysical rates
+    
+    class(bprate_type) :: this
+    deallocate(this%vr_a, &
+         this%vr_b, &
+         this%jr_a, &
+         this%jr_b, &
+         this%vi_a, &
+         this%vi_b, &
+         this%vi_c, &
+         this%ji_a, &
+         this%ji_b, &
+         this%ji_c, &
+         this%jvr,  &
+         this%vcmax_tscaler, &
+         this%jmax_tscaler, &
+         this%lmr_tscaler)
+    return
+  end subroutine BPRateDealloc
+
+  ! =====================================================================================
   
   subroutine StomatalCondMedlyn(anet,veg_esat,can_vpress,gs0,gs1,gs2,leaf_co2_ppress,can_press,gb,gs)
 
@@ -1845,7 +1898,7 @@ contains
     lmr25 = lmr25top * nscaler
 
     ! temperature response
-    lmr = lmr25* bprate%lmr_tscaler
+    lmr = lmr25* bprate%lmr_tscaler(ft)
     
     ! Any hydrodynamic limitations could go here, currently none
     ! lmr = lmr * (nothing)
@@ -1904,7 +1957,7 @@ contains
        call FatesWarn(warn_msg,index=4)            
     end if
 
-    lmr = r_t_ref * bprate%lmr_tscaler
+    lmr = r_t_ref * bprate%lmr_tscaler(ft)
 
     !exp(lmr_b * (veg_tempk - tfrz - lmr_TrefC) + lmr_c * &
     !     ((veg_tempk-tfrz)**2._r8 - lmr_TrefC**2._r8))
@@ -1992,7 +2045,7 @@ contains
     case (photosynth_acclim_model_none)
        jmax25  = jmax25top_ft * nscaler * dayl_factor_local
     case (photosynth_acclim_model_kumarathunge_etal_2019) 
-       jmax25 = vcmax25*bprate%jvr
+       jmax25 = vcmax25*bprate%jvr(ft)
     case default
        write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
        write (fates_log(),*)'lb_params%photo_tempsens_model:',lb_params%photo_tempsens_model
@@ -2003,14 +2056,7 @@ contains
     ! photosynthetic pathway: 0. = c4, 1. = c3
     
     if (lb_params%c3psn(ft) == c3_path_index) then
-       !vcmax = vcmax25 * ft1_f(veg_tempk, bprate%vcmaxha) * fth_f(veg_tempk,  bprate%vcmaxhd,  bprate%vcmaxse,  bprate%vi_c)
-       vcmax = vcmax25 * bprate%vcmax_tscaler
-
-       !if(abs(vcmax-vcmax_o)>1.e-10)then
-       !   write (fates_log(),*)'v optomization error',vcmax,vcmax_o
-       !   call endrun(msg=errMsg(sourcefile, __LINE__))
-       !end if
-       
+       vcmax = vcmax25 * bprate%vcmax_tscaler(ft)
        kp = -9999._r8
     else
        vcmax = vcmax25 * 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8)
@@ -2019,14 +2065,8 @@ contains
        kp = kp25_ft * nscaler * 2._r8**((min(veg_tempk,310._r8)-(tfrz+25._r8))/10._r8)
     end if
 
-    !jmax   = jmax25 * ft1_f(veg_tempk,  bprate%jmaxha) * fth_f(veg_tempk,  bprate%jmaxhd,  bprate%jmaxse,  bprate%ji_c)
-    jmax   = jmax25 * bprate%jmax_tscaler
+    jmax   = jmax25 * bprate%jmax_tscaler(ft)
 
-    !if(abs(jmax-jmax_o)>1.e-10)then
-    !   write (fates_log(),*)'j optomization error',jmax,jmax_o
-    !   call endrun(msg=errMsg(sourcefile, __LINE__))
-    !end if
-    
     ! Adjust various rates for water limitations
     ! -----------------------------------------------------------------------------------
 
@@ -2487,25 +2527,25 @@ contains
     
     ! Update the temperature scalers that apply to vcmax25 and jmax25
     
-    bprate%vcmax_tscaler = ft1_fo(veg_tempk, bprate%vr_a, bprate%vr_b) * &
-         fth_fo(veg_tempk, bprate%vi_a, bprate%vi_b, bprate%vi_c)
+    bprate%vcmax_tscaler(ft) = ft1_fo(veg_tempk, bprate%vr_a(ft), bprate%vr_b(ft)) * &
+         fth_fo(veg_tempk, bprate%vi_a(ft), bprate%vi_b(ft), bprate%vi_c(ft))
     
-    bprate%jmax_tscaler  = ft1_fo(veg_tempk, bprate%jr_a, bprate%jr_b) * &
-         fth_fo(veg_tempk, bprate%ji_a, bprate%ji_b, bprate%ji_c)
+    bprate%jmax_tscaler(ft)  = ft1_fo(veg_tempk, bprate%jr_a(ft), bprate%jr_b(ft)) * &
+         fth_fo(veg_tempk, bprate%ji_a(ft), bprate%ji_b(ft), bprate%ji_c(ft))
 
     if(maintresp_leaf_model == lmrmodel_ryan_1991)then
        
        if (c3_psn == c3_path_index) then
           ! LMR temperature sensitivity of C3 plants
-          bprate%lmr_tscaler =  ft1_f(veg_tempk, lmrha) * &
+          bprate%lmr_tscaler(ft) =  ft1_f(veg_tempk, lmrha) * &
                fth_f(veg_tempk, lmrhd, lmrse, lmrc)
        else
           ! temperature sensitivity of C4 plants
-          bprate%lmr_tscaler = 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8) / &
+          bprate%lmr_tscaler(ft) = 2._r8**((veg_tempk-(tfrz+25._r8))/10._r8) / &
                (1._r8 + exp( 1.3_r8*(veg_tempk-(tfrz+55._r8)) ))
        endif
     else
-       bprate%lmr_tscaler = exp(lmr_b * (veg_tempk - tfrz - lmr_TrefC) + lmr_c * &
+       bprate%lmr_tscaler(ft) = exp(lmr_b * (veg_tempk - tfrz - lmr_TrefC) + lmr_c * &
             ((veg_tempk-tfrz)**2._r8 - lmr_TrefC**2._r8))
     end if
        
@@ -2553,7 +2593,7 @@ contains
        jmaxhd = 200._r8*1e3_r8 !J/mol
        vcmaxse = (645.13_r8 - (0.38_r8*t_growth_celsius))
        jmaxse = 658.77_r8 - (0.84_r8*t_home_celsius) - 0.52_r8*(t_growth_celsius-t_home_celsius)
-       bprate%jvr = 2.56_r8 - (0.0375_r8*t_home_celsius)-(0.0202_r8*(t_growth_celsius-t_home_celsius))
+       bprate%jvr(ft) = 2.56_r8 - (0.0375_r8*t_home_celsius)-(0.0202_r8*(t_growth_celsius-t_home_celsius))
     case default
        write (fates_log(),*)'error, incorrect leaf photosynthesis temperature acclimation model specified'
        write (fates_log(),*)'lb_params%photo_tempsens_model: ',lb_params%photo_tempsens_model
@@ -2561,19 +2601,19 @@ contains
     end select
     
     ! Response function terms
-    bprate%vr_a  = vcmaxha / (rgas_J_K_mol*t_ref_298K)
-    bprate%vr_b  = vcmaxha / rgas_J_K_mol
-    bprate%jr_a  = jmaxha / (rgas_J_K_mol*t_ref_298K)
-    bprate%jr_b  = jmaxha / rgas_J_K_mol
+    bprate%vr_a(ft)  = vcmaxha / (rgas_J_K_mol*t_ref_298K)
+    bprate%vr_b(ft)  = vcmaxha / rgas_J_K_mol
+    bprate%jr_a(ft)  = jmaxha / (rgas_J_K_mol*t_ref_298K)
+    bprate%jr_b(ft)  = jmaxha / rgas_J_K_mol
     
     ! Inhibition function terms
-    bprate%vi_a = vcmaxse / rgas_J_K_mol
-    bprate%vi_b = -vcmaxhd / rgas_J_K_mol
-    bprate%vi_c  = fth25_f(vcmaxhd, vcmaxse)
+    bprate%vi_a(ft) = vcmaxse / rgas_J_K_mol
+    bprate%vi_b(ft) = -vcmaxhd / rgas_J_K_mol
+    bprate%vi_c(ft)  = fth25_f(vcmaxhd, vcmaxse)
     
-    bprate%ji_a = jmaxse / rgas_J_K_mol
-    bprate%ji_b = -jmaxhd / rgas_J_K_mol
-    bprate%ji_c  = fth25_f(jmaxhd, jmaxse)
+    bprate%ji_a(ft) = jmaxse / rgas_J_K_mol
+    bprate%ji_b(ft) = -jmaxhd / rgas_J_K_mol
+    bprate%ji_c(ft)  = fth25_f(jmaxhd, jmaxse)
 
     
     return

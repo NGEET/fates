@@ -940,7 +940,7 @@ contains
 
           do ift=1,currentPatch%nupft
              ft = currentPatch%unique_pfts(ift)
-             call UpdateSlowBiophysicalRates(currentPatch%bprate(ft),ft,&
+             call UpdateSlowBiophysicalRates(currentPatch%bprates,ft,&
                   currentPatch%tveg_lpa%GetMean(), &
                   currentPatch%tveg_longterm%GetMean())
           end do
