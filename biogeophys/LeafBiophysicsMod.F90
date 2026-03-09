@@ -72,7 +72,7 @@ module LeafBiophysicsMod
        __FILE__
 
 
-  logical, parameter :: do_b4b = .true.
+  logical, parameter :: do_b4b = .false.
   
   character(len=1024) :: warn_msg   ! for defining a warning message
 

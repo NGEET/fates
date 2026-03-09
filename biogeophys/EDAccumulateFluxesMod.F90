@@ -104,6 +104,7 @@ contains
     real(r8),           intent(in)            :: dt_time  ! timestep interval
     !
     ! !LOCAL VARIABLES:
+    integer :: ico
     type(fates_cohort_type), pointer  :: ccohort ! current cohort
     type(fates_patch_type) , pointer  :: cpatch ! current patch
     integer :: iv !leaf layer
@@ -111,35 +112,37 @@ contains
     !----------------------------------------------------------------------
 
     cpatch => site%pa_vec(ifp)%p
-    
-    ccohort => cpatch%shortest
+
+    ico=0
+    ccohort => cpatch%tallest
     do while(associated(ccohort))
-       
+       ico=ico+1
        ! Accumulate fluxes from hourly to daily values. 
        ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
-       
-       ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
+
+       ccohort%g_sb_laweight = cpatch%coarrays%g_sb_laweight(ico)
+       ccohort%gpp_acc  = ccohort%gpp_acc  + cpatch%coarrays%gpp_tstep(ico)
        ccohort%resp_m_acc = ccohort%resp_m_acc + ccohort%resp_m_tstep
        
        ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
        
        ! weighted mean of D13C by gpp
-       if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
+       if((ccohort%gpp_acc + cpatch%coarrays%gpp_tstep(ico)) .eq. 0.0_r8) then
           ccohort%c13disc_acc = 0.0_r8
        else
           ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + &
-               (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
-               (ccohort%gpp_acc + ccohort%gpp_tstep)
+               (cpatch%coarrays%c13disc_clm(ico)* cpatch%coarrays%gpp_tstep(ico))) / &
+               (ccohort%gpp_acc + cpatch%coarrays%gpp_tstep(ico))
        endif
        
        do iv=1,ccohort%nv
           if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 
              ccohort%year_net_uptake(iv) = 0._r8
           end if
-          ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + ccohort%ts_net_uptake(iv)
+          ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + cpatch%coarrays%ts_net_uptake(iv,ico)
        enddo
        
-       ccohort => ccohort%taller
+       ccohort => ccohort%shorter
     enddo
     return
   end subroutine FatesAccumulatePatchFluxes

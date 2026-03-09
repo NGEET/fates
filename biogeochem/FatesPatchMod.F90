@@ -62,43 +62,48 @@ module FatesPatchMod
   end type fates_cohort_vec_type
 
   ! Scratch space for high frequency operations
-  ! in photosynthesis, respirationa and
+  ! in photosynthesis, respiration and
   ! radiation scattering (soon)
   
   type :: fates_vecscr_type
 
+     integer :: ncohorts ! Number of cohorts on this patch
+     
      ! Cohort Arrays
-     real(r8),allocatable :: vcmax25top(:)
-     real(r8),allocatable :: jmax25top(:)
-     real(r8),allocatable :: kp25top(:)
+     real(r8),allocatable :: vcmax25top(:)          ! vcmax @ 25C top of canopy [umol/m2/s]
+     real(r8),allocatable :: jmax25top(:)           ! jmax @ 25C top of canopy [umol/m2/s]
+     real(r8),allocatable :: kp25top(:)             ! initial slope co2-curve  @ 25C ...
      integer,allocatable  :: pft(:)
-     real(r8),allocatable :: c_area(:)
-     real(r8),allocatable :: nplant(:)
-     integer,allocatable  :: canopy_layer(:)
-     real(r8),allocatable :: nv(:) 
-     real(r8),allocatable :: treesai(:)
-     real(r8),allocatable :: treelai(:)
-     real(r8),allocatable :: height(:)
-     real(r8),allocatable :: mr_reduction_factor(:)
-     real(r8),allocatable :: lnc_top(:)
-     real(r8),allocatable :: kn_leafn(:)
-     real(r8),allocatable :: kn_atk(:)
-
-     real(r8),allocatable :: btran(:)
+     real(r8),allocatable :: c_area(:)              ! areal extent of canopy [m2]
+     real(r8),allocatable :: nplant(:)              ! number of plants per hectare 
+     integer,allocatable  :: canopy_layer(:)        ! canopy index (1=top)
+     integer,allocatable  :: nv(:)                  ! number of discrete vert veg layers
+     real(r8),allocatable :: treesai(:)             ! stem area index of the plant [m2/m2]
+     real(r8),allocatable :: treelai(:)             ! leaf area index of the plant [m2/m2]
+     real(r8),allocatable :: height(:)              ! plant height [m]
+     real(r8),allocatable :: mr_reduction_factor(:) ! reduction factor for maint resp
+     real(r8),allocatable :: lnc_top(:)             ! leaf nitrogen conc at the top [gn/m2]
+     real(r8),allocatable :: kn_leafn(:)            ! leaf nitrogen vertical decay coeff
+     real(r8),allocatable :: kn_atk(:)              ! atkin respiration vertical decay coeff
+     integer,allocatable  :: twostr_col(:)          ! this cohorts position index in the two-stream data
+     real(r8),allocatable :: btran(:)               ! plant water stress response function [0-1]
 
      !Hydro only
-     real(r8),allocatable :: leaf_psi(:)
+     real(r8),allocatable :: leaf_psi(:)    !leaf suction [Mpa]
      
      ! Outputs
-     real(r8),allocatable :: resp_m_tstep(:)
-     real(r8),allocatable :: gpp_tstep(:)
-     real(r8),allocatable :: rdark(:)
-     real(r8),allocatable :: c13disc_clm(:)
-     real(r8),allocatable :: g_sb_laweight(:)
+     real(r8),allocatable :: gpp_tstep(:)     ! GPP [kgC/indiv/s]
+     real(r8),allocatable :: rdark(:)         ! dark respiration [kgC/indiv/s]
+     real(r8),allocatable :: c13disc_clm(:)   ! carbon 13 discrimination [ppm]
+     real(r8),allocatable :: g_sb_laweight(:) ! total conductance (stomata +
+                                              ! boundary layer) of the cohort
+                                              ! weighted by its leaf area [m/s]*[m2]
 
      ! Cohort x leaf-layer
-     real(r8),allocatable :: ts_net_uptake(:,:)
-                    
+     real(r8),allocatable :: ts_net_uptake(:,:) ! Net photosynthesis [kgC/m2/timestep]
+
+     
+     
   end type fates_vecscr_type
   
   
@@ -110,12 +115,14 @@ module FatesPatchMod
     type (fates_patch_type),  pointer :: older => null()    ! pointer to next older patch   
     type (fates_patch_type),  pointer :: younger => null()  ! pointer to next younger patch
     type (fates_cohort_vec_type), pointer :: co_scr(:)      ! Scratch vector of cohort properties
-    type (fates_vecscr_type), pointer :: coarrays(:)        ! Array structured cohort data
-                                                            ! for high-efficiency computation
+   
 
-    
+
+    ! Helper spaces for computational efficiency and pre-calcualtions outside
+    ! of high-frequency call spaces
     !---------------------------------------------------------------------------
-
+    type (fates_vecscr_type) :: coarrays         ! Array structured cohort data
+                                                 ! for high-efficiency computation
     type(bprate_type), allocatable :: bprate(:)  ! Biophysical rates
     
     ! INDICES
@@ -383,7 +390,10 @@ module FatesPatchMod
       integer  :: ncan                     ! Number of canopy layers
       integer  :: prev_ncan                ! Number of canopy layers previously
                                            ! as defined in the allocation space
-    
+      integer  :: ncohorts
+      integer  :: prev_ncohorts
+      type(fates_cohort_type),pointer :: cohort
+      
       ncan = this%ncl
       nveg = maxval(this%nleaf(:,:))
 
@@ -436,26 +446,102 @@ module FatesPatchMod
 
          ! Add a little bit of buffer to the nveg
          ! so it doesn't need to be reallocated as much
-         nveg = nveg + 1
-         
-         allocate(this%tlai_profile(ncan,numpft,nveg))
-         allocate(this%tsai_profile(ncan,numpft,nveg))
-         allocate(this%elai_profile(ncan,numpft,nveg))
-         allocate(this%esai_profile(ncan,numpft,nveg))
-         allocate(this%canopy_area_profile(ncan,numpft,nveg))
-         allocate(this%f_sun(ncan,numpft,nveg))
-         allocate(this%fabd_sun_z(ncan,numpft,nveg))
-         allocate(this%fabd_sha_z(ncan,numpft,nveg))
-         allocate(this%fabi_sun_z(ncan,numpft,nveg))
-         allocate(this%fabi_sha_z(ncan,numpft,nveg))
-         allocate(this%nrmlzd_parprof_pft_dir_z(ncan,numpft,nveg))
-         allocate(this%nrmlzd_parprof_pft_dif_z(ncan,numpft,nveg))
-         allocate(this%ed_parsun_z(ncan,numpft,nveg))
-         allocate(this%ed_parsha_z(ncan,numpft,nveg))
-         allocate(this%ed_laisun_z(ncan,numpft,nveg))
-         allocate(this%ed_laisha_z(ncan,numpft,nveg))
+
+         ! THESE SHOULD BE REARRANGED SO VEG IS INNER
+         ! THAT IS THE FAST ACCESS DIMENSION
+         allocate(this%tlai_profile(ncan,numpft,nveg+1))
+         allocate(this%tsai_profile(ncan,numpft,nveg+1))
+         allocate(this%elai_profile(ncan,numpft,nveg+1))
+         allocate(this%esai_profile(ncan,numpft,nveg+1))
+         allocate(this%canopy_area_profile(ncan,numpft,nveg+1))
+         allocate(this%f_sun(ncan,numpft,nveg+1))
+         allocate(this%fabd_sun_z(ncan,numpft,nveg+1))
+         allocate(this%fabd_sha_z(ncan,numpft,nveg+1))
+         allocate(this%fabi_sun_z(ncan,numpft,nveg+1))
+         allocate(this%fabi_sha_z(ncan,numpft,nveg+1))
+         allocate(this%nrmlzd_parprof_pft_dir_z(ncan,numpft,nveg+1))
+         allocate(this%nrmlzd_parprof_pft_dif_z(ncan,numpft,nveg+1))
+         allocate(this%ed_parsun_z(ncan,numpft,nveg+1))
+         allocate(this%ed_parsha_z(ncan,numpft,nveg+1))
+         allocate(this%ed_laisun_z(ncan,numpft,nveg+1))
+         allocate(this%ed_laisha_z(ncan,numpft,nveg+1))
       end if
 
+      ! Reallocate the Cohort Scratch array
+      ! ---------------------------------------------------------------------------------
+
+      re_allocate = .true.
+
+      ncohorts = 0
+      cohort => this%tallest
+      do while (associated(cohort)) ! Cohort loop
+         ncohorts=ncohorts+1
+         cohort => cohort%shorter
+      enddo
+         
+      ! If the large patch arrays are not new, deallocate them
+      if(allocated(this%coarrays%vcmax25top)) then
+         prev_ncohorts = ubound(this%coarrays%vcmax25top,1)
+         prev_nveg     = ubound(this%coarrays%ts_net_uptake,1)
+         if((ncohorts > prev_ncohorts) .or. (ncohorts < prev_ncohorts-3) .or. &
+            (nveg>prev_nveg) .or. (nveg<prev_nveg-3)) then
+            deallocate(this%coarrays%vcmax25top)
+            deallocate(this%coarrays%jmax25top)
+            deallocate(this%coarrays%kp25top)
+            deallocate(this%coarrays%pft)
+            deallocate(this%coarrays%c_area)
+            deallocate(this%coarrays%nplant)
+            deallocate(this%coarrays%canopy_layer)
+            deallocate(this%coarrays%nv) 
+            deallocate(this%coarrays%treesai)
+            deallocate(this%coarrays%treelai)
+            deallocate(this%coarrays%height)
+            deallocate(this%coarrays%mr_reduction_factor)
+            deallocate(this%coarrays%lnc_top)
+            deallocate(this%coarrays%kn_leafn)
+            deallocate(this%coarrays%kn_atk)
+            deallocate(this%coarrays%twostr_col)
+            deallocate(this%coarrays%btran)
+            deallocate(this%coarrays%leaf_psi)
+            deallocate(this%coarrays%gpp_tstep)
+            deallocate(this%coarrays%rdark)
+            deallocate(this%coarrays%c13disc_clm)
+            deallocate(this%coarrays%g_sb_laweight)
+            deallocate(this%coarrays%ts_net_uptake)
+         else
+            re_allocate = .false.
+         end if
+      end if
+
+      if(re_allocate)then
+         allocate(this%coarrays%vcmax25top(ncohorts+2))
+         allocate(this%coarrays%jmax25top(ncohorts+2))
+         allocate(this%coarrays%kp25top(ncohorts+2))
+         allocate(this%coarrays%pft(ncohorts+2))
+         allocate(this%coarrays%c_area(ncohorts+2))
+         allocate(this%coarrays%nplant(ncohorts+2))
+         allocate(this%coarrays%canopy_layer(ncohorts+2))
+         allocate(this%coarrays%nv(ncohorts+2)) 
+         allocate(this%coarrays%treesai(ncohorts+2))
+         allocate(this%coarrays%treelai(ncohorts+2))
+         allocate(this%coarrays%height(ncohorts+2))
+         allocate(this%coarrays%mr_reduction_factor(ncohorts+2))
+         allocate(this%coarrays%lnc_top(ncohorts+2))
+         allocate(this%coarrays%kn_leafn(ncohorts+2))
+         allocate(this%coarrays%kn_atk(ncohorts+2))
+         allocate(this%coarrays%twostr_col(ncohorts+2))
+         allocate(this%coarrays%btran(ncohorts+2))
+         allocate(this%coarrays%leaf_psi(ncohorts+2))
+         allocate(this%coarrays%gpp_tstep(ncohorts+2))
+         allocate(this%coarrays%rdark(ncohorts+2))
+         allocate(this%coarrays%c13disc_clm(ncohorts+2))
+         allocate(this%coarrays%g_sb_laweight(ncohorts+2))
+         allocate(this%coarrays%ts_net_uptake(nveg+2,ncohorts+2))
+
+         this%coarrays%ncohorts = ncohorts
+         
+      end if
+      
       return
     end subroutine ReAllocateDynamics
     
@@ -990,6 +1076,36 @@ module FatesPatchMod
          deallocate(this%ed_laisha_z)
          deallocate(this%canopy_area_profile)
       end if
+
+
+      ! Deallocate cohort arrays "coarrays"
+      if(allocated(this%coarrays%vcmax25top))then
+         deallocate(this%coarrays%vcmax25top)
+         deallocate(this%coarrays%jmax25top)
+         deallocate(this%coarrays%kp25top)
+         deallocate(this%coarrays%pft)
+         deallocate(this%coarrays%c_area)
+         deallocate(this%coarrays%nplant)
+         deallocate(this%coarrays%canopy_layer)
+         deallocate(this%coarrays%nv) 
+         deallocate(this%coarrays%treesai)
+         deallocate(this%coarrays%treelai)
+         deallocate(this%coarrays%height)
+         deallocate(this%coarrays%mr_reduction_factor)
+         deallocate(this%coarrays%lnc_top)
+         deallocate(this%coarrays%kn_leafn)
+         deallocate(this%coarrays%kn_atk)
+         deallocate(this%coarrays%btran)
+         deallocate(this%coarrays%twostr_col)
+         deallocate(this%coarrays%leaf_psi)
+         deallocate(this%coarrays%gpp_tstep)
+         deallocate(this%coarrays%rdark)
+         deallocate(this%coarrays%c13disc_clm)
+         deallocate(this%coarrays%g_sb_laweight)
+         deallocate(this%coarrays%ts_net_uptake)
+      end if
+
+      
       
       if (istat/=0) then
         write(fates_log(),*) 'dealloc010: fail on deallocate patch vectors:'//trim(smsg)

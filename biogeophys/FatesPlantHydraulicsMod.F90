@@ -2414,6 +2414,7 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
   real(r8) :: sumcheck            ! used to debug mass balance in soil horizon diagnostics
   integer  :: nlevrhiz            ! local for number of rhizosphere levels
   integer  :: sc                  ! size class index
+  integer  :: ico
   real(r8) :: lat,lon             ! latitude and longitude of site
   real(r8) :: eff_por             ! effective porosity
   real(r8) :: h2osoi_liqvol       ! liquid water content [m3/m3]
@@ -2508,11 +2509,13 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
            ! ----------------------------------------------------------------------------
 
            gscan_patch   = 0.0_r8
+           ico = 0
            ccohort=>cpatch%tallest
            do while(associated(ccohort))
+              ico=ico+1
               ccohort_hydr => ccohort%co_hydr
               ccohort_hydr%psi_ag(1) = wrf_plant(leaf_p_media,ccohort%pft)%p%psi_from_th(ccohort_hydr%th_ag(1))
-              gscan_patch            = gscan_patch + ccohort%g_sb_laweight
+              gscan_patch            = gscan_patch + cpatch%coarrays%g_sb_laweight(ico)
               ccohort => ccohort%shorter
            enddo !cohort
 
@@ -2526,9 +2529,11 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               call endrun(msg=errMsg(sourcefile, __LINE__))
            end if
 
+           ico = 0
            ccohort=>cpatch%tallest
            co_loop1: do while(associated(ccohort))
 
+              ico = ico+1
               ccohort_hydr => ccohort%co_hydr
               ft       = ccohort%pft
 
@@ -2537,9 +2542,9 @@ subroutine hydraulics_bc ( nsites, sites, bc_in, bc_out, dtime)
               ! [mm H2O/plant/s]  = [mm H2O/ m2 / s] * [m2 / patch] * [cohort/plant] * [patch/cohort]
 
               ! This can cause large transpiration due to small g_sb_laweight
-              if(ccohort%g_sb_laweight>nearzero) then
+              if(cpatch%coarrays%g_sb_laweight(ico)>nearzero) then
                  qflx_tran_veg_indiv     = bc_in(s)%qflx_transp_pa(ifp) * cpatch%total_canopy_area * &
-                      (ccohort%g_sb_laweight/gscan_patch)/ccohort%n
+                      (cpatch%coarrays%g_sb_laweight(ico)/gscan_patch)/ccohort%n
               else
                  qflx_tran_veg_indiv     = 0._r8
               end if

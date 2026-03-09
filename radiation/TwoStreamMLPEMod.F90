@@ -474,12 +474,20 @@ contains
     real(r8)              :: Rb_net        ! Difference in beam radiation at upper and lower boundaries [W/m2]
     real(r8)              :: vai_max       ! total integrated (leaf+stem) area index of the current element
     real(r8)              :: frac_abs_snow ! fraction of radiation absorbed by snow
+
     real(r8)              :: diff_wt_leaf  ! diffuse absorption weighting for leaves
     real(r8)              :: diff_wt_stem  ! diffuse absorption weighting for stems
+    real(r8)              :: diff_wt_snow  ! diffuse absorption weighting for snow
+    real(r8)              :: diff_wt_elem  ! diffuse absorption normalization
     real(r8)              :: beam_wt_leaf  ! beam absorption weighting for leaves
     real(r8)              :: beam_wt_stem  ! beam absorption weighting for stems
+    real(r8)              :: beam_wt_snow  ! beam absorption weighting for snow
+    real(r8)              :: beam_wt_elem  ! beam absorption normalization
+    
     real(r8)              :: lai_bot,lai_top
     real(r8)              :: r_dn_top,r_dn_bot
+
+    integer, parameter :: split_method = 2
     
     associate(scelb => this%band(ib)%scelb(ican,icol), &
          scelg => this%scelg(ican,icol), &
@@ -514,19 +522,6 @@ contains
          leaf_sun_frac = 0001._r8
       end if
 
-      ! We have to disentangle the absorption between leaves and stems, we give them both
-      ! a weighting fraction of total absorption of  area*K*(1-om)
-
-      frac_abs_snow = this%frac_snow*(1._r8-om_snow(ib)) / (1._r8-scelb%om)
-
-      diff_wt_leaf =  scelg%lai*(1._r8-rad_params%om_leaf(ib,ft))*rad_params%Kd_leaf(ft)
-      diff_wt_stem =  scelg%sai*(1._r8-rad_params%om_stem(ib,ft))*rad_params%Kd_stem(ft)
-
-      beam_wt_leaf =  scelg%lai*(1._r8-rad_params%om_leaf(ib,ft))*scelg%Kb_leaf
-      beam_wt_stem =  scelg%sai*(1._r8-rad_params%om_stem(ib,ft))*1._r8
-
-      ! Mean element transmission coefficients adding snow scattering
-
       if(debug) then
          if( (vai_bot-vai_max)>rel_err_thresh)then
             write(log_unit,*)"During decomposition of the 2-stream radiation solution"
@@ -546,7 +541,7 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
       end if
-
+         
       ! Amount of absorbed radiation is retrieved by doing an energy
       ! balance on this boundaries over the depth of interest (ie net)
       ! Result is Watts / m2 of the element's area footprint NOT
@@ -574,15 +569,80 @@ contains
       Rb_abs = Rb_net * (1._r8-this%band(ib)%scelb(ican,icol)%om)
       Rd_abs = Rd_net +  Rb_net * this%band(ib)%scelb(ican,icol)%om
 
+      
+      ! Disentangle the absorption between leaves and stems, we give them both
+      ! a weighting fraction of total absorption of  area*K*(1-om)
 
-      Rb_abs_leaf = (1._r8-frac_abs_snow)*Rb_abs * beam_wt_leaf / (beam_wt_leaf+beam_wt_stem)
-      Rd_abs_leaf = (1._r8-frac_abs_snow)*Rd_abs * diff_wt_leaf / (diff_wt_leaf+diff_wt_stem)
+      if(split_method == 1)then
+         
+         frac_abs_snow = this%frac_snow*(1._r8-om_snow(ib)) / (1._r8-scelb%om)
+         
+         diff_wt_leaf =  scelg%lai*(1._r8-rad_params%om_leaf(ib,ft))*rad_params%Kd_leaf(ft)
+         diff_wt_stem =  scelg%sai*(1._r8-rad_params%om_stem(ib,ft))*rad_params%Kd_stem(ft)
+         
+         beam_wt_leaf =  scelg%lai*(1._r8-rad_params%om_leaf(ib,ft))*scelg%Kb_leaf
+         beam_wt_stem =  scelg%sai*(1._r8-rad_params%om_stem(ib,ft))*1._r8
+         Rb_abs_leaf = (1._r8-frac_abs_snow)*Rb_abs * beam_wt_leaf / (beam_wt_leaf+beam_wt_stem)
+         Rd_abs_leaf = (1._r8-frac_abs_snow)*Rd_abs * diff_wt_leaf / (diff_wt_leaf+diff_wt_stem)
 
-      R_abs_snow = (Rb_abs+Rd_abs)*frac_abs_snow
+         R_abs_snow = (Rb_abs+Rd_abs)*frac_abs_snow
+         
+         R_abs_stem = (1._r8-frac_abs_snow)* &
+              (Rb_abs*beam_wt_stem / (beam_wt_leaf+beam_wt_stem) + &
+              Rd_abs*diff_wt_stem / (diff_wt_leaf+diff_wt_stem))
 
-      R_abs_stem = (1._r8-frac_abs_snow)* &
-           (Rb_abs*beam_wt_stem / (beam_wt_leaf+beam_wt_stem) + &
-           Rd_abs*diff_wt_stem / (diff_wt_leaf+diff_wt_stem))
+         
+      elseif(split_method == 2)then
+
+         ! This is solely designed to have the same methods as how the cohort
+         ! caller disentangles absorptions and partitions into leaf,stem/snow
+
+          diff_wt_leaf = (1._r8-this%frac_snow)*scelg%lai*(1._r8-rad_params%om_leaf(ib,ft))*rad_params%Kd_leaf(ft)
+          diff_wt_elem = (scelg%lai+scelg%sai)*(1._r8-scelb%om)*scelg%Kd
+          
+          beam_wt_leaf = (1._r8-this%frac_snow)*scelg%lai*(1._r8-rad_params%om_leaf(ib,ft))*scelg%Kb_leaf
+          beam_wt_elem = (scelg%lai+scelg%sai)*(1._r8-scelb%om)*scelg%Kb
+          
+          Rd_abs_leaf = Rd_abs * min(1.0_r8,diff_wt_leaf / diff_wt_elem)
+          Rb_abs_leaf = Rb_abs * min(1.0_r8,beam_wt_leaf / beam_wt_elem)
+          
+          R_abs_stem = (Rd_abs - Rd_abs_leaf)*(1._r8-this%frac_snow) + (Rb_abs-Rb_abs_leaf)*(1._r8-this%frac_snow)
+
+          R_abs_snow = Rd_abs + Rb_abs - (Rd_abs_leaf+Rb_abs_leaf+R_abs_stem)
+         
+      else
+
+         ! Improved Method
+         ! Calculate absorbance shares of Rb and Rd based off of their relative
+         ! optical depth (area index * K) times the material absorption (1-om)
+         ! Add up these shares to get the total for the element, use that as
+         ! a normalization factor
+         
+         diff_wt_snow =  this%frac_snow*scelg%lai*(1._r8-om_snow(ib))*rad_params%Kd_leaf(ft)
+         diff_wt_snow =  diff_wt_snow+this%frac_snow*scelg%sai*(1._r8-om_snow(ib))*rad_params%Kd_stem(ft)
+         diff_wt_leaf =  (1._r8 - this%frac_snow)*scelg%lai*(1._r8-rad_params%om_leaf(ib,ft))*rad_params%Kd_leaf(ft)
+         diff_wt_stem =  (1._r8 - this%frac_snow)*scelg%sai*(1._r8-rad_params%om_stem(ib,ft))*rad_params%Kd_stem(ft)
+         diff_wt_elem =  diff_wt_snow+diff_wt_leaf+diff_wt_stem
+
+         
+         beam_wt_snow = this%frac_snow*scelg%lai*(1._r8-om_snow(ib))*scelg%Kb_leaf
+         beam_wt_snow = beam_wt_snow + this%frac_snow*scelg%sai*(1._r8-om_snow(ib))*1._r8
+         beam_wt_leaf = (1._r8 - this%frac_snow)*scelg%lai*(1._r8-rad_params%om_leaf(ib,ft))*scelg%Kb_leaf
+         beam_wt_stem = (1._r8 - this%frac_snow)*scelg%sai*(1._r8-rad_params%om_stem(ib,ft))*1._r8
+         beam_wt_elem = beam_wt_snow + beam_wt_leaf + beam_wt_stem
+
+
+         Rd_abs_leaf = Rd_abs * diff_wt_leaf/diff_wt_elem
+         Rb_abs_leaf = Rb_abs * beam_wt_leaf/beam_wt_elem
+         R_abs_stem  = Rd_abs * diff_wt_stem/diff_wt_elem + Rb_abs * beam_wt_stem/beam_wt_elem
+         R_abs_snow  = Rd_abs * diff_wt_snow/diff_wt_elem + Rb_abs * beam_wt_snow/beam_wt_elem
+
+         
+      end if
+      
+      
+
+     
 
 
 

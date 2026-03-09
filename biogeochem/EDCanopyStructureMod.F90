@@ -11,6 +11,7 @@ module EDCanopyStructureMod
   use FatesConstantsMod     , only : nearzero, area_error_1
   use FatesConstantsMod     , only : rsnbl_math_prec
   use FatesConstantsMod     , only : nocomp_bareground
+  use FatesConstantsMod     , only : fates_unset_r8
   use FatesConstantsMod,      only : i_term_mort_type_canlev
   use FatesGlobals          , only : fates_log
   use EDPftvarcon           , only : EDPftvarcon_inst
@@ -23,6 +24,9 @@ module EDCanopyStructureMod
   use EDTypesMod            , only : set_patchno
   use FatesAllometryMod     , only : VegAreaLayer
   use FatesAllometryMod     , only : CrownDepth
+  use FatesAllometryMod     , only : bleaf
+  use FatesAllometryMod, only : storage_fraction_of_target
+  use LeafBiophysicsMod, only : LowstorageMainRespReduction
   use FatesPatchMod,          only : fates_patch_type
   use FatesCohortMod,         only : fates_cohort_type
   use EDParamsMod           , only : nclmax
@@ -54,6 +58,10 @@ module EDCanopyStructureMod
   use FatesRadiationMemMod  , only : twostr_solver
   use FatesRadiationMemMod  , only : num_rad_stream_types
   use LeafBiophysicsMod     , only : UpdateSlowBiophysicalRates
+  use LeafBiophysicsMod, only : DecayCoeffVcmax
+  use PRTGenericMod,     only : prt_carbon_allom_hyp
+  use PRTGenericMod,     only : prt_cnp_flex_allom_hyp
+  use FatesInterfaceTypesMod, only : hlm_parteh_mode
   
   ! CIME Globals
   use shr_log_mod           , only : errMsg => shr_log_errMsg
@@ -69,7 +77,6 @@ module EDCanopyStructureMod
   public :: UpdateFatesAvgSnowDepth
   public :: UpdatePatchLAI
   public :: UpdateCohortLAI
-  public :: CopyCohortToHEArray
 
   logical, parameter :: debug=.false.
 
@@ -946,8 +953,13 @@ contains
        if(hlm_radiation_model.eq.twostr_solver) then
           call FatesConstructRadElements(sites(s))
        end if
-
        
+       currentPatch => sites(s)%oldest_patch
+       do while(associated(currentPatch))
+          ! Transfer cohort info to patch level scratch space
+          call CopyCohortToCoArray(currentPatch)
+          currentPatch => currentPatch%younger
+       end do
     end do ! site loop
 
     return
@@ -1061,6 +1073,8 @@ contains
        ! or resized
        call cpatch%ReAllocateDynamics()
 
+       
+       
        ! These calls NaN and zero the above mentioned arrays
        call cpatch%NanDynamics()
        call cpatch%ZeroDynamics()
@@ -1346,6 +1360,9 @@ contains
        ! photosynthesis
 
        cpatch%nleafmax = maxval(cpatch%nleaf)
+
+      
+
        
        cpatch => cpatch%younger
     enddo !patch
@@ -1783,19 +1800,27 @@ contains
 
   end function NumCanopyLayers
 
-  subroutine CopyCohortToHEArray(patch)
+  ! =====================================================================================
+  
+  subroutine CopyCohortToCoArray(patch)
 
+    ! Copy data from the cohort linked-list to the cohort
+    ! vectors. These are only the variables that are
+    ! used at high frequencies
+    
     type(fates_patch_type),intent(inout) :: patch
-    type(fates_cohort_type) :: cohort
+    type(fates_cohort_type),pointer :: cohort
     integer :: ico  ! cohort index
     integer :: ft
     real(r8) :: leaf_c,leaf_n
     real(r8) :: lnc_top
     real(r8) :: store_c_target
-
+    real(r8) :: mr_reduction_factor
+    real(r8) :: storage_target_frac
+    
     ico = 0
-    currentCohort => currentPatch%tallest
-    do while (associated(currentCohort))
+    cohort => patch%tallest
+    do while (associated(cohort))
        ico = ico + 1
 
        patch%coarrays%vcmax25top(ico) = cohort%vcmax25top
@@ -1821,7 +1846,8 @@ contains
             mr_reduction_factor)
        
        patch%coarrays%mr_reduction_factor(ico) = mr_reduction_factor
-
+       patch%coarrays%twostr_col(ico) = cohort%twostr_col
+       
        ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
        ft = cohort%pft
        select case(hlm_parteh_mode)
@@ -1838,15 +1864,13 @@ contains
        end select
        
        patch%coarrays%lnc_top(ico) = lnc_top
-       patch%coarrays%kn_leafn(ico) = 
-       patch%coarrays%kn_atk(ico) = 
-       patch%coarrays%btran(ico) = 
+       patch%coarrays%kn_leafn(ico) =  DecayCoeffVcmax(cohort%vcmax25top, &
+            prt_params%leafn_vert_scaler_coeff1(ft), &
+            prt_params%leafn_vert_scaler_coeff2(ft))
 
-       patch%coarrays%resp_m_tstep(ico) = 
-       patch%coarrays%gpp_tstep(ico) = 
-       patch%coarrays%rdark(ico) = 
-       patch%coarrays%c13disc_clm(ico) = 
-       patch%coarrays%g_sb_laweight(ico) = 
+       patch%coarrays%kn_atk(ico) =  DecayCoeffVcmax(cohort%vcmax25top, &
+            EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1(ft), &
+            EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2(ft))
        
        if (hlm_use_planthydro.eq.itrue ) then
           patch%coarrays%leaf_psi(ico) = cohort%co_hydr%psi_ag(1)
@@ -1855,14 +1879,26 @@ contains
           patch%coarrays%btran(ico) = patch%btran_ft(ft)
           patch%coarrays%leaf_psi(ico) = fates_unset_r8
        end if
+
+       ! IN/OUT (THIS SHOULDN'T BE NEEDED BUT BTRAN CALCULATION IS
+       ! OUT OF ORDER, THIS IS ONLY USED ONCE ON RESTARTS
+       patch%coarrays%g_sb_laweight(ico)    = cohort%g_sb_laweight
+
+       ! OUTPUTS
+       !patch%coarrays%resp_m_tstep(ico) = 
+       !patch%coarrays%gpp_tstep(ico) = 
+       !patch%coarrays%rdark(ico) = 
+       !patch%coarrays%c13disc_clm(ico) = 
+       !patch%coarrays%g_sb_laweight(ico) = 
+
        
-       currentCohort => currentCohort%shorter
+       cohort => cohort%shorter
     enddo
 
     patch%coarrays%ncohorts = ico
     
 
     
-  end subroutine CopyCohortToHEArray
+  end subroutine CopyCohortToCoArray
   
 end module EDCanopyStructureMod
