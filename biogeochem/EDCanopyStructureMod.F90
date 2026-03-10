@@ -700,11 +700,11 @@ contains
          ! keep track of number and biomass promoted/demoted
 
          if( layer_co(ic)%pd_area > 0._r8 ) then
-            leaf_c   = cohort%prt%GetState(leaf_organ,carbon12_element)
-            store_c  = cohort%prt%GetState(store_organ,carbon12_element)
-            fnrt_c   = cohort%prt%GetState(fnrt_organ,carbon12_element)
-            sapw_c   = cohort%prt%GetState(sapw_organ,carbon12_element)
-            struct_c = cohort%prt%GetState(struct_organ,carbon12_element)
+            leaf_c   = cohort%prt%leaf_c
+            store_c  = cohort%prt%store_c
+            fnrt_c   = cohort%prt%fnrt_c
+            sapw_c   = cohort%prt%sapw_c
+            struct_c = cohort%prt%struct_c
             
             if(phase==demotion_phase) then
                site%demotion_rate(cohort%size_class) = &
@@ -857,11 +857,11 @@ contains
                 currentPatch%unique_pfts(currentPatch%nupft)=ft
              end if
              
-             leaf_c   = currentCohort%prt%GetState(leaf_organ, carbon12_element)
-             sapw_c   = currentCohort%prt%GetState(sapw_organ, carbon12_element)
-             struct_c = currentCohort%prt%GetState(struct_organ, carbon12_element)
-             fnrt_c   = currentCohort%prt%GetState(fnrt_organ, carbon12_element)
-             store_c  = currentCohort%prt%GetState(store_organ, carbon12_element)
+             leaf_c   = currentCohort%prt%leaf_c
+             sapw_c   = currentCohort%prt%sapw_c
+             struct_c = currentCohort%prt%struct_c
+             fnrt_c   = currentCohort%prt%fnrt_c
+             store_c  = currentCohort%prt%store_c
 
              ! Update the cohort's index within the size bin classes
              ! Update the cohort's index within the SCPF classification system
@@ -1757,7 +1757,7 @@ contains
    real(r8) :: treesai                             ! stem area index within crown m2/m2
    
    ! Obtain the leaf carbon
-   leaf_c = currentCohort%prt%GetState(leaf_organ,carbon12_element)
+   leaf_c = sum(currentCohort%prt%leaf_c(:))
 
    ! Note that tree_lai has an internal check on the canopy location
    call  tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n,           &
