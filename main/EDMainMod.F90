@@ -879,11 +879,13 @@ contains
        ! Update the total area of by patch age class array 
        currentSite%area_by_age(currentPatch%age_class) = &
             currentSite%area_by_age(currentPatch%age_class) + currentPatch%area
-       
+
        currentPatch => currentPatch%younger
-       
     enddo
 
+    ! Only need to do this if parallel...
+    call PatchLoads(currentSite,bc_out)
+    
     ! Check to see if the time integrated fluxes match the state
     ! Dont call this if we are restarting, it will double count the flux
     if(.not.is_restarting)then
@@ -921,8 +923,98 @@ contains
     bc_out%fire_closs_to_atm_si = sum(site_cmass%burn_flux_to_atm(:)) * area_inv * days_per_sec
     bc_out%grazing_closs_to_atm_si = site_cmass%herbivory_flux_out * area_inv * days_per_sec
 
+    
+
+    
   end subroutine ed_update_site
 
+
+  subroutine PatchLoads(site,bc_out)
+
+
+    use FatesRadiationMemMod,   only: norman_solver
+    use FatesInterfaceTypesMod, only: hlm_radiation_model
+    
+    ! -----------------------------------------------------------------
+    ! We calculate the computational burden of a patch to
+    ! help with multithreading and balancing the load of
+    ! of threads, which is organized at the patch level
+    ! Multithreading is applied to photosynthesis and radiation
+    ! currently.
+    !
+    ! Total photosynthesis calculations (without hydro) are proportional
+    ! to the total number of leaf layers unique to canopy layer and pft
+    !
+    ! Total photosynthesis calculations (with hydro) are proportional
+    ! to the total number of leaf layers on every single cohort.
+    !
+    ! Respiration calculations and some accounting is also applied at
+    ! the cohort level
+    !
+    ! Radiation scattering calculations are proportional to the total
+    ! number of cohorts^3 (currently)
+    !
+    ! Photosynthesis takes about 3x more computation than radiation.
+    ! ------------------------------------------------------------------
+    
+    type(ed_site_type), intent(in)   :: site
+    type(bc_out_type), intent(inout) :: bc_out
+    
+    integer                         :: npatches
+    type(fates_patch_type), pointer :: patch
+    integer                         :: ifp
+    
+    real(r8), parameter :: radfrac = 0.25_r8
+
+    npatches = site%youngest_patch%patchno
+    bc_out%load_size(:) = 0._r8
+    block
+
+      real(r8) :: psn_load(npatches)
+      real(r8) :: rad_load(npatches)
+
+      psn_load(:) = 0._r8
+      rad_load(:) = 0._r8
+      
+      patch => site%oldest_patch
+      do while(associated(patch))
+         if(patch%nocomp_pft_label .ne. nocomp_bareground)then
+            ifp = patch%patchno
+
+            if(hlm_use_planthydro.eq.itrue)then
+               psn_load(ifp) = patch%num_cohorts
+            else
+               psn_load(ifp) = sum(patch%nleaf)
+            end if
+
+            if(hlm_radiation_model.eq.norman_solver)then
+               rad_load(ifp) = sum(patch%nleaf)**2._r8
+            else
+               rad_load(ifp) = patch%num_cohorts**2._r8
+            end if
+            
+         end if
+         patch=>patch%younger
+      end do
+      
+      ! Normalize
+      if(sum(psn_load)>0._r8)then
+         psn_load = psn_load/sum(psn_load)
+         rad_load = rad_load/sum(rad_load)
+      end if
+         
+      patch => site%oldest_patch
+      do while(associated(patch))
+         if(patch%nocomp_pft_label .ne. nocomp_bareground)then
+            ifp = patch%patchno
+            bc_out%load_size(ifp) =  (1._r8 - radfrac)*psn_load(ifp) + radfrac*rad_load(ifp)
+         end if
+         patch=>patch%younger
+      end do
+    end block
+
+  end subroutine PatchLoads
+  
   !-------------------------------------------------------------------------------!
 
   subroutine TotalBalanceCheck (currentSite, call_index, is_restarting )

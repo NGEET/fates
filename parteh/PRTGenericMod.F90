@@ -178,7 +178,7 @@ module PRTGenericMod
 
   type, public :: prt_vartype
      
-     real(r8),pointer :: val(:)       ! Instantaneous state variable           [kg]
+     real(r8),pointer :: val(:)           ! Instantaneous state variable           [kg]
      real(r8),allocatable :: val0(:)      ! State variable at the beginning 
                                           ! of the control period                  [kg]
      real(r8),allocatable :: net_alloc(:)   ! Net change due to allocation/transport [kg]
@@ -230,6 +230,31 @@ module PRTGenericMod
   ! -------------------------------------------------------------------------------------
 
   type, public :: prt_vartypes
+
+     ! Performance optimization: Cached variable indices
+     integer :: i_leaf_c, i_fnrt_c, i_sapw_c, i_store_c, i_struct_c, i_repro_c
+     integer :: i_leaf_n, i_fnrt_n, i_sapw_n, i_store_n, i_struct_n
+     integer :: i_leaf_p, i_fnrt_p, i_sapw_p, i_store_p, i_struct_p
+
+     real(r8), pointer :: fnrt_c   => null()
+     real(r8), pointer :: sapw_c   => null()
+     real(r8), pointer :: store_c  => null()
+     real(r8), pointer :: struct_c => null()
+     real(r8), pointer :: repro_c  => null()
+     
+     real(r8), pointer :: fnrt_n   => null()
+     real(r8), pointer :: sapw_n   => null()
+     real(r8), pointer :: store_n  => null()
+     real(r8), pointer :: struct_n => null()
+     
+     real(r8), pointer :: fnrt_p   => null()
+     real(r8), pointer :: sapw_p   => null()
+     real(r8), pointer :: store_p  => null()
+     real(r8), pointer :: struct_p => null()
+     
+     real(r8), pointer :: leaf_c(:) => null()
+     real(r8), pointer :: leaf_n(:) => null()
+     real(r8), pointer :: leaf_p(:) => null()
      
      type(prt_vartype),allocatable :: variables(:)    ! The state variables and fluxes
      type(prt_bctype), allocatable :: bc_inout(:)     ! These boundaries may be changed
@@ -246,7 +271,8 @@ module PRTGenericMod
      procedure :: FastPRT             => FastPRTBase
      procedure :: DamageRecovery      => DamageRecoveryBase
      procedure :: GetNutrientTarget   => GetNutrientTargetBase
-     
+     procedure :: CacheIndices        => CacheIndicesBase
+
      ! These are generic functions that should work on all hypotheses
 
      procedure, non_overridable :: InitAllocate
@@ -269,6 +295,15 @@ module PRTGenericMod
      procedure, non_overridable :: WeightedFusePRTVartypes
      procedure, non_overridable :: CopyPRTVartypes
      
+     procedure, non_overridable :: GetLeafC
+     procedure, non_overridable :: GetFnrtC
+     procedure, non_overridable :: GetSapwC
+     procedure, non_overridable :: GetStoreC
+     procedure, non_overridable :: GetStructC
+     procedure, non_overridable :: GetReproC
+     procedure, non_overridable :: GetLeafN
+     procedure, non_overridable :: GetSapwN
+     procedure, non_overridable :: GetFnrtN
      
      procedure :: AgeLeaves  ! This routine may be used generically
                              ! but also leaving the door open for over-rides
@@ -554,6 +589,8 @@ contains
         
      end do
 
+     ! Cache variable indices for fast access (performance optimization)
+     call this%CacheIndices()
      
      return
   end subroutine InitAllocate
@@ -1057,6 +1094,69 @@ contains
       return
     end function GetState
 
+    ! ===================================================================================
+    
+  
+    
+    ! Fast carbon accessors (no map lookup, direct index access)
+    
+    function GetLeafC(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = sum(this%variables(this%i_leaf_c)%val(:))
+    end function GetLeafC
+    
+    function GetFnrtC(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_fnrt_c)%val(1)
+    end function GetFnrtC
+    
+    function GetSapwC(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_sapw_c)%val(1)
+    end function GetSapwC
+    
+    function GetStoreC(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_store_c)%val(1)
+    end function GetStoreC
+    
+    function GetStructC(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_struct_c)%val(1)
+    end function GetStructC
+    
+    function GetReproC(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_repro_c)%val(1)
+    end function GetReproC
+    
+    ! Fast nitrogen accessors
+    
+    function GetLeafN(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_leaf_n)%val(1)
+    end function GetLeafN
+    
+    function GetSapwN(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_sapw_n)%val(1)
+    end function GetSapwN
+    
+    function GetFnrtN(this) result(val)
+      class(prt_vartypes), intent(in) :: this
+      real(r8) :: val
+      val = this%variables(this%i_fnrt_n)%val(1)
+    end function GetFnrtN
+    
+
     ! ====================================================================================
 
     subroutine GetBiomass(this, element_id, &
@@ -1252,6 +1352,14 @@ contains
       call endrun(msg=errMsg(sourcefile, __LINE__))
       
     end function GetCoordVal
+    
+    subroutine CacheIndicesBase(this)
+      
+      class(prt_vartypes) :: this
+      write(fates_log(),*)'CacheIndices must be extended'
+      call endrun(msg=errMsg(sourcefile, __LINE__))
+      
+    end subroutine CacheIndicesBase
 
    ! ====================================================================================
 

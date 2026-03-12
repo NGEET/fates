@@ -67,6 +67,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nlevdamage
   use FatesInterfaceTypesMod         , only : hlm_use_nocomp
   use FatesInterfaceTypesMod         , only : nlevage
+  use EDParamsMod                    , only : maxpatch_total
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : h_allom
   use FatesAllometryMod         , only : bagw_allom
@@ -164,6 +165,9 @@ contains
     allocate(site_in%mass_balance(1:num_elements))
     allocate(site_in%iflux_balance(1:num_elements))
 
+    ! Patch type vector
+    allocate(site_in%pa_vec(maxpatch_total))
+    
     if (hlm_use_tree_damage .eq. itrue) then 
        allocate(site_in%term_nindivs_canopy_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))
        allocate(site_in%term_nindivs_ustory_damage(1:nlevdamage, 1:nlevsclass, 1:numpft))

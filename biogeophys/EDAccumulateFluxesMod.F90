@@ -19,7 +19,8 @@ module EDAccumulateFluxesMod
   private
   !
   public :: AccumulateFluxes_ED
-
+  public :: FatesAccumulatePatchFluxes
+  
   logical :: debug = .false.  ! for debugging this module
 
   character(len=*), parameter, private :: sourcefile = &
@@ -37,9 +38,8 @@ contains
     !
     ! !USES:
 
-    use EDTypesMod        , only : ed_site_type, AREA
+    use EDTypesMod        , only : ed_site_type
     use FatesPatchMod,      only : fates_patch_type
-    use FatesCohortMod,     only : fates_cohort_type
     use FatesInterfaceTypesMod , only : bc_in_type,bc_out_type
 
     !
@@ -51,10 +51,7 @@ contains
     real(r8),           intent(in)            :: dt_time  ! timestep interval
     !
     ! !LOCAL VARIABLES:
-    type(fates_cohort_type), pointer  :: ccohort ! current cohort
     type(fates_patch_type) , pointer  :: cpatch ! current patch
-    integer :: iv !leaf layer
-    integer :: c  ! clm/alm column
     integer :: s  ! ed site
     integer :: ifp ! index fates patch
     !----------------------------------------------------------------------
@@ -73,44 +70,84 @@ contains
           if(cpatch%nocomp_pft_label.ne.nocomp_bareground)then
 
              if( bc_in(s)%filter_photo_pa(ifp) == 3 ) then
-                ccohort => cpatch%shortest
-                do while(associated(ccohort))
 
-                   ! Accumulate fluxes from hourly to daily values. 
-                   ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
+                call FatesAccumulatePatchFluxes(ifp, sites(s), dt_time)
 
-                   ccohort%gpp_acc  = ccohort%gpp_acc  + ccohort%gpp_tstep 
-                   ccohort%resp_m_acc = ccohort%resp_m_acc + ccohort%resp_m_tstep
-
-                   ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
-                   
-                   ! weighted mean of D13C by gpp
-                   if((ccohort%gpp_acc + ccohort%gpp_tstep) .eq. 0.0_r8) then
-                      ccohort%c13disc_acc = 0.0_r8
-                   else
-                      ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + &
-                           (ccohort%c13disc_clm * ccohort%gpp_tstep)) / &
-                           (ccohort%gpp_acc + ccohort%gpp_tstep)
-                   endif
-
-                   do iv=1,ccohort%nv
-                      if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 
-                         ccohort%year_net_uptake(iv) = 0._r8
-                      end if
-                      ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + ccohort%ts_net_uptake(iv)
-                   enddo
-
-                   ccohort => ccohort%taller
-                enddo ! while(associated(ccohort))
              end if
-          end if ! not bare ground
+          end if
 
           cpatch => cpatch%younger
-       end do  ! while(associated(cpatch))
+       end do
     end do
     return
 
   end subroutine AccumulateFluxes_ED
 
+  ! ============================================================================
+  
+  subroutine FatesAccumulatePatchFluxes(ifp, site, dt_time)
+
+    !
+    ! !DESCRIPTION:
+    ! see above
+    !
+    ! !USES:
+
+    use EDTypesMod        , only : ed_site_type
+    use FatesPatchMod,      only : fates_patch_type
+    use FatesCohortMod,     only : fates_cohort_type
+
+    !
+    ! !ARGUMENTS    
+    integer,            intent(in)            :: ifp
+    type(ed_site_type), intent(inout), target :: site
+    real(r8),           intent(in)            :: dt_time  ! timestep interval
+    !
+    ! !LOCAL VARIABLES:
+    integer :: ico
+    type(fates_cohort_type), pointer  :: ccohort ! current cohort
+    type(fates_patch_type) , pointer  :: cpatch ! current patch
+    integer :: iv !leaf layer
+
+    !----------------------------------------------------------------------
+
+    cpatch => site%pa_vec(ifp)%p
+
+    ico=0
+    ccohort => cpatch%tallest
+    do while(associated(ccohort))
+       ico=ico+1
+       ! Accumulate fluxes from hourly to daily values. 
+       ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
+
+       ccohort%g_sb_laweight = cpatch%coarrays%g_sb_laweight(ico)
+       ccohort%gpp_acc  = ccohort%gpp_acc  + cpatch%coarrays%gpp_tstep(ico)
+       ccohort%resp_m_acc = ccohort%resp_m_acc + ccohort%resp_m_tstep
+       
+       ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
+       
+       ! weighted mean of D13C by gpp
+       if((ccohort%gpp_acc + cpatch%coarrays%gpp_tstep(ico)) .eq. 0.0_r8) then
+          ccohort%c13disc_acc = 0.0_r8
+       else
+          ccohort%c13disc_acc  = ((ccohort%c13disc_acc * ccohort%gpp_acc) + &
+               (cpatch%coarrays%c13disc_clm(ico)* cpatch%coarrays%gpp_tstep(ico))) / &
+               (ccohort%gpp_acc + cpatch%coarrays%gpp_tstep(ico))
+       endif
+       
+       do iv=1,ccohort%nv
+          if(ccohort%year_net_uptake(iv) == 999._r8)then ! note that there were leaves in this layer this year. 
+             ccohort%year_net_uptake(iv) = 0._r8
+          end if
+          ccohort%year_net_uptake(iv) = ccohort%year_net_uptake(iv) + cpatch%coarrays%ts_net_uptake(iv,ico)
+       enddo
+       
+       ccohort => ccohort%shorter
+    enddo
+    return
+  end subroutine FatesAccumulatePatchFluxes
+
+
+  
 end module EDAccumulateFluxesMod
 

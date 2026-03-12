@@ -24,8 +24,6 @@ module FatesParameterDerivedMod
 
      real(r8), allocatable :: jmax25top(:,:)  ! canopy top: maximum electron transport 
                                               ! rate at 25C (umol electrons/m**2/s)
-     real(r8), allocatable :: tpu25top(:,:)   ! canopy top: triose phosphate utilization
-                                              ! rate at 25C (umol CO2/m**2/s)
      real(r8), allocatable :: kp25top(:,:)    ! canopy top: initial slope of CO2 response
                                               ! curve (C4 plants) at 25C
 
@@ -57,9 +55,7 @@ contains
     integer, intent(in)                      :: numpft
     
     allocate(this%jmax25top(numpft,nleafage))
-    allocate(this%tpu25top(numpft,nleafage))
     allocate(this%kp25top(numpft,nleafage))
-
     allocate(this%branch_frac(numpft))
     
     
@@ -115,7 +111,6 @@ contains
             ! (2.59_r8 - 0.035_r8*min(max((t10(p)-tfrzc),11._r8),35._r8)) * vcmax25top(ft)
             
             this%jmax25top(ft,iage) = 1.67_r8   * vcmax25top(ft,iage)
-            this%tpu25top(ft,iage)  = 0.167_r8  * vcmax25top(ft,iage)
             this%kp25top(ft,iage)   = 20000._r8 * vcmax25top(ft,iage)
          
          end do

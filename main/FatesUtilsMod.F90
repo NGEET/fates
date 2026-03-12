@@ -253,7 +253,7 @@ contains
 
   end subroutine QuadraticRootsNSWC
   
-  subroutine QuadraticRootsSridharachary(a,b,c,root1,root2,err)
+  pure subroutine QuadraticRootsSridharachary(a,b,c,root1,root2,err)
 
 
     real(r8),intent(in) :: a , b , c !! coefficients
@@ -273,10 +273,8 @@ contains
     end if
 
     d   = b * b - 4._r8 * a * c
-    das = sqrt(abs(d))
- 
     if (d > nearzero) then
-
+       das = sqrt(d)
        root1 = (-b + das) / (2._r8 * a)
        root2 = (-b - das) / (2._r8 * a)
 
@@ -286,11 +284,11 @@ contains
        root2 = root1
     else 
 
-       write (fates_log(),*)'error, imaginary roots detected in quadratic solve'
+       !!write (fates_log(),*)'error, imaginary roots detected in quadratic solve'
        err = .true.
        ! Disable this endrun and use the return err to track down
        ! error provenance 
-       call endrun(msg=errMsg(sourcefile, __LINE__))
+       !!call endrun(msg=errMsg(sourcefile, __LINE__))
        
     end if
     

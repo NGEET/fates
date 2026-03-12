@@ -31,6 +31,7 @@ module EDTypesMod
   use FatesInterfaceTypesMod,only : bc_out_type
   use FatesConstantsMod    , only : n_landuse_cats
   use FatesInterfaceTypesMod,only : hlm_parteh_mode
+  use EDParamsMod,           only : maxpatch_total
   use FatesCohortMod,        only : fates_cohort_type
   use FatesPatchMod,         only : fates_patch_type
   use EDParamsMod,           only : nclmax, nlevleaf, maxpft
@@ -318,15 +319,33 @@ module EDTypesMod
   end type site_massbal_type
   
 
+  type :: fates_patch_vec_type
+
+     ! This is a scratch array for patch pointers
+     ! this is useful if you want to loop over patches
+     ! in order by index. This should be updated
+     ! upon canopy summarization, and should
+     ! facilitate coupling with the host
+     
+     type(fates_patch_type), pointer :: p => null()
+     
+  end type fates_patch_vec_type
+
+  
   !************************************
   !** Site type structure           **
   !************************************
 
+
+
+  
   type, public :: ed_site_type
      
      ! POINTERS  
      type (fates_patch_type), pointer :: oldest_patch => null()   ! pointer to oldest patch at the site  
      type (fates_patch_type), pointer :: youngest_patch => null() ! pointer to yngest patch at the site
+
+     type (fates_patch_vec_type), allocatable :: pa_vec(:)      ! Patch vector by patch no
      
      ! Resource management
      type (ed_resources_management_type) :: resources_management ! resources_management at the site 
@@ -623,13 +642,18 @@ contains
     ! Special case: For no-comp runs, we treat the bare-ground
     ! patch as index 0.
     
-    type(ed_site_type),intent(in) :: currentSite
+    type(ed_site_type),intent(inout) :: currentSite
     logical,intent(in) :: check     ! If true, we are checking order, not setting
     integer,intent(in) :: call_id   ! An index used for testing
     type(fates_patch_type), pointer :: currentPatch
     integer patchno
-
+    
     !---------------------------------------------------------------------
+
+    ! Flush the patch pointers
+    do patchno = 1,maxpatch_total
+       currentSite%pa_vec(patchno)%p => null()
+    end do
     
     patchno = 1
     currentPatch => currentSite%oldest_patch
@@ -647,6 +671,7 @@ contains
              call endrun(msg=errMsg(sourcefile, __LINE__))
           end if
           currentPatch%patchno = patchno
+          currentSite%pa_vec(patchno)%p => currentPatch
           patchno = patchno + 1
        endif
        currentPatch => currentPatch%younger

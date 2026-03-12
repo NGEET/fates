@@ -84,13 +84,12 @@ module FatesCohortMod
     real(r8) :: dbh                     ! diameter at breast height [cm]
     real(r8) :: coage                   ! age [years]
     real(r8) :: height                  ! height [m]
-    integer  :: indexnumber             ! unique number for each cohort (within clump?)
     integer  :: canopy_layer            ! canopy status of cohort [1 = canopy, 2 = understorey, etc.]
     real(r8) :: canopy_layer_yesterday  ! recent canopy status of cohort [1 = canopy, 2 = understorey, etc.]
                                         !   real to be conservative during fusion
     integer  :: crowndamage             ! crown damage class of the cohort [1 = undamaged, >1 = damaged]                     
     real(r8) :: g_sb_laweight           ! total conductance (stomata + boundary layer) of the cohort
-                                        !   weighted by its leaf area [m/s]*[m2]
+                                        !   weighted by its leaf area [m/s]*[m2] (NEEDED FOR RESTART)
     real(r8) :: canopy_trim             ! fraction of the maximum leaf biomass that we are targeting [0-1]
     real(r8) :: leaf_cost               ! how much does it cost to maintain leaves [kgC/m2/year]
     real(r8) :: excl_weight             ! how much of this cohort is demoted each year, as a proportion of all cohorts
@@ -141,7 +140,6 @@ module FatesCohortMod
     !            Units converted to a useful rate [kgC/indiv/yr]
     ! --------------------------------------------------------------------------
 
-    real(r8) :: gpp_tstep                 ! Gross Primary Production (see above *)
     real(r8) :: gpp_acc
     real(r8) :: gpp_acc_hold
     
@@ -153,7 +151,6 @@ module FatesCohortMod
     real(r8) :: resp_m_acc_hold
     real(r8) :: resp_g_acc_hold
 
-    real(r8) :: c13disc_clm               ! carbon 13 discrimination in new synthesized carbon at each indiv/timestep [ppm]
     real(r8) :: c13disc_acc               ! carbon 13 discrimination in new synthesized carbon at each indiv/day
                                           !   at the end of a day [ppm]
     
@@ -163,10 +160,8 @@ module FatesCohortMod
 
     real(r8) :: vcmax25top                ! maximum carboxylation at canopy top and 25degC [umol CO2/m2/s]
     real(r8) :: jmax25top                 ! maximum electron transport rate at canopy top and 25degC [umol electrons/m2/s]
-    real(r8) :: tpu25top                  ! triose phosphate utilization rate at canopy top and 25degC [umol CO2/m2/s]
     real(r8) :: kp25top                   ! initial slope of CO2 response curve (C4 plants) at 25C
 
-    real(r8) :: ts_net_uptake(nlevleaf)   ! net uptake of leaf layers [kgC/m2/timestep]
     real(r8) :: year_net_uptake(nlevleaf) ! net uptake of leaf layers [kgC/m2/year]
 
     ! used for CNP
@@ -213,7 +208,6 @@ module FatesCohortMod
                                  ! to aid in reporting a more accurate sub-daily
                                  ! NEP
 
-    real(r8) :: rdark            ! dark respiration [kgC/indiv/s]
     real(r8) :: resp_m_unreduced ! diagnostic-only unreduced maintenance respiration [kgC/indiv/timestep]
     real(r8) :: livestem_mr      ! aboveground live stem maintenance respiration [kgC/indiv/s]
     real(r8) :: livecroot_mr     ! belowground live stem maintenance respiration [kgC/indiv/s]
@@ -361,7 +355,6 @@ module FatesCohortMod
       this%dbh                     = nan
       this%coage                   = nan 
       this%height                  = nan 
-      this%indexnumber             = fates_unset_int
       this%canopy_layer            = fates_unset_int
       this%canopy_layer_yesterday  = nan  
       this%crowndamage             = fates_unset_int
@@ -386,7 +379,6 @@ module FatesCohortMod
       this%size_class_lasttimestep = fates_unset_int
    
       ! CARBON AND NUTRIENT FLUXES 
-      this%gpp_tstep               = nan
       this%gpp_acc                 = nan
       this%gpp_acc_hold            = nan
       this%npp_acc                 = nan 
@@ -395,14 +387,11 @@ module FatesCohortMod
       this%resp_m_acc              = nan 
       this%resp_m_acc_hold         = nan
       this%resp_g_acc_hold         = nan
-      this%c13disc_clm             = nan
       this%c13disc_acc             = nan
       this%vcmax25top              = nan
       this%jmax25top               = nan
-      this%tpu25top                = nan
       this%kp25top                 = nan
       this%year_net_uptake(:)      = nan 
-      this%ts_net_uptake(:)        = nan
       this%cnp_limiter             = fates_unset_int
       this%cx_int                  = nan
       this%ema_dcxdt               = nan
@@ -423,7 +412,7 @@ module FatesCohortMod
       this%seed_prod               = nan
    
       ! RESPIRATION COMPONENTS
-      this%rdark                   = nan
+      !this%rdark                   = nan
       this%resp_m_unreduced        = nan 
       this%resp_excess_hold        = nan 
       this%livestem_mr             = nan 
@@ -476,8 +465,6 @@ module FatesCohortMod
       ! ARGUMENTS
       class(fates_cohort_type), intent(inout) :: this
       
-      this%g_sb_laweight           = 0._r8
-   
       this%leaf_cost               = 0._r8
       this%excl_weight             = 0._r8
       this%prom_weight             = 0._r8
@@ -490,9 +477,9 @@ module FatesCohortMod
       this%treesai                 = 0._r8
       this%size_class              = 1
       this%coage_class             = 1
-   
+
+      this%g_sb_laweight           = 0._r8
       this%size_class_lasttimestep = 0
-      this%gpp_tstep               = 0._r8
       this%gpp_acc                 = 0._r8
       this%npp_acc                 = 0._r8
       this%resp_m_tstep            = 0._r8
@@ -507,10 +494,8 @@ module FatesCohortMod
       ! this%resp_g_acc_hold         = nan
       ! this%resp_excess_hold        = nan
       
-      this%c13disc_clm             = 0._r8
       this%c13disc_acc             = 0._r8
 
-      this%ts_net_uptake(:)        = 0._r8
       this%year_net_uptake(:)      = 999._r8 ! this needs to be 999, or trimming of new cohorts will break.
    
       this%daily_nh4_uptake        = 0._r8
@@ -533,7 +518,7 @@ module FatesCohortMod
       this%daily_n_demand          = -9._r8
       this%daily_p_demand          = -9._r8
       this%seed_prod               = 0._r8
-      this%rdark                   = 0._r8
+      !this%rdark                   = 0._r8
       this%resp_m_unreduced        = 0._r8
       this%livestem_mr             = 0._r8
       this%livecroot_mr            = 0._r8
@@ -684,8 +669,6 @@ module FatesCohortMod
       class(fates_cohort_type), intent(in)    :: this       ! old cohort 
       class(fates_cohort_type), intent(inout) :: copyCohort ! new cohort
 
-      copyCohort%indexnumber = fates_unset_int
-      
       ! POINTERS
       copyCohort%taller  => NULL() 
       copyCohort%shorter => NULL() 
@@ -724,7 +707,6 @@ module FatesCohortMod
       copyCohort%size_class_lasttimestep = this%size_class_lasttimestep
 
       ! CARBON AND NUTRIENT FLUXES
-      copyCohort%gpp_tstep               = this%gpp_tstep
       copyCohort%gpp_acc                 = this%gpp_acc
       copyCohort%gpp_acc_hold            = this%gpp_acc_hold
       copyCohort%npp_acc                 = this%npp_acc
@@ -733,13 +715,10 @@ module FatesCohortMod
       copyCohort%resp_m_acc              = this%resp_m_acc
       copyCohort%resp_m_acc_hold         = this%resp_m_acc_hold
       copyCohort%resp_g_acc_hold         = this%resp_g_acc_hold
-      copyCohort%c13disc_clm             = this%c13disc_clm
       copyCohort%c13disc_acc             = this%c13disc_acc
       copyCohort%vcmax25top              = this%vcmax25top
       copyCohort%jmax25top               = this%jmax25top
-      copyCohort%tpu25top                = this%tpu25top
       copyCohort%kp25top                 = this%kp25top
-      copyCohort%ts_net_uptake           = this%ts_net_uptake
       copyCohort%year_net_uptake         = this%year_net_uptake
       copyCohort%cnp_limiter             = this%cnp_limiter
 
@@ -764,7 +743,6 @@ module FatesCohortMod
       copyCohort%seed_prod               = this%seed_prod
 
       ! RESPIRATION COMPONENTS
-      copyCohort%rdark                   = this%rdark
       copyCohort%resp_m_unreduced        = this%resp_m_unreduced
       copyCohort%resp_excess_hold        = this%resp_excess_hold
       copyCohort%livestem_mr             = this%livestem_mr
@@ -974,9 +952,6 @@ module FatesCohortMod
         this%jmax25top = sum(param_derived%jmax25top(ipft, 1:nleafage)*        &
           frac_leaf_aclass(1:nleafage))
 
-        this%tpu25top = sum(param_derived%tpu25top(ipft, 1:nleafage)*          &
-          frac_leaf_aclass(1:nleafage))
-
         this%kp25top = sum(param_derived%kp25top(ipft, 1:nleafage)*            &
           frac_leaf_aclass(1:nleafage))
 
@@ -984,14 +959,12 @@ module FatesCohortMod
           
         this%vcmax25top = EDPftvarcon_inst%vcmax25top(ipft, 1)
         this%jmax25top = param_derived%jmax25top(ipft, 1)
-        this%tpu25top = param_derived%tpu25top(ipft, 1)
         this%kp25top = param_derived%kp25top(ipft, 1)
 
       else
       
         this%vcmax25top = 0._r8
         this%jmax25top  = 0._r8
-        this%tpu25top   = 0._r8
         this%kp25top    = 0._r8
 
       end if
@@ -1088,7 +1061,7 @@ module FatesCohortMod
       write(fates_log(),*) 'structural (dead) carbon      = ', this%prt%GetState(struct_organ,carbon12_element) 
       write(fates_log(),*) 'storage carbon                = ', this%prt%GetState(store_organ,carbon12_element) 
       write(fates_log(),*) 'reproductive carbon           = ', this%prt%GetState(repro_organ,carbon12_element) 
-      write(fates_log(),*) 'cohort%g_sb_laweight          = ', this%g_sb_laweight
+      !write(fates_log(),*) 'cohort%g_sb_laweight          = ', this%g_sb_laweight
       write(fates_log(),*) 'cohort%leaf_cost              = ', this%leaf_cost
       write(fates_log(),*) 'cohort%canopy_layer           = ', this%canopy_layer
       write(fates_log(),*) 'cohort%canopy_layer_yesterday = ', this%canopy_layer_yesterday
@@ -1107,14 +1080,12 @@ module FatesCohortMod
       write(fates_log(),*) 'cohort%coage_by_pft_class     = ', this%coage_by_pft_class
       write(fates_log(),*) 'cohort%gpp_acc_hold           = ', this%gpp_acc_hold
       write(fates_log(),*) 'cohort%gpp_acc                = ', this%gpp_acc
-      write(fates_log(),*) 'cohort%gpp_tstep              = ', this%gpp_tstep
       write(fates_log(),*) 'cohort%npp_acc_hold           = ', this%npp_acc_hold
       write(fates_log(),*) 'cohort%npp_acc                = ', this%npp_acc
       write(fates_log(),*) 'cohort%resp_m_tstep           = ', this%resp_m_tstep
       write(fates_log(),*) 'cohort%resp_m_acc             = ', this%resp_m_acc
       write(fates_log(),*) 'cohort%resp_m_acc_hold        = ', this%resp_m_acc_hold
       write(fates_log(),*) 'cohort%resp_g_acc_hold        = ', this%resp_g_acc_hold
-      write(fates_log(),*) 'cohort%rdark                  = ', this%rdark
       write(fates_log(),*) 'cohort%livestem_mr            = ', this%livestem_mr
       write(fates_log(),*) 'cohort%livecroot_mr           = ', this%livecroot_mr
       write(fates_log(),*) 'cohort%froot_mr               = ', this%froot_mr
