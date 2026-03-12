@@ -700,7 +700,7 @@ contains
          ! keep track of number and biomass promoted/demoted
 
          if( layer_co(ic)%pd_area > 0._r8 ) then
-            leaf_c   = cohort%prt%leaf_c
+            leaf_c   = sum(cohort%prt%leaf_c(:))
             store_c  = cohort%prt%store_c
             fnrt_c   = cohort%prt%fnrt_c
             sapw_c   = cohort%prt%sapw_c
@@ -844,6 +844,7 @@ contains
           ! Tracking unique pft counts on this patch
           ! used to help speed up photosynthesis calculations
           currentPatch%unique_pfts(:) = 0
+          currentPatch%upft_index(:)  = 0
           currentPatch%nupft          = 0
            
           !update cohort quantitie s
@@ -854,10 +855,11 @@ contains
 
              if( .not. any(currentPatch%unique_pfts(1:numpft) == ft) )then
                 currentPatch%nupft = currentPatch%nupft+1
-                currentPatch%unique_pfts(currentPatch%nupft)=ft
+                currentPatch%unique_pfts(currentPatch%nupft) = ft
+                currentPatch%upft_index(ft) = currentPatch%nupft
              end if
              
-             leaf_c   = currentCohort%prt%leaf_c
+             leaf_c   = sum(currentCohort%prt%leaf_c(:))
              sapw_c   = currentCohort%prt%sapw_c
              struct_c = currentCohort%prt%struct_c
              fnrt_c   = currentCohort%prt%fnrt_c

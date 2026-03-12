@@ -151,6 +151,7 @@ module FatesPatchMod
 
     integer  :: nupft                        ! number of unique PFTs in the patch
     integer  :: unique_pfts(maxpft)          ! unique PFT indices that are on this patch
+    integer  :: upft_index(maxpft)           ! reverse of unique pfts
     
     !---------------------------------------------------------------------------
 

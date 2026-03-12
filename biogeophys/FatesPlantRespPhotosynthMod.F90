@@ -276,7 +276,7 @@ contains
     real(r8)               :: vmol_cf            ! velocity to molar conductance conversion (m/s) -> (umol/m2/s)
     real(r8) :: leaf_c                           ! Leaf carbon (kgC/plant)
     real(r8) :: leaf_n                           ! leaf nitrogen content (kgN/plant)
-    integer  :: cl,iv,ft,ift,ico                 ! indices
+    integer  :: cl,iv,ft,uft,ift,ico                 ! indices
     integer  :: nv                               ! number of leaf layers
     integer  :: solve_iter                       ! number of iterations required for photosynthesis solve
 
@@ -297,8 +297,13 @@ contains
        call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
+    bc_out%rssun_pa(ifp)     = 0._r8
+    bc_out%rssha_pa(ifp)     = 0._r8
+    patch%c_lblayer          = fates_unset_r8
+    if(patch%num_cohorts == 0) return
+
     associate(co_arr => patch%coarrays)
-    
+
     ! We use this block to enable the use of automatic
     ! arrays (stack) as opposed to dynamic allocations
     ! (heap), which enables faster computation
@@ -329,13 +334,6 @@ contains
       ! (leaf+stem) at the bottom of the layer
       real(r8) :: cohort_layer_elai(patch%nleafmax) ! exposed leaf area index of the layer
       real(r8) :: cohort_layer_esai(patch%nleafmax) ! exposed stem area index of the layer
-
-      ! Part I. Zero output boundary conditions and patch weighted means
-      ! ---------------------------------------------------------------------------
-      bc_out%rssun_pa(ifp)     = 0._r8
-      bc_out%rssha_pa(ifp)     = 0._r8
-      patch%c_lblayer          = fates_unset_r8
-      if(patch%num_cohorts == 0) return
 
       g_sb_leaves = 0._r8
       patch_la    = 0._r8
@@ -404,8 +402,9 @@ contains
          
          ! Identify the canopy layer (cl), functional type (ft)
          ! and the leaf layer (IV) for this cohort
-         ft = co_arr%pft(ico)
-         cl = co_arr%canopy_layer(ico)
+         ft  = co_arr%pft(ico)
+         uft = patch%upft_index(ft)      !unique pft index (1:npfts_unique)
+         cl  = co_arr%canopy_layer(ico)
 
          ! Calculate the cohort specific elai profile
          ! And the top and bottom edges of the veg area index
@@ -460,7 +459,7 @@ contains
                ! age classes
                ! ------------------------------------------------------------
 
-               rate_mask_if: if ( .not.rate_mask_z(iv,ft,cl) .or. &
+               rate_mask_if: if ( .not.rate_mask_z(iv,uft,cl) .or. &
                     (hlm_use_planthydro.eq.itrue) .or. &
                     (hlm_radiation_model .eq. twostr_solver ) .or. &
                     (nleafage > 1) .or. &
@@ -469,9 +468,9 @@ contains
                   ! These values are incremented, therefore since
                   ! sometimes we re-do layers, we need to re-zero them as well
                   ! since it is not an over-write
-                  psn_z(iv,ft,cl) = 0._r8
-                  anet_av_z(iv,ft,cl) = 0._r8
-                  c13disc_z(iv,ft,cl) = 0._r8
+                  psn_z(iv,uft,cl) = 0._r8
+                  anet_av_z(iv,uft,cl) = 0._r8
+                  c13disc_z(iv,uft,cl) = 0._r8
 
                   if (hlm_use_planthydro.eq.itrue ) then
 
@@ -530,7 +529,7 @@ contains
                           ft,                       &  ! in
                           bc_in%t_veg_pa(ifp),      &  ! in
                           patch%bprates,             &  ! in
-                          lmr_z(iv,ft,cl))             ! out
+                          lmr_z(iv,uft,cl))             ! out
 
                   case (lmrmodel_atkin_etal_2017)
 
@@ -550,7 +549,7 @@ contains
                           bc_in%t_veg_pa(ifp),                &  ! in
                           patch%tveg_lpa%GetMean(),           &  ! in
                           patch%bprates,                   &  ! in
-                          lmr_z(iv,ft,cl))                       ! out
+                          lmr_z(iv,uft,cl))                       ! out
 
                   case default
 
@@ -717,7 +716,7 @@ contains
                           mm_kco2,                            &  ! in
                           mm_ko2,                             &  ! in
                           co2_cpoint,                         &  ! in
-                          lmr_z(iv,ft,cl),                    &  ! in
+                          lmr_z(iv,uft,cl),                    &  ! in
                           ci_tol,                             &  ! in
                           psn_ll,                             &  ! out
                           gstoma_ll,                          &  ! out
@@ -732,9 +731,9 @@ contains
                      gstoma = gstoma + area_frac*(gstoma_ll / vmol_cf) 
 
 
-                     psn_z(iv,ft,cl) = psn_z(iv,ft,cl) + area_frac * psn_ll
-                     anet_av_z(iv,ft,cl) = anet_av_z(iv,ft,cl) + area_frac * anet_ll
-                     c13disc_z(iv,ft,cl) = c13disc_z(iv,ft,cl) + area_frac * c13disc_ll
+                     psn_z(iv,uft,cl) = psn_z(iv,uft,cl) + area_frac * psn_ll
+                     anet_av_z(iv,uft,cl) = anet_av_z(iv,uft,cl) + area_frac * anet_ll
+                     c13disc_z(iv,uft,cl) = c13disc_z(iv,uft,cl) + area_frac * c13disc_ll
 
 
                   end do do_sunsha
@@ -742,15 +741,15 @@ contains
                   ! Stomatal resistance of the leaf-layer
                   if ( (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
 
-                     rs_z(iv,ft,cl) = LeafHumidityStomaResis(leaf_psi, EDPftvarcon_inst%hydr_k_lwp(ft), &
+                     rs_z(iv,uft,cl) = LeafHumidityStomaResis(leaf_psi, EDPftvarcon_inst%hydr_k_lwp(ft), &
                           bc_in%t_veg_pa(ifp),bc_in%cair_pa(ifp),bc_in%forc_pbot, &
                           bc_in%rb_pa(ifp), gstoma, ft, bc_in%esat_tv_pa(ifp) )
 
                   else
-                     rs_z(iv,ft,cl)= 1._r8/gstoma
+                     rs_z(iv,uft,cl)= 1._r8/gstoma
                   end if
 
-                  rate_mask_z(iv,ft,cl) = .true.
+                  rate_mask_z(iv,uft,cl) = .true.
 
                end if rate_mask_if
             end do leaf_layer_loop
@@ -774,11 +773,11 @@ contains
             if(hlm_radiation_model.eq.norman_solver) then
 
                call ScaleLeafLayerFluxToCohort(nv,   & !in
-                    psn_z(1:nv,ft,cl),               & !in
-                    lmr_z(1:nv,ft,cl),               & !in
-                    rs_z(1:nv,ft,cl),                & !in
+                    psn_z(1:nv,uft,cl),               & !in
+                    lmr_z(1:nv,uft,cl),               & !in
+                    rs_z(1:nv,uft,cl),                & !in
                     patch%elai_profile(cl,ft,1:nv),  & !in
-                    c13disc_z(1:nv,ft,cl),           & !in
+                    c13disc_z(1:nv,uft,cl),           & !in
                     co_arr%c_area(ico),              & !in
                     co_arr%nplant(ico),              & !in
                     bc_in%rb_pa(ifp),                & !in
@@ -792,11 +791,11 @@ contains
             else
 
                call ScaleLeafLayerFluxToCohort(nv,   & !in
-                    psn_z(1:nv,ft,cl),               & !in
-                    lmr_z(1:nv,ft,cl),               & !in
-                    rs_z(1:nv,ft,cl),                & !in
+                    psn_z(1:nv,uft,cl),               & !in
+                    lmr_z(1:nv,uft,cl),               & !in
+                    rs_z(1:nv,uft,cl),                & !in
                     cohort_layer_elai(1:nv),         & !in
-                    c13disc_z(1:nv,ft,cl),           & !in
+                    c13disc_z(1:nv,uft,cl),           & !in
                     co_arr%c_area(ico),              & !in
                     co_arr%nplant(ico),              & !in
                     bc_in%rb_pa(ifp),                & !in
@@ -810,7 +809,7 @@ contains
 
 
             ! Net Uptake does not need to be scaled, just transfer directly
-            co_arr%ts_net_uptake(1:nv,ico) = anet_av_z(1:nv,ft,cl) * umolC_to_kgC
+            co_arr%ts_net_uptake(1:nv,ico) = anet_av_z(1:nv,uft,cl) * umolC_to_kgC
 
             ! Accumulate the combined conductance (stomatal+leaf boundary layer)
             ! Note that cohort%g_sb_laweight is weighted by the leaf area
