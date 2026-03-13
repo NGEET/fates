@@ -44,6 +44,8 @@ module EDParamsMod
    real(r8),protected, public :: comp_excln_exp                       ! weighting factor (exponent) for canopy layer exclusion and promotion
    real(r8),protected, public :: ED_val_nignitions                    ! number of annual ignitions per square km
    real(r8),protected, public :: ED_val_understorey_death             ! fraction of plants in understorey cohort impacted by overstorey tree-fall
+   real(r8),protected, public :: cwd_hr_frag_frac                     ! fraction of losses from CWD pool that are due to
+                                                                      ! fungal heterotrophic respiration as opposed to fragmentation
    real(r8),protected, public :: ED_val_cwd_fcel                      ! Cellulose fraction for CWD
    real(r8),protected, public :: ED_val_cwd_flig                      ! Lignin fraction of coarse woody debris
    real(r8),protected, public :: maintresp_nonleaf_baserate           ! Base maintenance respiration rate for plant tissues

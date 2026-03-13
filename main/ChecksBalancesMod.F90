@@ -325,13 +325,14 @@ contains
                  - ediag%tot_seed_turnover)
 
             ! Flux for litter: veg turnover + seed turnover - "these are tot_litter_input"
-            !                  fragmentation - 
+            !                  fragmentation - fungal respiration
             !                  burned litter
 
             ibal%iflux_litter = ibal%iflux_litter + &
                  tot_litter_input - &
                  (site_mass%frag_out*area_inv - ediag%tot_seed_turnover) - &
-                 (sum(site_mass%burn_flux_to_atm(:))*area_inv - ediag%burned_liveveg)
+                 (sum(site_mass%burn_flux_to_atm(:))*area_inv - ediag%burned_liveveg) - &
+                 site_mass%funghr_out*area_inv
 
 
             ediag%err_liveveg = ibal%iflux_liveveg - ibal%state_liveveg

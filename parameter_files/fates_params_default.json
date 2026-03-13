@@ -1640,6 +1640,12 @@
       "units": "yr-1",
       "data": [0.52, 0.383, 0.383, 0.19, 1.0, 999.0]
     },
+      "fates_funghr_frac": {
+	  "dtype": "float",
+	  "long_name": "fraction of cwd losses due to fungal respiratoin and not fragmentation",
+	  "units": "-",
+	  "data": [0.5]
+      }
     "fates_frag_cwd_frac": {
       "dtype": "float",
       "dims": ["fates_NCWD"],

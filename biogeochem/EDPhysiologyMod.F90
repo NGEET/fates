@@ -490,6 +490,9 @@ contains
               sum(litt%leaf_fines_frag) + sum(litt%root_fines_frag) + &
               sum(litt%seed_decay) + sum(litt%seed_germ_decay))
 
+         site_mass%funghr_out = site_mass%funghr_out + currentPatch%area * &
+              (sum(litt%ag_cwd_funghr) + sum(litt%bg_cwd_funghr))
+
          ! Track total seed decay diagnostic in [kg/m2/day]
          diag%tot_seed_turnover = diag%tot_seed_turnover + &
               (sum(litt%seed_decay) + sum(litt%seed_germ_decay))*currentPatch%area*area_inv
@@ -562,11 +565,12 @@ contains
        ! -----------------------------------------------------------------------------------
        nlevsoil = size(litt%bg_cwd,dim=2)
        do c = 1,ncwd
-          litt%ag_cwd(c) = litt%ag_cwd(c)  + litt%ag_cwd_in(c) - litt%ag_cwd_frag(c)
+          litt%ag_cwd(c) = litt%ag_cwd(c)  + litt%ag_cwd_in(c) - litt%ag_cwd_frag(c) - litt%ag_cwd_funghr(c)
           do ilyr=1,nlevsoil
              litt%bg_cwd(c,ilyr) = litt%bg_cwd(c,ilyr) &
                   + litt%bg_cwd_in(c,ilyr) &
-                  - litt%bg_cwd_frag(c,ilyr)
+                  - litt%bg_cwd_frag(c,ilyr) &
+                  - litt%bg_cwd_funghr(c,ilyr)
           enddo
        end do
 
@@ -3281,9 +3285,13 @@ contains
        litt%ag_cwd_frag(c)   = litt%ag_cwd(c) * SF_val_max_decomp(c) * &
              years_per_day * fragmentation_scaler(soil_layer_index)
 
+       litt%ag_cwd_funghr(c) = litt%ag_cwd(c) * fung_hetresp_baserate * years_per_day
+       
        do ilyr = 1,nlev_eff_decomp
            litt%bg_cwd_frag(c,ilyr) = litt%bg_cwd(c,ilyr) * SF_val_max_decomp(c) * &
                 years_per_day * fragmentation_scaler(ilyr)
+
+           litt%bg_cwd_funghr(c,ilyr) = litt%bg_cwd(c,ilyr) * fung_hetresp_baserate * years_per_day
        enddo
     end do
 

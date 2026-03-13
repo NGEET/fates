@@ -294,6 +294,8 @@ module EDTypesMod
 
      real(r8) :: frag_out         ! Litter and coarse woody debris fragmentation flux [kg/site/day]
 
+     real(r8) :: funghr_out       ! Losses to fungal respiration [kg/site/day]
+     
      real(r8) :: wood_product_harvest(maxpft)    ! Total mass exported as wood product from wood harvest [kg/site/day]
 
      real(r8) :: wood_product_landusechange(maxpft)    ! Total mass exported as wood product from land use change [kg/site/day]
@@ -715,6 +717,7 @@ contains
       this%seed_in           = 0._r8
       this%seed_out          = 0._r8
       this%frag_out          = 0._r8
+      this%funghr_out        = 0._r8
       this%wood_product_harvest(:)        = 0._r8
       this%wood_product_landusechange(:)  = 0._r8
       this%burn_flux_to_atm(:)            = 0._r8

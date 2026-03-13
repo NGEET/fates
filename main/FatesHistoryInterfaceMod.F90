@@ -402,6 +402,7 @@ module FatesHistoryInterfaceMod
   integer :: ih_tveg_si
   integer :: ih_nep_si
   integer :: ih_hr_si
+  integer :: ih_hr_cwdfung_si
 
   integer :: ih_c_stomata_si
   integer :: ih_c_lblayer_si
@@ -5179,6 +5180,7 @@ contains
     real(r8) :: dt_tstep_inv        ! inverse timestep (1/sec)
     real(r8) :: n_perm2             ! number of plants per square meter
     real(r8) :: sum_area_rad        ! sum of patch canopy areas
+    real(r8) :: cwd_funghr
     real(r8),allocatable :: age_area_rad(:)
 
     type(fates_patch_type),pointer  :: cpatch
@@ -5196,6 +5198,7 @@ contains
          hio_nir_rad_err_si           => this%hvars(ih_nir_rad_err_si)%r81d, &
          hio_nep_si                   => this%hvars(ih_nep_si)%r81d, &
          hio_hr_si                    => this%hvars(ih_hr_si)%r81d, &
+         hio_hr_cwdfung_si            => this%hvars(ih_hr_cwdfung_si)%r81d, &
          hio_gpp_canopy_si            => this%hvars(ih_gpp_canopy_si)%r81d, &
          hio_ar_canopy_si             => this%hvars(ih_ar_canopy_si)%r81d, &
          hio_gpp_understory_si        => this%hvars(ih_gpp_understory_si)%r81d, &
@@ -5246,6 +5249,16 @@ contains
                age_class = get_age_class_index(cpatch%age)
                age_area_rad(age_class) = age_area_rad(age_class) + cpatch%total_canopy_area
             end if
+
+            litt => cpatch%litter(element_pos(carbon12_element))
+
+            ! scale fungal resp to kg/m2/s (currently in kg/m2/day)
+            cwdfung_hr =  cpatch%area*(sum(litt%ag_cwd_funghr) + sum(litt%bg_cwd_funghr))*area_inv
+
+            hio_hr_si(io_si)  = hio_hr_si(io_si) + cwdfung_hr
+            hio_nep_si(io_si) = hio_nep_si(io_si) + cwdfung_hr
+            hio_hr_cwdfung_si(io_si) = hio_hr_cwdfung_si(io_si) + cwdfung_hr
+            
             cpatch => cpatch%younger
          end do
 
@@ -9108,6 +9121,11 @@ contains
             use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
             upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, index = ih_hr_si)
 
+       call this%set_history_var(vname='FATES_CWDFUNGAL_HET_RESP', units='kg m-2 s-1',  &
+            long='heterotrophic respiration strictly from fungal activity in CWD',      &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM',     &
+            upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, index = ih_hr_cwdfung_si)
+        
        hydro_active_if0: if(hlm_use_planthydro.eq.itrue) then
           call this%set_history_var(vname='FATES_SAPFLOW', units='kg m-2 s-1',    &
                long='areal sap flow rate in kg per m2 ground area per second',               &
