@@ -5180,12 +5180,12 @@ contains
     real(r8) :: dt_tstep_inv        ! inverse timestep (1/sec)
     real(r8) :: n_perm2             ! number of plants per square meter
     real(r8) :: sum_area_rad        ! sum of patch canopy areas
-    real(r8) :: cwd_funghr
+    real(r8) :: cwdfung_hr
     real(r8),allocatable :: age_area_rad(:)
 
     type(fates_patch_type),pointer  :: cpatch
     type(fates_cohort_type),pointer :: ccohort
-
+    type(litter_type), pointer :: litt     ! Generic pointer to any litter pool
 
     associate( hio_gpp_si                   => this%hvars(ih_gpp_si)%r81d, &
          hio_npp_si                   => this%hvars(ih_npp_si)%r81d, &
@@ -5252,8 +5252,9 @@ contains
 
             litt => cpatch%litter(element_pos(carbon12_element))
 
-            ! scale fungal resp to kg/m2/s (currently in kg/m2/day)
-            cwdfung_hr =  cpatch%area*(sum(litt%ag_cwd_funghr) + sum(litt%bg_cwd_funghr))*area_inv
+            ! scale fungal resp to from /m2 patch to /m2 site (ie area weighted average)
+            ! convert time units from kg/m2/day to kg/m2/s
+            cwdfung_hr =  cpatch%area*(sum(litt%ag_cwd_funghr) + sum(litt%bg_cwd_funghr))*area_inv*days_per_sec
 
             hio_hr_si(io_si)  = hio_hr_si(io_si) + cwdfung_hr
             hio_nep_si(io_si) = hio_nep_si(io_si) + cwdfung_hr

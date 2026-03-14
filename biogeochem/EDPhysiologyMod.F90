@@ -3295,12 +3295,12 @@ contains
     
     do c = 1,ncwd
 
-       decomp_loss = SF_val_max_decomp(c) * years_per_day * fragmentation_scaler(soil_layer_index)
+       decomp_rate = SF_val_max_decomp(c) * years_per_day * fragmentation_scaler(soil_layer_index)
        litt%ag_cwd_frag(c)   = litt%ag_cwd(c) * decomp_rate * (1._r8-cwd_hr_frag_frac_eff)
        litt%ag_cwd_funghr(c) = litt%ag_cwd(c) * decomp_rate * cwd_hr_frag_frac_eff
        
        do ilyr = 1,nlev_eff_decomp
-          decomp_loss = SF_val_max_decomp(c) * years_per_day * fragmentation_scaler(ilyr)
+          decomp_rate = SF_val_max_decomp(c) * years_per_day * fragmentation_scaler(ilyr)
           litt%bg_cwd_frag(c,ilyr)   = litt%bg_cwd(c,ilyr) * decomp_rate * (1._r8-cwd_hr_frag_frac_eff)
           litt%bg_cwd_funghr(c,ilyr) = litt%bg_cwd(c,ilyr) * decomp_rate * cwd_hr_frag_frac_eff
        enddo

@@ -1685,10 +1685,11 @@
     },
     "fates_cwd_hrfrag_frac": {
 	"dtype": "float",
+	"dims": ["scalar"],
 	"long_name": "fraction of cwd losses due to fungal heterotrophic respiration and not fragmentation",
 	"units": "-",
 	"data": [0.5]
-    }
+    },
     "fates_cnp_eca_plant_escalar": {
       "dtype": "float",
       "dims": ["scalar"],

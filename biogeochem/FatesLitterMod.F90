@@ -101,7 +101,7 @@ module FatesLitterMod
       real(r8),allocatable ::  leaf_fines_frag(:)   ! above ground fines fragmentation flux [kg/m2/day]
       real(r8),allocatable ::  root_fines_frag(:,:) ! kg/m2/day
 
-      real(r8),allocatable ::  ag_cwd_funghr(ncwd)  ! above ground Fungal respiration flux [kg/m2/day]
+      real(r8)             ::  ag_cwd_funghr(ncwd)  ! above ground Fungal respiration flux [kg/m2/day]
       real(r8),allocatable ::  bg_cwd_funghr(:,:)   ! below ground fungal respiration flux [kg/m2/day]
 
       real(r8), allocatable :: seed_decay(:)      ! decay of viable seeds to litter     [kg/m2/day]
@@ -167,8 +167,8 @@ contains
                              donor_litt%ag_cwd_in(c) * donor_weight
        this%ag_cwd_frag(c) = this%ag_cwd_frag(c) *self_weight + &
                              donor_litt%ag_cwd_frag(c) * donor_weight
-       this%ag_cwd_funghr(c)  = this%cwd_funghr(c) * self_weight + &
-                              donor_litt%cwd_funghr(c) * donor_weight
+       this%ag_cwd_funghr(c)  = this%ag_cwd_funghr(c) * self_weight + &
+                              donor_litt%ag_cwd_funghr(c) * donor_weight
        do ilyr = 1,nlevsoil
           this%bg_cwd(c,ilyr)      = this%bg_cwd(c,ilyr) * self_weight + &
                                      donor_litt%bg_cwd(c,ilyr) * donor_weight
@@ -316,7 +316,7 @@ contains
     this%ag_cwd_frag(:)       = fates_unset_r8
     this%ag_cwd_funghr(:)     = fates_unset_r8
     this%bg_cwd_frag(:,:)     = fates_unset_r8
-    this%bg_cwd_funghr(:,;)   = fates_unset_r8
+    this%bg_cwd_funghr(:,:)   = fates_unset_r8
     this%leaf_fines_frag(:)   = fates_unset_r8
     this%root_fines_frag(:,:) = fates_unset_r8
 
