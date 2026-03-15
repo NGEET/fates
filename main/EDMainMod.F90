@@ -554,7 +554,8 @@ contains
              
 
              ! allow herbivores to graze
-             call FatesGrazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height)
+             
+             call FatesGrazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height,currentCohort%npp_acc)
 
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
