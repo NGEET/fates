@@ -5341,7 +5341,7 @@ contains
                           ccohort%resp_m_unreduced * n_perm2 * dt_tstep_inv
 
                      ! Maintenance respiration of different organs
-                     hio_leaf_mr_si(io_si) = hio_leaf_mr_si(io_si) + cpatch%coarrays%rdark(ico) &
+                     hio_leaf_mr_si(io_si) = hio_leaf_mr_si(io_si) + cpatch%coarrays%rdark_tstep(ico) &
                           * n_perm2
                      hio_froot_mr_si(io_si) = hio_froot_mr_si(io_si) + ccohort%froot_mr &
                           * n_perm2
@@ -5521,7 +5521,7 @@ contains
 
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_darkm_si_scpf(io_si,scpf) = hio_ar_darkm_si_scpf(io_si,scpf) + &
-                         cpatch%coarrays%rdark(ico) * n_perm2
+                         cpatch%coarrays%rdark_tstep(ico) * n_perm2
 
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_crootm_si_scpf(io_si,scpf) = hio_ar_crootm_si_scpf(io_si,scpf) + &
@@ -5541,7 +5541,7 @@ contains
 
                        ! size-resolved respiration fluxes are in kg C / m2 / s
                        hio_rdark_canopy_si_scls(io_si,scls) = hio_rdark_canopy_si_scls(io_si,scls) + &
-                            cpatch%coarrays%rdark(ico)  * ccohort%n * ha_per_m2
+                            cpatch%coarrays%rdark_tstep(ico)  * ccohort%n * ha_per_m2
                        hio_livestem_mr_canopy_si_scls(io_si,scls) = hio_livestem_mr_canopy_si_scls(io_si,scls) + &
                             ccohort%livestem_mr  * ccohort%n * ha_per_m2
                        hio_livecroot_mr_canopy_si_scls(io_si,scls) = hio_livecroot_mr_canopy_si_scls(io_si,scls) + &
@@ -5556,7 +5556,7 @@ contains
 
                        ! size-resolved respiration fluxes are in kg C / m2 / s
                        hio_rdark_understory_si_scls(io_si,scls) = hio_rdark_understory_si_scls(io_si,scls) + &
-                            cpatch%coarrays%rdark(ico)  * ccohort%n * ha_per_m2
+                            cpatch%coarrays%rdark_tstep(ico)  * ccohort%n * ha_per_m2
                        hio_livestem_mr_understory_si_scls(io_si,scls) = hio_livestem_mr_understory_si_scls(io_si,scls) + &
                             ccohort%livestem_mr  * ccohort%n  * ha_per_m2
                        hio_livecroot_mr_understory_si_scls(io_si,scls) = hio_livecroot_mr_understory_si_scls(io_si,scls) + &

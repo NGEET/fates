@@ -757,7 +757,7 @@ contains
 
             ! Zero cohort flux accumulators.
             co_arr%gpp_tstep(ico)  = 0.0_r8
-            co_arr%rdark(ico)      = 0.0_r8
+            co_arr%rdark_tstep(ico)      = 0.0_r8
             co_arr%ts_net_uptake(:,ico) = 0.0_r8
             co_arr%c13disc_clm(ico) = 0.0_r8
 
@@ -784,7 +784,7 @@ contains
                     co_arr%mr_reduction_factor(ico), & !in
                     co_arr%g_sb_laweight(ico),       & !out
                     co_arr%gpp_tstep(ico),           & !out
-                    co_arr%rdark(ico),               & !out
+                    co_arr%rdark_tstep(ico),               & !out
                     co_arr%c13disc_clm(ico),         & !out
                     cohort_eleaf_area)                 !out
 
@@ -802,7 +802,7 @@ contains
                     co_arr%mr_reduction_factor(ico), & !in
                     co_arr%g_sb_laweight(ico),       & !out
                     co_arr%gpp_tstep(ico),           & !out
-                    co_arr%rdark(ico),               & !out
+                    co_arr%rdark_tstep(ico),               & !out
                     co_arr%c13disc_clm(ico),         & !out
                     cohort_eleaf_area)                 !out
             end if
@@ -828,7 +828,7 @@ contains
             ! or dark respiration
             cohort_eleaf_area       = 0.0_r8
             co_arr%gpp_tstep(ico)        = 0.0_r8
-            co_arr%rdark(ico)            = 0.0_r8
+            co_arr%rdark_tstep(ico)            = 0.0_r8
             co_arr%g_sb_laweight(ico)    = 0.0_r8
             co_arr%ts_net_uptake(:,ico) = 0.0_r8
 
@@ -1106,7 +1106,7 @@ contains
        cohort%resp_m_tstep = cohort%livestem_mr + &
             cohort%livecroot_mr + &
             cohort%froot_mr + &
-            patch%coarrays%rdark(ico)
+            patch%coarrays%rdark_tstep(ico)
        
        ! no drought response right now.. something like:
        ! resp_m_tstep = resp_m_tstep * (1.0_r8 - patch%btran_ft(cohort%pft) * &

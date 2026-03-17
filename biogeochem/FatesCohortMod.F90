@@ -412,7 +412,6 @@ module FatesCohortMod
       this%seed_prod               = nan
    
       ! RESPIRATION COMPONENTS
-      !this%rdark                   = nan
       this%resp_m_unreduced        = nan 
       this%resp_excess_hold        = nan 
       this%livestem_mr             = nan 
@@ -518,7 +517,6 @@ module FatesCohortMod
       this%daily_n_demand          = -9._r8
       this%daily_p_demand          = -9._r8
       this%seed_prod               = 0._r8
-      !this%rdark                   = 0._r8
       this%resp_m_unreduced        = 0._r8
       this%livestem_mr             = 0._r8
       this%livecroot_mr            = 0._r8

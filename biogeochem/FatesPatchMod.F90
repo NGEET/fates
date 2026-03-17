@@ -93,7 +93,7 @@ module FatesPatchMod
      
      ! Outputs
      real(r8),allocatable :: gpp_tstep(:)     ! GPP [kgC/indiv/s]
-     real(r8),allocatable :: rdark(:)         ! dark respiration [kgC/indiv/s]
+     real(r8),allocatable :: rdark_tstep(:)   ! dark respiration [kgC/indiv/s]
      real(r8),allocatable :: c13disc_clm(:)   ! carbon 13 discrimination [ppm]
      real(r8),allocatable :: g_sb_laweight(:) ! total conductance (stomata +
                                               ! boundary layer) of the cohort
@@ -510,7 +510,7 @@ module FatesPatchMod
             deallocate(this%coarrays%btran)
             deallocate(this%coarrays%leaf_psi)
             deallocate(this%coarrays%gpp_tstep)
-            deallocate(this%coarrays%rdark)
+            deallocate(this%coarrays%rdark_tstep)
             deallocate(this%coarrays%c13disc_clm)
             deallocate(this%coarrays%g_sb_laweight)
             deallocate(this%coarrays%ts_net_uptake)
@@ -539,7 +539,7 @@ module FatesPatchMod
          allocate(this%coarrays%btran(ncohorts+2))
          allocate(this%coarrays%leaf_psi(ncohorts+2))
          allocate(this%coarrays%gpp_tstep(ncohorts+2))
-         allocate(this%coarrays%rdark(ncohorts+2))
+         allocate(this%coarrays%rdark_tstep(ncohorts+2))
          allocate(this%coarrays%c13disc_clm(ncohorts+2))
          allocate(this%coarrays%g_sb_laweight(ncohorts+2))
          allocate(this%coarrays%ts_net_uptake(nveg+2,ncohorts+2))
@@ -1093,7 +1093,7 @@ module FatesPatchMod
          deallocate(this%coarrays%twostr_col)
          deallocate(this%coarrays%leaf_psi)
          deallocate(this%coarrays%gpp_tstep)
-         deallocate(this%coarrays%rdark)
+         deallocate(this%coarrays%rdark_tstep)
          deallocate(this%coarrays%c13disc_clm)
          deallocate(this%coarrays%g_sb_laweight)
          deallocate(this%coarrays%ts_net_uptake)

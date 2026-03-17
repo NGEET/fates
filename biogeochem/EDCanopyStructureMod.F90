@@ -1889,7 +1889,7 @@ contains
        ! OUTPUTS
        !patch%coarrays%resp_m_tstep(ico) = 
        !patch%coarrays%gpp_tstep(ico) = 
-       !patch%coarrays%rdark(ico) = 
+       !patch%coarrays%rdark_tstep(ico) = 
        !patch%coarrays%c13disc_clm(ico) = 
        !patch%coarrays%g_sb_laweight(ico) = 
 
