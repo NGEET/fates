@@ -69,7 +69,7 @@ module FatesPatchMod
 
      integer :: ncohorts ! Number of cohorts on this patch
      
-     ! Cohort Arrays
+     ! Inputs to photosynthesis
      real(r8),allocatable :: vcmax25top(:)          ! vcmax @ 25C top of canopy [umol/m2/s]
      real(r8),allocatable :: jmax25top(:)           ! jmax @ 25C top of canopy [umol/m2/s]
      real(r8),allocatable :: kp25top(:)             ! initial slope co2-curve  @ 25C ...
@@ -82,22 +82,37 @@ module FatesPatchMod
      real(r8),allocatable :: treelai(:)             ! leaf area index of the plant [m2/m2]
      real(r8),allocatable :: height(:)              ! plant height [m]
      real(r8),allocatable :: mr_reduction_factor(:) ! reduction factor for maint resp
+     real(r8),allocatable :: crown_reduction        ! reduction in crown biomass from damage
      real(r8),allocatable :: lnc_top(:)             ! leaf nitrogen conc at the top [gn/m2]
      real(r8),allocatable :: kn_leafn(:)            ! leaf nitrogen vertical decay coeff
      real(r8),allocatable :: kn_atk(:)              ! atkin respiration vertical decay coeff
      integer,allocatable  :: twostr_col(:)          ! this cohorts position index in the two-stream data
      real(r8),allocatable :: btran(:)               ! plant water stress response function [0-1]
 
+     ! Inputs to organ respiration (fnrt,coarse root and above-ground stem) (i.e. nitrogen mass in kg)
+     real(r8),allocatable :: live_stem_n(ico)
+     real(r8),allocatable :: live_croot_n(ico)
+     real(r8),allocatable :: fnrt_n(ico)
+     
      !Hydro only
      real(r8),allocatable :: leaf_psi(:)    !leaf suction [Mpa]
      
-     ! Outputs
+     ! Photosynthesis Outputs
      real(r8),allocatable :: gpp_tstep(:)     ! GPP [kgC/indiv/s]
      real(r8),allocatable :: rdark_tstep(:)   ! dark respiration [kgC/indiv/s]
      real(r8),allocatable :: c13disc_clm(:)   ! carbon 13 discrimination [ppm]
      real(r8),allocatable :: g_sb_laweight(:) ! total conductance (stomata +
                                               ! boundary layer) of the cohort
                                               ! weighted by its leaf area [m/s]*[m2]
+
+     ! Maintenance Respiration Outputs [kgC/indiv/s]
+     real(r8),allocatable :: livestem_mr(:)     ! live stem MR
+     real(r8),allocatable :: froot_mr(:)        ! fine root MR
+     real(r8),allocatable :: nfix_mr(:)         ! respiration driving fixation
+     real(r8),allocatable :: sym_nfix_tstep(:)  ! Symbiotic fixation rate kgN/plant/s
+     real(r8),allocatable :: livecroot_mr(:)    ! live coarse root MR
+     real(r8),allocatable :: resp_m_tstep(:)    ! total MR rate of plant (includes dark)
+     real(r8),allocatable :: resp_m_unreduced(:)! unreduced MR rate
 
      ! Cohort x leaf-layer
      real(r8),allocatable :: ts_net_uptake(:,:) ! Net photosynthesis [kgC/m2/timestep]
@@ -509,11 +524,24 @@ module FatesPatchMod
             deallocate(this%coarrays%twostr_col)
             deallocate(this%coarrays%btran)
             deallocate(this%coarrays%leaf_psi)
+            deallocate(this%coarrays%live_stem_n)
+            deallocate(this%coarrays%live_croot_n)
+            deallocate(this%coarrays%fnrt_n)
+     
             deallocate(this%coarrays%gpp_tstep)
             deallocate(this%coarrays%rdark_tstep)
             deallocate(this%coarrays%c13disc_clm)
             deallocate(this%coarrays%g_sb_laweight)
             deallocate(this%coarrays%ts_net_uptake)
+            
+            deallocate(this%coarrays%livestem_mr)
+            deallocate(this%coarrays%froot_mr)
+            deallocate(this%coarrays%nfix_mr)
+            deallocate(this%coarrays%sym_nfix_tstep)
+            deallocate(this%coarrays%livecroot_mr)
+            deallocate(this%coarrays%resp_m_tstep)
+            deallocate(this%coarrays%resp_m_unreduced)
+
          else
             re_allocate = .false.
          end if
@@ -538,10 +566,20 @@ module FatesPatchMod
          allocate(this%coarrays%twostr_col(ncohorts+2))
          allocate(this%coarrays%btran(ncohorts+2))
          allocate(this%coarrays%leaf_psi(ncohorts+2))
+         allocate(this%coarrays%live_stem_n(ncohorts+2))
+         allocate(this%coarrays%live_croot_n(ncohorts+2))
+         allocate(this%coarrays%fnrt_n(ncohorts+2))
          allocate(this%coarrays%gpp_tstep(ncohorts+2))
          allocate(this%coarrays%rdark_tstep(ncohorts+2))
          allocate(this%coarrays%c13disc_clm(ncohorts+2))
          allocate(this%coarrays%g_sb_laweight(ncohorts+2))
+         allocate(this%coarrays%livestem_mr(ncohorts+2))
+         allocate(this%coarrays%froot_mr(ncohorts+2))
+         allocate(this%coarrays%nfix_mr(ncohorts+2))
+         allocate(this%coarrays%sym_nfix_tstep(ncohorts+2))
+         allocate(this%coarrays%livecroot_mr(ncohorts+2))
+         allocate(this%coarrays%resp_m_tstep(ncohorts+2))
+         allocate(this%coarrays%resp_m_unreduced(ncohorts+2))
          allocate(this%coarrays%ts_net_uptake(nveg+2,ncohorts+2))
 
          this%coarrays%ncohorts = ncohorts
@@ -1092,10 +1130,20 @@ module FatesPatchMod
          deallocate(this%coarrays%btran)
          deallocate(this%coarrays%twostr_col)
          deallocate(this%coarrays%leaf_psi)
+         deallocate(this%coarrays%live_stem_n)
+         deallocate(this%coarrays%live_croot_n)
+         deallocate(this%coarrays%fnrt_n)
          deallocate(this%coarrays%gpp_tstep)
          deallocate(this%coarrays%rdark_tstep)
          deallocate(this%coarrays%c13disc_clm)
          deallocate(this%coarrays%g_sb_laweight)
+         deallocate(this%coarrays%livestem_mr)
+         deallocate(this%coarrays%froot_mr)
+         deallocate(this%coarrays%nfix_mr)
+         deallocate(this%coarrays%sym_nfix_tstep)
+         deallocate(this%coarrays%livecroot_mr)
+         deallocate(this%coarrays%resp_m_tstep)
+         deallocate(this%coarrays%resp_m_unreduced)
          deallocate(this%coarrays%ts_net_uptake)
       end if
 

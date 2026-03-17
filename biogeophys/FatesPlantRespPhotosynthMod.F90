@@ -394,12 +394,6 @@ contains
 
       do ico = 1,co_arr%ncohorts
          
-      !ico=0
-      !cohort => patch%tallest
-      !do_cohort_drive: do while (associated(cohort)) ! Cohort loop
-
-         !ico=ico+1
-         
          ! Identify the canopy layer (cl), functional type (ft)
          ! and the leaf layer (IV) for this cohort
          ft  = co_arr%pft(ico)
@@ -834,7 +828,6 @@ contains
 
          end if canopy_mask_if
          
-         !cohort=>cohort%shorter
       enddo
 
 
@@ -928,35 +921,20 @@ contains
     
     ! Locals
     type (fates_patch_type), pointer  :: patch
-    type (fates_cohort_type), pointer :: cohort
     real(r8) :: fnrt_mr_nfix_layer               ! fineroot maintenance respiration
                                                  ! specifically for symbiotic fixation [kgC/plant/layer/s]
     real(r8) :: nfix_layer                       ! Nitrogen fixed in each layer this timestep [kgN/plant/layer/timestep]
-    real(r8) :: agb_frac                         ! fraction of biomass aboveground
-    real(r8) :: branch_frac                      ! fraction of aboveground woody biomass in branches
-    real(r8) :: crown_reduction                  ! reduction in crown biomass from damage
-    real(r8) :: sapw_c_bgw                       ! belowground sapwood
-    real(r8) :: sapw_c_agw                       ! aboveground sapwood
-    real(r8) :: sapw_c_undamaged                 ! the target sapwood of an undamaged tree
-    real(r8) :: sapw_n                           ! sapwood nitrogen
-    real(r8) :: sapw_n_bgw                       ! nitrogen in belowground portion of sapwood
-    real(r8) :: sapw_n_agw                       ! nitrogen in aboveground portion of sapwood
-    real(r8) :: sapw_n_undamaged                 ! nitrogen in sapwood of undamaged tree
-    real(r8) :: live_stem_n                      ! Live stem (above-ground sapwood)
-                                                 ! nitrogen content (kgN/plant)
-    real(r8) :: live_croot_n                     ! Live coarse root (below-ground sapwood)
-                                                 ! nitrogen content (kgN/plant)
-    real(r8) :: store_c_target                   ! Target storage carbon (kgC/plant)
-    real(r8) :: fnrt_n                           ! Fine root nitrogen content (kgN/plant)
-   
+      
     real(r8) :: tcsoi(bc_in%nlevsoil)            ! Temperature response function for root respiration.
     real(r8) :: tcwood                           ! Temperature response function for wood
     real(r8) :: fnrt_mr_layer                    ! fine root maintenance respiation per layer [kgC/plant/s]
-    integer  :: ft, cl, j                        ! indices: pft, canopy layer, soil layer
+    integer  :: ft, j                            ! indices: pft, soil layer
     real(r8) :: fnrtfrac_ftz(numpft,bc_in%nlevsoil)
     integer  :: ico
     
     patch => site%pa_vec(ifp)%p
+
+    associate(coarr => patch%coarrays)
     
     ! -----------------------------------------------------------------------------------
     ! Calculate the amount of nitrogen in the above and below ground stem and root
@@ -976,126 +954,58 @@ contains
        tcsoi(j) = FastQ10(bc_in%t_soisno_sl(j),20._r8,q10_mr,log_q10_mr_div10)
     end do
 
-    ico = 0
-    cohort => patch%tallest
-    do_cohort_drive: do while (associated(cohort)) ! Cohort loop
 
-       ico = ico +1
-       
-       ! Identify the canopy layer (cl), functional type (ft)
-       ! and the leaf layer (IV) for this cohort
-       ft = cohort%pft
-       cl = cohort%canopy_layer
+    do_cohort: do ico = 1,co_arr%ncohorts
 
-       if (hlm_use_tree_damage .eq. itrue) then
-          
-          ! Crown damage currenly only reduces the aboveground portion of 
-          ! sapwood. Therefore we calculate the aboveground and the belowground portion 
-          ! sapwood for use in stem respiration. 
-          call GetCrownReduction(cohort%crowndamage, crown_reduction)
-          
-       else
-          crown_reduction = 0.0_r8
-       end if
-       
-       ! If crown reduction is zero, undamaged sapwood target will equal sapwood carbon
-       agb_frac = prt_params%allom_agb_frac(cohort%pft)
-       branch_frac = param_derived%branch_frac(cohort%pft)
-       sapw_c_undamaged = cohort%prt%sapw_c / (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
-       
-       ! Undamaged below ground portion
-       sapw_c_bgw = sapw_c_undamaged * (1.0_r8 - agb_frac)
-       
-       ! Damaged aboveground portion
-       sapw_c_agw = cohort%prt%sapw_c - sapw_c_bgw                         
-
-       
-       select case(hlm_parteh_mode)
-       case (prt_carbon_allom_hyp)
-          
-          live_stem_n = sapw_c_agw * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
-          
-          live_croot_n = sapw_c_bgw * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
-          
-          fnrt_n = cohort%prt%fnrt_c * prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
-          
-       case(prt_cnp_flex_allom_hyp)
-          
-          live_stem_n = prt_params%allom_agb_frac(cohort%pft) * &
-               cohort%prt%sapw_n
-          
-          live_croot_n = (1.0_r8-prt_params%allom_agb_frac(cohort%pft)) * &
-               cohort%prt%sapw_n
-          
-          fnrt_n = cohort%prt%fnrt_n
-          
-          if (hlm_use_tree_damage .eq. itrue) then
-             
-             sapw_n_undamaged = cohort%prt%sapw_n / &
-                  (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
-             
-             sapw_n_bgw = sapw_n_undamaged * (1.0_r8 - agb_frac)
-             sapw_n_agw = cohort%prt%sapw_n - sapw_n_bgw
-             
-             live_croot_n = sapw_n_bgw
-             
-             live_stem_n = sapw_n_agw
-             
-          end if
-          
-       case default
-       end select
-       
+       ft = coarr%pft(ico)
        
        ! Live stem MR (kgC/plant/s) (above ground sapwood)
        ! ------------------------------------------------------------------
-       if ( int(prt_params%woody(ft)) == itrue) then
-          ! kgC/s = kgN * kgC/kgN/s
+       ! kgC/s = kgN * kgC/kgN/s
           
-          cohort%livestem_mr  = live_stem_n * maintresp_nonleaf_baserate * tcwood * patch%coarrays%mr_reduction_factor(ico)
-       else
-          cohort%livestem_mr  = 0._r8
-       end if
+       coarr%livestem_mr(ico)  = coarr%live_stem_n(ico) * maintresp_nonleaf_baserate * &
+            tcwood * patch%coarrays%mr_reduction_factor(ico)
 
        ! Fine Root MR  (kgC/plant/s)
        ! and calculate the N fixation rate as a function of the fixation-specific
        ! root respiration for now use dev_arbitrary_pft as scaling term between 0
        ! and 1 as additional increment of root respiration used for N fixation
        ! ------------------------------------------------------------------
-       cohort%froot_mr = 0._r8
-       cohort%sym_nfix_tstep = 0._r8
+       coarr%froot_mr(ico) = 0._r8
+       coarr%sym_nfix_tstep(ico) = 0._r8
        
        ! n_fixation is integrated over the course of the day
        ! this variable is zeroed at the end of the FATES dynamics sequence
        
        do j = 1,bc_in%nlevsoil
 
-          fnrt_mr_layer = fnrt_n * maintresp_nonleaf_baserate * tcsoi(j) * fnrtfrac_ftz(ft,j) * patch%coarrays%mr_reduction_factor(ico)
+          fnrt_mr_layer = coarr%fnrt_n(ico) * maintresp_nonleaf_baserate * tcsoi(j) * &
+               fnrtfrac_ftz(ft,j) * coarr%mr_reduction_factor(ico)
           
-          ! calculate the cost of carbon for N fixation in each soil layer and calculate N fixation rate based on that [kgC / kgN]
+          ! calculate the cost of carbon for N fixation in each soil layer
+          ! and calculate N fixation rate based on that [kgC / kgN]
           
           call RootLayerNFixation(bc_in%t_soisno_sl(j),ft,dtime,fnrt_mr_layer,fnrt_mr_nfix_layer,nfix_layer)
           
-          cohort%froot_mr = cohort%froot_mr + fnrt_mr_nfix_layer + fnrt_mr_layer 
+          coarr%froot_mr(ico) = coarr%froot_mr(ico) + fnrt_mr_nfix_layer + fnrt_mr_layer 
           
-          cohort%sym_nfix_tstep = cohort%sym_nfix_tstep + nfix_layer
+          coarr%sym_nfix_tstep(ico) = coarr%sym_nfix_tstep(ico) + nfix_layer
           
        enddo
        
        ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
        ! ------------------------------------------------------------------
        if ( int(prt_params%woody(ft)) == itrue) then
-          cohort%livecroot_mr = 0._r8
+          coarr%livecroot_mr(ico) = 0._r8
           do j = 1,bc_in%nlevsoil
              ! Soil temperature used to adjust base rate of MR
-             cohort%livecroot_mr = cohort%livecroot_mr + &
-                  live_croot_n * maintresp_nonleaf_baserate * tcsoi(j) * &
-                  fnrtfrac_ftz(ft,j) * patch%coarrays%mr_reduction_factor(ico)
+             coarr%livecroot_mr(ico) = coarr%livecroot_mr(ico) + &
+                  coarr%live_croot_n(ico) * maintresp_nonleaf_baserate * tcsoi(j) * &
+                  fnrtfrac_ftz(ft,j) * coarr%mr_reduction_factor(ico)
           enddo
        else
-          cohort%livecroot_mr = 0._r8
+          coarr%livecroot_mr(ico) = 0._r8
        end if
-       
        
        ! ------------------------------------------------------------------
        ! Part IX: Perform some unit conversions (rate to integrated) and
@@ -1103,24 +1013,23 @@ contains
        ! ------------------------------------------------------------------
        
        ! add on whole plant respiration values in kgC/indiv/s-1
-       cohort%resp_m_tstep = cohort%livestem_mr + &
-            cohort%livecroot_mr + &
-            cohort%froot_mr + &
-            patch%coarrays%rdark_tstep(ico)
+       coarr%resp_m_tstep(ico) = coarr%livestem_mr(ico) + &
+            coarr%livecroot_mr(ico) + &
+            coarr%froot_mr(ico) + &
+            coarr%rdark_tstep(ico)
        
        ! no drought response right now.. something like:
        ! resp_m_tstep = resp_m_tstep * (1.0_r8 - patch%btran_ft(cohort%pft) * &
        !                    EDPftvarcon_inst%resp_drought_response(ft))
        
        ! convert from kgC/indiv/s to kgC/indiv/timestep
-       cohort%resp_m_tstep  = cohort%resp_m_tstep  * dtime
-       patch%coarrays%gpp_tstep(ico) = patch%coarrays%gpp_tstep(ico) * dtime
-       patch%coarrays%ts_net_uptake(:,ico) = patch%coarrays%ts_net_uptake(:,ico) * dtime
+       coarr%resp_m_tstep(ico)  = coarr%resp_m_tstep(ico)  * dtime
+       coarr%gpp_tstep(ico) = coarr%gpp_tstep(ico) * dtime
+       coarr%ts_net_uptake(:,ico) = coarr%ts_net_uptake(:,ico) * dtime
        
        ! save as a diagnostic the un-throttled maintenance respiration to be able to know how strong this is
-       cohort%resp_m_unreduced = cohort%resp_m_tstep / patch%coarrays%mr_reduction_factor(ico)
+       coarr%resp_m_unreduced(ico) = coarr%resp_m_tstep(ico) / coarr%mr_reduction_factor(ico)
        
-       cohort => cohort%shorter
     enddo do_cohort_drive
 
   end subroutine FatesPlantRespPatch
@@ -1233,39 +1142,6 @@ contains
     ! Locals
     integer  :: il                       ! leaf layer index
     real(r8) :: cohort_layer_eleaf_area  ! the effective leaf area of the cohort's current layer [m2]
-
-    !cohort_eleaf_area = 0.0_r8
-   ! g_sb_laweight     = 0.0_r8
-   ! gpp               = 0.0_r8
-    !rdark             = 0.0_r8
-
-    !do il = 1, nv
-
-       ! Cohort's total effective leaf area in this layer [m2]
-       ! leaf area index of the layer [m2/m2 ground] * [m2 ground]
-       ! elai_llz is the LAI for the whole PFT. Multiplying this by the ground
-       ! area this cohort contributes, give the cohort's portion of the leaf
-       ! area in this layer
-     !  cohort_layer_eleaf_area = elai_llz(il) * c_area
-
-       ! Increment the cohort's total effective leaf area [m2]
-      ! cohort_eleaf_area       = cohort_eleaf_area + cohort_layer_eleaf_area
-
-       ! Leaf conductance (stomatal and boundary layer)
-       ! This should be the weighted average over the leaf surfaces.
-       ! Since this is relevant to the stomata, its weighting should be based
-       ! on total leaf area, and not really footprint area
-       ! [m/s] * [m2 cohort's leaf layer]
-       !g_sb_laweight = g_sb_laweight + 1.0_r8/(rs_llz(il)+rb) * cohort_layer_eleaf_area
-
-       ! GPP    [umolC/m2leaf/s] * [m2 leaf ] -> [umolC/s]
-       !gpp = gpp + psn_llz(il) * cohort_layer_eleaf_area
-
-       ! Dark respiration
-       ! [umolC/m2leaf/s] * [m2 leaf] 
-       !rdark = rdark + lmr_llz(il) * cohort_layer_eleaf_area
-
-    !    end do
 
     gpp               = sum(psn_llz(1:nv) * elai_llz(1:nv))*c_area
     g_sb_laweight     = sum(1.0_r8/(rs_llz(1:nv)+rb) * elai_llz(1:nv))*c_area

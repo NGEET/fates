@@ -5328,28 +5328,28 @@ contains
                      
                      ! Net Ecosystem Production [kgC/m2/s]. Use yesterday's growth respiration
                      hio_nep_si(io_si) = hio_nep_si(io_si) + &
-                          (cpatch%coarrays%gpp_tstep(ico)-ccohort%resp_m_tstep) * n_perm2 * dt_tstep_inv - &
+                          (cpatch%coarrays%gpp_tstep(ico)-cpatch%coarrays%resp_m_tstep(ico)) * n_perm2 * dt_tstep_inv - &
                           (ccohort%resp_g_acc_hold+ccohort%resp_excess_hold) * n_perm2 / days_per_year / sec_per_day
 
                      hio_gpp_si(io_si) = hio_gpp_si(io_si) + &
                           cpatch%coarrays%gpp_tstep(ico) * n_perm2 * dt_tstep_inv
 
                      hio_maint_resp_si(io_si) = hio_maint_resp_si(io_si) + &
-                          ccohort%resp_m_tstep * n_perm2 * dt_tstep_inv
-
+                          cpatch%coarrays%resp_m_tstep(ico) * n_perm2 * dt_tstep_inv
+                     
                      hio_maint_resp_unreduced_si(io_si) = hio_maint_resp_unreduced_si(io_si) + &
-                          ccohort%resp_m_unreduced * n_perm2 * dt_tstep_inv
+                          cpatch%coarrays%resp_m_unreduced(ico) * n_perm2 * dt_tstep_inv
 
                      ! Maintenance respiration of different organs
-                     hio_leaf_mr_si(io_si) = hio_leaf_mr_si(io_si) + cpatch%coarrays%rdark_tstep(ico) &
-                          * n_perm2
-                     hio_froot_mr_si(io_si) = hio_froot_mr_si(io_si) + ccohort%froot_mr &
-                          * n_perm2
-                     hio_livecroot_mr_si(io_si) = hio_livecroot_mr_si(io_si) + ccohort%livecroot_mr &
-                          * n_perm2
-                     hio_livestem_mr_si(io_si) = hio_livestem_mr_si(io_si) + ccohort%livestem_mr &
-                          * n_perm2
-
+                     hio_leaf_mr_si(io_si) = hio_leaf_mr_si(io_si) + &
+                          cpatch%coarrays%rdark_tstep(ico) * n_perm2
+                     hio_froot_mr_si(io_si) = hio_froot_mr_si(io_si) + &
+                          cpatch%coarrays%froot_mr(ico) * n_perm2
+                     hio_livecroot_mr_si(io_si) = hio_livecroot_mr_si(io_si) + &
+                          cpatch%coarrays%livecroot_mr(ico) * n_perm2
+                     hio_livestem_mr_si(io_si) = hio_livestem_mr_si(io_si) + &
+                          cpatch%coarrays%livestem_mr(ico) * n_perm2
+                     
                      ! accumulate fluxes on canopy- and understory- separated fluxes
                      ! these fluxes have conversions of [kg/plant/timestep] -> [kg/m2/s]
                      if (ccohort%canopy_layer .eq. 1) then
@@ -5503,7 +5503,7 @@ contains
 
                     ! Total AR (kgC/m2/s) = (kgC/plant/step) / (s/step) * (plant/m2)
                     hio_ar_si_scpf(io_si,scpf)    =   hio_ar_si_scpf(io_si,scpf) + &
-                         (ccohort%resp_m_tstep*dt_tstep_inv) * n_perm2 + &
+                         (cpatch%coarrays%resp_m_tstep(ico)*dt_tstep_inv) * n_perm2 + &
                          (ccohort%resp_g_acc_hold + ccohort%resp_excess_hold)* n_perm2 / days_per_year / sec_per_day
 
                     ! Growth AR (kgC/m2/s)   ! CDK: this should be daily
@@ -5512,12 +5512,12 @@ contains
 
                     ! Maint AR (kgC/m2/s)
                     hio_ar_maint_si_scpf(io_si,scpf) = hio_ar_maint_si_scpf(io_si,scpf) + &
-                         (ccohort%resp_m_tstep*dt_tstep_inv) * n_perm2
+                         (cpatch%coarrays%resp_m_tstep(ico)*dt_tstep_inv) * n_perm2
 
                     ! Maintenance AR partition variables are stored as rates (kgC/plant/s)
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_agsapm_si_scpf(io_si,scpf) = hio_ar_agsapm_si_scpf(io_si,scpf) + &
-                         ccohort%livestem_mr * n_perm2
+                         cpatch%coarrays%livestem_mr(ico) * n_perm2
 
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_darkm_si_scpf(io_si,scpf) = hio_ar_darkm_si_scpf(io_si,scpf) + &
@@ -5525,11 +5525,11 @@ contains
 
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_crootm_si_scpf(io_si,scpf) = hio_ar_crootm_si_scpf(io_si,scpf) + &
-                         ccohort%livecroot_mr * n_perm2
+                         cpatch%coarrays%livecroot_mr(ico) * n_perm2
 
                     ! (kgC/m2/s) = (kgC/plant/s) * (plant/m2)
                     hio_ar_frootm_si_scpf(io_si,scpf) = hio_ar_frootm_si_scpf(io_si,scpf) + &
-                         ccohort%froot_mr * n_perm2
+                         cpatch%coarrays%froot_mr(ico) * n_perm2
 
                     if (cpatch%land_use_label .gt. nocomp_bareground_land) then
                        hio_gpp_si_landuse(io_si,cpatch%land_use_label) = hio_gpp_si_landuse(io_si,cpatch%land_use_label) &
@@ -5543,30 +5543,30 @@ contains
                        hio_rdark_canopy_si_scls(io_si,scls) = hio_rdark_canopy_si_scls(io_si,scls) + &
                             cpatch%coarrays%rdark_tstep(ico)  * ccohort%n * ha_per_m2
                        hio_livestem_mr_canopy_si_scls(io_si,scls) = hio_livestem_mr_canopy_si_scls(io_si,scls) + &
-                            ccohort%livestem_mr  * ccohort%n * ha_per_m2
+                            cpatch%coarrays%livestem_mr(ico)  * ccohort%n * ha_per_m2
                        hio_livecroot_mr_canopy_si_scls(io_si,scls) = hio_livecroot_mr_canopy_si_scls(io_si,scls) + &
-                            ccohort%livecroot_mr  * ccohort%n * ha_per_m2
+                            cpatch%coarrays%livecroot_mr(ico)  * ccohort%n * ha_per_m2
                        hio_froot_mr_canopy_si_scls(io_si,scls) = hio_froot_mr_canopy_si_scls(io_si,scls) + &
-                            ccohort%froot_mr  * ccohort%n * ha_per_m2
+                            cpatch%coarrays%froot_mr(ico)  * ccohort%n * ha_per_m2
                        hio_resp_g_canopy_si_scls(io_si,scls) = hio_resp_g_canopy_si_scls(io_si,scls) + &
                             ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
                        hio_resp_m_canopy_si_scls(io_si,scls) = hio_resp_m_canopy_si_scls(io_si,scls) + &
-                            ccohort%resp_m_tstep  * ccohort%n * dt_tstep_inv * ha_per_m2
+                            cpatch%coarrays%resp_m_tstep(ico)  * ccohort%n * dt_tstep_inv * ha_per_m2
                     else
 
                        ! size-resolved respiration fluxes are in kg C / m2 / s
                        hio_rdark_understory_si_scls(io_si,scls) = hio_rdark_understory_si_scls(io_si,scls) + &
                             cpatch%coarrays%rdark_tstep(ico)  * ccohort%n * ha_per_m2
                        hio_livestem_mr_understory_si_scls(io_si,scls) = hio_livestem_mr_understory_si_scls(io_si,scls) + &
-                            ccohort%livestem_mr  * ccohort%n  * ha_per_m2
+                            cpatch%coarrays%livestem_mr(ico)  * ccohort%n  * ha_per_m2
                        hio_livecroot_mr_understory_si_scls(io_si,scls) = hio_livecroot_mr_understory_si_scls(io_si,scls) + &
-                            ccohort%livecroot_mr  * ccohort%n  * ha_per_m2
+                            cpatch%coarrays%livecroot_mr(ico)  * ccohort%n  * ha_per_m2
                        hio_froot_mr_understory_si_scls(io_si,scls) = hio_froot_mr_understory_si_scls(io_si,scls) + &
-                            ccohort%froot_mr  * ccohort%n  * ha_per_m2
+                            cpatch%coarrays%froot_mr(ico)  * ccohort%n  * ha_per_m2
                        hio_resp_g_understory_si_scls(io_si,scls) = hio_resp_g_understory_si_scls(io_si,scls) + &
                             ccohort%resp_g_acc_hold * n_perm2 / days_per_year / sec_per_day
                        hio_resp_m_understory_si_scls(io_si,scls) = hio_resp_m_understory_si_scls(io_si,scls) + &
-                            ccohort%resp_m_tstep  * ccohort%n * dt_tstep_inv  * ha_per_m2
+                            cpatch%coarrays%resp_m_tstep(ico)  * ccohort%n * dt_tstep_inv  * ha_per_m2
                     endif
                   end associate
                endif

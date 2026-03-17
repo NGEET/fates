@@ -1819,23 +1819,35 @@ contains
     real(r8) :: store_c_target
     real(r8) :: mr_reduction_factor
     real(r8) :: storage_target_frac
+    real(r8) :: agb_frac                         ! fraction of biomass aboveground
+    real(r8) :: branch_frac                      ! fraction of aboveground woody biomass in branches
+    real(r8) :: crown_reduction                  ! reduction in crown biomass from damage
+    real(r8) :: sapw_c_bgw                       ! belowground sapwood
+    real(r8) :: sapw_c_agw                       ! aboveground sapwood
+    real(r8) :: sapw_c_undamaged                 ! the target sapwood of an undamaged tree
+    real(r8) :: sapw_n                           ! sapwood nitrogen
+    real(r8) :: sapw_n_bgw                       ! nitrogen in belowground portion of sapwood
+    real(r8) :: sapw_n_agw                       ! nitrogen in aboveground portion of sapwood
+    real(r8) :: sapw_n_undamaged                 ! nitrogen in sapwood of undamaged tree
+
+    associate(coarr => patch%coarrays)
     
     ico = 0
     cohort => patch%tallest
     do while (associated(cohort))
        ico = ico + 1
 
-       patch%coarrays%vcmax25top(ico) = cohort%vcmax25top
-       patch%coarrays%jmax25top(ico) = cohort%jmax25top
-       patch%coarrays%kp25top(ico) = cohort%kp25top
-       patch%coarrays%pft(ico) = cohort%pft
-       patch%coarrays%c_area(ico) = cohort%c_area
-       patch%coarrays%nplant(ico) = cohort%n
-       patch%coarrays%canopy_layer(ico) = cohort%canopy_layer
-       patch%coarrays%nv(ico) = cohort%nv
-       patch%coarrays%treesai(ico) = cohort%treesai
-       patch%coarrays%treelai(ico) = cohort%treelai
-       patch%coarrays%height(ico) = cohort%height
+       coarr%vcmax25top(ico) = cohort%vcmax25top
+       coarr%jmax25top(ico) = cohort%jmax25top
+       coarr%kp25top(ico) = cohort%kp25top
+       coarr%pft(ico) = cohort%pft
+       coarr%c_area(ico) = cohort%c_area
+       coarr%nplant(ico) = cohort%n
+       coarr%canopy_layer(ico) = cohort%canopy_layer
+       coarr%nv(ico) = cohort%nv
+       coarr%treesai(ico) = cohort%treesai
+       coarr%treelai(ico) = cohort%treelai
+       coarr%height(ico) = cohort%height
 
        call bleaf(cohort%dbh,cohort%pft,&
             cohort%crowndamage,cohort%canopy_trim,1.0_r8,store_c_target)
@@ -1847,8 +1859,8 @@ contains
        call LowstorageMainRespReduction(storage_target_frac,cohort%pft, &
             mr_reduction_factor)
        
-       patch%coarrays%mr_reduction_factor(ico) = mr_reduction_factor
-       patch%coarrays%twostr_col(ico) = cohort%twostr_col
+       coarr%mr_reduction_factor(ico) = mr_reduction_factor
+       coarr%twostr_col(ico) = cohort%twostr_col
        
        ! Leaf nitrogen concentration at the top of the canopy (g N leaf / m**2 leaf)
        ft = cohort%pft
@@ -1865,41 +1877,112 @@ contains
           end if
        end select
        
-       patch%coarrays%lnc_top(ico) = lnc_top
-       patch%coarrays%kn_leafn(ico) =  DecayCoeffVcmax(cohort%vcmax25top, &
+       coarr%lnc_top(ico) = lnc_top
+       coarr%kn_leafn(ico) =  DecayCoeffVcmax(cohort%vcmax25top, &
             prt_params%leafn_vert_scaler_coeff1(ft), &
             prt_params%leafn_vert_scaler_coeff2(ft))
 
-       patch%coarrays%kn_atk(ico) =  DecayCoeffVcmax(cohort%vcmax25top, &
+       coarr%kn_atk(ico) =  DecayCoeffVcmax(cohort%vcmax25top, &
             EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff1(ft), &
             EDPftvarcon_inst%maintresp_leaf_vert_scaler_coeff2(ft))
        
        if (hlm_use_planthydro.eq.itrue ) then
-          patch%coarrays%leaf_psi(ico) = cohort%co_hydr%psi_ag(1)
-          patch%coarrays%btran(ico)    = cohort%co_hydr%btran 
+          coarr%leaf_psi(ico) = cohort%co_hydr%psi_ag(1)
+          coarr%btran(ico)    = cohort%co_hydr%btran 
        else
-          patch%coarrays%btran(ico) = patch%btran_ft(ft)
-          patch%coarrays%leaf_psi(ico) = fates_unset_r8
+          coarr%btran(ico) = patch%btran_ft(ft)
+          coarr%leaf_psi(ico) = fates_unset_r8
        end if
+
+       ! Organ Respiration:
+       ! --------------------------------------------------------------
+       
+       if (hlm_use_tree_damage .eq. itrue) then
+          
+          ! Crown damage currenly only reduces the aboveground portion of 
+          ! sapwood. Therefore we calculate the aboveground and the belowground portion 
+          ! sapwood for use in stem respiration. 
+          call GetCrownReduction(cohort%crowndamage, crown_reduction)
+          
+       else
+          crown_reduction = 0.0_r8
+       end if
+       
+       ! If crown reduction is zero, undamaged sapwood target will equal sapwood carbon
+       agb_frac = prt_params%allom_agb_frac(cohort%pft)
+       branch_frac = param_derived%branch_frac(cohort%pft)
+       sapw_c_undamaged = cohort%prt%sapw_c / (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
+       
+       ! Undamaged below ground portion
+       sapw_c_bgw = sapw_c_undamaged * (1.0_r8 - agb_frac)
+       
+       ! Damaged aboveground portion
+       sapw_c_agw = cohort%prt%sapw_c - sapw_c_bgw                         
+       
+       select case(hlm_parteh_mode)
+       case (prt_carbon_allom_hyp)
+          
+          coarr%live_stem_n(ico) = sapw_c_agw * &
+               prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
+          
+          coarr%live_croot_n(ico) = sapw_c_bgw * &
+               prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(sapw_organ))
+          
+          coarr%fnrt_n(ico) = cohort%prt%fnrt_c * &
+               prt_params%nitr_stoich_p1(ft,prt_params%organ_param_id(fnrt_organ))
+          
+       case(prt_cnp_flex_allom_hyp)
+          
+          coarr%fnrt_n(ico) = cohort%prt%fnrt_n
+          
+          if (hlm_use_tree_damage .eq. itrue) then
+             
+             sapw_n_undamaged = cohort%prt%sapw_n / &
+                  (1.0_r8 - (agb_frac * branch_frac * crown_reduction))
+             
+             sapw_n_bgw = sapw_n_undamaged * (1.0_r8 - agb_frac)
+             sapw_n_agw = cohort%prt%sapw_n - sapw_n_bgw
+             
+             coarr%live_croot_n(ico) = sapw_n_bgw
+             
+             coarr%live_stem_n(ico) = sapw_n_agw
+          else
+             
+             coarr%live_stem_n(ico) = prt_params%allom_agb_frac(cohort%pft) * &
+                  cohort%prt%sapw_n
+             
+             coarr%live_croot_n(ico) = (1.0_r8-prt_params%allom_agb_frac(cohort%pft)) * &
+                  cohort%prt%sapw_n
+             
+          end if
+          
+       case default
+       end select
+
+       ! Force stem respiration to zero for non-woody species
+       if ( int(prt_params%woody(ft)) == ifalse) then
+          coarr%live_stem_n(ico) = 0._r8
+       end if
+       
 
        ! IN/OUT (THIS SHOULDN'T BE NEEDED BUT BTRAN CALCULATION IS
        ! OUT OF ORDER, THIS IS ONLY USED ONCE ON RESTARTS
-       patch%coarrays%g_sb_laweight(ico)    = cohort%g_sb_laweight
+       coarr%g_sb_laweight(ico)    = cohort%g_sb_laweight
 
        ! OUTPUTS
-       !patch%coarrays%resp_m_tstep(ico) = 
-       !patch%coarrays%gpp_tstep(ico) = 
-       !patch%coarrays%rdark_tstep(ico) = 
-       !patch%coarrays%c13disc_clm(ico) = 
-       !patch%coarrays%g_sb_laweight(ico) = 
+       !coarr%resp_m_tstep(ico) = 
+       !coarr%gpp_tstep(ico) = 
+       !coarr%rdark_tstep(ico) = 
+       !coarr%c13disc_clm(ico) = 
+       !coarr%g_sb_laweight(ico) = 
 
        
        cohort => cohort%shorter
     enddo
 
-    patch%coarrays%ncohorts = ico
+    coarr%ncohorts = ico
     
-
+  end associate
     
   end subroutine CopyCohortToCoArray
   

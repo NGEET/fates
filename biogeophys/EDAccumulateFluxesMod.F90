@@ -120,11 +120,14 @@ contains
        ! Accumulate fluxes from hourly to daily values. 
        ! _tstep fluxes are KgC/indiv/timestep _acc are KgC/indiv/day
 
+       ! g_sb_laweight has an order mis-match, which forces us
+       ! to keep it's cohort variable for now (since we need this
+       ! variable on restart)
        ccohort%g_sb_laweight = cpatch%coarrays%g_sb_laweight(ico)
        ccohort%gpp_acc  = ccohort%gpp_acc  + cpatch%coarrays%gpp_tstep(ico)
-       ccohort%resp_m_acc = ccohort%resp_m_acc + ccohort%resp_m_tstep
+       ccohort%resp_m_acc = ccohort%resp_m_acc + cpatch%coarrays%resp_m_tstep(ico)
        
-       ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + ccohort%sym_nfix_tstep
+       ccohort%sym_nfix_daily = ccohort%sym_nfix_daily + cpatch%coarrays%sym_nfix_tstep(ico)
        
        ! weighted mean of D13C by gpp
        if((ccohort%gpp_acc + cpatch%coarrays%gpp_tstep(ico)) .eq. 0.0_r8) then
