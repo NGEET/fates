@@ -469,7 +469,6 @@ contains
        call PRTHerbivoryLosses(prt, leaf_organ, grazing_rate)
 
     end if
-    write(*,*) 'grazing_rate',grazing_rate,lai,npp_acc
     
   end subroutine FatesGrazing
 
