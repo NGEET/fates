@@ -453,7 +453,7 @@ contains
     real(r8) :: crown_depth
     
     grazing_rate = landuse_grazing_rate(land_use_label) * EDPftvarcon_inst%landuse_grazing_palatability(ft)
-    if(npp_acc .le. 0.0_r8 .or. lai .lt. 1.0_r8) then
+    if(npp_acc .le. 0.0_r8 .or. lai .lt. 0.25_r8 .and. land_use_label .eq. cropland) then
        grazing_rate = 0.0_r8
     endif
     if ( grazing_rate .gt. 0._r8) then
