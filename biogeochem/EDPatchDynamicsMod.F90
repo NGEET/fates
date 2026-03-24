@@ -780,9 +780,9 @@ contains
                                ! If we are clearing to make crops, then kill everything
                                if (i_landusechange_receiverpatchlabel .eq. cropland .or. &
                                     i_landusechange_receiverpatchlabel .eq. pastureland) then
-                                  clear_all = itrue
+                                  clear_all = .true.
                                else ! otherwise kill a fraction of the cohort determined by the clearing mortality param
-                                  clear_all = ifalse
+                                  clear_all = .false.
                                end if
                                
                                call landusechange_litter_fluxes(currentSite, currentPatch, &
