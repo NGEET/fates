@@ -200,16 +200,13 @@ contains
     ! Zero mass balance
     call TotalBalanceCheck(currentSite, 0)
 
-    ! We do not allow phenology while in ST3 mode either, it is hypothetically
-    ! possible to allow this, but we have not plugged in the litter fluxes
-    ! of flushing or turning over leaves for non-dynamics runs
-    if (hlm_use_ed_st3.eq.ifalse)then
-      if(hlm_use_sp.eq.ifalse) then
-        call phenology(currentSite, bc_in )
-      else
-        call satellite_phenology(currentSite, bc_in )
-      end if ! SP phenology
-    end if
+    ! Phenology. For now ST3 mode also represents phenology, though it is 
+    ! an incomplete representation as it lacks transfers to the litter layer
+    if (hlm_use_sp == ifalse) then
+       call phenology(currentSite, bc_in )
+    else
+       call satellite_phenology(currentSite, bc_in )
+    end if ! SP phenology
 
 
     if (hlm_use_ed_st3.eq.ifalse.and.hlm_use_sp.eq.ifalse) then   ! Bypass if ST3
