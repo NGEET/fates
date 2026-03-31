@@ -138,6 +138,9 @@ module FatesRestartInterfaceMod
   integer :: ir_daily_p_uptake_co
   integer :: ir_daily_n_demand_co
   integer :: ir_daily_p_demand_co
+  integer :: ir_nh4uptakeflux_co
+  integer :: ir_no3uptakeflux_co
+  integer :: ir_po4uptakeflux_co
   
   integer :: ir_size_class_lasttimestep_co
   integer :: ir_dbh_co
@@ -884,6 +887,21 @@ contains
             long_name='fates cohort- daily nitrogen demand', &
             units='kgN/plant/day', flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_daily_n_demand_co )
+
+       call this%set_restart_var(vname='fates_nh4uptake_flux', vtype=cohort_r8, &
+            long_name='nh4 uptake flux for bc_in structure', &
+            units='kgN/plant/s', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nh4uptakeflux_co)
+
+       call this%set_restart_var(vname='fates_no3uptake_flux', vtype=cohort_r8, &
+            long_name='no3 uptake flux for bc_in structure', &
+            units='kgN/plant/s', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_no3uptakeflux_co)
+
+       call this%set_restart_var(vname='fates_po4uptake_flux', vtype=cohort_r8, &
+            long_name='po4 uptake flux for bc_in structure', &
+            units='kgP/plant/s', flushval = flushzero, &
+            hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_po4uptakeflux_co)       
        
     end if
        
@@ -2193,7 +2211,7 @@ contains
 
  ! =====================================================================================
 
- subroutine set_restart_vectors(this,nc,nsites,sites)
+ subroutine set_restart_vectors(this,nc,nsites,sites,bc_in)
 
    use FatesInterfaceTypesMod, only : fates_maxElementsPerPatch
    use FatesInterfaceTypesMod, only : numpft
@@ -2210,6 +2228,7 @@ contains
     integer                 , intent(in)            :: nc   ! clump index
     integer                 , intent(in)            :: nsites
     type(ed_site_type)      , intent(inout), target :: sites(nsites)
+    type(bc_in_type)                                :: bc_in(nsites)
 
     ! Locals
     integer  :: s                         ! The local site index
@@ -2256,6 +2275,7 @@ contains
     integer  :: patchespersite   ! number of patches per site
     integer  :: cohortsperpatch  ! number of cohorts per patch
 
+    integer  :: icomp            ! competition index (same as cohort)
     integer  :: ft               ! functional type index
     integer  :: el               ! element loop index
     integer  :: c_el             ! element loop index for carbon12
@@ -2624,7 +2644,7 @@ contains
 
           ! new column, reset num patches
           patchespersite = 0
-
+          icomp = 0
           do_patch: do while(associated(cpatch))
 
              ! found patch, increment
@@ -2640,12 +2660,6 @@ contains
                 ! found cohort, increment
                 cohortsperpatch = cohortsperpatch + 1
                 totalCohorts    = totalCohorts + 1
-
-                if ( debug ) then
-                   write(fates_log(),*) 'CLTV io_idx_co ', io_idx_co
-                   write(fates_log(),*) 'CLTV lowerbound ', lbound(rio_npp_acc_co,1)
-                   write(fates_log(),*) 'CLTV upperbound  ', ubound(rio_npp_acc_co,1)
-                endif
 
 
                 ! Fill output arrays of PRT variables
@@ -2695,6 +2709,10 @@ contains
                    this%rvars(ir_daily_n_fixation_co)%r81d(io_idx_co) = ccohort%sym_nfix_daily
                    this%rvars(ir_daily_n_demand_co)%r81d(io_idx_co) = ccohort%daily_n_demand
                    this%rvars(ir_daily_p_demand_co)%r81d(io_idx_co) = ccohort%daily_p_demand
+                   icomp=icomp+1
+                   this%rvars(ir_nh4uptakeflux_co)%r81d(io_idx_co) = bc_in(s)%plant_nh4_uptake_flux(icomp,1)
+                   this%rvars(ir_no3uptakeflux_co)%r81d(io_idx_co) = bc_in(s)%plant_no3_uptake_flux(icomp,1)
+                   this%rvars(ir_po4uptakeflux_co)%r81d(io_idx_co) = bc_in(s)%plant_p_uptake_flux(icomp,1)
                 end if
 
                 if(hlm_use_planthydro==itrue)then
@@ -2710,7 +2728,8 @@ contains
                    this%rvars(ir_hydro_errh2o)%r81d(io_idx_co) = ccohort%co_hydr%errh2o
 
                 end if
-
+                
+                
                 rio_canopy_layer_co(io_idx_co) = ccohort%canopy_layer
                 rio_canopy_layer_yesterday_co(io_idx_co) = ccohort%canopy_layer_yesterday
                 rio_crowndamage_co(io_idx_co) = ccohort%crowndamage
@@ -3261,7 +3280,7 @@ contains
 
    ! ====================================================================================
 
-   subroutine get_restart_vectors(this, nc, nsites, sites)
+   subroutine get_restart_vectors(this, nc, nsites, sites, bc_in)
 
      use EDTypesMod, only : ed_site_type
      use FatesCohortMod, only : fates_cohort_type
@@ -3278,7 +3297,8 @@ contains
      integer                     , intent(in)            :: nc
      integer                     , intent(in)            :: nsites
      type(ed_site_type)          , intent(inout), target :: sites(nsites)
-
+     type(bc_in_type)                                   :: bc_in(nsites)
+     
 
      ! locals
      ! ----------------------------------------------------------------------------------
@@ -3330,6 +3350,7 @@ contains
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
      integer  :: patchespersite   ! number of patches per site
      integer  :: cohortsperpatch  ! number of cohorts per patch
+     integer  :: icomp            ! competition index (same as cohort)
      integer  :: el               ! loop counter for elements
      integer  :: c_el             ! loop counter for carbon12
      integer  :: nlevsoil         ! number of soil layers
@@ -3670,7 +3691,7 @@ contains
 
           ! Perform a check on the number of patches per site
           patchespersite = 0
-
+          icomp = 0
           cpatch => sites(s)%oldest_patch
           do_patch: do while(associated(cpatch))
 
@@ -3741,6 +3762,10 @@ contains
                    ccohort%daily_p_gain = this%rvars(ir_daily_p_uptake_co)%r81d(io_idx_co)
                    ccohort%daily_n_demand = this%rvars(ir_daily_n_demand_co)%r81d(io_idx_co)
                    ccohort%daily_p_demand = this%rvars(ir_daily_p_demand_co)%r81d(io_idx_co)
+                   icomp=icomp+1
+                   bc_in(s)%plant_nh4_uptake_flux(icomp,1) = this%rvars(ir_nh4uptakeflux_co)%r81d(io_idx_co)
+                   bc_in(s)%plant_no3_uptake_flux(icomp,1) = this%rvars(ir_no3uptakeflux_co)%r81d(io_idx_co)
+                   bc_in(s)%plant_p_uptake_flux(icomp,1) = this%rvars(ir_po4uptakeflux_co)%r81d(io_idx_co)
                 end if
 
                 ccohort%seed_prod    = rio_seed_prod_co(io_idx_co)
