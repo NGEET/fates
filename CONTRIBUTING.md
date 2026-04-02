@@ -23,7 +23,7 @@ Those who wish to contribute code to FATES must have those changes integrated th
 
 ## Use of AI Agents
 
-AI agents should not be used to submit pull requests, issues, discussion items or other features available on the developer platforms on which the FATES model is officially hosted (i.e. Github), except on a case-by-case basis.  Approval to do so should be sought and provided by a core member of the FATES development team.  Unapproved submissions will be closed.  Repeated upapproved submissions may culminate in the blocking of the submitting user.
+AI agents should not be used to submit pull requests, issues, discussion items or other features available on the developer platforms on which the FATES model is officially hosted (i.e. Github), except on a case-by-case basis.  Approval to do so should be sought from a core member of the FATES development team.  Unapproved submissions will be closed.  Repeated unapproved submissions may culminate in the blocking of the submitting user.
 
 ## Joining Discussions and Meetings
 
