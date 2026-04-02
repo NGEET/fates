@@ -359,7 +359,7 @@ module FatesHistoryInterfaceMod
   ! land-use-resolved variables
   integer :: ih_fracarea_si_landuse
   integer :: ih_biomass_si_landuse
-     integer :: ih_biomass_si_lupft
+  integer :: ih_biomass_si_lupft
   integer :: ih_burnedarea_si_landuse
   integer :: ih_gpp_si_landuse
   integer :: ih_npp_si_landuse
@@ -651,13 +651,13 @@ module FatesHistoryInterfaceMod
   integer :: ih_meansmp_si_pft
   integer :: ih_elong_factor_si_pft
   integer :: ih_nocomp_pftpatchfraction_si_pft
-     integer :: ih_nocomp_pftpatchfraction_si_lupft
+  integer :: ih_nocomp_pftpatchfraction_si_lupft
   integer :: ih_nocomp_pftnpatches_si_pft
   integer :: ih_nocomp_pftburnedarea_si_pft
   integer :: ih_seeds_out_gc_si_pft
   integer :: ih_seeds_in_gc_si_pft
   integer :: ih_seed_bank_si_pft          ! carbon only
-     integer :: ih_seed_bank_si_lupft        ! carbon only
+  integer :: ih_seed_bank_si_lupft        ! carbon only
   integer :: ih_seeds_in_si_pft           ! carbon only
   integer :: ih_seeds_in_local_si_pft     ! carbon only
   integer :: ih_ungerm_seed_bank_si_pft   ! carbon only
@@ -3143,8 +3143,8 @@ contains
     real(r8) :: a_sapw ! sapwood area [m^2]
     real(r8) :: c_sapw ! sapwood biomass [kgC]
 
-     integer  :: i_dist, j_dist
-     integer  :: i_lupft
+    integer  :: i_dist, j_dist
+    integer  :: i_lupft
 
     type(elem_diag_type), pointer :: elflux_diags
     type(elem_diag_type), pointer :: elflux_diags_c
@@ -3482,14 +3482,14 @@ contains
                    ! there is more than one patch per age class -
                    ! and also pft-labeled patch areas in the event that we are in nocomp mode
                    if ( hlm_use_nocomp .eq. itrue .and. cpatch%nocomp_pft_label .eq. ft) then 
-                      i_lupft = ft + numpft * (cpatch%land_use_label - 1)
 
                       this%hvars(ih_nocomp_pftpatchfraction_si_pft)%r82d(io_si,ft) = &
                            this%hvars(ih_nocomp_pftpatchfraction_si_pft)%r82d(io_si,ft) + cpatch%area * AREA_INV
-
-                      this%hvars(ih_nocomp_pftpatchfraction_si_lupft)%r82d(io_si,i_lupft) = &
-                           this%hvars(ih_nocomp_pftpatchfraction_si_lupft)%r82d(io_si,i_lupft) + cpatch%area * AREA_INV
-
+                      if (cpatch%land_use_label .gt. nocomp_bareground_land) then 
+                          i_lupft = ft + numpft * (cpatch%land_use_label - 1)
+                          this%hvars(ih_nocomp_pftpatchfraction_si_lupft)%r82d(io_si,i_lupft) = &
+                             this%hvars(ih_nocomp_pftpatchfraction_si_lupft)%r82d(io_si,i_lupft) + cpatch%area * AREA_INV
+                      endif
                       this%hvars(ih_nocomp_pftnpatches_si_pft)%r82d(io_si,ft) = &
                            this%hvars(ih_nocomp_pftnpatches_si_pft)%r82d(io_si,ft) + 1._r8
 
@@ -3581,7 +3581,7 @@ contains
                          hio_leafbiomass_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) + &
                               (ccohort%n * AREA_INV) * leaf_m
 
-                        hio_lai_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) * prt_params%slatop(ft)*g_per_kg 
+                         hio_lai_si_pft(io_si,ft) = hio_leafbiomass_si_pft(io_si,ft) * prt_params%slatop(ft)*g_per_kg 
                          
                          hio_storebiomass_si_pft(io_si,ft) = hio_storebiomass_si_pft(io_si,ft) + &
                               (ccohort%n * AREA_INV) * store_m
@@ -3601,10 +3601,11 @@ contains
                          hio_biomass_si_landuse(io_si, cpatch%land_use_label) = &
                               hio_biomass_si_landuse(io_si, cpatch%land_use_label) &
                               + total_m * ccohort%n * AREA_INV
-
-                         i_lupft = ccohort%pft + numpft * (cpatch%land_use_label - 1)
-                         hio_biomass_si_lupft(io_si, i_lupft) = &
-                              hio_biomass_si_lupft(io_si, i_lupft) + total_m * ccohort%n * AREA_INV
+                         if (cpatch%land_use_label .gt. nocomp_bareground_land) then 
+                            i_lupft = ft + numpft * (cpatch%land_use_label - 1)
+                            hio_biomass_si_lupft(io_si, i_lupft) = &
+                                 hio_biomass_si_lupft(io_si, i_lupft) + total_m * ccohort%n * AREA_INV
+                         endif
 
                          if (ccohort%canopy_layer .eq. 1) then
                             storec_canopy_scpf(i_scpf) = &
@@ -3886,7 +3887,7 @@ contains
                              hio_backgroundmortality_carbonflux_si_pft(io_si,ccohort%pft) + &
                              ccohort%bmort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
 
-			hio_senescencemortality_carbonflux_si_pft(io_si,ccohort%pft) = &
+                        hio_senescencemortality_carbonflux_si_pft(io_si,ccohort%pft) = &
                              hio_senescencemortality_carbonflux_si_pft(io_si,ccohort%pft) + &
                              ccohort%smort * total_m * ccohort%n * days_per_sec * years_per_day * ha_per_m2
 
@@ -4053,7 +4054,7 @@ contains
 
                            hio_mortality_understory_si_scpf(io_si,scpf) = hio_mortality_understory_si_scpf(io_si,scpf)+ &
                                 ccohort%SumMortForHistory(per_year = .true.) * ccohort%n / m2_per_ha
-
+			
                            hio_m3_mortality_understory_si_scpf(io_si,scpf) = hio_m3_mortality_understory_si_scpf(io_si,scpf) + &
                                 ccohort%cmort * ccohort%n / m2_per_ha
 
@@ -4223,18 +4224,18 @@ contains
                 ! Update Litter Flux Variables
 
                 litt_c       => cpatch%litter(element_pos(carbon12_element))
-
                 do i_pft = 1, numpft
-                   i_lupft = i_pft + numpft * (cpatch%land_use_label - 1)
 
                    ! Sum up total seed bank (germinated and ungerminated)
                    hio_seed_bank_si_pft(io_si,i_pft) = hio_seed_bank_si_pft(io_si,i_pft) + &
                         (litt_c%seed(i_pft)+litt_c%seed_germ(i_pft)) * cpatch%area * AREA_INV
 
-                   ! Sum up total seed bank (germinated and ungerminated) by land-use x PFT
-                   hio_seed_bank_si_lupft(io_si,i_lupft) = hio_seed_bank_si_lupft(io_si,i_lupft) + &
-                        (litt_c%seed(i_pft)+litt_c%seed_germ(i_pft)) * cpatch%area * AREA_INV
-
+                   if (cpatch%land_use_label .gt. nocomp_bareground_land) then 
+                      ! Sum up total seed bank (germinated and ungerminated) by land-use x PFT
+                      i_lupft = i_pft + numpft * (cpatch%land_use_label - 1)
+                      hio_seed_bank_si_lupft(io_si,i_lupft) = hio_seed_bank_si_lupft(io_si,i_lupft) + &
+                         (litt_c%seed(i_pft)+litt_c%seed_germ(i_pft)) * cpatch%area * AREA_INV
+                   endif
                    ! Sum up total seed bank (just ungerminated)
                    hio_ungerm_seed_bank_si_pft(io_si,i_pft) = hio_ungerm_seed_bank_si_pft(io_si,i_pft) + &
                         litt_c%seed(i_pft) * cpatch%area * AREA_INV
