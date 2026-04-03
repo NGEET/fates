@@ -1673,14 +1673,14 @@
       "dims": ["fates_landuseclass"],
       "long_name": "maximum number of nocomp PFTs on each land use type (only used in nocomp mode)",
       "units": "count",
-      "data": [4, 4, 1, 1, 1]
+      "data": [4, 4, 2, 2, 1]
     },
     "fates_maxpatches_by_landuse": {
       "dtype": "integer",
       "dims": ["fates_landuseclass"],
       "long_name": "maximum number of patches per site on each land use type",
       "units": "count",
-      "data": [9, 4, 1, 1, 1]
+      "data": [9, 4, 2, 2, 1]
     },
     "fates_canopy_closure_thresh": {
       "dtype": "float",
