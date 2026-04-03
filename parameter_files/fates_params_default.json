@@ -1265,9 +1265,16 @@
     "fates_recruit_init_density": {
       "dtype": "float",
       "dims": ["fates_pft"],
-      "long_name": "initial seedling density for a cold-start near-bare-ground simulation. If negative sets initial tree dbh - only to be used in nocomp mode",
+      "long_name": "initial seedling density for a cold-start near-bare-ground simulation.",
       "units": "stems/m2",
       "data": [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.16, 0.2, 0.2, 0.2, 0.2]
+    },
+    "fates_recruit_init_dbh": {
+      "dtype": "float",
+      "dims": ["fates_pft"],
+      "long_name": "initial seedling dbh for a cold-start near-bare-ground simulation. Can only to be used in nocomp mode. To use it set use_dbh_init to true",
+      "units": "cm",
+      "data": [ 1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1]
     },
     "fates_recruit_init_seed": {
       "dtype": "float",

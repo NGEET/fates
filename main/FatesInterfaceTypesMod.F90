@@ -207,6 +207,11 @@ module FatesInterfaceTypesMod
                                                                     ! This need only be defined when
                                                                     ! hlm_use_inventory_init = 1
 
+   integer, public :: hlm_use_dbh_init                              ! Flag to use fates_recruit_init_dbh
+                                                                    ! instead of fates_recruit_init_density
+                                                                    ! only works in nocomp mode
+                                                                    !  1 = TRUE, 0 = FALSE 
+
   integer, public ::  hlm_use_fixed_biogeog                         !  Flag to use FATES fixed biogeography mode
                                                                     !  1 = TRUE, 0 = FALSE 
 
