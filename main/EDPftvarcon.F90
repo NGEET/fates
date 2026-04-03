@@ -1290,6 +1290,13 @@ contains
               write(fates_log(),*) ' Aborting'
               call endrun(msg=errMsg(sourcefile, __LINE__))
            endif
+           if (EDPftvarcon_inst%init_seed(ipft) < nearzero) then
+              write(fates_log(),*) ' You are running in nocomp mode using initial dbh instead of density.'
+              write(fates_log(),*) ' In a cold start run initial seed cannot equal zero '
+              write(fates_log(),*) ' Otherwize mass-balance will not be conserved.'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           endif
         endif
 
         if ( EDPftvarcon_inst%init_seed(ipft) < 0._r8) then

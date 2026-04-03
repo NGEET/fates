@@ -1281,7 +1281,7 @@
       "dims": ["fates_pft"],
       "long_name": "initial seed pool - per m2 of associated pft-patch for no-comp, per m2 of whole site for non no-comp",
       "units": "kg/m2",
-      "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      "data": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
     },
     "fates_recruit_prescribed_rate": {
       "dtype": "float",
