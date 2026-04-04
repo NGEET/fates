@@ -1,0 +1,15 @@
+{
+    "notes":"This set of parameters is used to support NorESM calibration efforts on no-comp configurations. The set generated through this patch file is not complete and should not be considered a release type parameterization",
+    "usage":"This file should be passed as input to the batch patch python script in fates, from the parameter_files directory:, like so: (cd parameter_files;python tools/batch_patch_params.py --fin patch_nocomp_noresm.json)",
+    "base_file":"fates_params_default.json",
+    "new_file":"fates_params_nocomp_noresm.json",
+    "pft_trim_list": [1,2,3,4,5,6,7,8,9,10,11,12,13,14],
+    "parameters":{
+	"pft_parameters":{
+	    "1,2,3,4,5,6,7,8,9,10,11,12,13,14":{
+		"fates_recruit_init_density": [ -1, -1, -1, -1, -1, -1, -0.5, -0.5, -0.5, -0.5, -0.5, -0.1, -0.1, -0.1],
+		"fates_recruit_init_seed": [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+	    }
+	}
+    }
+}

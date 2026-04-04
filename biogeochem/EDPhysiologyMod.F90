@@ -97,7 +97,6 @@ module EDPhysiologyMod
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
-  use EDParamsMod           , only : fates_mortality_disturbance_fraction
   use EDParamsMod           , only : q10_mr
   use EDParamsMod           , only : q10_froz
   use EDParamsMod           , only : logging_export_frac
@@ -292,11 +291,18 @@ contains
 
     ccohort => cpatch%tallest
     do while (associated(ccohort))
-
+       
        ! Ignore damage to new plants and non-woody plants
-       if(prt_params%woody(ccohort%pft)==ifalse  ) cycle
-       if(ccohort%isnew ) cycle
+       if(prt_params%woody(ccohort%pft)==ifalse  ) then
+          ccohort => ccohort%shorter
+          cycle
+       end if
 
+       if(ccohort%isnew ) then
+          ccohort => ccohort%shorter
+          cycle
+       end if
+       
        associate( ipft     => ccohort%pft, &
                   agb_frac => prt_params%allom_agb_frac(ccohort%pft), &
                   branch_frac => param_derived%branch_frac(ccohort%pft))

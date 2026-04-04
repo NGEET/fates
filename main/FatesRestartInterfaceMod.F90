@@ -1207,7 +1207,7 @@ contains
             units='kg/ha/day', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_herbivory_flux_out_si)
        
-       call this%RegisterCohortVector(symbol_base='burn_flux_to_atm', vtype=site_r8, &
+       call this%RegisterCohortVector(symbol_base='burn_flux_to_atm', vtype=cohort_r8, &
             long_name_base='Mass flux of burn loss to the atmosphere at site level', &
             units='kg/ha/day', veclength=num_elements, flushval = flushzero, &
             hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_burn_flux_to_atm_si)
@@ -2248,6 +2248,7 @@ contains
     integer  :: io_idx_si_pft_term ! loop counter for pft, and termination type
     integer  :: io_idx_si_luludi ! site-level lu x lu x ndist index
     integer  :: io_idx_si_lu   ! site-level lu index
+    integer  :: io_idx_si_dist ! site-level disturbance type index
 
     ! Some counters (for checking mostly)
     integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -2568,6 +2569,7 @@ contains
                 io_idx_si_cwd = io_idx_co_1st
                 io_idx_si_pft = io_idx_co_1st
                 io_idx_si_scpf = io_idx_co_1st
+                io_idx_si_dist = io_idx_co_1st
 
                 do i_cwd=1,ncwd
                    this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd) = &
@@ -2591,8 +2593,12 @@ contains
 
                 this%rvars(ir_herbivory_flux_out_si+el-1)%r81d(io_idx_si) = &
                      sites(s)%mass_balance(el)%herbivory_flux_out
-                this%rvars(ir_burn_flux_to_atm_si+el-1)%r81d(io_idx_si) = &
-                     sites(s)%mass_balance(el)%burn_flux_to_atm
+
+                do i_dist=1,n_dist_types
+                   this%rvars(ir_burn_flux_to_atm_si+el-1)%r81d(io_idx_si_dist) = &
+                        sites(s)%mass_balance(el)%burn_flux_to_atm(i_dist)
+                   io_idx_si_dist = io_idx_si_dist + 1
+                end do
 
                 this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%old_stock
                 this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si) = sites(s)%mass_balance(el)%err_fates
@@ -3317,6 +3323,7 @@ contains
      integer  :: io_idx_si_pft_term ! loop counter for pft, and termination type
      integer  :: io_idx_si_luludi ! site-level lu x lu x ndist index
      integer  :: io_idx_si_lu   ! site-level lu x lu x ndist index
+     integer  :: io_idx_si_dist ! site-level disturbance type index
 
      ! Some counters (for checking mostly)
      integer  :: totalcohorts   ! total cohort count on this thread (diagnostic)
@@ -3616,6 +3623,7 @@ contains
                 io_idx_si_cwd = io_idx_co_1st
                 io_idx_si_pft = io_idx_co_1st
                 io_idx_si_scpf = io_idx_co_1st
+                io_idx_si_dist = io_idx_co_1st
 
                 do i_cwd=1,ncwd
                    sites(s)%flux_diags%elem(el)%cwd_ag_input(i_cwd) = this%rvars(ir_cwdagin_flxdg+el-1)%r81d(io_idx_si_cwd)
@@ -3633,9 +3641,13 @@ contains
 
                 sites(s)%mass_balance(el)%herbivory_flux_out = &
                      this%rvars(ir_herbivory_flux_out_si+el-1)%r81d(io_idx_si)
-                sites(s)%mass_balance(el)%burn_flux_to_atm   = &
-                     this%rvars(ir_burn_flux_to_atm_si+el-1)%r81d(io_idx_si)
 
+                do i_dist=1,n_dist_types
+                   sites(s)%mass_balance(el)%burn_flux_to_atm(i_dist) = &
+                        this%rvars(ir_burn_flux_to_atm_si+el-1)%r81d(io_idx_si_dist)
+                   io_idx_si_dist = io_idx_si_dist + 1
+                end do
+                
                 sites(s)%mass_balance(el)%old_stock = this%rvars(ir_oldstock_mbal+el-1)%r81d(io_idx_si)
                 sites(s)%mass_balance(el)%err_fates = this%rvars(ir_errfates_mbal+el-1)%r81d(io_idx_si)
 
