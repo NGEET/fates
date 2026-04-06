@@ -454,6 +454,10 @@ contains
     
     grazing_rate = landuse_grazing_rate(land_use_label) * EDPftvarcon_inst%landuse_grazing_palatability(ft)
     if((npp_acc .le. 0.0_r8 .or. lai .lt. 0.25_r8) .and. land_use_label .eq. cropland) then
+! We allow grazing on cropland at present to loosely mimic the impact of human management on fluxes and LAI. This is a placeholder for a better future model which includes actual planting and harvest.  
+! But if we allow grazing to occur at all times, then the crop plants eventually die in most grid cells. 
+! Restricting grazing to when NPP is positive and LAI > a threshold prevents this in most cases. 
+! In principle this restriction should also apply to rangeland and pasture but we were unable to create a stable situation where LAI/GPP was realistic in all managed land with the same logic and so we only applied this change to crops. 
        grazing_rate = 0.0_r8
     endif
     if ( grazing_rate .gt. 0._r8) then
