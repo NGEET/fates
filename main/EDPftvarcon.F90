@@ -839,7 +839,7 @@ contains
 
      integer :: npft,ipft
 
-     npft = size(EDPftvarcon_inst%initd_fullfates,1)
+     npft = size(EDPftvarcon_inst%initd,1)
 
      if(debug_report .and. is_master) then
 
@@ -1272,7 +1272,7 @@ contains
         !-----------------------------------------------------------------------------------
         
         if ( hlm_use_inventory_init == ifalse .and. & 
-             abs( EDPftvarcon_inst%initd_fullfates(ipft) ) < nearzero ) then
+             abs( EDPftvarcon_inst%initd(ipft) ) < nearzero ) then
           
            write(fates_log(),*) ' In a cold start run initial density cannot be zero.'
            write(fates_log(),*) ' For a bare ground run set to initial recruit density.'
