@@ -257,12 +257,12 @@ contains
     ! -----------------------------------------------------
     
     select case(ccohort%parteh_mode)
-    case (fates_c_only)
+    case (carbon_only)
        prt_global => prt_global_ac
        allocate(callom_prt)
        ccohort%prt => callom_prt
 
-    case(fates_cnp)
+    case(carbon_nitrogen_phosphorus)
        prt_global => prt_global_acnp
        allocate(cnpallom_prt)
        ccohort%prt => cnpallom_prt
@@ -276,7 +276,7 @@ contains
     call ccohort%prt%InitPRTVartype()
 
     select case(ccohort%parteh_mode)
-    case (fates_c_only)
+    case (carbon_only)
 
        call SetState(ccohort%prt,leaf_organ, carbon12_element, leaf_c)
        call SetState(ccohort%prt,fnrt_organ, carbon12_element, fnrt_c)
@@ -291,7 +291,7 @@ contains
        call ccohort%prt%RegisterBCIn(ac_bc_in_id_pft,bc_ival = ccohort%pft)
        call ccohort%prt%RegisterBCIn(ac_bc_in_id_ctrim,bc_rval = ccohort%canopy_trim)
 
-    case (fates_cnp)
+    case (carbon_nitrogen_phosphorus)
 
        ! Initializing with the target stoichiometric ratios
        ! (OR you can initialize with the minimum ratios too.... p2)
@@ -394,7 +394,7 @@ contains
     call PRTMaintTurnover(ccohort%prt, ipft, is_drought)
 
     select case(ccohort%parteh_mode)
-    case (fates_c_only)
+    case (carbon_only)
        prt_global => prt_global_ac
        ccohort%daily_carbon_gain = daily_carbon_gain
 
@@ -403,7 +403,7 @@ contains
        ccohort%daily_r_grow = 0.0_r8
        ccohort%carbon_root_efflux = 0.0_r8
 
-    case (fates_cnp)
+    case (carbon_nitrogen_phosphorus)
 
        prt_global => prt_global_acnp
        ccohort%daily_carbon_gain     = daily_carbon_gain
@@ -457,9 +457,9 @@ contains
     canopy_lai(:) = 0._r8
 
     select case(ccohort%parteh_mode)
-    case (fates_c_only)
+    case (carbon_only)
        prt_global => prt_global_ac
-    case (fates_cnp)
+    case (carbon_nitrogen_phosphorus)
        prt_global => prt_global_acnp
     end select
     
@@ -547,9 +547,9 @@ contains
     ccohort => cohort_array(ipft)   
     
     select case(ccohort%parteh_mode)
-    case (fates_c_only )
+    case (carbon_only )
        prt_global => prt_global_ac
-    case (fates_cnp)
+    case (carbon_nitrogen_phosphorus)
        prt_global => prt_global_acnp
     end select
     
