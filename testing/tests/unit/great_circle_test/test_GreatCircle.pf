@@ -1,0 +1,140 @@
+module test_GreatCircle
+  !
+  ! DESCRIPTION:
+  !		Add description here
+  !
+  use FatesConstantsMod, only : r8 => fates_r8
+  use FatesUtilsMod,     only : GreatCircleDist
+  use FatesConstantsMod, only : earth_radius_eq, rad_per_deg, pi_const
+  use funit
+
+  implicit none
+  
+  @TestCase
+  type, extends(TestCase) :: TestGreatCircle
+  
+  end type TestGreatCircle
+  
+  real(r8), parameter :: tol = 1.e-5
+
+  contains 
+  
+    @Test 
+    subroutine GreatCircle_ZeroDistance(this)
+      ! tests that distance from a point to itself is zero
+      class(TestGreatCircle), intent(inout) :: this
+      real(r8) :: distance ! returned distance
+      
+      distance = GreatCircleDist(45.0_r8, 45.0_r8, 45.0_r8, 45.0_r8)
+      
+      @assertEqual(0.0_r8, distance, tol)
+      
+    end subroutine GreatCircle_ZeroDistance
+    
+    @Test 
+    subroutine GreatCircle_EquatorialDistance(this)
+      ! moves along equator to test distance
+      class(TestGreatCircle), intent(inout) :: this
+      real(r8) :: lat1, lon1 ! point 1
+      real(r8) :: lat2, lon2 ! point 2
+      real(r8) :: distance   ! returned distance
+      real(r8) :: expected   ! expected distance
+      
+      ! move along equator
+      lat1 = 0.0_r8
+      lon1 = 0.0_r8
+      lat2 = 0.0_r8
+      lon2 = 10.0_r8
+      
+      expected = 10.0*rad_per_deg*earth_radius_eq
+      
+      distance = GreatCircleDist(lon1, lon2, lat1, lat2)
+      
+      @assertEqual(expected, distance, tol)
+      
+    end subroutine GreatCircle_EquatorialDistance
+    
+    @Test 
+    subroutine GreatCircle_MeridionalDistance(this)
+      ! moves along a constant longitude
+      class(TestGreatCircle), intent(inout) :: this
+      real(r8) :: lat1, lon1 ! point 1
+      real(r8) :: lat2, lon2 ! point 2
+      real(r8) :: distance   ! returned distance
+      real(r8) :: expected   ! expected distance
+      
+      ! move along pole
+      lat1 = -90.0_r8
+      lon1 = 0.0_r8
+      lat2 = 90.0_r8
+      lon2 = 0.0_r8
+      
+      expected = pi_const*earth_radius_eq
+      
+      distance = GreatCircleDist(lon1, lon2, lat1, lat2)
+      
+      @assertEqual(expected, distance, tol)
+      
+    end subroutine GreatCircle_MeridionalDistance
+    
+    
+    @Test 
+    subroutine GreatCircle_DateLineWrap(this)
+      ! tests that we correctly wrap around the date line
+      ! i.e., -179 and 179 are 2 degrees apart, not 358
+      class(TestGreatCircle), intent(inout) :: this
+      real(r8) :: distance   ! returned distance
+      real(r8) :: expected   ! expected distance
+      
+      distance = GreatCircleDist(179.0_r8, -179.0_r8, 0.0_r8, 0.0_r8)
+      
+      expected = 2.0*rad_per_deg*earth_radius_eq
+      
+      @assertEqual(expected, distance, tol)
+      
+    end subroutine GreatCircle_DateLineWrap
+    
+    @Test 
+    subroutine GreatCircle_LongitudeNorm(this)
+      ! tests that code handles inputs outside (-180 to 180)
+      class(TestGreatCircle), intent(inout) :: this
+      real(r8) :: distance   ! returned distance
+      real(r8) :: expected   ! expected distance
+      
+      distance = GreatCircleDist(350.0_r8, 10.0_r8, 0.0_r8, 0.0_r8)
+      
+      expected = 20.0*rad_per_deg*earth_radius_eq
+      
+      @assertEqual(expected, distance, tol)
+      
+    end subroutine GreatCircle_LongitudeNorm
+    
+    @Test 
+    subroutine GreatCircle_Antipodes(this)
+      ! tests opposite sides of Earth
+      class(TestGreatCircle), intent(inout) :: this
+      real(r8) :: distance   ! returned distance
+      real(r8) :: expected   ! expected distance
+      
+      ! From (0,0) to (180,0) - halfway around the world
+      distance = GreatCircleDist(0.0_r8, 180.0_r8, 0.0_r8, 0.0_r8)
+      
+      expected = 4.0_r8*atan(1.0_r8)*earth_radius_eq
+    
+      @assertRelativelyEqual(expected, distance, 1.0e-12_r8)
+      
+    end subroutine GreatCircle_Antipodes
+    
+    @Test 
+    subroutine GreatCircle_PoleConvergence(this)
+      ! tests that different longitudes at the pole returns 0.0 distance
+      class(TestGreatCircle), intent(inout) :: this
+      real(r8) :: distance ! returned distance
+      
+      ! different longitudes at the same pole should have 0 distance
+      distance = GreatCircleDist(0.0_r8, 180.0_r8, 90.0_r8, 90.0_r8)
+      @assertEqual(0.0_r8, distance, tol)
+      
+    end subroutine GreatCircle_PoleConvergence
+
+end module test_GreatCircle

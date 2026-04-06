@@ -5,25 +5,13 @@ import os
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
-from functional_class import FunctionalTest
+from framework.functional_test import FunctionalTest
 
 
 class {module_name}(FunctionalTest):
-    """Quadratic test class
+    """{module_name} test class
     """
-
-    name = "allometry"
-
-    def __init__(self, test_dict):
-        super().__init__(
-            {module_name}.name,
-            test_dict["test_dir"],
-            test_dict["test_exe"],
-            test_dict["out_file"],
-            test_dict["use_param_file"],
-            test_dict["other_args"],
-        )
-        self.plot = True
+    name = "{test_name}"
 
     def plot_output(self, run_dir: str, save_figs: bool, plot_dir: str):
         """Plots - update this to plot your output
@@ -34,6 +22,5 @@ class {module_name}(FunctionalTest):
             save_figs (bool): whether or not to save the figures
             plot_dir (str): plot directory to save the figures to
         """
-
         pass
 
