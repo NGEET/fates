@@ -25,6 +25,8 @@ Those who wish to contribute code to FATES must have those changes integrated th
 
 AI agents should not be used to submit pull requests, issues, discussion items or other features available on the developer platforms on which the FATES model is officially hosted (i.e. Github), except on a case-by-case basis.  Approval to do so should be sought from a core member of the FATES development team.  Unapproved submissions will be closed.  Repeated unapproved submissions may culminate in the blocking of the submitting user.
 
+Contributors that use generative AI to help develop code are asked to describe its usage when submitting a pull request. Specifically, we request information such as the platform use and the extent of its use in producing the pull request (for example, specific commands versus chunks of code written with generative AI).
+
 ## Joining Discussions and Meetings
 
 In addition to the github discussions, we hold a roughly biweekly call, which covers both scientific and technical issues related to FATES. We use a google group to organize, schedule, and discuss these calls.  Emails to the list are moderated and we try to be pretty ruthless about preventing anything other than this topic from appearing on it.  To join, apply to the group here: https://groups.google.com/forum/#!forum/fates_model
