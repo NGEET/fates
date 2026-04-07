@@ -146,7 +146,7 @@ module EDPftvarcon
      real(r8), allocatable :: rhos(:, :)                 ! Stem reflectance; second dim: 1 = vis, 2 = nir
      real(r8), allocatable :: taul(:, :)                 ! Leaf transmittance; second dim: 1 = vis, 2 = nir
      real(r8), allocatable :: taus(:, :)                 ! Stem transmittance; second dim: 1 = vis, 2 = nir
-     real(r8),  allocatable :: voc_pftindex(:)            ! Index for MEGAN parameters 
+     integer,  allocatable :: voc_pftindex(:)            ! Index for MEGAN parameters 
      
      ! Fire Parameters (No PFT vector capabilities in their own routines)
      ! See fire/SFParamsMod.F90 for bulk of fire parameters
@@ -290,7 +290,7 @@ module EDPftvarcon
      real(r8), allocatable :: landuse_grazing_palatability(:) ! Relative intensity of leaf grazing/browsing per PFT (unitless 0-1)
 
      ! dry deposition
-     real(r8), allocatable :: wesley_pft_index_fordrydep(:)
+     integer, allocatable :: wesley_pft_index_fordrydep(:)
 
   end type EDPftvarcon_type
 
@@ -722,8 +722,11 @@ contains
 
     param_p => pstruct%GetParamFromName('fates_wesley_pft_index_fordrydep')
     allocate(EDPftvarcon_inst%wesley_pft_index_fordrydep(numpft))
-    EDPftvarcon_inst%wesley_pft_index_fordrydep(:) = param_p%r_data_1d(:)
+    EDPftvarcon_inst%wesley_pft_index_fordrydep(:) = param_p%i_data_1d(:)
 
+    param_p => pstruct%GetParamFromName('fates_voc_pftindex')
+    allocate(EDPftvarcon_inst%voc_pftindex(numpft))
+    EDPftvarcon_inst%voc_pftindex(:) = param_p%i_data_1d(:)
 
     ! Section 2: 2D PFT x HLM-PFT dimension
     ! --------------------------------------------------------------------------
