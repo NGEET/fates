@@ -56,15 +56,15 @@ module JSONParameterUtilsMod
   integer, parameter :: r8 = selected_real_kind(12) ! 8 byte real
   
   ! Data types
-  integer, parameter :: r_scalar_type = 1
-  integer, parameter :: r_1d_type     = 2
-  integer, parameter :: r_2d_type     = 3
-  integer, parameter :: i_scalar_type = 4
-  integer, parameter :: i_1d_type     = 5
-  integer, parameter :: i_2d_type     = 6
-  integer, parameter :: c_solo_type   = 7
-  integer, parameter :: c_1d_type     = 8
-  integer, parameter :: c_2d_type     = 9
+  integer, public, parameter :: r_scalar_type = 1
+  integer, public, parameter :: r_1d_type     = 2
+  integer, public, parameter :: r_2d_type     = 3
+  integer, public, parameter :: i_scalar_type = 4
+  integer, public, parameter :: i_1d_type     = 5
+  integer, public, parameter :: i_2d_type     = 6
+  integer, public, parameter :: c_solo_type   = 7
+  integer, public, parameter :: c_1d_type     = 8
+  integer, public, parameter :: c_2d_type     = 9
 
   logical, parameter :: debug = .false.
 
@@ -161,6 +161,7 @@ module JSONParameterUtilsMod
    contains
      procedure :: GetDimSizeFromName
      procedure :: GetParamFromName
+     procedure :: GetIndexFromName
      procedure :: ReportAccessCounts
      procedure :: Destroy
   end type params_type
@@ -1133,26 +1134,38 @@ contains
 
   ! =====================================================================================
 
-  function GetParamFromName(this,param_name) result(param_ptr)
+  function GetIndexFromName(this,param_name) result(i)
+    
+    class(params_type)       :: this
+    character(len=*)         :: param_name
+    integer                  :: i
+    
+    loop_params: do i = 1,size(this%parameters)
+       if(trim(param_name)==this%parameters(i)%name)then
+          this%parameters(i)%access_count = this%parameters(i)%access_count + 1
+          return
+       end if
+    end do loop_params
+    
+    write(log_unit,*)'Error finding parameter by name,scanned ',size(this%parameters),' parameters'
+    write(log_unit,*)'Cant find: ',trim(param_name)
+    call shr_sys_abort()
+    
+  end function GetIndexFromName
 
+  ! =============================================================================
+  
+  function GetParamFromName(this,param_name) result(param_ptr)
+    
     class(params_type)       :: this
     character(len=*)         :: param_name
     type(param_type),pointer :: param_ptr
     integer                  :: i
     
     nullify(param_ptr)
-    loop_params: do i = 1,size(this%parameters)
-       if(trim(param_name)==this%parameters(i)%name)then
-          param_ptr=>this%parameters(i)
-          this%parameters(i)%access_count = this%parameters(i)%access_count + 1
-          return
-       end if
-    end do loop_params
-
-    write(log_unit,*)'Error finding parameter by name,scanned ',size(this%parameters),' parameters'
-    write(log_unit,*)'Cant find: ',trim(param_name)
-    call shr_sys_abort()
-    
+    i = this%GetIndexFromName(param_name)
+    param_ptr=>this%parameters(i)
+        
   end function GetParamFromName
 
   ! =====================================================================================
