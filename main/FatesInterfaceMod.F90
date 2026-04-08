@@ -979,15 +979,8 @@ contains
          end if
          
          if (hlm_parteh_mode == carbon_nitrogen_phosphorus) then
-
-            if((p_uptake_mode==coupled_p_uptake) .or. (n_uptake_mode==coupled_n_uptake))then
-               max_comp_per_site = fates_maxElementsPerSite
-               fates_np_comp_scaling = coupled_np_comp_scaling
-            else
-               max_comp_per_site = 1
-               fates_np_comp_scaling = trivial_np_comp_scaling
-            end if
-
+            max_comp_per_site = fates_maxElementsPerSite
+            fates_np_comp_scaling = coupled_np_comp_scaling
          else
             max_comp_per_site = 1
             fates_np_comp_scaling = trivial_np_comp_scaling
