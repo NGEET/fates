@@ -543,8 +543,8 @@ contains
                 ! where pft_areafrac_lu is the area of land in each HLM PFT and land use type (from surface dataset)
                 ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
 
-                ! First check for NaNs in bc_in(s)%pft_areafrac_lu. If so, make everything bare ground.
-                if ( .not. (any( isnan( bc_in(s)%pft_areafrac_lu (:,:) )) .or. isnan( bc_in(s)%baregroundfrac))) then
+                ! First check for missing values in bc_in(s)%pft_areafrac_lu. If so, make everything bare ground.
+                if ( .not. (any(bc_in(s)%pft_areafrac_lu (:,:) == -999.0) .or. (bc_in(s)%baregroundfrac == -999.0))) then
                    do i_landusetype = 1, n_landuse_cats
                       if (.not. is_crop(i_landusetype)) then
                          do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
