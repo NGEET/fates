@@ -340,7 +340,7 @@ contains
     real(r8), intent(inout) :: luh_vector(:)  ! [m2/m2]
     logical, intent(out)    :: modified_flag
 
-    ! Check to see if the incoming luh2 vector is NaN.
+    ! Check to see if the incoming luh2 vector is missing.
     ! This suggests that there is a discepency where the HLM and LUH2 states
     ! there is vegetated ground. E.g. LUH2 data is missing for glacier-margin
     ! regions such as Antarctica. In this case, states should be Nan.  If so,
@@ -349,18 +349,18 @@ contains
     ! the data, so end the run.
 
     modified_flag = .false.
-    if (all(isnan(luh_vector))) then
+    if (all(luh_vector == -999.0)) then
        luh_vector(:) = 0._r8
        ! Check if this is a state vector, otherwise leave transitions as zero
        if (size(luh_vector) .eq. hlm_num_luh2_states) then
           luh_vector(primaryland) = 1._r8
        end if
        modified_flag = .true.
-       !write(fates_log(),*) 'WARNING: land use state is all NaN;
+       !write(fates_log(),*) 'WARNING: land use state is all missing values';
        !setting state as all primary forest.' ! GL DIAG
-    else if (any(isnan(luh_vector))) then
-       if (any(.not. isnan(luh_vector))) then
-          write(fates_log(),*) 'ERROR: land use vector has NaN'
+    else if (any(luh_vector == -999.0)) then
+       if (any(.not. (luh_vector == -999.0))) then
+          write(fates_log(),*) 'ERROR: land use vector has missing values'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
     end if
