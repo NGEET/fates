@@ -547,8 +547,8 @@ contains
                 ! First check for missing values in bc_in(s)%pft_areafrac_lu. If so, make everything bare ground.
                 if ( .not.( any( isnan(bc_in(s)%pft_areafrac_lu(:,:)) .or. &
                             abs(bc_in(s)%pft_areafrac_lu (:,:) - fates_unset_luh) < nearzero) .or. &
-                     ( isnan(bc_in(s)%bareground_frac) .or. &
-                     abs(bc_in(s)%bareground_frac - fates_unset_luh) < nearzero )))then
+                     ( isnan(bc_in(s)%baregroundfrac) .or. &
+                     abs(bc_in(s)%baregroundfrac - fates_unset_luh) < nearzero )))then
                    do i_landusetype = 1, n_landuse_cats
                       if (.not. is_crop(i_landusetype)) then
                          do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
