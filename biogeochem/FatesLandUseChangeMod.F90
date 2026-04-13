@@ -350,7 +350,8 @@ contains
     ! the data, so end the run.
 
     modified_flag = .false.
-    if (all(isnan(luh_vector)) .or. all(luh_vector == fates_unset_luh)) then
+    if (all(isnan(luh_vector)) .or. &
+        all(abs(luh_vector - fates_unset_luh) < nearzero)) then
        luh_vector(:) = 0._r8
        ! Check if this is a state vector, otherwise leave transitions as zero
        if (size(luh_vector) .eq. hlm_num_luh2_states) then
@@ -359,8 +360,10 @@ contains
        modified_flag = .true.
        !write(fates_log(),*) 'WARNING: land use state is all missing values';
        !setting state as all primary forest.' ! GL DIAG
-    else if (any(isnan(luh_vector)) .or. any(luh_vector == fates_unset_luh)) then
-       if (any(.not. isnan(luh_vector)) .or. any(.not. (luh_vector == fates_unset_luh))) then
+    else if (any(isnan(luh_vector)) .or.
+             any(abs(luh_vector - fates_unset_luh) < nearzero)) then
+       if (any(.not. isnan(luh_vector)) .or.
+               .not. abs(luh_vector - fates_unset_luh) < nearzero)) then
           write(fates_log(),*) 'ERROR: land use vector has missing values'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
