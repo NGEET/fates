@@ -216,7 +216,12 @@ module FatesInterfaceTypesMod
   integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
                                                                     !  1 = TRUE, 0 = FALSE
 
-  
+  ! [PORTED by Hui Tang: NVP (moss/lichen) control flags passed from HLM]
+  integer, public :: hlm_use_nvp              ! Master NVP on/off flag (1=on, 0=off)
+  integer, public :: hlm_use_nvp_undersnow    ! NVP under-snow mode (0=off, 1=on)
+  integer, public :: hlm_nvp_rad_model_ground ! NVP radiation model: 1=Approach A (ground boundary), 0=Approach B (leaf layer)
+
+
   ! Flag specifying what types of history fields to allocate and prepare
   ! The "_dynam" refers to history fields that can be updated on the dynamics (daily) step
   ! THe "_hifrq" refers to history fields that can be updated on the model (high-frequency) step
@@ -432,10 +437,18 @@ module FatesInterfaceTypesMod
       ! ---------------------------------------------------------------------------------
 
       ! Downwelling direct beam radiation (patch,radiation-band) [W/m2]
-      real(r8), allocatable :: solad_parb(:,:)  
+      real(r8), allocatable :: solad_parb(:,:)
 
       ! Downwelling diffuse (I-ndirect) radiation (patch,radiation-band) [W/m2]
       real(r8), allocatable :: solai_parb(:,:)
+
+      ! [PORTED by Hui Tang: visible flux at NVP level for NVP photosynthesis PAR]
+      ! Incident direct visible flux at bottom of snowpack (per patch) [-]
+      ! Set to zero when NVP is not active. One-timestep lag (from previous SurfaceRadiation).
+      real(r8), allocatable :: flx_absdv(:)
+
+      ! Incident diffuse visible flux at bottom of snowpack (per patch) [-]
+      real(r8), allocatable :: flx_absiv(:)
 
       
       ! Nutrient input fluxes (these are integrated fluxes over the day, most
@@ -488,7 +501,15 @@ module FatesInterfaceTypesMod
 
       ! vegetation temperature (Kelvin)
       real(r8), allocatable :: t_veg_pa(:)
-             
+
+      ! [PORTED by Hui Tang: NVP (moss/lichen) surface temperature per patch (K)]
+      ! Set from t_nvp_col in wrap_photo; used in photosynthesis temperature scaling for NVP.
+      real(r8), allocatable :: t_nvp_pa(:)
+
+      ! [PORTED by Hui Tang: NVP (moss/lichen) wet fraction per patch (0-1)]
+      ! Set from fwet_nvp_col in wrap_photo; used for Porada 2013 fwet-based vcmax scaling.
+      real(r8), allocatable :: fwet_nvp_pa(:)
+
       ! air temperature at agcm reference height (kelvin)
       real(r8), allocatable :: tgcm_pa(:)
 
@@ -670,6 +691,29 @@ module FatesInterfaceTypesMod
       ! Down diffuse flux below canopy per unit diffuse flx (HLMs use this for balance checks)
       real(r8), allocatable :: ftii_parb(:,:)
 
+      ! [PORTED by Hui Tang: NVP (moss/lichen) radiation absorbed fractions (hlm_use_mosslichen Norman call)]
+      ! Separate from fabd_parb/fabi_parb (vascular call) so both coexist per patch.
+      ! Per patch, per SW band; fraction of TOA incident solar absorbed by the NVP layer.
+      ! Accounts for snow attenuation when snow is present (via bc_in%flx_absdv/flx_absiv).
+      ! Used by CLM SurfaceRadiationMod to populate sabg_lyr(p,0).
+      real(r8), allocatable :: fabd_nvp_pa(:,:)  ! direct solar absorbed by NVP (patch,numrad) [-]
+      real(r8), allocatable :: fabi_nvp_pa(:,:)  ! diffuse solar absorbed by NVP (patch,numrad) [-]
+
+      ! [PORTED by Hui Tang: NVP layer geometry at patch level (from cohort aggregation)]
+      ! nvp_dz_pa:   mean NVP layer thickness where NVP is present [m]
+      ! nvp_frac_pa: fractional coverage of NVP within the patch [0-1]
+      ! Together, nvp_frac_pa * nvp_dz_pa gives the column-effective NVP depth,
+      ! analogous to frac_sno * snow_depth for the layer-activation threshold.
+      real(r8), allocatable :: nvp_dz_pa(:)      ! NVP layer thickness where present (patch) [m]
+      real(r8), allocatable :: nvp_frac_pa(:)    ! NVP fractional coverage of patch [0-1]
+      ! [PORTED by Hui Tang: area-weighted mean NVP LAI for Beer's law radiation]
+      ! Computed in EDCanopyStructureMod alongside nvp_dz_pa; used in FatesRadiationDriveMod
+      ! to evaluate exp(-k*LAI) without requiring a cohort walk in the radiation routine.
+      real(r8), allocatable :: lai_nvp_pa(:)     ! area-weighted mean NVP LAI [m2 leaf/m2 crown]
+      ! [PORTED by Hui Tang: NVP single-scatter albedo for SNICAR layer-0 integration]
+      ! omega(ib) = rhol(nvp_ft,ib) + taul(nvp_ft,ib); set in FatesRadiationDriveMod after
+      ! nvp_ft lookup; transferred to surfalb_inst%nvp_omega_*_col in wrap_canopy_radiation.
+      real(r8), allocatable :: nvp_omega_pa(:,:) ! NVP single-scatter albedo (patch, numrad) [-]
 
       ! Mass fluxes to BGC from fragmentation of litter into decomposing pools
       
