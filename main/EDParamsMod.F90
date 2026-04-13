@@ -63,6 +63,13 @@ module EDParamsMod
 
    real(r8), protected, public :: cg_strikes                          ! fraction of cloud to ground lightning strikes (0-1)
 
+   ! [PORTED by Hui Tang: NVP (moss/lichen) Beer's law extinction coefficient]
+   real(r8), protected, public :: nvp_extinction_coeff                ! Beer's law extinction coeff for NVP radiation absorption [-]
+
+   ! [PORTED by Hui Tang: NVP (moss/lichen) allometry parameters]
+   real(r8), protected, public :: nvp_bulk_density                    ! NVP bulk density [kg m-3]
+   real(r8), protected, public :: nvp_sla                             ! NVP specific leaf area [m2 g-1]
+
                                                                       ! Global identifier of how nutrients interact with the host land model
                                                                       ! either they are fully coupled, or they generate uptake rates synthetically
                                                                       ! in prescribed mode. In the latter, there is both NO mass removed from the HLM's soil
@@ -485,6 +492,17 @@ module EDParamsMod
     
     param_p => pstruct%GetParamFromName("fates_cnp_eca_plant_escalar")
     eca_plant_escalar = param_p%r_data_scalar
+
+    ! [PORTED by Hui Tang: read NVP Beer's law extinction coefficient]
+    param_p => pstruct%GetParamFromName("fates_nvp_extinction_coeff")
+    nvp_extinction_coeff = param_p%r_data_scalar
+
+    ! [PORTED by Hui Tang: read NVP allometry parameters]
+    param_p => pstruct%GetParamFromName("fates_nvp_bulk_density")
+    nvp_bulk_density = param_p%r_data_scalar
+
+    param_p => pstruct%GetParamFromName("fates_nvp_sla")
+    nvp_sla = param_p%r_data_scalar
 
     return
   end subroutine TransferParamsGeneric
