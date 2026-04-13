@@ -453,7 +453,7 @@ contains
     real(r8) :: crown_depth
     
     grazing_rate = landuse_grazing_rate(land_use_label) * EDPftvarcon_inst%landuse_grazing_palatability(ft)
-    if((npp_acc .le. 0.0_r8 .or. lai .lt. 0.25_r8) .and. land_use_label .eq. cropland) then
+    if(npp_acc .le. 0.0_r8 .or. (lai .lt. 0.25_r8 .and. land_use_label .eq. cropland)) then
 ! We allow grazing on cropland at present to loosely mimic the impact of human management on fluxes and LAI. This is a placeholder for a better future model which includes actual planting and harvest.  
 ! But if we allow grazing to occur at all times, then the crop plants eventually die in most grid cells. 
 ! Restricting grazing to when NPP is positive and LAI > a threshold prevents this in most cases. 
