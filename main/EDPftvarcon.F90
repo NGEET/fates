@@ -286,6 +286,9 @@ module EDPftvarcon
      ! Grazing
      real(r8), allocatable :: landuse_grazing_palatability(:) ! Relative intensity of leaf grazing/browsing per PFT (unitless 0-1)
 
+     ! Clearing mortality rate
+     real(r8), allocatable :: landuse_clearing_mortality(:) ! Fraction of cohort killed when patch is cleared during land use transitions
+     
   end type EDPftvarcon_type
 
   type(EDPftvarcon_type), public :: EDPftvarcon_inst
@@ -710,6 +713,10 @@ contains
     allocate(EDPftvarcon_inst%landuse_grazing_palatability(numpft))
     EDPftvarcon_inst%landuse_grazing_palatability(:) = param_p%r_data_1d(:)
 
+    param_p => pstruct%GetParamFromName('fates_landuse_clearing_mortality')
+    allocate(EDPftvarcon_inst%landuse_clearing_mortality(numpft))
+    EDPftvarcon_inst%landuse_clearing_mortality(:) = param_p%r_data_1d(:)
+    
     ! Section 2: 2D PFT x HLM-PFT dimension
     ! --------------------------------------------------------------------------
     param_p => pstruct%GetParamFromName('fates_hlm_pft_map')

@@ -289,11 +289,18 @@ contains
 
     ccohort => cpatch%tallest
     do while (associated(ccohort))
-
+       
        ! Ignore damage to new plants and non-woody plants
-       if(prt_params%woody(ccohort%pft)==ifalse  ) cycle
-       if(ccohort%isnew ) cycle
+       if(prt_params%woody(ccohort%pft)==ifalse  ) then
+          ccohort => ccohort%shorter
+          cycle
+       end if
 
+       if(ccohort%isnew ) then
+          ccohort => ccohort%shorter
+          cycle
+       end if
+       
        associate( ipft     => ccohort%pft, &
                   agb_frac => prt_params%allom_agb_frac(ccohort%pft), &
                   branch_frac => param_derived%branch_frac(ccohort%pft))
