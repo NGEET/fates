@@ -349,7 +349,7 @@ contains
     ! the data, so end the run.
 
     modified_flag = .false.
-    if (all(luh_vector == -999.0)) then
+    if (all(isnan(luh_vector)) .or. all(luh_vector == -999.0)) then
        luh_vector(:) = 0._r8
        ! Check if this is a state vector, otherwise leave transitions as zero
        if (size(luh_vector) .eq. hlm_num_luh2_states) then
@@ -358,8 +358,8 @@ contains
        modified_flag = .true.
        !write(fates_log(),*) 'WARNING: land use state is all missing values';
        !setting state as all primary forest.' ! GL DIAG
-    else if (any(luh_vector == -999.0)) then
-       if (any(.not. (luh_vector == -999.0))) then
+    else if (any(isnan(luh_vector)) .or. any(luh_vector == -999.0)) then
+       if (any(.not. isnan(luh_vector)) .or. any(.not. (luh_vector == -999.0))) then
           write(fates_log(),*) 'ERROR: land use vector has missing values'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
