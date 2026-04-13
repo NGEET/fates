@@ -101,6 +101,9 @@ module FatesLitterMod
       real(r8),allocatable ::  leaf_fines_frag(:)   ! above ground fines fragmentation flux [kg/m2/day]
       real(r8),allocatable ::  root_fines_frag(:,:) ! kg/m2/day
 
+      real(r8)             ::  ag_cwd_funghr(ncwd)  ! above ground Fungal respiration flux [kg/m2/day]
+      real(r8),allocatable ::  bg_cwd_funghr(:,:)   ! below ground fungal respiration flux [kg/m2/day]
+
       real(r8), allocatable :: seed_decay(:)      ! decay of viable seeds to litter     [kg/m2/day]
       real(r8), allocatable :: seed_germ_decay(:) ! decay of germinated seeds to litter [kg/m2/day]
       real(r8), allocatable :: seed_germ_in(:)    ! flux from viable to germinated seed [kg/m2/day]
@@ -164,6 +167,8 @@ contains
                              donor_litt%ag_cwd_in(c) * donor_weight
        this%ag_cwd_frag(c) = this%ag_cwd_frag(c) *self_weight + &
                              donor_litt%ag_cwd_frag(c) * donor_weight
+       this%ag_cwd_funghr(c)  = this%ag_cwd_funghr(c) * self_weight + &
+                              donor_litt%ag_cwd_funghr(c) * donor_weight
        do ilyr = 1,nlevsoil
           this%bg_cwd(c,ilyr)      = this%bg_cwd(c,ilyr) * self_weight + &
                                      donor_litt%bg_cwd(c,ilyr) * donor_weight
@@ -171,6 +176,8 @@ contains
                                      donor_litt%bg_cwd_in(c,ilyr) * donor_weight
           this%bg_cwd_frag(c,ilyr) = this%bg_cwd_frag(c,ilyr) * self_weight + &
                                      donor_litt%bg_cwd_frag(c,ilyr) * donor_weight
+          this%bg_cwd_funghr(c,ilyr) = this%bg_cwd_funghr(c,ilyr) * self_weight + &
+                                     donor_litt%bg_cwd_funghr(c,ilyr) * donor_weight
        end do
 
     end do
@@ -234,11 +241,13 @@ contains
     this%ag_cwd(:)      = donor_litt%ag_cwd(:)
     this%ag_cwd_in(:)   = donor_litt%ag_cwd_in(:)
     this%ag_cwd_frag(:) = donor_litt%ag_cwd_frag(:)
+    this%ag_cwd_funghr(:)  = donor_litt%ag_cwd_funghr(:)
     
     this%bg_cwd(:,:)      = donor_litt%bg_cwd(:,:)
     this%bg_cwd_in(:,:)   = donor_litt%bg_cwd_in(:,:)
     this%bg_cwd_frag(:,:) = donor_litt%bg_cwd_frag(:,:)
-
+    this%bg_cwd_funghr(:,:) = donor_litt%bg_cwd_funghr(:,:)
+    
     this%leaf_fines(:)    = donor_litt%leaf_fines(:)
     this%seed(:)          = donor_litt%seed(:)
     this%seed_germ(:)     = donor_litt%seed_germ(:)
@@ -272,7 +281,8 @@ contains
     allocate(this%bg_cwd_in(ncwd,numlevsoil))
     allocate(this%bg_cwd(ncwd,numlevsoil))
     allocate(this%bg_cwd_frag(ncwd,numlevsoil))
-
+    allocate(this%bg_cwd_funghr(ncwd,numlevsoil))
+    
     allocate(this%leaf_fines(ndcmpy))
     allocate(this%root_fines(ndcmpy,numlevsoil))
     allocate(this%leaf_fines_in(ndcmpy))
@@ -304,7 +314,9 @@ contains
     this%seed_in_extern(:)    = fates_unset_r8
 
     this%ag_cwd_frag(:)       = fates_unset_r8
+    this%ag_cwd_funghr(:)     = fates_unset_r8
     this%bg_cwd_frag(:,:)     = fates_unset_r8
+    this%bg_cwd_funghr(:,:)   = fates_unset_r8
     this%leaf_fines_frag(:)   = fates_unset_r8
     this%root_fines_frag(:,:) = fates_unset_r8
 
@@ -383,6 +395,7 @@ contains
     deallocate(this%seed_in_extern)
     
     deallocate(this%bg_cwd_frag)
+    deallocate(this%bg_cwd_funghr)
     deallocate(this%leaf_fines_frag)
     deallocate(this%root_fines_frag)
    
@@ -407,7 +420,9 @@ contains
     this%seed_in_extern(:)    = 0._r8
 
     this%ag_cwd_frag(:)       = 0._r8
+    this%ag_cwd_funghr(:)     = 0._r8
     this%bg_cwd_frag(:,:)     = 0._r8
+    this%bg_cwd_funghr(:,:)   = 0._r8
     this%leaf_fines_frag(:)   = 0._r8
     this%root_fines_frag(:,:) = 0._r8
     
