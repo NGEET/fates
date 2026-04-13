@@ -19,6 +19,8 @@ module EDCanopyStructureMod
   use EDCohortDynamicsMod   , only : terminate_cohorts, terminate_cohort, fuse_cohorts
   use EDCohortDynamicsMod   , only : InitPRTObject
   use FatesAllometryMod     , only : tree_lai_sai
+  ! [PORTED by Hui Tang: NVP allometry routine for LAI/thickness update]
+  use FatesAllometryMod     , only : NVP_allom
   use EDTypesMod            , only : ed_site_type
   use EDTypesMod            , only : set_patchno
   use FatesAllometryMod     , only : VegAreaLayer
@@ -36,6 +38,7 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : hlm_use_planthydro
   use FatesInterfaceTypesMod     , only : hlm_use_cohort_age_tracking
   use FatesInterfaceTypesMod     , only : hlm_use_sp
+  use FatesInterfaceTypesMod     , only : hlm_use_nvp              ! [PORTED by Hui Tang: NVP master flag]
   use FatesInterfaceTypesMod     , only : numpft
   use FatesInterfaceTypesMod, only : bc_in_type
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
@@ -1354,7 +1357,10 @@ contains
     real(r8) :: total_patch_area
     real(r8) :: total_canopy_area
     real(r8) :: total_patch_leaf_stem_area
-    real(r8) :: weight  ! Weighting for cohort variables in patch
+    real(r8) :: weight           ! Weighting for cohort variables in patch
+    ! [PORTED by Hui Tang: NVP aggregation locals]
+    real(r8) :: nvp_crown_area   ! sum of c_area over all NVP cohorts in patch [m2/ha]
+                                 ! used to compute nvp_frac_pa and to normalize nvp_dz_pa
     
     do s = 1,nsites
 
@@ -1364,6 +1370,10 @@ contains
        bc_out(s)%dleaf_pa(:) = 0._r8
        bc_out(s)%z0m_pa(:) = 0._r8
        bc_out(s)%displa_pa(:) = 0._r8
+       ! [PORTED by Hui Tang: zero NVP patch-level fields before aggregation]
+       bc_out(s)%nvp_dz_pa(:)   = 0._r8
+       bc_out(s)%nvp_frac_pa(:) = 0._r8
+       bc_out(s)%lai_nvp_pa(:)  = 0._r8
        
        currentPatch => sites(s)%oldest_patch
        c = fcolumn(s)
@@ -1469,6 +1479,32 @@ contains
              bc_out(s)%tlai_pa(ifp) = calc_areaindex(currentPatch,'tlai')
              bc_out(s)%esai_pa(ifp) = calc_areaindex(currentPatch,'esai')
              bc_out(s)%tsai_pa(ifp) = calc_areaindex(currentPatch,'tsai')
+             ! [PORTED by Hui Tang: cohort-to-patch NVP aggregation]
+             ! Accumulate nvp_dz_pa (area-weighted mean NVP thickness where present)
+             ! and nvp_frac_pa (fraction of patch covered by NVP).
+             if (hlm_use_nvp == itrue) then
+                nvp_crown_area = 0._r8
+                currentCohort => currentPatch%shortest
+                do while (associated(currentCohort))
+                   if (currentCohort%nvp_dz > nearzero) then
+                      bc_out(s)%nvp_dz_pa(ifp) = bc_out(s)%nvp_dz_pa(ifp) + &
+                           currentCohort%nvp_dz * currentCohort%c_area
+                      ! [PORTED by Hui Tang: accumulate area-weighted NVP LAI for Beer's law]
+                      bc_out(s)%lai_nvp_pa(ifp) = bc_out(s)%lai_nvp_pa(ifp) + &
+                           currentCohort%treelai * currentCohort%c_area
+                      nvp_crown_area = nvp_crown_area + currentCohort%c_area
+                   end if
+                   currentCohort => currentCohort%taller
+                end do
+                if (nvp_crown_area > nearzero) then
+                   ! Normalize dz and LAI to get area-weighted means within NVP-covered area
+                   bc_out(s)%nvp_dz_pa(ifp)   = bc_out(s)%nvp_dz_pa(ifp)  / nvp_crown_area
+                   ! [PORTED by Hui Tang: normalize lai to area-weighted mean within NVP-covered area]
+                   bc_out(s)%lai_nvp_pa(ifp)   = bc_out(s)%lai_nvp_pa(ifp) / nvp_crown_area
+                   ! Coverage fraction relative to full patch area
+                   bc_out(s)%nvp_frac_pa(ifp) = nvp_crown_area / AREA
+                end if
+             end if
 
              ! Fraction of vegetation free of snow. This is used to flag those
              ! patches which shall under-go photosynthesis
@@ -1713,10 +1749,20 @@ contains
    ! Obtain the leaf carbon
    leaf_c = currentCohort%prt%GetState(leaf_organ,carbon12_element)
 
+   ! [PORTED by Hui Tang: NVP cohorts use NVP_allom; trees use tree_lai_sai]
+   if (hlm_use_nvp == itrue .and. &
+       lb_params%stomatal_intercept(currentCohort%pft) <= nearzero) then
+      ! NVP: derive treelai and nvp_dz from leaf carbon
+      call NVP_allom(currentCohort%treelai, leaf_c, currentCohort%nvp_dz, &
+                            inverse=.false.)
+      currentCohort%treesai = 0._r8
+      currentCohort%nv      = 1
+   else
    ! Note that tree_lai has an internal check on the canopy location
-   call  tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n,           &
-          currentCohort%canopy_layer, canopy_layer_tlai, currentCohort%vcmax25top, currentCohort%dbh, currentCohort%crowndamage,          &
-          currentCohort%canopy_trim, currentCohort%efstem_coh, 4, currentCohort%treelai, treesai )
+      call tree_lai_sai(leaf_c, currentCohort%pft, currentCohort%c_area, currentCohort%n, &
+             currentCohort%canopy_layer, canopy_layer_tlai, currentCohort%vcmax25top,      &
+             currentCohort%dbh, currentCohort%crowndamage, currentCohort%canopy_trim,      &
+             currentCohort%efstem_coh, 4, currentCohort%treelai, treesai)
 
    ! Do not update stem area index of SP vegetation
    if (hlm_use_sp .eq. ifalse) then
@@ -1725,6 +1771,7 @@ contains
    
    ! Number of actual vegetation layers in this cohort's crown
    currentCohort%nv = GetNVegLayers(currentCohort%treelai+currentCohort%treesai)
+   end if
    
   end subroutine UpdateCohortLAI
   
