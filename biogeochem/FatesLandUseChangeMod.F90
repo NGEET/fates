@@ -350,7 +350,7 @@ contains
     ! regions such as Antarctica. In this case, states may be NaN or -999.0
     ! depending on the version of the land use data being used.  If so,
     ! set the current state to be all primary forest, and all transitions to be zero.
-    ! If only a portion of the vector is NaN, there is something  amiss with
+    ! If only a portion of the vector is missing, there is something  amiss with
     ! the data, so end the run.
 
     ! Determine if any data is missing.  The check for the -999.0 float value
