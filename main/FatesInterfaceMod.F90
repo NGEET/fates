@@ -2374,13 +2374,12 @@ subroutine set_fates_drydep_indices(nsites,sites,bc_out)
   type (fates_patch_type)  , pointer :: currentPatch
   
   do s = 1,nsites
-      ifp=0
      bc_out(s)%wesley_pft_label_pa(:)=8 !for no vegetation.
       bc_out(s)%drydep_season_pa(:) = 3 ! bare
      currentPatch => sites(s)%oldest_patch
-     ifp=ifp+1
      do while(associated(currentPatch))
-        if(currentPatch%nocomp_pft_label>0)then 
+        ifp=currentPatch%patchno
+        if(currentPatch%nocomp_pft_label .ne. nocomp_bareground)then 
            bc_out(s)%wesley_pft_label_pa(ifp) = EDPftvarcon_inst%wesley_pft_index_fordrydep(currentPatch%nocomp_pft_label)
           ! Wesely seasonal "index_season"                                
           ! 1 - midsummer with lush vegetation                           
