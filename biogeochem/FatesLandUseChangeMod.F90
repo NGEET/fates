@@ -16,6 +16,7 @@ module FatesLandUseChangeMod
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_states
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
   use FatesInterfaceTypesMod    , only : hlm_use_potentialveg
+  use FatesInterfaceTypesMod    , only : hlm_lu_transition_logic 
   use FatesUtilsMod             , only : FindIndex
   use EDTypesMod                , only : area_site => area
 
@@ -178,13 +179,19 @@ contains
     ! the purpose of this is to define a ruleset for when to clear the vegetation in transitioning
     ! from one land use type to another
 
+    
     logical, intent(out) :: clearing_matrix(n_landuse_cats,n_landuse_cats)
+
+    ! local variables
+    integer :: ruleset
     
     ! default value of ruleset 4 above means that plants are not cleared during land use change
     ! transitions to rangeland, whereas plants are cleared in transitions to pasturelands and croplands.
-    integer, parameter    :: ruleset = 4   ! ruleset to apply from table 1 of Ma et al (2020)
-    ! https://doi.org/10.5194/gmd-13-3203-2020
 
+    ! ruleset to apply from table 1 of Ma et al (2020)
+    ! https://doi.org/10.5194/gmd-13-3203-2020
+    ruleset = hlm_lu_transition_logic
+    
     ! clearing matrix applies from the donor to the receiver land use type of the newly-transferred
     ! patch area values of clearing matrix: false => do not clear; true => clear
 

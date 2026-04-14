@@ -111,6 +111,10 @@ module FatesInterfaceTypesMod
                                                          ! If 1, it automatically sets
                                                          ! hlm_use_logging to 1
 
+   integer, public :: hlm_lu_transition_logic    ! This flag signals which logic to use in transitions between land use classes
+                                                 ! See the FATES user guide for full description of options
+   
+
    integer, public :: hlm_num_lu_harvest_cats    ! number of hlm harvest categories (e.g. primary forest harvest, secondary young forest harvest, etc.)
                                                          ! this is the first dimension of:
                                                          ! harvest_rates in dynHarvestMod
