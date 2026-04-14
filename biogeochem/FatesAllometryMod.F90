@@ -2804,6 +2804,8 @@ contains
     integer, parameter :: jackson_beta_profile_type   = 1
     integer, parameter :: exponential_1p_profile_type = 2
     integer, parameter :: exponential_2p_profile_type = 3
+    ! [PORTED by Hui Tang: mode 4 = NVP (no soil roots); root_fraction stays all-zero]
+    integer, parameter :: no_root_profile_type         = 4
 
     integer :: root_profile_type
     integer :: corr_id(1)        ! This is the bin with largest fraction
@@ -2839,9 +2841,12 @@ contains
        call exponential_1p_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), prt_params%fnrt_prof_a(ft)) 
     case ( jackson_beta_profile_type )
        call jackson_beta_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), prt_params%fnrt_prof_a(ft))
-    case ( exponential_2p_profile_type ) 
-       call exponential_2p_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), & 
+    case ( exponential_2p_profile_type )
+       call exponential_2p_root_profile(root_fraction(1:nlevroot), zi(0:nlevroot), &
              prt_params%fnrt_prof_a(ft),prt_params%fnrt_prof_b(ft))
+    ! [PORTED by Hui Tang: NVP has no soil roots; root_fraction already zeroed above]
+    case ( no_root_profile_type )
+       ! No root profile: root_fraction(:) = 0._r8 (initialized at line 2827, no further action needed)
 
     case default
        write(fates_log(),*) 'An undefined root profile type was specified'
@@ -2850,9 +2855,12 @@ contains
     end select
 
 
-    correction = 1._r8 - sum(root_fraction)
-    corr_id = maxloc(root_fraction)
-    root_fraction(corr_id(1)) = root_fraction(corr_id(1)) + correction
+    ! [PORTED by Hui Tang: skip normalization for no_root_profile_type; all zeros is intentional]
+    if (nint(prt_params%fnrt_prof_mode(ft)) /= no_root_profile_type) then
+       correction = 1._r8 - sum(root_fraction)
+       corr_id = maxloc(root_fraction)
+       root_fraction(corr_id(1)) = root_fraction(corr_id(1)) + correction
+    end if
 
 
 

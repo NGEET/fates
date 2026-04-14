@@ -271,7 +271,7 @@
     "fates_allom_fnrt_prof_mode": {
       "dtype": "integer",
       "dims": ["fates_pft"],
-      "long_name": "Index to select fine root profile function  1) Jackson Beta, 2) 1-param exponential 3) 2-param exponential",
+      "long_name": "Index to select fine root profile function  1) Jackson Beta, 2) 1-param exponential 3) 2-param exponential 4) no roots (NVP)",
       "units": "index",
       "data": [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
     },
