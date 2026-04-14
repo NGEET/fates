@@ -474,6 +474,7 @@ contains
     integer  :: i_landusetype
     real(r8) :: temp_vec(numpft)  ! temporary vector
     integer  :: i_pftcount
+    logical  :: missing_found     ! missing LUH data found flag
     !----------------------------------------------------------------------
 
 
@@ -544,11 +545,18 @@ contains
                 ! where pft_areafrac_lu is the area of land in each HLM PFT and land use type (from surface dataset)
                 ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
 
-                ! First check for missing values in bc_in(s)%pft_areafrac_lu. If so, make everything bare ground.
-                if ( .not.( any( isnan(bc_in(s)%pft_areafrac_lu(:,:)) .or. &
-                            abs(bc_in(s)%pft_areafrac_lu (:,:) - fates_unset_luh) < nearzero) .or. &
-                     ( isnan(bc_in(s)%baregroundfrac) .or. &
-                     abs(bc_in(s)%baregroundfrac - fates_unset_luh) < nearzero )))then
+                ! First check for missing values in bc_in(s)%pft_areafrac_lu are NaNs.  If not check if the 
+                ! missing values are -999.0.
+                missing_found = .false.
+                if ( any(isnan(bc_in(s)%pft_areafrac_lu(:,:))) .or. isnan(bc_in(s)%baregroundfrac) ) then
+                   missing_found = .true.
+                elseif ( any(abs(bc_in(s)%pft_areafrac_lu (:,:) - fates_unset_luh) < nearzero) .or. &
+                         (abs(bc_in(s)%baregroundfrac - fates_unset_luh) < nearzero) )  then
+                   missing_found = .true.
+                endif
+
+                ! If no missing data found, then calculate the area_pft as normal.  Otherwise make everything bareground.
+                if (.not. missing_found) then
                    do i_landusetype = 1, n_landuse_cats
                       if (.not. is_crop(i_landusetype)) then
                          do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
@@ -564,6 +572,7 @@ contains
                    end do
 
                    sites(s)%area_bareground = bc_in(s)%baregroundfrac
+
                 else
                    !if ( all( isnan( bc_in(s)%pft_areafrac_lu (:,:))) .and. isnan(bc_in(s)%baregroundfrac)) then
                       ! if given all NaNs, then make everything bare ground
