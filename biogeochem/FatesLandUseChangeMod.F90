@@ -360,10 +360,10 @@ contains
        modified_flag = .true.
        !write(fates_log(),*) 'WARNING: land use state is all missing values';
        !setting state as all primary forest.' ! GL DIAG
-    else if (any(isnan(luh_vector)) .or.
+    else if (any(isnan(luh_vector)) .or. &
              any(abs(luh_vector - fates_unset_luh) < nearzero)) then
-       if (any(.not. isnan(luh_vector)) .or.
-               .not. abs(luh_vector - fates_unset_luh) < nearzero)) then
+       if (any(.not. isnan(luh_vector)) .or. &
+           any(.not. abs(luh_vector - fates_unset_luh) < nearzero)) then
           write(fates_log(),*) 'ERROR: land use vector has missing values'
           call endrun(msg=errMsg(sourcefile, __LINE__))
        end if
