@@ -111,6 +111,11 @@ module EDInitMod
 
   logical   ::  debug = .false.
   integer :: istat           ! return status code
+
+  real(r8),parameter :: undamaged_crown = 1.0_r8   ! Assume on initialization the plants
+                                                   ! are not damaged
+  real(r8),parameter :: untrimmed = 1.0_r8         ! Initialize plants as untrimmed
+  
   character(len=255) :: smsg ! Message string for deallocation errors
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -1169,7 +1174,6 @@ contains
       integer                          :: use_pft_local(numpft) ! determine whether this PFT is used for this patch and site
       integer                          :: crown_damage          ! crown damage class of the cohort [1 = undamaged, >1 = damaged] 
       real(r8)                         :: l2fr                  ! leaf to fineroot biomass ratio [kg kg-1]
-      real(r8)                         :: canopy_trim           ! fraction of the maximum leaf biomass that we are targeting [0-1]
       real(r8)                         :: cohort_n              ! cohort density
       real(r8)                         :: dbh                   ! cohort dbh [cm]
       real(r8)                         :: height                ! cohort height [m]
@@ -1243,7 +1247,6 @@ contains
       pft_loop: do pft =  1, numpft
          if_use_this_pft: if (use_pft_local(pft) .eq. itrue) then
             l2fr         = prt_params%allom_l2fr(pft)
-            canopy_trim  = 1.0_r8
             c_area       = fates_unset_r8
             
             ! retrieve drop fraction of non-leaf tissues for phenology initialization
@@ -1299,34 +1302,35 @@ contains
                end select phen_select
             end if if_spmode 
 
-            ! Initialize cohort abundance and size
+            ! Initialize cohort abundance, size and leaf mass
+            ! (we also include leaf mass because this is an output
+            !  from the SP init algorithm)
             call ColdInitDBHAndNumDense(patch_in%area, &              ! in
                                         sum(site_in%use_this_pft), &  ! in
                                         sum(use_pft_local), &         ! in
                                         pft, &                        ! in
+                                        efleaf_coh, &                 ! in
                                         dbh, &                        ! out
                                         height, &                     ! out
                                         n_plant, &                    ! out
                                         c_leaf)                       ! out
             
-           
-            
             ! calculate total above-ground biomass from allometry
-            call bagw_allom(dbh, pft, crown_damage, efstem_coh, c_agw)
+            call bagw_allom(dbh, pft, undamaged_crown, efstem_coh, c_agw)
 
             ! calculate coarse root biomass from allometry
             call bbgw_allom(dbh, pft, efstem_coh, c_bgw)
 
             ! Calculate fine root biomass from allometry
             ! (calculates a maximum and then trimming value)
-            call bfineroot(dbh, pft, canopy_trim, l2fr, effnrt_coh, c_fnrt)
+            call bfineroot(dbh, pft, untrimmed, l2fr, effnrt_coh, c_fnrt)
 
             ! Calculate sapwood biomass
-            call bsap_allom(dbh, pft, crown_damage, canopy_trim, efstem_coh,   &
+            call bsap_allom(dbh, pft, undamaged_crown, untrimmed, efstem_coh,   &
                a_sapw, c_sapw)
 
             call bdead_allom(c_agw, c_bgw, c_sapw, pft, c_struct)
-            call bstore_allom(dbh, pft, crown_damage, canopy_trim, c_store)
+            call bstore_allom(dbh, pft, undamaged_crown, untrimmed, c_store)
 
             ! --------------------------------------------------------------------------------
             ! Initialize the mass of every element in every organ of the organ
@@ -1390,7 +1394,7 @@ contains
             call create_cohort(site_in, patch_in, pft, cohort_n,               &
                height, zero_co_age, dbh, prt, efleaf_coh,                      &
                effnrt_coh, efstem_coh, leaf_status, recruitstatus,             &
-               canopy_trim, c_area, 1, crown_damage, site_in%spread, bc_in)
+               untrimmed, c_area, 1, undamaged_crown, site_in%spread, bc_in)
 
          endif if_use_this_pft
       enddo pft_loop
@@ -1408,7 +1412,8 @@ contains
    ! =================================================================================
    
    
-   subroutine ColdInitDBHAndNumDense(patch_area, spread, num_pft_in_site, num_pft_in_patch, pft, dbh, height, n_plant, c_leaf)
+   subroutine ColdInitDBHAndNumDense(patch_area, spread, num_pft_in_site, &
+                                     num_pft_in_patch, pft, dbh, height, n_plant, c_leaf)
 
      ! This routine returns the plant density and size
      ! for a cold-started plant.
@@ -1426,6 +1431,7 @@ contains
      integer,  intent(in) :: num_pft_in_site  ! number of pfts that exist at this site
      integer,  intent(in) :: num_pft_in_patch ! number of pfts coexisting in this patch
      integer,  intent(in) :: pft              ! pft index of this cohort
+     real(r8), intent(in) :: efleaf           ! amount of leaf flushing (0-1)
      real(r8), intent(out) :: dbh             ! diameter (cm)
      real(r8), intent(out) :: n_plant         ! number of plants (plants/patch)
      real(r8), intent(out) :: c_leaf          ! leaf biomass, SP seems to have
@@ -1436,8 +1442,7 @@ contains
      real(r8) :: c_area_plant                 ! crown area per plant (m2)
      real(r8) :: c_area_co                    ! crown area of cohort (m2)
      
-     real(r8),parameter :: undamaged_crown = 1.0_r8   ! Assume on initialization the plants
-                                                      ! are not damaged
+  
      real(r8),parameter :: nominal_sp_height = 0.5_r8 ! nominal height (dummy) for SP
      real(r8),parameter :: nominal_sp_tlai   = 0.2_r8 ! nominal TLAI for SP
      real(r8),parameter :: nominal_sp_tsai   = 0.1_r8 ! nominal TSAI for SP
@@ -1508,7 +1513,7 @@ contains
 
         ! Calculate the leaf biomass from allometry
         ! (calculates a maximum first, then applies canopy trim)
-        call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh, c_leaf)
+        call bleaf(dbh, pft, undamaged_crown, untrimmed, efleaf, c_leaf)
         
      end if if_sp
 
