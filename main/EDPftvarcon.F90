@@ -270,7 +270,9 @@ module EDPftvarcon
      real(r8), allocatable :: landuse_grazing_palatability(:) ! Relative intensity of leaf grazing/browsing per PFT (unitless 0-1)
 
      ! dry deposition
-     real(r8), allocatable :: wesley_pft_index_fordrydep(:)
+     real(r8), allocatable :: wesley_veg_index(:)  ! Wesley vegetation index for dry deposition calculation
+     real(r8), allocatable :: wesley_sum_thresh(:) ! LAI threshold to determine Wesley summer (m2/m2)
+     real(r8), allocatable :: wesley_aut_thresh(:) ! LAI threshold to determine Wesley early/late autmn (m2/m2)
 
    contains
      procedure, public :: Init => EDpftconInit
@@ -763,9 +765,16 @@ contains
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
 
-    name = 'fates_wesley_pft_index_fordrydep'
+    name = 'fates_wesley_veg_index'
     call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
           dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    name = 'fates_wesley_sum_thresh'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+    name = 'fates_wesley_aut_thresh'
+    call fates_params%RegisterParameter(name=name, dimension_shape=dimension_shape_1d, &
+          dimension_names=dim_names, lower_bounds=dim_lower_bound)
+
 
     ! adding the hlm_pft_map variable with two dimensions - FATES PFTno and HLM PFTno
     pftmap_dim_names(1) = dimension_name_pft
@@ -1179,9 +1188,17 @@ contains
     call fates_params%RetrieveParameterAllocate(name=name, &
          data=this%eca_lambda_ptase)
 
-    name = 'fates_wesley_pft_index_fordrydep'
+    name = 'fates_wesley_veg_index'
     call fates_params%RetrieveParameterAllocate(name=name, &
-         data=this%wesley_pft_index_fordrydep)
+         data=this%wesley_veg_index)
+
+    name = 'fates_wesley_sum_thresh'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%wesley_sum_thresh)
+
+    name = 'fates_wesley_aut_thresh'
+    call fates_params%RetrieveParameterAllocate(name=name, &
+         data=this%wesley_aut_thresh)
 
     name = 'fates_hlm_pft_map'
     call fates_params%RetrieveParameterAllocate(name=name, &
@@ -1694,7 +1711,9 @@ contains
         write(fates_log(),fmt0) 'hydro_pinot_node = ',EDPftvarcon_inst%hydr_pinot_node
         write(fates_log(),fmt0) 'hydro_kmax_node = ',EDPftvarcon_inst%hydr_kmax_node
         write(fates_log(),fmt0) 'hlm_pft_map = ', EDPftvarcon_inst%hlm_pft_map
-        write(fates_log(),fmt0) 'wesley_pft_index_fordrydep = ', EDPftvarcon_inst%wesley_pft_index_fordrydep
+        write(fates_log(),fmt0) 'wesley_veg_index = ', EDPftvarcon_inst%wesley_veg_index
+        write(fates_log(),fmt0) 'wesley_sum_thresh = ', EDPftvarcon_inst%wesley_sum_thresh
+        write(fates_log(),fmt0) 'wesley_aut_thresh = ', EDPftvarcon_inst%wesley_aut_thresh
         write(fates_log(),fmt0) 'hydro_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
         write(fates_log(),fmt0) 'hydro_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
         write(fates_log(),fmt0) 'hydro_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
