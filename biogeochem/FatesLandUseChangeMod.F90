@@ -336,33 +336,48 @@ contains
   subroutine CheckLUHData(luh_vector,modified_flag)
 
     use shr_infnan_mod   , only : isnan => shr_infnan_isnan
+    use FatesConstantsMod, only : fates_unset_luh
 
     real(r8), intent(inout) :: luh_vector(:)  ! [m2/m2]
     logical, intent(out)    :: modified_flag
 
-    ! Check to see if the incoming luh2 vector is NaN.
+    logical :: missing_any
+    logical :: missing_all
+
+    ! Check to see if the incoming luh2 vector is missing.
     ! This suggests that there is a discepency where the HLM and LUH2 states
     ! there is vegetated ground. E.g. LUH2 data is missing for glacier-margin
-    ! regions such as Antarctica. In this case, states should be Nan.  If so,
+    ! regions such as Antarctica. In this case, states may be NaN or -999.0
+    ! depending on the version of the land use data being used.  If so,
     ! set the current state to be all primary forest, and all transitions to be zero.
-    ! If only a portion of the vector is NaN, there is something  amiss with
+    ! If only a portion of the vector is missing, there is something  amiss with
     ! the data, so end the run.
 
+    ! Determine if any data is missing.  The check for the -999.0 float value
+    ! needs to be separated to avoid invoking a floating point invalid operation.
+    missing_any = .false.
+    missing_all = .false.
+    if (any(isnan(luh_vector))) then
+       if (all(isnan(luh_vector))) missing_all = .true.
+       if (any(.not. isnan(luh_vector))) missing_any = .true.
+    elseif (any(abs(luh_vector - fates_unset_luh) < nearzero)) then
+       if (all(abs(luh_vector - fates_unset_luh) < nearzero)) missing_all = .true.
+       if (any( .not.(abs(luh_vector - fates_unset_luh) < nearzero))) missing_any = .true.
+    endif
+
     modified_flag = .false.
-    if (all(isnan(luh_vector))) then
+    if (missing_all) then
        luh_vector(:) = 0._r8
        ! Check if this is a state vector, otherwise leave transitions as zero
        if (size(luh_vector) .eq. hlm_num_luh2_states) then
           luh_vector(primaryland) = 1._r8
        end if
        modified_flag = .true.
-       !write(fates_log(),*) 'WARNING: land use state is all NaN;
+       !write(fates_log(),*) 'WARNING: land use state is all missing values';
        !setting state as all primary forest.' ! GL DIAG
-    else if (any(isnan(luh_vector))) then
-       if (any(.not. isnan(luh_vector))) then
-          write(fates_log(),*) 'ERROR: land use vector has NaN'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
+    else if (missing_any) then
+       write(fates_log(),*) 'ERROR: land use vector has missing values'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
   end subroutine CheckLUHData
