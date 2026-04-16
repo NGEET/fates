@@ -364,6 +364,7 @@ module FatesHistoryInterfaceMod
   ! land-use-resolved variables
   integer :: ih_fracarea_si_landuse
   integer :: ih_biomass_si_landuse
+  integer :: ih_biomass_si_lupft
   integer :: ih_burnedarea_si_landuse
   integer :: ih_gpp_si_landuse
   integer :: ih_npp_si_landuse
@@ -664,11 +665,13 @@ module FatesHistoryInterfaceMod
   integer :: ih_meansmp_si_pft
   integer :: ih_elong_factor_si_pft
   integer :: ih_nocomp_pftpatchfraction_si_pft
+  integer :: ih_nocomp_pftpatchfraction_si_lupft
   integer :: ih_nocomp_pftnpatches_si_pft
   integer :: ih_nocomp_pftburnedarea_si_pft
   integer :: ih_seeds_out_gc_si_pft
   integer :: ih_seeds_in_gc_si_pft
   integer :: ih_seed_bank_si_pft          ! carbon only
+  integer :: ih_seed_bank_si_lupft        ! carbon only
   integer :: ih_seeds_in_si_pft           ! carbon only
   integer :: ih_seeds_in_local_si_pft     ! carbon only
   integer :: ih_ungerm_seed_bank_si_pft   ! carbon only
@@ -3180,9 +3183,8 @@ contains
     real(r8) :: storec_understory_scpf(numpft*nlevsclass)
     real(r8) :: a_sapw ! sapwood area [m^2]
     real(r8) :: c_sapw ! sapwood biomass [kgC]
-
     integer  :: i_dist, j_dist
-
+     
     type(elem_diag_type), pointer :: elflux_diags
     type(elem_diag_type), pointer :: elflux_diags_c
 
@@ -3371,6 +3373,7 @@ contains
              hio_meansmp_si_pft                   => this%hvars(ih_meansmp_si_pft)%r82d, &
              hio_elong_factor_si_pft              => this%hvars(ih_elong_factor_si_pft)%r82d, &
              hio_seed_bank_si_pft                 => this%hvars(ih_seed_bank_si_pft)%r82d, &
+             hio_seed_bank_si_lupft               => this%hvars(ih_seed_bank_si_lupft)%r82d, &
              hio_ungerm_seed_bank_si_pft          => this%hvars(ih_ungerm_seed_bank_si_pft)%r82d, &
              hio_seedling_pool_si_pft             => this%hvars(ih_seedling_pool_si_pft)%r82d, &
              hio_seeds_in_si_pft                  => this%hvars(ih_seeds_in_si_pft)%r82d, &
@@ -3494,8 +3497,13 @@ contains
                    ! there is more than one patch per age class -
                    ! and also pft-labeled patch areas in the event that we are in nocomp mode
                    if ( hlm_use_nocomp .eq. itrue .and. cpatch%nocomp_pft_label .eq. ft) then 
+                      lupft_index = get_landusepft_class_index(cpatch%land_use_label,ft)
+
                       this%hvars(ih_nocomp_pftpatchfraction_si_pft)%r82d(io_si,ft) = &
                            this%hvars(ih_nocomp_pftpatchfraction_si_pft)%r82d(io_si,ft) + cpatch%area * AREA_INV
+
+                      this%hvars(ih_nocomp_pftpatchfraction_si_lupft)%r82d(io_si,lupft_index) = &
+                           this%hvars(ih_nocomp_pftpatchfraction_si_lupft)%r82d(io_si,lupft_index) + cpatch%area * AREA_INV
 
                       this%hvars(ih_nocomp_pftnpatches_si_pft)%r82d(io_si,ft) = &
                            this%hvars(ih_nocomp_pftnpatches_si_pft)%r82d(io_si,ft) + 1._r8
@@ -3505,7 +3513,6 @@ contains
                            cpatch%frac_burnt * cpatch%area * AREA_INV / sec_per_day
 
                       ! land use x pft too
-                      lupft_index = get_landusepft_class_index(cpatch%land_use_label,ft)
                       this%hvars(ih_nocomp_patcharea_si_lupft)%r82d(io_si,lupft_index) = &
                            this%hvars(ih_nocomp_patcharea_si_lupft)%r82d(io_si,lupft_index) + cpatch%area * AREA_INV
                    endif
@@ -4234,15 +4241,20 @@ contains
                 end do
 
 
-
-
                 ! Update Litter Flux Variables
 
                 litt_c       => cpatch%litter(element_pos(carbon12_element))
 
                 do i_pft = 1, numpft
+
+                   lupft_index = get_landusepft_class_index(cpatch%land_use_label,i_pft)
+
                    ! Sum up total seed bank (germinated and ungerminated)
                    hio_seed_bank_si_pft(io_si,i_pft) = hio_seed_bank_si_pft(io_si,i_pft) + &
+                        (litt_c%seed(i_pft)+litt_c%seed_germ(i_pft)) * cpatch%area * AREA_INV
+
+                   ! Sum up total seed bank (germinated and ungerminated) by land-use x PFT
+                   hio_seed_bank_si_lupft(io_si,lupft_index) = hio_seed_bank_si_lupft(io_si,lupft_index) + &
                         (litt_c%seed(i_pft)+litt_c%seed_germ(i_pft)) * cpatch%area * AREA_INV
 
                    ! Sum up total seed bank (just ungerminated)
@@ -7449,9 +7461,15 @@ contains
 
           call this%set_history_var(vname='FATES_SEED_BANK_PF', units='kg m-2',         &
                long='total seed mass per PFT in kg carbon per m2 land area',     &
-               use_default='inactive', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
+               use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM',     &
                upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                index = ih_seed_bank_si_pft)
+
+          call this%set_history_var(vname='FATES_SEED_BANK_LUPF', units='kg m-2',         &
+               long='total seed mass by land use type and PFT in kg carbon per m2 land area', &
+               use_default='active', avgflag='A', vtype=site_lupft_r8, hlms='CLM:ALM',    &
+               upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                &
+               index = ih_seed_bank_si_lupft)
 
           call this%set_history_var(vname='FATES_UNGERM_SEED_BANK_PF', units='kg m-2',         &
                long='ungerminated seed mass per PFT in kg carbon per m2 land area',     &
@@ -7537,6 +7555,12 @@ contains
                   use_default='active', avgflag='A', vtype=site_pft_r8, hlms='CLM:ALM', &
                   upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
                   index=ih_nocomp_pftpatchfraction_si_pft)
+
+             call this%set_history_var(vname='FATES_NOCOMP_PATCHAREA_LUPF', units='m2 m-2',&
+                  long='total patch area allowed by land use type and PFT (nocomp-mode-only)', &
+                  use_default='active', avgflag='A', vtype=site_lupft_r8, hlms='CLM:ALM', &
+                  upfreq=group_dyna_complx, ivar=ivar, initialize=initialize_variables,                 &
+                  index=ih_nocomp_pftpatchfraction_si_lupft)
 
              call this%set_history_var(vname='FATES_NOCOMP_BURNEDAREA_PF', units='s-1', &
                   long='total burned area of PFT-labeled patch area (nocomp-mode-only)',&
