@@ -162,6 +162,7 @@ module FatesRestartInterfaceMod
   integer :: ir_c_area_co
   integer :: ir_treelai_co
   integer :: ir_treesai_co
+  integer :: ir_nvp_dz_co        ! [PORTED by Hui Tang: NVP layer thickness restart index]
   integer :: ir_canopy_layer_tlai_pa
 
   integer :: ir_nclp_pa
@@ -1259,7 +1260,12 @@ contains
          long_name='stem area index of fates cohort', &
          units='m2/m2', flushval = flushzero, &
          hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_treesai_co )
-    
+    ! [PORTED by Hui Tang: NVP layer thickness restart variable]
+    call this%set_restart_var(vname='fates_cohort_nvp_dz', vtype=cohort_r8, &
+         long_name='NVP (moss/lichen) layer thickness for cohort', &
+         units='m', flushval = flushzero, &
+         hlms='CLM:ALM', initialize=initialize_variables, ivar=ivar, index = ir_nvp_dz_co )
+
     if(hlm_use_sp .eq. itrue)then
        call this%set_restart_var(vname='fates_canopy_layer_tlai_pa', vtype=cohort_r8, &
              long_name='total patch level leaf area index of each fates canopy layer', &
@@ -2762,6 +2768,7 @@ contains
                 this%rvars(ir_c_area_co)%r81d(io_idx_co) = ccohort%c_area
                 this%rvars(ir_treelai_co)%r81d(io_idx_co) = ccohort%treelai
                 this%rvars(ir_treesai_co)%r81d(io_idx_co) = ccohort%treesai
+                this%rvars(ir_nvp_dz_co)%r81d(io_idx_co) = ccohort%nvp_dz  ! [PORTED by Hui Tang: NVP layer thickness]
                 
                 if ( debug ) then
                    write(fates_log(),*) 'CLTV offsetNumCohorts II ',io_idx_co, &
@@ -3808,6 +3815,7 @@ contains
                 ccohort%c_area = this%rvars(ir_c_area_co)%r81d(io_idx_co)
                 ccohort%treelai = this%rvars(ir_treelai_co)%r81d(io_idx_co)
                 ccohort%treesai = this%rvars(ir_treesai_co)%r81d(io_idx_co)
+                ccohort%nvp_dz  = this%rvars(ir_nvp_dz_co)%r81d(io_idx_co)  ! [PORTED by Hui Tang: NVP layer thickness]
                 
                 io_idx_co = io_idx_co + 1
 

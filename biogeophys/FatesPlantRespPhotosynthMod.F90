@@ -32,6 +32,9 @@ module FATESPlantRespPhotosynthMod
   use FatesConstantsMod, only : nocomp_bareground
   use FatesInterfaceTypesMod, only : hlm_use_planthydro
   use FatesInterfaceTypesMod, only : hlm_parteh_mode
+  ! [PORTED by Hui Tang: NVP (moss/lichen) master flags]
+  use FatesInterfaceTypesMod, only : hlm_use_nvp
+  use FatesInterfaceTypesMod, only : hlm_use_nvp_undersnow
   use FatesInterfaceTypesMod, only : numpft
   use FatesInterfaceTypesMod, only : nleafage
   use FatesUtilsMod,          only : QuadraticRoots => QuadraticRootsSridharachary
@@ -275,6 +278,8 @@ contains
                                                  ! portion of the conductance equation
 
     real(r8)               :: vmol_cf            ! velocity to molar conductance conversion (m/s) -> (umol/m2/s)
+    ! [PORTED by Hui Tang: cohort temperature: t_nvp_pa for NVP cohorts, t_veg_pa otherwise]
+    real(r8)               :: t_cohort           ! effective leaf temperature for this cohort [K]
     
     ! -----------------------------------------------------------------------------------
     ! Keeping these two definitions in case they need to be added later
@@ -375,9 +380,23 @@ contains
                   !  leaf boundary layer conductance of h20
                   !  constrained vapor pressure
 
+                  ! [PORTED by Hui Tang: use NVP surface temperature for gas parameters when
+                  !  patch contains NVP cohorts; walk cohort list to detect NVP presence]
+                  t_cohort = bc_in(s)%t_veg_pa(ifp)
+                  if (hlm_use_nvp == itrue) then
+                     currentCohort => currentPatch%tallest
+                     do while (associated(currentCohort))
+                        if (currentCohort%nvp_dz > nearzero) then
+                           t_cohort = bc_in(s)%t_nvp_pa(ifp)
+                           exit
+                        end if
+                        currentCohort => currentCohort%shorter
+                     end do
+                  end if
+
                   call GetCanopyGasParameters(bc_in(s)%forc_pbot,       & ! in
                        bc_in(s)%oair_pa(ifp),    & ! in
-                       bc_in(s)%t_veg_pa(ifp),   & ! in
+                       t_cohort,                  & ! in  [PORTED: NVP or veg temperature]
                        mm_kco2,                  & ! out
                        mm_ko2,                   & ! out
                        co2_cpoint)
@@ -422,7 +441,14 @@ contains
                         ! and the leaf layer (IV) for this cohort
                         ft = currentCohort%pft
                         cl = currentCohort%canopy_layer
-                        
+
+                        ! [PORTED by Hui Tang: select NVP surface temperature for NVP cohorts]
+                        if (hlm_use_nvp == itrue .and. currentCohort%nvp_dz > nearzero) then
+                           t_cohort = bc_in(s)%t_nvp_pa(ifp)
+                        else
+                           t_cohort = bc_in(s)%t_veg_pa(ifp)
+                        end if
+
                         ! Calculate the cohort specific elai profile
                         ! And the top and bottom edges of the veg area index
                         ! of each layer bin are. Note, if the layers
@@ -594,7 +620,7 @@ contains
                                     call LeafLayerMaintenanceRespiration_Ryan_1991( lnc_top,     &  ! in
                                          nscaler,                  &  ! in
                                          ft,                       &  ! in
-                                         bc_in(s)%t_veg_pa(ifp),   &  ! in
+                                         t_cohort,                 &  ! in  [PORTED: NVP or veg temp]
                                          lmr_z(iv,ft,cl))             ! out
 
                                  case (lmrmodel_atkin_etal_2017)
@@ -616,7 +642,7 @@ contains
                                     call LeafLayerMaintenanceRespiration_Atkin_etal_2017( lnc_top, &  ! in
                                          rdark_scaler,                       &  ! in
                                          ft,                                 &  ! in
-                                         bc_in(s)%t_veg_pa(ifp),             &  ! in
+                                         t_cohort,                           &  ! in  [PORTED: NVP or veg temp]
                                          currentPatch%tveg_lpa%GetMean(),    &  ! in
                                          lmr_z(iv,ft,cl))                       ! out
 
@@ -732,7 +758,7 @@ contains
                                          currentCohort%jmax25top,             &  ! in
                                          currentCohort%kp25top,               &  ! in
                                          nscaler,                             &  ! in
-                                         bc_in(s)%t_veg_pa(ifp),              &  ! in
+                                         t_cohort,                            &  ! in  [PORTED: NVP or veg temp]
                                          bc_in(s)%dayl_factor_pa(ifp),        &  ! in
                                          currentPatch%tveg_lpa%GetMean(),     &  ! in
                                          currentPatch%tveg_longterm%GetMean(),&  ! in
@@ -744,6 +770,12 @@ contains
                                          gs1,                                 &  ! out
                                          gs2 )                                   ! out
 
+                                    ! [PORTED by Hui Tang: scale vcmax by NVP wetness fraction
+                                    !  following Porada et al. 2013: full capacity at fwet >= 0.6]
+                                    if (hlm_use_nvp == itrue .and. currentCohort%nvp_dz > nearzero) then
+                                       vcmax_z = vcmax_z * min(1._r8, bc_in(s)%fwet_nvp_pa(ifp) / 0.6_r8)
+                                    end if
+
 
                                     if ( (hlm_use_planthydro.eq.itrue .and. EDPftvarcon_inst%hydr_k_lwp(ft)>nearzero) ) then
                                        hydr_k_lwp = EDPftvarcon_inst%hydr_k_lwp(ft)
@@ -751,33 +783,66 @@ contains
                                        hydr_k_lwp = 1._r8
                                     end if
 
-                                    call LeafLayerPhotosynthesis(            & !
-                                         par_abs,                            &  ! in
-                                         ft,                                 &  ! in
-                                         vcmax_z,                            &  ! in
-                                         jmax_z,                             &  ! in
-                                         kp_z,                               &  ! in
-                                         gs0,                                &  ! in
-                                         gs1,                                &  ! in
-                                         gs2,                                &  ! in
-                                         bc_in(s)%t_veg_pa(ifp),             &  ! in
-                                         bc_in(s)%forc_pbot,                 &  ! in
-                                         bc_in(s)%cair_pa(ifp),              &  ! in
-                                         bc_in(s)%oair_pa(ifp),              &  ! in
-                                         bc_in(s)%esat_tv_pa(ifp),           &  ! in
-                                         gb_mol,                             &  ! in
-                                         bc_in(s)%eair_pa(ifp),              &  ! in
-                                         mm_kco2,                            &  ! in
-                                         mm_ko2,                             &  ! in
-                                         co2_cpoint,                         &  ! in
-                                         lmr_z(iv,ft,cl),                    &  ! in
-                                         ci_tol,                             &  ! in
-                                         psn_ll,                             &  ! out
-                                         gstoma_ll,                          &  ! out
-                                         anet_ll,                            &  ! out
-                                         c13disc_ll,                         &  ! out
-                                         co2_inter_c_utest,                  &  ! out (unit tests)
-                                         solve_iter)                            ! out performance tracking
+                                    ! [PORTED by Hui Tang: pass fwet_nvp for NVP cohorts so
+                                    !  LeafLayerPhotosynthesis overrides ci with boundary-layer-only formula]
+                                    if (hlm_use_nvp == itrue .and. currentCohort%nvp_dz > nearzero) then
+                                       call LeafLayerPhotosynthesis(            & !
+                                            par_abs,                            &  ! in
+                                            ft,                                 &  ! in
+                                            vcmax_z,                            &  ! in
+                                            jmax_z,                             &  ! in
+                                            kp_z,                               &  ! in
+                                            gs0,                                &  ! in
+                                            gs1,                                &  ! in
+                                            gs2,                                &  ! in
+                                            t_cohort,                           &  ! in
+                                            bc_in(s)%forc_pbot,                 &  ! in
+                                            bc_in(s)%cair_pa(ifp),              &  ! in
+                                            bc_in(s)%oair_pa(ifp),              &  ! in
+                                            bc_in(s)%esat_tv_pa(ifp),           &  ! in
+                                            gb_mol,                             &  ! in
+                                            bc_in(s)%eair_pa(ifp),              &  ! in
+                                            mm_kco2,                            &  ! in
+                                            mm_ko2,                             &  ! in
+                                            co2_cpoint,                         &  ! in
+                                            lmr_z(iv,ft,cl),                    &  ! in
+                                            ci_tol,                             &  ! in
+                                            psn_ll,                             &  ! out
+                                            gstoma_ll,                          &  ! out
+                                            anet_ll,                            &  ! out
+                                            c13disc_ll,                         &  ! out
+                                            co2_inter_c_utest,                  &  ! out (unit tests)
+                                            solve_iter,                         &  ! out
+                                            fwet_nvp=bc_in(s)%fwet_nvp_pa(ifp))   ! in (NVP ci override)
+                                    else
+                                       call LeafLayerPhotosynthesis(            & !
+                                            par_abs,                            &  ! in
+                                            ft,                                 &  ! in
+                                            vcmax_z,                            &  ! in
+                                            jmax_z,                             &  ! in
+                                            kp_z,                               &  ! in
+                                            gs0,                                &  ! in
+                                            gs1,                                &  ! in
+                                            gs2,                                &  ! in
+                                            t_cohort,                           &  ! in  [PORTED: NVP or veg temp]
+                                            bc_in(s)%forc_pbot,                 &  ! in
+                                            bc_in(s)%cair_pa(ifp),              &  ! in
+                                            bc_in(s)%oair_pa(ifp),              &  ! in
+                                            bc_in(s)%esat_tv_pa(ifp),           &  ! in
+                                            gb_mol,                             &  ! in
+                                            bc_in(s)%eair_pa(ifp),              &  ! in
+                                            mm_kco2,                            &  ! in
+                                            mm_ko2,                             &  ! in
+                                            co2_cpoint,                         &  ! in
+                                            lmr_z(iv,ft,cl),                    &  ! in
+                                            ci_tol,                             &  ! in
+                                            psn_ll,                             &  ! out
+                                            gstoma_ll,                          &  ! out
+                                            anet_ll,                            &  ! out
+                                            c13disc_ll,                         &  ! out
+                                            co2_inter_c_utest,                  &  ! out (unit tests)
+                                            solve_iter)                            ! out performance tracking
+                                    end if
 
                                     ! Average output quantities across sunlit and shaded leaves
                                     ! Convert from molar to velocity (umol /m**2/s) to (m/s)
@@ -997,6 +1062,9 @@ contains
                         currentCohort%froot_mr = 0._r8
                         currentCohort%sym_nfix_tstep = 0._r8
 
+                        ! [PORTED by Hui Tang: NVP (moss/lichen) has no fine roots; skip root MR loop]
+                        if (.not. (hlm_use_nvp == itrue .and. currentCohort%nvp_dz > nearzero)) then
+
                         ! n_fixation is integrated over the course of the day
                         ! this variable is zeroed at the end of the FATES dynamics sequence
 
@@ -1015,6 +1083,8 @@ contains
 
 
                         enddo
+
+                        end if  ! [PORTED by Hui Tang: end NVP root MR bypass]
 
                         ! Coarse Root MR (kgC/plant/s) (below ground sapwood)
                         ! ------------------------------------------------------------------

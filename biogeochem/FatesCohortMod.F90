@@ -28,6 +28,10 @@ module FatesCohortMod
   use FatesSizeAgeTypeIndicesMod, only : sizetype_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
   use FatesAllometryMod,          only : carea_allom, tree_lai_sai
+  ! [PORTED by Hui Tang: NVP allometry for cohort initialization]
+  use FatesAllometryMod,          only : NVP_allom
+  use FatesLeafBiophysParamsMod,  only : lb_params
+  use FatesInterfaceTypesMod,     only : hlm_use_nvp
   use PRTAllometricCarbonMod,     only : ac_bc_inout_id_dbh, ac_bc_inout_id_netdc
   use PRTAllometricCarbonMod,     only : ac_bc_in_id_cdamage, ac_bc_in_id_pft
   use PRTAllometricCarbonMod,     only : ac_bc_in_id_ctrim, ac_bc_in_id_lstat
@@ -105,6 +109,10 @@ module FatesCohortMod
     real(r8) :: c_area                  ! areal extent of canopy [m2]
     real(r8) :: treelai                 ! lai of an individual within cohort leaf area [m2 leaf area/m2 crown area]
     real(r8) :: treesai                 ! stem area index of an individual within cohort [m2 stem area/m2 crown area]
+    ! [PORTED by Hui Tang: NVP layer thickness derived from cohort LAI via NVP_allom]
+    ! Only meaningful for NVP cohort (stomatal_intercept(ft) <= nearzero).
+    ! nvp_dz = treelai / (nv_sla * bulk_density_nvp); updated after each LAI change.
+    real(r8) :: nvp_dz                  ! NVP layer thickness for this cohort [m]
     logical  :: isnew                   ! flag to signify a new cohort - new cohorts have not experienced
                                         !   npp or mortality and should therefore not be fused or averaged
     integer  :: size_class              ! index that indicates which diameter size bin the cohort currently resides in
@@ -375,9 +383,10 @@ module FatesCohortMod
       this%efleaf_coh              = nan
       this%effnrt_coh              = nan 
       this%efstem_coh              = nan
-      this%c_area                  = nan 
+      this%c_area                  = nan
       this%treelai                 = nan
       this%treesai                 = nan
+      this%nvp_dz                  = 0.0_r8  ! [PORTED by Hui Tang: safe default; set by NVP_allom for NVP PFTs]
       this%isnew                   = .false.
       this%size_class              = fates_unset_int
       this%coage_class             = fates_unset_int
@@ -488,6 +497,7 @@ module FatesCohortMod
       this%efstem_coh              = 0.0_r8
     
       this%treesai                 = 0._r8
+      this%nvp_dz                  = 0.0_r8  ! [PORTED by Hui Tang: safe default; set by NVP_allom for NVP PFTs]
       this%size_class              = 1
       this%coage_class             = 1
    
@@ -659,12 +669,20 @@ module FatesCohortMod
       ! Query PARTEH for the leaf carbon [kg]
       leaf_c = this%prt%GetState(leaf_organ, carbon12_element)
 
-      call tree_lai_sai(leaf_c, this%pft, this%c_area, this%n,           &
-           this%canopy_layer, can_tlai, this%vcmax25top, this%dbh, this%crowndamage,          &
-           this%canopy_trim, this%efstem_coh, 2, this%treelai, treesai)
+      ! [PORTED by Hui Tang: NVP cohorts initialize treelai and nvp_dz via NVP_allom]
+      if (hlm_use_nvp == itrue .and. &
+          lb_params%stomatal_intercept(this%pft) <= nearzero) then
+         call NVP_allom(this%treelai, leaf_c, this%nvp_dz, inverse=.false.)
+         this%treesai = 0._r8
+      else
+         call tree_lai_sai(leaf_c, this%pft, this%c_area, this%n,        &
+              this%canopy_layer, can_tlai, this%vcmax25top, this%dbh,     &
+              this%crowndamage, this%canopy_trim, this%efstem_coh, 2,     &
+              this%treelai, treesai)
 
-      if (hlm_use_sp .eq. ifalse) then
-         this%treesai = treesai
+         if (hlm_use_sp .eq. ifalse) then
+            this%treesai = treesai
+         end if
       end if
      
 
@@ -716,6 +734,7 @@ module FatesCohortMod
       copyCohort%c_area                  = this%c_area
       copyCohort%treelai                 = this%treelai
       copyCohort%treesai                 = this%treesai
+      copyCohort%nvp_dz                  = this%nvp_dz  ! [PORTED by Hui Tang: copy NVP layer thickness]
       copyCohort%isnew                   = this%isnew
       copyCohort%size_class              = this%size_class
       copyCohort%coage_class             = this%coage_class
