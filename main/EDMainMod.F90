@@ -772,7 +772,7 @@ contains
 
     currentPatch => currentSite%youngest_patch
     do while(associated(currentPatch))
-       
+
        call GenerateDamageAndLitterFluxes( currentSite, currentPatch)
 
        call PreDisturbanceLitterFluxes( currentSite, currentPatch, bc_in)
@@ -787,7 +787,7 @@ contains
     ! can remove it completely if/when this call is added in ELM to 
     ! subroutine UpdateLitterFluxes(this,bounds_clump) in elmfates_interfaceMod.F90
 
-    call FluxIntoLitterPools(currentsite, bc_in, bc_out)
+    call FluxIntoLitterPools(currentsite)
 
 
     ! Update cohort number.
