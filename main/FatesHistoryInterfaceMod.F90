@@ -364,7 +364,6 @@ module FatesHistoryInterfaceMod
   ! land-use-resolved variables
   integer :: ih_fracarea_si_landuse
   integer :: ih_biomass_si_landuse
-  integer :: ih_biomass_si_lupft
   integer :: ih_burnedarea_si_landuse
   integer :: ih_gpp_si_landuse
   integer :: ih_npp_si_landuse
