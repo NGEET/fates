@@ -3616,6 +3616,9 @@ contains
                               + total_m * ccohort%n * AREA_INV
 
                          ! biomass by land use type and pft
+                         ! This does not need to filter out nocomp_bareground patches
+                         ! because we are in a cohort loop, which would not exist in those
+                         ! patches...
                          lupft_index = get_landusepft_class_index(cpatch%land_use_label,ccohort%pft)
                          hio_biomass_si_lupft(io_si, lupft_index) = &
                               hio_biomass_si_lupft(io_si, lupft_index) &
