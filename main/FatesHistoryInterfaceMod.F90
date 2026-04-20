@@ -3510,6 +3510,7 @@ contains
                       ! land use x pft too
                       this%hvars(ih_nocomp_patcharea_si_lupft)%r82d(io_si,lupft_index) = &
                            this%hvars(ih_nocomp_patcharea_si_lupft)%r82d(io_si,lupft_index) + cpatch%area * AREA_INV
+
                    endif
 
                 end do
@@ -4240,22 +4241,24 @@ contains
 
                 litt_c       => cpatch%litter(element_pos(carbon12_element))
 
+                
                 do i_pft = 1, numpft
 
-                   lupft_index = get_landusepft_class_index(cpatch%land_use_label,i_pft)
+                   if (cpatch%land_use_label .gt. nocomp_bareground_land) then
+                      lupft_index = get_landusepft_class_index(cpatch%land_use_label,i_pft)
+                      ! Sum up total seed bank (germinated and ungerminated) by land-use x PFT
+                      hio_seed_bank_si_lupft(io_si,lupft_index) = hio_seed_bank_si_lupft(io_si,lupft_index) + &
+                           (litt_c%seed(i_pft)+litt_c%seed_germ(i_pft)) * cpatch%area * AREA_INV
+                   end if
 
                    ! Sum up total seed bank (germinated and ungerminated)
                    hio_seed_bank_si_pft(io_si,i_pft) = hio_seed_bank_si_pft(io_si,i_pft) + &
                         (litt_c%seed(i_pft)+litt_c%seed_germ(i_pft)) * cpatch%area * AREA_INV
 
-                   ! Sum up total seed bank (germinated and ungerminated) by land-use x PFT
-                   hio_seed_bank_si_lupft(io_si,lupft_index) = hio_seed_bank_si_lupft(io_si,lupft_index) + &
-                        (litt_c%seed(i_pft)+litt_c%seed_germ(i_pft)) * cpatch%area * AREA_INV
-
                    ! Sum up total seed bank (just ungerminated)
                    hio_ungerm_seed_bank_si_pft(io_si,i_pft) = hio_ungerm_seed_bank_si_pft(io_si,i_pft) + &
                         litt_c%seed(i_pft) * cpatch%area * AREA_INV
-
+                   
                    ! Sum up total seedling pool
                    hio_seedling_pool_si_pft(io_si,i_pft) = hio_seedling_pool_si_pft(io_si,i_pft) + &
                         litt_c%seed_germ(i_pft) * cpatch%area * AREA_INV
