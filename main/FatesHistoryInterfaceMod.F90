@@ -664,7 +664,6 @@ module FatesHistoryInterfaceMod
   integer :: ih_meansmp_si_pft
   integer :: ih_elong_factor_si_pft
   integer :: ih_nocomp_pftpatchfraction_si_pft
-  integer :: ih_nocomp_pftpatchfraction_si_lupft
   integer :: ih_nocomp_pftnpatches_si_pft
   integer :: ih_nocomp_pftburnedarea_si_pft
   integer :: ih_seeds_out_gc_si_pft
@@ -3500,9 +3499,6 @@ contains
 
                       this%hvars(ih_nocomp_pftpatchfraction_si_pft)%r82d(io_si,ft) = &
                            this%hvars(ih_nocomp_pftpatchfraction_si_pft)%r82d(io_si,ft) + cpatch%area * AREA_INV
-
-                      this%hvars(ih_nocomp_pftpatchfraction_si_lupft)%r82d(io_si,lupft_index) = &
-                           this%hvars(ih_nocomp_pftpatchfraction_si_lupft)%r82d(io_si,lupft_index) + cpatch%area * AREA_INV
 
                       this%hvars(ih_nocomp_pftnpatches_si_pft)%r82d(io_si,ft) = &
                            this%hvars(ih_nocomp_pftnpatches_si_pft)%r82d(io_si,ft) + 1._r8
