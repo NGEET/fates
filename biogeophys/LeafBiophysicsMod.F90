@@ -1255,7 +1255,8 @@ contains
        anet,              &  ! out
        c13disc,           &  ! out
        ci,                &  ! out
-       solve_iter)           ! out
+       solve_iter,        &  ! out
+       fwet_nvp)             ! in (optional) [PORTED by Hui Tang: NVP wet fraction for ci override]
 
 
     ! ------------------------------------------------------------------------------------
@@ -1296,7 +1297,9 @@ contains
     real(r8), intent(out) :: c13disc          ! carbon 13 in newly assimilated carbon
     real(r8), intent(out) :: ci               ! intracellular leaf CO2 (Pa)
     integer,  intent(out) :: solve_iter       ! Number of iterations required for the solve
-    
+    ! [PORTED by Hui Tang: NVP wet fraction; when present, ci is overridden after the solve]
+    real(r8), intent(in), optional :: fwet_nvp  ! NVP (moss/lichen) wet fraction [0-1]
+
     ! Important Note on the gas pressures as input arguments.  This photosynthesis scheme will iteratively
     ! solve for the co2 partial pressure at the leaf surface (ie in the stomata). The reference
     ! point for these input values are NOT within that boundary layer that separates the stomata from
@@ -1406,6 +1409,16 @@ contains
 
     c13disc = 4.4_r8 + (27.0_r8 - 4.4_r8) * &
          min (can_co2_ppress, max (ci, 0._r8)) / can_co2_ppress
+
+    ! [PORTED by Hui Tang: for NVP (stomatal_model==3), override ci using boundary-layer-only
+    !  diffusion scaled by a fwet water-film resistance term (Porada 2013 approach).
+    !  When dry (fwet->0): (1-fwet)->1, standard boundary-layer resistance.
+    !  When saturated (fwet->1): (1-fwet) clamped to 0.1, very high resistance
+    !  because the water film blocks CO2 diffusion into the tissue.]
+    if (present(fwet_nvp)) then
+       ci = can_co2_ppress - anet * can_press * h2o_co2_bl_diffuse_ratio / &
+            (gb * max((max(1.0_r8 - fwet_nvp, 0.1_r8))**12, 0.000001_r8))
+    end if
 
     return
   end subroutine LeafLayerPhotosynthesis

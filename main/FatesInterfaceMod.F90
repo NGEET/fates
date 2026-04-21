@@ -294,6 +294,9 @@ contains
      
     fates%bc_in(s)%solad_parb(:,:)     = 0.0_r8
     fates%bc_in(s)%solai_parb(:,:)     = 0.0_r8
+    ! [PORTED by Hui Tang: zero NVP flux fields]
+    fates%bc_in(s)%flx_absdv(:)        = 0.0_r8
+    fates%bc_in(s)%flx_absiv(:)        = 0.0_r8
     fates%bc_in(s)%smp_sl(:)           = 0.0_r8
     fates%bc_in(s)%eff_porosity_sl(:)  = 0.0_r8
     fates%bc_in(s)%watsat_sl(:)        = 0.0_r8
@@ -399,7 +402,16 @@ contains
     fates%bc_out(s)%ftdd_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
     fates%bc_out(s)%ftid_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
     fates%bc_out(s)%ftii_parb(:,:) = 0.0_r8   ! rad flux to soil at bottom of veg is 100%
-    
+    ! [PORTED by Hui Tang: zero NVP radiation and layer geometry fields]
+    fates%bc_out(s)%fabd_nvp_pa(:,:) = 0.0_r8 ! NVP absorbs no direct solar by default
+    fates%bc_out(s)%fabi_nvp_pa(:,:) = 0.0_r8 ! NVP absorbs no diffuse solar by default
+    fates%bc_out(s)%nvp_dz_pa(:)     = 0.0_r8 ! no NVP layer thickness by default
+    fates%bc_out(s)%nvp_frac_pa(:)   = 0.0_r8 ! no NVP coverage by default
+    ! [PORTED by Hui Tang: zero NVP LAI field]
+    fates%bc_out(s)%lai_nvp_pa(:)    = 0.0_r8 ! no NVP LAI by default
+    ! [PORTED by Hui Tang: zero NVP single-scatter albedo for SNICAR layer-0]
+    fates%bc_out(s)%nvp_omega_pa(:,:) = 0.0_r8 ! omega=0 until nvp_ft resolved in radiation
+
     fates%bc_out(s)%elai_pa(:)   = 0.0_r8
     fates%bc_out(s)%esai_pa(:)   = 0.0_r8
     fates%bc_out(s)%tlai_pa(:)   = 0.0_r8
@@ -526,6 +538,9 @@ contains
       ! Radiation
       allocate(bc_in%solad_parb(maxpatch_total,num_swb))
       allocate(bc_in%solai_parb(maxpatch_total,num_swb))
+      ! [PORTED by Hui Tang: visible flux at NVP level for photosynthesis PAR]
+      allocate(bc_in%flx_absdv(maxpatch_total))
+      allocate(bc_in%flx_absiv(maxpatch_total))
       
       ! Hydrology
       allocate(bc_in%smp_sl(nlevsoil_in))
@@ -550,6 +565,9 @@ contains
       allocate(bc_in%cair_pa(maxpatch_total))
       allocate(bc_in%rb_pa(maxpatch_total))
       allocate(bc_in%t_veg_pa(maxpatch_total))
+      ! [PORTED by Hui Tang: NVP surface temperature and wet fraction for photosynthesis]
+      allocate(bc_in%t_nvp_pa(maxpatch_total))     ; bc_in%t_nvp_pa(:)    = 274.0_r8
+      allocate(bc_in%fwet_nvp_pa(maxpatch_total))  ; bc_in%fwet_nvp_pa(:) = 0.0_r8
       allocate(bc_in%tgcm_pa(maxpatch_total))
       allocate(bc_in%t_soisno_sl(nlevsoil_in))
 
@@ -656,6 +674,15 @@ contains
       allocate(bc_out%ftdd_parb(maxpatch_total,num_swb))
       allocate(bc_out%ftid_parb(maxpatch_total,num_swb))
       allocate(bc_out%ftii_parb(maxpatch_total,num_swb))
+      ! [PORTED by Hui Tang: allocate NVP radiation absorbed fractions and layer geometry]
+      allocate(bc_out%fabd_nvp_pa(maxpatch_total,num_swb))
+      allocate(bc_out%fabi_nvp_pa(maxpatch_total,num_swb))
+      allocate(bc_out%nvp_dz_pa(maxpatch_total))
+      allocate(bc_out%nvp_frac_pa(maxpatch_total))
+      ! [PORTED by Hui Tang: allocate NVP LAI for Beer's law (avoids cohort walk in radiation)]
+      allocate(bc_out%lai_nvp_pa(maxpatch_total))
+      ! [PORTED by Hui Tang: allocate NVP single-scatter albedo for SNICAR layer-0]
+      allocate(bc_out%nvp_omega_pa(maxpatch_total,num_swb))
 
       ! We allocate the boundary conditions to the BGC
       ! model, regardless of what scheme we use. The BGC
@@ -1574,6 +1601,10 @@ contains
          hlm_use_fixed_biogeog = unset_int
          hlm_use_nocomp = unset_int   
          hlm_use_sp = unset_int
+         ! [PORTED by Hui Tang: initialize NVP control flags]
+         hlm_use_nvp              = unset_int
+         hlm_use_nvp_undersnow    = unset_int
+         hlm_nvp_rad_model_ground = unset_int
          hlm_use_inventory_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
          hlm_hist_level_dynam = unset_int
@@ -2039,6 +2070,26 @@ contains
                hlm_use_sp = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_sp= ',ival,' to FATES'
+               end if
+
+            ! [PORTED by Hui Tang: NVP control flag cases]
+            case('use_nvp')
+               hlm_use_nvp = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_nvp= ',ival,' to FATES'
+               end if
+
+            case('use_nvp_undersnow')
+               hlm_use_nvp_undersnow = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_nvp_undersnow= ',ival,' to FATES'
+               end if
+
+            ! [PORTED by Hui Tang: NVP radiation model switch]
+            case('nvp_rad_model_ground')
+               hlm_nvp_rad_model_ground = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_nvp_rad_model_ground= ',ival,' to FATES'
                end if
 
             case('use_planthydro')

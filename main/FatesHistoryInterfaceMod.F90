@@ -141,6 +141,8 @@ module FatesHistoryInterfaceMod
   use FatesSizeAgeTypeIndicesMod, only : get_cdamagesizepft_class_index
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
   use FatesInterfaceTypesMod    , only : hlm_use_luh
+  use FatesInterfaceTypesMod    , only : hlm_use_nvp  ! [PORTED by Hui Tang: NVP history]
+  use FatesLeafBiophysParamsMod , only : lb_params    ! [PORTED by Hui Tang: NVP PFT identification via stomatal_intercept]
   use FatesSizeAgeTypeIndicesMod, only : get_landusepft_class_index
 
   implicit none
@@ -709,6 +711,12 @@ module FatesHistoryInterfaceMod
   ! indices to (site x height) variables
   integer :: ih_canopy_height_dist_si_height
   integer :: ih_leaf_height_dist_si_height
+
+  ! [PORTED by Hui Tang: indices for NVP (moss/lichen) site-level history variables]
+  integer :: ih_nvp_frac_si
+  integer :: ih_nvp_dz_si
+  integer :: ih_nvp_lai_si
+  integer :: ih_nvp_gpp_si
 
   ! Indices to hydraulics variables
 
@@ -5166,7 +5174,12 @@ contains
     type(bc_in_type)        , intent(in)            :: bc_in(nsites)
     type(bc_out_type)       , intent(in)            :: bc_out(nsites)
     real(r8)                , intent(in)            :: dt_tstep
-    
+
+    ! [PORTED by Hui Tang: local variables for NVP site-level history aggregation]
+    integer                         :: s, io_si, ifp
+    real(r8)                        :: nvp_frac_site, nvp_dz_site, nvp_lai_site, total_area_site
+    type(fates_patch_type), pointer :: cpatch
+
     if(hlm_hist_level_hifrq>0) then
        call update_history_hifrq_sitelevel(this,nc,nsites,sites,bc_in,dt_tstep)
        if(hlm_hist_level_hifrq>1) then
@@ -5176,6 +5189,40 @@ contains
              call update_history_hifrq_landuse(this,nc,nsites,sites,bc_in,dt_tstep)
           end if
        end if
+
+       ! [PORTED by Hui Tang: update NVP site-level history variables from bc_out]
+       ! Compute patch-area-weighted means of nvp_frac, nvp_dz, and lai_nvp over the site.
+       if (hlm_use_nvp .eq. itrue) then
+          associate( &
+               hio_nvp_frac_si => this%hvars(ih_nvp_frac_si)%r81d, &
+               hio_nvp_dz_si   => this%hvars(ih_nvp_dz_si)%r81d,   &
+               hio_nvp_lai_si  => this%hvars(ih_nvp_lai_si)%r81d)
+
+            do s = 1, nsites
+               io_si = sites(s)%h_gid
+               nvp_frac_site  = 0._r8
+               nvp_dz_site    = 0._r8
+               nvp_lai_site   = 0._r8
+               total_area_site = 0._r8
+               cpatch => sites(s)%oldest_patch
+               do while(associated(cpatch))
+                  ifp = cpatch%patchno
+                  nvp_frac_site  = nvp_frac_site  + bc_out(s)%nvp_frac_pa(ifp) * bc_out(s)%canopy_fraction_pa(ifp)
+                  nvp_dz_site    = nvp_dz_site    + bc_out(s)%nvp_dz_pa(ifp)   * bc_out(s)%canopy_fraction_pa(ifp)
+                  nvp_lai_site   = nvp_lai_site   + bc_out(s)%lai_nvp_pa(ifp)  * bc_out(s)%canopy_fraction_pa(ifp)
+                  total_area_site = total_area_site + bc_out(s)%canopy_fraction_pa(ifp)
+                  cpatch => cpatch%younger
+               end do
+               if (total_area_site > nearzero) then
+                  hio_nvp_frac_si(io_si) = nvp_frac_site  / total_area_site
+                  hio_nvp_dz_si(io_si)   = nvp_dz_site    / total_area_site
+                  hio_nvp_lai_si(io_si)  = nvp_lai_site   / total_area_site
+               end if
+            end do
+
+          end associate
+       end if
+
     end if
 
 
@@ -5216,6 +5263,7 @@ contains
 
 
     associate( hio_gpp_si                   => this%hvars(ih_gpp_si)%r81d, &
+         hio_nvp_gpp_si               => this%hvars(ih_nvp_gpp_si)%r81d, &  ! [PORTED by Hui Tang: NVP GPP]
          hio_npp_si                   => this%hvars(ih_npp_si)%r81d, &
          hio_aresp_si                 => this%hvars(ih_aresp_si)%r81d, &
          hio_maint_resp_si            => this%hvars(ih_maint_resp_si)%r81d, &
@@ -5361,6 +5409,13 @@ contains
 
                      hio_gpp_si(io_si) = hio_gpp_si(io_si) + &
                           ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
+
+                     ! [PORTED by Hui Tang: accumulate NVP GPP separately]
+                     if (hlm_use_nvp .eq. itrue .and. &
+                          lb_params%stomatal_intercept(ccohort%pft) <= nearzero) then
+                        hio_nvp_gpp_si(io_si) = hio_nvp_gpp_si(io_si) + &
+                             ccohort%gpp_tstep * n_perm2 * dt_tstep_inv
+                     end if
 
                      hio_maint_resp_si(io_si) = hio_maint_resp_si(io_si) + &
                           ccohort%resp_m_tstep * n_perm2 * dt_tstep_inv
@@ -9835,6 +9890,30 @@ contains
 
        end if if_hifrq1
 
+       ! [PORTED by Hui Tang: NVP (moss/lichen) site-level history variables]
+       call this%set_history_var(vname='FATES_NVP_FRAC', units='1', &
+            long='nvp (moss/lichen) fractional coverage of site', &
+            use_default='inactive', avgflag='A', vtype=site_r8, hlms='CLM:ALM', &
+            upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_nvp_frac_si)
+
+       call this%set_history_var(vname='FATES_NVP_DZ', units='m', &
+            long='nvp (moss/lichen) area-weighted mean layer thickness', &
+            use_default='inactive', avgflag='A', vtype=site_r8, hlms='CLM:ALM', &
+            upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_nvp_dz_si)
+
+       call this%set_history_var(vname='FATES_NVP_LAI', units='m2 m-2', &
+            long='nvp (moss/lichen) area-weighted mean thallus area index', &
+            use_default='inactive', avgflag='A', vtype=site_r8, hlms='CLM:ALM', &
+            upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_nvp_lai_si)
+
+       call this%set_history_var(vname='FATES_NVP_GPP', units='kgC m-2 s-1', &
+            long='nvp (moss/lichen) gross primary production per unit land area', &
+            use_default='active', avgflag='A', vtype=site_r8, hlms='CLM:ALM', &
+            upfreq=group_hifr_simple, ivar=ivar, initialize=initialize_variables, &
+            index=ih_nvp_gpp_si)
 
     end if if_hifrq0
 

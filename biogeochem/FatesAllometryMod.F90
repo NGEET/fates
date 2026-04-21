@@ -99,6 +99,8 @@ module FatesAllometryMod
   use FatesGlobals     , only : endrun => fates_endrun
   use FatesGlobals     , only : FatesWarn,N2S,A2S,I2S
   use EDParamsMod      , only : nlevleaf,dinc_vai,dlower_vai
+  ! [PORTED by Hui Tang: NVP allometry parameters from FATES parameter file]
+  use EDParamsMod      , only : nvp_bulk_density, nvp_sla
   use DamageMainMod    , only : GetCrownReduction
   use LeafBiophysicsMod, only : DecayCoeffVcmax
   
@@ -124,6 +126,8 @@ module FatesAllometryMod
   public :: set_root_fraction  ! Generic wrapper to calculate normalized
                                ! root profiles
   public :: leafc_from_treelai ! Calculate target leaf carbon for a given treelai for SP mode
+  ! [PORTED by Hui Tang: NVP (moss/lichen) bidirectional LAI<->biomass and LAI->thickness conversion]
+  public :: NVP_allom
   public :: VegAreaLayer
 
   public :: tree_lai_sai       ! LAI and SAI calculations must work together, thus they
@@ -3544,6 +3548,57 @@ contains
    end subroutine size2dbh
    ! ============================================================================
 
+   ! [PORTED by Hui Tang: NVP (moss/lichen) allometry - LAI<->biomass and LAI->layer thickness]
+   subroutine NVP_allom(lai, leaf_c, nvp_dz, inverse)
+      !
+      ! !DESCRIPTION:
+      ! Bidirectional conversion between NVP leaf carbon and LAI, and diagnosis
+      ! of the NVP layer thickness from LAI.
+      !
+      ! Parameters (from Porada et al. 2013 and related literature, read from FATES parameter file):
+      !   nvp_sla          [m2 g-1]  specific leaf area of NVP
+      !   nvp_bulk_density [kg m-3]  NVP bulk density
+      !   nv_c2b   = 2.32            carbon-to-biomass ratio of NVP (kgC / kgDM)
+      !   nv_t2l   = 1.0             total-to-leaf biomass ratio (all biomass is leaf for NVP)
+      !
+      ! When inverse = .false.: leaf_c  ->  lai, nvp_dz
+      ! When inverse = .true. : lai     ->  leaf_c  (nvp_dz still diagnosed from lai)
+      !
+      ! nvp_dz = lai / (nvp_sla [m2 g-1] * 1e3 [g kg-1] * nvp_bulk_density [kg m-3])
+      !        = lai / (nvp_sla * g_per_kg * nvp_bulk_density)
+      !
+      ! !ARGUMENTS:
+      real(r8), intent(inout) :: lai     ! NVP leaf area index [m2 leaf / m2 crown]
+      real(r8), intent(inout) :: leaf_c  ! NVP leaf carbon per unit crown area [kgC m-2]
+      real(r8), intent(out)   :: nvp_dz  ! NVP layer thickness [m]
+      logical,  intent(in)    :: inverse ! .false. = leaf_c->lai; .true. = lai->leaf_c
+      !
+      ! !LOCAL VARIABLES:
+      real(r8), parameter :: nv_c2b  = 2.32_r8 ! carbon to dry-mass ratio [kgC kgDM-1]
+      real(r8), parameter :: nv_t2l  = 1.0_r8  ! total-to-leaf biomass ratio [-]
+      !------------------------------------------------------------------------
 
+      if (inverse) then
+         ! lai -> leaf_c
+         ! leaf_mass_per_area [kgDM m-2] = lai [m2 m-2] / (nvp_sla [m2 g-1] * g_per_kg [g kg-1])
+         ! leaf_c [kgC m-2] = leaf_mass_per_area * nv_c2b / nv_t2l
+         leaf_c = (lai / (nvp_sla * g_per_kg)) * nv_c2b / nv_t2l
+      else
+         ! leaf_c -> lai
+         ! leaf_mass [kgDM m-2] = leaf_c * nv_t2l / nv_c2b
+         ! lai = leaf_mass * nvp_sla * g_per_kg
+         lai = (leaf_c * nv_t2l / nv_c2b) * nvp_sla * g_per_kg
+      end if
+
+      ! Diagnose layer thickness from LAI regardless of direction
+      ! nvp_dz [m] = lai [m2 m-2] / (nvp_sla [m2 g-1] * g_per_kg [g kg-1] * nvp_bulk_density [kg m-3])
+      if (nvp_bulk_density > nearzero) then
+         nvp_dz = lai / (nvp_sla * g_per_kg * nvp_bulk_density)
+      else
+         nvp_dz = 0.0_r8
+      end if
+
+   end subroutine NVP_allom
+   ! ============================================================================
 
 end module FatesAllometryMod

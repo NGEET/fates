@@ -1738,6 +1738,27 @@
       "units": "unknown",
       "data": [null]
     },
+    "fates_nvp_extinction_coeff": {
+      "dtype": "float",
+      "dims": ["scalar"],
+      "long_name": "Beer's law extinction coefficient for NVP (moss/lichen) radiation absorption",
+      "units": "unitless",
+      "data": [0.5]
+    },
+    "fates_nvp_bulk_density": {
+      "dtype": "float",
+      "dims": ["scalar"],
+      "long_name": "NVP (moss/lichen) bulk density",
+      "units": "kg m-3",
+      "data": [75.0]
+    },
+    "fates_nvp_sla": {
+      "dtype": "float",
+      "dims": ["scalar"],
+      "long_name": "NVP (moss/lichen) specific leaf area",
+      "units": "m2 g-1",
+      "data": [0.3]
+    },
     "fates_fire_active_crown_fire": {
       "dtype": "integer",
       "dims": ["scalar"],

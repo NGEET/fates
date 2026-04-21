@@ -12,8 +12,11 @@ module FatesRadiationDriveMod
 
   use EDTypesMod        , only : ed_site_type
   use FatesPatchMod,      only : fates_patch_type
+  ! [PORTED by Hui Tang: NVP cohort access for Beer's law radiation]
+  use FatesCohortMod,     only : fates_cohort_type
   use EDParamsMod,        only : maxpft
   use EDParamsMod       , only : GetNVegLayers
+  use EDParamsMod       , only : nvp_extinction_coeff  ! [PORTED by Hui Tang: NVP Beer's law k from parameter file]
   use FatesConstantsMod , only : r8 => fates_r8
   use FatesConstantsMod , only : fates_unset_r8
   use FatesConstantsMod , only : itrue
@@ -24,6 +27,9 @@ module FatesRadiationDriveMod
   use FatesInterfaceTypesMod , only : bc_out_type
   use FatesInterfaceTypesMod , only : numpft
   use FatesInterfaceTypesMod , only : hlm_radiation_model
+  ! [PORTED by Hui Tang: NVP control flag and radiation model switch]
+  use FatesInterfaceTypesMod , only : hlm_use_nvp
+  use FatesInterfaceTypesMod , only : hlm_nvp_rad_model_ground
   use FatesRadiationMemMod, only : num_rad_stream_types
   use FatesRadiationMemMod, only : idirect, idiffuse
   use FatesRadiationMemMod, only : num_swb, ivis, inir, ipar
@@ -42,7 +48,9 @@ module FatesRadiationDriveMod
   use FatesGlobals, only      : endrun => fates_endrun
   use EDPftvarcon,        only : EDPftvarcon_inst
   use FatesNormanRadMod,  only : PatchNormanRadiation
-  
+  ! [PORTED by Hui Tang: NVP PFT identification by zero stomatal intercept]
+  use FatesLeafBiophysParamsMod, only : lb_params
+
   ! CIME globals
   use shr_log_mod       , only : errMsg => shr_log_errMsg
 
@@ -51,6 +59,7 @@ module FatesRadiationDriveMod
   private
   public :: FatesNormalizedCanopyRadiation  ! Surface albedo and two-stream fluxes
   public :: FatesSunShadeFracs
+  public :: NVPBeerLawAbsorptance           ! Beer's law NVP absorptance (Approach A)
 
   logical :: debug = .false.  ! for debugging this module
   character(len=*), parameter, private :: sourcefile = &
@@ -91,6 +100,12 @@ contains
                                                    ! index at lop of layer
     real(r8) :: vai                                ! total VAI of the scattering element
     type(fates_patch_type), pointer :: currentPatch   ! patch pointer
+    ! [PORTED by Hui Tang: NVP radiation (R3 ground-albedo modification, R4 Beer's law)]
+    ! lai_nvp_pa already computed in EDCanopyStructureMod; only a brief cohort walk is
+    ! needed here to find nvp_ft (the NVP PFT index) for the albedo lookup in R3.
+    type(fates_cohort_type), pointer :: currentCohort ! cohort pointer (NVP PFT lookup only)
+    integer  :: nvp_ft           ! NVP PFT index for EDPftvarcon albedo lookup
+    real(r8) :: nvp_frac         ! NVP fractional coverage of patch [0-1]
 
     !-----------------------------------------------------------------------
     ! -------------------------------------------------------------------------------
@@ -139,7 +154,56 @@ contains
              currentPatch%gnd_alb_dir(1:num_swb) = bc_in(s)%albgr_dir_rb(1:num_swb)
              currentPatch%fcansno                = bc_in(s)%fcansno_pa(ifp)
              currentPatch%rad_error(:)           = hlm_hio_ignore_val
-             
+
+             ! [PORTED by Hui Tang: Step 8 R3 - modify ground albedo for NVP (no-snow case only)]
+             ! Walk cohort list once to find the NVP PFT index for the albedo lookup.
+             ! NVP is below snow, so ground albedo is only modified when frac_sno_eff_si == 0.
+             nvp_frac = bc_out(s)%nvp_frac_pa(ifp)
+             nvp_ft   = 0
+             ! [PORTED by Hui Tang: R3 - find nvp_ft whenever NVP is present (needed for
+             ! both no-snow ground albedo R3 and SNICAR omega output nvp_omega_pa)]
+             if (hlm_use_nvp == itrue .and. nvp_frac > nearzero) then
+                currentCohort => currentPatch%shortest
+                do while (associated(currentCohort))
+                   if (currentCohort%nvp_dz > nearzero) then
+                      nvp_ft = currentCohort%pft
+                      exit
+                   end if
+                   currentCohort => currentCohort%taller
+                end do
+                if (nvp_ft > 0) then
+                   ! [PORTED by Hui Tang: set nvp_omega_pa for SNICAR layer-0 (both snow and no-snow)]
+                   ! omega(ib) = rhol + taul: fraction of intercepted radiation that is scattered.
+                   ! Used in SurfaceAlbedoMod to characterise NVP as a SNICAR pseudo-layer.
+                   do ib = 1, num_swb
+                      bc_out(s)%nvp_omega_pa(ifp,ib) = EDPftvarcon_inst%rhol(nvp_ft,ib) + &
+                                                        EDPftvarcon_inst%taul(nvp_ft,ib)
+                   end do
+                   ! No-snow case only: modify ground albedo for Norman solver (R3)
+                   ! Previous implementation (kept for reference):
+                   ! if (bc_in(s)%frac_sno_eff_si <= 0._r8) then
+                   !    do ib = 1, num_swb
+                   !       currentPatch%gnd_alb_dir(ib) = ...
+                   !       currentPatch%gnd_alb_dif(ib) = ...
+                   !    end do
+                   ! end if
+                   ! [PORTED by Hui Tang: R3 applies only for Approach A (NVP as ground boundary)]
+                   ! Approach B uses soil albedo as lower boundary; Norman solver handles NVP as
+                   ! a canopy leaf layer, so ground albedo must remain the true soil albedo.
+                   if (hlm_nvp_rad_model_ground == itrue .and. &
+                        bc_in(s)%frac_sno_eff_si <= 0._r8) then
+                      do ib = 1, num_swb
+                         currentPatch%gnd_alb_dir(ib) = &
+                              nvp_frac * EDPftvarcon_inst%rhol(nvp_ft,ib) + &
+                              (1._r8 - nvp_frac) * bc_in(s)%albgr_dir_rb(ib)
+                         currentPatch%gnd_alb_dif(ib) = &
+                              nvp_frac * EDPftvarcon_inst%rhol(nvp_ft,ib) + &
+                              (1._r8 - nvp_frac) * bc_in(s)%albgr_dif_rb(ib)
+                      end do
+                   end if
+                end if
+             end if
+
              if_zenith_flag: if( bc_in(s)%coszen>0._r8 )then
                 
                 select case(hlm_radiation_model)
@@ -221,6 +285,39 @@ contains
                      
                    end associate
                 end select
+
+                ! [PORTED by Hui Tang: NVP absorptance for CLM energy balance when there when no-snow]
+                ! Approach A: Stand-alone Beer's law on below-vascular-canopy fluxes (trd/tri). NVP not in
+                !   Norman's canopy so ftdd/ftii are fluxes incident on NVP from above.
+                ! Approach B: NVP IS in Norman's canopy; sum Norman's per-layer absorbed fractions
+                !   (fabd_sun_z + fabd_sha_z) for NVP cohort layers. These are per m2 ground,
+                !   area-weighted. k_nvp band-independent => apply PAR-band value to all swb bands.
+                if (hlm_use_nvp == itrue) then
+                   if (hlm_nvp_rad_model_ground == itrue) then
+                      ! Approach A: Beer's law absorptance from below-vascular-canopy flux
+                      call NVPBeerLawAbsorptance(nvp_frac, bc_out(s)%lai_nvp_pa(ifp), &
+                           bc_out(s)%fabd_nvp_pa(ifp,:), bc_out(s)%fabi_nvp_pa(ifp,:))
+                   else
+                      ! Approach B: sum Norman per-layer output for NVP cohorts
+                      bc_out(s)%fabd_nvp_pa(ifp,:) = 0._r8
+                      bc_out(s)%fabi_nvp_pa(ifp,:) = 0._r8
+                      if (nvp_frac > nearzero) then
+                         do cl = 1, currentPatch%ncl_p
+                            do ft = 1, numpft
+                               if (lb_params%stomatal_intercept(ft) <= nearzero) then
+                                  do iv = 1, currentPatch%nrad(cl,ft)
+                                     bc_out(s)%fabd_nvp_pa(ifp,:) = bc_out(s)%fabd_nvp_pa(ifp,:) + &
+                                          currentPatch%fabd_sun_z(cl,ft,iv) + currentPatch%fabd_sha_z(cl,ft,iv)
+                                     bc_out(s)%fabi_nvp_pa(ifp,:) = bc_out(s)%fabi_nvp_pa(ifp,:) + &
+                                          currentPatch%fabi_sun_z(cl,ft,iv) + currentPatch%fabi_sha_z(cl,ft,iv)
+                                  end do
+                               end if
+                            end do
+                         end do
+                      end if
+                   end if
+                end if
+
              endif if_zenith_flag
           end if if_bareground
           currentPatch => currentPatch%younger
@@ -229,6 +326,30 @@ contains
     
     return
   end subroutine FatesNormalizedCanopyRadiation
+
+  ! ======================================================================================
+
+  subroutine NVPBeerLawAbsorptance(nvp_frac, lai_nvp, fabd_nvp, fabi_nvp)
+    ! [PORTED by Hui Tang: Beer's law NVP absorptance - extracted from FatesNormalizedCanopyRadiation]
+    ! Computes Beer's law absorbed fraction per unit ground area for all radiation bands.
+    ! k_nvp is band-independent so fabd_nvp == fabi_nvp.
+    ! Used for CLM energy balance (sabg_lyr layer 0) and Approach A photosynthesis PAR.
+    implicit none
+    real(r8), intent(in)  :: nvp_frac              ! NVP fractional patch coverage [0-1]
+    real(r8), intent(in)  :: lai_nvp               ! NVP thallus LAI [m2 thallus / m2 NVP crown]
+    real(r8), intent(out) :: fabd_nvp(num_swb)     ! Beer's law direct absorptance per band [-]
+    real(r8), intent(out) :: fabi_nvp(num_swb)     ! Beer's law diffuse absorptance per band [-]
+    integer :: ib
+    if (nvp_frac > nearzero) then
+       do ib = 1, num_swb
+          fabd_nvp(ib) = nvp_frac * (1._r8 - exp(-nvp_extinction_coeff * lai_nvp))
+          fabi_nvp(ib) = fabd_nvp(ib)   ! band-independent: identical to direct
+       end do
+    else
+       fabd_nvp(:) = 0._r8
+       fabi_nvp(:) = 0._r8
+    end if
+  end subroutine NVPBeerLawAbsorptance
 
   ! ======================================================================================
 
@@ -262,6 +383,11 @@ contains
     real(r8) :: vai
     logical  :: call_fail
     type(fates_patch_type), pointer :: fpatch ! patch pointer for failure reporting
+    ! [PORTED by Hui Tang: NVP PAR computation - below-canopy and approach-dependent absorptance]
+    real(r8) :: trd_nvp        ! below-canopy direct PAR [W/m2 ground]
+    real(r8) :: tri_nvp        ! below-canopy diffuse PAR [W/m2 ground]
+    real(r8) :: nvp_absv_dir   ! NVP direct absorptance fraction (Beer's law or SNICAR) [-]
+    real(r8) :: nvp_absv_dif   ! NVP diffuse absorptance fraction (Beer's law or SNICAR) [-]
     
     do s = 1,nsites
 
@@ -342,9 +468,64 @@ contains
                       end do !iv
                    end do !ft
                 end do !cl
-                
-                
-                
+
+                ! [PORTED by Hui Tang: NVP PAR override - approach-conditioned for Approach A and B]
+                ! Below-canopy (top-of-snow) direct and diffuse PAR [W/m2 ground].
+                ! Approach A (NVP as ground boundary): always override ed_parsun_z/ed_parsha_z
+                !   using Beer's law fabd_nvp_pa (no-snow) or SNICAR flx_absdv (snow).
+                !   Also set ed_laisha_z since elai_profile=0 for NVP in Approach A.
+                ! Approach B (NVP as leaf layer): override snow case only using SNICAR fractions;
+                !   no-snow case is handled by Norman solver via standard fabd_sun_z/fabd_sha_z.
+                if (hlm_use_nvp == itrue .and. bc_in(s)%coszen > 0._r8) then
+                   trd_nvp = bc_in(s)%solad_parb(ifp,ipar) * bc_out(s)%ftdd_parb(ifp,ipar)
+                   tri_nvp = bc_in(s)%solad_parb(ifp,ipar) * bc_out(s)%ftid_parb(ifp,ipar) + &
+                              bc_in(s)%solai_parb(ifp,ipar) * bc_out(s)%ftii_parb(ifp,ipar)
+
+                   if (hlm_nvp_rad_model_ground == itrue) then
+                      ! Approach A: always override — Beer's law (no snow) or SNICAR (snow)
+                      if (bc_in(s)%snow_depth_si > 0._r8) then
+                         nvp_absv_dir = bc_in(s)%flx_absdv(ifp)          ! SNICAR NVP absorption fraction
+                         nvp_absv_dif = bc_in(s)%flx_absiv(ifp)
+                      else
+                         nvp_absv_dir = bc_out(s)%fabd_nvp_pa(ifp,ipar)  ! Beer's law (NVPBeerLawAbsorptance)
+                         nvp_absv_dif = bc_out(s)%fabi_nvp_pa(ifp,ipar)
+                      end if
+                      do cl = 1, cpatch%ncl_p
+                         do ft = 1, numpft
+                            if (lb_params%stomatal_intercept(ft) <= nearzero) then
+                               do iv = 1, cpatch%nrad(cl,ft)
+                                  cpatch%ed_parsun_z(cl,ft,iv) = 0._r8
+                                  cpatch%ed_parsha_z(cl,ft,iv) = nvp_absv_dir*trd_nvp + nvp_absv_dif*tri_nvp
+                                  ! Set NVP LAI for ConvertPar: elai_profile=0 (excluded from Norman),
+                                  ! so ed_laisha_z must be set explicitly here.
+                                  ! lai_nvp_pa [m2 thallus/m2 NVP crown] x canopy_area_profile gives
+                                  ! total thallus per ground area consumed by ConvertPar.
+                                  cpatch%ed_laisun_z(cl,ft,iv) = 0._r8
+                                  cpatch%ed_laisha_z(cl,ft,iv) = bc_out(s)%lai_nvp_pa(ifp)
+                               end do
+                            end if
+                         end do
+                      end do
+
+                   else
+                      ! Approach B: Norman solver handles no-snow case; override snow case only
+                      if (bc_in(s)%snow_depth_si > 0._r8) then
+                         do cl = 1, cpatch%ncl_p
+                            do ft = 1, numpft
+                               if (lb_params%stomatal_intercept(ft) <= nearzero) then
+                                  do iv = 1, cpatch%nrad(cl,ft)
+                                     cpatch%ed_parsun_z(cl,ft,iv) = 0._r8
+                                     cpatch%ed_parsha_z(cl,ft,iv) = &
+                                          bc_in(s)%flx_absdv(ifp) * trd_nvp + &
+                                          bc_in(s)%flx_absiv(ifp) * tri_nvp
+                                  end do
+                               end if
+                            end do
+                         end do
+                      end if
+                   end if
+                end if
+
              else  ! if_norm_twostr
 
                 ! If there is no sun out, we have a trivial solution
