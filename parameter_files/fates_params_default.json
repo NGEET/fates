@@ -70,7 +70,7 @@
       "dims": ["fates_pft"],
       "long_name": "Description of plant type",
       "units": "unitless - string",
-      "data": ["broadleaf_evergreen_tropical_tree", "needleleaf_evergreen_extratrop_tree", "needleleaf_colddecid_extratrop_tree", "broadleaf_evergreen_extratrop_tree", "broadleaf_hydrodecid_tropical_tree", "broadleaf_colddecid_extratrop_tree", "broadleaf_evergreen_extratrop_shrub", "broadleaf_hydrodecid_extratrop_shrub", "broadleaf_colddecid_extratrop_shrub", "broadleaf_evergreen_arctic_shrub", "broadleaf_colddecid_arctic_shrub", "arctic_c3_grass", "cool_c3_grass", "c4_grass", "nvp"]
+      "data": ["broadleaf_evergreen_tropical_tree", "needleleaf_evergreen_extratrop_tree", "needleleaf_colddecid_extratrop_tree", "broadleaf_evergreen_extratrop_tree", "broadleaf_hydrodecid_tropical_tree", "broadleaf_colddecid_extratrop_tree", "broadleaf_evergreen_extratrop_shrub", "broadleaf_hydrodecid_extratrop_shrub", "broadleaf_colddecid_extratrop_shrub", "broadleaf_evergreen_arctic_shrub", "broadleaf_colddecid_arctic_shrub", "arctic_c3_grass", "cool_c3_grass", "c4_grass", "non_vascular_phototroph"]
     },
     "fates_hydro_organ_name": {
       "dtype": "string",
