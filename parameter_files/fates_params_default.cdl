@@ -1,4 +1,4 @@
-netcdf fates_params_sci.1.88.6_api.42.0.0_14pft_nor_sci2_api1_default {
+netcdf fates_params_sci.1.88.6_api.42.0.0_14pft_nor_sci2_api2_default {
 dimensions:
 	fates_NCWD = 4 ;
 	fates_history_age_bins = 7 ;
@@ -690,9 +690,15 @@ variables:
 	double fates_hlm_pft_map(fates_hlm_pftno, fates_pft) ;
 		fates_hlm_pft_map:units = "area fraction" ;
 		fates_hlm_pft_map:long_name = "In fixed biogeog mode, fraction of HLM area associated with each FATES PFT" ;
-	double fates_wesley_pft_index_fordrydep(fates_pft) ;
-		fates_wesley_pft_index_fordrydep:units = "integer index" ;
-		fates_wesley_pft_index_fordrydep:long_name = "index to map from fates pfts into the wesley pft space used to determing dry deposition veolcity." ;
+	double fates_wesley_veg_index(fates_pft) ;
+		fates_wesley_veg_index:units = "integer index" ;
+		fates_wesley_veg_index:long_name = "index to map from fates pfts into the wesley pft space used to determing dry deposition veolcity." ;
+	double fates_wesley_sum_thresh(fates_pft) ;
+		fates_wesley_sum_thresh:units = "m2/m2" ;
+		fates_wesley_sum_thresh:long_name = "threshold to determine wesley summer season" ;
+	double fates_wesley_aut_thresh(fates_pft) ;
+		fates_wesley_aut_thresh:units = "m2/m2" ;
+		fates_wesley_aut_thresh:long_name = "threshold to determine wesley early/late autumn season" ;
 	double fates_fire_FBD(fates_litterclass) ;
 		fates_fire_FBD:units = "kg Biomass/m3" ;
 		fates_fire_FBD:long_name = "fuel bulk density" ;
@@ -1748,7 +1754,11 @@ data:
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 ;
 
- fates_wesley_pft_index_fordrydep = 4, 5, 5, 4, 4, 4, 11, 11, 11, 3, 3, 3, 3, 3 ;
+ fates_wesley_veg_index = 4, 5, 5, 4, 4, 4, 11, 11, 11, 3, 3, 3, 3, 3 ;
+
+ fates_wesley_sum_thresh = 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 ;
+
+ fates_wesley_aut_thresh = 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ;
 
  fates_fire_FBD = 15.4, 16.8, 19.6, 999, 4, 4 ;
 
