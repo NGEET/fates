@@ -1,0 +1,71 @@
+name: Bug Report
+description: Issues related to the model crashing or the other unexpected behavior
+# title: "[Bug]: "
+# labels: ["bug - science"]
+# projects: ["octo-org/1", "octo-org/44"]
+# assignees:
+  # - octocat
+body:
+  - type: markdown
+    attributes:
+      value: "Please describe the issue below"
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the issue
+      description: Provide detail on the expected behavior and observed behavior.  Attached screen shots and plots as necessary.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: shell
+  - type: input
+    id: fates-tag
+    attributes:
+      label: FATES tag
+      description: The output from running `git describe` in the fates directory
+      placeholder: e.g. sci.1.80.11_api.37.0.0
+    validations:
+      required: true
+  - type: input
+    id: hlm-tag
+    attributes:
+      label: Host land model tag
+      description: The output from running `git describe` in the host land model directory
+      placeholder: e.g. ctsm5.3.022
+    validations:
+      required: true
+  - type: dropdown
+    id: machine
+    attributes:
+      label: Machine
+      options:
+        - perlmutter
+        - derecho
+        - izumi
+        - other HLM supported machine
+        - personal computer
+    validations:
+      required: true
+  - type: input
+    id: other-machine
+    attributes:
+      label: Other supported machine name
+      placeholder: e.g. frontier
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Please provide any additional context that you think is relevant such as your personal computer environment if applicable.
+      placeholder: e.g. Ubuntu 22.04
+  # - type: checkboxes
+  #   id: terms
+  #   attributes:
+  #     label: Code of Conduct
+  #     description: By submitting this issue, you agree to follow our [Code of Conduct](https://example.com).
+  #     options:
+  #       - label: I agree to follow this project's Code of Conduct
+  #         required: true

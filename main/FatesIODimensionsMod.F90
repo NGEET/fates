@@ -26,12 +26,18 @@ module FatesIODimensionsMod
     character(*), parameter, public  :: levcan = 'fates_levcan'        ! matches histFileMod
     character(*), parameter, public  :: levcnlf = 'fates_levcnlf'      ! matches histFileMod
     character(*), parameter, public  :: levcnlfpft = 'fates_levcnlfpf' ! matches histFileMod
+    character(*), parameter, public  :: levclscpf = 'fates_levclscpf'   
+    character(*), parameter, public  :: levcdsc = 'fates_levcdsc' ! matches histFileMod
+    character(*), parameter, public  :: levcdpf = 'fates_levcdpf' ! matches histFileMod
+    character(*), parameter, public  :: levcdam = 'fates_levcdam' ! matches histFileMod
     character(*), parameter, public  :: levagefuel = 'fates_levagefuel' ! matches histFileMod
-    
     character(*), parameter, public  :: levelem =  'fates_levelem'
     character(*), parameter, public  :: levelpft = 'fates_levelpft'
     character(*), parameter, public  :: levelcwd = 'fates_levelcwd'
     character(*), parameter, public  :: levelage = 'fates_levelage'
+    character(*), parameter, public  :: levlanduse = 'fates_levlanduse'
+    character(*), parameter, public  :: levlulu = 'fates_levlulu'
+    character(*), parameter, public  :: levlupft = 'fates_levlupft'
     
     ! column = This is a structure that records where FATES column boundaries
     ! on each thread point to in the host IO array, this structure
@@ -76,6 +82,15 @@ module FatesIODimensionsMod
     ! levcnlfpft = This is a structure that records the boundaries for the
     ! number of canopy layer x leaf layer x pft dimension
 
+    ! levcdsc = This is a structure that records the boundaries for the
+    ! number of crown damage x size classes dimension
+
+    ! levcdpf = This is a structure that records the boundaries for the
+    ! number of crown damage x size classes x pft dimension
+
+    ! levcdam = This is the structure that records the boundaries for the
+    ! number of crown damage classes dimension
+    
     ! levscag = This is a strcture that records the boundaries for the 
     ! number of size-classes x patch age
 
@@ -88,11 +103,30 @@ module FatesIODimensionsMod
     ! levagefuel = This is a strcture that records the boundaries for the 
     ! number of patch age x fuel size class
 
+    ! levclscpf = '' number of canopy layers x pft x size class
+    
     ! levelem  = This records the boundaries for the number of elements
     ! levelpft = This records the boundaries for elements x pft
     ! levelcwd = This records the boundaries for element x cwd
     ! levelage = This records the boundaries for element x age
 
+    ! levcdsc = This is a structure that records the boundaries for the
+    ! number of crown damage x size classes dimension
+
+    ! levcdpf = This is a structure that records the boundaries for the
+    ! number of crown damage x size classes x pft dimension
+
+    ! levcdam = This is the structure that records the boundaries for the
+    ! number of crown damage classes dimension
+
+    ! levlanduse = this is the structure that records the boundaries for the
+    ! land use class dimension
+
+    ! levlulu = this is the structure that records the boundaries for the
+    ! (land use class) x (land use class) dimension
+
+    ! levlupft = this is the structure that records the boundaries for the
+    ! (land use class) x pft dimension
 
     type, public :: fates_bounds_type
        integer :: cohort_begin
@@ -131,6 +165,12 @@ module FatesIODimensionsMod
        integer :: cnlf_end
        integer :: cnlfpft_begin
        integer :: cnlfpft_end
+       integer :: cdsc_begin
+       integer :: cdsc_end
+       integer :: cdpf_begin
+       integer :: cdpf_end
+       integer :: cdam_begin
+       integer :: cdam_end
        integer :: elem_begin
        integer :: elem_end
        integer :: elpft_begin
@@ -141,6 +181,14 @@ module FatesIODimensionsMod
        integer :: elage_end
        integer :: agefuel_begin
        integer :: agefuel_end
+       integer :: clscpf_begin
+       integer :: clscpf_end
+       integer :: landuse_begin
+       integer :: landuse_end
+       integer :: lulu_begin
+       integer :: lulu_end
+       integer :: lupft_begin
+       integer :: lupft_end
     end type fates_bounds_type
     
 

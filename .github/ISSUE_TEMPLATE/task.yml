@@ -1,0 +1,14 @@
+name: Task
+description: General issue that describes a specific task to be completed.
+body:
+  - type: markdown
+    attributes:
+      value: "Describe the task below."
+  - type: textarea
+    id: description
+    attributes:
+      label: Task description
+      description: Provide detail about the necessary task with sub-steps if applicable.
+      placeholder: e.g. update the refactor the patch fusion subroutine
+    validations:
+      required: true

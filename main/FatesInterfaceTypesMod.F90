@@ -46,25 +46,20 @@ module FatesInterfaceTypesMod
                                                     ! specficially packaged for them.
                                                     ! This string sets which filter is enacted.
 
-
-   character(len=16), public :: hlm_nu_com ! This string defines which soil
-                                                      ! nutrient competition scheme is in use.
-                                                      ! current options with
-                                                      ! E3SM: RD, ECA
-                                                      ! CESM: NONE
-                                                      ! ATS: ?
-                                                      ! NORESM: ?
+   character(len=16), public :: hlm_decomp ! This string defines which soil decomposition
+                                           ! scheme is active
+                                           ! expected values are one of CENTURY,MIMICS,CTC
    
-
-   integer, public :: hlm_nitrogen_spec   ! This flag signals which nitrogen
-                                                     ! species are active if any:
-                                                     ! 0: none
-                                                     ! 1: nh4 only
-                                                     ! 2: nh4 and no3
-
-   integer, public :: hlm_phosphorus_spec ! Signals if phosphorous is turned on in the HLM
-                                                     ! 0: none
-                                                     ! 1: p is on
+   
+   character(len=16), public :: hlm_nu_com ! This string defines which soil
+                                           ! nutrient competition scheme is in use.
+                                           ! current options with
+                                           ! ELM: RD, ECA
+                                           ! CLM: NONE
+                                           ! ATS: ?
+   
+   integer, public :: hlm_nitrogen_suppl    ! HLM nitrogen supplementation status   (True=Supplementing)
+   integer, public :: hlm_phosphorus_suppl  ! HLM phosphorus supplementation status (True=Supplementing)
 
    real(r8), public :: hlm_stepsize        ! The step-size of the host land model (s)
                                            ! moreover, this is the shortest main-model timestep
@@ -86,19 +81,13 @@ module FatesInterfaceTypesMod
                                                  ! between the pedotransfer functions of the HLM
                                                  ! and how it moves and stores water in its
                                                  ! rhizosphere shells
-   
-   integer, public :: hlm_max_patch_per_site ! The HLM needs to exchange some patch
-                                                        ! level quantities with FATES
-                                                        ! FATES does not dictate those allocations
-                                                        ! since it happens pretty early in
-                                                        ! the model initialization sequence.
-                                                        ! So we want to at least query it,
-                                                        ! compare it to our maxpatchpersite,
-                                                        ! and gracefully halt if we are over-allocating
 
    integer, public :: hlm_parteh_mode   ! This flag signals which Plant Allocation and Reactive
                                                    ! Transport (exensible) Hypothesis (PARTEH) to use
 
+   integer, public :: hlm_seeddisp_cadence ! This flag signals at what cadence to disperse seeds across gridcells
+                                                   ! 0 => no seed dispersal
+                                                   ! 1, 2, 3 => daily, monthly, yearly dispersal
 
    integer, public :: hlm_use_ch4       ! This flag signals whether the methane model in ELM/CLM is
                                         ! active, and therefore whether or not boundary conditions
@@ -113,6 +102,8 @@ module FatesInterfaceTypesMod
                                          ! See namelist_definition_clm4_5.xml
                                          ! ignitions: 1=constant, >1=external data sources (lightning and/or anthropogenic)
 
+   integer, public :: hlm_use_managed_fire    ! Flag to enable managed fire mode.  Requires spitfire to be on.
+
    integer, public :: hlm_use_lu_harvest      ! This flag signals whether or not to use
                                                          ! harvest data from the hlm
                                                          ! 0 = do not use lu harvest from hlm
@@ -120,11 +111,21 @@ module FatesInterfaceTypesMod
                                                          ! If 1, it automatically sets
                                                          ! hlm_use_logging to 1
 
+   integer, public :: hlm_lu_transition_logic    ! This flag signals which logic to use in transitions between land use classes
+                                                 ! See the FATES user guide for full description of options
+   
+
    integer, public :: hlm_num_lu_harvest_cats    ! number of hlm harvest categories (e.g. primary forest harvest, secondary young forest harvest, etc.)
                                                          ! this is the first dimension of:
                                                          ! harvest_rates in dynHarvestMod
                                                          ! bc_in%hlm_harvest_rates and bc_in%hlm_harvest_catnames
 
+   integer, public :: hlm_use_luh                   ! flag to signal whether or not to use luh2 drivers
+   integer, public :: hlm_use_potentialveg          ! flag to signal whether or not to use potential vegetation only
+                                                    ! (i.e., no land use and instead force all lands to be primary)
+   integer, public :: hlm_num_luh2_states           ! number of land use state types provided in LUH2 forcing dataset
+
+   integer, public :: hlm_num_luh2_transitions      ! number of land use transition types provided in LUH2 forcing dataset
 
    integer, public :: hlm_sf_nofire_def               ! Definition of a no-fire case for hlm_spitfire_mode
    integer, public :: hlm_sf_scalar_lightning_def     ! Definition of a scalar-lightning case for hlm_spitfire_mode
@@ -148,17 +149,44 @@ module FatesInterfaceTypesMod
                                                        ! THIS IS CURRENTLY NOT SUPPORTED 
 
    integer, public :: hlm_use_cohort_age_tracking ! This flag signals whether or not to use
-                                                             ! cohort age tracking. 1 = TRUE, 0 = FALSE
+                                                  ! cohort age tracking. 1 = TRUE, 0 = FALSE
 
-   integer, public :: hlm_use_ed_st3        ! This flag signals whether or not to use
-                                                       ! (ST)atic (ST)and (ST)ructure mode (ST3)
-                                                       ! Essentially, this gives us the ability
-                                                       ! to turn off "dynamics", ie growth, disturbance
-                                                       ! recruitment and mortality.
-                                                       ! (EXPERIMENTAL!!!!! - RGK 07-2017)
-                                                       ! 1 = TRUE, 0 = FALSE
-                                                       ! default should be FALSE (dynamics on)
-                                                       ! cannot be true with prescribed_phys
+
+   integer, public :: hlm_use_tree_damage         ! This flag signals whether or not to turn on the
+                                                  ! tree damage module
+
+   integer, public :: hlm_hydr_solver             ! Switch that defines which hydraulic solver to use
+                                                  ! 1 = Taylor solution that solves plant fluxes with 1 layer
+                                                  !     sequentially placing solution on top of previous layer solves
+                                                  ! 2 = Picard solution that solves all fluxes in a plant and
+                                                  !     the soil simultaneously, 2D: soil x (root + shell)
+                                                  ! 3 = Newton-Raphson (Deprecated) solution that solves all fluxes in a plant and
+                                                  !     the soil simultaneously, 2D: soil x (root + shell)
+
+   integer, public :: hlm_maintresp_leaf_model    ! switch for choosing between leaf maintenance
+                                                  ! respiration model. 1=Ryan (1991), 2=Atkin et al (2017)
+
+   integer, public :: hlm_mort_cstarvation_model  ! Switch for carbon starvation mortality:
+                                                  ! 1 -- Linear model
+                                                  ! 2 -- Exponential model
+
+   integer, public :: hlm_radiation_model         ! Switch for radiation model
+                                                  ! Norman (1) and Two-stream (2)
+
+   integer, public :: hlm_regeneration_model      ! Switch for choosing between regeneration models:
+                                                  ! (1) for Fates default
+                                                  ! (2) for the Tree Recruitment Scheme (Hanbury-Brown et al., 2022)
+                                                  ! (3) for the Tree Recruitment Scheme without seedling dynamics
+
+   integer, public :: hlm_use_ed_st3              ! This flag signals whether or not to use
+                                                  ! (ST)atic (ST)and (ST)ructure mode (ST3)
+                                                  ! Essentially, this gives us the ability
+                                                  ! to turn off "dynamics", ie growth, disturbance
+                                                  ! recruitment and mortality.
+                                                  ! (EXPERIMENTAL!!!!! - RGK 07-2017)
+                                                  ! 1 = TRUE, 0 = FALSE
+                                                  ! default should be FALSE (dynamics on)
+                                                  ! cannot be true with prescribed_phys
 
    integer, public :: hlm_use_ed_prescribed_phys ! This flag signals whether or not to use
                                                             ! prescribed physiology, somewhat the opposite
@@ -191,6 +219,19 @@ module FatesInterfaceTypesMod
 
   integer, public ::  hlm_use_sp                                    !  Flag to use FATES satellite phenology (LAI) mode
                                                                     !  1 = TRUE, 0 = FALSE
+
+  
+  ! Flag specifying what types of history fields to allocate and prepare
+  ! The "_dynam" refers to history fields that can be updated on the dynamics (daily) step
+  ! THe "_hifrq" refers to history fields that can be updated on the model (high-frequency) step
+  ! 0 = no output
+  ! 1 = site-level averages only
+  ! 2 = allow the second dimension
+  
+  integer, public :: hlm_hist_level_dynam                           
+                                                                    
+  integer, public :: hlm_hist_level_hifrq
+  
    ! -------------------------------------------------------------------------------------
    ! Parameters that are dictated by FATES and known to be required knowledge
    !  needed by the HLMs
@@ -212,9 +253,30 @@ module FatesInterfaceTypesMod
                                                            ! data as some fields are arrays where each array is
                                                            ! associated with one cohort
 
+   ! The number of patches that FATES wants the HLM to allocate
+   ! for non sp/no-comp, this is the same number of patches that
+   ! fates tracks, plus 1 for the bare-ground. For sp/nocomp, it is the
+   ! maximum between the number fates tracks, and the numper of PFTs+CFTs
+   ! in the surface file.
+   ! for an SP simulation, if there are more PFTs and CFTs in the surface
+   ! dataset than the number of PFTs in FATES, we have to allocate with
+   ! the prior so that we can hold the LAI data
+   integer, public :: fates_maxPatchesPerSite
 
    integer, public :: max_comp_per_site         ! This is the maximum number of nutrient aquisition
                                                            ! competitors that will be generated on each site
+   
+   
+   integer, public :: fates_dispersal_kernel_mode   ! Flag to signal the type of kernel used for grid cell seed dispersal
+
+   integer, parameter, public :: fates_dispersal_kernel_exponential = 1  ! exponential dispersal kernel
+   integer, parameter, public :: fates_dispersal_kernel_exppower = 2     ! exponential power (ExP) dispersal kernel
+   integer, parameter, public :: fates_dispersal_kernel_logsech = 3      ! logistic-sech (LogS) dispersal kernel
+
+   integer, parameter, public :: fates_dispersal_cadence_none = 0     ! no dispersal (use seed rain only)
+   integer, parameter, public :: fates_dispersal_cadence_daily = 1    ! Disperse seeds daily
+   integer, parameter, public :: fates_dispersal_cadence_monthly = 2  ! Disperse seeds monthly
+   integer, parameter, public :: fates_dispersal_cadence_yearly = 3   ! Disperse seeds yearly
    
    ! -------------------------------------------------------------------------------------
    ! These vectors are used for history output mapping
@@ -234,10 +296,11 @@ module FatesInterfaceTypesMod
    real(r8), public, allocatable :: fates_hdim_levage(:)           ! patch age lower bound dimension
    real(r8), public, allocatable :: fates_hdim_levheight(:)        ! height lower bound dimension
    integer , public, allocatable :: fates_hdim_levpft(:)           ! plant pft dimension
+   integer , public, allocatable :: fates_hdim_levlanduse(:)       ! land use label dimension
    integer , public, allocatable :: fates_hdim_levfuel(:)          ! fire fuel size class (fsc) dimension
    integer , public, allocatable :: fates_hdim_levcwdsc(:)         ! cwd class dimension
    integer , public, allocatable :: fates_hdim_levcan(:)           ! canopy-layer dimension 
-   integer , public, allocatable :: fates_hdim_levleaf(:)          ! leaf-layer dimension 
+   real(r8), public, allocatable :: fates_hdim_levleaf(:)          ! leaf-layer dimension, integrated VAI [m2/m2]
    integer , public, allocatable :: fates_hdim_levelem(:)              ! element dimension
    integer , public, allocatable :: fates_hdim_canmap_levcnlf(:)   ! canopy-layer map into the canopy-layer x leaf-layer dim
    integer , public, allocatable :: fates_hdim_lfmap_levcnlf(:)    ! leaf-layer map into the can-layer x leaf-layer dimension
@@ -260,7 +323,14 @@ module FatesInterfaceTypesMod
    integer , public, allocatable :: fates_hdim_pftmap_levelpft(:)       ! map of pfts in the element x pft dimension
    integer , public, allocatable :: fates_hdim_cwdmap_levelcwd(:)       ! map of cwds in the element x cwd dimension
    integer , public, allocatable :: fates_hdim_agemap_levelage(:)       ! map of ages in the element x age dimension
-
+   
+   integer , public, allocatable :: fates_hdim_pftmap_levcdpf(:)   ! map of pfts into size x crowndamage x pft dimension
+   integer , public, allocatable :: fates_hdim_cdmap_levcdpf(:)    ! map of crowndamage into size x crowndamage x pft
+   integer , public, allocatable :: fates_hdim_scmap_levcdpf(:)    ! map of size into size x crowndamage x pft
+   integer , public, allocatable :: fates_hdim_cdmap_levcdsc(:)    ! map of crowndamage into size x crowndamage
+   integer , public, allocatable :: fates_hdim_scmap_levcdsc(:)    ! map of size into size x crowndamage
+   integer , public, allocatable :: fates_hdim_levdamage(:)        ! plant damage class lower bound dimension   
+   
    ! ------------------------------------------------------------------------------------
    !                              DYNAMIC BOUNDARY CONDITIONS
    ! ------------------------------------------------------------------------------------
@@ -297,7 +367,8 @@ module FatesInterfaceTypesMod
    integer, public :: nlevheight       ! The total number of height bins output to history
    integer, public :: nlevcoage        ! The total number of cohort age bins output to history 
    integer, public :: nleafage         ! The total number of leaf age classes
-
+   integer, public :: nlevdamage       ! The total number of damage classes
+   
    ! -------------------------------------------------------------------------------------
    ! Structured Boundary Conditions (SITE/PATCH SCALE)
    ! For floating point arrays, it is sometimes the convention to define the arrays as
@@ -430,17 +501,10 @@ module FatesInterfaceTypesMod
 
       ! Canopy Radiation Boundaries
       ! ---------------------------------------------------------------------------------
+
+      ! Cosine of the zenith angle (0-1) - site level
+      real(r8) :: coszen
       
-      ! Filter for vegetation patches with a positive zenith angle (daylight)
-      logical, allocatable :: filter_vegzen_pa(:)
-
-      ! Cosine of the zenith angle (0-1), by patch
-      ! Note RGK: It does not seem like the code would currently generate
-      !           different zenith angles for different patches (nor should it)
-      !           I am leaving it at this scale for simplicity.  Patches should
-      !           have no spacially variable information
-      real(r8), allocatable :: coszen_pa(:)
-
       ! fraction of canopy that is covered in snow
       real(r8), allocatable :: fcansno_pa(:)
        
@@ -507,17 +571,35 @@ module FatesInterfaceTypesMod
       real(r8),allocatable :: hksat_sisl(:)        ! hydraulic conductivity at saturation (mm H2O /s)
       real(r8),allocatable :: h2o_liq_sisl(:)      ! Liquid water mass in each layer (kg/m2)
       real(r8) :: smpmin_si                        ! restriction for min of soil potential (mm)
-      
+
+      ! Diagnostic quantities for outputting FATES patch-resolved
+      real(r8),allocatable :: lhflux_pa(:)         ! latent heat flux
+      real(r8),allocatable :: shflux_pa(:)         ! sensible heat flux
+      real(r8),allocatable :: swabs_pa(:)          ! shortwave absorbed radiation
+      real(r8),allocatable :: netlw_pa(:)          ! longwave net radiation
+      real(r8),allocatable :: t2m_pa(:)            ! 2m air temeprature
+
       ! Land use
       ! ---------------------------------------------------------------------------------
       real(r8),allocatable :: hlm_harvest_rates(:)    ! annual harvest rate per cat from hlm for a site
-
       character(len=64), allocatable :: hlm_harvest_catnames(:)  ! names of hlm_harvest d1
+      real(r8),allocatable :: hlm_luh_states(:)
+      character(len=64),allocatable :: hlm_luh_state_names(:)
+      real(r8),allocatable :: hlm_luh_transitions(:)
+      character(len=64),allocatable :: hlm_luh_transition_names(:)
+
 
       integer :: hlm_harvest_units  ! what units are the harvest rates specified in? [area vs carbon]
+    
+      real(r8) :: site_area    ! Actual area of current site [m2], only used in carbon-based harvest
 
       ! Fixed biogeography mode 
-      real(r8), allocatable :: pft_areafrac(:)     ! Fractional area of the FATES column occupied by each PFT  
+      real(r8), allocatable :: pft_areafrac(:)          ! Fractional area of the FATES column occupied by each PFT
+
+      ! Fixed biogeography mode with land use active
+      real(r8), allocatable :: pft_areafrac_lu(:,:)     ! Fractional area occupied by each PFT on each land use type
+      real(r8) :: baregroundfrac                        ! fractional area held as bare-ground
+
     
      ! Satellite Phenology (SP) input variables.  (where each patch only has one PFT)
      ! ---------------------------------------------------------------------------------
@@ -567,6 +649,9 @@ module FatesInterfaceTypesMod
 
       ! Canopy Radiation Boundaries
       ! ---------------------------------------------------------------------------------
+
+      ! Note: We initialize and default the radiatioon balance to assume that the
+      ! canopy is invisible, and the soil absorbs all radiation.
       
       ! Surface albedo (direct) (HLMs use this for atm coupling and balance checks)
       real(r8), allocatable :: albd_parb(:,:)
@@ -593,15 +678,21 @@ module FatesInterfaceTypesMod
       ! Mass fluxes to BGC from fragmentation of litter into decomposing pools
       
       real(r8), allocatable :: litt_flux_cel_c_si(:) ! cellulose carbon litter, fates->BGC g/m3/s
-      real(r8), allocatable :: litt_flux_lig_c_si(:) ! lignan carbon litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lig_c_si(:) ! lignin carbon litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lab_c_si(:) ! labile carbon litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_cel_n_si(:) ! cellulose nitrogen litter, fates->BGC g/m3/s
-      real(r8), allocatable :: litt_flux_lig_n_si(:) ! lignan nitrogen litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lig_n_si(:) ! lignin nitrogen litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lab_n_si(:) ! labile nitrogen litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_cel_p_si(:) ! cellulose phosphorus litter, fates->BGC g/m3/s
-      real(r8), allocatable :: litt_flux_lig_p_si(:) ! lignan phosphorus litter, fates->BGC g/m3/s
+      real(r8), allocatable :: litt_flux_lig_p_si(:) ! lignin phosphorus litter, fates->BGC g/m3/s
       real(r8), allocatable :: litt_flux_lab_p_si(:) ! labile phosphorus litter, fates->BGC g/m3/s
 
+      
+      ! MIMICS Boundary Conditions
+      ! -----------------------------------------------------------------------------------
+      real(r8) :: litt_flux_ligc_per_n  ! lignin carbon per total nitrogen
+                                        ! in the fragmentation flux, per square meter [g/g]
+      
 
       ! Nutrient competition boundary conditions
       ! (These are all pointer allocations, this is because the host models
@@ -635,12 +726,15 @@ module FatesInterfaceTypesMod
       ! RD Nutrient Boundary Conditions
       ! ---------------------------------------------------------------------------------
 
-      real(r8), pointer :: n_demand(:)       ! Nitrogen demand from each competitor
-                                             ! for use in ELMs CTC/RD [g/m2/s] 
-      real(r8), pointer :: p_demand(:)       ! Phosophorus demand from each competitor
-                                             ! for use in ELMs CTC/RD [g/m2/s] 
+      !real(r8), pointer :: n_demand(:)       ! Nitrogen demand from each competitor
+      !                                       ! for use in ELMs CTC/RD [g/m2/s] 
+      !real(r8), pointer :: p_demand(:)       ! Phosophorus demand from each competitor
+      !                                       ! for use in ELMs CTC/RD [g/m2/s] 
 
 
+
+
+      
       ! CH4 Boundary Conditions
       ! -----------------------------------------------------------------------------------
       real(r8), pointer :: annavg_agnpp_pa(:)    ! annual average patch npp above ground (gC/m2/s)
@@ -652,6 +746,8 @@ module FatesInterfaceTypesMod
       real(r8), pointer :: woody_frac_aere_pa(:) ! Woody plant fraction (by crown area) of all plants
                                                  ! used for calculating patch-level aerenchyma porosity
       
+      real(r8)          :: ema_npp               ! site-level NPP smoothed over time, see PrepCH4BCs()
+                                                 ! used for N fixation in ELM/CLM right now [gc/m2/yr]
       ! Canopy Structure
 
       real(r8), allocatable :: elai_pa(:)  ! exposed leaf area index
@@ -697,6 +793,20 @@ module FatesInterfaceTypesMod
                                                        ! small fluxes for various reasons
                                                        ! [mm H2O/s]
 
+      ! FATES LULCC
+      real(r8) :: hrv_deadstemc_to_prod10c   ! Harvested C flux to 10-yr wood product pool [Site-Level, gC m-2 s-1]
+      real(r8) :: hrv_deadstemc_to_prod100c  ! Harvested C flux to 100-yr wood product pool [Site-Level, gC m-2 s-1]
+      real(r8) :: gpp_site  ! Site level GPP, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
+      real(r8) :: ar_site   ! Site level Autotrophic Resp, for NBP diagnosis in HLM [Site-Level, gC m-2 s-1]
+
+      ! direct carbon loss to atm pathways
+      real(r8) :: grazing_closs_to_atm_si    ! Loss of carbon to atmosphere via grazing [Site-Level, gC m-2 s-1]
+      real(r8) :: fire_closs_to_atm_si       ! Loss of carbon to atmosphere via burning (includes burning from land use change) [Site-Level, gC m-2 s-1]
+
+      ! summary carbon stock variables
+      real(r8) :: veg_c_si                   ! Total vegetation carbon [Site-Level, gC m-2]
+      real(r8) :: litter_cwd_c_si            ! Total litter plus CWD carbon [Site-Level, gC m-2]
+      real(r8) :: seed_c_si                  ! Total seed carbon [Site-Level, gC m-2]
 
    end type bc_out_type
 
@@ -713,12 +823,15 @@ module FatesInterfaceTypesMod
        ! each column is inefficient. Each of these are dimensioned by PFT.
        
        integer           :: max_plant_comps
+
+       real(r8), pointer :: vmax_nh4(:)
+       real(r8), pointer :: vmax_no3(:)
+       real(r8), pointer :: vmax_p(:)
+       
        real(r8), pointer :: eca_km_nh4(:)
-       real(r8), pointer :: eca_vmax_nh4(:)
        real(r8), pointer :: eca_km_no3(:)
-       real(r8), pointer :: eca_vmax_no3(:)
-       real(r8), pointer :: eca_km_p(:)     
-       real(r8), pointer :: eca_vmax_p(:)
+       real(r8), pointer :: eca_km_p(:)
+       
        real(r8), pointer :: eca_km_ptase(:)     
        real(r8), pointer :: eca_vmax_ptase(:)
        real(r8), pointer :: eca_alpha_ptase(:)
@@ -731,13 +844,23 @@ module FatesInterfaceTypesMod
                                                 ! increasing, or all 1s)
 
    end type bc_pconst_type
-  
 
-
+   public :: ZeroBCOutCarbonFluxes
+   
  contains
-   
-   ! ====================================================================================
-   
-   
-    
-  end module FatesInterfaceTypesMod
+       
+   ! ======================================================================================
+
+   subroutine ZeroBCOutCarbonFluxes(bc_out)
+
+    ! !ARGUMENTS
+    type(bc_out_type), intent(inout)   :: bc_out
+
+    bc_out%grazing_closs_to_atm_si = nan    ! set via site_mass%burn_flux
+    bc_out%fire_closs_to_atm_si    = nan    ! set via site_mass%herbivory_flux_out
+    bc_out%gpp_site                = 0._r8
+    bc_out%ar_site                 = 0._r8
+
+  end subroutine ZeroBCOutCarbonFluxes
+
+end module FatesInterfaceTypesMod

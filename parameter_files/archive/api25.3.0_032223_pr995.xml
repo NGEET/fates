@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<all>
+  <!-- This parameter patch file updates the parameter file with the necessary changes -->
+  <!-- per PR 995.  This makes the following changes: -->
+  <!-- - updates the meta data for the initial seed density -->
+
+  <!-- To use this patch file run the following command: -->
+
+  <!--   Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.3.0_032223_pr995.xml` -->
+
+  <!-- To update a different CDL parameter file, change the file listed the `base_file`. -->
+  <!-- This requires that said file is up to date with API 25.3. -->
+
+  <!-- General xml file usage notes: -->
+  <!-- Special mod types "variable_add": creates a new variable
+		 "dimension_add": creates a new dimension
+		 "variable_del": removes a variable, must include attribute "name" 
+		 "variable_change": change values in the parameter, possibly including the name, and
+                          this must also come with a name attribute as well -->
+  <!-- To change a dimension. The easiest way to script this, is to delete the variables
+		 that use it, delete the dimension. Re-add it with the new size, and then re-add
+		 the variables -->
+  <!-- -->
+  
+  <base_file>archive/api25.3.0_032223_fates_params_default.cdl </base_file>
+  <new_file>fates_params_default.cdl</new_file>
+  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
+  <mods>
+    <mod type="variable_change" name="fates_recruit_init_density">
+      <ln> initial seedling density for a cold-start near-bare-ground simulation. If negative sets initial tree dbh - only to be used in nocomp mode </ln>
+    </mod>
+  </mods>
+</all>

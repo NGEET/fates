@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest a new feature or update to an existing feature
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "Please describe your feature suggestion below.  Also consider opening a [discussion board thread](https://github.com/NGEET/fates/discussions/categories/ideas) for broader ideas."
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the changes
+      description: A clear and concise description of what you want to happen
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your request related to a problem?
+      description: A short description of the impetus for the request, if any.
+      placeholder: e.g. This parameter should be indexed by pft, not globally [...]
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative options
+      description: Describe alternatives to be considered as necessary
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Provide additional context including attachements or references, as necessary

@@ -14,7 +14,8 @@ module HydroUnitWrapMod
    use FatesHydroWTFMod, only : wrf_type,wrf_type_vg,wrf_type_cch
    use FatesHydroWTFMod, only : wkf_type,wkf_type_vg,wkf_type_cch,wkf_type_tfs
    use FatesHydroWTFMod, only : wrf_arr_type,wkf_arr_type,wrf_type_tfs
-
+   use FatesHydroWTFMod, only : get_min_ftc_weight
+   
    implicit none
    public
    save
@@ -107,6 +108,8 @@ contains
           stop
       end if
 
+      wkfs(index)%p%wrf => wrfs(index)%p
+      
       return
   end subroutine SetWKF
 
@@ -167,5 +170,15 @@ contains
       return
   end function WrapFTCFromPSI
 
+  function WrapFTCMinWeightFromPsi(index,psi) result(min_ftc_weight)
+    integer, intent(in) :: index
+    real(r8),intent(in) :: psi
+    real(r8) :: min_ftc_weight,dmin_ftc_weight_dpsi
+
+    print*,"PSI_MIN: ",wkfs(index)%p%wrf%psi_min
+    
+    call get_min_ftc_weight(wkfs(index)%p%wrf%psi_min,psi,min_ftc_weight,dmin_ftc_weight_dpsi)
+    
+  end function WrapFTCMinWeightFromPsi
   
 end module HydroUnitWrapMod

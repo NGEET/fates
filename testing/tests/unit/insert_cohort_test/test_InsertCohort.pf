@@ -1,0 +1,379 @@
+module test_InsertCohort
+  !
+  ! DESCRIPTION:
+  !		Tests the patch's InsertCohort method
+  !
+  use FatesConstantsMod,  only : r8 => fates_r8
+  use FatesCohortMod,     only : fates_cohort_type
+  use FatesPatchMod,      only : fates_patch_type
+  use FatesUnitTestUtils, only : endrun_msg
+  use FatesFactoryMod,    only : CreateTestPatchList
+  use funit
+
+  implicit none
+  
+  @TestCase
+  type, extends(TestCase) :: TestInsertCohort
+    type(fates_patch_type) :: patch
+    contains
+      procedure :: setUp
+      procedure :: tearDown
+  end type TestInsertCohort
+
+  contains 
+  
+    subroutine setUp(this)
+      class(TestInsertCohort), intent(inout) :: this ! test object      
+      ! heights for cohors
+      real(r8), parameter :: heights(8) = (/2.0_r8, 5.0_r8, 10.0_r8, 12.0_r8, 12.5_r8,   &
+         15.0_r8, 20.0_r8, 25.0_r8/)
+
+      ! hard-code a linked list
+      call CreateTestPatchList(this%patch, heights)
+      
+    end subroutine setUp
+    
+    subroutine tearDown(this)
+      class(TestInsertCohort), intent(inout) :: this        ! test object
+      type(fates_cohort_type), pointer       :: cohort      ! cohort object
+      type(fates_cohort_type), pointer       :: next_cohort ! next cohort object
+      
+      ! deallocate cohorts
+      cohort => this%patch%shortest
+      do while(associated(cohort))
+        next_cohort => cohort%taller
+        deallocate(cohort)
+        cohort => next_cohort
+      end do
+      
+    end subroutine tearDown
+
+    @Test 
+    subroutine InsertCohort_EmptyList(this)
+      ! test that when inserting into an empty list, the new cohort becomes the shortest and tallest
+      ! and the taller and shorter pointers are null()
+      class(TestInsertCohort), intent(inout) :: this ! test object
+      type(fates_patch_type)                 :: patch
+      type(fates_cohort_type), pointer       :: cohort
+      
+      ! create and empty patch
+      patch%shortest => null()
+      patch%tallest => null()
+      
+      ! insert a new cohort
+      allocate(cohort)
+      call patch%InsertCohort(cohort)
+      
+      ! verify cohort is shortest and tallest in list
+      @assertTrue(associated(cohort, patch%tallest))
+      @assertTrue(associated(cohort, patch%shortest))
+      
+      ! verify taller and shorter pointers of inserted cohort are null
+      @assertFalse(associated(cohort%taller))
+      @assertFalse(associated(cohort%shorter))
+                                
+    end subroutine InsertCohort_EmptyList
+    
+    @Test
+    subroutine InsertCohort_ShortestCohort(this)
+      ! test that when inserted as the shortest cohort, it is inserted correctly
+      class(TestInsertCohort), intent(inout) :: this              ! test object
+      type(fates_cohort_type), pointer       :: cohort            ! cohort object
+      type(fates_cohort_type), pointer       :: previous_shortest ! previous tallest cohort
+      real(r8),                parameter     :: height = 1.0_r8   ! hard-coded height
+      
+      ! save previous shorter
+      previous_shortest => this%patch%shortest
+      
+      ! insert cohort
+      allocate(cohort)
+      cohort%height = height
+      call this%patch%InsertCohort(cohort)
+    
+      ! verify that new cohort is now the shortest
+      @assertTrue(associated(cohort, this%patch%shortest))
+      
+      ! verify that new new shortest cohort's taller pointer is the previous shortest
+      @assertTrue(associated(cohort%taller, previous_shortest))
+      
+      ! verify that the previous shortest%shorter now points to cohort
+      @assertTrue(associated(previous_shortest%shorter, cohort))
+      
+      
+    end subroutine InsertCohort_ShortestCohort
+    
+    @Test
+    subroutine InsertCohort_TallestCohort(this)
+      ! test that when inserted as the tallest cohort, it is inserted correctly
+      class(TestInsertCohort), intent(inout) :: this              ! test object
+      type(fates_cohort_type), pointer       :: cohort            ! cohort object
+      type(fates_cohort_type), pointer       :: previous_tallest  ! previous tallest cohort
+      real(r8),                parameter     :: height = 100.0_r8 ! cohort height
+      
+      ! save previous shorter
+      previous_tallest => this%patch%tallest
+      
+      ! insert cohort
+      allocate(cohort)
+      cohort%height = height
+      call this%patch%InsertCohort(cohort)
+    
+      ! verify that new cohort is now the tallest
+      @assertTrue(associated(cohort, this%patch%tallest))
+      
+      ! verify that new new tallest cohort's shorter pointer is the previous tallest
+      @assertTrue(associated(cohort%shorter, previous_tallest))
+      
+      ! verify that that the previous tallest%taller now points to cohort
+      @assertTrue(associated(previous_tallest%taller, cohort))
+      
+    end subroutine InsertCohort_TallestCohort
+    
+    @Test
+    subroutine InsertCohort_CorrectOrder(this)
+      ! test that a cohort is inserted correctly into the middle of a list
+      class(TestInsertCohort), intent(inout) :: this             ! test object
+      type(fates_cohort_type), pointer       :: cohort           ! cohort object
+      real(r8),                parameter     :: height = 16.0_r8 ! cohort height
+      
+      ! insert cohort
+      allocate(cohort)
+      cohort%height = height
+      call this%patch%InsertCohort(cohort)
+      
+      ! traverse the list to ensure correct order
+      cohort => this%patch%shortest 
+      do while (associated(cohort%taller))
+        @assertLessThanOrEqual(cohort%height, cohort%taller%height)
+        cohort => cohort%taller
+      end do
+      
+      ! traverse backwards
+      cohort => this%patch%tallest 
+      do while (associated(cohort%shorter))
+        @assertGreaterThanOrEqual(cohort%height, cohort%shorter%height)
+        cohort => cohort%shorter
+      end do
+      
+    end subroutine InsertCohort_CorrectOrder
+    
+    @Test
+    subroutine InsertCohort_SameHeight(this)
+      ! test that inserting a cohort with the same height as an existing cohort maintains insertion order
+      class(TestInsertCohort), intent(inout) :: this    ! test object
+      type(fates_patch_type)                 :: patch   ! patch object
+      type(fates_cohort_type), pointer       :: cohort1 ! first cohort object
+      type(fates_cohort_type), pointer       :: cohort2 ! second cohort object
+      type(fates_cohort_type), pointer       :: cohort3 ! third cohort object
+      
+      ! initialize cohorts
+      allocate(cohort1)
+      cohort1%height = 10.0_r8
+      
+      allocate(cohort2)
+      cohort2%height = 15.0_r8
+      
+      allocate(cohort3)
+      cohort3%height = 10.0_r8
+      
+      ! insert cohorts
+      call patch%InsertCohort(cohort1)
+      call patch%InsertCohort(cohort2)
+      call patch%InsertCohort(cohort3)
+      
+      ! validate state of linked list - cohort3 should be after cohort1
+      ! cohort1 is still shortest
+      @assertTrue(associated(patch%shortest, cohort1))
+      
+      ! verify order of cohorts with height 10.0
+      @assertTrue(associated(cohort1%taller, cohort3))
+      @assertTrue(associated(cohort3%shorter, cohort1))
+      
+      ! verify cohort3 points to cohort2 as taller
+      @assertTrue(associated(cohort3%taller, cohort2))
+      @assertTrue(associated(cohort2%shorter, cohort3))
+      
+      ! tallest cohort is still cohort2
+      @assertTrue(associated(patch%tallest, cohort2))
+      
+    end subroutine InsertCohort_SameHeight
+    
+    @Test
+    subroutine InsertCohort_SmallList(this)
+      ! test inserting many cohorts into a list and it is ordered correctly
+      class(TestInsertCohort), intent(inout) :: this    ! test object
+      type(fates_patch_type)                 :: patch   ! patch object
+      type(fates_cohort_type), pointer       :: cohort  ! cohort object
+      integer                                :: i       ! looping index
+      
+      ! heights for cohorts
+      real(r8), parameter :: heights(10) = (/12.0_r8, 5.0_r8, 20.0_r8, 7.0_r8, 15.0_r8,  &
+        3.0_r8, 25.0_r8, 10.0_r8, 8.0_r8, 30.0_r8/)
+        
+      real(r8), parameter :: heights_sorted(10) = (/3.0_r8, 5.0_r8, 7.0_r8, 8.0_r8,      &
+        10.0_r8, 12.0_r8, 15.0_r8, 20.0_r8, 25.0_r8, 30.0_r8/)
+        
+      ! insert cohorts of varrying heights
+      do i = 1, size(heights)
+          allocate(cohort)
+          cohort%height = heights(i)
+          call patch%InsertCohort(cohort)        
+      end do 
+      
+      ! validate final list structure
+      
+      ! traverse list from shortest to tallest first
+      cohort => patch%shortest
+      do i = 1, size(heights)
+        @assertTrue(associated(cohort))
+        @assertEqual(cohort%height, heights_sorted(i))
+        if (i < size(heights)) then
+          @assertTrue(associated(cohort%taller))
+          cohort => cohort%taller
+        else 
+          @assertFalse(associated(cohort%taller))
+        end if
+      end do 
+      
+      ! traverse list tallest to shortest
+      cohort => patch%tallest
+      do i = size(heights), 1, -1
+        @assertTrue(associated(cohort))
+        @assertEqual(cohort%height, heights_sorted(i))
+        if (i > 1) then
+          @assertTrue(associated(cohort%shorter))
+          cohort => cohort%shorter
+        else 
+          @assertFalse(associated(cohort%shorter))
+        end if
+      end do 
+    
+    end subroutine InsertCohort_SmallList
+    
+    @Test
+    subroutine InsertCohort_SmallList_IdenticalHeights(this)
+      ! test inserting many cohorts of the same height into a list and it is ordered correctly
+      class(TestInsertCohort), intent(inout) :: this             ! test object
+      type(fates_patch_type)                 :: patch            ! patch object
+      type(fates_cohort_type), pointer       :: cohort           ! cohort object
+      integer                                :: i                ! looping index
+      real(r8)                               :: dbh              ! cohort diameter
+      real(r8),                parameter     :: height = 35.0_r8 ! cohort height
+        
+      ! insert cohorts of same height
+      do i = 1, 10
+        allocate(cohort)
+        cohort%height = height
+        cohort%dbh = i
+        call patch%InsertCohort(cohort)
+      end do
+      
+      ! validate final list structure
+      
+      ! test that order is correct
+      i = 1
+      cohort => patch%shortest
+      do while(associated(cohort))
+        dbh = float(i)
+        @assertEqual(cohort%dbh, dbh)
+        cohort => cohort%taller 
+        i = i + 1
+      end do 
+      
+    end subroutine InsertCohort_SmallList_IdenticalHeights
+    
+    @Test
+    subroutine InsertCohort_Unassociated_Errors(this)
+      ! test inserting an unassociated cohort errors
+      class(TestInsertCohort), intent(inout) :: this         ! test object
+      type(fates_patch_type)                 :: patch        ! patch object 
+      type(fates_cohort_type), pointer       :: cohort       ! cohort object
+      character(len=:),        allocatable   :: expected_msg ! expected error message for failure
+      
+      expected_msg = endrun_msg("cohort is not allocated")
+      
+      ! make sure cohort is null
+      cohort => null()
+      
+      ! try to insert, should fail
+      call patch%InsertCohort(cohort)
+      @assertExceptionRaised(expected_msg)
+    
+    end subroutine InsertCohort_Unassociated_Errors
+    
+    @Test
+    subroutine InsertCohort_InconsistentListState_Errors(this)
+      ! test inserting a cohort into an inconsistent list state errors
+      class(TestInsertCohort), intent(inout) :: this               ! test object
+      type(fates_patch_type)                 :: patch              ! patch object 
+      type(fates_cohort_type), pointer       :: cohort, new_cohort ! cohort objects
+      character(len=:),        allocatable   :: expected_msg       ! expected error message for failure
+      
+      expected_msg = endrun_msg("inconsistent list state")
+      
+      ! allocate and link one cohort incorrectly
+      allocate(cohort)
+      cohort%height = 5.0_r8
+      patch%shortest => cohort
+      
+      ! allocate a new cohort and try to insert
+      allocate(new_cohort)
+      new_cohort%height = 10.0_r8
+      
+      ! should fail
+      call patch%InsertCohort(new_cohort) 
+      @assertExceptionRaised(expected_msg)
+      
+      ! try the opposite
+      patch%shortest => null()
+      patch%tallest => cohort 
+      
+      call patch%InsertCohort(new_cohort) 
+      @assertExceptionRaised(expected_msg)
+    
+    end subroutine InsertCohort_InconsistentListState_Errors
+    
+    @Test
+    subroutine InsertCohort_CorruptedListStructure_Errors(this)
+      ! tests that inserting a cohort into a currupted list structure errors
+      class(TestInsertCohort), intent(inout) :: this                      ! test object
+      type(fates_patch_type)                 :: patch                     ! patch object
+      type(fates_cohort_type),  pointer      :: cohort1, cohort2, cohort3 ! cohorts
+      type(fates_cohort_type),  pointer      :: new_cohort                ! cohort to insert
+      character(len=:),         allocatable  :: expected_msg              ! expected error message for failure
+      
+      expected_msg = endrun_msg("corrupted list structure")
+    
+      ! allocate and link cohorts
+      allocate(cohort1)
+      allocate(cohort2)
+      allocate(cohort3)
+      cohort1%height = 1.0_r8
+      cohort2%height = 2.0_r8
+      cohort3%height = 4.0_r8
+      
+      ! set up a list
+      patch%shortest => cohort1
+      patch%tallest => cohort3
+      
+      cohort1%taller => cohort2
+      cohort2%shorter => cohort1
+      cohort2%taller => cohort3
+      cohort3%shorter => cohort2
+      
+      ! break shorter chain 
+      nullify(cohort2%shorter)! breaks backwards link
+      
+      ! allocate a new cohort to insert
+      allocate(new_cohort)
+      new_cohort%height = 3.0_r8
+      
+      ! should fail
+      call patch%InsertCohort(new_cohort) 
+      @assertExceptionRaised(expected_msg)
+      
+    end subroutine InsertCohort_CorruptedListStructure_Errors
+    
+end module test_InsertCohort
+
+

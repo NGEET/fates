@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<all>
+  <!-- This parameter patch file updates the parameter file with the changes
+       associated with pull request #1263 from Jennifer Kowalczyk -->
+
+  <!-- NOTE: api37.1.0_pr1140_patch_params.xml should be run PRIOR to this patch -->
+
+  <!-- To use this patch file run the following command: -->
+  <!--   Run `python ../tools/UpdateParamAPI.py -/-f archive/api37.1.0_pr1263_patch_params.xml` -->
+
+  <!-- General xml file usage notes: -->
+  <!-- Special mod types "variable_add": creates a new variable
+		 "dimension_add": creates a new dimension
+		 "variable_del": removes a variable, must include attribute "name" 
+		 "variable_change": change values in the parameter, possibly including the name, and
+                          this must also come with a name attribute as well -->
+  <!-- To change a dimension. The easiest way to script this, is to delete the variables
+		 that use it, delete the dimension. Re-add it with the new size, and then re-add
+		 the variables -->
+  <!-- -->
+  
+  <base_file>fates_params_default.cdl</base_file>
+  <new_file>fates_params_default.cdl</new_file>
+  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12,13,14 </pft_list>
+  <mods>
+    <mod type="variable_change" name="fates_hydro_vg_alpha_node">
+      <val> 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12 </val>
+    </mod>
+    <mod type="variable_change" name="fates_hydro_solver">
+      <val> 2 </val>
+    </mod>
+  </mods>
+</all>

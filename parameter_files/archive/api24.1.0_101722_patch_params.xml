@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<all>
+  <notes> These parameter modifications are only applicable to the fates parameter file fates/parameter_files/fates_params_default.cdl, and only for the following API's: 24.0, 24.1.  These calibrations were assembled by Jennifer Holm (jaholm@lbl.gov). These are available for public use, however please coordinate with Jennifer if these parameters are used in publication.  Provenance: leaf parameters were derived from TRY (Kattge et al. 2020), wood density derived from the global wood density database (Chave et al.2009, Zanne et al. 2009) height parameters are manual calibrations and personal observation. The cold mortality threshold change is simply a correction to a previous omission.  The reduction in the dbh threshold for extra seed allocation is based on a logical argument, that plants will start directing resources towards reproductive allocation at or before they hit their maximum height. Plants that were set higher than dbh at maximum height were reduced to max dbh at maximum height. </notes>
+  <base_file>archive/api24.1.0_101722_fates_params_default.cdl</base_file>
+  <new_file>fates_params_default.cdl</new_file>
+  <pft_trim_list>1,2,3,4,5,6,7,8,9,10,11,12</pft_trim_list>
+  <parameters>
+
+    <!-- Naming conventions: date stamp and the last tag it was valid through  -->
+
+    <!-- 221017_api24.1.0 -->
+    
+    <!-- PFT KEY -->
+    <!-- 1  broadleaf_evergreen_tropical_tree     -->
+    <!-- 2  needleleaf_evergreen_extratrop_tree   -->
+    <!-- 3  needleleaf_colddecid_extratrop_tree   -->
+    <!-- 4  broadleaf_evergreen_extratrop_tree    -->
+    <!-- 5  broadleaf_hydrodecid_tropical_tree    -->
+    <!-- 6  broadleaf_colddecid_extratrop_tree    -->
+    <!-- 7  broadleaf_evergreen_extratrop_shrub   -->
+    <!-- 8  broadleaf_hydrodecid_extratrop_shrub  -->
+    <!-- 9  broadleaf_colddecid_extratrop_shrub   -->
+    <!-- 10 arctic_c3_grass                       -->
+    <!-- 11 cool_c3_grass                         --> 
+    <!-- 12 c4_grass                              -->
+    <!-- if specifying a multi-dimensional parameter, use the PFTs as the outer dimension in the ordering below -->
+    
+    <!-- extratropical trees -->
+    <pft_group ids="2,4">
+      <fates_leaf_slatop> 0.005, 0.009  </fates_leaf_slatop>
+      <fates_leaf_vcmax25top> 62, 61 </fates_leaf_vcmax25top>
+      <fates_wood_density> 0.4, 0.53 </fates_wood_density>
+    </pft_group>
+    <pft_group ids="2,3,4,6">
+      <fates_allom_dbh_maxheight> 80, 80, 80, 80 </fates_allom_dbh_maxheight>
+      <fates_recruit_seed_dbh_repro_threshold> 80, 80, 80, 80 </fates_recruit_seed_dbh_repro_threshold>
+    </pft_group>
+    <!-- bushes -->
+    <pft_group ids="7,8,9">
+      <fates_recruit_height_min> 0.2, 0.2, 0.2</fates_recruit_height_min>
+    </pft_group>
+    <pft_group ids="6">
+      <fates_mort_freezetol> -80 </fates_mort_freezetol>
+    </pft_group>
+    <pft_group ids="1,10,11,12">
+      <fates_recruit_seed_dbh_repro_threshold> 90, 0.35, 0.35, 0.35 </fates_recruit_seed_dbh_repro_threshold>
+    </pft_group>
+    <non_pft_group></non_pft_group>
+    
+  </parameters>
+</all>

@@ -24,6 +24,9 @@
 *.zip
 *.nc
 
+# Allow netcdf files in the test data directory
+!testing/test_data/*.nc
+
 # Logs and databases #
 ######################
 *.log
@@ -45,6 +48,10 @@ Thumbs.db
 *.aux
 *.dvi
 *.toc
+
+# Folders created with unit/functional tests
+_build/
+_run/
 
 
 # Old Files

@@ -1,0 +1,568 @@
+<?xml version="1.0"?>
+<all>
+  <!-- -->
+  <!-- This set of changes should update an existing parameter file from API 23 to API 24 -->
+  <!-- -->
+  <!-- Special mod types "variable_add": creates a new variable
+		 "dimension_add": creates a new dimension
+		 "variable_del": removes a variable, must include attribute "name" 
+		 "variable_change": change values in the parameter, possibly including the name, and
+                          this must also come with a name attribute as well -->
+  <!-- To change a dimension. The easiest way to script this, is to delete the variables
+		 that use it, delete the dimension. Re-add it with the new size, and then re-add
+		 the variables -->
+  <!-- -->
+  
+  <base_file>fates_params_default.cdl</base_file>
+  <new_file>fates_params_default_api24.cdl</new_file>
+  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
+  <mods>
+	 <mod type="dimension_add">
+		<di> fates_history_damage_bins </di>
+		<val> 2 </val>
+	 </mod>
+	 <mod type="variable_change" name="fates_fire_crown_depth_frac"> 
+		<na> fates_allom_crown_depth_frac </na>
+		<ln> the depth of a cohort crown as a fraction of its height </ln>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_phen_fnrt_drop_frac </na>
+		<di> fates_pft </di>
+		<un> fraction </un>
+		<ln> fraction of fine roots to drop during drought or cold </ln>
+		<val> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_hydro_solver </na>
+		<di> scalar </di>
+		<un> unitless </un>
+		<ln> switch designating which numerical solver for plant hydraulics, 1 = 1D taylor, 2 = 2D Picard, 3 = 2D Newton (deprecated) </ln>
+		<val> 1 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_history_damage_bin_edges </na>
+		<di> fates_history_damage_bins </di>
+		<un> % crown loss </un>
+		<ln> Lower edges for damage class bins used in cohort history output </ln>
+		<val> 0, 80 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_damage_frac </na>
+		<di> fates_pft </di>
+		<un> fraction </un>
+		<ln> fraction of cohort damaged in each damage event (event frequency specified in the is_it_damage_time subroutine) </ln>
+		<val> 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_damage_mort_p1 </na>
+		<di> fates_pft </di>
+		<un> fraction</un>
+		<ln> inflection point of damage mortality function, a value of 0.8 means 50% mortality with 80% loss of crown, turn off with a large number </ln>
+		<val> 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0, 9.0 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_damage_mort_p2 </na>
+		<di> fates_pft </di>
+		<un> unitless</un>
+		<ln> rate of mortality increase with damage </ln>
+		<val> 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_damage_recovery_scalar</na>
+		<di> fates_pft </di>
+		<un> unitless </un>
+		<ln> fraction of the cohort that recovers from damage </ln>
+		<val> 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_maxpatch_primary </na>
+		<di> scalar </di>
+		<un> count </un>
+		<ln> maximum number of primary vegetation patches per site </ln>
+		<val> 10 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_maxpatch_secondary </na>
+		<di> scalar </di>
+		<un> count </un>
+		<ln> maximum number of secondary vegetation patches per site </ln>
+		<val> 4 </val>
+	 </mod>
+
+	 <mod type="variable_add">
+		<na> fates_maxcohort </na>
+		<di> scalar </di>
+		<un> count </un>
+		<ln> maximum number of cohorts per patch. Actual number of cohorts also depend on cohort fusion tolerances  </ln>
+		<val> 100 </val>
+	 </mod>
+	 
+	 <mod type="variable_add">
+		<na> fates_phen_drought_model </na>
+		<di> scalar </di>
+		<un> unitless </un>
+		<ln> which method to use for drought phenology: 0 - FATES default; 1 - Semi-deciduous (ED2-like) </ln>
+		<val> 0 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_phen_drought_threshold </na>
+		<di> scalar </di>
+		<un> m3/m3 or mm </un>
+		<ln> threshold for drought phenology (or lower threshold when fates_phen_drought_model = 1); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm) </ln>
+		<val> 0.15 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na>fates_phen_moist_threshold</na>
+		<di> scalar </di>
+		<un> m3/m3 or mm </un>
+		<ln> upper threshold for drought phenology (only for fates_phen_drought_model=1); the quantity depends on the sign: if positive, the threshold is volumetric soil moisture (m3/m3). If negative, the threshold is soil matric potentical (mm) </ln>
+		<val> 0.18 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_landuse_pprodharv10_forest_mean </na>
+		<di> scalar </di>
+		<un> fraction </un>
+		<ln> mean harvest mortality proportion of deadstem to 10-yr product (pprodharv10) of all woody PFT types </ln>
+		<val> 0.8125 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_leaf_stomatal_assim_model </na>
+		<di> scalar </di>
+		<un> unitless </un>
+		<ln> a switch designating whether to use net (1) or gross (2) assimilation in the stomatal model </ln>
+		<val> 1 </val>
+	 </mod>
+	 <mod type="variable_change" name="fates_vai_top_bin_width"> 
+		<ln> width in VAI units of uppermost leaf+stem layer scattering element in each canopy layer </ln>
+	 </mod>
+	 <mod type="variable_change" name="fates_vai_width_increase_factor"> 
+		<ln> factor by which each leaf+stem scattering element increases in VAI width (1 = uniform spacing) </ln>
+	 </mod>
+	 <mod type="variable_change" name="fates_vai_width_increase_factor"> 
+		<ln> factor by which each leaf+stem scattering element increases in VAI width (1 = uniform spacing) </ln>
+	 </mod>
+	 <mod type="dimension_del">   <!-- will delete all parameters using this dimension -->
+		<di> fates_prt_organs </di>
+	 </mod>
+	 <mod type="dimension_add">
+		<di> fates_plant_organs </di>
+		<val> 4 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_alloc_organ_priority </na>
+		<di> fates_plant_organs, fates_pft </di>
+		<un> index </un>
+		<ln> Priority level for allocation, 1: replaces turnover from storage, 2: same priority as storage use/replacement, 3: ascending in order of least importance  </ln>
+		<val>  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4  </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_alloc_organ_name </na>
+		<di> fates_plant_organs, fates_string_length </di>
+		<un> unitless - string </un>
+		<ln> Name of plant organs (with alloc_organ_id, must match PRTGenericMod.F90) </ln>
+		<val> leaf, fine root, sapwood,structure </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_stoich_nitr </na>
+		<di> fates_plant_organs, fates_pft </di>
+		<un> gN/gC </un>
+		<ln> target nitrogen concentration (ratio with carbon) of organs </ln>
+		<val> 0.033, 0.029, 0.04, 0.033, 0.04, 0.04, 0.033, 0.04, 0.04, 0.04, 0.04, 0.04, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 0.024, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047, 0.0047   </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_alloc_organ_id </na>
+		<di> fates_plant_organs </di>
+		<un> unitless </un>
+		<ln> This is the global index that the organ in this file is associated with, values match those in parteh/PRTGenericMod.F90 </ln>
+		<val> 1, 2, 3, 6 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_stoich_phos</na>
+		<di> fates_plant_organs, fates_pft </di>
+		<un> gP/gC </un>
+		<ln> target phosphorus concentration (ratio with carbon) of organs </ln>
+		<val> 0.0033, 0.0029, 0.004, 0.0033, 0.004, 0.004, 0.0033, 0.004, 0.004, 0.004, 0.004, 0.004, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 0.0024, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 1e-09, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047, 0.00047 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_cnp_turnover_nitr_retrans </na>
+		<di> fates_plant_organs, fates_pft </di>
+		<un> fraction </un>
+		<ln> retranslocation (reabsorbtion) fraction of nitrogen in turnover of scenescing tissues </ln>
+		<val> 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_cnp_turnover_phos_retrans </na>
+		<di> fates_plant_organs, fates_pft </di>
+		<un> fraction </un>
+		<ln> retranslocation (reabsorbtion) fraction of phosphorus in turnover of scenescing tissues </ln>
+		<val> 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 </val>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_organname_node"> 
+		<na> fates_hydro_organ_name </na>
+	 </mod>
+	 <mod type="variable_del">
+		<na> fates_init_litter </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_prescribed_mortality_canopy"> 
+		<na> fates_mort_prescribed_canopy </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_prescribed_mortality_understory"> 
+		<na> fates_mort_prescribed_understory </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_phenflush_fraction"> 
+		<na> fates_phen_flush_fraction </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_phen_doff_time"> 
+		<na> fates_phen_mindaysoff </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_leaf_diameter"> 
+		<na> fates_turb_leaf_diameter </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_displar"> 
+		<na> fates_turb_displar </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_z0mr"> 
+		<na> fates_turb_z0mr </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_logging_coll_under_frac"> 
+		<na> fates_landuse_logging_coll_under_frac </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_logging_collateral_frac"> 
+		<na> fates_landuse_logging_collateral_frac </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_logging_dbhmax"> 
+		<na> fates_landuse_logging_dbhmax </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_logging_dbhmax_infra"> 
+		<na> fates_landuse_logging_dbhmax_infra </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_logging_dbhmin"> 
+		<na> fates_landuse_logging_dbhmin </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_logging_direct_frac"> 
+		<na> fates_landuse_logging_direct_frac </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_logging_event_code"> 
+		<na> fates_landuse_logging_event_code </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_logging_export_frac"> 
+		<na> fates_landuse_logging_export_frac </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_logging_mechanical_frac"> 
+		<na> fates_landuse_logging_mechanical_frac </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_photo_temp_acclim_timescale"> 
+		<na> fates_leaf_photo_temp_acclim_timescale </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_theta_cj_c3"> 
+		<na> fates_leaf_theta_cj_c3 </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_theta_cj_c4"> 
+		<na> fates_leaf_theta_cj_c4 </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_photo_tempsens_model"> 
+		<na> fates_leaf_photo_tempsens_model </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_smpsc"> 
+		<na> fates_nonhydro_smpsc </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_smpso"> 
+		<na> fates_nonhydro_smpso </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_htftype_node"> 
+		<na> fates_hydro_htftype_node </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_kmax_rsurf1"> 
+		<na> fates_hydro_kmax_rsurf1 </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_kmax_rsurf2"> 
+		<na> fates_hydro_kmax_rsurf2 </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_psi0"> 
+		<na> fates_hydro_psi0 </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_psicap"> 
+		<na> fates_hydro_psicap </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_avuln_gs"> 
+		<na> fates_hydro_avuln_gs </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_avuln_node"> 
+		<na> fates_hydro_avuln_node </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_epsil_node"> 
+		<na> fates_hydro_epsil_node </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_fcap_node"> 
+		<na> fates_hydro_fcap_node </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_k_lwp"> 
+		<na> fates_hydro_k_lwp </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_kmax_node"> 
+		<na> fates_hydro_kmax_node </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_p50_gs"> 
+		<na> fates_hydro_p50_gs </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_p50_node"> 
+		<na> fates_hydro_p50_node </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_p_taper"> 
+		<na> fates_hydro_p_taper </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_pinot_node"> 
+		<na> fates_hydro_pinot_node </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_pitlp_node"> 
+		<na> fates_hydro_pitlp_node </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_resid_node"> 
+		<na> fates_hydro_resid_node </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_rfrac_stem"> 
+		<na> fates_hydro_rfrac_stem </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_rs2"> 
+		<na> fates_hydro_rs2 </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_srl"> 
+		<na> fates_hydro_srl </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_thetas_node"> 
+		<na> fates_hydro_thetas_node </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_vg_alpha_node"> 
+		<na> fates_hydro_vg_alpha_node </na>
+	 </mod>	 
+	 <mod type="variable_change" name="fates_hydr_vg_m_node"> 
+		<na> fates_hydro_vg_m_node </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_hydr_vg_n_node"> 
+		<na> fates_hydro_vg_n_node </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_alpha_ptase"> 
+		<na> fates_cnp_eca_alpha_ptase </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_decompmicc"> 
+		<na> fates_cnp_eca_decompmicc </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_km_nh4"> 
+		<na> fates_cnp_eca_km_nh4 </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_km_no3"> 
+		<na> fates_cnp_eca_km_no3 </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_km_p"> 
+		<na> fates_cnp_eca_km_p </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_km_ptase"> 
+		<na> fates_cnp_eca_km_ptase </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_lambda_ptase"> 
+		<na> fates_cnp_eca_lambda_ptase </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_vmax_ptase"> 
+		<na> fates_cnp_eca_vmax_ptase </na>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_cnp_fnrt_adapt_tscale </na>
+		<di> fates_pft </di>
+		<un> days </un>
+		<ln> Number of days that is shortest possible doubling period for fine-root adaptation to C/N/P balance </ln>
+		<val> 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100 </val>
+	 </mod>
+	 <mod type="variable_change" name="fates_nfix1"> 
+		<na> fates_cnp_nfix1 </na>
+		<val> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 </val>
+	 </mod>
+	 <mod type="variable_del">
+		<na> fates_nfix2 </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_nitr_store_ratio"> 
+		<na> fates_cnp_nitr_store_ratio </na>
+		<ln> storeable (labile) N, as a ratio compared to the N bound in cell structures of other organs (see code) </ln>
+	 </mod>
+	 <mod type="variable_change" name="fates_phos_store_ratio"> 
+		<na> fates_cnp_phos_store_ratio </na>
+		<ln> storeable (labile) P, as a ratio compared to the P bound in cell structures of other organs (see code) </ln>
+	 </mod>
+	 <mod type="variable_change" name="fates_prescribed_nuptake"> 
+		<na> fates_cnp_prescribed_nuptake </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_prescribed_puptake"> 
+		<na> fates_cnp_prescribed_puptake </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_vmax_nh4"> 
+		<na> fates_cnp_eca_vmax_nh4 </na>
+		<val> 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9 </val>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_vmax_no3"> 
+		<na> fates_cnp_eca_vmax_no3 </na>
+		<val> 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_cnp_rd_vmax_n </na>
+		<di> fates_pft </di>
+		<un> gN/gC/s </un>
+		<ln> maximum production rate for compbined (NH4+NO3) uptake (RD) </ln>
+		<val> 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9, 5.e-9 </val>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_vmax_p"> 
+		<na> fates_cnp_vmax_p </na>
+		<ln> maximum production rate for phosphorus (ECA and RD) </ln>
+		<val> 5.e-10, 5.e-10, 5.e-10, 5.e-10, 5.e-10, 5.e-10, 5.e-10, 5.e-10, 5.e-10, 5.e-10, 5.e-10, 5.e-10 </val>
+	 </mod>
+	 <mod type="variable_del">
+		<na>fates_turnover_retrans_mode</na>
+	 </mod>
+	 <mod type="variable_change" name="fates_eca_plant_escalar"> 
+		<na> fates_cnp_eca_plant_escalar </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_leaf_stor_priority"> 
+		<na> fates_alloc_store_priority_frac </na>
+		<ln> for high-priority organs, the fraction of their turnover demand that is gauranteed to be replaced, and if need-be by storage </ln>
+	 </mod>
+	 <mod type="variable_change" name="fates_leaf_long"> 
+		<na> fates_turnover_leaf </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_root_long"> 
+		<na> fates_turnover_fnrt </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_senleaf_long_fdrought"> 
+		<na> fates_turnover_senleaf_fdrought </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_branch_turnover"> 
+		<na> fates_turnover_branch </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_fnrt_prof_a"> 
+		<na> fates_allom_fnrt_prof_a </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_fnrt_prof_b"> 
+		<na> fates_allom_fnrt_prof_b </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_fnrt_prof_mode"> 
+		<na> fates_allom_fnrt_prof_mode </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_max_decomp"> 
+		<na> fates_frag_maxdecomp </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_CWD_frac"> 
+		<na> fates_frag_cwd_frac </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_fr_fcel"> 
+		<na> fates_frag_fnrt_fcel </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_fr_flab"> 
+		<na> fates_frag_fnrt_flab </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_fr_flig"> 
+		<na> fates_frag_fnrt_flig </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_lf_fcel"> 
+		<na> fates_frag_leaf_fcel </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_lf_flab"> 
+		<na> fates_frag_leaf_flab </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_lf_flig"> 
+		<na> fates_frag_leaf_flig </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_seed_decay_rate"> 
+		<na> fates_frag_seed_decay_rate </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_cwd_fcel"> 
+		<na> fates_frag_cwd_fcel </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_cwd_flig"> 
+		<na> fates_frag_cwd_flig </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_seed_alloc"> 
+		<na> fates_recruit_seed_alloc </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_seed_alloc_mature"> 
+		<na> fates_recruit_seed_alloc_mature </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_seed_dbh_repro_threshold"> 
+		<na> fates_recruit_seed_dbh_repro_threshold </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_seed_germination_rate"> 
+		<na> fates_recruit_seed_germination_rate </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_seed_suppl"> 
+		<na> fates_recruit_seed_supplement </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_prescribed_recruitment"> 
+		<na> fates_recruit_prescribed_rate </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_recruit_hgt_min"> 
+		<na> fates_recruit_height_min </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_recruit_initd"> 
+		<na> fates_recruit_init_density </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_leaf_clumping_index"> 
+		<na> fates_rad_leaf_clumping_index </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_leaf_xl"> 
+		<na> fates_rad_leaf_xl </na>
+	 </mod>	 
+	 <mod type="variable_change" name="fates_rholnir"> 
+		<na> fates_rad_leaf_rhonir </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_rholvis"> 
+		<na> fates_rad_leaf_rhovis </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_rhosnir"> 
+		<na> fates_rad_stem_rhonir </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_rhosvis"> 
+		<na> fates_rad_stem_rhovis </na>
+	 </mod> 
+	 <mod type="variable_change" name="fates_taulnir"> 
+		<na> fates_rad_leaf_taunir </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_taulvis"> 
+		<na> fates_rad_leaf_tauvis </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_tausnir"> 
+		<na> fates_rad_stem_taunir </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_tausvis"> 
+		<na> fates_rad_stem_tauvis </na>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_damage_event_code </na>
+		<di> scalar </di>
+		<un> unitless </un>
+		<ln> Integer code that options how damage events are structured </ln>
+		<val> 1 </val>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_damage_canopy_layer_code </na>
+		<di> scalar </di>
+		<un> unitless </un>
+		<ln> Integer code that decides whether damage affects canopy trees (1),  understory trees (2) </ln>
+		<val> 1 </val>
+	 </mod>
+	 <mod type="variable_change" name="fates_phen_a">
+		<na> fates_phen_gddthresh_a </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_phen_b">
+		<na> fates_phen_gddthresh_b </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_phen_c">
+		<na> fates_phen_gddthresh_c </na>
+	 </mod>
+	 <mod type="variable_change" name="fates_phen_chiltemp">
+		<na> fates_phen_chilltemp </na>
+	 </mod>
+	 <mod type="variable_add">
+		<na> fates_cnp_store_ovrflw_frac </na>
+		<di> fates_pft </di>
+		<un> fraction </un>
+		<ln> size of overflow storage (for excess C,N or P) as a fraction of storage target </ln>
+		<val> 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0  </val>
+	 </mod>
+  </mods>
+</all>

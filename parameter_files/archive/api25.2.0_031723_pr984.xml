@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<all>
+  <!-- This parameter patch file updates the parameter file with the necessary changes -->
+  <!-- per PR 984.  This makes the following changes: -->
+
+  <!-- - Adds a variable to represent T_home from Kumarathunge et al 2019 -->
+  <!-- - Update existing variable longnames to note the addition as Kumarathunge -->
+  <!--   as an alternate temperature sensitivity model. -->
+  <!-- - Updates existing variables longnames to note when they are not used due to the -->
+  <!--   selection of the Kumarathunge temperature sensitivity model. -->
+  <!-- - Makes an unrelated long name change that was missed in PR931 to the leaf -->
+  <!--   maintenance respiration model variable. -->
+
+  <!-- To use this patch file run the following command: -->
+
+  <!--   Run `python ../tools/UpdateParamAPI.py -\-f archive/api25.2.0_031723_pr984.xml` -->
+
+  <!-- To update a different CDL parameter file, change the file listed the `base_file`. -->
+  <!-- This requires that said file is up to date with API 25.2. -->
+
+  <!-- General xml file usage notes: -->
+  <!-- Special mod types "variable_add": creates a new variable
+		 "dimension_add": creates a new dimension
+		 "variable_del": removes a variable, must include attribute "name" 
+		 "variable_change": change values in the parameter, possibly including the name, and
+                          this must also come with a name attribute as well -->
+  <!-- To change a dimension. The easiest way to script this, is to delete the variables
+		 that use it, delete the dimension. Re-add it with the new size, and then re-add
+		 the variables -->
+  <!-- -->
+  
+  <base_file>archive/api25.2.0_031723_fates_params_default.cdl </base_file>
+  <new_file>fates_params_default.cdl</new_file>
+  <pft_list> 1,2,3,4,5,6,7,8,9,10,11,12 </pft_list>
+  <mods>
+    <mod type="variable_add">
+      <na> fates_leaf_photo_temp_acclim_thome_time </na>
+		  <di> scalar </di>
+      <un> years </un>
+      <ln> Length of the window for the long-term (i.e. T_home in Kumarathunge et al 2019) exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_leaf_photo_tempsens_model = 2) </ln>
+      <val> 30 </val>
+    </mod>
+    <mod type="variable_change" name="fates_leaf_jmaxha">
+      <ln> activation energy for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED </ln>
+    </mod>
+    <mod type="variable_change" name="fates_leaf_jmaxhd">
+      <ln> deactivation energy for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED </ln>
+    </mod>
+    <mod type="variable_change" name="fates_leaf_jmaxse">
+      <ln> entropy term for jmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED </ln>
+    </mod>
+    <mod type="variable_change" name="fates_leaf_vcmaxha">
+      <ln> activation energy for vcmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED </ln>
+    </mod>
+    <mod type="variable_change" name="fates_leaf_vcmaxhd">
+      <ln> deactivation energy for vcmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED </ln>
+    </mod>
+    <mod type="variable_change" name="fates_leaf_vcmaxse">
+      <ln> entropy term for vcmax. NOTE: if fates_leaf_photo_tempsens_model=2 then these values are NOT USED </ln>
+    </mod>
+    <mod type="variable_change" name="fates_leaf_photo_temp_acclim_timescale">
+      <ln> Length of the window for the exponential moving average (ema) of vegetation temperature used in photosynthesis temperature acclimation (used if fates_maintresp_leaf_model=2 or fates_leaf_photo_tempsens_model = 2) </ln>
+    </mod>
+    <mod type="variable_change" name="fates_leaf_photo_tempsens_model">
+      <ln> switch for choosing the model that defines the temperature sensitivity of photosynthetic parameters (vcmax, jmax). 1=non-acclimating; 2=Kumarathunge et al 2019 </ln>
+    </mod>
+    <mod type="variable_change" name="fates_maintresp_leaf_model">
+      <ln> switch for choosing between maintenance respiration models. 1=Ryan (1991), 2=Atkin et al., (2017) </ln>
+    </mod>
+  </mods>
+</all>

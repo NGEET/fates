@@ -3,10 +3,16 @@ module FatesIOVariableKindMod
   use FatesConstantsMod, only : fates_long_string_length
   use FatesGlobals, only : fates_log
   use FatesIODimensionsMod, only : fates_io_dimension_type
+  use FatesGlobals          , only : endrun => fates_endrun
+  use shr_log_mod           , only : errMsg => shr_log_errMsg
 
+  
   implicit none
   private
 
+  character(len=*), parameter, private :: sourcefile = &
+       __FILE__
+  
   ! FIXME(bja, 2016-10) do these need to be strings, or can they be integer enumerations?
   ! FIXME(rgk, 2016-11) these should probably be moved to varkindmod?
   
@@ -26,19 +32,56 @@ module FatesIOVariableKindMod
   character(*), parameter, public :: site_cwdsc_r8 = 'SI_CWDSC_R8'
   character(*), parameter, public :: site_can_r8 = 'SI_CAN_R8'
   character(*), parameter, public :: site_cnlf_r8 = 'SI_CNLF_R8'
+  character(*), parameter, public :: site_cdpf_r8 = 'SI_CDPF_R8'
+  character(*), parameter, public :: site_cdsc_r8 = 'SI_CDSC_R8'
+  character(*), parameter, public :: site_cdam_r8 = 'SI_CDAM_R8'
   character(*), parameter, public :: site_cnlfpft_r8 = 'SI_CNLFPFT_R8'
   character(*), parameter, public :: site_scag_r8 = 'SI_SCAG_R8'
   character(*), parameter, public :: site_scagpft_r8 = 'SI_SCAGPFT_R8'
   character(*), parameter, public :: site_agepft_r8 = 'SI_AGEPFT_R8'
   character(*), parameter, public :: site_agefuel_r8 = 'SI_AGEFUEL_R8'
-
+  character(*), parameter, public :: site_clscpf_r8 = 'SI_CLSCPF_R8'
+  character(*), parameter, public :: site_landuse_r8 = 'SI_LANDUSE_R8'
+  character(*), parameter, public :: site_lulu_r8 = 'SI_LULU_R8'
+  character(*), parameter, public :: site_lupft_r8 = 'SI_LUPFT_R8'
+  
   ! Element, and multiplexed element dimensions
   character(*), parameter, public :: site_elem_r8  = 'SI_ELEM_R8'
   character(*), parameter, public :: site_elpft_r8 = 'SI_ELEMPFT_R8'
   character(*), parameter, public :: site_elcwd_r8 = 'SI_ELEMCWD_R8'
   character(*), parameter, public :: site_elage_r8 = 'SI_ELEMAGE_R8'
 
+  ! ------------------------------------------------------------------
+  !
+  ! History Variable Groups
+  !
+  ! These are group indices for output variables. We use
+  ! these groups to do things like zero-ing and initializing
+  !
+  ! These groups are updated at the dynamics (daily) step
+  ! so they are turned on and off with dimlevel(2)
+  !
+  ! active when dimlevel(2)>0
+  integer, parameter, public :: group_dyna_simple = 1
+  integer, parameter, public :: group_nflx_simple = 7
+  
+  ! active when dimlevel(2)>1
+  integer, parameter, public :: group_dyna_complx = 2
+  integer, parameter, public :: group_nflx_complx = 8
 
+  ! These groups are updated at the fast step
+  ! so they are turned on and off with dimlevel(1)
+  !
+  ! active when dimlevel(1)>0
+  integer, parameter, public :: group_hifr_simple = 3
+  integer, parameter, public :: group_hydr_simple = 5
+
+  ! active when dimlevel(1)>1
+  integer, parameter, public :: group_hifr_complx = 4
+  integer, parameter, public :: group_hydr_complx = 6
+
+  ! -------------------------------------------------------------------
+  
   ! NOTE(RGK, 2016) %active is not used yet. Was intended as a check on the HLM->FATES
   ! control parameter passing to ensure all active dimension types received all
   ! dimensioning specifications from the host, but we currently arent using those
@@ -118,7 +161,7 @@ contains
        end if
     end do
     write(fates_log(),*) 'An IOTYPE THAT DOESNT EXIST WAS SPECIFIED'
-    !end_run
+    call endrun(msg=errMsg(sourcefile, __LINE__))
 
   end function iotype_index
   
