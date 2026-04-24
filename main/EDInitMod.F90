@@ -111,6 +111,11 @@ module EDInitMod
 
   logical   ::  debug = .false.
   integer :: istat           ! return status code
+
+  real(r8),parameter :: undamaged_crown = 1.0_r8   ! Assume on initialization the plants
+                                                   ! are not damaged
+  real(r8),parameter :: untrimmed = 1.0_r8         ! Initialize plants as untrimmed
+  
   character(len=255) :: smsg ! Message string for deallocation errors
   character(len=*), parameter, private :: sourcefile = &
        __FILE__
@@ -1182,7 +1187,6 @@ contains
       integer                          :: use_pft_local(numpft) ! determine whether this PFT is used for this patch and site
       integer                          :: crown_damage          ! crown damage class of the cohort [1 = undamaged, >1 = damaged] 
       real(r8)                         :: l2fr                  ! leaf to fineroot biomass ratio [kg kg-1]
-      real(r8)                         :: canopy_trim           ! fraction of the maximum leaf biomass that we are targeting [0-1]
       real(r8)                         :: cohort_n              ! cohort density
       real(r8)                         :: dbh                   ! cohort dbh [cm]
       real(r8)                         :: height                ! cohort height [m]
@@ -1209,7 +1213,8 @@ contains
       real(r8)                         :: fnrt_drop_fraction    ! fraction of fine roots to absciss when leaves absciss
       integer, parameter               :: recruitstatus = 0     ! whether the newly created cohorts are recruited or initialized
       real(r8),parameter               :: zero_co_age = 0._r8   ! The age of a newly recruited cohort is zero
-      !-------------------------------------------------------------------------------------
+
+     !-------------------------------------------------------------------------------------
 
       patch_in%tallest  => null()
       patch_in%shortest => null()
@@ -1230,6 +1235,7 @@ contains
       ! 3. biogeog = false. nocomp = true : patch level filter
       ! 4. biogeog = true.  nocomp = true : patch and site level filter
       ! in principle this could be a patch level variable.
+      
       do pft = 1, numpft
          ! first turn every PFT ON, unless we are in a special case
          use_pft_local(pft) = itrue ! Case 1
@@ -1248,11 +1254,12 @@ contains
          endif
       end do
 
+      
+
+      
       pft_loop: do pft =  1, numpft
          if_use_this_pft: if (use_pft_local(pft) .eq. itrue) then
             l2fr         = prt_params%allom_l2fr(pft)
-            canopy_trim  = 1.0_r8
-            crown_damage = 1  ! Assume no damage to begin with
             c_area       = fates_unset_r8
             
             ! retrieve drop fraction of non-leaf tissues for phenology initialization
@@ -1308,98 +1315,35 @@ contains
                end select phen_select
             end if if_spmode 
 
-            ! If EDPftvarcon_inst%initd is positive, then it is interpreted as
-            ! initial recruit density (stems/m2)
-            ! If EDPftvarcon_inss%initd is negative, then it is interpreted as
-            ! the initial DBH of the plant, and that the canopy is closed
-            ! at one layer. However, this is only possible in nocomp since
-            ! each PFT has its own patch area, and we don't have to assume
-            ! the differences in coverage.
-
-            if_fullfates: if (hlm_use_nocomp .eq. ifalse) then
-
-               cohort_n = EDPftvarcon_inst%initd(pft)*patch_in%area
-               height = EDPftvarcon_inst%hgt_min(pft)
-
-               ! calculate the plant diameter from height
-               call h2d_allom(height, pft, dbh)
-
-               call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh, c_leaf)
-               
-            else ! We are in a nocomp simulation 
-
-               ! interpret as initial density and calculate diameter
-               if_init_dens: if (EDPftvarcon_inst%initd(pft) > nearzero) then  
-
-                  cohort_n = EDPftvarcon_inst%initd(pft)*patch_in%area
-                  ! in nocomp mode we only have one PFT per patch
-
-                  ! as opposed to numpft's. So we should up the initial density
-                  ! to compensate (otherwise runs are very hard to compare)
-                  ! this multiplies it by the number of PFTs there would have been in
-                  ! the single shared patch in competition mode.
-                  ! n.b. that this is the same as currentcohort%n = initd(pft) &AREA
-                  cohort_n = cohort_n*sum(site_in%use_this_pft)
-
-                  height = EDPftvarcon_inst%hgt_min(pft)
-
-                  ! calculate the plant diameter from height
-                  call h2d_allom(height, pft, dbh)
-
-               else ! interpret as initial diameter and calculate density 
-
-                  dbh = abs(EDPftvarcon_inst%initd(pft))
-
-                  ! calculate crown area of a single plant
-                  call carea_allom(dbh, 1.0_r8, site_in%spread, pft, crown_damage,  &
-                       c_area)
-
-                  ! calculate initial density required to close canopy 
-                  cohort_n = patch_in%area/c_area
-
-                  ! calculate height from diameter
-                  call h_allom(dbh, pft, height)
-
-               endif if_init_dens
-               
-               ! Calculate the leaf biomass from allometry
-               ! (calculates a maximum first, then applies canopy trim)
-               call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh, c_leaf)
-               
-               ! If we are in SP mode we ignore the initial values and read in height,
-               ! which is used to calcualte n.
-               ! h, dbh, leafc, n from SP values or from small initial size
-               if (hlm_use_sp .eq. itrue) then
-                  ! At this point, we do not know the bc_in values of tlai tsai and htop,
-                  ! so this is initializing to an arbitrary value for the very first timestep.
-                  ! Not sure if there's a way around this or not.
-                  height = 0.5_r8
-                  call calculate_SP_properties(height, 0.2_r8, 0.1_r8,         &
-                       patch_in%area, pft, crown_damage, 1,                      &
-                       EDPftvarcon_inst%vcmax25top(pft, 1), c_leaf, dbh,         &
-                       cohort_n, c_area)
-               endif  ! sp mode
-
-            endif if_fullfates
-
+            ! Initialize cohort abundance, size and leaf mass
+            ! (we also include leaf mass because this is an output
+            !  from the SP init algorithm)
+            call ColdInitDBHAndNumDense(patch_in%area, &              ! in
+                                        sum(site_in%use_this_pft), &  ! in
+                                        sum(use_pft_local), &         ! in
+                                        pft, &                        ! in
+                                        efleaf_coh, &                 ! in
+                                        dbh, &                        ! out
+                                        height, &                     ! out
+                                        n_plant, &                    ! out
+                                        c_leaf)                       ! out
+            
             ! calculate total above-ground biomass from allometry
-            call bagw_allom(dbh, pft, crown_damage, efstem_coh, c_agw)
+            call bagw_allom(dbh, pft, undamaged_crown, efstem_coh, c_agw)
 
             ! calculate coarse root biomass from allometry
             call bbgw_allom(dbh, pft, efstem_coh, c_bgw)
 
             ! Calculate fine root biomass from allometry
             ! (calculates a maximum and then trimming value)
-            call bfineroot(dbh, pft, canopy_trim, l2fr, effnrt_coh, c_fnrt)
+            call bfineroot(dbh, pft, untrimmed, l2fr, effnrt_coh, c_fnrt)
 
             ! Calculate sapwood biomass
-            call bsap_allom(dbh, pft, crown_damage, canopy_trim, efstem_coh,   &
+            call bsap_allom(dbh, pft, undamaged_crown, untrimmed, efstem_coh,   &
                a_sapw, c_sapw)
 
             call bdead_allom(c_agw, c_bgw, c_sapw, pft, c_struct)
-            call bstore_allom(dbh, pft, crown_damage, canopy_trim, c_store)
-
-            if (debug) write(fates_log(),*) 'EDInitMod.F90 call create_cohort '
+            call bstore_allom(dbh, pft, undamaged_crown, untrimmed, c_store)
 
             ! --------------------------------------------------------------------------------
             ! Initialize the mass of every element in every organ of the organ
@@ -1463,7 +1407,7 @@ contains
             call create_cohort(site_in, patch_in, pft, cohort_n,               &
                height, zero_co_age, dbh, prt, efleaf_coh,                      &
                effnrt_coh, efstem_coh, leaf_status, recruitstatus,             &
-               canopy_trim, c_area, 1, crown_damage, site_in%spread, bc_in)
+               untrimmed, c_area, 1, undamaged_crown, site_in%spread, bc_in)
 
          endif if_use_this_pft
       enddo pft_loop
@@ -1477,6 +1421,119 @@ contains
 
    end subroutine init_cohorts
 
+
+   ! =================================================================================
+   
+   
+   subroutine ColdInitDBHAndNumDense(patch_area, spread, num_pft_in_site, &
+                                     num_pft_in_patch, pft, dbh, height, n_plant, c_leaf)
+
+     ! This routine returns the plant density and size
+     ! for a cold-started plant.
+     ! If EDPftvarcon_inst%initd is positive, then it is interpreted as
+     ! initial recruit density (stems/m2)
+     ! If EDPftvarcon_inss%initd is negative, then it is interpreted as
+     ! the initial DBH of the plant, and that the canopy is closed
+     ! at one layer. However, this is only possible in nocomp since
+     ! each PFT has its own patch area, and we don't have to assume
+     ! the differences in coverage.
+     
+     ! Arguments
+     real(r8), intent(in) :: patch_area       ! The area of this patch (m2)
+     real(r8), intent(in) :: spread           ! Crown spread, currently init_spread
+     integer,  intent(in) :: num_pft_in_site  ! number of pfts that exist at this site
+     integer,  intent(in) :: num_pft_in_patch ! number of pfts coexisting in this patch
+     integer,  intent(in) :: pft              ! pft index of this cohort
+     real(r8), intent(in) :: efleaf           ! amount of leaf flushing (0-1)
+     real(r8), intent(out) :: dbh             ! diameter (cm)
+     real(r8), intent(out) :: n_plant         ! number of plants (plants/patch)
+     real(r8), intent(out) :: c_leaf          ! leaf biomass, SP seems to have
+                                              ! its own algorithm here, so we
+                                              ! don't necessarily rely on the allometry equations
+     
+     real(r8) :: height
+     real(r8) :: c_area_plant                 ! crown area per plant (m2)
+     real(r8) :: c_area_co                    ! crown area of cohort (m2)
+     
+  
+     real(r8),parameter :: nominal_sp_height = 0.5_r8 ! nominal height (dummy) for SP
+     real(r8),parameter :: nominal_sp_tlai   = 0.2_r8 ! nominal TLAI for SP
+     real(r8),parameter :: nominal_sp_tsai   = 0.1_r8 ! nominal TSAI for SP
+     integer, parameter :: upper_canopy      = 1      ! initializing a single canopy layer
+     real(r8),parameter :: unit_plant_dense  = 1.0    ! used to get crown-area per plant (1. plant/m2)
+
+     
+     if_sp: if (hlm_use_sp .eq. itrue) then
+        
+        ! If we are in SP mode we ignore the initial values and read in height,
+        ! which is used to calculate plant density.
+        ! h, dbh, leafc, n from SP values or from small initial size
+        ! At this point, we do not know the bc_in values of tlai tsai and htop,
+        ! so this is initializing to an arbitrary value for the very first timestep.
+        ! Not sure if there's a way around this or not.
+
+        height = nominal_sp_height
+        
+        call calculate_SP_properties(height, &  ! in
+                                     nominal_sp_tlai,   &  ! in
+                                     nominal_sp_tsai,   &  ! in
+                                     patch_area,        &  ! in
+                                     pft,               &  ! in
+                                     undamaged_crown,   &  ! in
+                                     upper_canopy,      &  ! in
+                                     EDPftvarcon_inst%vcmax25top(pft, 1), & !in
+                                     c_leaf,            &  ! out
+                                     dbh,               &  ! out
+                                     cohort_n,          &  ! out
+                                     c_area_co)            ! out
+     else
+        
+        ! interpret as initial density and calculate diameter
+        if_init_dens: if (EDPftvarcon_inst%initd(pft) > nearzero) then  
+           
+           n_plant = EDPftvarcon_inst%initd(pft)*patch_area
+           
+           ! For no-comp, we should up the initial density
+           ! to compensate (otherwise runs are very hard to compare)
+           ! this multiplies it by the number of PFTs there would have been in
+           ! the single shared patch in competition mode.
+           ! n.b. that this is the same as currentcohort%n = initd(pft) &AREA
+           if(hlm_use_nocomp.eq.itrue)then
+              n_plant = n_plant*real(num_pft_in_site,r8)
+           end if
+           
+           height = EDPftvarcon_inst%hgt_min(pft)
+           
+           ! calculate the plant diameter from height
+           call h2d_allom(height, pft, dbh)
+                  
+        else ! interpret as initial diameter and calculate density 
+           
+           dbh = abs(EDPftvarcon_inst%initd(pft))
+
+           ! calculate crown area of a single plant
+           call carea_allom(dbh, unit_plant_dense, spread, pft, undamaged_crown, c_area_plant)
+           
+           ! calculate initial density required to close canopy
+           ! If we are in "full-fates/non-nocomp" mode, then we
+           ! simply assume equal canopy area for each cohort
+           plant_n = (patch_area/real(num_pft_in_patch),r8)/c_area_plant
+           
+           ! calculate height from diameter
+           call h_allom(dbh, pft, height)
+           
+        endif if_init_dens
+
+        ! Calculate the leaf biomass from allometry
+        ! (calculates a maximum first, then applies canopy trim)
+        call bleaf(dbh, pft, undamaged_crown, untrimmed, efleaf, c_leaf)
+        
+     end if if_sp
+
+   end subroutine ColdInitDBHAndNumDense
+
+
+   
   ! ======================================================================================
 
 end module EDInitMod
