@@ -30,7 +30,7 @@ module FatesCohortMod
   use FatesAllometryMod,          only : carea_allom, tree_lai_sai
   ! [PORTED by Hui Tang: NVP allometry for cohort initialization]
   use FatesAllometryMod,          only : NVP_allom
-  use FatesLeafBiophysParamsMod,  only : lb_params
+  use LeafBiophysicsMod,          only : lb_params
   use FatesInterfaceTypesMod,     only : hlm_use_nvp
   use PRTAllometricCarbonMod,     only : ac_bc_inout_id_dbh, ac_bc_inout_id_netdc
   use PRTAllometricCarbonMod,     only : ac_bc_in_id_cdamage, ac_bc_in_id_pft

@@ -49,7 +49,7 @@ module FatesRadiationDriveMod
   use EDPftvarcon,        only : EDPftvarcon_inst
   use FatesNormanRadMod,  only : PatchNormanRadiation
   ! [PORTED by Hui Tang: NVP PFT identification by zero stomatal intercept]
-  use FatesLeafBiophysParamsMod, only : lb_params
+  use LeafBiophysicsMod, only : lb_params
 
   ! CIME globals
   use shr_log_mod       , only : errMsg => shr_log_errMsg

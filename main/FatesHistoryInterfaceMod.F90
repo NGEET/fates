@@ -142,7 +142,7 @@ module FatesHistoryInterfaceMod
   use FatesSizeAgeTypeIndicesMod, only : coagetype_class_index
   use FatesInterfaceTypesMod    , only : hlm_use_luh
   use FatesInterfaceTypesMod    , only : hlm_use_nvp  ! [PORTED by Hui Tang: NVP history]
-  use FatesLeafBiophysParamsMod , only : lb_params    ! [PORTED by Hui Tang: NVP PFT identification via stomatal_intercept]
+  use LeafBiophysicsMod         , only : lb_params    ! [PORTED by Hui Tang: NVP PFT identification via stomatal_intercept]
   use FatesSizeAgeTypeIndicesMod, only : get_landusepft_class_index
 
   implicit none

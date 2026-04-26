@@ -40,7 +40,7 @@ module EDCanopyStructureMod
   use FatesInterfaceTypesMod     , only : hlm_use_sp
   use FatesInterfaceTypesMod     , only : hlm_use_nvp              ! [PORTED by Hui Tang: NVP master flag]
   use FatesInterfaceTypesMod     , only : hlm_nvp_rad_model_ground ! [PORTED by Hui Tang: NVP radiation model switch]
-  use FatesLeafBiophysParamsMod  , only : lb_params                ! [PORTED by Hui Tang: NVP PFT identification]
+  use LeafBiophysicsMod          , only : lb_params                ! [PORTED by Hui Tang: NVP PFT identification]
   use FatesInterfaceTypesMod     , only : numpft
   use FatesInterfaceTypesMod, only : bc_in_type
   use FatesPlantHydraulicsMod, only : UpdateH2OVeg,InitHydrCohort, RecruitWaterStorage
@@ -1366,6 +1366,9 @@ contains
     ! Locals
     type (fates_cohort_type) , pointer :: currentCohort
     integer :: s, ifp, c, p
+    ! [PORTED by Hui Tang: loop indices for NVP LAI subtraction loop]                                                                                                                                       
+    integer :: cl, ft, iv  
+ 
     type (fates_patch_type)  , pointer :: currentPatch
     real(r8) :: bare_frac_area
     real(r8) :: total_patch_area
