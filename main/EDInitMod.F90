@@ -66,6 +66,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nlevcoage
   use FatesInterfaceTypesMod         , only : nlevdamage
   use FatesInterfaceTypesMod         , only : hlm_use_nocomp
+  use FatesInterfaceTypesMod         , only : hlm_use_dbh_init
   use FatesInterfaceTypesMod         , only : nlevage
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : h_allom
@@ -1217,7 +1218,7 @@ contains
       ! if any pfts are starting with a non-recruitment size then the whole site
       ! needs the inventory type of spread 
       do pft = 1, numpft
-         if (EDPftvarcon_inst%initd(pft) < 0.0_r8) then   
+         if (hlm_use_dbh_init .eq. itrue) then   
             site_in%spread = init_spread_inventory
          end if
       end do
@@ -1308,13 +1309,6 @@ contains
                end select phen_select
             end if if_spmode 
 
-            ! If EDPftvarcon_inst%initd is positive, then it is interpreted as
-            ! initial recruit density (stems/m2)
-            ! If EDPftvarcon_inss%initd is negative, then it is interpreted as
-            ! the initial DBH of the plant, and that the canopy is closed
-            ! at one layer. However, this is only possible in nocomp since
-            ! each PFT has its own patch area, and we don't have to assume
-            ! the differences in coverage.
 
             if_fullfates: if (hlm_use_nocomp .eq. ifalse) then
 
@@ -1328,8 +1322,8 @@ contains
                
             else ! We are in a nocomp simulation 
 
-               ! interpret as initial density and calculate diameter
-               if_init_dens: if (EDPftvarcon_inst%initd(pft) > nearzero) then  
+               ! Use initial density and calculate diameter
+               if_init_dens: if (hlm_use_dbh_init .eq. ifalse) then  
 
                   cohort_n = EDPftvarcon_inst%initd(pft)*patch_in%area
                   ! in nocomp mode we only have one PFT per patch
@@ -1346,9 +1340,9 @@ contains
                   ! calculate the plant diameter from height
                   call h2d_allom(height, pft, dbh)
 
-               else ! interpret as initial diameter and calculate density 
+               else ! Use initial diameter and calculate density 
 
-                  dbh = abs(EDPftvarcon_inst%initd(pft))
+                  dbh = EDPftvarcon_inst%initdbh(pft)
 
                   ! calculate crown area of a single plant
                   call carea_allom(dbh, 1.0_r8, site_in%spread, pft, crown_damage,  &
