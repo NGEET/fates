@@ -2335,7 +2335,7 @@ contains
                  endif
 
                  ! Update the seedling layer smp and mdd running means
-                 ! RW - only update after first model day to avoid adding
+                 ! Only update after first model day to avoid adding
                  ! initialization spike in smp to running means
                  if (hlm_model_day > 2.0_r8) then 
                    call cpatch%sdlng_mdd(pft)%p%UpdateRMean(new_seedling_mdd)
@@ -2414,7 +2414,6 @@ subroutine SeedlingParPatch(cpatch, &
 
   ! Start with the assumption that there is a single canopy layer
   seedling_par_high = atm_par_dir+atm_par_dif
-  ! RW - edit to make these fractional rather than absolute area [m2]
   par_high_frac     = 1._r8 - (cpatch%total_canopy_area / cpatch%area)
   par_low_frac      = cpatch%total_canopy_area / cpatch%area
 
