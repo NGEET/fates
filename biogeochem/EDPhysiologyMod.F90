@@ -2340,12 +2340,11 @@ contains
           
           ! Step 3. Sum modes of mortality (including background mortality) and send dead seedlings
           ! to litter        
-          ! Cap total mortality rate at 1 to prevent negative seed pool 
-           litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
-               min(1.0_r8, seedling_light_mort_rate + &
-                           seedling_h2o_mort_rate + &
-                           (EDPftvarcon_inst%background_seedling_mort(pft) * &
-                           years_per_day))
+          ! Cap total mortality rate at 1 to prevent negative seedling pool
+          litt%seed_germ_decay(pft) = litt%seed_germ(pft) * &
+            min(1.0_r8, seedling_light_mort_rate + &
+                        seedling_h2o_mort_rate + &
+                        (EDPftvarcon_inst%background_seedling_mort(pft) * years_per_day))
 
        else
           
@@ -2449,10 +2448,11 @@ contains
 
           ! If SMP is below a pft-specific value, then no germination occurs
           if ( seedling_layer_smp .GE. EDPftvarcon_inst%seedling_psi_emerg(pft) ) then
+             seedling_emerg_rate = photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
+                  wetness_index**EDPftvarcon_inst%b_emerg(pft)
              ! Cap emergence rate at 1, rate can exceed 1 for some parameter combinations,
              ! leading to negative seed bank
-             seedling_emerg_rate = min(1.0_r8, photoblastic_germ_modifier * EDPftvarcon_inst%a_emerg(pft) * &
-                  wetness_index**EDPftvarcon_inst%b_emerg(pft))
+             seedling_emerg_rate = min(1.0_r8, seedling_emerg_rate )
           else 
 
              seedling_emerg_rate = 0.0_r8
@@ -2683,7 +2683,7 @@ contains
                      mass_avail = currentPatch%area*                           &
                         currentPatch%litter(el)%seed_germ(ft)*                 & 
                         EDPftvarcon_inst%seedling_light_rec_a(ft)*             &
-                        sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft) 
+                        sdlng2sap_par**EDPftvarcon_inst%seedling_light_rec_b(ft)
                      
                      ! If soil moisture is below pft-specific seedling  moisture stress threshold the 
                      ! recruitment does not occur.
