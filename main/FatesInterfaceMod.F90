@@ -1683,7 +1683,7 @@ contains
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
-         if (  .not.((hlm_use_dbh_init.eq.1).or.(hlm_use_dbh_init.eq.0))    ) then
+         if (  .not.((hlm_use_dbh_init.eq.itrue).or.(hlm_use_dbh_init.eq.ifalse))    ) then
             write(fates_log(), *) 'The Fates dbh init flag must be 0 or 1, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          elseif ((hlm_use_dbh_init .eq. itrue) .and. (hlm_use_nocomp .eq. ifalse)) then
