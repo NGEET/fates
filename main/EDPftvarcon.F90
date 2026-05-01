@@ -146,7 +146,6 @@ module EDPftvarcon
      real(r8), allocatable :: rhos(:, :)                 ! Stem reflectance; second dim: 1 = vis, 2 = nir
      real(r8), allocatable :: taul(:, :)                 ! Leaf transmittance; second dim: 1 = vis, 2 = nir
      real(r8), allocatable :: taus(:, :)                 ! Stem transmittance; second dim: 1 = vis, 2 = nir
-     integer,  allocatable :: voc_pftindex(:)            ! Index for MEGAN parameters 
      
      ! Fire Parameters (No PFT vector capabilities in their own routines)
      ! See fire/SFParamsMod.F90 for bulk of fire parameters
@@ -290,7 +289,12 @@ module EDPftvarcon
      real(r8), allocatable :: landuse_grazing_palatability(:) ! Relative intensity of leaf grazing/browsing per PFT (unitless 0-1)
 
      ! dry deposition
-     integer, allocatable :: wesley_pft_index_fordrydep(:)
+     real(r8), allocatable :: wesley_veg_index(:)  ! Wesley vegetation index for dry deposition calculation
+     real(r8), allocatable :: wesley_sum_thresh(:) ! LAI threshold to determine Wesley summer (m2/m2)
+     real(r8), allocatable :: wesley_aut_thresh(:) ! LAI threshold to determine Wesley early/late autmn (m2/m2)
+
+     ! MEGAN (used in NorESM)
+     integer,  allocatable :: voc_pftindex(:)      ! Index for MEGAN parameters 
 
   end type EDPftvarcon_type
 
@@ -720,9 +724,17 @@ contains
     allocate(EDPftvarcon_inst%landuse_grazing_palatability(numpft))
     EDPftvarcon_inst%landuse_grazing_palatability(:) = param_p%r_data_1d(:)
 
-    param_p => pstruct%GetParamFromName('fates_wesley_pft_index_fordrydep')
-    allocate(EDPftvarcon_inst%wesley_pft_index_fordrydep(numpft))
-    EDPftvarcon_inst%wesley_pft_index_fordrydep(:) = param_p%i_data_1d(:)
+    param_p => pstruct%GetParamFromName('fates_wesley_veg_index')
+    allocate(EDPftvarcon_inst%wesley_veg_index(numpft))
+    EDPftvarcon_inst%wesley_veg_index(:) = param_p%i_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_wesley_sum_thresh')
+    allocate(EDPftvarcon_inst%wesley_sum_thresh(numpft))
+    EDPftvarcon_inst%wesley_sum_thresh(:) = param_p%r_data_1d(:)
+
+    param_p => pstruct%GetParamFromName('fates_wesley_aut_thresh')
+    allocate(EDPftvarcon_inst%wesley_aut_thresh(numpft))
+    EDPftvarcon_inst%wesley_aut_thresh(:) = param_p%r_data_1d(:)
 
     param_p => pstruct%GetParamFromName('fates_voc_pftindex')
     allocate(EDPftvarcon_inst%voc_pftindex(numpft))
@@ -937,7 +949,9 @@ contains
         write(fates_log(),fmt0) 'hydro_pinot_node = ',EDPftvarcon_inst%hydr_pinot_node
         write(fates_log(),fmt0) 'hydro_kmax_node = ',EDPftvarcon_inst%hydr_kmax_node
         write(fates_log(),fmt0) 'hlm_pft_map = ', EDPftvarcon_inst%hlm_pft_map
-        write(fates_log(),fmt0) 'wesley_pft_index_fordrydep = ', EDPftvarcon_inst%wesley_pft_index_fordrydep
+        write(fates_log(),fmt0) 'wesley_veg_index = ', EDPftvarcon_inst%wesley_veg_index
+        write(fates_log(),fmt0) 'wesley_sum_thresh = ', EDPftvarcon_inst%wesley_sum_thresh
+        write(fates_log(),fmt0) 'wesley_aut_thresh = ', EDPftvarcon_inst%wesley_aut_thresh
         write(fates_log(),fmt0) 'hydro_vg_alpha_node  = ',EDPftvarcon_inst%hydr_vg_alpha_node
         write(fates_log(),fmt0) 'hydro_vg_m_node  = ',EDPftvarcon_inst%hydr_vg_m_node
         write(fates_log(),fmt0) 'hydro_vg_n_node  = ',EDPftvarcon_inst%hydr_vg_n_node
@@ -1355,7 +1369,7 @@ contains
            call endrun(msg=errMsg(sourcefile, __LINE__))
 
         end if
-        write(*,*)  EDPftvarcon_inst%voc_pftindex(:)
+
         if(EDPftvarcon_inst%voc_pftindex(ipft) .le. 0 .or. EDPftvarcon_inst%voc_pftindex(ipft) .gt. 16 ) then
            write(fates_log(),*) 'MEGAN indices must be between 1 and 16',ipft,EDPftvarcon_inst%voc_pftindex(ipft)
            call endrun(msg=errMsg(sourcefile, __LINE__))
