@@ -1575,6 +1575,7 @@ contains
          hlm_use_nocomp = unset_int   
          hlm_use_sp = unset_int
          hlm_use_inventory_init = unset_int
+         hlm_use_dbh_init = unset_int
          hlm_inventory_ctrl_file = 'unset'
          hlm_hist_level_dynam = unset_int
          hlm_hist_level_hifrq = unset_int
@@ -1680,6 +1681,14 @@ contains
          
          if(trim(hlm_inventory_ctrl_file) .eq. 'unset') then
             write(fates_log(),*) 'namelist entry for fates inventory control file is unset, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         end if
+
+         if (  .not.((hlm_use_dbh_init.eq.itrue).or.(hlm_use_dbh_init.eq.ifalse))    ) then
+            write(fates_log(), *) 'The Fates dbh init flag must be 0 or 1, exiting'
+            call endrun(msg=errMsg(sourcefile, __LINE__))
+         elseif ((hlm_use_dbh_init .eq. itrue) .and. (hlm_use_nocomp .eq. ifalse)) then
+            write(fates_log(), *) 'The Fates dbh init can only be ON in NOCOMP mode, exiting'
             call endrun(msg=errMsg(sourcefile, __LINE__))
          end if
 
@@ -2189,6 +2198,12 @@ contains
                hlm_use_inventory_init = ival
                if (fates_global_verbose()) then
                   write(fates_log(),*) 'Transfering hlm_use_inventory_init= ',ival,' to FATES'
+               end if
+
+            case('use_dbh_init')
+               hlm_use_dbh_init = ival
+               if (fates_global_verbose()) then
+                  write(fates_log(),*) 'Transfering hlm_use_dbh_init= ',ival,' to FATES'
                end if
 
             case('hist_hifrq_dimlevel')
