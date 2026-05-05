@@ -926,7 +926,7 @@
       "dims": ["fates_pft"],
       "long_name": "Mortality dbh senescence inflection point. If _ this mortality term is off. Setting this value turns on size dependent mortality",
       "units": "dbh cm",
-      "data": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]
+      "data": [140, 155, 175, 175, 140, 135, 175, null, null, null, null, null, null, null, null]
     },
     "fates_mort_prescribed_canopy":{
       "dtype": "float",
