@@ -1295,19 +1295,6 @@ contains
         ! Check that in initial density is not equal to zero in a cold-start run
         !-----------------------------------------------------------------------------------
         
-        if ( hlm_use_inventory_init == ifalse .and. & 
-             abs( EDPftvarcon_inst%initd(ipft) ) < nearzero ) then
-          
-           write(fates_log(),*) ' In a cold start run initial density cannot be zero.'
-           write(fates_log(),*) ' For a bare ground run set to initial recruit density.'
-           write(fates_log(),*) ' If no-comp is on it is possible to initialize with larger  '
-           write(fates_log(),*) ' plants by setting use_fates_dbh_init to true'
-           write(fates_log(),*) ' so that initial dbh parameter is used instead of density. '
-           write(fates_log(),*) ' Aborting'
-           call endrun(msg=errMsg(sourcefile, __LINE__))
-           
-        end if
-        
         if ( EDPftvarcon_inst%initd(ipft) < -nearzero ) then
            write(fates_log(),*) ' Option to use negative values for initial density'
            write(fates_log(),*) ' has been depricated. Set use_fates_dbh_init to true'
@@ -1316,6 +1303,38 @@ contains
            write(fates_log(),*) ' Aborting'
            call endrun(msg=errMsg(sourcefile, __LINE__))
         end if
+
+        if ( hlm_use_inventory_init == ifalse .and. & 
+            EDPftvarcon_inst%initd(ipft) < nearzero ) then
+          
+           write(fates_log(),*) ' In a cold start run initial density cannot be zero'
+           write(fates_log(),*) ' without inventory initialization.'
+           write(fates_log(),*) ' If no-comp is on it is possible to initialize with larger  '
+           write(fates_log(),*) ' plants by setting use_fates_dbh_init to true'
+           write(fates_log(),*) ' so that initial dbh parameter is used instead of density. '
+           write(fates_log(),*) ' Aborting'
+           call endrun(msg=errMsg(sourcefile, __LINE__))
+           
+        end if
+        
+
+
+
+        if (hlm_use_dbh_init .eq. itrue) then
+           if (EDPftvarcon_inst%initdbh(ipft) < nearzero) then
+              write(fates_log(),*) ' You are running in nocomp mode using initial dbh instead of density.'
+              write(fates_log(),*) ' In a cold start run initial dbh cannot be less or equal zero.'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           endif
+           if (EDPftvarcon_inst%init_seed(ipft) < nearzero) then
+              write(fates_log(),*) ' You are running in nocomp mode using initial dbh instead of density.'
+              write(fates_log(),*) ' In a cold start run initial seed cannot equal zero '
+              write(fates_log(),*) ' Otherwize mass-balance will not be conserved.'
+              write(fates_log(),*) ' Aborting'
+              call endrun(msg=errMsg(sourcefile, __LINE__))
+           endif
+        endif
 
 
         if (hlm_use_dbh_init .eq. itrue) then
