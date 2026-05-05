@@ -16,6 +16,7 @@ module FatesLandUseChangeMod
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_states
   use FatesInterfaceTypesMod    , only : hlm_num_luh2_transitions
   use FatesInterfaceTypesMod    , only : hlm_use_potentialveg
+  use FatesInterfaceTypesMod    , only : hlm_lu_transition_logic 
   use FatesUtilsMod             , only : FindIndex
   use EDTypesMod                , only : area_site => area
 
@@ -178,13 +179,19 @@ contains
     ! the purpose of this is to define a ruleset for when to clear the vegetation in transitioning
     ! from one land use type to another
 
+    
     logical, intent(out) :: clearing_matrix(n_landuse_cats,n_landuse_cats)
+
+    ! local variables
+    integer :: ruleset
     
     ! default value of ruleset 4 above means that plants are not cleared during land use change
     ! transitions to rangeland, whereas plants are cleared in transitions to pasturelands and croplands.
-    integer, parameter    :: ruleset = 1   ! ruleset to apply from table 1 of Ma et al (2020)
-    ! https://doi.org/10.5194/gmd-13-3203-2020
 
+    ! ruleset to apply from table 1 of Ma et al (2020)
+    ! https://doi.org/10.5194/gmd-13-3203-2020
+    ruleset = hlm_lu_transition_logic
+    
     ! clearing matrix applies from the donor to the receiver land use type of the newly-transferred
     ! patch area values of clearing matrix: false => do not clear; true => clear
 
@@ -329,33 +336,48 @@ contains
   subroutine CheckLUHData(luh_vector,modified_flag)
 
     use shr_infnan_mod   , only : isnan => shr_infnan_isnan
+    use FatesConstantsMod, only : fates_unset_luh
 
     real(r8), intent(inout) :: luh_vector(:)  ! [m2/m2]
     logical, intent(out)    :: modified_flag
 
-    ! Check to see if the incoming luh2 vector is NaN.
+    logical :: missing_any
+    logical :: missing_all
+
+    ! Check to see if the incoming luh2 vector is missing.
     ! This suggests that there is a discepency where the HLM and LUH2 states
     ! there is vegetated ground. E.g. LUH2 data is missing for glacier-margin
-    ! regions such as Antarctica. In this case, states should be Nan.  If so,
+    ! regions such as Antarctica. In this case, states may be NaN or -999.0
+    ! depending on the version of the land use data being used.  If so,
     ! set the current state to be all primary forest, and all transitions to be zero.
-    ! If only a portion of the vector is NaN, there is something  amiss with
+    ! If only a portion of the vector is missing, there is something  amiss with
     ! the data, so end the run.
 
+    ! Determine if any data is missing.  The check for the -999.0 float value
+    ! needs to be separated to avoid invoking a floating point invalid operation.
+    missing_any = .false.
+    missing_all = .false.
+    if (any(isnan(luh_vector))) then
+       if (all(isnan(luh_vector))) missing_all = .true.
+       if (any(.not. isnan(luh_vector))) missing_any = .true.
+    elseif (any(abs(luh_vector - fates_unset_luh) < nearzero)) then
+       if (all(abs(luh_vector - fates_unset_luh) < nearzero)) missing_all = .true.
+       if (any( .not.(abs(luh_vector - fates_unset_luh) < nearzero))) missing_any = .true.
+    endif
+
     modified_flag = .false.
-    if (all(isnan(luh_vector))) then
+    if (missing_all) then
        luh_vector(:) = 0._r8
        ! Check if this is a state vector, otherwise leave transitions as zero
        if (size(luh_vector) .eq. hlm_num_luh2_states) then
           luh_vector(primaryland) = 1._r8
        end if
        modified_flag = .true.
-       !write(fates_log(),*) 'WARNING: land use state is all NaN;
+       !write(fates_log(),*) 'WARNING: land use state is all missing values';
        !setting state as all primary forest.' ! GL DIAG
-    else if (any(isnan(luh_vector))) then
-       if (any(.not. isnan(luh_vector))) then
-          write(fates_log(),*) 'ERROR: land use vector has NaN'
-          call endrun(msg=errMsg(sourcefile, __LINE__))
-       end if
+    else if (missing_any) then
+       write(fates_log(),*) 'ERROR: land use vector has missing values'
+       call endrun(msg=errMsg(sourcefile, __LINE__))
     end if
 
   end subroutine CheckLUHData
@@ -429,7 +451,7 @@ contains
     
   !----------------------------------------------------------------------------------------------------
 
-  subroutine FatesGrazing(prt, ft, land_use_label, height)
+  subroutine FatesGrazing(prt, ft, land_use_label, height,npp_acc, lai)
 
     use PRTGenericMod,    only : leaf_organ
     use PRTGenericMod,    only : prt_vartypes
@@ -446,12 +468,20 @@ contains
     integer, intent(in)  :: ft
     integer, intent(in)  :: land_use_label
     real(r8), intent(in) :: height
+    real(r8), intent(in) :: npp_acc
+    real(r8), intent(in) :: lai
 
     real(r8) :: grazing_rate    ! rate of grazing (or browsing) of leaf tissue [day -1]
     real(r8) :: crown_depth
     
     grazing_rate = landuse_grazing_rate(land_use_label) * EDPftvarcon_inst%landuse_grazing_palatability(ft)
-    
+    if(npp_acc .le. 0.0_r8 .or. (lai .lt. 0.25_r8 .and. land_use_label .eq. cropland)) then
+! We allow grazing on cropland at present to loosely mimic the impact of human management on fluxes and LAI. This is a placeholder for a better future model which includes actual planting and harvest.  
+! But if we allow grazing to occur at all times, then the crop plants eventually die in most grid cells. 
+! Restricting grazing to when NPP is positive and LAI > a threshold prevents this in most cases. 
+! In principle this restriction should also apply to rangeland and pasture but we were unable to create a stable situation where LAI/GPP was realistic in all managed land with the same logic and so we only applied this change to crops. 
+       grazing_rate = 0.0_r8
+    endif
     if ( grazing_rate .gt. 0._r8) then
        if (prt_params%woody(ft) == itrue) then
 
@@ -463,8 +493,9 @@ contains
        endif
 
        call PRTHerbivoryLosses(prt, leaf_organ, grazing_rate)
-    end if
 
+    end if
+    
   end subroutine FatesGrazing
 
 end module FatesLandUseChangeMod

@@ -15,8 +15,6 @@ module EDTypesMod
   use PRTGenericMod,         only : prt_vartypes
   use PRTGenericMod,         only : leaf_organ, fnrt_organ, sapw_organ
   use PRTGenericMod,         only : repro_organ, store_organ, struct_organ
-  use PRTGenericMod,         only : prt_carbon_allom_hyp
-  use PRTGenericMod,         only : prt_cnp_flex_allom_hyp
   use PRTGenericMod,         only : num_organ_types
   use PRTGenericMod,         only : num_elements
   use PRTGenericMod,         only : element_list
@@ -298,7 +296,7 @@ module EDTypesMod
 
      real(r8) :: wood_product_landusechange(maxpft)    ! Total mass exported as wood product from land use change [kg/site/day]
 
-     real(r8) :: burn_flux_to_atm      ! Total mass burned and exported to the atmosphere [kg/site/day]
+     real(r8) :: burn_flux_to_atm(n_dist_types)      ! Total mass burned and exported to the atmosphere [kg/site/day]
 
      real(r8) :: flux_generic_in       ! Used for prescribed or artificial input fluxes
                                        ! and initialization [kg/site/day]
@@ -308,7 +306,7 @@ module EDTypesMod
                                        ! due to re-sizing patches when area math starts to lose
                                        ! precision
 
-     real(r8) :: herbivory_flux_out    ! loss of element due to grazing (and/or browsing) by herbivores
+     real(r8) :: herbivory_flux_out    ! loss of element due to grazing (and/or browsing) by herbivores [kg/site/day]
      
    contains
 
@@ -717,7 +715,7 @@ contains
       this%frag_out          = 0._r8
       this%wood_product_harvest(:)        = 0._r8
       this%wood_product_landusechange(:)  = 0._r8
-      this%burn_flux_to_atm  = 0._r8
+      this%burn_flux_to_atm(:)            = 0._r8
       this%flux_generic_in   = 0._r8
       this%flux_generic_out  = 0._r8
       this%patch_resize_err  = 0._r8

@@ -27,7 +27,7 @@ module EDInitMod
   use EDCohortDynamicsMod       , only : create_cohort, fuse_cohorts
   use EDCohortDynamicsMod       , only : InitPRTObject
   use EDTypesMod                , only : set_patchno
-  use EDPhysiologyMod           , only : calculate_sp_properties
+  use EDPhysiologyMod           , only : calculate_SP_properties
   use ChecksBalancesMod         , only : SiteMassStock
   use FatesInterfaceTypesMod    , only : hlm_day_of_year
   use FatesRadiationMemMod      , only : num_swb
@@ -66,6 +66,7 @@ module EDInitMod
   use FatesInterfaceTypesMod         , only : nlevcoage
   use FatesInterfaceTypesMod         , only : nlevdamage
   use FatesInterfaceTypesMod         , only : hlm_use_nocomp
+  use FatesInterfaceTypesMod         , only : hlm_use_dbh_init
   use FatesInterfaceTypesMod         , only : nlevage
   use FatesAllometryMod         , only : h2d_allom
   use FatesAllometryMod         , only : h_allom
@@ -79,8 +80,8 @@ module EDInitMod
   use FatesAllometryMod         , only : carea_allom
   use PRTGenericMod             , only : StorageNutrientTarget
   use FatesInterfaceTypesMod,      only : hlm_parteh_mode
-  use PRTGenericMod,          only : prt_carbon_allom_hyp
-  use PRTGenericMod,          only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod,          only : carbon_only
+  use PRTGenericMod,          only : carbon_nitrogen_phosphorus
   use PRTGenericMod,          only : prt_vartypes
   use PRTGenericMod,          only : leaf_organ
   use PRTGenericMod,          only : fnrt_organ
@@ -100,7 +101,7 @@ module EDInitMod
   use FatesConstantsMod,      only : min_nocomp_pftfrac_perlanduse
   use EdTypesMod,             only : dump_site
   use SFNesterovMod,          only : nesterov_index
-
+  use PRTInitParamsFatesMod,  only : NewRecruitTotalStoichiometry
 
   ! CIME GLOBALS
   use shr_log_mod               , only : errMsg => shr_log_errMsg
@@ -449,6 +450,7 @@ contains
     ! !USES:
     use EDParamsMod, only : crop_lu_pft_vector
     use EDParamsMod, only : max_nocomp_pfts_by_landuse
+    use FatesConstantsMod, only : fates_unset_luh
     !
     ! !ARGUMENTS
 
@@ -479,6 +481,7 @@ contains
     integer  :: i_landusetype
     real(r8) :: temp_vec(numpft)  ! temporary vector
     integer  :: i_pftcount
+    logical  :: missing_found     ! missing LUH data found flag
     !----------------------------------------------------------------------
 
 
@@ -549,8 +552,18 @@ contains
                 ! where pft_areafrac_lu is the area of land in each HLM PFT and land use type (from surface dataset)
                 ! hlm_pft_map is the area of that land in each FATES PFT (from param file)
 
-                ! First check for NaNs in bc_in(s)%pft_areafrac_lu. If so, make everything bare ground.
-                if ( .not. (any( isnan( bc_in(s)%pft_areafrac_lu (:,:) )) .or. isnan( bc_in(s)%baregroundfrac))) then
+                ! First check for missing values in bc_in(s)%pft_areafrac_lu are NaNs.  If not check if the 
+                ! missing values are -999.0.
+                missing_found = .false.
+                if ( any(isnan(bc_in(s)%pft_areafrac_lu(:,:))) .or. isnan(bc_in(s)%baregroundfrac) ) then
+                   missing_found = .true.
+                elseif ( any(abs(bc_in(s)%pft_areafrac_lu (:,:) - fates_unset_luh) < nearzero) .or. &
+                         (abs(bc_in(s)%baregroundfrac - fates_unset_luh) < nearzero) )  then
+                   missing_found = .true.
+                endif
+
+                ! If no missing data found, then calculate the area_pft as normal.  Otherwise make everything bareground.
+                if (.not. missing_found) then
                    do i_landusetype = 1, n_landuse_cats
                       if (.not. is_crop(i_landusetype)) then
                          do hlm_pft = 1,size( EDPftvarcon_inst%hlm_pft_map,2)
@@ -566,6 +579,7 @@ contains
                    end do
 
                    sites(s)%area_bareground = bc_in(s)%baregroundfrac
+
                 else
                    !if ( all( isnan( bc_in(s)%pft_areafrac_lu (:,:))) .and. isnan(bc_in(s)%baregroundfrac)) then
                       ! if given all NaNs, then make everything bare ground
@@ -722,14 +736,15 @@ contains
     real(r8) :: biomass_stock
     real(r8) :: litter_stock
     real(r8) :: seed_stock
-    integer  :: n
+    integer  :: pft
+    integer  :: n     ! for cycling nocomp_pft loops
     integer  :: start_patch
     integer  :: num_nocomp_pfts
     integer  :: nocomp_pft
     real(r8) :: newparea, newparea_withlanduse
     real(r8) :: total !check on area
     real(r8) :: litt_init  !invalid for satphen, 0 otherwise
-    real(r8) :: seed_init ! start seedbank at this value for each PFT. 
+    real(r8),allocatable :: seed_init(:) ! start seedbank at this value for each PFT. 
     real(r8) :: old_carea
     logical  :: is_first_patch
     ! integer  :: n_luh_states
@@ -738,7 +753,7 @@ contains
     integer  :: i_lu, i_lu_state
     integer  :: n_active_landuse_cats
     integer  :: end_landuse_idx
-
+    integer  :: element_id
     type(ed_site_type),  pointer :: sitep
     type(fates_patch_type), pointer :: newppft(:)
     type(fates_patch_type), pointer :: newp
@@ -750,6 +765,10 @@ contains
     age                  = 0.0_r8
     ! ---------------------------------------------------------------------------------------------
 
+    ! Assume that seed banks start with zero mass unless otherwise stated
+    allocate(seed_init(numpft))
+    seed_init(:) = 0.
+    
     ! ---------------------------------------------------------------------------------------------
     ! Two primary options, either a Near Bear Ground (NBG) or Inventory based cold-start
     ! ---------------------------------------------------------------------------------------------
@@ -863,16 +882,17 @@ contains
                 ! and transfering in mass
                 if(hlm_use_sp.eq.itrue)then
                    litt_init = fates_unset_r8
-                   seed_init = fates_unset_r8
+                   seed_init(:) = fates_unset_r8
                 else
                    litt_init = 0._r8
+                   seed_init(:) = 0._r8
                 end if
                 do el=1,num_elements
                    call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
                         init_root_fines=litt_init, &
                         init_ag_cwd=litt_init, &
                         init_bg_cwd=litt_init, &
-                        init_seed=litt_init,   &
+                        init_seed_array=seed_init,   &
                         init_seed_germ=litt_init)
                 end do
 
@@ -957,25 +977,45 @@ contains
                             litt_init = 0._r8
                          end if
                          do el=1,num_elements
-                            if ((.not. hlm_use_sp .eq. itrue) .and. &
-                                (.not. (newp%nocomp_pft_label .eq. fates_unset_int) .or. &
-                                       (newp%nocomp_pft_label .eq. nocomp_bareground))) then
-                               ! nocomp non-bareground get inital seed pool from the parameter file
-                               ! sp mode will get unset values no matter what
-                               call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
+
+                            element_id = element_list(el)
+
+                            ! -------------------------------------------------------------------------------
+                            ! Three+ ways to initialize seed banks on cold-start
+                            ! 1) this is either an SP run, or this is a bareground: no seed
+                            ! 2) this patch has a no-comp label, and therefore gets seed just from that pft
+                            ! 3a) full fates: all pft seed banks are included
+                            ! 3b) non no-comp fixed-biogeography: only geographically relevant pfts have
+                            !     non-zero seed banks
+                            ! --------------------------------------------------------------------------------
+                            
+                            if (hlm_use_sp .eq. itrue) then
+                               seed_init(:) = fates_unset_r8
+                            elseif(newp%nocomp_pft_label .eq. nocomp_bareground) then
+                               seed_init(:) = 0._r8
+                            elseif(.not.(newp%nocomp_pft_label .eq. fates_unset_int))then
+                               seed_init(:) = 0._r8
+                               pft = newp%nocomp_pft_label
+                               seed_init(pft) = NewRecruitTotalStoichiometry(pft,prt_params%allom_l2fr(pft),element_id) * &
+                                    EDPftvarcon_inst%init_seed(pft)
+                            else
+                               do pft = 1, numpft
+                                  if(sites(s)%use_this_pft(pft).eq.itrue)then
+                                     seed_init(pft) = NewRecruitTotalStoichiometry(pft,prt_params%allom_l2fr(pft),element_id) * &
+                                          EDPftvarcon_inst%init_seed(pft)
+                                  else
+                                     seed_init(pft) = 0._r8
+                                  end if
+                               end do
+                            end if
+
+                            call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
                                     init_root_fines=litt_init, &
                                     init_ag_cwd=litt_init, &
                                     init_bg_cwd=litt_init, &
-                                    init_seed=EDPftvarcon_inst%init_seed(newp%nocomp_pft_label),   &
+                                    init_seed_array=seed_init, &
                                     init_seed_germ=litt_init)
-                            else
-                               call newp%litter(el)%InitConditions(init_leaf_fines=litt_init, &
-                                   init_root_fines=litt_init, &
-                                   init_ag_cwd=litt_init, &
-                                   init_bg_cwd=litt_init, &
-                                   init_seed=litt_init,   &
-                                   init_seed_germ=litt_init)
-                            endif
+                            
                          end do
 
                          sitep => sites(s)
@@ -1120,6 +1160,8 @@ contains
        end do
     end do
 
+    deallocate(seed_init)
+    
     return
   end subroutine init_patches
 
@@ -1180,16 +1222,10 @@ contains
       patch_in%tallest  => null()
       patch_in%shortest => null()
 
-      l_initd(1:numpft) = nan
-      ! if any pfts are starting with large  size  then the whole  site needs a spread of 0
+      ! if any pfts are starting with a non-recruitment size then the whole site
+      ! needs the inventory type of spread 
       do pft = 1, numpft
-         ! check for the mode and set the initd
-         if (hlm_use_nocomp .eq. itrue) then
-            l_initd(pft) = EDPftvarcon_inst%initd_nocomp(pft)
-         else 
-            l_initd(pft) = EDPftvarcon_inst%initd_fullfates(pft)
-         endif
-         if (l_initd(pft) < 0.0_r8) then   
+         if (hlm_use_dbh_init .eq. itrue) then   
             site_in%spread = init_spread_inventory
          end if
       end do
@@ -1225,7 +1261,8 @@ contains
             l2fr         = prt_params%allom_l2fr(pft)
             canopy_trim  = 1.0_r8
             crown_damage = 1  ! Assume no damage to begin with
-
+            c_area       = fates_unset_r8
+            
             ! retrieve drop fraction of non-leaf tissues for phenology initialization
             fnrt_drop_fraction = prt_params%phen_fnrt_drop_fraction(pft)
             stem_drop_fraction = prt_params%phen_stem_drop_fraction(pft)
@@ -1279,24 +1316,59 @@ contains
                end select phen_select
             end if if_spmode 
 
-            ! If positive l_initd is interpreted as initial recruit density.
-            ! If negative l_initd is interpreted as initial dbh. 
-            ! Dbh-initialization can only be used in nocomp mode.
-            ! In the dbh-initialization case, we calculate crown area for a single tree and then calculate
-            ! the density of plants  needed for a full canopy. 
-            if_init_dens: if (l_initd(pft) > nearzero) then  ! interpret as initial density and calculate diameter
 
-               cohort_n = l_initd(pft)*patch_in%area
-               if (hlm_use_nocomp .eq. itrue) then !in nocomp mode we only have one PFT per patch
+            if_fullfates: if (hlm_use_nocomp .eq. ifalse) then
+
+               cohort_n = EDPftvarcon_inst%initd(pft)*patch_in%area
+               height = EDPftvarcon_inst%hgt_min(pft)
+
+               ! calculate the plant diameter from height
+               call h2d_allom(height, pft, dbh)
+
+               call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh, c_leaf)
+               
+            else ! We are in a nocomp simulation 
+
+               ! Use initial density and calculate diameter
+               if_init_dens: if (hlm_use_dbh_init .eq. ifalse) then  
+
+                  cohort_n = EDPftvarcon_inst%initd(pft)*patch_in%area
+                  ! in nocomp mode we only have one PFT per patch
+
                   ! as opposed to numpft's. So we should up the initial density
                   ! to compensate (otherwise runs are very hard to compare)
                   ! this multiplies it by the number of PFTs there would have been in
                   ! the single shared patch in competition mode.
-                  ! n.b. that this is the same as currentcohort%n = l_initd(pft) &AREA
+                  ! n.b. that this is the same as currentcohort%n = initd(pft) &AREA
                   cohort_n = cohort_n*sum(site_in%use_this_pft)
-               endif
-               height = EDPftvarcon_inst%hgt_min(pft)
 
+                  height = EDPftvarcon_inst%hgt_min(pft)
+
+                  ! calculate the plant diameter from height
+                  call h2d_allom(height, pft, dbh)
+
+               else ! Use initial diameter and calculate density 
+
+                  dbh = EDPftvarcon_inst%initdbh(pft)
+
+                  ! calculate crown area of a single plant
+                  call carea_allom(dbh, 1.0_r8, site_in%spread, pft, crown_damage,  &
+                       c_area)
+
+                  ! calculate initial density required to close canopy 
+                  cohort_n = patch_in%area/c_area
+
+                  ! calculate height from diameter
+                  call h_allom(dbh, pft, height)
+
+               endif if_init_dens
+               
+               ! Calculate the leaf biomass from allometry
+               ! (calculates a maximum first, then applies canopy trim)
+               call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh, c_leaf)
+               
+               ! If we are in SP mode we ignore the initial values and read in height,
+               ! which is used to calcualte n.
                ! h, dbh, leafc, n from SP values or from small initial size
                if (hlm_use_sp .eq. itrue) then
                   ! At this point, we do not know the bc_in values of tlai tsai and htop,
@@ -1304,47 +1376,12 @@ contains
                   ! Not sure if there's a way around this or not.
                   height = 0.5_r8
                   call calculate_SP_properties(height, 0.2_r8, 0.1_r8,         &
-                     patch_in%area, pft, crown_damage, 1,                      &
-                     EDPftvarcon_inst%vcmax25top(pft, 1), c_leaf, dbh,         &
-                     cohort_n, c_area)
-               else
-                  ! calculate the plant diameter from height
-                  call h2d_allom(height, pft, dbh)
-
-                  ! Calculate the leaf biomass from allometry
-                  ! (calculates a maximum first, then applies canopy trim)
-                  call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh, c_leaf)
+                       patch_in%area, pft, crown_damage, 1,                      &
+                       EDPftvarcon_inst%vcmax25top(pft, 1), c_leaf, dbh,         &
+                       cohort_n, c_area)
                endif  ! sp mode
 
-            else ! interpret as initial diameter and calculate density 
-               if (hlm_use_nocomp .eq. itrue) then
-                  
-                  dbh = abs(l_initd(pft))
-
-                  ! calculate crown area of a single plant
-                  call carea_allom(dbh, 1.0_r8, init_spread_inventory, pft, crown_damage,       &
-                  c_area)
-
-                  ! calculate initial density required to close canopy 
-                  cohort_n = patch_in%area/c_area
-
-                  ! Calculate the leaf biomass from allometry
-                  ! (calculates a maximum first, then applies canopy trim)
-                  call bleaf(dbh, pft, crown_damage, canopy_trim, efleaf_coh,  &
-                       c_leaf)
-
-                  ! calculate crown area of the cohort
-                  call carea_allom(dbh, cohort_n, init_spread_inventory, pft, crown_damage,       &
-                       c_area)
-
-                  ! calculate height from diameter
-                  call h_allom(dbh, pft, height)
-               else
-                  write(fates_log(),*) ' Only fates_recruit_init_density_nocomp can be negative'
-                  write(fates_log(),*) ' Either switch to nocomp mode, or change fates_recruit_init_density_fullfates to a positive value'
-                  call endrun(msg=errMsg(sourcefile, __LINE__))
-               endif
-            endif if_init_dens 
+            endif if_fullfates
 
             ! calculate total above-ground biomass from allometry
             call bagw_allom(dbh, pft, crown_damage, efstem_coh, c_agw)
@@ -1403,7 +1440,7 @@ contains
                end select
 
                select case(hlm_parteh_mode)
-               case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp )
+               case (carbon_only, carbon_nitrogen_phosphorus)
                   ! Put all of the leaf mass into the first bin
                   call SetState(prt, leaf_organ, element_id, m_leaf, 1)
                   do iage = 2,nleafage

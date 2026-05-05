@@ -28,8 +28,8 @@ module EDMainMod
   use FatesInterfaceTypesMod        , only : numpft
   use FatesInterfaceTypesMod        , only : hlm_use_nocomp
   use FatesInterfaceTypesMod        , only : ZeroBCOutCarbonFluxes
-  use PRTGenericMod            , only : prt_carbon_allom_hyp
-  use PRTGenericMod            , only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod            , only : carbon_only
+  use PRTGenericMod            , only : carbon_nitrogen_phosphorus
   use PRTGenericMod            , only : nitrogen_element
   use PRTGenericMod            , only : phosphorus_element
   use EDCohortDynamicsMod      , only : terminate_cohorts
@@ -554,7 +554,9 @@ contains
              
 
              ! allow herbivores to graze
-             call FatesGrazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height)
+             
+             call FatesGrazing(currentCohort%prt, ft, currentPatch%land_use_label, currentCohort%height,currentCohort%npp_acc, &
+                  currentCohort%treelai)
 
              ! Conduct Maintenance Turnover (parteh)
              if(debug) call currentCohort%prt%CheckMassConservation(ft,3)
@@ -738,7 +740,7 @@ contains
    ! Update history diagnostics related to Nutrients (if any)
    ! -----------------------------------------------------------------------------
    select case(hlm_parteh_mode)
-   case (prt_cnp_flex_allom_hyp)
+   case (carbon_nitrogen_phosphorus)
       call fates_hist%update_history_nutrflux(currentSite)
    end select
    
@@ -923,9 +925,8 @@ contains
     bc_out%seed_c_si = bc_out%seed_c_si * g_per_kg * AREA_INV
 
     ! Set boundary condition to HLM for carbon loss to atm from fires and grazing
-    ! [kgC/ha/day]*[ha/m2]*[day/s] = [kg/m2/s] 
-    
-    bc_out%fire_closs_to_atm_si = site_cmass%burn_flux_to_atm * area_inv * days_per_sec
+    ! [kgC/ha/day]*[ha/m2]*[day/s] = [kg/m2/s]     
+    bc_out%fire_closs_to_atm_si = sum(site_cmass%burn_flux_to_atm(:)) * area_inv * days_per_sec
     bc_out%grazing_closs_to_atm_si = site_cmass%herbivory_flux_out * area_inv * days_per_sec
 
   end subroutine ed_update_site
@@ -1015,9 +1016,10 @@ contains
                site_mass%flux_generic_in + &
                site_mass%patch_resize_err
 
+
           flux_out = sum(site_mass%wood_product_harvest(:)) + &
                sum(site_mass%wood_product_landusechange(:)) + &
-               site_mass%burn_flux_to_atm + &
+               sum(site_mass%burn_flux_to_atm(:)) + &
                site_mass%seed_out + &
                site_mass%flux_generic_out + &
                site_mass%frag_out + &
@@ -1051,7 +1053,7 @@ contains
           write(fates_log(),*) 'wood_product_harvest: ',site_mass%wood_product_harvest(:)
           write(fates_log(),*) 'wood_product_landusechange: ',site_mass%wood_product_landusechange(:)
           write(fates_log(),*) 'error from patch resizing: ',site_mass%patch_resize_err
-          write(fates_log(),*) 'burn_flux_to_atm: ',site_mass%burn_flux_to_atm
+          write(fates_log(),*) 'burn_flux_to_atm: ',site_mass%burn_flux_to_atm(:)
           write(fates_log(),*) 'seed_out: ',site_mass%seed_out
           write(fates_log(),*) 'flux_generic_out: ',site_mass%flux_generic_out
           write(fates_log(),*) 'frag_out: ',site_mass%frag_out

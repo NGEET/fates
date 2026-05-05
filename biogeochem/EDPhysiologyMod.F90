@@ -97,7 +97,6 @@ module EDPhysiologyMod
   use shr_log_mod           , only : errMsg => shr_log_errMsg
   use FatesGlobals          , only : fates_log
   use FatesGlobals          , only : endrun => fates_endrun
-  use EDParamsMod           , only : fates_mortality_disturbance_fraction
   use EDParamsMod           , only : q10_mr
   use EDParamsMod           , only : q10_froz
   use EDParamsMod           , only : logging_export_frac
@@ -118,8 +117,8 @@ module EDPhysiologyMod
   use FatesAllometryMod  , only : carea_allom
   use FatesAllometryMod  , only : CheckIntegratedAllometries
   use FatesAllometryMod, only : set_root_fraction
-  use PRTGenericMod, only : prt_carbon_allom_hyp
-  use PRTGenericMod, only : prt_cnp_flex_allom_hyp
+  use PRTGenericMod, only : carbon_only
+  use PRTGenericMod, only : carbon_nitrogen_phosphorus
   use PRTGenericMod, only : prt_vartypes
   use PRTGenericMod, only : leaf_organ
   use PRTGenericMod, only : sapw_organ, struct_organ
@@ -292,11 +291,18 @@ contains
 
     ccohort => cpatch%tallest
     do while (associated(ccohort))
-
+       
        ! Ignore damage to new plants and non-woody plants
-       if(prt_params%woody(ccohort%pft)==ifalse  ) cycle
-       if(ccohort%isnew ) cycle
+       if(prt_params%woody(ccohort%pft)==ifalse  ) then
+          ccohort => ccohort%shorter
+          cycle
+       end if
 
+       if(ccohort%isnew ) then
+          ccohort => ccohort%shorter
+          cycle
+       end if
+       
        associate( ipft     => ccohort%pft, &
                   agb_frac => prt_params%allom_agb_frac(ccohort%pft), &
                   branch_frac => param_derived%branch_frac(ccohort%pft))
@@ -2745,7 +2751,7 @@ contains
 
 
                   select case(hlm_parteh_mode)
-                  case (prt_carbon_allom_hyp, prt_cnp_flex_allom_hyp)
+                  case (carbon_only,carbon_nitrogen_phosphorus)
 
                      ! put all of the leaf mass into the first bin
                      call SetState(prt, leaf_organ, element_id, m_leaf, 1)
@@ -3344,7 +3350,7 @@ contains
 
     ! Difference in dbh (cm) to consider a plant was recruited fairly recently
 
-    if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
+    if (hlm_parteh_mode /= carbon_nitrogen_phosphorus) return
 
     rec_n(1:numpft,1:nclmax) = 0._r8
     rec_l2fr0(1:numpft,1:nclmax) = 0._r8
@@ -3406,7 +3412,7 @@ contains
     ! Update the total plant stoichiometry of a new recruit, based on the updated
     ! L2FR values
 
-    if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
+    if (hlm_parteh_mode /= carbon_nitrogen_phosphorus) return
 
     cpatch => csite%youngest_patch
     do while(associated(cpatch))
@@ -3444,7 +3450,7 @@ contains
     type(fates_cohort_type), pointer :: ccohort
     integer :: ft,cl
 
-    if(hlm_parteh_mode .ne. prt_cnp_flex_allom_hyp) return
+    if (hlm_parteh_mode /= carbon_nitrogen_phosphorus) return
 
     cpatch => csite%youngest_patch
     do while(associated(cpatch))
